@@ -1,5 +1,5 @@
 import numpy as np
-from .constants import log
+from .constants import log, tol
 
 from . import util
 from . import convex
@@ -7,7 +7,7 @@ from . import nsphere
 from . import geometry
 from . import grouping
 from . import triangles
-from . import transformations
+from . import transformations as tf
 
 try:
     # scipy is a soft dependency
@@ -88,15 +88,15 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # points to have a bounding box centered at the origin
     offset = -bounds[area_min][:2] - (rectangle * .5)
     theta = np.arctan2(*edge_vectors[area_min][::-1])
-    transform = transformations.planar_matrix(offset,
-                                              theta)
+    transform = tf.planar_matrix(
+        offset, theta)
 
     # we would like to consistently return an OBB with
     # the largest dimension along the X axis rather than
     # the long axis being arbitrarily X or Y.
     if np.less(*rectangle):
         # a 90 degree rotation
-        flip = transformations.planar_matrix(theta=np.pi / 2)
+        flip = tf.planar_matrix(theta=np.pi / 2)
         # apply the rotation
         transform = np.dot(flip, transform)
         # switch X and Y in the OBB extents
@@ -149,6 +149,12 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
         if util.is_shape(points, (-1, 2)):
             return oriented_bounds_2D(points)
         elif util.is_shape(points, (-1, 3)):
+
+            # now check for special cases
+            if points.ptp(axis=0).max() < tol.merge:
+                # case where there is a single unique point
+                return tf.translation_matrix(-points[0]), np.zeros(3)
+
             hull_obj = spatial.ConvexHull(points)
             vertices = hull_obj.points[hull_obj.vertices]
             hull_normals, valid = triangles.normals(
@@ -158,6 +164,17 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
     else:
         raise ValueError(
             'Oriented bounds must be passed a mesh or a set of points!')
+
+    """
+
+
+            vec = util.unitize(points - points[0], check_valid=True)[0]
+            if len(vec) == 0 or (np.isclose(vec, vec[0]) | np.isclose(vec, -vec[0])).all():
+                # case where there is a line
+                from IPython import embed
+                embed()
+
+    """
 
     # convert face normals to spherical coordinates on the upper hemisphere
     # the vector_hemisphere call effectivly merges negative but otherwise
@@ -174,7 +191,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
 
     # matrices which will rotate each hull normal to [0,0,1]
     if normal is None:
-        matrices = [np.linalg.inv(transformations.spherical_matrix(*s))
+        matrices = [np.linalg.inv(tf.spherical_matrix(*s))
                     for s in spherical_coords[spherical_unique]]
     else:
         # if explicit normal was passed use it
@@ -193,15 +210,15 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
             min_extents = np.append(box, height)
             min_2D = to_2D.copy()
             rotation_2D[:2, 2] = 0.0
-            rotation_Z = transformations.planar_matrix_to_3D(rotation_2D)
+            rotation_Z = tf.planar_matrix_to_3D(rotation_2D)
 
     # combine the 2D OBB transformation with the 2D projection transform
     to_origin = np.dot(rotation_Z, min_2D)
 
     # transform points using our matrix to find the translation for the
     # transform
-    transformed = transformations.transform_points(vertices,
-                                                   to_origin)
+    transformed = tf.transform_points(vertices,
+                                      to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0) * .5)
     to_origin[:3, 3] = -box_center
 
@@ -282,10 +299,10 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
         else:
             volume (float)
         """
-        to_2D = transformations.spherical_matrix(*spherical,
-                                                 axes='rxyz')
-        projected = transformations.transform_points(hull,
-                                                     matrix=to_2D)
+        to_2D = tf.spherical_matrix(*spherical,
+                                    axes='rxyz')
+        projected = tf.transform_points(hull,
+                                        matrix=to_2D)
         height = projected[:, 2].ptp()
 
         try:
@@ -299,7 +316,7 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
             center_3D = np.append(center_2D, projected[
                                   :, 2].min() + (height * .5))
             transform = np.dot(np.linalg.inv(to_2D),
-                               transformations.translation_matrix(center_3D))
+                               tf.translation_matrix(center_3D))
             return transform, radius, height
         return volume
 
@@ -318,13 +335,13 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
             origin=origin,
             normal=obj.symmetry_axis)
         # transform vertices to plane to check
-        on_plane = transformations.transform_points(
+        on_plane = tf.transform_points(
             obj.vertices, to_2D)
         # cylinder height is overall Z span
         height = on_plane[:, 2].ptp()
         # center mass is correct on plane, but position
         # along symmetry axis may be wrong so slide it
-        slide = transformations.translation_matrix(
+        slide = tf.translation_matrix(
             [0, 0, (height / 2.0) - on_plane[:, 2].max()])
         to_2D = np.dot(slide, to_2D)
         # radius is maximum radius

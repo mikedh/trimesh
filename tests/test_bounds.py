@@ -254,6 +254,38 @@ class BoundsTest(g.unittest.TestCase):
             for i, b in enumerate(bounds):
                 assert i in set(tree.intersection(b.ravel()))
 
+    def test_obb_edgecases(self):
+
+        # a single point in space
+        case_sphere = [[0, 102, 12.0]]
+        transform, extents = g.trimesh.bounds.oriented_bounds(case_sphere)
+        # obb size should be all zeros
+        assert g.np.allclose(extents, g.np.zeros(3))
+        # transform should move point back to the origin
+        assert g.np.allclose(
+            g.trimesh.transform_points(case_sphere, transform), 0.0)
+
+        # check a line in space
+        case_line = [[0, 0, 0], [0, 0, 1]]
+
+        # check another colinear case
+        case_line = [[0, 0, 0], [0, 0, 1], [0, 0, 213]]
+
+        case_plane = [[0, 0, 0], [1, 0, 0], [0, 1, 0]]
+
+        # single and double coplanar meshes
+        case_single_tri = g.trimesh.Trimesh(vertices=g.np.eye(3),
+                                            faces=[[0, 1, 2]])
+        case_double_tri = g.trimesh.Trimesh(vertices=g.np.eye(3),
+                                            faces=[[0, 1, 2], [2, 1, 0]])
+
+        # create a case with many random coplanar triangles
+        vertices = g.np.random.random(30).reshape((-1, 3))
+        vertices[:, 2] = 1
+        case_many_coplanar = g.trimesh.Trimesh(
+            vertices=vertices,
+            faces=g.np.arange(9).reshape((-1, 3)))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
