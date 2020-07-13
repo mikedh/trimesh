@@ -77,13 +77,30 @@ jobs:
     - name: Install Pytest
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-cov setuptools
+        pip install pytest pytest-cov coveralls setuptools
         pip debug install -vv shapely
     - name: Install Trimesh
       run: pip install .[easy]
     - name: Run Pytest
       run: pytest
-
+    - name: Upload Coverage
+      run: coveralls
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COVERALLS_FLAG_NAME: ${{ matrix.test-name }}
+        COVERALLS_PARALLEL: true
+  coveralls:
+    name: Upload Coverage Results
+    needs: test
+    runs-on: ubuntu-latest
+    container: python:3-slim
+    steps:
+    - name: Finished
+      run: |
+        pip3 install --upgrade coveralls
+        coveralls --finish
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   pypi:
     name: Release To PyPi
     needs: [tests, containers]
