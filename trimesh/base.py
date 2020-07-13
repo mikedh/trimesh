@@ -2109,10 +2109,7 @@ class Trimesh(Geometry):
         convex : trimesh.Trimesh
           Mesh of convex hull of current mesh
         """
-        if self.is_convex:
-            hull = convex.convex_hull(self)
-            return hull
-        return None
+        return convex.convex_hull(self)
 
     def sample(self, count, return_index=False):
         """
