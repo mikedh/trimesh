@@ -140,8 +140,6 @@ def group(values, min_len=0, max_len=np.inf):
     groups = [order[i:(i + j)]
               for i, j in zip(dupe_idx[dupe_ok],
                               dupe_len[dupe_ok])]
-    groups = np.array(groups)
-
     return groups
 
 
@@ -526,7 +524,7 @@ def group_rows(data, require_count=None, digits=None):
                 observed[key_string].append(index)
             else:
                 observed[key_string] = [index]
-        return np.array(list(observed.values()))
+        return list(observed.values())
 
     def group_slice():
         # create a representation of the rows that can be sorted

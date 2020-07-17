@@ -83,22 +83,6 @@ jobs:
       run: pip install .[easy]
     - name: Run Pytest
       run: pytest
-    - name: Coveralls Parallel
-      uses: coverallsapp/github-action@master
-      env:
-        COVERALLS_FLAG_NAME: run-${{ matrix.test_number }}
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel: true
-  coveralls:
-    needs: tests
-    runs-on: ubuntu-latest
-    steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel-finished: true
   pypi:
     name: Release To PyPi
     needs: [tests, containers]

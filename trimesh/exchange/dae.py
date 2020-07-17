@@ -4,12 +4,6 @@ import uuid
 
 import numpy as np
 
-try:
-    # pip install pycollada
-    import collada
-except BaseException:
-    collada = None
-
 from .. import util
 from .. import visual
 

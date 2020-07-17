@@ -187,7 +187,7 @@ def closed_paths(entities, vertices):
                                   graph,
                                   entities,
                                   vertices))
-    entity_paths = np.array(entity_paths)
+    entity_paths = entity_paths
     return entity_paths
 
 
