@@ -14,10 +14,10 @@ try:
 except BaseException as E:
     from .. import exceptions
     # re-raise the useful exception when called
-    closure = exceptions.closure(E)
-    Image = closure
-    ImageDraw = closure
-    ImageChops = closure
+    _handle = exceptions.ExceptionModule(E)
+    Image = _handle
+    ImageDraw = _handle
+    ImageChops = _handle
 
 
 def rasterize(path,
@@ -46,8 +46,8 @@ def rasterize(path,
 
     Returns
     ------------
-    raster : PIL.Image object mode 1
-      Rasterized version of input
+    raster : PIL.Image
+      Rasterized version of input as `mode 1` image
     """
 
     # check inputs
@@ -56,10 +56,10 @@ def rasterize(path,
 
     # if resolution is None make it larger than path
     if resolution is None:
-        span = np.vstack((path.bounds,
-                          origin)).ptp(
-                              axis=0)
+        span = np.vstack((
+            path.bounds, origin)).ptp(axis=0)
         resolution = np.ceil(span / pitch) + 2
+    # get resolution as a (2,) int tuple
     resolution = np.asanyarray(resolution,
                                dtype=np.int64)
     resolution = tuple(resolution.tolist())

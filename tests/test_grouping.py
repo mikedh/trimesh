@@ -221,7 +221,7 @@ class GroupTests(g.unittest.TestCase):
         c = g.np.vstack((b, b))
 
         gr = g.trimesh.grouping.group_rows(c)
-        assert gr.shape == (100, 2)
+        assert g.np.shape(gr) == (100, 2)
         assert g.np.allclose(c[gr].ptp(axis=1), 0.0)
 
         gr = g.trimesh.grouping.group_rows(c, require_count=2)
@@ -249,7 +249,7 @@ class GroupTests(g.unittest.TestCase):
         uv, ui = g.trimesh.grouping.group_vectors(vec)
         assert g.np.allclose(uv, vec)
         assert len(vec) == len(ui)
-        assert g.np.allclose(uv[ui.flatten()], vec)
+        assert g.np.allclose(uv[g.np.concatenate(ui)], vec)
 
         vec = g.np.vstack((vec, -vec))
         uv, ui = g.trimesh.grouping.group_vectors(vec)
@@ -260,7 +260,7 @@ class GroupTests(g.unittest.TestCase):
                                                   include_negative=True)
         # since we included negative vectors, there should
         # be half the number of unique vectors and 2 indexes per vector
-        assert ui.shape == (100, 2)
+        assert g.np.shape(ui) == (100, 2)
         assert uv.shape == (100, 3)
         assert g.np.allclose(uv, vec[:100])
 
