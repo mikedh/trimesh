@@ -664,7 +664,7 @@ def group_distance(values, distance):
         consumed[group] = True
         unique.append(np.median(values[group], axis=0))
         groups.append(group)
-    return np.array(unique), np.array(groups)
+    return np.array(unique), groups
 
 
 def clusters(points, radius):
