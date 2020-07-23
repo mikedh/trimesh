@@ -2274,7 +2274,7 @@ def decode_text(text, initial='utf-8'):
                 initial,
                 detect['encoding'],
                 detect['confidence']))
-        # try to decode again, unwrapped in try
+        # try to decode again, unwrap in try
         text = text.decode(detect['encoding'])
     return text
 
