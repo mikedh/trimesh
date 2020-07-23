@@ -1,5 +1,4 @@
 import os
-import logging
 import platform
 import subprocess
 
@@ -8,9 +7,7 @@ from tempfile import NamedTemporaryFile
 from subprocess import check_call
 
 from .. import exchange
-
-# create a default logger
-log = logging.getLogger('trimesh.interfaces')
+from ..util import log
 
 
 class MeshScript:
@@ -43,12 +40,12 @@ class MeshScript:
                 self.exchange),
             mode='rb',
             delete=False)
-        self.script_out = NamedTemporaryFile(mode='wb',
-                                             delete=False)
+        self.script_out = NamedTemporaryFile(
+            mode='wb', delete=False)
 
         # export the meshes to a temporary STL container
         for mesh, file_obj in zip(self.meshes, self.mesh_pre):
-            mesh.export(file_obj.name)
+            mesh.export(file_obj=file_obj.name)
 
         self.replacement = {'MESH_' + str(i): m.name
                             for i, m in enumerate(self.mesh_pre)}
@@ -60,7 +57,6 @@ class MeshScript:
         script_text = Template(self.script).substitute(self.replacement)
         if platform.system() == 'Windows':
             script_text = script_text.replace('\\', '\\\\')
-
         self.script_out.write(script_text.encode('utf-8'))
 
         # close all temporary files
@@ -94,8 +90,8 @@ class MeshScript:
                        startupinfo=startupinfo)
 
         # bring the binaries result back as a set of Trimesh kwargs
-        mesh_results = exchange.load.load_mesh(self.mesh_post.name,
-                                               **self.kwargs)
+        mesh_results = exchange.load.load_mesh(
+            self.mesh_post.name, **self.kwargs)
 
         return mesh_results
 

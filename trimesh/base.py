@@ -2070,17 +2070,21 @@ class Trimesh(Geometry):
     def slice_plane(self,
                     plane_origin,
                     plane_normal,
+                    cap=False,
                     **kwargs):
         """
         Slice the mesh with a plane, returning a new mesh that is the
         portion of the original mesh to the positive normal side of the plane
 
-        Parameters
-        ------------
-        plane_normal: (3) vector for plane normal
-          Normal vector of slicing plane
-        plane_origin : (3, ) float
-          Point on the slicing plane
+        plane_origin :  (3,) float
+          Point on plane to intersect with mesh
+        plane_normal : (3,) float
+          Normal vector of plane to intersect with mesh
+        cap : bool
+          If True, cap the result with a triangulated polygon
+        cached_dots : (n, 3) float
+            If an external function has stored dot
+            products pass them here to avoid recomputing
 
         Returns
         ---------
@@ -2094,6 +2098,7 @@ class Trimesh(Geometry):
             mesh=self,
             plane_normal=plane_normal,
             plane_origin=plane_origin,
+            cap=cap,
             **kwargs)
 
         return new_mesh
