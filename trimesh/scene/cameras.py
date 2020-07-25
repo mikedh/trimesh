@@ -225,7 +225,7 @@ class Camera(object):
             self._focal_computed = True
             values = np.asanyarray(values, dtype=np.float64)
             if values.shape != (2,):
-                raise ValueError('focal length must be (2,) int')
+                raise ValueError('fov length must be (2,) int')
             values.flags.writeable = False
             # assign passed values to FOV
             self._fov = values

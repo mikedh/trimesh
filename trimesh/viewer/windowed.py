@@ -814,7 +814,7 @@ def geometry_hash(geometry):
     elif hasattr(geometry, 'md5'):
         h = geometry.md5()
     elif hasattr(geometry, 'tostring'):
-        # for unwrapped ndarray objects
+        # for unwrap ndarray objects
         h = str(hash(geometry.tostring()))
 
     if hasattr(geometry, 'visual'):

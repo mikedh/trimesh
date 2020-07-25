@@ -13,6 +13,7 @@ from . import poses
 from . import graph
 from . import sample
 from . import repair
+from . import unwrap
 from . import convex
 from . import remesh
 from . import bounds
@@ -2070,17 +2071,21 @@ class Trimesh(Geometry):
     def slice_plane(self,
                     plane_origin,
                     plane_normal,
+                    cap=False,
                     **kwargs):
         """
         Slice the mesh with a plane, returning a new mesh that is the
         portion of the original mesh to the positive normal side of the plane
 
-        Parameters
-        ------------
-        plane_normal: (3) vector for plane normal
-          Normal vector of slicing plane
-        plane_origin : (3, ) float
-          Point on the slicing plane
+        plane_origin :  (3,) float
+          Point on plane to intersect with mesh
+        plane_normal : (3,) float
+          Normal vector of plane to intersect with mesh
+        cap : bool
+          If True, cap the result with a triangulated polygon
+        cached_dots : (n, 3) float
+            If an external function has stored dot
+            products pass them here to avoid recomputing
 
         Returns
         ---------
@@ -2094,9 +2099,29 @@ class Trimesh(Geometry):
             mesh=self,
             plane_normal=plane_normal,
             plane_origin=plane_origin,
+            cap=cap,
             **kwargs)
 
         return new_mesh
+
+    def unwrap(self, **kwargs):
+        """
+        Returns a Trimesh object equivalent to the current mesh where
+        the vertices have been assigned uv texture coordinates.
+
+        The vertices may be split into as many as necessary
+        by the unwrapping algorithm, depending on how many uv maps
+        they appear in.
+
+        Requires blender.
+
+        Returns
+        --------
+        unwrapped : trimesh.Trimesh
+          Mesh with unwrapped uv coordinates
+        """
+        result = unwrap.unwrap(self, **kwargs)
+        return result
 
     @caching.cache_decorator
     def convex_hull(self):

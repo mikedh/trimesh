@@ -1001,7 +1001,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                         kwargs['vertex_colors'] = colors
                 except BaseException:
                     # survive failed colors
-                    pass
+                    log.debug('failed colors', exc_info=True)
 
             # create a unique mesh name per- primitive
             if "name" in m:
