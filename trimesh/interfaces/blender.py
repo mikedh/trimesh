@@ -11,6 +11,7 @@ import platform
 
 _search_path = os.environ['PATH']
 if platform.system() == 'Windows':
+    # try to find Blender install on Windows
     # split existing path by delimiter
     _search_path = [i for i in _search_path.split(';') if len(i) > 0]
     for pf in [r'C:\Program Files',
@@ -24,6 +25,7 @@ if platform.system() == 'Windows':
     log.debug('searching for blender in: %s', _search_path)
 
 if platform.system() == 'Darwin':
+    # try to find Blender on Mac OSX
     _search_path = [i for i in _search_path.split(':') if len(i) > 0]
     _search_path.append('/Applications/blender.app/Contents/MacOS')
     _search_path.append('/Applications/Blender.app/Contents/MacOS')
@@ -36,6 +38,9 @@ exists = _blender_executable is not None
 
 
 def boolean(meshes, operation='difference', debug=False):
+    """
+    Run a boolean operation with multiple meshes using Blender.
+    """
     if not exists:
         raise ValueError('No blender available!')
     operation = str.upper(operation)
@@ -60,6 +65,9 @@ def boolean(meshes, operation='difference', debug=False):
 
 
 def unwrap(mesh, angle_limit=66, island_margin=0.0, debug=False):
+    """
+    Run an unwrap operation using blender.
+    """
     if not exists:
         raise ValueError('No blender available!')
 

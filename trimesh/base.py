@@ -13,6 +13,7 @@ from . import poses
 from . import graph
 from . import sample
 from . import repair
+from . import unwrap
 from . import convex
 from . import remesh
 from . import bounds
@@ -33,7 +34,6 @@ from . import registration
 from . import decomposition
 from . import intersections
 from . import transformations
-from . import unwrap
 
 from .visual import create_visual
 from .exchange.export import export_mesh
@@ -2106,12 +2106,14 @@ class Trimesh(Geometry):
 
     def unwrap(self, **kwargs):
         """
-        Returns a Trimesh object equivalent to the current mesh,
-        where the vertices have been assigned uv texture coordinates.
+        Returns a Trimesh object equivalent to the current mesh where
+        the vertices have been assigned uv texture coordinates.
 
         The vertices may be split into as many as necessary
         by the unwrapping algorithm, depending on how many uv maps
-        they appear in
+        they appear in.
+
+        Requires blender.
 
         Returns
         --------
