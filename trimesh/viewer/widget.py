@@ -142,6 +142,7 @@ class SceneWidget(glooey.Widget):
         self.reset_view()
 
         self._background = kwargs.pop('background', None)
+        self._smooth = kwargs.pop('smooth', True)
         if kwargs:
             raise TypeError('unexpected kwargs: {}'.format(kwargs))
 
@@ -274,7 +275,7 @@ class SceneWidget(glooey.Widget):
                 self.vertex_list[geometry_name].delete()
 
             # convert geometry to constructor args
-            args = rendering.convert_to_vertexlist(geometry, group=mesh_group)
+            args = rendering.convert_to_vertexlist(geometry, group=mesh_group, smooth=self._smooth)
             # create the indexed vertex list
             self.vertex_list[geometry_name] = self.batch.add_indexed(*args)
             # save the MD5 of the geometry
