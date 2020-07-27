@@ -577,7 +577,7 @@ def _append_mesh(mesh,
     assert len(buffer_items) >= tree['accessors'][-1]['bufferView']
 
     # check to see if we have vertex or face colors
-    if mesh.visual.kind in ['vertex', 'face']:
+    if mesh.visual.kind in ['vertex', 'face'] or hasattr(mesh.visual, 'vertex_colors'):
         # make sure colors are RGBA, this should always be true
         vertex_colors = mesh.visual.vertex_colors
         # add the reference for vertex color
@@ -595,13 +595,15 @@ def _append_mesh(mesh,
             "byteOffset": 0})
         # the actual color data
         buffer_items.append(color_data)
-    elif hasattr(mesh.visual, 'material'):
+
+    if hasattr(mesh.visual, 'material'):
         # append the material and then set from returned index
         tree["meshes"][-1]["primitives"][0]["material"] = _append_material(
             mat=mesh.visual.material,
             tree=tree,
             buffer_items=buffer_items,
             mat_hashes=mat_hashes)
+
         # if mesh has UV coordinates defined export them
         has_uv = (hasattr(mesh.visual, 'uv') and
                   mesh.visual.uv is not None and
