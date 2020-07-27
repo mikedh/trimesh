@@ -146,9 +146,9 @@ class CreationTest(g.unittest.TestCase):
         Basic tests of annular cylinder creation
         """
 
+        # run through transforms
         transforms = [None]
         transforms.extend(g.transforms)
-
         for T in transforms:
             a = g.trimesh.creation.annulus(r_min=1.0,
                                            r_max=2.0,
@@ -178,6 +178,30 @@ class CreationTest(g.unittest.TestCase):
             # all heights should be at +/- height/2.0
             assert g.np.allclose(g.np.abs(g.np.dot(a.vertices,
                                                    axis[2])), 0.5)
+
+        # do some cylinder comparison checks
+        a = g.trimesh.creation.annulus(r_min=0.0,
+                                       r_max=1.0,
+                                       height=1.0)
+        cylinder = g.trimesh.creation.cylinder(radius=1, height=1)
+        # should survive a zero-inner-radius
+        assert g.np.isclose(a.volume, cylinder.volume)
+        assert g.np.isclose(a.area, cylinder.area)
+
+        # bounds should be the same as a cylinder
+        a = g.trimesh.creation.annulus(r_min=.25,
+                                       r_max=1.0,
+                                       height=1.0)
+        c = g.trimesh.creation.cylinder(radius=1, height=1)
+        assert g.np.allclose(a.bounds, c.bounds)
+
+        # segment should work the same for both
+        seg = [[1, 2, 3], [4, 5, 6]]
+        a = g.trimesh.creation.annulus(r_min=.25,
+                                       r_max=1.0,
+                                       segment=seg)
+        c = g.trimesh.creation.cylinder(radius=1, segment=seg)
+        assert g.np.allclose(a.bounds, c.bounds)
 
     def test_triangulate(self):
         """

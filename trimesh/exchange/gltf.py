@@ -577,9 +577,16 @@ def _append_mesh(mesh,
     assert len(buffer_items) >= tree['accessors'][-1]['bufferView']
 
     # check to see if we have vertex or face colors
+    # or if a TextureVisual has colors included as an attribute
     if mesh.visual.kind in ['vertex', 'face']:
-        # make sure colors are RGBA, this should always be true
         vertex_colors = mesh.visual.vertex_colors
+    elif (hasattr(mesh.visual, 'vertex_attributes') and
+          'color' in mesh.visual.vertex_attributes):
+        vertex_colors = mesh.visual.vertex_attributes['color']
+    else:
+        vertex_colors = None
+
+    if vertex_colors is not None:
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "COLOR_0"] = len(tree["accessors"])
@@ -595,13 +602,15 @@ def _append_mesh(mesh,
             "byteOffset": 0})
         # the actual color data
         buffer_items.append(color_data)
-    elif hasattr(mesh.visual, 'material'):
+
+    if hasattr(mesh.visual, 'material'):
         # append the material and then set from returned index
         tree["meshes"][-1]["primitives"][0]["material"] = _append_material(
             mat=mesh.visual.material,
             tree=tree,
             buffer_items=buffer_items,
             mat_hashes=mat_hashes)
+
         # if mesh has UV coordinates defined export them
         has_uv = (hasattr(mesh.visual, 'uv') and
                   mesh.visual.uv is not None and
@@ -980,6 +989,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                     dtype=np.int64).reshape((-1, 3))
 
             # do we have UV coordinates
+            visuals = None
             if "material" in p:
                 if materials is None:
                     log.warning('no materials! `pip install pillow`')
@@ -991,17 +1001,24 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                         uv = access[p["attributes"]["TEXCOORD_0"]].copy()
                         uv[:, 1] = 1.0 - uv[:, 1]
                         # create a texture visual
-                    kwargs["visual"] = visual.texture.TextureVisuals(
+                    visuals = visual.texture.TextureVisuals(
                         uv=uv, material=materials[p["material"]])
-            elif 'COLOR_0' in p['attributes']:
+            if 'COLOR_0' in p['attributes']:
                 try:
                     # try to load vertex colors from the accessors
                     colors = access[p['attributes']['COLOR_0']]
                     if len(colors) == len(kwargs['vertices']):
-                        kwargs['vertex_colors'] = colors
+                        if visuals is None:
+                            # just pass to mesh as vertex color
+                            kwargs['vertex_colors'] = colors
+                        else:
+                            # we ALSO have texture so save as vertex attribute
+                            visuals.vertex_attributes['color'] = colors
                 except BaseException:
                     # survive failed colors
-                    log.debug('failed colors', exc_info=True)
+                    log.debug('failed to load colors', exc_info=True)
+            if visuals is not None:
+                kwargs['visual'] = visuals
 
             # create a unique mesh name per- primitive
             if "name" in m:

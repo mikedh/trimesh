@@ -33,9 +33,9 @@ class TextureVisuals(Visuals):
         """
 
         # store values we care about enough to hash
-        self._data = caching.DataStore()
+        self.vertex_attributes = caching.DataStore()
         # cache calculated values
-        self._cache = caching.Cache(self._data.fast_hash)
+        self._cache = caching.Cache(self.vertex_attributes.fast_hash)
 
         # should be (n, 2) float
         self.uv = uv
@@ -52,7 +52,7 @@ class TextureVisuals(Visuals):
 
     def _verify_crc(self):
         """
-        Dump the cache if anything in self._data has changed.
+        Dump the cache if anything in self.vertex_attributes has changed.
         """
         self._cache.verify()
 
@@ -88,9 +88,9 @@ class TextureVisuals(Visuals):
         Returns
         --------------
         crc : int
-          Hash of items in self._data
+          Hash of items in self.vertex_attributes
         """
-        return self._data.crc()
+        return self.vertex_attributes.crc()
 
     @property
     def uv(self):
@@ -102,9 +102,7 @@ class TextureVisuals(Visuals):
         uv : (n, 2) float
           Pixel position per- vertex
         """
-        if 'uv' in self._data:
-            return self._data['uv']
-        return None
+        return self.vertex_attributes.get('uv', None)
 
     @uv.setter
     def uv(self, values):
@@ -117,9 +115,9 @@ class TextureVisuals(Visuals):
           Pixel locations on a texture per- vertex
         """
         if values is None:
-            self._data.clear()
+            self.vertex_attributes['uv'] = None
         else:
-            self._data['uv'] = np.asanyarray(
+            self.vertex_attributes['uv'] = np.asanyarray(
                 values, dtype=np.float64)
 
     def copy(self):
@@ -165,13 +163,29 @@ class TextureVisuals(Visuals):
     def update_vertices(self, mask):
         """
         Apply a mask to remove or duplicate vertex properties.
+
+        Parameters
+        ------------
+        mask : (len(vertices),) bool or (n,) int
+          Mask which can be used like: `vertex_attribute[mask]`
         """
-        if self.uv is not None:
-            self.uv = self.uv[mask]
+        # collect updated masked values
+        updates = {}
+        for key, value in self.vertex_attributes.items():
+            # DataStore will convert None to zero-length array
+            if len(value) == 0:
+                continue
+            # store the update
+            updates[key] = value[mask]
+        # clear all values from the vertex attributes
+        self.vertex_attributes.clear()
+        # apply the updated values
+        self.vertex_attributes.update(updates)
 
     def update_faces(self, mask):
         """
-        Apply a mask to remove or duplicate face properties
+        Apply a mask to remove or duplicate face properties,
+        not applicable to texture visuals.
         """
         pass
 

@@ -569,8 +569,7 @@ def ply_ascii(elements, file_obj):
     lines = str.splitlines(text)
 
     # get each line as an array split by whitespace
-    array = np.array([np.fromstring(i, sep=' ')
-                      for i in lines])
+    array = [np.fromstring(i, sep=' ') for i in lines]
 
     # store the line position in the file
     row_pos = 0
