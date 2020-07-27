@@ -385,6 +385,24 @@ class GLTFTest(g.unittest.TestCase):
         assert g.np.allclose(m.visual.vertex_colors,
                              r.visual.vertex_colors)
 
+    def test_vertex_attrib(self):
+        # test concatenation with texture
+        m = g.get_mesh('fuze.obj')
+
+        colors = (g.np.random.random(
+            (len(m.vertices), 4)) * 255).astype(g.np.uint8)
+
+        # set the color vertex attribute
+        m.visual.vertex_attributes['color'] = colors
+        r = next(iter(
+            g.trimesh.load(g.trimesh.util.wrap_as_stream(
+                m.export(file_type='glb')),
+                file_type='glb').geometry.values()))
+
+        # make sure the color vertex attributes survived the roundtrip
+        assert g.np.allclose(
+            r.visual.vertex_attributes['color'], colors)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
