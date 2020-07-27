@@ -276,8 +276,8 @@ class SceneWidget(glooey.Widget):
 
             # convert geometry to constructor args
             args = rendering.convert_to_vertexlist(
-                geometry, 
-                group=mesh_group, 
+                geometry,
+                group=mesh_group,
                 smooth=self._smooth)
             # create the indexed vertex list
             self.vertex_list[geometry_name] = self.batch.add_indexed(*args)
