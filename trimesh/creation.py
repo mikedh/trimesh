@@ -874,20 +874,8 @@ def cylinder(radius,
     """
 
     if segment is not None:
-        segment = np.asanyarray(segment, dtype=np.float64)
-        if segment.shape != (2, 3):
-            raise ValueError('segment must be 2 3D points!')
-        vector = segment[1] - segment[0]
-        # override height with segment length
-        height = np.linalg.norm(vector)
-        # point in middle of line
-        midpoint = segment[0] + (vector * 0.5)
-        # align Z with our desired direction
-        rotation = align_vectors([0, 0, 1], vector)
-        # translate to midpoint of segment
-        translation = tf.translation_matrix(midpoint)
-        # compound the rotation and translation
-        transform = np.dot(translation, rotation)
+        # override transform and height with the segment
+        transform, height = _segment_to_cylinder(segment=segment)
 
     if height is None:
         raise ValueError('either `height` or `segment` must be passed!')
@@ -906,9 +894,10 @@ def cylinder(radius,
 
 def annulus(r_min,
             r_max,
-            height,
+            height=None,
             sections=None,
             transform=None,
+            segment=None,
             **kwargs):
     """
     Create a mesh of an annular cylinder along Z centered at the origin.
@@ -925,6 +914,8 @@ def annulus(r_min,
       How many pie wedges should the annular cylinder have
     transform : (4, 4) float or None
       Transform to apply to move result from the origin
+    segment : None or (2, 3) float
+      Override transform and height with a line segment
     **kwargs:
         passed to Trimesh to create annulus
 
@@ -933,6 +924,13 @@ def annulus(r_min,
     annulus : trimesh.Trimesh
       Mesh of annular cylinder
     """
+    if segment is not None:
+        # override transform and height with the segment if passed
+        transform, height = _segment_to_cylinder(segment=segment)
+
+    if height is None:
+        raise ValueError('either `height` or `segment` must be passed!')
+
     r_min = abs(float(r_min))
     # if center radius is zero this is a cylinder
     if r_min < tol.merge:
@@ -957,6 +955,40 @@ def annulus(r_min,
                       **kwargs)
 
     return annulus
+
+
+def _segment_to_cylinder(segment):
+    """
+    Convert a line segment to a transform and height for a cylinder
+    or cylinder-like primitive.
+
+    Parameters
+    -----------
+    segment : (2, 3) float
+      3D line segment in space
+
+    Returns
+    -----------
+    transform : (4, 4) float
+      Matrix to move a Z-extruded origin cylinder to segment
+    height : float
+      The height of the cylinder needed
+    """
+    segment = np.asanyarray(segment, dtype=np.float64)
+    if segment.shape != (2, 3):
+        raise ValueError('segment must be 2 3D points!')
+    vector = segment[1] - segment[0]
+    # override height with segment length
+    height = np.linalg.norm(vector)
+    # point in middle of line
+    midpoint = segment[0] + (vector * 0.5)
+    # align Z with our desired direction
+    rotation = align_vectors([0, 0, 1], vector)
+    # translate to midpoint of segment
+    translation = tf.translation_matrix(midpoint)
+    # compound the rotation and translation
+    transform = np.dot(translation, rotation)
+    return transform, height
 
 
 def random_soup(face_count=100):
