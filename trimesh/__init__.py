@@ -24,15 +24,24 @@ from .transformations import transform_points
 from .constants import tol
 
 # loader functions
-from .exchange.load import (load,
-                            load_mesh,
-                            load_path,
-                            load_remote,
-                            available_formats)
+from .exchange.load import (
+    load,
+    load_mesh,
+    load_path,
+    load_remote,
+    available_formats)
 
 # avoid a circular import in trimesh.base
 from . import voxel
 from . import primitives
+
+try:
+    # handle vector paths
+    from . import path
+except BaseException as E:
+    # raise a useful error if path hasn't loaded
+    from .exceptions import ExceptionModule
+    path = ExceptionModule(E)
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
@@ -43,6 +52,7 @@ __all__ = [__version__,
            'voxel',
            'unitize',
            'tol',
+           'path',
            'load',
            'load_mesh',
            'load_path',

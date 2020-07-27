@@ -29,23 +29,10 @@ try:
     from ..path.exchange.load import load_path, path_formats
 except BaseException as E:
     # save a traceback to see why path didn't import
-    _path_exception = E
-
-    def load_path(*args, **kwargs):
-        """
-        Dummy load path function that will raise an exception
-        on use. Import of path failed, probably because a
-        dependency is not installed.
-
-        Raises
-        ----------
-        path_exception : BaseException
-          Whatever failed when we imported path
-        """
-        raise _path_exception
-
-    def path_formats():
-        return []
+    from ..exceptions import closure
+    load_path = closure(E)
+    # no path formats available
+    path_formats = lambda: []
 
 
 def mesh_formats():

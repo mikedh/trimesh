@@ -1,7 +1,5 @@
+import json
 import numpy as np
-
-from string import Template
-
 
 from ..arc import arc_center
 from ..entities import Line, Arc, Bezier
@@ -71,18 +69,22 @@ def svg_to_path(file_obj, file_type=None):
             return util.multi_dot(matrices[::-1])
 
     # first parse the XML
-    xml = etree.fromstring(file_obj.read())
-
+    tree = etree.fromstring(file_obj.read())
     # store paths and transforms as
     # (path string, 3x3 matrix)
     paths = []
-
     # store every path element
-    for element in xml.iter('{*}path'):
+    for element in tree.iter('{*}path'):
         paths.append((element.attrib['d'],
                       element_transform(element)))
 
-    return _svg_path_convert(paths)
+    try:
+        meta_key = '{http://github.com/mikedh/trimesh}metadata'
+        metadata = json.loads(
+            tree.attrib[meta_key].replace("'", '"'))
+    except BaseException:
+        metadata = None
+    return _svg_path_convert(paths=paths, metadata=metadata)
 
 
 def transform_to_matrices(transform):
@@ -153,7 +155,7 @@ def transform_to_matrices(transform):
     return matrices
 
 
-def _svg_path_convert(paths):
+def _svg_path_convert(paths, metadata=None):
     """
     Convert an SVG path string into a Path2D object
 
@@ -260,9 +262,11 @@ def _svg_path_convert(paths):
                 count += len(vertices[-1])
 
     # store results as kwargs and stack vertices
-    loaded = {'entities': np.array(entities),
+    kwargs = {'metadata': metadata,
+              'entities': entities,
               'vertices': np.vstack(vertices)}
-    return loaded
+
+    return kwargs
 
 
 def export_svg(drawing,
@@ -293,7 +297,7 @@ def export_svg(drawing,
     points = drawing.vertices.view(np.ndarray).copy()
 
     # fetch the export template for SVG files
-    template_svg = Template(resources.get('svg.template.xml'))
+    template_svg = resources.get('svg.template.xml', decode=True)
 
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
@@ -387,11 +391,24 @@ def export_svg(drawing,
         stroke_width = float(kwargs['stroke_width'])
     else:
         stroke_width = drawing.extents.max() / 800.0
+
+    metadata = ''
+    try:
+        # store metadata in XML as JSON -_-
+        metadata = util.jsonify(
+            drawing.metadata,
+            separators=(',', ':')).replace(
+                '"', "'")
+    except BaseException:
+        # otherwise skip metadata
+        metadata = ''
+
     subs = {'PATH_STRING': path_str,
             'MIN_X': points[:, 0].min(),
             'MIN_Y': points[:, 1].min(),
             'WIDTH': drawing.extents[0],
             'HEIGHT': drawing.extents[1],
-            'STROKE': stroke_width}
-    result = template_svg.substitute(subs)
+            'STROKE': stroke_width,
+            'metadata': metadata}
+    result = template_svg.format(**subs)
     return result

@@ -174,7 +174,7 @@ def closed_paths(entities, vertices):
     # add entities that are closed as single- entity paths
     entity_paths = np.reshape(closed, (-1, 1)).tolist()
     # look for cycles in the graph, or closed loops
-    vertex_paths = np.array(nx.cycles.cycle_basis(graph))
+    vertex_paths = nx.cycles.cycle_basis(graph)
 
     # loop through every vertex cycle
     for vertex_path in vertex_paths:

@@ -1411,6 +1411,10 @@ def concatenate(a, b=None):
     # stack meshes into flat list
     meshes = np.append(a, b)
 
+    # if there is only one mesh just return the first
+    if len(meshes) == 1:
+        return meshes[0].copy()
+
     # extract the trimesh type to avoid a circular import
     # and assert that both inputs are Trimesh objects
     trimesh_type = type_named(meshes[0], 'Trimesh')
@@ -1423,16 +1427,16 @@ def concatenate(a, b=None):
     # only save face normals if already calculated
     face_normals = None
     if all('face_normals' in m._cache for m in meshes):
-        face_normals = np.vstack([m.face_normals
-                                  for m in meshes])
+        face_normals = np.vstack(
+            [m.face_normals for m in meshes])
 
     try:
         # concatenate visuals
         visual = meshes[0].visual.concatenate(
             [m.visual for m in meshes[1:]])
     except BaseException:
-        log.warning('failed to combine visuals',
-                    exc_info=True)
+        log.warning(
+            'failed to combine visuals', exc_info=True)
         visual = None
     # create the mesh object
     mesh = trimesh_type(vertices=vertices,
