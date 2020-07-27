@@ -275,7 +275,10 @@ class SceneWidget(glooey.Widget):
                 self.vertex_list[geometry_name].delete()
 
             # convert geometry to constructor args
-            args = rendering.convert_to_vertexlist(geometry, group=mesh_group, smooth=self._smooth)
+            args = rendering.convert_to_vertexlist(
+                geometry, 
+                group=mesh_group, 
+                smooth=self._smooth)
             # create the indexed vertex list
             self.vertex_list[geometry_name] = self.batch.add_indexed(*args)
             # save the MD5 of the geometry
