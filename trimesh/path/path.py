@@ -680,7 +680,7 @@ class Path(object):
         """
         if len(entity_ids) == 0:
             return
-        keep = np.ones(len(self.entities))
+        keep = np.ones(len(self.entities), dtype=bool)
         keep[entity_ids] = False
         self.entities = self.entities[keep]
 
