@@ -32,7 +32,7 @@ except BaseException as E:
     from ..exceptions import closure
     load_path = closure(E)
     # no path formats available
-    path_formats = lambda: []
+    def path_formats(): return []
 
 
 def mesh_formats():

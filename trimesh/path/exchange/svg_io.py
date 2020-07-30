@@ -29,6 +29,9 @@ except BaseException as E:
     # someone actually tries to use the module
     etree = exceptions.ExceptionModule(E)
 
+# store any additional properties using a trimesh namespace
+_namespace = '{http://github.com/mikedh/trimesh}'
+
 
 def svg_to_path(file_obj, file_type=None):
     """
@@ -79,9 +82,9 @@ def svg_to_path(file_obj, file_type=None):
                       element_transform(element)))
 
     try:
-        meta_key = '{http://github.com/mikedh/trimesh}metadata'
         metadata = json.loads(
-            tree.attrib[meta_key].replace("'", '"'))
+            tree.attrib['{}metadata'.format(_namespace)].replace(
+                "'", '"'))
     except BaseException:
         metadata = None
     return _svg_path_convert(paths=paths, metadata=metadata)
@@ -296,9 +299,6 @@ def export_svg(drawing,
     # copy the points and make sure they're not a TrackedArray
     points = drawing.vertices.view(np.ndarray).copy()
 
-    # fetch the export template for SVG files
-    template_svg = resources.get('svg.template.xml', decode=True)
-
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
         path_str = ' M ' + format(center[0] - radius, res.export) + ','
@@ -375,13 +375,10 @@ def export_svg(drawing,
         else:
             # just export the polyline version of the entity
             return svg_discrete(entity, reverse=False)
-
     # convert each entity to an SVG entity
     converted = [convert_entity(e) for e in drawing.entities]
-
     # append list of converted into a string
     path_str = ''.join(converted).strip()
-
     # return path string without XML wrapping
     if return_path:
         return path_str
@@ -390,25 +387,34 @@ def export_svg(drawing,
     if 'stroke_width' in kwargs:
         stroke_width = float(kwargs['stroke_width'])
     else:
+        # set stroke to something OK looking
         stroke_width = drawing.extents.max() / 800.0
 
-    metadata = ''
+    attribs = []
     try:
         # store metadata in XML as JSON -_-
-        metadata = util.jsonify(
-            drawing.metadata,
-            separators=(',', ':')).replace(
-                '"', "'")
+        attribs.append('{}="{}"'.format(
+            _namespace,
+            util.jsonify(drawing.metadata,
+                         separators=(',', ':')).replace('"', "'")))
+
     except BaseException:
         # otherwise skip metadata
-        metadata = ''
+        pass
 
-    subs = {'PATH_STRING': path_str,
-            'MIN_X': points[:, 0].min(),
-            'MIN_Y': points[:, 1].min(),
-            'WIDTH': drawing.extents[0],
-            'HEIGHT': drawing.extents[1],
-            'STROKE': stroke_width,
-            'metadata': metadata}
+    # fetch the export template for the base SVG file
+    template_svg = resources.get('svg.base.template', decode=True)
+    template_path = resources.get('svg.path.template', decode=True)
+
+    elements = template_path.format(path_string=path_str)
+
+    subs = {'elements': elements,
+            'min_x': points[:, 0].min(),
+            'min_y': points[:, 1].min(),
+            'width': drawing.extents[0],
+            'height': drawing.extents[1],
+            'stroke_width': stroke_width,
+            'attribs': '\n'.join(attribs)}
+
     result = template_svg.format(**subs)
     return result

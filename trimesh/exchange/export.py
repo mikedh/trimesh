@@ -81,7 +81,6 @@ def export_mesh(mesh, file_obj, file_type=None, resolver=None, **kwargs):
         result = util.write_encoded(file_obj, export)
     else:
         result = export
-
     if was_opened:
         file_obj.close()
 
@@ -184,6 +183,73 @@ def scene_to_dict(scene, use_base64=False):
             # might be that someone replaced the mesh with a URL
             export['geometry'][geometry_name] = geometry
     return export
+
+
+def export_scene(scene, file_obj, file_type=None, **kwargs):
+    """
+    Export a snapshot of the current scene.
+
+    Parameters
+    ----------
+    file_obj : str, file-like, or None
+      File object to export to
+    file_type : str or None
+      What encoding to use for meshes
+      IE: dict, dict64, stl
+
+    Returns
+    ----------
+    export : bytes
+      Only returned if file_obj is None
+    """
+    # if we weren't passed a file type extract from file_obj
+    if file_type is None:
+        if util.is_string(file_obj):
+            file_type = str(file_obj).split('.')[-1]
+        else:
+            raise ValueError('file_type not specified!')
+
+    # always remove whitepace and leading characters
+    file_type = file_type.strip().lower().lstrip('.')
+
+    # now handle our different scene export types
+    if file_type == 'gltf':
+        data = export_gltf(scene, **kwargs)
+    elif file_type == 'glb':
+        data = export_glb(scene, **kwargs)
+    elif file_type == 'dict':
+        data = scene_to_dict(scene)
+    elif file_type == 'obj':
+        resolver = None
+        if util.is_string(file_obj):
+            from .. import resolvers
+            resolver = resolvers.FilePathResolver(file_obj)
+        data = export_obj(scene, resolver=resolver)
+    elif file_type == 'dict64':
+        data = scene_to_dict(scene, use_base64=True)
+    elif file_type == 'svg':
+        from trimesh.path.exchange import svg_io
+
+        from IPython import embed
+        embed()
+
+    else:
+        raise ValueError(
+            'unsupported export format: {}'.format(file_type))
+
+    # now write the data or return bytes of result
+    if hasattr(file_obj, 'write'):
+        # if it's just a regular file object
+        return util.write_encoded(file_obj, data)
+    elif util.is_string(file_obj):
+        # assume strings are file paths
+        file_path = os.path.expanduser(
+            os.path.abspath(file_obj))
+        with open(file_path, 'wb') as f:
+            util.write_encoded(f, data)
+
+    # no writeable file object so return data
+    return data
 
 
 def export_json(mesh):

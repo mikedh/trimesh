@@ -1,0 +1,6 @@
+ <path d="{path_string}"
+       fill="{fill}"
+       stroke="black"
+	stroke-width="{stroke_width}"
+	stroke-linejoin="round"
+	stroke-linecap="round" {attribs}/>

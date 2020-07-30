@@ -257,7 +257,7 @@ class Camera(object):
         """
         return np.arctan(-ray_pixel_coords(self))
 
-    def look_at(self, points, rotation=None, distance=None, center=None):
+    def look_at(self, points, **kwargs):
         """
         Generate transform for a camera to keep a list
         of points in the camera's field of view.
@@ -280,16 +280,14 @@ class Camera(object):
         """
         return look_at(points,
                        fov=self.fov,
-                       rotation=rotation,
-                       distance=distance,
-                       center=center)
+                       **kwargs)
 
     def __repr__(self):
         return '<trimesh.scene.Camera> FOV: {} Resolution: {}'.format(
             self.fov, self.resolution)
 
 
-def look_at(points, fov, rotation=None, distance=None, center=None):
+def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
     """
     Generate transform for a camera to keep a list
     of points in the camera's field of view.
@@ -340,6 +338,9 @@ def look_at(points, fov, rotation=None, distance=None, center=None):
     if distance is None:
         distance = np.max(np.abs(points_c[:, :2]) /
                           tfov + points_c[:, 2][:, np.newaxis])
+
+    if pad is not None:
+        distance *= pad
 
     # set the pose translation
     center_w = rotation[:3, :3].dot(center_c)
