@@ -998,44 +998,6 @@ class Path3D(Path):
         scene = self.scene()
         return scene.show(**kwargs)
 
-    def plot_discrete(self, show=False):
-        """
-        Plot closed curves
-
-        Parameters
-        ------------
-        show : bool
-           If False will not execute matplotlib.pyplot.show
-        """
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D  # NOQA
-        fig = plt.figure()
-        axis = fig.add_subplot(111, projection='3d')
-        for discrete in self.discrete:
-            axis.plot(*discrete.T)
-        if show:
-            plt.show()
-
-    def plot_entities(self, show=False):
-        """
-        Plot discrete version of entities without regards
-        for connectivity.
-
-        Parameters
-        -------------
-        show : bool
-           If False will not execute matplotlib.pyplot.show
-        """
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D  # NOQA
-        fig = plt.figure()
-        axis = fig.add_subplot(111, projection='3d')
-        for entity in self.entities:
-            vertices = entity.discrete(self.vertices)
-            axis.plot(*vertices.T)
-        if show:
-            plt.show()
-
 
 class Path2D(Path):
     """
@@ -1428,7 +1390,7 @@ class Path2D(Path):
         Plot the closed curves of the path.
         """
         import matplotlib.pyplot as plt
-        axis = plt.axes()
+        axis = plt.gca()
         axis.set_aspect('equal', 'datalim')
 
         for i, points in enumerate(self.discrete):
@@ -1451,7 +1413,8 @@ class Path2D(Path):
         """
         import matplotlib.pyplot as plt
         # keep plot axis scaled the same
-        plt.axes().set_aspect('equal', 'datalim')
+        axis = plt.gca()
+        axis.set_aspect('equal', 'datalim')
         # hardcode a format for each entity type
         eformat = {'Line0': {'color': 'g', 'linewidth': 1},
                    'Line1': {'color': 'y', 'linewidth': 1},
@@ -1478,7 +1441,7 @@ class Path2D(Path):
             elif hasattr(entity, 'color'):
                 # if entity has specified color use it
                 fmt['color'] = entity.color
-            plt.plot(*discrete.T, **fmt)
+            axis.plot(*discrete.T, **fmt)
         if show:
             plt.show()
 
