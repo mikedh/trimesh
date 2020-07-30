@@ -14,7 +14,7 @@ import hashlib
 from functools import wraps
 
 from .constants import log
-from .util import is_sequence, now
+from .util import is_sequence
 
 try:
     from collections.abc import Mapping
@@ -89,11 +89,9 @@ def cache_decorator(function):
         # use function name as key in cache
         name = function.__name__
         # store execution times
-        tic = [now(), 0.0, 0.0]
         # do the dump logic ourselves to avoid
         # verifying cache twice per call
         self._cache.verify()
-        tic[1] = now()
         # access cache dict to avoid automatic validation
         # since we already called cache.verify manually
         if name in self._cache.cache:
@@ -101,19 +99,11 @@ def cache_decorator(function):
             return self._cache.cache[name]
         # value not in cache so execute the function
         value = function(*args, **kwargs)
-        tic[2] = now()
         # store the value
         if self._cache.force_immutable and hasattr(
                 value, 'flags') and len(value.shape) > 0:
             value.flags.writeable = False
-
         self._cache.cache[name] = value
-        # log both the function execution time and how long
-        # it took to validate the state of the cache
-        log.debug('`%s`: %.2Es, `cache.verify`: %.2Es',
-                  name,
-                  tic[2] - tic[1],
-                  tic[1] - tic[0])
         return value
 
     # all cached values are also properties
@@ -148,13 +138,13 @@ class TrackedArray(np.ndarray):
         This flag will be set on every change as well as
         during copies and certain types of slicing.
         """
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
+        self._modified = True
+        self._modified = True
         if isinstance(obj, type(self)):
-            obj._modified_c = True
-            obj._modified_m = True
-            obj._modified_x = True
+            obj._modified = True
+            obj._modified = True
+            obj._modified = True
 
     @property
     def mutable(self):
@@ -173,7 +163,7 @@ class TrackedArray(np.ndarray):
         md5 : str
           Hexadecimal MD5 of the array
         """
-        if self._modified_m or not hasattr(self, '_hashed_md5'):
+        if self._modified or not hasattr(self, '_hashed_md5'):
             if self.flags['C_CONTIGUOUS']:
                 hasher = hashlib.md5(self)
                 self._hashed_md5 = hasher.hexdigest()
@@ -185,7 +175,7 @@ class TrackedArray(np.ndarray):
                 contiguous = np.ascontiguousarray(self)
                 hasher = hashlib.md5(contiguous)
                 self._hashed_md5 = hasher.hexdigest()
-        self._modified_m = False
+        self._modified = False
         return self._hashed_md5
 
     def crc(self):
@@ -198,7 +188,7 @@ class TrackedArray(np.ndarray):
         crc : int
           Checksum from zlib.crc32 or zlib.adler32
         """
-        if self._modified_c or not hasattr(self, '_hashed_crc'):
+        if self._modified or not hasattr(self, '_hashed_crc'):
             if self.flags['C_CONTIGUOUS']:
                 self._hashed_crc = crc32(self)
             else:
@@ -208,7 +198,7 @@ class TrackedArray(np.ndarray):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 contiguous = np.ascontiguousarray(self)
                 self._hashed_crc = crc32(contiguous)
-        self._modified_c = False
+        self._modified = False
         return self._hashed_crc
 
     def _xxhash(self):
@@ -223,7 +213,7 @@ class TrackedArray(np.ndarray):
         # repeat the bookkeeping to get a contiguous array inside
         # the function to avoid additional function calls
         # these functions are called millions of times so everything helps
-        if self._modified_x or not hasattr(self, '_hashed_xx'):
+        if self._modified or not hasattr(self, '_hashed_xx'):
             if self.flags['C_CONTIGUOUS']:
                 self._hashed_xx = xxhash.xxh64(self).intdigest()
             else:
@@ -232,7 +222,7 @@ class TrackedArray(np.ndarray):
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 self._hashed_xx = xxhash.xxh64(np.ascontiguousarray(self)).intdigest()
-        self._modified_x = False
+        self._modified = False
         return self._hashed_xx
 
     def __hash__(self):
@@ -253,112 +243,80 @@ class TrackedArray(np.ndarray):
         The i* operations are in- place and modify the array,
         so we better catch all of them.
         """
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__iadd__(*args,
                                                     **kwargs)
 
     def __isub__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__isub__(*args,
                                                     **kwargs)
 
     def __imul__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__imul__(*args,
                                                     **kwargs)
 
     def __idiv__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__idiv__(*args,
                                                     **kwargs)
 
     def __itruediv__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__itruediv__(*args,
                                                         **kwargs)
 
     def __imatmul__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__imatmul__(*args,
                                                        **kwargs)
 
     def __ipow__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__ipow__(*args, **kwargs)
 
     def __imod__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__imod__(*args, **kwargs)
 
     def __ifloordiv__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__ifloordiv__(*args,
                                                          **kwargs)
 
     def __ilshift__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__ilshift__(*args,
                                                        **kwargs)
 
     def __irshift__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__irshift__(*args,
                                                        **kwargs)
 
     def __iand__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__iand__(*args,
                                                     **kwargs)
 
     def __ixor__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__ixor__(*args,
                                                     **kwargs)
 
     def __ior__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         return super(self.__class__, self).__ior__(*args,
                                                    **kwargs)
 
     def __setitem__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         super(self.__class__, self).__setitem__(*args,
                                                 **kwargs)
 
     def __setslice__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+        self._modified = True
         super(self.__class__, self).__setslice__(*args,
                                                  **kwargs)
 
