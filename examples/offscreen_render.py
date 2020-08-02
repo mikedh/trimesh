@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
         # rotate the camera view transform
         camera_old, _geometry = scene.graph[scene.camera.name]
-        camera_new = np.dot(camera_old, rotate)
+        camera_new = np.dot(rotate, camera_old)
 
         # apply the new transform
         scene.graph[scene.camera.name] = camera_new
