@@ -187,8 +187,8 @@ class _PrimitiveAttributes(object):
             return super(_PrimitiveAttributes, self).__setattr__(key, value)
         elif key in self._defaults:
             if self._mutable:
-                self._data[key] = util.convert_like(value,
-                                                    self._defaults[key])
+                self._data[key] = util.convert_like(
+                    value, self._defaults[key])
             else:
                 raise ValueError(
                     'Primitive is configured as immutable! Cannot set attribute!')
@@ -647,9 +647,8 @@ class Extrusion(_Primitive):
         defaults = {'polygon': Point([0, 0]).buffer(1.0),
                     'transform': np.eye(4),
                     'height': 1.0}
-        self.primitive = _PrimitiveAttributes(self,
-                                              defaults,
-                                              kwargs)
+        self.primitive = _PrimitiveAttributes(
+            self, defaults, kwargs)
 
     @caching.cache_decorator
     def area(self):
@@ -795,6 +794,15 @@ class Extrusion(_Primitive):
 
         return buffered
 
+
+    def to_dict(self):
+        """
+        """
+        kwargs = {'polygon': self.primitive.polygon.wkt,
+                  'transform': self.primitive.transform.tolist(),
+                  'height': float(self.primitive.height)}
+        return kwargs
+    
     def _create_mesh(self):
         log.debug('creating mesh for Extrusion primitive')
         # extrude the polygon along Z

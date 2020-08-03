@@ -229,10 +229,7 @@ def export_scene(scene, file_obj, file_type=None, **kwargs):
         data = scene_to_dict(scene, use_base64=True)
     elif file_type == 'svg':
         from trimesh.path.exchange import svg_io
-
-        from IPython import embed
-        embed()
-
+        data = svg_io.export_svg(scene, **kwargs)
     else:
         raise ValueError(
             'unsupported export format: {}'.format(file_type))

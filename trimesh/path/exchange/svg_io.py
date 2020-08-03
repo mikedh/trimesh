@@ -63,14 +63,17 @@ def svg_to_path(file_obj, file_type=None):
             current = current.getparent()
             if current is None:
                 break
-
         if len(matrices) == 0:
             return np.eye(3)
         elif len(matrices) == 1:
             return matrices[0]
         else:
             return util.multi_dot(matrices[::-1])
-
+    def element_meta(e):
+        return None
+        
+    
+        
     # first parse the XML
     tree = etree.fromstring(file_obj.read())
     # store paths and transforms as
@@ -79,9 +82,11 @@ def svg_to_path(file_obj, file_type=None):
     # store every path element
     for element in tree.iter('{*}path'):
         paths.append((element.attrib['d'],
-                      element_transform(element)))
+                      element_transform(element),
+                      element_meta(element)))
 
     try:
+        # get overall metadata
         metadata = json.loads(
             tree.attrib['{}metadata'.format(_namespace)].replace(
                 "'", '"'))
@@ -165,7 +170,7 @@ def _svg_path_convert(paths, metadata=None):
     Parameters
     -------------
     paths: list of tuples
-      Containing (path string, (3, 3) matrix)
+      Containing (path string, (3, 3) matrix, metadata)
 
     Returns
     -------------
@@ -173,7 +178,8 @@ def _svg_path_convert(paths, metadata=None):
       Kwargs for Path2D constructor
     """
     def complex_to_float(values):
-        return np.array([[i.real, i.imag] for i in values])
+        return np.array([[i.real, i.imag] for i in values],
+                        dtype=np.float64)
 
     def load_multi(multi):
         # load a previously parsed multiline
@@ -182,7 +188,7 @@ def _svg_path_convert(paths, metadata=None):
     def load_arc(svg_arc):
         # load an SVG arc into a trimesh arc
         points = complex_to_float([svg_arc.start,
-                                   svg_arc.point(.5),
+                                   svg_arc.point(0.5),
                                    svg_arc.end])
         return Arc(np.arange(3) + count), points
 
@@ -228,7 +234,7 @@ def _svg_path_convert(paths, metadata=None):
                                     for i in points],
                                    dtype=np.float64)
 
-    for path_string, matrix in paths:
+    for path_string, matrix, meta in paths:
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
         # check to see if each entity is a Line
@@ -271,7 +277,92 @@ def _svg_path_convert(paths, metadata=None):
 
     return kwargs
 
+def _entities_to_str(entities, vertices, layers=None):
+    """
+    """
 
+    points = vertices.copy()
+    
+    def circle_to_svgpath(center, radius, reverse):
+        radius_str = format(radius, res.export)
+        return ''.join([
+            'M ' + format(center[0] - radius, res.export) + ',',
+            format(center[1], res.export),
+            ' a ' + radius_str + ',' + radius_str,
+            ',0,1,' + str(int(reverse)) + ',',
+            format(2 * radius, res.export) + ',0',
+            ' a ' + radius_str + ',' + radius_str,
+            ',0,1,' + str(int(reverse)) + ',',
+            format(-2 * radius, res.export) + ',0 Z'])
+    
+    def svg_arc(arc, reverse):
+        """
+        arc string: (rx ry x-axis-rotation large-arc-flag sweep-flag x y)+
+        large-arc-flag: greater than 180 degrees
+        sweep flag: direction (cw/ccw)
+        """
+        arc_idx = arc.points[::((reverse * -2) + 1)]
+        vertices = points[arc_idx]
+        vertex_start, vertex_mid, vertex_end = vertices
+        center_info = arc_center(vertices)
+        C, R, angle = (center_info['center'],
+                       center_info['radius'],
+                       center_info['span'])
+        if arc.closed:
+            return circle_to_svgpath(C, R, reverse)
+
+        large_flag = str(int(angle > np.pi))
+        sweep_flag = str(int(np.cross(vertex_mid - vertex_start,
+                                      vertex_end - vertex_start) > 0.0))
+
+        return (move_to(arc_idx[0]) +
+                'A {R},{R} 0 {}, {} {},{}'.format(
+                    large_flag,
+                    sweep_flag,
+                    vertex_end[0],
+                    vertex_end[1],
+                    R=R))
+
+    def move_to(vertex_id):
+        x_ex = format(points[vertex_id][0], res.export)
+        y_ex = format(points[vertex_id][1], res.export)
+        move_str = 'M ' + x_ex + ',' + y_ex
+        return move_str
+
+    def svg_discrete(entity, reverse):
+        """
+        Use an entities discrete representation to export a
+        curve as a polyline
+        """
+        discrete = entity.discrete(points)
+        # if entity contains no geometry return
+        if len(discrete) == 0:
+            return ''
+        # are we reversing the entity
+        if reverse:
+            discrete = discrete[::-1]
+        # the format string for the SVG path
+        result = ('M {:0.5f},{:0.5f} ' + (
+            ' L {:0.5f},{:0.5f}' * (len(discrete) - 1))).format(
+                *discrete.reshape(-1))
+        return result
+
+    def convert(entity, reverse=False):
+        if layers is not None and entity.layer not in layers:
+            return ''
+        # the class name of the entity
+        etype = entity.__class__.__name__
+        if etype == 'Arc':
+            # export the exact version of the entity
+            return svg_arc(entity, reverse=False)
+        else:
+            # just export the polyline version of the entity
+            return svg_discrete(entity, reverse=False)
+    # convert each entity to an SVG entity
+    converted = ' '.join(convert(e) for e in entities).strip()
+
+    return converted
+    
 def export_svg(drawing,
                return_path=False,
                layers=None,
@@ -293,92 +384,28 @@ def export_svg(drawing,
     as_svg : str
       XML formatted SVG, or path string
     """
-    if not util.is_instance_named(drawing, 'Path2D'):
+    attrib = {}
+    if util.is_instance_named(drawing, 'Scene'):
+        attrib['class'] = 'Scene'
+        paths = {name: _entities_to_str(entities=g.entities,
+                                        vertices=g.vertices,
+                                        layers=layers)
+                 for name, g in drawing.geometry.items()
+                 if util.is_instance_named(g, 'Path2D')}
+    elif util.is_instance_named(drawing, 'Path2D'):
+        attrib['class'] = 'Path2D'
+        # todo handle this
+        print('need to handle this')
+        from IPython import embed
+        embed()
+    else:
         raise ValueError('drawing must be Path2D object!')
 
+    from IPython import embed
+    embed()
     # copy the points and make sure they're not a TrackedArray
     points = drawing.vertices.view(np.ndarray).copy()
 
-    def circle_to_svgpath(center, radius, reverse):
-        radius_str = format(radius, res.export)
-        path_str = ' M ' + format(center[0] - radius, res.export) + ','
-        path_str += format(center[1], res.export)
-        path_str += ' a ' + radius_str + ',' + radius_str
-        path_str += ',0,1,' + str(int(reverse)) + ','
-        path_str += format(2 * radius, res.export) + ',0'
-        path_str += ' a ' + radius_str + ',' + radius_str
-        path_str += ',0,1,' + str(int(reverse)) + ','
-        path_str += format(-2 * radius, res.export) + ',0 Z'
-        return path_str
-
-    def svg_arc(arc, reverse):
-        """
-        arc string: (rx ry x-axis-rotation large-arc-flag sweep-flag x y)+
-        large-arc-flag: greater than 180 degrees
-        sweep flag: direction (cw/ccw)
-        """
-        arc_idx = arc.points[::((reverse * -2) + 1)]
-        vertices = points[arc_idx]
-        vertex_start, vertex_mid, vertex_end = vertices
-        center_info = arc_center(vertices)
-        C, R, angle = (center_info['center'],
-                       center_info['radius'],
-                       center_info['span'])
-        if arc.closed:
-            return circle_to_svgpath(C, R, reverse)
-
-        large_flag = str(int(angle > np.pi))
-        sweep_flag = str(int(np.cross(vertex_mid - vertex_start,
-                                      vertex_end - vertex_start) > 0.0))
-
-        arc_str = move_to(arc_idx[0])
-        arc_str += 'A {},{} 0 {}, {} {},{}'.format(R,
-                                                   R,
-                                                   large_flag,
-                                                   sweep_flag,
-                                                   vertex_end[0],
-                                                   vertex_end[1])
-        return arc_str
-
-    def move_to(vertex_id):
-        x_ex = format(points[vertex_id][0], res.export)
-        y_ex = format(points[vertex_id][1], res.export)
-        move_str = ' M ' + x_ex + ',' + y_ex
-        return move_str
-
-    def svg_discrete(entity, reverse):
-        """
-        Use an entities discrete representation to export a
-        curve as a polyline
-        """
-        discrete = entity.discrete(points)
-        # if entity contains no geometry return
-        if len(discrete) == 0:
-            return ''
-        # are we reversing the entity
-        if reverse:
-            discrete = discrete[::-1]
-        # the format string for the SVG path
-        template = ' M {},{} ' + (' L {},{}' * (len(discrete) - 1))
-        # apply the data from the discrete curve
-        result = template.format(*discrete.reshape(-1))
-        return result
-
-    def convert_entity(entity, reverse=False):
-        if layers is not None and entity.layer not in layers:
-            return ''
-        # the class name of the entity
-        etype = entity.__class__.__name__
-        if etype == 'Arc':
-            # export the exact version of the entity
-            return svg_arc(entity, reverse=False)
-        else:
-            # just export the polyline version of the entity
-            return svg_discrete(entity, reverse=False)
-    # convert each entity to an SVG entity
-    converted = [convert_entity(e) for e in drawing.entities]
-    # append list of converted into a string
-    path_str = ''.join(converted).strip()
     # return path string without XML wrapping
     if return_path:
         return path_str
@@ -390,12 +417,12 @@ def export_svg(drawing,
         # set stroke to something OK looking
         stroke_width = drawing.extents.max() / 800.0
 
-    attribs = []
     try:
         # store metadata in XML as JSON -_-
-        attribs.append('{}="{}"'.format(
-            _namespace,
-            util.jsonify(drawing.metadata,
+        attribs.append('{ns}:{key}="{value}"'.format(
+            ns=_namespace,
+            key='metadata',
+            value=util.jsonify(drawing.metadata,
                          separators=(',', ':')).replace('"', "'")))
 
     except BaseException:
