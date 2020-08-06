@@ -30,7 +30,8 @@ except BaseException as E:
     etree = exceptions.ExceptionModule(E)
 
 # store any additional properties using a trimesh namespace
-_namespace = '{http://github.com/mikedh/trimesh}'
+_ns_url = 'http://github.com/mikedh/trimesh'
+_ns_name = 'trimesh'
 
 
 def svg_to_path(file_obj, file_type=None):
@@ -69,11 +70,10 @@ def svg_to_path(file_obj, file_type=None):
             return matrices[0]
         else:
             return util.multi_dot(matrices[::-1])
+
     def element_meta(e):
         return None
-        
-    
-        
+
     # first parse the XML
     tree = etree.fromstring(file_obj.read())
     # store paths and transforms as
@@ -88,11 +88,18 @@ def svg_to_path(file_obj, file_type=None):
     try:
         # get overall metadata
         metadata = json.loads(
-            tree.attrib['{}metadata'.format(_namespace)].replace(
-                "'", '"'))
+            tree.attrib['{}metadata'.format(
+                '{' + _ns_url + '}')].replace("'", '"'))
     except BaseException:
         metadata = None
-    return _svg_path_convert(paths=paths, metadata=metadata)
+    try:
+        # get overall metadata
+        force = tree.attrib['{}class'.format(
+            '{' + _ns_url + '}')]
+    except BaseException:
+        force = None
+
+    return _svg_path_convert(paths=paths, metadata=metadata, force=force)
 
 
 def transform_to_matrices(transform):
@@ -163,7 +170,7 @@ def transform_to_matrices(transform):
     return matrices
 
 
-def _svg_path_convert(paths, metadata=None):
+def _svg_path_convert(paths, metadata=None, force=None):
     """
     Convert an SVG path string into a Path2D object
 
@@ -207,11 +214,6 @@ def _svg_path_convert(paths, metadata=None):
                                    svg_cubic.end])
         return Bezier(np.arange(4) + count), points
 
-    # store loaded values here
-    entities = []
-    vertices = []
-    # how many vertices have we loaded
-    count = 0
     # load functions for each entity
     loaders = {'Arc': load_arc,
                'MultiLine': load_multi,
@@ -257,6 +259,13 @@ def _svg_path_convert(paths, metadata=None):
             else:
                 # otherwise just add the entities
                 parsed.extend(raw[b])
+
+        # store loaded values here
+        entities = []
+        vertices = []
+        # how many vertices have we loaded
+        count = 0
+
         # loop through parsed entity objects
         for svg_entity in parsed:
             # keyed by entity class name
@@ -270,6 +279,8 @@ def _svg_path_convert(paths, metadata=None):
                 vertices.append(transform_points(v, matrix))
                 count += len(vertices[-1])
 
+        from IPython import embed
+        embed()
     # store results as kwargs and stack vertices
     kwargs = {'metadata': metadata,
               'entities': entities,
@@ -277,12 +288,13 @@ def _svg_path_convert(paths, metadata=None):
 
     return kwargs
 
+
 def _entities_to_str(entities, vertices, layers=None):
     """
     """
 
     points = vertices.copy()
-    
+
     def circle_to_svgpath(center, radius, reverse):
         radius_str = format(radius, res.export)
         return ''.join([
@@ -294,7 +306,7 @@ def _entities_to_str(entities, vertices, layers=None):
             ' a ' + radius_str + ',' + radius_str,
             ',0,1,' + str(int(reverse)) + ',',
             format(-2 * radius, res.export) + ',0 Z'])
-    
+
     def svg_arc(arc, reverse):
         """
         arc string: (rx ry x-axis-rotation large-arc-flag sweep-flag x y)+
@@ -362,7 +374,8 @@ def _entities_to_str(entities, vertices, layers=None):
     converted = ' '.join(convert(e) for e in entities).strip()
 
     return converted
-    
+
+
 def export_svg(drawing,
                return_path=False,
                layers=None,
@@ -396,19 +409,29 @@ def export_svg(drawing,
         attrib['class'] = 'Path2D'
         # todo handle this
         print('need to handle this')
-        from IPython import embed
-        embed()
+        paths = {'path': _entities_to_str(
+            entities=drawing.entities,
+            vertices=drawing.vertices,
+            layers=layers)}
     else:
-        raise ValueError('drawing must be Path2D object!')
-
-    from IPython import embed
-    embed()
-    # copy the points and make sure they're not a TrackedArray
-    points = drawing.vertices.view(np.ndarray).copy()
+        raise ValueError('drawing must be Scene or Path2D object!')
 
     # return path string without XML wrapping
     if return_path:
+        return ' '.join(paths.values())
         return path_str
+
+    # fetch the export template for the base SVG file
+    template_svg = resources.get('svg.base.template', decode=True)
+    template_path = resources.get('svg.path.template', decode=True)
+
+    elements = []
+    for name, pstr in paths.items():
+        elements.append(template_path.format(
+            attribs='{ns}:name="{name}"'.format(
+                ns=_ns_name, name=name),
+            path_string=pstr,
+            fill="none"))
 
     # format as XML
     if 'stroke_width' in kwargs:
@@ -419,29 +442,27 @@ def export_svg(drawing,
 
     try:
         # store metadata in XML as JSON -_-
-        attribs.append('{ns}:{key}="{value}"'.format(
-            ns=_namespace,
-            key='metadata',
-            value=util.jsonify(drawing.metadata,
-                         separators=(',', ':')).replace('"', "'")))
-
+        attrib['metadata'] = util.jsonify(
+            drawing.metadata,
+            separators=(',', ':')).replace('"', "'")
     except BaseException:
         # otherwise skip metadata
         pass
 
-    # fetch the export template for the base SVG file
-    template_svg = resources.get('svg.base.template', decode=True)
-    template_path = resources.get('svg.path.template', decode=True)
+    attribs = '\n'.join('{ns}:{key}="{value}"'.format(
+        ns=_ns_name, key=k, value=v) for k, v in attrib.items())
 
-    elements = template_path.format(path_string=path_str)
-
-    subs = {'elements': elements,
-            'min_x': points[:, 0].min(),
-            'min_y': points[:, 1].min(),
+    subs = {'elements': '\n'.join(elements),
+            'min_x': drawing.bounds[0][0],
+            'min_y': drawing.bounds[0][1],
             'width': drawing.extents[0],
             'height': drawing.extents[1],
             'stroke_width': stroke_width,
-            'attribs': '\n'.join(attribs)}
+            'attribs': attribs}
 
     result = template_svg.format(**subs)
+
+    #from IPython import embed
+    # embed()
+
     return result

@@ -1649,15 +1649,15 @@ def convert_like(item, like):
 
     if (isinstance(item, str) and
         like.__class__.__name__ == 'Polygon' and
-        item.startswith('POLYGON')):
+            item.startswith('POLYGON')):
         # break our rule on imports but only a little bit
         # the import was a WKT serialized polygon
         from shapely import wkt
         return wkt.loads(item)
-    
+
     # otherwise just run the conversion
     item = like.__class__(item)
-    
+
     return item
 
 

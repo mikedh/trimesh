@@ -1,8 +1,6 @@
-import json
 import numpy as np
 
 from string import Template
-
 
 from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline, Text
@@ -58,10 +56,6 @@ XRECORD_SENTINEL = 'TRIMESH_METADATA:'
 XRECORD_MAX_LINE = 200
 # the maximum index of XRECORDS
 XRECORD_MAX_INDEX = 368
-
-# get the TEMPLATES for exporting DXF files
-TEMPLATES = {k: Template(v) for k, v in json.loads(
-    resources.get('dxf.json.template')).items()}
 
 
 def load_dxf(file_obj, **kwargs):
@@ -492,6 +486,10 @@ def export_dxf(path, layers=None):
     export : str
       Path formatted as a DXF file
     """
+    # get the TEMPLATES for exporting DXF files
+    TEMPLATES = {k: Template(v) for k, v in
+                 resources.get('dxf.json.template',
+                               decode_json=True).items()}
 
     def format_points(points,
                       as_2D=False,

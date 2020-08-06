@@ -794,7 +794,6 @@ class Extrusion(_Primitive):
 
         return buffered
 
-
     def to_dict(self):
         """
         """
@@ -802,7 +801,7 @@ class Extrusion(_Primitive):
                   'transform': self.primitive.transform.tolist(),
                   'height': float(self.primitive.height)}
         return kwargs
-    
+
     def _create_mesh(self):
         log.debug('creating mesh for Extrusion primitive')
         # extrude the polygon along Z

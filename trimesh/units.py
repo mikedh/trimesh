@@ -6,13 +6,8 @@ Deal with physical unit systems (i.e. inches, mm)
 Very basic conversions, and no requirement for
 sympy.physics.units or pint.
 """
-import json
-
 from .constants import log
 from . import resources
-
-# scaling factors from various unit systems to inches
-TO_INCH = json.loads(resources.get('units_to_inches.json'))
 
 
 def unit_conversion(current, desired):
@@ -31,9 +26,13 @@ def unit_conversion(current, desired):
     conversion : float
         Number to multiply by to put values into desired units
     """
+    # scaling factors from various unit systems to inches
+    to_inch = resources.get(
+        'units_to_inches.json', decode_json=True)
+
     current = str(current).strip().lower()
     desired = str(desired).strip().lower()
-    conversion = TO_INCH[current] / TO_INCH[desired]
+    conversion = to_inch[current] / to_inch[desired]
     return conversion
 
 
@@ -55,6 +54,8 @@ def units_from_metadata(obj, guess=True):
     units: str
         A guess of what the units might be
     """
+    to_inch = resources.get('units_to_inches.json', decode_json=True)
+
     # try to guess from metadata
     for key in ['file_name', 'name']:
         if key not in obj.metadata:
@@ -75,7 +76,7 @@ def units_from_metadata(obj, guess=True):
                     'units', '').replace(
                         'unit', '').strip()
                 # if the hint is a valid unit return it
-                if hint in TO_INCH:
+                if hint in to_inch:
                     return hint
 
     if not guess:

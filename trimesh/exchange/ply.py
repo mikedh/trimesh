@@ -3,7 +3,6 @@ import numpy as np
 from distutils.spawn import find_executable
 from string import Template
 
-import json
 import tempfile
 import subprocess
 import collections
@@ -135,7 +134,7 @@ def export_ply(mesh,
     dtype_color = ('rgba', '<u1', (4))
 
     # get template strings in dict
-    templates = json.loads(resources.get('ply.template'))
+    templates = resources.get('ply.template', decode_json=True)
     # start collecting elements into a string for the header
     header = [templates['intro']]
     header.append(templates['vertex'])
