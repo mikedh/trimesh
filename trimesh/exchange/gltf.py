@@ -810,12 +810,12 @@ def _append_path(path, name, tree, buffer_items):
 
     # the vertex color accessor data
     tree["accessors"].append({
-            "bufferView": len(buffer_items),
-            "componentType": 5121,
-            "count": vxlist[0],
-            "normalized": True,
-            "type": "VEC4",
-            "byteOffset": 0})
+        "bufferView": len(buffer_items),
+        "componentType": 5121,
+        "count": vxlist[0],
+        "normalized": True,
+        "type": "VEC4",
+        "byteOffset": 0})
 
     # the actual color data
     buffer_items.append(_byte_pad(
