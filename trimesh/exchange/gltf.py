@@ -807,7 +807,7 @@ def _append_path(path, name, tree, buffer_items):
 
     # add color to attributes
     tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
-    
+
     # the vertex color accessor data
     tree["accessors"].append({
             "bufferView": len(buffer_items),
