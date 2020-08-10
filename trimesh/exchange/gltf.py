@@ -800,10 +800,26 @@ def _append_path(path, name, tree, buffer_items):
     # this is just exporting everying as black
     tree["materials"].append(_default_material)
 
-    # data is the second value of the fourth field
+    # data is the second value of the fifth field
     # which is a (data type, data) tuple
     buffer_items.append(_byte_pad(
         vxlist[4][1].astype(float32).tobytes()))
+
+    # add color to attributes
+    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
+
+    # the vertex color accessor data
+    tree["accessors"].append({
+        "bufferView": len(buffer_items),
+        "componentType": 5121,
+        "count": vxlist[0],
+        "normalized": True,
+        "type": "VEC4",
+        "byteOffset": 0})
+
+    # the actual color data
+    buffer_items.append(_byte_pad(
+        np.array(vxlist[5][1]).astype(uint8).tobytes()))
 
 
 def _parse_materials(header, views, resolver=None):
