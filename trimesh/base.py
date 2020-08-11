@@ -40,13 +40,13 @@ from .exchange.export import export_mesh
 from .constants import log, log_time, tol
 
 from .scene import Scene
-from .parent import Geometry
+from .parent import Geometry3D
 
 import copy
 import numpy as np
 
 
-class Trimesh(Geometry):
+class Trimesh(Geometry3D):
 
     def __init__(self,
                  vertices=None,
@@ -2849,25 +2849,3 @@ class Trimesh(Geometry):
         """
         concat = util.concatenate(self, other)
         return concat
-
-    def __radd__(self, other):
-        """
-        Concatenate the mesh with 0.
-        This method provides multiple concatenation with sum() function
-        sum(Iterable[trimesh.Trimesh])
-
-        Parameters
-        ------------
-        other : trimesh.Trimesh object
-          Mesh or 0 to be concatenated with self
-
-        Returns
-        ----------
-        concat : trimesh.Trimesh
-          Mesh object of combined result
-        """
-
-        if other == 0:
-            return self
-        else:
-            return self.__add__(type(self)(other))

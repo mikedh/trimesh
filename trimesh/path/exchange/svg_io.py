@@ -236,6 +236,12 @@ def _svg_path_convert(paths, metadata=None, force=None):
                                     for i in points],
                                    dtype=np.float64)
 
+    # store loaded values here
+    # TODO : get from SVG
+    as_scene = False
+    entities = []
+    vertices = []
+
     for path_string, matrix, meta in paths:
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
@@ -260,9 +266,11 @@ def _svg_path_convert(paths, metadata=None, force=None):
                 # otherwise just add the entities
                 parsed.extend(raw[b])
 
-        # store loaded values here
-        entities = []
-        vertices = []
+        if as_scene:
+            # store loaded values here
+            entities = []
+            vertices = []
+
         # how many vertices have we loaded
         count = 0
 
@@ -279,8 +287,6 @@ def _svg_path_convert(paths, metadata=None, force=None):
                 vertices.append(transform_points(v, matrix))
                 count += len(vertices[-1])
 
-        from IPython import embed
-        embed()
     # store results as kwargs and stack vertices
     kwargs = {'metadata': metadata,
               'entities': entities,
@@ -408,7 +414,7 @@ def export_svg(drawing,
     elif util.is_instance_named(drawing, 'Path2D'):
         attrib['class'] = 'Path2D'
         # todo handle this
-        print('need to handle this')
+        print('TODO : need to handle this')
         paths = {'path': _entities_to_str(
             entities=drawing.entities,
             vertices=drawing.vertices,
@@ -419,7 +425,6 @@ def export_svg(drawing,
     # return path string without XML wrapping
     if return_path:
         return ' '.join(paths.values())
-        return path_str
 
     # fetch the export template for the base SVG file
     template_svg = resources.get('svg.base.template', decode=True)
@@ -461,8 +466,5 @@ def export_svg(drawing,
             'attribs': attribs}
 
     result = template_svg.format(**subs)
-
-    #from IPython import embed
-    # embed()
 
     return result

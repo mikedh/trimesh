@@ -11,7 +11,7 @@ from .. import transformations
 from .. import bounds as bounds_module
 
 from ..exchange import export
-from ..parent import Geometry
+from ..parent import Geometry3D
 
 from . import cameras
 from . import lighting
@@ -19,7 +19,7 @@ from . import lighting
 from .transforms import TransformForest
 
 
-class Scene(Geometry):
+class Scene(Geometry3D):
     """
     A simple scene graph which can be rendered directly via
     pyglet/openGL or through other endpoints such as a

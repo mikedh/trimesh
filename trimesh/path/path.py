@@ -18,6 +18,7 @@ from ..constants import tol_path as tol
 
 from .util import concatenate
 
+from .. import parent
 from .. import util
 from .. import units
 from .. import bounds
@@ -47,7 +48,7 @@ except BaseException as E:
     nx = exceptions.ExceptionModule(E)
 
 
-class Path(object):
+class Path(parent.Geometry):
     """
     A Path object consists of vertices and entities. Vertices
     are a simple (n, dimension) float array of points in space.
@@ -534,41 +535,6 @@ class Path(object):
         # populate the things we wangled
         self._cache.cache.update(cache)
         return self
-
-    def apply_scale(self, scale):
-        """
-        Apply a transformation matrix to the current path in- place
-
-        Parameters
-        -----------
-        scale : float or (3,) float
-          Scale to be applied to mesh
-        """
-        dimension = self.vertices.shape[1]
-        matrix = np.eye(dimension + 1)
-        matrix[:dimension, :dimension] *= scale
-        return self.apply_transform(matrix)
-
-    def apply_translation(self, offset):
-        """
-        Apply a transformation matrix to the current path in- place
-
-        Parameters
-        -----------
-        offset : float or (3,) float
-          Translation to be applied to mesh
-        """
-        # work on 2D and 3D paths
-        dimension = self.vertices.shape[1]
-        # make sure offset is correct length and type
-        offset = np.array(
-            offset, dtype=np.float64).reshape(dimension)
-        # create a homogeneous transform
-        matrix = np.eye(dimension + 1)
-        # apply the offset
-        matrix[:dimension, dimension] = offset
-
-        return self.apply_transform(matrix)
 
     def apply_layer(self, name):
         """

@@ -9,19 +9,18 @@ import abc
 import numpy as np
 
 from . import caching
-from . import transformations
+from . import transformations as tf
 from .util import ABC
 
 
 class Geometry(ABC):
 
-    """Parent of geometry classes.
+    """
+    `Geometry` is the parent class for all geometry.
 
-    The `Geometry` object is the parent object of geometry classes, including:
-    Trimesh, PointCloud, and Scene objects.
-
-    By decorating a method with `abc.abstractmethod` it just means the objects
-    that inherit from `Geometry` MUST implement those methods.
+    By decorating a method with `abc.abstractmethod` it just means
+    the objects that inherit from `Geometry` MUST implement those
+    methods.
     """
 
     @abc.abstractproperty
@@ -48,10 +47,27 @@ class Geometry(ABC):
     def md5(self):
         pass
 
+    @abc.abstractmethod
+    def copy(self):
+        pass
+
+    @abc.abstractmethod
+    def show(self):
+        pass
+
+    @abc.abstractmethod
+    def __add__(self, other):
+        pass
+
     def __repr__(self):
         """
         Print quick summary of the current geometry without
         computing properties.
+
+        Returns
+        -----------
+        repr : str
+          Human readable quick look at the geometry.
         """
         elements = []
         if hasattr(self, 'vertices'):
@@ -83,9 +99,14 @@ class Geometry(ABC):
           Translation in XYZ
         """
         translation = np.asanyarray(translation, dtype=np.float64)
-        if translation.shape != (3,):
-            raise ValueError('Translation must be (3,)!')
+        if translation.shape == (2,):
+            # create a planar matrix if we were passed a 2D offset
+            return self.apply_transform(
+                tf.planar_matrix(offset=translation))
+        elif translation.shape != (3,):
+            raise ValueError('Translation must be (3,) or (2,)!')
 
+        # manually create a translation matrix
         matrix = np.eye(4)
         matrix[:3, 3] = translation
         return self.apply_transform(matrix)
@@ -99,35 +120,45 @@ class Geometry(ABC):
         scaling : float or (3,) float
           Scale factor to apply to the mesh
         """
-        matrix = transformations.scale_and_translate(scale=scaling)
+        if self.vertices.shape[1] == 2:
+            matrix = np.eye(3)
+            matrix[:2, :2] = scaling
+        else:
+            matrix = tf.scale_and_translate(scale=scaling)
         # apply_transform will work nicely even on negative scales
         return self.apply_transform(matrix)
 
-    def apply_obb(self):
+    def __radd__(self, other):
         """
-        Apply the oriented bounding box transform to the current mesh.
+        Concatenate the geometry allowing concatenation with
+        built in `sum()` function:
+          `sum(Iterable[trimesh.Trimesh])`
 
-        This will result in a mesh with an AABB centered at the
-        origin and the same dimensions as the OBB.
+        Parameters
+        ------------
+        other : Geometry
+          Geometry or 0
 
         Returns
         ----------
-        matrix : (4, 4) float
-          Transformation matrix that was applied
-          to mesh to move it into OBB frame
+        concat : Geometry
+          Geometry of combined result
         """
-        matrix = self.bounding_box_oriented.primitive.transform
-        matrix = np.linalg.inv(matrix)
-        self.apply_transform(matrix)
-        return matrix
 
-    @abc.abstractmethod
-    def copy(self):
-        pass
+        if other == 0:
+            # adding 0 to a geometry never makes sense
+            return self
+        # otherwise just use the regular add function
+        return self.__add__(type(self)(other))
 
-    @abc.abstractmethod
-    def show(self):
-        pass
+
+class Geometry3D(Geometry):
+
+    """
+    The `Geometry3D` object is the parent object of geometry objects
+    which are three dimensional, including Trimesh, PointCloud,
+    and Scene objects.
+    """
 
     @caching.cache_decorator
     def bounding_box(self):
@@ -175,10 +206,11 @@ class Geometry(ABC):
         """
         A minimum volume bounding sphere for the current mesh.
 
-        Note that the Sphere primitive returned has an unpadded, exact
-        sphere_radius so while the distance of every vertex of the current
-        mesh from sphere_center will be less than sphere_radius, the faceted
-        sphere primitive may not contain every vertex
+        Note that the Sphere primitive returned has an unpadded
+        exact `sphere_radius` so while the distance of every vertex
+        of the current mesh from sphere_center will be less than
+        sphere_radius, the faceted sphere primitive may not
+        contain every vertex.
 
         Returns
         --------
@@ -227,3 +259,21 @@ class Geometry(ABC):
         volume_min = np.argmin([i.volume for i in options])
         bounding_primitive = options[volume_min]
         return bounding_primitive
+
+    def apply_obb(self):
+        """
+        Apply the oriented bounding box transform to the current mesh.
+
+        This will result in a mesh with an AABB centered at the
+        origin and the same dimensions as the OBB.
+
+        Returns
+        ----------
+        matrix : (4, 4) float
+          Transformation matrix that was applied
+          to mesh to move it into OBB frame
+        """
+        matrix = self.bounding_box_oriented.primitive.transform
+        matrix = np.linalg.inv(matrix)
+        self.apply_transform(matrix)
+        return matrix
