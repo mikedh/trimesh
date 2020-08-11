@@ -581,9 +581,8 @@ def box(extents=None, transform=None, **kwargs):
       Mesh of a cuboid
     """
     # vertices of the cube
-    vertices = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
-                1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1]
-    vertices = np.array(vertices,
+    vertices = np.array([0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
+                         1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1],
                         order='C',
                         dtype=np.float64).reshape((-1, 3))
     vertices -= 0.5

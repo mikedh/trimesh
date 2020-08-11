@@ -21,6 +21,12 @@ class ArcTests(g.unittest.TestCase):
 
         assert abs(R - res_radius) < g.tol_path.zero
         assert g.trimesh.util.euclidean(C, res_center) < g.tol_path.zero
+        # large magnitude arc failed some coplanar tests
+        c = trimesh.path.arc.arc_center(
+            [[30156.18, 1673.64, -2914.56],
+             [30152.91, 1780.09, -2885.51],
+             [30148.3, 1875.81, -2857.79]])
+        assert 'center' in c
 
     def test_center_random(self):
         from trimesh.path.arc import arc_center

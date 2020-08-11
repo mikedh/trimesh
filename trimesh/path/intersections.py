@@ -38,8 +38,7 @@ def line_line(origins,
     directions /= util.row_norm(directions).reshape((-1, 1))
 
     # exit if values are parallel
-    if np.sum(np.abs(np.diff(directions,
-                             axis=0))) < tol.zero:
+    if np.sum(np.abs(np.diff(directions, axis=0))) < tol.zero:
         return False, None
 
     # using notation from docstring
@@ -60,8 +59,9 @@ def line_line(origins,
     # if the vector from origin to origin is on the plane given by
     # the direction vector, the dot product with the plane normal
     # should be within floating point error of zero
-    coplanar = abs(np.dot(plane_normal, w)) < tol.zero
-    if not coplanar:
+    dot = abs(np.dot(plane_normal, w / np.linalg.norm(w)))
+    if dot > tol.zero:
+        # not coplanar
         return False, None
 
     # value of parameter s where intersection occurs

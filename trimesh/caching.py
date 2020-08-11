@@ -139,11 +139,7 @@ class TrackedArray(np.ndarray):
         during copies and certain types of slicing.
         """
         self._modified = True
-        self._modified = True
-        self._modified = True
         if isinstance(obj, type(self)):
-            obj._modified = True
-            obj._modified = True
             obj._modified = True
 
     @property
