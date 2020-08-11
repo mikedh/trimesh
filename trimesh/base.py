@@ -2849,3 +2849,25 @@ class Trimesh(Geometry):
         """
         concat = util.concatenate(self, other)
         return concat
+
+    def __radd__(self, other):
+        """
+        Concatenate the mesh with 0.
+        This method provides multiple concatenation with sum() function
+        sum(Iterable[trimesh.Trimesh])
+
+        Parameters
+        ------------
+        other : trimesh.Trimesh object
+          Mesh or 0 to be concatenated with self
+
+        Returns
+        ----------
+        concat : trimesh.Trimesh
+          Mesh object of combined result
+        """
+
+        if other == 0:
+            return self
+        else:
+            return self.__add__(type(self)(other))
