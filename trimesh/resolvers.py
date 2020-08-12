@@ -8,6 +8,8 @@ archives, web assets, or a local file path.
 """
 
 import os
+import itertools
+
 from . import util
 
 # URL parsing for remote resources via WebResolver
@@ -51,13 +53,12 @@ class FilePathResolver(Resolver):
         """
         # remove everything other than absolute path
         clean = os.path.expanduser(os.path.abspath(str(source)))
-        # directory, file
-        split = os.path.split(clean)
 
         if os.path.isdir(clean):
             self.parent = clean
         # get the parent directory of the
-        elif os.path.isfile(clean) or os.path.isdir(split[0]):
+        elif os.path.isfile(clean):
+            split = os.path.split(clean)
             self.parent = split[0]
         else:
             raise ValueError('path not a file or directory!')
@@ -129,24 +130,37 @@ class ZipResolver(Resolver):
         data : bytes
           Loaded data from asset
         """
-        # not much we can do with that
+        # not much we can do with None
         if name is None:
             return
+        # make sure name is a string
+        if hasattr(name, 'decode'):
+            name = name.decode('utf-8')
+        # store reference to archive inside this function
+        archive = self.archive
 
-        # if name isn't in archive try some similar values
-        if name not in self.archive:
-            if hasattr(name, 'decode'):
-                name = name.decode('utf-8')
-            # try with cleared whitespace, split paths
-            for option in [name,
-                           name.lstrip('./'),
-                           name.strip(),
-                           name.split('/')[-1]]:
-                if option in self.archive:
+        # requested name not identical in storage so attempt to recover
+        if name not in archive:
+            # the various operations that *might* result in a correct key
+            cleaners = [lambda x: x,
+                        lambda x: x.strip(),
+                        lambda x: x.lstrip('./'),
+                        lambda x: x.split('/')[-1],
+                        lambda x: x.replace('%20', ' ')]
+            # collect a list of potential cleaned names
+            clean = [f(name) for f in cleaners]
+            # combine any two clean functions
+            clean.extend(a(b(name)) for a, b in
+                         itertools.combinations(cleaners, 2))
+            # loop through unique results
+            for option in set(clean):
+                if option in archive:
+                    # cleaned option is in archive so store value and exit
                     name = option
                     break
+
         # get the stored data
-        obj = self.archive[name]
+        obj = archive[name]
         # if the dict is storing data as bytes just return
         if isinstance(obj, (bytes, str)):
             return obj

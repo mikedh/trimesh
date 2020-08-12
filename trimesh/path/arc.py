@@ -5,7 +5,6 @@ from .. import util
 from ..constants import log
 from ..constants import tol_path as tol
 from ..constants import res_path as res
-from .intersections import line_line
 
 
 def arc_center(points, return_normal=True, return_angle=True):
@@ -37,7 +36,7 @@ def arc_center(points, return_normal=True, return_angle=True):
        'span'   : float, angle swept by the arc in radians
     """
     points = np.asanyarray(points, dtype=np.float64)
-    #assert points.shape == (3, 3)
+
     A, B, C = points
     CB = C - B
     CA = C - A
