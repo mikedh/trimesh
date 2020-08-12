@@ -597,7 +597,7 @@ def export_dxf(path, layers=None):
         return result
 
     def convert_arc(arc, vertices):
-        info = arc.center(vertices)
+        info = arc.center(vertices, return_angle=True, return_normal=False)
         subs = entity_info(arc)
 
         center = info['center']

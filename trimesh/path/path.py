@@ -334,9 +334,11 @@ class Path(parent.Geometry):
         # get the exact bounds of each entity
         # some entities (aka 3- point Arc) have bounds that can't
         # be generated from just bound box of vertices
+
         points = np.array([e.bounds(self.vertices)
                            for e in self.entities],
                           dtype=np.float64)
+
         # flatten bound extrema into (n, dimension) array
         points = points.reshape((-1, self.vertices.shape[1]))
         # get the max and min of all bounds
@@ -583,8 +585,8 @@ class Path(parent.Geometry):
                 tol.merge * self.scale,
                 min_digits=1)
 
-        unique, inverse = grouping.unique_rows(self.vertices,
-                                               digits=digits)
+        unique, inverse = grouping.unique_rows(
+            self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
 
         entities_ok = np.ones(len(self.entities), dtype=np.bool)
@@ -1000,6 +1002,19 @@ class Path2D(Path):
         matrix = self.obb
         self.apply_transform(matrix)
         return matrix
+
+    def apply_scale(self, scale):
+        """
+        Apply a 2D scale to the current Path2D.
+
+        Parameters
+        -------------
+        scale : float or (2,) float
+          Scale to apply in-place.
+        """
+        matrix = np.eye(3)
+        matrix[:2, :2] *= scale
+        return self.apply_transform(matrix)
 
     @caching.cache_decorator
     def obb(self):

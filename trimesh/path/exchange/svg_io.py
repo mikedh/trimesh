@@ -322,7 +322,7 @@ def _entities_to_str(entities, vertices, layers=None):
         arc_idx = arc.points[::((reverse * -2) + 1)]
         vertices = points[arc_idx]
         vertex_start, vertex_mid, vertex_end = vertices
-        center_info = arc_center(vertices)
+        center_info = arc_center(vertices, return_normal=False, return_angle=True)
         C, R, angle = (center_info['center'],
                        center_info['radius'],
                        center_info['span'])

@@ -582,7 +582,7 @@ class Arc(Entity):
                                   scale=scale)
         return self._orient(discrete)
 
-    def center(self, vertices):
+    def center(self, vertices, **kwargs):
         """
         Return the center information about the arc entity.
 
@@ -596,8 +596,7 @@ class Arc(Entity):
         info : dict
           With keys: 'radius', 'center'
         """
-        info = arc_center(vertices[self.points])
-        return info
+        return arc_center(vertices[self.points], **kwargs)
 
     def bounds(self, vertices):
         """
@@ -617,7 +616,7 @@ class Arc(Entity):
             # if we have a closed arc (a circle), we can return the actual bounds
             # this only works in two dimensions, otherwise this would return the
             # AABB of an sphere
-            info = self.center(vertices)
+            info = self.center(vertices, return_normal=False, return_angle=False)
             bounds = np.array([info['center'] - info['radius'],
                                info['center'] + info['radius']],
                               dtype=np.float64)

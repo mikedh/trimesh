@@ -59,8 +59,8 @@ def line_line(origins,
     # if the vector from origin to origin is on the plane given by
     # the direction vector, the dot product with the plane normal
     # should be within floating point error of zero
-    dot = abs(np.dot(plane_normal, w / np.linalg.norm(w)))
-    if dot > tol.zero:
+    w_norm = np.linalg.norm(w)
+    if w_norm > tol.zero and abs(np.dot(plane_normal, w / w_norm)) > tol.zero:
         # not coplanar
         return False, None
 

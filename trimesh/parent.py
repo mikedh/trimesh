@@ -120,11 +120,7 @@ class Geometry(ABC):
         scaling : float or (3,) float
           Scale factor to apply to the mesh
         """
-        if hasattr(self, 'vertices') and self.vertices.shape[1] == 2:
-            matrix = np.eye(3)
-            matrix[:2, :2] = scaling
-        else:
-            matrix = tf.scale_and_translate(scale=scaling)
+        matrix = tf.scale_and_translate(scale=scaling)
         # apply_transform will work nicely even on negative scales
         return self.apply_transform(matrix)
 
