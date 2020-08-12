@@ -1,6 +1,4 @@
-import os
 import trimesh
-
 from pyglet import gl
 
 
@@ -8,28 +6,24 @@ if __name__ == '__main__':
     # print logged messages
     trimesh.util.attach_to_log()
 
-    root = '/trimesh/models'
+    # make a sphere
+    mesh = trimesh.creation.icosphere()
 
-    window_conf = gl.Config(double_buffer=True,
-                            depth_size=24)
+    # get a scene object containing the mesh, this is equivalent to:
+    # scene = trimesh.scene.Scene(mesh)
+    scene = mesh.scene()
 
-    for file_name in os.listdir(root):
-        try:
-            scene = trimesh.load(os.path.join(root, file_name),
-                                 force='scene')
-            # run the actual render call
-            png = scene.save_image(
-                resolution=[
-                    1920,
-                    1080],
-                visible=True,
-                window_conf=window_conf)
-            # the PNG is just bytes data
-            print('rendered bytes:', len(png))
-            # write the render to a volume we should have docker mounted
-            out_file = '/trimesh/examples/dockerRender/{}.png'.format(
-                file_name)
-            with open(out_file, 'wb') as f:
-                f.write(png)
-        except BaseException as E:
-            continue
+    # run the actual render call
+    window_conf = gl.Config(double_buffer=True, depth_size=24)
+    png = scene.save_image(resolution=[1920, 1080],
+                           window_conf=window_conf)
+
+    # the PNG is just bytes data
+    print('rendered bytes:', len(png))
+
+    # write the render to a volume we should have docker mounted
+    with open('/output/output.png', 'wb') as f:
+        f.write(png)
+
+    # NOTE: if you raise an exception, supervisord will automatically
+    # restart this script which is pretty useful in long running workers

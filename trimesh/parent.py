@@ -120,7 +120,7 @@ class Geometry(ABC):
         scaling : float or (3,) float
           Scale factor to apply to the mesh
         """
-        if self.vertices.shape[1] == 2:
+        if hasattr(self, 'vertices') and self.vertices.shape[1] == 2:
             matrix = np.eye(3)
             matrix[:2, :2] = scaling
         else:

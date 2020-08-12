@@ -640,3 +640,6 @@ class PointCloud(Geometry3D):
                            file_obj=file_obj,
                            file_type=file_type,
                            **kwargs)
+
+    def __add__(self, other):
+        return PointCloud(vertices=np.vstack((self.vertices, other.vertices)))
