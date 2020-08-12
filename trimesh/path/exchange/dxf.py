@@ -351,7 +351,7 @@ def load_dxf(file_obj, **kwargs):
                 metadata['units'] = _DXF_UNITS[units]
         # warn on drawings with no units
         if 'units' not in metadata:
-            log.warning('DXF doesn\'t have units specified!')
+            log.debug('DXF doesn\'t have units specified!')
 
     # find the start points of entities
     group_check = entity_blob[:, 0] == '0'
@@ -444,8 +444,8 @@ def load_dxf(file_obj, **kwargs):
             try:
                 convert_text(dict(chunk_raw))
             except BaseException:
-                log.warning('failed to load text entity!',
-                            exc_info=True)
+                log.debug('failed to load text entity!',
+                          exc_info=True)
         # if the entity contains all relevant data we can
         # cleanly load it from inside a single function
         elif entity_type in loaders:
@@ -597,9 +597,9 @@ def export_dxf(path, layers=None):
         return result
 
     def convert_arc(arc, vertices):
+        # get the center of arc and include span angles
         info = arc.center(vertices, return_angle=True, return_normal=False)
         subs = entity_info(arc)
-
         center = info['center']
         if len(center) == 2:
             center = np.append(center, 0.0)

@@ -45,12 +45,15 @@ def arc_center(points, return_normal=True, return_angle=True):
     b = np.linalg.norm(CA)
     c = np.linalg.norm(BA)
 
-    s = (a + b + c) / 2.0
-
-    denom = s * (s - a) * (s - b) * (s - c)
+    # perform radius calculation scaled to smallest norm
+    # to avoid precision issues with small or large arcs
+    scale = min([a, b, c])
+    sc = np.array([a, b, c]) / scale
+    s = sc.sum() / 2.0
+    denom = s * np.product(s - sc)
     if denom < tol.zero:
-        raise ValueError('colinear!')
-    radius = ((a * b * c) / 4.0) / np.sqrt(denom)
+        raise ValueError('arc is colinear!')
+    radius = scale * ((np.product(sc) / 4.0) / np.sqrt(denom))
 
     a2 = a**2
     b2 = b**2
