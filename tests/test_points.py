@@ -211,6 +211,15 @@ class PointsTest(g.unittest.TestCase):
 
         assert g.np.allclose(r.colors, p.colors)
 
+    def test_glb(self):
+        p = g.get_mesh('points_agisoft.xyz')
+        assert isinstance(p, g.trimesh.PointCloud)
+        assert len(p.vertices) > 0
+        # test exporting a pointcloud to a GLTF
+        # TODO : WE SHOULD IMPLEMENT THE IMPORTER TOO
+        r = p.export(file_type='gltf')
+        len(g.json.loads(r['model.gltf'])['meshes']) == 1
+
     def test_remove_close(self):
         # create 100 unique points
         p = g.np.arange(300).reshape((100, 3))
