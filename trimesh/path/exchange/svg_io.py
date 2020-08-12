@@ -190,21 +190,21 @@ def _svg_path_convert(paths, metadata=None, force=None):
 
     def load_multi(multi):
         # load a previously parsed multiline
-        return Line(np.arange(len(multi.points)) + count), multi.points
+        return Line(np.arange(len(multi.points)) + v_count), multi.points
 
     def load_arc(svg_arc):
         # load an SVG arc into a trimesh arc
         points = complex_to_float([svg_arc.start,
                                    svg_arc.point(0.5),
                                    svg_arc.end])
-        return Arc(np.arange(3) + count), points
+        return Arc(np.arange(3) + v_count), points
 
     def load_quadratic(svg_quadratic):
         # load a quadratic bezier spline
         points = complex_to_float([svg_quadratic.start,
                                    svg_quadratic.control,
                                    svg_quadratic.end])
-        return Bezier(np.arange(3) + count), points
+        return Bezier(np.arange(3) + v_count), points
 
     def load_cubic(svg_cubic):
         # load a cubic bezier spline
@@ -212,7 +212,7 @@ def _svg_path_convert(paths, metadata=None, force=None):
                                    svg_cubic.control1,
                                    svg_cubic.control2,
                                    svg_cubic.end])
-        return Bezier(np.arange(4) + count), points
+        return Bezier(np.arange(4) + v_count), points
 
     # load functions for each entity
     loaders = {'Arc': load_arc,
@@ -239,8 +239,10 @@ def _svg_path_convert(paths, metadata=None, force=None):
     # store loaded values here
     # TODO : get from SVG
     as_scene = False
+
     entities = []
     vertices = []
+    v_count = 0
 
     for path_string, matrix, meta in paths:
         # get parsed entities from svg.path
@@ -270,9 +272,8 @@ def _svg_path_convert(paths, metadata=None, force=None):
             # store loaded values here
             entities = []
             vertices = []
-
-        # how many vertices have we loaded
-        count = 0
+            # how many vertices have we loaded
+            v_count = 0
 
         # loop through parsed entity objects
         for svg_entity in parsed:
@@ -285,7 +286,7 @@ def _svg_path_convert(paths, metadata=None, force=None):
                 entities.append(e)
                 # create a sequence of vertex arrays
                 vertices.append(transform_points(v, matrix))
-                count += len(vertices[-1])
+                v_count += len(vertices[-1])
 
     # store results as kwargs and stack vertices
     kwargs = {'metadata': metadata,

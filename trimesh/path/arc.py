@@ -60,10 +60,15 @@ def arc_center(points, return_normal=True, return_angle=True):
           c2 * (a2 + b2 - c2)]
     center = (points.T).dot(ba) / sum(ba)
 
+    if tol.strict:
+        # all points should be at the calculated radius from center
+        assert np.allclose(
+            np.linalg.norm(points - center, axis=1),
+            radius)
     # start with initial results
     result = {'center': center,
               'radius': radius}
-
+    # exit early if we can
     if not (return_normal or return_angle):
         return result
 
