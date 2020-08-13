@@ -85,7 +85,7 @@ def units_from_metadata(obj, guess=True):
     # we made it to the wild ass guess section
     # if the scale is larger than 100 mystery units
     # declare the model to be millimeters, otherwise inches
-    log.warning('no units: guessing from scale')
+    log.debug('no units: guessing from scale')
     if float(obj.scale) > 100.0:
         return 'millimeters'
     else:
@@ -113,12 +113,12 @@ def _convert_units(obj, desired, guess=False):
         # to guess will raise a ValueError
         obj.units = units_from_metadata(obj, guess=guess)
 
-    log.info('converting units from %s to %s', obj.units, desired)
+    log.debug('converting units from %s to %s', obj.units, desired)
     # float, conversion factor
     conversion = unit_conversion(obj.units, desired)
 
     # apply scale uses transforms which preserve
-    # cached properties (rather than just multiplying vertices)
+    # cached properties rather than just multiplying vertices
     obj.apply_scale(conversion)
     # units are now desired units
     obj.units = desired
