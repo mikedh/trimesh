@@ -13,8 +13,9 @@ if __name__ == '__main__':
     # scene = trimesh.scene.Scene(mesh)
     scene = mesh.scene()
 
-    # run the actual render call
+    # set a GL config that fixes a depth buffer issue in xvfb
     window_conf = gl.Config(double_buffer=True, depth_size=24)
+    # run the actual render call
     png = scene.save_image(resolution=[1920, 1080],
                            window_conf=window_conf)
 

@@ -218,7 +218,7 @@ class PointsTest(g.unittest.TestCase):
         # test exporting a pointcloud to a GLTF
         # TODO : WE SHOULD IMPLEMENT THE IMPORTER TOO
         r = p.export(file_type='gltf')
-        len(g.json.loads(r['model.gltf'])['meshes']) == 1
+        len(g.json.loads(r['model.gltf'].decode('utf-8'))['meshes']) == 1
 
     def test_remove_close(self):
         # create 100 unique points
