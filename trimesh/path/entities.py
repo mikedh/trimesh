@@ -685,9 +685,11 @@ class BSpline(Curve):
                  **kwargs):
         self.points = np.asanyarray(points, dtype=np.int64)
         self.knots = np.asanyarray(knots, dtype=np.float64)
+        # save explicit closed
+        if closed is not None:
+            self.closed = closed
         self.layer = layer
         self.kwargs = kwargs
-        self.closed = closed
 
     @property
     def closed(self):
