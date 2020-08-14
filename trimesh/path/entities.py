@@ -687,6 +687,33 @@ class BSpline(Curve):
         self.layer = layer
         self.kwargs = kwargs
 
+    @property
+    def closed(self):
+        """
+        A boolean flag for whether the B-Spline curve is closed or not.
+
+        Returns
+        ----------
+        closed : bool
+          If set True, B-Spline will be a closed curve
+        """
+        if hasattr(self, '_closed'):
+            return self._closed
+        return False
+
+    @closed.setter
+    def closed(self, value):
+        """
+        Set the B-Spline to be closed or not, without
+        changing the control points
+
+        Parameters
+        ------------
+        value : bool
+          Should this B-Spline be a closed curve or not
+        """
+        self._closed = bool(value)
+
     def discrete(self, vertices, count=None, scale=1.0):
         """
         Discretize the B-Spline curve.
