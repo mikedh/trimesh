@@ -23,6 +23,7 @@ def load_obj(file_obj,
              resolver=None,
              split_object=False,
              group_material=True,
+             skip_materials=False,
              **kwargs):
     """
     Load a Wavefront OBJ file into kwargs for a trimesh.Scene
@@ -40,6 +41,8 @@ def load_obj(file_obj,
     group_material : bool
       Group faces that share the same material
       into the same mesh.
+    skip_materials : bool
+      Don't load any materials.
 
     Returns
     -------------
@@ -61,7 +64,7 @@ def load_obj(file_obj,
     # Load Materials
     materials = {}
     mtl_position = text.find('mtllib')
-    if mtl_position >= 0:
+    if not skip_materials and mtl_position >= 0:
         # take the line of the material file after `mtllib`
         # which should be the file location of the .mtl file
         mtl_path = text[mtl_position + 6:text.find('\n', mtl_position)].strip()

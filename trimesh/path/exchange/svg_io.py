@@ -30,7 +30,7 @@ except BaseException as E:
     etree = exceptions.ExceptionModule(E)
 
 # store any additional properties using a trimesh namespace
-_ns_url = 'http://github.com/mikedh/trimesh'
+_ns_url = 'https://github.com/mikedh/trimesh'
 _ns_name = 'trimesh'
 
 
@@ -51,9 +51,16 @@ def svg_to_path(file_obj, file_type=None):
       With kwargs for Path2D constructor
     """
 
-    def element_transform(e, max_depth=100):
+    def element_transform(e, max_depth=10):
         """
         Find a transformation matrix for an XML element.
+
+        Parameters
+        --------------
+        e : lxml.etree.Element
+          Element to search upwards from.
+        max_depth : int
+          Maximum depth to search for transforms.
         """
         matrices = []
         current = e
@@ -71,35 +78,33 @@ def svg_to_path(file_obj, file_type=None):
         else:
             return util.multi_dot(matrices[::-1])
 
-    def element_meta(e):
-        return None
-
     # first parse the XML
     tree = etree.fromstring(file_obj.read())
     # store paths and transforms as
     # (path string, 3x3 matrix)
     paths = []
-    # store every path element
     for element in tree.iter('{*}path'):
-        paths.append((element.attrib['d'],
-                      element_transform(element),
-                      element_meta(element)))
+        # store every path element attributes and transform
+        paths.append((element.attrib,
+                      element_transform(element)))
 
     try:
-        # get overall metadata
+        # get overall metadata from JSON string if it exists
         metadata = json.loads(
-            tree.attrib['{}metadata'.format(
-                '{' + _ns_url + '}')].replace("'", '"'))
+            tree.attrib['{{{}}}metadata'.format(
+                _ns_url)].replace("'", '"'))
     except BaseException:
+        # no metadata stored with trimesh ns
         metadata = None
     try:
-        # get overall metadata
-        force = tree.attrib['{}class'.format(
-            '{' + _ns_url + '}')]
+        # see if the SVG was
+        force = tree.attrib['{{{}}}class'.format(_ns_url)]
     except BaseException:
         force = None
 
-    return _svg_path_convert(paths=paths, metadata=metadata, force=force)
+    return _svg_path_convert(paths=paths,
+                             metadata=metadata,
+                             force=force)
 
 
 def transform_to_matrices(transform):
@@ -238,13 +243,16 @@ def _svg_path_convert(paths, metadata=None, force=None):
 
     # store loaded values here
     # TODO : get from SVG
-    as_scene = False
+    as_scene = force == 'Scene'
 
+    collected = {}
     entities = []
     vertices = []
     v_count = 0
 
-    for path_string, matrix, meta in paths:
+    for attrib, matrix in paths:
+
+        path_string = attrib['d']
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
         # check to see if each entity is a Line
@@ -268,13 +276,6 @@ def _svg_path_convert(paths, metadata=None, force=None):
                 # otherwise just add the entities
                 parsed.extend(raw[b])
 
-        if as_scene:
-            # store loaded values here
-            entities = []
-            vertices = []
-            # how many vertices have we loaded
-            v_count = 0
-
         # loop through parsed entity objects
         for svg_entity in parsed:
             # keyed by entity class name
@@ -284,14 +285,33 @@ def _svg_path_convert(paths, metadata=None, force=None):
                 e, v = loaders[type_name](svg_entity)
                 # append them to the result
                 entities.append(e)
-                # create a sequence of vertex arrays
+                # transform the vertices by the matrix and append
                 vertices.append(transform_points(v, matrix))
                 v_count += len(vertices[-1])
 
-    # store results as kwargs and stack vertices
-    kwargs = {'metadata': metadata,
-              'entities': entities,
-              'vertices': np.vstack(vertices)}
+        if as_scene:
+            name = attrib['{{{}}}name'.format(_ns_url)]
+            try:
+                p_meta = attrib['{{{}}}metadata'.format(_ns_url)]
+            except BaseException:
+                p_meta = None
+            collected[name] = {'entities': entities,
+                               'vertices': np.vstack(vertices),
+                               'metadata': p_meta}
+            # store loaded values here
+            entities = []
+            vertices = []
+            # how many vertices have we loaded
+            v_count = 0
+
+    if as_scene:
+        kwargs = {'geometry': collected,
+                  'metadata': metadata}
+    else:
+        # store results as kwargs and stack vertices
+        kwargs = {'metadata': metadata,
+                  'entities': entities,
+                  'vertices': np.vstack(vertices)}
 
     return kwargs
 
@@ -303,16 +323,13 @@ def _entities_to_str(entities, vertices, layers=None):
     points = vertices.copy()
 
     def circle_to_svgpath(center, radius, reverse):
-        radius_str = format(radius, res.export)
-        return ''.join([
-            'M ' + format(center[0] - radius, res.export) + ',',
-            format(center[1], res.export),
-            ' a ' + radius_str + ',' + radius_str,
-            ',0,1,' + str(int(reverse)) + ',',
-            format(2 * radius, res.export) + ',0',
-            ' a ' + radius_str + ',' + radius_str,
-            ',0,1,' + str(int(reverse)) + ',',
-            format(-2 * radius, res.export) + ',0 Z'])
+        c = 'M {x},{y} a {r},{r},0,1,0,{d},0 a {r},{r},0,1,{rev},-{d},0 Z'
+        fmt = '{{:{}}}'.format(res.export)
+        return c.format(x=fmt.format(center[0] - radius),
+                        y=fmt.format(center[1]),
+                        r=fmt.format(radius),
+                        d=fmt.format(2.0 * radius),
+                        rev=int(bool(reverse)))
 
     def svg_arc(arc, reverse):
         """
@@ -414,8 +431,6 @@ def export_svg(drawing,
                  if util.is_instance_named(g, 'Path2D')}
     elif util.is_instance_named(drawing, 'Path2D'):
         attrib['class'] = 'Path2D'
-        # todo handle this
-        print('TODO : need to handle this')
         paths = {'path': _entities_to_str(
             entities=drawing.entities,
             vertices=drawing.vertices,
@@ -438,14 +453,12 @@ def export_svg(drawing,
                 ns=_ns_name, name=name),
             path_string=pstr,
             fill="none"))
-
     # format as XML
     if 'stroke_width' in kwargs:
         stroke_width = float(kwargs['stroke_width'])
     else:
         # set stroke to something OK looking
         stroke_width = drawing.extents.max() / 800.0
-
     try:
         # store metadata in XML as JSON -_-
         attrib['metadata'] = util.jsonify(
@@ -454,10 +467,8 @@ def export_svg(drawing,
     except BaseException:
         # otherwise skip metadata
         pass
-
     attribs = '\n'.join('{ns}:{key}="{value}"'.format(
         ns=_ns_name, key=k, value=v) for k, v in attrib.items())
-
     subs = {'elements': '\n'.join(elements),
             'min_x': drawing.bounds[0][0],
             'min_y': drawing.bounds[0][1],
@@ -465,7 +476,6 @@ def export_svg(drawing,
             'height': drawing.extents[1],
             'stroke_width': stroke_width,
             'attribs': attribs}
-
     result = template_svg.format(**subs)
 
     return result
