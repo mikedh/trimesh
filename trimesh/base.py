@@ -2337,13 +2337,11 @@ class Trimesh(Geometry3D):
         path : Path3D
           Curve in 3D of the outline
         """
+        from .path import Path3D
         from .path.exchange.misc import faces_to_path
-        from .path.exchange.load import _create_path
-
-        path = _create_path(**faces_to_path(self,
-                                            face_ids,
-                                            **kwargs))
-        return path
+        from .exchange.load import load_kwargs
+        return Path3D(**faces_to_path(
+            self, face_ids, **kwargs))
 
     @caching.cache_decorator
     def area(self):

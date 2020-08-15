@@ -138,8 +138,7 @@ def mesh_plane(mesh,
                                            vertices[edges.T],
                                            line_segments=False)
         # since the data has been pre- culled, any invalid intersections at all
-        # means the culling was done incorrectly and thus things are
-        # mega-fucked
+        # means the culling was done incorrectly and thus things are broken
         assert valid.all()
         return intersections.reshape((-1, 2, 3))
 
@@ -195,7 +194,7 @@ def mesh_multiplane(mesh,
                     heights):
     """
     A utility function for slicing a mesh by multiple
-    parallel planes, which caches the dot product operation.
+    parallel planes which caches the dot product operation.
 
     Parameters
     -------------
@@ -206,7 +205,8 @@ def mesh_multiplane(mesh,
     plane_origin : (3,) float
         Point on a plane
     heights : (m,) float
-        Offset distances from plane to slice at
+      Offset distances from plane to slice at:
+      at `height=0` it will be exactly on the passed plane.
 
     Returns
     --------------
