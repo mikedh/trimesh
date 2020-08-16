@@ -25,6 +25,11 @@ class ExportTest(g.unittest.TestCase):
                                     loaded.length,
                                     rtol=.01)
 
+            path_str = g.trimesh.path.exchange.svg_io.export_svg(
+                d, return_path=True)
+            assert isinstance(path_str, str)
+            assert len(path_str) > 0
+
     def test_layer(self):
         from shapely.geometry import Point
 

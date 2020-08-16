@@ -439,7 +439,7 @@ def export_svg(drawing,
 
     # return path string without XML wrapping
     if return_path:
-        return ' '.join(paths.values())
+        return ' '.join(v[1] for v in paths.values())
 
     # fetch the export template for the base SVG file
     template_svg = resources.get('svg.base.template', decode=True)
