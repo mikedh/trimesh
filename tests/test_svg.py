@@ -8,15 +8,12 @@ class ExportTest(g.unittest.TestCase):
 
     def test_svg(self):
         for d in g.get_2D():
-            # export as svg string
-            exported = d.export(file_type='svg')
-            # load the exported SVG
-            stream = g.trimesh.util.wrap_as_stream(exported)
-
             if g.np.isclose(d.area, 0.0):
                 continue
-
-            loaded = g.trimesh.load(stream, file_type='svg')
+            # export and reload the exported SVG
+            loaded = g.trimesh.load(
+                g.trimesh.util.wrap_as_stream(d.export(file_type='svg')),
+                file_type='svg')
 
             # we only have line and arc primitives as SVG
             # export and import
@@ -27,6 +24,11 @@ class ExportTest(g.unittest.TestCase):
                 assert g.np.isclose(d.length,
                                     loaded.length,
                                     rtol=.01)
+
+            path_str = g.trimesh.path.exchange.svg_io.export_svg(
+                d, return_path=True)
+            assert isinstance(path_str, str)
+            assert len(path_str) > 0
 
     def test_layer(self):
         from shapely.geometry import Point
@@ -99,6 +101,35 @@ class ExportTest(g.unittest.TestCase):
                              [[0, 2, 4],
                               [1, 3, 5],
                               [0, 0, 1]])
+
+    def test_roundtrip(self):
+        """
+        Check to make sure a roundtrip from both a Scene and a
+        Path2D results in the same file on both sides
+        """
+        p = g.get_mesh('2D/250_cycloidal.DXF')
+        assert isinstance(p, g.trimesh.path.Path2D)
+        # load the exported SVG
+        r = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(p.export(file_type='svg')),
+            file_type='svg')
+        assert isinstance(r, g.trimesh.path.Path2D)
+        assert g.np.isclose(r.length, p.length)
+        assert g.np.isclose(r.area, p.area)
+        assert set(r.metadata.keys()) == set(p.metadata.keys())
+
+        s = g.trimesh.scene.split_scene(p)
+        assert isinstance(s, g.trimesh.Scene)
+        r = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(s.export(file_type='svg')),
+            file_type='svg')
+        assert isinstance(r, g.trimesh.Scene)
+        assert set(s.geometry.keys()) == set(r.geometry.keys())
+        assert set(s.metadata.keys()) == set(r.metadata.keys())
+        # check to see if every geometry has the same metadata
+        for geom in s.geometry.keys():
+            a, b = s.geometry[geom], r.geometry[geom]
+            assert set(a.metadata.keys()) == set(b.metadata.keys())
 
 
 if __name__ == '__main__':

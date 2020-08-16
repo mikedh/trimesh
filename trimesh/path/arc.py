@@ -5,10 +5,9 @@ from .. import util
 from ..constants import log
 from ..constants import tol_path as tol
 from ..constants import res_path as res
-from .intersections import line_line
 
 
-def arc_center(points):
+def arc_center(points, return_normal=True, return_angle=True):
     """
     Given three points on an arc find:
     center, radius, normal, and angle.
@@ -21,68 +20,94 @@ def arc_center(points):
     ---------
     points : (3, dimension) float
       Points in space, where dimension is either 2 or 3
+    return_normal : bool
+      If True calculate the 3D normal unit vector
+    return_angle : bool
+      If True calculate the start and stop angle and span
 
     Returns
     ---------
     result : dict
-      Contains the arc center and other information:
-      {'center' : (d,) float, cartesian center of the arc
+      Contains arc center and other keys:
+       'center' : (d,) float, cartesian center of the arc
        'radius' : float, radius of the arc
        'normal' : (3,) float, the plane normal.
-       'angle'  : (2,) float, angle of start and end in radians
-       'span'   : float, angle swept by the arc in radians}
+       'angles' : (2,) float, angle of start and end in radians
+       'span'   : float, angle swept by the arc in radians
     """
-    # it's a lot easier to treat 2D as 3D with a zero Z value
-    points, is_2D = util.stack_3D(points, return_2D=True)
+    points = np.asanyarray(points, dtype=np.float64)
 
-    # find the two edge vectors of the triangle
-    edge_direction = np.diff(points, axis=0)
-    edge_midpoints = (edge_direction * 0.5) + points[:2]
+    A, B, C = points
+    CB = C - B
+    CA = C - A
+    BA = B - A
+    a = np.linalg.norm(CB)
+    b = np.linalg.norm(CA)
+    c = np.linalg.norm(BA)
 
-    # three points define a plane, so find signed normal
-    plane_normal = np.cross(*edge_direction[::-1])
-    plane_normal /= np.linalg.norm(plane_normal)
+    # perform radius calculation scaled to smallest norm
+    # to avoid precision issues with small or large arcs
+    scale = min([a, b, c])
+    sc = np.array([a, b, c]) / scale
+    s = sc.sum() / 2.0
+    denom = s * np.product(s - sc)
+    if denom < tol.zero:
+        raise ValueError('arc is colinear!')
+    radius = scale * ((np.product(sc) / 4.0) / np.sqrt(denom))
 
-    # unit vector along edges
-    vector_edge = util.unitize(edge_direction)
+    a2 = a**2
+    b2 = b**2
+    c2 = c**2
+    ba = [a2 * (b2 + c2 - a2),
+          b2 * (a2 + c2 - b2),
+          c2 * (a2 + b2 - c2)]
+    center = (points.T).dot(ba) / sum(ba)
 
-    # perpendicular cector to each segment
-    vector_perp = util.unitize(np.cross(vector_edge, plane_normal))
-
-    # run the line-line intersection to find the point
-    intersects, center = line_line(origins=edge_midpoints,
-                                   directions=vector_perp,
-                                   plane_normal=plane_normal)
-
-    if not intersects:
-        raise ValueError('segments do not intersect:\n{}'.format(
-            str(points)))
-
-    # radius is euclidean distance
-    radius = ((points[0] - center) ** 2).sum() ** .5
+    if tol.strict:
+        # all points should be at the calculated radius from center
+        assert np.allclose(
+            np.linalg.norm(points - center, axis=1),
+            radius)
+    # start with initial results
+    result = {'center': center,
+              'radius': radius}
+    # exit early if we can
+    if not (return_normal or return_angle):
+        return result
 
     # vectors from points on arc to center point
     vector = util.unitize(points - center)
+    if return_normal:
+        if points.shape == (3, 2):
+            result['normal'] = util.unitize(
+                np.cross(np.append(CA, 0), np.append(BA, 0)))
+        else:
+            result['normal'] = util.unitize(
+                np.cross(CA, BA))
 
-    # find the angle between the first and last vector
-    angle = np.arccos(np.clip(np.dot(*vector[[0, 2]]), -1.0, 1.0))
-    # if the angle is nonzero and vectors are opposite directions
-    # it means we have a long arc rather than the short path
-    large_arc = (abs(angle) > tol.zero and
-                 np.dot(*edge_direction) < 0.0)
-    if large_arc:
-        angle = (np.pi * 2) - angle
+    if return_angle:
+        edge_direction = np.diff(points, axis=0)
+        # find the angle between the first and last vector
+        dot = np.dot(*vector[[0, 2]])
+        if dot < (tol.zero - 1):
+            angle = np.pi
+        elif dot > 1 - tol.zero:
+            angle = 0.0
+        else:
+            angle = np.arccos(dot)
+        # if the angle is nonzero and vectors are opposite directions
+        # it means we have a long arc rather than the short path
+        if abs(angle) > tol.zero and np.dot(*edge_direction) < 0.0:
+            angle = (np.pi * 2) - angle
 
-    angles = np.arctan2(*vector[:, :2].T[::-1]) + np.pi * 2
-    angles_sorted = np.sort(angles[[0, 2]])
-    reverse = angles_sorted[0] < angles[1] < angles_sorted[1]
-    angles_sorted = angles_sorted[::(1 - int(not reverse) * 2)]
+        # convoluted angle logic
+        angles = np.arctan2(*vector[:, :2].T[::-1]) + np.pi * 2
+        angles_sorted = np.sort(angles[[0, 2]])
+        reverse = angles_sorted[0] < angles[1] < angles_sorted[1]
+        angles_sorted = angles_sorted[::(1 - int(not reverse) * 2)]
+        result['angles'] = angles_sorted
+        result['span'] = angle
 
-    result = {'center': center[:(3 - is_2D)],
-              'radius': radius,
-              'normal': plane_normal,
-              'span': angle,
-              'angles': angles_sorted}
     return result
 
 

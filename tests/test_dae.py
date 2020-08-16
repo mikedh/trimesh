@@ -57,7 +57,7 @@ class DAETest(g.unittest.TestCase):
             # bring it back from outer space
             rec = g.trimesh.load(path, force='mesh')
         assert rec.visual.uv.ptp(axis=0).ptp() > 1e-5
-        assert (s.visual.material.image.size ==
+        assert (s.visual.material.baseColorTexture.size ==
                 rec.visual.material.image.size)
 
 

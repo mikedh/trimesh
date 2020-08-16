@@ -14,7 +14,7 @@ import hashlib
 from functools import wraps
 
 from .constants import log
-from .util import is_sequence, now
+from .util import is_sequence
 
 try:
     from collections.abc import Mapping
@@ -88,12 +88,9 @@ def cache_decorator(function):
         self = args[0]
         # use function name as key in cache
         name = function.__name__
-        # store execution times
-        tic = [now(), 0.0, 0.0]
         # do the dump logic ourselves to avoid
         # verifying cache twice per call
         self._cache.verify()
-        tic[1] = now()
         # access cache dict to avoid automatic validation
         # since we already called cache.verify manually
         if name in self._cache.cache:
@@ -101,19 +98,13 @@ def cache_decorator(function):
             return self._cache.cache[name]
         # value not in cache so execute the function
         value = function(*args, **kwargs)
-        tic[2] = now()
         # store the value
         if self._cache.force_immutable and hasattr(
                 value, 'flags') and len(value.shape) > 0:
             value.flags.writeable = False
 
         self._cache.cache[name] = value
-        # log both the function execution time and how long
-        # it took to validate the state of the cache
-        log.debug('`%s`: %.2Es, `cache.verify`: %.2Es',
-                  name,
-                  tic[2] - tic[1],
-                  tic[1] - tic[0])
+
         return value
 
     # all cached values are also properties

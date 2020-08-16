@@ -147,6 +147,13 @@ class VectorTests(g.unittest.TestCase):
         # should have fixed this puppy
         assert p.is_closed
 
+        # remove 2 short edges using remove_entity()
+        count = len(p.entities)
+        p.remove_entities([count - 1, count - 6])
+        assert not p.is_closed
+        p.fill_gaps(2)
+        assert p.is_closed
+
     def test_text(self):
         """
         Do some checks on Text entities

@@ -29,23 +29,10 @@ try:
     from ..path.exchange.load import load_path, path_formats
 except BaseException as E:
     # save a traceback to see why path didn't import
-    _path_exception = E
-
-    def load_path(*args, **kwargs):
-        """
-        Dummy load path function that will raise an exception
-        on use. Import of path failed, probably because a
-        dependency is not installed.
-
-        Raises
-        ----------
-        path_exception : BaseException
-          Whatever failed when we imported path
-        """
-        raise _path_exception
-
-    def path_formats():
-        return []
+    from ..exceptions import closure
+    load_path = closure(E)
+    # no path formats available
+    def path_formats(): return []
 
 
 def mesh_formats():
@@ -385,21 +372,28 @@ def load_kwargs(*args, **kwargs):
     """
     def handle_scene():
         """
-        Load a scene from our kwargs:
+        Load a scene from our kwargs.
 
         class:      Scene
         geometry:   dict, name: Trimesh kwargs
         graph:      list of dict, kwargs for scene.graph.update
         base_frame: str, base frame of graph
         """
-        scene = Scene()
-        scene.geometry.update({k: load_kwargs(v) for
-                               k, v in kwargs['geometry'].items()})
-        for k in kwargs['graph']:
-            if isinstance(k, dict):
-                scene.graph.update(**k)
-            elif util.is_sequence(k) and len(k) == 3:
-                scene.graph.update(k[1], k[0], **k[2])
+        graph = kwargs.get('graph', None)
+        geometry = {k: load_kwargs(v) for
+                    k, v in kwargs['geometry'].items()}
+
+        if graph is not None:
+            scene = Scene()
+            scene.geometry.update(geometry)
+            for k in graph:
+                if isinstance(k, dict):
+                    scene.graph.update(**k)
+                elif util.is_sequence(k) and len(k) == 3:
+                    scene.graph.update(k[1], k[0], **k[2])
+        else:
+            scene = Scene(geometry)
+
         if 'base_frame' in kwargs:
             scene.graph.base_frame = kwargs['base_frame']
         if 'metadata' in kwargs:
@@ -428,6 +422,18 @@ def load_kwargs(*args, **kwargs):
                                     file_type=file_type)
         return Trimesh(**k)
 
+    def handle_path():
+        from ..path import Path2D, Path3D
+        e, v = kwargs['entities'], kwargs['vertices']
+        if 'metadata' in kwargs:
+            m = kwargs['metadata']
+        else:
+            m = None
+        if v.shape[1] == 2:
+            return Path2D(entities=e, vertices=v, metadata=m)
+        elif v.shape[1] == 3:
+            return Path3D(entities=e, vertices=v, metadata=m)
+
     def handle_pointcloud():
         return PointCloud(**kwargs)
 
@@ -441,14 +447,14 @@ def load_kwargs(*args, **kwargs):
     # (function, tuple of expected keys)
     # order is important
     handlers = (
-        (handle_scene, ('graph', 'geometry')),
+        (handle_scene, ('geometry',)),
         (handle_mesh, ('vertices', 'faces')),
+        (handle_path, ('entities', 'vertices')),
         (handle_pointcloud, ('vertices',)),
         (handle_export, ('file_type', 'data')))
 
     # filter out keys with a value of None
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
-
     # loop through handler functions and expected key
     for func, expected in handlers:
         if all(i in kwargs for i in expected):
@@ -457,7 +463,7 @@ def load_kwargs(*args, **kwargs):
             # exit the loop as we found one
             break
     else:
-        raise ValueError('unable to determine type!')
+        raise ValueError('unable to determine type: {}'.format(kwargs.keys()))
 
     return handler()
 

@@ -112,7 +112,7 @@ class ResolutionPath(object):
         self.seg_angle = .08
         self.max_sections = 10
         self.min_sections = 5
-        self.export = '.5f'
+        self.export = '0.10f'
 
 
 # instantiate mesh tolerances with defaults

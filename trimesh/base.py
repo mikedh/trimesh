@@ -40,13 +40,13 @@ from .exchange.export import export_mesh
 from .constants import log, log_time, tol
 
 from .scene import Scene
-from .parent import Geometry
+from .parent import Geometry3D
 
 import copy
 import numpy as np
 
 
-class Trimesh(Geometry):
+class Trimesh(Geometry3D):
 
     def __init__(self,
                  vertices=None,
@@ -1719,8 +1719,8 @@ class Trimesh(Geometry):
         edges = self.edges_sorted.reshape((-1, 6))
         # get the edges for each facet
         edges_facet = [edges[i].reshape((-1, 2)) for i in self.facets]
-        edges_boundary = np.array([i[grouping.group_rows(i, require_count=1)]
-                                   for i in edges_facet])
+        edges_boundary = [i[grouping.group_rows(i, require_count=1)]
+                          for i in edges_facet]
         return edges_boundary
 
     @caching.cache_decorator
@@ -2337,13 +2337,11 @@ class Trimesh(Geometry):
         path : Path3D
           Curve in 3D of the outline
         """
+        from .path import Path3D
         from .path.exchange.misc import faces_to_path
-        from .path.exchange.load import _create_path
-
-        path = _create_path(**faces_to_path(self,
-                                            face_ids,
-                                            **kwargs))
-        return path
+        from .exchange.load import load_kwargs
+        return Path3D(**faces_to_path(
+            self, face_ids, **kwargs))
 
     @caching.cache_decorator
     def area(self):

@@ -1,5 +1,5 @@
-\
 import os
+import json
 
 # find the current absolute path to this directory
 _pwd = os.path.expanduser(os.path.abspath(os.path.dirname(__file__)))
@@ -8,9 +8,9 @@ _pwd = os.path.expanduser(os.path.abspath(os.path.dirname(__file__)))
 _cache = {}
 
 
-def get(name, decode=True):
+def get(name, decode=True, decode_json=False):
     """
-    Get a resource from the trimesh/resources folder.
+    Get a resource from the `trimesh/resources` folder.
 
     Parameters
     -------------
@@ -18,14 +18,16 @@ def get(name, decode=True):
       File path relative to `trimesh/resources`
     decode : bool
       Whether or not to decode result as UTF-8
+    decode_json : bool
+      Run `json.loads` on resource if True.
 
     Returns
     -------------
-    resource : str or bytes
+    resource : str, bytes, or decoded JSON
       File data
     """
     # key by name and decode
-    cache_key = (name, bool(decode))
+    cache_key = (name, bool(decode), bool(decode_json))
     if cache_key in _cache:
         # return cached resource
         return _cache[cache_key]
@@ -37,6 +39,10 @@ def get(name, decode=True):
     # make sure we return it as a string if asked
     if decode and hasattr(resource, 'decode'):
         resource = resource.decode('utf-8')
+
+    if decode_json:
+        resource = json.loads(resource)
+
     # store for later access
     _cache[cache_key] = resource
 

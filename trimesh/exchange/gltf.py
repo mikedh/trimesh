@@ -484,6 +484,13 @@ def _create_gltf_structure(scene,
                 name=name,
                 tree=tree,
                 buffer_items=buffer_items)
+        elif util.is_instance_named(geometry, "PointCloud"):
+            # add PointCloud objects
+            _append_point(
+                points=geometry,
+                name=name,
+                tree=tree,
+                buffer_items=buffer_items)
 
     # cull empty or unpopulated fields
     # check keys that might be empty so we can remove them
@@ -800,10 +807,90 @@ def _append_path(path, name, tree, buffer_items):
     # this is just exporting everying as black
     tree["materials"].append(_default_material)
 
-    # data is the second value of the fourth field
+    # data is the second value of the fifth field
     # which is a (data type, data) tuple
     buffer_items.append(_byte_pad(
         vxlist[4][1].astype(float32).tobytes()))
+
+    # add color to attributes
+    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
+
+    # the vertex color accessor data
+    tree["accessors"].append({
+        "bufferView": len(buffer_items),
+        "componentType": 5121,
+        "count": vxlist[0],
+        "normalized": True,
+        "type": "VEC4",
+        "byteOffset": 0})
+
+    # the actual color data
+    buffer_items.append(_byte_pad(
+        np.array(vxlist[5][1]).astype(uint8).tobytes()))
+
+
+def _append_point(points, name, tree, buffer_items):
+    """
+    Append a 2D or 3D pointCloud to the scene structure and put the
+    data into buffer_items.
+
+    Parameters
+    -------------
+    points : trimesh.PointCloud
+      Source geometry
+    name : str
+      Name of geometry
+    tree : dict
+      Will be updated with data from points
+    buffer_items
+      Will have buffer appended with points data
+    """
+
+    # convert the points to the unnamed args for
+    # a pyglet vertex list
+    vxlist = rendering.points_to_vertexlist(points=points.vertices, colors=points.colors)
+
+    tree["meshes"].append({
+        "name": name,
+        "primitives": [{
+            "attributes": {"POSITION": len(tree["accessors"])},
+            "mode": 0,  # mode 0 is GL_POINTS
+            "material": len(tree["materials"])}]})
+
+    tree["accessors"].append(
+        {
+            "bufferView": len(buffer_items),
+            "componentType": 5126,
+            "count": vxlist[0],
+            "type": "VEC3",
+            "byteOffset": 0,
+            "max": points.vertices.max(axis=0).tolist(),
+            "min": points.vertices.min(axis=0).tolist()})
+
+    # TODO add color support to Points object
+    # this is just exporting everying as black
+    tree["materials"].append(_default_material)
+
+    # data is the second value of the fifth field
+    # which is a (data type, data) tuple
+    buffer_items.append(_byte_pad(
+        vxlist[4][1].astype(float32).tobytes()))
+
+    # add color to attributes
+    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
+
+    # the vertex color accessor data
+    tree["accessors"].append({
+        "bufferView": len(buffer_items),
+        "componentType": 5121,
+        "count": vxlist[0],
+        "normalized": True,
+        "type": "VEC4",
+        "byteOffset": 0})
+
+    # the actual color data
+    buffer_items.append(_byte_pad(
+        np.array(vxlist[5][1]).astype(uint8).tobytes()))
 
 
 def _parse_materials(header, views, resolver=None):

@@ -8,7 +8,7 @@ import copy
 
 import numpy as np
 
-from .parent import Geometry
+from .parent import Geometry3D
 from .geometry import plane_transform
 from .constants import tol
 from .visual.color import VertexColor
@@ -375,7 +375,7 @@ def plot_points(points, show=True):
         plt.show()
 
 
-class PointCloud(Geometry):
+class PointCloud(Geometry3D):
     """
     Hold 3D points in an object which can be visualized
     in a scene.
@@ -640,3 +640,6 @@ class PointCloud(Geometry):
                            file_obj=file_obj,
                            file_type=file_type,
                            **kwargs)
+
+    def __add__(self, other):
+        return PointCloud(vertices=np.vstack((self.vertices, other.vertices)))

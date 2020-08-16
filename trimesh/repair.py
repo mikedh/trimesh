@@ -255,10 +255,9 @@ def fill_holes(mesh):
     g = nx.from_edgelist(
         np.column_stack((boundary_edges,
                          index_as_dict)))
-    cycles = np.array(nx.cycle_basis(g))
     new_faces = []
     new_vertex = []
-    for hole in cycles:
+    for hole in nx.cycle_basis(g):
         # convert the hole, which is a polygon of vertex indices
         # to triangles and new vertices
         faces, vertex = hole_to_faces(hole=hole)
