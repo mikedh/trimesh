@@ -141,19 +141,8 @@ class ZipResolver(Resolver):
 
         # requested name not identical in storage so attempt to recover
         if name not in archive:
-            # the various operations that *might* result in a correct key
-            cleaners = [lambda x: x,
-                        lambda x: x.strip(),
-                        lambda x: x.lstrip('./'),
-                        lambda x: x.split('/')[-1],
-                        lambda x: x.replace('%20', ' ')]
-            # collect a list of potential cleaned names
-            clean = [f(name) for f in cleaners]
-            # combine any two clean functions
-            clean.extend(a(b(name)) for a, b in
-                         itertools.combinations(cleaners, 2))
             # loop through unique results
-            for option in set(clean):
+            for option in nearby_names(name):
                 if option in archive:
                     # cleaned option is in archive so store value and exit
                     name = option
@@ -236,3 +225,50 @@ class WebResolver(Resolver):
 
         # return the bytes of the response
         return response.content
+
+
+def nearby_names(name):
+    """
+    Try to find nearby variants of a specified name.
+
+    Parameters
+    ------------
+    name : str
+      Initial name.
+
+    Yields
+    -----------
+    nearby : str
+      Name that is a lightly permutated version of initial name.
+    """
+    # the various operations that *might* result in a correct key
+    cleaners = [lambda x: x,
+                lambda x: x.strip(),
+                lambda x: x.lstrip('./'),
+                lambda x: x.split('/')[-1],
+                lambda x: x.replace('%20', ' ')]
+
+    # make sure we don't return repeat values
+    hit = set()
+    for f in cleaners:
+        # try just one cleaning function
+        current = f(name)
+        if current in hit:
+            continue
+        hit.add(current)
+        yield current
+
+    for a, b in itertools.combinations(cleaners, 2):
+        # apply both clean functions
+        current = a(b(name))
+        if current in hit:
+            continue
+        hit.add(current)
+        yield current
+
+        # try applying in reverse order
+        current = b(a(name))
+        if current in hit:
+            continue
+        hit.add(current)
+        yield current

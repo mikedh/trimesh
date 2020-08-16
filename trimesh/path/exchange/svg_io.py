@@ -251,7 +251,6 @@ def _svg_path_convert(paths, metadata=None, force=None):
     v_count = 0
 
     for attrib, matrix in paths:
-
         path_string = attrib['d']
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
@@ -292,12 +291,14 @@ def _svg_path_convert(paths, metadata=None, force=None):
         if as_scene:
             name = attrib['{{{}}}name'.format(_ns_url)]
             try:
-                p_meta = attrib['{{{}}}metadata'.format(_ns_url)]
+                p_meta = json.loads(attrib['{{{}}}metadata'.format(
+                    _ns_url)].replace("'", '"'))
             except BaseException:
                 p_meta = None
             collected[name] = {'entities': entities,
                                'vertices': np.vstack(vertices),
                                'metadata': p_meta}
+
             # store loaded values here
             entities = []
             vertices = []
@@ -346,11 +347,9 @@ def _entities_to_str(entities, vertices, layers=None):
                        center_info['span'])
         if arc.closed:
             return circle_to_svgpath(C, R, reverse)
-
         large_flag = str(int(angle > np.pi))
         sweep_flag = str(int(np.cross(vertex_mid - vertex_start,
                                       vertex_end - vertex_start) > 0.0))
-
         return (move_to(arc_idx[0]) +
                 'A {R},{R} 0 {}, {} {},{}'.format(
                     large_flag,
@@ -424,17 +423,17 @@ def export_svg(drawing,
     attrib = {}
     if util.is_instance_named(drawing, 'Scene'):
         attrib['class'] = 'Scene'
-        paths = {name: _entities_to_str(entities=g.entities,
-                                        vertices=g.vertices,
-                                        layers=layers)
+        paths = {name: (g.metadata, _entities_to_str(entities=g.entities,
+                                                     vertices=g.vertices,
+                                                     layers=layers))
                  for name, g in drawing.geometry.items()
                  if util.is_instance_named(g, 'Path2D')}
     elif util.is_instance_named(drawing, 'Path2D'):
         attrib['class'] = 'Path2D'
-        paths = {'path': _entities_to_str(
+        paths = {'path': (None, _entities_to_str(
             entities=drawing.entities,
             vertices=drawing.vertices,
-            layers=layers)}
+            layers=layers))}
     else:
         raise ValueError('drawing must be Scene or Path2D object!')
 
@@ -447,12 +446,15 @@ def export_svg(drawing,
     template_path = resources.get('svg.path.template', decode=True)
 
     elements = []
-    for name, pstr in paths.items():
+    for name, stuff in paths.items():
+        data = {'name': name}
+        if stuff[0] is not None:
+            data['metadata'] = _jsonify(stuff[0])
         elements.append(template_path.format(
-            attribs='{ns}:name="{name}"'.format(
-                ns=_ns_name, name=name),
-            path_string=pstr,
+            attribs=_format_attrib(data),
+            path_string=stuff[1],
             fill="none"))
+
     # format as XML
     if 'stroke_width' in kwargs:
         stroke_width = float(kwargs['stroke_width'])
@@ -461,21 +463,28 @@ def export_svg(drawing,
         stroke_width = drawing.extents.max() / 800.0
     try:
         # store metadata in XML as JSON -_-
-        attrib['metadata'] = util.jsonify(
-            drawing.metadata,
-            separators=(',', ':')).replace('"', "'")
+        attrib['metadata'] = _jsonify(drawing.metadata)
     except BaseException:
         # otherwise skip metadata
         pass
-    attribs = '\n'.join('{ns}:{key}="{value}"'.format(
-        ns=_ns_name, key=k, value=v) for k, v in attrib.items())
+
     subs = {'elements': '\n'.join(elements),
             'min_x': drawing.bounds[0][0],
             'min_y': drawing.bounds[0][1],
             'width': drawing.extents[0],
             'height': drawing.extents[1],
             'stroke_width': stroke_width,
-            'attribs': attribs}
+            'attribs': _format_attrib(attrib)}
     result = template_svg.format(**subs)
 
     return result
+
+
+def _format_attrib(attrib):
+    return '\n'.join('{ns}:{key}="{value}"'.format(
+        ns=_ns_name, key=k, value=v) for k, v in attrib.items())
+
+
+def _jsonify(stuff):
+    return util.jsonify(
+        stuff, separators=(',', ':')).replace('"', "'")
