@@ -3,7 +3,6 @@ import numpy as np
 from distutils.spawn import find_executable
 from string import Template
 
-import json
 import tempfile
 import subprocess
 import collections
@@ -135,20 +134,20 @@ def export_ply(mesh,
     dtype_color = ('rgba', '<u1', (4))
 
     # get template strings in dict
-    templates = json.loads(resources.get('ply.template'))
+    templates = resources.get('ply.template', decode_json=True)
     # start collecting elements into a string for the header
-    header = templates['intro']
-    header += templates['vertex']
+    header = [templates['intro']]
+    header.append(templates['vertex'])
 
     # if we're exporting vertex normals add them
     # to the header and dtype
     if vertex_normal:
-        header += templates['vertex_normal']
+        header.append(templates['vertex_normal'])
         dtype_vertex.append(dtype_vertex_normal)
 
     # if mesh has a vertex coloradd it to the header
     if mesh.visual.kind == 'vertex' and encoding != 'ascii':
-        header += templates['color']
+        header.append(templates['color'])
         dtype_vertex.append(dtype_color)
 
     # create and populate the custom dtype for vertices
@@ -164,9 +163,9 @@ def export_ply(mesh,
                      'encoding': encoding}
 
     if hasattr(mesh, 'faces'):
-        header += templates['face']
+        header.append(templates['face'])
         if mesh.visual.kind == 'face' and encoding != 'ascii':
-            header += templates['color']
+            header.append(templates['color'])
             dtype_face.append(dtype_color)
         # put mesh face data into custom dtype to export
         faces = np.zeros(len(mesh.faces), dtype=dtype_face)
@@ -176,8 +175,9 @@ def export_ply(mesh,
             faces['rgba'] = mesh.visual.face_colors
         header_params['face_count'] = len(mesh.faces)
 
-    header += templates['outro']
-    export = Template(header).substitute(header_params).encode('utf-8')
+    header.append(templates['outro'])
+    export = Template(''.join(header)).substitute(
+        header_params).encode('utf-8')
 
     if encoding == 'binary_little_endian':
         export += vertex.tobytes()

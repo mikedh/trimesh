@@ -547,9 +547,8 @@ def split_traversal(traversal,
         # if we need the edge add it
         if close in edges_hash:
             split[i] = np.append(t, t[0]).astype(np.int64)
-    result = np.array(split)
 
-    return result
+    return split
 
 
 def fill_traversals(traversals, edges, edges_hash=None):

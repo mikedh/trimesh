@@ -18,6 +18,7 @@ from ..constants import tol_path as tol
 
 from .util import concatenate
 
+from .. import parent
 from .. import util
 from .. import units
 from .. import bounds
@@ -47,7 +48,7 @@ except BaseException as E:
     nx = exceptions.ExceptionModule(E)
 
 
-class Path(object):
+class Path(parent.Geometry):
     """
     A Path object consists of vertices and entities. Vertices
     are a simple (n, dimension) float array of points in space.
@@ -333,9 +334,11 @@ class Path(object):
         # get the exact bounds of each entity
         # some entities (aka 3- point Arc) have bounds that can't
         # be generated from just bound box of vertices
+
         points = np.array([e.bounds(self.vertices)
                            for e in self.entities],
                           dtype=np.float64)
+
         # flatten bound extrema into (n, dimension) array
         points = points.reshape((-1, self.vertices.shape[1]))
         # get the max and min of all bounds
@@ -535,41 +538,6 @@ class Path(object):
         self._cache.cache.update(cache)
         return self
 
-    def apply_scale(self, scale):
-        """
-        Apply a transformation matrix to the current path in- place
-
-        Parameters
-        -----------
-        scale : float or (3,) float
-          Scale to be applied to mesh
-        """
-        dimension = self.vertices.shape[1]
-        matrix = np.eye(dimension + 1)
-        matrix[:dimension, :dimension] *= scale
-        return self.apply_transform(matrix)
-
-    def apply_translation(self, offset):
-        """
-        Apply a transformation matrix to the current path in- place
-
-        Parameters
-        -----------
-        offset : float or (3,) float
-          Translation to be applied to mesh
-        """
-        # work on 2D and 3D paths
-        dimension = self.vertices.shape[1]
-        # make sure offset is correct length and type
-        offset = np.array(
-            offset, dtype=np.float64).reshape(dimension)
-        # create a homogeneous transform
-        matrix = np.eye(dimension + 1)
-        # apply the offset
-        matrix[:dimension, dimension] = offset
-
-        return self.apply_transform(matrix)
-
     def apply_layer(self, name):
         """
         Apply a layer name to every entity in the path.
@@ -617,8 +585,8 @@ class Path(object):
                 tol.merge * self.scale,
                 min_digits=1)
 
-        unique, inverse = grouping.unique_rows(self.vertices,
-                                               digits=digits)
+        unique, inverse = grouping.unique_rows(
+            self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
 
         entities_ok = np.ones(len(self.entities), dtype=np.bool)
@@ -680,7 +648,7 @@ class Path(object):
         """
         if len(entity_ids) == 0:
             return
-        keep = np.ones(len(self.entities))
+        keep = np.ones(len(self.entities), dtype=bool)
         keep[entity_ids] = False
         self.entities = self.entities[keep]
 
@@ -998,44 +966,6 @@ class Path3D(Path):
         scene = self.scene()
         return scene.show(**kwargs)
 
-    def plot_discrete(self, show=False):
-        """
-        Plot closed curves
-
-        Parameters
-        ------------
-        show : bool
-           If False will not execute matplotlib.pyplot.show
-        """
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D  # NOQA
-        fig = plt.figure()
-        axis = fig.add_subplot(111, projection='3d')
-        for discrete in self.discrete:
-            axis.plot(*discrete.T)
-        if show:
-            plt.show()
-
-    def plot_entities(self, show=False):
-        """
-        Plot discrete version of entities without regards
-        for connectivity.
-
-        Parameters
-        -------------
-        show : bool
-           If False will not execute matplotlib.pyplot.show
-        """
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D  # NOQA
-        fig = plt.figure()
-        axis = fig.add_subplot(111, projection='3d')
-        for entity in self.entities:
-            vertices = entity.discrete(self.vertices)
-            axis.plot(*vertices.T)
-        if show:
-            plt.show()
-
 
 class Path2D(Path):
     """
@@ -1072,6 +1002,19 @@ class Path2D(Path):
         matrix = self.obb
         self.apply_transform(matrix)
         return matrix
+
+    def apply_scale(self, scale):
+        """
+        Apply a 2D scale to the current Path2D.
+
+        Parameters
+        -------------
+        scale : float or (2,) float
+          Scale to apply in-place.
+        """
+        matrix = np.eye(3)
+        matrix[:2, :2] *= scale
+        return self.apply_transform(matrix)
 
     @caching.cache_decorator
     def obb(self):
@@ -1428,7 +1371,7 @@ class Path2D(Path):
         Plot the closed curves of the path.
         """
         import matplotlib.pyplot as plt
-        axis = plt.axes()
+        axis = plt.gca()
         axis.set_aspect('equal', 'datalim')
 
         for i, points in enumerate(self.discrete):
@@ -1451,7 +1394,8 @@ class Path2D(Path):
         """
         import matplotlib.pyplot as plt
         # keep plot axis scaled the same
-        plt.axes().set_aspect('equal', 'datalim')
+        axis = plt.gca()
+        axis.set_aspect('equal', 'datalim')
         # hardcode a format for each entity type
         eformat = {'Line0': {'color': 'g', 'linewidth': 1},
                    'Line1': {'color': 'y', 'linewidth': 1},
@@ -1478,7 +1422,7 @@ class Path2D(Path):
             elif hasattr(entity, 'color'):
                 # if entity has specified color use it
                 fmt['color'] = entity.color
-            plt.plot(*discrete.T, **fmt)
+            axis.plot(*discrete.T, **fmt)
         if show:
             plt.show()
 

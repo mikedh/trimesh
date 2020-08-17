@@ -6,13 +6,8 @@ Deal with physical unit systems (i.e. inches, mm)
 Very basic conversions, and no requirement for
 sympy.physics.units or pint.
 """
-import json
-
 from .constants import log
 from . import resources
-
-# scaling factors from various unit systems to inches
-TO_INCH = json.loads(resources.get('units_to_inches.json'))
 
 
 def unit_conversion(current, desired):
@@ -31,9 +26,13 @@ def unit_conversion(current, desired):
     conversion : float
         Number to multiply by to put values into desired units
     """
+    # scaling factors from various unit systems to inches
+    to_inch = resources.get(
+        'units_to_inches.json', decode_json=True)
+
     current = str(current).strip().lower()
     desired = str(desired).strip().lower()
-    conversion = TO_INCH[current] / TO_INCH[desired]
+    conversion = to_inch[current] / to_inch[desired]
     return conversion
 
 
@@ -55,6 +54,8 @@ def units_from_metadata(obj, guess=True):
     units: str
         A guess of what the units might be
     """
+    to_inch = resources.get('units_to_inches.json', decode_json=True)
+
     # try to guess from metadata
     for key in ['file_name', 'name']:
         if key not in obj.metadata:
@@ -75,7 +76,7 @@ def units_from_metadata(obj, guess=True):
                     'units', '').replace(
                         'unit', '').strip()
                 # if the hint is a valid unit return it
-                if hint in TO_INCH:
+                if hint in to_inch:
                     return hint
 
     if not guess:
@@ -84,7 +85,7 @@ def units_from_metadata(obj, guess=True):
     # we made it to the wild ass guess section
     # if the scale is larger than 100 mystery units
     # declare the model to be millimeters, otherwise inches
-    log.warning('no units: guessing from scale')
+    log.debug('no units: guessing from scale')
     if float(obj.scale) > 100.0:
         return 'millimeters'
     else:
@@ -112,12 +113,12 @@ def _convert_units(obj, desired, guess=False):
         # to guess will raise a ValueError
         obj.units = units_from_metadata(obj, guess=guess)
 
-    log.info('converting units from %s to %s', obj.units, desired)
+    log.debug('converting units from %s to %s', obj.units, desired)
     # float, conversion factor
     conversion = unit_conversion(obj.units, desired)
 
     # apply scale uses transforms which preserve
-    # cached properties (rather than just multiplying vertices)
+    # cached properties rather than just multiplying vertices
     obj.apply_scale(conversion)
     # units are now desired units
     obj.units = desired

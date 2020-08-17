@@ -393,3 +393,6 @@ class VoxelGrid(Geometry):
         return VoxelGrid(
             dense,
             transform=tr.scale_and_translate(scale, translate))
+
+    def __add__(self, other):
+        raise NotImplementedError("TODO : implement voxel concatenation")

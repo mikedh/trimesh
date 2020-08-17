@@ -66,16 +66,6 @@ In [48]: %timeit np.unique(a)
 10000 loops, best of 3: 31.8 µs per loop
 ```
 
-
-### Try To Avoid
-- Looping through potentially giant arrays
-
-
-### Dependencies
-The highest priority is making sure `pip install trimesh` basically always works. If someone just wants an STL loader they shouldn't need to compile 8 million things and install half of pypi. Also in general all dependencies should be running unit tests in CI on Python 2.7 and 3.4-3.7 on Windows and Linux (OSX as a bonus). 
-
-#### `pip install trimesh[easy]` 
-Install things that install cleanly on all major platforms / Python versions without compiling (they have working wheels). Unfortunately two packages (`rtree` and `shapely`) currently required additional shared libraries to function rather than including them in the wheels.
-
-#### `pip install trimesh[all]`
-Includes libraries that need compiling. Should be able to install through some means on all platforms.
+# Try To Avoid
+- Looping in general, and *especially* looping on arrays that could have many elements(i.e. vertices and faces). The loop overhead is very high in Python, and if necessary list comprehensions are quite a bit faster probably for scoping reasons.
+- Boolean operations on meshes: they may seem like the answer, but they are nearly always flaky, slow, and unreliable. The best answer is usually to restructure your problem to use some form of vector checks if possible(i.e. dot products, ray tests, etc). Look at `trimesh.intersections` for examples of problems that could have used a boolean but didn't.

@@ -1,4 +1,3 @@
-import os
 import numpy as np
 import collections
 
@@ -11,8 +10,8 @@ from .. import transformations
 
 from .. import bounds as bounds_module
 
-from ..exchange import gltf
-from ..parent import Geometry
+from ..exchange import export
+from ..parent import Geometry3D
 
 from . import cameras
 from . import lighting
@@ -20,7 +19,7 @@ from . import lighting
 from .transforms import TransformForest
 
 
-class Scene(Geometry):
+class Scene(Geometry3D):
     """
     A simple scene graph which can be rendered directly via
     pyglet/openGL or through other endpoints such as a
@@ -785,56 +784,11 @@ class Scene(Geometry):
         export : bytes
           Only returned if file_obj is None
         """
-
-        # if we weren't passed a file type extract from file_obj
-        if file_type is None:
-            if util.is_string(file_obj):
-                file_type = str(file_obj).split('.')[-1]
-            else:
-                raise ValueError('file_type not specified!')
-
-        # always remove whitepace and leading characters
-        file_type = file_type.strip().lower().lstrip('.')
-
-        # now handle our different scene export types
-        if file_type == 'gltf':
-            data = gltf.export_gltf(self, **kwargs)
-        elif file_type == 'glb':
-            data = gltf.export_glb(self, **kwargs)
-        elif file_type == 'dict':
-            from ..exchange.export import scene_to_dict
-            data = scene_to_dict(self)
-        elif file_type == 'obj':
-            from .. import resolvers
-            from ..exchange.obj import export_obj
-            resolver = None
-            if util.is_string(file_obj):
-                resolver = resolvers.FilePathResolver(file_obj)
-            data = export_obj(self, resolver=resolver)
-        elif file_type == 'dict64':
-            from ..exchange.export import scene_to_dict
-            data = scene_to_dict(self, use_base64=True)
-        else:
-            raise ValueError(
-                'unsupported export format: {}'.format(file_type))
-
-        # now write the data or return bytes of result
-        if hasattr(file_obj, 'write'):
-            # if it's just a regular file object
-            file_obj.write(data)
-        elif util.is_string(file_obj):
-            # assume strings are file paths
-            file_path = os.path.expanduser(
-                os.path.abspath(file_obj))
-            if util.is_string(data):
-                mode = 'w'
-            else:
-                mode = 'wb'
-            with open(file_path, mode) as f:
-                f.write(data)
-        else:
-            # no writeable file object so return data
-            return data
+        return export.export_scene(
+            scene=self,
+            file_obj=file_obj,
+            file_type=file_type,
+            **kwargs)
 
     def save_image(self, resolution=None, **kwargs):
         """

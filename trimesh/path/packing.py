@@ -1,3 +1,9 @@
+"""
+packing.py
+------------
+
+Pack multiple 2D regions onto larger 2D regions.
+"""
 import time
 import numpy as np
 
@@ -28,8 +34,8 @@ class RectangleBin:
 
         # bounds: (minx, miny, maxx, maxy)
         if bounds is not None:
-            self.bounds = np.asanyarray(bounds,
-                                        dtype=np.float64)
+            self.bounds = np.asanyarray(
+                bounds, dtype=np.float64)
         elif size is not None:
             self.bounds = np.append(
                 [0.0, 0.0], size).astype(np.float64)
@@ -434,6 +440,7 @@ def images(images, power_resize=False):
 
     size = sheet.round().astype(int)
     if power_resize:
+
         size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
 
     # create the image

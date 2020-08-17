@@ -11,7 +11,7 @@ from .constants import log, tol
 from . import util
 from . import geometry
 from . import grouping
-from . import transformations
+from . import transformations as tf
 
 
 def mesh_plane(mesh,
@@ -138,8 +138,7 @@ def mesh_plane(mesh,
                                            vertices[edges.T],
                                            line_segments=False)
         # since the data has been pre- culled, any invalid intersections at all
-        # means the culling was done incorrectly and thus things are
-        # mega-fucked
+        # means the culling was done incorrectly and thus things are broken
         assert valid.all()
         return intersections.reshape((-1, 2, 3))
 
@@ -195,7 +194,7 @@ def mesh_multiplane(mesh,
                     heights):
     """
     A utility function for slicing a mesh by multiple
-    parallel planes, which caches the dot product operation.
+    parallel planes which caches the dot product operation.
 
     Parameters
     -------------
@@ -206,7 +205,8 @@ def mesh_multiplane(mesh,
     plane_origin : (3,) float
         Point on a plane
     heights : (m,) float
-        Offset distances from plane to slice at
+      Offset distances from plane to slice at:
+      at `height=0` it will be exactly on the passed plane.
 
     Returns
     --------------
@@ -260,7 +260,7 @@ def mesh_multiplane(mesh,
         transforms.append(to_3D)
 
         # transform points to 2D frame
-        lines_2D = transformations.transform_points(
+        lines_2D = tf.transform_points(
             lines.reshape((-1, 3)),
             to_2D)
 
@@ -677,29 +677,37 @@ def slice_mesh_plane(mesh,
             # check if mesh is watertight (can't cap if not)
             if not sliced_mesh.is_watertight:
                 raise ValueError('Input mesh must be watertight to cap slice')
-
             path = sliced_mesh.section(plane_normal=normal,
                                        plane_origin=origin,
                                        cached_dots=dots)
-
             # transform Path3D onto XY plane for triangulation
             on_plane, to_3D = path.to_planar()
-
             # triangulate each closed region of 2D cap
             # without adding any new vertices
             v, f = [], []
             for polygon in on_plane.polygons_full:
                 t = triangulate_polygon(
-                    polygon, triangle_args='p', engine='triangle')
+                    polygon, triangle_args='pY', engine='triangle')
                 v.append(t[0])
                 f.append(t[1])
+
+                if tol.strict:
+                    # in unit tests make sure that our triangulation didn't
+                    # insert any new vertices which would break watertightness
+                    from scipy.spatial import cKDTree
+                    # get all interior and exterior points on tree
+                    check = [np.array(polygon.exterior.coords)]
+                    check.extend(np.array(i.coords) for i in polygon.interiors)
+                    tree = cKDTree(np.vstack(check))
+                    # every new vertex should be on an old vertex
+                    assert np.allclose(tree.query(v[-1])[0], 0.0)
 
             # append regions and reindex
             vf, ff = util.append_faces(v, f)
 
             # make vertices 3D and transform back to mesh frame
             vf = np.column_stack((vf, np.zeros(len(vf))))
-            vf = transformations.transform_points(vf, to_3D)
+            vf = tf.transform_points(vf, to_3D)
 
             # add cap vertices and faces and reindex
             vertices, faces = util.append_faces([vertices, vf], [faces, ff])
