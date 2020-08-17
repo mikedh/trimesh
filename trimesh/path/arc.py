@@ -9,12 +9,8 @@ from ..constants import res_path as res
 
 def arc_center(points, return_normal=True, return_angle=True):
     """
-    Given three points on an arc find:
-    center, radius, normal, and angle.
-
-    This uses the fact that the intersection of the perp
-    bisectors of the segments between the control points
-    is the center of the arc.
+    Given three points on a 2D or 3D arc find the center,
+    radius, normal, and angular span.
 
     Parameters
     ---------
@@ -37,27 +33,35 @@ def arc_center(points, return_normal=True, return_angle=True):
     """
     points = np.asanyarray(points, dtype=np.float64)
 
+    # get the vectors between the arc points
     A, B, C = points
     CB = C - B
     CA = C - A
     BA = B - A
+    # the lengths of those edges
     a = np.linalg.norm(CB)
     b = np.linalg.norm(CA)
     c = np.linalg.norm(BA)
 
-    # perform radius calculation scaled to smallest norm
+    # perform radius calculation scaled to shortest edge
     # to avoid precision issues with small or large arcs
     scale = min([a, b, c])
-    sc = np.array([a, b, c]) / scale
-    s = sc.sum() / 2.0
-    denom = s * np.product(s - sc)
+    # get the edge lengths scaled to the smallest
+    edges = np.array([a, b, c]) / scale
+    # half the total length of the edges
+    half = edges.sum() / 2.0
+    # check the denominator for the radius calculation
+    denom = half * np.product(half - edges)
     if denom < tol.zero:
         raise ValueError('arc is colinear!')
-    radius = scale * ((np.product(sc) / 4.0) / np.sqrt(denom))
+    # find the radius and scale back after the operation
+    radius = scale * ((np.product(edges) / 4.0) / np.sqrt(denom))
 
+    # run the center calculation
     a2 = a**2
     b2 = b**2
     c2 = c**2
+    # barycentric approach
     ba = [a2 * (b2 + c2 - a2),
           b2 * (a2 + c2 - b2),
           c2 * (a2 + b2 - c2)]
@@ -68,6 +72,7 @@ def arc_center(points, return_normal=True, return_angle=True):
         assert np.allclose(
             np.linalg.norm(points - center, axis=1),
             radius)
+
     # start with initial results
     result = {'center': center,
               'radius': radius}
@@ -79,9 +84,12 @@ def arc_center(points, return_normal=True, return_angle=True):
     vector = util.unitize(points - center)
     if return_normal:
         if points.shape == (3, 2):
+            # for 2D arcs still use the cross product so that
+            # the sign of the normal vector is consistant
             result['normal'] = util.unitize(
                 np.cross(np.append(CA, 0), np.append(BA, 0)))
         else:
+            # otherwise just take the cross product
             result['normal'] = util.unitize(
                 np.cross(CA, BA))
 
@@ -95,11 +103,10 @@ def arc_center(points, return_normal=True, return_angle=True):
             angle = 0.0
         else:
             angle = np.arccos(dot)
-        # if the angle is nonzero and vectors are opposite directions
+        # if the angle is nonzero and vectors are opposite direction
         # it means we have a long arc rather than the short path
         if abs(angle) > tol.zero and np.dot(*edge_direction) < 0.0:
             angle = (np.pi * 2) - angle
-
         # convoluted angle logic
         angles = np.arctan2(*vector[:, :2].T[::-1]) + np.pi * 2
         angles_sorted = np.sort(angles[[0, 2]])
