@@ -164,9 +164,8 @@ class RepairTests(g.unittest.TestCase):
         b.faces = g.np.fliplr(b.faces)
         m = a + b
         # make sure normals are in cache
-        n = m.face_normals
+        assert m.face_normals.shape == m.faces.shape
         m.fix_normals(multibody=True)
-
         assert g.np.isclose(m.volume, a.volume * 2.0)
 
 
