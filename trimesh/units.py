@@ -54,7 +54,8 @@ def units_from_metadata(obj, guess=True):
     units: str
         A guess of what the units might be
     """
-    to_inch = resources.get('units_to_inches.json', decode_json=True)
+    to_inch = resources.get(
+        'units_to_inches.json', decode_json=True)
 
     # try to guess from metadata
     for key in ['file_name', 'name']:

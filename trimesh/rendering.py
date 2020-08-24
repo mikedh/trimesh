@@ -90,7 +90,7 @@ def mesh_to_vertexlist(mesh,
         # does the material actually have an image specified
         no_image = (hasattr(mesh.visual.material, 'image') and
                     mesh.visual.material.image is None)
-        if uv is None or no_image:
+        if uv is None or no_image or len(uv) != vertex_count:
             # if no UV coordinates on material, just set face colors
             # to the diffuse color of the material
             color_gl = colors_to_gl(mesh.visual.material.main_color,

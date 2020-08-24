@@ -85,7 +85,7 @@ def arc_center(points, return_normal=True, return_angle=True):
     if return_normal:
         if points.shape == (3, 2):
             # for 2D arcs still use the cross product so that
-            # the sign of the normal vector is consistant
+            # the sign of the normal vector is consistent
             result['normal'] = util.unitize(
                 np.cross(np.append(CA, 0), np.append(BA, 0)))
         else:

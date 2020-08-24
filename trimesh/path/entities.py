@@ -679,43 +679,12 @@ class BSpline(Curve):
 
     def __init__(self, points,
                  knots,
-                 closed=None,
                  layer=None,
                  **kwargs):
         self.points = np.asanyarray(points, dtype=np.int64)
         self.knots = np.asanyarray(knots, dtype=np.float64)
-        # save explicit closed
-        if closed is not None:
-            self.closed = closed
         self.layer = layer
         self.kwargs = kwargs
-
-    @property
-    def closed(self):
-        """
-        A boolean flag for whether the B-Spline curve is closed or not.
-
-        Returns
-        ----------
-        closed : bool
-          If set True, B-Spline will be a closed curve
-        """
-        if hasattr(self, '_closed'):
-            return self._closed
-        return False
-
-    @closed.setter
-    def closed(self, value):
-        """
-        Set the B-Spline to be closed or not, without
-        changing the control points
-
-        Parameters
-        ------------
-        value : bool
-          Should this B-Spline be a closed curve or not
-        """
-        self._closed = bool(value)
 
     def discrete(self, vertices, count=None, scale=1.0):
         """
