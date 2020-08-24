@@ -679,7 +679,6 @@ class BSpline(Curve):
 
     def __init__(self, points,
                  knots,
-                 closed=None,
                  layer=None,
                  **kwargs):
         self.points = np.asanyarray(points, dtype=np.int64)

@@ -877,8 +877,9 @@ class Scene(Geometry3D):
             current = units.units_from_metadata(self, guess=guess)
 
         # find the float conversion
-        scale = units.unit_conversion(current=current,
-                                      desired=desired)
+        scale = units.unit_conversion(
+            current=current,
+            desired=desired)
 
         # exit early if our current units are the same as desired units
         if np.isclose(scale, 1.0):
@@ -1015,6 +1016,7 @@ class Scene(Geometry3D):
         # create a new scene with copied geometry and graph
         copied = Scene(geometry=geometry,
                        graph=self.graph.copy(),
+                       metadata=self.metadata.copy(),
                        camera=camera)
         return copied
 

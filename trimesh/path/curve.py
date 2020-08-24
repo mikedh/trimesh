@@ -101,8 +101,7 @@ def binomial(n):
     """
     Return all binomial coefficients for a given order.
 
-    For n > 5, scipy.special.binom is used, below we hardcode
-    to avoid the scipy.special dependency.
+    For n > 5, scipy.special.binom is used, below we hardcode.
 
     Parameters
     --------------

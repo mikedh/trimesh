@@ -123,14 +123,16 @@ def fix_inversion(mesh, multibody=False):
                 flip[faces] = True
         # one or more faces needs flipping
         if flip.any():
-            with mesh._cache:
-                # flip normals of necessary faces
-                if 'face_normals' in mesh._cache:
-                    mesh.face_normals[flip] *= -1.0
-                # flip faces
-                mesh.faces[flip] = np.fliplr(mesh.faces[flip])
-            # save wangled normals
-            mesh._cache.clear(exclude=['face_normals'])
+            # flip normals of necessary faces
+            if 'face_normals' in mesh._cache:
+                normals = mesh.face_normals.copy()
+                normals[flip] *= -1.0
+            else:
+                normals = None
+            # flip faces
+            mesh.faces[flip] = np.fliplr(mesh.faces[flip])
+            if normals is not None:
+                mesh.face_normals = normals
 
     elif mesh.volume < 0.0:
         mesh.invert()

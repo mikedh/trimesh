@@ -49,7 +49,7 @@ _shapes = {
 # a default PBR metallic material
 _default_material = {
     "pbrMetallicRoughness": {
-        "baseColorFactor": [0, 0, 0, 0],
+        "baseColorFactor": [1, 1, 1, 1],
         "metallicFactor": 0,
         "roughnessFactor": 0}}
 

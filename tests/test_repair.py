@@ -156,6 +156,18 @@ class RepairTests(g.unittest.TestCase):
         # mesh should be volume of two boxes, and positive
         assert g.np.isclose(m.volume, 2.0)
 
+    def test_flip(self):
+        # create two spheres
+        a = g.trimesh.creation.icosphere()
+        b = g.trimesh.creation.icosphere().apply_translation([2, 3, 0])
+        # invert the second sphere
+        b.faces = g.np.fliplr(b.faces)
+        m = a + b
+        # make sure normals are in cache
+        assert m.face_normals.shape == m.faces.shape
+        m.fix_normals(multibody=True)
+        assert g.np.isclose(m.volume, a.volume * 2.0)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
