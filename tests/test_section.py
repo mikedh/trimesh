@@ -304,6 +304,7 @@ class SliceTest(g.unittest.TestCase):
             plane_normal=normals,
             cap=True)
         assert len(sliced_capped.faces) > 0
+        assert sliced_capped.is_winding_consistent
 
         for o, n in zip(origins, normals):
             # check the projections manually
