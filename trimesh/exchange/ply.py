@@ -686,8 +686,12 @@ def ply_binary(elements, file_obj):
             items = list(elements[key]['properties'].items())
             dtype = np.dtype(items)
             data = file_obj.read(elements[key]['length'] * dtype.itemsize)
-            elements[key]['data'] = np.frombuffer(data,
-                                                  dtype=dtype)
+            try:
+                elements[key]['data'] = np.frombuffer(
+                    data, dtype=dtype)
+            except BaseException:
+                log.warning('PLY failed to populate: {}'.format(key))
+                elements[key]['data'] = None
         return elements
 
     def elements_size(elements):

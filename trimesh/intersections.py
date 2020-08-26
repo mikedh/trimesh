@@ -6,12 +6,13 @@ Primarily mesh-plane intersections (slicing).
 """
 import numpy as np
 
-from .constants import log, tol
-
 from . import util
 from . import geometry
 from . import grouping
 from . import transformations as tf
+
+from .constants import log, tol
+from .triangles import windings_aligned
 
 
 def mesh_plane(mesh,
@@ -706,8 +707,16 @@ def slice_mesh_plane(mesh,
             vf, ff = util.append_faces(v, f)
 
             # make vertices 3D and transform back to mesh frame
-            vf = np.column_stack((vf, np.zeros(len(vf))))
-            vf = tf.transform_points(vf, to_3D)
+            vf = tf.transform_points(
+                np.column_stack((vf, np.zeros(len(vf)))),
+                to_3D)
+
+            # check to see if our new faces are aligned with our normal
+            check = windings_aligned(vf[ff], normal)
+
+            # if 50% of our new faces are aligned with the normal flip
+            if check.astype(np.float64).mean() > 0.5:
+                ff = np.fliplr(ff)
 
             # add cap vertices and faces and reindex
             vertices, faces = util.append_faces([vertices, vf], [faces, ff])
