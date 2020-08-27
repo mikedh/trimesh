@@ -100,7 +100,8 @@ def load_ply(file_obj,
 
 def export_ply(mesh,
                encoding='binary',
-               vertex_normal=None):
+               vertex_normal=None,
+               **kwargs):
     """
     Export a mesh in the PLY format.
 
@@ -124,6 +125,8 @@ def export_ply(mesh,
     # only export them if they are stored in cache
     if vertex_normal is None:
         vertex_normal = 'vertex_normal' in mesh._cache
+    vertex_attributes = kwargs.get('vertex_attributes', [])
+    face_attributes = kwargs.get('face_attributes', [])
 
     # custom numpy dtypes for exporting
     dtype_face = [('count', '<u1'),
@@ -150,6 +153,14 @@ def export_ply(mesh,
         header.append(templates['color'])
         dtype_vertex.append(dtype_color)
 
+    for vertex_attribute in vertex_attributes:
+        header.append(
+            'property {} {}\n'.format(vertex_attribute['type'], vertex_attribute['name'])
+        )
+        dtype_vertex.append(
+            (vertex_attribute['name'], '<{}'.format(dtypes[vertex_attribute['type']]))
+        )
+
     # create and populate the custom dtype for vertices
     vertex = np.zeros(len(mesh.vertices),
                       dtype=dtype_vertex)
@@ -159,6 +170,9 @@ def export_ply(mesh,
     if mesh.visual.kind == 'vertex':
         vertex['rgba'] = mesh.visual.vertex_colors
 
+    for vertex_attribute in vertex_attributes:
+        vertex[vertex_attribute['name']] = vertex_attribute['data']
+
     header_params = {'vertex_count': len(mesh.vertices),
                      'encoding': encoding}
 
@@ -167,6 +181,13 @@ def export_ply(mesh,
         if mesh.visual.kind == 'face' and encoding != 'ascii':
             header.append(templates['color'])
             dtype_face.append(dtype_color)
+        for face_attribute in face_attributes:
+            header.append(
+                'property {} {}\n'.format(face_attribute['type'], face_attribute['name'])
+            )
+            dtype_face.append(
+                (face_attribute['name'], '<{}'.format(dtypes[face_attribute['type']]))
+            )
         # put mesh face data into custom dtype to export
         faces = np.zeros(len(mesh.faces), dtype=dtype_face)
         faces['count'] = 3
@@ -174,6 +195,9 @@ def export_ply(mesh,
         if mesh.visual.kind == 'face' and encoding != 'ascii':
             faces['rgba'] = mesh.visual.face_colors
         header_params['face_count'] = len(mesh.faces)
+
+        for face_attribute in face_attributes:
+            faces[face_attribute['name']] = face_attribute['data']
 
     header.append(templates['outro'])
     export = Template(''.join(header)).substitute(
