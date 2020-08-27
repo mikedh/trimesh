@@ -11,6 +11,7 @@ from . import util
 from .grouping import group_min
 from .constants import tol, log_time
 from .triangles import closest_point as closest_point_corresponding
+from .triangles import points_to_barycentric
 
 
 def nearby_faces(mesh, points):
@@ -232,11 +233,43 @@ def signed_distance(mesh, points):
     if not nonzero.any():
         return distance
 
-    inside = mesh.ray.contains_points(points[nonzero])
+    # For closest points that project directly in to the triangle, compute sign from
+    # triangle normal Project each point in to the closest triangle plane
+    nonzero = np.where(nonzero)[0]
+    normals = mesh.face_normals[triangle_id]
+    projection = (
+        points[nonzero] -
+        (normals[nonzero].T * np.einsum(
+            "ij,ij->i",
+            points[nonzero] - closest[nonzero],
+            normals[nonzero]
+        )).T
+    )
+
+    # Determine if the projection lies within the closest triangle
+    barycentric = points_to_barycentric(
+        mesh.triangles[triangle_id[nonzero]],
+        projection
+    )
+    ontriangle = ~((
+        (barycentric < -tol.merge) | (barycentric > 1 + tol.merge)
+    ).any(axis=1))
+
+    # Where projection does lie in the triangle, compare vector to projection to the
+    # triangle normal to compute sign
+    sign = np.sign(np.einsum(
+        "ij,ij->i",
+        normals[nonzero[ontriangle]],
+        points[nonzero[ontriangle]] - projection[ontriangle]
+    ))
+    distance[nonzero[ontriangle]] *= -1 * sign
+
+    # For all other triangles, resort to raycasting against the entire mesh
+    inside = mesh.ray.contains_points(points[nonzero[~ontriangle]])
     sign = (inside.astype(int) * 2) - 1
 
     # apply sign to previously computed distance
-    distance[nonzero] *= sign
+    distance[nonzero[~ontriangle]] *= sign
 
     return distance
 

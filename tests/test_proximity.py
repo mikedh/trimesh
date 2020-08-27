@@ -171,6 +171,15 @@ class NearestTest(g.unittest.TestCase):
 
         assert distance[0] > 0.0
 
+    def test_noncoplanar_signed_distance(self):
+        mesh = g.trimesh.primitives.Box()
+
+        # should be well outside the box and not coplanar with a face
+        # so the signed distance should be negative
+        distance = mesh.nearest.signed_distance([mesh.bounds[0] + [100, 100, 100]])
+
+        assert distance[0] < 0.0
+
     def test_edge_case(self):
         mesh = g.get_mesh('20mm-xyz-cube.stl')
         assert (mesh.nearest.signed_distance([[-51, 4.7, -20.6]]) < 0.0).all()
