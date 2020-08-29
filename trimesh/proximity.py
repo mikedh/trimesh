@@ -27,12 +27,15 @@ def nearby_faces(mesh, points):
 
     Parameters
     ----------
-    mesh : Trimesh object
-    points : (n,3) float , points in space
+    mesh : trimesh.Trimesh
+      Mesh to query.
+    points : (n, 3) float
+       Points in space
 
     Returns
     -----------
-    candidates : (points,) int, sequence of indexes for mesh.faces
+    candidates : (points,) int
+      Sequence of indexes for mesh.faces
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
@@ -115,7 +118,7 @@ def closest_point(mesh, points):
 
     Parameters
     ----------
-    mesh   : trimesh.Trimesh
+    mesh : trimesh.Trimesh
       Mesh to query
     points : (m, 3) float
       Points in space
@@ -125,7 +128,7 @@ def closest_point(mesh, points):
     closest : (m, 3) float
       Closest point on triangles for each point
     distance : (m,)  float
-      Distance
+      Distance to mesh.
     triangle_id : (m,) int
       Index of triangle containing closest point
     """
@@ -214,12 +217,15 @@ def signed_distance(mesh, points):
 
     Parameters
     -----------
-    mesh   : Trimesh object
-    points : (n,3) float, list of points in space
+    mesh : trimesh.Trimesh
+      Mesh to query.
+    points : (n, 3) float
+      Points in space
 
     Returns
     ----------
-    signed_distance : (n,3) float, signed distance from point to mesh
+    signed_distance : (n, 3) float
+      Signed distance from point to mesh
     """
     # make sure we have a numpy array
     points = np.asanyarray(points, dtype=np.float64)
@@ -237,20 +243,16 @@ def signed_distance(mesh, points):
     # triangle normal Project each point in to the closest triangle plane
     nonzero = np.where(nonzero)[0]
     normals = mesh.face_normals[triangle_id]
-    projection = (
-        points[nonzero] -
-        (normals[nonzero].T * np.einsum(
-            "ij,ij->i",
-            points[nonzero] - closest[nonzero],
-            normals[nonzero]
-        )).T
-    )
+    projection = (points[nonzero] -
+                  (normals[nonzero].T * np.einsum(
+                      "ij,ij->i",
+                      points[nonzero] - closest[nonzero],
+                      normals[nonzero])).T)
 
     # Determine if the projection lies within the closest triangle
     barycentric = points_to_barycentric(
         mesh.triangles[triangle_id[nonzero]],
-        projection
-    )
+        projection)
     ontriangle = ~((
         (barycentric < -tol.merge) | (barycentric > 1 + tol.merge)
     ).any(axis=1))
@@ -260,13 +262,12 @@ def signed_distance(mesh, points):
     sign = np.sign(np.einsum(
         "ij,ij->i",
         normals[nonzero[ontriangle]],
-        points[nonzero[ontriangle]] - projection[ontriangle]
-    ))
-    distance[nonzero[ontriangle]] *= -1 * sign
+        points[nonzero[ontriangle]] - projection[ontriangle]))
+    distance[nonzero[ontriangle]] *= -1.0 * sign
 
     # For all other triangles, resort to raycasting against the entire mesh
     inside = mesh.ray.contains_points(points[nonzero[~ontriangle]])
-    sign = (inside.astype(int) * 2) - 1
+    sign = (inside.astype(int) * 2) - 1.0
 
     # apply sign to previously computed distance
     distance[nonzero[~ontriangle]] *= sign
@@ -294,9 +295,12 @@ class ProximityQuery(object):
 
         Returns
         ----------
-        closest     : (m,3) float, closest point on triangles for each point
-        distance    : (m,)  float, distance
-        triangle_id : (m,)  int, index of closest triangle for each point
+        closest : (m, 3) float
+          Closest point on triangles for each point
+        distance : (m,) float
+          Distance to surface
+        triangle_id : (m,) int
+          Index of closest triangle for each point.
         """
         return closest_point(mesh=self._mesh,
                              points=points)
@@ -307,12 +311,15 @@ class ProximityQuery(object):
 
         Parameters
         ----------
-        points : (n,3) float, list of points in space
+        points : (n, 3) float
+          Points in space
 
         Returns
         ----------
-        distance  : (n,) float, distance from source point to vertex
-        vertex_id : (n,) int, index of mesh.vertices which is closest
+        distance : (n,) float
+           Distance from source point to vertex.
+        vertex_id : (n,) int
+          Index of mesh.vertices for closest vertex.
         """
         tree = self._mesh.kdtree
         return tree.query(points)
@@ -327,11 +334,13 @@ class ProximityQuery(object):
 
         Parameters
         -----------
-        points : (n,3) float, list of points in space
+        points : (n, 3) float
+          Points in space
 
         Returns
         ----------
-        signed_distance : (n,3) float, signed distance from point to mesh
+        signed_distance : (n, 3) float
+          Signed distance from point to mesh.
         """
         return signed_distance(self._mesh, points)
 
@@ -343,12 +352,15 @@ def longest_ray(mesh, points, directions):
 
     Parameters
     -----------
-    points : (n,3) float, list of points in space
-    directions : (n,3) float, directions of rays
+    points : (n, 3) float
+      Points in space.
+    directions : (n, 3) float
+      Directions of rays.
 
     Returns
     ----------
-    signed_distance : (n,) float, length of rays
+    signed_distance : (n,) float
+      Length of rays.
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
@@ -402,16 +414,20 @@ def max_tangent_sphere(mesh,
 
     Parameters
     ----------
-    points : (n,3) float, list of points in space
-    inwards : bool, whether to have the sphere inside or outside the mesh
-    normals : (n,3) float, normals of the mesh at the given points
-              None, compute this automatically.
+    points : (n, 3) float
+      Points in space.
+    inwards : bool
+      Whether to have the sphere inside or outside the mesh.
+    normals : (n, 3) float or None
+      Normals of the mesh at the given points
+      if is None computed automatically.
 
     Returns
     ----------
-    centers : (n,3) float, centers of spheres
-    radii : (n,) float, radii of spheres
-
+    centers : (n,3) float
+      Centers of spheres
+    radii : (n,) float
+      Radii of spheres
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
@@ -509,16 +525,21 @@ def thickness(mesh,
 
     Parameters
     ----------
-    points : (n,3) float, list of points in space
-    exterior : bool, whether to compute the exterior thickness
-                     (a.k.a. reach)
-    normals : (n,3) float, normals of the mesh at the given points
-              None, compute this automatically.
-    method : string, one of 'max_sphere' or 'ray'
+    points : (n, 3) float
+      Points in space
+    exterior : bool
+      Whether to compute the exterior thickness
+      (a.k.a. reach)
+    normals : (n, 3) float
+      Normals of the mesh at the given points
+      If is None computed automatically.
+    method : string
+      One of 'max_sphere' or 'ray'
 
     Returns
     ----------
-    thickness : (n,) float, thickness
+    thickness : (n,) float
+      Thickness at given points.
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
