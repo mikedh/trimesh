@@ -78,6 +78,55 @@ class PlyTest(g.unittest.TestCase):
         assert g.np.array_equal(
             point_list['some_float'], g.np.array([1.1, 2.2], dtype=g.np.float32))
 
+    def test_vertex_attributes(self):
+        """
+        Test writing vertex attributes to a ply, by reading them back and asserting the
+        written attributes array matches
+        """
+
+        m = g.get_mesh('box.STL')
+        test_1d_attribute = g.np.copy(m.vertices[:, 0])
+        test_nd_attribute = g.np.copy(m.vertices)
+        m.vertex_attributes['test_1d_attribute'] = test_1d_attribute
+        m.vertex_attributes['test_nd_attribute'] = test_nd_attribute
+
+        export = m.export(file_type='ply')
+        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
+                                       file_type='ply')
+
+        vertex_attributes = reconstructed.metadata['ply_raw']['vertex']['data']
+        result_1d = vertex_attributes['test_1d_attribute']
+        result_nd = vertex_attributes['test_nd_attribute']['f1']
+
+        g.np.testing.assert_almost_equal(result_1d, test_1d_attribute)
+        g.np.testing.assert_almost_equal(result_nd, test_nd_attribute)
+
+    def test_face_attributes(self):
+        """
+        Test writing face attributes to a ply, by reading them back and asserting the
+        written attributes array matches
+        """
+
+        m = g.get_mesh('box.STL')
+        test_1d_attribute = g.np.copy(m.face_angles[:, 0])
+        test_nd_attribute = g.np.copy(m.face_angles)
+        m.face_attributes['test_1d_attribute'] = test_1d_attribute
+        m.face_attributes['test_nd_attribute'] = test_nd_attribute
+
+        export = m.export(file_type='ply')
+        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
+                                       file_type='ply')
+
+        face_attributes = reconstructed.metadata['ply_raw']['face']['data']
+        result_1d = face_attributes['test_1d_attribute']
+        result_nd = face_attributes['test_nd_attribute']['f1']
+
+        g.np.testing.assert_almost_equal(result_1d, test_1d_attribute)
+        g.np.testing.assert_almost_equal(result_nd, test_nd_attribute)
+
+        no_attr = m.export(file_type='ply', include_attributes=False)
+        assert len(no_attr) < len(export)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

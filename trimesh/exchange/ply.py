@@ -14,11 +14,6 @@ from .. import resources
 
 from ..constants import log
 
-try:
-    import PIL.Image
-except ImportError:
-    pass
-
 # from ply specification, and additional dtypes found in the wild
 dtypes = {
     'char': 'i1',
@@ -40,6 +35,35 @@ dtypes = {
     'float32': 'f4',
     'float64': 'f8',
     'double': 'f8'}
+
+# Inverse of the above dict, collisions on numpy type were removed
+inverse_dtypes = {
+    'i1': 'char',
+    'u1': 'uchar',
+    'i2': 'short',
+    'u2': 'ushort',
+    'i4': 'int',
+    'i8': 'int64',
+    'u4': 'uint',
+    'u8': 'uint64',
+    'f4': 'float',
+    'f2': 'float16',
+    'f8': 'double'}
+
+
+def numpy_type_to_ply_type(numpy_type):
+    """
+    Returns the closest ply equivalent of a numpy type
+
+    Parameters
+    ---------
+    numpy_type : a numpy datatype
+
+    Returns
+    ---------
+    ply_type : string
+    """
+    return inverse_dtypes[numpy_type.str[1:]]
 
 
 def load_ply(file_obj,
@@ -82,33 +106,140 @@ def load_ply(file_obj,
 
     # try to load the referenced image
     image = None
-    if image_name is not None:
-        try:
+    try:
+        # soft dependancy
+        import PIL.Image
+        # if an image name is passed try to load it
+        if image_name is not None:
             data = resolver.get(image_name)
             image = PIL.Image.open(util.wrap_as_stream(data))
-        except BaseException:
-            log.warning('unable to load image!',
-                        exc_info=True)
+    except BaseException:
+        log.warning(
+            'unable to load image!', exc_info=True)
 
-    kwargs = elements_to_kwargs(elements,
-                                fix_texture=fix_texture,
-                                image=image,
-                                prefer_color=prefer_color)
+    # translate loaded PLY elements to kwargs
+    kwargs = elements_to_kwargs(
+        image=image,
+        elements=elements,
+        fix_texture=fix_texture,
+        prefer_color=prefer_color)
 
     return kwargs
 
 
+def add_attributes_to_dtype(dtype, attributes):
+    """
+    Parses attribute datatype to populate a numpy dtype list
+
+    Parameters
+    ----------
+    dtype : list of numpy datatypes
+      operated on in place
+    attributes : dict
+      contains all the attributes to parse
+
+    Returns
+    ----------
+    dtype : list of numpy datatypes
+    """
+    for name, data in attributes.items():
+        if data.ndim == 1:
+            dtype.append((name, data.dtype))
+        else:
+            attribute_dtype = data.dtype if len(data.dtype) == 0 else data.dtype[0]
+            dtype.append(('{}_count'.format(name), 'u1'))
+            dtype.append((name, numpy_type_to_ply_type(attribute_dtype), data.shape[1]))
+    return dtype
+
+
+def add_attributes_to_header(header, attributes):
+    """
+    Parses attributes in to ply header entries
+
+    Parameters
+    ----------
+    header : list of ply header entries
+      operated on in place
+    attributes : dict
+      contains all the attributes to parse
+
+    Returns
+    ----------
+    header : list
+      Contains ply header entries
+    """
+    for name, data in attributes.items():
+        if data.ndim == 1:
+            header.append(
+                'property {} {}\n'.format(
+                    numpy_type_to_ply_type(data.dtype), name))
+        else:
+            header.append(
+                'property list uchar {} {}\n'.format(
+                    numpy_type_to_ply_type(data.dtype), name))
+    return header
+
+
+def add_attributes_to_data_array(data_array, attributes):
+    """
+    Parses attribute data in to a custom array, assumes datatype has been defined
+    appropriately
+
+    Parameters
+    ----------
+    data_array : numpy array with custom datatype
+      datatype reflects all the data to be stored for a given ply element
+    attributes : dict
+      contains all the attributes to parse
+
+    Returns
+    ----------
+    data_array : numpy array with custom datatype
+    """
+    for name, data in attributes.items():
+        if data.ndim > 1:
+            data_array['{}_count'.format(name)] = data.shape[1] * np.ones(data.shape[0])
+        data_array[name] = data
+    return data_array
+
+
+def assert_attributes_valid(attributes):
+    """
+    Asserts that a set of attributes is valid for PLY export.
+
+    Parameters
+    ----------
+    attributes : dict
+      Contains the attributes to validate
+
+    Raises
+    --------
+    ValueError
+      If passed attributes aren't valid.
+    """
+    for data in attributes.values():
+        if data.ndim not in [1, 2]:
+            raise ValueError('PLY attributes are limited to 1 or 2 dimensions')
+        # Inelegant test for structured arrays, reference:
+        # https://numpy.org/doc/stable/user/basics.rec.html
+        if data.dtype.names is not None:
+            raise ValueError('PLY attributes must be of a single datatype')
+
+
 def export_ply(mesh,
                encoding='binary',
-               vertex_normal=None):
+               vertex_normal=None,
+               include_attributes=True):
     """
     Export a mesh in the PLY format.
 
     Parameters
     ----------
-    mesh : Trimesh object
-    encoding : ['ascii'|'binary_little_endian']
-    vertex_normal : include vertex normals
+    mesh : trimesh.Trimesh
+      Mesh to export.
+    encoding : str
+      PLY encoding: 'ascii' or 'binary_little_endian'
+    vertex_normal : None or include vertex normals
 
     Returns
     ----------
@@ -124,6 +255,13 @@ def export_ply(mesh,
     # only export them if they are stored in cache
     if vertex_normal is None:
         vertex_normal = 'vertex_normal' in mesh._cache
+
+    # if we want to include mesh attributes in the export
+    if include_attributes:
+        if hasattr(mesh, 'vertex_attributes'):
+            assert_attributes_valid(mesh.vertex_attributes)
+        if hasattr(mesh, 'face_attributes'):
+            assert_attributes_valid(mesh.face_attributes)
 
     # custom numpy dtypes for exporting
     dtype_face = [('count', '<u1'),
@@ -150,6 +288,10 @@ def export_ply(mesh,
         header.append(templates['color'])
         dtype_vertex.append(dtype_color)
 
+    if include_attributes and hasattr(mesh, 'vertex_attributes'):
+        add_attributes_to_header(header, mesh.vertex_attributes)
+        add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
+
     # create and populate the custom dtype for vertices
     vertex = np.zeros(len(mesh.vertices),
                       dtype=dtype_vertex)
@@ -159,6 +301,9 @@ def export_ply(mesh,
     if mesh.visual.kind == 'vertex':
         vertex['rgba'] = mesh.visual.vertex_colors
 
+    if include_attributes and hasattr(mesh, 'vertex_attributes'):
+        add_attributes_to_data_array(vertex, mesh.vertex_attributes)
+
     header_params = {'vertex_count': len(mesh.vertices),
                      'encoding': encoding}
 
@@ -167,6 +312,11 @@ def export_ply(mesh,
         if mesh.visual.kind == 'face' and encoding != 'ascii':
             header.append(templates['color'])
             dtype_face.append(dtype_color)
+
+        if include_attributes and hasattr(mesh, 'face_attributes'):
+            add_attributes_to_header(header, mesh.face_attributes)
+            add_attributes_to_dtype(dtype_face, mesh.face_attributes)
+
         # put mesh face data into custom dtype to export
         faces = np.zeros(len(mesh.faces), dtype=dtype_face)
         faces['count'] = 3
@@ -174,6 +324,9 @@ def export_ply(mesh,
         if mesh.visual.kind == 'face' and encoding != 'ascii':
             faces['rgba'] = mesh.visual.face_colors
         header_params['face_count'] = len(mesh.faces)
+
+        if include_attributes and hasattr(mesh, 'face_attributes'):
+            add_attributes_to_data_array(faces, mesh.face_attributes)
 
     header.append(templates['outro'])
     export = Template(''.join(header)).substitute(
@@ -186,9 +339,9 @@ def export_ply(mesh,
     elif encoding == 'ascii':
         if hasattr(mesh, 'faces'):
             # ply format is: (face count, v0, v1, v2)
-            fstack = np.column_stack((np.ones(len(mesh.faces),
-                                              dtype=np.int64) * 3,
-                                      mesh.faces))
+            fstack = np.column_stack(
+                (np.ones(len(mesh.faces), dtype=np.int64) * 3,
+                 mesh.faces))
         else:
             fstack = []
 
@@ -233,8 +386,8 @@ def parse_header(file_obj):
       File name of TextureFile
     """
 
-    if 'ply' not in str(file_obj.readline()):
-        raise ValueError('not a ply file!')
+    if 'ply' not in str(file_obj.readline()).lower():
+        raise ValueError('Not a ply file!')
 
     # collect the encoding: binary or ASCII
     encoding = file_obj.readline().decode('utf-8').strip().lower()
@@ -461,12 +614,15 @@ def element_colors(element):
 
     Parameters
     -------------
-    element: dict, containing color keys
+    element : dict
+      Containing color keys
 
     Returns
     ------------
-    colors: (n,(3|4)
-    signal: float, estimate of range
+    colors : (n, 3) or (n, 4) float
+      Colors extracted from the element
+    signal : float
+      Estimate of range
     """
     keys = ['red', 'green', 'blue', 'alpha']
     candidate_colors = [element['data'][i]
@@ -555,22 +711,20 @@ def ply_ascii(elements, file_obj):
 
     Parameters
     ------------
-    elements: OrderedDict object, populated from the file header.
-              object will be modified to add data by this function.
-
-    file_obj: open file object, with current position at the start
-              of the data section (past the header)
+    elements : OrderedDict
+      Populated from the file header, data will
+      be added in-place to this object
+    file_obj : file-like-object
+      Current position at the start
+      of the data section (past the header).
     """
 
     # get the file contents as a string
     text = str(file_obj.read().decode('utf-8'))
-
     # split by newlines
     lines = str.splitlines(text)
-
     # get each line as an array split by whitespace
     array = [np.fromstring(i, sep=' ') for i in lines]
-
     # store the line position in the file
     row_pos = 0
 
@@ -579,10 +733,8 @@ def ply_ascii(elements, file_obj):
         # if the element is empty ignore it
         if 'length' not in values or values['length'] == 0:
             continue
-
         data = array[row_pos:row_pos + values['length']]
         row_pos += values['length']
-
         # try stacking the data, which simplifies column-wise access. this is only
         # possible, if all rows have the same length.
         try:
@@ -618,7 +770,6 @@ def ply_binary(elements, file_obj):
     elements : OrderedDict
       Populated from the file header.
       Object will be modified to add data by this function.
-
     file_obj : open file object
       With current position at the start
       of the data section (past the header)
@@ -782,11 +933,8 @@ def load_draco(file_obj, **kwargs):
         temp_drc.flush()
 
         with tempfile.NamedTemporaryFile(suffix='.ply') as temp_ply:
-            subprocess.check_output([draco_decoder,
-                                     '-i',
-                                     temp_drc.name,
-                                     '-o',
-                                     temp_ply.name])
+            subprocess.check_output(
+                [draco_decoder, '-i', temp_drc.name, '-o', temp_ply.name])
             temp_ply.seek(0)
             kwargs = load_ply(temp_ply)
     return kwargs
@@ -794,7 +942,6 @@ def load_draco(file_obj, **kwargs):
 
 _ply_loaders = {'ply': load_ply}
 _ply_exporters = {'ply': export_ply}
-
 draco_encoder = find_executable('draco_encoder')
 draco_decoder = find_executable('draco_decoder')
 
