@@ -124,6 +124,9 @@ class PlyTest(g.unittest.TestCase):
         g.np.testing.assert_almost_equal(result_1d, test_1d_attribute)
         g.np.testing.assert_almost_equal(result_nd, test_nd_attribute)
 
+        no_attr = m.export(file_type='ply', include_attributes=False)
+        assert len(no_attr) < len(export)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
