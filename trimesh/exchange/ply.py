@@ -41,6 +41,35 @@ dtypes = {
     'float64': 'f8',
     'double': 'f8'}
 
+# Inverse of the above dict, collisions on numpy type were removed
+inverse_dtypes = {
+    'i1': 'char',
+    'u1': 'uchar',
+    'i2': 'short',
+    'u2': 'ushort',
+    'i4': 'int',
+    'i8': 'int64',
+    'u4': 'uint',
+    'u8': 'uint64',
+    'f4': 'float',
+    'f2': 'float16',
+    'f8': 'double'}
+
+
+def numpy_type_to_ply_type(numpy_type):
+    """
+    Returns the closest ply equivalent of a numpy type
+
+    Parameters
+    ---------
+    numpy_type : a numpy datatype
+
+    Returns
+    ---------
+    ply_type : string
+    """
+    return inverse_dtypes[numpy_type.str[1:]]
+
 
 def load_ply(file_obj,
              resolver=None,
@@ -98,10 +127,112 @@ def load_ply(file_obj,
     return kwargs
 
 
+def add_attributes_to_dtype(dtype, attributes):
+    """
+    Parses attribute datatype to populate a numpy dtype list
+
+    Parameters
+    ----------
+    dtype : list of numpy datatypes
+      operated on in place
+    attributes : dict
+      contains all the attributes to parse
+
+    Returns
+    ----------
+    dtype : list of numpy datatypes
+    """
+    for name, data in attributes.items():
+        if data.ndim == 1:
+            dtype.append(
+                (name, data.dtype)
+            )
+        else:
+            attribute_dtype = data.dtype if len(data.dtype) == 0 else data.dtype[0]
+            dtype.append(
+                ('{}_count'.format(name), 'u1')
+            )
+            dtype.append(
+                (name, numpy_type_to_ply_type(attribute_dtype), data.shape[1])
+            )
+    return dtype
+
+
+def add_attributes_to_header(header, attributes):
+    """
+    Parses attributes in to ply header entries
+
+    Parameters
+    ----------
+    header : list of ply header entries
+      operated on in place
+    attributes : dict
+      contains all the attributes to parse
+
+    Returns
+    ----------
+    header : list of ply header entries
+    """
+    for name, data in attributes.items():
+        if data.ndim == 1:
+            header.append(
+                'property {} {}\n'.format(
+                    numpy_type_to_ply_type(data.dtype), name
+                )
+            )
+        else:
+            header.append(
+                'property list uchar {} {}\n'.format(
+                    numpy_type_to_ply_type(data.dtype), name
+                )
+            )
+    return header
+
+
+def add_attributes_to_data_array(data_array, attributes):
+    """
+    Parses attribute data in to a custom array, assumes datatype has been defined
+    appropriately
+
+    Parameters
+    ----------
+    data_array : numpy array with custom datatype
+      datatype reflects all the data to be stored for a given ply element
+    attributes : dict
+      contains all the attributes to parse
+
+    Returns
+    ----------
+    data_array : numpy array with custom datatype
+    """
+    for name, data in attributes.items():
+        if data.ndim > 1:
+            data_array['{}_count'.format(name)] = data.shape[1] * np.ones(data.shape[0])
+        data_array[name] = data
+    return data_array
+
+
+def assert_attributes_valid(attributes):
+    """
+    Asserts that a set of attributes is valid for PLY export. Raises ValueError if not.
+
+    Parameters
+    ----------
+    attributes : dict
+      Contains the attributes to validate
+    """
+    for data in attributes.values():
+        if data.ndim not in [1, 2]:
+            raise ValueError('PLY attributes are limited to 1 or 2 dimensions')
+        # Inelegant test for structured arrays, reference:
+        # https://numpy.org/doc/stable/user/basics.rec.html
+        if data.dtype.names is not None:
+            raise ValueError('PLY attributes must be of a single datatype')
+
+
 def export_ply(mesh,
                encoding='binary',
-               vertex_normal=None,
-               **kwargs):
+               vertex_normal=None):
     """
     Export a mesh in the PLY format.
 
@@ -125,8 +256,11 @@ def export_ply(mesh,
     # only export them if they are stored in cache
     if vertex_normal is None:
         vertex_normal = 'vertex_normal' in mesh._cache
-    vertex_attributes = kwargs.get('vertex_attributes', [])
-    face_attributes = kwargs.get('face_attributes', [])
+
+    if hasattr(mesh, 'vertex_attributes'):
+        assert_attributes_valid(mesh.vertex_attributes)
+    if hasattr(mesh, 'face_attributes'):
+        assert_attributes_valid(mesh.face_attributes)
 
     # custom numpy dtypes for exporting
     dtype_face = [('count', '<u1'),
@@ -153,13 +287,9 @@ def export_ply(mesh,
         header.append(templates['color'])
         dtype_vertex.append(dtype_color)
 
-    for vertex_attribute in vertex_attributes:
-        header.append(
-            'property {} {}\n'.format(vertex_attribute['type'], vertex_attribute['name'])
-        )
-        dtype_vertex.append(
-            (vertex_attribute['name'], '<{}'.format(dtypes[vertex_attribute['type']]))
-        )
+    if hasattr(mesh, 'vertex_attributes'):
+        add_attributes_to_header(header, mesh.vertex_attributes)
+        add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
 
     # create and populate the custom dtype for vertices
     vertex = np.zeros(len(mesh.vertices),
@@ -170,8 +300,8 @@ def export_ply(mesh,
     if mesh.visual.kind == 'vertex':
         vertex['rgba'] = mesh.visual.vertex_colors
 
-    for vertex_attribute in vertex_attributes:
-        vertex[vertex_attribute['name']] = vertex_attribute['data']
+    if hasattr(mesh, 'vertex_attributes'):
+        add_attributes_to_data_array(vertex, mesh.vertex_attributes)
 
     header_params = {'vertex_count': len(mesh.vertices),
                      'encoding': encoding}
@@ -181,13 +311,11 @@ def export_ply(mesh,
         if mesh.visual.kind == 'face' and encoding != 'ascii':
             header.append(templates['color'])
             dtype_face.append(dtype_color)
-        for face_attribute in face_attributes:
-            header.append(
-                'property {} {}\n'.format(face_attribute['type'], face_attribute['name'])
-            )
-            dtype_face.append(
-                (face_attribute['name'], '<{}'.format(dtypes[face_attribute['type']]))
-            )
+
+        if hasattr(mesh, 'face_attributes'):
+            add_attributes_to_header(header, mesh.face_attributes)
+            add_attributes_to_dtype(dtype_face, mesh.face_attributes)
+
         # put mesh face data into custom dtype to export
         faces = np.zeros(len(mesh.faces), dtype=dtype_face)
         faces['count'] = 3
@@ -196,8 +324,8 @@ def export_ply(mesh,
             faces['rgba'] = mesh.visual.face_colors
         header_params['face_count'] = len(mesh.faces)
 
-        for face_attribute in face_attributes:
-            faces[face_attribute['name']] = face_attribute['data']
+        if hasattr(mesh, 'face_attributes'):
+            add_attributes_to_data_array(faces, mesh.face_attributes)
 
     header.append(templates['outro'])
     export = Template(''.join(header)).substitute(
