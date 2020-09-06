@@ -144,10 +144,13 @@ def discretize_arc(points,
     points, is_2D = util.stack_3D(points, return_2D=True)
     # find the center of the points
     try:
+        # try to find the center from the arc points
         center_info = arc_center(points)
-    except:
+    except BaseException:
+        # if we hit an exception return a very bad but
+        # technically correct discretization of the arc
         if is_2D:
-            return points[:,:2]
+            return points[:, :2]
         return points
 
     center, R, N, angle = (center_info['center'],
