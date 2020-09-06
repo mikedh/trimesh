@@ -1123,8 +1123,12 @@ def camera_marker(camera,
       Contains Trimesh and Path3D objects which can be visualized
     """
 
+    # create sane origin size from marker height
+    if origin_size is None:
+        origin_size = marker_height / 10.0
+
     # append the visualizations to an array
-    meshes = [axis(origin_size=marker_height / 10.0)]
+    meshes = [axis(origin_size=origin_size)]
 
     try:
         # path is a soft dependency
@@ -1134,10 +1138,6 @@ def camera_marker(camera,
         log.warning('unable to create FOV visualization!',
                     exc_info=True)
         return meshes
-
-    # create sane origin size from marker height
-    if origin_size is None:
-        origin_size = marker_height / 10.0
 
     # calculate vertices from camera FOV angles
     x = marker_height * np.tan(np.deg2rad(camera.fov[0]) / 2.0)
