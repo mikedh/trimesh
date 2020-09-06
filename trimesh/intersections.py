@@ -616,8 +616,10 @@ def slice_mesh_plane(mesh,
     cap : bool
       If True, cap the result with a triangulated polygon
     cached_dots : (n, 3) float
-        If an external function has stored dot
-        products pass them here to avoid recomputing
+      If an external function has stored dot
+      products pass them here to avoid recomputing
+    kwargs : dict
+      Passed to the newly created sliced mesh
 
     Returns
     ----------
@@ -726,4 +728,6 @@ def slice_mesh_plane(mesh,
             vertices, faces = sliced_mesh.vertices.copy(), sliced_mesh.faces.copy()
 
     # return the sliced mesh
-    return Trimesh(vertices=vertices, faces=faces, process=False)
+    if 'process' not in kwargs:
+        kwargs['process'] = False
+    return Trimesh(vertices=vertices, faces=faces, **kwargs)
