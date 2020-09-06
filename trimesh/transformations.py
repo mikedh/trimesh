@@ -1994,9 +1994,10 @@ def transform_around(matrix, point):
 
 def planar_matrix(offset=None,
                   theta=None,
-                  point=None):
+                  point=None,
+                  scale=None):
     """
-    2D homogeonous transformation matrix
+    2D homogeonous transformation matrix.
 
     Parameters
     ----------
@@ -2005,7 +2006,9 @@ def planar_matrix(offset=None,
     theta : float
       Rotation around Z in radians
     point :  (2, ) float
-      point to rotate around
+      Point to rotate around
+    scale : (2,) float or None
+      Scale to apply
 
     Returns
     ----------
@@ -2033,6 +2036,11 @@ def planar_matrix(offset=None,
 
     if point is not None:
         T = transform_around(matrix=T, point=point)
+
+    if scale is not None:
+        S = np.eye(3)
+        S[:2, :2] *= scale
+        T = np.dot(S, T)
 
     return T
 

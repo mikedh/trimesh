@@ -52,7 +52,7 @@ def arc_center(points, return_normal=True, return_angle=True):
     half = edges.sum() / 2.0
     # check the denominator for the radius calculation
     denom = half * np.product(half - edges)
-    if denom < tol.zero:
+    if denom < tol.merge:
         raise ValueError('arc is colinear!')
     # find the radius and scale back after the operation
     radius = scale * ((np.product(edges) / 4.0) / np.sqrt(denom))
@@ -143,7 +143,13 @@ def discretize_arc(points,
     # make sure points are (n, 3)
     points, is_2D = util.stack_3D(points, return_2D=True)
     # find the center of the points
-    center_info = arc_center(points)
+    try:
+        center_info = arc_center(points)
+    except:
+        if is_2D:
+            return points[:,:2]
+        return points
+
     center, R, N, angle = (center_info['center'],
                            center_info['radius'],
                            center_info['normal'],
@@ -179,8 +185,8 @@ def discretize_arc(points,
         arc_ok = (arc_dist < tol.merge).all()
         if not arc_ok:
             log.warning(
-                'failed to discretize arc (endpoint distance %s)',
-                str(arc_dist))
+                'failed to discretize arc (endpoint_distance=%s R=%s)',
+                str(arc_dist), R)
             log.warning('Failed arc points: %s', str(points))
             raise ValueError('Arc endpoints diverging!')
     discrete = discrete[:, :(3 - is_2D)]

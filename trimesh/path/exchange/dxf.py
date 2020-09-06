@@ -8,14 +8,17 @@ from ..entities import Line, Arc, BSpline, Text
 from ... import resources
 from ...constants import log
 from ...constants import tol_path as tol
+
 from ... import util
 from ... import grouping
+from ... import transformations as tf
 
 # stuff for DWG loading
 import os
 import shutil
 import tempfile
 import subprocess
+
 from distutils.spawn import find_executable
 
 
@@ -72,6 +75,152 @@ def load_dxf(file_obj, **kwargs):
     result: dict, keys are  entities, vertices and metadata
     """
 
+    # in a DXF file, lines come in pairs,
+    # a group code then the next line is the value
+    # we are removing all whitespace then splitting with the
+    # splitlines function which uses the universal newline method
+    raw = file_obj.read()
+    # if we've been passed bytes
+    if hasattr(raw, 'decode'):
+        # search for the sentinel string indicating binary DXF
+        # do it by encoding sentinel to bytes and subset searching
+        if raw[:22].find(b'AutoCAD Binary DXF') != -1:
+            if _teigha is None:
+                # no converter to ASCII DXF available
+                raise ValueError('binary DXF not supported!')
+            else:
+                # convert binary DXF to R14 ASCII DXF
+                raw = _teigha_convert(raw, extension='dxf')
+        else:
+            # we've been passed bytes that don't have the
+            # header for binary DXF so try decoding as UTF-8
+            raw = raw.decode('utf-8', errors='ignore')
+
+    # remove trailing whitespace
+    raw = str(raw).strip()
+    # without any spaces and in upper case
+    cleaned = raw.replace(' ', '').strip().upper()
+
+    # blob with spaces and original case
+    blob_raw = np.array(str.splitlines(raw)).reshape((-1, 2))
+    # if this reshape fails, it means the DXF is malformed
+    blob = np.array(str.splitlines(cleaned)).reshape((-1, 2))
+
+    # get the section which contains the header in the DXF file
+    endsec = np.nonzero(blob[:, 1] == 'ENDSEC')[0]
+
+    # store metadata
+    metadata = {}
+
+    # try reading the header, which may be malformed
+    header_start = np.nonzero(blob[:, 1] == 'HEADER')[0]
+    if len(header_start) > 0:
+        header_end = endsec[np.searchsorted(endsec, header_start[0])]
+        header_blob = blob[header_start[0]:header_end]
+
+        # store some properties from the DXF header
+        metadata['DXF_HEADER'] = {}
+        for key, group in [('$ACADVER', '1'),
+                           ('$DIMSCALE', '40'),
+                           ('$DIMALT', '70'),
+                           ('$DIMALTF', '40'),
+                           ('$DIMUNIT', '70'),
+                           ('$INSUNITS', '70'),
+                           ('$LUNITS', '70')]:
+            value = get_key(header_blob,
+                            key,
+                            group)
+            if value is not None:
+                metadata['DXF_HEADER'][key] = value
+
+        # store unit data pulled from the header of the DXF
+        # prefer LUNITS over INSUNITS
+        # I couldn't find a table for LUNITS values but they
+        # look like they are 0- indexed versions of
+        # the INSUNITS keys, so for now offset the key value
+        for offset, key in [(-1, '$LUNITS'),
+                            (0, '$INSUNITS')]:
+            # get the key from the header blob
+            units = get_key(header_blob, key, '70')
+            # if it exists add the offset
+            if units is None:
+                continue
+            metadata[key] = units
+            units += offset
+            # if the key is in our list of units store it
+            if units in _DXF_UNITS:
+                metadata['units'] = _DXF_UNITS[units]
+        # warn on drawings with no units
+        if 'units' not in metadata:
+            log.debug('DXF doesn\'t have units specified!')
+
+    # get the section which contains entities in the DXF file
+    entity_start = np.nonzero(blob[:, 1] == 'ENTITIES')[0][0]
+    entity_end = endsec[np.searchsorted(endsec, entity_start)]
+
+    blocks = None
+    # only load blocks if an entity references them via an INSERT
+    if (blob[entity_start:entity_end] == ['0', 'INSERT']).all(axis=1).any():
+        try:
+            # which part of the raw file contains blocks
+            block_start = np.nonzero(blob[:, 1] == 'BLOCKS')[0][0]
+            block_end = endsec[np.searchsorted(endsec, block_start)]
+
+            blob_block = blob[block_start:block_end]
+            blob_block_raw = blob_raw[block_start:block_end]
+            block_infl = np.nonzero((blob_block == ['0', 'BLOCK']).all(axis=1))[0]
+
+            # collect blocks by name
+            blocks = {}
+            for index in np.array_split(np.arange(len(blob_block)), block_infl):
+                try:
+                    v, e, name = convert_entities(
+                        blob_block[index],
+                        blob_block_raw[index],
+                        return_name=True)
+                    if len(e) > 0:
+                        blocks[name] = (v, e)
+                except BaseException:
+                    pass
+        except BaseException:
+            pass
+
+    # actually load referenced entities
+    vertices, entities = convert_entities(
+        blob[entity_start:entity_end],
+        blob_raw[entity_start:entity_end],
+        blocks=blocks)
+
+    # return result as kwargs for trimesh.path.Path2D constructor
+    result = {'vertices': vertices,
+              'entities': entities,
+              'metadata': metadata}
+
+    return result
+
+
+def convert_entities(
+        blob, blob_raw=None, blocks=None, return_name=False):
+    """
+    Convert a chunk of entities into trimesh entities.
+
+    Parameters
+    ------------
+    blob : (n, 2) str
+      Blob of entities uppercased
+    blob_raw : (n, 2) str
+      Blob of entities not uppercased
+    blocks : None or dict
+      Blocks referenced by INSERT entities
+    return_name : bool
+      If True return the first '2' value
+
+    Returns
+    ----------
+    """
+    if blob_raw is None:
+        blob_raw = blob
+
     def info(e):
         """
         Pull metadata based on group code, and return as a dict.
@@ -79,12 +228,10 @@ def load_dxf(file_obj, **kwargs):
         # which keys should we extract from the entity data
         # DXF group code : our metadata key
         get = {'8': 'layer'}
-
         # replace group codes with names and only
         # take info from the entity dict if it is in cand
         renamed = {get[k]: util.make_sequence(v)[0] for k,
                    v in e.items() if k in get}
-
         return renamed
 
     def convert_line(e):
@@ -128,9 +275,10 @@ def load_dxf(file_obj, **kwargs):
                                  e['51']], dtype=np.float64))
         # convert center/radius/angle representation
         # to three points on the arc representation
-        points = to_threepoint(center=C[0:2],
-                               radius=R,
-                               angles=A)
+        points = to_threepoint(
+            center=C[0:2],
+            radius=R,
+            angles=A)
         # add a single Arc entity
         entities.append(Arc(points=len(vertices) + np.arange(3),
                             closed=False,
@@ -267,127 +415,70 @@ def load_dxf(file_obj, **kwargs):
         vertices.append(origin)
         vertices.append(vector)
 
-    # in a DXF file, lines come in pairs,
-    # a group code then the next line is the value
-    # we are removing all whitespace then splitting with the
-    # splitlines function which uses the universal newline method
-    raw = file_obj.read()
-    # if we've been passed bytes
-    if hasattr(raw, 'decode'):
-        # search for the sentinel string indicating binary DXF
-        # do it by encoding sentinel to bytes and subset searching
-        if raw[:22].find(b'AutoCAD Binary DXF') != -1:
-            if _teigha is None:
-                # no converter to ASCII DXF available
-                raise ValueError('binary DXF not supported!')
-            else:
-                # convert binary DXF to R14 ASCII DXF
-                raw = _teigha_convert(raw, extension='dxf')
-        else:
-            # we've been passed bytes that don't have the
-            # header for binary DXF so try decoding as UTF-8
-            raw = raw.decode('utf-8', errors='ignore')
+    def convert_insert(e):
+        """
+        Convert an INSERT entitity, which inserts a named group of
+        entities (i.e. a "BLOCK") at a specific location.
+        """
+        if blocks is None:
+            return
+        # name of block to insert
+        name = e['2']
+        # if we haven't loaded the block skip
+        if name not in blocks:
+            return
+        # angle to rotate the block by
+        angle = float(e.get('50', 0.0))
+        # the insertion point of the block
+        offset = np.array([e.get('10', 0.0),
+                           e.get('20', 0.0)],
+                          dtype=np.float64)
+        # what to scale the block by
+        scale = np.array([e.get('41', 1.0),
+                          e.get('42', 1.0)],
+                         dtype=np.float64)
 
-    # remove trailing whitespace
-    raw = str(raw).strip()
-    # without any spaces and in upper case
-    cleaned = raw.replace(' ', '').strip().upper()
-
-    # blob with spaces and original case
-    blob_raw = np.array(str.splitlines(raw)).reshape((-1, 2))
-    # if this reshape fails, it means the DXF is malformed
-    blob = np.array(str.splitlines(cleaned)).reshape((-1, 2))
-
-    # get the section which contains the header in the DXF file
-    endsec = np.nonzero(blob[:, 1] == 'ENDSEC')[0]
-
-    # get the section which contains entities in the DXF file
-    entity_start = np.nonzero(blob[:, 1] == 'ENTITIES')[0][0]
-    entity_end = endsec[np.searchsorted(endsec, entity_start)]
-    entity_blob = blob[entity_start:entity_end]
-    # store the entity blob with original case
-    entity_raw = blob_raw[entity_start:entity_end]
-
-    # store metadata
-    metadata = {}
-
-    # try reading the header, which may be malformed
-    header_start = np.nonzero(blob[:, 1] == 'HEADER')[0]
-    if len(header_start) > 0:
-        header_end = endsec[np.searchsorted(endsec, header_start[0])]
-        header_blob = blob[header_start[0]:header_end]
-
-        # store some properties from the DXF header
-        metadata['DXF_HEADER'] = {}
-        for key, group in [('$ACADVER', '1'),
-                           ('$DIMSCALE', '40'),
-                           ('$DIMALT', '70'),
-                           ('$DIMALTF', '40'),
-                           ('$DIMUNIT', '70'),
-                           ('$INSUNITS', '70'),
-                           ('$LUNITS', '70')]:
-            value = get_key(header_blob,
-                            key,
-                            group)
-            if value is not None:
-                metadata['DXF_HEADER'][key] = value
-
-        # store unit data pulled from the header of the DXF
-        # prefer LUNITS over INSUNITS
-        # I couldn't find a table for LUNITS values but they
-        # look like they are 0- indexed versions of
-        # the INSUNITS keys, so for now offset the key value
-        for offset, key in [(-1, '$LUNITS'),
-                            (0, '$INSUNITS')]:
-            # get the key from the header blob
-            units = get_key(header_blob, key, '70')
-            # if it exists add the offset
-            if units is None:
-                continue
-            metadata[key] = units
-            units += offset
-            # if the key is in our list of units store it
-            if units in _DXF_UNITS:
-                metadata['units'] = _DXF_UNITS[units]
-        # warn on drawings with no units
-        if 'units' not in metadata:
-            log.debug('DXF doesn\'t have units specified!')
+        # the current entities and vertices of the referenced block.
+        cv, ce = blocks[name]
+        for i in ce:
+            # copy the referenced entity as it may be included multiple times
+            entities.append(i.copy())
+            # offset its vertices to the current index
+            entities[-1].points += len(vertices)
+        # transform the block's vertices based on the entity settings
+        vertices.extend(tf.transform_points(cv, tf.planar_matrix(
+            offset=offset, theta=np.radians(angle), scale=scale)))
 
     # find the start points of entities
-    group_check = entity_blob[:, 0] == '0'
-    inflection = np.nonzero(group_check)[0]
-
     # DXF object to trimesh object converters
     loaders = {'LINE': (dict, convert_line),
                'LWPOLYLINE': (util.multi_dict, convert_polyline),
                'ARC': (dict, convert_arc),
                'CIRCLE': (dict, convert_circle),
-               'SPLINE': (util.multi_dict, convert_bspline)}
+               'SPLINE': (util.multi_dict, convert_bspline),
+               'INSERT': (dict, convert_insert)}
 
     # store loaded vertices
     vertices = []
     # store loaded entities
     entities = []
-
     # an old-style polyline entity strings its data across
     # multiple vertex entities like a real asshole
     polyline = None
+    # chunks of entities are divided by group-code-0
+    inflection = np.nonzero(blob[:, 0] == '0')[0]
 
     # loop through chunks of entity information
-    for index in np.array_split(np.arange(len(entity_blob)),
-                                inflection):
-
+    for index in np.array_split(
+            np.arange(len(blob)), inflection):
         # if there is only a header continue
         if len(index) < 1:
             continue
-
         # chunk will be an (n, 2) array of (group code, data) pairs
-        chunk = entity_blob[index]
-
+        chunk = blob[index]
         # the string representing entity type
         entity_type = chunk[0][1]
 
-        ############
         # special case old- style polyline entities
         if entity_type == 'POLYLINE':
             polyline = [dict(chunk)]
@@ -401,6 +492,7 @@ def load_dxf(file_obj, **kwargs):
                               for i in polyline[1:]],
                              dtype=np.float64)
 
+            is_closed = False
             # check for a closed flag on the polyline
             if '70' in polyline[0]:
                 # flag is bit- coded integer
@@ -420,27 +512,27 @@ def load_dxf(file_obj, **kwargs):
                               if '42' in e],
                              dtype=np.float64)
             # convert bulge to new entities
-            v, e = bulge_to_arcs(lines=lines,
-                                 bulge=bulge,
-                                 bulge_idx=bulge_idx,
-                                 is_closed=is_closed)
-            for i in e:
+            cv, ce = bulge_to_arcs(
+                lines=lines,
+                bulge=bulge,
+                bulge_idx=bulge_idx,
+                is_closed=is_closed)
+            for i in ce:
                 # offset entities by existing vertices
                 i.points += len(vertices)
-            vertices.extend(v)
-            entities.extend(e)
-
+            vertices.extend(cv)
+            entities.extend(ce)
             # we no longer have an active polyline
             polyline = None
         elif entity_type == 'TEXT':
             # text entities need spaces preserved so take
             # group codes from clean representation (0- column)
             # and data from the raw representation (1- column)
-            chunk_raw = entity_raw[index]
+            chunk_raw = blob_raw[index]
             # if we didn't use clean group codes we wouldn't
             # be able to access them by key as whitespace
             # is random and crazy, like: '  1 '
-            chunk_raw[:, 0] = entity_blob[index][:, 0]
+            chunk_raw[:, 0] = blob[index][:, 0]
             try:
                 convert_text(dict(chunk_raw))
             except BaseException:
@@ -458,16 +550,13 @@ def load_dxf(file_obj, **kwargs):
         else:
             log.debug('Entity type %s not supported',
                       entity_type)
-
     # stack vertices into single array
     vertices = util.vstack_empty(vertices).astype(np.float64)
+    if return_name:
+        name = blob_raw[blob[:, 0] == '2'][0][1]
+        return vertices, entities, name
 
-    # return result as kwargs for trimesh.path.Path2D constructor
-    result = {'vertices': vertices,
-              'entities': np.array(entities),
-              'metadata': metadata}
-
-    return result
+    return vertices, entities
 
 
 def export_dxf(path, layers=None):
