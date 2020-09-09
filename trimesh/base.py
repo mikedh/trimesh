@@ -1003,12 +1003,12 @@ class Trimesh(Geometry3D):
 
         Examples
         ---------
-        In [0]: mesh.faces[0:2]
+        In [0]: mesh.faces[:2]
         Out[0]:
         TrackedArray([[    1,  6946, 24224],
                       [ 6946,  1727, 24225]])
 
-        In [1]: mesh.edges_unique[mesh.faces_unique_edges[0:2]]
+        In [1]: mesh.edges_unique[mesh.faces_unique_edges[:2]]
         Out[1]:
         array([[[    1,  6946],
                 [ 6946, 24224],

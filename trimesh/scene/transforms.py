@@ -560,5 +560,5 @@ def kwargs_to_matrix(**kwargs):
         # translation can be used in conjunction with any of the methods of
         # specifying transforms. In the case a matrix and translation are passed,
         # we add the translations together rather than picking one.
-        matrix[0:3, 3] += kwargs['translation']
+        matrix[:3, 3] += kwargs['translation']
     return matrix

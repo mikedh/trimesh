@@ -293,7 +293,7 @@ def polygons(polygons,
     # move the OBB transform so the polygon is centered
     # in the padded rectangle
     for i, r in enumerate(rect):
-        obb[i][0:2, 2] += r * .5
+        obb[i][:2, 2] += r * .5
 
     # for polygons occurring multiple times
     indexes = np.hstack([np.ones(q, dtype=np.int64) * i
@@ -440,7 +440,7 @@ def images(images, power_resize=False):
 
     size = sheet.round().astype(int)
     if power_resize:
-
+        # round up all dimensions to powers of 2
         size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
 
     # create the image

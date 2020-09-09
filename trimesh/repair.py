@@ -283,7 +283,7 @@ def fill_holes(mesh):
     for face_index, face in enumerate(new_faces):
         # we compare the edge from the new face with
         # the boundary edge from the source mesh
-        edge_test = face[0:2]
+        edge_test = face[:2]
         edge_boundary = mesh.edges[g.get_edge_data(*edge_test)['index']]
 
         # in a well construtced mesh, the winding is such that adjacent triangles

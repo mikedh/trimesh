@@ -253,7 +253,7 @@ def convert_entities(
         R = float(e['40'])
         C = np.array([e['10'],
                       e['20']]).astype(np.float64)
-        points = to_threepoint(center=C[0:2],
+        points = to_threepoint(center=C[:2],
                                radius=R)
         entities.append(Arc(points=(len(vertices) + np.arange(3)),
                             closed=True,
@@ -276,7 +276,7 @@ def convert_entities(
         # convert center/radius/angle representation
         # to three points on the arc representation
         points = to_threepoint(
-            center=C[0:2],
+            center=C[:2],
             radius=R,
             angles=A)
         # add a single Arc entity
@@ -417,7 +417,7 @@ def convert_entities(
 
     def convert_insert(e):
         """
-        Convert an INSERT entitity, which inserts a named group of
+        Convert an INSERT entity, which inserts a named group of
         entities (i.e. a "BLOCK") at a specific location.
         """
         if blocks is None:
