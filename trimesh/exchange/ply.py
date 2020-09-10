@@ -12,6 +12,7 @@ from .. import visual
 from .. import grouping
 from .. import resources
 
+from ..geometry import triangulate_quads
 from ..constants import log
 
 # from ply specification, and additional dtypes found in the wild
@@ -530,12 +531,22 @@ def elements_to_kwargs(elements,
             pass
 
     if faces is not None:
+        shape = np.shape(faces)
+        if len(shape) != 2:
+            # we may have mixed quads and triangles
+            tris = np.array([i for i in faces if len(i) == 3])
+            quads = np.array([i for i in faces if len(i) == 4])
+            # combine triangulated quads with triangles
+            faces = util.vstack_empty([
+                tris,
+                triangulate_quads(quads)])
+
         # PLY stores texture coordinates per-face which is
         # slightly annoying, as we have to then figure out
         # which vertices have the same position but different UV
         if (image is not None and
             texcoord is not None and
-            len(np.shape(faces)) == 2 and
+            len(shape) == 2 and
                 texcoord.shape == (faces.shape[0], faces.shape[1] * 2)):
 
             # vertices with the same position but different
