@@ -2030,9 +2030,9 @@ def planar_matrix(offset=None,
     s = np.sin(theta)
     c = np.cos(theta)
 
-    T[0, 0:2] = [c, s]
-    T[1, 0:2] = [-s, c]
-    T[0:2, 2] = offset
+    T[0, :2] = [c, s]
+    T[1, :2] = [-s, c]
+    T[:2, 2] = offset
 
     if point is not None:
         T = transform_around(matrix=T, point=point)
@@ -2065,9 +2065,9 @@ def planar_matrix_to_3D(matrix_2D):
 
     matrix_3D = np.eye(4)
     # translation
-    matrix_3D[0:2, 3] = matrix_2D[0:2, 2]
+    matrix_3D[:2, 3] = matrix_2D[:2, 2]
     # rotation from 2D to around Z
-    matrix_3D[0:2, 0:2] = matrix_2D[0:2, 0:2]
+    matrix_3D[:2, :2] = matrix_2D[:2, :2]
 
     return matrix_3D
 

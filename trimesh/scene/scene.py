@@ -928,7 +928,7 @@ class Scene(Geometry3D):
             else:
                 raise ValueError('explode vector wrong shape!')
 
-            transform[0:3, 3] += offset
+            transform[:3, 3] += offset
             self.graph[node_name] = transform
 
     def scaled(self, scale):

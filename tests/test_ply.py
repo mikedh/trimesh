@@ -127,6 +127,15 @@ class PlyTest(g.unittest.TestCase):
         no_attr = m.export(file_type='ply', include_attributes=False)
         assert len(no_attr) < len(export)
 
+    def test_cases(self):
+        a = g.get_mesh('featuretype.STL')
+        b = g.get_mesh('featuretype.ply')
+        assert a.faces.shape == b.faces.shape
+
+        # has mixed quads and triangles
+        m = g.get_mesh('suzanne.ply')
+        assert len(m.faces) > 0
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
