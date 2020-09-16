@@ -42,6 +42,7 @@ class SceneViewer(pyglet.window.Window):
                  caption=None,
                  fixed=None,
                  offset_lines=True,
+                 line_settings=None,
                  background=None,
                  window_conf=None,
                  profile=False,
@@ -133,6 +134,15 @@ class SceneViewer(pyglet.window.Window):
             resolution = scene.camera.resolution
         else:
             scene.camera.resolution = resolution
+
+        # set the default line settings to a fraction
+        # of our resolution so the points aren't tiny
+        scaled = max(resolution) / 200
+        self.line_settings = {'point_size': scaled,
+                              'line_width': scaled}
+        # if we've been passed line settings override the default
+        if line_settings is not None:
+            self.line_settings.update(line_settings)
 
         # no window conf was passed so try to get the best looking one
         if window_conf is None:
@@ -340,7 +350,7 @@ class SceneViewer(pyglet.window.Window):
         self._gl_enable_depth(self.scene.camera)
         self._gl_enable_color_material()
         self._gl_enable_blending()
-        self._gl_enable_smooth_lines()
+        self._gl_enable_smooth_lines(**self.line_settings)
         self._gl_enable_lighting(self.scene)
 
     @staticmethod
@@ -400,14 +410,14 @@ class SceneViewer(pyglet.window.Window):
                        gl.GL_ONE_MINUS_SRC_ALPHA)
 
     @staticmethod
-    def _gl_enable_smooth_lines():
+    def _gl_enable_smooth_lines(line_width=4, point_size=4):
         # make the lines from Path3D objects less ugly
         gl.glEnable(gl.GL_LINE_SMOOTH)
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
         # set the width of lines to 4 pixels
-        gl.glLineWidth(4)
+        gl.glLineWidth(line_width)
         # set PointCloud markers to 4 pixels in size
-        gl.glPointSize(4)
+        gl.glPointSize(point_size)
 
     @staticmethod
     def _gl_enable_lighting(scene):
