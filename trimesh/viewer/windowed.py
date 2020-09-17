@@ -137,9 +137,9 @@ class SceneViewer(pyglet.window.Window):
 
         # set the default line settings to a fraction
         # of our resolution so the points aren't tiny
-        scaled = max(resolution) / 200
-        self.line_settings = {'point_size': scaled,
-                              'line_width': scaled}
+        scale = max(resolution)
+        self.line_settings = {'point_size': scale / 200,
+                              'line_width': scale / 400}
         # if we've been passed line settings override the default
         if line_settings is not None:
             self.line_settings.update(line_settings)
