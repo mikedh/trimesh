@@ -364,6 +364,170 @@ class CommentTests(unittest.TestCase):
         assert f(text) == 'hey whats up\n hi'
 
 
+class ArrayToString(unittest.TestCase):
+    def test_converts_an_unstructured_1d_array(self):
+        self.assertEqual(
+            g.trimesh.util.array_to_string(np.array([1, 2, 3])),
+            '1 2 3'
+        )
+
+    def test_converts_an_unstructured_int_array(self):
+        self.assertEqual(
+            g.trimesh.util.array_to_string(np.array([[1, 2, 3], [4, 5, 6]])),
+            '1 2 3\n4 5 6'
+        )
+
+    def test_converts_an_unstructured_float_array(self):
+        self.assertEqual(
+            g.trimesh.util.array_to_string(
+                np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float)
+            ),
+            '1.00000000 2.00000000 3.00000000\n4.00000000 5.00000000 6.00000000'
+        )
+
+    def test_uses_the_specified_column_delimiter(self):
+        self.assertEqual(
+            g.trimesh.util.array_to_string(
+                np.array([[1, 2, 3], [4, 5, 6]]), col_delim='col'),
+            '1col2col3\n4col5col6'
+        )
+
+    def test_uses_the_specified_row_delimiter(self):
+        self.assertEqual(
+            g.trimesh.util.array_to_string(
+                np.array([[1, 2, 3], [4, 5, 6]]), row_delim='row'),
+            '1 2 3row4 5 6'
+        )
+
+    def test_uses_the_specified_value_format(self):
+        self.assertEqual(
+            g.trimesh.util.array_to_string(
+                np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float),
+                value_format='{:.1f}'),
+            '1.0 2.0 3.0\n4.0 5.0 6.0'
+        )
+
+    def test_supports_uints(self):
+        self.assertEqual(
+            g.trimesh.util.array_to_string(
+                np.array([1, 2, 3], dtype=np.uint8)),
+            '1 2 3'
+        )
+
+    def test_supports_repeat_format(self):
+        self.assertEqual(
+            g.trimesh.util.array_to_string(
+                np.array([[1, 2, 3], [4, 5, 6]]), value_format='{} {}'),
+            '1 1 2 2 3 3\n4 4 5 5 6 6'
+        )
+
+    def test_raises_if_array_is_structured(self):
+        with self.assertRaises(ValueError):
+            g.trimesh.util.array_to_string(np.array(
+                [(1, 1.1), (2, 2.2)],
+                dtype=[('some_int', np.int), ('some_float', np.float)]
+            ))
+
+    def test_raises_if_array_is_not_flat(self):
+        with self.assertRaises(ValueError):
+            g.trimesh.util.array_to_string(np.array([[[1, 2, 3], [4, 5, 6]]]))
+
+
+class StructuredArrayToString(unittest.TestCase):
+
+    def test_converts_a_structured_array_with_1d_elements(self):
+        self.assertEqual(
+            g.trimesh.util.structured_array_to_string(
+                np.array(
+                    [(1, 1.1), (2, 2.2)],
+                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                )
+            ),
+            '1 1.10000000\n2 2.20000000'
+        )
+
+    def test_converts_a_structured_array_with_2d_elements(self):
+        self.assertEqual(
+            g.trimesh.util.structured_array_to_string(
+                np.array(
+                    [([1, 2], 1.1), ([3, 4], 2.2)],
+                    dtype=[('some_int', np.int, 2), ('some_float', np.float)]
+                )
+            ),
+            '1 2 1.10000000\n3 4 2.20000000'
+        )
+
+    def test_uses_the_specified_column_delimiter(self):
+        self.assertEqual(
+            g.trimesh.util.structured_array_to_string(
+                np.array(
+                    [(1, 1.1), (2, 2.2)],
+                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                ),
+                col_delim='col'
+            ),
+            '1col1.10000000\n2col2.20000000'
+        )
+
+    def test_uses_the_specified_row_delimiter(self):
+        self.assertEqual(
+            g.trimesh.util.structured_array_to_string(
+                np.array(
+                    [(1, 1.1), (2, 2.2)],
+                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                ),
+                row_delim='row'
+            ),
+            '1 1.10000000row2 2.20000000'
+        )
+
+    def test_uses_the_specified_value_format(self):
+        self.assertEqual(
+            g.trimesh.util.structured_array_to_string(
+                np.array(
+                    [(1, 1.1), (2, 2.2)],
+                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                ),
+                value_format='{:.1f}'
+            ),
+            '1.0 1.1\n2.0 2.2'
+        )
+
+    def test_supports_uints(self):
+        self.assertEqual(
+            g.trimesh.util.structured_array_to_string(
+                np.array(
+                    [(1, 1.1), (2, 2.2)],
+                    dtype=[('some_int', np.uint8), ('some_float', np.float)]
+                )
+            ),
+            '1 1.10000000\n2 2.20000000'
+        )
+
+    def test_raises_if_array_is_unstructured(self):
+        with self.assertRaises(ValueError):
+            g.trimesh.util.structured_array_to_string(np.ndarray([1, 2, 3]))
+
+    def test_raises_if_value_format_specifies_repeats(self):
+        with self.assertRaises(ValueError):
+            g.trimesh.util.structured_array_to_string(
+                np.array(
+                    [(1, 1.1), (2, 2.2)],
+                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                ),
+                value_format='{} {}'
+            )
+
+    def test_raises_if_array_is_not_flat(self):
+        with self.assertRaises(ValueError):
+            g.trimesh.util.structured_array_to_string(
+                np.array(
+                    [[(1, 1.1), (2, 2.2)], [(1, 1.1), (2, 2.2)]],
+                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                )
+            )
+
+
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()

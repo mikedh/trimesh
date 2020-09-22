@@ -338,29 +338,15 @@ def export_ply(mesh,
         if hasattr(mesh, 'faces'):
             export += faces.tobytes()
     elif encoding == 'ascii':
+        export_data = util.structured_array_to_string(vertex,
+                                                      col_delim=' ',
+                                                      row_delim='\n')
         if hasattr(mesh, 'faces'):
-            # ply format is: (face count, v0, v1, v2)
-            fstack = np.column_stack(
-                (np.ones(len(mesh.faces), dtype=np.int64) * 3,
-                 mesh.faces))
-        else:
-            fstack = []
-
-        # if we're exporting vertex normals they get stacked
-        if vertex_normal:
-            vstack = np.column_stack((mesh.vertices,
-                                      mesh.vertex_normals))
-        else:
-            vstack = mesh.vertices
-
-        # add the string formatted vertices and faces
-        export += (util.array_to_string(vstack,
-                                        col_delim=' ',
-                                        row_delim='\n') +
-                   '\n' +
-                   util.array_to_string(fstack,
-                                        col_delim=' ',
-                                        row_delim='\n')).encode('utf-8')
+            export_data += '\n'
+            export_data += util.structured_array_to_string(faces,
+                                                           col_delim=' ',
+                                                           row_delim='\n')
+        export += export_data.encode('utf-8')
     else:
         raise ValueError('encoding must be ascii or binary!')
 
