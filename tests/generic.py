@@ -170,12 +170,20 @@ def get_mesh(file_name, *args, **kwargs):
     """
     meshes = collections.deque()
     for name in np.append(file_name, args):
-        location = os.path.join(dir_models, name)
+        location = get_path(name)
         log.info('loading mesh from: %s', location)
         meshes.append(trimesh.load(location, **kwargs))
     if len(meshes) == 1:
         return meshes[0]
     return list(meshes)
+
+
+def get_path(file_name):
+    """
+    Get the absolute location of a referenced model file.
+    """
+    return os.path.abspath(
+        os.path.join(dir_models, file_name))
 
 
 @contextlib.contextmanager

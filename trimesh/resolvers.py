@@ -53,15 +53,18 @@ class FilePathResolver(Resolver):
         """
         # remove everything other than absolute path
         clean = os.path.expanduser(os.path.abspath(str(source)))
-
         if os.path.isdir(clean):
+            # if we were passed a directory use it
             self.parent = clean
-        # get the parent directory of the
-        elif os.path.isfile(clean):
+        else:
+            # otherwise get the parent directory we've been passed
             split = os.path.split(clean)
             self.parent = split[0]
-        else:
-            raise ValueError('path not a file or directory!')
+
+        # exit if directory doesn't exist
+        if not os.path.isdir(self.parent):
+            raise ValueError('path `{} `not a directory!'.format(
+                self.parent))
 
     def get(self, name):
         """

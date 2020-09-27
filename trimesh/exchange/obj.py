@@ -24,6 +24,7 @@ def load_obj(file_obj,
              split_object=False,
              group_material=True,
              skip_materials=False,
+             maintain_order=False,
              **kwargs):
     """
     Load a Wavefront OBJ file into kwargs for a trimesh.Scene
@@ -43,6 +44,9 @@ def load_obj(file_obj,
       into the same mesh.
     skip_materials : bool
       Don't load any materials.
+    maintain_order : bool or None
+      Do not reorder faces or vertices which may result
+      in visual artifacts.
 
     Returns
     -------------
@@ -50,7 +54,6 @@ def load_obj(file_obj,
       Keyword arguments which can be loaded by
       trimesh.exchange.load.load_kwargs into a trimesh.Scene
     """
-
     # get text as bytes or string blob
     text = file_obj.read()
 
@@ -159,10 +162,12 @@ def load_obj(file_obj,
             # where each face
             if faces_norm is not None and len(faces_norm) == len(faces):
                 new_faces, mask_v, mask_vt, mask_vn = unmerge_faces(
-                    faces, faces_tex, faces_norm)
+                    faces, faces_tex, faces_norm, maintain_faces=maintain_order)
             else:
                 mask_vn = None
-                new_faces, mask_v, mask_vt = unmerge_faces(faces, faces_tex)
+                # no face normals but face texturre
+                new_faces, mask_v, mask_vt = unmerge_faces(
+                    faces, faces_tex, maintain_faces=maintain_order)
 
             if tol.strict:
                 # we should NOT have messed up the faces
@@ -194,7 +199,7 @@ def load_obj(file_obj,
             if vn is not None and np.shape(faces_norm) == faces.shape:
                 # do the crazy unmerging logic for split indices
                 new_faces, mask_v, mask_vn = unmerge_faces(
-                    faces, faces_norm)
+                    faces, faces_norm, maintain_faces=maintain_order)
             else:
                 # generate the mask so we only include
                 # referenced vertices in every new mesh
