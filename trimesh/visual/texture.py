@@ -175,8 +175,12 @@ class TextureVisuals(Visuals):
             # DataStore will convert None to zero-length array
             if len(value) == 0:
                 continue
-            # store the update
-            updates[key] = value[mask]
+            try:
+                # store the update
+                updates[key] = value[mask]
+            except BaseException:
+                # usual reason is an incorrect size or index
+                util.log.warning('failed to update visual: `{}`'.format(key))
         # clear all values from the vertex attributes
         self.vertex_attributes.clear()
         # apply the updated values
@@ -209,7 +213,7 @@ class TextureVisuals(Visuals):
         return concatenate(self, others)
 
 
-def unmerge_faces(faces, *args):
+def unmerge_faces(faces, *args, maintain_faces=False):
     """
     Textured meshes can come with faces referencing vertex
     indices (`v`) and an array the same shape which references
@@ -226,6 +230,8 @@ def unmerge_faces(faces, *args):
     *args : (n, d) int
       Various references of corresponding values
       This is usually UV coordinates or normal indexes
+    maintain_faces : bool
+      Do not alter original faces and return no-op masks.
 
     Returns
     -------------
@@ -237,12 +243,37 @@ def unmerge_faces(faces, *args):
       A mask to apply to vt array to get matching UV coordinates
       Returns as many of these as args were passed
     """
+    if maintain_faces:
+        # start with not altering faces at all
+        result = [faces]
+        # find the maximum index referenced by faces
+        max_idx = faces.max()
+        # add a vertex mask which is just ordered
+        result.append(np.arange(max_idx + 1))
+
+        # now given the order is fixed do our best on the rest of the order
+        for arg in args:
+            # create a mask of the attribute-vertex mapping
+            # note that these might conflict since we're not unmerging
+            masks = np.zeros((3, max_idx + 1), dtype=np.int64)
+            # set the mask using the unmodified face indexes
+            for i, f, a in zip(range(3), faces.T, arg.T):
+                masks[i][f] = a
+            # find the most commonly occurring attribute (i.e. UV coordinate)
+            # and use that index note that this is doing a float conversion
+            # and then median before converting back to int: could also do this as
+            # a column diff and sort but this seemed easier and is fast enough
+            result.append(np.median(masks, axis=0).astype(np.int64))
+
+        return result
+
     # stack into pairs of (vertex index, texture index)
     stackable = [np.asanyarray(faces).reshape(-1)]
     # append multiple args to the correlated stack
     # this is usually UV coordinates (vt) and normals (vn)
     for arg in args:
         stackable.append(np.asanyarray(arg).reshape(-1))
+
     # unify them into rows of a numpy array
     stack = np.column_stack(stackable)
     # find unique pairs: we're trying to avoid merging

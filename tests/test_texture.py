@@ -22,6 +22,33 @@ class TextureTest(g.unittest.TestCase):
 
         assert (colors == colors_expected).all()
 
+    def test_bad_uv(self):
+        # get a textured OBJ
+        m = g.get_mesh('fuze.obj', force='mesh')
+        # add malformed UV coordinates
+        m.visual.uv = m.visual.uv[:100]
+        m.merge_vertices()
+
+    def test_order_kwarg(self):
+        for file_name in ['ico4.obj', 'ico4uv.obj']:
+            # get the location of the model file
+            file_path = g.get_path(file_name)
+            with open(file_path, 'r') as f:
+                # get the raw ordered vertices from the file with basic string ops
+                v_raw = g.np.array(
+                    [line[2:].split() for line in f if line.startswith('v ')],
+                    dtype=g.np.float64)
+
+            # load them with maximal correspondence captain
+            a = g.trimesh.load(file_path, process=False, maintain_order=True)
+            # see if we have the same vertices
+            assert g.np.allclose(a.vertices, v_raw)
+
+            # load them without process and but without maintaining order
+            a = g.trimesh.load(file_path, process=False, maintain_order=False)
+            # vertex shape should not be the same
+            assert a.vertices.shape != v_raw.shape
+
     def test_fuze(self):
 
         # create a local web server to test remote assets
