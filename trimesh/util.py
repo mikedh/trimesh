@@ -1131,10 +1131,15 @@ def array_to_string(array,
         raise ValueError('conversion only works on 1D/2D arrays not %s!',
                          str(array.shape))
 
-    # allow a value to be repeated in a value format
-    repeats = value_format.count('{}')
+    # abort for structured arrays
+    if array.dtype.names is not None:
+        raise ValueError(
+            'array is  structured, use structured_array_to_string instead')
 
-    if array.dtype.kind == 'i':
+    # allow a value to be repeated in a value format
+    repeats = value_format.count('{')
+
+    if array.dtype.kind in ['i', 'u']:
         # integer types don't need a specified precision
         format_str = value_format + col_delim
     elif array.dtype.kind == 'f':
@@ -1164,6 +1169,102 @@ def array_to_string(array,
 
     # run the format operation and remove the extra delimiters
     formatted = format_str.format(*shaped)[:-end_junk]
+
+    return formatted
+
+
+def structured_array_to_string(array,
+                               col_delim=' ',
+                               row_delim='\n',
+                               digits=8,
+                               value_format='{}'):
+    """
+    Convert an unstructured array into a string with a specified
+    number of digits and delimiter. The reason thisexists is
+    that the basic numpy array to string conversionsare
+    surprisingly bad.
+
+    Parameters
+    ------------
+    array : (n,) or (n, d) float or int
+       Data to be converted
+       If shape is (n,) only column delimiter will be used
+    col_delim : str
+      What string should separate values in a column
+    row_delim : str
+      What string should separate values in a row
+    digits : int
+      How many digits should floating point numbers include
+    value_format : str
+       Format string for each value or sequence of values
+       If multiple values per value_format it must divide
+       into array evenly.
+
+    Returns
+    ----------
+    formatted : str
+       String representation of original array
+    """
+    # convert inputs to correct types
+    array = np.asanyarray(array)
+    digits = int(digits)
+    row_delim = str(row_delim)
+    col_delim = str(col_delim)
+    value_format = str(value_format)
+
+    # abort for non-flat arrays
+    if len(array.shape) > 1:
+        raise ValueError('conversion only works on 1D/2D arrays not %s!',
+                         str(array.shape))
+
+    # abort for unstructured arrays
+    if array.dtype.names is None:
+        raise ValueError('array is not structured, use array_to_string instead')
+
+    # do not allow a value to be repeated in a value format
+    if value_format.count('{') > 1:
+        raise ValueError(
+            'value_format %s is invalid, repeating unstructured array '
+            + 'values is unsupported', value_format)
+
+    format_str = ''
+    for name in array.dtype.names:
+        kind = array[name].dtype.kind
+        element_row_length = (
+            array[name].shape[1] if len(array[name].shape) == 2 else 1)
+        if kind in ['i', 'u']:
+            # integer types don't need a specified precision
+            element_format_str = (value_format + col_delim)
+        elif kind == 'f':
+            # add the digits formatting to floats
+            element_format_str = value_format.replace(
+                '{}', '{:.' + str(digits) + 'f}') + col_delim
+        else:
+            raise ValueError('dtype %s not convertible!',
+                             array.dtype)
+        format_str += element_row_length * element_format_str
+
+    # length of extra delimiters at the end
+    format_str = format_str[:-len(col_delim)] + row_delim
+
+    # expand format string to whole array
+    format_str *= len(array)
+
+    # Flatten the array to a list as numpy array column type cannot be mixed
+    partially_flattened = [
+        item
+        for row in array for item in row
+    ]
+    flattened = []
+    for item in partially_flattened:
+        if isinstance(item, np.ndarray):
+            flattened.extend(item)
+        else:
+            flattened.append(item)
+
+    # run the format operation and remove the extra delimiters
+    end_junk = len(row_delim)
+    formatted = format_str.format(*flattened)[:-end_junk]
 
     return formatted
 
