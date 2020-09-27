@@ -213,7 +213,7 @@ class TextureVisuals(Visuals):
         return concatenate(self, others)
 
 
-def unmerge_faces(faces, *args, maintain_faces=False):
+def unmerge_faces(faces, *args, **kwargs):
     """
     Textured meshes can come with faces referencing vertex
     indices (`v`) and an array the same shape which references
@@ -243,6 +243,11 @@ def unmerge_faces(faces, *args, maintain_faces=False):
       A mask to apply to vt array to get matching UV coordinates
       Returns as many of these as args were passed
     """
+    # unfortunately Python2 doesn't let us put named kwargs
+    # after an `*args` sequence so we have to do this ugly get
+    maintain_faces = kwargs.get('maintain_faces', False)
+
+    # don't alter faces
     if maintain_faces:
         # start with not altering faces at all
         result = [faces]
