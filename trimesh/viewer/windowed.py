@@ -751,7 +751,7 @@ class SceneViewer(pyglet.window.Window):
             if self.view['axis'] == 'all':
                 self._axis.draw(mode=gl.GL_TRIANGLES)
             elif self.view['axis'] == 'without_world':
-                if count > 0:
+                if not np.all(transform == np.eye(4)):
                     self._axis.draw(mode=gl.GL_TRIANGLES)
 
             # transparent things must be drawn last
