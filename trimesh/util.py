@@ -1233,8 +1233,9 @@ def structured_array_to_string(array,
         element_row_length = (
             array[name].shape[1] if len(array[name].shape) == 2 else 1)
         if kind in ['i', 'u']:
-            # integer types don't need a specified precision
-            element_format_str = (value_format + col_delim)
+            # integer types need a no-decimal formatting
+            element_format_str = value_format.replace(
+                '{}', '{:0.0f}') + col_delim
         elif kind == 'f':
             # add the digits formatting to floats
             element_format_str = value_format.replace(
@@ -1246,25 +1247,18 @@ def structured_array_to_string(array,
 
     # length of extra delimiters at the end
     format_str = format_str[:-len(col_delim)] + row_delim
-
     # expand format string to whole array
     format_str *= len(array)
 
-    # Flatten the array to a list as numpy array column type cannot be mixed
-    partially_flattened = [
-        item
-        for row in array for item in row
-    ]
-    flattened = []
-    for item in partially_flattened:
-        if isinstance(item, np.ndarray):
-            flattened.extend(item)
-        else:
-            flattened.append(item)
+    # loop through flat fields and flatten to single array
+    count = len(array)
+    # will upgrade everything to a float
+    flattened = np.hstack(
+        [array[k].reshape((count, -1))
+         for k in array.dtype.names]).reshape(-1)
 
     # run the format operation and remove the extra delimiters
-    end_junk = len(row_delim)
-    formatted = format_str.format(*flattened)[:-end_junk]
+    formatted = format_str.format(*flattened)[:-len(row_delim)]
 
     return formatted
 
