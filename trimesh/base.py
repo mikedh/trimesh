@@ -2314,6 +2314,41 @@ class Trimesh(Geometry3D):
         return creation.voxelize(
             mesh=self, pitch=pitch, method=method, **kwargs)
 
+    @caching.cache_decorator
+    def open3d(self):
+        """
+        Return an `open3d.geometry.TriangleMesh` version of
+        the current mesh.
+
+        Returns
+        ---------
+        open3d : open3d.geometry.TriangleMesh
+          Current mesh as an open3d object.
+        """
+        import open3d
+        # create from numpy arrays
+        return open3d.geometry.TriangleMesh(
+            vertices=open3d.utility.Vector3dVector(self.vertices),
+            triangles=open3d.utility.Vector3iVector(self.faces))
+
+    def simplify_quadratic_decimation(self, face_count):
+        """
+        A thin wrapper around the open3d implementation of this:
+        `open3d.geometry.TriangleMesh.simplify_quadric_decimation`
+
+        Parameters
+        -----------
+        face_count : int
+          Number of faces desired in the resulting mesh.
+
+        Returns
+        ---------
+        simple : trimesh.Trimesh
+          Simplified version of mesh.
+        """
+        simple = self.open3d.simplify_quadric_decimation(int(face_count))
+        return Trimesh(vertices=simple.vertices, faces=simple.triangles)
+
     def outline(self, face_ids=None, **kwargs):
         """
         Given a list of face indexes find the outline of those

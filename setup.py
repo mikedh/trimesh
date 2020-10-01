@@ -56,8 +56,9 @@ requirements_all = requirements_easy.union([
     'psutil',        # figure out how much memory we have
     'glooey',        # make GUI applications with 3D stuff
     'meshio',        # load a number of additional mesh formats; Python 3.5+
-    'scikit-image'])  # marching cubes and other nice stuff
-
+    'scikit-image',  # marching cubes and other nice stuff
+    'open3d'         # decimation and fast utility functions
+])
 # requirements for running unit tests
 requirements_test = set(['pytest',       # run all unit tests
                          'pytest-cov',   # coverage plugin
