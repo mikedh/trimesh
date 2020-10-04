@@ -74,11 +74,16 @@ class MeshTests(g.unittest.TestCase):
                 continue
             # a string expression to evaluate
             expr = 'mesh.{}'.format(method)
-            # get the value of that expression
-            res = eval(expr)
+
+            try:
+                # get the value of that expression
+                res = eval(expr)
+            except ImportError:
+                g.log.warning('unable to import!', exc_info=True)
+                continue
+
             # shouldn't be None!
-            if res is None:
-                raise ValueError('"{}" is None!!'.format(expr))
+            assert res is not None
 
         # check methods in scene objects
         scene = mesh.scene()
