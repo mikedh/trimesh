@@ -2315,7 +2315,7 @@ class Trimesh(Geometry3D):
             mesh=self, pitch=pitch, method=method, **kwargs)
 
     @caching.cache_decorator
-    def open3d(self):
+    def as_open3d(self):
         """
         Return an `open3d.geometry.TriangleMesh` version of
         the current mesh.
@@ -2346,7 +2346,7 @@ class Trimesh(Geometry3D):
         simple : trimesh.Trimesh
           Simplified version of mesh.
         """
-        simple = self.open3d.simplify_quadric_decimation(int(face_count))
+        simple = self.as_open3d.simplify_quadric_decimation(int(face_count))
         return Trimesh(vertices=simple.vertices, faces=simple.triangles)
 
     def outline(self, face_ids=None, **kwargs):
