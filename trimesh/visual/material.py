@@ -252,6 +252,8 @@ class PBRMaterial(Material):
         for k, v in self.__dict__.items():
             if v is None:
                 continue
+            if k.startswith('_'):
+                k = k[1:]
             if hasattr(v, 'copy'):
                 # use an objects explicit copy if available
                 kwargs[k] = v.copy()
