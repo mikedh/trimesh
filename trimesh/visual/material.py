@@ -23,6 +23,16 @@ class Material(object):
     def main_color(self):
         raise NotImplementedError('material must be subclassed!')
 
+    @property
+    def name(self):
+        if hasattr(self, '_name'):
+            return self._name
+        return 'material0'
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
     def copy(self):
         return copy.deepcopy(self)
 
@@ -57,7 +67,7 @@ class SimpleMaterial(Material):
     def to_color(self, uv):
         return color.uv_to_color(uv, self.image)
 
-    def to_obj(self, tex_name=None, mtl_name=None):
+    def to_obj(self, mtl_name=None):
         """
         Convert the current material to an OBJ format material.
 
@@ -80,8 +90,8 @@ class SimpleMaterial(Material):
         Kd = color.to_float(self.diffuse)[:3]
         Ks = color.to_float(self.specular)[:3]
 
-        if tex_name is None:
-            tex_name = 'material0'
+        # get the name of this material
+        tex_name = self.name
         if mtl_name is None:
             mtl_name = '{}.mtl'.format(tex_name)
 
@@ -242,6 +252,8 @@ class PBRMaterial(Material):
         for k, v in self.__dict__.items():
             if v is None:
                 continue
+            if k.startswith('_'):
+                k = k[1:]
             if hasattr(v, 'copy'):
                 # use an objects explicit copy if available
                 kwargs[k] = v.copy()

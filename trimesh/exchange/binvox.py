@@ -14,7 +14,7 @@ from distutils.spawn import find_executable
 from .. import util
 from ..base import Trimesh
 
-# find the executable
+# find the executable for binvox in PATH
 binvox_encoder = find_executable('binvox')
 
 Binvox = collections.namedtuple(
@@ -345,28 +345,27 @@ class Binvoxer(object):
     )
 
     def __init__(
-        self,
-        dimension=32,
-        file_type='binvox',
-        z_buffer_carving=True,
-        z_buffer_voting=True,
-        dilated_carving=False,
-        exact=False,
-        bounding_box=None,
-        remove_internal=False,
-        center=False,
-        rotate_x=0,
-        rotate_z=0,
-        wireframe=False,
-        fit=False,
-        block_id=None,
-        use_material_block_id=False,
-        use_offscreen_pbuffer=True,
-        downsample_factor=None,
-        downsample_threshold=None,
-        verbose=False,
-        binvox_path=binvox_encoder,
-    ):
+            self,
+            dimension=32,
+            file_type='binvox',
+            z_buffer_carving=True,
+            z_buffer_voting=True,
+            dilated_carving=False,
+            exact=False,
+            bounding_box=None,
+            remove_internal=False,
+            center=False,
+            rotate_x=0,
+            rotate_z=0,
+            wireframe=False,
+            fit=False,
+            block_id=None,
+            use_material_block_id=False,
+            use_offscreen_pbuffer=True,
+            downsample_factor=None,
+            downsample_threshold=None,
+            verbose=False,
+            binvox_path=None):
         """
         Configure the voxelizer.
 
@@ -409,11 +408,18 @@ class Binvoxer(object):
             errors occur, try slightly adjusting dimensions.
         downsample_threshold: when downsampling, destination voxel is on if
             more than this number of voxels are on.
-        verbose: if False, silences stdout/stderr from subprocess call.
-        binvox_path: path to binvox executable. The default looks for an
-            executable called `binvox` on your `PATH`.
+        verbose : bool
+          If False, silences stdout/stderr from subprocess call.
+        binvox_path : str
+          Path to binvox executable. The default looks for an
+          executable called `binvox` on your `PATH`.
         """
-        if binvox_encoder is None:
+        if binvox_path is None:
+            encoder = binvox_encoder
+        else:
+            encoder = binvox_path
+
+        if encoder is None:
             raise IOError(
                 'No `binvox_path` provided, and no binvox executable found '
                 'on PATH. \nPlease go to https://www.patrickmin.com/binvox/ and '
@@ -426,7 +432,7 @@ class Binvoxer(object):
             raise ValueError(
                 'file_type %s not in set of supported output types %s' %
                 (file_type, str(Binvoxer.SUPPORTED_OUTPUT_TYPES)))
-        args = [binvox_path, '-d', str(dimension), '-t', file_type]
+        args = [encoder, '-d', str(dimension), '-t', file_type]
         if exact:
             args.append('-e')
         if z_buffer_carving:

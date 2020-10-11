@@ -292,7 +292,7 @@ def resample_boundaries(polygon, resolution, clip=None):
               'holes': []}
     for interior in polygon.interiors:
         kwargs['holes'].append(resample_boundary(interior))
-    kwargs['holes'] = np.array(kwargs['holes'])
+
     return kwargs
 
 
