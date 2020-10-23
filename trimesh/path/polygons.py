@@ -554,7 +554,7 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     # if our first non-looping check got enough samples exit
     if hit_count >= count:
         return hit[0][:count]
-    
+
     # if we have to do iterations loop here slowly
     for i in range(max_iter):
         # generate points inside polygons AABB
@@ -568,7 +568,7 @@ def sample(polygon, count, factor=1.5, max_iter=10):
         # if we have enough points exit the loop
         if hit_count > count:
             break
-        
+
     # stack the hits into an (n,2) array and truncate
     hit = np.vstack(hit)[:count]
 
