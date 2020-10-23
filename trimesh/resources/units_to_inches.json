@@ -3,6 +3,7 @@
   "mils": 0.001,
   "inches": 1.0,
   "feet": 12.0,
+  "foot": 12.0,
   "yards": 36.0,
   "miles": 63360,
   "angstroms": 3.937007874015748e-9,

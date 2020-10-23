@@ -22,6 +22,15 @@ class MFTest(g.unittest.TestCase):
         # should be 6 instances around the scene
         assert len(s.graph.nodes_geometry) == 1
 
+    def test_units(self):
+        # test our unit conversion function
+        converter = g.trimesh.units.unit_conversion
+        # these are the units listed in the 3MF spec as valid
+        units = ['micron', 'millimeter',
+                 'centimeter', 'inch', 'foot', 'meter']
+        # check conversion factor for all valid 3MF units
+        assert all(converter(u, 'inches') > 1e-12 for u in units)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

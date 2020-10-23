@@ -105,7 +105,10 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     return transform, rectangle
 
 
-def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
+def oriented_bounds(obj,
+                    angle_digits=1,
+                    ordered=True,
+                    normal=None):
     """
     Find the oriented bounding box for a Trimesh
 
@@ -159,25 +162,25 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
         raise ValueError(
             'Oriented bounds must be passed a mesh or a set of points!')
 
-    # convert face normals to spherical coordinates on the upper hemisphere
-    # the vector_hemisphere call effectivly merges negative but otherwise
-    # identical vectors
-    spherical_coords = util.vector_to_spherical(
-        util.vector_hemisphere(hull_normals))
-    # the unique_rows call on merge angles gets unique spherical directions to check
-    # we get a substantial speedup in the transformation matrix creation
-    # inside the loop by converting to angles ahead of time
-    spherical_unique = grouping.unique_rows(spherical_coords,
-                                            digits=angle_digits)[0]
     min_volume = np.inf
     tic = util.now()
 
     # matrices which will rotate each hull normal to [0,0,1]
     if normal is None:
+        # convert face normals to spherical coordinates on the upper hemisphere
+        # the vector_hemisphere call effectivly merges negative but otherwise
+        # identical vectors
+        spherical_coords = util.vector_to_spherical(
+            util.vector_hemisphere(hull_normals))
+        # the unique_rows call on merge angles gets unique spherical directions to check
+        # we get a substantial speedup in the transformation matrix creation
+        # inside the loop by converting to angles ahead of time
+        spherical_unique = grouping.unique_rows(
+            spherical_coords, digits=angle_digits)[0]
         matrices = [np.linalg.inv(transformations.spherical_matrix(*s))
                     for s in spherical_coords[spherical_unique]]
     else:
-        # if explicit normal was passed use it
+        # if explicit normal was passed use it and skip the grouping
         matrices = [geometry.align_vectors(normal, [0, 0, 1])]
 
     for to_2D in matrices:
@@ -225,8 +228,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None):
         min_extents = min_extents[order]
 
     log.debug('oriented_bounds checked %d vectors in %0.4fs',
-              len(spherical_unique),
-              util.now() - tic)
+              len(matrices), util.now() - tic)
 
     return to_origin, min_extents
 

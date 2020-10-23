@@ -84,14 +84,11 @@ def enclosure_tree(polygons):
     # a root or exterior curve has an even number of parents
     # wrap in dict call to avoid networkx view
     degree = dict(contains.in_degree())
-
     # convert keys and values to numpy arrays
     indexes = np.array(list(degree.keys()))
     degrees = np.array(list(degree.values()))
-
     # roots are curves with an even inward degree (parent count)
     roots = indexes[(degrees % 2) == 0]
-
     # if there are multiple nested polygons split the graph
     # so the contains logic returns the individual polygons
     if len(degrees) > 0 and degrees.max() > 1:
@@ -545,22 +542,29 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     bounds = np.reshape(polygon.bounds, (2, 2))
     extents = bounds.ptp(axis=0)
 
-    hit = []
-    hit_count = 0
+    # how many points to check per loop iteration
     per_loop = int(count * factor)
 
+    # start with some rejection sampling
+    points = bounds[0] + extents * np.random.random((per_loop, 2))
+    # do the point in polygon test and append resulting hits
+    mask = vectorized.contains(polygon, *points.T)
+    hit = [points[mask]]
+    hit_count = len(hit[0])
+    # if our first non-looping check got enough samples exit
+    if hit_count >= count:
+        return hit[0][:count]
+
+    # if we have to do iterations loop here slowly
     for i in range(max_iter):
         # generate points inside polygons AABB
         points = np.random.random((per_loop, 2))
         points = (points * extents) + bounds[0]
-
         # do the point in polygon test and append resulting hits
         mask = vectorized.contains(polygon, *points.T)
         hit.append(points[mask])
-
         # keep track of how many points we've collected
         hit_count += len(hit[-1])
-
         # if we have enough points exit the loop
         if hit_count > count:
             break

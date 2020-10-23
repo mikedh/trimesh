@@ -31,6 +31,7 @@ class ContactData(object):
             names[1]: contact.b2
         }
         self._point = contact.pos
+        self._depth = contact.penetration_depth
 
     @property
     def point(self):
@@ -43,6 +44,18 @@ class ContactData(object):
           The intersection point.
         """
         return self._point
+
+    @property
+    def depth(self):
+        """
+        The penetration depth of the 3D point of intersection for this contact.
+
+        Returns
+        -------
+        depth : float
+          The penetration depth.
+        """
+        return self._depth
 
     def index(self, name):
         """

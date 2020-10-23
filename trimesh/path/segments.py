@@ -534,7 +534,6 @@ def to_svg(segments, digits=4, matrix=None, merge=True):
         raise ValueError('only for (n, 2, 2) segments!')
 
     # create the array to export
-
     # apply 2D transformation if passed
     if matrix is not None:
         segments = transformations.transform_points(
