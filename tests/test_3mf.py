@@ -28,8 +28,8 @@ class MFTest(g.unittest.TestCase):
         # these are the units listed in the 3MF spec as valid
         units = ['micron', 'millimeter',
                  'centimeter', 'inch', 'foot', 'meter']
-        # get a conversion for all valid units
-        conv = [converter(u, 'inches') for u in units]
+        # check conversion factor for all valid 3MF units
+        assert all(converter(u, 'inches') > 1e-12 for u in units)
 
 
 if __name__ == '__main__':
