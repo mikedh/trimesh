@@ -176,14 +176,15 @@ class _PrimitiveAttributes(object):
         return doc
 
     def __getattr__(self, key):
-        if '_' in key:
+        if key.startswith('_'):
             return super(_PrimitiveAttributes, self).__getattr__(key)
         elif key in self._defaults:
             return util.convert_like(self._data[key], self._defaults[key])
-        return super(_PrimitiveAttributes, self).__getattr__(key)
+        raise AttributeError(
+            "primitive object has no attribute '{}' ".format(key))
 
     def __setattr__(self, key, value):
-        if '_' in key:
+        if key.startswith('_'):
             return super(_PrimitiveAttributes, self).__setattr__(key, value)
         elif key in self._defaults:
             if self._mutable:
