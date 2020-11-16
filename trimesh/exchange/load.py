@@ -358,9 +358,18 @@ def load_remote(url, **kwargs):
     # so loaders can access textures/etc
     resolver = resolvers.WebResolver(url)
 
+    # if we have a bunch of query parameters
+    if '?' in url:
+        # try to clean up the URL
+        import urllib
+        file_type = urllib.parse.unquote(
+            url).split('?', 1)[0].split('/')[-1].strip()
+    else:
+
+        file_type = url.split('/')[-1]
     # actually load
     loaded = load(file_obj=file_obj,
-                  file_type=url,
+                  file_type=file_type,
                   resolver=resolver,
                   **kwargs)
     return loaded
