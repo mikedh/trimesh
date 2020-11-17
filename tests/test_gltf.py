@@ -370,14 +370,23 @@ class GLTFTest(g.unittest.TestCase):
             assert key in extras
             assert extras[key] == check[key]
 
-    def test_load_empty_nodes_from_glb(self):
+    def test_load_empty_nodes(self):
         # loads a glb with no meshes
         scene = g.get_mesh('empty_nodes.glb', process=False)
 
         # expected data
-        check = {"parent": [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
-                 "children_1": [[1.0, 0.0, 0.0, -5.0], [0.0, 1.0, 0.0, 5.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
-                 "children_2": [[1.0, 0.0, 0.0, 5.0], [0.0, 1.0, 0.0, 5.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]}
+        check = {"parent": [[1.0, 0.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0, 0.0],
+                            [0.0, 0.0, 1.0, 0.0],
+                            [0.0, 0.0, 0.0, 1.0]],
+                 "children_1": [[1.0, 0.0, 0.0, -5.0],
+                                [0.0, 1.0, 0.0, 5.0],
+                                [0.0, 0.0, 1.0, 0.0],
+                                [0.0, 0.0, 0.0, 1.0]],
+                 "children_2": [[1.0, 0.0, 0.0, 5.0],
+                                [0.0, 1.0, 0.0, 5.0],
+                                [0.0, 0.0, 1.0, 0.0],
+                                [0.0, 0.0, 0.0, 1.0]]}
 
         # get the scene nodes
         objs = scene.graph.to_flattened()
