@@ -352,6 +352,43 @@ class GLTFTest(g.unittest.TestCase):
         assert all(r.metadata['extras'][k] == v
                    for k, v in dummy.items())
 
+    def test_read_scene_extras(self):
+        # loads a glb with scene extras
+        scene = g.get_mesh('monkey.glb', process=False)
+
+        # expected data
+        check = {'name': 'monkey', 'age': 32, 'height': 0.987}
+
+        # get the scene extras
+        extras = scene.metadata["scene_extras"]
+
+        # check number
+        assert len(extras) == 3
+
+        for key in check:
+            # \check key existance and value
+            assert key in extras
+            assert extras[key] == check[key]
+
+    def test_load_empty_nodes_from_glb(self):
+        # loads a glb with no meshes
+        scene = g.get_mesh('empty_nodes.glb', process=False)
+
+        # expected data
+        check = {"parent": [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
+                 "children_1": [[1.0, 0.0, 0.0, -5.0], [0.0, 1.0, 0.0, 5.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
+                 "children_2": [[1.0, 0.0, 0.0, 5.0], [0.0, 1.0, 0.0, 5.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]}
+
+        # get the scene nodes
+        objs = scene.graph.to_flattened()
+
+        # check number
+        assert len(objs) == 3
+
+        for key in check:
+            assert key in objs
+            assert objs[key]["transform"] == check[key]
+
     def test_same_name(self):
         s = g.get_mesh('TestScene.gltf')
         # hardcode correct bounds to check against
