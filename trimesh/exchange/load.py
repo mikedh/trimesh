@@ -346,6 +346,11 @@ def load_remote(url, **kwargs):
     url : string
       URL containing mesh file
     **kwargs : passed to `load`
+
+    Returns
+    ------------
+    loaded : Trimesh, Path, Scene
+      Loaded result
     """
     # import here to keep requirement soft
     import requests
@@ -358,9 +363,21 @@ def load_remote(url, **kwargs):
     # so loaders can access textures/etc
     resolver = resolvers.WebResolver(url)
 
-    # actually load
+    try:
+        # if we have a bunch of query parameters the type
+        # will be wrong so try to clean up the URL
+        # urllib is Python 3 only
+        import urllib
+        # remove the url-safe encoding then split off query params
+        file_type = urllib.parse.unquote(
+            url).split('?', 1)[0].split('/')[-1].strip()
+    except BaseException:
+        # otherwise just use the last chunk of URL
+        file_type = url.split('/')[-1].split('?', 1)[0]
+
+    # actually load the data from the retrieved bytes
     loaded = load(file_obj=file_obj,
-                  file_type=url,
+                  file_type=file_type,
                   resolver=resolver,
                   **kwargs)
     return loaded

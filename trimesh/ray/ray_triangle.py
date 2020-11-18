@@ -107,6 +107,42 @@ class RayMeshIntersector(object):
              **kwargs)
         return locations, index_ray, index_tri
 
+    def intersects_first(
+            self,
+            ray_origins,
+            ray_directions,
+            **kwargs):
+        """
+        Find the index of the first triangle a ray hits.
+
+
+        Parameters
+        ----------
+        ray_origins : (n, 3) float
+          Origins of rays
+        ray_directions : (n, 3) float
+          Direction (vector) of rays
+
+        Returns
+        ----------
+        triangle_index : (n,) int
+          Index of triangle ray hit, or -1 if not hit
+        """
+
+        (index_tri,
+         index_ray) = self.intersects_id(
+             ray_origins=ray_origins,
+             ray_directions=ray_directions,
+             return_locations=False,
+             multiple_hits=False,
+             **kwargs)
+
+        # put the result into the form of "one triangle index per ray"
+        result = np.ones(len(ray_origins), dtype=np.int64) * -1
+        result[index_ray] = index_tri
+
+        return result
+
     def intersects_any(self,
                        ray_origins,
                        ray_directions,
@@ -126,8 +162,8 @@ class RayMeshIntersector(object):
         hit : (m,) bool
           Whether any ray hit any triangle on the mesh
         """
-        index_tri, index_ray = self.intersects_id(ray_origins,
-                                                  ray_directions)
+        index_tri, index_ray = self.intersects_id(
+            ray_origins, ray_directions)
         hit_any = np.zeros(len(ray_origins), dtype=np.bool)
         hit_idx = np.unique(index_ray)
         if len(hit_idx) > 0:
@@ -155,12 +191,13 @@ class RayMeshIntersector(object):
         return contains_points(self, points)
 
 
-def ray_triangle_id(triangles,
-                    ray_origins,
-                    ray_directions,
-                    triangles_normal=None,
-                    tree=None,
-                    multiple_hits=True):
+def ray_triangle_id(
+        triangles,
+        ray_origins,
+        ray_directions,
+        triangles_normal=None,
+        tree=None,
+        multiple_hits=True):
     """
     Find the intersections between a group of triangles and rays
 
@@ -240,8 +277,9 @@ def ray_triangle_id(triangles,
 
     # the plane intersection is inside the triangle if all barycentric
     # coordinates are between 0.0 and 1.0
-    hit = np.logical_and((barycentric > -tol.zero).all(axis=1),
-                         (barycentric < (1 + tol.zero)).all(axis=1))
+    hit = np.logical_and(
+        (barycentric > -tol.zero).all(axis=1),
+        (barycentric < (1 + tol.zero)).all(axis=1))
 
     # the result index of the triangle is a candidate with a valid
     # plane intersection and a triangle which contains the plane
@@ -255,7 +293,8 @@ def ray_triangle_id(triangles,
 
     # only return points that are forward from the origin
     vector = location - ray_origins[index_ray]
-    distance = util.diagonal_dot(vector, ray_directions[index_ray])
+    distance = util.diagonal_dot(
+        vector, ray_directions[index_ray])
     forward = distance > -1e-6
 
     index_tri = index_tri[forward]
@@ -271,11 +310,10 @@ def ray_triangle_id(triangles,
     if len(index_ray) == 0:
         return index_tri, index_ray, location
 
-    first = np.zeros(len(index_ray), dtype=np.bool)
-    groups = grouping.group(index_ray)
-    for group in groups:
-        index = group[distance[group].argmin()]
-        first[index] = True
+    # find the first hit
+    first = np.array(
+        [g[distance[g].argmin()] for g in
+         grouping.group(index_ray)])
 
     return index_tri[first], index_ray[first], location[first]
 

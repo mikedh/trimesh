@@ -987,150 +987,154 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
     kwargs : dict
       Can be passed to load_kwargs for a trimesh.Scene
     """
-    # split buffer data into buffer views
-    views = [None] * len(header["bufferViews"])
-    for i, view in enumerate(header["bufferViews"]):
-        if "byteOffset" in view:
-            start = view["byteOffset"]
-        else:
-            start = 0
-        end = start + view["byteLength"]
-        views[i] = buffers[view["buffer"]][start:end]
 
-        assert len(views[i]) == view["byteLength"]
-
-    # load data from buffers into numpy arrays
-    # using the layout described by accessors
-    access = [None] * len(header['accessors'])
-    for index, a in enumerate(header["accessors"]):
-        # number of items
-        count = a['count']
-        # what is the datatype
-        dtype = _dtypes[a["componentType"]]
-        # basically how many columns
-        per_item = _shapes[a["type"]]
-        # use reported count to generate shape
-        shape = np.append(count, per_item)
-        # number of items when flattened
-        # i.e. a (4, 4) MAT4 has 16
-        per_count = np.abs(np.product(per_item))
-        if 'bufferView' in a:
-            # data was stored in a buffer view so get raw bytes
-            data = views[a["bufferView"]]
-            # is the accessor offset in a buffer
-            if "byteOffset" in a:
-                start = a["byteOffset"]
+    if "bufferViews" in header:
+        # split buffer data into buffer views
+        views = [None] * len(header["bufferViews"])
+        for i, view in enumerate(header["bufferViews"]):
+            if "byteOffset" in view:
+                start = view["byteOffset"]
             else:
-                # otherwise assume we start at first byte
                 start = 0
-            # length is the number of bytes per item times total
-            length = np.dtype(dtype).itemsize * count * per_count
-            # load the bytes data into correct dtype and shape
+            end = start + view["byteLength"]
+            views[i] = buffers[view["buffer"]][start:end]
 
-            access[index] = np.frombuffer(
-                data[start:start + length], dtype=dtype).reshape(shape)
-        else:
-            # a "sparse" accessor should be initialized as zeros
-            access[index] = np.zeros(
-                count * per_count, dtype=dtype).reshape(shape)
+            assert len(views[i]) == view["byteLength"]
 
-    # load images and textures into material objects
-    materials = _parse_materials(
-        header, views=views, resolver=resolver)
+        # load data from buffers into numpy arrays
+        # using the layout described by accessors
+        access = [None] * len(header['accessors'])
+        for index, a in enumerate(header["accessors"]):
+            # number of items
+            count = a['count']
+            # what is the datatype
+            dtype = _dtypes[a["componentType"]]
+            # basically how many columns
+            per_item = _shapes[a["type"]]
+            # use reported count to generate shape
+            shape = np.append(count, per_item)
+            # number of items when flattened
+            # i.e. a (4, 4) MAT4 has 16
+            per_count = np.abs(np.product(per_item))
+            if 'bufferView' in a:
+                # data was stored in a buffer view so get raw bytes
+                data = views[a["bufferView"]]
+                # is the accessor offset in a buffer
+                if "byteOffset" in a:
+                    start = a["byteOffset"]
+                else:
+                    # otherwise assume we start at first byte
+                    start = 0
+                # length is the number of bytes per item times total
+                length = np.dtype(dtype).itemsize * count * per_count
+                # load the bytes data into correct dtype and shape
+
+                access[index] = np.frombuffer(
+                    data[start:start + length], dtype=dtype).reshape(shape)
+            else:
+                # a "sparse" accessor should be initialized as zeros
+                access[index] = np.zeros(
+                    count * per_count, dtype=dtype).reshape(shape)
+
+        # load images and textures into material objects
+        materials = _parse_materials(
+            header, views=views, resolver=resolver)
 
     mesh_prim = collections.defaultdict(list)
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
-    for index, m in enumerate(header["meshes"]):
-        metadata = {}
-        try:
-            # try loading units from the GLTF extra
-            metadata['units'] = str(m["extras"]["units"])
-        except BaseException:
-            # GLTF spec indicates the default units are meters
-            metadata['units'] = 'meters'
 
-        for j, p in enumerate(m["primitives"]):
-            # if we don't have a triangular mesh continue
-            # if not specified assume it is a mesh
-            if "mode" in p and p["mode"] != 4:
-                log.warning('skipping primitive with mode {}!'.format(p['mode']))
-                continue
+    if "meshes" in header:
+        for index, m in enumerate(header["meshes"]):
+            metadata = {}
+            try:
+                # try loading units from the GLTF extra
+                metadata['units'] = str(m["extras"]["units"])
+            except BaseException:
+                # GLTF spec indicates the default units are meters
+                metadata['units'] = 'meters'
 
-            # store those units
-            kwargs = {"metadata": {}}
-            kwargs.update(mesh_kwargs)
-            kwargs["metadata"].update(metadata)
+            for j, p in enumerate(m["primitives"]):
+                # if we don't have a triangular mesh continue
+                # if not specified assume it is a mesh
+                if "mode" in p and p["mode"] != 4:
+                    log.warning('skipping primitive with mode {}!'.format(p['mode']))
+                    continue
 
-            # get vertices from accessors
-            kwargs["vertices"] = access[p["attributes"]["POSITION"]]
+                # store those units
+                kwargs = {"metadata": {}}
+                kwargs.update(mesh_kwargs)
+                kwargs["metadata"].update(metadata)
 
-            # get faces from accessors
-            if 'indices' in p:
-                kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
-            else:
-                # indices are apparently optional and we are supposed to
-                # do the same thing as webGL drawArrays?
-                kwargs['faces'] = np.arange(
-                    len(kwargs['vertices']),
-                    dtype=np.int64).reshape((-1, 3))
+                # get vertices from accessors
+                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
 
-            # do we have UV coordinates
-            visuals = None
-            if "material" in p:
-                if materials is None:
-                    log.warning('no materials! `pip install pillow`')
+                # get faces from accessors
+                if 'indices' in p:
+                    kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
                 else:
-                    uv = None
-                    if "TEXCOORD_0" in p["attributes"]:
-                        # flip UV's top- bottom to move origin to lower-left:
-                        # https://github.com/KhronosGroup/glTF/issues/1021
-                        uv = access[p["attributes"]["TEXCOORD_0"]].copy()
-                        uv[:, 1] = 1.0 - uv[:, 1]
-                        # create a texture visual
-                    visuals = visual.texture.TextureVisuals(
-                        uv=uv, material=materials[p["material"]])
-            if 'COLOR_0' in p['attributes']:
-                try:
-                    # try to load vertex colors from the accessors
-                    colors = access[p['attributes']['COLOR_0']]
-                    if len(colors) == len(kwargs['vertices']):
-                        if visuals is None:
-                            # just pass to mesh as vertex color
-                            kwargs['vertex_colors'] = colors
-                        else:
-                            # we ALSO have texture so save as vertex attribute
-                            visuals.vertex_attributes['color'] = colors
-                except BaseException:
-                    # survive failed colors
-                    log.debug('failed to load colors', exc_info=True)
-            if visuals is not None:
-                kwargs['visual'] = visuals
+                    # indices are apparently optional and we are supposed to
+                    # do the same thing as webGL drawArrays?
+                    kwargs['faces'] = np.arange(
+                        len(kwargs['vertices']),
+                        dtype=np.int64).reshape((-1, 3))
 
-            # create a unique mesh name per- primitive
-            if "name" in m:
-                name = m["name"]
-            else:
-                name = "GLTF_geometry"
+                # do we have UV coordinates
+                visuals = None
+                if "material" in p:
+                    if materials is None:
+                        log.warning('no materials! `pip install pillow`')
+                    else:
+                        uv = None
+                        if "TEXCOORD_0" in p["attributes"]:
+                            # flip UV's top- bottom to move origin to lower-left:
+                            # https://github.com/KhronosGroup/glTF/issues/1021
+                            uv = access[p["attributes"]["TEXCOORD_0"]].copy()
+                            uv[:, 1] = 1.0 - uv[:, 1]
+                            # create a texture visual
+                        visuals = visual.texture.TextureVisuals(
+                            uv=uv, material=materials[p["material"]])
+                if 'COLOR_0' in p['attributes']:
+                    try:
+                        # try to load vertex colors from the accessors
+                        colors = access[p['attributes']['COLOR_0']]
+                        if len(colors) == len(kwargs['vertices']):
+                            if visuals is None:
+                                # just pass to mesh as vertex color
+                                kwargs['vertex_colors'] = colors
+                            else:
+                                # we ALSO have texture so save as vertex attribute
+                                visuals.vertex_attributes['color'] = colors
+                    except BaseException:
+                        # survive failed colors
+                        log.debug('failed to load colors', exc_info=True)
+                if visuals is not None:
+                    kwargs['visual'] = visuals
 
-            # make name unique across multiple meshes
-            if name in meshes:
-                name += "_{}".format(util.unique_id())
+                # create a unique mesh name per- primitive
+                if "name" in m:
+                    name = m["name"]
+                else:
+                    name = "GLTF_geometry"
 
-            # each primitive gets it's own Trimesh object
-            if len(m["primitives"]) > 1:
-                name += "_{}".format(j)
+                # make name unique across multiple meshes
+                if name in meshes:
+                    name += "_{}".format(util.unique_id())
 
-            custom_attrs = [attr for attr in p["attributes"]
-                            if attr.startswith("_")]
-            if len(custom_attrs):
-                vertex_attributes = {}
-                for attr in custom_attrs:
-                    vertex_attributes[attr] = access[p["attributes"][attr]]
-                kwargs["vertex_attributes"] = vertex_attributes
-            kwargs["process"] = False
-            meshes[name] = kwargs
-            mesh_prim[index].append(name)
+                # each primitive gets it's own Trimesh object
+                if len(m["primitives"]) > 1:
+                    name += "_{}".format(j)
+
+                custom_attrs = [attr for attr in p["attributes"]
+                                if attr.startswith("_")]
+                if len(custom_attrs):
+                    vertex_attributes = {}
+                    for attr in custom_attrs:
+                        vertex_attributes[attr] = access[p["attributes"][attr]]
+                    kwargs["vertex_attributes"] = vertex_attributes
+                kwargs["process"] = False
+                meshes[name] = kwargs
+                mesh_prim[index].append(name)
 
     # sometimes GLTF "meshes" come with multiple "primitives"
     # by default we return one Trimesh object per "primitive"
@@ -1288,7 +1292,9 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
               "graph": graph,
               "base_frame": base_frame}
     # load any extras into scene.metadata
+
     result.update(_parse_extras(header))
+    result.update(_parse_scene_extras(header, scene_index=scene_index))
 
     return result
 
@@ -1313,6 +1319,35 @@ def _parse_extras(header):
         return {'metadata': {'extras': dict(header['extras'])}}
     except BaseException:
         log.warning('failed to load extras', exc_info=True)
+        return {}
+
+
+def _parse_scene_extras(header, scene_index):
+    """
+    Load any GLTF "scene extras" into scene.metadata['scene_extras'].
+
+    Parameters
+    --------------
+    header : dict
+      GLTF header
+
+    scene_index: int
+      index of the scene
+
+    Returns
+    -------------
+    kwargs : dict
+      Includes metadata
+    """
+
+    try:
+        if 'extras' not in header['scenes'][scene_index]:
+            return {}
+
+        extras = header['scenes'][scene_index]['extras']
+        return {'metadata': {'scene_extras': dict(extras)}}
+    except BaseException:
+        log.warning('failed to load scene extras', exc_info=True)
         return {}
 
 

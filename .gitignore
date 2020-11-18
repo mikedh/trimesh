@@ -114,3 +114,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# pycharm project settings
+.idea
