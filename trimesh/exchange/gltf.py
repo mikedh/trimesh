@@ -1046,7 +1046,9 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
 
     if "meshes" in header:
         for index, m in enumerate(header["meshes"]):
+
             metadata = {}
+            unique = util.unique_id()
             try:
                 # try loading units from the GLTF extra
                 metadata['units'] = str(m["extras"]["units"])
@@ -1117,13 +1119,13 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                 else:
                     name = "GLTF_geometry"
 
-                # make name unique across multiple meshes
-                if name in meshes:
-                    name += "_{}".format(util.unique_id())
-
                 # each primitive gets it's own Trimesh object
                 if len(m["primitives"]) > 1:
                     name += "_{}".format(j)
+
+                # make name unique across multiple meshes
+                if name in meshes:
+                    name += "_{}".format(unique)
 
                 custom_attrs = [attr for attr in p["attributes"]
                                 if attr.startswith("_")]
