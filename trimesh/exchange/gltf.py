@@ -62,7 +62,8 @@ uint8 = np.dtype("<u1")
 def export_gltf(scene,
                 extras=None,
                 include_normals=None,
-                merge_buffers=False):
+                merge_buffers=False,
+                tree_postprocessor=None):
     """
     Export a scene object as a GLTF directory.
 
@@ -89,6 +90,10 @@ def export_gltf(scene,
         scene=scene,
         extras=extras,
         include_normals=include_normals)
+
+    # allow custom postprocessing
+    if tree_postprocessor is not None:
+        tree_postprocessor(tree)
 
     # store files as {name : data}
     files = {}
@@ -129,7 +134,7 @@ def export_gltf(scene,
     return files
 
 
-def export_glb(scene, extras=None, include_normals=None):
+def export_glb(scene, extras=None, include_normals=None, tree_postprocessor=None):
     """
     Export a scene as a binary GLTF (GLB) file.
 
@@ -141,6 +146,8 @@ def export_glb(scene, extras=None, include_normals=None):
       Will be stored in the extras field
     include_normals : bool
       Include vertex normals in output file?
+    tree_postprocessor : func
+      Custom function to (in-place) post-process the tree before exporting.
 
     Returns
     ----------
@@ -157,6 +164,10 @@ def export_glb(scene, extras=None, include_normals=None):
         scene=scene,
         extras=extras,
         include_normals=include_normals)
+
+    # allow custom postprocessing
+    if tree_postprocessor is not None:
+        tree_postprocessor(tree)
 
     # A bufferView is a slice of a file
     views = _build_views(buffer_items)
