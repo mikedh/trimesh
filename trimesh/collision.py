@@ -441,7 +441,7 @@ class CollisionManager(object):
     def min_distance_single(self,
                             mesh,
                             transform=None,
-                            return_name=False,
+                            return_names=False,
                             return_data=False):
         """
         Get the minimum distance between a single object and any
@@ -490,7 +490,7 @@ class CollisionManager(object):
 
         # If we want to return the objects that were collision, collect them.
         name, data = None, None
-        if return_name or return_data:
+        if return_names or return_data:
             cg = ddata.result.o1
             if cg == b:
                 cg = ddata.result.o2
@@ -502,9 +502,9 @@ class CollisionManager(object):
                 names = reversed(names)
             data = DistanceData(names, ddata.result)
 
-        if return_name and return_data:
+        if return_names and return_data:
             return distance, name, data
-        elif return_name:
+        elif return_names:
             return distance, name
         elif return_data:
             return distance, data
