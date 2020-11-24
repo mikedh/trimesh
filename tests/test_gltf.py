@@ -455,7 +455,7 @@ class GLTFTest(g.unittest.TestCase):
         sphere.visual.material = g.trimesh.visual.material.PBRMaterial(name='unlit_test')
         scene.add_geometry(sphere)
 
-        def example_tree_postprocessor(gltf_tree):
+        def add_unlit(gltf_tree):
             for material_dict in gltf_tree['materials']:
                 if 'unlit' in material_dict.get('name', '').lower():
                     material_dict["extensions"] = {
@@ -464,16 +464,13 @@ class GLTFTest(g.unittest.TestCase):
             gltf_tree["extensionsUsed"] = ["KHR_materials_unlit"]
 
         gltf_1 = g.trimesh.exchange.gltf.export_gltf(scene)
-        gltf_2 = g.trimesh.exchange.gltf.export_gltf(scene, tree_postprocessor=example_tree_postprocessor)
+        gltf_2 = g.trimesh.exchange.gltf.export_gltf(scene, tree_postprocessor=add_unlit)
 
         def extract_materials(gltf_files):
             return g.json.loads(gltf_files['model.gltf'])['materials']
-        
+
         assert "extensions" not in extract_materials(gltf_1)[-1]
         assert "extensions" in extract_materials(gltf_2)[-1]
-
-
-
 
 
 if __name__ == '__main__':
