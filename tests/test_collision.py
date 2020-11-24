@@ -124,17 +124,17 @@ class CollisionTest(g.unittest.TestCase):
         dist = m.min_distance_single(cube)
         assert g.np.isclose(dist, 4.0)
 
-        dist, name = m.min_distance_single(cube, return_name=True)
+        dist, name = m.min_distance_single(cube, return_names=True)
         assert g.np.isclose(dist, 4.0)
         assert name == 'cube1'
 
         m.add_object('cube2', cube, tf2)
 
-        dist, name = m.min_distance_single(cube, tf3, return_name=True)
+        dist, name = m.min_distance_single(cube, tf3, return_names=True)
         assert g.np.isclose(dist, 2.0)
         assert name == 'cube1'
 
-        dist, name = m.min_distance_single(cube, tf4, return_name=True)
+        dist, name = m.min_distance_single(cube, tf4, return_names=True)
         assert g.np.isclose(dist, 2.0)
         assert name == 'cube2'
 
