@@ -780,7 +780,7 @@ def _append_path(path, name, tree, buffer_items):
     # convert the path to the unnamed args for
     # a pyglet vertex list
     vxlist = rendering.path_to_vertexlist(path)
-          
+
     # TODO add color support to Path object
     # this is just exporting everying as black
     try:
