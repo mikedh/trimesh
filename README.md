@@ -118,7 +118,7 @@ mesh.bounding_box_oriented.primitive.transform
 # available, and will be the minimum volume version of each
 # except in certain degenerate cases, where they will be no worse
 # than a least squares fit version of the primitive.
-print(mesh.bounding_box_oriented.volume, 
+print(mesh.bounding_box_oriented.volume,
       mesh.bounding_cylinder.volume,
       mesh.bounding_sphere.volume)
 
@@ -140,7 +140,7 @@ print(mesh.bounding_box_oriented.volume,
 * Split mesh based on face connectivity using networkx, graph-tool, or scipy.sparse
 * Calculate mass properties, including volume, center of mass, moment of inertia, principal components of inertia vectors and components
 * Repair simple problems with triangle winding, normals, and quad/tri holes
-* Convex hulls of meshes 
+* Convex hulls of meshes
 * Compute rotation/translation/tessellation invariant identifier and find duplicate meshes
 * Determine if a mesh is watertight, convex, etc.
 * Uniformly sample the surface of a mesh
@@ -189,13 +189,14 @@ You can check out the [Github network](https://github.com/mikedh/trimesh/network
 - [pyrender](https://github.com/mmatl/pyrender) A library to render scenes from Python using nice looking PBR materials.
 - [urdfpy](https://github.com/mmatl/urdfpy) Load URDF robot descriptions in Python.
 - [moderngl-window](https://github.com/moderngl/moderngl-window) A helper to create GL contexts and load meshes.
-- [vtkplotter](https://github.com/marcomusy/vtkplotter) Visualize meshes interactively.
+- [vedo](https://github.com/marcomusy/vedo) Visualize meshes interactively (see example [gallery](https://github.com/marcomusy/vedo/tree/master/examples/other/trimesh/)).
 - [fsleyes](https://users.fmrib.ox.ac.uk/~paulmc/fsleyes/userdoc/latest/quick_start.html) View MRI images and brain data.
+
 ## Which Mesh Format Should I Use?
 
 Quick recommendation: `GLB` or `PLY`. Every time you replace `OBJ` with `GLB` an angel gets its wings.
 
-If you want things like by-index faces, instancing, colors, textures, etc, `GLB` is a terrific choice. GLTF/GLB is an [extremely well specified](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0) modern format that is easy and fast to parse: it has a JSON header describing data in a binary blob. It has a simple hierarchical scene graph, a great looking modern physically based material system, support in [dozens-to-hundreds of libraries](https://github.com/KhronosGroup/glTF/issues/1058), and a [John Carmack endorsment](https://www.khronos.org/news/press/significant-gltf-momentum-for-efficient-transmission-of-3d-scenes-models). Note that GLTF is a large specification, and `trimesh` only supports a subset of features: loading basic geometry is supported, NOT supported are fancier things like animations, skeletons, etc.  
+If you want things like by-index faces, instancing, colors, textures, etc, `GLB` is a terrific choice. GLTF/GLB is an [extremely well specified](https://github.com/KhronosGroup/glTF/tree/master/specification/2.0) modern format that is easy and fast to parse: it has a JSON header describing data in a binary blob. It has a simple hierarchical scene graph, a great looking modern physically based material system, support in [dozens-to-hundreds of libraries](https://github.com/KhronosGroup/glTF/issues/1058), and a [John Carmack endorsment](https://www.khronos.org/news/press/significant-gltf-momentum-for-efficient-transmission-of-3d-scenes-models). Note that GLTF is a large specification, and `trimesh` only supports a subset of features: loading basic geometry is supported, NOT supported are fancier things like animations, skeletons, etc.
 
 In the wild, `STL` is perhaps the most common format. `STL` files are extremely simple: it is basically just a list of triangles. They are robust and are a good choice for basic geometry. Binary `PLY` files are a good step up, as they support indexed faces and colors.
 
@@ -215,7 +216,7 @@ A question that comes up pretty frequently is [how to cite the library.](https:/
 ```
 
 ## Containers
-   
+
 If you want to deploy something in a container that uses trimesh, automated `debian:buster-slim` based builds with trimesh and dependencies are available on [Docker Hub](https://hub.docker.com/repository/docker/trimesh/trimesh) with image tags for `latest`, git short hash for the commit in master (i.e. `trimesh/trimesh:0c1298d`), and version (i.e. `trimesh/trimesh:3.5.27`):
 
 `docker pull trimesh/trimesh`
