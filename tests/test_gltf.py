@@ -467,7 +467,7 @@ class GLTFTest(g.unittest.TestCase):
         gltf_2 = g.trimesh.exchange.gltf.export_gltf(scene, tree_postprocessor=add_unlit)
 
         def extract_materials(gltf_files):
-            return g.json.loads(gltf_files['model.gltf'])['materials']
+            return g.json.loads(gltf_files['model.gltf'].decode('utf8'))['materials']
 
         assert "extensions" not in extract_materials(gltf_1)[-1]
         assert "extensions" in extract_materials(gltf_2)[-1]
