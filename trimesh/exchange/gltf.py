@@ -792,12 +792,20 @@ def _append_path(path, name, tree, buffer_items):
     # a pyglet vertex list
     vxlist = rendering.path_to_vertexlist(path)
 
+    # TODO add color support to Path object
+    # this is just exporting everying as black
+    try:
+        material_idx = tree["materials"].index(_default_material)
+    except ValueError:
+        material_idx = len(tree["materials"])
+        tree["materials"].append(_default_material)
+
     tree["meshes"].append({
         "name": name,
         "primitives": [{
             "attributes": {"POSITION": len(tree["accessors"])},
             "mode": 1,  # mode 1 is GL_LINES
-            "material": len(tree["materials"])}]})
+            "material": material_idx}]})
 
     # if units are defined, store them as an extra:
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
@@ -813,10 +821,6 @@ def _append_path(path, name, tree, buffer_items):
             "byteOffset": 0,
             "max": path.vertices.max(axis=0).tolist(),
             "min": path.vertices.min(axis=0).tolist()})
-
-    # TODO add color support to Path object
-    # this is just exporting everying as black
-    tree["materials"].append(_default_material)
 
     # data is the second value of the fifth field
     # which is a (data type, data) tuple
