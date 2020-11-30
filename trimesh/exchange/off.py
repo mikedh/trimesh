@@ -2,6 +2,7 @@ import re
 import numpy as np
 
 from .. import util
+from ..geometry import triangulate_quads
 
 
 def load_off(file_obj, **kwargs):
@@ -54,10 +55,7 @@ def load_off(file_obj, **kwargs):
     # the first value is count
     faces = [line[1:int(line[0]) + 1] for line in faces]
 
-    # convert faces to numpy array
-    # will fail on mixed garbage as FSM intended -_-
-    faces = np.array(faces, dtype=np.int64)
-
+    faces = triangulate_quads(faces)
     # save data as kwargs for a trimesh.Trimesh
     kwargs = {'vertices': vertices,
               'faces': faces}

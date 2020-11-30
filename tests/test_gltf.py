@@ -366,7 +366,7 @@ class GLTFTest(g.unittest.TestCase):
         assert len(extras) == 3
 
         for key in check:
-            # \check key existance and value
+            # \check key existence and value
             assert key in extras
             assert extras[key] == check[key]
 
@@ -448,6 +448,29 @@ class GLTFTest(g.unittest.TestCase):
         # make sure the color vertex attributes survived the roundtrip
         assert g.np.allclose(
             r.visual.vertex_attributes['color'], colors)
+
+    def test_export_postprocess(self):
+        scene = g.trimesh.Scene()
+        sphere = g.trimesh.primitives.Sphere()
+        sphere.visual.material = g.trimesh.visual.material.PBRMaterial(name='unlit_test')
+        scene.add_geometry(sphere)
+
+        def add_unlit(gltf_tree):
+            for material_dict in gltf_tree['materials']:
+                if 'unlit' in material_dict.get('name', '').lower():
+                    material_dict["extensions"] = {
+                        "KHR_materials_unlit": {}
+                    }
+            gltf_tree["extensionsUsed"] = ["KHR_materials_unlit"]
+
+        gltf_1 = g.trimesh.exchange.gltf.export_gltf(scene)
+        gltf_2 = g.trimesh.exchange.gltf.export_gltf(scene, tree_postprocessor=add_unlit)
+
+        def extract_materials(gltf_files):
+            return g.json.loads(gltf_files['model.gltf'].decode('utf8'))['materials']
+
+        assert "extensions" not in extract_materials(gltf_1)[-1]
+        assert "extensions" in extract_materials(gltf_2)[-1]
 
 
 if __name__ == '__main__':

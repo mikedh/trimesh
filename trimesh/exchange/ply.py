@@ -519,13 +519,8 @@ def elements_to_kwargs(elements,
     if faces is not None:
         shape = np.shape(faces)
         if len(shape) != 2:
-            # we may have mixed quads and triangles
-            tris = np.array([i for i in faces if len(i) == 3])
-            quads = np.array([i for i in faces if len(i) == 4])
-            # combine triangulated quads with triangles
-            faces = util.vstack_empty([
-                tris,
-                triangulate_quads(quads)])
+            # we may have mixed quads and triangles handle them with function
+            faces = triangulate_quads(faces)
 
         # PLY stores texture coordinates per-face which is
         # slightly annoying, as we have to then figure out
