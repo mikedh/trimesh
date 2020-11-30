@@ -366,7 +366,7 @@ class GLTFTest(g.unittest.TestCase):
         assert len(extras) == 3
 
         for key in check:
-            # \check key existance and value
+            # \check key existence and value
             assert key in extras
             assert extras[key] == check[key]
 

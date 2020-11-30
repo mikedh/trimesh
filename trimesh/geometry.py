@@ -147,26 +147,41 @@ def vector_angle(pairs):
     return angles
 
 
-def triangulate_quads(quads):
+def triangulate_quads(quads, dtype=np.int64):
     """
-    Given a set of quad faces, return them as triangle faces.
+    Given an array of quad faces return them as triangle faces,
+    also handles pure triangles and mixed triangles and quads.
 
     Parameters
     -----------
     quads: (n, 4) int
-      Vertex indices of quad faces
+      Vertex indices of quad faces.
 
     Returns
     -----------
     faces : (m, 3) int
-      Vertex indices of triangular faces
+      Vertex indices of triangular faces.c
     """
-    if len(quads) == 0:
-        return quads
     quads = np.asanyarray(quads)
-    faces = np.vstack((quads[:, [0, 1, 2]],
-                       quads[:, [2, 3, 0]]))
-    return faces
+    if len(quads) == 0:
+        return quads.astype(dtype)
+    elif len(quads.shape) == 2 and quads.shape[1] == 3:
+        # if they are just triangles return immediately
+        return quads.astype(dtype)
+    elif quads.shape == 2 and quads.shape[1] == 4:
+        # if they are just quads stack and return
+        return np.vstack((quads[:, [0, 1, 2]],
+                          quads[:, [2, 3, 0]])).astype(dtype)
+    else:
+        # mixed tris, and quads, and other so filter and handle
+        tri = np.array([i for i in quads if len(i) == 3])
+        quad = np.array([i for i in quads if len(i) == 4])
+        if len(quad) == 0:
+            return tri.astype(dtype)
+        # combine triangulated quads with triangles
+        return util.vstack_empty([
+            tri, np.vstack((quad[:, [0, 1, 2]],
+                            quad[:, [2, 3, 0]]))]).astype(dtype)
 
 
 def vertex_face_indices(vertex_count,
