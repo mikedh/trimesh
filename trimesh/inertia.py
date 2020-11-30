@@ -14,7 +14,7 @@ from trimesh import util
 
 # a matrix where all non- diagonal terms are -1.0
 # and all diagonal terms are 1.0
-negate_nondiagonal = (np.eye(3, dtype=np.float64) * 2) - 1
+negate_nondiagonal = 1 #(np.eye(3, dtype=np.float64) * 2) - 1
 
 
 def cylinder_inertia(mass, radius, height, transform=None):

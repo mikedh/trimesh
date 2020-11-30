@@ -3,11 +3,9 @@ try:
 except BaseException:
     import generic as g
 
-tdxs = g.np.ravel(g.np.int32([[2,1,0], [3,0,1], [3,2,0], [3,1,2]]))
-tetToTris = lambda tet: g.np.reshape(tet[tdxs], (-1,3))
 
 class InertiaTest(g.unittest.TestCase):
-    """
+
     def test_inertia(self):
         t0 = g.np.array([[-0.419575686853, -0.898655215203, -0.127965023308, 0.],
                          [0.712589964872, -0.413418145015, 0.566834172697, 0.],
@@ -100,18 +98,16 @@ class InertiaTest(g.unittest.TestCase):
                     p.primitive.transform = matrix
                 elif hasattr(p.primitive, 'center'):
                     p.primitive.center = g.np.random.random(3)
-    """
 
     def test_tetrahedron(self):
-
         # Based on the 'numerical example' of the paper:
 
         # Explicit Exact Formulas for the 3-D Tetrahedron Inertia Tensor
-        # in Terms of its Vertex Coorindates, [F. Tonon, 2004]
-        # http://docsdrive.com/pdfs/sciencepublications/jmssp/2005/8-11.pdf
+        # in Terms of its Vertex Coordinates, [F. Tonon, 2004]
+        # http://thescipub.com/pdf/jmssp.2005.8.11.pdf
 
         # set up given vertices
-        vertices = g.np.float32([[8.33220, -11.86875, 0.93355],
+        vertices = g.np.float32([[8.3322, -11.86875, 0.93355],
                                  [0.75523, 5., 16.37072],
                                  [52.61236, 5., -5.3858],
                                  [2., 5., 3.]])
@@ -230,7 +226,10 @@ class InertiaTest(g.unittest.TestCase):
             assert g.np.allclose(MI_gt, MI)
     
 
-
 if __name__ == '__main__':
+
+    triIdxs = g.np.ravel([[2,1,0], [3,0,1], [3,2,0], [3,1,2]])
+    tetToTris = lambda tet: g.np.reshape(tet[triIdxs], (-1,3))
+    
     g.trimesh.util.attach_to_log()
     g.unittest.main()
