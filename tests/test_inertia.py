@@ -13,6 +13,7 @@ except BaseException:
 #    3
 
 triIdxs = g.np.ravel([[2, 1, 0], [3, 0, 1], [3, 2, 0], [3, 1, 2]])
+
 def tetToTris(tet):
     return g.np.reshape(tet[triIdxs], (-1, 3))
 
@@ -172,7 +173,7 @@ class InertiaTest(g.unittest.TestCase):
                                  [-1, -1, -1],
                                  [-1, 1, -1],
                                  [1, 1, -1],
-                                 [1,-1, -1]]) * 0.5
+                                 [1, -1, -1]]) * 0.5
 
         # 6 quad faces for the cube
         quads = g.np.int32([[3, 2, 1, 0],
@@ -238,6 +239,6 @@ class InertiaTest(g.unittest.TestCase):
             assert g.np.allclose(MI_gt, MI)
 
 
-if __name__ == '__main__':   
+if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
