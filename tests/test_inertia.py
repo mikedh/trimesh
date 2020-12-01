@@ -4,6 +4,18 @@ except BaseException:
     import generic as g
 
 
+# tetToTris extracts outward facing triangles
+# of a tetrahedron given in this order
+#    1
+#  / | \
+# 0-----2
+#  \ | /
+#    3
+
+triIdxs = g.np.ravel([[2,1,0], [3,0,1], [3,2,0], [3,1,2]])
+tetToTris = lambda tet: g.np.reshape(tet[triIdxs], (-1,3))
+
+
 class InertiaTest(g.unittest.TestCase):
 
     def test_inertia(self):
@@ -185,9 +197,8 @@ class InertiaTest(g.unittest.TestCase):
                             [0,3,7,6],
                             [0,2,3,6]])
 
+        # create a trimesh cube from vertices and faces
         tm_cube = g.trimesh.Trimesh(vertices, quads)
-        tm_tetsA = [g.trimesh.Trimesh(vertices, tetToTris(t)) for t in tetsA]
-        tm_tetsB = [g.trimesh.Trimesh(vertices, tetToTris(t)) for t in tetsB]
 
         # https://en.wikipedia.org/wiki/List_of_moments_of_inertia
         # ground truth for a unit cube with side length s = mass m = 1
@@ -197,7 +208,9 @@ class InertiaTest(g.unittest.TestCase):
 
         # compare both tetrahedralizations
         # should be equivalent to each other and to the cube
-        for tm_tets in [tm_tetsA, tm_tetsB]:
+        for tets in [tetsA, tetsB]:
+            # create trimesh tets from vertices and triangles
+            tm_tets = [g.trimesh.Trimesh(vertices, tetToTris(t)) for t in tets]
 
             # get mass, center of mass, and moment of inertia for each tet
             Ms = [tm_tet.mass for tm_tet in tm_tets]
@@ -226,10 +239,6 @@ class InertiaTest(g.unittest.TestCase):
             assert g.np.allclose(MI_gt, MI)
     
 
-if __name__ == '__main__':
-
-    triIdxs = g.np.ravel([[2,1,0], [3,0,1], [3,2,0], [3,1,2]])
-    tetToTris = lambda tet: g.np.reshape(tet[triIdxs], (-1,3))
-    
+if __name__ == '__main__':   
     g.trimesh.util.attach_to_log()
     g.unittest.main()

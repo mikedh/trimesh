@@ -12,10 +12,6 @@ import numpy as np
 
 from trimesh import util
 
-# a matrix where all non- diagonal terms are -1.0
-# and all diagonal terms are 1.0
-negate_nondiagonal = 1 #(np.eye(3, dtype=np.float64) * 2) - 1
-
 
 def cylinder_inertia(mass, radius, height, transform=None):
     """
@@ -95,7 +91,7 @@ def principal_axis(inertia):
     # np.linalg.svd, np.linalg.eig, np.linalg.eigh
     # moment of inertia is square symmetric matrix
     # eigh has the best numeric precision in tests
-    components, vectors = np.linalg.eigh(inertia * negate_nondiagonal)
+    components, vectors = np.linalg.eigh(inertia)
 
     # eigh returns them as column vectors, change them to row vectors
     vectors = vectors.T
@@ -136,9 +132,8 @@ def transform_inertia(transform, inertia_tensor):
         raise ValueError('inertia_tensor must be (3, 3)!')
 
     transformed = util.multi_dot([rotation,
-                                  inertia_tensor * negate_nondiagonal,
+                                  inertia_tensor,
                                   rotation.T])
-    transformed *= negate_nondiagonal
     return transformed
 
 
