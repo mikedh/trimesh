@@ -14,6 +14,7 @@ except BaseException:
 
 triIdxs = g.np.ravel([[2, 1, 0], [3, 0, 1], [3, 2, 0], [3, 1, 2]])
 
+
 def tetToTris(tet):
     return g.np.reshape(tet[triIdxs], (-1, 3))
 
