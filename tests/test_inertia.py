@@ -12,8 +12,9 @@ except BaseException:
 #  \ | /
 #    3
 
-triIdxs = g.np.ravel([[2,1,0], [3,0,1], [3,2,0], [3,1,2]])
-tetToTris = lambda tet: g.np.reshape(tet[triIdxs], (-1,3))
+triIdxs = g.np.ravel([[2, 1, 0], [3, 0, 1], [3, 2, 0], [3, 1, 2]])
+def tetToTris(tet):
+    return g.np.reshape(tet[triIdxs], (-1, 3))
 
 
 class InertiaTest(g.unittest.TestCase):
@@ -125,13 +126,12 @@ class InertiaTest(g.unittest.TestCase):
                                  [2., 5., 3.]])
 
         # set up a simple trimesh tetrahedron
-        tris = tetToTris(g.np.int32([0,1,2,3]))
+        tris = tetToTris(g.np.int32([0, 1, 2, 3]))
         tm_tet = g.trimesh.Trimesh(vertices, tris)
-
 
         # 'ground truth' values from the paper
         # however, there are some minor flaws
-        
+
         # a small deviation in the last decimal of the mass-centers' x:
         CM_gt = g.np.float32([15.92492, 0.78281, 3.72962])
 
@@ -148,7 +148,7 @@ class InertiaTest(g.unittest.TestCase):
         MI_gt = g.np.float32([[a_mi, -c_pi, -b_pi],
                               [-c_pi, b_mi, -a_pi],
                               [-b_pi, -a_pi, c_mi]])
-        
+
         # check center of mass
         assert g.np.allclose(CM_gt, tm_tet.center_mass)
 
@@ -165,37 +165,37 @@ class InertiaTest(g.unittest.TestCase):
         # |/    |/
         # 4-----7
 
-        vertices = g.np.float32([[-1,-1, 1],
+        vertices = g.np.float32([[-1, -1, 1],
                                  [-1, 1, 1],
-                                 [ 1, 1, 1],
-                                 [ 1,-1, 1],
-                                 [-1,-1,-1],
-                                 [-1, 1,-1],
-                                 [ 1, 1,-1],
-                                 [ 1,-1,-1]]) * 0.5
+                                 [1, 1, 1],
+                                 [1, -1, 1],
+                                 [-1, -1, -1],
+                                 [-1, 1, -1],
+                                 [1, 1, -1],
+                                 [1,-1, -1]]) * 0.5
 
         # 6 quad faces for the cube
-        quads = g.np.int32([[3,2,1,0],
-                            [0,1,5,4],
-                            [1,2,6,5],
-                            [2,3,7,6],
-                            [3,0,4,7],
-                            [4,5,6,7]])
+        quads = g.np.int32([[3, 2, 1, 0],
+                            [0, 1, 5, 4],
+                            [1, 2, 6, 5],
+                            [2, 3, 7, 6],
+                            [3, 0, 4, 7],
+                            [4, 5, 6, 7]])
 
         # set up two different tetraherdalizations of a cube
         # using 5 tets (1 in the middle and 4 around)
-        tetsA = g.np.int32([[0,1,3,4],
-                            [1,2,3,6],
-                            [1,4,5,6],
-                            [3,4,6,7],
-                            [1,3,4,6]])
+        tetsA = g.np.int32([[0, 1, 3, 4],
+                            [1, 2, 3, 6],
+                            [1, 4, 5, 6],
+                            [3, 4, 6, 7],
+                            [1, 3, 4, 6]])
         # using 6 sets (around the cube diagonal)
-        tetsB = g.np.int32([[0,1,2,6],
-                            [0,1,6,5],
-                            [0,4,5,6],
-                            [0,4,6,7],
-                            [0,3,7,6],
-                            [0,2,3,6]])
+        tetsB = g.np.int32([[0, 1, 2, 6],
+                            [0, 1, 6, 5],
+                            [0, 4, 5, 6],
+                            [0, 4, 6, 7],
+                            [0, 3, 7, 6],
+                            [0, 2, 3, 6]])
 
         # create a trimesh cube from vertices and faces
         tm_cube = g.trimesh.Trimesh(vertices, quads)
@@ -225,19 +225,18 @@ class InertiaTest(g.unittest.TestCase):
             assert g.np.abs(tm_cube.mass - mass) < 1e-6
             assert g.np.allclose(tm_cube.center_mass, center_mass)
 
-
             # the moment of inertia tensors for the individual tetrahedra
             # have to be re-assembled, using the parallel-axis-theorem
             # https://en.wikipedia.org/wiki/Parallel_axis_theorem#Tensor_generalization
 
             E = g.np.eye(3)
-            MI = g.np.zeros((3,3), g.np.float32)
+            MI = g.np.zeros((3, 3), g.np.float32)
             for i in range(len(tm_tets)):
                 R = CMs[i] - center_mass
-                MI += MIs[i] + Ms[i] * (g.np.dot(R,R) * E - g.np.outer(R,R))
+                MI += MIs[i] + Ms[i] * (g.np.dot(R, R) * E - g.np.outer(R, R))
 
             assert g.np.allclose(MI_gt, MI)
-    
+
 
 if __name__ == '__main__':   
     g.trimesh.util.attach_to_log()
