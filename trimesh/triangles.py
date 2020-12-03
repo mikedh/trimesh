@@ -266,11 +266,11 @@ def mass_properties(triangles,
         (volume * (center_mass[[0, 2]]**2).sum())
     inertia[2, 2] = integrated[4] + integrated[5] - \
         (volume * (center_mass[[0, 1]]**2).sum())
-    inertia[0, 1] = (
+    inertia[0, 1] = - (
         integrated[7] - (volume * np.product(center_mass[[0, 1]])))
-    inertia[1, 2] = (
+    inertia[1, 2] = - (
         integrated[8] - (volume * np.product(center_mass[[1, 2]])))
-    inertia[0, 2] = (
+    inertia[0, 2] = - (
         integrated[9] - (volume * np.product(center_mass[[0, 2]])))
     inertia[2, 0] = inertia[0, 2]
     inertia[2, 1] = inertia[1, 2]
