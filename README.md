@@ -57,6 +57,13 @@ mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
                        faces=[[0, 1, 2]],
                        process=False)
 
+# some formats represent multiple meshes with multiple instances
+# the loader tries to return the datatype which makes the most sense
+# which will for scene-like files will return a `trimesh.Scene` object.
+# if you *always* want a straight `trimesh.Trimesh` you can ask the
+# loader to "force" the result into a mesh through concatenation
+mesh = trimesh.load('models/CesiumMilkTruck.glb', force='mesh')
+
 # mesh objects can be loaded from a file name or from a buffer
 # you can pass any of the kwargs for the `Trimesh` constructor
 # to `trimesh.load`, including `process=False` if you would like

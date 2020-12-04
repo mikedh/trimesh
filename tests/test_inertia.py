@@ -262,7 +262,7 @@ class MassTests(g.unittest.TestCase):
             for key, value in calc.items():
                 if key not in truth:
                     continue
-                if not g.np.allclose(calc[key], truth[key], atol=1e-4):
+                if not g.np.allclose(calc[key], truth[key], atol=1e-2):
                     raise ValueError('{}({}):\n{}\n!=\n{}'.format(
                         truth['filename'],
                         key,
