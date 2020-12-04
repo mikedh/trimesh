@@ -200,6 +200,14 @@ class OBJTest(g.unittest.TestCase):
 
         assert g.np.isclose(e.area, s.area, rtol=.01)
 
+    def test_edge_cases(self):
+        # a mesh with some NaN colors
+        n = g.get_mesh('nancolor.obj')
+        assert n.faces.shape == (12, 3)
+
+        v = g.get_mesh('cubevt.obj')
+        assert v.faces.shape == (12, 3)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
