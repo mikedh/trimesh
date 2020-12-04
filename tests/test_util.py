@@ -189,7 +189,6 @@ class ContainsTest(unittest.TestCase):
             raise ValueError('contains test does not match truth!')
 
 
-
 class IOWrapTests(unittest.TestCase):
 
     def test_io_wrap(self):
