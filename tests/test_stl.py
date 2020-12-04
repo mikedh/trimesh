@@ -67,6 +67,10 @@ class STLTests(g.unittest.TestCase):
         assert g.np.allclose(m.vertex_attributes['random'], random[v_mask])
         assert len(m.vertices) == len(v_mask)
 
+    def test_ascii_multibody(self):
+        s = g.get_mesh('multibody.stl')
+        assert len(s.geometry) == 2
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

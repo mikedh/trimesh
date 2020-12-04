@@ -151,50 +151,57 @@ def load_stl_ascii(file_obj):
       face_normals: (m,3) float, normal vector of each face
     """
 
-    # the first line is the header
-    header = file_obj.readline()
-    # make sure header is a string, not bytes
-    if hasattr(header, 'decode'):
-        try:
-            header = util.decode_text(header)
-        except BaseException:
-            header = ''
-    # save header to metadata
-    metadata = {'header': header}
-
     # read all text into one string
-    text = file_obj.read()
-    # try to convert bytes to string
-    text = util.decode_text(text)
-    # split by endsolid keyword
-    text = text.lower().split('endsolid')[0]
-    # create array of splits
-    blob = np.array(text.strip().split())
+    raw = util.decode_text(file_obj.read()).strip().lower()
 
-    # there are 21 'words' in each face
-    face_len = 21
+    # split into solid body
+    solids = raw.split('endsolid')
 
-    # length of blob should be multiple of face_len
-    if (len(blob) % face_len) != 0:
-        raise HeaderError('Incorrect length STL file!')
-    face_count = int(len(blob) / face_len)
+    kwargs = {}
 
-    # this offset is to be added to a fixed set of tiled indices
-    offset = face_len * np.arange(face_count).reshape((-1, 1))
-    normal_index = np.tile([2, 3, 4], (face_count, 1)) + offset
-    vertex_index = np.tile([8, 9, 10,
-                            12, 13, 14,
-                            16, 17, 18], (face_count, 1)) + offset
+    for solid in solids:
 
-    # faces are groups of three sequential vertices
-    faces = np.arange(face_count * 3).reshape((-1, 3))
-    face_normals = blob[normal_index].astype('<f8')
-    vertices = blob[vertex_index.reshape((-1, 3))].astype('<f8')
+        stripped = solid.split('solid', 1)
+        if len(stripped) != 2:
+            continue
+        header, text = stripped[1].split('\n', 1)
 
-    return {'vertices': vertices,
-            'faces': faces,
-            'metadata': metadata,
-            'face_normals': face_normals}
+        name = header.strip()
+        if name in kwargs or len(name) == 0:
+            name = '{}_{}'.format(name, util.unique_id())
+
+        # create array of splits
+        blob = np.array(text.strip().split())
+
+        # there are 21 'words' in each face
+        face_len = 21
+
+        # length of blob should be multiple of face_len
+        if (len(blob) % face_len) != 0:
+            util.log.warning('skipping solid!')
+            continue
+        face_count = int(len(blob) / face_len)
+
+        # this offset is to be added to a fixed set of tiled indices
+        offset = face_len * np.arange(face_count).reshape((-1, 1))
+        normal_index = np.tile([2, 3, 4], (face_count, 1)) + offset
+        vertex_index = np.tile([8, 9, 10,
+                                12, 13, 14,
+                                16, 17, 18], (face_count, 1)) + offset
+
+        # faces are groups of three sequential vertices
+        faces = np.arange(face_count * 3).reshape((-1, 3))
+        face_normals = blob[normal_index].astype('<f8')
+        vertices = blob[vertex_index.reshape((-1, 3))].astype('<f8')
+
+        kwargs[name] = {'vertices': vertices,
+                        'faces': faces,
+                        'face_normals': face_normals}
+
+    if len(kwargs) == 1:
+        return next(iter(kwargs.values()))
+
+    return {'geometry': kwargs}
 
 
 def export_stl(mesh):
