@@ -240,6 +240,36 @@ class InertiaTest(g.unittest.TestCase):
             assert g.np.allclose(MI_gt, MI)
 
 
+class MassTests(g.unittest.TestCase):
+
+    def setUp(self):
+        # inertia numbers pulled from solidworks
+        self.truth = g.data['mass_properties']
+        self.meshes = dict()
+        for data in self.truth:
+            filename = data['filename']
+            self.meshes[filename] = g.get_mesh(filename)
+
+    def test_mass(self):
+
+        for truth in self.truth:
+            mesh = self.meshes[truth['filename']]
+            calc = g.trimesh.triangles.mass_properties(
+                triangles=mesh.triangles,
+                density=truth['density'],
+                skip_inertia=False)
+
+            for key, value in calc.items():
+                if key not in truth:
+                    continue
+                if not g.np.allclose(calc[key], truth[key], atol=1e-4):
+                    raise ValueError('{}({}):\n{}\n!=\n{}'.format(
+                        truth['filename'],
+                        key,
+                        calc[key],
+                        g.np.array(truth[key])))
+
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
