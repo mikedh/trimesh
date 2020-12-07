@@ -64,12 +64,7 @@ def load_3MF(file_obj,
         if 'object' in obj.tag:
             # id is mandatory
             index = obj.attrib['id']
-            # not required, so use a get call which will return None
-            # if the tag isn't populated
-            if 'name' in obj.attrib:
-                name = obj.attrib['name']
-            else:
-                name = str(index)
+            name = str(index)
             # store the name by index
             id_name[index] = name
 
