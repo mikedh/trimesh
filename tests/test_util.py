@@ -189,42 +189,6 @@ class ContainsTest(unittest.TestCase):
             raise ValueError('contains test does not match truth!')
 
 
-class MassTests(unittest.TestCase):
-
-    def setUp(self):
-        # inertia numbers pulled from solidworks
-        self.truth = g.data['mass_properties']
-        self.meshes = dict()
-        for data in self.truth:
-            filename = data['filename']
-            self.meshes[filename] = g.get_mesh(filename)
-
-    def test_mass(self):
-        def check_parameter(a, b):
-            diff = np.abs(np.array(a) - np.array(b))
-            check = (diff < TOL_CHECK).all()
-            return check
-
-        for truth in self.truth:
-            mesh = self.meshes[truth['filename']]
-            calculated = trimesh.triangles.mass_properties(
-                triangles=mesh.triangles, density=truth['density'], skip_inertia=False)
-
-            parameter_count = 0
-            for parameter in calculated.keys():
-                if not (parameter in truth):
-                    continue
-                parameter_ok = check_parameter(calculated[parameter],
-                                               truth[parameter])
-                if not parameter_ok:
-                    log.error('Parameter %s failed on file %s!',
-                              parameter, truth['filename'])
-                self.assertTrue(parameter_ok)
-                parameter_count += 1
-            log.info('%i mass parameters confirmed for %s',
-                     parameter_count, truth['filename'])
-
-
 class IOWrapTests(unittest.TestCase):
 
     def test_io_wrap(self):

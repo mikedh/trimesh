@@ -180,9 +180,9 @@ def load_obj(file_obj,
                 # survive index errors as sometimes we
                 # want materials without UV coordinates
                 uv = vt[mask_vt]
-            except BaseException as E:
+            except BaseException:
+                log.warning('index failed on UV coordinates, skipping!')
                 uv = None
-                raise E
 
             # mask vertices and use new faces
             mesh.update({'vertices': v[mask_v].copy(),

@@ -69,11 +69,14 @@ class ColorVisuals(Visuals):
                                           dtype=np.uint8),
             'material_shine': 77.0}
 
-        if face_colors is not None:
-            self.face_colors = face_colors
+        try:
+            if face_colors is not None:
+                self.face_colors = face_colors
 
-        if vertex_colors is not None:
-            self.vertex_colors = vertex_colors
+            if vertex_colors is not None:
+                self.vertex_colors = vertex_colors
+        except ValueError:
+            util.log.warning('unable to convert colors!')
 
     @caching.cache_decorator
     def transparency(self):
@@ -570,12 +573,16 @@ def to_rgba(colors, dtype=np.uint8):
     # integer value for opaque alpha given our datatype
     opaque = np.iinfo(dtype).max
 
+    if colors.dtype.kind == 'f':
+        # replace any `nan` or `inf` values with zero
+        colors[~np.isfinite(colors)] = 0.0
+
     if (colors.dtype.kind == 'f' and colors.max() < (1.0 + 1e-8)):
         colors = (colors * opaque).round().astype(dtype)
     elif (colors.max() <= opaque):
         colors = colors.astype(dtype)
     else:
-        raise ValueError('colors non- convertible!')
+        raise ValueError('colors non-convertible!')
 
     if util.is_shape(colors, (-1, 3)):
         # add an opaque alpha for RGB colors
