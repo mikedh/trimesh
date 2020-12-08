@@ -87,14 +87,23 @@ def mesh_to_vertexlist(mesh,
 
         # get the per-vertex UV coordinates
         uv = mesh.visual.uv
-        # does the material actually have an image specified
-        no_image = (hasattr(mesh.visual.material, 'image') and
-                    mesh.visual.material.image is None)
+
+        # shortcut for the material
+        material = mesh.visual.material
+        if hasattr(material, 'image'):
+            # does the material actually have an image specified
+            no_image = material.image is None
+        elif hasattr(material, 'baseColorTexture'):
+            no_image = material.baseColorTexture is None
+        else:
+            no_image = True
+
+        # didn't get valid texture so skip it
         if uv is None or no_image or len(uv) != vertex_count:
             # if no UV coordinates on material, just set face colors
             # to the diffuse color of the material
-            color_gl = colors_to_gl(mesh.visual.material.main_color,
-                                    vertex_count)
+            color_gl = colors_to_gl(
+                material.main_color, vertex_count)
         else:
             # if someone passed (n, 3) UVR cut it off here
             if uv.shape[1] > 2:
@@ -303,8 +312,10 @@ def material_to_texture(material, upsize=True):
     # try to extract a PIL image from material
     if hasattr(material, 'image'):
         img = material.image
-    else:
+    elif hasattr(material, 'baseColorTexture'):
         img = material.baseColorTexture
+    else:
+        return None
 
     # if no images in texture return now
     if img is None:
@@ -400,5 +411,4 @@ def light_to_gl(light, transform, lightN):
             (lightN, gl.GL_SPECULAR, gl_color),
             (lightN, gl.GL_DIFFUSE, gl_color),
             (lightN, gl.GL_AMBIENT, gl_color)]
-
     return args
