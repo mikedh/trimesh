@@ -31,6 +31,19 @@ class MFTest(g.unittest.TestCase):
         # check conversion factor for all valid 3MF units
         assert all(converter(u, 'inches') > 1e-12 for u in units)
 
+    def test_kwargs(self):
+        # check if kwargs are properly passed to geometries
+        s = g.get_mesh('P_XPM_0331_01.3mf')
+        assert(all(len(v.vertices) == 4 for v in s.geometry.values()))
+
+        s = g.get_mesh('P_XPM_0331_01.3mf', process=False)
+        assert(all(len(v.vertices) == 5 for v in s.geometry.values()))
+
+    def test_names(self):
+        # check if two different objects with the same name are correctly processed
+        s = g.get_mesh('cube_and_sphere_same_name.3mf')
+        assert(len(s.geometry) == 2)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
