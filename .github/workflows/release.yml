@@ -84,7 +84,11 @@ jobs:
     - name: Install Trimesh
       run: pip install .[easy]
     - name: Run Pytest
-      run: pytest
+      run: pytest --cov=trimesh tests/
+    - name: Save Coverage Report
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: bash <(curl -s https://codecov.io/bash)
   pypi:
     name: Release To PyPi
     needs: [tests, containers]
