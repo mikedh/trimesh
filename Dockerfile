@@ -2,7 +2,7 @@ FROM python:3.8-slim-buster
 LABEL maintainer="mikedh@kerfed.com"
 ARG TRIMESH_PATH=/opt/trimesh
 
-# Required for python to be able to find libembree.
+# Required for Python to be able to find libembree.
 ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
 
 # Create a local non-root user.
@@ -15,9 +15,6 @@ RUN bash /tmp/apt.bash
 # Install various custom utilities and libraries.
 COPY docker/builds/draco.bash /tmp/
 RUN bash /tmp/draco.bash
-
-COPY docker/builds/vhacd.bash /tmp/
-RUN bash /tmp/vhacd.bash
 
 COPY docker/builds/embree.bash /tmp/
 RUN bash /tmp/embree.bash

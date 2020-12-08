@@ -232,8 +232,14 @@ class SceneViewer(pyglet.window.Window):
         kwargs **
           Passed to rendering.convert_to_vertexlist
         """
-        # convert geometry to constructor args
-        args = rendering.convert_to_vertexlist(geometry, **kwargs)
+        try:
+            # convert geometry to constructor args
+            args = rendering.convert_to_vertexlist(geometry, **kwargs)
+        except BaseException:
+            util.log.warning('failed to add geometry `{}`'.format(name),
+                             exc_info=True)
+            return
+
         # create the indexed vertex list
         self.vertex_list[name] = self.batch.add_indexed(*args)
         # save the hash of the geometry
@@ -702,6 +708,10 @@ class SceneViewer(pyglet.window.Window):
         if self._grid:
             self._grid.draw(mode=gl.GL_LINES)
 
+        # save a reference outside of the loop
+        geometry = self.scene.geometry
+        graph = self.scene.graph
+
         while len(node_names) > 0:
             count += 1
             current_node = node_names.popleft()
@@ -710,10 +720,10 @@ class SceneViewer(pyglet.window.Window):
                 continue
 
             # get the transform from world to geometry and mesh name
-            transform, geometry_name = self.scene.graph.get(current_node)
+            transform, geometry_name = graph.get(current_node)
 
             # if no geometry at this frame continue without rendering
-            if geometry_name is None:
+            if geometry_name is None or geometry_name not in self.vertex_list_mode:
                 continue
 
             # if a geometry is marked as fixed apply the inverse view transform
@@ -725,7 +735,7 @@ class SceneViewer(pyglet.window.Window):
                 transform = np.dot(transform, transform_fix)
 
             # get a reference to the mesh so we can check transparency
-            mesh = self.scene.geometry[geometry_name]
+            mesh = geometry[geometry_name]
             if mesh.is_empty:
                 continue
 
