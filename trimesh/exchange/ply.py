@@ -597,9 +597,7 @@ def element_colors(element):
     candidate_colors = [element['data'][i]
                         for i in keys if i in element['properties']]
     if len(candidate_colors) >= 3:
-        colors = np.column_stack(candidate_colors)
-        signal = colors.std(axis=0).sum()
-        return colors
+        return np.column_stack(candidate_colors)
     return None
 
 
