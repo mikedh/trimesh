@@ -284,8 +284,8 @@ def export_ply(mesh,
         header.append(templates['vertex_normal'])
         dtype_vertex.append(dtype_vertex_normal)
 
-    # if mesh has a vertex coloradd it to the header
-    if mesh.visual.kind == 'vertex' and encoding != 'ascii':
+    # if mesh has a vertex color add it to the header
+    if mesh.visual.kind == 'vertex':
         header.append(templates['color'])
         dtype_vertex.append(dtype_color)
 
@@ -338,14 +338,12 @@ def export_ply(mesh,
         if hasattr(mesh, 'faces'):
             export += faces.tobytes()
     elif encoding == 'ascii':
-        export_data = util.structured_array_to_string(vertex,
-                                                      col_delim=' ',
-                                                      row_delim='\n')
+        export_data = util.structured_array_to_string(
+            vertex, col_delim=' ', row_delim='\n')
         if hasattr(mesh, 'faces'):
             export_data += '\n'
-            export_data += util.structured_array_to_string(faces,
-                                                           col_delim=' ',
-                                                           row_delim='\n')
+            export_data += util.structured_array_to_string(
+                faces, col_delim=' ', row_delim='\n')
         export += export_data.encode('utf-8')
     else:
         raise ValueError('encoding must be ascii or binary!')
@@ -570,31 +568,10 @@ def elements_to_kwargs(elements,
     kwargs['vertices'] = vertices
 
     # if both vertex and face color are defined pick the one
-    # with the most "signal," i.e. which one is not all zeros
-    colors = []
-    signal = []
-    if faces is not None:
-        # extract face colors or None
-        f_color, f_signal = element_colors(elements['face'])
-        colors.append({'face_colors': f_color})
-        signal.append(f_signal)
-        # extract vertex colors or None
-        v_color, v_signal = element_colors(elements['vertex'])
-        colors.append({'vertex_colors': v_color})
-        signal.append(v_signal)
-
-        if prefer_color is None:
-            # if we are in "auto-pick" mode take the one with the
-            # largest  standard deviation of colors
-            kwargs.update(colors[np.argmax(signal)])
-        elif 'vert' in prefer_color and v_color is not None:
-            # vertex colors are preferred and defined
-            kwargs['vertex_colors'] = v_color
-        elif 'face' in prefer_color and f_color is not None:
-            # face colors are preferred and defined
-            kwargs['face_colors'] = f_color
-    else:
-        kwargs['colors'] = element_colors(elements['vertex'])[0]
+    if 'face' in elements:
+        kwargs['face_colors'] = element_colors(elements['face'])
+    if 'vertex' in elements:
+        kwargs['vertex_colors'] = element_colors(elements['vertex'])
 
     return kwargs
 
@@ -619,13 +596,11 @@ def element_colors(element):
     keys = ['red', 'green', 'blue', 'alpha']
     candidate_colors = [element['data'][i]
                         for i in keys if i in element['properties']]
-
     if len(candidate_colors) >= 3:
         colors = np.column_stack(candidate_colors)
         signal = colors.std(axis=0).sum()
-        return colors, signal
-
-    return None, 0.0
+        return colors
+    return None
 
 
 def load_element_different(properties, data):

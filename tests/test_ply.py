@@ -20,8 +20,7 @@ class PlyTest(g.unittest.TestCase):
         assert m.visual.face_colors.ptp(axis=0).max() > 0
 
         export = m.export(file_type='ply')
-        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
-                                       file_type='ply')
+        reconstructed = g.wrapload(export, file_type='ply')
 
         assert reconstructed.visual.kind == 'face'
 
@@ -34,17 +33,15 @@ class PlyTest(g.unittest.TestCase):
         assert m.visual.vertex_colors.ptp(axis=0).max() > 0
 
         export = m.export(file_type='ply')
-        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
-                                       file_type='ply')
+        reconstructed = g.wrapload(export, file_type='ply')
         assert reconstructed.visual.kind == 'vertex'
 
         assert g.np.allclose(reconstructed.visual.vertex_colors,
                              m.visual.vertex_colors)
 
     def test_points(self):
-        """
-        Test reading point clouds from PLY files
-        """
+        # Test reading point clouds from PLY files
+
         m = g.get_mesh('points_ascii.ply')
         assert isinstance(m, g.trimesh.PointCloud)
         assert m.vertices.shape == (5, 3)
@@ -91,8 +88,8 @@ class PlyTest(g.unittest.TestCase):
         m.vertex_attributes['test_nd_attribute'] = test_nd_attribute
 
         export = m.export(file_type='ply')
-        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
-                                       file_type='ply')
+        reconstructed = g.wrapload(export,
+                                   file_type='ply')
 
         vertex_attributes = reconstructed.metadata['ply_raw']['vertex']['data']
         result_1d = vertex_attributes['test_1d_attribute']
@@ -102,10 +99,8 @@ class PlyTest(g.unittest.TestCase):
         g.np.testing.assert_almost_equal(result_nd, test_nd_attribute)
 
     def test_face_attributes(self):
-        """
-        Test writing face attributes to a ply, by reading them back and asserting the
-        written attributes array matches
-        """
+        # Test writing face attributes to a ply, by reading
+        # them back and asserting the written attributes array matches
 
         m = g.get_mesh('box.STL')
         test_1d_attribute = g.np.copy(m.face_angles[:, 0])
@@ -114,8 +109,7 @@ class PlyTest(g.unittest.TestCase):
         m.face_attributes['test_nd_attribute'] = test_nd_attribute
 
         export = m.export(file_type='ply')
-        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
-                                       file_type='ply')
+        reconstructed = g.wrapload(export, file_type='ply')
 
         face_attributes = reconstructed.metadata['ply_raw']['face']['data']
         result_1d = face_attributes['test_1d_attribute']
@@ -135,6 +129,26 @@ class PlyTest(g.unittest.TestCase):
         # has mixed quads and triangles
         m = g.get_mesh('suzanne.ply')
         assert len(m.faces) > 0
+
+    def test_ascii_color(self):
+        mesh = g.trimesh.creation.box()
+        en = g.wrapload(mesh.export(file_type='ply', encoding="ascii"),
+                        file_type='ply')
+        assert en.visual.kind is None
+
+        color = [255, 0, 0, 255]
+        mesh.visual.vertex_colors = color
+
+        # try exporting and reloading raw
+        eb = g.wrapload(mesh.export(file_type='ply'), file_type='ply')
+
+        assert g.np.allclose(eb.visual.vertex_colors[0], color)
+        assert eb.visual.kind == 'vertex'
+
+        ea = g.wrapload(mesh.export(file_type='ply', encoding='ascii'),
+                        file_type='ply')
+        assert g.np.allclose(ea.visual.vertex_colors, color)
+        assert ea.visual.kind == 'vertex'
 
 
 if __name__ == '__main__':

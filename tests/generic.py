@@ -389,6 +389,29 @@ def check_fuze(fuze):
     fuze.visual.material.copy()
 
 
+def wrapload(exported, file_type, **kwargs):
+    """
+    Reload an exported byte blob into a mesh.
+
+    Parameters
+    -----------
+    exported : bytes or str
+      Exported mesh
+    file_type : str
+      Type of file to load
+    kwargs : dict
+      Passed to trimesh.load
+
+    Returns
+    ---------
+    loaded : trimesh.Trimesh
+      Loaded result
+    """
+    return trimesh.load(file_obj=trimesh.util.wrap_as_stream(exported),
+                        file_type=file_type,
+                        **kwargs)
+
+
 TemporaryDirectory = trimesh.util.TemporaryDirectory
 
 # all the JSON files with truth data
