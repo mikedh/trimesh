@@ -26,9 +26,9 @@ class RenderTest(g.unittest.TestCase):
 
             if isinstance(m, g.trimesh.Trimesh):
                 # try turning smoothing off and on
-                args_sm = rendering.mesh_to_vertexlist(
+                rendering.mesh_to_vertexlist(
                     m, smooth_threshold=0)
-                args_ns = rendering.mesh_to_vertexlist(
+                rendering.mesh_to_vertexlist(
                     m, smooth_threshold=g.np.inf)
 
                 P30 = m.section(plane_normal=[0, 0, 1],
