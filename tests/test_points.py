@@ -203,12 +203,9 @@ class PointsTest(g.unittest.TestCase):
         assert p.visual.crc() != initial
 
         # test exporting a pointcloud to a PLY file
-        r = g.trimesh.load(g.trimesh.util.wrap_as_stream(
-            p.export(file_type='ply')),
-            file_type='ply')
+        r = g.wrapload(p.export(file_type='ply'), file_type='ply')
         assert r.vertices.shape == p.vertices.shape
         # make sure colors survived the round trip
-
         assert g.np.allclose(r.colors, p.colors)
 
     def test_glb(self):
