@@ -43,12 +43,11 @@ jobs:
     - name: Install APT On Linux
       run: |
         sudo apt-get update -qq -y
-        sudo apt-get install -qq -y libspatialindex-dev libgeos-dev
+        sudo apt-get install -qq -y libspatialindex-dev
     - name: Install Pytest
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-cov setuptools
-        pip debug install -vv shapely
     - name: Install Trimesh
       run: pip install .[easy]
     - name: Run Pytest

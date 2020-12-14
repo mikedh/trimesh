@@ -17,34 +17,32 @@ class RenderTest(g.unittest.TestCase):
         # a viewer show() call)
         from trimesh import rendering
 
-        m = g.get_mesh('featuretype.STL')
+        files = ['featuretype.STL',
+                 'fuze.obj',
+                 'points_bin.ply']
+        for file_name in files:
+            m = g.get_mesh(file_name)
+            args = rendering.convert_to_vertexlist(m)
 
-        args = rendering.mesh_to_vertexlist(m)
-        args_auto = rendering.convert_to_vertexlist(m)
-        assert len(args) == 7
-        assert len(args_auto) == len(args)
+            if isinstance(m, g.trimesh.Trimesh):
+                # try turning smoothing off and on
+                rendering.mesh_to_vertexlist(
+                    m, smooth_threshold=0)
+                rendering.mesh_to_vertexlist(
+                    m, smooth_threshold=g.np.inf)
 
-        # try turning smoothing off and on
-        args_sm = rendering.mesh_to_vertexlist(
-            m, smooth_threshold=0)
-        args_ns = rendering.mesh_to_vertexlist(
-            m, smooth_threshold=g.np.inf)
-        # vertex count should be different
-        # if smooth kwargs got passed through successfully
-        assert args_sm[0] != args_ns[0]
+                P30 = m.section(plane_normal=[0, 0, 1],
+                                plane_origin=m.centroid)
+                args = rendering.path_to_vertexlist(P30)
+                args_auto = rendering.convert_to_vertexlist(P30)
+                assert len(args) == 6
+                assert len(args_auto) == len(args)
 
-        P30 = m.section(plane_normal=[0, 0, 1],
-                        plane_origin=m.centroid)
-        args = rendering.path_to_vertexlist(P30)
-        args_auto = rendering.convert_to_vertexlist(P30)
-        assert len(args) == 6
-        assert len(args_auto) == len(args)
-
-        P20, T = P30.to_planar()
-        args = rendering.path_to_vertexlist(P20)
-        args_auto = rendering.convert_to_vertexlist(P20)
-        assert len(args) == 6
-        assert len(args_auto) == len(args)
+                P20, T = P30.to_planar()
+                args = rendering.path_to_vertexlist(P20)
+                args_auto = rendering.convert_to_vertexlist(P20)
+                assert len(args) == 6
+                assert len(args_auto) == len(args)
 
         P21 = g.get_mesh('2D/wrench.dxf')
         args = rendering.path_to_vertexlist(P21)

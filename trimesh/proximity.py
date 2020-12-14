@@ -13,6 +13,12 @@ from .constants import tol, log_time
 from .triangles import closest_point as closest_point_corresponding
 from .triangles import points_to_barycentric
 
+try:
+    from scipy.spatial import cKDTree
+except BaseException as E:
+    from .exceptions import closure
+    cKDTree = closure(E)
+
 
 def nearby_faces(mesh, points):
     """
@@ -44,7 +50,7 @@ def nearby_faces(mesh, points):
     # an r-tree containing the axis aligned bounding box for every triangle
     rtree = mesh.triangles_tree
     # a kd-tree containing every vertex of the mesh
-    kdtree = mesh.kdtree
+    kdtree = cKDTree(mesh.vertices[mesh.referenced_vertices])
 
     # query the distance to the nearest vertex to get AABB of a sphere
     distance_vertex = kdtree.query(points)[0].reshape((-1, 1))
@@ -145,9 +151,11 @@ def closest_point(mesh, points):
     # create the corresponding list of triangles
     # and query points to send to the closest_point function
     all_candidates = np.concatenate(candidates)
+
     num_candidates = list(map(len, candidates))
     tile_idxs = np.repeat(np.arange(len(points)), num_candidates)
     query_point = points[tile_idxs, :]
+
     query_tri = triangles[all_candidates]
 
     # do the computation for closest point

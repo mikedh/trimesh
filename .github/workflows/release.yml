@@ -48,7 +48,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install pytest pytest-cov setuptools
     - name: Install Trimesh Minimal
-      run: pip install .
+      run: pip install .[easy]
     - name: Run Pytest
       run: python tests/test_inertia.py
 

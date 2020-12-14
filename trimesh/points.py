@@ -404,6 +404,9 @@ class PointCloud(Geometry3D):
         # load vertices
         self.vertices = vertices
 
+        if 'vertex_colors' in kwargs and colors is None:
+            colors = kwargs['vertex_colors']
+
         # save visual data to vertex color object
         self.visual = VertexColor(colors=colors, obj=self)
 

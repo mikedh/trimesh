@@ -183,8 +183,7 @@ class ExportTest(g.unittest.TestCase):
     def test_obj(self):
         m = g.get_mesh('textured_tetrahedron.obj', process=False)
         export = m.export(file_type='obj')
-        reconstructed = g.trimesh.load(g.trimesh.util.wrap_as_stream(export),
-                                       file_type='obj', process=False)
+        reconstructed = g.wrapload(export, file_type='obj', process=False)
         # test that we get at least the same number of normals and texcoords out;
         # the loader may reorder vertices, so we shouldn't check direct
         # equality
@@ -229,9 +228,7 @@ class ExportTest(g.unittest.TestCase):
         export = source.export(file_type='glb')
 
         # re- load the file as a trimesh.Scene object again
-        loaded = g.trimesh.load(
-            file_obj=g.trimesh.util.wrap_as_stream(export),
-            file_type='glb')
+        loaded = g.wrapload(export, file_type='glb')
 
         # the scene should be identical after export-> import cycle
         assert g.np.allclose(loaded.extents / source.extents,
