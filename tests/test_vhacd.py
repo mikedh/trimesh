@@ -9,7 +9,7 @@ class VHACDTest(g.unittest.TestCase):
     def test_vhacd(self):
 
         # exit if no VHACD
-        if not g.trimesh.interfaces.vhacd.exists and not g.all_dep:
+        if not g.trimesh.interfaces.vhacd.exists:
             g.log.warning(
                 'not testing convex decomposition (no vhacd)!')
             return
