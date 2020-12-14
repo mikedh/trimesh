@@ -298,7 +298,7 @@ def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
     points = np.array([0, 0, 0], [1, 1, 1])
     scene.camera_transform = scene.camera.look_at(points)
     ```
-    
+
     Parameters
     -------------
     points : (n, 3) float
