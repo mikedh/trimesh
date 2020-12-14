@@ -234,9 +234,6 @@ class NearestTest(g.unittest.TestCase):
     def test_unreferenced_vertex(self):
         # check to see that meshes with unreferenced vertices
         # return correct values and ignore the unreferenced points
-        from trimesh import Trimesh
-        from trimesh.proximity import ProximityQuery
-
         query_point = [-1.0, -1.0, -1.0]
         mesh = g.trimesh.Trimesh(
             vertices=[[1.0, 0.0, 0.0],
