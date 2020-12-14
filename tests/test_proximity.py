@@ -231,6 +231,26 @@ class NearestTest(g.unittest.TestCase):
         g.np.testing.assert_almost_equal(closest[0], [0.0, 0.0, -0.25])
         self.assertEqual(closest_face_index[0], 1)
 
+    def test_unreferenced_vertex(self):
+        # check to see that meshes with unreferenced vertices
+        # return correct values and ignore the unreferenced points
+        from trimesh import Trimesh
+        from trimesh.proximity import ProximityQuery
+
+        query_point = [-1.0, -1.0, -1.0]
+        mesh = g.trimesh.Trimesh(
+            vertices=[[1.0, 0.0, 0.0],
+                      [0.0, 1.0, 0.0],
+                      [0.0, 0.0, 1.0],
+                      [-0.5, -0.5, -0.5]],
+            faces=[[0, 1, 2]],
+            process=False)
+
+        proximity_query = g.trimesh.proximity.ProximityQuery(mesh)
+        q = proximity_query.on_surface([query_point])
+        assert len(q) == 3
+        assert all(len(i) == 1 for i in q)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
