@@ -292,6 +292,13 @@ def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
     Generate transform for a camera to keep a list
     of points in the camera's field of view.
 
+    Examples
+    ------------
+    ```python
+    points = np.array([0, 0, 0], [1, 1, 1])
+    scene.camera_transform = scene.camera.look_at(points)
+    ```
+
     Parameters
     -------------
     points : (n, 3) float
