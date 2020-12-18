@@ -1955,7 +1955,7 @@ def decompress(file_obj, file_type):
     raise ValueError('Unsupported type passed!')
 
 
-def compress(info):
+def compress(info, **kwargs):
     """
     Compress data stored in a dict.
 
@@ -1964,7 +1964,8 @@ def compress(info):
     info : dict
       Data to compress in form:
       {file name in archive: bytes or file-like object}
-
+    kwargs : dict
+      Passed to zipfile.ZipFile
     Returns
     -----------
     compressed : bytes
@@ -1978,7 +1979,7 @@ def compress(info):
     with zipfile.ZipFile(
             file_obj,
             mode='w',
-            compression=zipfile.ZIP_DEFLATED) as zipper:
+            compression=zipfile.ZIP_DEFLATED, **kwargs) as zipper:
         for name, data in info.items():
             if hasattr(data, 'read'):
                 # if we were passed a file object, read it
@@ -2178,24 +2179,26 @@ def unique_id(length=12, increment=0):
     return unique
 
 
-def generate_basis(z):
+def generate_basis(z, epsilon=1e-12):
     """
     Generate an arbitrary basis (also known as a coordinate frame)
     from a given z-axis vector.
 
     Parameters
     ------------
-    z: (3,) float
-      A vector along the positive z-axis
+    z : (3,) float
+      A vector along the positive z-axis.
+    epsilon : float
+      Numbers smaller than this considered zero.
 
     Returns
     ---------
     x : (3,) float
-      Vector along x axis
+      Vector along x axis.
     y : (3,) float
-      Vector along y axis
+      Vector along y axis.
     z : (3,) float
-      Vector along z axis
+      Vector along z axis.
     """
     # get a copy of input vector
     z = np.array(z, dtype=np.float64, copy=True)
@@ -2203,13 +2206,17 @@ def generate_basis(z):
     if z.shape != (3,):
         raise ValueError('z must be (3,) float!')
 
+    z_norm = np.linalg.norm(z)
+    if z_norm < epsilon:
+        return np.eye(3)
+
     # normalize vector in-place
-    z /= np.linalg.norm(z)
+    z /= z_norm
     # X as arbitrary perpendicular vector
     x = np.array([-z[1], z[0], 0.0])
     # avoid degenerate case
     x_norm = np.linalg.norm(x)
-    if x_norm < 1e-12:
+    if x_norm < epsilon:
         # this means that
         # so a perpendicular X is just X
         x = np.array([-z[2], z[1], 0.0])

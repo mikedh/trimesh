@@ -40,7 +40,6 @@ def load_path(obj, file_type=None, **kwargs):
         # for open file objects use loaders
         kwargs.update(path_loaders[file_type](
             obj, file_type=file_type))
-        obj.close()
     elif util.is_string(obj):
         # strings passed are evaluated as file objects
         with open(obj, 'rb') as file_obj:

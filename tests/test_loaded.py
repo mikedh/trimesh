@@ -39,6 +39,36 @@ class LoaderTest(g.unittest.TestCase):
         assert len(m.faces) > 0
         assert m.area > 1e-5
 
+    def test_fileobj(self):
+        # make sure we don't close file objects that were passed
+        # check load_mesh
+        file_obj = open(
+            g.os.path.join(g.dir_models, 'featuretype.STL'), 'rb')
+        assert not file_obj.closed
+        mesh = g.trimesh.load(
+            file_obj=file_obj,
+            file_type='stl')
+        # should have actually loaded the mesh
+        assert len(mesh.faces) == 3476
+        # should not close the file object
+        assert not file_obj.closed
+        # clean up
+        file_obj.close()
+
+        # check load_path
+        file_obj = open(
+            g.os.path.join(g.dir_models, '2D', 'wrench.dxf'), 'rb')
+        assert not file_obj.closed
+        path = g.trimesh.load(
+            file_obj=file_obj,
+            file_type='dxf')
+        assert g.np.isclose(path.area, 1.667, atol=1e-2)
+        # should have actually loaded the path
+        # should not close the file object
+        assert not file_obj.closed
+        # clean up
+        file_obj.close()
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
