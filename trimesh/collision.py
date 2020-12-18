@@ -158,7 +158,7 @@ class CollisionManager(object):
         Initialize a mesh-mesh collision manager.
         """
         if fcl is None:
-            raise ValueError('No FCL Available!')
+            raise ValueError('No FCL Available! Please install the python-fcl library')
         # {name: {geom:, obj}}
         self._objs = {}
         # {id(bvh) : str, name}

@@ -1294,7 +1294,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                     kwargs['frame_to'] = frame_to
                     # append the edge with the mesh frame
                     graph.append(kwargs.copy())
-            else:
+            elif len(geometries) == 1:
                 kwargs["geometry"] = geometries[0]
                 if 'name' in child:
                     kwargs['frame_to'] = names[b]
