@@ -208,6 +208,22 @@ class OBJTest(g.unittest.TestCase):
         v = g.get_mesh('cubevt.obj')
         assert v.faces.shape == (12, 3)
 
+    def test_empty(self):
+        # demo files to check - currently only one
+        empty_files = ['empty.obj']
+
+        for empty_file in empty_files:
+            e = g.get_mesh(empty_file)
+
+            # result should be an empty scene without vertices
+            assert isinstance(e, g.trimesh.Scene)
+            assert not hasattr(e, 'vertices')
+
+            # export should not contain geometry
+            export = e.export(file_type='obj')
+            reconstructed = g.wrapload(export, file_type='obj')
+            assert isinstance(reconstructed, g.trimesh.Scene)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

@@ -11,7 +11,7 @@ from .gltf import export_glb, export_gltf
 from .obj import export_obj
 from .off import _off_exporters
 from .stl import export_stl, export_stl_ascii
-from .ply import _ply_exporters
+from .ply import export_ply, _ply_exporters
 from .dae import _collada_exporters
 from .xyz import _xyz_exporters
 
@@ -230,6 +230,8 @@ def export_scene(scene, file_obj, file_type=None, **kwargs):
     elif file_type == 'svg':
         from trimesh.path.exchange import svg_io
         data = svg_io.export_svg(scene, **kwargs)
+    elif file_type == 'ply':
+        data = export_ply(scene)
     else:
         raise ValueError(
             'unsupported export format: {}'.format(file_type))
