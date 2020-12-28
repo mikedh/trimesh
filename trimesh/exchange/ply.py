@@ -583,6 +583,7 @@ def elements_to_kwargs(elements,
         kwargs['face_colors'] = element_colors(elements['face'])
     if 'vertex' in elements:
         kwargs['vertex_colors'] = element_colors(elements['vertex'])
+
     return kwargs
 
 
