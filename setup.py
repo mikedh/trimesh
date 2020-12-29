@@ -70,13 +70,14 @@ requirements_test = set(['pytest',       # run all unit tests
 if (sys.version_info.major, sys.version_info.minor) <= (3, 4):
     # packages that no longer support old Python
     lock = [('lxml', '4.3.5'),
-            ('shapely', '1.6.4'),
+            ('shapely', None),
             ('pyglet', '1.4.10')]
     for name, version in lock:
         # remove version-free requirements
         requirements_easy.remove(name)
-        # add working version locked requirements
-        requirements_easy.add('{}=={}'.format(name, version))
+        if version is not None:
+            # add working version locked requirements
+            requirements_easy.add('{}=={}'.format(name, version))
 
 # if someone wants to output a requirements file
 # `python setup.py --list-all > requirements.txt`
