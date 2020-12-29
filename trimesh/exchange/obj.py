@@ -788,14 +788,14 @@ def export_obj(mesh,
     counts = {'v': 0, 'vn': 0, 'vt': 0}
 
     tex_data = None
-    
+
     for mesh in meshes:
         # we are going to reference face_formats with this
         face_type = ['v']
         # OBJ includes vertex color as RGB elements on the same line
         if (include_color and
             mesh.visual.kind in ['vertex', 'face'] and
-            len(mesh.visual.vertex_colors)):
+                len(mesh.visual.vertex_colors)):
 
             # create a stacked blob with position and color
             v_blob = np.column_stack((
