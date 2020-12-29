@@ -208,21 +208,33 @@ class OBJTest(g.unittest.TestCase):
         v = g.get_mesh('cubevt.obj')
         assert v.faces.shape == (12, 3)
 
-    def test_empty(self):
-        # demo files to check - currently only one
-        empty_files = ['empty.obj']
+    def test_empty_or_pointcloud(self):
+        # demo files to check
+        empty_files = ['obj_empty.obj',
+                       'obj_points.obj',
+                       'obj_wireframe.obj']
 
         for empty_file in empty_files:
-            e = g.get_mesh(empty_file)
+            e = g.get_mesh('emptyIO/' + empty_file)
 
-            # result should be an empty scene without vertices
-            assert isinstance(e, g.trimesh.Scene)
-            assert not hasattr(e, 'vertices')
+            # create export
+            export = e.export(file_type='ply')
+            reconstructed = g.wrapload(export, file_type='ply')
 
-            # export should not contain geometry
-            export = e.export(file_type='obj')
-            reconstructed = g.wrapload(export, file_type='obj')
-            assert isinstance(reconstructed, g.trimesh.Scene)
+            if 'empty' in empty_file:
+                # result should be an empty scene without vertices
+                assert isinstance(e, g.trimesh.Scene)
+                assert not hasattr(e, 'vertices')
+                # export should not contain geometry
+                assert isinstance(reconstructed, g.trimesh.Scene)
+                assert not hasattr(reconstructed, 'vertices')
+            elif 'points' in empty_file:
+                # result should be a point cloud instance
+                assert isinstance(e, g.trimesh.PointCloud)
+                assert hasattr(e, 'vertices')
+                # point cloud export should contain vertices
+                assert isinstance(reconstructed, g.trimesh.PointCloud)
+                assert hasattr(reconstructed, 'vertices')
 
 
 if __name__ == '__main__':

@@ -303,7 +303,7 @@ def export_ply(mesh,
         vertex['vertex'] = mesh.vertices
         if vertex_normal:
             vertex['normals'] = mesh.vertex_normals
-        if mesh.visual.kind == 'vertex':
+        if mesh.visual.kind == 'vertex' and len(mesh.visual.vertex_colors):
             vertex['rgba'] = mesh.visual.vertex_colors
 
         if include_attributes and hasattr(mesh, 'vertex_attributes'):

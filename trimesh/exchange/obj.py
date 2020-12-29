@@ -100,6 +100,16 @@ def load_obj(file_obj,
     if group_material:
         face_tuples = _group_by_material(face_tuples)
 
+    # no faces but points given
+    # return point cloud
+    if not len(face_tuples) and v is not None:
+        pc = {'vertices': v}
+        if vn is not None:
+            pc['vertex_normals'] = vn
+        if vc is not None:
+            pc['vertex_colors'] = vc
+        return pc
+
     # Load Faces
     # now we have clean- ish faces grouped by material and object
     # so now we have to turn them into numpy arrays and kwargs
@@ -768,6 +778,8 @@ def export_obj(mesh,
         meshes = [mesh]
     elif util.is_instance_named(mesh, 'Scene'):
         meshes = mesh.dump()
+    elif util.is_instance_named(mesh, 'PointCloud'):
+        meshes = [mesh]
     else:
         raise ValueError('must be Trimesh or Scene!')
 
@@ -775,11 +787,16 @@ def export_obj(mesh,
 
     counts = {'v': 0, 'vn': 0, 'vt': 0}
 
+    tex_data = None
+    
     for mesh in meshes:
         # we are going to reference face_formats with this
         face_type = ['v']
         # OBJ includes vertex color as RGB elements on the same line
-        if include_color and mesh.visual.kind in ['vertex', 'face']:
+        if (include_color and
+            mesh.visual.kind in ['vertex', 'face'] and
+            len(mesh.visual.vertex_colors)):
+
             # create a stacked blob with position and color
             v_blob = np.column_stack((
                 mesh.vertices,
@@ -806,7 +823,6 @@ def export_obj(mesh,
                 row_delim='\nvn ',
                 digits=digits))
 
-        tex_data = None
         if include_texture and hasattr(mesh.visual, 'uv'):
             # if vertex texture exists and is the right shape
             face_type.append('vt')
@@ -828,12 +844,13 @@ def export_obj(mesh,
             export.appendleft('usemtl {}'.format(tex_name))
         # the format for a single vertex reference of a face
         face_format = face_formats[tuple(face_type)]
-        # add the exported faces to the export
-        export.append('f ' + util.array_to_string(
-            mesh.faces + 1 + counts['v'],
-            col_delim=' ',
-            row_delim='\nf ',
-            value_format=face_format))
+        # add the exported faces to the export if available
+        if hasattr(mesh, 'faces'):
+            export.append('f ' + util.array_to_string(
+                mesh.faces + 1 + counts['v'],
+                col_delim=' ',
+                row_delim='\nf ',
+                value_format=face_format))
         # offset our vertex position
         counts['v'] += len(mesh.vertices)
 

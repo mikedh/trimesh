@@ -232,6 +232,8 @@ def export_scene(scene, file_obj, file_type=None, **kwargs):
         data = svg_io.export_svg(scene, **kwargs)
     elif file_type == 'ply':
         data = export_ply(scene)
+    elif file_type == 'stl':
+        data = export_stl(scene)
     else:
         raise ValueError(
             'unsupported export format: {}'.format(file_type))
