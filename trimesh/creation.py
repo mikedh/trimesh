@@ -686,7 +686,7 @@ def icosphere(subdivisions=3, radius=1.0, color=None):
     ico._validate = True
     if color is not None:
         ico.visual.face_colors = color
-    ico.metadata.update({'shape': 'icosphere',
+    ico.metadata.update({'shape': 'sphere',
                          'radius': radius})
     return ico
 
@@ -762,7 +762,7 @@ def uv_sphere(radius=1.0,
     # we save a lot of time by not processing again
     # since we did some bookkeeping mesh is watertight
     mesh = Trimesh(vertices=vertices, faces=faces, process=False,
-                   metadata={'shape': 'uv_sphere',
+                   metadata={'shape': 'sphere',
                              'radius': radius})
     return mesh
 
