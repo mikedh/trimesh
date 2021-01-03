@@ -146,7 +146,8 @@ def revolve(linestring,
     faces = (stacked + offset) % len(vertices)
 
     # create the mesh from our vertices and faces
-    mesh = Trimesh(vertices=vertices, faces=faces)
+    mesh = Trimesh(vertices=vertices, faces=faces,
+                   **kwargs)
 
     # strict checks run only in unit tests
     if (tol.strict and
@@ -593,6 +594,8 @@ def box(extents=None, transform=None, **kwargs):
         if extents.shape != (3,):
             raise ValueError('Extents must be (3,)!')
         vertices *= extents
+    else:
+        extents = np.asarray((1.0, 1.0, 1.0), dtype=np.float64)
 
     # hardcoded face indices
     faces = [1, 3, 0, 4, 1, 0, 0, 3, 2, 2, 4, 0, 1, 7, 3, 5, 1, 4,
@@ -604,6 +607,12 @@ def box(extents=None, transform=None, **kwargs):
     face_normals = np.asanyarray(face_normals,
                                  order='C',
                                  dtype=np.float64).reshape(-1, 3)
+
+    if 'metadata' not in kwargs:
+        kwargs['metadata'] = dict()
+    kwargs['metadata'].update(
+        {'shape': 'box',
+         'extents': extents})
 
     box = Trimesh(vertices=vertices,
                   faces=faces,
@@ -677,6 +686,8 @@ def icosphere(subdivisions=3, radius=1.0, color=None):
     ico._validate = True
     if color is not None:
         ico.visual.face_colors = color
+    ico.metadata.update({'shape': 'sphere',
+                         'radius': radius})
     return ico
 
 
@@ -750,7 +761,9 @@ def uv_sphere(radius=1.0,
 
     # we save a lot of time by not processing again
     # since we did some bookkeeping mesh is watertight
-    mesh = Trimesh(vertices=vertices, faces=faces, process=False)
+    mesh = Trimesh(vertices=vertices, faces=faces, process=False,
+                   metadata={'shape': 'sphere',
+                             'radius': radius})
     return mesh
 
 
@@ -799,6 +812,9 @@ def capsule(height=1.0,
 
     top = capsule.vertices[:, 2] > tol.zero
     capsule.vertices[top] += [0, 0, height]
+    capsule.metadata.update({'shape': 'capsule',
+                             'height': height,
+                             'radius': radius})
 
     return capsule
 
@@ -834,6 +850,12 @@ def cone(radius,
                   [radius, 0],
                   [0, height]]
     # revolve the profile to create a cone
+    if 'metadata' not in kwargs:
+        kwargs['metadata'] = dict()
+    kwargs['metadata'].update(
+        {'shape': 'cone',
+         'radius': radius,
+         'height': height})
     cone = revolve(linestring=linestring,
                    sections=sections,
                    transform=transform,
@@ -885,10 +907,17 @@ def cylinder(radius,
                   [radius, -half],
                   [radius, half],
                   [0, half]]
+    if 'metadata' not in kwargs:
+        kwargs['metadata'] = dict()
+    kwargs['metadata'].update(
+        {'shape': 'cylinder',
+         'height': height,
+         'radius': radius})
     # generate cylinder through simple revolution
     return revolve(linestring=linestring,
                    sections=sections,
-                   transform=transform)
+                   transform=transform,
+                   **kwargs)
 
 
 def annulus(r_min,
@@ -946,6 +975,14 @@ def annulus(r_min,
                   [r_max, half],
                   [r_min, half],
                   [r_min, -half]]
+
+    if 'metadata' not in kwargs:
+        kwargs['metadata'] = dict()
+    kwargs['metadata'].update(
+        {'shape': 'annulus',
+         'r_min': r_min,
+         'r_max': r_max,
+         'height': height})
 
     # revolve the curve
     annulus = revolve(linestring=linestring,

@@ -119,6 +119,10 @@ def load_stl_binary(file_obj):
 
     blob = np.frombuffer(file_obj.read(), dtype=_stl_dtype)
 
+    # return empty geometry if there are no vertices
+    if not len(blob['vertices']):
+        return {'geometry': {}}
+
     # all of our vertices will be loaded in order
     # so faces are just sequential indices reshaped.
     faces = np.arange(header['face_count'] * 3).reshape((-1, 3))
@@ -194,9 +198,11 @@ def load_stl_ascii(file_obj):
         face_normals = blob[normal_index].astype('<f8')
         vertices = blob[vertex_index.reshape((-1, 3))].astype('<f8')
 
-        kwargs[name] = {'vertices': vertices,
-                        'faces': faces,
-                        'face_normals': face_normals}
+        # only add vertices and faces if there is geometry
+        if len(vertices):
+            kwargs[name] = {'vertices': vertices,
+                            'faces': faces,
+                            'face_normals': face_normals}
 
     if len(kwargs) == 1:
         return next(iter(kwargs.values()))
@@ -217,14 +223,15 @@ def export_stl(mesh):
     export: bytes, representing mesh in binary STL form
     """
     header = np.zeros(1, dtype=_stl_dtype_header)
-    header['face_count'] = len(mesh.faces)
-
-    packed = np.zeros(len(mesh.faces), dtype=_stl_dtype)
-    packed['normals'] = mesh.face_normals
-    packed['vertices'] = mesh.triangles
-
+    if hasattr(mesh, 'faces'):
+        header['face_count'] = len(mesh.faces)
     export = header.tobytes()
-    export += packed.tobytes()
+
+    if hasattr(mesh, 'faces'):
+        packed = np.zeros(len(mesh.faces), dtype=_stl_dtype)
+        packed['normals'] = mesh.face_normals
+        packed['vertices'] = mesh.triangles
+        export += packed.tobytes()
 
     return export
 

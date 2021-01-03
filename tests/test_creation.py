@@ -19,6 +19,7 @@ class CreationTest(g.unittest.TestCase):
         assert c.is_volume
         assert c.body_count == 1
         assert g.np.allclose(c.extents, 1.0, atol=0.03)
+        assert c.metadata['shape'] == 'cone'
 
     def test_cylinder(self):
         # tolerance for cylinders
@@ -28,6 +29,7 @@ class CreationTest(g.unittest.TestCase):
         assert c.is_volume
         assert c.body_count == 1
         assert g.np.allclose(c.extents, 1.0, atol=atol)
+        assert c.metadata['shape'] == 'cylinder'
 
         # check the "use a segment" feature
         # passed height should be overridden
@@ -74,6 +76,8 @@ class CreationTest(g.unittest.TestCase):
             assert sphere.is_convex
             assert sphere.is_watertight
             assert sphere.is_winding_consistent
+            assert sphere.metadata['shape'] == 'sphere'
+
             # all vertices should have radius of exactly 1.0
             radii = g.np.linalg.norm(
                 sphere.vertices - sphere.center_mass, axis=1)
@@ -158,6 +162,8 @@ class CreationTest(g.unittest.TestCase):
             assert a.is_volume
             assert a.is_watertight
             assert a.is_winding_consistent
+            assert a.metadata['shape'] == 'annulus'
+
             # should be centered at origin
             assert g.np.allclose(a.center_mass, 0.0)
             # should be along Z

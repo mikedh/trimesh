@@ -23,11 +23,13 @@ def load_3MF(file_obj,
 
     Parameters
     ------------
-    file_obj:       file object
+    file_obj : file-like
+      Contains 3MF formatted data
 
     Returns
     ------------
-    kwargs: dict, with keys 'graph', 'geometry', 'base_frame'
+    kwargs : dict
+      Constructor arguments for `trimesh.Scene`
     """
     # dict, {name in archive: BytesIo}
     archive = util.decompress(file_obj, file_type='zip')
@@ -56,6 +58,7 @@ def load_3MF(file_obj,
     # each instance is a single geometry
     build_items = []
 
+    consumed_names = set()
     # iterate the XML object and build elements with an LXML iterator
     # loaded elements are cleared to avoid ballooning memory
     model.seek(0)
@@ -64,11 +67,18 @@ def load_3MF(file_obj,
         if 'object' in obj.tag:
             # id is mandatory
             index = obj.attrib['id']
-            name = str(index)
-            # store the name by index
+
+            # start with stored name
+            name = obj.attrib.get('name', str(index))
+            # apparently some exporters name multiple meshes
+            # the same thing so check to see if it's been used
+            if name in consumed_names:
+                name = name + str(index)
+            consumed_names.add(name)
+            # store name reference on the index
             id_name[index] = name
 
-            # if the object has actual geometry data, store it
+            # if the object has actual geometry data parse here
             for mesh in obj.iter('{*}mesh'):
                 vertices = mesh.find('{*}vertices')
                 v_seq[index] = np.array([[i.attrib['x'],

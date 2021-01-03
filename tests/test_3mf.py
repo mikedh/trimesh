@@ -9,6 +9,7 @@ class MFTest(g.unittest.TestCase):
     def test_3MF(self):
         # an assembly with instancing
         s = g.get_mesh('counterXP.3MF')
+
         # should be 2 unique meshes
         assert len(s.geometry) == 2
         # should be 6 instances around the scene

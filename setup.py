@@ -70,7 +70,7 @@ requirements_test = set(['pytest',       # run all unit tests
 if (sys.version_info.major, sys.version_info.minor) <= (3, 4):
     # packages that no longer support old Python
     lock = [('lxml', '4.3.5'),
-            ('shapely', None),
+            ('shapely', '1.6.4'),
             ('pyglet', '1.4.10')]
     for name, version in lock:
         # remove version-free requirements
