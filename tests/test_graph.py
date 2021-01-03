@@ -252,19 +252,22 @@ def check_engines(edges, nodes):
     engines = [None, 'scipy', 'networkx']
 
     for engine in engines:
-        c = g.trimesh.graph.connected_components(edges,
-                                                 nodes=nodes,
-                                                 engine=engine)
+        c = g.trimesh.graph.connected_components(
+            edges, nodes=nodes, engine=engine)
         if len(c) > 0:
-            # check to see if every resulting component was in the
-            # set of nodes
+            # check to see if every resulting component
+            # was in the passed set of nodes
             diff = g.np.setdiff1d(g.np.hstack(c), nodes)
             assert len(diff) == 0
-        results.append(
-            sorted(
-                g.trimesh.util.md5_object(
-                    g.np.sort(i)) for i in c))
-    assert all(i == results[0] for i in results)
+        # store the result as a set of tuples so we can compare
+        results.append(set([tuple(sorted(i)) for i in c]))
+
+    # make sure different engines are returning the same thing
+    try:
+        assert all(i == results[0] for i in results[1:])
+    except BaseException as E:
+        print(results)
+        raise E
 
 
 if __name__ == '__main__':

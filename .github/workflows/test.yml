@@ -32,18 +32,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [2.7, 3.5]
-        os: [ubuntu-latest]
+        python-version: [3.9]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          os: ubuntu-latest
+          python-version: 2.7
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install APT On Linux
-      run: |
-        sudo apt-get update -qq -y
-        sudo apt-get install -qq -y libspatialindex-dev
     - name: Install Pytest
       run: |
         python -m pip install --upgrade pip
