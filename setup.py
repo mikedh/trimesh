@@ -75,8 +75,9 @@ if (sys.version_info.major, sys.version_info.minor) <= (3, 4):
     for name, version in lock:
         # remove version-free requirements
         requirements_easy.remove(name)
-        # add working version locked requirements
-        requirements_easy.add('{}=={}'.format(name, version))
+        if version is not None:
+            # add working version locked requirements
+            requirements_easy.add('{}=={}'.format(name, version))
 
 # if someone wants to output a requirements file
 # `python setup.py --list-all > requirements.txt`
