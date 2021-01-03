@@ -23,11 +23,13 @@ def load_3MF(file_obj,
 
     Parameters
     ------------
-    file_obj:       file object
+    file_obj : file-like
+      Contains 3MF formatted data
 
     Returns
     ------------
-    kwargs: dict, with keys 'graph', 'geometry', 'base_frame'
+    kwargs : dict
+      Constructor arguments for `trimesh.Scene`
     """
     # dict, {name in archive: BytesIo}
     archive = util.decompress(file_obj, file_type='zip')
@@ -64,11 +66,10 @@ def load_3MF(file_obj,
         if 'object' in obj.tag:
             # id is mandatory
             index = obj.attrib['id']
-            name = str(index)
-            # store the name by index
-            id_name[index] = name
+            # store using passed name and fall back to just index
+            id_name[index] = obj.attrib.get('name', str(index))
 
-            # if the object has actual geometry data, store it
+            # if the object has actual geometry data parse here
             for mesh in obj.iter('{*}mesh'):
                 vertices = mesh.find('{*}vertices')
                 v_seq[index] = np.array([[i.attrib['x'],
