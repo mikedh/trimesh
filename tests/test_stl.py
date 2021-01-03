@@ -71,6 +71,25 @@ class STLTests(g.unittest.TestCase):
         s = g.get_mesh('multibody.stl')
         assert len(s.geometry) == 2
 
+    def test_empty(self):
+        # demo files to check
+        empty_files = ['stl_empty_ascii.stl',
+                       'stl_empty_bin.stl']
+
+        for empty_file in empty_files:
+            e = g.get_mesh('emptyIO/' + empty_file)
+
+            # result should be an empty scene without vertices
+            assert isinstance(e, g.trimesh.Scene)
+            assert not hasattr(e, 'vertices')
+
+            # create export
+            export = e.export(file_type='ply')
+            reconstructed = g.wrapload(export, file_type='ply')
+            # export should not contain geometry
+            assert isinstance(reconstructed, g.trimesh.Scene)
+            assert not hasattr(reconstructed, 'vertices')
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

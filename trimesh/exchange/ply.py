@@ -276,36 +276,42 @@ def export_ply(mesh,
     templates = resources.get('ply.template', decode_json=True)
     # start collecting elements into a string for the header
     header = [templates['intro']]
-    header.append(templates['vertex'])
 
-    # if we're exporting vertex normals add them
-    # to the header and dtype
-    if vertex_normal:
-        header.append(templates['vertex_normal'])
-        dtype_vertex.append(dtype_vertex_normal)
+    # check if scene has geometry
+    if hasattr(mesh, 'vertices'):
+        header.append(templates['vertex'])
 
-    # if mesh has a vertex color add it to the header
-    if mesh.visual.kind == 'vertex':
-        header.append(templates['color'])
-        dtype_vertex.append(dtype_color)
+        num_vertices = len(mesh.vertices)
+        # if we're exporting vertex normals add them
+        # to the header and dtype
+        if vertex_normal:
+            header.append(templates['vertex_normal'])
+            dtype_vertex.append(dtype_vertex_normal)
 
-    if include_attributes and hasattr(mesh, 'vertex_attributes'):
-        add_attributes_to_header(header, mesh.vertex_attributes)
-        add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
+        # if mesh has a vertex color add it to the header
+        if mesh.visual.kind == 'vertex':
+            header.append(templates['color'])
+            dtype_vertex.append(dtype_color)
 
-    # create and populate the custom dtype for vertices
-    vertex = np.zeros(len(mesh.vertices),
-                      dtype=dtype_vertex)
-    vertex['vertex'] = mesh.vertices
-    if vertex_normal:
-        vertex['normals'] = mesh.vertex_normals
-    if mesh.visual.kind == 'vertex':
-        vertex['rgba'] = mesh.visual.vertex_colors
+        if include_attributes and hasattr(mesh, 'vertex_attributes'):
+            add_attributes_to_header(header, mesh.vertex_attributes)
+            add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
 
-    if include_attributes and hasattr(mesh, 'vertex_attributes'):
-        add_attributes_to_data_array(vertex, mesh.vertex_attributes)
+        # create and populate the custom dtype for vertices
+        vertex = np.zeros(num_vertices,
+                          dtype=dtype_vertex)
+        vertex['vertex'] = mesh.vertices
+        if vertex_normal:
+            vertex['normals'] = mesh.vertex_normals
+        if mesh.visual.kind == 'vertex' and len(mesh.visual.vertex_colors):
+            vertex['rgba'] = mesh.visual.vertex_colors
 
-    header_params = {'vertex_count': len(mesh.vertices),
+        if include_attributes and hasattr(mesh, 'vertex_attributes'):
+            add_attributes_to_data_array(vertex, mesh.vertex_attributes)
+    else:
+        num_vertices = 0
+
+    header_params = {'vertex_count': num_vertices,
                      'encoding': encoding}
 
     if hasattr(mesh, 'faces'):
@@ -334,7 +340,8 @@ def export_ply(mesh,
         header_params).encode('utf-8')
 
     if encoding == 'binary_little_endian':
-        export += vertex.tobytes()
+        if hasattr(mesh, 'vertices'):
+            export += vertex.tobytes()
         if hasattr(mesh, 'faces'):
             export += faces.tobytes()
     elif encoding == 'ascii':
@@ -461,15 +468,19 @@ def elements_to_kwargs(elements,
 
     kwargs = {'metadata': {'ply_raw': elements}}
 
-    vertices = np.column_stack([elements['vertex']['data'][i]
-                                for i in 'xyz'])
+    if 'vertex' in elements and elements['vertex']['length']:
+        vertices = np.column_stack([elements['vertex']['data'][i]
+                                    for i in 'xyz'])
+        if not util.is_shape(vertices, (-1, 3)):
+            raise ValueError('Vertices were not (n,3)!')
+    else:
+        # return empty geometry if there are no vertices
+        kwargs['geometry'] = {}
+        return kwargs
 
-    if not util.is_shape(vertices, (-1, 3)):
-        raise ValueError('Vertices were not (n,3)!')
-
-    try:
+    if 'face' in elements and elements['face']['length']:
         face_data = elements['face']['data']
-    except (KeyError, ValueError):
+    else:
         # some PLY files only include vertices
         face_data = None
         faces = None

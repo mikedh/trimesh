@@ -208,6 +208,35 @@ class OBJTest(g.unittest.TestCase):
         v = g.get_mesh('cubevt.obj')
         assert v.faces.shape == (12, 3)
 
+
+    def test_empty_or_pointcloud(self):
+        # demo files to check
+        empty_files = ['obj_empty.obj',
+                       'obj_points.obj',
+                       'obj_wireframe.obj']
+
+        for empty_file in empty_files:
+            e = g.get_mesh('emptyIO/' + empty_file)
+
+            # create export
+            export = e.export(file_type='ply')
+            reconstructed = g.wrapload(export, file_type='ply')
+
+            if 'empty' in empty_file:
+                # result should be an empty scene without vertices
+                assert isinstance(e, g.trimesh.Scene)
+                assert not hasattr(e, 'vertices')
+                # export should not contain geometry
+                assert isinstance(reconstructed, g.trimesh.Scene)
+                assert not hasattr(reconstructed, 'vertices')
+            elif 'points' in empty_file:
+                # result should be a point cloud instance
+                assert isinstance(e, g.trimesh.PointCloud)
+                assert hasattr(e, 'vertices')
+                # point cloud export should contain vertices
+                assert isinstance(reconstructed, g.trimesh.PointCloud)
+                assert hasattr(reconstructed, 'vertices')
+
     def test_backslash_continuation_character(self):
         # an obj file with \ (backslash) line continuation characters
         m = g.get_mesh('wallhole.obj')
