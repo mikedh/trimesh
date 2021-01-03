@@ -64,6 +64,9 @@ def load_obj(file_obj,
     # same logic even if they jump directly in to data lines
     text = '\n{}\n'.format(text.strip().replace('\r\n', '\n'))
 
+    # remove backslash continuation characters and merge them into the same line
+    text = text.replace('\\\n', '')
+
     # Load Materials
     materials = {}
     mtl_position = text.find('mtllib')

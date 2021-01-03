@@ -208,6 +208,11 @@ class OBJTest(g.unittest.TestCase):
         v = g.get_mesh('cubevt.obj')
         assert v.faces.shape == (12, 3)
 
+    def test_backslash_continuation_character(self):
+        # an obj file with \ (backslash) line continuation characters
+        m = g.get_mesh('wallhole.obj')
+        assert m.faces.shape == (66, 3)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
