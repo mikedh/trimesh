@@ -58,6 +58,7 @@ def load_3MF(file_obj,
     # each instance is a single geometry
     build_items = []
 
+    consumed_names = set()
     # iterate the XML object and build elements with an LXML iterator
     # loaded elements are cleared to avoid ballooning memory
     model.seek(0)
@@ -66,8 +67,16 @@ def load_3MF(file_obj,
         if 'object' in obj.tag:
             # id is mandatory
             index = obj.attrib['id']
-            # store using passed name and fall back to just index
-            id_name[index] = obj.attrib.get('name', str(index))
+
+            # start with stored name
+            name = obj.attrib.get('name', str(index))
+            # apparently some exporters name multiple meshes
+            # the same thing so check to see if it's been used
+            if name in consumed_names:
+                name = name + str(index)
+            consumed_names.add(name)
+            # store name reference on the index
+            id_name[index] = name
 
             # if the object has actual geometry data parse here
             for mesh in obj.iter('{*}mesh'):

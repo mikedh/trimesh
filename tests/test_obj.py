@@ -208,7 +208,6 @@ class OBJTest(g.unittest.TestCase):
         v = g.get_mesh('cubevt.obj')
         assert v.faces.shape == (12, 3)
 
-
     def test_empty_or_pointcloud(self):
         # demo files to check
         empty_files = ['obj_empty.obj',
