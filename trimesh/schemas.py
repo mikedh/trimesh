@@ -19,7 +19,7 @@ def resolve(item, resolver):
     ---------------
     item : any
       JSON schema including `$ref` to other files
-    resolver : trimesh.visual.resolver.Resolver
+    resolver : trimesh.visual.Resolver
       Resolver to fetch referenced assets
 
     Returns
@@ -40,6 +40,5 @@ def resolve(item, resolver):
             resolve(item, resolver)
         else:
             # make sure all keys are evaluated
-            for i in item.values():
-                resolve(i, resolver)
+            [resolve(v, resolver) for v in item.values]
     return item
