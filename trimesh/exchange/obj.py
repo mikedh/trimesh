@@ -817,34 +817,46 @@ def export_obj(mesh,
                 row_delim='\nv ',
                 digits=digits)])
         # only include vertex normals if they're already stored
-        if include_normals and 'vertex_normals' in mesh._cache.cache:
-            # if vertex normals are stored in cache export them
-            face_type.append('vn')
-            export.append('vn ' + util.array_to_string(
-                mesh.vertex_normals,
-                col_delim=' ',
-                row_delim='\nvn ',
-                digits=digits))
+        if include_normals and mesh._cache.cache.get('vertex_normals') is not None:
+
+            try:
+                converted = util.array_to_string(
+                    mesh.vertex_normals,
+                    col_delim=' ',
+                    row_delim='\nvn ',
+                    digits=digits)
+                # if vertex normals are stored in cache export them
+                face_type.append('vn')
+                export.append('vn ' + converted)
+            except BaseException:
+                log.debug('failed to convert vertex normals',
+                          exc_info=True)
 
         if include_texture and hasattr(mesh.visual, 'uv'):
-            # if vertex texture exists and is the right shape
-            face_type.append('vt')
-            # add the uv coordinates
-            export.append('vt ' + util.array_to_string(
-                mesh.visual.uv,
-                col_delim=' ',
-                row_delim='\nvt ',
-                digits=digits))
-            material = mesh.visual.material
-            if hasattr(material, 'to_simple'):
-                material = material.to_simple()
-            (tex_data,
-             tex_name,
-             mtl_name) = material.to_obj()
-            # add the reference to the MTL file
-            objects.appendleft('mtllib {}'.format(mtl_name))
-            # add the directive to use the exported material
-            export.appendleft('usemtl {}'.format(tex_name))
+            try:
+                material = mesh.visual.material
+                if hasattr(material, 'to_simple'):
+                    material = material.to_simple()
+                (tex_data,
+                 tex_name,
+                 mtl_name) = material.to_obj()
+                converted = util.array_to_string(
+                    mesh.visual.uv,
+                    col_delim=' ',
+                    row_delim='\nvt ',
+                    digits=digits)
+                # if vertex texture exists and is the right shape
+                face_type.append('vt')
+                # add the uv coordinates
+                export.append('vt ' + converted)
+                # add the reference to the MTL file
+                objects.appendleft('mtllib {}'.format(mtl_name))
+                # add the directive to use the exported material
+                export.appendleft('usemtl {}'.format(tex_name))
+            except BaseException:
+                log.debug('failed to convert UV coordinates',
+                          exc_info=True)
+
         # the format for a single vertex reference of a face
         face_format = face_formats[tuple(face_type)]
         # add the exported faces to the export if available

@@ -1620,11 +1620,13 @@ def submesh(mesh,
     # to avoid a circular import
     trimesh_type = type_named(mesh, 'Trimesh')
     if append:
-        if all(hasattr(i, 'concatenate') for i in visuals):
+        visual = None
+        try:
             visuals = np.array(visuals)
             visual = visuals[0].concatenate(visuals[1:])
-        else:
-            visual = None
+        except BaseException:
+            pass
+        # re-index faces and stack
         vertices, faces = append_faces(vertices, faces)
         appended = trimesh_type(
             vertices=vertices,
