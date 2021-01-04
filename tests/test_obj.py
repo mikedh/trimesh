@@ -12,6 +12,9 @@ class OBJTest(g.unittest.TestCase):
         # this should test the non-vectorized load path
         m = g.get_mesh('rabbit.obj')
         assert len(m.faces) == 1252
+        rec = g.wrapload(
+            m.export(file_type='obj'), file_type='obj')
+        assert g.np.isclose(m.area, rec.area)
 
     def test_no_img(self):
         # sometimes people use the `vt` parameter for arbitrary
@@ -24,11 +27,17 @@ class OBJTest(g.unittest.TestCase):
         assert m.visual.uv.min() > -1e-5
         # check to make sure it's not all zeros
         assert m.visual.uv.ptp() > 0.5
+        rec = g.wrapload(
+            m.export(file_type='obj'), file_type='obj')
+        assert g.np.isclose(m.area, rec.area)
 
     def test_trailing(self):
         # test files with texture and trailing slashes
         m = g.get_mesh('jacked.obj')
         assert len(m.visual.uv) == len(m.vertices)
+        rec = g.wrapload(
+            m.export(file_type='obj'), file_type='obj')
+        assert g.np.isclose(m.area, rec.area)
 
     def test_obj_groups(self):
         # a wavefront file with groups defined
@@ -53,6 +62,9 @@ class OBJTest(g.unittest.TestCase):
 
         assert mesh.is_watertight
         assert mesh.is_winding_consistent
+        rec = g.wrapload(
+            mesh.export(file_type='obj'), file_type='obj')
+        assert g.np.isclose(mesh.area, rec.area)
 
     def test_obj_multiobj(self):
         # test a wavefront file with multiple objects in the same file
@@ -240,6 +252,12 @@ class OBJTest(g.unittest.TestCase):
         # an obj file with \ (backslash) line continuation characters
         m = g.get_mesh('wallhole.obj')
         assert m.faces.shape == (66, 3)
+
+    def test_no_uv(self):
+        mesh = g.get_mesh('box.obj')
+        rec = g.wrapload(
+            mesh.export(file_type='obj'), file_type='obj')
+        assert g.np.isclose(mesh.area, rec.area)
 
 
 if __name__ == '__main__':
