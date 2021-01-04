@@ -229,9 +229,9 @@ class RayTests(g.unittest.TestCase):
             """
 
             origins = g.np.array([[0.12801793, 24.5030052, -5.],
-                                      [0.12801793, 24.5030052, -5.]])
+                                  [0.12801793, 24.5030052, -5.]])
             directions = g.np.array([[-0.13590759, -0.98042506, 0.],
-                                         [0.13590759, 0.98042506, -0.]])
+                                     [0.13590759, 0.98042506, -0.]])
 
             for kwargs in [{'use_embree': True},
                            {'use_embree': False}]:

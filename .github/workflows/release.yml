@@ -54,6 +54,9 @@ jobs:
       run: |
         sudo apt-get update -qq -y
         sudo apt-get install -qq -y libgeos-dev
+        # install binvox and openctm for tests
+        sudo bash docker/builds/binvox.bash
+        sudo bash docker/builds/openctm.bash
     - name: Install Brew On Mac
       if: matrix.os == 'macos-latest'
       run: |
