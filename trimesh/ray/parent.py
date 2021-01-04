@@ -6,11 +6,17 @@ The abstract base class for RayMeshIntersector objects
 which take meshes and allow queries to be run.
 """
 import abc
+from functools import wraps
+
 from ..util import ABC
 from .util import contains_points
 
+import logging
+log = logging.getLogger('trimesh')
+
 
 class RayMeshParent(ABC):
+
     @abc.abstractmethod
     def intersects_location(self,
                             origins,
@@ -73,9 +79,8 @@ class RayMeshParent(ABC):
         """
 
     @abc.abstractmethod
-    def intersects_first(self,
-                         origins,
-                         directions):
+    def intersects_first(
+            self, origins, directions):
         """
         Find the index of the first triangle a ray hits.
 
@@ -92,13 +97,6 @@ class RayMeshParent(ABC):
         triangle_index : (n,) int
           Index of triangle ray hit, or -1 if not hit
         """
-
-        origins = np.asanyarray(deepcopy(origins))
-        directions = np.asanyarray(directions)
-
-        triangle_index = self._scene.run(origins,
-                                         directions)
-        return triangle_index
 
     @abc.abstractmethod
     def intersects_any(self,
@@ -121,11 +119,6 @@ class RayMeshParent(ABC):
           Did each ray hit the surface
         """
 
-        first = self.intersects_first(origins=origins,
-                                      directions=directions)
-        hit = first != -1
-        return hit
-
     def contains_points(self, points):
         """
         Check if a mesh contains a list of points using
@@ -143,3 +136,42 @@ class RayMeshParent(ABC):
           Whether point is inside mesh or not
         """
         return contains_points(self, points)
+
+
+def _kwarg_deprecated(function):
+    """
+    A decorator which replaces `ray_directions` with
+    `directions` until we can deprecate the arguments.
+    """
+    # use wraps to preserve docstring
+    @wraps(function)
+    def kwarg_wrap(*args, **kwargs):
+        """
+        Only execute the function if its value isn't stored
+        in cache already.
+        """
+        if 'ray_origins' in kwargs:
+            log.warning(
+                "Deprecation! The `ray_origins` kwarg for "
+                "*all ray operations* has been renamed to `origins`. "
+                "Versions of trimesh released after September 2021 "
+                "will not include this warning and calls will fail if "
+                "you don't rename your kwargs! "
+                "Called from: `{}`.".format(function.__name__))
+            kwargs['origins'] = kwargs.pop('ray_origins')
+        if 'ray_directions' in kwargs:
+            log.warning(
+                "Deprecation! The `ray_directions` kwarg for "
+                "*all ray operations* has been renamed to `directions`. "
+                "Versions of trimesh released after September 2021 "
+                "will not include this warning and will fail if "
+                "you don't rename your kwargs! "
+                "Called from `{}`.".format(function.__name__))
+            kwargs['directions'] = kwargs.pop('ray_directions')
+        # value not in cache so execute the function
+        return function(*args, **kwargs)
+
+    # all cached values are also properties
+    # so they can be accessed like value attributes
+    # rather than functions
+    return kwarg_wrap

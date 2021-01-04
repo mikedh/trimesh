@@ -12,12 +12,13 @@ from pyembree.mesh_construction import TriangleMesh
 
 from pkg_resources import parse_version
 
-from .util import contains_points
+from . import parent
 
 from .. import util
 from .. import caching
 from .. import intersections
 
+from .util import contains_points
 from ..constants import log_time
 
 # the factor of geometry.scale to offset a ray from a triangle
