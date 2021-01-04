@@ -41,6 +41,8 @@ jobs:
           # Shapely as far as I can tell has no Windows/2.7 wheels
           - os: windows-latest
             python-version: 2.7
+          - os: macos-latest
+            python-version: 3.9
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -65,7 +67,7 @@ jobs:
       run: pip install .[easy]
     - name: Run Pytest
       run: pytest --cov=trimesh tests/
-    - name: Save Coverage Report
+    - name: Coverage Report
       if: matrix.os == 'ubuntu-latest'
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
