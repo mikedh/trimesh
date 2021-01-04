@@ -12,7 +12,7 @@ from pyembree.mesh_construction import TriangleMesh
 
 from pkg_resources import parse_version
 
-from .ray_util import contains_points
+from .util import contains_points
 
 from .. import util
 from .. import caching
@@ -22,9 +22,9 @@ from ..constants import log_time
 
 # the factor of geometry.scale to offset a ray from a triangle
 # to reliably not hit its origin triangle
-_ray_offset_factor = 1e-4
+_offset_factor = 1e-4
 # we want to clip our offset to a sane distance
-_ray_offset_floor = 1e-8
+_offset_floor = 1e-8
 
 # see if we're using a newer version of the pyembree wrapper
 _embree_new = parse_version(_ver) >= parse_version('0.1.4')
@@ -32,7 +32,7 @@ _embree_new = parse_version(_ver) >= parse_version('0.1.4')
 _embree_dtype = [np.float64, np.float32][int(_embree_new)]
 
 
-class RayMeshIntersector(object):
+class RayMeshIntersector(parent.RayMeshParent):
 
     def __init__(self,
                  geometry,
@@ -76,33 +76,15 @@ class RayMeshIntersector(object):
                            scale=self._scale)
 
     def intersects_location(self,
-                            ray_origins,
-                            ray_directions,
+                            origins,
+                            directions,
                             multiple_hits=True):
-        """
-        Return the location of where a ray hits a surface.
-
-        Parameters
-        ----------
-        ray_origins : (n, 3) float
-          Origins of rays
-        ray_directions : (n, 3) float
-          Direction (vector) of rays
-
-        Returns
-        ---------
-        locations : (m) sequence of (p, 3) float
-          Intersection points
-        index_ray : (m,) int
-          Indexes of ray
-        index_tri : (m,) int
-          Indexes of mesh.faces
-        """
+        # inherits docstring from parent
         (index_tri,
          index_ray,
          locations) = self.intersects_id(
-             ray_origins=ray_origins,
-             ray_directions=ray_directions,
+             origins=origins,
+             directions=directions,
              multiple_hits=multiple_hits,
              return_locations=True)
 
@@ -110,62 +92,34 @@ class RayMeshIntersector(object):
 
     @log_time
     def intersects_id(self,
-                      ray_origins,
-                      ray_directions,
+                      origins,
+                      directions,
                       multiple_hits=True,
                       max_hits=20,
                       return_locations=False):
-        """
-        Find the triangles hit by a list of rays, including
-        optionally multiple hits along a single ray.
-
-
-        Parameters
-        ----------
-        ray_origins : (n, 3) float
-          Origins of rays
-        ray_directions : (n, 3) float
-          Direction (vector) of rays
-        multiple_hits : bool
-          If True will return every hit along the ray
-          If False will only return first hit
-        max_hits : int
-          Maximum number of hits per ray
-        return_locations : bool
-          Should we return hit locations or not
-
-        Returns
-        ---------
-        index_tri : (m,) int
-          Indexes of mesh.faces
-        index_ray : (m,) int
-          Indexes of ray
-        locations : (m) sequence of (p, 3) float
-          Intersection points, only returned if return_locations
-        """
-        # make sure input is _dtype for embree
-        ray_origins = np.asanyarray(
-            deepcopy(ray_origins),
+        # inherits docstring from parent
+        origins = np.asanyarray(
+            deepcopy(origins),
             dtype=np.float64)
-        ray_directions = np.asanyarray(ray_directions,
-                                       dtype=np.float64)
-        ray_directions = util.unitize(ray_directions)
+        directions = np.asanyarray(directions,
+                                   dtype=np.float64)
+        directions = util.unitize(directions)
 
-        # since we are constructing all hits, save them to a deque then
-        # stack into (depth, len(rays)) at the end
+        # since we are constructing all hits save them to a
+        # deque then stack into (depth, len(rays)) at the end
         result_triangle = []
-        result_ray_idx = []
+        result_idx = []
         result_locations = []
 
         # the mask for which rays are still active
-        current = np.ones(len(ray_origins), dtype=np.bool)
+        current = np.ones(len(origins), dtype=np.bool)
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of face
-            distance = np.clip(_ray_offset_factor * self._scale,
-                               _ray_offset_floor,
+            distance = np.clip(_offset_factor * self._scale,
+                               _offset_floor,
                                np.inf)
-            ray_offsets = ray_directions * distance
+            offsets = directions * distance
 
             # grab the planes from triangles
             plane_origins = self.mesh.triangles[:, 0, :]
@@ -179,8 +133,8 @@ class RayMeshIntersector(object):
             # if you set output=1 it will calculate distance along
             # ray, which is bizzarely slower than our calculation
             query = self._scene.run(
-                ray_origins[current],
-                ray_directions[current])
+                origins[current],
+                directions[current])
 
             # basically we need to reduce the rays to the ones that hit
             # something
@@ -196,7 +150,7 @@ class RayMeshIntersector(object):
 
             # append the triangle and ray index to the results
             result_triangle.append(hit_triangle)
-            result_ray_idx.append(current_index_hit)
+            result_idx.append(current_index_hit)
 
             # if we don't need all of the hits, return the first one
             if ((not multiple_hits and
@@ -208,15 +162,15 @@ class RayMeshIntersector(object):
             new_origins, valid = intersections.planes_lines(
                 plane_origins=plane_origins[hit_triangle],
                 plane_normals=plane_normals[hit_triangle],
-                line_origins=ray_origins[current],
-                line_directions=ray_directions[current])
+                line_origins=origins[current],
+                line_directions=directions[current])
 
             if not valid.all():
                 # since a plane intersection was invalid we have to go back and
                 # fix some stuff, we pop the ray index and triangle index,
                 # apply the valid mask then append it right back to keep our
                 # indexes intact
-                result_ray_idx.append(result_ray_idx.pop()[valid])
+                result_idx.append(result_idx.pop()[valid])
                 result_triangle.append(result_triangle.pop()[valid])
 
                 # update the current rays to reflect that we couldn't find a
@@ -229,13 +183,13 @@ class RayMeshIntersector(object):
 
             if multiple_hits:
                 # move the ray origin to the other side of the triangle
-                ray_origins[current] = new_origins + ray_offsets[current]
+                origins[current] = new_origins + offsets[current]
             else:
                 break
 
         # stack the deques into nice 1D numpy arrays
         index_tri = np.hstack(result_triangle)
-        index_ray = np.hstack(result_ray_idx)
+        index_ray = np.hstack(result_idx)
 
         if return_locations:
             locations = (
@@ -247,17 +201,17 @@ class RayMeshIntersector(object):
 
     @log_time
     def intersects_first(self,
-                         ray_origins,
-                         ray_directions):
+                         origins,
+                         directions):
         """
         Find the index of the first triangle a ray hits.
 
 
         Parameters
         ----------
-        ray_origins : (n, 3) float
+        origins : (n, 3) float
           Origins of rays
-        ray_directions : (n, 3) float
+        directions : (n, 3) float
           Direction (vector) of rays
 
         Returns
@@ -266,25 +220,25 @@ class RayMeshIntersector(object):
           Index of triangle ray hit, or -1 if not hit
         """
 
-        ray_origins = np.asanyarray(deepcopy(ray_origins))
-        ray_directions = np.asanyarray(ray_directions)
+        origins = np.asanyarray(deepcopy(origins))
+        directions = np.asanyarray(directions)
 
-        triangle_index = self._scene.run(ray_origins,
-                                         ray_directions)
+        triangle_index = self._scene.run(origins,
+                                         directions)
         return triangle_index
 
     def intersects_any(self,
-                       ray_origins,
-                       ray_directions):
+                       origins,
+                       directions):
         """
         Check if a list of rays hits the surface.
 
 
         Parameters
         -----------
-        ray_origins : (n, 3) float
+        origins : (n, 3) float
           Origins of rays
-        ray_directions : (n, 3) float
+        directions : (n, 3) float
           Direction (vector) of rays
 
         Returns
@@ -293,8 +247,8 @@ class RayMeshIntersector(object):
           Did each ray hit the surface
         """
 
-        first = self.intersects_first(ray_origins=ray_origins,
-                                      ray_directions=ray_directions)
+        first = self.intersects_first(origins=origins,
+                                      directions=directions)
         hit = first != -1
         return hit
 

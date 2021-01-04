@@ -16,8 +16,9 @@ RUN bash /tmp/apt.bash
 COPY docker/builds/draco.bash /tmp/
 RUN bash /tmp/draco.bash
 
-COPY docker/builds/embree.bash /tmp/
-RUN bash /tmp/embree.bash
+# Install bindings to embree3
+COPY docker/builds/embree3.bash /tmp/
+RUN bash /tmp/embree3.bash
 
 # XVFB runs in the background if you start supervisor.
 COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/

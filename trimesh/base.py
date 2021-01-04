@@ -149,14 +149,12 @@ class Trimesh(Geometry3D):
         # embree is a much, much faster raytracer written by Intel
         # if you have pyembree installed you should use it
         # although both raytracers were designed to have a common API
-        if ray.has_embree and use_embree:
-            self.ray = ray.ray_pyembree.RayMeshIntersector(self)
+        if use_embree:
+            # engines is a sorted list of available ray backends
+            self.ray = ray.engines[0](self)
         else:
-            # create a ray-mesh query object for the current mesh
-            # initializing is very inexpensive and object is convenient to have.
-            # On first query expensive bookkeeping is done (creation of r-tree),
-            # and is cached for subsequent queries
-            self.ray = ray.ray_triangle.RayMeshIntersector(self)
+            # the vanilla ray tracer is the last engine
+            self.ray = ray.engines[-1](self)
 
         # a quick way to get permuted versions of the current mesh
         self.permutate = permutate.Permutator(self)

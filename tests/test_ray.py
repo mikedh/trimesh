@@ -33,18 +33,18 @@ class RayTests(g.unittest.TestCase):
             sphere = g.get_mesh('unit_sphere.STL',
                                 use_embree=use_embree)
 
-            ray_origins = g.np.random.random(dimension)
-            ray_directions = g.np.tile([0, 0, 1], (dimension[0], 1))
-            ray_origins[:, 2] = -5
+            origins = g.np.random.random(dimension)
+            directions = g.np.tile([0, 0, 1], (dimension[0], 1))
+            origins[:, 2] = -5
 
             # force ray object to allocate tree before timing it
             # tree = sphere.ray.tree
             tic = [g.time.time()]
             a = sphere.ray.intersects_id(
-                ray_origins, ray_directions)
+                origins, directions)
             tic.append(g.time.time())
             b = sphere.ray.intersects_location(
-                ray_origins, ray_directions)
+                origins, directions)
             tic.append(g.time.time())
 
             # make sure ray functions always return numpy arrays
@@ -66,19 +66,19 @@ class RayTests(g.unittest.TestCase):
             sphere = g.get_mesh('unit_sphere.STL',
                                 use_embree=use_embree)
             # should never hit the sphere
-            ray_origins = g.np.random.random(dimension)
-            ray_directions = g.np.tile([0, 1, 0], (dimension[0], 1))
-            ray_origins[:, 2] = -5
+            origins = g.np.random.random(dimension)
+            directions = g.np.tile([0, 1, 0], (dimension[0], 1))
+            origins[:, 2] = -5
 
             # make sure ray functions always return numpy arrays
             # these functions return multiple results all of which
             # should always be a numpy array
             assert all(len(i.shape) >= 0 for i in
                        sphere.ray.intersects_id(
-                           ray_origins, ray_directions))
+                           origins, directions))
             assert all(len(i.shape) >= 0 for i in
                        sphere.ray.intersects_location(
-                           ray_origins, ray_directions))
+                           origins, directions))
 
     def test_contains(self):
         scale = 1.5
@@ -109,13 +109,13 @@ class RayTests(g.unittest.TestCase):
             origins = g.np.zeros_like(m.vertices)
             vectors = m.vertices.copy()
 
-            assert m.ray.intersects_any(ray_origins=origins,
-                                        ray_directions=vectors).all()
+            assert m.ray.intersects_any(origins=origins,
+                                        directions=vectors).all()
 
             (locations,
              index_ray,
-             index_tri) = m.ray.intersects_location(ray_origins=origins,
-                                                    ray_directions=vectors)
+             index_tri) = m.ray.intersects_location(origins=origins,
+                                                    directions=vectors)
 
             hit_count = g.np.bincount(index_ray,
                                       minlength=len(origins))
@@ -128,7 +128,7 @@ class RayTests(g.unittest.TestCase):
 
             points = [[4.5, 0, -23], [4.5, 0, -2], [0, 0, -1e-6], [0, 0, -1]]
             truth = [False, True, True, True]
-            result = g.trimesh.ray.ray_util.contains_points(m.ray, points)
+            result = g.trimesh.ray.util.contains_points(m.ray, points)
 
             assert (result == truth).all()
 
@@ -141,18 +141,18 @@ class RayTests(g.unittest.TestCase):
 
         # Set up a list of ray directions - one for each pixel in our (256,
         # 256) output image.
-        ray_directions = g.trimesh.util.grid_arange(
+        directions = g.trimesh.util.grid_arange(
             [[-h / 2, -w / 2],
              [h / 2, w / 2]],
             step=2.0)
-        ray_directions = g.np.column_stack(
-            (ray_directions,
-             g.np.ones(len(ray_directions)) * f[0]))
+        directions = g.np.column_stack(
+            (directions,
+             g.np.ones(len(directions)) * f[0]))
 
         # Initialize the camera origin to be somewhere behind the cube.
         cam_t = g.np.array([0, 0, -15.])
         # Duplicate to ensure we have an camera_origin per ray direction
-        ray_origins = g.np.tile(cam_t, (ray_directions.shape[0], 1))
+        origins = g.np.tile(cam_t, (directions.shape[0], 1))
 
         for use_embree in [True, False]:
             # Generate a 1 x 1 x 1 cube using the trimesh box primitive
@@ -162,14 +162,14 @@ class RayTests(g.unittest.TestCase):
             # Perform 256 * 256 raycasts, one for each pixel on the image
             # plane. We only want the 'first' hit.
             index_triangles, index_ray = cube_mesh.ray.intersects_id(
-                ray_origins=ray_origins,
-                ray_directions=ray_directions,
+                origins=origins,
+                directions=directions,
                 multiple_hits=False)
             assert len(g.np.unique(index_triangles)) == 2
 
             index_triangles, index_ray = cube_mesh.ray.intersects_id(
-                ray_origins=ray_origins,
-                ray_directions=ray_directions,
+                origins=origins,
+                directions=directions,
                 multiple_hits=True)
             assert len(g.np.unique(index_triangles)) > 2
 
@@ -213,8 +213,8 @@ class RayTests(g.unittest.TestCase):
             # (n,) int, index of original ray
             # (m,) int, index of mesh.faces
             pos, ray, tri = mesh.ray.intersects_location(
-                ray_origins=origins,
-                ray_directions=vectors)
+                origins=origins,
+                directions=vectors)
 
             for p, r in zip(pos, ray):
                 # intersect location XY should match ray origin XY
@@ -228,9 +228,9 @@ class RayTests(g.unittest.TestCase):
             Test a mesh with badly defined face normals
             """
 
-            ray_origins = g.np.array([[0.12801793, 24.5030052, -5.],
+            origins = g.np.array([[0.12801793, 24.5030052, -5.],
                                       [0.12801793, 24.5030052, -5.]])
-            ray_directions = g.np.array([[-0.13590759, -0.98042506, 0.],
+            directions = g.np.array([[-0.13590759, -0.98042506, 0.],
                                          [0.13590759, 0.98042506, -0.]])
 
             for kwargs in [{'use_embree': True},
@@ -238,10 +238,10 @@ class RayTests(g.unittest.TestCase):
                 mesh = g.get_mesh('broken.STL', **kwargs)
 
                 locations, index_ray, index_tri = mesh.ray.intersects_location(
-                    ray_origins=ray_origins, ray_directions=ray_directions)
+                    origins=origins, directions=directions)
 
                 # should be same number of location hits
-                assert len(locations) == len(ray_origins)
+                assert len(locations) == len(origins)
 
 
 if __name__ == '__main__':
