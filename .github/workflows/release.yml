@@ -66,6 +66,7 @@ jobs:
     - name: Run Pytest
       run: pytest --cov=trimesh tests/
     - name: Save Coverage Report
+      if: matrix.os == 'ubuntu-latest'
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: bash <(curl -s https://codecov.io/bash)
