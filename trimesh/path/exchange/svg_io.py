@@ -254,8 +254,8 @@ def _svg_path_convert(paths, metadata=None, force=None):
         path_string = attrib['d']
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
-        # check to see if each entity is a Line
-        is_line = np.array([type(i).__name__ == 'Line'
+        # check to see if each entity is "line-like"
+        is_line = np.array([type(i).__name__ in ('Line', 'Close')
                             for i in raw])
         # find groups of consecutive lines so we can combine them
         blocks = grouping.blocks(
@@ -268,7 +268,7 @@ def _svg_path_convert(paths, metadata=None, force=None):
         # Combine consecutive lines into a single MultiLine
         parsed = []
         for b in blocks:
-            if type(raw[b[0]]).__name__ == 'Line':
+            if type(raw[b[0]]).__name__ in ('Line', 'Close'):
                 # if entity consists of lines add a multiline
                 parsed.append(MultiLine(raw[b]))
             else:
