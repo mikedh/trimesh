@@ -230,7 +230,7 @@ def _svg_path_convert(paths, metadata=None, force=None):
         def __init__(self, lines):
             if tol.strict:
                 # in unit tests make sure we only have lines
-                assert all(type(L).__name__ == 'Line'
+                assert all(type(L).__name__ in ('Line', 'Close')
                            for L in lines)
             # get the starting point of every line
             points = [L.start for L in lines]
