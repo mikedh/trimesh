@@ -81,11 +81,11 @@ def subdivide(vertices,
         new_attributes = {}
         for key, values in vertex_attributes.items():
             attr_tris = values[faces_subset]
-            attr_mid = np.vstack([
+            attr_mid = np.hstack([
                 attr_tris[:, g, :].mean(axis=1)
                 for g in [[0, 1],
                           [1, 2],
-                          [2, 0]]])
+                          [2, 0]]]).reshape(-1, 4)
             attr_mid = attr_mid[unique]
             new_attributes[key] = np.vstack((
                 values, attr_mid))
