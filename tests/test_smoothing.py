@@ -17,6 +17,8 @@ class SmoothTest(g.unittest.TestCase):
         q = m.copy()
         f = m.copy()
         d = m.copy()
+        b = m.copy()
+        v = m.copy()
 
         assert m.is_volume
 
@@ -28,21 +30,29 @@ class SmoothTest(g.unittest.TestCase):
         g.trimesh.smoothing.filter_laplacian(q, 0.5, 10, True, True, lap)
         g.trimesh.smoothing.filter_humphrey(f, 0.1, 0.5, 10, lap)
         g.trimesh.smoothing.filter_taubin(d, 0.5, 0.53, 10, lap)
+        g.trimesh.smoothing.filter_mut_dif_laplacian(b, 0.5, 10, False, lap)
+        g.trimesh.smoothing.filter_mut_dif_laplacian(v, 0.5, 10, True, lap)
 
         assert s.is_volume
         assert q.is_volume
         assert f.is_volume
         assert d.is_volume
+        assert b.is_volume
+        assert v.is_volume
 
         assert g.np.isclose(s.volume, m.volume, rtol=0.1)
         assert g.np.isclose(q.volume, m.volume, rtol=0.1)
         assert g.np.isclose(f.volume, m.volume, rtol=0.1)
         assert g.np.isclose(d.volume, m.volume, rtol=0.1)
+        assert g.np.isclose(b.volume, m.volume, rtol=0.1)
+        assert g.np.isclose(v.volume, m.volume, rtol=0.1)
 
         s = m.copy()
         q = m.copy()
         f = m.copy()
         d = m.copy()
+        b = m.copy()
+        v = m.copy()
 
         # umbrella Weights
         lap = g.trimesh.smoothing.laplacian_calculation(m, equal_weight=False)
@@ -51,16 +61,22 @@ class SmoothTest(g.unittest.TestCase):
         g.trimesh.smoothing.filter_laplacian(q, 0.5, 10, True, True, lap)
         g.trimesh.smoothing.filter_humphrey(f, 0.1, 0.5, 10, lap)
         g.trimesh.smoothing.filter_taubin(d, 0.5, 0.53, 10, lap)
+        g.trimesh.smoothing.filter_mut_dif_laplacian(b, 0.5, 10, False, lap)
+        g.trimesh.smoothing.filter_mut_dif_laplacian(v, 0.5, 10, True, lap)
 
         assert s.is_volume
         assert q.is_volume
         assert f.is_volume
         assert d.is_volume
+        assert b.is_volume
+        assert v.is_volume
 
         assert g.np.isclose(s.volume, m.volume, rtol=0.1)
         assert g.np.isclose(q.volume, m.volume, rtol=0.1)
         assert g.np.isclose(f.volume, m.volume, rtol=0.1)
         assert g.np.isclose(d.volume, m.volume, rtol=0.1)
+        assert g.np.isclose(b.volume, m.volume, rtol=0.1)
+        assert g.np.isclose(v.volume, m.volume, rtol=0.1)
 
 
 if __name__ == '__main__':
