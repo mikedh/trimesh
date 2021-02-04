@@ -119,13 +119,11 @@ def identifier_simple(mesh):
     # this doesn't work well on meshes with a small number of faces
     # TODO : compare with "cross product of 2 orthogonal metrics"
     # for a more principled way to detect mirrored meshes
-    if len(mesh.faces) > 100:
+    if len(mesh.faces) > 50:
         count = face_ordering(mesh).sum()
         sign = float(count) / len(mesh.faces)
-        if abs(count) > 10 and abs(sign) > 0.1:
+        if abs(count) > 10 and abs(sign) > 0.02:
             identifier[6] = sign
-            print(sign, count)
-
     return identifier
 
 
