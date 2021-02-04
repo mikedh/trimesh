@@ -21,8 +21,6 @@ class IdentifierTest(g.unittest.TestCase):
             idf = g.deque()
             for i in range(count):
                 permutated = mesh.permutate.transform()
-                permutated = permutated.permutate.tessellation()
-
                 md5.append(permutated.identifier_md5)
                 idf.append(permutated.identifier)
 
@@ -34,7 +32,6 @@ class IdentifierTest(g.unittest.TestCase):
                 for a in idf:
                     as_int, exp = g.trimesh.util.sigfig_int(
                         a, g.trimesh.comparison.id_sigfig)
-
                     debug.append(as_int * (10**exp))
                 g.log.error('Hashes on %s differ after transform! diffs:\n %s\n',
                             mesh.metadata['file_name'],
