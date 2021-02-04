@@ -1703,16 +1703,17 @@ def jsonify(obj, **kwargs):
     dumped : str
       JSON dump of obj
     """
-    class NumpyEncoder(json.JSONEncoder):
+    class EdgeEncoder(json.JSONEncoder):
         def default(self, obj):
             # will work for numpy.ndarrays
             # as well as their int64/etc objects
             if hasattr(obj, 'tolist'):
                 return obj.tolist()
+            elif hasattr(obj, 'timestamp'):
+                return obj.timestamp()
             return json.JSONEncoder.default(self, obj)
     # run the dumps using our encoder
-    dumped = json.dumps(obj, cls=NumpyEncoder, **kwargs)
-    return dumped
+    return json.dumps(obj, cls=EdgeEncoder, **kwargs)
 
 
 def convert_like(item, like):
