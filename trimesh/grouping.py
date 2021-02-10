@@ -729,9 +729,8 @@ def blocks(data,
 
     # find the inflection points
     # AKA locations where the array goes from True to False.
-    infl = np.concatenate(([0],
-                           np.nonzero(np.diff(data))[0] + 1,
-                           [len(data)]))
+    infl = np.concatenate((
+        [0], np.nonzero(np.diff(data))[0] + 1, [len(data)]))
     infl_len = np.diff(infl)
     # check the length of each group
     infl_ok = np.logical_and(infl_len >= min_len,

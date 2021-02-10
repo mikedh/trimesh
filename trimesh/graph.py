@@ -448,9 +448,9 @@ def connected_components(edges,
         try:
             return function()
         # will be raised if the library didn't import correctly above
-        except NameError:
+        except BaseException:
             continue
-    raise ImportError('No connected component engines available!')
+    raise ImportError('no graph engines available!')
 
 
 def connected_component_labels(edges, node_count=None):
