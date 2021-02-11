@@ -85,7 +85,7 @@ class RleTest(g.unittest.TestCase):
 
     def test_brle_encode_decode(self):
         small = np.array(
-            [False] * 500 + [True] * 1000 + [False], dtype=np.bool)
+            [False] * 500 + [True] * 1000 + [False], dtype=bool)
         rand = np.random.uniform(size=(10000,)) > 0.05
         for original in [small, rand]:
             for dtype in [np.uint8, np.int64]:

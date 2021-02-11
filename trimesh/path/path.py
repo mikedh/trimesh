@@ -589,7 +589,7 @@ class Path(parent.Geometry):
             self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
 
-        entities_ok = np.ones(len(self.entities), dtype=np.bool)
+        entities_ok = np.ones(len(self.entities), dtype=bool)
 
         for index, entity in enumerate(self.entities):
             # what kind of entity are we dealing with
@@ -661,7 +661,7 @@ class Path(parent.Geometry):
         self.entities: shortened
         """
         valid = np.array([i.is_valid for i in self.entities],
-                         dtype=np.bool)
+                         dtype=bool)
         self.entities = self.entities[valid]
 
     def remove_duplicate_entities(self):
@@ -1457,7 +1457,7 @@ class Path2D(Path):
                          which are valid polygons
         """
         valid = [i is not None for i in self.polygons_closed]
-        valid = np.array(valid, dtype=np.bool)
+        valid = np.array(valid, dtype=bool)
         return valid
 
     @caching.cache_decorator

@@ -31,7 +31,7 @@ def contains_points(intersector,
         raise ValueError('points must be (n,3)')
 
     # placeholder result with no hits we'll fill in later
-    contains = np.zeros(len(points), dtype=np.bool)
+    contains = np.zeros(len(points), dtype=bool)
 
     # cull points outside of the axis aligned bounding box
     # this avoids running ray tests unless points are close

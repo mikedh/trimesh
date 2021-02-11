@@ -72,7 +72,7 @@ class VoxelGridTest(g.unittest.TestCase):
             return
 
         # make sure offset is correct
-        matrix = g.np.ones((3, 3, 3), dtype=g.np.bool)
+        matrix = g.np.ones((3, 3, 3), dtype=bool)
         mesh = ops.matrix_to_marching_cubes(matrix=matrix)
         assert mesh.is_watertight
 
@@ -171,7 +171,7 @@ class VoxelGridTest(g.unittest.TestCase):
         pitch = 0.1
         origin = (0, 0, 1)
 
-        matrix = g.np.eye(9, dtype=g.np.bool).reshape((-1, 3, 3))
+        matrix = g.np.eye(9, dtype=bool).reshape((-1, 3, 3))
         centers = ops.matrix_to_points(
             matrix=matrix, pitch=pitch, origin=origin)
         v = voxel.VoxelGrid(matrix).apply_scale(

@@ -35,7 +35,7 @@ class IdentifierTest(g.unittest.TestCase):
                     debug.append(as_int * (10**exp))
                 g.log.error('Hashes on %s differ after transform! diffs:\n %s\n',
                             mesh.metadata['file_name'],
-                            str(g.np.array(debug, dtype=g.np.int)))
+                            str(g.np.array(debug, dtype=g.np.int64)))
 
                 raise ValueError('values differ after transform!')
 

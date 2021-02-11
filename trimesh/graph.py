@@ -287,7 +287,7 @@ def facets(mesh, engine=None):
     # a common failure mode is two faces that are very narrow with a slight
     # angle between them, so here we divide by the perpendicular span
     # to penalize very narrow faces, and then square it just for fun
-    parallel = np.ones(len(radii), dtype=np.bool)
+    parallel = np.ones(len(radii), dtype=bool)
     # if span is zero we know faces are small/parallel
     nonzero = np.abs(span) > tol.zero
     # faces with a radii/span ratio larger than a threshold pass
@@ -393,7 +393,7 @@ def connected_components(edges,
 
         # we have to remove results that contain nodes outside
         # of the specified node set and reindex
-        contained = np.zeros(node_count, dtype=np.bool)
+        contained = np.zeros(node_count, dtype=bool)
         contained[nodes] = True
         index = np.arange(node_count, dtype=np.int64)[contained]
         components = grouping.group(labels[contained], min_len=min_len)
@@ -428,7 +428,7 @@ def connected_components(edges,
     node_count = np.max(counts) + 1
 
     # remove edges that don't have both nodes in the node set
-    mask = np.zeros(node_count, dtype=np.bool)
+    mask = np.zeros(node_count, dtype=bool)
     mask[nodes] = True
     edges_ok = mask[edges].all(axis=1)
     edges = edges[edges_ok]
@@ -707,7 +707,7 @@ def edges_to_coo(edges, count=None, data=None):
     # if no data is specified set every specified edge
     # to True
     if data is None:
-        data = np.ones(len(edges), dtype=np.bool)
+        data = np.ones(len(edges), dtype=bool)
 
     matrix = coo_matrix((data, edges.T),
                         dtype=data.dtype,
@@ -800,7 +800,7 @@ def smoothed(mesh, angle=None, facet_minarea=15):
                 # mask for removing adjacency pairs where
                 # one of the faces is contained in a facet
                 mask = np.ones(len(mesh.faces),
-                               dtype=np.bool)
+                               dtype=bool)
                 mask[np.hstack(facets)] = False
                 # apply the mask to adjacency
                 adjacency = adjacency[

@@ -457,7 +457,7 @@ def max_tangent_sphere(mesh,
     # Find initial tangent spheres
     distances = longest_ray(mesh, points, normals)
     radii = distances * 0.5
-    not_converged = np.ones(len(points), dtype=np.bool)  # boolean mask
+    not_converged = np.ones(len(points), dtype=bool)  # boolean mask
 
     # If ray is infinite, find the vertex which is furthest from our point
     # when projected onto the ray. I.e. find v which maximises

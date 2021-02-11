@@ -444,7 +444,7 @@ def index_sparse(columns, indices, data=None):
 
     shape = (columns, len(indices))
     if data is None:
-        data = np.ones(len(col), dtype=np.bool)
+        data = np.ones(len(col), dtype=bool)
 
     # assemble into sparse matrix
     matrix = scipy.sparse.coo_matrix((data, (row, col)),

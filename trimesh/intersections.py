@@ -90,7 +90,7 @@ def mesh_plane(mesh,
         # of both on- edge cases ([6,16])
         # this is so that for regions that are co-planar with the the section plane
         # we don't end up with an invalid boundary
-        key = np.zeros(29, dtype=np.bool)
+        key = np.zeros(29, dtype=bool)
         key[16] = True
         one_edge = key[coded]
 

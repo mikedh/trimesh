@@ -641,10 +641,6 @@ def load_element_different(properties, data):
             # start next property at the end of this one
             start = end
 
-    # convert all property lists to numpy arrays
-    for name in element_data.keys():
-        element_data[name] = np.array(element_data[name]).squeeze()
-
     return element_data
 
 

@@ -73,7 +73,7 @@ class PlyTest(g.unittest.TestCase):
         assert g.np.array_equal(
             point_list['point_indices2'][1], g.np.array([12, 13, 14], dtype=g.np.uint32))
         assert g.np.array_equal(
-            point_list['some_float'], g.np.array([1.1, 2.2], dtype=g.np.float32))
+            point_list['some_float'], g.np.array([[1.1], [2.2]], dtype=g.np.float32))
 
     def test_vertex_attributes(self):
         """

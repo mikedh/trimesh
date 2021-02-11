@@ -610,10 +610,10 @@ def export_dxf(path, layers=None):
         three = util.stack_3D(points)
         if increment:
             group = np.tile(
-                np.arange(len(three), dtype=np.int).reshape((-1, 1)),
+                np.arange(len(three), dtype=np.int64).reshape((-1, 1)),
                 (1, 3))
         else:
-            group = np.zeros((len(three), 3), dtype=np.int)
+            group = np.zeros((len(three), 3), dtype=np.int64)
         group += [10, 20, 30]
 
         if as_2D:

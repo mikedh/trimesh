@@ -91,7 +91,7 @@ class UtilTests(unittest.TestCase):
             """
             faces = g.collections.deque()
             for s in strips:
-                s = g.np.asanyarray(s, dtype=g.np.int)
+                s = g.np.asanyarray(s, dtype=g.np.int64)
                 # each triangle is defined by one new vertex
                 tri = g.np.column_stack([g.np.roll(s, -i)
                                          for i in range(3)])[:-2]
@@ -344,7 +344,7 @@ class ArrayToString(unittest.TestCase):
     def test_converts_an_unstructured_float_array(self):
         self.assertEqual(
             g.trimesh.util.array_to_string(
-                np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float)
+                np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float64)
             ),
             '1.00000000 2.00000000 3.00000000\n4.00000000 5.00000000 6.00000000'
         )
@@ -366,7 +366,7 @@ class ArrayToString(unittest.TestCase):
     def test_uses_the_specified_value_format(self):
         self.assertEqual(
             g.trimesh.util.array_to_string(
-                np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float),
+                np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float64),
                 value_format='{:.1f}'),
             '1.0 2.0 3.0\n4.0 5.0 6.0'
         )
@@ -389,7 +389,7 @@ class ArrayToString(unittest.TestCase):
         with self.assertRaises(ValueError):
             g.trimesh.util.array_to_string(np.array(
                 [(1, 1.1), (2, 2.2)],
-                dtype=[('some_int', np.int), ('some_float', np.float)]
+                dtype=[('some_int', np.int64), ('some_float', np.float64)]
             ))
 
     def test_raises_if_array_is_not_flat(self):
@@ -404,7 +404,7 @@ class StructuredArrayToString(unittest.TestCase):
             g.trimesh.util.structured_array_to_string(
                 np.array(
                     [(1, 1.1), (2, 2.2)],
-                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                    dtype=[('some_int', np.int64), ('some_float', np.float64)]
                 )
             ),
             '1 1.10000000\n2 2.20000000'
@@ -415,7 +415,7 @@ class StructuredArrayToString(unittest.TestCase):
             g.trimesh.util.structured_array_to_string(
                 np.array(
                     [([1, 2], 1.1), ([3, 4], 2.2)],
-                    dtype=[('some_int', np.int, 2), ('some_float', np.float)]
+                    dtype=[('some_int', np.int, 2), ('some_float', np.float64)]
                 )
             ),
             '1 2 1.10000000\n3 4 2.20000000'
@@ -426,7 +426,7 @@ class StructuredArrayToString(unittest.TestCase):
             g.trimesh.util.structured_array_to_string(
                 np.array(
                     [(1, 1.1), (2, 2.2)],
-                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                    dtype=[('some_int', np.int64), ('some_float', np.float64)]
                 ),
                 col_delim='col'
             ),
@@ -438,7 +438,7 @@ class StructuredArrayToString(unittest.TestCase):
             g.trimesh.util.structured_array_to_string(
                 np.array(
                     [(1, 1.1), (2, 2.2)],
-                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                    dtype=[('some_int', np.int64), ('some_float', np.float64)]
                 ),
                 row_delim='row'
             ),
@@ -450,7 +450,7 @@ class StructuredArrayToString(unittest.TestCase):
             g.trimesh.util.structured_array_to_string(
                 np.array(
                     [(1, 1.1), (2, 2.2)],
-                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                    dtype=[('some_int', np.int64), ('some_float', np.float64)]
                 ),
                 value_format='{:.1f}'
             ),
@@ -462,7 +462,7 @@ class StructuredArrayToString(unittest.TestCase):
             g.trimesh.util.structured_array_to_string(
                 np.array(
                     [(1, 1.1), (2, 2.2)],
-                    dtype=[('some_int', np.uint8), ('some_float', np.float)]
+                    dtype=[('some_int', np.uint8), ('some_float', np.float64)]
                 )
             ),
             '1 1.10000000\n2 2.20000000'
@@ -477,7 +477,7 @@ class StructuredArrayToString(unittest.TestCase):
             g.trimesh.util.structured_array_to_string(
                 np.array(
                     [(1, 1.1), (2, 2.2)],
-                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                    dtype=[('some_int', np.int64), ('some_float', np.float64)]
                 ),
                 value_format='{} {}'
             )
@@ -487,7 +487,7 @@ class StructuredArrayToString(unittest.TestCase):
             g.trimesh.util.structured_array_to_string(
                 np.array(
                     [[(1, 1.1), (2, 2.2)], [(1, 1.1), (2, 2.2)]],
-                    dtype=[('some_int', np.int), ('some_float', np.float)]
+                    dtype=[('some_int', np.int64), ('some_float', np.float64)]
                 )
             )
 
