@@ -640,8 +640,10 @@ def load_element_different(properties, data):
             element_data[name].append(row[start:end].astype(dt))
             # start next property at the end of this one
             start = end
-
-    return element_data
+    # try converting to numpy arrays
+    squeeze = {k: np.array(v, dtype='object') for k, v in
+               element_data.items()}
+    return squeeze
 
 
 def load_element_single(properties, data):
