@@ -415,7 +415,7 @@ class StructuredArrayToString(unittest.TestCase):
             g.trimesh.util.structured_array_to_string(
                 np.array(
                     [([1, 2], 1.1), ([3, 4], 2.2)],
-                    dtype=[('some_int', np.int, 2), ('some_float', np.float64)]
+                    dtype=[('some_int', np.int64, 2), ('some_float', np.float64)]
                 )
             ),
             '1 2 1.10000000\n3 4 2.20000000'

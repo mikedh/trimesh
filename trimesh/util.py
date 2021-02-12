@@ -9,8 +9,6 @@ Other libraries may be imported must be wrapped in try/except blocks
 or imported inside of a function
 """
 
-import numpy as np
-
 import abc
 import sys
 import copy
@@ -22,6 +20,8 @@ import hashlib
 import zipfile
 import tempfile
 import collections
+
+import numpy as np
 
 if sys.version_info >= (3, 4):
     # for newer version of python
@@ -1881,8 +1881,9 @@ def sigfig_round(values, sigfig=1):
 
 def sigfig_int(values, sigfig):
     """
-    Convert a set of floating point values into integers with a specified number
-    of significant figures and an exponent.
+    Convert a set of floating point values into integers
+    with a specified number of significant figures and an
+    exponent.
 
     Parameters
     ------------
