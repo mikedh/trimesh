@@ -641,7 +641,7 @@ def load_element_different(properties, data):
             # start next property at the end of this one
             start = end
     # try converting to numpy arrays
-    squeeze = {k: np.array(v, dtype='object') for k, v in
+    squeeze = {k: np.array(v).squeeze() for k, v in
                element_data.items()}
     return squeeze
 

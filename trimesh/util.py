@@ -1911,8 +1911,7 @@ def sigfig_int(values, sigfig):
     exponent[nonzero] = np.floor(np.log10(np.abs(values[nonzero])))
 
     multiplier = exponent - sigfig + 1
-
-    as_int = np.round(values / (10**multiplier)).astype(np.int64)
+    as_int = (values / (10**multiplier)).round().astype(np.int64)
 
     return as_int, multiplier
 
