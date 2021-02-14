@@ -169,7 +169,7 @@ def rectangles_single(rectangles, sheet_size=None, shuffle=False):
       Bounding box size of packed result
     """
     offset = np.zeros((len(rectangles), 2))
-    inserted = np.zeros(len(rectangles), dtype=np.bool)
+    inserted = np.zeros(len(rectangles), dtype=bool)
     box_order = np.argsort(np.sum(rectangles**2, axis=1))[::-1]
     area = 0.0
     density = 0.0

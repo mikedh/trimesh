@@ -43,7 +43,7 @@ def replace_whitespace(text, SAFE_SPACE='|<^>|', insert=True):
     # remove any blank lines
     if any(len(L) == 0 for L in lines):
         shaped = np.reshape(lines, (-1, 2))
-        mask = np.ones(len(shaped), dtype=np.bool)
+        mask = np.ones(len(shaped), dtype=bool)
         for i, v in enumerate(shaped[:, 1]):
             if len(v) == 0:
                 mask[i] = False

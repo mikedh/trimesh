@@ -56,10 +56,10 @@ In [8]: %timeit np.concatenate(seq)
 ```
 In [45]: a = (np.random.random(1000) * 1000).astype(int)
 
-In [46]: set(np.where(np.bincount(a).astype(np.bool))[0]) == set(np.unique(a))
+In [46]: set(np.where(np.bincount(a).astype(bool))[0]) == set(np.unique(a))
 Out[46]: True
 
-In [47]: %timeit np.where(np.bincount(a).astype(np.bool))[0]
+In [47]: %timeit np.where(np.bincount(a).astype(bool))[0]
 100000 loops, best of 3: 5.81 µs per loop
 
 In [48]: %timeit np.unique(a)

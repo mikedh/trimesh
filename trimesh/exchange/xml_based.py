@@ -231,7 +231,7 @@ def load_3DXML(file_obj, *args, **kwargs):
                                    'green',
                                    'blue',
                                    'alpha']],
-                        dtype=np.float)
+                        dtype=np.float64)
         rgba = (rgba * 255).astype(np.uint8)
         for occurrence in ViewProp.findall('{*}OccurenceId/{*}id'):
             reference_id = occurrence.text.split('#')[-1]

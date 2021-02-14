@@ -164,7 +164,7 @@ class RayMeshIntersector(object):
         """
         index_tri, index_ray = self.intersects_id(
             ray_origins, ray_directions)
-        hit_any = np.zeros(len(ray_origins), dtype=np.bool)
+        hit_any = np.zeros(len(ray_origins), dtype=bool)
         hit_idx = np.unique(index_ray)
         if len(hit_idx) > 0:
             hit_any[hit_idx] = True
@@ -347,8 +347,8 @@ def ray_triangle_candidates(ray_origins,
 
     for i, bounds in enumerate(ray_bounding):
         ray_candidates[i] = np.array(list(tree.intersection(bounds)),
-                                     dtype=np.int)
-        ray_id[i] = np.ones(len(ray_candidates[i]), dtype=np.int) * i
+                                     dtype=np.int64)
+        ray_id[i] = np.ones(len(ray_candidates[i]), dtype=np.int64) * i
 
     ray_id = np.hstack(ray_id)
     ray_candidates = np.hstack(ray_candidates)

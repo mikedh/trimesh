@@ -189,7 +189,7 @@ def dense_to_brle(dense_data, dtype=np.int64):
     ----------
     ValuError if dense_data is not a rank 1 bool array.
     """
-    if dense_data.dtype != np.bool:
+    if dense_data.dtype != bool:
         raise ValueError("`dense_data` must be bool")
     if len(dense_data.shape) != 1:
         raise ValueError("`dense_data` must be rank 1.")
@@ -202,7 +202,7 @@ def dense_to_brle(dense_data, dtype=np.int64):
     return lengths
 
 
-_ft = np.array([False, True], dtype=np.bool)
+_ft = np.array([False, True], dtype=bool)
 
 
 def brle_to_dense(brle_data, vals=None):
@@ -555,7 +555,7 @@ def brle_gatherer_1d(indices):
     or rle_data.dtype if no dtype is provided.
     """
     return functools.partial(
-        _unsorted_gatherer(indices, sorted_brle_gather_1d), dtype=np.bool)
+        _unsorted_gatherer(indices, sorted_brle_gather_1d), dtype=bool)
 
 
 def brle_gather_1d(brle_data, indices):

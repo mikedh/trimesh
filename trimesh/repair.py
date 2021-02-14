@@ -106,7 +106,7 @@ def fix_inversion(mesh, multibody=False):
                 mesh.invert()
             return
         # mask of faces to flip
-        flip = np.zeros(len(mesh.faces), dtype=np.bool)
+        flip = np.zeros(len(mesh.faces), dtype=bool)
         # save these to avoid thrashing cache
         tri = mesh.triangles
         cross = mesh.triangles_cross

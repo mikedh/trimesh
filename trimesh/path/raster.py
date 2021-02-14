@@ -65,7 +65,7 @@ def rasterize(path,
     resolution = tuple(resolution.tolist())
 
     # convert all discrete paths to pixel space
-    discrete = [((i - origin) / pitch).astype(np.int)
+    discrete = [((i - origin) / pitch).astype(np.int64)
                 for i in path.discrete]
 
     # the path indexes that are exteriors

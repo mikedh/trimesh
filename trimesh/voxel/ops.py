@@ -116,7 +116,7 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
     from skimage import measure
     from ..base import Trimesh
 
-    matrix = np.asanyarray(matrix, dtype=np.bool)
+    matrix = np.asanyarray(matrix, dtype=bool)
 
     rev_matrix = np.logical_not(matrix)  # Takes set about 0.
     # Add in padding so marching cubes can function properly with
@@ -176,12 +176,12 @@ def sparse_to_matrix(sparse):
       Matrix of filled cells
     """
 
-    sparse = np.asanyarray(sparse, dtype=np.int)
+    sparse = np.asanyarray(sparse, dtype=np.int64)
     if not util.is_shape(sparse, (-1, 3)):
         raise ValueError('sparse must be (n,3)!')
 
     shape = sparse.max(axis=0) + 1
-    matrix = np.zeros(np.product(shape), dtype=np.bool)
+    matrix = np.zeros(np.product(shape), dtype=bool)
     multiplier = np.array([np.product(shape[1:]), shape[2], 1])
 
     index = (sparse * multiplier).sum(axis=1)
@@ -314,10 +314,10 @@ def boolean_sparse(a, b, operation=np.logical_and):
 
     # put nearby voxel arrays into same shape sparse array
     sp_a = sparse.COO((a - origin).T,
-                      data=np.ones(len(a), dtype=np.bool),
+                      data=np.ones(len(a), dtype=bool),
                       shape=size)
     sp_b = sparse.COO((b - origin).T,
-                      data=np.ones(len(b), dtype=np.bool),
+                      data=np.ones(len(b), dtype=bool),
                       shape=size)
 
     # apply the logical operation
