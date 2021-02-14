@@ -22,6 +22,7 @@ html: conf.py index.rst install.rst examples.rst README.rst trimesh.rst $(exampl
 	echo "trimsh.org" > "$(BUILDDIR)/html/CNAME"
 	mv "$(BUILDDIR)/html/_static/examples" "$(BUILDDIR)/html/examples" || true
 	mv "$(BUILDDIR)/html/_static/images" "$(BUILDDIR)/html/images" || true
+	cp "$(STATICDIR)/favicon.ico" "$(BUILDDIR)/html/favicon.ico" || true
 
 .deps: requirements.txt
 	$(PIP) install -r requirements.txt
