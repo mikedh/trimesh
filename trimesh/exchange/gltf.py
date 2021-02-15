@@ -472,6 +472,8 @@ def _create_gltf_structure(scene,
     nodes = scene.graph.to_gltf(scene=scene)
     tree.update(nodes)
 
+    # store mesh as {hash : index} to avoid duplicates
+    mesh_hashes = {}
     # store materials as {hash : index} to avoid duplicates
     mat_hashes = {}
     # store data from geometries
@@ -487,7 +489,8 @@ def _create_gltf_structure(scene,
                 tree=tree,
                 buffer_items=buffer_items,
                 include_normals=include_normals,
-                mat_hashes=mat_hashes)
+                mat_hashes=mat_hashes,
+                mesh_hashes=mesh_hashes)
         elif util.is_instance_named(geometry, "Path"):
             # add Path2D and Path3D objects
             _append_path(
@@ -522,7 +525,8 @@ def _append_mesh(mesh,
                  tree,
                  buffer_items,
                  include_normals,
-                 mat_hashes):
+                 mat_hashes,
+                 mesh_hashes):
     """
     Append a mesh to the scene structure and put the
     data into buffer_items.
@@ -547,13 +551,22 @@ def _append_mesh(mesh,
         log.warning('skipping empty mesh!')
         return
 
+    mesh_index = len(tree["accessors"])
+    mesh_hash = mesh.md5()
+    create_accessor = True
+    if mesh_hash in mesh_hashes:
+        mesh_index = mesh_hashes[mesh_hash]
+        create_accessor = False
+    else:
+        mesh_hashes[mesh_hash] = mesh_index
+
     # meshes reference accessor indexes
     # mode 4 is GL_TRIANGLES
     tree["meshes"].append({
         "name": name,
         "primitives": [{
-            "attributes": {"POSITION": len(tree["accessors"]) + 1},
-            "indices": len(tree["accessors"]),
+            "attributes": {"POSITION": mesh_index + 1},
+            "indices": mesh_index,
             "mode": 4}]})
 
     # if units are defined, store them as an extra
@@ -566,30 +579,31 @@ def _append_mesh(mesh,
 
     # accessors refer to data locations
     # mesh faces are stored as flat list of integers
-    tree["accessors"].append({
-        "bufferView": len(buffer_items),
-        "componentType": 5125,
-        "count": len(mesh.faces) * 3,
-        "max": [int(mesh.faces.max())],
-        "min": [0],
-        "type": "SCALAR"})
-    # convert mesh data to the correct dtypes
-    # faces: 5125 is an unsigned 32 bit integer
-    buffer_items.append(_byte_pad(
-        mesh.faces.astype(uint32).tobytes()))
+    if create_accessor:
+        tree["accessors"].append({
+            "bufferView": len(buffer_items),
+            "componentType": 5125,
+            "count": len(mesh.faces) * 3,
+            "max": [int(mesh.faces.max())],
+            "min": [0],
+            "type": "SCALAR"})
+        # convert mesh data to the correct dtypes
+        # faces: 5125 is an unsigned 32 bit integer
+        buffer_items.append(_byte_pad(
+            mesh.faces.astype(uint32).tobytes()))
 
-    # the vertex accessor
-    tree["accessors"].append({
-        "bufferView": len(buffer_items),
-        "componentType": 5126,
-        "count": len(mesh.vertices),
-        "type": "VEC3",
-        "byteOffset": 0,
-        "max": mesh.vertices.max(axis=0).tolist(),
-        "min": mesh.vertices.min(axis=0).tolist()})
-    # vertices: 5126 is a float32
-    buffer_items.append(_byte_pad(
-        mesh.vertices.astype(float32).tobytes()))
+        # the vertex accessor
+        tree["accessors"].append({
+            "bufferView": len(buffer_items),
+            "componentType": 5126,
+            "count": len(mesh.vertices),
+            "type": "VEC3",
+            "byteOffset": 0,
+            "max": mesh.vertices.max(axis=0).tolist(),
+            "min": mesh.vertices.min(axis=0).tolist()})
+        # vertices: 5126 is a float32
+        buffer_items.append(_byte_pad(
+            mesh.vertices.astype(float32).tobytes()))
 
     # make sure nothing fell off the truck
     assert len(buffer_items) >= tree['accessors'][-1]['bufferView']
@@ -658,6 +672,7 @@ def _append_mesh(mesh,
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "NORMAL"] = len(tree["accessors"])
+
         normal_data = _byte_pad(mesh.vertex_normals.astype(
             float32).tobytes())
         # the vertex color accessor data

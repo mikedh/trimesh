@@ -183,6 +183,19 @@ class GLTFTest(g.unittest.TestCase):
         export = scene.export(file_type='gltf')
         assert gltf_cameras_key in g.json.loads(export['model.gltf'].decode('utf8'))
 
+    def test_buffer_reuse(self):
+        scene = g.trimesh.Scene()
+        box_1 = g.trimesh.creation.box()
+        box_2 = g.trimesh.creation.box()
+
+        scene.add_geometry(box_1, 'box_1', transform=g.trimesh.transformations.translation_matrix((1, 1, 1)))
+        scene.add_geometry(box_2, 'box_2', transform=g.trimesh.transformations.translation_matrix((-1, -1, -1)))
+        export = scene.export(file_type='gltf')
+        gltf = g.json.loads(export['model.gltf'].decode('utf8'))
+        assert len(gltf['accessors']) == 2
+        assert len(gltf['bufferViews']) == 2
+        assert len(gltf['buffers']) == 2
+
     def test_gltf_pole(self):
         scene = g.get_mesh('simple_pole.glb')
 
