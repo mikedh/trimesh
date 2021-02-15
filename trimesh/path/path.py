@@ -629,7 +629,7 @@ class Path(parent.Geometry):
         mask : (len(self.vertices), ) int
           Contains new vertex indexes
 
-        Alters
+        Notes
         ------------
         entity.points in self.entities
           Replaced by mask[entity.points]
@@ -656,7 +656,7 @@ class Path(parent.Geometry):
         """
         Remove entities which declare themselves invalid
 
-        Alters
+
         ----------
         self.entities: shortened
         """
@@ -668,7 +668,7 @@ class Path(parent.Geometry):
         """
         Remove entities that are duplicated
 
-        Alters
+
         -------
         self.entities: length same or shorter
         """
@@ -698,7 +698,7 @@ class Path(parent.Geometry):
         """
         Removes all vertices which aren't used by an entity.
 
-        Alters
+
         ---------
         self.vertices: reordered and shortened
         self.entities: entity.points references updated

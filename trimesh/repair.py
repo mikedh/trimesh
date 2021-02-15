@@ -34,7 +34,7 @@ def fix_winding(mesh):
     -------------
     mesh: Trimesh object
 
-    Alters
+
     -------------
     mesh.face: will reverse columns of certain faces
     """
@@ -94,7 +94,7 @@ def fix_inversion(mesh, multibody=False):
     mesh:      Trimesh object
     multibody: bool, if True will try to fix normals on every body
 
-    Alters
+
     -------------
     mesh.face: may reverse faces
     """
@@ -155,7 +155,7 @@ def fix_normals(mesh, multibody=False):
       if True try to correct normals direction
       on every body rather than just one
 
-    Alters
+
     --------------
     mesh.faces
       Will flip columns on inverted faces
