@@ -232,7 +232,7 @@ def signed_distance(mesh, points):
 
     Returns
     ----------
-    signed_distance : (n, 3) float
+    signed_distance : (n,) float
       Signed distance from point to mesh
     """
     # make sure we have a numpy array
@@ -347,7 +347,7 @@ class ProximityQuery(object):
 
         Returns
         ----------
-        signed_distance : (n, 3) float
+        signed_distance : (n,) float
           Signed distance from point to mesh.
         """
         return signed_distance(self._mesh, points)
