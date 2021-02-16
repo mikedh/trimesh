@@ -19,7 +19,7 @@ def sample_surface(mesh, count):
     http://mathworld.wolfram.com/TrianglePointPicking.html
 
     Parameters
-    ---------
+    -----------
     mesh : trimesh.Trimesh
       Geometry to sample the surface of
     count : int
@@ -80,7 +80,7 @@ def volume_mesh(mesh, count):
 
 
     Parameters
-    ---------
+    -----------
     mesh : trimesh.Trimesh
       Geometry to sample
     count : int
@@ -105,7 +105,7 @@ def volume_rectangular(extents,
     useful for sampling inside oriented bounding boxes.
 
     Parameters
-    ----------
+    -----------
     extents :   (3,) float
       Side lengths of rectangular solid
     count : int
@@ -137,7 +137,7 @@ def sample_surface_even(mesh, count, radius=None):
     case a log.warning will be emitted.
 
     Parameters
-    ---------
+    -----------
     mesh : trimesh.Trimesh
       Geometry to sample the surface of
     count : int
@@ -183,7 +183,7 @@ def sample_surface_sphere(count):
     http://mathworld.wolfram.com/SpherePointPicking.html
 
     Parameters
-    ----------
+    -----------
     count : int
       Number of points to return
 

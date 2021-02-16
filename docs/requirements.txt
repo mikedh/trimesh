@@ -1,6 +1,5 @@
 pypandoc
 numpy
-numpydoc
 scipy
 networkx
 recommonmark

@@ -1241,7 +1241,7 @@ class Trimesh(Geometry3D):
         Ensure that every vertex and face consists of finite numbers.
         This will remove vertices or faces containing np.nan and np.inf
 
-         `self.faces` and `self.vertices`
+        Alters `self.faces` and `self.vertices`
         """
         if util.is_shape(self.faces, (-1, 3)):
             # (len(self.faces), ) bool, mask for faces
@@ -1257,7 +1257,7 @@ class Trimesh(Geometry3D):
         """
         On the current mesh remove any faces which are duplicates.
 
-         `self.faces` to remove duplicate faces
+        Alters `self.faces` to remove duplicate faces
         """
         unique, inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
         self.update_faces(unique)
@@ -1266,7 +1266,7 @@ class Trimesh(Geometry3D):
         """
         Translate the mesh so that all vertex vertices are positive.
 
-         `self.vertices`.
+        Alters `self.vertices`.
         """
         self.apply_translation(self.bounds[0] * -1.0)
 
@@ -2437,7 +2437,7 @@ class Trimesh(Geometry3D):
         Invert the mesh in-place by reversing the winding of every
         face and negating normals without dumping the cache.
 
-         `self.faces` by reversing columns, and negating
+        Alters `self.faces` by reversing columns, and negating
         `self.face_normals` and `self.vertex_normals`.
         """
         with self._cache:

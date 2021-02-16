@@ -26,9 +26,7 @@ def abspath(rel):
     return os.path.abspath(os.path.join(cwd, rel))
 
 
-extensions = ['numpydoc',
-              'sphinx.ext.autodoc',
-              'autodocsumm']
+extensions = ['sphinx.ext.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -113,8 +111,6 @@ htmlhelp_basename = 'trimeshdoc'
 
 # -- Extensions configuration ----------------------------------------
 
-
-autosummary_generate = True
-
-# transforms has inherited class from networkx
-numpydoc_validation_exclude = {"trimesh.scene."}
+autodoc_default_options = {
+    'autosummary': True,
+}
