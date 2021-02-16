@@ -233,6 +233,30 @@ class SliceTest(g.unittest.TestCase):
                    + 0.01 * g.trimesh.unitize([1, 0, 2])]
         normals = [g.trimesh.unitize([1, 1, 1]), g.trimesh.unitize([1, 2, 3])]
 
+    def test_cap_coplanar(self):
+        # check to see if we handle capping with
+        # existing coplanar faces correctly
+
+        try:
+            from triangle import triangulate  # NOQA
+        except BaseException as E:
+            if g.all_dep:
+                raise E
+            else:
+                return
+
+        s = g.get_mesh('cap.zip')
+        mesh = next(iter(s.geometry.values()))
+
+        plane_origin = [0, 0, 5000]
+        plane_normal = [0, 0, -1]
+
+        assert mesh.is_watertight
+        newmesh = mesh.slice_plane(plane_origin=plane_origin,
+                                   plane_normal=plane_normal,
+                                   cap=True)
+        assert newmesh.is_watertight
+
     def test_cap(self):
 
         try:

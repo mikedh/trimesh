@@ -720,8 +720,13 @@ def slice_mesh_plane(mesh,
             if check.astype(np.float64).mean() > 0.5:
                 ff = np.fliplr(ff)
 
+            # check vertices to see which ones are on plane
+            on_plane = np.abs(np.dot(vertices - origin, normal)) < tol.merge
             # add cap vertices and faces and reindex
-            vertices, faces = util.append_faces([vertices, vf], [faces, ff])
+            # remove any original faces which are coplanar with cap plane
+            # as these will be replaced by newly generated faces
+            vertices, faces = util.append_faces(
+                [vertices, vf], [faces[~on_plane[faces].all(axis=1)], ff])
 
             # Update mesh with cap (processing needed to merge vertices)
             sliced_mesh = Trimesh(vertices=vertices, faces=faces)

@@ -629,7 +629,7 @@ class Path(parent.Geometry):
         mask : (len(self.vertices), ) int
           Contains new vertex indexes
 
-        Alters
+        Notes
         ------------
         entity.points in self.entities
           Replaced by mask[entity.points]
@@ -656,7 +656,7 @@ class Path(parent.Geometry):
         """
         Remove entities which declare themselves invalid
 
-        Alters
+        Notes
         ----------
         self.entities: shortened
         """
@@ -668,7 +668,7 @@ class Path(parent.Geometry):
         """
         Remove entities that are duplicated
 
-        Alters
+        Notes
         -------
         self.entities: length same or shorter
         """
@@ -698,10 +698,10 @@ class Path(parent.Geometry):
         """
         Removes all vertices which aren't used by an entity.
 
-        Alters
+        Notes
         ---------
-        self.vertices: reordered and shortened
-        self.entities: entity.points references updated
+        self.vertices : reordered and shortened
+        self.entities : entity.points references updated
         """
 
         unique = self.referenced_vertices
@@ -718,11 +718,13 @@ class Path(parent.Geometry):
 
         Parameters
         -----------
-        path: (n,) int, indexes of self.entities
+        path: (n,) int
+          Indexes of self.entities
 
         Returns
         -----------
-        discrete: (m, dimension)
+        discrete : (m, dimension)
+          Linear segment path.
         """
         discrete = traversal.discretize_path(self.entities,
                                              self.vertices,
