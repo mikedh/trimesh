@@ -33,8 +33,8 @@ def rasterize(path,
     ------------
     path : Path2D
       Original geometry
-    pitch : float
-      Length in model space of a pixel edge
+    pitch : float or (2,) float
+      Length(s) in model space of pixel edges
     origin : (2,) float
       Origin position in model space
     resolution : (2,) int
@@ -51,7 +51,7 @@ def rasterize(path,
     """
 
     # check inputs
-    pitch = float(pitch)
+    pitch = np.asanyarray(pitch, dtype=np.float64)
     origin = np.asanyarray(origin, dtype=np.float64)
 
     # if resolution is None make it larger than path

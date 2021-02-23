@@ -34,8 +34,17 @@ class RasterTest(g.unittest.TestCase):
                            fill=True,
                            width=2.0)
 
+        # rasterize with two-dimensional pitch
+        pitch = p.extents / 600
+        filled_2dpitch = p.rasterize(origin=origin,
+                                     pitch=pitch,
+                                     resolution=resolution,
+                                     fill=True,
+                                     width=None)
+
         # count the number of filled pixels
         fill_cnt = g.np.array(filled).sum()
+        fill_2dpitch_cnt = g.np.array(filled_2dpitch).sum()
         both_cnt = g.np.array(both).sum()
         outl_cnt = g.np.array(outline).sum()
 
@@ -45,6 +54,9 @@ class RasterTest(g.unittest.TestCase):
         assert both_cnt > outl_cnt
         # filled+outline should have more than filled
         assert both_cnt > fill_cnt
+        # A different pitch results in a different image
+        assert fill_2dpitch_cnt != fill_cnt
+
 
 
 if __name__ == '__main__':

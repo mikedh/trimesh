@@ -1045,7 +1045,7 @@ class Path2D(Path):
 
         Parameters
         ------------
-        pitch:      float, length in model space of a pixel edge
+        pitch:      float or (2,) float, length(s) in model space of pixel edges
         origin:     (2,) float, origin position in model space
         resolution: (2,) int, resolution in pixel space
         fill:       bool, if True will return closed regions as filled
