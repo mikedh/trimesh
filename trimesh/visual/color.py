@@ -315,6 +315,8 @@ class ColorVisuals(Visuals):
                 else:
                     raise ValueError('unsupported name!!!')
                 self._cache.verify()
+                # return the stored copy of the colors
+                return self._data[key_colors]
         else:
             # colors have never been accessed
             if self.kind is None:
