@@ -96,7 +96,8 @@ class Scene(Geometry3D):
                      node_name=None,
                      geom_name=None,
                      parent_node_name=None,
-                     transform=None):
+                     transform=None,
+                     extras=None):
         """
         Add a geometry to the scene.
 
@@ -108,17 +109,17 @@ class Scene(Geometry3D):
         ----------
         geometry : Trimesh, Path2D, Path3D PointCloud or list
           Geometry to initially add to the scene
-        base_frame : str or hashable
-          Name of base frame
-        metadata : dict
-          Any metadata about the scene
-        graph : TransformForest or None
-          A passed transform graph to use
+        node_name: Name of the added node.
+        geom_name: Name of the added geometry.
+        parent_node_name: Name of the parent node in the graph.
+        transform: Transform that applies to the added node.
+        extras: Optional metadata for the node.
 
         Returns
         ----------
         node_name : str
-          Name of node in self.graph
+          Name of single node in self.graph (passed in) or None if
+          node was not added (eg. geometry was null or a Scene).
         """
 
         if geometry is None:
@@ -131,11 +132,12 @@ class Scene(Geometry3D):
                 node_name=node_name,
                 geom_name=geom_name,
                 parent_node_name=parent_node_name,
-                transform=transform) for value in geometry]
+                transform=transform,
+                extras=extras) for value in geometry]
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
             for key, value in geometry.items():
-                self.add_geometry(value, geom_name=key)
+                self.add_geometry(value, geom_name=key, extras=extras)
             return
         elif isinstance(geometry, Scene):
             # concatenate current scene with passed scene
@@ -190,7 +192,9 @@ class Scene(Geometry3D):
                           frame_from=parent_node_name,
                           matrix=transform,
                           geometry=name,
-                          geometry_flags={'visible': True})
+                          geometry_flags={'visible': True},
+                          extras=extras)
+
         return node_name
 
     def delete_geometry(self, names):
