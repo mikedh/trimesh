@@ -352,6 +352,46 @@ class GLTFTest(g.unittest.TestCase):
         assert all(r.metadata['extras'][k] == v
                    for k, v in dummy.items())
 
+    def test_extras_nodes(self):
+
+        test_metadata = {
+            'test_str': 'test_value',
+            'test_int': 1,
+            'test_float': 0.123456789,
+            'test_bool': True,
+            'test_array': [1, 2, 3],
+            'test_dict': {'a': 1, 'b': 2}}
+
+        sphere1 = g.trimesh.primitives.Sphere(radius=1.0)
+        sphere2 = g.trimesh.primitives.Sphere(radius=2.0)
+
+        # transformations.euler_from_quaternion(obj.transform.rotation, axes='sxyz')
+        node1_transform = g.trimesh.transformations.translation_matrix([0, 0, -2])
+        node2_transform = g.trimesh.transformations.translation_matrix([5, 5, 5])
+
+        s = g.trimesh.scene.Scene()
+        s.add_geometry(sphere1, node_name="Sphere1", geom_name="Geom Sphere1",
+                       transform=node1_transform, extras=test_metadata)
+        s.add_geometry(sphere2, node_name="Sphere2", geom_name="Geom Sphere2",
+                       parent_node_name="Sphere1", transform=node2_transform,
+                       extras=test_metadata)
+
+        # Test extras appear in the exported model nodes
+        files = s.export(None, "gltf")
+        gltf_data = files["model.gltf"]
+        assert 'test_value' in gltf_data.decode('utf8')
+
+        # Check node extras survive a round trip
+        r = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(
+                s.export(file_type='glb')),
+            file_type='glb')
+        files = r.export(None, "gltf")
+        gltf_data = files["model.gltf"]
+        assert 'test_value' in gltf_data.decode('utf8')
+        edge_data = r.graph.transforms.get_edge_data("world", "Sphere1")
+        assert edge_data['extras'] == test_metadata
+
     def test_read_scene_extras(self):
         # loads a glb with scene extras
         scene = g.get_mesh('monkey.glb', process=False)
