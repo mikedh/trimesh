@@ -29,12 +29,18 @@ class MeshScript:
         # windows has problems with multiple programs using open files so we close
         # them at the end of the enter call, and delete them ourselves at the
         # exit
+
+        # Blender sorts its objects alphabetically, so we prefix the mesh number on
+        # the file name
+        digit_count = len('%d' % len(self.meshes))
+        prefix = '%%0%dd' % digit_count
         self.mesh_pre = [
             NamedTemporaryFile(
                 suffix='.{}'.format(
                     self.exchange),
+                prefix=prefix % i,
                 mode='wb',
-                delete=False) for i in self.meshes]
+                delete=False) for i in range(len(self.meshes))]
         self.mesh_post = NamedTemporaryFile(
             suffix='.{}'.format(
                 self.exchange),
