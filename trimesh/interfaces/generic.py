@@ -51,7 +51,6 @@ class MeshScript:
 
         # export the meshes to a temporary STL container
         for mesh, file_obj in zip(self.meshes, self.mesh_pre):
-            print('file_obj: %s' % file_obj.name)
             mesh.export(file_obj=file_obj.name)
 
         self.replacement = {'MESH_' + str(i): m.name
