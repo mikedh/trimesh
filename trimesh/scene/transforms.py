@@ -55,6 +55,9 @@ class TransformForest(object):
           Distance to translate
         geometry : hashable
           Geometry object name, e.g. 'mesh_0'
+        extras: dictionary
+          Optional metadata attached to the new frame
+          (expors to glTF node 'extras').
         """
 
         self._updated = str(np.random.random())
@@ -72,6 +75,9 @@ class TransformForest(object):
         if 'geometry' in kwargs:
             attr['geometry'] = kwargs['geometry']
 
+        if 'extras' in kwargs:
+            attr['extras'] = kwargs['extras']
+
         # add the edges
         changed = self.transforms.add_edge(frame_from,
                                            frame_to,
@@ -82,6 +88,7 @@ class TransformForest(object):
                 self.transforms,
                 name='geometry',
                 values={frame_to: kwargs['geometry']})
+
         # if the edge update changed our structure
         # dump our cache of shortest paths
         if changed:
@@ -171,6 +178,7 @@ class TransformForest(object):
             # check to see if we have camera node
             if node == scene.camera.name:
                 info['camera'] = 0
+
             try:
                 # try to ignore KeyError and StopIteration
                 # parent-child transform is stored in child
@@ -182,6 +190,14 @@ class TransformForest(object):
                     info['matrix'] = matrix.T.reshape(-1).tolist()
             except BaseException:
                 continue
+
+            try:
+                extras = graph.get_edge_data(parent, node)['extras']
+                if extras:
+                    info['extras'] = extras
+            except BaseException:
+                pass
+
         return {'nodes': result}
 
     def to_edgelist(self):
