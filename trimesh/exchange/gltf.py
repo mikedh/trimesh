@@ -101,7 +101,7 @@ def export_gltf(scene,
     if merge_buffers:
         views = _build_views(buffer_items)
         buffer_name = "gltf_buffer.bin"
-        buffer_data = bytes().join(buffer_items)
+        buffer_data = bytes().join(buffer_items.values())
         buffers = [{
             "uri": buffer_name,
             "byteLength": len(buffer_data)}
@@ -113,18 +113,16 @@ def export_gltf(scene,
         # A bufferView is a slice of a file
         views = [None] * len(buffer_items)
         # create the buffer views
-        for i, item in enumerate(buffer_items):
+        for i, item in enumerate(buffer_items.values()):
             views[i] = {
                 "buffer": i,
                 "byteOffset": 0,
                 "byteLength": len(item)}
-
-            buffer_data = _byte_pad(bytes().join(buffer_items[i: i + 2]))
             buffer_name = "gltf_buffer_{}.bin".format(i)
             buffers[i] = {
                 "uri": buffer_name,
-                "byteLength": len(buffer_data)}
-            files[buffer_name] = buffer_data
+                "byteLength": len(item)}
+            files[buffer_name] = item
 
     tree["buffers"] = buffers
     tree["bufferViews"] = views
@@ -377,6 +375,34 @@ def _uri_to_bytes(uri, resolver):
     return base64.b64decode(uri[index + 7:])
 
 
+def _od_append(ordered, data):
+    """
+    Append data to an existing OrderedDict and
+    pad it to a 4-byte boundary.
+
+    Parameters
+    ----------
+    od : collections.OrderedDict
+      Keyed like { hash : data }
+    data : bytes
+      To be stored
+
+    Returns
+    ----------
+    index : int
+      Index of buffer_items stored in
+    """
+    # native python hashing is pretty fast
+    hashed = hash(data)
+    if hashed in ordered:
+        # todo : better way of finding index in an OrderedDict?
+        return list(ordered.keys()).index(hashed)
+    # not in buffer items so append and then return index
+    ordered[hashed] = _byte_pad(data)
+
+    return len(ordered) - 1
+
+
 def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
     """
     Create a simple GLTF material for a mesh using the most
@@ -475,7 +501,7 @@ def _create_gltf_structure(scene,
     # store materials as {hash : index} to avoid duplicates
     mat_hashes = {}
     # store data from geometries
-    buffer_items = []
+    buffer_items = collections.OrderedDict()
 
     # loop through every geometry
     for name, geometry in scene.geometry.items():
@@ -564,35 +590,38 @@ def _append_mesh(mesh,
     if mesh.units is not None and 'meter' not in mesh.units:
         tree["meshes"][-1]["extras"] = {"units": str(mesh.units)}
 
+    # convert mesh data to the correct dtypes
+    # faces: 5125 is an unsigned 32 bit integer
+    index = _od_append(
+        buffer_items, mesh.faces.astype(uint32).tobytes())
+
     # accessors refer to data locations
     # mesh faces are stored as flat list of integers
     tree["accessors"].append({
-        "bufferView": len(buffer_items),
+        "bufferView": index,
         "componentType": 5125,
         "count": len(mesh.faces) * 3,
         "max": [int(mesh.faces.max())],
         "min": [0],
         "type": "SCALAR"})
-    # convert mesh data to the correct dtypes
-    # faces: 5125 is an unsigned 32 bit integer
-    buffer_items.append(_byte_pad(
-        mesh.faces.astype(uint32).tobytes()))
+
+    # vertices: 5126 is a float32
+    index = _od_append(
+        buffer_items,
+        mesh.vertices.astype(float32).tobytes())
 
     # the vertex accessor
     tree["accessors"].append({
-        "bufferView": len(buffer_items),
+        "bufferView": index,
         "componentType": 5126,
         "count": len(mesh.vertices),
         "type": "VEC3",
         "byteOffset": 0,
         "max": mesh.vertices.max(axis=0).tolist(),
         "min": mesh.vertices.min(axis=0).tolist()})
-    # vertices: 5126 is a float32
-    buffer_items.append(_byte_pad(
-        mesh.vertices.astype(float32).tobytes()))
 
     # make sure nothing fell off the truck
-    assert len(buffer_items) >= tree['accessors'][-1]['bufferView']
+    # assert len(buffer_items) >= tree['accessors'][-1]['bufferView']
 
     # check to see if we have vertex or face colors
     # or if a TextureVisual has colors included as an attribute
@@ -608,18 +637,16 @@ def _append_mesh(mesh,
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "COLOR_0"] = len(tree["accessors"])
-        # convert color data to bytes
-        color_data = _byte_pad(vertex_colors.astype(uint8).tobytes())
+        # convert color data to bytes and append
+        index = _od_append(buffer_items, vertex_colors.astype(uint8).tobytes())
         # the vertex color accessor data
         tree["accessors"].append({
-            "bufferView": len(buffer_items),
+            "bufferView": index,
             "componentType": 5121,
             "normalized": True,
             "count": len(vertex_colors),
             "type": "VEC4",
             "byteOffset": 0})
-        # the actual color data
-        buffer_items.append(color_data)
 
     if hasattr(mesh.visual, 'material'):
         # append the material and then set from returned index
@@ -642,33 +669,31 @@ def _append_mesh(mesh,
             # reverse the Y for GLTF
             uv[:, 1] = 1.0 - uv[:, 1]
             # convert UV coordinate data to bytes and pad
-            uv_data = _byte_pad(uv.astype(float32).tobytes())
+            index = _od_append(buffer_items, uv.astype(float32).tobytes())
             # add an accessor describing the blob of UV's
             tree["accessors"].append({
-                "bufferView": len(buffer_items),
+                "bufferView": index,
                 "componentType": 5126,
                 "count": len(mesh.visual.uv),
                 "type": "VEC2",
                 "byteOffset": 0})
-            # immediately add UV data so bufferView indices are correct
-            buffer_items.append(uv_data)
 
     if (include_normals or (include_normals is None and
                             'vertex_normals' in mesh._cache.cache)):
         # add the reference for vertex color
         tree["meshes"][-1]["primitives"][0]["attributes"][
             "NORMAL"] = len(tree["accessors"])
-        normal_data = _byte_pad(mesh.vertex_normals.astype(
-            float32).tobytes())
+
+        index = _od_append(
+            buffer_items,
+            mesh.vertex_normals.astype(float32).tobytes())
         # the vertex color accessor data
         tree["accessors"].append({
-            "bufferView": len(buffer_items),
+            "bufferView": index,
             "componentType": 5126,
             "count": len(mesh.vertices),
             "type": "VEC3",
             "byteOffset": 0})
-        # the actual color data
-        buffer_items.append(normal_data)
 
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
@@ -679,21 +704,20 @@ def _append_mesh(mesh,
             attribute_name = "_" + key
         tree["meshes"][-1]["primitives"][0]["attributes"][attribute_name] = len(
             tree["accessors"])
-        attribute_data = _byte_pad(mesh.vertex_attributes[key].tobytes())
+        index = _od_append(buffer_items, mesh.vertex_attributes[key].tobytes())
         accessor = {
-            "bufferView": len(buffer_items),
+            "bufferView": index,
             "count": len(mesh.vertex_attributes[key])
         }
         accessor.update(_build_accessor(mesh.vertex_attributes[key]))
         tree["accessors"].append(accessor)
-        buffer_items.append(attribute_data)
 
 
 def _build_views(buffer_items):
     views = []
     # create the buffer views
     current_pos = 0
-    for current_item in buffer_items:
+    for current_item in buffer_items.values():
         views.append(
             {"buffer": 0,
              "byteOffset": current_pos,
