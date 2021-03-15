@@ -31,6 +31,26 @@ class GLTFTest(g.unittest.TestCase):
         geom.merge_vertices(merge_tex=True)
         assert geom.is_volume
 
+    def test_buffer_dedupe(self):
+        scene = g.trimesh.Scene()
+        box_1 = g.trimesh.creation.box()
+        box_2 = g.trimesh.creation.box()
+        box_3 = g.trimesh.creation.box()
+        box_3.visual.face_colors = [0, 255, 0, 255]
+
+        tm = g.trimesh.transformations.translation_matrix
+        scene.add_geometry(
+            box_1, 'box_1',
+            transform=tm((1, 1, 1)))
+        scene.add_geometry(
+            box_2, 'box_2',
+            transform=tm((-1, -1, -1)))
+        scene.add_geometry(
+            box_3, 'box_3',
+            transform=tm((-1, 20, -1)))
+        a = g.json.loads(scene.export(file_type='gltf')['model.gltf'])
+        assert len(a['buffers']) <= 3
+
     def test_tex_export(self):
         # load textured PLY
         mesh = g.get_mesh('fuze.ply')

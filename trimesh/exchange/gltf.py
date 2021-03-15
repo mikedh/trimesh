@@ -132,7 +132,11 @@ def export_gltf(scene,
     return files
 
 
-def export_glb(scene, extras=None, include_normals=None, tree_postprocessor=None):
+def export_glb(
+        scene,
+        extras=None,
+        include_normals=None,
+        tree_postprocessor=None):
     """
     Export a scene as a binary GLTF (GLB) file.
 
@@ -141,11 +145,12 @@ def export_glb(scene, extras=None, include_normals=None, tree_postprocessor=None
     scene: trimesh.Scene
       Input geometry
     extras : JSON serializable
-      Will be stored in the extras field
+      Will be stored in the extras field.
     include_normals : bool
       Include vertex normals in output file?
     tree_postprocessor : func
-      Custom function to (in-place) post-process the tree before exporting.
+      Custom function to (in-place) post-process the tree
+      before exporting.
 
     Returns
     ----------
@@ -171,7 +176,7 @@ def export_glb(scene, extras=None, include_normals=None, tree_postprocessor=None
     views = _build_views(buffer_items)
 
     # combine bytes into a single blob
-    buffer_data = bytes().join(buffer_items)
+    buffer_data = bytes().join(buffer_items.values())
     # add the information about the buffer data
     tree["buffers"] = [{"byteLength": len(buffer_data)}]
     tree["bufferViews"] = views
@@ -620,9 +625,6 @@ def _append_mesh(mesh,
         "max": mesh.vertices.max(axis=0).tolist(),
         "min": mesh.vertices.min(axis=0).tolist()})
 
-    # make sure nothing fell off the truck
-    # assert len(buffer_items) >= tree['accessors'][-1]['bufferView']
-
     # check to see if we have vertex or face colors
     # or if a TextureVisual has colors included as an attribute
     if mesh.visual.kind in ['vertex', 'face']:
@@ -835,37 +837,35 @@ def _append_path(path, name, tree, buffer_items):
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
     if path.units is not None and 'meter' not in path.units:
         tree["meshes"][-1]["extras"] = {"units": str(path.units)}
-
-    tree["accessors"].append(
-        {
-            "bufferView": len(buffer_items),
-            "componentType": 5126,
-            "count": vxlist[0],
-            "type": "VEC3",
-            "byteOffset": 0,
-            "max": path.vertices.max(axis=0).tolist(),
-            "min": path.vertices.min(axis=0).tolist()})
-
     # data is the second value of the fifth field
     # which is a (data type, data) tuple
-    buffer_items.append(_byte_pad(
-        vxlist[4][1].astype(float32).tobytes()))
+    index = _od_append(
+        buffer_items, vxlist[4][1].astype(float32).tobytes())
+
+    tree["accessors"].append(
+        {"bufferView": index,
+         "componentType": 5126,
+         "count": vxlist[0],
+         "type": "VEC3",
+         "byteOffset": 0,
+         "max": path.vertices.max(axis=0).tolist(),
+         "min": path.vertices.min(axis=0).tolist()})
 
     # add color to attributes
     tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
 
+    index = _od_append(
+        buffer_items,
+        np.array(vxlist[5][1]).astype(uint8).tobytes())
+
     # the vertex color accessor data
     tree["accessors"].append({
-        "bufferView": len(buffer_items),
+        "bufferView": index,
         "componentType": 5121,
         "count": vxlist[0],
         "normalized": True,
         "type": "VEC4",
         "byteOffset": 0})
-
-    # the actual color data
-    buffer_items.append(_byte_pad(
-        np.array(vxlist[5][1]).astype(uint8).tobytes()))
 
 
 def _append_point(points, name, tree, buffer_items):
@@ -887,49 +887,48 @@ def _append_point(points, name, tree, buffer_items):
 
     # convert the points to the unnamed args for
     # a pyglet vertex list
-    vxlist = rendering.points_to_vertexlist(points=points.vertices, colors=points.colors)
+    vxlist = rendering.points_to_vertexlist(
+        points=points.vertices, colors=points.colors)
 
+    # data is the second value of the fifth field
+    # which is a (data type, data) tuple
+    index = _od_append(
+        buffer_items,
+        vxlist[4][1].astype(float32).tobytes())
     tree["meshes"].append({
         "name": name,
         "primitives": [{
             "attributes": {"POSITION": len(tree["accessors"])},
             "mode": 0,  # mode 0 is GL_POINTS
             "material": len(tree["materials"])}]})
-
     tree["accessors"].append(
-        {
-            "bufferView": len(buffer_items),
-            "componentType": 5126,
-            "count": vxlist[0],
-            "type": "VEC3",
-            "byteOffset": 0,
-            "max": points.vertices.max(axis=0).tolist(),
-            "min": points.vertices.min(axis=0).tolist()})
+        {"bufferView": index,
+         "componentType": 5126,
+         "count": vxlist[0],
+         "type": "VEC3",
+         "byteOffset": 0,
+         "max": points.vertices.max(axis=0).tolist(),
+         "min": points.vertices.min(axis=0).tolist()})
 
     # TODO add color support to Points object
     # this is just exporting everying as black
     tree["materials"].append(_default_material)
 
-    # data is the second value of the fifth field
-    # which is a (data type, data) tuple
-    buffer_items.append(_byte_pad(
-        vxlist[4][1].astype(float32).tobytes()))
-
     # add color to attributes
     tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
 
+    index = _od_append(
+        buffer_items,
+        np.array(vxlist[5][1]).astype(uint8).tobytes())
+
     # the vertex color accessor data
     tree["accessors"].append({
-        "bufferView": len(buffer_items),
+        "bufferView": index,
         "componentType": 5121,
         "count": vxlist[0],
         "normalized": True,
         "type": "VEC4",
         "byteOffset": 0})
-
-    # the actual color data
-    buffer_items.append(_byte_pad(
-        np.array(vxlist[5][1]).astype(uint8).tobytes()))
 
 
 def _parse_materials(header, views, resolver=None):
@@ -1462,12 +1461,11 @@ def _append_image(img, tree, buffer_items):
         f.seek(0)
         data = f.read()
 
+    index = _od_append(buffer_items, data)
     # append buffer index and the GLTF-acceptable mimetype
     tree['images'].append({
-        'bufferView': len(buffer_items),
+        'bufferView': index,
         'mimeType': 'image/{}'.format(save_as.lower())})
-    # append data so bufferView matches
-    buffer_items.append(_byte_pad(data))
 
     # index is length minus one
     return len(tree['images']) - 1
