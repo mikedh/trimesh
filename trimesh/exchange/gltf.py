@@ -1071,6 +1071,12 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                 # GLTF spec indicates the default units are meters
                 metadata['units'] = 'meters'
 
+            try:
+                # load extras metadata if available
+                metadata['extras'] = str(m["extras"])
+            except BaseException:
+                pass
+
             for j, p in enumerate(m["primitives"]):
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
@@ -1273,6 +1279,9 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             kwargs["matrix"] = np.dot(
                 kwargs["matrix"],
                 np.diag(np.concatenate((child['scale'], [1.0]))))
+
+        if "extras" in child:
+            kwargs["extras"] = child["extras"]
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]

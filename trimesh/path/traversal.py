@@ -96,12 +96,17 @@ def vertex_to_entity_path(vertex_path,
         elif a[1] == b[1]:
             return 1, -1
         else:
-            msg = 'edges not connected!'
-            msg += '\nvertex_path: {}'.format(vertex_path)
-            msg += '\nentity_path: {}'.format(entity_path)
-            msg += '\nentity[a]: {}'.format(entities[ea].points)
-            msg += '\nentity[b]: {}'.format(entities[eb].points)
-            constants.log.warning(msg)
+            constants.log.debug(
+                'edges not connected!\n'
+                'vertex path %s\n'
+                'entity path: %s\n'
+                'entity[a]: %s\n'
+                'entity[b]: %s',
+                vertex_path,
+                entity_path,
+                entities[ea].points,
+                entities[eb].points)
+
             return None, None
 
     if vertices is None or vertices.shape[1] != 2:
@@ -342,7 +347,7 @@ def resample_path(points,
         Points on the path
     """
 
-    points = np.array(points, dtype=np.float)
+    points = np.array(points, dtype=np.float64)
     # generate samples along the perimeter from kwarg count or step
     if (count is not None) and (step is not None):
         raise ValueError('Only step OR count can be specified')

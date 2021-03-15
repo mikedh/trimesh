@@ -57,7 +57,6 @@ requirements_all = requirements_easy.union([
     'glooey',        # make GUI applications with 3D stuff
     'meshio',        # load a number of additional mesh formats; Python 3.5+
     'scikit-image',  # marching cubes and other nice stuff
-    'open3d'         # decimation and fast utility functions
 ])
 # requirements for running unit tests
 requirements_test = set(['pytest',       # run all unit tests

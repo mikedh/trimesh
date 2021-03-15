@@ -94,7 +94,7 @@ class RayMeshIntersector(parent.RayMeshParent):
         # inherits docstring from parent
         index_tri, index_ray = self.intersects_id(
             origins, directions)
-        hit_any = np.zeros(len(origins), dtype=np.bool)
+        hit_any = np.zeros(len(origins), dtype=bool)
         hit_idx = np.unique(index_ray)
         if len(hit_idx) > 0:
             hit_any[hit_idx] = True
@@ -144,7 +144,7 @@ def triangle_id(
 
     # find the list of likely triangles and which ray they
     # correspond with, via rtree queries
-    candidates, id = ray_triangle_candidates(
+    candidates, ids = ray_triangle_candidates(
         origins=origins,
         directions=directions,
         tree=tree)
@@ -153,8 +153,8 @@ def triangle_id(
     # (c,3,3) triangle candidates
     triangle_candidates = triangles[candidates]
     # (c,3) origins and vectors for the rays
-    line_origins = origins[id]
-    line_directions = directions[id]
+    line_origins = origins[ids]
+    line_directions = directions[ids]
 
     # get the plane origins and normals from the triangle candidates
     plane_origins = triangle_candidates[:, 0, :]
@@ -197,7 +197,7 @@ def triangle_id(
     index_tri = candidates[valid][hit]
     # the ray index is a subset with a valid plane intersection and
     # contained by a triangle
-    index_ray = id[valid][hit]
+    index_ray = ids[valid][hit]
     # locations are already valid plane intersections, just mask by hits
     location = location[hit]
 
@@ -256,17 +256,17 @@ def ray_triangle_candidates(origins, directions, tree):
                           directions=directions,
                           bounds=tree.bounds)
     candidates = [[]] * len(origins)
-    id = [[]] * len(origins)
+    ids = [[]] * len(origins)
 
     for i, bounds in enumerate(bounding):
         candidates[i] = np.array(list(tree.intersection(bounds)),
-                                 dtype=np.int)
-        id[i] = np.ones(len(candidates[i]), dtype=np.int) * i
+                                 dtype=np.int64)
+        ids[i] = np.ones(len(candidates[i]), dtype=np.int64) * i
 
-    id = np.hstack(id)
+    ids = np.hstack(ids)
     candidates = np.hstack(candidates)
 
-    return candidates, id
+    return candidates, ids
 
 
 def ray_bounds(origins,

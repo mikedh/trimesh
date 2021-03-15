@@ -1048,7 +1048,7 @@ class Trimesh(Geometry3D):
         referenced : (len(self.vertices), ) bool
           Which vertices are referenced by a face
         """
-        referenced = np.zeros(len(self.vertices), dtype=np.bool)
+        referenced = np.zeros(len(self.vertices), dtype=bool)
         referenced[self.faces] = True
         return referenced
 
@@ -1733,7 +1733,7 @@ class Trimesh(Geometry3D):
         """
         # if no facets exit early
         if len(self.facets) == 0:
-            return np.array([], dtype=np.bool)
+            return np.array([], dtype=bool)
 
         # facets plane, origin and normal
         normals = self.facets_normal
@@ -1743,7 +1743,7 @@ class Trimesh(Geometry3D):
         convex = self.convex_hull.vertices.view(np.ndarray).copy()
 
         # boolean mask for which facets are on convex hull
-        on_hull = np.zeros(len(self.facets), dtype=np.bool)
+        on_hull = np.zeros(len(self.facets), dtype=bool)
 
         for i, normal, origin in zip(range(len(normals)), normals, origins):
             # a facet plane is on the convex hull if every vertex
@@ -2165,7 +2165,7 @@ class Trimesh(Geometry3D):
         Remove all vertices in the current mesh which are not
         referenced by a face.
         """
-        referenced = np.zeros(len(self.vertices), dtype=np.bool)
+        referenced = np.zeros(len(self.vertices), dtype=bool)
         referenced[self.faces] = True
 
         inverse = np.zeros(len(self.vertices), dtype=np.int64)

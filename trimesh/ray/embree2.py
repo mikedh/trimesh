@@ -113,7 +113,7 @@ class RayMeshIntersector(parent.RayMeshParent):
         result_locations = []
 
         # the mask for which rays are still active
-        current = np.ones(len(origins), dtype=np.bool)
+        current = np.ones(len(origins), dtype=bool)
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of face

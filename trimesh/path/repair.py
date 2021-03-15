@@ -67,7 +67,7 @@ def fill_gaps(path, distance=.025):
 
     segs = []
     # mask for which entities to keep
-    keep = np.ones(len(path.entities), dtype=np.bool)
+    keep = np.ones(len(path.entities), dtype=bool)
     # save a reference to the line class to avoid circular import
     line_class = None
 

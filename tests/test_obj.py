@@ -100,47 +100,48 @@ class OBJTest(g.unittest.TestCase):
         assert g.trimesh.util.is_shape(geom[1].vertices, (9, 3))
 
     def test_obj_simple_order(self):
+
         # test a simple wavefront model without split indexes
         # and make sure we don't reorder vertices unnecessarily
-        file_name = g.os.path.join(g.dir_models,
-                                   'cube.OBJ')
-
+        file_name = g.os.path.join(g.dir_models, 'cube.OBJ')
         # load a simple OBJ file without merging vertices
         m = g.trimesh.load(file_name, process=False)
-
-        # we're going to load faces in a basic text way
-        # and compare the order from this method to the
-        # trimesh loader, to see if we get the same thing
-        faces = []
-        verts = []
+        # use trivial loading to compare with fancy performant one
         with open(file_name, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line[0] == 'f':
-                    faces.append(line[1:].strip().split())
-                if line[0] == 'v':
-                    verts.append(line[1:].strip().split())
-
-        # get faces as basic numpy array
-        faces = g.np.array(faces, dtype=g.np.int64) - 1
-        verts = g.np.array(verts, dtype=g.np.float64)
-
+            f, v, vt = simple_load(f.read())
         # trimesh loader should return the same face order
-        assert g.np.allclose(faces, m.faces)
-        assert g.np.allclose(verts, m.vertices)
+        assert g.np.allclose(f, m.faces)
+        assert g.np.allclose(v, m.vertices)
+
+    def test_order_tex(self):
+
+        # test a simple wavefront model without split indexes
+        # and make sure we don't reorder vertices unnecessarily
+        file_name = g.os.path.join(g.dir_models, 'fuze.obj')
+        # load a simple OBJ file without merging vertices
+        m = g.trimesh.load(
+            file_name,
+            process=False,
+            maintain_order=True)
+        # use trivial loading to compare with fancy performant one
+        with open(file_name, 'r') as f:
+            f, v, vt = simple_load(f.read())
+        # trimesh loader should return the same face order
+        assert g.np.allclose(f, m.faces)
+        assert g.np.allclose(v, m.vertices)
 
     def test_obj_compressed(self):
         mesh = g.get_mesh('cube_compressed.obj', process=False)
-
-        assert g.np.allclose(g.np.abs(mesh.vertex_normals).sum(axis=1),
-                             1.0)
+        assert g.np.allclose(
+            g.np.abs(mesh.vertex_normals).sum(axis=1), 1.0)
 
     def test_vertex_color(self):
         # get a box mesh
         mesh = g.trimesh.creation.box()
         # set each vertex to a unique random color
-        mesh.visual.vertex_colors = [g.trimesh.visual.random_color()
-                                     for _ in range(len(mesh.vertices))]
+        mesh.visual.vertex_colors = [
+            g.trimesh.visual.random_color()
+            for _ in range(len(mesh.vertices))]
         # export and then reload the file as OBJ
         rec = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(
@@ -258,6 +259,36 @@ class OBJTest(g.unittest.TestCase):
         rec = g.wrapload(
             mesh.export(file_type='obj'), file_type='obj')
         assert g.np.isclose(mesh.area, rec.area)
+
+
+def simple_load(text):
+    # we're going to load faces in a basic text way
+    # and compare the order from this method to the
+    # trimesh loader, to see if we get the same thing
+    f = []
+    v = []
+    vt = []
+    for line in str.splitlines(text):
+        line = line.strip()
+        if len(line) < 2:
+            continue
+        elif line.startswith('f '):
+            if '/' in line:
+                f.append([int(i.split('/', 1)[0])
+                          for i in line[1:].strip().split()])
+            else:
+                f.append(line[1:].strip().split())
+        elif line.startswith('v '):
+            v.append(line[1:].strip().split())
+        elif line.startswith('vt '):
+            vt.append(line[2:].strip().split())
+
+    # get faces as basic numpy array
+    f = g.np.array(f, dtype=g.np.int64) - 1
+    v = g.np.array(v, dtype=g.np.float64)
+    vt = g.np.array(vt, dtype=g.np.float64)
+
+    return f, v, vt
 
 
 if __name__ == '__main__':

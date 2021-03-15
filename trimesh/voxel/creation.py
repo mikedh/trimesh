@@ -185,7 +185,7 @@ def voxelize_ray(mesh,
     VoxelGrid instance representing the voxelized mesh.
     """
     # how many rays per cell
-    per_cell = np.array(per_cell).astype(np.int).reshape(2)
+    per_cell = np.array(per_cell).astype(np.int64).reshape(2)
     # edge length of cube voxels
     pitch = float(pitch)
 

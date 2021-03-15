@@ -589,7 +589,7 @@ class Path(parent.Geometry):
             self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
 
-        entities_ok = np.ones(len(self.entities), dtype=np.bool)
+        entities_ok = np.ones(len(self.entities), dtype=bool)
 
         for index, entity in enumerate(self.entities):
             # what kind of entity are we dealing with
@@ -629,7 +629,7 @@ class Path(parent.Geometry):
         mask : (len(self.vertices), ) int
           Contains new vertex indexes
 
-        Alters
+        Notes
         ------------
         entity.points in self.entities
           Replaced by mask[entity.points]
@@ -656,19 +656,19 @@ class Path(parent.Geometry):
         """
         Remove entities which declare themselves invalid
 
-        Alters
+        Notes
         ----------
         self.entities: shortened
         """
         valid = np.array([i.is_valid for i in self.entities],
-                         dtype=np.bool)
+                         dtype=bool)
         self.entities = self.entities[valid]
 
     def remove_duplicate_entities(self):
         """
         Remove entities that are duplicated
 
-        Alters
+        Notes
         -------
         self.entities: length same or shorter
         """
@@ -698,10 +698,10 @@ class Path(parent.Geometry):
         """
         Removes all vertices which aren't used by an entity.
 
-        Alters
+        Notes
         ---------
-        self.vertices: reordered and shortened
-        self.entities: entity.points references updated
+        self.vertices : reordered and shortened
+        self.entities : entity.points references updated
         """
 
         unique = self.referenced_vertices
@@ -718,11 +718,13 @@ class Path(parent.Geometry):
 
         Parameters
         -----------
-        path: (n,) int, indexes of self.entities
+        path: (n,) int
+          Indexes of self.entities
 
         Returns
         -----------
-        discrete: (m, dimension)
+        discrete : (m, dimension)
+          Linear segment path.
         """
         discrete = traversal.discretize_path(self.entities,
                                              self.vertices,
@@ -1043,7 +1045,7 @@ class Path2D(Path):
 
         Parameters
         ------------
-        pitch:      float, length in model space of a pixel edge
+        pitch:      float or (2,) float, length(s) in model space of pixel edges
         origin:     (2,) float, origin position in model space
         resolution: (2,) int, resolution in pixel space
         fill:       bool, if True will return closed regions as filled
@@ -1457,7 +1459,7 @@ class Path2D(Path):
                          which are valid polygons
         """
         valid = [i is not None for i in self.polygons_closed]
-        valid = np.array(valid, dtype=np.bool)
+        valid = np.array(valid, dtype=bool)
         return valid
 
     @caching.cache_decorator

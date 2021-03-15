@@ -34,9 +34,9 @@ def fix_winding(mesh):
     -------------
     mesh: Trimesh object
 
-    Alters
+    Notes
     -------------
-    mesh.face: will reverse columns of certain faces
+    mesh.face : will reverse columns of certain faces
     """
     # anything we would fix is already done
     if mesh.is_winding_consistent:
@@ -91,12 +91,14 @@ def fix_inversion(mesh, multibody=False):
 
     Parameters
     -------------
-    mesh:      Trimesh object
-    multibody: bool, if True will try to fix normals on every body
+    mesh : trimesh.Trimesh
+      Mesh to fix.
+    multibody : bool
+      If True will try to fix normals on every body
 
-    Alters
+    Notes
     -------------
-    mesh.face: may reverse faces
+    mesh.face : may reverse faces
     """
     if multibody:
         groups = graph.connected_components(mesh.face_adjacency)
@@ -106,7 +108,7 @@ def fix_inversion(mesh, multibody=False):
                 mesh.invert()
             return
         # mask of faces to flip
-        flip = np.zeros(len(mesh.faces), dtype=np.bool)
+        flip = np.zeros(len(mesh.faces), dtype=bool)
         # save these to avoid thrashing cache
         tri = mesh.triangles
         cross = mesh.triangles_cross
@@ -155,10 +157,9 @@ def fix_normals(mesh, multibody=False):
       if True try to correct normals direction
       on every body rather than just one
 
-    Alters
+    Notes
     --------------
-    mesh.faces
-      Will flip columns on inverted faces
+    mesh.faces : will flip columns on inverted faces
     """
     # traverse face adjacency to correct winding
     fix_winding(mesh)
@@ -173,13 +174,15 @@ def broken_faces(mesh, color=None):
 
     Parameters
     --------------
-    mesh: Trimesh object
-    color: (4,) uint8, will set broken faces to this color
-           None,       will not alter mesh colors
+    mesh : trimesh.Trimesh
+      Mesh to check broken faces on
+    color: (4,) uint8 or None
+      Will set broken faces to this color if not None
 
     Returns
     ---------------
-    broken: (n, ) int, indexes of mesh.faces
+    broken : (n, ) int
+      Indexes of mesh.faces
     """
     adjacency = nx.from_edgelist(mesh.face_adjacency)
     broken = [k for k, v in dict(adjacency.degree()).items()
@@ -202,25 +205,28 @@ def fill_holes(mesh):
     of the last face will be assigned to the new triangles.
 
     Parameters
-    ---------
+    ------------
     mesh : trimesh.Trimesh
       Mesh will be repaired in- place
     """
 
     def hole_to_faces(hole):
         """
-        Given a loop of vertex indices  representing a hole, turn it into
-        triangular faces.
+        Given a loop of vertex indices  representing a hole
+        turn it into triangular faces.
         If unable to do so, return None
 
         Parameters
-        ---------
-        hole:     ordered loop of vertex indices
+        -----------
+        hole : (n,) int
+          Ordered loop of vertex indices
 
         Returns
         ---------
-        (n, 3) new faces
-        (m, 3) new vertices
+        faces : (n, 3) int
+          New faces
+        vertices : (m, 3) float
+          New vertices
         """
         hole = np.asanyarray(hole)
         # the case where the hole is just a single missing triangle

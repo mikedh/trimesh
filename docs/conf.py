@@ -26,8 +26,7 @@ def abspath(rel):
     return os.path.abspath(os.path.join(cwd, rel))
 
 
-extensions = ['sphinx.ext.napoleon',
-              'autodocsumm']
+extensions = ['sphinx.ext.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

@@ -9,8 +9,6 @@ Other libraries may be imported must be wrapped in try/except blocks
 or imported inside of a function
 """
 
-import numpy as np
-
 import abc
 import sys
 import copy
@@ -22,6 +20,8 @@ import hashlib
 import zipfile
 import tempfile
 import collections
+
+import numpy as np
 
 if sys.version_info >= (3, 4):
     # for newer version of python
@@ -750,7 +750,7 @@ def grid_linspace(bounds, count):
     if len(bounds) != 2:
         raise ValueError('bounds must be (2, dimension!')
 
-    count = np.asanyarray(count, dtype=np.int)
+    count = np.asanyarray(count, dtype=np.int64)
     if count.shape == ():
         count = np.tile(count, bounds.shape[1])
 
@@ -1703,16 +1703,17 @@ def jsonify(obj, **kwargs):
     dumped : str
       JSON dump of obj
     """
-    class NumpyEncoder(json.JSONEncoder):
+    class EdgeEncoder(json.JSONEncoder):
         def default(self, obj):
             # will work for numpy.ndarrays
             # as well as their int64/etc objects
             if hasattr(obj, 'tolist'):
                 return obj.tolist()
+            elif hasattr(obj, 'timestamp'):
+                return obj.timestamp()
             return json.JSONEncoder.default(self, obj)
     # run the dumps using our encoder
-    dumped = json.dumps(obj, cls=NumpyEncoder, **kwargs)
-    return dumped
+    return json.dumps(obj, cls=EdgeEncoder, **kwargs)
 
 
 def convert_like(item, like):
@@ -1880,8 +1881,9 @@ def sigfig_round(values, sigfig=1):
 
 def sigfig_int(values, sigfig):
     """
-    Convert a set of floating point values into integers with a specified number
-    of significant figures and an exponent.
+    Convert a set of floating point values into integers
+    with a specified number of significant figures and an
+    exponent.
 
     Parameters
     ------------
@@ -1899,7 +1901,7 @@ def sigfig_int(values, sigfig):
       the same order of magnitude as the input
     """
     values = np.asanyarray(values).reshape(-1)
-    sigfig = np.asanyarray(sigfig, dtype=np.int).reshape(-1)
+    sigfig = np.asanyarray(sigfig, dtype=np.int64).reshape(-1)
 
     if sigfig.shape != values.shape:
         raise ValueError('sigfig must match identifier')
@@ -1909,8 +1911,7 @@ def sigfig_int(values, sigfig):
     exponent[nonzero] = np.floor(np.log10(np.abs(values[nonzero])))
 
     multiplier = exponent - sigfig + 1
-
-    as_int = np.round(values / (10**multiplier)).astype(np.int32)
+    as_int = (values / (10**multiplier)).round().astype(np.int64)
 
     return as_int, multiplier
 
@@ -2054,7 +2055,7 @@ def triangle_strips_to_faces(strips):
     blob = np.concatenate(strips)
 
     # preallocate and slice the blob into rough triangles
-    tri = np.zeros((len(blob) - 2, 3), dtype=np.int)
+    tri = np.zeros((len(blob) - 2, 3), dtype=np.int64)
     for i in range(3):
         tri[:len(blob) - 3, i] = blob[i:-3 + i]
     # the last triangle is left off from the slicing, add it back
@@ -2063,14 +2064,14 @@ def triangle_strips_to_faces(strips):
     # remove the triangles which were implicit but not actually there
     # because we combined everything into one big array for speed
     length_index = np.cumsum(lengths)[:-1]
-    keep = np.ones(len(tri), dtype=np.bool)
+    keep = np.ones(len(tri), dtype=bool)
     keep[length_index - 2] = False
     keep[length_index - 1] = False
     tri = tri[keep]
 
     # flip every other triangle so they generate correct normals/winding
     length_index = np.append(0, np.cumsum(lengths - 2))
-    flip = np.zeros(length_index[-1], dtype=np.bool)
+    flip = np.zeros(length_index[-1], dtype=bool)
     for i in range(len(length_index) - 1):
         flip[length_index[i] + 1:length_index[i + 1]][::2] = True
     tri[flip] = np.fliplr(tri[flip])

@@ -212,7 +212,7 @@ def remove_close(points, radius):
     highest = pairs.ravel()[column + 2 * np.arange(len(column))]
 
     # mask the vertices by index
-    mask = np.ones(len(points), dtype=np.bool)
+    mask = np.ones(len(points), dtype=bool)
     mask[highest] = False
 
     if tol.strict:
@@ -298,7 +298,7 @@ def tsp(points, start=0):
     start = int(start)
 
     # a mask of unvisited points by index
-    unvisited = np.ones(len(points), dtype=np.bool)
+    unvisited = np.ones(len(points), dtype=bool)
     unvisited[start] = False
 
     # traversal of points by index

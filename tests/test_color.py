@@ -221,6 +221,19 @@ class VisualTest(g.unittest.TestCase):
 
         g.np.testing.assert_allclose(colors, colors_expected, rtol=0, atol=0)
 
+    def test_iterset(self):
+        m = g.trimesh.creation.box()
+        color = [100, 0, 0, 200]
+
+        # facets should include every face
+        assert set(g.np.hstack(m.facets)) == set(range(len(m.faces)))
+        assert len(m.facets) * 2 == len(m.faces)
+
+        for f in m.facets:
+            m.visual.face_colors[f] = color
+
+        assert g.np.allclose(m.visual.face_colors, color)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

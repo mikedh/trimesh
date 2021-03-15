@@ -35,7 +35,7 @@ class AssimpTest(g.unittest.TestCase):
         # load the duck using pyassimp
         try:
             import pyassimp  # NOQA
-        except ImportError:
+        except BaseException:
             return
 
         file_path = g.os.path.join(g.dir_models, 'duck.dae')

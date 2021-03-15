@@ -216,7 +216,7 @@ def load_obj(file_obj,
             else:
                 # generate the mask so we only include
                 # referenced vertices in every new mesh
-                mask_v = np.zeros(len(v), dtype=np.bool)
+                mask_v = np.zeros(len(v), dtype=bool)
                 mask_v[faces] = True
 
                 # reconstruct the faces with the new vertex indices

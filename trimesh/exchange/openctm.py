@@ -131,13 +131,13 @@ if _ctm_lib:
         vertex_ctm = ctmGetFloatArray(ctm, CTM_VERTICES)
         # use fromiter to avoid loop
         vertices = np.fromiter(vertex_ctm,
-                               dtype=np.float,
+                               dtype=np.float64,
                                count=vertex_count * 3).reshape((-1, 3))
         # get faces
         face_count = ctmGetInteger(ctm, CTM_TRIANGLE_COUNT)
         face_ctm = ctmGetIntegerArray(ctm, CTM_INDICES)
         faces = np.fromiter(face_ctm,
-                            dtype=np.int,
+                            dtype=np.int64,
                             count=face_count * 3).reshape((-1, 3))
 
         # create kwargs for trimesh constructor
@@ -148,7 +148,7 @@ if _ctm_lib:
         if ctmGetInteger(ctm, CTM_HAS_NORMALS) == CTM_TRUE:
             normals_ctm = ctmGetFloatArray(ctm, CTM_NORMALS)
             normals = np.fromiter(normals_ctm,
-                                  dtype=np.float,
+                                  dtype=np.float64,
                                   count=face_count * 3).reshape((-1, 3))
             result['face_normals'] = normals
 

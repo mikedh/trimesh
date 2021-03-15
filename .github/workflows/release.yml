@@ -61,11 +61,11 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: |
         brew install geos
-        brew cask install openscad
+        brew install --cask openscad
     - name: Install Pytest
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-cov coveralls setuptools
+        pip install pytest pytest-cov wheel coveralls setuptools
     - name: Install Trimesh
       run: pip install .[easy]
     - name: Run Pytest

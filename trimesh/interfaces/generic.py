@@ -27,14 +27,17 @@ class MeshScript:
 
     def __enter__(self):
         # windows has problems with multiple programs using open files so we close
-        # them at the end of the enter call, and delete them ourselves at the
-        # exit
+        # them at the end of the enter call, and delete them ourselves at exit
+        # Blender sorts its objects alphabetically
+        # so prefix the mesh number on the file name
+        digit_count = len(str(len(self.meshes)))
         self.mesh_pre = [
             NamedTemporaryFile(
                 suffix='.{}'.format(
                     self.exchange),
+                prefix='{}_'.format(str(i).zfill(digit_count)),
                 mode='wb',
-                delete=False) for i in self.meshes]
+                delete=False) for i in range(len(self.meshes))]
         self.mesh_post = NamedTemporaryFile(
             suffix='.{}'.format(
                 self.exchange),

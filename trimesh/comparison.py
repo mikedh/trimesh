@@ -17,7 +17,8 @@ id_sigfig = np.array([5,  # area
                       5,  # area/volume ratio
                       2,  # convex/mesh area ratio
                       2,  # convex area/volume ratio
-                      3])  # max radius squared / area
+                      3,  # max radius squared / area
+                      1])  # signed triangle count for mirrored
 
 
 def identifier_simple(mesh):
@@ -45,7 +46,7 @@ def identifier_simple(mesh):
     with mesh._cache:
         # pre-allocate identifier so indexes of values can't move around
         # like they might if we used hstack or something else
-        identifier = np.zeros(6, dtype=np.float64)
+        identifier = np.zeros(7, dtype=np.float64)
         # avoid thrashing the cache unnecessarily
         mesh_area = mesh.area
         # start with properties that are valid regardless of watertightness
@@ -112,6 +113,17 @@ def identifier_simple(mesh):
             R2 = np.dot((vertices ** 2), [1, 1, 1]).max()
             identifier[5] = R2 / mesh_area
 
+    # mirrored meshes will look identical in terms of
+    # area, volume, etc: use a count of relative edge
+    # lengths to differentiate identical but mirrored meshes
+    # this doesn't work well on meshes with a small number of faces
+    # TODO : compare with "cross product of 2 orthogonal metrics"
+    # for a more principled way to detect mirrored meshes
+    if len(mesh.faces) > 50:
+        count = face_ordering(mesh).sum()
+        sign = float(count) / len(mesh.faces)
+        if abs(count) > 10 and abs(sign) > 0.02:
+            identifier[6] = sign
     return identifier
 
 
@@ -189,7 +201,7 @@ def face_ordering(mesh):
 
     # mark by sign but keep zero values zero
     order = np.zeros(len(norms), dtype=np.int64)
-    order[diff < tol.merge] = -1
+    order[diff < -tol.merge] = -1
     order[diff > tol.merge] = 1
 
     return order

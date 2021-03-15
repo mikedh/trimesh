@@ -93,7 +93,7 @@ class NormalsTest(g.unittest.TestCase):
         assert len(norm) == len(m.vertices)
 
         # vertices with every face intact
-        mask = g.np.zeros(len(m.vertices), dtype=g.np.bool)
+        mask = g.np.zeros(len(m.vertices), dtype=bool)
         mask[m.faces[0]] = False
         # it's a box so normals should all be unit vectors [1,1,1]
         assert g.np.allclose(g.np.abs(norm[mask]), (1.0 / 3.0) ** .5)
