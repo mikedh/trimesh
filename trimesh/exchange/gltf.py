@@ -453,7 +453,7 @@ def _acc_append(acc, blob, data):
         elif kind == 5126:
             blob['count'] = len(data)
             blob['max'] = data.max(axis=0).tolist()
-            blob['min'] = data.max(axis=0).tolist()
+            blob['min'] = data.min(axis=0).tolist()
 
     # store the accessor and return the index
     acc[key] = blob
