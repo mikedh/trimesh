@@ -1142,6 +1142,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
 
                 # each primitive gets it's own Trimesh object
                 if len(m["primitives"]) > 1:
+                    kwargs['metadata']['primitive'] = True
                     name += "_{}".format(j)
 
                 # make name unique across multiple meshes
