@@ -410,6 +410,52 @@ def _od_append(ordered, data):
     return len(ordered) - 1
 
 
+def _acc_append(acc, blob, data):
+    """
+    Append a new accessor to an OrderedDict.
+
+    Parameters
+    ------------
+    acc : collections.OrderedDict
+      Collection of accessors
+    blob : dict
+      Candidate accessor
+    data : numpy.array
+      Data to fill in details to blob
+
+    Returns
+    ----------
+    index : int
+      Index of accessor that was added or reused.
+    """
+    # start by hashing the sorted blob
+    key = fast_hash(json.dumps(blob, sort_keys=True))
+    # if we have data include that in the key
+    if hasattr(data, 'fast_hash'):
+        key ^= data.fast_hash()
+
+    # if key exists return the index
+    if key in acc:
+        return list(acc.keys()).index(key)
+
+    # if data is passed fill in details here
+    if data is not None:
+        kind = blob['componentType']
+        if kind == 5125:
+            blob['count'] = int(np.product(data.shape))
+            blob['max'] = [int(data.max())]
+            blob['min'] = [int(data.min())]
+        elif kind == 5126:
+            blob['count'] = len(data)
+            blob['max'] = data.max(axis=0).tolist()
+            blob['min'] = data.max(axis=0).tolist()
+
+    # store the accessor and return the index
+    acc[key] = blob
+
+    return len(acc)
+
+
 def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
     """
     Create a simple GLTF material for a mesh using the most
@@ -473,7 +519,7 @@ def _create_gltf_structure(scene,
         "scenes": [{"nodes": [0]}],
         "asset": {"version": "2.0",
                   "generator": "https://github.com/mikedh/trimesh"},
-        "accessors": [],
+        "accessors": collections.OrderedDict(),
         "meshes": [],
         "images": [],
         "textures": [],
@@ -543,6 +589,9 @@ def _create_gltf_structure(scene,
         if len(tree[key]) == 0:
             tree.pop(key)
 
+    # convert accessors back to a flat list
+    tree['accessors'] = list(tree['accessors'].values())
+
     # in unit tests compare our header against the schema
     if tol.strict:
         validate(tree)
@@ -580,15 +629,39 @@ def _append_mesh(mesh,
         log.warning('skipping empty mesh!')
         return
 
+    # convert mesh data to the correct dtypes
+    # faces: 5125 is an unsigned 32 bit integer
+    index = _od_append(
+        buffer_items, mesh.faces.astype(uint32).tobytes())
+    # accessors refer to data locations
+    # mesh faces are stored as flat list of integers
+    acc_face = _acc_append(tree['accessors'],
+                           blob={
+                               "bufferView": index,
+                               "componentType": 5125,
+                               "type": "SCALAR"},
+                           data=mesh.faces)
+
+    # vertices: 5126 is a float32
+    index = _od_append(
+        buffer_items,
+        mesh.vertices.astype(float32).tobytes())
+    # create or reuse an accessor for these vertices
+    acc_vertex = _acc_append(tree['accessors'],
+                             blob={"bufferView": index,
+                                   "componentType": 5126,
+                                   "type": "VEC3",
+                                   "byteOffset": 0},
+                             data=mesh.vertices)
+
     # meshes reference accessor indexes
     # mode 4 is GL_TRIANGLES
     tree["meshes"].append({
         "name": name,
         "primitives": [{
-            "attributes": {"POSITION": len(tree["accessors"]) + 1},
-            "indices": len(tree["accessors"]),
+            "attributes": {"POSITION": acc_vertex},
+            "indices": acc_face,
             "mode": 4}]})
-
     # if units are defined, store them as an extra
     # the GLTF spec says everything is implicit meters
     # we're not doing that as our unit conversions are expensive
@@ -596,36 +669,6 @@ def _append_mesh(mesh,
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
     if mesh.units is not None and 'meter' not in mesh.units:
         tree["meshes"][-1]["extras"] = {"units": str(mesh.units)}
-
-    # convert mesh data to the correct dtypes
-    # faces: 5125 is an unsigned 32 bit integer
-    index = _od_append(
-        buffer_items, mesh.faces.astype(uint32).tobytes())
-
-    # accessors refer to data locations
-    # mesh faces are stored as flat list of integers
-    tree["accessors"].append({
-        "bufferView": index,
-        "componentType": 5125,
-        "count": len(mesh.faces) * 3,
-        "max": [int(mesh.faces.max())],
-        "min": [0],
-        "type": "SCALAR"})
-
-    # vertices: 5126 is a float32
-    index = _od_append(
-        buffer_items,
-        mesh.vertices.astype(float32).tobytes())
-
-    # the vertex accessor
-    tree["accessors"].append({
-        "bufferView": index,
-        "componentType": 5126,
-        "count": len(mesh.vertices),
-        "type": "VEC3",
-        "byteOffset": 0,
-        "max": mesh.vertices.max(axis=0).tolist(),
-        "min": mesh.vertices.min(axis=0).tolist()})
 
     # check to see if we have vertex or face colors
     # or if a TextureVisual has colors included as an attribute
@@ -638,19 +681,20 @@ def _append_mesh(mesh,
         vertex_colors = None
 
     if vertex_colors is not None:
-        # add the reference for vertex color
-        tree["meshes"][-1]["primitives"][0]["attributes"][
-            "COLOR_0"] = len(tree["accessors"])
         # convert color data to bytes and append
         index = _od_append(buffer_items, vertex_colors.astype(uint8).tobytes())
-        # the vertex color accessor data
-        tree["accessors"].append({
-            "bufferView": index,
-            "componentType": 5121,
-            "normalized": True,
-            "count": len(vertex_colors),
-            "type": "VEC4",
-            "byteOffset": 0})
+        acc_color = _acc_append(tree['accessors'],
+                                blob={
+                                    "bufferView": index,
+                                    "componentType": 5121,
+                                    "normalized": True,
+                                    "count": len(vertex_colors),
+                                    "type": "VEC4",
+                                    "byteOffset": 0},
+                                data=None)
+        # add the reference for vertex color
+        tree["meshes"][-1]["primitives"][0]["attributes"][
+            "COLOR_0"] = acc_color
 
     if hasattr(mesh.visual, 'material'):
         # append the material and then set from returned index
@@ -665,9 +709,6 @@ def _append_mesh(mesh,
                   mesh.visual.uv is not None and
                   len(mesh.visual.uv) == len(mesh.vertices))
         if has_uv:
-            # add the reference for UV coordinates
-            tree["meshes"][-1]["primitives"][0]["attributes"][
-                "TEXCOORD_0"] = len(tree["accessors"])
             # slice off W if passed
             uv = mesh.visual.uv.copy()[:, :2]
             # reverse the Y for GLTF
@@ -675,29 +716,35 @@ def _append_mesh(mesh,
             # convert UV coordinate data to bytes and pad
             index = _od_append(buffer_items, uv.astype(float32).tobytes())
             # add an accessor describing the blob of UV's
-            tree["accessors"].append({
-                "bufferView": index,
-                "componentType": 5126,
-                "count": len(mesh.visual.uv),
-                "type": "VEC2",
-                "byteOffset": 0})
+            acc_uv = _acc_append(tree['accessors'],
+                                 blob={"bufferView": index,
+                                       "componentType": 5126,
+                                       "count": len(mesh.visual.uv),
+                                       "type": "VEC2",
+                                       "byteOffset": 0},
+                                 data=None)
+            # add the reference for UV coordinates
+            tree["meshes"][-1]["primitives"][0]["attributes"][
+                "TEXCOORD_0"] = acc_uv
 
     if (include_normals or (include_normals is None and
                             'vertex_normals' in mesh._cache.cache)):
-        # add the reference for vertex color
-        tree["meshes"][-1]["primitives"][0]["attributes"][
-            "NORMAL"] = len(tree["accessors"])
 
+        normals = mesh.vertex_normals.astype(float32)
         index = _od_append(
             buffer_items,
-            mesh.vertex_normals.astype(float32).tobytes())
-        # the vertex color accessor data
-        tree["accessors"].append({
-            "bufferView": index,
-            "componentType": 5126,
-            "count": len(mesh.vertices),
-            "type": "VEC3",
-            "byteOffset": 0})
+            normals.tobytes())
+        acc_norm = _acc_append(tree['accessors'],
+                               blob={
+                                   "bufferView": index,
+                                   "componentType": 5126,
+                                   "count": len(mesh.vertices),
+                                   "type": "VEC3",
+                                   "byteOffset": 0},
+                               data=normals)
+        # add the reference for vertex color
+        tree["meshes"][-1]["primitives"][0]["attributes"][
+            "NORMAL"] = acc_norm
 
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
@@ -706,15 +753,14 @@ def _append_mesh(mesh,
         # Application specific attributes must be prefixed with an underscore
         if not key.startswith("_"):
             attribute_name = "_" + key
-        tree["meshes"][-1]["primitives"][0]["attributes"][attribute_name] = len(
-            tree["accessors"])
         index = _od_append(buffer_items, mesh.vertex_attributes[key].tobytes())
-        accessor = {
-            "bufferView": index,
-            "count": len(mesh.vertex_attributes[key])
-        }
+        accessor = {"bufferView": index,
+                    "count": len(mesh.vertex_attributes[key])}
         accessor.update(_build_accessor(mesh.vertex_attributes[key]))
-        tree["accessors"].append(accessor)
+        acc_atr = _acc_append(tree['accessors'],
+                              blob=accessor,
+                              data=None)
+        tree["meshes"][-1]["primitives"][0]["attributes"][attribute_name] = acc_atr
 
 
 def _build_views(buffer_items):
@@ -828,10 +874,21 @@ def _append_path(path, name, tree, buffer_items):
         material_idx = len(tree["materials"])
         tree["materials"].append(_default_material)
 
+    # data is the second value of the fifth field
+    # which is a (data type, data) tuple
+    index = _od_append(
+        buffer_items, vxlist[4][1].astype(float32).tobytes())
+
+    acc_vertex = _acc_append(tree['accessors'],
+                             blob={"bufferView": index,
+                                   "componentType": 5126,
+                                   "type": "VEC3",
+                                   "byteOffset": 0},
+                             data=path.vertices)
     tree["meshes"].append({
         "name": name,
         "primitives": [{
-            "attributes": {"POSITION": len(tree["accessors"])},
+            "attributes": {"POSITION": acc_vertex},
             "mode": 1,  # mode 1 is GL_LINES
             "material": material_idx}]})
 
@@ -839,35 +896,20 @@ def _append_path(path, name, tree, buffer_items):
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
     if path.units is not None and 'meter' not in path.units:
         tree["meshes"][-1]["extras"] = {"units": str(path.units)}
-    # data is the second value of the fifth field
-    # which is a (data type, data) tuple
-    index = _od_append(
-        buffer_items, vxlist[4][1].astype(float32).tobytes())
-
-    tree["accessors"].append(
-        {"bufferView": index,
-         "componentType": 5126,
-         "count": vxlist[0],
-         "type": "VEC3",
-         "byteOffset": 0,
-         "max": path.vertices.max(axis=0).tolist(),
-         "min": path.vertices.min(axis=0).tolist()})
-
-    # add color to attributes
-    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
 
     index = _od_append(
         buffer_items,
         np.array(vxlist[5][1]).astype(uint8).tobytes())
-
-    # the vertex color accessor data
-    tree["accessors"].append({
-        "bufferView": index,
-        "componentType": 5121,
-        "count": vxlist[0],
-        "normalized": True,
-        "type": "VEC4",
-        "byteOffset": 0})
+    acc_color = _acc_append(tree['accessors'],
+                            blob={"bufferView": index,
+                                  "componentType": 5121,
+                                  "count": vxlist[0],
+                                  "normalized": True,
+                                  "type": "VEC4",
+                                  "byteOffset": 0},
+                            data=None)
+    # add color to attributes
+    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = acc_color
 
 
 def _append_point(points, name, tree, buffer_items):
@@ -897,40 +939,36 @@ def _append_point(points, name, tree, buffer_items):
     index = _od_append(
         buffer_items,
         vxlist[4][1].astype(float32).tobytes())
+    acc_vertex = _acc_append(tree['accessors'],
+                             blob={"bufferView": index,
+                                   "componentType": 5126,
+                                   "type": "VEC3",
+                                   "byteOffset": 0},
+                             data=points.vertices)
     tree["meshes"].append({
         "name": name,
         "primitives": [{
-            "attributes": {"POSITION": len(tree["accessors"])},
+            "attributes": {"POSITION": acc_vertex},
             "mode": 0,  # mode 0 is GL_POINTS
             "material": len(tree["materials"])}]})
-    tree["accessors"].append(
-        {"bufferView": index,
-         "componentType": 5126,
-         "count": vxlist[0],
-         "type": "VEC3",
-         "byteOffset": 0,
-         "max": points.vertices.max(axis=0).tolist(),
-         "min": points.vertices.min(axis=0).tolist()})
 
     # TODO add color support to Points object
     # this is just exporting everying as black
     tree["materials"].append(_default_material)
 
-    # add color to attributes
-    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
-
     index = _od_append(
         buffer_items,
         np.array(vxlist[5][1]).astype(uint8).tobytes())
-
-    # the vertex color accessor data
-    tree["accessors"].append({
-        "bufferView": index,
-        "componentType": 5121,
-        "count": vxlist[0],
-        "normalized": True,
-        "type": "VEC4",
-        "byteOffset": 0})
+    acc_color = _acc_append(tree['accessors'],
+                            blob={"bufferView": index,
+                                  "componentType": 5121,
+                                  "count": vxlist[0],
+                                  "normalized": True,
+                                  "type": "VEC4",
+                                  "byteOffset": 0},
+                            data=None)
+    # add color to attributes
+    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = acc_color
 
 
 def _parse_materials(header, views, resolver=None):
