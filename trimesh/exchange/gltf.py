@@ -452,8 +452,7 @@ def _acc_append(acc, blob, data):
 
     # store the accessor and return the index
     acc[key] = blob
-
-    return len(acc)
+    return len(acc) - 1
 
 
 def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
