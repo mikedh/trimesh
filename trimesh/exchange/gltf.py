@@ -18,7 +18,9 @@ from .. import rendering
 from .. import resources
 from .. import transformations
 
+from ..caching import fast_hash
 from ..constants import log, tol
+
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -397,8 +399,8 @@ def _od_append(ordered, data):
     index : int
       Index of buffer_items stored in
     """
-    # native python hashing is pretty fast
-    hashed = hash(data)
+    # hash the data to see if we have it already
+    hashed = fast_hash(data)
     if hashed in ordered:
         # todo : better way of finding index in an OrderedDict?
         return list(ordered.keys()).index(hashed)
