@@ -430,9 +430,14 @@ def _acc_append(acc, blob, data):
     """
     # start by hashing the sorted blob
     key = fast_hash(json.dumps(blob, sort_keys=True))
+
     # if we have data include that in the key
     if hasattr(data, 'fast_hash'):
+        # passed a TrackedArray object
         key ^= data.fast_hash()
+    elif data is not None:
+        # someone passed a vanilla numpy array
+        key ^= fast_hash(data.tobytes())
 
     # if key exists return the index
     if key in acc:
