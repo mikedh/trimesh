@@ -382,7 +382,7 @@ def _uri_to_bytes(uri, resolver):
     return base64.b64decode(uri[index + 7:])
 
 
-def _od_append(ordered, data):
+def _buffer_append(ordered, data):
     """
     Append data to an existing OrderedDict and
     pad it to a 4-byte boundary.
@@ -402,7 +402,7 @@ def _od_append(ordered, data):
     # hash the data to see if we have it already
     hashed = fast_hash(data)
     if hashed in ordered:
-        # todo : better way of finding index in an OrderedDict?
+        # apparently theretodo : better way of finding index in an OrderedDict?
         return list(ordered.keys()).index(hashed)
     # not in buffer items so append and then return index
     ordered[hashed] = _byte_pad(data)
@@ -428,8 +428,13 @@ def _acc_append(acc, blob, data):
     index : int
       Index of accessor that was added or reused.
     """
-    # start by hashing the sorted blob
-    key = fast_hash(json.dumps(blob, sort_keys=True))
+    # start by hashing the dict blob
+    # note that this will not work on nested dicts
+    # and relies on the order of the dict
+    # which is fine in this case since accessors are not
+    # nested and we are only interested in deduplicating
+    # completely identical accessors.
+    key = hash(tuple(blob.items()))
 
     # if we have data include that in the key
     if hasattr(data, 'fast_hash'):
@@ -635,7 +640,7 @@ def _append_mesh(mesh,
 
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
-    index = _od_append(
+    index = _buffer_append(
         buffer_items, mesh.faces.astype(uint32).tobytes())
     # accessors refer to data locations
     # mesh faces are stored as flat list of integers
@@ -647,7 +652,7 @@ def _append_mesh(mesh,
                            data=mesh.faces)
 
     # vertices: 5126 is a float32
-    index = _od_append(
+    index = _buffer_append(
         buffer_items,
         mesh.vertices.astype(float32).tobytes())
     # create or reuse an accessor for these vertices
@@ -686,7 +691,7 @@ def _append_mesh(mesh,
 
     if vertex_colors is not None:
         # convert color data to bytes and append
-        index = _od_append(buffer_items, vertex_colors.astype(uint8).tobytes())
+        index = _buffer_append(buffer_items, vertex_colors.astype(uint8).tobytes())
         acc_color = _acc_append(tree['accessors'],
                                 blob={
                                     "bufferView": index,
@@ -718,7 +723,7 @@ def _append_mesh(mesh,
             # reverse the Y for GLTF
             uv[:, 1] = 1.0 - uv[:, 1]
             # convert UV coordinate data to bytes and pad
-            index = _od_append(buffer_items, uv.astype(float32).tobytes())
+            index = _buffer_append(buffer_items, uv.astype(float32).tobytes())
             # add an accessor describing the blob of UV's
             acc_uv = _acc_append(tree['accessors'],
                                  blob={"bufferView": index,
@@ -735,7 +740,7 @@ def _append_mesh(mesh,
                             'vertex_normals' in mesh._cache.cache)):
 
         normals = mesh.vertex_normals.astype(float32)
-        index = _od_append(
+        index = _buffer_append(
             buffer_items,
             normals.tobytes())
         acc_norm = _acc_append(tree['accessors'],
@@ -757,7 +762,7 @@ def _append_mesh(mesh,
         # Application specific attributes must be prefixed with an underscore
         if not key.startswith("_"):
             attribute_name = "_" + key
-        index = _od_append(buffer_items, mesh.vertex_attributes[key].tobytes())
+        index = _buffer_append(buffer_items, mesh.vertex_attributes[key].tobytes())
         accessor = {"bufferView": index,
                     "count": len(mesh.vertex_attributes[key])}
         accessor.update(_build_accessor(mesh.vertex_attributes[key]))
@@ -880,7 +885,7 @@ def _append_path(path, name, tree, buffer_items):
 
     # data is the second value of the fifth field
     # which is a (data type, data) tuple
-    index = _od_append(
+    index = _buffer_append(
         buffer_items, vxlist[4][1].astype(float32).tobytes())
 
     acc_vertex = _acc_append(tree['accessors'],
@@ -901,7 +906,7 @@ def _append_path(path, name, tree, buffer_items):
     if path.units is not None and 'meter' not in path.units:
         tree["meshes"][-1]["extras"] = {"units": str(path.units)}
 
-    index = _od_append(
+    index = _buffer_append(
         buffer_items,
         np.array(vxlist[5][1]).astype(uint8).tobytes())
     acc_color = _acc_append(tree['accessors'],
@@ -940,7 +945,7 @@ def _append_point(points, name, tree, buffer_items):
 
     # data is the second value of the fifth field
     # which is a (data type, data) tuple
-    index = _od_append(
+    index = _buffer_append(
         buffer_items,
         vxlist[4][1].astype(float32).tobytes())
     acc_vertex = _acc_append(tree['accessors'],
@@ -960,7 +965,7 @@ def _append_point(points, name, tree, buffer_items):
     # this is just exporting everying as black
     tree["materials"].append(_default_material)
 
-    index = _od_append(
+    index = _buffer_append(
         buffer_items,
         np.array(vxlist[5][1]).astype(uint8).tobytes())
     acc_color = _acc_append(tree['accessors'],
@@ -1505,7 +1510,7 @@ def _append_image(img, tree, buffer_items):
         f.seek(0)
         data = f.read()
 
-    index = _od_append(buffer_items, data)
+    index = _buffer_append(buffer_items, data)
     # append buffer index and the GLTF-acceptable mimetype
     tree['images'].append({
         'bufferView': index,
