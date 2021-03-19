@@ -201,10 +201,10 @@ def mesh_multiplane(mesh,
     -------------
     mesh : trimesh.Trimesh
         Geometry to be sliced by planes
-    plane_normal : (3,) float
-        Normal vector of plane
     plane_origin : (3,) float
         Point on a plane
+    plane_normal : (3,) float
+        Normal vector of plane
     heights : (m,) float
       Offset distances from plane to slice at:
       at `height=0` it will be exactly on the passed plane.
