@@ -517,10 +517,10 @@ class GLTFTest(g.unittest.TestCase):
         s = g.get_mesh('CesiumMilkTruck.glb')
 
         # Assert that primitive geometries are marked as such
-        assert s.geometry['Cesium_Milk_Truck_0'].metadata.get('from_gltf_primitive', False)
+        assert s.geometry['Cesium_Milk_Truck_0'].metadata['from_gltf_primitive']
 
         # Assert that geometries that are not primitives are not marked as such
-        assert not s.geometry['Wheels'].metadata.get('from_gltf_primitive', False)
+        assert not s.geometry['Wheels'].metadata['from_gltf_primitive']
 
 
 if __name__ == '__main__':
