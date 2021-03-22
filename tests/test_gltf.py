@@ -532,6 +532,16 @@ class GLTFTest(g.unittest.TestCase):
         assert "extensions" not in extract_materials(gltf_1)[-1]
         assert "extensions" in extract_materials(gltf_2)[-1]
 
+    def test_primitive_geometry_meta(self):
+        # Model with primitives
+        s = g.get_mesh('CesiumMilkTruck.glb')
+
+        # Assert that primitive geometries are marked as such
+        assert s.geometry['Cesium_Milk_Truck_0'].metadata['from_gltf_primitive']
+
+        # Assert that geometries that are not primitives are not marked as such
+        assert not s.geometry['Wheels'].metadata['from_gltf_primitive']
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
