@@ -48,7 +48,7 @@ class GLTFTest(g.unittest.TestCase):
         scene.add_geometry(
             box_3, 'box_3',
             transform=tm((-1, 20, -1)))
-        a = g.json.loads(scene.export(file_type='gltf')['model.gltf'])
+        a = g.json.loads(scene.export(file_type='gltf')['model.gltf'].decode('utf-8'))
         assert len(a['buffers']) <= 3
 
     def test_tex_export(self):
