@@ -66,7 +66,7 @@ requirements_test = set(['pytest',       # run all unit tests
 
 # Python 2.7 and 3.4 support has been dropped from packages
 # version lock those packages here so install succeeds
-if (sys.version_info.major, sys.version_info.minor) <= (3, 4):
+if (sys.version_info.major, sys.version_info.minor) <= (3, 5):
     # packages that no longer support old Python
     lock = [('lxml', '4.3.5'),
             ('shapely', '1.6.4'),
