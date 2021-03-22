@@ -429,12 +429,13 @@ def _acc_append(acc, blob, data):
       Index of accessor that was added or reused.
     """
     # start by hashing the dict blob
-    # note that this will not work on nested dicts
-    # and relies on the order of the dict
-    # which is fine in this case since accessors are not
-    # nested and we are only interested in deduplicating
-    # completely identical accessors.
-    key = hash(tuple(blob.items()))
+    # note that this will not work if a value is a list
+    try:
+        # simple keys can be hashed as tuples without JSON
+        key = hash(tuple(blob.items()))
+    except BaseException:
+        # if there are list keys that break the simple hash
+        key = hash(json.dumps(blob, sort_keys=True))
 
     # if we have data include that in the key
     if hasattr(data, 'fast_hash'):
