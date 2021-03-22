@@ -164,6 +164,9 @@ class TransformForest(object):
             lookup[node] = len(result)
             result.append({'name': node})
 
+        # does the scene have a defined camera to export
+        has_camera = scene.has_camera
+
         # then iterate through to collect data
         for info in result:
             # name of the scene node
@@ -176,7 +179,7 @@ class TransformForest(object):
             if 'geometry' in node_data[node]:
                 info['mesh'] = mesh_index[node_data[node]['geometry']]
             # check to see if we have camera node
-            if node == scene.camera.name:
+            if has_camera and node == scene.camera.name:
                 info['camera'] = 0
 
             try:

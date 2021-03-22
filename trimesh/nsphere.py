@@ -28,7 +28,7 @@ try:
     def _MAX_MEMORY():
         # if we have psutil check actual free memory when called
         return psutil.virtual_memory().free / 2.0
-except ImportError:
+except BaseException:
     def _MAX_MEMORY():
         # use a hardcoded best guess estimate
         return 1e9

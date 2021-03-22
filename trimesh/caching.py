@@ -703,3 +703,9 @@ def _fast_crc(count=25):
 # get the fastest CRC32 available on the
 # current platform when trimesh is imported
 crc32 = _fast_crc()
+
+# add a shortcut for fast hashing
+if xxhash is None:
+    fast_hash = crc32
+else:
+    def fast_hash(x): return xxhash.xxh64(x).intdigest()

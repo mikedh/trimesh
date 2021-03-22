@@ -118,15 +118,20 @@ class ColorVisuals(Visuals):
         mode : str or None
           One of ('face', 'vertex', None)
         """
-        self._verify_crc()
-        if 'vertex_colors' in self._data:
-            mode = 'vertex'
-        elif 'face_colors' in self._data:
-            mode = 'face'
-        else:
-            mode = None
+        # if nothing is stored anywhere it's a safe bet mode is None
+        if not (len(self._cache.cache) > 0 or len(self._data.data) > 0):
+            return None
 
-        return mode
+        # do bookkeeping
+        self._verify_crc()
+
+        # check modes in data
+        if 'vertex_colors' in self._data:
+            return 'vertex'
+        elif 'face_colors' in self._data:
+            return 'face'
+
+        return None
 
     def crc(self):
         """

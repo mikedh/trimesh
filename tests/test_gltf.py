@@ -31,6 +31,26 @@ class GLTFTest(g.unittest.TestCase):
         geom.merge_vertices(merge_tex=True)
         assert geom.is_volume
 
+    def test_buffer_dedupe(self):
+        scene = g.trimesh.Scene()
+        box_1 = g.trimesh.creation.box()
+        box_2 = g.trimesh.creation.box()
+        box_3 = g.trimesh.creation.box()
+        box_3.visual.face_colors = [0, 255, 0, 255]
+
+        tm = g.trimesh.transformations.translation_matrix
+        scene.add_geometry(
+            box_1, 'box_1',
+            transform=tm((1, 1, 1)))
+        scene.add_geometry(
+            box_2, 'box_2',
+            transform=tm((-1, -1, -1)))
+        scene.add_geometry(
+            box_3, 'box_3',
+            transform=tm((-1, 20, -1)))
+        a = g.json.loads(scene.export(file_type='gltf')['model.gltf'])
+        assert len(a['buffers']) <= 3
+
     def test_tex_export(self):
         # load textured PLY
         mesh = g.get_mesh('fuze.ply')
@@ -511,6 +531,16 @@ class GLTFTest(g.unittest.TestCase):
 
         assert "extensions" not in extract_materials(gltf_1)[-1]
         assert "extensions" in extract_materials(gltf_2)[-1]
+
+    def test_primitive_geometry_meta(self):
+        # Model with primitives
+        s = g.get_mesh('CesiumMilkTruck.glb')
+
+        # Assert that primitive geometries are marked as such
+        assert s.geometry['Cesium_Milk_Truck_0'].metadata['from_gltf_primitive']
+
+        # Assert that geometries that are not primitives are not marked as such
+        assert not s.geometry['Wheels'].metadata['from_gltf_primitive']
 
 
 if __name__ == '__main__':

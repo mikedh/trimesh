@@ -2032,10 +2032,10 @@ class Trimesh(Geometry3D):
 
         Parameters
         ------------
-        plane_normal: (3) vector for plane normal
-          Normal vector of section plane
         plane_origin : (3, ) float
           Point on the cross section plane
+        plane_normal: (3) vector for plane normal
+          Normal vector of section plane
         heights : (n, ) float
           Each section is offset by height along
           the plane normal.

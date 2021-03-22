@@ -53,7 +53,7 @@ try:
 except ImportError as E:
     if all_dep:
         raise E
-
+    sp = None
 
 # make sure functions know they should run additional
 # potentially slow validation checks and raise exceptions
