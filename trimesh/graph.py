@@ -178,7 +178,7 @@ def face_adjacency_radius(mesh):
     #     2 * sin(theta / 2)
     nonzero = mesh.face_adjacency_angles > np.radians(.01)
     denominator = np.abs(
-        2.0 * np.sin(mesh.face_adjacency_angles[nonzero] / 1.0))
+        2.0 * np.sin(mesh.face_adjacency_angles[nonzero] / 2.0))
 
     # consider the distance between the non- shared vertices of the
     # face adjacency pair as the key distance
