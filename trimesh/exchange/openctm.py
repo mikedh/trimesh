@@ -75,12 +75,12 @@ def load_ctm(file_obj, file_type=None, **kwargs):
 
     # boolean
     CTM_TRUE = 1
-    CTM_FALSE = 0
+    # CTM_FALSE = 0
 
     # CTMenum
     CTM_NONE = 0x0000
     CTM_IMPORT = 0x0101
-    CTM_EXPORT = 0x0102
+    # CTM_EXPORT = 0x0102
     CTM_VERTEX_COUNT = 0x0301
     CTM_TRIANGLE_COUNT = 0x0302
     CTM_HAS_NORMALS = 0x0303
