@@ -36,13 +36,12 @@ import numpy as np
 _ctm_loaders = {}
 
 try:
+
+    # try to find the shared library
+    _ctm_lib_name = ctypes.util.find_library('openctm')
     if os.name == 'nt':
-        # try to find the shared library on windows
-        _ctm_lib_name = ctypes.util.find_library('openctm.dll')
         _ctm_loader = ctypes.WinDLL
     else:
-        # try to find on other platforms
-        _ctm_lib_name = ctypes.util.find_library('openctm')
         _ctm_loader = ctypes.CDLL
 except BaseException:
     pass

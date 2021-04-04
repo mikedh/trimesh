@@ -1091,20 +1091,19 @@ class Trimesh(Geometry3D):
 
     def merge_vertices(self, **kwargs):
         """
-        If a mesh has vertices that are closer than
-        trimesh.constants.tol.merge reindex faces to reference
-        the same index for both vertices.
+        Removes duplicate vertices, grouped by position and
+        optionally texture coordinate and normal.
 
         Parameters
         -------------
         mesh : Trimesh object
           Mesh to merge vertices on
-        use_tex : bool
-          If True for textured meshes merge vertices
-          with identical positions AND UV coordinates.
-        use_norm : bool
-          If True meshes with vertex normals defined will
-          only have vertices merged with identical normal
+        merge_tex : bool
+          If True textured meshes with UV coordinates will
+          have vertices merged regardless of UV coordinates
+        merge_norm : bool
+          If True, meshes with vertex normals will have
+          vertices merged ignoring different normals
         digits_vertex : None or int
           Number of digits to consider for vertex position
         digits_norm : int

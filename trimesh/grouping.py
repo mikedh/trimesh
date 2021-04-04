@@ -28,8 +28,8 @@ def merge_vertices(mesh,
                    digits_uv=4,
                    **kwargs):
     """
-    Removes duplicate vertices. By default,  based on integer hashes of
-    each row.
+    Removes duplicate vertices, grouped by position and
+    optionally texture coordinate and normal.
 
     Parameters
     -------------
@@ -415,11 +415,11 @@ def unique_rows(data, digits=None):
       Index in data which is a unique row
     inverse : (n,) int
       Array to reconstruct original
-      Example: unique[inverse] == data
+      Example: data[unique][inverse] == data
     """
-    hashes = hashable_rows(data, digits=digits)
-    garbage, unique, inverse = np.unique(
-        hashes,
+    rows = hashable_rows(data, digits=digits)
+    _, unique, inverse = np.unique(
+        rows,
         return_index=True,
         return_inverse=True)
 
