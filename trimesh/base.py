@@ -1825,7 +1825,7 @@ class Trimesh(Geometry3D):
                              n_samples=1,
                              threshold=0.0):
         """
-        Computes stable orientations of a mesh and their quasi-static probabilites.
+        Computes stable orientations of a mesh and their quasi-static probabilities.
 
         This method samples the location of the center of mass from a multivariate
         gaussian (mean at com, cov equal to identity times sigma) over n_samples.

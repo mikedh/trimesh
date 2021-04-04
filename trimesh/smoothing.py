@@ -209,7 +209,7 @@ def filter_mut_dif_laplacian(mesh,
     lamb : float
       Diffusion speed constant
       If   0.0, no diffusion
-      If > 0.0, diffusion occours
+      If > 0.0, diffusion occurs
     iterations : int
       Number of passes to run filter
     laplacian_operator : None or scipy.sparse.coo.coo_matrix

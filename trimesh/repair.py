@@ -292,7 +292,7 @@ def fill_holes(mesh):
         edge_test = face[:2]
         edge_boundary = mesh.edges[g.get_edge_data(*edge_test)['index']]
 
-        # in a well construtced mesh, the winding is such that adjacent triangles
+        # in a well constructed mesh, the winding is such that adjacent triangles
         # have reversed edges to each other. Here we check to make sure the
         # edges are reversed, and if they aren't we simply reverse the face
         reversed = edge_test[0] == edge_boundary[1]

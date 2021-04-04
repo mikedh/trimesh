@@ -46,7 +46,7 @@ def minimum_nsphere(obj):
     Parameters
     ----------
     obj : (n, d) float or trimesh.Trimesh
-      Points or mesh to find minimum bounidng nsphere
+      Points or mesh to find minimum bounding nsphere
 
     Returns
     ----------
