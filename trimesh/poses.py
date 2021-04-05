@@ -23,7 +23,7 @@ def compute_stable_poses(mesh,
                          n_samples=1,
                          threshold=0.0):
     """
-    Computes stable orientations of a mesh and their quasi-static probabilites.
+    Computes stable orientations of a mesh and their quasi-static probabilities.
 
     This method samples the location of the center of mass from a multivariate
     gaussian with the mean at the center of mass, and a covariance
@@ -96,7 +96,7 @@ def compute_stable_poses(mesh,
         # Create toppling digraph
         dg = _create_topple_graph(cvh, sample_com)
 
-        # Propagate probabilites to sink nodes with a breadth-first traversal
+        # Propagate probabilities to sink nodes with a breadth-first traversal
         nodes = [n for n in dg.nodes() if dg.in_degree(n) == 0]
         n_iters = 0
         while len(nodes) > 0 and n_iters <= len(mesh.faces):
