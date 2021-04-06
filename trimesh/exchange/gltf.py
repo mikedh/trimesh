@@ -1603,11 +1603,8 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
         result['name'] = as_pbr.name
 
     # if alphaMode is defined, export
-    if isinstance(as_pbr.alphaMode, str):
+    if isinstance(as_pbr.alphaMode, str) and isinstance(as_pbr.alphaCutoff, float):
         result['alphaMode'] = as_pbr.alphaMode
-
-    # if alphaCutoff is defined, export
-    if isinstance(as_pbr.alphaCutoff, float):
         result['alphaCutoff'] = as_pbr.alphaCutoff
 
     # if doubleSided is defined, export
