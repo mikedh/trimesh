@@ -181,7 +181,6 @@ class TransformForest(object):
             node = info['name']
             # store children as indexes
 
-
             try:
                 children = [lookup[k] for k in graph[node].keys() if k in lookup]
             except KeyError:

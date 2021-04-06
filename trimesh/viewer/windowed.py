@@ -7,7 +7,6 @@ Trimesh, Scene, PointCloud, and Path objects.
 
 Works on all major platforms: Windows, Linux, and OSX.
 """
-import platform
 import collections
 import numpy as np
 
