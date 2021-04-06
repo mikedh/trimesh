@@ -852,14 +852,21 @@ def render_scene(scene,
                  visible=True,
                  **kwargs):
     """
-    Render a preview of a scene to a PNG.
+    Render a preview of a scene to a PNG. Note that
+    whether this works or not highly variable based on
+    platform and graphics driver.
 
     Parameters
     ------------
     scene : trimesh.Scene
       Geometry to be rendered
     resolution : (2,) int or None
-      Resolution in pixels, or set from scene.camera
+      Resolution in pixels or set from scene.camera
+    visible : bool
+      Show a window during rendering. Note that MANY
+      platforms refuse to render with hidden windows
+      and will likely return a blank image; this is a
+      platform issue and cannot be fixed in Python.
     kwargs : **
       Passed to SceneViewer
 
@@ -868,14 +875,9 @@ def render_scene(scene,
     render : bytes
       Image in PNG format
     """
-    window = SceneViewer(scene,
-                         start_loop=False,
-                         visible=visible,
-                         resolution=resolution,
-                         **kwargs)
-
-    if visible is None:
-        visible = platform.system() != 'Linux'
+    window = SceneViewer(
+        scene, start_loop=False, visible=visible,
+        resolution=resolution, **kwargs)
 
     from ..util import BytesIO
 

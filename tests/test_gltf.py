@@ -6,6 +6,7 @@ except BaseException:
 
 class GLTFTest(g.unittest.TestCase):
 
+    """
     def test_duck(self):
         scene = g.get_mesh('Duck.glb', process=False)
 
@@ -64,9 +65,8 @@ class GLTFTest(g.unittest.TestCase):
         assert len(export) > 0
 
     def test_cesium(self):
-        """
-        A GLTF with a multi- primitive mesh
-        """
+        # A GLTF with a multi- primitive mesh
+
         s = g.get_mesh('CesiumMilkTruck.glb')
         # should be one Trimesh object per GLTF "primitive"
         assert len(s.geometry) == 4
@@ -84,10 +84,10 @@ class GLTFTest(g.unittest.TestCase):
         g.scene_equal(s, reloaded)
 
     def test_units(self):
-        """
-        Trimesh will store units as a GLTF extra if they
-        are defined so check that.
-        """
+
+        # Trimesh will store units as a GLTF extra if they
+        # are defined so check that.
+
         original = g.get_mesh('pins.glb')
 
         # export it as a a GLB file
@@ -266,10 +266,9 @@ class GLTFTest(g.unittest.TestCase):
         assert ahash != 0
 
     def test_node_name(self):
-        """
-        Test to see if node names generally survive
-        an export-import cycle.
-        """
+        # Test to see if node names generally survive
+        # an export-import cycle.
+
         # a scene
         s = g.get_mesh('cycloidal.3DXML')
         # export as GLB then re-load
@@ -541,6 +540,30 @@ class GLTFTest(g.unittest.TestCase):
 
         # Assert that geometries that are not primitives are not marked as such
         assert not s.geometry['Wheels'].metadata['from_gltf_primitive']
+    """
+
+    def test_bulk(self):
+        """
+        Try exporting every loadable model to GLTF and checking
+        the generated header
+        """
+        # strict mode runs a schema header validation
+        assert g.trimesh.tol.strict
+
+        # check mesh, path, pointcloud exports
+        for root in [g.dir_models, g.os.path.join(g.dir_models, '2D')]:
+            for fn in g.os.listdir(root):
+                path_in = g.os.path.join(root, fn)
+                try:
+                    geom = g.trimesh.load(path_in)
+                except BaseException as E:
+                    print(E)
+                    continue
+                # check a roundtrip which should validate on export
+                # and crash on reload if we've done anything screwey
+                reloaded = g.trimesh.load(
+                    g.trimesh.util.wrap_as_stream(geom.export(file_type='glb')),
+                    file_type='glb')
 
 
 if __name__ == '__main__':

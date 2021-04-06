@@ -130,10 +130,17 @@ class TransformForest(object):
             }
         return flat
 
-    def to_gltf(self, scene):
+    def to_gltf(self, scene, mesh_index=None):
         """
         Export a transforms as the 'nodes' section of a GLTF dict.
         Flattens tree.
+
+        Parameters
+        ------------
+        scene : trimesh.Scene
+          Scene with geoemtry
+        mesh_index : dict or None
+          Mapping { key in scene.geometry : int }
 
         Returns
         --------
@@ -141,10 +148,11 @@ class TransformForest(object):
           with 'nodes' referencing a list of dicts
         """
 
-        # geometry is an OrderedDict
-        # map mesh name to index: {geometry key : index}
-        mesh_index = {name: i for i, name
-                      in enumerate(scene.geometry.keys())}
+        if mesh_index is None:
+            # geometry is an OrderedDict
+            # map mesh name to index: {geometry key : index}
+            mesh_index = {name: i for i, name
+                          in enumerate(scene.geometry.keys())}
 
         # shortcut to graph
         graph = self.transforms
@@ -172,12 +180,20 @@ class TransformForest(object):
             # name of the scene node
             node = info['name']
             # store children as indexes
-            children = [lookup[k] for k in graph[node].keys()]
+
+
+            try:
+                children = [lookup[k] for k in graph[node].keys() if k in lookup]
+            except KeyError:
+                continue
+
             if len(children) > 0:
                 info['children'] = children
             # if we have a mesh store by index
             if 'geometry' in node_data[node]:
-                info['mesh'] = mesh_index[node_data[node]['geometry']]
+                mesh_key = node_data[node]['geometry']
+                if mesh_key in mesh_index:
+                    info['mesh'] = mesh_index[mesh_key]
             # check to see if we have camera node
             if has_camera and node == scene.camera.name:
                 info['camera'] = 0
