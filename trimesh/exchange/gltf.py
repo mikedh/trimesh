@@ -601,14 +601,14 @@ def _create_gltf_structure(scene,
     nodes = scene.graph.to_gltf(scene=scene, mesh_index=mesh_index)
     tree.update(nodes)
 
-    # cull empty or unpopulated fields
-    # check keys that might be empty so we can remove them
-    check = ['textures', 'materials', 'images']
-    # remove the keys with nothing stored in them
-    [tree.pop(key) for key in check if len(tree[key]) == 0]
-
     # convert accessors back to a flat list
     tree['accessors'] = list(tree['accessors'].values())
+
+    # cull empty or unpopulated fields
+    # check keys that might be empty so we can remove them
+    check = ['textures', 'materials', 'images', 'accessors', 'meshes']
+    # remove the keys with nothing stored in them
+    [tree.pop(key) for key in check if len(tree[key]) == 0]
 
     # in unit tests compare our header against the schema
     if tol.strict:
@@ -883,6 +883,10 @@ def _append_path(path, name, tree, buffer_items):
     # convert the path to the unnamed args for
     # a pyglet vertex list
     vxlist = rendering.path_to_vertexlist(path)
+
+    # of the count of things to export is zero exit early
+    if vxlist[0] == 0:
+        return
 
     # TODO add color support to Path object
     # this is just exporting everying as black
