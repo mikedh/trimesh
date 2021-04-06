@@ -548,5 +548,5 @@ def to_svg(segments, digits=4, matrix=None, merge=True):
     base = ' M _ _ L _ _'.replace(
         '_', '{:0.' + str(int(digits)) + 'f}')
     # create one large format string then apply points
-    result = (base * len(segments))[1:].format(*segments.ravel())
+    result = (base * len(segments)).format(*segments.ravel())
     return result

@@ -428,6 +428,7 @@ def _acc_append(acc, blob, data):
     index : int
       Index of accessor that was added or reused.
     """
+
     # start by hashing the dict blob
     # note that this will not work if a value is a list
     try:
@@ -533,7 +534,6 @@ def _create_gltf_structure(scene,
         "meshes": [],
         "images": [],
         "textures": [],
-        "samplers": [{}],
         "materials": [],
     }
 
@@ -557,14 +557,14 @@ def _create_gltf_structure(scene,
     except BaseException:
         log.warning('failed to export extras!', exc_info=True)
 
-    # grab the flattened scene graph in GLTF's format
-    nodes = scene.graph.to_gltf(scene=scene)
-    tree.update(nodes)
-
     # store materials as {hash : index} to avoid duplicates
     mat_hashes = {}
     # store data from geometries
     buffer_items = collections.OrderedDict()
+
+    # map the name of each mesh to the index in tree['meshes']
+    mesh_index = {}
+    previous = len(tree['meshes'])
 
     # loop through every geometry
     for name, geometry in scene.geometry.items():
@@ -592,15 +592,23 @@ def _create_gltf_structure(scene,
                 tree=tree,
                 buffer_items=buffer_items)
 
-    # cull empty or unpopulated fields
-    # check keys that might be empty so we can remove them
-    check = ['textures', 'samplers', 'materials', 'images']
-    for key in check:
-        if len(tree[key]) == 0:
-            tree.pop(key)
+        # only store the index if the append did anything
+        if len(tree['meshes']) != previous:
+            previous = len(tree['meshes'])
+            mesh_index[name] = previous - 1
+
+    # grab the flattened scene graph in GLTF's format
+    nodes = scene.graph.to_gltf(scene=scene, mesh_index=mesh_index)
+    tree.update(nodes)
 
     # convert accessors back to a flat list
     tree['accessors'] = list(tree['accessors'].values())
+
+    # cull empty or unpopulated fields
+    # check keys that might be empty so we can remove them
+    check = ['textures', 'materials', 'images', 'accessors', 'meshes']
+    # remove the keys with nothing stored in them
+    [tree.pop(key) for key in check if len(tree[key]) == 0]
 
     # in unit tests compare our header against the schema
     if tol.strict:
@@ -635,7 +643,7 @@ def _append_mesh(mesh,
       Which materials have already been added
     """
     # return early from empty meshes to avoid crashing later
-    if len(mesh.faces) == 0:
+    if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
         log.warning('skipping empty mesh!')
         return
 
@@ -876,6 +884,10 @@ def _append_path(path, name, tree, buffer_items):
     # a pyglet vertex list
     vxlist = rendering.path_to_vertexlist(path)
 
+    # of the count of things to export is zero exit early
+    if vxlist[0] == 0:
+        return
+
     # TODO add color support to Path object
     # this is just exporting everying as black
     try:
@@ -966,19 +978,28 @@ def _append_point(points, name, tree, buffer_items):
     # this is just exporting everying as black
     tree["materials"].append(_default_material)
 
-    index = _buffer_append(
-        buffer_items,
-        np.array(vxlist[5][1]).astype(uint8).tobytes())
-    acc_color = _acc_append(tree['accessors'],
-                            blob={"bufferView": index,
-                                  "componentType": 5121,
-                                  "count": vxlist[0],
-                                  "normalized": True,
-                                  "type": "VEC4",
-                                  "byteOffset": 0},
-                            data=None)
-    # add color to attributes
-    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+    if len(np.shape(points.colors)) == 2:
+        # colors may be returned as "c3f" or other RGBA
+        color_type, color_data = vxlist[5]
+        if '3' in color_type:
+            kind = 'VEC3'
+        elif '4' in color_type:
+            kind = 'VEC4'
+        else:
+            return
+        index = _buffer_append(
+            buffer_items,
+            np.array(color_data).astype(uint8).tobytes())
+        acc_color = _acc_append(tree['accessors'],
+                                blob={"bufferView": index,
+                                      "componentType": 5121,
+                                      "count": vxlist[0],
+                                      "normalized": True,
+                                      "type": kind,
+                                      "byteOffset": 0},
+                                data=None)
+        # add color to attributes
+        tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = acc_color
 
 
 def _parse_materials(header, views, resolver=None):
@@ -1582,11 +1603,8 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
         result['name'] = as_pbr.name
 
     # if alphaMode is defined, export
-    if isinstance(as_pbr.alphaMode, str):
+    if isinstance(as_pbr.alphaMode, str) and isinstance(as_pbr.alphaCutoff, float):
         result['alphaMode'] = as_pbr.alphaMode
-
-    # if alphaCutoff is defined, export
-    if isinstance(as_pbr.alphaCutoff, float):
         result['alphaCutoff'] = as_pbr.alphaCutoff
 
     # if doubleSided is defined, export
@@ -1621,7 +1639,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
             # add a reference to the base color texture
             result[key] = {'index': len(tree['textures'])}
             # add an object for the texture
-            tree['textures'].append({'source': index, 'sampler': 0})
+            tree['textures'].append({'source': index})
 
     # for our PBRMaterial object we flatten all keys
     # however GLTF would like some of them under the
@@ -1698,9 +1716,8 @@ def get_schema():
     # get a loaded dict from the base file
     unresolved = json.loads(util.decode_text(
         resolver.get('glTF.schema.json')))
-    # remove references to other files in the schema
-    schema = resolve(unresolved,
-                     resolver=resolver)
+    # resolve `$ref` references to other files in the schema
+    schema = resolve(unresolved, resolver=resolver)
 
     return schema
 

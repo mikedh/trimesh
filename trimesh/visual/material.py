@@ -212,8 +212,8 @@ class PBRMaterial(Material):
                  roughnessFactor=None,
                  metallicRoughnessTexture=None,
                  doubleSided=False,
-                 alphaMode='OPAQUE',
-                 alphaCutoff=0.5):
+                 alphaMode=None,
+                 alphaCutoff=None):
 
         # (4,) float
         if baseColorFactor is not None:

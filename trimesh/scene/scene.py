@@ -810,10 +810,9 @@ class Scene(Geometry3D):
         png : bytes
           Render of scene as a PNG
         """
-        from ..viewer import render_scene
-        png = render_scene(scene=self,
-                           resolution=resolution,
-                           **kwargs)
+        from ..viewer.windowed import render_scene
+        png = render_scene(
+            scene=self, resolution=resolution, **kwargs)
         return png
 
     @property

@@ -749,7 +749,7 @@ def neighbors(edges, max_index=None, directed=False):
     return array
 
 
-def smoothed(mesh, angle=None, facet_minarea=15):
+def smoothed(mesh, angle=None, facet_minarea=10):
     """
     Return a non- watertight version of the mesh which
     will render nicely with smooth shading by
@@ -773,14 +773,14 @@ def smoothed(mesh, angle=None, facet_minarea=15):
       Geometry with disconnected face patches
     """
     if angle is None:
-        angle = np.radians(30)
+        angle = np.radians(20)
 
     # if the mesh has no adjacent faces return a copy
     if len(mesh.face_adjacency) == 0:
         return mesh.copy()
 
     # face pairs below angle threshold
-    angle_ok = mesh.face_adjacency_angles <= angle
+    angle_ok = mesh.face_adjacency_angles < angle
     # subset of face adjacency
     adjacency = mesh.face_adjacency[angle_ok]
 
@@ -803,8 +803,7 @@ def smoothed(mesh, angle=None, facet_minarea=15):
                                dtype=bool)
                 mask[np.hstack(facets)] = False
                 # apply the mask to adjacency
-                adjacency = adjacency[
-                    mask[adjacency].all(axis=1)]
+                adjacency = adjacency[mask[adjacency].all(axis=1)]
                 # nodes are no longer every faces
                 nodes = np.unique(adjacency)
         except BaseException:
@@ -813,7 +812,7 @@ def smoothed(mesh, angle=None, facet_minarea=15):
     # run connected components on facet adjacency
     components = connected_components(
         adjacency,
-        min_len=1,
+        min_len=2,
         nodes=nodes)
 
     # add back coplanar groups if any exist
