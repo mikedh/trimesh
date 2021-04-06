@@ -640,9 +640,14 @@ def load_element_different(properties, data):
             element_data[name].append(row[start:end].astype(dt))
             # start next property at the end of this one
             start = end
-    # try converting to numpy arrays
-    squeeze = {k: np.array(v).squeeze() for k, v in
-               element_data.items()}
+
+    # if the shape of any array is (n, 1) we want to
+    # squeeze/concatenate it into (n,)
+    squeeze = {k: np.array(v, dtype='object')
+               for k, v in element_data.items()}
+    squeeze.update({k: v.squeeze() for k, v in
+                    squeeze.items() if len(v.shape) == 2})
+
     return squeeze
 
 
