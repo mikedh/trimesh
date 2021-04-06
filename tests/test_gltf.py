@@ -564,7 +564,7 @@ class GLTFTest(g.unittest.TestCase):
                 g.log.info('Testing: {}'.format(fn))
                 # check a roundtrip which will validate on export
                 # and crash on reload if we've done anything screwey
-                export = geom.export(file_type='glb')
+                geom.export(file_type='glb')
                 # todo : importer breaks on `models/empty*` as it
                 # doesn't know what to do with empty meshes
                 # reloaded = g.trimesh.load(
