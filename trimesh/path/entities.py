@@ -5,18 +5,17 @@ entities.py
 Basic geometric primitives which only store references to
 vertex indices rather than vertices themselves.
 """
-
-import numpy as np
-
 import copy
+import numpy as np
 
 from .arc import discretize_arc, arc_center
 from .curve import discretize_bezier, discretize_bspline
 
 from .. import util
+from ..util import ABC
 
 
-class Entity(object):
+class Entity(ABC):
 
     def __init__(self,
                  points,
@@ -252,7 +251,8 @@ class Text(Entity):
                  vector=None,
                  normal=None,
                  align=None,
-                 layer=None):
+                 layer=None,
+                 color=None):
         """
         An entity for text labels.
 
@@ -284,6 +284,8 @@ class Text(Entity):
         self.height = height
         # what layer is the entity on
         self.layer = layer
+        # what color is the entity
+        self.color = color
 
         # None or (2,) str
         if align is None:
@@ -680,11 +682,13 @@ class BSpline(Curve):
     def __init__(self, points,
                  knots,
                  layer=None,
+                 color=None,
                  **kwargs):
         self.points = np.asanyarray(points, dtype=np.int64)
         self.knots = np.asanyarray(knots, dtype=np.float64)
         self.layer = layer
         self.kwargs = kwargs
+        self.color = color
 
     def discrete(self, vertices, count=None, scale=1.0):
         """

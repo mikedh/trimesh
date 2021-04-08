@@ -128,12 +128,10 @@ class Path(parent.Geometry):
           RGBA colors for each entity
         """
         # start with default colors
-        colors = np.ones((len(self.entities), 4))
-        colors = (colors * [100, 100, 100, 255]).astype(np.uint8)
-        # collect colors from entities
-        for i, e in enumerate(self.entities):
-            if hasattr(e, 'color') and e.color is not None:
-                colors[i] = to_rgba(e.color)
+        raw = [e.color for e in self.entities]
+        if any(c is None for c in raw):
+            return None
+        colors = to_rgba(np.array(raw))
         # don't allow parts of the color array to be written
         colors.flags['WRITEABLE'] = False
         return colors
