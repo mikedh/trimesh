@@ -407,7 +407,7 @@ def _buffer_append(ordered, data):
     # hash the data to see if we have it already
     hashed = fast_hash(data)
     if hashed in ordered:
-        # apparently theretodo : better way of finding index in an OrderedDict?
+        # apparently they never implemented keys().index -_-
         return list(ordered.keys()).index(hashed)
     # not in buffer items so append and then return index
     ordered[hashed] = _byte_pad(data)
@@ -435,46 +435,32 @@ def _data_append(acc, buff, blob, data):
     index : int
       Index of accessor that was added or reused.
     """
-    # append to the buffer list if not cached
-    blob['bufferView'] = _buffer_append(buff, data.tobytes())
-    # return the accessor for this data
-    return _acc_append(acc=acc, blob=blob, data=data)
-
-
-def _acc_append(acc, blob, data):
-    """
-    Append a new accessor to an OrderedDict.
-
-    Parameters
-    ------------
-    acc : collections.OrderedDict
-      Collection of accessors
-    blob : dict
-      Candidate accessor
-    data : numpy.array
-      Data to fill in details to blob
-
-    Returns
-    ----------
-    index : int
-      Index of accessor that was added or reused.
-    """
-
     # if we have data include that in the key
     if hasattr(data, 'fast_hash'):
         # passed a TrackedArray object
-        key = data.fast_hash()
+        hashed = data.fast_hash()
     else:
         # someone passed a vanilla numpy array
-        key = fast_hash(data.tobytes())
+        hashed = fast_hash(data.tobytes())
+
+    if hashed in buff:
+        blob['bufferView'] = list(buff.keys()).index(hashed)
+    else:
+        # not in buffer items so append and then return index
+        buff[hashed] = _byte_pad(data.tobytes())
+        blob['bufferView'] = len(buff) - 1
+
     # start by hashing the dict blob
     # note that this will not work if a value is a list
     try:
         # simple keys can be hashed as tuples without JSON
-        key ^= hash(tuple(blob.items()))
+        key = hash(tuple(blob.items()))
     except BaseException:
         # if there are list keys that break the simple hash
-        key ^= hash(json.dumps(blob, sort_keys=True))
+        key = hash(json.dumps(blob, sort_keys=True))
+
+    # apply the hash for the blob
+    key ^= hashed
 
     # if key exists return the index in the OrderedDict
     if key in acc:
