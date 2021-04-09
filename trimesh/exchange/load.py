@@ -432,21 +432,20 @@ def load_kwargs(*args, **kwargs):
         data, file_type = kwargs['data'], kwargs['file_type']
         if not isinstance(data, dict):
             data = util.wrap_as_stream(data)
-        k = mesh_loaders[file_type](data,
-                                    file_type=file_type)
+        k = mesh_loaders[file_type](
+            data, file_type=file_type)
         return Trimesh(**k)
 
     def handle_path():
         from ..path import Path2D, Path3D
-        e, v = kwargs['entities'], kwargs['vertices']
-        if 'metadata' in kwargs:
-            m = kwargs['metadata']
+        shape = kwargs['vertices'].shape
+
+        if shape[1] == 2:
+            return Path2D(**kwargs)
+        elif shape[1] == 3:
+            return Path3D(**kwargs)
         else:
-            m = None
-        if v.shape[1] == 2:
-            return Path2D(entities=e, vertices=v, metadata=m)
-        elif v.shape[1] == 3:
-            return Path3D(entities=e, vertices=v, metadata=m)
+            raise ValueError('Vertices must be 2D or 3D!')
 
     def handle_pointcloud():
         return PointCloud(**kwargs)

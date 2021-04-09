@@ -224,6 +224,8 @@ def float_to_int(data, digits=None, dtype=np.int32):
     # if the data is empty we are also done
     if data.dtype.kind in 'ib' or data.size == 0:
         return data.astype(dtype)
+    elif data.dtype.kind != 'f':
+        data = data.astype(np.float64)
 
     # populate digits from kwargs
     if digits is None:

@@ -625,7 +625,7 @@ def load_element_different(properties, data):
     data : array
       Data rows for this element.
     """
-    element_data = {k: [] for k in properties.keys()}
+    edata = {k: [] for k in properties.keys()}
     for row in data:
         start = 0
         for name, dt in properties.items():
@@ -637,12 +637,18 @@ def load_element_different(properties, data):
                 # skip the first entry (the length), when reading the data
                 start += 1
             end = start + length
-            element_data[name].append(row[start:end].astype(dt))
+            edata[name].append(row[start:end].astype(dt))
             # start next property at the end of this one
             start = end
-    # try converting to numpy arrays
-    squeeze = {k: np.array(v).squeeze() for k, v in
-               element_data.items()}
+
+    # if the shape of any array is (n, 1) we want to
+    # squeeze/concatenate it into (n,)
+    squeeze = {k: np.array(v, dtype='object')
+               for k, v in edata.items()}
+    # squeeze and convert any clean 2D arrays
+    squeeze.update({k: v.squeeze().astype(edata[k][0].dtype)
+                    for k, v in squeeze.items() if len(v.shape) == 2})
+
     return squeeze
 
 
