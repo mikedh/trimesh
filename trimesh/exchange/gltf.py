@@ -1186,7 +1186,6 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
 
     for index, m in enumerate(header.get("meshes", [])):
         metadata = {}
-        unique = util.unique_id()
         try:
             # try loading units from the GLTF extra
             metadata['units'] = str(m["extras"]["units"])
@@ -1213,7 +1212,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             name = m.get('name', 'GLTF')
             # make name unique across multiple meshes
             if name in meshes:
-                name += "_{}".format(unique)
+                name += "_" + util.unique_id(length=5, increment=index)
 
             if mode == _GL_LINES:
                 # load GL_LINES into a Path object
