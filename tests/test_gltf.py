@@ -540,6 +540,17 @@ class GLTFTest(g.unittest.TestCase):
         # Assert that geometries that are not primitives are not marked as such
         assert not s.geometry['Wheels'].metadata['from_gltf_primitive']
 
+    def test_points(self):
+        # test a simple pointcloud export-import cycle
+        points = g.np.arange(30).reshape((-1, 3))
+        export = g.trimesh.Scene(
+            g.trimesh.PointCloud(points)).export(file_type='glb')
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(export),
+            file_type='glb')
+        # make sure points survived export and reload
+        assert g.np.allclose(next(iter(reloaded.geometry.values())).vertices, points)
+
     def test_bulk(self):
         # Try exporting every loadable model to GLTF and checking
         # the generated header against the schema.

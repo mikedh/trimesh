@@ -57,6 +57,7 @@ _default_material = {
 
 # GL geometry modes
 _GL_LINES = 1
+_GL_POINTS = 0
 _GL_TRIANGLES = 4
 
 # specify dtypes with forced little endian
@@ -688,24 +689,22 @@ def _append_mesh(mesh,
 
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
-    data = mesh.faces.astype(uint32)
     # accessors refer to data locations
     # mesh faces are stored as flat list of integers
     acc_face = _data_append(acc=tree['accessors'],
                             buff=buffer_items,
                             blob={"componentType": 5125,
                                   "type": "SCALAR"},
-                            data=data)
+                            data=mesh.faces.astype(uint32))
 
     # vertices: 5126 is a float32
-    data = mesh.vertices.astype(float32)
     # create or reuse an accessor for these vertices
     acc_vertex = _data_append(acc=tree['accessors'],
                               buff=buffer_items,
                               blob={"componentType": 5126,
                                     "type": "VEC3",
                                     "byteOffset": 0},
-                              data=data)
+                              data=mesh.vertices.astype(float32))
 
     # meshes reference accessor indexes
     # mode 4 is GL_TRIANGLES
@@ -714,6 +713,7 @@ def _append_mesh(mesh,
                    "attributes": {"POSITION": acc_vertex},
                    "indices": acc_face,
                    "mode": 4}]}
+
     # if units are defined, store them as an extra
     # the GLTF spec says everything is implicit meters
     # we're not doing that as our unit conversions are expensive
@@ -734,7 +734,6 @@ def _append_mesh(mesh,
 
     if vertex_colors is not None:
         # convert color data to bytes and append
-        data = vertex_colors.astype(uint8)
         acc_color = _data_append(
             acc=tree['accessors'],
             buff=buffer_items,
@@ -742,7 +741,7 @@ def _append_mesh(mesh,
                   "normalized": True,
                   "type": "VEC4",
                   "byteOffset": 0},
-            data=data)
+            data=vertex_colors.astype(uint8))
 
         # add the reference for vertex color
         current["primitives"][0]["attributes"][
@@ -778,8 +777,7 @@ def _append_mesh(mesh,
 
     if (include_normals or (include_normals is None and
                             'vertex_normals' in mesh._cache.cache)):
-
-        normals = mesh.vertex_normals.astype(float32)
+        # store vertex normals if requested
         acc_norm = _data_append(
             acc=tree['accessors'],
             buff=buffer_items,
@@ -787,7 +785,7 @@ def _append_mesh(mesh,
                   "count": len(mesh.vertices),
                   "type": "VEC3",
                   "byteOffset": 0},
-            data=normals)
+            data=mesh.vertex_normals.astype(float32))
         # add the reference for vertex color
         current["primitives"][0]["attributes"][
             "NORMAL"] = acc_norm
@@ -799,6 +797,7 @@ def _append_mesh(mesh,
         # Application specific attributes must be prefixed with an underscore
         if not key.startswith("_"):
             attribute_name = "_" + key
+        # store custom vertex attributes
         acc_atr = _data_append(acc=tree['accessors'],
                                buff=buffer_items,
                                blob=_build_accessor(attrib),
@@ -809,6 +808,20 @@ def _append_mesh(mesh,
 
 
 def _build_views(buffer_items):
+    """
+    Create views for buffers that are simply
+    based on how many bytes they are long.
+
+    Parameters
+    --------------
+    buffer_items : collections.OrderedDict
+      Buffers to build views for
+
+    Returns
+    ----------
+    views : (n,) list of dict
+      GLTF views
+    """
     views = []
     # create the buffer views
     current_pos = 0
@@ -822,6 +835,19 @@ def _build_views(buffer_items):
 
 
 def _build_accessor(array):
+    """
+    Build an accessor for an arbitrary array.
+
+    Parameters
+    -----------
+    array : numpy array
+      The array to build an accessor for
+
+    Returns
+    ----------
+    accessor : dict
+      The accessor for array.
+    """
     shape = array.shape
     data_type = "SCALAR"
     if len(shape) == 2:
@@ -873,7 +899,6 @@ def _byte_pad(data, bound=4):
     padded : bytes
       Result where: (len(padded) % bound) == 0
     """
-    bound = int(bound)
     if len(data) % bound != 0:
         # extra bytes to pad with
         count = bound - (len(data) % bound)
@@ -882,7 +907,7 @@ def _byte_pad(data, bound=4):
         # combine the padding and data
         result = bytes().join([data, pad])
         # we should always divide evenly
-        if (len(result) % bound) != 0:
+        if tol.strict and (len(result) % bound) != 0:
             raise ValueError(
                 'byte_pad failed! ori:{} res:{} pad:{} req:{}'.format(
                     len(data), len(result), count, bound))
@@ -925,14 +950,13 @@ def _append_path(path, name, tree, buffer_items):
 
     # data is the second value of the fifth field
     # which is a (data type, data) tuple
-    data = vxlist[4][1].astype(float32)
     acc_vertex = _data_append(
         acc=tree['accessors'],
         buff=buffer_items,
         blob={"componentType": 5126,
               "type": "VEC3",
               "byteOffset": 0},
-        data=data)
+        data=vxlist[4][1].astype(float32))
 
     current = {
         "name": name,
@@ -947,14 +971,13 @@ def _append_path(path, name, tree, buffer_items):
         current["extras"] = {"units": str(path.units)}
 
     if path.colors is not None:
-        data = np.array(vxlist[5][1]).astype(uint8)
         acc_color = _data_append(acc=tree['accessors'],
                                  buff=buffer_items,
                                  blob={"componentType": 5121,
                                        "normalized": True,
                                        "type": "VEC4",
                                        "byteOffset": 0},
-                                 data=data)
+                                 data=np.array(vxlist[5][1]).astype(uint8))
         # add color to attributes
         current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
 
@@ -985,19 +1008,17 @@ def _append_point(points, name, tree, buffer_items):
 
     # data is the second value of the fifth field
     # which is a (data type, data) tuple
-    data = vxlist[4][1].astype(float32)
     acc_vertex = _data_append(acc=tree['accessors'],
                               buff=buffer_items,
                               blob={"componentType": 5126,
                                     "type": "VEC3",
                                     "byteOffset": 0},
-                              data=data)
-    tree["meshes"].append({
-        "name": name,
-        "primitives": [{
-            "attributes": {"POSITION": acc_vertex},
-            "mode": 0,  # mode 0 is GL_POINTS
-            "material": len(tree["materials"])}]})
+                              data=vxlist[4][1].astype(float32))
+    current = {"name": name,
+               "primitives": [{
+                   "attributes": {"POSITION": acc_vertex},
+                   "mode": _GL_POINTS,
+                   "material": len(tree["materials"])}]}
 
     # TODO add color support to Points object
     # this is just exporting everying as black
@@ -1011,8 +1032,7 @@ def _append_point(points, name, tree, buffer_items):
         elif '4' in color_type:
             kind = 'VEC4'
         else:
-            return
-        color_data = np.array(color_data).astype(uint8)
+            raise ValueError('unknown color: %s', color_type)
         acc_color = _data_append(acc=tree['accessors'],
                                  buff=buffer_items,
                                  blob={"componentType": 5121,
@@ -1020,9 +1040,10 @@ def _append_point(points, name, tree, buffer_items):
                                        "normalized": True,
                                        "type": kind,
                                        "byteOffset": 0},
-                                 data=color_data)
+                                 data=np.array(color_data).astype(uint8))
         # add color to attributes
-        tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+        current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+    tree["meshes"].append(current)
 
 
 def _parse_materials(header, views, resolver=None):
@@ -1214,80 +1235,79 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                 kwargs["vertices"] = access[p["attributes"]["POSITION"]]
                 kwargs['entities'] = [Line(
                     points=np.arange(len(kwargs['vertices'])))]
-                # save data
-                meshes[name] = kwargs
-                mesh_prim[index].append(name)
-                continue
+            elif mode == _GL_POINTS:
+                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
 
-            elif mode is None:
-                # some people skip mode since GL_TRIANGLES
-                # is apparently the de-facto default
-                log.warning('primitive has no mode! trying GL_TRIANGLES?')
-            elif mode != _GL_TRIANGLES:
+            elif mode is None or mode == _GL_TRIANGLES:
+
+                if mode is None:
+                    # some people skip mode since GL_TRIANGLES
+                    # is apparently the de-facto default
+                    log.warning('primitive has no mode! trying GL_TRIANGLES?')
+
+                # get vertices from accessors
+                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
+                # get faces from accessors
+                if 'indices' in p:
+                    kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
+                else:
+                    # indices are apparently optional and we are supposed to
+                    # do the same thing as webGL drawArrays?
+                    kwargs['faces'] = np.arange(
+                        len(kwargs['vertices']),
+                        dtype=np.int64).reshape((-1, 3))
+
+                # do we have UV coordinates
+                visuals = None
+                if "material" in p:
+                    if materials is None:
+                        log.warning('no materials! `pip install pillow`')
+                    else:
+                        uv = None
+                        if "TEXCOORD_0" in p["attributes"]:
+                            # flip UV's top- bottom to move origin to lower-left:
+                            # https://github.com/KhronosGroup/glTF/issues/1021
+                            uv = access[p["attributes"]["TEXCOORD_0"]].copy()
+                            uv[:, 1] = 1.0 - uv[:, 1]
+                            # create a texture visual
+                        visuals = visual.texture.TextureVisuals(
+                            uv=uv, material=materials[p["material"]])
+                if 'COLOR_0' in p['attributes']:
+                    try:
+                        # try to load vertex colors from the accessors
+                        colors = access[p['attributes']['COLOR_0']]
+                        if len(colors) == len(kwargs['vertices']):
+                            if visuals is None:
+                                # just pass to mesh as vertex color
+                                kwargs['vertex_colors'] = colors
+                            else:
+                                # we ALSO have texture so save as vertex attribute
+                                visuals.vertex_attributes['color'] = colors
+                    except BaseException:
+                        # survive failed colors
+                        log.debug('failed to load colors', exc_info=True)
+                if visuals is not None:
+                    kwargs['visual'] = visuals
+
+                # By default the created mesh is not from primitive,
+                # in case it is the value will be updated
+                # each primitive gets it's own Trimesh object
+                if len(m["primitives"]) > 1:
+                    kwargs['metadata']['from_gltf_primitive'] = True
+                    name += "_{}".format(j)
+                else:
+                    kwargs['metadata']['from_gltf_primitive'] = False
+
+                custom_attrs = [attr for attr in p["attributes"]
+                                if attr.startswith("_")]
+                if len(custom_attrs):
+                    vertex_attributes = {}
+                    for attr in custom_attrs:
+                        vertex_attributes[attr] = access[p["attributes"][attr]]
+                    kwargs["vertex_attributes"] = vertex_attributes
+            else:
                 log.warning('skipping primitive with mode %s!', mode)
                 continue
-
-            # get vertices from accessors
-            kwargs["vertices"] = access[p["attributes"]["POSITION"]]
-            # get faces from accessors
-            if 'indices' in p:
-                kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
-            else:
-                # indices are apparently optional and we are supposed to
-                # do the same thing as webGL drawArrays?
-                kwargs['faces'] = np.arange(
-                    len(kwargs['vertices']),
-                    dtype=np.int64).reshape((-1, 3))
-
-            # do we have UV coordinates
-            visuals = None
-            if "material" in p:
-                if materials is None:
-                    log.warning('no materials! `pip install pillow`')
-                else:
-                    uv = None
-                    if "TEXCOORD_0" in p["attributes"]:
-                        # flip UV's top- bottom to move origin to lower-left:
-                        # https://github.com/KhronosGroup/glTF/issues/1021
-                        uv = access[p["attributes"]["TEXCOORD_0"]].copy()
-                        uv[:, 1] = 1.0 - uv[:, 1]
-                        # create a texture visual
-                    visuals = visual.texture.TextureVisuals(
-                        uv=uv, material=materials[p["material"]])
-            if 'COLOR_0' in p['attributes']:
-                try:
-                    # try to load vertex colors from the accessors
-                    colors = access[p['attributes']['COLOR_0']]
-                    if len(colors) == len(kwargs['vertices']):
-                        if visuals is None:
-                            # just pass to mesh as vertex color
-                            kwargs['vertex_colors'] = colors
-                        else:
-                            # we ALSO have texture so save as vertex attribute
-                            visuals.vertex_attributes['color'] = colors
-                except BaseException:
-                    # survive failed colors
-                    log.debug('failed to load colors', exc_info=True)
-            if visuals is not None:
-                kwargs['visual'] = visuals
-
-            # By default the created mesh is not from primitive,
-            # in case it is the value will be updated
-            # each primitive gets it's own Trimesh object
-            if len(m["primitives"]) > 1:
-                kwargs['metadata']['from_gltf_primitive'] = True
-                name += "_{}".format(j)
-            else:
-                kwargs['metadata']['from_gltf_primitive'] = False
-
-            custom_attrs = [attr for attr in p["attributes"]
-                            if attr.startswith("_")]
-            if len(custom_attrs):
-                vertex_attributes = {}
-                for attr in custom_attrs:
-                    vertex_attributes[attr] = access[p["attributes"][attr]]
-                kwargs["vertex_attributes"] = vertex_attributes
-
             meshes[name] = kwargs
             mesh_prim[index].append(name)
 
