@@ -129,9 +129,10 @@ class Path(parent.Geometry):
         """
         # start with default colors
         raw = [e.color for e in self.entities]
-        if any(c is None for c in raw):
+        if not any(c is not None for c in raw):
             return None
-        colors = to_rgba(np.array(raw))
+
+        colors = np.array([to_rgba(c) for c in raw])
         # don't allow parts of the color array to be written
         colors.flags['WRITEABLE'] = False
         return colors
