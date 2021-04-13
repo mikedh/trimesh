@@ -188,6 +188,7 @@ def export_glb(
 
     # combine bytes into a single blob
     buffer_data = bytes().join(buffer_items.values())
+
     # add the information about the buffer data
     tree["buffers"] = [{"byteLength": len(buffer_data)}]
     tree["bufferViews"] = views

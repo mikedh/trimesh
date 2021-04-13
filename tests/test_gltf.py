@@ -11,7 +11,8 @@ _gltf_validator = g.find_executable('gltf_validator')
 
 def validate_glb(data):
     """
-    Run the Khronos validator on GLB files.
+    Run the Khronos validator on GLB files using
+    subprocess.
 
     Parameters
     ------------
@@ -19,13 +20,15 @@ def validate_glb(data):
       GLB export
 
     Raises
-
+    ------------
+    ValueError
+      If Khronos validator reports errors.
     """
     if _gltf_validator is None:
         g.log.warning('no gltf_validator!')
         return
 
-    with g.tempfile.NamedTemporaryFile(suffix=f'.glb') as f:
+    with g.tempfile.NamedTemporaryFile(suffix='.glb') as f:
         f.write(data)
         f.flush()
         # run the khronos gltf-validator
@@ -35,6 +38,7 @@ def validate_glb(data):
         # -o prints JSON to stdout
         content = report.stdout.decode('utf-8')
         if report.returncode != 0:
+            # log the whole error report
             g.log.error(content)
             raise ValueError('Khronos GLTF validator error!')
 
@@ -91,7 +95,8 @@ class GLTFTest(g.unittest.TestCase):
         scene.add_geometry(
             box_3, 'box_3',
             transform=tm((-1, 20, -1)))
-        a = g.json.loads(scene.export(file_type='gltf')['model.gltf'].decode('utf-8'))
+        a = g.json.loads(scene.export(
+            file_type='gltf')['model.gltf'].decode('utf-8'))
         assert len(a['buffers']) <= 3
 
     def test_tex_export(self):
