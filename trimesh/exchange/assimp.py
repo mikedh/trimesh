@@ -1,5 +1,4 @@
 import copy
-import tempfile
 import collections
 
 import numpy as np
