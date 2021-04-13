@@ -45,6 +45,9 @@ jobs:
     - name: Install Pytest
       run: |
         pip install pytest pytest-cov
+    - name: Install Linux Deps
+      if: matrix.os == 'ubuntu-latest'
+      run: bash docker/builds/gltf_validator.bash
     - name: Install Trimesh
       run: pip install .[easy]
     - name: Run Pytest

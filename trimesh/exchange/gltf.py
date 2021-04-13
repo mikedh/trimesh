@@ -136,6 +136,10 @@ def export_gltf(scene,
     # dump tree with compact separators
     files["model.gltf"] = util.jsonify(
         tree, separators=(',', ':')).encode("utf-8")
+
+    if tol.strict:
+        validate(tree)
+
     return files
 
 
@@ -221,6 +225,9 @@ def export_glb(
                              content,
                              bin_header,
                              buffer_data])
+
+    if tol.strict:
+        validate(header)
 
     return exported
 
@@ -635,10 +642,6 @@ def _create_gltf_structure(scene,
     check = ['textures', 'materials', 'images', 'accessors', 'meshes']
     # remove the keys with nothing stored in them
     [tree.pop(key) for key in check if len(tree[key]) == 0]
-
-    # in unit tests compare our header against the schema
-    if tol.strict:
-        validate(tree)
 
     return tree, buffer_items
 
@@ -1729,7 +1732,9 @@ def validate(header):
     # will do the reference replacement
     schema = get_schema()
     # validate the passed header against the schema
-    return jsonschema.validate(header, schema=schema)
+    valid = jsonschema.validate(header, schema=schema)
+
+    return valid
 
 
 def get_schema():

@@ -226,7 +226,7 @@ def transform_polygon(polygon, matrix):
     return result
 
 
-def plot_polygon(polygon, show=True, **kwargs):
+def plot(polygon, show=True, **kwargs):
     """
     Plot a shapely polygon using matplotlib.
 
@@ -245,7 +245,7 @@ def plot_polygon(polygon, show=True, **kwargs):
         plt.plot(*single.exterior.xy, **kwargs)
         for interior in single.interiors:
             plt.plot(*interior.xy, **kwargs)
-    # make aspect ratio non- stupid
+    # make aspect ratio non-stupid
     plt.axes().set_aspect('equal', 'datalim')
     if util.is_sequence(polygon):
         [plot_single(i) for i in polygon]
