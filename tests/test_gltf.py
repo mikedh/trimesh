@@ -24,7 +24,7 @@ def validate_glb(data):
     ValueError
       If Khronos validator reports errors.
     """
-    if _gltf_validator is None:
+    if not g.PY3 or _gltf_validator is None:
         g.log.warning('no gltf_validator!')
         return
 
