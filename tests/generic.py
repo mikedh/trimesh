@@ -83,9 +83,9 @@ except BaseException as E:
 # find_executable for binvox
 has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
 
-# Python version as an array, i.e. [3, 6]
-python_version = np.array([sys.version_info.major,
-                           sys.version_info.minor])
+# Python version as a tuple, i.e. [3, 6]
+PY_VER = (sys.version_info.major,
+          sys.version_info.minor)
 
 # some repeatable homogeneous transforms to use in tests
 transforms = [trimesh.transformations.euler_matrix(np.pi / 4, i, 0)

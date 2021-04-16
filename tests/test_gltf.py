@@ -24,7 +24,10 @@ def validate_glb(data):
     ValueError
       If Khronos validator reports errors.
     """
-    if not g.PY3 or _gltf_validator is None:
+    # subprocess options not in old python
+    if g.PY_VER < (3, 7):
+        return
+    if _gltf_validator is None:
         g.log.warning('no gltf_validator!')
         return
 
