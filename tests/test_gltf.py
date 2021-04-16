@@ -61,6 +61,9 @@ class GLTFTest(g.unittest.TestCase):
         # get the mesh
         geom = next(iter(scene.geometry.values()))
 
+        # vertex normals should have been loaded
+        assert 'vertex_normals' in geom._cache.cache
+
         # should not be watertight
         assert not geom.is_volume
         # make sure export doesn't crash
@@ -75,7 +78,8 @@ class GLTFTest(g.unittest.TestCase):
         g.scene_equal(scene, reloaded)
 
         # if we merge ugly it should now be watertight
-        geom.merge_vertices(merge_tex=True)
+        geom.merge_vertices(
+            merge_tex=True, merge_norm=True)
         assert geom.is_volume
 
     def test_buffer_dedupe(self):

@@ -131,8 +131,9 @@ def export_gltf(scene,
                 "byteLength": len(item)}
             files[buffer_name] = item
 
-    tree["buffers"] = buffers
-    tree["bufferViews"] = views
+    if len(buffers) > 0:
+        tree["buffers"] = buffers
+        tree["bufferViews"] = views
     # dump tree with compact separators
     files["model.gltf"] = util.jsonify(
         tree, separators=(',', ':')).encode("utf-8")
@@ -190,8 +191,9 @@ def export_glb(
     buffer_data = bytes().join(buffer_items.values())
 
     # add the information about the buffer data
-    tree["buffers"] = [{"byteLength": len(buffer_data)}]
-    tree["bufferViews"] = views
+    if len(buffer_data) > 0:
+        tree["buffers"] = [{"byteLength": len(buffer_data)}]
+        tree["bufferViews"] = views
 
     # export the tree to JSON for the header
     content = util.jsonify(tree, separators=(',', ':'))
@@ -228,7 +230,7 @@ def export_glb(
                              buffer_data])
 
     if tol.strict:
-        validate(header)
+        validate(tree)
 
     return exported
 
@@ -765,8 +767,9 @@ def _append_mesh(mesh,
             current["primitives"][0]["attributes"][
                 "TEXCOORD_0"] = acc_uv
 
-    if (include_normals or (include_normals is None and
-                            'vertex_normals' in mesh._cache.cache)):
+    if (include_normals or
+        (include_normals is None and
+         'vertex_normals' in mesh._cache.cache)):
         # store vertex normals if requested
         acc_norm = _data_append(
             acc=tree['accessors'],
@@ -1211,31 +1214,29 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
 
             # i.e. GL_LINES, GL_TRIANGLES, etc
             mode = p.get('mode')
-
+            # colors, normals, etc
+            attr = p['attributes']
             # create a unique mesh name per- primitive
             name = m.get('name', 'GLTF')
             # make name unique across multiple meshes
             if name in meshes:
-                name += "_" + util.unique_id(length=5, increment=index)
-
+                name += "_" + util.unique_id(
+                    length=5, increment=index)
             if mode == _GL_LINES:
                 # load GL_LINES into a Path object
                 from ..path.entities import Line
-                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
+                kwargs["vertices"] = access[attr["POSITION"]]
                 kwargs['entities'] = [Line(
                     points=np.arange(len(kwargs['vertices'])))]
             elif mode == _GL_POINTS:
-                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
-
+                kwargs["vertices"] = access[attr["POSITION"]]
             elif mode is None or mode == _GL_TRIANGLES:
-
                 if mode is None:
                     # some people skip mode since GL_TRIANGLES
                     # is apparently the de-facto default
                     log.warning('primitive has no mode! trying GL_TRIANGLES?')
-
                 # get vertices from accessors
-                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
+                kwargs["vertices"] = access[attr["POSITION"]]
                 # get faces from accessors
                 if 'indices' in p:
                     kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
@@ -1245,7 +1246,9 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                     kwargs['faces'] = np.arange(
                         len(kwargs['vertices']),
                         dtype=np.int64).reshape((-1, 3))
-
+                if 'NORMAL' in attr:
+                    # vertex normals are specified
+                    kwargs['vertex_normals'] = access[attr['NORMAL']]
                 # do we have UV coordinates
                 visuals = None
                 if "material" in p:
@@ -1253,18 +1256,18 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                         log.warning('no materials! `pip install pillow`')
                     else:
                         uv = None
-                        if "TEXCOORD_0" in p["attributes"]:
+                        if "TEXCOORD_0" in attr:
                             # flip UV's top- bottom to move origin to lower-left:
                             # https://github.com/KhronosGroup/glTF/issues/1021
-                            uv = access[p["attributes"]["TEXCOORD_0"]].copy()
+                            uv = access[attr["TEXCOORD_0"]].copy()
                             uv[:, 1] = 1.0 - uv[:, 1]
                             # create a texture visual
                         visuals = visual.texture.TextureVisuals(
                             uv=uv, material=materials[p["material"]])
-                if 'COLOR_0' in p['attributes']:
+                if 'COLOR_0' in attr:
                     try:
                         # try to load vertex colors from the accessors
-                        colors = access[p['attributes']['COLOR_0']]
+                        colors = access[attr['COLOR_0']]
                         if len(colors) == len(kwargs['vertices']):
                             if visuals is None:
                                 # just pass to mesh as vertex color
@@ -1287,12 +1290,12 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                 else:
                     kwargs['metadata']['from_gltf_primitive'] = False
 
-                custom_attrs = [attr for attr in p["attributes"]
+                custom_attrs = [attr for attr in attr
                                 if attr.startswith("_")]
                 if len(custom_attrs):
                     vertex_attributes = {}
-                    for attr in custom_attrs:
-                        vertex_attributes[attr] = access[p["attributes"][attr]]
+                    for custom in custom_attrs:
+                        vertex_attributes[custom] = access[attr[custom]]
                     kwargs["vertex_attributes"] = vertex_attributes
             else:
                 log.warning('skipping primitive with mode %s!', mode)
