@@ -12,5 +12,5 @@ echo "f807ebd35d46bb513cab88a920e63ac0c335b77dcf4b91cd8d09ea661b335bcd  validato
 # install binary
 tar -xvf validator.tar.xz
 chmod +x gltf_validator
-mv gltf_validator /usr/bin
+mv gltf_validator /usr/local/bin
 rm validator.tar.xz

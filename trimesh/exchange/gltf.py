@@ -469,7 +469,7 @@ def _data_append(acc, buff, blob, data):
         # if there are list keys that break the simple hash
         key = hash(json.dumps(blob, sort_keys=True))
 
-    # apply the hash for the blob
+    # xor the hash for the blob to the key
     key ^= hashed
 
     # if key exists return the index in the OrderedDict
