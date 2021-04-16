@@ -1290,13 +1290,11 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                 else:
                     kwargs['metadata']['from_gltf_primitive'] = False
 
-                custom_attrs = [attr for attr in attr
-                                if attr.startswith("_")]
-                if len(custom_attrs):
-                    vertex_attributes = {}
-                    for custom in custom_attrs:
-                        vertex_attributes[custom] = access[attr[custom]]
-                    kwargs["vertex_attributes"] = vertex_attributes
+                # custom attributes starting with a `_`
+                custom = {a: access[attr[a]] for a in attr.keys()
+                          if a.startswith('_')}
+                if len(custom) > 0:
+                    kwargs["vertex_attributes"] = custom
             else:
                 log.warning('skipping primitive with mode %s!', mode)
                 continue
