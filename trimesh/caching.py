@@ -521,8 +521,11 @@ class DataStore(Mapping):
     def __iter__(self):
         return iter(self.data)
 
+    def pop(self, key):
+        return self.data.pop(key, None)
+
     def __delitem__(self, key):
-        del self.data[key]
+        self.data.pop(key, None)
 
     @property
     def mutable(self):

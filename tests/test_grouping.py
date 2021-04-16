@@ -256,8 +256,8 @@ class GroupTests(g.unittest.TestCase):
         assert g.np.allclose(uv, vec)
         assert len(ui) == len(vec)
 
-        uv, ui = g.trimesh.grouping.group_vectors(vec,
-                                                  include_negative=True)
+        uv, ui = g.trimesh.grouping.group_vectors(
+            vec, include_negative=True)
         # since we included negative vectors, there should
         # be half the number of unique vectors and 2 indexes per vector
         assert g.np.shape(ui) == (100, 2)

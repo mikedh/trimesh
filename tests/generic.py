@@ -3,13 +3,6 @@
 Module which contains most imports and data unit tests
 might need, to reduce the amount of boilerplate.
 """
-from trimesh.base import Trimesh
-from trimesh.constants import tol, tol_path
-from collections import deque
-from copy import deepcopy
-import collections
-import trimesh
-from distutils.spawn import find_executable
 import os
 import sys
 import json
@@ -21,13 +14,24 @@ import base64
 import inspect
 import logging
 import platform
+import warnings
 import tempfile
 import unittest
-import itertools
-import subprocess
-import contextlib
 import threading
-import warnings
+import itertools
+import contextlib
+import subprocess
+import collections
+
+import trimesh
+
+from trimesh.base import Trimesh
+from trimesh.constants import tol, tol_path
+from collections import deque
+from copy import deepcopy
+
+
+from distutils.spawn import find_executable
 
 try:
     # Python 3
@@ -92,12 +96,12 @@ transforms = np.array(transforms)
 try:
     # do the imports for Python 2
     from cStringIO import StringIO
-    _PY3 = False
+    PY3 = False
 except ImportError:
     # if that didn't work we're probably on Python 3
     from io import StringIO
     from io import BytesIO
-    _PY3 = True
+    PY3 = True
 
 # are we on linux
 is_linux = 'linux' in platform.system().lower()

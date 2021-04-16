@@ -165,20 +165,20 @@ def face_adjacency_radius(mesh):
     Returns
     -------------
     radii : (len(self.face_adjacency),) float
-        Approximate radius between faces
-        Parallel faces will have a value of np.inf
+      Approximate radius between faces
+      Parallel faces will have a value of np.inf
     span :  (len(self.face_adjacency),) float
-        Perpendicular projection distance of two
-        unshared vertices onto the shared edge
+      Perpendicular projection distance of two
+      unshared vertices onto the shared edge
     """
 
     # solve for the radius of the adjacent faces
-    #         distance
-    # R = ------------------
-    #     2 * sin(theta / 2)
+    #       distance
+    # R = ---------------
+    #     2 * sin(theta)
     nonzero = mesh.face_adjacency_angles > np.radians(.01)
     denominator = np.abs(
-        2.0 * np.sin(mesh.face_adjacency_angles[nonzero] / 2.0))
+        2.0 * np.sin(mesh.face_adjacency_angles[nonzero]))
 
     # consider the distance between the non- shared vertices of the
     # face adjacency pair as the key distance

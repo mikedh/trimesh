@@ -72,7 +72,6 @@ class ColorVisuals(Visuals):
         try:
             if face_colors is not None:
                 self.face_colors = face_colors
-
             if vertex_colors is not None:
                 self.vertex_colors = vertex_colors
         except ValueError:

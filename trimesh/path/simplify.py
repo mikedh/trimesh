@@ -409,15 +409,14 @@ def simplify_spline(path, smooth=None, verbose=False):
     scale = path.scale
 
     for discrete in path.discrete:
-        circle = is_circle(discrete,
-                           scale=scale,
-                           verbose=verbose)
+        circle = is_circle(
+            discrete, scale=scale, verbose=verbose)
         if circle is not None:
             # the points are circular enough for our high standards
             # so replace them with a closed Arc entity
-            new_entities.append(entities.Arc(points=np.arange(3) +
-                                             len(new_vertices),
-                                             closed=True))
+            new_entities.append(entities.Arc(
+                points=np.arange(3) + len(new_vertices),
+                closed=True))
             new_vertices.extend(circle)
             continue
 

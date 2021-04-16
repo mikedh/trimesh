@@ -131,11 +131,16 @@ def export_gltf(scene,
                 "byteLength": len(item)}
             files[buffer_name] = item
 
-    tree["buffers"] = buffers
-    tree["bufferViews"] = views
+    if len(buffers) > 0:
+        tree["buffers"] = buffers
+        tree["bufferViews"] = views
     # dump tree with compact separators
     files["model.gltf"] = util.jsonify(
         tree, separators=(',', ':')).encode("utf-8")
+
+    if tol.strict:
+        validate(tree)
+
     return files
 
 
@@ -184,9 +189,11 @@ def export_glb(
 
     # combine bytes into a single blob
     buffer_data = bytes().join(buffer_items.values())
+
     # add the information about the buffer data
-    tree["buffers"] = [{"byteLength": len(buffer_data)}]
-    tree["bufferViews"] = views
+    if len(buffer_data) > 0:
+        tree["buffers"] = [{"byteLength": len(buffer_data)}]
+        tree["bufferViews"] = views
 
     # export the tree to JSON for the header
     content = util.jsonify(tree, separators=(',', ':'))
@@ -221,6 +228,9 @@ def export_glb(
                              content,
                              bin_header,
                              buffer_data])
+
+    if tol.strict:
+        validate(tree)
 
     return exported
 
@@ -407,7 +417,7 @@ def _buffer_append(ordered, data):
     # hash the data to see if we have it already
     hashed = fast_hash(data)
     if hashed in ordered:
-        # apparently theretodo : better way of finding index in an OrderedDict?
+        # apparently they never implemented keys().index -_-
         return list(ordered.keys()).index(hashed)
     # not in buffer items so append and then return index
     ordered[hashed] = _byte_pad(data)
@@ -435,46 +445,32 @@ def _data_append(acc, buff, blob, data):
     index : int
       Index of accessor that was added or reused.
     """
-    # append to the buffer list if not cached
-    blob['bufferView'] = _buffer_append(buff, data.tobytes())
-    # return the accessor for this data
-    return _acc_append(acc=acc, blob=blob, data=data)
-
-
-def _acc_append(acc, blob, data):
-    """
-    Append a new accessor to an OrderedDict.
-
-    Parameters
-    ------------
-    acc : collections.OrderedDict
-      Collection of accessors
-    blob : dict
-      Candidate accessor
-    data : numpy.array
-      Data to fill in details to blob
-
-    Returns
-    ----------
-    index : int
-      Index of accessor that was added or reused.
-    """
-
     # if we have data include that in the key
     if hasattr(data, 'fast_hash'):
         # passed a TrackedArray object
-        key = data.fast_hash()
+        hashed = data.fast_hash()
     else:
         # someone passed a vanilla numpy array
-        key = fast_hash(data.tobytes())
+        hashed = fast_hash(data.tobytes())
+
+    if hashed in buff:
+        blob['bufferView'] = list(buff.keys()).index(hashed)
+    else:
+        # not in buffer items so append and then return index
+        buff[hashed] = _byte_pad(data.tobytes())
+        blob['bufferView'] = len(buff) - 1
+
     # start by hashing the dict blob
     # note that this will not work if a value is a list
     try:
         # simple keys can be hashed as tuples without JSON
-        key ^= hash(tuple(blob.items()))
+        key = hash(tuple(blob.items()))
     except BaseException:
         # if there are list keys that break the simple hash
-        key ^= hash(json.dumps(blob, sort_keys=True))
+        key = hash(json.dumps(blob, sort_keys=True))
+
+    # xor the hash for the blob to the key
+    key ^= hashed
 
     # if key exists return the index in the OrderedDict
     if key in acc:
@@ -650,10 +646,6 @@ def _create_gltf_structure(scene,
     # remove the keys with nothing stored in them
     [tree.pop(key) for key in check if len(tree[key]) == 0]
 
-    # in unit tests compare our header against the schema
-    if tol.strict:
-        validate(tree)
-
     return tree, buffer_items
 
 
@@ -775,8 +767,9 @@ def _append_mesh(mesh,
             current["primitives"][0]["attributes"][
                 "TEXCOORD_0"] = acc_uv
 
-    if (include_normals or (include_normals is None and
-                            'vertex_normals' in mesh._cache.cache)):
+    if (include_normals or
+        (include_normals is None and
+         'vertex_normals' in mesh._cache.cache)):
         # store vertex normals if requested
         acc_norm = _data_append(
             acc=tree['accessors'],
@@ -1200,7 +1193,6 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
 
     for index, m in enumerate(header.get("meshes", [])):
         metadata = {}
-        unique = util.unique_id()
         try:
             # try loading units from the GLTF extra
             metadata['units'] = str(m["extras"]["units"])
@@ -1222,31 +1214,29 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
 
             # i.e. GL_LINES, GL_TRIANGLES, etc
             mode = p.get('mode')
-
+            # colors, normals, etc
+            attr = p['attributes']
             # create a unique mesh name per- primitive
             name = m.get('name', 'GLTF')
             # make name unique across multiple meshes
             if name in meshes:
-                name += "_{}".format(unique)
-
+                name += "_" + util.unique_id(
+                    length=5, increment=index)
             if mode == _GL_LINES:
                 # load GL_LINES into a Path object
                 from ..path.entities import Line
-                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
+                kwargs["vertices"] = access[attr["POSITION"]]
                 kwargs['entities'] = [Line(
                     points=np.arange(len(kwargs['vertices'])))]
             elif mode == _GL_POINTS:
-                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
-
+                kwargs["vertices"] = access[attr["POSITION"]]
             elif mode is None or mode == _GL_TRIANGLES:
-
                 if mode is None:
                     # some people skip mode since GL_TRIANGLES
                     # is apparently the de-facto default
                     log.warning('primitive has no mode! trying GL_TRIANGLES?')
-
                 # get vertices from accessors
-                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
+                kwargs["vertices"] = access[attr["POSITION"]]
                 # get faces from accessors
                 if 'indices' in p:
                     kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
@@ -1256,7 +1246,9 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                     kwargs['faces'] = np.arange(
                         len(kwargs['vertices']),
                         dtype=np.int64).reshape((-1, 3))
-
+                if 'NORMAL' in attr:
+                    # vertex normals are specified
+                    kwargs['vertex_normals'] = access[attr['NORMAL']]
                 # do we have UV coordinates
                 visuals = None
                 if "material" in p:
@@ -1264,18 +1256,18 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                         log.warning('no materials! `pip install pillow`')
                     else:
                         uv = None
-                        if "TEXCOORD_0" in p["attributes"]:
+                        if "TEXCOORD_0" in attr:
                             # flip UV's top- bottom to move origin to lower-left:
                             # https://github.com/KhronosGroup/glTF/issues/1021
-                            uv = access[p["attributes"]["TEXCOORD_0"]].copy()
+                            uv = access[attr["TEXCOORD_0"]].copy()
                             uv[:, 1] = 1.0 - uv[:, 1]
                             # create a texture visual
                         visuals = visual.texture.TextureVisuals(
                             uv=uv, material=materials[p["material"]])
-                if 'COLOR_0' in p['attributes']:
+                if 'COLOR_0' in attr:
                     try:
                         # try to load vertex colors from the accessors
-                        colors = access[p['attributes']['COLOR_0']]
+                        colors = access[attr['COLOR_0']]
                         if len(colors) == len(kwargs['vertices']):
                             if visuals is None:
                                 # just pass to mesh as vertex color
@@ -1298,13 +1290,11 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                 else:
                     kwargs['metadata']['from_gltf_primitive'] = False
 
-                custom_attrs = [attr for attr in p["attributes"]
-                                if attr.startswith("_")]
-                if len(custom_attrs):
-                    vertex_attributes = {}
-                    for attr in custom_attrs:
-                        vertex_attributes[attr] = access[p["attributes"][attr]]
-                    kwargs["vertex_attributes"] = vertex_attributes
+                # custom attributes starting with a `_`
+                custom = {a: access[attr[a]] for a in attr.keys()
+                          if a.startswith('_')}
+                if len(custom) > 0:
+                    kwargs["vertex_attributes"] = custom
             else:
                 log.warning('skipping primitive with mode %s!', mode)
                 continue
@@ -1744,7 +1734,9 @@ def validate(header):
     # will do the reference replacement
     schema = get_schema()
     # validate the passed header against the schema
-    return jsonschema.validate(header, schema=schema)
+    valid = jsonschema.validate(header, schema=schema)
+
+    return valid
 
 
 def get_schema():

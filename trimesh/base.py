@@ -302,12 +302,12 @@ class Trimesh(Geometry3D):
           Indexes of self.vertices
         """
         if values is None or len(values) == 0:
-            if 'faces' in self._data:
-                del self._data['faces']
-            return
-        values = np.asanyarray(values, dtype=np.int64)
+            return self._data.data.pop('faces', None)
+        if not (isinstance(values, np.ndarray) and values.dtype == np.int64):
+            values = np.asanyarray(values, dtype=np.int64)
+
         # automatically triangulate quad faces
-        if util.is_shape(values, (-1, 4)):
+        if len(values.shape) == 2 and values.shape[1] == 4:
             log.info('triangulating quad faces')
             values = geometry.triangulate_quads(values)
         self._data['faces'] = values
