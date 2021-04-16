@@ -302,8 +302,7 @@ class Trimesh(Geometry3D):
           Indexes of self.vertices
         """
         if values is None or len(values) == 0:
-            self._data.data.pop('faces')
-            return
+            return self._data.data.pop('faces', None)
         if not (isinstance(values, np.ndarray) and values.dtype == np.int64):
             values = np.asanyarray(values, dtype=np.int64)
 
