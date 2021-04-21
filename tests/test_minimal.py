@@ -29,8 +29,7 @@ class MinimalTest(unittest.TestCase):
     def test_load(self):
         # formats that should work with a minimal install
         ext = {'stl', 'obj', 'glb',
-               'gltf', 'ply', '3dxml',
-               '3mf', 'off'}
+               'gltf', 'ply', 'off'}
 
         for file_name in os.listdir(_mwd):
             # only try loading if the file format matches
