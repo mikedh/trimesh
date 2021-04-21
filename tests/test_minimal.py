@@ -28,7 +28,7 @@ class MinimalTest(unittest.TestCase):
 
     def test_load(self):
         # formats that should work with a minimal install
-        ext = {'stl', 'obj', 'glb',
+        ext = {'stl', 'glb',
                'gltf', 'ply', 'off'}
 
         for file_name in os.listdir(_mwd):
@@ -36,6 +36,7 @@ class MinimalTest(unittest.TestCase):
             kind = os.path.splitext(file_name.lower())[1][1:]
             if kind not in ext:
                 continue
+            print(file_name)
             m = get_mesh(file_name)
             if isinstance(m, trimesh.Trimesh):
                 assert len(m.face_adjacency.shape) == 2
