@@ -9,6 +9,14 @@ from .. import transformations
 
 
 class SceneGraph(object):
+    """
+    Hold data about positions and instances of geometry
+    in a scene. This includes a forest (i.e. multi-root tree)
+    of transforms and information on which node is the base
+    frame, and which geometries are affiliated with which
+    nodes.
+    """
+
     def __init__(self, base_frame='world'):
         # a graph structure, subclass of networkx DiGraph
         self.transforms = EnforcedForest()
@@ -65,6 +73,66 @@ class SceneGraph(object):
             self.transforms.node_data[
                 frame_to]['geometry'] = kwargs['geometry']
 
+    def get(self, frame_to, frame_from=None):
+        """
+        Get the transform from one frame to another.
+
+        If the frames are not connected a ValueError
+        will be raised.
+
+        Parameters
+        ------------
+        frame_to : hashable
+          Node name, usually a string (eg 'mesh_0')
+        frame_from : hashable
+          Node name, usually a string (eg 'world').
+          If None it will be set to self.base_frame
+
+        Returns
+        ----------
+        transform : (4, 4) float
+          Homogeneous transformation matrix
+        """
+
+        # use base frame if not specified
+        if frame_from is None:
+            frame_from = self.base_frame
+
+        # look up transform to see if we have it already
+        key = (frame_from, frame_to)
+        if key in self._cache:
+            return self._cache[key]
+
+        # get the geometry at the final node if any
+        geometry = self.transforms.node_data[
+            frame_to].get('geometry')
+
+        # get a local reference to edge data
+        edge_data = self.transforms.edge_data
+
+        if frame_from == frame_to:
+            # if we're going from ourself return identity
+            matrix = np.eye(4)
+        elif key in edge_data:
+            # if the path is just an edge return early
+            matrix = edge_data[key]['matrix']
+        else:
+            # we have a 3+ node path
+            # get the path from the forest always going from
+            # parent -> child -> child
+            path = self.transforms.shortest_path(
+                frame_from, frame_to)
+            # collect a homogenous transform for each edge
+            matrices = [edge_data[(u, v)]['matrix'] for u, v in
+                        zip(path[:-1], path[1:])]
+            # multiply matrices into single transform
+            matrix = util.multi_dot(matrices)
+
+        # store the result
+        self._cache[key] = (matrix, geometry)
+
+        return matrix, geometry
+
     def md5(self):
         return 'hi'
 
@@ -120,22 +188,26 @@ class SceneGraph(object):
             mesh_index = {name: i for i, name
                           in enumerate(scene.geometry.keys())}
 
-        # shortcut to graph
+        # get graph information into local scope before loop
         graph = self.transforms
         # get the stored node data
         node_data = graph.node_data
+        edge_data = graph.edge_data
+        base_frame = self.base_frame
 
         # list of dict, in gltf format
         # start with base frame as first node index
-        result = [{'name': self.base_frame}]
+        result = [{'name': base_frame}]
         # {node name : node index in gltf}
-        lookup = {self.base_frame: 0}
+        lookup = {base_frame: 0}
 
         # collect the nodes in order
         for node in node_data.keys():
-            if node == self.base_frame:
+            if node == base_frame:
                 continue
+            # assign the index to the node-name lookup
             lookup[node] = len(result)
+            # populate a result at the correct index
             result.append({'name': node})
 
         # get generated properties outside of loop
@@ -147,7 +219,6 @@ class SceneGraph(object):
         for info in result:
             # name of the scene node
             node = info['name']
-            # store children as indexes
 
             # get the original node names for children
             childs = children.get(node, [])
@@ -162,24 +233,24 @@ class SceneGraph(object):
             # check to see if we have camera node
             if has_camera and node == scene.camera.name:
                 info['camera'] = 0
-            try:
-                # try to ignore KeyError and StopIteration
-                # parent-child transform is stored in child
-                parent = next(iter(graph.predecessors(node)))
-                # get the (4, 4) homogeneous transform
-                matrix = graph.get_edge_data(parent, node)['matrix']
-                # only include matrix if it is not an identity matrix
+
+            if node != base_frame:
+                parent = graph.parents[node]
+
+                # get the matrix from this edge
+                matrix = edge_data[(parent, node)]['matrix']
+                # only include if it's not an identify matrix
                 if np.abs(matrix - np.eye(4)).max() > 1e-5:
                     info['matrix'] = matrix.T.reshape(-1).tolist()
-            except BaseException:
-                continue
 
-            try:
-                extras = graph.edge_data[(parent, node)]['extras']
+                # if an extra was stored on this edge
+                extras = edge_data[(parent, node)].get('extras')
                 if extras:
+                    # convert any numpy arrays to lists
+                    extras.update(
+                        {k: v.tolist() for k, v in extras.items()
+                         if hasattr(v, 'tolist')})
                     info['extras'] = extras
-            except BaseException:
-                pass
 
         return {'nodes': result}
 
@@ -320,66 +391,6 @@ class SceneGraph(object):
         # nodes_geometry: if this becomes not true change this to clear!
         self._cache.cache.pop('nodes_geometry', None)
 
-    def get(self, frame_to, frame_from=None):
-        """
-        Get the transform from one frame to another.
-
-        If the frames are not connected a ValueError
-        will be raised.
-
-        Parameters
-        ------------
-        frame_to : hashable
-          Node name, usually a string (eg 'mesh_0')
-        frame_from : hashable
-          Node name, usually a string (eg 'world').
-          If None it will be set to self.base_frame
-
-        Returns
-        ----------
-        transform : (4, 4) float
-          Homogeneous transformation matrix
-        """
-
-        # use base frame if not specified
-        if frame_from is None:
-            frame_from = self.base_frame
-
-        # look up transform to see if we have it already
-        key = (frame_from, frame_to)
-        if key in self._cache:
-            return self._cache[key]
-
-        # get the geometry at the final node if any
-        geometry = self.transforms.node_data[
-            frame_to].get('geometry')
-
-        # get a local reference to edge data
-        edge_data = self.transforms.edge_data
-
-        if frame_from == frame_to:
-            # if we're going from ourself return identity
-            matrix = np.eye(4)
-        elif key in edge_data:
-            # if the path is just an edge return early
-            matrix = edge_data[key]['matrix']
-        else:
-            # we have a 3+ node path
-            # get the path from the forest always going from
-            # parent -> child -> child
-            path = self.transforms.shortest_path(
-                frame_from, frame_to)
-            # collect a homogenous transform for each edge
-            matrices = [edge_data[(u, v)]['matrix'] for u, v in
-                        zip(path[:-1], path[1:])]
-            # multiply matrices into single transform
-            matrix = util.multi_dot(matrices)
-
-        # store the result
-        self._cache[key] = (matrix, geometry)
-
-        return matrix, geometry
-
     def __contains__(self, key):
         return key in self.transforms.node_data
 
@@ -519,7 +530,12 @@ class EnforcedForest(object):
           Keyed {node : [child, child, ...]}
         """
         child = collections.defaultdict(list)
-        [child[v].append(u) for u, v in self.parents.items()]
+        # append children to parent references
+        # skip self-references to avoid a node loop
+        [child[v].append(u) for u, v in
+         self.parents.items() if u != v]
+
+        # return as a vanilla dict
         return dict(child)
 
 

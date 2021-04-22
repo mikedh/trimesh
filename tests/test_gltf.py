@@ -147,6 +147,7 @@ class GLTFTest(g.unittest.TestCase):
         # export it as a a GLB file
         export = original.export(file_type='glb')
         validate_glb(export)
+
         kwargs = g.trimesh.exchange.gltf.load_glb(
             g.trimesh.util.wrap_as_stream(export))
         # roundtrip it
@@ -469,7 +470,7 @@ class GLTFTest(g.unittest.TestCase):
         files = r.export(None, "gltf")
         gltf_data = files["model.gltf"]
         assert 'test_value' in gltf_data.decode('utf8')
-        edge_data = r.graph.transforms.get_edge_data("world", "Sphere1")
+        edge_data = r.graph.transforms.edge_data[("world", "Sphere1")]
         assert edge_data['extras'] == test_metadata
 
     def test_read_scene_extras(self):
