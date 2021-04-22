@@ -16,7 +16,7 @@ from ..parent import Geometry3D
 from . import cameras
 from . import lighting
 
-from .transforms import TransformForest
+from .transforms import SceneGraph
 
 
 class Scene(Geometry3D):
@@ -59,7 +59,7 @@ class Scene(Geometry3D):
         self.geometry = collections.OrderedDict()
 
         # create a new graph
-        self.graph = TransformForest(base_frame=base_frame)
+        self.graph = SceneGraph(base_frame=base_frame)
 
         # create our cache
         self._cache = caching.Cache(id_function=self.md5)
