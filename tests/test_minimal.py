@@ -91,7 +91,6 @@ class MinimalTest(unittest.TestCase):
                       'groups.obj',
                       'fuze.ply',
                       'ADIS16480.STL',
-                      'machinist.obj',
                       'textured_tetrahedron.obj',
                       'testplate.glb',
                       'multibody.stl',
