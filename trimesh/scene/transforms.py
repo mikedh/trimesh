@@ -172,14 +172,14 @@ class SceneGraph(object):
         Parameters
         ------------
         scene : trimesh.Scene
-          Scene with geoemtry
+          Scene with geometry.
         mesh_index : dict or None
           Mapping { key in scene.geometry : int }
 
         Returns
         --------
         gltf : dict
-          with 'nodes' referencing a list of dicts
+          With 'nodes' referencing a list of dicts
         """
 
         if mesh_index is None:
