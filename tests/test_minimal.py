@@ -27,90 +27,15 @@ def get_mesh(file_name, **kwargs):
 class MinimalTest(unittest.TestCase):
 
     def test_load(self):
-        # files that should work with a minimal install
-        file_names = ['fixed_top.ply',
-                      'origin_inside.STL',
-                      'shared.STL',
-                      '1002_tray_bottom.STL',
-                      'notenoughindices.obj',
-                      'reference.obj',
-                      'jacked.obj',
-                      'cube_compressed.obj',
-                      'cycloidal.ply',
-                      'reference.ply',
-                      'suzanne.ply',
-                      'large_block_obb.STL',
-                      '20mm-xyz-cube.stl',
-                      'points_agisoft.xyz',
-                      'plate_holes.STL',
-                      'bunny.ply',
-                      'octagonal_pocket.stl',
-                      'large_block.STL',
-                      'empty.obj',
-                      'points_bin.ply',
-                      'points_emptyascii.ply',
-                      'empty.ply',
-                      'pins.glb',
-                      'not_convex.obj',
-                      'round.stl',
-                      'empty.stl',
-                      'whitespace.off',
-                      'two_objects.obj',
-                      'nancolor.obj',
-                      'wallhole.obj',
-                      'monkey.glb',
-                      'torus.STL',
-                      'fuze_ascii.ply',
-                      'octagonal_pocket.ply',
-                      'angle_block.STL',
-                      'cap.zip',
-                      'points_cloudcompare.xyz',
-                      'rabbit.obj',
-                      'points_emptyface.ply',
-                      'BoxTextured.glb',
-                      'singlevn.obj',
-                      'unit_cube.STL',
-                      'simple_pole.glb',
-                      'cube.OBJ',
-                      'featuretype.ply',
-                      'boolean.glb',
-                      'box.obj',
-                      'kinematic.tar.gz',
-                      'tet.ply',
-                      'points_ascii.ply',
-                      'cubevt.obj',
-                      'BoxTextured.ply',
-                      'idler_riser.STL',
-                      'points_ascii_with_lists.ply',
-                      'cube.glb',
-                      'empty_nodes.glb',
-                      'quadknot.obj',
-                      'noimg.obj',
-                      'fuze.obj',
-                      'busted.STL',
-                      'groups.obj',
-                      'fuze.ply',
-                      'ADIS16480.STL',
-                      'textured_tetrahedron.obj',
-                      'testplate.glb',
-                      'multibody.stl',
-                      'unit_sphere.STL',
-                      '7_8ths_cube.stl',
-                      'teapot.stl',
-                      'comments.off',
-                      'chair_model.obj',
-                      'tube.obj',
-                      'ballA.off',
-                      'box.STL',
-                      'joined_tetrahedra.obj',
-                      'featuretype.STL',
-                      'fandisk.obj',
-                      'TestScene.gltf',
-                      'polygonfaces.obj',
-                      'ballB.off',
-                      'soup.stl']
+        # kinds of files we should be able to
+        # load even with a minimal install
+        kinds = 'stl ply obj off gltf glb'.split()
 
-        for file_name in file_names:
+        for file_name in os.listdir(_mwd):
+            ext = os.path.splitext(file_name)[-1].lower()[1:]
+            if ext not in kinds:
+                continue
+
             print(file_name)
             m = get_mesh(file_name)
             if isinstance(m, trimesh.Trimesh):
