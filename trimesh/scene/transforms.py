@@ -18,6 +18,10 @@ class SceneGraph(object):
     """
 
     def __init__(self, base_frame='world'):
+        """
+        Create a scene graph, holding homogenous transformation
+        matrices and instance information about geometry.
+        """
         # a graph structure, subclass of networkx DiGraph
         self.transforms = EnforcedForest()
         # hashable, the base or root frame
@@ -77,9 +81,6 @@ class SceneGraph(object):
         """
         Get the transform from one frame to another.
 
-        If the frames are not connected a ValueError
-        will be raised.
-
         Parameters
         ------------
         frame_to : hashable
@@ -92,6 +93,11 @@ class SceneGraph(object):
         ----------
         transform : (4, 4) float
           Homogeneous transformation matrix
+
+        Raises
+        -----------
+        ValueError
+          If the frames aren't connected.
         """
 
         # use base frame if not specified
@@ -138,17 +144,24 @@ class SceneGraph(object):
 
     def copy(self):
         """
-        Return a copy of the current TransformForest
+        Return a copy of the current TransformForest.
 
         Returns
         ------------
         copied : TransformForest
+          Copy of current object.
         """
         return copy.deepcopy(self)
 
     def to_flattened(self):
         """
-        Export the current transform graph as a flattened.
+        Export the current transform graph with all
+        transforms baked into world->instance.
+
+        Returns
+        ---------
+        flat : dict
+          Keyed {node : {transform, geometry}
         """
         flat = {}
         base_frame = self.base_frame
@@ -294,10 +307,10 @@ class SceneGraph(object):
         Parameters
         -------------
         edgelist : (n,) tuples
-            (node_a, node_b, {key: value})
+          Keyed (node_a, node_b, {key: value})
         strict : bool
-            If true, raise a ValueError when a
-            malformed edge is passed in a tuple.
+          If True raise a ValueError when a
+          malformed edge is passed in a tuple.
         """
         # loop through each edge
         for edge in edges:
@@ -319,7 +332,7 @@ class SceneGraph(object):
         Parameters
         -------------
         edgelist : (n,) tuples
-            (node_a, node_b, {key: value})
+          Structured (node_a, node_b, {key: value})
         """
         self.from_edgelist(edgelist, strict=True)
 
@@ -331,7 +344,7 @@ class SceneGraph(object):
         Returns
         -------------
         nodes : (n,) array
-          All node names
+          All node names.
         """
         return self.transforms.nodes
 
@@ -352,12 +365,13 @@ class SceneGraph(object):
     @caching.cache_decorator
     def geometry_nodes(self):
         """
-        Which nodes have this geometry?
+        Which nodes have this geometry? Inverse
+        of `nodes_geometry`.
 
         Returns
         ------------
         geometry_nodes : dict
-          Geometry name : (n,) node names
+          Keyed {geometry_name : node name}
         """
         res = collections.defaultdict(list)
         for node, attr in self.transforms.node_data.items():
@@ -367,8 +381,8 @@ class SceneGraph(object):
 
     def remove_geometries(self, geometries):
         """
-        Remove the reference for specified geometries from nodes
-        without deleting the node.
+        Remove the reference for specified geometries
+        from nodes without deleting the node.
 
         Parameters
         ------------
@@ -462,6 +476,10 @@ class EnforcedForest(object):
         """
         Find the shortest path beween `u` and `v`.
 
+        Note that it will *always* be ordered from
+        root direction to leaf direction, so `u` may
+        be either the first *or* last element.
+
         Parameters
         -----------
         u : any
@@ -475,14 +493,14 @@ class EnforcedForest(object):
           Path between `u` and `v`
         """
         # see if we've already computed this path
-        if (u, v) in self._cache:
+        if u == v:
+            #  the path between itself is an edge case
+            return []
+        elif (u, v) in self._cache:
+            # return the same path for either direction
             return self._cache[(u, v)]
         elif (v, u) in self._cache:
             return self._cache[(v, u)]
-
-        #  the path between itself is an edge case
-        if u == v:
-            return []
 
         # local reference to parent dict for performance
         parents = self.parents
@@ -490,7 +508,7 @@ class EnforcedForest(object):
         forward = [u]
         backward = [v]
 
-        # limit iteration to number of total parent nodes
+        # cap iteration to number of total nodes
         for _ in range(len(parents) + 1):
             # store the parent both forwards and backwards
             forward.append(parents.get(forward[-1]))
