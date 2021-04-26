@@ -1,4 +1,5 @@
 import copy
+import time
 
 import numpy as np
 import collections
@@ -21,13 +22,18 @@ class SceneGraph(object):
         """
         Create a scene graph, holding homogenous transformation
         matrices and instance information about geometry.
+
+        Parameters
+        -----------
+        base_frame : any
+          The root node transforms will be positioned from.
         """
         # a graph structure, subclass of networkx DiGraph
         self.transforms = EnforcedForest()
         # hashable, the base or root frame
         self.base_frame = base_frame
         # cache transformation matrices keyed with tuples
-        self._cache = caching.Cache(lambda: 1)
+        self._cache = caching.Cache(self.modified)
 
     def update(self, frame_to, frame_from=None, **kwargs):
         """
@@ -56,9 +62,6 @@ class SceneGraph(object):
           Optional metadata attached to the new frame
           (exports to glTF node 'extras').
         """
-        # clear all cached matrices
-        self._cache.clear()
-
         # if no frame specified, use base frame
         if frame_from is None:
             frame_from = self.base_frame
@@ -70,8 +73,12 @@ class SceneGraph(object):
         attr['matrix'] = kwargs_to_matrix(**kwargs)
 
         # add the edges for the transforms
-        self.transforms.add_edge(
-            frame_from, frame_to, **attr)
+        # will return if it changed anything
+        if self.transforms.add_edge(
+                frame_from, frame_to, **attr):
+            # clear all cached matrices
+            self._modified = str(time.time())
+
         # set the node attribute with the geometry information
         if 'geometry' in kwargs:
             self.transforms.node_data[
@@ -139,8 +146,13 @@ class SceneGraph(object):
 
         return matrix, geometry
 
-    def md5(self):
-        return 'hi'
+    def modified(self):
+        """
+        Return the last time stamp data was modified.
+        """
+        if hasattr(self, '_modified'):
+            return self._modified
+        return '0.0'
 
     def copy(self):
         """
@@ -460,10 +472,24 @@ class EnforcedForest(object):
           Hashable node key.
         kwargs : dict
            Stored as (u, v) edge data.
+
+        Returns
+        --------
+        changed : bool
+          Return if this operation changed anything.
        """
         # topology has changed so clear cache
         if (u, v) not in self.edge_data:
             self._cache = {}
+        else:
+            # check to see if matrix and geometry are identical
+            edge = self.edge_data[(u, v)]
+            if (np.abs(
+                kwargs.get('matrix', np.eye(4)) -
+                edge.get('matrix', np.eye(4))).max() < 1e-8
+                and (edge.get('geometry') ==
+                     kwargs.get('geometry'))):
+                return False
 
         # store a parent reference for traversal
         self.parents[v] = u
@@ -471,6 +497,8 @@ class EnforcedForest(object):
         self.edge_data[(u, v)] = kwargs
         # set empty node data
         self.node_data.update({u: {}, v: {}})
+
+        return True
 
     def shortest_path(self, u, v):
         """

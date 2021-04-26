@@ -100,9 +100,10 @@ class SceneTests(g.unittest.TestCase):
                         g.np.product(s.extents),
                         g.np.product(r.extents))
 
-                # TODO: not moving like it did before
+                # move the scene to origin
                 s.rezero()
-                # assert (g.np.abs(s.centroid) < 1e-3).all()
+                # if our cache dump was bad this will fail
+                assert g.np.allclose(s.centroid, 0, atol=1e-5)
 
                 # make sure explode doesn't crash
                 s.explode()

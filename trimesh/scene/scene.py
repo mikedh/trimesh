@@ -231,21 +231,33 @@ class Scene(Geometry3D):
         return util.md5_object(self._hashable())
 
     def crc(self):
+        """
+        Get a CRC of the current geometry and graph information.
+
+        Returns
+        ---------
+        crc : int
+          Hash of current graph and geometry.
+        """
         return caching.crc32(self._hashable())
 
     def _hashable(self):
-        hashes = [self.graph.md5()]
-        for g in self.geometry.values():
-            if hasattr(g, 'md5'):
-                hashes.append(g.md5())
-            elif hasattr(g, 'tostring'):
-                hashes.append(str(hash(g.tostring())))
-            else:
-                # try to just straight up hash
-                # this may raise errors
-                hashes.append(str(hash(g)))
-        hashable = ''.join(sorted(hashes)).encode('utf-8')
-        return hashable
+        """
+        Return information about scene which is hashable.
+
+        Returns
+        ---------
+        hashable : str
+          Data which can be hashed.
+        """
+        # start with the last modified time of the scene graph
+        hashable = [self.graph.modified()]
+        # crc is an abstractmethod for all Geometry3D
+        # objects so everything should really have it
+        hashable.extend(i.crc() for i in self.geometry
+                        if hasattr(i, 'crc'))
+        # crc requires bytes so encode to utf-8
+        return ''.join(sorted(hashable)).encode('utf-8')
 
     @property
     def is_empty(self):
