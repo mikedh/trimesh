@@ -361,14 +361,22 @@ class GraphTests(g.unittest.TestCase):
             scene = g.trimesh.Scene()
             scene.add_geometry(g.trimesh.creation.box())
 
+            mod = [scene.graph.modified()]
             scene.set_camera()
+            mod.append(scene.graph.modified())
+            assert mod[-1] != mod[-2]
+
             assert not g.np.allclose(
                 scene.camera_transform,
                 g.np.eye(4))
             scene.camera_transform = g.np.eye(4)
+            mod.append(scene.graph.modified())
+            assert mod[-1] != mod[-2]
+
             assert g.np.allclose(
                 scene.camera_transform,
                 g.np.eye(4))
+            assert mod[-1] != mod[-2]
 
 
 if __name__ == '__main__':

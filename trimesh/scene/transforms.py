@@ -1,5 +1,5 @@
+import uuid
 import copy
-import time
 
 import numpy as np
 import collections
@@ -76,8 +76,9 @@ class SceneGraph(object):
         # will return if it changed anything
         if self.transforms.add_edge(
                 frame_from, frame_to, **attr):
-            # clear all cached matrices
-            self._modified = str(time.time())
+            # clear all cached matrices by setting
+            # modified hash to a random string
+            self._modified = str(uuid.uuid4())
 
         # set the node attribute with the geometry information
         if 'geometry' in kwargs:
@@ -484,9 +485,8 @@ class EnforcedForest(object):
         else:
             # check to see if matrix and geometry are identical
             edge = self.edge_data[(u, v)]
-            if (np.abs(
-                kwargs.get('matrix', np.eye(4)) -
-                edge.get('matrix', np.eye(4))).max() < 1e-8
+            if (np.allclose(kwargs.get('matrix', np.eye(4)),
+                            edge.get('matrix', np.eye(4)))
                 and (edge.get('geometry') ==
                      kwargs.get('geometry'))):
                 return False
