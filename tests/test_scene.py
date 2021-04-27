@@ -92,16 +92,18 @@ class SceneTests(g.unittest.TestCase):
                     # try exporting the scene as a dict
                     # then make sure json can serialize it
                     e = g.json.dumps(s.export(file_type=export_format))
-
                     # reconstitute the dict into a scene
                     r = g.trimesh.load(g.json.loads(e))
 
                     # make sure the extents are similar before and after
-                    assert g.np.allclose(g.np.product(s.extents),
-                                         g.np.product(r.extents))
+                    assert g.np.allclose(
+                        g.np.product(s.extents),
+                        g.np.product(r.extents))
 
+                # move the scene to origin
                 s.rezero()
-                assert (g.np.abs(s.centroid) < 1e-3).all()
+                # if our cache dump was bad this will fail
+                assert g.np.allclose(s.centroid, 0, atol=1e-5)
 
                 # make sure explode doesn't crash
                 s.explode()
@@ -359,14 +361,22 @@ class GraphTests(g.unittest.TestCase):
             scene = g.trimesh.Scene()
             scene.add_geometry(g.trimesh.creation.box())
 
+            mod = [scene.graph.modified()]
             scene.set_camera()
+            mod.append(scene.graph.modified())
+            assert mod[-1] != mod[-2]
+
             assert not g.np.allclose(
                 scene.camera_transform,
                 g.np.eye(4))
             scene.camera_transform = g.np.eye(4)
+            mod.append(scene.graph.modified())
+            assert mod[-1] != mod[-2]
+
             assert g.np.allclose(
                 scene.camera_transform,
                 g.np.eye(4))
+            assert mod[-1] != mod[-2]
 
 
 if __name__ == '__main__':

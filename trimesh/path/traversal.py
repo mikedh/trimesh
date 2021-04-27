@@ -299,18 +299,15 @@ class PathSample:
         if offset < constants.tol_path.merge:
             truncated = self._points[:position + 1]
         else:
-            vector = util.unitize(np.diff(self._points[np.arange(2) + position],
-                                          axis=0).reshape(-1))
+            vector = util.unitize(np.diff(
+                self._points[np.arange(2) + position],
+                axis=0).reshape(-1))
             vector *= offset
             endpoint = self._points[position] + vector
             truncated = np.vstack((self._points[:position + 1],
                                    endpoint))
-
-        assert (
-            util.row_norm(
-                np.diff(
-                    truncated,
-                    axis=0)).sum() -
+        assert (util.row_norm(np.diff(
+            truncated, axis=0)).sum() -
             distance) < constants.tol_path.merge
 
         return truncated

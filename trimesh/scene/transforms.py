@@ -1,36 +1,39 @@
+import uuid
 import copy
-import time
 
 import numpy as np
 import collections
 
 from .. import util
 from .. import caching
-from .. import exceptions
 from .. import transformations
 
-try:
-    import networkx as nx
-    _ForestParent = nx.DiGraph
-except BaseException as E:
-    # create a dummy module which will raise the ImportError
-    # or other exception only when someone tries to use networkx
-    nx = exceptions.ExceptionModule(E)
-    _ForestParent = object
 
+class SceneGraph(object):
+    """
+    Hold data about positions and instances of geometry
+    in a scene. This includes a forest (i.e. multi-root tree)
+    of transforms and information on which node is the base
+    frame, and which geometries are affiliated with which
+    nodes.
+    """
 
-class TransformForest(object):
     def __init__(self, base_frame='world'):
+        """
+        Create a scene graph, holding homogenous transformation
+        matrices and instance information about geometry.
+
+        Parameters
+        -----------
+        base_frame : any
+          The root node transforms will be positioned from.
+        """
         # a graph structure, subclass of networkx DiGraph
         self.transforms = EnforcedForest()
         # hashable, the base or root frame
         self.base_frame = base_frame
-
-        # save paths, keyed with tuple (from, to)
-        self._paths = {}
         # cache transformation matrices keyed with tuples
-        self._updated = str(np.random.random())
-        self._cache = caching.Cache(self.md5)
+        self._cache = caching.Cache(self.modified)
 
     def update(self, frame_to, frame_from=None, **kwargs):
         """
@@ -57,95 +60,152 @@ class TransformForest(object):
           Geometry object name, e.g. 'mesh_0'
         extras: dictionary
           Optional metadata attached to the new frame
-          (expors to glTF node 'extras').
+          (exports to glTF node 'extras').
         """
-
-        self._updated = str(np.random.random())
-        self._cache.clear()
-
         # if no frame specified, use base frame
         if frame_from is None:
             frame_from = self.base_frame
+
+        # pass through
+        attr = {k: v for k, v in kwargs.items()
+                if k in {'geometry', 'extras'}}
         # convert various kwargs to a single matrix
-        matrix = kwargs_to_matrix(**kwargs)
+        attr['matrix'] = kwargs_to_matrix(**kwargs)
 
-        # create the edge attributes
-        attr = {'matrix': matrix, 'time': time.time()}
-        # pass through geometry to edge attribute
-        if 'geometry' in kwargs:
-            attr['geometry'] = kwargs['geometry']
+        # add the edges for the transforms
+        # will return if it changed anything
+        if self.transforms.add_edge(
+                frame_from, frame_to, **attr):
+            # clear all cached matrices by setting
+            # modified hash to a random string
+            self._modified = str(uuid.uuid4())
 
-        if 'extras' in kwargs:
-            attr['extras'] = kwargs['extras']
-
-        # add the edges
-        changed = self.transforms.add_edge(frame_from,
-                                           frame_to,
-                                           **attr)
         # set the node attribute with the geometry information
         if 'geometry' in kwargs:
-            nx.set_node_attributes(
-                self.transforms,
-                name='geometry',
-                values={frame_to: kwargs['geometry']})
+            self.transforms.node_data[
+                frame_to]['geometry'] = kwargs['geometry']
 
-        # if the edge update changed our structure
-        # dump our cache of shortest paths
-        if changed:
-            self._paths = {}
+    def get(self, frame_to, frame_from=None):
+        """
+        Get the transform from one frame to another.
 
-    def md5(self):
-        return self._updated
+        Parameters
+        ------------
+        frame_to : hashable
+          Node name, usually a string (eg 'mesh_0')
+        frame_from : hashable
+          Node name, usually a string (eg 'world').
+          If None it will be set to self.base_frame
+
+        Returns
+        ----------
+        transform : (4, 4) float
+          Homogeneous transformation matrix
+
+        Raises
+        -----------
+        ValueError
+          If the frames aren't connected.
+        """
+
+        # use base frame if not specified
+        if frame_from is None:
+            frame_from = self.base_frame
+
+        # look up transform to see if we have it already
+        key = (frame_from, frame_to)
+        if key in self._cache:
+            return self._cache[key]
+
+        # get the geometry at the final node if any
+        geometry = self.transforms.node_data[
+            frame_to].get('geometry')
+
+        # get a local reference to edge data
+        edge_data = self.transforms.edge_data
+
+        if frame_from == frame_to:
+            # if we're going from ourself return identity
+            matrix = np.eye(4)
+        elif key in edge_data:
+            # if the path is just an edge return early
+            matrix = edge_data[key]['matrix']
+        else:
+            # we have a 3+ node path
+            # get the path from the forest always going from
+            # parent -> child -> child
+            path = self.transforms.shortest_path(
+                frame_from, frame_to)
+            # collect a homogenous transform for each edge
+            matrices = [edge_data[(u, v)]['matrix'] for u, v in
+                        zip(path[:-1], path[1:])]
+            # multiply matrices into single transform
+            matrix = util.multi_dot(matrices)
+
+        # store the result
+        self._cache[key] = (matrix, geometry)
+
+        return matrix, geometry
+
+    def modified(self):
+        """
+        Return the last time stamp data was modified.
+        """
+        if hasattr(self, '_modified'):
+            return self._modified
+        return '0.0'
 
     def copy(self):
         """
-        Return a copy of the current TransformForest
+        Return a copy of the current TransformForest.
 
         Returns
         ------------
         copied : TransformForest
+          Copy of current object.
         """
-        copied = TransformForest()
-        copied.base_frame = copy.deepcopy(self.base_frame)
-        copied.transforms = copy.deepcopy(self.transforms)
+        return copy.deepcopy(self)
 
-        return copied
-
-    def to_flattened(self, base_frame=None):
+    def to_flattened(self):
         """
-        Export the current transform graph as a flattened
-        """
-        if base_frame is None:
-            base_frame = self.base_frame
+        Export the current transform graph with all
+        transforms baked into world->instance.
 
+        Returns
+        ---------
+        flat : dict
+          Keyed {node : {transform, geometry}
+        """
         flat = {}
+        base_frame = self.base_frame
         for node in self.nodes:
             if node == base_frame:
                 continue
-            transform, geometry = self.get(
+            # get the matrix and geometry name
+            matrix, geometry = self.get(
                 frame_to=node, frame_from=base_frame)
-            flat[node] = {
-                'transform': transform.tolist(),
-                'geometry': geometry
-            }
+            # store matrix as list rather than numpy array
+            flat[node] = {'transform': matrix.tolist(),
+                          'geometry': geometry}
+
         return flat
 
     def to_gltf(self, scene, mesh_index=None):
         """
-        Export a transforms as the 'nodes' section of a GLTF dict.
-        Flattens tree.
+        Export a transforms as the 'nodes' section of the
+        GLTF header dict.
 
         Parameters
         ------------
         scene : trimesh.Scene
-          Scene with geoemtry
+          Scene with geometry.
         mesh_index : dict or None
           Mapping { key in scene.geometry : int }
 
         Returns
         --------
         gltf : dict
-          with 'nodes' referencing a list of dicts
+          With 'nodes' referencing a list of dicts
         """
 
         if mesh_index is None:
@@ -154,40 +214,43 @@ class TransformForest(object):
             mesh_index = {name: i for i, name
                           in enumerate(scene.geometry.keys())}
 
-        # shortcut to graph
+        # get graph information into local scope before loop
         graph = self.transforms
         # get the stored node data
-        node_data = dict(graph.nodes(data=True))
+        node_data = graph.node_data
+        edge_data = graph.edge_data
+        base_frame = self.base_frame
 
         # list of dict, in gltf format
         # start with base frame as first node index
-        result = [{'name': self.base_frame}]
+        result = [{'name': base_frame}]
         # {node name : node index in gltf}
-        lookup = {self.base_frame: 0}
+        lookup = {base_frame: 0}
 
         # collect the nodes in order
         for node in node_data.keys():
-            if node == self.base_frame:
+            if node == base_frame:
                 continue
+            # assign the index to the node-name lookup
             lookup[node] = len(result)
+            # populate a result at the correct index
             result.append({'name': node})
 
+        # get generated properties outside of loop
         # does the scene have a defined camera to export
         has_camera = scene.has_camera
+        children = graph.children
 
         # then iterate through to collect data
         for info in result:
             # name of the scene node
             node = info['name']
-            # store children as indexes
 
-            try:
-                children = [lookup[k] for k in graph[node].keys() if k in lookup]
-            except KeyError:
-                continue
+            # get the original node names for children
+            childs = children.get(node, [])
+            if len(childs) > 0:
+                info['children'] = [lookup[k] for k in childs]
 
-            if len(children) > 0:
-                info['children'] = children
             # if we have a mesh store by index
             if 'geometry' in node_data[node]:
                 mesh_key = node_data[node]['geometry']
@@ -197,24 +260,23 @@ class TransformForest(object):
             if has_camera and node == scene.camera.name:
                 info['camera'] = 0
 
-            try:
-                # try to ignore KeyError and StopIteration
-                # parent-child transform is stored in child
-                parent = next(iter(graph.predecessors(node)))
-                # get the (4, 4) homogeneous transform
-                matrix = graph.get_edge_data(parent, node)['matrix']
-                # only include matrix if it is not an identity matrix
+            if node != base_frame:
+                parent = graph.parents[node]
+
+                # get the matrix from this edge
+                matrix = edge_data[(parent, node)]['matrix']
+                # only include if it's not an identify matrix
                 if np.abs(matrix - np.eye(4)).max() > 1e-5:
                     info['matrix'] = matrix.T.reshape(-1).tolist()
-            except BaseException:
-                continue
 
-            try:
-                extras = graph.get_edge_data(parent, node)['extras']
+                # if an extra was stored on this edge
+                extras = edge_data[(parent, node)].get('extras')
                 if extras:
+                    # convert any numpy arrays to lists
+                    extras.update(
+                        {k: v.tolist() for k, v in extras.items()
+                         if hasattr(v, 'tolist')})
                     info['extras'] = extras
-            except BaseException:
-                pass
 
         return {'nodes': result}
 
@@ -232,22 +294,22 @@ class TransformForest(object):
         # save cleaned edges
         export = []
         # loop through (node, node, edge attributes)
-        for edge in nx.to_edgelist(self.transforms):
-            a, b, attr = edge
+        for edge, attr in self.transforms.edge_data.items():
+            # node indexes from edge
+            a, b = edge
             # geometry is a node property but save it to the
             # edge so we don't need two dictionaries
-            try:
-                b_attr = self.transforms.nodes[b]
-            except BaseException:
-                # networkx 1.X API
-                b_attr = self.transforms.node[b]
+            b_attr = self.transforms.node_data[b]
+            # make sure we're not stomping on original
+            attr_new = attr.copy()
             # apply node geometry to edge attributes
             if 'geometry' in b_attr:
-                attr['geometry'] = b_attr['geometry']
-            # save the matrix as a float list
-            attr['matrix'] = np.asanyarray(
-                attr['matrix'], dtype=np.float64).tolist()
-            export.append((a, b, attr))
+                attr_new['geometry'] = b_attr['geometry']
+            # convert any numpy arrays to regular lists
+            attr_new.update(
+                {k: v.tolist() for k, v in attr_new.items()
+                 if hasattr(v, 'tolist')})
+            export.append((a, b, attr_new))
         return export
 
     def from_edgelist(self, edges, strict=True):
@@ -258,10 +320,10 @@ class TransformForest(object):
         Parameters
         -------------
         edgelist : (n,) tuples
-            (node_a, node_b, {key: value})
+          Keyed (node_a, node_b, {key: value})
         strict : bool
-            If true, raise a ValueError when a
-            malformed edge is passed in a tuple.
+          If True raise a ValueError when a
+          malformed edge is passed in a tuple.
         """
         # loop through each edge
         for edge in edges:
@@ -283,7 +345,7 @@ class TransformForest(object):
         Parameters
         -------------
         edgelist : (n,) tuples
-            (node_a, node_b, {key: value})
+          Structured (node_a, node_b, {key: value})
         """
         self.from_edgelist(edgelist, strict=True)
 
@@ -295,10 +357,9 @@ class TransformForest(object):
         Returns
         -------------
         nodes : (n,) array
-          All node names
+          All node names.
         """
-        nodes = list(self.transforms.nodes())
-        return nodes
+        return self.transforms.nodes
 
     @caching.cache_decorator
     def nodes_geometry(self):
@@ -310,31 +371,31 @@ class TransformForest(object):
         nodes_geometry : (m,) array
           Node names which have geometry associated
         """
-        nodes = [n for n, attr in
-                 self.transforms.nodes(data=True)
-                 if 'geometry' in attr]
-        return nodes
+        return [n for n, attr in
+                self.transforms.node_data.items()
+                if 'geometry' in attr]
 
     @caching.cache_decorator
     def geometry_nodes(self):
         """
-        Which nodes have this geometry?
+        Which nodes have this geometry? Inverse
+        of `nodes_geometry`.
 
         Returns
         ------------
         geometry_nodes : dict
-          Geometry name : (n,) node names
+          Keyed {geometry_name : node name}
         """
         res = collections.defaultdict(list)
-        for node, attr in self.transforms.nodes(data=True):
+        for node, attr in self.transforms.node_data.items():
             if 'geometry' in attr:
                 res[attr['geometry']].append(node)
         return res
 
     def remove_geometries(self, geometries):
         """
-        Remove the reference for specified geometries from nodes
-        without deleting the node.
+        Remove the reference for specified geometries
+        from nodes without deleting the node.
 
         Parameters
         ------------
@@ -348,7 +409,7 @@ class TransformForest(object):
 
         # remove the geometry reference from the node without deleting nodes
         # this lets us keep our cached paths, and will not screw up children
-        for node, attrib in self.transforms.nodes(data=True):
+        for node, attrib in self.transforms.node_data.items():
             if 'geometry' in attrib and attrib['geometry'] in geometries:
                 attrib.pop('geometry')
 
@@ -357,94 +418,8 @@ class TransformForest(object):
         # nodes_geometry: if this becomes not true change this to clear!
         self._cache.cache.pop('nodes_geometry', None)
 
-    def get(self, frame_to, frame_from=None):
-        """
-        Get the transform from one frame to another, assuming they are connected
-        in the transform tree.
-
-        If the frames are not connected a NetworkXNoPath error will be raised.
-
-        Parameters
-        ------------
-        frame_to : hashable
-          Node name, usually a string (eg 'mesh_0')
-        frame_from : hashable
-          Node name, usually a string (eg 'world').
-          If None it will be set to self.base_frame
-
-        Returns
-        ----------
-        transform : (4, 4) float
-          Homogeneous transformation matrix
-        """
-
-        if frame_from is None:
-            frame_from = self.base_frame
-
-        # look up transform to see if we have it already
-        cache_key = (frame_from, frame_to)
-        cached = self._cache[cache_key]
-        if cached is not None:
-            return cached
-
-        # get the path in the graph
-        path = self._get_path(frame_from, frame_to)
-
-        # collect transforms along the path
-        transforms = []
-
-        for i in range(len(path) - 1):
-            # get the matrix and edge direction
-            data, direction = self.transforms.get_edge_data_direction(
-                path[i], path[i + 1])
-            matrix = data['matrix']
-            if direction < 0:
-                matrix = np.linalg.inv(matrix)
-            transforms.append(matrix)
-        # do all dot products at the end
-        if len(transforms) == 0:
-            transform = np.eye(4)
-        elif len(transforms) == 1:
-            transform = np.asanyarray(transforms[0], dtype=np.float64)
-        else:
-            transform = util.multi_dot(transforms)
-
-        try:
-            attr = self.transforms.nodes[frame_to]
-        except BaseException:
-            # networkx 1.X API
-            attr = self.transforms.node[frame_to]
-
-        if 'geometry' in attr:
-            geometry = attr['geometry']
-        else:
-            geometry = None
-
-        self._cache[cache_key] = (transform, geometry)
-
-        return transform, geometry
-
-    def show(self):
-        """
-        Plot the graph layout of the scene.
-        """
-        import matplotlib.pyplot as plt
-        nx.draw(self.transforms, with_labels=True)
-        plt.show()
-
-    def to_svg(self):
-        """
-        """
-        from ..graph import graph_to_svg
-        return graph_to_svg(self.transforms)
-
     def __contains__(self, key):
-        try:
-            return key in self.transforms.nodes
-        except BaseException:
-            # networkx 1.X API
-            util.log.warning('upgrade networkx to version 2.X!')
-            return key in self.transforms.nodes()
+        return key in self.transforms.node_data
 
     def __getitem__(self, key):
         return self.get(key)
@@ -457,142 +432,188 @@ class TransformForest(object):
 
     def clear(self):
         self.transforms = EnforcedForest()
-        self._paths = {}
-        self._updated = str(np.random.random())
         self._cache.clear()
 
-    def _get_path(self, frame_from, frame_to):
+
+class EnforcedForest(object):
+    """
+    A simple forest graph data structure: every node
+    is allowed to have exactly one parent. This makes
+    traversal and implementation much simpler than a
+    full graph data type; by storing only one parent
+    reference, it enforces the structure for "free."
+    """
+
+    def __init__(self, **kwargs):
+        # since every node can have only one parent
+        # this data structure transparently enforces
+        # the forest data structure without checks
+        # a dict {child : parent}
+        self.parents = {}
+
+        # store data for a particular edge keyed by tuple
+        # {(u, v) : data }
+        self.edge_data = {}
+        # {u: data}
+        self.node_data = {}
+
+        # if multiple calls are made for the same path
+        # but the connectivity hasn't changed return cached
+        self._cache = {}
+
+    def add_edge(self, u, v, **kwargs):
         """
-        Find a path between two frames, either from cached paths or
-        from the transform graph.
+        Add an edge to the forest cleanly.
 
         Parameters
-        ------------
-        frame_from: a frame key, usually a string
-                    eg, 'world'
-        frame_to:   a frame key, usually a string
-                    eg, 'mesh_0'
+        -----------
+        u : any
+          Hashable node key.
+        v : any
+          Hashable node key.
+        kwargs : dict
+           Stored as (u, v) edge data.
+
+        Returns
+        --------
+        changed : bool
+          Return if this operation changed anything.
+       """
+        # topology has changed so clear cache
+        if (u, v) not in self.edge_data:
+            self._cache = {}
+        else:
+            # check to see if matrix and geometry are identical
+            edge = self.edge_data[(u, v)]
+            if (np.allclose(kwargs.get('matrix', np.eye(4)),
+                            edge.get('matrix', np.eye(4)))
+                and (edge.get('geometry') ==
+                     kwargs.get('geometry'))):
+                return False
+
+        # store a parent reference for traversal
+        self.parents[v] = u
+        # store kwargs for edge data keyed with tuple
+        self.edge_data[(u, v)] = kwargs
+        # set empty node data
+        self.node_data.update({u: {}, v: {}})
+
+        return True
+
+    def shortest_path(self, u, v):
+        """
+        Find the shortest path beween `u` and `v`.
+
+        Note that it will *always* be ordered from
+        root direction to leaf direction, so `u` may
+        be either the first *or* last element.
+
+        Parameters
+        -----------
+        u : any
+          Hashable node key.
+        v : any
+          Hashable node key.
+
+        Returns
+        -----------
+        path : (n,)
+          Path between `u` and `v`
+        """
+        # see if we've already computed this path
+        if u == v:
+            #  the path between itself is an edge case
+            return []
+        elif (u, v) in self._cache:
+            # return the same path for either direction
+            return self._cache[(u, v)]
+        elif (v, u) in self._cache:
+            return self._cache[(v, u)]
+
+        # local reference to parent dict for performance
+        parents = self.parents
+        # store both forward and backwards traversal
+        forward = [u]
+        backward = [v]
+
+        # cap iteration to number of total nodes
+        for _ in range(len(parents) + 1):
+            # store the parent both forwards and backwards
+            forward.append(parents.get(forward[-1]))
+            backward.append(parents.get(backward[-1]))
+            if forward[-1] == v:
+                self._cache[(u, v)] = forward
+                return forward
+            elif backward[-1] == u:
+                # return reversed path
+                backward = backward[::-1]
+                self._cache[(u, v)] = backward
+                return backward
+            elif forward[-1] is None and backward[-1] is None:
+                raise ValueError('No path between nodes!')
+        raise ValueError('Iteration limit exceeded!')
+
+    @property
+    def nodes(self):
+        """
+        Get a set of every node.
+
+        Returns
+        -----------
+        nodes : set
+          Every node currently stored.
+        """
+        return set(self.node_data.keys())
+
+    @property
+    def children(self):
+        """
+        Get the children of each node.
 
         Returns
         ----------
-        path: (n) list of frame keys
-              eg, ['mesh_finger', 'mesh_hand', 'world']
+        children : dict
+          Keyed {node : [child, child, ...]}
         """
-        # store paths keyed as a tuple
-        key = (frame_from, frame_to)
-        if key not in self._paths:
-            # get the actual shortest paths
-            path = self.transforms.shortest_path_undirected(
-                frame_from, frame_to)
-            # store path to avoid recomputing
-            self._paths[key] = path
-            return path
-        return self._paths[key]
+        child = collections.defaultdict(list)
+        # append children to parent references
+        # skip self-references to avoid a node loop
+        [child[v].append(u) for u, v in
+         self.parents.items() if u != v]
+
+        # return as a vanilla dict
+        return dict(child)
 
 
-class EnforcedForest(_ForestParent):
+def kwargs_to_matrix(
+        matrix=None,
+        quaternion=None,
+        translation=None,
+        axis=None,
+        angle=None,
+        **kwargs):
     """
-    A subclass of networkx.DiGraph that will raise an error if an
-    edge is added which would make the DiGraph not a forest or tree.
+    Take multiple keyword arguments and parse them
+    into a homogenous transformation matrix.
+
+    Returns
+    ---------
+    matrix : (4, 4) float
+      Homogenous transformation matrix.
     """
-
-    def __init__(self, *args, **kwargs):
-        self.flags = {'strict': False, 'assert_forest': False}
-
-        for k, v in self.flags.items():
-            if k in kwargs:
-                self.flags[k] = bool(kwargs[k])
-                kwargs.pop(k, None)
-
-        super(self.__class__, self).__init__(*args, **kwargs)
-        # keep a second parallel but undirected copy of the graph
-        # all of the networkx methods for turning a directed graph
-        # into an undirected graph are quite slow so we do minor bookkeeping
-        self._undirected = nx.Graph()
-
-    def add_edge(self, u, v, *args, **kwargs):
-        changed = False
-        if u == v:
-            if self.flags['strict']:
-                raise ValueError('Edge must be between two unique nodes!')
-            return changed
-        elif self._undirected.has_edge(u, v):
-            self.remove_edges_from([[u, v], [v, u]])
-        elif len(self.nodes()) > 0:
-            try:
-                path = nx.shortest_path(self._undirected, u, v)
-                if self.flags['strict']:
-                    raise ValueError(
-                        'Multiple edge path exists between nodes!')
-                self.disconnect_path(path)
-                changed = True
-            except (nx.NetworkXError, nx.NetworkXNoPath, nx.NetworkXException):
-                pass
-        self._undirected.add_edge(u, v)
-        super(self.__class__, self).add_edge(u, v, *args, **kwargs)
-
-        if self.flags['assert_forest']:
-            # this is quite slow but makes very sure structure is correct
-            # so is mainly used for testing
-            assert nx.is_forest(nx.Graph(self))
-
-        return changed
-
-    def add_edges_from(self, *args, **kwargs):
-        raise ValueError('EnforcedTree requires add_edge method to be used!')
-
-    def add_path(self, *args, **kwargs):
-        raise ValueError('EnforcedTree requires add_edge method to be used!')
-
-    def remove_edge(self, *args, **kwargs):
-        super(self.__class__, self).remove_edge(*args, **kwargs)
-        self._undirected.remove_edge(*args, **kwargs)
-
-    def remove_edges_from(self, *args, **kwargs):
-        super(self.__class__, self).remove_edges_from(*args, **kwargs)
-        self._undirected.remove_edges_from(*args, **kwargs)
-
-    def disconnect_path(self, path):
-        ebunch = np.array([[path[0], path[1]]])
-        ebunch = np.vstack((ebunch, np.fliplr(ebunch)))
-        self.remove_edges_from(ebunch)
-
-    def shortest_path_undirected(self, u, v):
-        try:
-            path = nx.shortest_path(self._undirected, u, v)
-        except BaseException as E:
-            raise E
-        return path
-
-    def get_edge_data_direction(self, u, v):
-        if self.has_edge(u, v):
-            direction = 1
-        elif self.has_edge(v, u):
-            direction = -1
-        else:
-            raise ValueError('Edge does not exist!')
-        data = self.get_edge_data(*[u, v][::direction])
-        return data, direction
-
-
-def kwargs_to_matrix(**kwargs):
-    """
-    Turn a set of keyword arguments into a transformation matrix.
-    """
-    if 'matrix' in kwargs:
-        # a matrix takes precedence over other options
-        matrix = np.asanyarray(kwargs['matrix'], dtype=np.float64)
-    elif 'quaternion' in kwargs:
-        matrix = transformations.quaternion_matrix(kwargs['quaternion'])
-    elif ('axis' in kwargs) and ('angle' in kwargs):
-        matrix = transformations.rotation_matrix(kwargs['angle'],
-                                                 kwargs['axis'])
+    if matrix is not None:
+        # a matrix takes immediate precedence over other options
+        return np.array(matrix, dtype=np.float64)
+    elif quaternion is not None:
+        result = transformations.quaternion_matrix(quaternion)
+    elif axis is not None and angle is not None:
+        matrix = transformations.rotation_matrix(angle, axis)
     else:
         matrix = np.eye(4)
 
-    if 'translation' in kwargs:
-        # translation can be used in conjunction with any of the methods of
-        # specifying transforms. In the case a matrix and translation are passed,
-        # we add the translations together rather than picking one.
-        matrix[:3, 3] += kwargs['translation']
-    return matrix
+    if translation is not None:
+        # translation can be used in conjunction with any
+        # of the methods specifying transforms
+        result[:3, 3] += translation
+
+    return result
