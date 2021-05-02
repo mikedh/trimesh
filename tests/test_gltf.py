@@ -340,6 +340,15 @@ class GLTFTest(g.unittest.TestCase):
         assert (set(s.graph.nodes_geometry) ==
                 set(r.graph.nodes_geometry))
 
+    def test_nested_scale(self):
+        # nested transforms with scale
+        s = g.get_mesh('nested.glb')
+        assert len(s.graph.nodes_geometry) == 3
+        assert g.np.allclose(
+            [[-1.16701, -2.3366, -0.26938],
+             [0.26938, 1., 0.26938]],
+            s.bounds, atol=1e-4)
+
     def test_schema(self):
         # get a copy of the GLTF schema and do simple checks
         s = g.trimesh.exchange.gltf.get_schema()
