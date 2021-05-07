@@ -40,7 +40,7 @@ class DXFTest(g.unittest.TestCase):
             # compare reloaded with original
             for r in rc:
                 assert g.np.isclose(r.area, d.area)
-                assert g.np.isclose(r.length, d.length)
+                assert g.np.isclose(r.length, d.length, rtol=1e-4)
                 assert len(r.entities) == len(d.entities)
 
         single = g.np.hstack(splits)

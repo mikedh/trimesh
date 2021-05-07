@@ -194,7 +194,7 @@ class Entity(ABC):
         Returns
         ------------
         explode : list of Entity
-          Current entity split into multiple entities if necessary
+          Current entity split into multiple entities.
         """
         return [self.copy()]
 
@@ -558,10 +558,25 @@ class Arc(Entity):
 
     def _bytes(self):
         # give consistent ordering of points for hash
-        if self.points[0] > self.points[-1]:
-            return b'Arc' + bytes(self.closed) + self.points.tobytes()
-        else:
-            return b'Arc' + bytes(self.closed) + self.points[::-1].tobytes()
+        order = int(self.points[0] > self.points[-1]) * 2 - 1
+        return b'Arc' + bytes(self.closed) + self.points[::order].tobytes()
+
+    def length(self, vertices):
+        """
+        Return the arc length of the 3-point arc.
+
+        Parameter
+        ----------
+        vertices : (n, d) float
+          Vertices for overall drawing.
+
+        Returns
+        -----------
+        length : float
+          Length of arc.
+        """
+        fit = self.center(vertices)
+        return fit['span'] * fit['radius'] * 2
 
     def discrete(self, vertices, scale=1.0):
         """
@@ -579,9 +594,10 @@ class Arc(Entity):
         discrete : (m, dimension) float
           Path in space made up of line segments
         """
-        discrete = discretize_arc(vertices[self.points],
-                                  close=self.closed,
-                                  scale=scale)
+        discrete = discretize_arc(
+            vertices[self.points],
+            close=self.closed,
+            scale=scale)
         return self._orient(discrete)
 
     def center(self, vertices, **kwargs):
