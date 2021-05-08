@@ -575,7 +575,16 @@ class Arc(Entity):
         length : float
           Length of arc.
         """
-        fit = self.center(vertices)
+        # find the actual radius and angle span
+        if self.closed:
+            # we don't need the angular span as
+            # it's indicated as a closed circle
+            fit = self.center(
+                vertices, return_normal=False, return_angle=False)
+            return np.pi * fit['radius'] * 4
+        # get the angular span of the circular arc
+        fit = self.center(
+            vertices, return_normal=False, return_angle=True)
         return fit['span'] * fit['radius'] * 2
 
     def discrete(self, vertices, scale=1.0):
