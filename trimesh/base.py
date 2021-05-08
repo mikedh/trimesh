@@ -2264,9 +2264,6 @@ class Trimesh(Geometry3D):
 
         # assign the new values
         self.vertices = new_vertices
-        # may be None if we didn't have them previously
-        self.face_normals = new_face_normals
-        self.vertex_normals = new_vertex_normals
 
         # preserve normals and topology in cache
         # while dumping everything else
@@ -2288,6 +2285,10 @@ class Trimesh(Geometry3D):
             'euler_number', ])
         # set the cache ID with the current hash value
         self._cache.id_set()
+
+        # may be None if we didn't have them previously
+        self._cache['face_normals'] = new_face_normals
+        self._cache['vertex_normals'] = new_vertex_normals
 
         log.debug('mesh transformed by matrix')
         return self
