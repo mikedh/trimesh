@@ -209,7 +209,6 @@ def load_mesh(file_obj,
                                           file_type=file_type,
                                           resolver=resolver,
                                           **kwargs)
-
         if not isinstance(results, list):
             results = [results]
 

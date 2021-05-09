@@ -453,9 +453,9 @@ class EnforcedForest(object):
 
         # store data for a particular edge keyed by tuple
         # {(u, v) : data }
-        self.edge_data = {}
+        self.edge_data = collections.defaultdict(dict)
         # {u: data}
-        self.node_data = {}
+        self.node_data = collections.defaultdict(dict)
 
         # if multiple calls are made for the same path
         # but the connectivity hasn't changed return cached
@@ -496,7 +496,12 @@ class EnforcedForest(object):
         # store kwargs for edge data keyed with tuple
         self.edge_data[(u, v)] = kwargs
         # set empty node data
-        self.node_data.update({u: {}, v: {}})
+        self.node_data[u].update({})
+        if 'geometry' in kwargs:
+            self.node_data[v].update(
+                {'geometry': kwargs['geometry']})
+        else:
+            self.node_data[v].update({})
 
         return True
 
