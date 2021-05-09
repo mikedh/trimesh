@@ -335,7 +335,8 @@ class SceneGraph(object):
                 self.update(edge[1], edge[0])
             # edge is broken
             elif strict:
-                raise ValueError('edge incorrect shape: {}'.format(str(edge)))
+                raise ValueError(
+                    'edge incorrect shape: %s', str(edge))
 
     def load(self, edgelist):
         """
@@ -588,6 +589,44 @@ class EnforcedForest(object):
 
         # return as a vanilla dict
         return dict(child)
+
+    def successors(self, node):
+        """
+        Get all nodes that are successors to specified node,
+        including the specified node.
+
+        Parameters
+        -------------
+        node : any
+          Hashable key for a node.
+
+        Returns
+        ------------
+        successors : set
+          Nodes that succeed specified node.
+        """
+        # get mapping of {parent : child}
+        children = self.children
+        # if node doesn't exist return early
+        if node not in children:
+            return set([node])
+
+        # children we need to collect
+        queue = [node]
+        # start collecting values with children of source
+        collected = set(queue)
+
+        # cap maximum iterations
+        for _ in range(len(self.node_data) + 1):
+            if len(queue) == 0:
+                # no more nodes to visit so we're done
+                return collected
+            # add the children of this node to be processed
+            childs = children.get(queue.pop())
+            if childs is not None:
+                queue.extend(childs)
+                collected.update(childs)
+        return collected
 
 
 def kwargs_to_matrix(

@@ -769,6 +769,37 @@ class Scene(Geometry3D):
 
         return np.array(result)
 
+    def subscene(self, node):
+        """
+        Get part of a scene that succeeds a specified node.
+
+        Parameters
+        ------------
+        node : any
+          Hashable key in `scene.graph`
+
+        Returns
+        -----------
+        subscene : Scene
+          Partial scene generated from current.
+        """
+        # get every node that is a successor to specified node
+        # this includes `node`
+        graph = self.graph
+        nodes = graph.transforms.successors(node)
+        # get every edge that has an included node
+        edges = [e for e in graph.to_edgelist()
+                 if e[0] in nodes or e[1] in nodes]
+        # create a scene graph whet
+        graph = SceneGraph(base_frame=node)
+        graph.from_edgelist(edges)
+
+        geometry_names = set([e[2]['geometry'] for e in edges
+                              if 'geometry' in e[2]])
+        geometry = {k: self.geometry[k] for k in geometry_names}
+        result = Scene(geometry=geometry, graph=graph)
+        return result
+
     @caching.cache_decorator
     def convex_hull(self):
         """

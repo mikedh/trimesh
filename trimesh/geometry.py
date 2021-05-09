@@ -249,11 +249,12 @@ def vertex_face_indices(vertex_count,
     return padded
 
 
-def mean_vertex_normals(vertex_count,
-                        faces,
-                        face_normals,
-                        sparse=None,
-                        **kwargs):
+def mean_vertex_normals(
+        vertex_count,
+        faces,
+        face_normals,
+        sparse=None,
+        **kwargs):
     """
     Find vertex normals from the mean of the faces that contain
     that vertex.
@@ -309,8 +310,7 @@ def mean_vertex_normals(vertex_count,
 def weighted_vertex_normals(vertex_count,
                             faces,
                             face_normals,
-                            face_angles,
-                            use_loop=False):
+                            face_angles):
     """
     Compute vertex normals from the faces that contain that vertex.
     The contibution of a face's normal to a vertex normal is the
@@ -338,57 +338,38 @@ def weighted_vertex_normals(vertex_count,
       Normals for every vertex
       Vertices unreferenced by faces will be zero.
     """
-    def summed_sparse():
-        # use a sparse matrix of which face contains each vertex to
-        # figure out the summed normal at each vertex
-        # allow cached sparse matrix to be passed
-        # fill the matrix with vertex-corner angles as weights
-        corner_angles = face_angles[np.repeat(np.arange(len(faces)), 3),
-                                    np.argsort(faces, axis=1).ravel()]
-        # create a sparse matrix
-        matrix = index_sparse(vertex_count, faces).astype(np.float64)
-        # assign the corner angles to the sparse matrix data
-        matrix.data = corner_angles
-
-        return matrix.dot(face_normals)
-
-    def summed_loop():
-        summed = np.zeros((vertex_count, 3), np.float64)
-        for vertex_idx in np.arange(vertex_count):
-            # loop over all vertices
-            # compute normal contributions from surrounding faces
-            # obviously slower than with the sparse matrix
-            face_idxs, inface_idxs = np.where(faces == vertex_idx)
-            surrounding_angles = face_angles[face_idxs, inface_idxs]
-            summed[vertex_idx] = np.dot(
-                surrounding_angles /
-                surrounding_angles.sum(),
-                face_normals[face_idxs])
-
-        return summed
-
     # normals should be unit vectors
-    face_ok = (face_normals ** 2).sum(axis=1) > 0.5
+    face_ok = np.dot(face_normals ** 2, [1, 1, 1]) > 0.99
     # don't consider faces with invalid normals
     faces = faces[face_ok]
     face_normals = face_normals[face_ok]
     face_angles = face_angles[face_ok]
 
-    if not use_loop:
-        try:
-            return util.unitize(summed_sparse())
-        except BaseException:
-            log.warning(
-                'unable to use sparse matrix, falling back!',
-                exc_info=True)
-    # we either crashed or were asked to loop
-    return util.unitize(summed_loop())
+    # use a sparse matrix of which face contains each vertex to
+    # figure out the summed normal at each vertex
+    # allow cached sparse matrix to be passed
+    # fill the matrix with vertex-corner angles as weights
+    corner_angles = face_angles[
+        np.repeat(np.arange(len(faces)), 3),
+        np.argsort(faces, axis=1).ravel()]
+    # create a sparse matrix
+    matrix = index_sparse(
+        vertex_count, faces).astype(np.float64)
+    # assign the corner angles to the sparse matrix data
+    matrix.data = corner_angles
+    # dot the normals
+    dot = matrix.dot(face_normals)
+    result = util.unitize(dot)
+
+    return result
 
 
 def index_sparse(columns, indices, data=None):
     """
-    Return a sparse matrix for which vertices are contained in which faces.
-    A data vector can be passed which is then used instead of booleans
+    Return a sparse matrix for which vertices are contained
+    in which faces.
+    A data vector can be passed which is then used instead
+    of booleans.
 
     Parameters
     ------------
