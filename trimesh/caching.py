@@ -423,7 +423,12 @@ class Cache(object):
 
     def clear(self, exclude=None):
         """
-        Remove all elements in the cache.
+        Remove elements in the cache.
+
+        Parameters
+        -----------
+        exclude : list
+          List of keys in cache to not clear.
         """
         if exclude is None:
             self.cache = {}

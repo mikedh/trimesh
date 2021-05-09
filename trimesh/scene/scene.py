@@ -1,3 +1,4 @@
+import hashlib
 import numpy as np
 import collections
 
@@ -230,7 +231,7 @@ class Scene(Geometry3D):
           MD5 hash of scene
         """
         # start with transforms hash
-        return util.md5_object(self._hashable())
+        return hashlib.md5(self._hashable()).hexdigest()
 
     def crc(self):
         """
