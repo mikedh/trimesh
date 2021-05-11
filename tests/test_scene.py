@@ -352,7 +352,7 @@ class SceneTests(g.unittest.TestCase):
 class GraphTests(g.unittest.TestCase):
 
     def test_forest(self):
-        g = EnforcedForest(assert_forest=True)
+        g = EnforcedForest()
         for i in range(5000):
             g.add_edge(random_chr(), random_chr())
 
@@ -377,6 +377,27 @@ class GraphTests(g.unittest.TestCase):
                 scene.camera_transform,
                 g.np.eye(4))
             assert mod[-1] != mod[-2]
+
+    def test_successors(self):
+        s = g.get_mesh('CesiumMilkTruck.glb')
+        assert len(s.graph.nodes_geometry) == 5
+
+        # world should be root frame
+        assert (s.graph.transforms.successors(
+            s.graph.base_frame) == s.graph.nodes)
+
+        for n in s.graph.nodes:
+            # successors should always return subset of nodes
+            succ = s.graph.transforms.successors(n)
+            assert succ.issubset(
+                s.graph.nodes)
+            # we self-include node in successors
+            assert n in succ
+
+        # test getting a subscene from successors
+        ss = s.subscene('3')
+        assert len(ss.geometry) == 1
+        assert len(ss.graph.nodes_geometry) == 1
 
 
 if __name__ == '__main__':
