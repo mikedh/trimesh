@@ -159,27 +159,28 @@ def mesh_plane(mesh,
         raise ValueError('Plane origin and normal must be (3,)!')
 
     if local_faces is None:
+        # do a cross section against all faces
         faces = mesh.faces
     else:
-        local_faces = np.asanyarray(local_faces, dtype=np.int64)
+        local_faces = np.asanyarray(
+            local_faces, dtype=np.int64)
         # only take the subset of faces if passed
         faces = mesh.faces[local_faces]
 
     if cached_dots is not None:
-        vdot = cached_dots
+        dots = cached_dots
     else:
         # dot product of each vertex with the plane normal indexed by face
         # so for each face the dot product of each vertex is a row
         # shape is the same as mesh.faces (n,3)
-        vdot = np.dot(mesh.vertices - plane_origin, plane_normal)
+        dots = np.dot(mesh.vertices - plane_origin, plane_normal)
 
     # sign of the dot product is -1, 0, or 1
     # shape is the same as mesh.faces (n,3)
-    vsigns = np.zeros(len(vdot), dtype=np.int8)
-    vsigns[vdot < -tol.merge] = -1
-    vsigns[vdot > tol.merge] = 1
-
-    signs = vsigns[faces]
+    signs = np.zeros(len(mesh.vertices), dtype=np.int8)
+    signs[dots < -tol.merge] = -1
+    signs[dots > tol.merge] = 1
+    signs = signs[faces]
 
     # figure out which triangles are in the cross section,
     # and which of the three intersection cases they are in
@@ -467,16 +468,16 @@ def slice_faces_plane(vertices,
         # so for each face the dot product of each vertex is a row
         # shape is the same as faces (n,3)
         dots = np.einsum('i,ij->j', plane_normal,
-                         (vertices - plane_origin).T)[faces]
+                         (vertices - plane_origin).T)
 
     # Find vertex orientations w.r.t. faces for all triangles:
     #  -1 -> vertex "inside" plane (positive normal direction)
     #   0 -> vertex on plane
     #   1 -> vertex "outside" plane (negative normal direction)
-    signs = np.zeros(faces.shape, dtype=np.int8)
+    signs = np.zeros(len(vertices), dtype=np.int8)
     signs[dots < -tol.merge] = 1
     signs[dots > tol.merge] = -1
-    signs[np.logical_and(dots >= -tol.merge, dots <= tol.merge)] = 0
+    signs = signs[faces]
 
     # Find all triangles that intersect this plane
     # onedge <- indices of all triangles intersecting the plane
@@ -686,7 +687,7 @@ def slice_mesh_plane(mesh,
             # so for each face the dot product of each vertex is a row
             # shape is the same as faces (n,3)
             dots = np.einsum('i,ij->j', normal,
-                             (vertices - origin).T)[faces]
+                             (vertices - origin).T)
         else:
             dots = cached_dots
         # save the new vertices and faces
