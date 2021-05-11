@@ -11,7 +11,7 @@ from . import geometry
 from . import grouping
 from . import transformations as tf
 
-from .constants import log, tol
+from .constants import tol
 from .triangles import windings_aligned
 
 
