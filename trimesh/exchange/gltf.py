@@ -1433,6 +1433,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]
+
             # if the node has a mesh associated with it
             if len(geometries) > 1:
                 # append root node

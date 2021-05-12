@@ -11,7 +11,6 @@ import collections
 import numpy as np
 
 import pyglet
-import pyglet.gl as gl
 
 from .trackball import Trackball
 
@@ -22,6 +21,8 @@ from ..visual import to_rgba
 from ..transformations import translation_matrix
 
 pyglet.options['shadow_window'] = False
+
+import pyglet.gl as gl  # NOQA
 
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000

@@ -889,29 +889,6 @@ def hash_file(file_obj,
     return hashed
 
 
-def md5_object(obj):
-    """
-    If an object is hashable, return the string of the MD5.
-
-    Parameters
-    ------------
-    obj: object
-
-    Returns
-    ----------
-    md5: str, MD5 hash
-    """
-    hasher = hashlib.md5()
-    if isinstance(obj, basestring) and PY3:
-        # in python3 convert strings to bytes before hashing
-        hasher.update(obj.encode('utf-8'))
-    else:
-        hasher.update(obj)
-
-    md5 = hasher.hexdigest()
-    return md5
-
-
 def attach_to_log(level=logging.DEBUG,
                   handler=None,
                   loggers=None,

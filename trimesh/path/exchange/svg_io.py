@@ -255,7 +255,8 @@ def _svg_path_convert(paths, metadata=None, force=None):
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
         # check to see if each entity is "line-like"
-        is_line = np.array([type(i).__name__ in ('Line', 'Close')
+        is_line = np.array([type(i).__name__ in
+                            ('Line', 'Close')
                             for i in raw])
         # find groups of consecutive lines so we can combine them
         blocks = grouping.blocks(
@@ -341,15 +342,17 @@ def _entities_to_str(entities, vertices, layers=None):
         arc_idx = arc.points[::((reverse * -2) + 1)]
         vertices = points[arc_idx]
         vertex_start, vertex_mid, vertex_end = vertices
-        center_info = arc_center(vertices, return_normal=False, return_angle=True)
+        center_info = arc_center(
+            vertices, return_normal=False, return_angle=True)
         C, R, angle = (center_info['center'],
                        center_info['radius'],
                        center_info['span'])
         if arc.closed:
             return circle_to_svgpath(C, R, reverse)
         large_flag = str(int(angle > np.pi))
-        sweep_flag = str(int(np.cross(vertex_mid - vertex_start,
-                                      vertex_end - vertex_start) > 0.0))
+        sweep_flag = str(int(np.cross(
+            vertex_mid - vertex_start,
+            vertex_end - vertex_start) > 0.0))
         return (move_to(arc_idx[0]) +
                 'A {R},{R} 0 {}, {} {},{}'.format(
                     large_flag,

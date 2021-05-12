@@ -147,6 +147,7 @@ class GLTFTest(g.unittest.TestCase):
         # export it as a a GLB file
         export = original.export(file_type='glb')
         validate_glb(export)
+
         kwargs = g.trimesh.exchange.gltf.load_glb(
             g.trimesh.util.wrap_as_stream(export))
         # roundtrip it
@@ -339,6 +340,15 @@ class GLTFTest(g.unittest.TestCase):
         assert (set(s.graph.nodes_geometry) ==
                 set(r.graph.nodes_geometry))
 
+    def test_nested_scale(self):
+        # nested transforms with scale
+        s = g.get_mesh('nested.glb')
+        assert len(s.graph.nodes_geometry) == 3
+        assert g.np.allclose(
+            [[-1.16701, -2.3366, -0.26938],
+             [0.26938, 1., 0.26938]],
+            s.bounds, atol=1e-4)
+
     def test_schema(self):
         # get a copy of the GLTF schema and do simple checks
         s = g.trimesh.exchange.gltf.get_schema()
@@ -469,7 +479,7 @@ class GLTFTest(g.unittest.TestCase):
         files = r.export(None, "gltf")
         gltf_data = files["model.gltf"]
         assert 'test_value' in gltf_data.decode('utf8')
-        edge_data = r.graph.transforms.get_edge_data("world", "Sphere1")
+        edge_data = r.graph.transforms.edge_data[("world", "Sphere1")]
         assert edge_data['extras'] == test_metadata
 
     def test_read_scene_extras(self):

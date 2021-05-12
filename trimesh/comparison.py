@@ -5,6 +5,7 @@ comparison.py
 Provide methods for quickly hashing and comparing meshes.
 """
 
+import hashlib
 import numpy as np
 
 from . import util
@@ -153,8 +154,7 @@ def identifier_hash(identifier, sigfig=None):
     if (multiplier < 0).any():
         multiplier += np.abs(multiplier.min())
     hashable = (as_int * (10 ** multiplier)).astype(np.int64)
-    md5 = util.md5_object(hashable)
-    return md5
+    return hashlib.md5(hashable).hexdigest()
 
 
 def face_ordering(mesh):

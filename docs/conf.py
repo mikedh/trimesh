@@ -109,8 +109,8 @@ html_context = {
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'trimeshdoc'
 
-# -- Extensions configuration ----------------------------------------
-
+# -- Extensions configuration ----------------------------------
 autodoc_default_options = {
     'autosummary': True,
+    'special-members': '__init__',
 }

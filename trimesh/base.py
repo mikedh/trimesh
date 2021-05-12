@@ -237,8 +237,8 @@ class Trimesh(Geometry3D):
         # we can keep face and vertex normals in the cache without recomputing
         # if faces or vertices have been removed, normals are validated before
         # being returned so there is no danger of inconsistent dimensions
-        self._cache.clear(exclude=['face_normals',
-                                   'vertex_normals'])
+        self._cache.clear(exclude={'face_normals',
+                                   'vertex_normals'})
         self.metadata['processed'] = True
         return self
 
@@ -2235,19 +2235,17 @@ class Trimesh(Geometry3D):
                 matrix)[0]
 
         # preserve face normals if we have them stored
-        new_face_normals = None
         if has_rotation and 'face_normals' in self._cache:
             # transform face normals by rotation component
-            new_face_normals = util.unitize(
+            self._cache.cache['face_normals'] = util.unitize(
                 transformations.transform_points(
                     self.face_normals,
                     matrix=matrix,
                     translate=False))
 
         # preserve vertex normals if we have them stored
-        new_vertex_normals = None
         if has_rotation and 'vertex_normals' in self._cache:
-            new_vertex_normals = util.unitize(
+            self._cache.cache['vertex_normals'] = util.unitize(
                 transformations.transform_points(
                     self.vertex_normals,
                     matrix=matrix,
@@ -2264,15 +2262,12 @@ class Trimesh(Geometry3D):
 
         # assign the new values
         self.vertices = new_vertices
-        # may be None if we didn't have them previously
-        self.face_normals = new_face_normals
-        self.vertex_normals = new_vertex_normals
 
         # preserve normals and topology in cache
         # while dumping everything else
-        self._cache.clear(exclude=[
+        self._cache.clear(exclude={
             'face_normals',   # transformed by us
-            'vertex_normals'  # also transformed by us
+            'vertex_normals',  # also transformed by us
             'face_adjacency',  # topological
             'face_adjacency_edges',
             'face_adjacency_unshared',
@@ -2285,10 +2280,9 @@ class Trimesh(Geometry3D):
             'edges_sparse',
             'body_count',
             'faces_unique_edges',
-            'euler_number', ])
+            'euler_number'})
         # set the cache ID with the current hash value
         self._cache.id_set()
-
         log.debug('mesh transformed by matrix')
         return self
 

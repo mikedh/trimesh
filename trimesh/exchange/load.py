@@ -10,6 +10,8 @@ from ..scene.scene import Scene, append_scenes
 from ..constants import log_time, log
 
 from . import misc
+
+from .xyz import _xyz_loaders
 from .ply import _ply_loaders
 from .stl import _stl_loaders
 from .dae import _collada_loaders
@@ -17,12 +19,12 @@ from .obj import _obj_loaders
 from .off import _off_loaders
 from .misc import _misc_loaders
 from .gltf import _gltf_loaders
+from .xaml import _xaml_loaders
+from .binvox import _binvox_loaders
 from .assimp import _assimp_loaders
 from .threemf import _three_loaders
 from .openctm import _ctm_loaders
-from .xml_based import _xml_loaders
-from .binvox import _binvox_loaders
-from .xyz import _xyz_loaders
+from .threedxml import _threedxml_loaders
 
 
 try:
@@ -37,13 +39,13 @@ except BaseException as E:
 
 def mesh_formats():
     """
-    Get a list of mesh formats
+    Get a list of mesh formats available to load.
 
     Returns
     -----------
     loaders : list
-        Extensions of available mesh loaders
-        i.e. 'stl', 'ply', etc.
+      Extensions of available mesh loaders,
+      i.e. 'stl', 'ply', etc.
     """
     return list(mesh_loaders.keys())
 
@@ -207,7 +209,6 @@ def load_mesh(file_obj,
                                           file_type=file_type,
                                           resolver=resolver,
                                           **kwargs)
-
         if not isinstance(results, list):
             results = [results]
 
@@ -625,11 +626,12 @@ mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_stl_loaders)
 mesh_loaders.update(_ctm_loaders)
 mesh_loaders.update(_ply_loaders)
-mesh_loaders.update(_xml_loaders)
 mesh_loaders.update(_obj_loaders)
 mesh_loaders.update(_off_loaders)
 mesh_loaders.update(_collada_loaders)
 mesh_loaders.update(_gltf_loaders)
+mesh_loaders.update(_xaml_loaders)
+mesh_loaders.update(_threedxml_loaders)
 mesh_loaders.update(_three_loaders)
 mesh_loaders.update(_xyz_loaders)
 

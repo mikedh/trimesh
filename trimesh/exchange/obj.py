@@ -229,13 +229,22 @@ def load_obj(file_obj,
             # start with vertices and faces
             mesh.update({'faces': new_faces,
                          'vertices': v[mask_v].copy()})
-            # if vertex colors are OK save them
-            if vc is not None:
-                mesh['vertex_colors'] = vc[mask_v]
-            # if vertex normals are OK save them
-            if mask_vn is not None:
-                mesh['vertex_normals'] = vn[mask_vn]
 
+            # if colors and normals are OK save them
+            if vc is not None:
+                try:
+                    # may fail on a malformed color mask
+                    mesh['vertex_colors'] = vc[mask_v]
+                except BaseException:
+                    log.warning('failed to load vertex_colors',
+                                exc_info=True)
+            if mask_vn is not None:
+                try:
+                    # may fail on a malformed mask
+                    mesh['vertex_normals'] = vn[mask_vn]
+                except BaseException:
+                    log.warning('failed to load vertex_normals',
+                                exc_info=True)
         visual = None
         if material in materials:
             # use the material with the UV coordinates

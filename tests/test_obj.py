@@ -260,6 +260,25 @@ class OBJTest(g.unittest.TestCase):
             mesh.export(file_type='obj'), file_type='obj')
         assert g.np.isclose(mesh.area, rec.area)
 
+    def test_chair(self):
+        mesh = next(iter(g.get_mesh('chair.zip').geometry.values()))
+
+        # this model comes with vertex normals
+        assert 'vertex_normals' in mesh._cache
+        assert g.np.allclose(
+            1.0, g.np.linalg.norm(mesh.vertex_normals, axis=1))
+        mesh.apply_scale(0.46377314288075433)
+        assert 'vertex_normals' in mesh._cache
+        assert g.np.allclose(
+            1.0, g.np.linalg.norm(mesh.vertex_normals, axis=1))
+        assert 'vertex_normals' in mesh._cache
+        mesh._cache.clear()
+        assert 'vertex_normals' not in mesh._cache
+        # if we recomputed now, the degenerate faces
+        # would lead some of these vertex normals to be zero
+        # assert g.np.allclose(
+        #    1.0, g.np.linalg.norm(mesh.vertex_normals, axis=1))
+
 
 def simple_load(text):
     # we're going to load faces in a basic text way

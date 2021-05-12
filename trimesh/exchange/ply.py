@@ -255,7 +255,7 @@ def export_ply(mesh,
     # if vertex normals aren't specifically asked for
     # only export them if they are stored in cache
     if vertex_normal is None:
-        vertex_normal = 'vertex_normal' in mesh._cache
+        vertex_normal = 'vertex_normals' in mesh._cache
 
     # if we want to include mesh attributes in the export
     if include_attributes:

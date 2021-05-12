@@ -1,3 +1,4 @@
+import hashlib
 import numpy as np
 import collections
 
@@ -16,7 +17,7 @@ from ..parent import Geometry3D
 from . import cameras
 from . import lighting
 
-from .transforms import TransformForest
+from .transforms import SceneGraph
 
 
 class Scene(Geometry3D):
@@ -59,7 +60,7 @@ class Scene(Geometry3D):
         self.geometry = collections.OrderedDict()
 
         # create a new graph
-        self.graph = TransformForest(base_frame=base_frame)
+        self.graph = SceneGraph(base_frame=base_frame)
 
         # create our cache
         self._cache = caching.Cache(id_function=self.md5)
@@ -77,7 +78,9 @@ class Scene(Geometry3D):
 
         self.camera = camera
         self.lights = lights
-        self.camera_transform = camera_transform
+
+        if camera is not None and camera_transform is not None:
+            self.camera_transform = camera_transform
 
     def apply_transform(self, transform):
         """
@@ -228,24 +231,37 @@ class Scene(Geometry3D):
           MD5 hash of scene
         """
         # start with transforms hash
-        return util.md5_object(self._hashable())
+        return hashlib.md5(self._hashable()).hexdigest()
 
     def crc(self):
+        """
+        Get a CRC of the current geometry and graph information.
+
+        Returns
+        ---------
+        crc : int
+          Hash of current graph and geometry.
+        """
         return caching.crc32(self._hashable())
 
     def _hashable(self):
-        hashes = [self.graph.md5()]
-        for g in self.geometry.values():
-            if hasattr(g, 'md5'):
-                hashes.append(g.md5())
-            elif hasattr(g, 'tostring'):
-                hashes.append(str(hash(g.tostring())))
-            else:
-                # try to just straight up hash
-                # this may raise errors
-                hashes.append(str(hash(g)))
-        hashable = ''.join(sorted(hashes)).encode('utf-8')
-        return hashable
+        """
+        Return information about scene which is hashable.
+
+        Returns
+        ---------
+        hashable : str
+          Data which can be hashed.
+        """
+        # start with the last modified time of the scene graph
+        hashable = [self.graph.modified()]
+        # crc is an abstractmethod for all Geometry3D
+        # objects so everything should really have it
+        hashable.extend(str(i.crc()) for i in
+                        self.geometry.values()
+                        if hasattr(i, 'crc'))
+        # crc requires bytes so encode to utf-8
+        return ':'.join(sorted(hashable)).encode('utf-8')
 
     @property
     def is_empty(self):
@@ -579,7 +595,7 @@ class Scene(Geometry3D):
     @property
     def camera_transform(self):
         """
-        Get camera transform in the base frame
+        Get camera transform in the base frame.
 
         Returns
         -------
@@ -587,6 +603,18 @@ class Scene(Geometry3D):
           Camera transform in the base frame
         """
         return self.graph[self.camera.name][0]
+
+    @camera_transform.setter
+    def camera_transform(self, matrix):
+        """
+        Set the camera transform in the base frame
+
+        Parameters
+        ----------
+        camera_transform : (4, 4) float
+          Camera transform in the base frame
+        """
+        self.graph[self.camera.name] = matrix
 
     def camera_rays(self):
         """
@@ -616,20 +644,6 @@ class Scene(Geometry3D):
         origins = (np.ones_like(vectors) *
                    transformations.translation_from_matrix(transform))
         return origins, vectors, pixels
-
-    @camera_transform.setter
-    def camera_transform(self, camera_transform):
-        """
-        Set the camera transform in the base frame
-
-        Parameters
-        ----------
-        camera_transform : (4, 4) float
-          Camera transform in the base frame
-        """
-        if camera_transform is None:
-            return
-        self.graph[self.camera.name] = camera_transform
 
     @property
     def camera(self):
@@ -754,6 +768,37 @@ class Scene(Geometry3D):
             return util.concatenate(result)
 
         return np.array(result)
+
+    def subscene(self, node):
+        """
+        Get part of a scene that succeeds a specified node.
+
+        Parameters
+        ------------
+        node : any
+          Hashable key in `scene.graph`
+
+        Returns
+        -----------
+        subscene : Scene
+          Partial scene generated from current.
+        """
+        # get every node that is a successor to specified node
+        # this includes `node`
+        graph = self.graph
+        nodes = graph.transforms.successors(node)
+        # get every edge that has an included node
+        edges = [e for e in graph.to_edgelist()
+                 if e[0] in nodes or e[1] in nodes]
+        # create a scene graph whet
+        graph = SceneGraph(base_frame=node)
+        graph.from_edgelist(edges)
+
+        geometry_names = set([e[2]['geometry'] for e in edges
+                              if 'geometry' in e[2]])
+        geometry = {k: self.geometry[k] for k in geometry_names}
+        result = Scene(geometry=geometry, graph=graph)
+        return result
 
     @caching.cache_decorator
     def convex_hull(self):

@@ -12,6 +12,7 @@ from .base import Visuals
 from .. import caching
 from .. import util
 from .. import grouping
+from .. import exceptions
 
 
 class Material(object):
@@ -510,7 +511,11 @@ def empty_material(color=None):
     material : SimpleMaterial
       Image is a a one pixel RGB
     """
-    from PIL import Image
+    try:
+        from PIL import Image
+    except BaseException as E:
+        return exceptions.ExceptionModule(E)
+
     if color is None or np.shape(color) not in ((3,), (4,)):
         color = np.array([255, 255, 255], dtype=np.uint8)
     else:
