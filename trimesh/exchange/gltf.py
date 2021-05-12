@@ -1324,6 +1324,11 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             v_seq = [p['vertices'] for p in current]
             f_seq = [p['faces'] for p in current]
             v, f = util.append_faces(v_seq, f_seq)
+            materials = [p['visual'].material for p in current]
+            face_materials = []
+            for i, p in enumerate(current):
+                face_materials += [i]*len(p['faces'])
+            visuals = visual.material.FaceMaterialsVisual(materials=materials, face_materials=face_materials)
             if 'metadata' in meshes[names[0]]:
                 metadata = meshes[names[0]]['metadata']
             else:
@@ -1331,6 +1336,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             meshes[name] = {
                 'vertices': v,
                 'faces': f,
+                'visual': visuals,
                 'metadata': metadata,
                 'process': False}
             mesh_prim_replace[mesh_index] = [name]
