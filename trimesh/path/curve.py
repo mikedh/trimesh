@@ -4,9 +4,7 @@ from ..constants import res_path as res
 from ..constants import tol_path as tol
 
 
-def discretize_bezier(points,
-                      count=None,
-                      scale=1.0):
+def discretize_bezier(points, count=None, scale=1.0):
     """
     Parameters
     ----------
@@ -30,9 +28,10 @@ def discretize_bezier(points,
         # this is so we can figure out how finely we have to sample t
         norm = np.linalg.norm(np.diff(points, axis=0), axis=1).sum()
         count = np.ceil(norm / (res.seg_frac * scale))
-        count = int(np.clip(count,
-                            res.min_sections * len(points),
-                            res.max_sections * len(points)))
+        count = int(np.clip(
+            count,
+            res.min_sections * len(points),
+            res.max_sections * len(points)))
     count = int(count)
 
     # parameterize incrementing 0.0 - 1.0

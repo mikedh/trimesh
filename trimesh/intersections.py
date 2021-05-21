@@ -676,6 +676,9 @@ def slice_mesh_plane(mesh,
     vertices = mesh.vertices.copy()
     faces = mesh.faces.copy()
 
+    if 'process' not in kwargs:
+        kwargs['process'] = False
+
     # slice away specified planes
     for origin, normal in zip(plane_origin.reshape((-1, 3)),
                               plane_normal.reshape((-1, 3))):
@@ -702,9 +705,16 @@ def slice_mesh_plane(mesh,
             # check if mesh is watertight (can't cap if not)
             if not sliced_mesh.is_watertight:
                 raise ValueError('Input mesh must be watertight to cap slice')
-            path = sliced_mesh.section(plane_normal=normal,
-                                       plane_origin=origin,
-                                       cached_dots=dots)
+            path = sliced_mesh.section(
+                plane_normal=normal,
+                plane_origin=origin,
+                cached_dots=dots)
+            if path is None:
+                # if path is None it means this plane didn't
+                # intersect anything so we can exit early without
+                # doing anything to cap the result
+
+                return Trimesh(vertices=vertices, faces=faces, **kwargs)
             # transform Path3D onto XY plane for triangulation
             on_plane, to_3D = path.to_planar()
             # triangulate each closed region of 2D cap
@@ -755,6 +765,4 @@ def slice_mesh_plane(mesh,
             vertices, faces = sliced_mesh.vertices.copy(), sliced_mesh.faces.copy()
 
     # return the sliced mesh
-    if 'process' not in kwargs:
-        kwargs['process'] = False
     return Trimesh(vertices=vertices, faces=faces, **kwargs)
