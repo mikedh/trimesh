@@ -283,6 +283,7 @@ class SliceTest(g.unittest.TestCase):
                 plane_normal=-box1.face_normals,
                 plane_origin=box1.vertices[box1.faces[:, 1]],
                 cap=True)
+            assert len(result.faces) > 0
 
     def test_cap(self):
 
