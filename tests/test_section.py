@@ -257,6 +257,33 @@ class SliceTest(g.unittest.TestCase):
                                    cap=True)
         assert newmesh.is_watertight
 
+    def test_cap_nohit(self):
+        # check to see if we handle capping with
+        # non-intersecting planes well
+
+        try:
+            from triangle import triangulate  # NOQA
+        except BaseException as E:
+            if g.all_dep:
+                raise E
+            else:
+                return
+
+        for i in range(100):
+            from trimesh.transformations import random_rotation_matrix
+            box1 = g.trimesh.primitives.Box(
+                extents=[10, 20, 30],
+                transform=random_rotation_matrix())
+            box2 = g.trimesh.primitives.Box(
+                extents=[10, 20, 30],
+                transform=random_rotation_matrix())
+
+            result = g.trimesh.intersections.slice_mesh_plane(
+                mesh=box2,
+                plane_normal=-box1.face_normals,
+                plane_origin=box1.vertices[box1.faces[:, 1]],
+                cap=True)
+
     def test_cap(self):
 
         try:
