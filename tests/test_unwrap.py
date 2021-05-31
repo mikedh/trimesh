@@ -8,7 +8,7 @@ class UnwrapTest(g.unittest.TestCase):
 
     def test_image(self):
         try:
-            import xatlas
+            import xatlas  # noqa
         except BaseException:
             g.log.info('not testing unwrap as no `xatlas`')
             return
