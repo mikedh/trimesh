@@ -13,7 +13,6 @@ from . import poses
 from . import graph
 from . import sample
 from . import repair
-from . import unwrap
 from . import convex
 from . import remesh
 from . import bounds
@@ -35,7 +34,7 @@ from . import decomposition
 from . import intersections
 from . import transformations
 
-from .visual import create_visual
+from .visual import create_visual, TextureVisuals
 from .exchange.export import export_mesh
 from .constants import log, log_time, tol
 
@@ -2103,23 +2102,56 @@ class Trimesh(Geometry3D):
 
         return new_mesh
 
-    def unwrap(self, **kwargs):
+    def unwrap(self, image=None):
         """
         Returns a Trimesh object equivalent to the current mesh where
-        the vertices have been assigned uv texture coordinates.
+        the vertices have been assigned uv texture coordinates. Vertices
+        may be split into as many as necessary by the unwrapping
+        algorithm, depending on how many uv maps they appear in.
 
-        The vertices may be split into as many as necessary
-        by the unwrapping algorithm, depending on how many uv maps
-        they appear in.
+        Requires `pip install xatlas`
 
-        Requires blender.
+        Parameters
+        ------------
+        image : None or PIL.Image
+          Image to assign to the material
 
         Returns
         --------
         unwrapped : trimesh.Trimesh
           Mesh with unwrapped uv coordinates
         """
-        result = unwrap.unwrap(self, **kwargs)
+        import xatlas
+
+        vmap, faces, uv = xatlas.parametrize(
+            self.vertices, self.faces)
+
+        result = Trimesh(vertices=self.vertices[vmap],
+                         faces=faces,
+                         visual=TextureVisuals(uv=uv, image=image),
+                         process=False)
+
+        # run additional checks for unwrapping
+        if tol.strict:
+            # check the export object to make sure we didn't
+            # move the indices around on creation
+            assert np.allclose(result.visual.uv, uv)
+            assert np.allclose(result.faces, faces)
+            assert np.allclose(result.vertices, self.vertices[vmap])
+            # check to make sure indices are still the
+            # same order after we've exported to OBJ
+            export = result.export(file_type='obj')
+            uv_recon = np.array([L[3:].split() for L in
+                                 str.splitlines(export) if
+                                 L.startswith('vt ')],
+                                dtype=np.float64)
+            assert np.allclose(uv_recon, uv)
+            v_recon = np.array([L[2:].split() for L in
+                                str.splitlines(export) if
+                                L.startswith('v ')],
+                               dtype=np.float64)
+            assert np.allclose(v_recon, self.vertices[vmap])
+
         return result
 
     @caching.cache_decorator

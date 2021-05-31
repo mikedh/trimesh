@@ -5,60 +5,25 @@ except BaseException:
 
 
 class UnwrapTest(g.unittest.TestCase):
-    def setUp(self):
-        self.a = g.get_mesh('bunny.ply', force="mesh")
-        self.truth = {}
-        for k in ["bounds",
-                  "extents",
-                  "scale",
-                  "centroid",
-                  "center_mass",
-                  "density",
-                  "volume",
-                  "mass",
-                  "moment_inertia",
-                  "principal_inertia_components",
-                  "principal_inertia_vectors",
-                  "principal_inertia_transform",
-                  "area"]:
-            self.truth[k] = getattr(self.a, k)
-
-        self.engine = 'blender'
-
-    def test_unwrap(self):
-        a = self.a
-
-        if not g.trimesh.interfaces.blender.exists:
-            g.log.warning('skipping unwrap engine %s', self.engine)
-            return
-
-        g.log.info('Testing unwrap ops with engine %s', self.engine)
-        u = a.unwrap()
-
-        for k, truth in self.truth.items():
-            g.np.testing.assert_allclose(getattr(u, k), truth,
-                                         rtol=5e-1, atol=1e-6, err_msg=k)
-
-        g.log.info('unwrap succeeded with %s', self.engine)
 
     def test_image(self):
-        a = self.a
-
-        if not g.trimesh.interfaces.blender.exists:
-            g.log.warning('skipping unwrap engine %s', self.engine)
-            return
-
-        g.log.info('Testing unwrap ops with engine %s', self.engine)
+        a = g.get_mesh('bunny.ply', force="mesh")
 
         u = a.unwrap()
-        self.assertEqual(u.visual.material.image is None,
-                         not hasattr(a.visual, "material") or
-                         not hasattr(a.visual.material, "image") or
-                         a.visual.material.image is None)
+        assert u.visual.uv.shape == (len(u.vertices), 2)
 
-        checkerboard = g.np.kron([[1, 0] * 4, [0, 1] * 4] * 4, g.np.ones((10, 10)))
-        u = a.unwrap(image=(checkerboard * 255).astype(g.np.uint8))
-        self.assertIsNotNone(u.visual.material.image)
+        checkerboard = g.np.kron(
+            [[1, 0] * 4, [0, 1] * 4] * 4, g.np.ones((10, 10)))
+        try:
+            from PIL import Image
+        except BaseException:
+            return
+
+        image = Image.fromarray(
+            (checkerboard * 255).astype(g.np.uint8))
+        u = a.unwrap(image=image)
+        # make sure image was attached correctly
+        assert u.visual.material.image.size == image.size
 
 
 if __name__ == '__main__':
