@@ -7,6 +7,11 @@ except BaseException:
 class UnwrapTest(g.unittest.TestCase):
 
     def test_image(self):
+        try:
+            import xatlas
+        except BaseException:
+            g.log.info('not testing unwrap as no `xatlas`')
+            return
         a = g.get_mesh('bunny.ply', force="mesh")
 
         u = a.unwrap()
