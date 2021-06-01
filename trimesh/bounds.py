@@ -373,7 +373,7 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
                           bounds=bounds)
 
     tic.append(util.now())
-    log.info('Performed search in %f and minimize in %f', *np.diff(tic))
+    log.debug('Performed search in %f and minimize in %f', *np.diff(tic))
 
     # actually chunk the information about the cylinder
     transform, radius, height = volume_from_angles(r['x'], return_data=True)
@@ -381,6 +381,34 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
               'radius': radius,
               'height': height}
     return result
+
+
+def to_extents(bounds):
+    """
+    Convert an axis aligned bounding box to extents and
+    transform.
+
+    Parameters
+    ------------
+    bounds : (2, 3) float
+      Axis aligned bounds in space
+
+    Returns
+    ------------
+    extents : (3,) float
+      Extents of the bounding box
+    transform : (4, 4) float
+      Homogenous transform moving extents to bounds
+    """
+    bounds = np.asanyarray(bounds, dtype=np.float64)
+    if bounds.shape != (2, 3):
+        raise ValueError('bounds must be (2, 3)')
+
+    extents = bounds.ptp(axis=0)
+    transform = np.eye(4)
+    transform[:3, 3] = bounds.mean(axis=0)
+
+    return extents, transform
 
 
 def corners(bounds):
