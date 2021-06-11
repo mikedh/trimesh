@@ -1888,24 +1888,31 @@ class Trimesh(Geometry3D):
         """
         # subdivide vertex attributes
         vertex_attributes = {}
+        visual = None
         if (hasattr(self.visual, 'uv') and
                 np.shape(self.visual.uv) == (len(self.vertices), 2)):
-            # only subdivide if
-            vertex_attributes['uv'] = self.visual.uv
 
-        # perform the subdivision with vertex attributes
-        vertices, faces, attr = remesh.subdivide(
-            vertices=self.vertices,
-            faces=self.faces,
-            face_index=face_index,
-            vertex_attributes=vertex_attributes)
-        # if we had texture reconstruct it here
-        visual = None
-        if 'uv' in attr:
+            # uv coords divided along with vertices
+            vertices, faces, attr = remesh.subdivide(
+                vertices=np.hstack((self.vertices, self.visual.uv)),
+                faces=self.faces,
+                face_index=face_index,
+                vertex_attributes=vertex_attributes)
+
             # get a copy of the current visuals
             visual = self.visual.copy()
-            # assign the subdivided UV's and remove them
-            visual.uv = attr.pop('uv')
+
+            # seperate uv coords and vertices
+            vertices, visual.uv = vertices[:, :3], vertices[:, 3:]            
+          
+        else:
+            # perform the subdivision with vertex attributes
+            vertices, faces, attr = remesh.subdivide(
+                vertices=self.vertices,
+                faces=self.faces,
+                face_index=face_index,
+                vertex_attributes=vertex_attributes)
+
         # create a new mesh
         result = Trimesh(
             vertices=vertices,
