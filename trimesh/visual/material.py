@@ -194,6 +194,61 @@ class SimpleMaterial(Material):
                            baseColorFactor=self.diffuse)
 
 
+class MultiMaterial(Material):
+    def __init__(self, materials=None, **kwargs):
+        """
+        Wrapper for a list of Materials.
+
+        Parameters
+        ----------
+        materials : Optional[List[Material]]
+            List of materials with which the container to be initialized.
+        """
+        self._materials = materials
+        if self._materials is None:
+            self._materials = []
+
+    def __hash__(self):
+        """
+            Provide a hash of the multi material so we can detect
+            duplicates.
+
+            Returns
+            ------------
+            hash : int
+              Xor hash of the contained materials.
+        """
+        hashed = 0
+        for material in self._materials:
+            hashed ^= hash(material)
+
+        return hashed
+
+    def __iter__(self):
+        return iter(self._materials)
+
+    def __next__(self):
+        return next(self._materials)
+
+    def __len__(self):
+        return len(self._materials)
+
+    @property
+    def main_color(self):
+        raise NotImplementedError('There is no main color')
+
+    def add(self, material):
+        """
+        Adds new material to the container.
+
+        Parameters
+        ----------
+        material : Material
+            The material to be added.
+        """
+        self._materials.append(material)
+
+
 class PBRMaterial(Material):
     """
     Create a material for physically based rendering as
@@ -325,176 +380,6 @@ class PBRMaterial(Material):
             hashed ^= hash(self.baseColorFactor.tobytes())
 
         return hashed
-
-
-class FaceMaterialsVisual(Visuals):
-
-    def __init__(self,
-                 mesh=None,
-                 materials=None,
-                 face_materials=None):
-        """
-        Store material information for each face in a mesh.
-
-        Parameters
-        ----------
-        mesh : Trimesh
-          Object that these visual properties
-          are associated with
-        materials :  List[PBRMaterial]
-          List of materials used for the visual properties of each face
-        face_materials : List[int]
-          List of indexes referencing a material from the materials list for each face.
-        """
-        self.mesh = mesh
-        self._data = caching.DataStore()
-
-        self._default_material = PBRMaterial()
-
-        if face_materials is not None:
-            self.materials = materials
-            self._check_indexes(face_materials)
-            self.face_materials = face_materials
-
-    def _check_indexes(self, face_materials):
-        if self.mesh is not None and len(self.mesh.faces) != len(face_materials):
-            raise ValueError("The number of face materials do not correspond to the number of faces in the mesh!")
-        num_of_materials = len(self.materials)
-        if any(idx >= num_of_materials for idx in face_materials):
-            raise ValueError("Material index out of range!")
-
-    @property
-    def materials(self):
-        """
-        List of materials used for the faces of a mesh.
-
-        If no materials are defined, a list of default PBRMaterial is returned.
-
-        Returns
-        ----------
-        colors: List[PBRMaterial]
-            List of the materials referenced by each face.
-        """
-        if "materials" not in self._data:
-            self.materials = [self._default_material]
-            self.face_materials = [0] * len(self.mesh.faces)
-
-        return self._data['materials']
-
-    @materials.setter
-    def materials(self, value):
-        """
-        Set the materials to be used for each face of a mesh.
-
-        This will apply these materials and delete any previously specified information.
-
-        Parameters
-        ------------
-        value: List[PBRMaterial]
-            List of the materials to be referenced by each face.
-        """
-        self._data.clear()
-        self._data['materials'] = value if value is not None else [self._default_material]
-
-    @property
-    def face_materials(self):
-        """
-        Material defined for each face of a mesh.
-
-        If no materials are defined a list of 0 will be returned, referencing a default material.
-
-        Returns
-        -------
-        face_materials: List[int]
-            List of integers referencing the material for each face of a mesh by index.
-        """
-        if 'face_materials' not in self._data:
-            self.materials = [self._default_material]
-            self.face_materials = [0] * len(self.mesh.faces)
-        return self._data['face_materials']
-
-    @face_materials.setter
-    def face_materials(self, values):
-        """
-        Set the material defined for each face of a mesh.
-
-        Parameters
-        -------
-        values: List[int]
-            List of integers referencing the material for each face of a mesh by index.
-        """
-        self._check_indexes(values)
-        self._data['face_materials'] = values
-
-    def kind(self):
-        """
-        Return the type of visual data stored
-
-        Returns
-        ----------
-        kind : str
-          What type of visuals are defined
-        """
-        return 'face'
-
-    def update_vertices(self):
-        raise NotImplementedError
-
-    def update_faces(self):
-        raise NotImplementedError
-
-    def concatenate(self, other):
-        """
-        Concatenate two or more FaceMaterialVisual objects into a single object.
-
-        Parameters
-        -----------
-        other : FaceMaterialsVisual
-          Object to append
-
-        Returns
-        -----------
-        result: FaceMaterialsVisual object containing information from current
-                object and other.
-        """
-        concat_materials = [m for m in self.materials]
-        idx_remap = {}
-        for idx, material in other.materials:
-            if material in concat_materials:
-                idx_remap[idx] = concat_materials.index(material)
-            else:
-                idx_remap[idx] = len(concat_materials)
-                concat_materials.append(material)
-        concat_face_materials = [idx for idx in self.face_materials]
-        concat_face_materials += [idx_remap[idx] for idx in other.face_materials]
-        concat_mesh = self.mesh + other.mesh
-        return FaceMaterialsVisual(mesh=concat_mesh,
-                                   materials=concat_face_materials,
-                                   face_materials=concat_face_materials)
-
-    def crc(self):
-        """
-        A checksum for the current visual object and its parent mesh.
-
-        Returns
-        ----------
-        crc : int
-          Checksum of data in visual object and its parent mesh
-        """
-        # will make sure everything has been transferred
-        # to datastore that needs to be before returning crc
-
-        result = self._data.fast_hash()
-        if hasattr(self.mesh, 'crc'):
-            # bitwise xor combines hashes better than a sum
-            result ^= self.mesh.crc()
-        return result
-
-    def copy(self):
-        """
-        Return a copy of the current visuals
-        """
-        return copy.deepcopy(self)
 
 
 def empty_material(color=None):

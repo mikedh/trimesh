@@ -14,7 +14,8 @@ class TextureVisuals(Visuals):
     def __init__(self,
                  uv=None,
                  material=None,
-                 image=None):
+                 image=None,
+                 face_materials=None):
         """
         Store a single material and per-vertex UV coordinates
         for a mesh.
@@ -49,6 +50,8 @@ class TextureVisuals(Visuals):
         else:
             # if passed assign
             self.material = material
+
+        self.face_materials = face_materials
 
     def _verify_crc(self):
         """

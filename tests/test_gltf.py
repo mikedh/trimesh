@@ -245,8 +245,8 @@ class GLTFTest(g.unittest.TestCase):
     def test_merge_primitives_materials(self):
         # test to see if the `merge_primitives` logic is working
         a = g.get_mesh('rgb_cube_with_primitives.gltf', merge_primitives=True)
-        assert len(a.geometry['Cube_0'].visual.materials) == 3
-        assert (a.geometry['Cube_0'].visual.face_materials == [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2]).all()
+        assert len(a.geometry['Cube_0'].visual.material) == 3
+        assert a.geometry['Cube_0'].visual.face_materials == [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2]
 
     def test_optional_camera(self):
         gltf_cameras_key = 'cameras'
