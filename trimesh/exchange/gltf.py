@@ -1400,7 +1400,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             materials = [p['visual'].material for p in current]
             face_materials = []
             for i, p in enumerate(current):
-                face_materials += [i]*len(p['faces'])
+                face_materials += [i] * len(p['faces'])
             visuals = visual.texture.TextureVisuals(
                 material=visual.material.MultiMaterial(materials=materials),
                 face_materials=face_materials
