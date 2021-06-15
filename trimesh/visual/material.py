@@ -8,8 +8,6 @@ import copy
 import numpy as np
 
 from . import color
-from .base import Visuals
-from .. import caching
 from .. import util
 from .. import grouping
 from .. import exceptions
