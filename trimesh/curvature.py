@@ -55,10 +55,12 @@ def discrete_gaussian_curvature_measure(mesh, points, radius):
     at a point as detailed in 'Restricted Delaunay triangulations and normal
     cycle', Cohen-Steiner and Morvan.
 
+    This is the sum of the vertex defects (see there) at all vertices within the radius for each point.
+
     Parameters
     ----------
     points : (n,3) float, list of points in space
-    radius : float, the sphere radius
+    radius : float, the sphere radius (can be zero if vertices are passed as points)
 
     Returns
     --------
@@ -81,10 +83,12 @@ def discrete_mean_curvature_measure(mesh, points, radius):
     at a point as detailed in 'Restricted Delaunay triangulations and normal
     cycle', Cohen-Steiner and Morvan.
 
+    This is the sum of the angle at all edges contained in the sphere for each point.
+
     Parameters
     ----------
     points : (n,3) float, list of points in space
-    radius : float, the sphere radius
+    radius : float, the sphere radius (should typically be greater zero)
 
     Returns
     --------
