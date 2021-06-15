@@ -1391,7 +1391,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             # use the first name
             name = re.sub(r"_\d+", "", names[0])
             # remove the other meshes after we're done looping
-            mesh_pop.extend(names[1:])
+            mesh_pop.extend(names[:])
             # collect the meshes
             # TODO : use mesh concatenation with texture support
             current = [meshes[n] for n in names]
