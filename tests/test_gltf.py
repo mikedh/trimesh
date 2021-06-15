@@ -246,11 +246,12 @@ class GLTFTest(g.unittest.TestCase):
         # test to see if the `merge_primitives` logic is working
         a = g.get_mesh('rgb_cube_with_primitives.gltf', merge_primitives=True)
         assert len(a.geometry['Cube_0'].visual.material) == 3
-        assert a.geometry['Cube_0'].visual.face_materials == [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2]
+        assert a.geometry['Cube_0'].visual.face_materials == [0, 0, 0, 0, 1, 1,
+                                                              1, 1, 2, 2, 2, 2]
 
     def test_merge_primitives_materials_roundtrip(self):
-        # test to see if gltf loaded with `merge_primitives` and then exported back to gltf,
-        # produces a valid gltf.
+        # test to see if gltf loaded with `merge_primitives` and then exported back
+        # to gltf, produces a valid gltf.
         a = g.get_mesh('rgb_cube_with_primitives.gltf', merge_primitives=True)
         result = a.export(file_type='gltf', merge_buffers=True)
         with g.TemporaryDirectory() as d:
