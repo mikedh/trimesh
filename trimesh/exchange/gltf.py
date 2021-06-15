@@ -808,7 +808,8 @@ def _build_primitive_map(mesh):
     # Otherwise build an ordered dict with the faces used for each face.
     primitive_map = collections.OrderedDict()
     for face_idx, mat_idx in enumerate(mesh.visual.face_materials):
-        if (mat := mesh.visual.material.get(mat_idx)) in primitive_map:
+        mat = mesh.visual.material.get(mat_idx)
+        if mat in primitive_map:
             primitive_map[mat].append(mesh.faces[face_idx])
         else:
             primitive_map[mat] = [mesh.faces[face_idx]]
