@@ -248,6 +248,21 @@ class MultiMaterial(Material):
         """
         self._materials.append(material)
 
+    def get(self, idx):
+        """
+        Get material by index.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the material to be retrieved.
+
+        Returns
+        -------
+            The material on the given index.
+        """
+        return self._materials[idx]
+
 
 class PBRMaterial(Material):
     """
