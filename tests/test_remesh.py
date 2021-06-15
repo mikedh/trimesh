@@ -68,7 +68,7 @@ class SubDivideTest(g.unittest.TestCase):
     def test_uv(self):
         # get a mesh with texture
         m = g.get_mesh('fuze.obj')
-        #m.show()
+        # m.show()
         # get the shape of the initial mesh
         shape = m.vertices.shape
         # subdivide the mesh
@@ -80,7 +80,15 @@ class SubDivideTest(g.unittest.TestCase):
         assert s.vertices.shape[0] > shape[0]
         # should have UV coordinates matching vertices
         assert s.vertices.shape[0] == s.visual.uv.shape[0]
-        #s.show()
+
+        # original UV coordinates with faces
+        ov = m.visual.uv[m.faces]
+        # subdivided mesh faces
+        sv = s.visual.uv[s.faces]
+        # both subdivided and original should have faces
+        # that don't vary wildly
+        assert ov.ptp(axis=1).mean(axis=0).max() < 0.1
+        assert sv.ptp(axis=1).mean(axis=0).max() < 0.1
 
 
 if __name__ == '__main__':

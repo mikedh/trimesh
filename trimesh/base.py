@@ -1903,8 +1903,8 @@ class Trimesh(Geometry3D):
             visual = self.visual.copy()
 
             # seperate uv coords and vertices
-            vertices, visual.uv = vertices[:, :3], vertices[:, 3:]            
-          
+            vertices, visual.uv = vertices[:, :3], vertices[:, 3:]
+
         else:
             # perform the subdivision with vertex attributes
             vertices, faces, attr = remesh.subdivide(
