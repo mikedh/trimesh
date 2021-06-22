@@ -192,6 +192,76 @@ class SimpleMaterial(Material):
                            baseColorFactor=self.diffuse)
 
 
+class MultiMaterial(Material):
+    def __init__(self, materials=None, **kwargs):
+        """
+        Wrapper for a list of Materials.
+
+        Parameters
+        ----------
+        materials : Optional[List[Material]]
+            List of materials with which the container to be initialized.
+        """
+        self._materials = materials
+        if self._materials is None:
+            self._materials = []
+
+    def __hash__(self):
+        """
+            Provide a hash of the multi material so we can detect
+            duplicates.
+
+            Returns
+            ------------
+            hash : int
+              Xor hash of the contained materials.
+        """
+        hashed = 0
+        for material in self._materials:
+            hashed ^= hash(material)
+
+        return hashed
+
+    def __iter__(self):
+        return iter(self._materials)
+
+    def __next__(self):
+        return next(self._materials)
+
+    def __len__(self):
+        return len(self._materials)
+
+    @property
+    def main_color(self):
+        raise NotImplementedError('There is no main color')
+
+    def add(self, material):
+        """
+        Adds new material to the container.
+
+        Parameters
+        ----------
+        material : Material
+            The material to be added.
+        """
+        self._materials.append(material)
+
+    def get(self, idx):
+        """
+        Get material by index.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the material to be retrieved.
+
+        Returns
+        -------
+            The material on the given index.
+        """
+        return self._materials[idx]
+
+
 class PBRMaterial(Material):
     """
     Create a material for physically based rendering as

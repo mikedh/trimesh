@@ -17,6 +17,31 @@ class SubDivideTest(g.unittest.TestCase):
             assert g.np.allclose(m.area, sub.area)
             assert len(sub.faces) > len(m.faces)
 
+            max_edge = m.scale / 50
+            sub, idx = m.subdivide_to_size(max_edge=max_edge, return_index=True)
+            assert g.np.allclose(m.area, sub.area)
+            edge_len = (g.np.diff(sub.vertices[sub.edges_unique],
+                                  axis=1).reshape((-1, 3))**2).sum(axis=1)**.5
+            assert (edge_len < max_edge).all()
+
+            # should be one index per new face
+            assert len(idx) == len(sub.faces)
+            # every face should be subdivided
+            assert idx.max() == (len(m.faces) - 1)
+
+            # check the original face index using barycentric coordinates
+            epsilon = 1e-3
+            for vid in sub.faces.T:
+                # find the barycentric coordinates
+                bary = g.trimesh.triangles.points_to_barycentric(
+                    m.triangles[idx], sub.vertices[vid])
+                # if face indexes are correct they will be on the triangle
+                # which means all barycentric coordinates are between 0.0-1.0
+                assert bary.max() < (1 + epsilon)
+                assert bary.min() > -epsilon
+                # make sure it's not all zeros
+                assert bary.ptp() > epsilon
+
             v, f = g.trimesh.remesh.subdivide(
                 vertices=m.vertices,
                 faces=m.faces)
@@ -65,6 +90,15 @@ class SubDivideTest(g.unittest.TestCase):
             # volume should be the same
             assert g.np.isclose(m.volume, s.volume)
 
+            max_edge = m.scale / 50
+            s = m.subdivide_to_size(max_edge=max_edge)
+            # shouldn't have subdivided in-place
+            assert len(s.faces) > len(m.faces)
+            # area should be the same
+            assert g.np.isclose(m.area, s.area)
+            # volume should be the same
+            assert g.np.isclose(m.volume, s.volume)
+
     def test_uv(self):
         # get a mesh with texture
         m = g.get_mesh('fuze.obj')
@@ -90,6 +124,24 @@ class SubDivideTest(g.unittest.TestCase):
         assert ov.ptp(axis=1).mean(axis=0).max() < 0.1
         assert sv.ptp(axis=1).mean(axis=0).max() < 0.1
 
+        max_edge = m.scale / 50
+        s = m.subdivide_to_size(max_edge=max_edge)
+
+        # shouldn't have changed source mesh
+        assert m.vertices.shape == shape
+        # subdivided mesh should have more vertices
+        assert s.vertices.shape[0] > shape[0]
+        # should have UV coordinates matching vertices
+        assert s.vertices.shape[0] == s.visual.uv.shape[0]
+
+        # original UV coordinates with faces
+        ov = m.visual.uv[m.faces]
+        # subdivided mesh faces
+        sv = s.visual.uv[s.faces]
+        # both subdivided and original should have faces
+        # that don't vary wildly
+        assert ov.ptp(axis=1).mean(axis=0).max() < 0.1
+        assert sv.ptp(axis=1).mean(axis=0).max() < 0.1
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
