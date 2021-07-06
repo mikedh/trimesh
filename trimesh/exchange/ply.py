@@ -524,13 +524,17 @@ def elements_to_kwargs(elements,
             # accessing numpy arrays with named fields
             # incorrectly is a ValueError
             pass
-    
+
     # If texture coordinates are defined with vertices
-    if texcoord is None and 'texture_u' in elements['vertex']['data'] and 'texture_v' in elements['vertex']['data']:
+    if (texcoord is None and
+        'texture_u' in elements['vertex']['data'] and
+            'texture_v' in elements['vertex']['data']):
         texture_u = elements['vertex']['data']['texture_u']
         texture_v = elements['vertex']['data']['texture_v']
-        texcoord = np.stack((texture_u[faces.reshape(-1)], texture_v[faces.reshape(-1)]), axis=-1)
-        texcoord = texcoord.reshape((faces.shape[0], -1))
+        texcoord = np.stack((
+            texture_u[faces.reshape(-1)],
+            texture_v[faces.reshape(-1)]), axis=-1).reshape(
+                (faces.shape[0], -1))
 
     if faces is not None:
         shape = np.shape(faces)

@@ -4,6 +4,7 @@ material.py
 
 Store visual materials as objects.
 """
+import abc
 import copy
 import numpy as np
 
@@ -13,16 +14,23 @@ from .. import grouping
 from .. import exceptions
 
 
-class Material(object):
+class Material(util.ABC):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('material must be subclassed!')
 
     def __hash__(self):
         return id(self)
 
-    @property
+    @abc.abstractproperty
     def main_color(self):
-        raise NotImplementedError('material must be subclassed!')
+        """
+        The "average" color of this material.
+
+        Returns
+        ---------
+        color : (4,) uint8
+          Average color of this material.
+        """
 
     @property
     def name(self):
@@ -233,7 +241,14 @@ class MultiMaterial(Material):
 
     @property
     def main_color(self):
-        raise NotImplementedError('There is no main color')
+        """
+        The "average" color of this material.
+
+        Returns
+        ---------
+        color : (4,) uint8
+          Average color of this material.
+        """
 
     def add(self, material):
         """
@@ -476,7 +491,8 @@ def pack(materials, uvs, deduplicate=True):
     if deduplicate:
         # start by collecting a list of indexes for each material hash
         unique_idx = collections.defaultdict(list)
-        [unique_idx[hash(m)].append(i) for i, m in enumerate(materials)]
+        [unique_idx[hash(m)].append(i)
+         for i, m in enumerate(materials)]
         # now we only need the indexes and don't care about the hashes
         mat_idx = list(unique_idx.values())
     else:
