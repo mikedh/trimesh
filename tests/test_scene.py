@@ -3,8 +3,6 @@ try:
 except BaseException:
     import generic as g
 
-from trimesh.scene.transforms import EnforcedForest
-
 
 def random_chr():
     return chr(ord('a') + int(round(g.np.random.random() * 25)))

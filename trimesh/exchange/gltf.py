@@ -9,7 +9,6 @@ as GL_TRIANGLES, and trimesh.Path2D/Path3D as GL_LINES
 import json
 import base64
 import collections
-import re
 
 import numpy as np
 
@@ -1188,7 +1187,11 @@ def _parse_materials(header, views, resolver=None):
     return materials
 
 
-def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver=None):
+def _read_buffers(header,
+                  buffers,
+                  mesh_kwargs,
+                  merge_primitives=False,
+                  resolver=None):
     """
     Given a list of binary data and a layout, return the
     kwargs to create a scene object.
@@ -1265,6 +1268,8 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
 
+    names_original = collections.defaultdict(list)
+
     for index, m in enumerate(header.get("meshes", [])):
         metadata = {}
         try:
@@ -1292,6 +1297,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             attr = p['attributes']
             # create a unique mesh name per- primitive
             name = m.get('name', 'GLTF')
+            names_original[index].append(name)
             # make name unique across multiple meshes
             if name in meshes:
                 name += "_" + util.unique_id(
@@ -1388,8 +1394,8 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             if len(names) <= 1:
                 mesh_prim_replace[mesh_index] = names
                 continue
-            # use the first name
-            name = re.sub(r"_\d+", "", names[0])
+            # use the first original name
+            name = names_original[mesh_index][0]
             # remove the other meshes after we're done looping
             mesh_pop.extend(names[:])
             # collect the meshes

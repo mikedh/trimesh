@@ -28,7 +28,7 @@ class Material(object):
     def name(self):
         if hasattr(self, '_name'):
             return self._name
-        return 'material0'
+        return 'material_0'
 
     @name.setter
     def name(self, value):
@@ -202,9 +202,10 @@ class MultiMaterial(Material):
         materials : Optional[List[Material]]
             List of materials with which the container to be initialized.
         """
-        self._materials = materials
-        if self._materials is None:
-            self._materials = []
+        if materials is None:
+            self.materials = []
+        else:
+            self._materials = materials
 
     def __hash__(self):
         """
@@ -216,9 +217,8 @@ class MultiMaterial(Material):
             hash : int
               Xor hash of the contained materials.
         """
-        hashed = 0
-        for material in self._materials:
-            hashed ^= hash(material)
+        hashed = np.bitwise_xor.reduce(
+            [hash(m) for m in self._materials])
 
         return hashed
 

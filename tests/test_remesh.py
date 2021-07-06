@@ -143,6 +143,7 @@ class SubDivideTest(g.unittest.TestCase):
         assert ov.ptp(axis=1).mean(axis=0).max() < 0.1
         assert sv.ptp(axis=1).mean(axis=0).max() < 0.1
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
