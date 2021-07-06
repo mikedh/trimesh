@@ -679,33 +679,16 @@ def _append_mesh(mesh,
         log.warning('skipping empty mesh!')
         return
 
-    # convert mesh data to the correct dtypes
-    # faces: 5125 is an unsigned 32 bit integer
-    # accessors refer to data locations
-    # mesh faces are stored as flat list of integers
-    acc_face = _data_append(acc=tree['accessors'],
-                            buff=buffer_items,
-                            blob={"componentType": 5125,
-                                  "type": "SCALAR"},
-                            data=mesh.faces.astype(uint32))
-
-    # vertices: 5126 is a float32
-    # create or reuse an accessor for these vertices
-    acc_vertex = _data_append(acc=tree['accessors'],
-                              buff=buffer_items,
-                              blob={"componentType": 5126,
-                                    "type": "VEC3",
-                                    "byteOffset": 0},
-                              data=mesh.vertices.astype(float32))
+    primitive_map = _build_primitive_map(mesh)
+    mesh_primitives = _build_primitives(mesh=mesh,
+                                        tree=tree,
+                                        buffer_items=buffer_items,
+                                        primitive_map=primitive_map)
 
     # meshes reference accessor indexes
     # mode 4 is GL_TRIANGLES
     current = {"name": name,
-               "primitives": [{
-                   "attributes": {"POSITION": acc_vertex},
-                   "indices": acc_face,
-                   "mode": 4}]}
-
+               "primitives": mesh_primitives}
     # if units are defined, store them as an extra
     # the GLTF spec says everything is implicit meters
     # we're not doing that as our unit conversions are expensive
@@ -740,12 +723,13 @@ def _append_mesh(mesh,
             "COLOR_0"] = acc_color
 
     if hasattr(mesh.visual, 'material'):
-        # append the material and then set from returned index
-        current["primitives"][0]["material"] = _append_material(
-            mat=mesh.visual.material,
-            tree=tree,
-            buffer_items=buffer_items,
-            mat_hashes=mat_hashes)
+        for primitive_idx, mat in enumerate(primitive_map.keys()):
+            # append the material and then set from returned index
+            current["primitives"][primitive_idx]["material"] = _append_material(
+                mat=mat,
+                tree=tree,
+                buffer_items=buffer_items,
+                mat_hashes=mat_hashes)
 
         # if mesh has UV coordinates defined export them
         has_uv = (hasattr(mesh.visual, 'uv') and
@@ -798,6 +782,95 @@ def _append_mesh(mesh,
         current["primitives"][0]["attributes"][attribute_name] = acc_atr
 
     tree["meshes"].append(current)
+
+
+def _build_primitive_map(mesh):
+    """
+    Build a map for a mesh with key the material used and value the faces using it.
+
+    Parameters
+    ----------
+    mesh : trimesh.Trimesh
+        The source geometry mesh.
+
+    Returns
+    -------
+    primitives_map : collections.OrderedDict()
+        Ordered dictionary with materials and corresponding faces.
+    """
+    # If there are no face_materials defined, then all of the faces use only one material.
+    if getattr(mesh.visual, 'face_materials', None) is None:
+        return collections.OrderedDict([
+            (getattr(mesh.visual, 'material', None), mesh.faces)
+        ])
+
+    # Otherwise build an ordered dict with the faces used for each face.
+    primitive_map = collections.OrderedDict()
+    for face_idx, mat_idx in enumerate(mesh.visual.face_materials):
+        mat = mesh.visual.material.get(mat_idx)
+        if mat in primitive_map:
+            primitive_map[mat].append(mesh.faces[face_idx])
+        else:
+            primitive_map[mat] = [mesh.faces[face_idx]]
+
+    return primitive_map
+
+
+def _build_primitives(mesh,
+                      tree,
+                      buffer_items,
+                      primitive_map):
+    """
+    Append a mesh to the scene structure and put the
+    data into buffer_items.
+
+    Parameters
+    -------------
+    mesh : trimesh.Trimesh
+      Source geometry
+    tree : dict
+      Will be updated with data from mesh
+    buffer_items
+      Will have buffer appended with mesh data
+    """
+    mesh_primitives = []
+    for mat, faces in primitive_map.items():
+        vertices = collections.OrderedDict(
+            [(idx, mesh.vertices[idx]) for face in faces for idx in face]
+        )
+        vertex_map = {old_idx: new_idx for new_idx, old_idx in enumerate(vertices.keys())}
+
+        # Update the vertex indices for the faces
+        primitive_faces = np.array([
+            [vertex_map[face[0]], vertex_map[face[1]], vertex_map[face[2]]]
+            for face in faces
+        ])
+
+        # convert mesh data to the correct dtypes
+        # faces: 5125 is an unsigned 32 bit integer
+        # accessors refer to data locations
+        # mesh faces are stored as flat list of integers
+        acc_face = _data_append(acc=tree['accessors'],
+                                buff=buffer_items,
+                                blob={"componentType": 5125,
+                                      "type": "SCALAR"},
+                                data=primitive_faces.astype(uint32))
+
+        # vertices: 5126 is a float32
+        # create or reuse an accessor for these vertices
+        primitive_vertices = np.array(list(vertices.values()))
+        acc_vertex = _data_append(acc=tree['accessors'],
+                                  buff=buffer_items,
+                                  blob={"componentType": 5126,
+                                        "type": "VEC3",
+                                        "byteOffset": 0},
+                                  data=primitive_vertices.astype(float32))
+        mesh_primitives.append({
+            "attributes": {"POSITION": acc_vertex},
+            "indices": acc_face,
+            "mode": 4})
+
+    return mesh_primitives
 
 
 def _build_views(buffer_items):
@@ -1114,7 +1187,11 @@ def _parse_materials(header, views, resolver=None):
     return materials
 
 
-def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver=None):
+def _read_buffers(header,
+                  buffers,
+                  mesh_kwargs,
+                  merge_primitives=False,
+                  resolver=None):
     """
     Given a list of binary data and a layout, return the
     kwargs to create a scene object.
@@ -1191,6 +1268,8 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
 
+    names_original = collections.defaultdict(list)
+
     for index, m in enumerate(header.get("meshes", [])):
         metadata = {}
         try:
@@ -1218,6 +1297,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             attr = p['attributes']
             # create a unique mesh name per- primitive
             name = m.get('name', 'GLTF')
+            names_original[index].append(name)
             # make name unique across multiple meshes
             if name in meshes:
                 name += "_" + util.unique_id(
@@ -1314,16 +1394,24 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             if len(names) <= 1:
                 mesh_prim_replace[mesh_index] = names
                 continue
-            # use the first name
-            name = names[0]
+            # use the first original name
+            name = names_original[mesh_index][0]
             # remove the other meshes after we're done looping
-            mesh_pop.extend(names[1:])
+            mesh_pop.extend(names[:])
             # collect the meshes
             # TODO : use mesh concatenation with texture support
             current = [meshes[n] for n in names]
             v_seq = [p['vertices'] for p in current]
             f_seq = [p['faces'] for p in current]
             v, f = util.append_faces(v_seq, f_seq)
+            materials = [p['visual'].material for p in current]
+            face_materials = []
+            for i, p in enumerate(current):
+                face_materials += [i] * len(p['faces'])
+            visuals = visual.texture.TextureVisuals(
+                material=visual.material.MultiMaterial(materials=materials),
+                face_materials=face_materials
+            )
             if 'metadata' in meshes[names[0]]:
                 metadata = meshes[names[0]]['metadata']
             else:
@@ -1331,6 +1419,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             meshes[name] = {
                 'vertices': v,
                 'faces': f,
+                'visual': visuals,
                 'metadata': metadata,
                 'process': False}
             mesh_prim_replace[mesh_index] = [name]

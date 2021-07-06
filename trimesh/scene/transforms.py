@@ -649,7 +649,7 @@ def kwargs_to_matrix(
         # a matrix takes immediate precedence over other options
         return np.array(matrix, dtype=np.float64)
     elif quaternion is not None:
-        result = transformations.quaternion_matrix(quaternion)
+        matrix = transformations.quaternion_matrix(quaternion)
     elif axis is not None and angle is not None:
         matrix = transformations.rotation_matrix(angle, axis)
     else:
@@ -658,6 +658,6 @@ def kwargs_to_matrix(
     if translation is not None:
         # translation can be used in conjunction with any
         # of the methods specifying transforms
-        result[:3, 3] += translation
+        matrix[:3, 3] += translation
 
-    return result
+    return matrix

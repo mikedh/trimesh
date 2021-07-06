@@ -242,6 +242,28 @@ class GLTFTest(g.unittest.TestCase):
         b = g.get_mesh('CesiumMilkTruck.glb', merge_primitives=True)
         assert len(b.geometry) == 2
 
+    def test_merge_primitives_materials(self):
+        # test to see if the `merge_primitives` logic is working
+        a = g.get_mesh('rgb_cube_with_primitives.gltf', merge_primitives=True)
+        assert len(a.geometry['Cube'].visual.material) == 3
+        assert a.geometry['Cube'].visual.face_materials == [0, 0, 0, 0, 1, 1,
+                                                            1, 1, 2, 2, 2, 2]
+
+    def test_merge_primitives_materials_roundtrip(self):
+        # test to see if gltf loaded with `merge_primitives` and then exported back
+        # to gltf, produces a valid gltf.
+        a = g.get_mesh('rgb_cube_with_primitives.gltf', merge_primitives=True)
+        result = a.export(file_type='gltf', merge_buffers=True)
+        with g.TemporaryDirectory() as d:
+            for file_name, data in result.items():
+                with open(g.os.path.join(d, file_name), 'wb') as f:
+                    f.write(data)
+
+            rd = g.trimesh.load(
+                g.os.path.join(d, 'model.gltf'), merge_primitives=True)
+            # will assert round trip is roughly equal
+            g.scene_equal(rd, a)
+
     def test_optional_camera(self):
         gltf_cameras_key = 'cameras'
 

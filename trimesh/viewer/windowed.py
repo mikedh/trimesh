@@ -46,7 +46,8 @@ class SceneViewer(pyglet.window.Window):
                  background=None,
                  window_conf=None,
                  profile=False,
-                 ** kwargs):
+                 record=False,
+                 **kwargs):
         """
         Create a window that will display a trimesh.Scene object
         in an OpenGL context via pyglet.
@@ -81,6 +82,12 @@ class SceneViewer(pyglet.window.Window):
           Color for background
         window_conf : None, or gl.Config
           Passed to window init
+        profile : bool
+          If set will run a `pyinstrument` profile for
+          every call to `on_draw` and print the output.
+        record : bool
+          If True, will save a list of `png` bytes to
+          a list located in `scene.metadata['recording']`
         kwargs : dict
           Additional arguments to pass, including
           'background' for to set background color
@@ -108,6 +115,11 @@ class SceneViewer(pyglet.window.Window):
         if self._profile:
             from pyinstrument import Profiler
             self.Profiler = Profiler
+
+        self._record = bool(record)
+        if self._record:
+            # will save bytes here
+            self.scene.metadata['recording'] = []
 
         # store kwargs
         self.kwargs = kwargs
@@ -797,6 +809,16 @@ class SceneViewer(pyglet.window.Window):
             profiler.stop()
             print(profiler.output_text(unicode=True, color=True))
 
+    def flip(self):
+        super(SceneViewer, self).flip()
+        if self._record:
+            # will save a PNG-encoded bytes
+            img = self.save_image(util.BytesIO())
+            # seek start of file-like object
+            img.seek(0)
+            # save the bytes from the file object
+            self.scene.metadata['recording'].append(img.read())
+
     def save_image(self, file_obj):
         """
         Save the current color buffer to a file object
@@ -808,12 +830,12 @@ class SceneViewer(pyglet.window.Window):
         """
         manager = pyglet.image.get_buffer_manager()
         colorbuffer = manager.get_color_buffer()
-
         # if passed a string save by name
         if hasattr(file_obj, 'write'):
             colorbuffer.save(file=file_obj)
         else:
             colorbuffer.save(filename=file_obj)
+        return file_obj
 
 
 def geometry_hash(geometry):

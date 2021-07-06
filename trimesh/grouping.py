@@ -48,6 +48,10 @@ def merge_vertices(mesh,
     digits_uv : int
       Number of digits to consider for UV coordinates
     """
+    # no vertices so exit early
+    if len(mesh.vertices) == 0:
+        return
+
     # use tol.merge if digit precision not passed
     if not isinstance(digits_vertex, int):
         digits_vertex = util.decimal_to_digits(tol.merge)

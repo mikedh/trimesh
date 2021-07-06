@@ -144,8 +144,8 @@ def subdivide_to_size(vertices,
     for i in range(max_iter + 1):
         # compute the length of every triangle edge
         edge_length = (np.diff(
-            current_vertices[current_faces[:, [0, 1, 2, 0]]],
-            axis=1) ** 2).sum(axis=2) ** .5
+            current_vertices[current_faces[:, [0, 1, 2, 0]], :3],
+            axis=1) ** 2).sum(axis=2) ** 0.5
         # check edge length against maximum
         too_long = (edge_length > max_edge).any(axis=1)
         # faces that are OK

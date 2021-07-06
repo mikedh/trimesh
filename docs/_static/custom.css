@@ -11,3 +11,7 @@
       overflow: visible !important;
    }
 }
+
+dl.py.property {
+    display: unset;
+}

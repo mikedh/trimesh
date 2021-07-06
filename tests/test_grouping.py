@@ -280,6 +280,14 @@ class GroupTests(g.unittest.TestCase):
         assert g.np.allclose(g.np.unique(diff),
                              g.np.arange(8))
 
+    def test_broken(self):
+        # create a broken mesh referencing
+        # vertices that don't exist
+        mesh = g.trimesh.Trimesh(vertices=[], faces=[[0, 1, 2]])
+        # shouldn't error because there are no vertices
+        # even though faces are wrong
+        mesh.merge_vertices()
+
 
 def check_roll_wrap(**kwargs):
     """

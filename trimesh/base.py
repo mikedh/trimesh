@@ -1888,24 +1888,31 @@ class Trimesh(Geometry3D):
         """
         # subdivide vertex attributes
         vertex_attributes = {}
+        visual = None
         if (hasattr(self.visual, 'uv') and
                 np.shape(self.visual.uv) == (len(self.vertices), 2)):
-            # only subdivide if
-            vertex_attributes['uv'] = self.visual.uv
 
-        # perform the subdivision with vertex attributes
-        vertices, faces, attr = remesh.subdivide(
-            vertices=self.vertices,
-            faces=self.faces,
-            face_index=face_index,
-            vertex_attributes=vertex_attributes)
-        # if we had texture reconstruct it here
-        visual = None
-        if 'uv' in attr:
+            # uv coords divided along with vertices
+            vertices, faces, attr = remesh.subdivide(
+                vertices=np.hstack((self.vertices, self.visual.uv)),
+                faces=self.faces,
+                face_index=face_index,
+                vertex_attributes=vertex_attributes)
+
             # get a copy of the current visuals
             visual = self.visual.copy()
-            # assign the subdivided UV's and remove them
-            visual.uv = attr.pop('uv')
+
+            # seperate uv coords and vertices
+            vertices, visual.uv = vertices[:, :3], vertices[:, 3:]
+
+        else:
+            # perform the subdivision with vertex attributes
+            vertices, faces, attr = remesh.subdivide(
+                vertices=self.vertices,
+                faces=self.faces,
+                face_index=face_index,
+                vertex_attributes=vertex_attributes)
+
         # create a new mesh
         result = Trimesh(
             vertices=vertices,
@@ -1913,6 +1920,72 @@ class Trimesh(Geometry3D):
             visual=visual,
             vertex_attributes=attr,
             process=False)
+        return result
+
+    def subdivide_to_size(self, max_edge, max_iter=10, return_index=False):
+        """
+        Subdivide a mesh until every edge is shorter than a
+        specified length.
+
+        Will return a triangle soup, not a nicely structured mesh.
+
+        Parameters
+        ------------
+        max_edge : float
+            Maximum length of any edge in the result
+        max_iter : int
+            The maximum number of times to run subdivision
+        return_index : bool
+            If True, return index of original face for new faces
+        """
+        # subdivide vertex attributes
+        visual = None
+        if (hasattr(self.visual, 'uv') and
+                np.shape(self.visual.uv) == (len(self.vertices), 2)):
+
+            # uv coords divided along with vertices
+            vertices_faces = remesh.subdivide_to_size(
+                vertices=np.hstack((self.vertices, self.visual.uv)),
+                faces=self.faces,
+                max_edge=max_edge,
+                max_iter=max_iter,
+                return_index=return_index)
+            # unpack result
+            if return_index:
+                vertices, faces, final_index = vertices_faces
+            else:
+                vertices, faces = vertices_faces
+
+            # get a copy of the current visuals
+            visual = self.visual.copy()
+
+            # seperate uv coords and vertices
+            vertices, visual.uv = vertices[:, :3], vertices[:, 3:]
+
+        else:
+            # uv coords divided along with vertices
+            vertices_faces = remesh.subdivide_to_size(
+                vertices=self.vertices,
+                faces=self.faces,
+                max_edge=max_edge,
+                max_iter=max_iter,
+                return_index=return_index)
+            # unpack result
+            if return_index:
+                vertices, faces, final_index = vertices_faces
+            else:
+                vertices, faces = vertices_faces
+
+        # create a new mesh
+        result = Trimesh(
+            vertices=vertices,
+            faces=faces,
+            visual=visual,
+            process=False)
+
+        if return_index:
+            return result, final_index
+
         return result
 
     @log_time

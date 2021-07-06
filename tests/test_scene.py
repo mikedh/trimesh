@@ -3,8 +3,6 @@ try:
 except BaseException:
     import generic as g
 
-from trimesh.scene.transforms import EnforcedForest
-
 
 def random_chr():
     return chr(ord('a') + int(round(g.np.random.random() * 25)))
@@ -347,57 +345,6 @@ class SceneTests(g.unittest.TestCase):
 
         scene.apply_translation([1, 0, 1])
         assert g.np.allclose(scene.bounds, [[.5, -.5, .5], [1.5, .5, 1.5]])
-
-
-class GraphTests(g.unittest.TestCase):
-
-    def test_forest(self):
-        g = EnforcedForest()
-        for i in range(5000):
-            g.add_edge(random_chr(), random_chr())
-
-    def test_cache(self):
-        for i in range(10):
-            scene = g.trimesh.Scene()
-            scene.add_geometry(g.trimesh.creation.box())
-
-            mod = [scene.graph.modified()]
-            scene.set_camera()
-            mod.append(scene.graph.modified())
-            assert mod[-1] != mod[-2]
-
-            assert not g.np.allclose(
-                scene.camera_transform,
-                g.np.eye(4))
-            scene.camera_transform = g.np.eye(4)
-            mod.append(scene.graph.modified())
-            assert mod[-1] != mod[-2]
-
-            assert g.np.allclose(
-                scene.camera_transform,
-                g.np.eye(4))
-            assert mod[-1] != mod[-2]
-
-    def test_successors(self):
-        s = g.get_mesh('CesiumMilkTruck.glb')
-        assert len(s.graph.nodes_geometry) == 5
-
-        # world should be root frame
-        assert (s.graph.transforms.successors(
-            s.graph.base_frame) == s.graph.nodes)
-
-        for n in s.graph.nodes:
-            # successors should always return subset of nodes
-            succ = s.graph.transforms.successors(n)
-            assert succ.issubset(
-                s.graph.nodes)
-            # we self-include node in successors
-            assert n in succ
-
-        # test getting a subscene from successors
-        ss = s.subscene('3')
-        assert len(ss.geometry) == 1
-        assert len(ss.graph.nodes_geometry) == 1
 
 
 if __name__ == '__main__':

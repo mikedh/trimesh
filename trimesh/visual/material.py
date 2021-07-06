@@ -4,6 +4,7 @@ material.py
 
 Store visual materials as objects.
 """
+import abc
 import copy
 import numpy as np
 
@@ -13,22 +14,29 @@ from .. import grouping
 from .. import exceptions
 
 
-class Material(object):
+class Material(util.ABC):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('material must be subclassed!')
 
     def __hash__(self):
         return id(self)
 
-    @property
+    @abc.abstractproperty
     def main_color(self):
-        raise NotImplementedError('material must be subclassed!')
+        """
+        The "average" color of this material.
+
+        Returns
+        ---------
+        color : (4,) uint8
+          Average color of this material.
+        """
 
     @property
     def name(self):
         if hasattr(self, '_name'):
             return self._name
-        return 'material0'
+        return 'material_0'
 
     @name.setter
     def name(self, value):
@@ -190,6 +198,83 @@ class SimpleMaterial(Material):
         return PBRMaterial(roughnessFactor=roughness,
                            baseColorTexture=self.image,
                            baseColorFactor=self.diffuse)
+
+
+class MultiMaterial(Material):
+    def __init__(self, materials=None, **kwargs):
+        """
+        Wrapper for a list of Materials.
+
+        Parameters
+        ----------
+        materials : Optional[List[Material]]
+            List of materials with which the container to be initialized.
+        """
+        if materials is None:
+            self.materials = []
+        else:
+            self._materials = materials
+
+    def __hash__(self):
+        """
+            Provide a hash of the multi material so we can detect
+            duplicates.
+
+            Returns
+            ------------
+            hash : int
+              Xor hash of the contained materials.
+        """
+        hashed = np.bitwise_xor.reduce(
+            [hash(m) for m in self._materials])
+
+        return hashed
+
+    def __iter__(self):
+        return iter(self._materials)
+
+    def __next__(self):
+        return next(self._materials)
+
+    def __len__(self):
+        return len(self._materials)
+
+    @property
+    def main_color(self):
+        """
+        The "average" color of this material.
+
+        Returns
+        ---------
+        color : (4,) uint8
+          Average color of this material.
+        """
+
+    def add(self, material):
+        """
+        Adds new material to the container.
+
+        Parameters
+        ----------
+        material : Material
+            The material to be added.
+        """
+        self._materials.append(material)
+
+    def get(self, idx):
+        """
+        Get material by index.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the material to be retrieved.
+
+        Returns
+        -------
+            The material on the given index.
+        """
+        return self._materials[idx]
 
 
 class PBRMaterial(Material):
@@ -406,7 +491,8 @@ def pack(materials, uvs, deduplicate=True):
     if deduplicate:
         # start by collecting a list of indexes for each material hash
         unique_idx = collections.defaultdict(list)
-        [unique_idx[hash(m)].append(i) for i, m in enumerate(materials)]
+        [unique_idx[hash(m)].append(i)
+         for i, m in enumerate(materials)]
         # now we only need the indexes and don't care about the hashes
         mat_idx = list(unique_idx.values())
     else:
