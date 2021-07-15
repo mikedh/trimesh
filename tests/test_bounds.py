@@ -29,6 +29,9 @@ class BoundsTest(g.unittest.TestCase):
                 box_ext = m.bounding_box_oriented.primitive.extents.copy()
                 box_t = m.bounding_box_oriented.primitive.transform.copy()
 
+                # determinant of rotation should be 1.0
+                assert g.np.isclose(g.np.linalg.det(box_t[:3, :3]), 1.0)
+
                 m.apply_transform(g.np.linalg.inv(box_t))
 
                 test = m.bounds / (box_ext / 2.0)

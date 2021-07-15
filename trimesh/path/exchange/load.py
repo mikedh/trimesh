@@ -42,12 +42,11 @@ def load_path(file_obj, file_type=None, **kwargs):
             file_obj, file_type=file_type))
     elif util.is_string(file_obj):
         # strings passed are evaluated as file file_objects
-        with open(file_obj, 'rb') as file_file_obj:
+        with open(file_obj, 'rb') as f:
             # get the file type from the extension
             file_type = os.path.splitext(file_obj)[-1][1:].lower()
             # call the loader
-            kwargs.update(path_loaders[file_type](
-                file_file_obj, file_type=file_type))
+            kwargs.update(path_loaders[file_type](f, file_type=file_type))
     elif util.is_instance_named(file_obj, 'Polygon'):
         # convert from shapely polygons to Path2D
         kwargs.update(misc.polygon_to_path(file_obj))
