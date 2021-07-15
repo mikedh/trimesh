@@ -28,15 +28,16 @@ except ImportError:
 try:
     # newest version of algorithm
     from xxhash import xxh3_64_intdigest as fast_hash
-except ImportError:
+except BaseException:
     try:
+        # older version of the algorithm
         from xxhash import xxh64_intdigest as fast_hash
     except BaseException:
         log.debug('falling back to MD5 hashing: ' +
                   '`pip install xxhash`' +
                   ' for 30x faster cache checks')
-
-        def fast_hash(a): int(md5(a).hexdigest(), 16)
+        # use MD5 as a fallback hashing algorithm
+        def fast_hash(a): return int(md5(a).hexdigest(), 16)
 
 
 def tracked_array(array, dtype=None):
@@ -231,6 +232,7 @@ class TrackedArray(np.ndarray):
                 # t = util.tracked_array(np.random.random(10))[::-1]
                 self._hashed_xx = fast_hash(np.ascontiguousarray(self))
         self._modified_x = False
+
         return self._hashed_xx
 
     def __hash__(self):
