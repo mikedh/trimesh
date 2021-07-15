@@ -10,6 +10,7 @@ import numpy as np
 
 import zlib
 import hashlib
+from hashlib import md5
 
 from functools import wraps
 
@@ -21,13 +22,21 @@ try:
 except ImportError:
     from collections import Mapping
 
+# xxhash is roughly 5x faster than zlib.adler32 and
+# up to 30x faster than MD5, but is only
+# packaged in easy wheels on linux (`pip install xxhash`)
 try:
-    # xxhash is roughly 5x faster than zlib.adler32 but is only
-    # packaged in easy wheels on linux (`pip install xxhash`)
-    # so we keep it a soft dependency
-    import xxhash
+    # newest version of algorithm
+    from xxhash import xxh3_64_intdigest as fast_hash
 except ImportError:
-    xxhash = None
+    try:
+        from xxhash import xxh64_intdigest as fast_hash
+    except BaseException:
+        log.debug('falling back to MD5 hashing: ' +
+                  '`pip install xxhash`' +
+                  ' for 30x faster cache checks')
+
+        def fast_hash(a): int(md5(a).hexdigest(), 16)
 
 
 def tracked_array(array, dtype=None):
@@ -166,16 +175,14 @@ class TrackedArray(np.ndarray):
         """
         if self._modified_m or not hasattr(self, '_hashed_md5'):
             if self.flags['C_CONTIGUOUS']:
-                hasher = hashlib.md5(self)
-                self._hashed_md5 = hasher.hexdigest()
+                self._hashed_md5 = md5(self).hexdigest()
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
-                contiguous = np.ascontiguousarray(self)
-                hasher = hashlib.md5(contiguous)
-                self._hashed_md5 = hasher.hexdigest()
+                self._hashed_md5 = md5(
+                    np.ascontiguousarray(self)).hexdigest()
         self._modified_m = False
         return self._hashed_md5
 
@@ -202,7 +209,7 @@ class TrackedArray(np.ndarray):
         self._modified_c = False
         return self._hashed_crc
 
-    def _xxhash(self):
+    def fast_hash(self):
         """
         An xxhash.b64 hash of the array.
 
@@ -216,13 +223,13 @@ class TrackedArray(np.ndarray):
         # these functions are called millions of times so everything helps
         if self._modified_x or not hasattr(self, '_hashed_xx'):
             if self.flags['C_CONTIGUOUS']:
-                self._hashed_xx = xxhash.xxh64(self).intdigest()
+                self._hashed_xx = fast_hash(self)
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
-                self._hashed_xx = xxhash.xxh64(np.ascontiguousarray(self)).intdigest()
+                self._hashed_xx = fast_hash(np.ascontiguousarray(self))
         self._modified_x = False
         return self._hashed_xx
 
@@ -352,13 +359,6 @@ class TrackedArray(np.ndarray):
         self._modified_x = True
         super(self.__class__, self).__setslice__(*args,
                                                  **kwargs)
-
-    if xxhash is None:
-        # otherwise use our fastest CRC
-        fast_hash = crc
-    else:
-        # if xxhash is installed use it
-        fast_hash = _xxhash
 
 
 class Cache(object):
@@ -637,11 +637,10 @@ class DataStore(Mapping):
         md5 : str
           MD5 of data in hexadecimal
         """
-        hasher = hashlib.md5()
-        for key in sorted(self.data.keys()):
-            hasher.update(self.data[key].md5().encode('utf-8'))
-        md5 = hasher.hexdigest()
-        return md5
+        hasher = md5(''.join(
+            self.data[key].md5()
+            for key in sorted(self.data.keys())).encode('utf-8'))
+        return hasher.hexdigest()
 
     def crc(self):
         """
@@ -711,9 +710,3 @@ def _fast_crc(count=25):
 # get the fastest CRC32 available on the
 # current platform when trimesh is imported
 crc32 = _fast_crc()
-
-# add a shortcut for fast hashing
-if xxhash is None:
-    fast_hash = crc32
-else:
-    def fast_hash(x): return xxhash.xxh64(x).intdigest()
