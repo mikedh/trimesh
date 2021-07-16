@@ -44,7 +44,7 @@ class CacheTest(g.unittest.TestCase):
         # xxhash should be faster than CRC and MD5
         # it is sometimes slower on Windows/Appveyor TODO: figure out why
         try:
-            import xxhash
+            import xxhash  # NOQA
         except BaseException:
             return
         assert xt < mt
