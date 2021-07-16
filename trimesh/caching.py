@@ -9,7 +9,6 @@ and clearing cached values based on those changes.
 import numpy as np
 
 import zlib
-import hashlib
 from hashlib import md5
 
 from functools import wraps
@@ -671,7 +670,7 @@ class DataStore(Mapping):
         return fast
 
 
-def _fast_crc(count=25):
+def _fast_crc(count=10):
     """
     On certain platforms/builds zlib.adler32 is substantially
     faster than zlib.crc32, but it is not consistent across
