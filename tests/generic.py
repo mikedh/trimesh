@@ -185,6 +185,16 @@ def get_mesh(file_name, *args, **kwargs):
 def get_path(file_name):
     """
     Get the absolute location of a referenced model file.
+
+    Parameters
+    ------------
+    file_name : str
+      Name of model relative to `repo/models`
+
+    Returns
+    ------------
+    full : str
+      Full absolute path to model.
     """
     return os.path.abspath(
         os.path.join(dir_models, file_name))

@@ -43,9 +43,12 @@ class CacheTest(g.unittest.TestCase):
 
         # xxhash should be faster than CRC and MD5
         # it is sometimes slower on Windows/Appveyor TODO: figure out why
-        if g.trimesh.caching.xxhash is not None and g.platform.system() == 'Linux':
-            assert xt < mt
-            assert xt < ct
+        try:
+            import xxhash  # NOQA
+        except BaseException:
+            return
+        assert xt < mt
+        assert xt < ct
 
     def test_track(self):
         """
@@ -218,6 +221,22 @@ class CacheTest(g.unittest.TestCase):
         m.apply_transform(g.transforms[1])
         # should still be in the cache
         assert len(m.edges_face) == e_len
+
+    def test_simple_collision(self):
+        faces1 = g.np.array([0, 1, 2, 0, 3, 1, 0,
+                             2, 4, 0, 4, 5, 5, 6,
+                             3, 5, 3, 0, 7, 1, 3,
+                             7, 3, 6, 4, 2, 1, 4,
+                             1, 7, 5, 4, 7, 6, 5, 7],
+                            dtype=g.np.int64).reshape(-1, 3)
+        faces2 = g.np.array([0, 1, 2, 0, 3, 1, 2,
+                             4, 0, 5, 4, 2, 6, 3,
+                             0, 6, 0, 4, 6, 1, 3,
+                             6, 7, 1, 2, 7, 5, 2,
+                             1, 7, 4, 5, 7, 6, 4, 7],
+                            dtype=g.np.int64).reshape(-1, 3)
+        fast_hash = g.trimesh.caching.fast_hash
+        assert fast_hash(faces1) != fast_hash(faces2)
 
 
 if __name__ == '__main__':

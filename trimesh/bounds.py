@@ -219,7 +219,7 @@ def oriented_bounds(obj,
 
         # make sure transform isn't mangling triangles
         # by reversing windings on triangles
-        if np.isclose(np.trace(flip[:3, :3]), 0.0):
+        if not np.isclose(np.linalg.det(flip[:3, :3]), 1.0):
             flip[:3, :3] = np.dot(flip[:3, :3], -np.eye(3))
 
         # apply the flip to the OBB transform

@@ -42,6 +42,11 @@ class MinimalTest(unittest.TestCase):
                 assert len(m.face_adjacency.shape) == 2
                 assert len(m.vertices.shape) == 2
 
+                # make sure hash changes
+                initial = m._data.fast_hash()
+                m.vertices[:, 0] += 1.0
+                assert m._data.fast_hash() != initial
+
 
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
