@@ -13,9 +13,9 @@ def random_chr():
 class GraphTests(g.unittest.TestCase):
 
     def test_forest(self):
-        g = EnforcedForest()
+        graph = EnforcedForest()
         for i in range(5000):
-            g.add_edge(random_chr(), random_chr())
+            graph.add_edge(random_chr(), random_chr())
 
     def test_cache(self):
         for i in range(10):
@@ -59,6 +59,9 @@ class GraphTests(g.unittest.TestCase):
         ss = s.subscene('3')
         assert len(ss.geometry) == 1
         assert len(ss.graph.nodes_geometry) == 1
+
+        assert isinstance(s.graph.to_networkx(),
+                          g.nx.DiGraph)
 
     def test_kwargs(self):
         # test the function that converts various

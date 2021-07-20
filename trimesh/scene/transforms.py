@@ -338,6 +338,43 @@ class SceneGraph(object):
                 raise ValueError(
                     'edge incorrect shape: %s', str(edge))
 
+    def to_networkx(self):
+        """
+        Return a `networkx` copy of this graph.
+
+        Returns
+        ----------
+        graph : networkx.DiGraph
+          Directed graph.
+        """
+        import networkx
+        return networkx.from_edgelist(
+            self.to_edgelist(),
+            create_using=networkx.DiGraph)
+
+    def show(self, **kwargs):
+        """
+        Plot the scene graph using `networkx.draw_networkx`
+        which uses matplotlib to display the graph.
+
+        Parameters
+        -----------
+        kwargs : dict
+          Passed to `networkx.draw_networkx`
+        """
+        import networkx
+        import matplotlib.pyplot as plt
+        # default kwargs will only be set if not
+        # passed explicitly to the show command
+        defaults = {'with_labels': True}
+        kwargs.update(**{k: v for k, v in defaults.items()
+                         if k not in kwargs})
+        networkx.draw_networkx(
+            G=self.to_networkx(),
+            **kwargs)
+
+        plt.show()
+
     def load(self, edgelist):
         """
         Load transform data from an edge list into the current
