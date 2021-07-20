@@ -80,6 +80,11 @@ except BaseException as E:
     if all_dep:
         raise E
 
+try:
+    import networkx as nx
+except BaseException as E:
+    pass
+
 # find_executable for binvox
 has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
 
