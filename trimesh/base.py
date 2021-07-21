@@ -2241,7 +2241,7 @@ class Trimesh(Geometry3D):
         hull = convex.convex_hull(self)
         return hull
 
-    def sample(self, count, return_index=False):
+    def sample(self, count, return_index=False, face_weight=None):
         """
         Return random samples distributed across the
         surface of the mesh
@@ -2253,6 +2253,9 @@ class Trimesh(Geometry3D):
         return_index : bool
           If True will also return the index of which face each
           sample was taken from.
+        face_weight : None or len(mesh.faces) float
+          Weight faces by a factor other than face area.
+          If None will be the same as face_weight=mesh.area
 
         Returns
         ---------
@@ -2261,7 +2264,8 @@ class Trimesh(Geometry3D):
         face_index : (count, ) int
           Index of self.faces
         """
-        samples, index = sample.sample_surface(mesh=self, count=count)
+        samples, index = sample.sample_surface(
+            mesh=self, count=count, face_weight=face_weight)
         if return_index:
             return samples, index
         return samples
