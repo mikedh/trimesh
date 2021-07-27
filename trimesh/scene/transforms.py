@@ -543,6 +543,44 @@ class EnforcedForest(object):
 
         return True
 
+    def remove_node(self, u):
+        """
+        Remove a node from the forest.
+
+        Parameters
+        -----------
+        u : any
+          Hashable node key.
+
+        Returns
+        --------
+        changed : bool
+          Return if this operation changed anything.
+        """
+        # check if node is part of forest
+        if u not in self.node_data:
+            return False
+
+        # topology will change so clear cache
+        self._cache = {}
+
+        # delete all children's references and parent reference
+        children = [child for (child, parent) in self.parents.items() if parent == u]
+        for c in children:
+            del self.parents[c]
+        if u in self.parents:
+            del self.parents[u]
+
+        # delete edge data
+        edges = [(a, b) for (a, b) in self.edge_data if a == u or b == u]
+        for e in edges:
+            del self.edge_data[e]
+
+        # delete node data
+        del self.node_data[u]
+
+        return True
+
     def shortest_path(self, u, v):
         """
         Find the shortest path beween `u` and `v`.

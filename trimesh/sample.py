@@ -4,13 +4,14 @@ sample.py
 
 Randomly sample surface and volume of meshes.
 """
+
 import numpy as np
 
 from . import util
 from . import transformations
 
 
-def sample_surface(mesh, count):
+def sample_surface(mesh, count, face_weight=None):
     """
     Sample the surface of a mesh, returning the specified
     number of points
@@ -24,6 +25,9 @@ def sample_surface(mesh, count):
       Geometry to sample the surface of
     count : int
       Number of points to return
+    face_weight : None or len(mesh.faces) float
+      Weight faces by a factor other than face area.
+      If None will be the same as face_weight=mesh.area
 
     Returns
     ---------
@@ -33,15 +37,18 @@ def sample_surface(mesh, count):
       Indices of faces for each sampled point
     """
 
-    # len(mesh.faces) float, array of the areas
-    # of each face of the mesh
-    area = mesh.area_faces
-    # total area (float)
-    area_sum = np.sum(area)
-    # cumulative area (len(mesh.faces))
-    area_cum = np.cumsum(area)
-    face_pick = np.random.random(count) * area_sum
-    face_index = np.searchsorted(area_cum, face_pick)
+    if face_weight is None:
+        # len(mesh.faces) float, array of the areas
+        # of each face of the mesh
+        face_weight = mesh.area_faces
+
+    # cumulative sum of weights (len(mesh.faces))
+    weight_cum = np.cumsum(face_weight)
+
+    # last value of cumulative sum is total summed weight/area
+    face_pick = np.random.random(count) * weight_cum[-1]
+    # get the index of the selected faces
+    face_index = np.searchsorted(weight_cum, face_pick)
 
     # pull triangles into the form of an origin + 2 vectors
     tri_origins = mesh.triangles[:, 0]

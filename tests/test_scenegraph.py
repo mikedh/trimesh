@@ -86,6 +86,23 @@ class GraphTests(g.unittest.TestCase):
         assert g.np.allclose(combine[:3, :3], rot[:3, :3])
         assert g.np.allclose(combine[:3, 3], trans)
 
+    def test_remove_node(self):
+        s = g.get_mesh("CesiumMilkTruck.glb")
+
+        assert len(s.graph.nodes_geometry) == 5
+        assert len(s.graph.nodes) == 9
+        assert len(s.graph.transforms.node_data) == 9
+        assert len(s.graph.transforms.edge_data) == 8
+        assert len(s.graph.transforms.parents) == 8
+
+        assert s.graph.transforms.remove_node("1")
+
+        assert len(s.graph.nodes_geometry) == 5
+        assert len(s.graph.nodes) == 9
+        assert len(s.graph.transforms.node_data) == 8
+        assert len(s.graph.transforms.edge_data) == 6
+        assert len(s.graph.transforms.parents) == 6
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
