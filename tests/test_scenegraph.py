@@ -88,7 +88,7 @@ class GraphTests(g.unittest.TestCase):
 
     def test_remove_node(self):
         s = g.get_mesh("CesiumMilkTruck.glb")
-        
+
         assert len(s.graph.nodes_geometry) == 5
         assert len(s.graph.nodes) == 9
         assert len(s.graph.transforms.node_data) == 9
