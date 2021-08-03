@@ -502,11 +502,13 @@ class Scene(Geometry3D):
                   for k, m in self.geometry.items()
                   if hasattr(m, 'identifier_md5')}
 
+        # bring into local scope for loop
+        graph = self.graph
         # get a hash for each node name
         # scene.graph node name : hashed geometry
         node_hash = {node: hashes.get(
             graph[node][1]) for
-            node in self.graph.nodes_geometry}
+            node in graph.nodes_geometry}
 
         # collect node names for each hash key
         duplicates = collections.defaultdict(list)
