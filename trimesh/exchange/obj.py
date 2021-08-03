@@ -757,7 +757,7 @@ def export_obj(mesh,
       Include vertex normals in export
     include_color : bool
       Include vertex color in export
-    include_texture bool
+    include_texture : bool
       Include `vt` texture in file text
     return_texture : bool
       If True, return a dict with texture files

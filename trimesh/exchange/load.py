@@ -296,28 +296,32 @@ def load_compressed(file_obj,
                 available = mesh_formats()
 
         for name, data in files.items():
-            # only load formats that we support
-            compressed_type = util.split_extension(name).lower()
-            if compressed_type not in available:
-                # don't raise an exception, just try the next one
-                continue
-            # store the file name relative to the archive
-            metadata['file_name'] = (archive_name + '/' +
-                                     os.path.basename(name))
-            # load the individual geometry
-            loaded = load(file_obj=data,
-                          file_type=compressed_type,
-                          resolver=resolver,
-                          metadata=metadata,
-                          **kwargs)
+            try:
+                # only load formats that we support
+                compressed_type = util.split_extension(name).lower()
+                if compressed_type not in available:
+                    # don't raise an exception, just try the next one
+                    continue
+                # store the file name relative to the archive
+                metadata['file_name'] = (archive_name + '/' +
+                                         os.path.basename(name))
+                # load the individual geometry
+                loaded = load(file_obj=data,
+                              file_type=compressed_type,
+                              resolver=resolver,
+                              metadata=metadata,
+                              **kwargs)
 
-            # some loaders return multiple geometries
-            if util.is_sequence(loaded):
-                # if the loader has returned a list of meshes
-                geometries.extend(loaded)
-            else:
-                # if the loader has returned a single geometry
-                geometries.append(loaded)
+                # some loaders return multiple geometries
+                if util.is_sequence(loaded):
+                    # if the loader has returned a list of meshes
+                    geometries.extend(loaded)
+                else:
+                    # if the loader has returned a single geometry
+                    geometries.append(loaded)
+            except BaseException:
+                log.debug('failed to load file in zip',
+                          exc_info=True)
 
     finally:
         # if we opened the file in this function

@@ -490,29 +490,35 @@ class Scene(Geometry3D):
 
         Returns
         -----------
-        duplicates : (m) sequenc
-          Keys of self.nodes that represent identical geometry
+        duplicates : (m) sequence
+          Keys of self.graph that represent identical geometry
         """
         # if there is no geometry we can have no duplicate nodes
         if len(self.geometry) == 0:
             return []
 
         # geometry name : md5 of mesh
-        mesh_hash = {k: int(m.identifier_md5, 16)
-                     for k, m in self.geometry.items()}
-        # the name of nodes in the scene graph with geometry
-        node_names = np.array(self.graph.nodes_geometry)
-        # the geometry names for each node in the same order
-        node_geom = np.array([self.graph[i][1] for i in node_names])
-        # the mesh md5 for each node in the same order
-        node_hash = np.array([mesh_hash[v] for v in node_geom])
-        # indexes of identical hashes
-        node_groups = grouping.group(node_hash)
-        # sequence of node names where each
-        # sublist has identical geometry
-        duplicates = [np.sort(node_names[g]).tolist()
-                      for g in node_groups]
-        return duplicates
+        hashes = {k: int(m.identifier_md5, 16)
+                  for k, m in self.geometry.items()
+                  if hasattr(m, 'identifier_md5')}
+
+        # bring into local scope for loop
+        graph = self.graph
+        # get a hash for each node name
+        # scene.graph node name : hashed geometry
+        node_hash = {node: hashes.get(
+            graph[node][1]) for
+            node in graph.nodes_geometry}
+
+        # collect node names for each hash key
+        duplicates = collections.defaultdict(list)
+        # use a slightly off-label list comprehension
+        # for debatable function call overhead avoidance
+        [duplicates[hashed].append(node) for node, hashed
+         in node_hash.items() if hashed is not None]
+
+        # we only care about the values keys are garbage
+        return list(duplicates.values())
 
     def deduplicated(self):
         """
