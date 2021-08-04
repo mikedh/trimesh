@@ -15,15 +15,15 @@ class CacheTest(g.unittest.TestCase):
 
         count = 10000
 
-        mt = g.timeit.timeit(setup=setup,
-                             stmt='t._modified_m=True;t.md5()',
-                             number=count)
-        ct = g.timeit.timeit(setup=setup,
-                             stmt='t._modified_c=True;t.crc()',
-                             number=count)
-        xt = g.timeit.timeit(setup=setup,
-                             stmt='t._modified_x=True;t.fast_hash()',
-                             number=count)
+        g.timeit.timeit(setup=setup,
+                        stmt='t._modified_m=True;t.md5()',
+                        number=count)
+        g.timeit.timeit(setup=setup,
+                        stmt='t._modified_c=True;t.crc()',
+                        number=count)
+        g.timeit.timeit(setup=setup,
+                        stmt='t._modified_x=True;t.fast_hash()',
+                        number=count)
 
         m = g.get_mesh('featuretype.STL')
         # log result values
@@ -31,24 +31,6 @@ class CacheTest(g.unittest.TestCase):
             m.vertices.md5(),
             m.vertices.crc(),
             m.vertices.fast_hash()))
-
-        # crc should always be faster than MD5
-        g.log.info('\nTime\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
-            mt, ct, xt))
-
-        # CRC should be faster than MD5
-        # this is NOT true if you blindly call adler32
-        # but our speed check on import should assure this
-        assert ct < mt
-
-        # xxhash should be faster than CRC and MD5
-        # it is sometimes slower on Windows/Appveyor TODO: figure out why
-        try:
-            import xxhash  # NOQA
-        except BaseException:
-            return
-        assert xt < mt
-        assert xt < ct
 
     def test_track(self):
         """
