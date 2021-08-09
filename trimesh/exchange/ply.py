@@ -525,6 +525,12 @@ def elements_to_kwargs(elements,
             # incorrectly is a ValueError
             pass
 
+    if faces is not None:
+        shape = np.shape(faces)
+        if len(shape) != 2:
+            # we may have mixed quads and triangles handle them with function
+            faces = triangulate_quads(faces)
+
     if texcoord is None:
         # ply has no clear definition of how texture coordinates are stored,
         # unfortunately there are many common names that we need to try
@@ -546,15 +552,11 @@ def elements_to_kwargs(elements,
 
     if faces is not None:
         shape = np.shape(faces)
-        if len(shape) != 2:
-            # we may have mixed quads and triangles handle them with function
-            faces = triangulate_quads(faces)
 
         # PLY stores texture coordinates per-face which is
         # slightly annoying, as we have to then figure out
         # which vertices have the same position but different UV
-        if (image is not None and
-            texcoord is not None and
+        if (texcoord is not None and
             len(shape) == 2 and
                 texcoord.shape == (faces.shape[0], faces.shape[1] * 2)):
 
