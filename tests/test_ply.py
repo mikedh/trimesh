@@ -186,7 +186,7 @@ class PlyTest(g.unittest.TestCase):
 
         # test texture coordinate loading for simple triangulated Blender-export
         mesh_names.append('cube_blender_uv.ply')
-        
+
         # same mesh but re-exported from meshlab as binary ply (and with changed header)
         mesh_names.append('cube_blender_uv_meshlab.ply')
 

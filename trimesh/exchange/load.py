@@ -295,10 +295,20 @@ def load_compressed(file_obj,
             else:
                 available = mesh_formats()
 
+        meta_archive = {}
         for name, data in files.items():
             try:
                 # only load formats that we support
                 compressed_type = util.split_extension(name).lower()
+
+                # if file has metadata type include it
+                if compressed_type in 'yaml':
+                    import yaml
+                    meta_archive[name] = yaml.safe_load(data)
+                elif compressed_type in 'json':
+                    import json
+                    meta_archive[name] = json.loads(data)
+
                 if compressed_type not in available:
                     # don't raise an exception, just try the next one
                     continue
@@ -331,6 +341,10 @@ def load_compressed(file_obj,
 
     # append meshes or scenes into a single Scene object
     result = append_scenes(geometries)
+
+    # append any archive metadata files
+    if isinstance(result, Scene):
+        result.metadata.update(meta_archive)
 
     return result
 
