@@ -657,10 +657,10 @@ def slice_mesh_plane(mesh,
     from .creation import triangulate_polygon
 
     # check input plane
-    plane_normal = np.asanyarray(plane_normal,
-                                 dtype=np.float64)
-    plane_origin = np.asanyarray(plane_origin,
-                                 dtype=np.float64)
+    plane_normal = np.asanyarray(
+        plane_normal, dtype=np.float64)
+    plane_origin = np.asanyarray(
+        plane_origin, dtype=np.float64)
 
     # check to make sure origins and normals have acceptable shape
     shape_ok = ((plane_origin.shape == (3,) or

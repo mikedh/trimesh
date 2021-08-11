@@ -525,30 +525,38 @@ def elements_to_kwargs(elements,
             # incorrectly is a ValueError
             pass
 
-    if texcoord is None:
-        try:
-            # If texture coordinates are defined with vertices
-            t_u = elements['vertex']['data']['texture_u']
-            t_v = elements['vertex']['data']['texture_v']
-            texcoord = np.stack((
-                t_u[faces.reshape(-1)],
-                t_v[faces.reshape(-1)]), axis=-1).reshape(
-                    (faces.shape[0], -1))
-        except (ValueError, KeyError):
-            # if the fields didn't exist
-            pass
-
     if faces is not None:
         shape = np.shape(faces)
         if len(shape) != 2:
             # we may have mixed quads and triangles handle them with function
             faces = triangulate_quads(faces)
 
+    if texcoord is None:
+        # ply has no clear definition of how texture coordinates are stored,
+        # unfortunately there are many common names that we need to try
+        texcoord_names = [('texture_u', 'texture_v'), ('u', 'v'), ('s', 't')]
+        for names in texcoord_names:
+            # If texture coordinates are defined with vertices
+            try:
+                t_u = elements['vertex']['data'][names[0]]
+                t_v = elements['vertex']['data'][names[1]]
+                texcoord = np.stack((
+                    t_u[faces.reshape(-1)],
+                    t_v[faces.reshape(-1)]), axis=-1).reshape(
+                        (faces.shape[0], -1))
+                # stop trying once succeeded
+                break
+            except (ValueError, KeyError):
+                # if the fields didn't exist
+                pass
+
+    if faces is not None:
+        shape = np.shape(faces)
+
         # PLY stores texture coordinates per-face which is
         # slightly annoying, as we have to then figure out
         # which vertices have the same position but different UV
-        if (image is not None and
-            texcoord is not None and
+        if (texcoord is not None and
             len(shape) == 2 and
                 texcoord.shape == (faces.shape[0], faces.shape[1] * 2)):
 
@@ -586,6 +594,12 @@ def elements_to_kwargs(elements,
             # create the visuals object for the texture
             kwargs['visual'] = visual.texture.TextureVisuals(
                 uv=uv, image=image)
+        elif texcoord is not None:
+            # create a texture with an empty material
+            from ..visual.texture import TextureVisuals
+            uv = np.zeros((len(vertices), 2))
+            uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
+            kwargs['visual'] = TextureVisuals(uv=uv)
         # faces were not none so assign them
         kwargs['faces'] = faces
     # kwargs for Trimesh or PointCloud

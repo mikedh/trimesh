@@ -1109,6 +1109,15 @@ class Path2D(Path):
 
     @property
     def body_count(self):
+        """
+        Returns a count of the number of unconnected polygons that
+        may contain other curves but aren't contained themselves.
+
+        Returns
+        ---------
+        body_count : int
+          Number of unconnected independant polygons.
+        """
         return len(self.root)
 
     def to_3D(self, transform=None):
@@ -1118,9 +1127,9 @@ class Path2D(Path):
         Parameters
         -------------
         transform : (4, 4) float
-            If passed, will transform vertices.
-            If not passed and 'to_3D' is in metadata
-            that transform will be used.
+          If passed, will transform vertices.
+          If not passed and 'to_3D' is in self.metadata
+          that transform will be used.
 
         Returns
         -----------
@@ -1401,7 +1410,16 @@ class Path2D(Path):
 
     def plot_entities(self, show=False, annotations=True, color=None):
         """
-        Plot the entities of the path, with no notion of topology
+        Plot the entities of the path with no notion of topology.
+
+        Parameters
+        ------------
+        show : bool
+          Open a window immediately or not
+        annotations : bool
+          Call an entities custom plot function.
+        color : str
+          Override entity colors and make them all this color.
         """
         import matplotlib.pyplot as plt
         # keep plot axis scaled the same
@@ -1496,7 +1514,12 @@ class Path2D(Path):
     @caching.cache_decorator
     def enclosure(self):
         """
-        Networkx Graph object of polygon enclosure.
+        Undirected graph object of polygon enclosure.
+
+        Returns
+        -----------
+        enclosue : networkx.Graph
+          Enclosure graph of self.polygons by index.
         """
         with self._cache:
             undirected = self.enclosure_directed.to_undirected()
@@ -1505,7 +1528,13 @@ class Path2D(Path):
     @caching.cache_decorator
     def enclosure_directed(self):
         """
-        Networkx DiGraph of polygon enclosure
+        Directed graph of polygon enclosure.
+
+        Returns
+        ----------
+        enclosure_directed : networkx.DiGraph
+          Directed graph: child nodes are fully
+          contained by their parent node.
         """
         root, enclosure = polygons.enclosure_tree(self.polygons_closed)
         self._cache['root'] = root

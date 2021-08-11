@@ -531,11 +531,17 @@ def pack(materials, uvs, deduplicate=True):
         # how big was the original image
         scale = img.size / final_size
         # what is the offset in fractions of final image
-        uv_off = off / final_size
+        xy_off = off / final_size
         # scale and translate each of the new UV coordinates
         # [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
         # TODO : figure out why this is broken sometimes...
-        [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
+
+        def transform_uvs(uv, scale, xy_off):
+            xy = np.stack([uv[:, 0], 1 - uv[:, 1]], axis=-1)
+            xy = (xy * scale) + xy_off
+            return np.stack([xy[:, 0], 1 - xy[:, 1]], axis=-1)
+
+        [new_uv.append(transform_uvs(uvs[i], scale, xy_off)) for i in idxs]
 
     # stack UV coordinates into single (n, 2) array
     stacked = np.vstack(new_uv)

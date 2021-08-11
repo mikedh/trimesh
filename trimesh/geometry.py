@@ -168,7 +168,7 @@ def triangulate_quads(quads, dtype=np.int64):
     elif len(quads.shape) == 2 and quads.shape[1] == 3:
         # if they are just triangles return immediately
         return quads.astype(dtype)
-    elif quads.shape == 2 and quads.shape[1] == 4:
+    elif len(quads.shape) == 2 and quads.shape[1] == 4:
         # if they are just quads stack and return
         return np.vstack((quads[:, [0, 1, 2]],
                           quads[:, [2, 3, 0]])).astype(dtype)

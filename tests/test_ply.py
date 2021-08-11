@@ -180,6 +180,24 @@ class PlyTest(g.unittest.TestCase):
                 assert isinstance(reconstructed, g.trimesh.PointCloud)
                 assert hasattr(reconstructed, 'vertices')
 
+    def test_blender_uv(self):
+        # test texture coordinate loading for Blender exported ply files
+        mesh_names = []
+
+        # test texture coordinate loading for simple triangulated Blender-export
+        mesh_names.append('cube_blender_uv.ply')
+
+        # same mesh but re-exported from meshlab as binary ply (and with changed header)
+        mesh_names.append('cube_blender_uv_meshlab.ply')
+
+        # test texture coordinate loading for mesh with mixed quads and triangles
+        mesh_names.append('suzanne.ply')
+
+        for mesh_name in mesh_names:
+            m = g.get_mesh(mesh_name)
+            assert hasattr(m, 'visual') and hasattr(m.visual, 'uv')
+            assert m.visual.uv.shape[0] == m.vertices.shape[0]
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
