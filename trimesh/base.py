@@ -1450,6 +1450,18 @@ class Trimesh(Geometry3D):
         return self._cache['face_adjacency_span']
 
     @caching.cache_decorator
+    def integral_mean_curvature(self):
+        """
+        The integral mean curvature, or the surface integral of the mean curvature.
+
+        Returns
+        ---------
+        area : float
+          Integral mean curvature of mesh
+        """
+    	return np.sum(self.face_adjacency_angles*self.edges_unique_length)/2
+        
+    @caching.cache_decorator
     def vertex_adjacency_graph(self):
         """
         Returns a networkx graph representing the vertices and their connections
