@@ -1459,7 +1459,9 @@ class Trimesh(Geometry3D):
         area : float
           Integral mean curvature of mesh
         """
-    	return np.sum(self.face_adjacency_angles*self.edges_unique_length)/2
+        edges_length = np.linalg.norm(np.subtract(*m.vertices[m.face_adjacency_edges.T]), axis=1)
+        imc = (self.face_adjacency_angles * edges_length).sum() * 0.5
+        return imc
         
     @caching.cache_decorator
     def vertex_adjacency_graph(self):
