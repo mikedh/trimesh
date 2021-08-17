@@ -514,7 +514,10 @@ def sorted_brle_gather_1d(brle_data, ordered_indices):
     """
     data_iter = iter(brle_data)
     index_iter = iter(ordered_indices)
-    index = next(index_iter)
+    try:
+        index = next(index_iter)
+    except StopIteration:
+        return
     start = 0
     value = True
     while True:
