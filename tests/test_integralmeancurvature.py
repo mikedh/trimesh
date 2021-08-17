@@ -10,7 +10,8 @@ class IntegralMeanCurvatureTest(g.unittest.TestCase):
         # how close do we need to be - relative tolerance
         tol = 1e-3
         for radius in [0.1, 1.0, 3.1459, 29.20]:
-            m = g.trimesh.creation.icosphere(subdivisions=4, radius=radius)
+            m = g.trimesh.creation.icosphere(
+                subdivisions=4, radius=radius)
             IMC = m.integral_mean_curvature
             ref = 4 * g.np.pi * radius
             assert g.np.isclose(IMC, ref, rtol=tol)
