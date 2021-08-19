@@ -213,31 +213,41 @@ class MultiMaterial(Material):
         if materials is None:
             self.materials = []
         else:
-            self._materials = materials
+            self.materials = materials
+
+    def to_pbr(self):
+        """
+        TODO : IMPLEMENT
+        """
+        pbr = [m for m in self.materials
+               if isinstance(m, PBRMaterial)]
+        if len(pbr) == 0:
+            return PBRMaterial()
+        return pbr[0]
 
     def __hash__(self):
         """
-            Provide a hash of the multi material so we can detect
-            duplicates.
+        Provide a hash of the multi material so we can detect
+        duplicates.
 
-            Returns
-            ------------
-            hash : int
-              Xor hash of the contained materials.
+        Returns
+        ------------
+        hash : int
+          Xor hash of the contained materials.
         """
-        hashed = np.bitwise_xor.reduce(
-            [hash(m) for m in self._materials])
+        hashed = int(np.bitwise_xor.reduce(
+            [hash(m) for m in self.materials]))
 
         return hashed
 
     def __iter__(self):
-        return iter(self._materials)
+        return iter(self.materials)
 
     def __next__(self):
-        return next(self._materials)
+        return next(self.materials)
 
     def __len__(self):
-        return len(self._materials)
+        return len(self.materials)
 
     @property
     def main_color(self):
@@ -259,7 +269,7 @@ class MultiMaterial(Material):
         material : Material
             The material to be added.
         """
-        self._materials.append(material)
+        self.materials.append(material)
 
     def get(self, idx):
         """
@@ -274,7 +284,7 @@ class MultiMaterial(Material):
         -------
             The material on the given index.
         """
-        return self._materials[idx]
+        return self.materials[idx]
 
 
 class PBRMaterial(Material):
@@ -407,7 +417,7 @@ class PBRMaterial(Material):
         if hasattr(self.baseColorFactor, 'tobytes'):
             hashed ^= hash(self.baseColorFactor.tobytes())
 
-        return hashed
+        return int(hashed)
 
 
 def empty_material(color=None):
