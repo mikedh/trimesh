@@ -266,9 +266,10 @@ class GLTFTest(g.unittest.TestCase):
 
             rd = g.trimesh.load(
                 g.os.path.join(d, 'model.gltf'), merge_primitives=True)
+            assert isinstance(rd, g.trimesh.Scene)
             # will assert round trip is roughly equal
             # TODO : restore
-            #g.scene_equal(rd, a)
+            # g.scene_equal(rd, a)
 
     def test_optional_camera(self):
         gltf_cameras_key = 'cameras'
