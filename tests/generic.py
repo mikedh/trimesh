@@ -367,6 +367,34 @@ def scene_equal(a, b):
             m.volume, b.geometry[k].volume, rtol=0.001)
 
 
+def texture_equal(a, b):
+    """
+    Make sure the texture in two meshes have the same
+    face-uv-position results.
+
+    Parameters
+    ------------
+    a : trimesh.Trimesh
+      Mesh to check
+    b : trimesh.Trimesh
+      Should be identical
+    """
+    try:
+        from scipy.spatial import cKDTree
+    except BaseException:
+        log.error('no scipy for check!', exc_info=True)
+        return
+
+    # an ordered position-face-UV blob to check
+    pa = np.hstack((a.vertices, a.visual.uv))[
+        a.faces].reshape((-1, 15))
+    pb = np.hstack((b.vertices, b.visual.uv))[
+        b.faces].reshape((-1, 15))
+    # query their actual ordered values against each other
+    q = cKDTree(pa).query_ball_tree(cKDTree(pb), r=1e-4)
+    assert all(i in match for i, match in enumerate(q))
+
+
 def check_fuze(fuze):
     """
     Check the classic textured mesh: a fuze bottle

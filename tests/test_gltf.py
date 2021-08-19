@@ -713,6 +713,9 @@ class GLTFTest(g.unittest.TestCase):
         assert g.np.allclose(m.faces,
                              s.faces)
 
+        # will run a kdtree check
+        g.texture_equal(s, m)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
