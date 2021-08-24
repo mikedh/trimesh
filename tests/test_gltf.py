@@ -437,7 +437,7 @@ class GLTFTest(g.unittest.TestCase):
                     val.vertex_attributes[key],
                     sphere.vertex_attributes[key])
                 assert is_same is True
-
+ 
     def test_extras(self):
         # if GLTF extras are defined, make sure they survive a round trip
         s = g.get_mesh('cycloidal.3DXML')
@@ -446,30 +446,17 @@ class GLTFTest(g.unittest.TestCase):
         dummy = {'who': 'likes cheese', 'potatoes': 25}
 
         # export as GLB with extras passed to the exporter then re-load
-        export = s.export(file_type='glb', extras=dummy)
-        validate_glb(export)
-        r = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(export),
-            file_type='glb')
-
-        # shouldn't be in original metadata
-        assert 'extras' not in s.metadata
-        # make sure extras survived a round trip
-        assert all(r.metadata['extras'][k] == v
-                   for k, v in dummy.items())
-
-        # now assign the extras to the metadata
-        s.metadata['extras'] = dummy
-        # export as GLB then re-load
+        s.metadata = dummy
         export = s.export(file_type='glb')
         validate_glb(export)
         r = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
-        # make sure extras survived a round trip
-        assert all(r.metadata['extras'][k] == v
-                   for k, v in dummy.items())
 
+        # make sure extras survived a round trip
+        assert all(r.metadata[k] == v
+                   for k, v in dummy.items())
+        
     def test_extras_nodes(self):
 
         test_metadata = {
@@ -481,18 +468,24 @@ class GLTFTest(g.unittest.TestCase):
             'test_dict': {'a': 1, 'b': 2}}
 
         sphere1 = g.trimesh.primitives.Sphere(radius=1.0)
+        sphere1.metadata.update(test_metadata)
         sphere2 = g.trimesh.primitives.Sphere(radius=2.0)
-
-        # transformations.euler_from_quaternion(obj.transform.rotation, axes='sxyz')
+        sphere2.metadata.update(test_metadata)
+        
         node1_transform = g.trimesh.transformations.translation_matrix([0, 0, -2])
         node2_transform = g.trimesh.transformations.translation_matrix([5, 5, 5])
 
         s = g.trimesh.scene.Scene()
-        s.add_geometry(sphere1, node_name="Sphere1", geom_name="Geom Sphere1",
-                       transform=node1_transform, extras=test_metadata)
-        s.add_geometry(sphere2, node_name="Sphere2", geom_name="Geom Sphere2",
-                       parent_node_name="Sphere1", transform=node2_transform,
-                       extras=test_metadata)
+        s.add_geometry(
+            sphere1,
+            node_name="Sphere1",
+            geom_name="Geom Sphere1",
+            transform=node1_transform)
+        s.add_geometry(sphere2,
+                       node_name="Sphere2",
+                       geom_name="Geom Sphere2",
+                       parent_node_name="Sphere1",
+                       transform=node2_transform)
 
         # Test extras appear in the exported model nodes
         files = s.export(None, "gltf")
@@ -518,8 +511,9 @@ class GLTFTest(g.unittest.TestCase):
         # expected data
         check = {'name': 'monkey', 'age': 32, 'height': 0.987}
 
-        # get the scene extras
-        extras = scene.metadata["scene_extras"]
+        from IPython import embed
+        embed()
+        extras = scene.metadata['scene_extras']
 
         # check number
         assert len(extras) == 3

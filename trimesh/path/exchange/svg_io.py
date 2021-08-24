@@ -318,8 +318,18 @@ def _svg_path_convert(paths, metadata=None, force=None):
     return kwargs
 
 
-def _entities_to_str(entities, vertices, layers=None):
+def _entities_to_str(entities, vertices, metadata):
     """
+    Convert the entities of a path to path strings.
+
+    Parameters
+    ------------
+    entities : (n,) list
+      Entity objects
+    vertices : (m, 2) float
+      Vertices entities reference
+    metadata : dict or None
+      Metadata to be included as an attrib
     """
 
     points = vertices.copy()
@@ -385,17 +395,21 @@ def _entities_to_str(entities, vertices, layers=None):
                 *discrete.reshape(-1))
         return result
 
-    def convert(entity, reverse=False):
-        if layers is not None and entity.layer not in layers:
-            return ''
+    layers = []
+    pathstr = []
+    for e in entities:
         # the class name of the entity
         etype = entity.__class__.__name__
         if etype == 'Arc':
             # export the exact version of the entity
-            return svg_arc(entity, reverse=False)
+            pathstr.append(svg_arc(entity, reverse=False))
+            layers.append(e.layer)
+            
         else:
             # just export the polyline version of the entity
             return svg_discrete(entity, reverse=False)
+        
+        
     # convert each entity to an SVG entity
     converted = ' '.join(convert(e) for e in entities).strip()
 
@@ -404,7 +418,6 @@ def _entities_to_str(entities, vertices, layers=None):
 
 def export_svg(drawing,
                return_path=False,
-               layers=None,
                **kwargs):
     """
     Export a Path2D object into an SVG file.
@@ -426,17 +439,20 @@ def export_svg(drawing,
     attrib = {}
     if util.is_instance_named(drawing, 'Scene'):
         attrib['class'] = 'Scene'
-        paths = {name: (g.metadata, _entities_to_str(entities=g.entities,
-                                                     vertices=g.vertices,
-                                                     layers=layers))
+        paths = {name: _entities_to_str(
+            entities=g.entities,
+            vertices=g.vertices,
+            layers=g.layers,
+            metadata=g.metadata)
                  for name, g in drawing.geometry.items()
                  if util.is_instance_named(g, 'Path2D')}
     elif util.is_instance_named(drawing, 'Path2D'):
         attrib['class'] = 'Path2D'
-        paths = {'path': (None, _entities_to_str(
+        paths = {'path': _entities_to_str(
             entities=drawing.entities,
             vertices=drawing.vertices,
-            layers=layers))}
+            layers=drawing.layers,
+            metadta=drawing.metadata))}
     else:
         raise ValueError('drawing must be Scene or Path2D object!')
 
@@ -457,6 +473,8 @@ def export_svg(drawing,
             attribs=_format_attrib(data),
             path_string=stuff[1],
             fill="none"))
+        from IPython import embed
+        embed()
 
     # format as XML
     if 'stroke_width' in kwargs:

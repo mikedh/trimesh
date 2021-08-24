@@ -69,6 +69,7 @@ uint8 = np.dtype("<u1")
 def export_gltf(scene,
                 include_normals=None,
                 merge_buffers=False,
+                resolver=None,
                 tree_postprocessor=None):
     """
     Export a scene object as a GLTF directory.
@@ -80,6 +81,14 @@ def export_gltf(scene,
     -----------
     scene : trimesh.Scene
       Scene to be exported
+    include_normals : None or bool
+      Include vertex normals
+    merge_buffers : bool
+      Merge buffers into one blob.
+    resolver : trimesh.resolvers.Resolver
+      If passed will use to write each file.
+    tree_postprocesser : None or callable
+      Run this on the header tree before exiting.
 
     Returns
     ----------
@@ -107,10 +116,8 @@ def export_gltf(scene,
         views = _build_views(buffer_items)
         buffer_name = "gltf_buffer.bin"
         buffer_data = bytes().join(buffer_items.values())
-        buffers = [{
-            "uri": buffer_name,
-            "byteLength": len(buffer_data)}
-        ]
+        buffers = [{"uri": buffer_name,
+                    "byteLength": len(buffer_data)}]
         files[buffer_name] = buffer_data
     else:
         # make one buffer per buffer_items
@@ -119,14 +126,12 @@ def export_gltf(scene,
         views = [None] * len(buffer_items)
         # create the buffer views
         for i, item in enumerate(buffer_items.values()):
-            views[i] = {
-                "buffer": i,
-                "byteOffset": 0,
-                "byteLength": len(item)}
+            views[i] = {"buffer": i,
+                        "byteOffset": 0,
+                        "byteLength": len(item)}
             buffer_name = "gltf_buffer_{}.bin".format(i)
-            buffers[i] = {
-                "uri": buffer_name,
-                "byteLength": len(item)}
+            buffers[i] = {"uri": buffer_name,
+                          "byteLength": len(item)}
             files[buffer_name] = item
 
     if len(buffers) > 0:
@@ -135,6 +140,10 @@ def export_gltf(scene,
     # dump tree with compact separators
     files["model.gltf"] = util.jsonify(
         tree, separators=(',', ':')).encode("utf-8")
+
+    if resolver is not None:
+        for name, data in files.items():
+            resolver.write(name=name, data=data)
 
     if tol.strict:
         validate(tree)
@@ -706,8 +715,8 @@ def _append_mesh(mesh,
         if mesh.units not in [None, 'm', 'meters', 'meter']:
             current["extras"]["units"] = str(mesh.units)
 
-    except BaseException as E:
-        log.warning('mesh metadata not serializable, dropping!',
+    except BaseException:
+        log.warning('metadata not serializable, dropping!',
                     exc_info=True)
 
     # check to see if we have vertex or face colors
