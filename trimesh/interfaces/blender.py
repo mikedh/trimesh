@@ -72,7 +72,7 @@ def unwrap(mesh, angle_limit=66, island_margin=0.0, debug=False):
         raise ValueError('No blender available!')
 
     # get the template from our resources folder
-    template = resources.get('blender_unwrap.py.template')
+    template = resources.get('templates/blender_unwrap.py')
     script = template.replace('$ANGLE_LIMIT', "%.6f" % angle_limit
                               ).replace('$ISLAND_MARGIN', "%.6f" % island_margin)
 

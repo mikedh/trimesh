@@ -17,6 +17,8 @@ from ..util import ABC
 
 class Entity(ABC):
 
+    _metadata = {}
+
     def __init__(self,
                  points,
                  closed=None,
@@ -29,11 +31,50 @@ class Entity(ABC):
         if closed is not None:
             self.closed = closed
         # save the passed layer
-        self.layer = layer
+        if layer is not None:
+            self.layer = layer
         # save the passed color
         self.color = color
         # save any other kwargs for general use
         self.kwargs = kwargs
+
+    @property
+    def metadata(self):
+        """
+        Get any metadata about the entity.
+
+        Returns
+        ---------
+        metadata : dict
+          Bag of properties.
+        """
+        # note that we don't let a new dict be assigned
+        return self._metadata
+
+    @property
+    def layer(self):
+        """
+        Set the layer the entity resides on as a shortcut
+        to putting it in the entity metadata.
+
+        Returns
+        ----------
+        layer : any
+          Hashable layer identifier.
+        """
+        return self._metadata.get('layer')
+
+    @layer.setter
+    def layer(self, value):
+        """
+        Set the current layer of the entity.
+
+        Returns
+        ----------
+        layer : any
+          Hashable layer indicator
+        """
+        self.metadata['layer'] = value
 
     def to_dict(self):
         """
@@ -283,7 +324,8 @@ class Text(Entity):
         # how high is the text entity
         self.height = height
         # what layer is the entity on
-        self.layer = layer
+        if layer is not None:
+            self.layer = layer
         # what color is the entity
         self.color = color
 
@@ -704,14 +746,16 @@ class BSpline(Curve):
     An open or closed B- Spline.
     """
 
-    def __init__(self, points,
+    def __init__(self,
+                 points,
                  knots,
                  layer=None,
                  color=None,
                  **kwargs):
         self.points = np.asanyarray(points, dtype=np.int64)
         self.knots = np.asanyarray(knots, dtype=np.float64)
-        self.layer = layer
+        if layer is not None:
+            self.layer = layer
         self.kwargs = kwargs
         self.color = color
 

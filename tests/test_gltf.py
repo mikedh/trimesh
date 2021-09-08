@@ -437,7 +437,7 @@ class GLTFTest(g.unittest.TestCase):
                     val.vertex_attributes[key],
                     sphere.vertex_attributes[key])
                 assert is_same is True
- 
+
     def test_extras(self):
         # if GLTF extras are defined, make sure they survive a round trip
         s = g.get_mesh('cycloidal.3DXML')
@@ -456,7 +456,7 @@ class GLTFTest(g.unittest.TestCase):
         # make sure extras survived a round trip
         assert all(r.metadata[k] == v
                    for k, v in dummy.items())
-        
+
     def test_extras_nodes(self):
 
         test_metadata = {
@@ -471,7 +471,7 @@ class GLTFTest(g.unittest.TestCase):
         sphere1.metadata.update(test_metadata)
         sphere2 = g.trimesh.primitives.Sphere(radius=2.0)
         sphere2.metadata.update(test_metadata)
-        
+
         node1_transform = g.trimesh.transformations.translation_matrix([0, 0, -2])
         node2_transform = g.trimesh.transformations.translation_matrix([5, 5, 5])
 

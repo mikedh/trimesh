@@ -917,10 +917,9 @@ def attach_to_log(level=logging.DEBUG,
         blacklist = ['TerminalIPythonApp',
                      'PYREADLINE',
                      'pyembree',
-                     'shapely.geos',
-                     'shapely.speedups._speedups',
-                     'parso.cache',
-                     'parso.python.diff']
+                     'shapely',
+                     'matplotlib',
+                     'parso']
 
     # make sure we log warnings from the warnings module
     logging.captureWarnings(capture_warnings)
@@ -967,7 +966,7 @@ def attach_to_log(level=logging.DEBUG,
     for logger in loggers:
         # skip loggers on the blacklist
         if (logger.__class__.__name__ != 'Logger' or
-                logger.name in blacklist):
+                any(logger.name.startswith(b) for b in blacklist)):
             continue
         logger.addHandler(handler)
         logger.setLevel(level)

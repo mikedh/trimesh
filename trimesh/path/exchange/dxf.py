@@ -577,7 +577,7 @@ def export_dxf(path, layers=None):
     """
     # get the TEMPLATES for exporting DXF files
     TEMPLATES = {k: Template(v) for k, v in
-                 resources.get('dxf.json.template',
+                 resources.get('templates/dxf.json',
                                decode_json=True).items()}
 
     def format_points(points,

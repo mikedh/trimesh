@@ -211,9 +211,9 @@ class Path(parent.Geometry):
         layers : (len(entities), ) any
           Whatever is stored in each `entity.layer`
         """
-        # layer is a required property for entities
-        layers = [e.layer for e in self.entities]
-        return layers
+        # layer is a required meta-property for entities
+        return [e._metadata.get('layer')
+                for e in self.entities]
 
     def crc(self):
         """

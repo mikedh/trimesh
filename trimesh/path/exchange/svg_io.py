@@ -12,7 +12,8 @@ from ... import grouping
 from ... import resources
 from ... import exceptions
 
-from ... transformations import transform_points, planar_matrix
+from ...util import jsonify
+from ...transformations import transform_points, planar_matrix
 
 try:
     # pip install svg.path
@@ -318,7 +319,7 @@ def _svg_path_convert(paths, metadata=None, force=None):
     return kwargs
 
 
-def _entities_to_str(entities, vertices, metadata):
+def _entities_to_str(entities, vertices):
     """
     Convert the entities of a path to path strings.
 
@@ -343,7 +344,7 @@ def _entities_to_str(entities, vertices, metadata):
                         d=fmt.format(2.0 * radius),
                         rev=int(bool(reverse)))
 
-    def svg_arc(arc, reverse):
+    def svg_arc(arc, reverse=False):
         """
         arc string: (rx ry x-axis-rotation large-arc-flag sweep-flag x y)+
         large-arc-flag: greater than 180 degrees
@@ -377,7 +378,7 @@ def _entities_to_str(entities, vertices, metadata):
         move_str = 'M ' + x_ex + ',' + y_ex
         return move_str
 
-    def svg_discrete(entity, reverse):
+    def svg_discrete(entity, reverse=False):
         """
         Use an entities discrete representation to export a
         curve as a polyline
@@ -395,25 +396,21 @@ def _entities_to_str(entities, vertices, metadata):
                 *discrete.reshape(-1))
         return result
 
-    layers = []
-    pathstr = []
-    for e in entities:
+    # tuples of (metadata, path string)
+    pairs = []
+
+    for entity in entities:
         # the class name of the entity
         etype = entity.__class__.__name__
         if etype == 'Arc':
             # export the exact version of the entity
-            pathstr.append(svg_arc(entity, reverse=False))
-            layers.append(e.layer)
-            
+            path_string = svg_arc(entity)
         else:
             # just export the polyline version of the entity
-            return svg_discrete(entity, reverse=False)
-        
-        
-    # convert each entity to an SVG entity
-    converted = ' '.join(convert(e) for e in entities).strip()
+            path_string = svg_discrete(entity)
+        pairs.append((entity._metadata.copy(), path_string))
 
-    return converted
+    return pairs
 
 
 def export_svg(drawing,
@@ -428,53 +425,41 @@ def export_svg(drawing,
      Source geometry
     return_path : bool
       If True return only path string not wrapped in XML
-    layers : None, or [str]
-      Only export specified layers
 
     Returns
     -----------
     as_svg : str
       XML formatted SVG, or path string
     """
-    attrib = {}
     if util.is_instance_named(drawing, 'Scene'):
-        attrib['class'] = 'Scene'
-        paths = {name: _entities_to_str(
-            entities=g.entities,
-            vertices=g.vertices,
-            layers=g.layers,
-            metadata=g.metadata)
-                 for name, g in drawing.geometry.items()
-                 if util.is_instance_named(g, 'Path2D')}
+        pairs = []
+        for name, geom in drawing.geometry.items():
+            if not util.is_instance_named(geom, 'Path2D'):
+                continue
+        pairs.extend(_entities_to_str(
+            entities=geom.entities,
+            vertices=geom.vertices))
     elif util.is_instance_named(drawing, 'Path2D'):
-        attrib['class'] = 'Path2D'
-        paths = {'path': _entities_to_str(
+        pairs = _entities_to_str(
             entities=drawing.entities,
-            vertices=drawing.vertices,
-            layers=drawing.layers,
-            metadta=drawing.metadata))}
+            vertices=drawing.vertices)
+
     else:
         raise ValueError('drawing must be Scene or Path2D object!')
 
     # return path string without XML wrapping
     if return_path:
-        return ' '.join(v[1] for v in paths.values())
+        return ' '.join(v[1] for v in pairs)
 
     # fetch the export template for the base SVG file
-    template_svg = resources.get('svg.base.template', decode=True)
-    template_path = resources.get('svg.path.template', decode=True)
+    template_svg = resources.get('templates/base.svg')
 
     elements = []
-    for name, stuff in paths.items():
-        data = {'name': name}
-        if stuff[0] is not None:
-            data['metadata'] = _jsonify(stuff[0])
-        elements.append(template_path.format(
-            attribs=_format_attrib(data),
-            path_string=stuff[1],
-            fill="none"))
-        from IPython import embed
-        embed()
+    for meta, path_string in pairs:
+        # create a simple path element
+        elements.append('<path d="{d}" {attr}/>'.format(
+            d=path_string,
+            attr=_format_attrib(meta)))
 
     # format as XML
     if 'stroke_width' in kwargs:
@@ -484,7 +469,8 @@ def export_svg(drawing,
         stroke_width = drawing.extents.max() / 800.0
     try:
         # store metadata in XML as JSON -_-
-        attrib['metadata'] = _jsonify(drawing.metadata)
+        attribs = {'metadata': _jsonify(drawing.metadata).replace(
+            '"', "'")}
     except BaseException:
         # otherwise skip metadata
         pass
@@ -495,17 +481,27 @@ def export_svg(drawing,
             'width': drawing.extents[0],
             'height': drawing.extents[1],
             'stroke_width': stroke_width,
-            'attribs': _format_attrib(attrib)}
-    result = template_svg.format(**subs)
-
-    return result
+            'attribs': _format_attrib(attribs)}
+    return template_svg.format(**subs)
 
 
 def _format_attrib(attrib):
+    """
+    Format attribs into the trimesh namespace.
+
+    Parameters
+    -----------
+    attrib : dict
+      Bag of keys and values.
+    """
     return '\n'.join('{ns}:{key}="{value}"'.format(
-        ns=_ns_name, key=k, value=v) for k, v in attrib.items())
+        ns=_ns_name, key=k, value=v) for k, v in attrib.items()
+        if len(str(k)) > 0 and len(str(v)) > 0)
 
 
 def _jsonify(stuff):
-    return util.jsonify(
-        stuff, separators=(',', ':')).replace('"', "'")
+    try:
+        return jsonify(
+            stuff, separators=(',', ':')).replace('"', "'")
+    except BaseException:
+        return ''

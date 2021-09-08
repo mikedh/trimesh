@@ -47,7 +47,27 @@ class MetaTest(g.unittest.TestCase):
                 a.metadata.keys())
 
             # every original value must match exactly
-            assert all(b.metadata[k] == v for k, v in a.metadata.items())
+            assert all(b.metadata[k] == v for k, v
+                       in a.metadata.items())
+
+    def test_svg(self):
+        p = g.get_mesh('2D/1002_tray_bottom.DXF')
+
+        assert len(p.layers) == len(p.entities)
+        assert all(e.layer == '0' for e in p.entities)
+        assert all(L == '0' for L in p.layers)
+
+        r = g.trimesh.load(
+            file_obj=g.trimesh.util.wrap_as_stream(
+                p.export(file_type='svg')),
+            file_type='svg')
+
+        # make sure we didn't stomp on original
+        assert all(e.layer == '0' for e in p.entities)
+        assert all(e.layer == '0' for e in r.entities)
+        assert all(i == j for i, j in zip(p.layers, r.layers))
+        assert p.metadata == r.metadata
+        assert len(p.metadata) > 0
 
 
 if __name__ == '__main__':

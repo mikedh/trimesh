@@ -273,7 +273,8 @@ def export_ply(mesh,
     dtype_color = ('rgba', '<u1', (4))
 
     # get template strings in dict
-    templates = resources.get('ply.template', decode_json=True)
+    templates = resources.get('templates/ply.json',
+                              decode_json=True)
     # start collecting elements into a string for the header
     header = [templates['intro']]
 
