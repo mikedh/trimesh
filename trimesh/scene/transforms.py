@@ -20,7 +20,7 @@ class SceneGraph(object):
 
     def __init__(self, base_frame='world'):
         """
-        Create a scene graph, holding homogenous transformation
+        Create a scene graph, holding homogeneous transformation
         matrices and instance information about geometry.
 
         Parameters
@@ -136,7 +136,7 @@ class SceneGraph(object):
             # parent -> child -> child
             path = self.transforms.shortest_path(
                 frame_from, frame_to)
-            # collect a homogenous transform for each edge
+            # collect a homogeneous transform for each edge
             matrices = [edge_data[(u, v)]['matrix'] for u, v in
                         zip(path[:-1], path[1:])]
             # multiply matrices into single transform
@@ -583,7 +583,7 @@ class EnforcedForest(object):
 
     def shortest_path(self, u, v):
         """
-        Find the shortest path beween `u` and `v`.
+        Find the shortest path between `u` and `v`.
 
         Note that it will *always* be ordered from
         root direction to leaf direction, so `u` may
@@ -713,12 +713,12 @@ def kwargs_to_matrix(
         **kwargs):
     """
     Take multiple keyword arguments and parse them
-    into a homogenous transformation matrix.
+    into a homogeneous transformation matrix.
 
     Returns
     ---------
     matrix : (4, 4) float
-      Homogenous transformation matrix.
+      Homogeneous transformation matrix.
     """
     if matrix is not None:
         # a matrix takes immediate precedence over other options

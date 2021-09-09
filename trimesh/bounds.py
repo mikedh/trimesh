@@ -398,7 +398,7 @@ def to_extents(bounds):
     extents : (3,) float
       Extents of the bounding box
     transform : (4, 4) float
-      Homogenous transform moving extents to bounds
+      Homogeneous transform moving extents to bounds
     """
     bounds = np.asanyarray(bounds, dtype=np.float64)
     if bounds.shape != (2, 3):

@@ -253,7 +253,7 @@ class SceneTests(g.unittest.TestCase):
         assert sum(len(i) for i in dupe) == 29
 
         # test cache dumping and survivability of bad
-        # non-existant geometry specified in node_geometry
+        # non-existent geometry specified in node_geometry
         s.graph.update(dupe[0][0], geometry='GARBAGE')
         # make sure geometry was updated
         assert s.graph[dupe[0][0]][1] == 'GARBAGE'

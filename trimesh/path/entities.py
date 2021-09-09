@@ -5,9 +5,9 @@ entities.py
 Basic geometric primitives which only store references to
 vertex indices rather than vertices themselves.
 """
-import copy
 import numpy as np
 
+from copy import deepcopy
 from .arc import discretize_arc, arc_center
 from .curve import discretize_bezier, discretize_bspline
 
@@ -17,12 +17,11 @@ from ..util import ABC
 
 class Entity(ABC):
 
-    _metadata = {}
-
     def __init__(self,
                  points,
                  closed=None,
                  layer=None,
+                 metadata=None,
                  color=None,
                  **kwargs):
         # points always reference vertex indices and are int
@@ -33,6 +32,9 @@ class Entity(ABC):
         # save the passed layer
         if layer is not None:
             self.layer = layer
+        if metadata is not None:
+            self.metadata.update(metadata)
+
         # save the passed color
         self.color = color
         # save any other kwargs for general use
@@ -48,6 +50,8 @@ class Entity(ABC):
         metadata : dict
           Bag of properties.
         """
+        if not hasattr(self, '_metadata'):
+            self._metadata = {}
         # note that we don't let a new dict be assigned
         return self._metadata
 
@@ -62,7 +66,7 @@ class Entity(ABC):
         layer : any
           Hashable layer identifier.
         """
-        return self._metadata.get('layer')
+        return self.metadata.get('layer')
 
     @layer.setter
     def layer(self, value):
@@ -248,7 +252,13 @@ class Entity(ABC):
         copied : Entity
           Copy of current entity
         """
-        return copy.deepcopy(self)
+        copied = deepcopy(self)
+        copied._metadata = deepcopy(self._metadata)
+
+        # check for very annoying subtle copy failures
+        assert id(copied._metadata) != id(self._metadata)
+        assert id(copied.points) != id(self.points)
+        return copied
 
     def __hash__(self):
         """
@@ -293,7 +303,8 @@ class Text(Entity):
                  normal=None,
                  align=None,
                  layer=None,
-                 color=None):
+                 color=None,
+                 metadata=None):
         """
         An entity for text labels.
 
@@ -326,6 +337,10 @@ class Text(Entity):
         # what layer is the entity on
         if layer is not None:
             self.layer = layer
+
+        if metadata is not None:
+            self.metadata.update(metadata)
+
         # what color is the entity
         self.color = color
 
@@ -750,12 +765,16 @@ class BSpline(Curve):
                  points,
                  knots,
                  layer=None,
+                 metadata=None,
                  color=None,
                  **kwargs):
         self.points = np.asanyarray(points, dtype=np.int64)
         self.knots = np.asanyarray(knots, dtype=np.float64)
         if layer is not None:
             self.layer = layer
+        if metadata is not None:
+            self.metadata.update(metadata)
+
         self.kwargs = kwargs
         self.color = color
 
