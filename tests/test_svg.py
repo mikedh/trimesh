@@ -138,8 +138,6 @@ class ExportTest(g.unittest.TestCase):
                 assert a.metadata == b.metadata
             except BaseException:
                 print('TODO')
-                #from IPython import embed
-                # embed()
 
         assert g.np.isclose(
             sum(i.area for i in s.geometry.values()),

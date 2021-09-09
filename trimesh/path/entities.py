@@ -253,10 +253,11 @@ class Entity(ABC):
           Copy of current entity
         """
         copied = deepcopy(self)
-        copied._metadata = deepcopy(self._metadata)
-
-        # check for very annoying subtle copy failures
-        assert id(copied._metadata) != id(self._metadata)
+        # only copy metadata if set
+        if hasattr(self, '_metadata'):
+            copied._metadata = deepcopy(self._metadata)
+            # check for very annoying subtle copy failures
+            assert id(copied._metadata) != id(self._metadata)
         assert id(copied.points) != id(self.points)
         return copied
 
