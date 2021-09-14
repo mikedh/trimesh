@@ -239,9 +239,24 @@ class GLTFTest(g.unittest.TestCase):
         assert len(a.geometry) == 4
 
         # should combine the multiple primitives into a single mesh
-        b = g.get_mesh('CesiumMilkTruck.glb',
-                       merge_primitives=True)
+        b = g.get_mesh(
+            'CesiumMilkTruck.glb', merge_primitives=True)
         assert len(b.geometry) == 2
+
+    def test_write_dir(self):
+        # try loading from a file name
+        # will require a file path resolver
+        original = g.get_model('fuze.obj')
+        assert isinstance(original, g.trimesh.Trimesh)
+        s = original.scene()
+        with g.TemporaryDirectory() as d:
+            path = g.os.path.join(d, 'heyy.gltf')
+            s.export(file_obj=path)
+            r = g.trimesh.load(path)
+            assert isinstance(r, g.trimesh.Scene)
+            assert len(r.geometry) == 1
+            m = next(iter(r.geometry.values()))
+            g.check_fuze(m)
 
     def test_merge_primitives_materials(self):
         # test to see if the `merge_primitives` logic is working
@@ -511,17 +526,11 @@ class GLTFTest(g.unittest.TestCase):
         # expected data
         check = {'name': 'monkey', 'age': 32, 'height': 0.987}
 
-        from IPython import embed
-        embed()
-        extras = scene.metadata['scene_extras']
-
-        # check number
-        assert len(extras) == 3
-
+        meta = scene.metadata
         for key in check:
             # \check key existence and value
-            assert key in extras
-            assert extras[key] == check[key]
+            assert key in meta
+            assert meta[key] == check[key]
 
     def test_load_empty_nodes(self):
         # loads a glb with no meshes

@@ -16,7 +16,11 @@ from .dae import _collada_exporters
 from .xyz import _xyz_exporters
 
 
-def export_mesh(mesh, file_obj, file_type=None, resolver=None, **kwargs):
+def export_mesh(mesh,
+                file_obj,
+                file_type=None,
+                resolver=None,
+                **kwargs):
     """
     Export a Trimesh object to a file- like object, or to a filename
 
@@ -185,7 +189,11 @@ def scene_to_dict(scene, use_base64=False):
     return export
 
 
-def export_scene(scene, file_obj, file_type=None, **kwargs):
+def export_scene(scene,
+                 file_obj,
+                 file_type=None,
+                 resolver=None,
+                 **kwargs):
     """
     Export a snapshot of the current scene.
 
@@ -220,9 +228,7 @@ def export_scene(scene, file_obj, file_type=None, **kwargs):
     elif file_type == 'dict':
         data = scene_to_dict(scene)
     elif file_type == 'obj':
-        resolver = None
-        if util.is_string(file_obj):
-            from .. import resolvers
+        if resolver is None and util.is_string(file_obj):
             resolver = resolvers.FilePathResolver(file_obj)
         data = export_obj(scene, resolver=resolver)
     elif file_type == 'dict64':
@@ -239,6 +245,24 @@ def export_scene(scene, file_obj, file_type=None, **kwargs):
             'unsupported export format: {}'.format(file_type))
 
     # now write the data or return bytes of result
+    if isinstance(data, dict):
+        # GLTF files return a dict-of-bytes as they
+        # represent multiple files so create a filepath
+        # resolver and write the files if someone passed
+        # a path we can write to.
+        if resolver is None and util.is_string(file_obj):
+            resolver = resolvers.FilePathResolver(file_obj)
+            # the requested "gltf"
+            bare_path = os.path.split(file_obj)[-1]
+            for name, blob in data.items():
+                if name == 'model.gltf':
+                    # write the root data to specified file
+                    resolver.write(bare_path, blob)
+                else:
+                    # write the supporting files
+                    resolver.write(name, blob)
+        return data
+
     if hasattr(file_obj, 'write'):
         # if it's just a regular file object
         return util.write_encoded(file_obj, data)

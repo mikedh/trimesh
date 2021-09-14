@@ -69,7 +69,6 @@ uint8 = np.dtype("<u1")
 def export_gltf(scene,
                 include_normals=None,
                 merge_buffers=False,
-                resolver=None,
                 tree_postprocessor=None):
     """
     Export a scene object as a GLTF directory.
@@ -140,10 +139,6 @@ def export_gltf(scene,
     # dump tree with compact separators
     files["model.gltf"] = util.jsonify(
         tree, separators=(',', ':')).encode("utf-8")
-
-    if resolver is not None:
-        for name, data in files.items():
-            resolver.write(name=name, data=data)
 
     if tol.strict:
         validate(tree)
@@ -542,8 +537,7 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
     return material
 
 
-def _create_gltf_structure(scene,
-                           include_normals=None):
+def _create_gltf_structure(scene, include_normals=None):
     """
     Generate a GLTF header.
 
@@ -714,7 +708,6 @@ def _append_mesh(mesh,
             mesh.metadata))
         if mesh.units not in [None, 'm', 'meters', 'meter']:
             current["extras"]["units"] = str(mesh.units)
-
     except BaseException:
         log.warning('metadata not serializable, dropping!',
                     exc_info=True)
@@ -1477,9 +1470,12 @@ def _read_buffers(header,
               "geometry": meshes,
               "graph": graph,
               "base_frame": base_frame}
-    # load any extras into scene.metadata
-    if isinstance(header.get('extras'), dict):
-        result['metadata'] = header['extras']
+    try:
+        # load any scene extras into scene.metadata
+        # use a try except to avoid nested key checks
+        result['metadata'] = header['scenes'][header['scene']]['extras']
+    except BaseException:
+        pass
 
     return result
 
