@@ -375,7 +375,10 @@ def sorted_rle_gather_1d(rle_data, ordered_indices):
     """
     data_iter = iter(rle_data)
     index_iter = iter(ordered_indices)
-    index = next(index_iter)
+    try:
+        index = next(index_iter)
+    except StopIteration:
+        return
     start = 0
     while True:
         while start <= index:
