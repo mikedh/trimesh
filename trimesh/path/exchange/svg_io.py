@@ -263,7 +263,6 @@ def _svg_path_convert(paths, force=None):
                'CubicBezier': load_cubic,
                'QuadraticBezier': load_quadratic}
 
-    meta = {}
     entities = collections.defaultdict(list)
     vertices = collections.defaultdict(list)
     counts = collections.defaultdict(lambda: 0)
@@ -308,8 +307,8 @@ def _svg_path_convert(paths, force=None):
                 k.lstrip(_ns): _decode(v)
                 for k, v in attrib.items()
                 if k[1:].startswith(_ns_url)}
-        except BaseException as E:
-            entity_meta = None
+        except BaseException:
+            entity_meta = {}
 
         # loop through parsed entity objects
         for svg_entity in parsed:

@@ -583,7 +583,7 @@ def _create_gltf_structure(scene,
             # fail here if data isn't json compatible
             util.jsonify(meta)
             # only export the extras if there is something there
-            tree['scenes'][0]['extras'] = {'metadata': meta}
+            tree['scenes'][0]['extras'] = meta
         except BaseException:
             log.warning(
                 'failed to export scene metadata!', exc_info=True)
@@ -1475,8 +1475,8 @@ def _read_buffers(header,
     try:
         # load any scene extras into scene.metadata
         # use a try except to avoid nested key checks
-        result['metadata'] = header['scenes'][header['scene']][
-            'extras']['metadata']
+        result['metadata'] = header['scenes'][
+            header['scene']]['extras']
     except BaseException:
         pass
 
