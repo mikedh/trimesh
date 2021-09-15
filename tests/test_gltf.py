@@ -246,7 +246,7 @@ class GLTFTest(g.unittest.TestCase):
     def test_write_dir(self):
         # try loading from a file name
         # will require a file path resolver
-        original = g.get_model('fuze.obj')
+        original = g.get_mesh('fuze.obj')
         assert isinstance(original, g.trimesh.Trimesh)
         s = original.scene()
         with g.TemporaryDirectory() as d:

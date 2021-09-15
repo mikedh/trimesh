@@ -537,7 +537,9 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
     return material
 
 
-def _create_gltf_structure(scene, include_normals=None):
+def _create_gltf_structure(scene,
+                           include_normals=None,
+                           include_metadata=True):
     """
     Generate a GLTF header.
 
@@ -545,8 +547,8 @@ def _create_gltf_structure(scene, include_normals=None):
     -------------
     scene : trimesh.Scene
       Input scene data
-    extras : JSON serializable
-      Will be stored in the extras field
+    include_metadata : bool
+      Include `scene.metadata` as `scenes/{idx}/extras/metadata`
     include_normals : bool
       Include vertex normals in output file?
 
@@ -574,17 +576,17 @@ def _create_gltf_structure(scene, include_normals=None):
     if scene.has_camera:
         tree["cameras"] = [_convert_camera(scene.camera)]
 
-    # collect extras from passed arguments and metadata
-    collected = scene.metadata.copy()
-    try:
-        # fail here if data isn't json compatible
-        util.jsonify(collected)
-        # only export the extras if there is something there
-        if len(collected) > 0:
-            tree['extras'] = collected
-    except BaseException:
-        log.warning('failed to export scene metadata!',
-                    exc_info=True)
+    if include_metadata and len(scene.metadata) > 0:
+        try:
+            # collect extras from passed arguments and metadata
+            meta = scene.metadata.copy()
+            # fail here if data isn't json compatible
+            util.jsonify(meta)
+            # only export the extras if there is something there
+            tree['scenes'][0]['extras'] = {'metadata': meta}
+        except BaseException:
+            log.warning(
+                'failed to export scene metadata!', exc_info=True)
 
     # store materials as {hash : index} to avoid duplicates
     mat_hashes = {}
@@ -1473,7 +1475,8 @@ def _read_buffers(header,
     try:
         # load any scene extras into scene.metadata
         # use a try except to avoid nested key checks
-        result['metadata'] = header['scenes'][header['scene']]['extras']
+        result['metadata'] = header['scenes'][header['scene']][
+            'extras']['metadata']
     except BaseException:
         pass
 

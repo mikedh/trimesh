@@ -134,10 +134,8 @@ class ExportTest(g.unittest.TestCase):
         # check to see if every geometry has the same metadata
         for geom in s.geometry.keys():
             a, b = s.geometry[geom], r.geometry[geom]
-            try:
-                assert a.metadata == b.metadata
-            except BaseException:
-                print('TODO')
+
+            assert a.metadata == b.metadata
 
         assert g.np.isclose(
             sum(i.area for i in s.geometry.values()),
@@ -146,4 +144,9 @@ class ExportTest(g.unittest.TestCase):
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
-    g.unittest.main()
+
+    import pyinstrument
+    profiler = pyinstrument.Profiler()
+    with profiler:
+        g.unittest.main()
+    print(profiler.output_text())
