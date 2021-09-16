@@ -48,7 +48,7 @@ def boolean(meshes, operation='difference', debug=False):
         operation = 'INTERSECT'
 
     # get the template from our resources folder
-    template = resources.get('blender_boolean.py.template')
+    template = resources.get('templates/blender_boolean.py')
     script = template.replace('$OPERATION', operation)
 
     with MeshScript(meshes=meshes,
