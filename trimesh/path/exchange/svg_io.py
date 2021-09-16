@@ -1,5 +1,10 @@
 import json
+import base64
+import collections
+
 import numpy as np
+
+from copy import deepcopy
 
 from ..arc import arc_center
 from ..entities import Line, Arc, Bezier
@@ -12,7 +17,8 @@ from ... import grouping
 from ... import resources
 from ... import exceptions
 
-from ... transformations import transform_points, planar_matrix
+from ...util import jsonify
+from ...transformations import transform_points, planar_matrix
 
 try:
     # pip install svg.path
@@ -30,8 +36,9 @@ except BaseException as E:
     etree = exceptions.ExceptionModule(E)
 
 # store any additional properties using a trimesh namespace
-_ns_url = 'https://github.com/mikedh/trimesh'
 _ns_name = 'trimesh'
+_ns_url = 'https://github.com/mikedh/trimesh'
+_ns = '{{{}}}'.format(_ns_url)
 
 
 def svg_to_path(file_obj, file_type=None):
@@ -89,22 +96,42 @@ def svg_to_path(file_obj, file_type=None):
                       element_transform(element)))
 
     try:
-        # get overall metadata from JSON string if it exists
-        metadata = json.loads(
-            tree.attrib['{{{}}}metadata'.format(
-                _ns_url)].replace("'", '"'))
-    except BaseException:
-        # no metadata stored with trimesh ns
-        metadata = None
-    try:
-        # see if the SVG was
-        force = tree.attrib['{{{}}}class'.format(_ns_url)]
+        # see if the SVG should be reproduced as a scene
+        force = tree.attrib[_ns + 'class']
     except BaseException:
         force = None
 
-    return _svg_path_convert(paths=paths,
-                             metadata=metadata,
-                             force=force)
+    result = _svg_path_convert(paths=paths, force=force)
+    try:
+        # get overall metadata from JSON string if it exists
+        result['metadata'] = _decode(
+            tree.attrib[_ns + 'metadata'])
+    except KeyError:
+        # not in the trimesh ns
+        pass
+    except BaseException:
+        # no metadata stored with trimesh ns
+        log.warning('failed metadata', exc_info=True)
+
+    # if the result is a scene try to get the metadata
+    # for each subgeometry here
+    if 'geometry' in result:
+        try:
+            # get per-geometry metadata if available
+            bag = _decode(
+                tree.attrib[_ns + 'metadata_geometry'])
+            for name, meta in bag.items():
+                if name in result['geometry']:
+                    # assign this metadata to the geometry
+                    result['geometry'][name]['metadata'] = meta
+        except KeyError:
+            # no stored geometry metadata so ignore
+            pass
+        except BaseException:
+            # failed to load existing metadata
+            log.warning('failed metadata', exc_info=True)
+
+    return result
 
 
 def transform_to_matrices(transform):
@@ -175,7 +202,7 @@ def transform_to_matrices(transform):
     return matrices
 
 
-def _svg_path_convert(paths, metadata=None, force=None):
+def _svg_path_convert(paths, force=None):
     """
     Convert an SVG path string into a Path2D object
 
@@ -195,21 +222,22 @@ def _svg_path_convert(paths, metadata=None, force=None):
 
     def load_multi(multi):
         # load a previously parsed multiline
-        return Line(np.arange(len(multi.points)) + v_count), multi.points
+        return (Line(points=np.arange(len(multi.points)) + counts[name]),
+                multi.points)
 
     def load_arc(svg_arc):
         # load an SVG arc into a trimesh arc
         points = complex_to_float([svg_arc.start,
                                    svg_arc.point(0.5),
                                    svg_arc.end])
-        return Arc(np.arange(3) + v_count), points
+        return Arc(points=np.arange(3) + counts[name]), points
 
     def load_quadratic(svg_quadratic):
         # load a quadratic bezier spline
         points = complex_to_float([svg_quadratic.start,
                                    svg_quadratic.control,
                                    svg_quadratic.end])
-        return Bezier(np.arange(3) + v_count), points
+        return Bezier(points=np.arange(3) + counts[name]), points
 
     def load_cubic(svg_cubic):
         # load a cubic bezier spline
@@ -217,13 +245,7 @@ def _svg_path_convert(paths, metadata=None, force=None):
                                    svg_cubic.control1,
                                    svg_cubic.control2,
                                    svg_cubic.end])
-        return Bezier(np.arange(4) + v_count), points
-
-    # load functions for each entity
-    loaders = {'Arc': load_arc,
-               'MultiLine': load_multi,
-               'CubicBezier': load_cubic,
-               'QuadraticBezier': load_quadratic}
+        return Bezier(np.arange(4) + counts[name]), points
 
     class MultiLine(object):
         # An object to hold one or multiple Line entities.
@@ -241,19 +263,28 @@ def _svg_path_convert(paths, metadata=None, force=None):
                                     for i in points],
                                    dtype=np.float64)
 
-    # store loaded values here
-    # TODO : get from SVG
-    as_scene = force == 'Scene'
+    # load functions for each entity
+    loaders = {'Arc': load_arc,
+               'MultiLine': load_multi,
+               'CubicBezier': load_cubic,
+               'QuadraticBezier': load_quadratic}
 
-    collected = {}
-    entities = []
-    vertices = []
-    v_count = 0
+    entities = collections.defaultdict(list)
+    vertices = collections.defaultdict(list)
+    counts = collections.defaultdict(lambda: 0)
 
     for attrib, matrix in paths:
+        # the path string is stored under `d`
         path_string = attrib['d']
+
+        # get the name of the geometry if trimesh specified it
+        # note that the get will by default return `None`
+        name = _decode(attrib.get(_ns + 'name'))
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
+        # if there is no path string exit
+        if len(raw) == 0:
+            continue
         # check to see if each entity is "line-like"
         is_line = np.array([type(i).__name__ in
                             ('Line', 'Close')
@@ -261,6 +292,7 @@ def _svg_path_convert(paths, metadata=None, force=None):
         # find groups of consecutive lines so we can combine them
         blocks = grouping.blocks(
             is_line, min_len=1, only_nonzero=False)
+
         if tol.strict:
             # in unit tests make sure we didn't lose any entities
             assert np.allclose(np.hstack(blocks),
@@ -275,6 +307,14 @@ def _svg_path_convert(paths, metadata=None, force=None):
             else:
                 # otherwise just add the entities
                 parsed.extend(raw[b])
+        try:
+            # try to retrieve any trimesh attributes as metadata
+            entity_meta = {
+                k.lstrip(_ns): _decode(v)
+                for k, v in attrib.items()
+                if k[1:].startswith(_ns_url)}
+        except BaseException:
+            entity_meta = {}
 
         # loop through parsed entity objects
         for svg_entity in parsed:
@@ -283,43 +323,42 @@ def _svg_path_convert(paths, metadata=None, force=None):
             if type_name in loaders:
                 # get new entities and vertices
                 e, v = loaders[type_name](svg_entity)
+                e.metadata.update(entity_meta)
                 # append them to the result
-                entities.append(e)
+                entities[name].append(e)
                 # transform the vertices by the matrix and append
-                vertices.append(transform_points(v, matrix))
-                v_count += len(vertices[-1])
+                vertices[name].append(transform_points(v, matrix))
+                counts[name] += len(v)
 
-        if as_scene:
-            name = attrib['{{{}}}name'.format(_ns_url)]
-            try:
-                p_meta = json.loads(attrib['{{{}}}metadata'.format(
-                    _ns_url)].replace("'", '"'))
-            except BaseException:
-                p_meta = None
-            collected[name] = {'entities': entities,
-                               'vertices': np.vstack(vertices),
-                               'metadata': p_meta}
-
-            # store loaded values here
-            entities = []
-            vertices = []
-            # how many vertices have we loaded
-            v_count = 0
-
-    if as_scene:
-        kwargs = {'geometry': collected,
-                  'metadata': metadata}
+    geoms = {name: {'vertices': np.vstack(v),
+                    'entities': entities[name]}
+             for name, v in vertices.items()}
+    if len(geoms) > 1 or force == 'Scene':
+        kwargs = {'geometry': geoms}
     else:
-        # store results as kwargs and stack vertices
-        kwargs = {'metadata': metadata,
-                  'entities': entities,
-                  'vertices': np.vstack(vertices)}
+        # return a Path2D
+        kwargs = next(iter(geoms.values()))
 
     return kwargs
 
 
-def _entities_to_str(entities, vertices, layers=None):
+def _entities_to_str(entities,
+                     vertices,
+                     name=None,
+                     only_layers=None):
     """
+    Convert the entities of a path to path strings.
+
+    Parameters
+    ------------
+    entities : (n,) list
+      Entity objects
+    vertices : (m, 2) float
+      Vertices entities reference
+    name : any
+      Trimesh namespace name to assign to entity
+    only_layers : set
+      Only export these layers if passed
     """
 
     points = vertices.copy()
@@ -333,7 +372,7 @@ def _entities_to_str(entities, vertices, layers=None):
                         d=fmt.format(2.0 * radius),
                         rev=int(bool(reverse)))
 
-    def svg_arc(arc, reverse):
+    def svg_arc(arc, reverse=False):
         """
         arc string: (rx ry x-axis-rotation large-arc-flag sweep-flag x y)+
         large-arc-flag: greater than 180 degrees
@@ -367,7 +406,7 @@ def _entities_to_str(entities, vertices, layers=None):
         move_str = 'M ' + x_ex + ',' + y_ex
         return move_str
 
-    def svg_discrete(entity, reverse):
+    def svg_discrete(entity, reverse=False):
         """
         Use an entities discrete representation to export a
         curve as a polyline
@@ -385,26 +424,30 @@ def _entities_to_str(entities, vertices, layers=None):
                 *discrete.reshape(-1))
         return result
 
-    def convert(entity, reverse=False):
-        if layers is not None and entity.layer not in layers:
-            return ''
+    # tuples of (metadata, path string)
+    pairs = []
+
+    for entity in entities:
+        if only_layers is not None and entity.layer not in only_layers:
+            continue
         # the class name of the entity
         etype = entity.__class__.__name__
         if etype == 'Arc':
             # export the exact version of the entity
-            return svg_arc(entity, reverse=False)
+            path_string = svg_arc(entity)
         else:
             # just export the polyline version of the entity
-            return svg_discrete(entity, reverse=False)
-    # convert each entity to an SVG entity
-    converted = ' '.join(convert(e) for e in entities).strip()
-
-    return converted
+            path_string = svg_discrete(entity)
+        meta = deepcopy(entity.metadata)
+        if name is not None:
+            meta['name'] = name
+        pairs.append((meta, path_string))
+    return pairs
 
 
 def export_svg(drawing,
                return_path=False,
-               layers=None,
+               only_layers=None,
                **kwargs):
     """
     Export a Path2D object into an SVG file.
@@ -415,48 +458,55 @@ def export_svg(drawing,
      Source geometry
     return_path : bool
       If True return only path string not wrapped in XML
-    layers : None, or [str]
-      Only export specified layers
 
     Returns
     -----------
     as_svg : str
       XML formatted SVG, or path string
     """
-    attrib = {}
+    # collect custom attributes for the overall export
+    attribs = {'class': type(drawing).__name__}
+
     if util.is_instance_named(drawing, 'Scene'):
-        attrib['class'] = 'Scene'
-        paths = {name: (g.metadata, _entities_to_str(entities=g.entities,
-                                                     vertices=g.vertices,
-                                                     layers=layers))
-                 for name, g in drawing.geometry.items()
-                 if util.is_instance_named(g, 'Path2D')}
+        pairs = []
+
+        geom_meta = {}
+        for name, geom in drawing.geometry.items():
+            if not util.is_instance_named(geom, 'Path2D'):
+                continue
+            geom_meta[name] = geom.metadata
+            # a pair of (metadata, path string)
+            pairs.extend(_entities_to_str(
+                entities=geom.entities,
+                vertices=geom.vertices,
+                name=name,
+                only_layers=only_layers))
+        if len(geom_meta) > 0:
+            # encode the whole metadata bundle here to avoid
+            # polluting the file with a ton of loose attribs
+            attribs['metadata_geometry'] = _encode(geom_meta)
     elif util.is_instance_named(drawing, 'Path2D'):
-        attrib['class'] = 'Path2D'
-        paths = {'path': (None, _entities_to_str(
+        pairs = _entities_to_str(
             entities=drawing.entities,
             vertices=drawing.vertices,
-            layers=layers))}
+            only_layers=only_layers)
+
     else:
         raise ValueError('drawing must be Scene or Path2D object!')
 
     # return path string without XML wrapping
     if return_path:
-        return ' '.join(v[1] for v in paths.values())
+        return ' '.join(v[1] for v in pairs)
 
     # fetch the export template for the base SVG file
-    template_svg = resources.get('svg.base.template', decode=True)
-    template_path = resources.get('svg.path.template', decode=True)
+    template_svg = resources.get('templates/base.svg')
 
     elements = []
-    for name, stuff in paths.items():
-        data = {'name': name}
-        if stuff[0] is not None:
-            data['metadata'] = _jsonify(stuff[0])
-        elements.append(template_path.format(
-            attribs=_format_attrib(data),
-            path_string=stuff[1],
-            fill="none"))
+    for meta, path_string in pairs:
+        # create a simple path element
+        elements.append('<path d="{d}" {attr}/>'.format(
+            d=path_string,
+            attr=_format_attrib(meta)))
 
     # format as XML
     if 'stroke_width' in kwargs:
@@ -466,10 +516,10 @@ def export_svg(drawing,
         stroke_width = drawing.extents.max() / 800.0
     try:
         # store metadata in XML as JSON -_-
-        attrib['metadata'] = _jsonify(drawing.metadata)
+        attribs['metadata'] = _encode(drawing.metadata)
     except BaseException:
-        # otherwise skip metadata
-        pass
+        # log failed metadata encoding
+        log.warning('failed to encode', exc_info=True)
 
     subs = {'elements': '\n'.join(elements),
             'min_x': drawing.bounds[0][0],
@@ -477,17 +527,71 @@ def export_svg(drawing,
             'width': drawing.extents[0],
             'height': drawing.extents[1],
             'stroke_width': stroke_width,
-            'attribs': _format_attrib(attrib)}
-    result = template_svg.format(**subs)
+            'attribs': _format_attrib(attribs)}
+    return template_svg.format(**subs)
+
+
+def _format_attrib(attrib):
+    """
+    Format attribs into the trimesh namespace.
+
+    Parameters
+    -----------
+    attrib : dict
+      Bag of keys and values.
+    """
+    bag = {k: _encode(v) for k, v in attrib.items()}
+    return '\n'.join('{ns}:{key}="{value}"'.format(
+        ns=_ns_name, key=k, value=v)
+        for k, v in bag.items()
+        if len(k) > 0 and v is not None
+        and len(v) > 0)
+
+
+def _encode(stuff):
+    """
+    Wangle things into a string.
+
+    Parameters
+    -----------
+    stuff : dict, str
+      Thing to pack
+
+    Returns
+    ------------
+    encoded : str
+      Packaged into url-safe b64 string
+    """
+    if util.is_string(stuff) and '"' not in stuff:
+        return stuff
+    pack = base64.urlsafe_b64encode(jsonify(
+        stuff, separators=(',', ':')).encode('utf-8'))
+    result = 'base64,' + util.decode_text(pack)
+    if tol.strict:
+        # make sure we haven't broken the things
+        assert _decode(result) == stuff
 
     return result
 
 
-def _format_attrib(attrib):
-    return '\n'.join('{ns}:{key}="{value}"'.format(
-        ns=_ns_name, key=k, value=v) for k, v in attrib.items())
+def _decode(bag):
+    """
+    Decode a base64 bag of stuff.
 
+    Parameters
+    ------------
+    bag : str
+      Starts with `base64,`
 
-def _jsonify(stuff):
-    return util.jsonify(
-        stuff, separators=(',', ':')).replace('"', "'")
+    Returns
+    -------------
+    loaded : dict
+      Loaded bag of stuff
+    """
+    if bag is None:
+        return
+    text = util.decode_text(bag)
+    if text.startswith('base64,'):
+        return json.loads(base64.urlsafe_b64decode(
+            text[7:].encode('utf-8')).decode('utf-8'))
+    return text

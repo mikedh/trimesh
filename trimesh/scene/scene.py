@@ -312,7 +312,8 @@ class Scene(Geometry3D):
 
         Returns
         -----------
-        corners: (n, 3) float, points in space
+        corners: (n, 3) float
+          Points in space
         """
         # the saved corners of each instance
         corners_inst = []

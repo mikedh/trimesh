@@ -5,9 +5,9 @@ entities.py
 Basic geometric primitives which only store references to
 vertex indices rather than vertices themselves.
 """
-import copy
 import numpy as np
 
+from copy import deepcopy
 from .arc import discretize_arc, arc_center
 from .curve import discretize_bezier, discretize_bspline
 
@@ -21,6 +21,7 @@ class Entity(ABC):
                  points,
                  closed=None,
                  layer=None,
+                 metadata=None,
                  color=None,
                  **kwargs):
         # points always reference vertex indices and are int
@@ -29,11 +30,57 @@ class Entity(ABC):
         if closed is not None:
             self.closed = closed
         # save the passed layer
-        self.layer = layer
+        if layer is not None:
+            self.layer = layer
+        if metadata is not None:
+            self.metadata.update(metadata)
+
+        self._cache = {}
+
         # save the passed color
         self.color = color
         # save any other kwargs for general use
         self.kwargs = kwargs
+
+    @property
+    def metadata(self):
+        """
+        Get any metadata about the entity.
+
+        Returns
+        ---------
+        metadata : dict
+          Bag of properties.
+        """
+        if not hasattr(self, '_metadata'):
+            self._metadata = {}
+        # note that we don't let a new dict be assigned
+        return self._metadata
+
+    @property
+    def layer(self):
+        """
+        Set the layer the entity resides on as a shortcut
+        to putting it in the entity metadata.
+
+        Returns
+        ----------
+        layer : any
+          Hashable layer identifier.
+        """
+        return self.metadata.get('layer')
+
+    @layer.setter
+    def layer(self, value):
+        """
+        Set the current layer of the entity.
+
+        Returns
+        ----------
+        layer : any
+          Hashable layer indicator
+        """
+        self.metadata['layer'] = value
 
     def to_dict(self):
         """
@@ -207,7 +254,14 @@ class Entity(ABC):
         copied : Entity
           Copy of current entity
         """
-        return copy.deepcopy(self)
+        copied = deepcopy(self)
+        # only copy metadata if set
+        if hasattr(self, '_metadata'):
+            copied._metadata = deepcopy(self._metadata)
+            # check for very annoying subtle copy failures
+            assert id(copied._metadata) != id(self._metadata)
+        assert id(copied.points) != id(self.points)
+        return copied
 
     def __hash__(self):
         """
@@ -218,8 +272,7 @@ class Entity(ABC):
         hashed : int
             Hash of current class name, points, and closed
         """
-        hashed = hash(self._bytes())
-        return hashed
+        return hash(self._bytes())
 
     def _bytes(self):
         """
@@ -252,7 +305,8 @@ class Text(Entity):
                  normal=None,
                  align=None,
                  layer=None,
-                 color=None):
+                 color=None,
+                 metadata=None):
         """
         An entity for text labels.
 
@@ -283,7 +337,12 @@ class Text(Entity):
         # how high is the text entity
         self.height = height
         # what layer is the entity on
-        self.layer = layer
+        if layer is not None:
+            self.layer = layer
+
+        if metadata is not None:
+            self.metadata.update(metadata)
+
         # what color is the entity
         self.color = color
 
@@ -474,8 +533,7 @@ class Line(Entity):
         discrete: (m, dimension) float
           Path in space composed of line segments
         """
-        discrete = self._orient(vertices[self.points])
-        return discrete
+        return self._orient(vertices[self.points])
 
     @property
     def is_valid(self):
@@ -603,11 +661,11 @@ class Arc(Entity):
         discrete : (m, dimension) float
           Path in space made up of line segments
         """
-        discrete = discretize_arc(
+
+        return self._orient(discretize_arc(
             vertices[self.points],
             close=self.closed,
-            scale=scale)
-        return self._orient(discrete)
+            scale=scale))
 
     def center(self, vertices, **kwargs):
         """
@@ -692,11 +750,10 @@ class Bezier(Curve):
         discrete : (m, 2) or (m, 3) float
           Curve as line segments
         """
-        discrete = discretize_bezier(
+        return self._orient(discretize_bezier(
             vertices[self.points],
             count=count,
-            scale=scale)
-        return self._orient(discrete)
+            scale=scale))
 
 
 class BSpline(Curve):
@@ -704,14 +761,20 @@ class BSpline(Curve):
     An open or closed B- Spline.
     """
 
-    def __init__(self, points,
+    def __init__(self,
+                 points,
                  knots,
                  layer=None,
+                 metadata=None,
                  color=None,
                  **kwargs):
         self.points = np.asanyarray(points, dtype=np.int64)
         self.knots = np.asanyarray(knots, dtype=np.float64)
-        self.layer = layer
+        if layer is not None:
+            self.layer = layer
+        if metadata is not None:
+            self.metadata.update(metadata)
+        self._cache = {}
         self.kwargs = kwargs
         self.color = color
 

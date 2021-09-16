@@ -40,6 +40,8 @@ class ExportTest(g.unittest.TestCase):
         b = g.trimesh.load_path(Point([2, 0]).buffer(1))
         b.apply_layer('BCIRCLE')
 
+        assert id(a.entities[0]._metadata) != id(b.entities[0]._metadata)
+
         # combine two circles
         c = a + b
 
@@ -49,21 +51,22 @@ class ExportTest(g.unittest.TestCase):
         # export C with just layer of A
         aX = g.trimesh.load(g.io_wrap(
             c.export(file_type='svg',
-                     layers=['ACIRCLE'])),
+                     only_layers=['ACIRCLE'])),
             file_type='svg')
 
         # export C with all layers
         cX = g.trimesh.load(g.io_wrap(
             c.export(file_type='svg',
-                     layers=None)),
+                     only_layers=None)),
             file_type='svg')
 
         assert len(cX.entities) == len(c.entities)
+        # should have skipped the layers
         assert len(aX.entities) == 1
 
         # make
         aR = g.trimesh.load(g.io_wrap(c.export(file_type='dxf',
-                                               layers=['ACIRCLE'])),
+                                               only_layers=['ACIRCLE'])),
                             file_type='dxf')
 
         assert g.np.isclose(aR.area, a.area)
@@ -116,22 +119,34 @@ class ExportTest(g.unittest.TestCase):
         assert isinstance(r, g.trimesh.path.Path2D)
         assert g.np.isclose(r.length, p.length)
         assert g.np.isclose(r.area, p.area)
+
         assert set(r.metadata.keys()) == set(p.metadata.keys())
 
         s = g.trimesh.scene.split_scene(p)
         assert isinstance(s, g.trimesh.Scene)
         r = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(s.export(file_type='svg')),
+            g.trimesh.util.wrap_as_stream(
+                s.export(file_type='svg')),
             file_type='svg')
         assert isinstance(r, g.trimesh.Scene)
-        assert set(s.geometry.keys()) == set(r.geometry.keys())
-        assert set(s.metadata.keys()) == set(r.metadata.keys())
+        assert s.metadata == r.metadata
+
         # check to see if every geometry has the same metadata
         for geom in s.geometry.keys():
             a, b = s.geometry[geom], r.geometry[geom]
-            assert set(a.metadata.keys()) == set(b.metadata.keys())
+
+            assert a.metadata == b.metadata
+
+        assert g.np.isclose(
+            sum(i.area for i in s.geometry.values()),
+            sum(i.area for i in r.geometry.values()))
 
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
-    g.unittest.main()
+
+    import pyinstrument
+    profiler = pyinstrument.Profiler()
+    with profiler:
+        g.unittest.main()
+    print(profiler.output_text())

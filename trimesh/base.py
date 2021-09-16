@@ -1917,7 +1917,7 @@ class Trimesh(Geometry3D):
             # get a copy of the current visuals
             visual = self.visual.copy()
 
-            # seperate uv coords and vertices
+            # separate uv coords and vertices
             vertices, visual.uv = vertices[:, :3], vertices[:, 3:]
 
         else:
@@ -1974,7 +1974,7 @@ class Trimesh(Geometry3D):
             # get a copy of the current visuals
             visual = self.visual.copy()
 
-            # seperate uv coords and vertices
+            # separate uv coords and vertices
             vertices, visual.uv = vertices[:, :3], vertices[:, 3:]
 
         else:

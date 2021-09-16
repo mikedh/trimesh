@@ -67,7 +67,6 @@ uint8 = np.dtype("<u1")
 
 
 def export_gltf(scene,
-                extras=None,
                 include_normals=None,
                 merge_buffers=False,
                 tree_postprocessor=None):
@@ -81,6 +80,14 @@ def export_gltf(scene,
     -----------
     scene : trimesh.Scene
       Scene to be exported
+    include_normals : None or bool
+      Include vertex normals
+    merge_buffers : bool
+      Merge buffers into one blob.
+    resolver : trimesh.resolvers.Resolver
+      If passed will use to write each file.
+    tree_postprocesser : None or callable
+      Run this on the header tree before exiting.
 
     Returns
     ----------
@@ -95,7 +102,6 @@ def export_gltf(scene,
     # create the header and buffer data
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
-        extras=extras,
         include_normals=include_normals)
 
     # allow custom postprocessing
@@ -109,10 +115,8 @@ def export_gltf(scene,
         views = _build_views(buffer_items)
         buffer_name = "gltf_buffer.bin"
         buffer_data = bytes().join(buffer_items.values())
-        buffers = [{
-            "uri": buffer_name,
-            "byteLength": len(buffer_data)}
-        ]
+        buffers = [{"uri": buffer_name,
+                    "byteLength": len(buffer_data)}]
         files[buffer_name] = buffer_data
     else:
         # make one buffer per buffer_items
@@ -121,14 +125,12 @@ def export_gltf(scene,
         views = [None] * len(buffer_items)
         # create the buffer views
         for i, item in enumerate(buffer_items.values()):
-            views[i] = {
-                "buffer": i,
-                "byteOffset": 0,
-                "byteLength": len(item)}
+            views[i] = {"buffer": i,
+                        "byteOffset": 0,
+                        "byteLength": len(item)}
             buffer_name = "gltf_buffer_{}.bin".format(i)
-            buffers[i] = {
-                "uri": buffer_name,
-                "byteLength": len(item)}
+            buffers[i] = {"uri": buffer_name,
+                          "byteLength": len(item)}
             files[buffer_name] = item
 
     if len(buffers) > 0:
@@ -146,7 +148,6 @@ def export_gltf(scene,
 
 def export_glb(
         scene,
-        extras=None,
         include_normals=None,
         tree_postprocessor=None):
     """
@@ -177,7 +178,6 @@ def export_glb(
 
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
-        extras=extras,
         include_normals=include_normals)
 
     # allow custom postprocessing
@@ -538,8 +538,8 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
 
 
 def _create_gltf_structure(scene,
-                           extras=None,
-                           include_normals=None):
+                           include_normals=None,
+                           include_metadata=True):
     """
     Generate a GLTF header.
 
@@ -547,8 +547,8 @@ def _create_gltf_structure(scene,
     -------------
     scene : trimesh.Scene
       Input scene data
-    extras : JSON serializable
-      Will be stored in the extras field
+    include_metadata : bool
+      Include `scene.metadata` as `scenes/{idx}/extras/metadata`
     include_normals : bool
       Include vertex normals in output file?
 
@@ -576,22 +576,17 @@ def _create_gltf_structure(scene,
     if scene.has_camera:
         tree["cameras"] = [_convert_camera(scene.camera)]
 
-    # collect extras from passed arguments and metadata
-    collected = {}
-    try:
-        # start with scene metadata
-        if 'extras' in scene.metadata:
-            collected.update(scene.metadata['extras'])
-        # override with passed extras
-        if extras is not None:
-            collected.update(extras)
-        # fail here if data isn't json compatible
-        util.jsonify(collected)
-        # only export the extras if there is something there
-        if len(collected) > 0:
-            tree['extras'] = collected
-    except BaseException:
-        log.warning('failed to export extras!', exc_info=True)
+    if include_metadata and len(scene.metadata) > 0:
+        try:
+            # collect extras from passed arguments and metadata
+            meta = scene.metadata.copy()
+            # fail here if data isn't json compatible
+            util.jsonify(meta)
+            # only export the extras if there is something there
+            tree['scenes'][0]['extras'] = meta
+        except BaseException:
+            log.warning(
+                'failed to export scene metadata!', exc_info=True)
 
     # store materials as {hash : index} to avoid duplicates
     mat_hashes = {}
@@ -634,7 +629,8 @@ def _create_gltf_structure(scene,
             mesh_index[name] = previous - 1
 
     # grab the flattened scene graph in GLTF's format
-    nodes = scene.graph.to_gltf(scene=scene, mesh_index=mesh_index)
+    nodes = scene.graph.to_gltf(
+        scene=scene, mesh_index=mesh_index)
     tree.update(nodes)
 
     # convert accessors back to a flat list
@@ -699,6 +695,7 @@ def _append_mesh(mesh,
 
     # meshes reference accessor indexes
     current = {"name": name,
+               "extras": {},
                "primitives": [{
                    "attributes": {"POSITION": acc_vertex},
                    "indices": acc_face,
@@ -708,8 +705,14 @@ def _append_mesh(mesh,
     # we're not doing that as our unit conversions are expensive
     # although that might be better, implicit works for 3DXML
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
-    if mesh.units is not None and 'meter' not in mesh.units:
-        current["extras"] = {"units": str(mesh.units)}
+    try:
+        current['extras'] = json.loads(util.jsonify(
+            mesh.metadata))
+        if mesh.units not in [None, 'm', 'meters', 'meter']:
+            current["extras"]["units"] = str(mesh.units)
+    except BaseException:
+        log.warning('metadata not serializable, dropping!',
+                    exc_info=True)
 
     # check to see if we have vertex or face colors
     # or if a TextureVisual has colors included as an attribute
@@ -957,8 +960,11 @@ def _append_path(path, name, tree, buffer_items):
 
     # if units are defined, store them as an extra:
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
-    if path.units is not None and 'meter' not in path.units:
-        current["extras"] = {"units": str(path.units)}
+    try:
+        current["extras"] = json.loads(util.jsonify(path.metadata))
+    except BaseException:
+        log.warning('failed to serialize metadata, dropping!',
+                    exc_info=True)
 
     if path.colors is not None:
         acc_color = _data_append(acc=tree['accessors'],
@@ -1195,18 +1201,11 @@ def _read_buffers(header,
     names_original = collections.defaultdict(list)
 
     for index, m in enumerate(header.get("meshes", [])):
-        metadata = {}
-        try:
-            # try loading units from the GLTF extra
-            metadata['units'] = str(m["extras"]["units"])
-        except BaseException:
-            # GLTF spec indicates the default units are meter
-            metadata['units'] = 'meters'
-        try:
-            # load extras metadata if available
-            metadata['extras'] = str(m["extras"])
-        except BaseException:
-            pass
+        # GLTF spec indicates implicit units are meters
+        metadata = {'units': 'meters'}
+        # try to load all mesh metadata
+        if isinstance(m.get('extras'), dict):
+            metadata.update(m['extras'])
 
         for j, p in enumerate(m["primitives"]):
             # if we don't have a triangular mesh continue
@@ -1436,7 +1435,7 @@ def _read_buffers(header,
                 np.diag(np.concatenate((child['scale'], [1.0]))))
 
         if "extras" in child:
-            kwargs["extras"] = child["extras"]
+            kwargs["metadata"] = child["extras"]
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]
@@ -1473,64 +1472,15 @@ def _read_buffers(header,
               "geometry": meshes,
               "graph": graph,
               "base_frame": base_frame}
-    # load any extras into scene.metadata
-
-    result.update(_parse_extras(header))
-    result.update(_parse_scene_extras(header, scene_index=scene_index))
+    try:
+        # load any scene extras into scene.metadata
+        # use a try except to avoid nested key checks
+        result['metadata'] = header['scenes'][
+            header['scene']]['extras']
+    except BaseException:
+        pass
 
     return result
-
-
-def _parse_extras(header):
-    """
-    Load any GLTF "extras" into scene.metadata['extras'].
-
-    Parameters
-    --------------
-    header : dict
-      GLTF header
-
-    Returns
-    -------------
-    kwargs : dict
-      Includes metadata
-    """
-    if 'extras' not in header:
-        return {}
-    try:
-        return {'metadata': {'extras': dict(header['extras'])}}
-    except BaseException:
-        log.warning('failed to load extras', exc_info=True)
-        return {}
-
-
-def _parse_scene_extras(header, scene_index):
-    """
-    Load any GLTF "scene extras" into scene.metadata['scene_extras'].
-
-    Parameters
-    --------------
-    header : dict
-      GLTF header
-
-    scene_index: int
-      index of the scene
-
-    Returns
-    -------------
-    kwargs : dict
-      Includes metadata
-    """
-
-    try:
-        if 'extras' not in header['scenes'][scene_index]:
-            return {}
-
-        extras = header['scenes'][scene_index]['extras']
-        return {'metadata': {'scene_extras': dict(extras)}}
-    except BaseException:
-        log.warning('failed to load scene extras', exc_info=True)
-        return {}
 
 
 def _convert_camera(camera):

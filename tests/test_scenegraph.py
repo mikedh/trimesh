@@ -65,7 +65,7 @@ class GraphTests(g.unittest.TestCase):
 
     def test_kwargs(self):
         # test the function that converts various
-        # arguments into a homogenous transformation
+        # arguments into a homogeneous transformation
         f = g.trimesh.scene.transforms.kwargs_to_matrix
         # no arguments should be an identity matrix
         assert g.np.allclose(f(), g.np.eye(4))

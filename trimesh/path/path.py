@@ -211,9 +211,8 @@ class Path(parent.Geometry):
         layers : (len(entities), ) any
           Whatever is stored in each `entity.layer`
         """
-        # layer is a required property for entities
-        layers = [e.layer for e in self.entities]
-        return layers
+        # layer is a required meta-property for entities
+        return [e.layer for e in self.entities]
 
     def crc(self):
         """
@@ -1116,7 +1115,7 @@ class Path2D(Path):
         Returns
         ---------
         body_count : int
-          Number of unconnected independant polygons.
+          Number of unconnected independent polygons.
         """
         return len(self.root)
 
@@ -1518,7 +1517,7 @@ class Path2D(Path):
 
         Returns
         -----------
-        enclosue : networkx.Graph
+        enclosure : networkx.Graph
           Enclosure graph of self.polygons by index.
         """
         with self._cache:

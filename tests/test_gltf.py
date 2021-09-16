@@ -239,9 +239,24 @@ class GLTFTest(g.unittest.TestCase):
         assert len(a.geometry) == 4
 
         # should combine the multiple primitives into a single mesh
-        b = g.get_mesh('CesiumMilkTruck.glb',
-                       merge_primitives=True)
+        b = g.get_mesh(
+            'CesiumMilkTruck.glb', merge_primitives=True)
         assert len(b.geometry) == 2
+
+    def test_write_dir(self):
+        # try loading from a file name
+        # will require a file path resolver
+        original = g.get_mesh('fuze.obj')
+        assert isinstance(original, g.trimesh.Trimesh)
+        s = original.scene()
+        with g.TemporaryDirectory() as d:
+            path = g.os.path.join(d, 'heyy.gltf')
+            s.export(file_obj=path)
+            r = g.trimesh.load(path)
+            assert isinstance(r, g.trimesh.Scene)
+            assert len(r.geometry) == 1
+            m = next(iter(r.geometry.values()))
+            assert g.np.isclose(original.area, m.area)
 
     def test_merge_primitives_materials(self):
         # test to see if the `merge_primitives` logic is working
@@ -446,28 +461,15 @@ class GLTFTest(g.unittest.TestCase):
         dummy = {'who': 'likes cheese', 'potatoes': 25}
 
         # export as GLB with extras passed to the exporter then re-load
-        export = s.export(file_type='glb', extras=dummy)
-        validate_glb(export)
-        r = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(export),
-            file_type='glb')
-
-        # shouldn't be in original metadata
-        assert 'extras' not in s.metadata
-        # make sure extras survived a round trip
-        assert all(r.metadata['extras'][k] == v
-                   for k, v in dummy.items())
-
-        # now assign the extras to the metadata
-        s.metadata['extras'] = dummy
-        # export as GLB then re-load
+        s.metadata = dummy
         export = s.export(file_type='glb')
         validate_glb(export)
         r = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
+
         # make sure extras survived a round trip
-        assert all(r.metadata['extras'][k] == v
+        assert all(r.metadata[k] == v
                    for k, v in dummy.items())
 
     def test_extras_nodes(self):
@@ -481,18 +483,24 @@ class GLTFTest(g.unittest.TestCase):
             'test_dict': {'a': 1, 'b': 2}}
 
         sphere1 = g.trimesh.primitives.Sphere(radius=1.0)
+        sphere1.metadata.update(test_metadata)
         sphere2 = g.trimesh.primitives.Sphere(radius=2.0)
+        sphere2.metadata.update(test_metadata)
 
-        # transformations.euler_from_quaternion(obj.transform.rotation, axes='sxyz')
-        node1_transform = g.trimesh.transformations.translation_matrix([0, 0, -2])
-        node2_transform = g.trimesh.transformations.translation_matrix([5, 5, 5])
+        tf1 = g.trimesh.transformations.translation_matrix([0, 0, -2])
+        tf2 = g.trimesh.transformations.translation_matrix([5, 5, 5])
 
         s = g.trimesh.scene.Scene()
-        s.add_geometry(sphere1, node_name="Sphere1", geom_name="Geom Sphere1",
-                       transform=node1_transform, extras=test_metadata)
-        s.add_geometry(sphere2, node_name="Sphere2", geom_name="Geom Sphere2",
-                       parent_node_name="Sphere1", transform=node2_transform,
-                       extras=test_metadata)
+        s.add_geometry(
+            sphere1,
+            node_name="Sphere1",
+            geom_name="Geom Sphere1",
+            transform=tf1)
+        s.add_geometry(sphere2,
+                       node_name="Sphere2",
+                       geom_name="Geom Sphere2",
+                       parent_node_name="Sphere1",
+                       transform=tf2)
 
         # Test extras appear in the exported model nodes
         files = s.export(None, "gltf")
@@ -508,8 +516,15 @@ class GLTFTest(g.unittest.TestCase):
         files = r.export(None, "gltf")
         gltf_data = files["model.gltf"]
         assert 'test_value' in gltf_data.decode('utf8')
-        edge_data = r.graph.transforms.edge_data[("world", "Sphere1")]
-        assert edge_data['extras'] == test_metadata
+        edge = r.graph.transforms.edge_data[("world", "Sphere1")]
+        assert g.np.allclose(edge['matrix'], tf1)
+
+        # all geometry should be the same
+        assert set(r.geometry.keys()) == set(s.geometry.keys())
+        for mesh in r.geometry.values():
+            # metadata should have all survived
+            assert all(mesh.metadata[k] == v
+                       for k, v in test_metadata.items())
 
     def test_read_scene_extras(self):
         # loads a glb with scene extras
@@ -518,16 +533,11 @@ class GLTFTest(g.unittest.TestCase):
         # expected data
         check = {'name': 'monkey', 'age': 32, 'height': 0.987}
 
-        # get the scene extras
-        extras = scene.metadata["scene_extras"]
-
-        # check number
-        assert len(extras) == 3
-
+        meta = scene.metadata
         for key in check:
             # \check key existence and value
-            assert key in extras
-            assert extras[key] == check[key]
+            assert key in meta
+            assert meta[key] == check[key]
 
     def test_load_empty_nodes(self):
         # loads a glb with no meshes
