@@ -1,9 +1,9 @@
 import json
+import base64
 import collections
 
 import numpy as np
 
-from base64 import b64encode, b64decode
 from copy import deepcopy
 
 from ..arc import arc_center
@@ -107,7 +107,7 @@ def svg_to_path(file_obj, file_type=None):
         result['metadata'] = _decode(
             tree.attrib[_ns + 'metadata'])
     except KeyError:
-        # don't log "no metadata"
+        # not in the trimesh ns
         pass
     except BaseException:
         # no metadata stored with trimesh ns
@@ -119,14 +119,17 @@ def svg_to_path(file_obj, file_type=None):
         try:
             # get per-geometry metadata if available
             bag = _decode(
-                tree.attrib[_ns + 'metadata_geom'])
+                tree.attrib[_ns + 'metadata_geometry'])
             for name, meta in bag.items():
                 if name in result['geometry']:
                     # assign this metadata to the geometry
                     result['geometry'][name]['metadata'] = meta
-        except BaseException:
-            # no metadata stored with trimesh ns
+        except KeyError:
+            # no stored geometry metadata so ignore
             pass
+        except BaseException:
+            # failed to load existing metadata
+            log.warning('failed metadata', exc_info=True)
 
     return result
 
@@ -479,7 +482,9 @@ def export_svg(drawing,
                 name=name,
                 only_layers=only_layers))
         if len(geom_meta) > 0:
-            attribs['metadata_geom'] = _encode(geom_meta)
+            # encode the whole metadata bundle here to avoid
+            # polluting the file with a ton of loose attribs
+            attribs['metadata_geometry'] = _encode(geom_meta)
     elif util.is_instance_named(drawing, 'Path2D'):
         pairs = _entities_to_str(
             entities=drawing.entities,
@@ -557,13 +562,11 @@ def _encode(stuff):
     encoded : str
       Packaged into url-safe b64 string
     """
-
-    if isinstance(stuff, str) and '"' not in stuff:
+    if util.is_string(stuff) and '"' not in stuff:
         return stuff
-    pack = b64encode(jsonify(
+    pack = base64.urlsafe_b64encode(jsonify(
         stuff, separators=(',', ':')).encode('utf-8'))
-    result = 'base64,' + pack.decode('utf-8')
-
+    result = 'base64,' + util.decode_text(pack)
     if tol.strict:
         # make sure we haven't broken the things
         assert _decode(result) == stuff
@@ -587,6 +590,8 @@ def _decode(bag):
     """
     if bag is None:
         return
-    if bag.startswith('base64,'):
-        return json.loads(b64decode(bag[7:]).decode('utf-8'))
-    return bag
+    text = util.decode_text(bag)
+    if text.startswith('base64,'):
+        return json.loads(base64.urlsafe_b64decode(
+            text[7:].encode('utf-8')).decode('utf-8'))
+    return text
