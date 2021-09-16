@@ -256,7 +256,7 @@ class GLTFTest(g.unittest.TestCase):
             assert isinstance(r, g.trimesh.Scene)
             assert len(r.geometry) == 1
             m = next(iter(r.geometry.values()))
-            g.check_fuze(m)
+            assert g.np.isclose(original.area, m.area)
 
     def test_merge_primitives_materials(self):
         # test to see if the `merge_primitives` logic is working
@@ -487,20 +487,20 @@ class GLTFTest(g.unittest.TestCase):
         sphere2 = g.trimesh.primitives.Sphere(radius=2.0)
         sphere2.metadata.update(test_metadata)
 
-        node1_transform = g.trimesh.transformations.translation_matrix([0, 0, -2])
-        node2_transform = g.trimesh.transformations.translation_matrix([5, 5, 5])
+        tf1 = g.trimesh.transformations.translation_matrix([0, 0, -2])
+        tf2 = g.trimesh.transformations.translation_matrix([5, 5, 5])
 
         s = g.trimesh.scene.Scene()
         s.add_geometry(
             sphere1,
             node_name="Sphere1",
             geom_name="Geom Sphere1",
-            transform=node1_transform)
+            transform=tf1)
         s.add_geometry(sphere2,
                        node_name="Sphere2",
                        geom_name="Geom Sphere2",
                        parent_node_name="Sphere1",
-                       transform=node2_transform)
+                       transform=tf2)
 
         # Test extras appear in the exported model nodes
         files = s.export(None, "gltf")
@@ -516,8 +516,15 @@ class GLTFTest(g.unittest.TestCase):
         files = r.export(None, "gltf")
         gltf_data = files["model.gltf"]
         assert 'test_value' in gltf_data.decode('utf8')
-        edge_data = r.graph.transforms.edge_data[("world", "Sphere1")]
-        assert edge_data['extras'] == test_metadata
+        edge = r.graph.transforms.edge_data[("world", "Sphere1")]
+        assert g.np.allclose(edge['matrix'], tf1)
+
+        # all geometry should be the same
+        assert set(r.geometry.keys()) == set(s.geometry.keys())
+        for mesh in r.geometry.values():
+            # metadata should have all survived
+            assert all(mesh.metadata[k] == v
+                       for k, v in test_metadata.items())
 
     def test_read_scene_extras(self):
         # loads a glb with scene extras
