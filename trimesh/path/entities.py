@@ -5,7 +5,6 @@ entities.py
 Basic geometric primitives which only store references to
 vertex indices rather than vertices themselves.
 """
-from functools import wraps
 import numpy as np
 
 from copy import deepcopy
@@ -14,45 +13,6 @@ from .curve import discretize_bezier, discretize_bspline
 
 from .. import util
 from ..util import ABC
-
-
-def cached(function):
-    """
-    A decorator for class methods to cache computed values.
-
-    Parameters
-    ------------
-    function : method
-      This is used as a decorator:
-      ```
-      @cache_decorator
-      def foo(self, things):
-        return 'happy days'
-      ```
-    """
-
-    # use wraps to preserve docstring
-    @wraps(function)
-    def get_cached(self, vertices, **kwargs):
-        """
-        Only execute the function if its value isn't stored
-        in cache already.
-        """
-        # get a cache key by XOR'ing relevant fields.
-        key = (vertices.fast_hash() ^
-               hash(self) ^
-               hash(function.__name__))
-        stored = self._cache.get(key)
-        if stored is not None:
-            return stored
-        value = function(self, vertices=vertices, **kwargs)
-        self._cache[key] = value
-        return value
-
-    # all cached values are also properties
-    # so they can be accessed like value attributes
-    # rather than functions
-    return get_cached
 
 
 class Entity(ABC):
@@ -256,7 +216,6 @@ class Entity(ABC):
                            vertices[self.points].max(axis=0)])
         return bounds
 
-    @cached
     def length(self, vertices):
         """
         Return the total length of the entity.
@@ -558,7 +517,6 @@ class Line(Entity):
     A line or poly-line entity
     """
 
-    @cached
     def discrete(self, vertices, scale=1.0):
         """
         Discretize into a world- space path.
@@ -661,7 +619,6 @@ class Arc(Entity):
         order = int(self.points[0] > self.points[-1]) * 2 - 1
         return b'Arc' + bytes(self.closed) + self.points[::order].tobytes()
 
-    @cached
     def length(self, vertices):
         """
         Return the arc length of the 3-point arc.
@@ -688,7 +645,6 @@ class Arc(Entity):
             vertices, return_normal=False, return_angle=True)
         return fit['span'] * fit['radius'] * 2
 
-    @cached
     def discrete(self, vertices, scale=1.0):
         """
         Discretize the arc entity into line sections.
@@ -711,7 +667,6 @@ class Arc(Entity):
             close=self.closed,
             scale=scale))
 
-    @cached
     def center(self, vertices, **kwargs):
         """
         Return the center information about the arc entity.
@@ -728,7 +683,6 @@ class Arc(Entity):
         """
         return arc_center(vertices[self.points], **kwargs)
 
-    @cached
     def bounds(self, vertices):
         """
         Return the AABB of the arc entity.
@@ -778,7 +732,6 @@ class Bezier(Curve):
     An open or closed Bezier curve
     """
 
-    @cached
     def discrete(self, vertices, scale=1.0, count=None):
         """
         Discretize the Bezier curve.
@@ -797,11 +750,10 @@ class Bezier(Curve):
         discrete : (m, 2) or (m, 3) float
           Curve as line segments
         """
-        discrete = discretize_bezier(
+        return self._orient(discretize_bezier(
             vertices[self.points],
             count=count,
-            scale=scale)
-        return self._orient(discrete)
+            scale=scale))
 
 
 class BSpline(Curve):
@@ -826,7 +778,6 @@ class BSpline(Curve):
         self.kwargs = kwargs
         self.color = color
 
-    @cached
     def discrete(self, vertices, count=None, scale=1.0):
         """
         Discretize the B-Spline curve.
