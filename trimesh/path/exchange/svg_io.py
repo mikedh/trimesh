@@ -106,6 +106,9 @@ def svg_to_path(file_obj, file_type=None):
         # get overall metadata from JSON string if it exists
         result['metadata'] = _decode(
             tree.attrib[_ns + 'metadata'])
+    except KeyError:
+        # don't log "no metadata"
+        pass
     except BaseException:
         # no metadata stored with trimesh ns
         log.warning('failed metadata', exc_info=True)
@@ -509,9 +512,9 @@ def export_svg(drawing,
     try:
         # store metadata in XML as JSON -_-
         attribs['metadata'] = _encode(drawing.metadata)
-    except BaseException:
-        # otherwise skip metadata
-        pass
+    except BaseException as E:
+        # log failed metadata encoding
+        log.warning('failed to encode', exc_info=True)
 
     subs = {'elements': '\n'.join(elements),
             'min_x': drawing.bounds[0][0],
@@ -585,5 +588,5 @@ def _decode(bag):
     if bag is None:
         return
     if bag.startswith('base64,'):
-        return json.loads(b64decode(bag[7:]))
+        return json.loads(b64decode(bag[7:]).decode('utf-8'))
     return bag
