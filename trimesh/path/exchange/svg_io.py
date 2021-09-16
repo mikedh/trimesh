@@ -124,9 +124,9 @@ def svg_to_path(file_obj, file_type=None):
                 if name in result['geometry']:
                     # assign this metadata to the geometry
                     result['geometry'][name]['metadata'] = meta
-        except BaseException as E:
+        except BaseException:
             # no metadata stored with trimesh ns
-            raise E
+            pass
 
     return result
 
@@ -512,7 +512,7 @@ def export_svg(drawing,
     try:
         # store metadata in XML as JSON -_-
         attribs['metadata'] = _encode(drawing.metadata)
-    except BaseException as E:
+    except BaseException:
         # log failed metadata encoding
         log.warning('failed to encode', exc_info=True)
 
