@@ -108,7 +108,7 @@ def svg_to_path(file_obj, file_type=None):
             tree.attrib[_ns + 'metadata'])
     except BaseException:
         # no metadata stored with trimesh ns
-        pass
+        log.warning('failed metadata', exc_info=True)
 
     # if the result is a scene try to get the metadata
     # for each subgeometry here
