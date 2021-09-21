@@ -569,9 +569,60 @@ def _encode(stuff):
     result = 'base64,' + util.decode_text(pack)
     if tol.strict:
         # make sure we haven't broken the things
-        assert _decode(result) == stuff
+        _deep_same(stuff, _decode(result))
 
     return result
+
+
+def _deep_same(original, other):
+    """
+    Do a recursive comparison of two items to check
+    our encoding scheme in unit tests.
+
+    Parameters
+    -----------
+    original : str, bytes, list, dict
+      Original item
+    other : str, bytes, list, dict
+      Item that should be identical
+
+    Raises
+    ------------
+    AssertionError
+      If items are not the same.
+    """
+    # ndarrays will be converted to lists
+    # but otherwise types should be identical
+    if isinstance(original, np.ndarray):
+        assert isinstance(other, (list, np.ndarray))
+    else:
+        assert isinstance(original, type(other))
+
+    if isinstance(original, (str, bytes)):
+        # string and bytes should just be identical
+        assert original == other
+        return
+    elif isinstance(original, (float, int, np.ndarray)):
+        # for numeric classes use numpy magic comparison
+        # which includes an epsilon for floating point
+        assert np.allclose(original, other)
+        return
+    elif isinstance(original, list):
+        # lengths should match
+        assert len(original) == len(other)
+        # every element should be identical
+        for a, b in zip(original, other):
+            _deep_same(a, b)
+        return
+
+    # we should have special-cased everything else by here
+    assert isinstance(original, dict)
+
+    # all keys should match
+    assert set(original.keys()) == set(other.keys())
+    # do a recursive comparison of the values
+    for k in original.keys():
+        _deep_same(original[k], other[k])
 
 
 def _decode(bag):

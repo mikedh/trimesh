@@ -228,7 +228,8 @@ def sweep_polygon(polygon,
 
     # Extract 2D vertices and triangulation
     verts_2d = np.array(polygon.exterior)[:-1]
-    base_verts_2d, faces_2d = triangulate_polygon(polygon, **kwargs)
+    base_verts_2d, faces_2d = triangulate_polygon(
+        polygon, **kwargs)
     n = len(verts_2d)
 
     # Create basis for first planar polygon cap

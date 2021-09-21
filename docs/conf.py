@@ -95,10 +95,13 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# custom css
+html_css_files = [
+    '_static/custom.css',
+]
+
 html_context = {
-    'css_files': [
-        '_static/custom.css',  # override non-wrapping tables in RTD theme
-    ],
+
     "display_github": True,  # Add 'Edit on Github' link instead of 'View page source'
     "github_user": "mikedh",
     "github_repo": "trimesh",
