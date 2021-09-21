@@ -595,7 +595,11 @@ def _deep_same(original, other):
     # but otherwise types should be identical
     if isinstance(original, np.ndarray):
         assert isinstance(other, (list, np.ndarray))
+    elif util.is_string(original):
+        # handle python 2+3 unicode vs str
+        assert util.is_string(other)
     else:
+        # otherwise they should be the same type
         assert isinstance(original, type(other))
 
     if isinstance(original, (str, bytes)):
