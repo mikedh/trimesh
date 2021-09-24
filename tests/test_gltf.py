@@ -263,9 +263,17 @@ class GLTFTest(g.unittest.TestCase):
         a = g.get_mesh('rgb_cube_with_primitives.gltf',
                        merge_primitives=True)
         assert len(a.geometry['Cube'].visual.material) == 3
-        assert a.geometry['Cube'].visual.face_materials == [
-            0, 0, 0, 0, 1, 1,
-            1, 1, 2, 2, 2, 2]
+        # what the face materials should be
+        truth = [0, 0, 0, 0, 1, 1,
+                 1, 1, 2, 2, 2, 2]
+        assert g.np.allclose(
+            a.geometry['Cube'].visual.face_materials,
+            truth)
+        # make sure copying did the things correctly
+        c = a.copy()
+        assert g.np.allclose(
+            c.geometry['Cube'].visual.face_materials,
+            truth)
 
     def test_merge_primitives_materials_roundtrip(self):
         # test to see if gltf loaded with `merge_primitives`
