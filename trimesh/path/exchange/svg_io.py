@@ -516,7 +516,8 @@ def export_svg(drawing,
         stroke_width = drawing.extents.max() / 800.0
     try:
         # store metadata in XML as JSON -_-
-        attribs['metadata'] = _encode(drawing.metadata)
+        if len(drawing.metadata) > 0:
+            attribs['metadata'] = _encode(drawing.metadata)
     except BaseException:
         # log failed metadata encoding
         log.warning('failed to encode', exc_info=True)
@@ -528,7 +529,20 @@ def export_svg(drawing,
             'height': drawing.extents[1],
             'stroke_width': stroke_width,
             'attribs': _format_attrib(attribs)}
-    return template_svg.format(**subs)
+    result = template_svg.format(**subs)
+
+    if tol.strict:
+        # a "document tree definition" to validate
+        # our output against
+        dtd = etree.DTD(file=resources.get(
+            'svg.dtd.zip', unzip=True)['svg.dtd'])
+        tree = etree.fromstring(result)
+        check = dtd.validate(tree)
+        if not check:
+            print(dtd.error_log)
+
+        from IPython import embed
+        embed()
 
 
 def _format_attrib(attrib):
