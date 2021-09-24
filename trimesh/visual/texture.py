@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 
 from .base import Visuals
@@ -137,7 +139,8 @@ class TextureVisuals(Visuals):
             uv = uv.copy()
         copied = TextureVisuals(
             uv=uv,
-            material=self.material.copy())
+            material=self.material.copy(),
+            face_materials=copy.copy(self.face_materials))
 
         return copied
 
