@@ -266,6 +266,8 @@ class SliceTest(g.unittest.TestCase):
         # verify visually.
         # sliced.show()
 
+        assert len(sliced.faces) > 0
+
     def test_cap_coplanar(self):
         # check to see if we handle capping with
         # existing coplanar faces correctly
