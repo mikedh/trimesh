@@ -2172,7 +2172,7 @@ class Trimesh(Geometry3D):
         cap : bool
           If True, cap the result with a triangulated polygon
         face_index : ((m,) int)
-            Indexes of mesh.faces which to slice. When no mask is
+            Indexes of mesh.faces to slice. When no mask is
             provided, the default is to slice all faces.
         cached_dots : (n, 3) float
             If an external function has stored dot

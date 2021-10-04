@@ -448,7 +448,7 @@ def slice_faces_plane(vertices,
     plane_origin :  (3,) float
         Point on plane to intersect with mesh
     face_index : ((m,) int)
-        Indexes of mesh.faces which to slice. When no mask is provided, the
+        Indexes of faces to slice. When no mask is provided, the
         default is to slice all faces.
     cached_dots : (n, 3) float
         If an external function has stored dot
@@ -653,7 +653,7 @@ def slice_mesh_plane(mesh,
     cap : bool
       If True, cap the result with a triangulated polygon
     face_index : ((m,) int)
-      Indexes of mesh.faces which to slice. When no mask is provided, the
+      Indexes of mesh.faces to slice. When no mask is provided, the
       default is to slice all faces.
     cached_dots : (n, 3) float
       If an external function has stored dot
