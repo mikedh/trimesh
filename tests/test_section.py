@@ -241,7 +241,7 @@ class SliceTest(g.unittest.TestCase):
         neck_plane_normal = g.np.array([0.35534835, -0.93424839, -0.03012456])
 
         dots = g.np.einsum('i,ij->j', neck_plane_normal,
-                         (bunny.vertices - neck_plane_origin).T)
+                           (bunny.vertices - neck_plane_origin).T)
         signs = g.np.zeros(len(bunny.vertices), dtype=g.np.int8)
         signs[dots < -g.tol.merge] = 1
         signs[dots > g.tol.merge] = -1
