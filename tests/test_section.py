@@ -233,6 +233,41 @@ class SliceTest(g.unittest.TestCase):
                    + 0.01 * g.trimesh.unitize([1, 0, 2])]
         normals = [g.trimesh.unitize([1, 1, 1]), g.trimesh.unitize([1, 2, 3])]
 
+    def test_slice_submesh(self):
+        bunny = g.get_mesh('bunny.ply')
+
+        # Find the faces on the body.
+        neck_plane_origin = g.np.array([-0.0441905, 0.124347, 0.0235287])
+        neck_plane_normal = g.np.array([0.35534835, -0.93424839, -0.03012456])
+
+        dots = g.np.einsum('i,ij->j', neck_plane_normal,
+                           (bunny.vertices - neck_plane_origin).T)
+        signs = g.np.zeros(len(bunny.vertices), dtype=g.np.int8)
+        signs[dots < -g.tol.merge] = 1
+        signs[dots > g.tol.merge] = -1
+        signs = signs[bunny.faces]
+
+        signs_sum = signs.sum(axis=1, dtype=g.np.int8)
+        signs_asum = g.np.abs(signs).sum(axis=1, dtype=g.np.int8)
+
+        body_face_mask = signs_sum == -signs_asum
+        body_face_index = body_face_mask.nonzero()[0]
+
+        slicing_plane_origin = bunny.bounds.mean(axis=0)
+        slicing_plane_normal = g.trimesh.unitize([1, 1, 2])
+
+        sliced = bunny.slice_plane(plane_origin=slicing_plane_origin,
+                                   plane_normal=slicing_plane_normal,
+                                   face_index=body_face_index)
+
+        # Ideally we would assert that the triangles in `body_face_index` were
+        # sliced if they are on in front of side of the slicing plane, and the
+        # triangles not in `body_face_index` were preserved. This is easier to
+        # verify visually.
+        # sliced.show()
+
+        assert len(sliced.faces) > 0
+
     def test_cap_coplanar(self):
         # check to see if we handle capping with
         # existing coplanar faces correctly
