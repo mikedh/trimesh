@@ -189,7 +189,8 @@ class SimpleMaterial(Material):
 
     def to_pbr(self):
         """
-        Convert the current simple material to a PBR material.
+        Convert the current simple material to a
+        PBR material.
 
         Returns
         ------------
@@ -372,7 +373,7 @@ class PBRMaterial(Material):
     @property
     def alphaMode(self):
         """
-        The material’s alpha rendering mode enumeration
+        The material alpha rendering mode enumeration
         specifying the interpretation of the alpha value of
         the base color.
 
