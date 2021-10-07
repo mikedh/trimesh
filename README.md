@@ -92,7 +92,7 @@ mesh.split()
 for facet in mesh.facets:
     mesh.visual.face_colors[facet] = trimesh.visual.random_color()
 
-# preview mesh in an opengl window if you installed pyglet with pip
+# preview mesh in an opengl window if you installed pyglet and scipy with pip
 mesh.show()
 
 # transform method can be passed a (4, 4) matrix and will cleanly apply the transform
