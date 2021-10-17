@@ -2158,6 +2158,8 @@ class Trimesh(Geometry3D):
                     plane_origin,
                     plane_normal,
                     cap=False,
+                    face_index=None,
+                    cached_dots=None,
                     **kwargs):
         """
         Slice the mesh with a plane, returning a new mesh that is the
@@ -2169,6 +2171,9 @@ class Trimesh(Geometry3D):
           Normal vector of plane to intersect with mesh
         cap : bool
           If True, cap the result with a triangulated polygon
+        face_index : ((m,) int)
+            Indexes of mesh.faces to slice. When no mask is
+            provided, the default is to slice all faces.
         cached_dots : (n, 3) float
             If an external function has stored dot
             products pass them here to avoid recomputing
@@ -2186,6 +2191,8 @@ class Trimesh(Geometry3D):
             plane_normal=plane_normal,
             plane_origin=plane_origin,
             cap=cap,
+            face_index=face_index,
+            cached_dots=cached_dots,
             **kwargs)
 
         return new_mesh

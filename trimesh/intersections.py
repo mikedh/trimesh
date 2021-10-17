@@ -430,6 +430,7 @@ def slice_faces_plane(vertices,
                       faces,
                       plane_normal,
                       plane_origin,
+                      face_index=None,
                       cached_dots=None):
     """
     Slice a mesh (given as a set of faces and vertices) with a plane, returning a
@@ -446,6 +447,9 @@ def slice_faces_plane(vertices,
         Normal vector of plane to intersect with mesh
     plane_origin :  (3,) float
         Point on plane to intersect with mesh
+    face_index : ((m,) int)
+        Indexes of faces to slice. When no mask is provided, the
+        default is to slice all faces.
     cached_dots : (n, 3) float
         If an external function has stored dot
         products pass them here to avoid recomputing
@@ -460,6 +464,13 @@ def slice_faces_plane(vertices,
 
     if len(vertices) == 0:
         return vertices, faces
+
+    # Construct a mask for the faces to slice.
+    if face_index is None:
+        mask = np.ones(len(faces), dtype=np.bool)
+    else:
+        mask = np.zeros(len(faces), dtype=np.bool)
+        mask[face_index] = True
 
     if cached_dots is not None:
         dots = cached_dots
@@ -489,9 +500,12 @@ def slice_faces_plane(vertices,
     # (0,0,0),  (-1,0,0),  (-1,-1,0), (-1,-1,-1) <- inside
     # (1,0,0),  (1,1,0),   (1,1,1)               <- outside
     # (1,0,-1), (1,-1,-1), (1,1,-1)              <- onedge
-    onedge = np.logical_and(signs_asum >= 2,
-                            np.abs(signs_sum) <= 1)
-    inside = (signs_sum == -signs_asum)
+    onedge = np.logical_and(np.logical_and(signs_asum >= 2,
+                                           np.abs(signs_sum) <= 1),
+                            mask)
+
+    inside = np.logical_or((signs_sum == -signs_asum),
+                           ~mask)
 
     # Automatically include all faces that are "inside"
     new_faces = faces[inside]
@@ -620,6 +634,7 @@ def slice_faces_plane(vertices,
 def slice_mesh_plane(mesh,
                      plane_normal,
                      plane_origin,
+                     face_index=None,
                      cap=False,
                      cached_dots=None,
                      **kwargs):
@@ -637,6 +652,9 @@ def slice_mesh_plane(mesh,
       Point on plane to intersect with mesh
     cap : bool
       If True, cap the result with a triangulated polygon
+    face_index : ((m,) int)
+      Indexes of mesh.faces to slice. When no mask is provided, the
+      default is to slice all faces.
     cached_dots : (n, 3) float
       If an external function has stored dot
       products pass them here to avoid recomputing
@@ -698,10 +716,14 @@ def slice_mesh_plane(mesh,
                                             faces=faces,
                                             plane_normal=normal,
                                             plane_origin=origin,
+                                            face_index=face_index,
                                             cached_dots=dots)
 
         # check if cap arg specified
         if cap:
+            if face_index:
+                # This hasn't been implemented yet.
+                raise NotImplementedError("face_index and cap can't be used together")
             # check if mesh is watertight (can't cap if not)
             if not sliced_mesh.is_watertight:
                 raise ValueError('Input mesh must be watertight to cap slice')

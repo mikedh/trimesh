@@ -620,7 +620,7 @@ def export_dxf(path, only_layers=None):
             group = group[:, :2]
             three = three[:, :2]
         # join into result string
-        packed = '\n'.join('{:d}\n{:.12f}'.format(g, v)
+        packed = '\n'.join('{:d}\n{:.12g}'.format(g, v)
                            for g, v in zip(group.reshape(-1),
                                            three.reshape(-1)))
 
@@ -692,8 +692,8 @@ def export_dxf(path, only_layers=None):
         center = info['center']
         if len(center) == 2:
             center = np.append(center, 0.0)
-        data = '10\n{:.12f}\n20\n{:.12f}\n30\n{:.12f}'.format(*center)
-        data += '\n40\n{:.12f}'.format(info['radius'])
+        data = '10\n{:.12g}\n20\n{:.12g}\n30\n{:.12g}'.format(*center)
+        data += '\n40\n{:.12g}'.format(info['radius'])
 
         if arc.closed:
             subs['TYPE'] = 'CIRCLE'
@@ -702,7 +702,7 @@ def export_dxf(path, only_layers=None):
             # an arc is the same as a circle, with an added start
             # and end angle field
             data += '\n100\nAcDbArc'
-            data += '\n50\n{:.12f}\n51\n{:.12f}'.format(
+            data += '\n50\n{:.12g}\n51\n{:.12g}'.format(
                 *np.degrees(info['angles']))
         subs['DATA'] = data
 
@@ -716,7 +716,7 @@ def export_dxf(path, only_layers=None):
                                increment=False)
 
         # (n,) float knots, formatted with group code
-        knots = ('40\n{:.12f}\n' * len(spline.knots)
+        knots = ('40\n{:.12g}\n' * len(spline.knots)
                  ).format(*spline.knots)[:-1]
 
         # bit coded
@@ -732,7 +732,7 @@ def export_dxf(path, only_layers=None):
 
         normal = [0.0, 0.0, 1.0]
         n_code = [210, 220, 230]
-        n_str = '\n'.join('{:d}\n{:.12f}'.format(i, j)
+        n_str = '\n'.join('{:d}\n{:.12g}'.format(i, j)
                           for i, j in zip(n_code, normal))
 
         subs = entity_info(spline)

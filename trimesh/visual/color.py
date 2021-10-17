@@ -570,7 +570,7 @@ def to_rgba(colors, dtype=np.uint8):
     colors : (n, 4) list of RGBA colors
              (4,)  single RGBA color
     """
-    if colors is None or not util.is_sequence(colors):
+    if colors is None:
         return DEFAULT_COLOR
 
     # colors as numpy array

@@ -1,3 +1,4 @@
+import os
 from ... import util
 
 from . import dxf
@@ -64,7 +65,10 @@ def _write_export(export, file_obj=None):
     if hasattr(file_obj, 'write'):
         out_file = file_obj
     else:
-        out_file = open(file_obj, 'wb')
+        # expand user and relative paths
+        file_path = os.path.abspath(
+            os.path.expanduser(file_obj))
+        out_file = open(file_path, 'wb')
     try:
         out_file.write(export)
     except TypeError:
