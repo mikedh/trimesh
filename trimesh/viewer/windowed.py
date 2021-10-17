@@ -103,9 +103,8 @@ class SceneViewer(pyglet.window.Window):
         self._initial_camera_transform = scene.camera_transform.copy()
 
         # a transform to offset lines slightly to avoid Z-fighting
-        if self.offset_lines:
-            self._line_offset = translation_matrix(
-                [0, 0, scene.scale / 1000])
+        self._line_offset = translation_matrix(
+            [0, 0, scene.scale / 1000 if self.offset_lines else 0])
 
         self.reset_view(flags=flags)
         self.batch = pyglet.graphics.Batch()
