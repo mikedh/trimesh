@@ -62,7 +62,7 @@ jobs:
     - name: Install Pytest
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-cov wheel coveralls setuptools
+        pip install pytest pytest-cov wheel coveralls setuptools ezdxf
     - name: Install Trimesh
       run: pip install .[easy]
     - name: Install Linux Deps

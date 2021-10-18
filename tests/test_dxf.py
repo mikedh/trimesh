@@ -3,6 +3,11 @@ try:
 except BaseException:
     import generic as g
 
+try:
+    import ezdxf
+except BaseException:
+    ezdxf = None
+
 
 class DXFTest(g.unittest.TestCase):
 
@@ -23,6 +28,12 @@ class DXFTest(g.unittest.TestCase):
 
             # export the drawing to the file
             d.export(file_obj=temp_name)
+
+            # try using ezdxf as a simple validator
+            # it raises exceptions aggressively
+            if ezdxf is not None:
+                with open(temp_name, 'r') as f:
+                    ezdxf.read(f)
 
             # export to a string
             text = d.export(file_type='dxf')
