@@ -1,7 +1,5 @@
 import numpy as np
 
-from string import Template
-
 from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline, Text
 

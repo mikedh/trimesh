@@ -59,8 +59,6 @@ def replace_whitespace(text, SAFE_SPACE='|<^>|', insert=True, reformat=False):
             elif cur.startswith('$'):
                 lines[i] = '{' + cur[1:] + '}'
 
-    #assert (len(lines) % 2) == 0
-
     return '\n'.join(lines)
 
 
