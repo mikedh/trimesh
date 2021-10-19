@@ -1,7 +1,5 @@
 import numpy as np
 
-from string import Template
-
 from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline, Text
 
@@ -575,10 +573,9 @@ def export_dxf(path, only_layers=None):
     export : str
       Path formatted as a DXF file
     """
-    # get the TEMPLATES for exporting DXF files
-    TEMPLATES = {k: Template(v) for k, v in
-                 resources.get('templates/dxf.json',
-                               decode_json=True).items()}
+    # get the template for exporting DXF files
+    template = resources.get(
+        'templates/dxf.json', decode_json=True)
 
     def format_points(points,
                       as_2D=False,
@@ -610,8 +607,9 @@ def export_dxf(path, only_layers=None):
         three = util.stack_3D(points)
         if increment:
             group = np.tile(
-                np.arange(len(three), dtype=np.int64).reshape((-1, 1)),
-                (1, 3))
+                np.arange(
+                    len(three),
+                    dtype=np.int64).reshape((-1, 1)), (1, 3))
         else:
             group = np.zeros((len(three), 3), dtype=np.int64)
         group += [10, 20, 30]
@@ -673,21 +671,21 @@ def export_dxf(path, only_layers=None):
 
         # generate a substitution dictionary for template
         subs = entity_info(line)
-        subs['POINTS'] = format_points(points,
-                                       as_2D=True,
-                                       increment=False)
+        subs['POINTS'] = format_points(
+            points, as_2D=True, increment=False)
         subs['TYPE'] = 'LWPOLYLINE'
         subs['VCOUNT'] = len(points)
         # 1 is closed
         # 0 is default (open)
         subs['FLAG'] = int(bool(line.closed))
 
-        result = TEMPLATES['line'].substitute(subs)
+        result = template['line'].format(**subs)
         return result
 
     def convert_arc(arc, vertices):
         # get the center of arc and include span angles
-        info = arc.center(vertices, return_angle=True, return_normal=False)
+        info = arc.center(
+            vertices, return_angle=True, return_normal=False)
         subs = entity_info(arc)
         center = info['center']
         if len(center) == 2:
@@ -705,8 +703,7 @@ def export_dxf(path, only_layers=None):
             data += '\n50\n{:.12g}\n51\n{:.12g}'.format(
                 *np.degrees(info['angles']))
         subs['DATA'] = data
-
-        result = TEMPLATES['arc'].substitute(subs)
+        result = template['arc'].format(**subs)
 
         return result
 
@@ -746,7 +743,7 @@ def export_dxf(path, only_layers=None):
                      'KCOUNT': len(spline.knots),
                      'PCOUNT': len(spline.points)})
         # format into string template
-        result = TEMPLATES['bspline'].substitute(subs)
+        result = template['bspline'].format(**subs)
 
         return result
 
@@ -767,7 +764,7 @@ def export_dxf(path, only_layers=None):
             'ascii', errors='ignore').decode('ascii')
         # height of text
         sub['HEIGHT'] = txt.height
-        result = TEMPLATES['text'].substitute(sub)
+        result = template['text'].format(**sub)
         return result
 
     def convert_generic(entity, vertices):
@@ -802,26 +799,26 @@ def export_dxf(path, only_layers=None):
 
     # join all entities into one string
     entities_str = '\n'.join(collected)
-    hsub = {'BOUNDS_MIN': format_points([path.bounds[0]]),
-            'BOUNDS_MAX': format_points([path.bounds[1]]),
-            'LUNITS': '1'}
-    if path.units in _UNITS_TO_DXF:
-        hsub['LUNITS'] = _UNITS_TO_DXF[path.units]
-    # sections of the DXF
-    header = TEMPLATES['header'].substitute(hsub)
-    # entities section
-    entities = TEMPLATES['entities'].substitute({
-        'ENTITIES': entities_str})
-    footer = TEMPLATES['footer'].substitute()
+
+    # add in the extents of the document as explicit XYZ lines
+    hsub = {'EXTMIN_{}'.format(k): v for k, v in zip(
+        'XYZ', np.append(path.bounds[0], 0.0))}
+    hsub.update({'EXTMAX_{}'.format(k): v for k, v in zip(
+        'XYZ', np.append(path.bounds[1], 0.0))})
+    # apply a units flag defaulting to `1`
+    hsub['LUNITS'] = _UNITS_TO_DXF.get(path.units, 1)
+    # run the format for the header
+    sections = [template['header'].format(**hsub).strip()]
+    # do the same for entities
+    sections.append(template['entities'].format(
+        ENTITIES=entities_str).strip())
+    # and the footer
+    sections.append(template['footer'].strip())
 
     # filter out empty sections
     # random whitespace causes AutoCAD to fail to load
     # although Draftsight, LibreCAD, and Inkscape don't care
     # what a giant legacy piece of shit
-    # strip out all leading and trailing whitespace
-    sections = [i.strip() for i in
-                [header, entities, footer]
-                if len(i) > 0]
     # create the joined string blob
     blob = '\n'.join(sections).replace(_SAFESPACE, ' ')
     # run additional self- checks

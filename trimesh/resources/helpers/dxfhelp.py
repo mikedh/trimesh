@@ -11,7 +11,7 @@ import json
 import numpy as np
 
 
-def get_json(file_name='../dxf.json.template'):
+def get_json(file_name='../templates/dxf.json'):
     """
     Load the JSON blob into native objects
     """
@@ -20,7 +20,7 @@ def get_json(file_name='../dxf.json.template'):
     return t
 
 
-def write_json(template, file_name='../dxf.json.template'):
+def write_json(template, file_name='../templates/dxf.json'):
     """
     Write a native object to a JSON blob
     """
@@ -28,7 +28,7 @@ def write_json(template, file_name='../dxf.json.template'):
         json.dump(template, f, indent=4)
 
 
-def replace_whitespace(text, SAFE_SPACE='|<^>|', insert=True):
+def replace_whitespace(text, SAFE_SPACE='|<^>|', insert=True, reformat=False):
     """
     Replace non-strippable whitepace in a string with a safe space
     """
@@ -48,6 +48,17 @@ def replace_whitespace(text, SAFE_SPACE='|<^>|', insert=True):
             if len(v) == 0:
                 mask[i] = False
         lines = shaped[mask].ravel()
+
+    if reformat:
+        for i in range(len(lines)):
+            cur = lines[i].strip()
+            if cur.startswith('$$'):
+                lines[i] = cur[1:]
+            elif cur.startswith('${'):
+                lines[i] = cur[1:]
+            elif cur.startswith('$'):
+                lines[i] = '{' + cur[1:] + '}'
+
     return '\n'.join(lines)
 
 
@@ -58,7 +69,7 @@ def write_files(template, destination='./dxf'):
     os.makedirs(destination)
     for key, value in template.items():
         with open(os.path.join(destination, key), 'w') as f:
-            f.write(replace_whitespace(value, insert=False))
+            f.write(replace_whitespace(value, reformat=True, insert=False))
 
 
 def read_files(path):
@@ -73,7 +84,7 @@ def read_files(path):
             continue
         with open(os.path.join(path, file_name), 'r') as f:
             template[file_name] = replace_whitespace(
-                f.read(), insert=True)
+                f.read(), reformat=False, insert=True)
 
     return template
 
@@ -82,10 +93,10 @@ if __name__ == '__main__':
     import sys
 
     # dump files to JSON template
-    if 'dump_json' in sys.argv:
+    if 'dump' in sys.argv:
         t = read_files('dxf')
         write_json(t)
-    elif 'read_json' in sys.argv:
+    elif 'read' in sys.argv:
         # dump JSON to files for editing
         t = get_json()
         write_files(t)
