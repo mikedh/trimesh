@@ -59,12 +59,8 @@ jobs:
       run: |
         brew install geos
         brew install --cask openscad
-    - name: Install Pytest
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-cov wheel coveralls setuptools ezdxf
     - name: Install Trimesh
-      run: pip install .[easy]
+      run: pip install .[easy,test]
     - name: Install Linux Deps
       if: matrix.os == 'ubuntu-latest'
       run: sudo bash docker/builds/gltf_validator.bash

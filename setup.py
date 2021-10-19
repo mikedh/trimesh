@@ -63,7 +63,8 @@ requirements_all = requirements_easy.union([
 requirements_test = set(['pytest',       # run all unit tests
                          'pytest-cov',   # coverage plugin
                          'pyinstrument',  # profile code
-                         'coveralls'])   # report coverage stats
+                         'coveralls',    # report coverage stats
+                         'ezdxf'])       # use as a validator for exports
 
 # Python 2.7 and 3.4 support has been dropped from packages
 # version lock those packages here so install succeeds

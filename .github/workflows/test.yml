@@ -46,13 +46,10 @@ jobs:
       run: |
         pip install .
         python tests/test_minimal.py
-    - name: Install Pytest
-      run: |
-        pip install pytest pytest-cov ezdxf
     - name: Install Linux Deps
       if: matrix.os == 'ubuntu-latest'
       run: sudo bash docker/builds/gltf_validator.bash
     - name: Install Trimesh
-      run: pip install .[easy]
+      run: pip install .[easy,test]
     - name: Run Pytest
       run: pytest
