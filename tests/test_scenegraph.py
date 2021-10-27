@@ -105,7 +105,7 @@ class GraphTests(g.unittest.TestCase):
 
     def test_subscene(self):
         s = g.get_mesh("CesiumMilkTruck.glb")
-        
+
         assert len(s.graph.nodes) == 9
         assert len(s.graph.transforms.node_data) == 9
         assert len(s.graph.transforms.edge_data) == 8
