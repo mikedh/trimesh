@@ -103,6 +103,22 @@ class GraphTests(g.unittest.TestCase):
         assert len(s.graph.transforms.edge_data) == 6
         assert len(s.graph.transforms.parents) == 6
 
+    def test_subscene(self):
+        s = g.get_mesh("CesiumMilkTruck.glb")
+        
+        assert len(s.graph.nodes) == 9
+        assert len(s.graph.transforms.node_data) == 9
+        assert len(s.graph.transforms.edge_data) == 8
+
+        ss = s.subscene('3')
+
+        assert ss.graph.base_frame == '3'
+        assert len(ss.graph.nodes) == 2
+        assert ss.graph.nodes == {'3', '4'}
+        assert len(ss.graph.transforms.node_data) == 2
+        assert len(ss.graph.transforms.edge_data) == 1
+        assert list(ss.graph.transforms.edge_data.keys()) == [('3', '4')]
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
