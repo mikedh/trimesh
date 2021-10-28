@@ -18,6 +18,7 @@ make -j$(nproc)
 
 # Move executables to local path.
 mv /tmp/draco_build/draco_encoder /usr/local/bin
+mv /tmp/draco_build/draco_decoder /usr/local/bin
 
 # Remove temporary build directories.
 rm -rf /tmp/draco_build /tmp/draco_source /tmp/draco.tar.gz
