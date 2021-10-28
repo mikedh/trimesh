@@ -10,7 +10,10 @@ from .. import visual
 from ..constants import log
 
 
-def load_collada(file_obj, resolver=None, ignore_broken=False, **kwargs):
+def load_collada(file_obj,
+                 resolver=None,
+                 ignore_broken=False,
+                 **kwargs):
     """
     Load a COLLADA (.dae) file into a list of trimesh kwargs.
 
@@ -22,7 +25,8 @@ def load_collada(file_obj, resolver=None, ignore_broken=False, **kwargs):
       For loading referenced files, like texture images
     ignore_broken: bool
       Ignores broken references during loading:
-      [collada.common.DaeUnsupportedError, collada.common.DaeBrokenRefError]
+        [collada.common.DaeUnsupportedError,
+         collada.common.DaeBrokenRefError]
     kwargs : **
       Passed to trimesh.Trimesh.__init__
 
@@ -34,9 +38,11 @@ def load_collada(file_obj, resolver=None, ignore_broken=False, **kwargs):
     import collada
 
     # load scene using pycollada
-    c = collada.Collada(file_obj, 
-                        ignore=[collada.common.DaeUnsupportedError,
-                                collada.common.DaeBrokenRefError] if ignore_broken else None)
+    c = collada.Collada(
+        file_obj,
+        ignore=[collada.common.DaeUnsupportedError,
+                collada.common.DaeBrokenRefError]
+        if ignore_broken else None)
 
     # Create material map from Material ID to trimesh material
     material_map = {}
