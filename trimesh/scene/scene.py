@@ -981,7 +981,7 @@ class Scene(Geometry3D):
 
         Parameters
         -----------
-        scale : float
+        scale : float or (3,) float
           Factor to scale meshes and transforms
 
         Returns
@@ -989,11 +989,17 @@ class Scene(Geometry3D):
         scaled : trimesh.Scene
           A copy of the current scene but scaled
         """
-        scale = float(scale)
+        # convert 2D geometries to 3D for 3D scaling factors
+        convert_to_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
+        
+        if not convert_to_3D:
+            scale = float(scale)
+        
         # matrix for 2D scaling
         scale_2D = np.eye(3) * scale
         # matrix for 3D scaling
-        scale_3D = np.eye(4) * scale
+        # scale_3D = transformations.scale_and_translate(scale)
+        scale_3D = np.eye(4) * np.append(scale, 1.0)
 
         # preallocate transforms and geometries
         nodes = np.array(self.graph.nodes_geometry)
@@ -1016,7 +1022,11 @@ class Scene(Geometry3D):
             original = transforms[group[0]]
             # transform for geometry
             new_geom = np.dot(scale_3D, original)
-
+            
+            if result.geometry[geometry].vertices.shape[1] == 2 and convert_to_3D:
+                # convert 2D paths to 3D
+                result.geometry[geometry] = result.geometry[geometry].to_3D()
+            
             if result.geometry[geometry].vertices.shape[1] == 2:
                 # if our scene is 2D only scale in 2D
                 result.geometry[geometry].apply_transform(scale_2D)

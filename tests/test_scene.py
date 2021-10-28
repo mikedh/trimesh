@@ -158,7 +158,22 @@ class SceneTests(g.unittest.TestCase):
         # we shouldn't have modified the original scene
         assert scene.__hash__() == hash_val
         assert converted.__hash__() != hash_val
+    
+    def test_scaling_3D(self):
+        scene = g.get_mesh('cycloidal.3DXML')
 
+        extents = scene.bounding_box_oriented.primitive.extents.copy()
+
+        factor = [10.0, 3.0, 7.0]
+        scaled = scene.scaled(factor)
+
+        # the oriented bounding box should scale exactly
+        # with the scaling factor
+        assert g.np.allclose(
+            scaled.bounding_box_oriented.primitive.extents /
+            extents,
+            factor)
+    
     def test_add_geometry(self):
         # list-typed geometry should create multiple nodes,
         # e.g., below code is equivalent to
