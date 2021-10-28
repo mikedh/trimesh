@@ -429,8 +429,25 @@ def load_kwargs(*args, **kwargs):
 
         if 'base_frame' in kwargs:
             scene.graph.base_frame = kwargs['base_frame']
-        if 'metadata' in kwargs:
+        metadata = kwargs.get('metadata')
+        if isinstance(metadata, dict):
             scene.metadata.update(kwargs['metadata'])
+        elif isinstance(metadata, str):
+            # some ways someone might have encoded a string
+            # note that these aren't evaluated until we
+            # actually call the lambda in the loop
+            candidates = [
+                lambda: json.loads(metadata),
+                lambda: json.loads(metadata.replace("'", '"'))]
+            for c in candidates:
+                try:
+                    scene.metadata.update(c())
+                    break
+                except BaseException:
+                    pass
+        elif metadata is not None:
+            log.warning('unloadable metadata')
+
         return scene
 
     def handle_mesh():
