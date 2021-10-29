@@ -3,7 +3,7 @@ name: Release Trimesh
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   formatting:
