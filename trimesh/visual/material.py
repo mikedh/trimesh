@@ -124,8 +124,7 @@ class SimpleMaterial(Material):
             # what is the name of the export image to save
             if image_type is None:
                 image_type = 'png'
-            image_name = '{}.{}'.format(
-                tex_name, image_type).lower()
+            image_name = '{}.{}'.format(tex_name, image_type.lower())
             # save the reference to the image
             mtl.append('map_Kd {}'.format(image_name))
 
