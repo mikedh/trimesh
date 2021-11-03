@@ -1587,7 +1587,10 @@ def submesh(mesh,
         normals.append(mesh.face_normals[index])
         faces.append(mask[current])
         vertices.append(original_vertices[unique])
-        visuals.append(mesh.visual.face_subset(index))
+
+        vis = mesh.visual.face_subset(index)
+        vis.update_vertices(unique)
+        visuals.append(vis)
 
     if len(vertices) == 0:
         return np.array([])
