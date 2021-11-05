@@ -5,6 +5,9 @@ base.py
 The base class for `Visual` objects
 """
 import abc
+
+import numpy as np
+
 from ..util import ABC
 
 
@@ -13,6 +16,10 @@ class Visuals(ABC):
     """
     Parent of Visual classes.
     """
+
+    def unique_verts_indices(self, face_indices):
+        indices = self.mesh.faces[face_indices].flatten()
+        return np.unique(indices)
 
     @abc.abstractproperty
     def kind(self):

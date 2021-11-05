@@ -154,6 +154,7 @@ class ColorVisuals(Visuals):
         """
         Return a copy of the current ColorVisuals object.
 
+
         Returns
         ----------
         copied : ColorVisuals
@@ -412,11 +413,16 @@ class ColorVisuals(Visuals):
         ----------
         visual: ColorVisuals object containing a subset of faces.
         """
+        kwargs = {}
         if self.defined:
-            result = ColorVisuals(
-                face_colors=self.face_colors[face_index])
-        else:
-            result = ColorVisuals()
+            if self.face_colors is not None:
+                kwargs.update(face_colors=self.face_colors[face_index])
+
+            if self.vertex_colors is not None:
+                vertex_colors = self.vertex_colors[self.unique_verts_indices(face_index)]
+                kwargs.update(vertex_colors=vertex_colors)
+
+        result = ColorVisuals(**kwargs)
 
         return result
 
