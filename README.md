@@ -19,7 +19,7 @@ Keeping `trimesh` easy to install is a core goal, thus the *only* hard dependenc
 pip install trimesh
 ```
 
-More functionality is available when soft dependencies are installed. This includes things like convex hulls (`scipy`), graph operations (`networkx`), faster ray queries (`pyembree`), vector path handling (`shapely` and `rtree`), preview windows (`pyglet`), faster cache checks (`xxhash`), etc. To install `trimesh` with the soft dependencies that generally install cleanly on Linux, OSX, and Windows using `pip`:
+The minimal install can load many supported formats (STL, PLY, GLTF/GLB) into numpy arrays. More functionality is available when soft dependencies are installed. This includes things like convex hulls (`scipy`), graph operations (`networkx`), faster ray queries (`pyembree`), vector path handling (`shapely` and `rtree`), XML formats like 3DXML/XAML/3MF (`lxml`), preview windows (`pyglet`), faster cache checks (`xxhash`), etc. To install `trimesh` with the soft dependencies that generally install cleanly on Linux, OSX, and Windows using `pip`:
 ```bash
 pip install trimesh[easy]
 ```
