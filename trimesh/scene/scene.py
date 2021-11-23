@@ -796,7 +796,8 @@ class Scene(Geometry3D):
         nodes = graph.transforms.successors(node)
         # get every edge that has an included node
         edges = [e for e in graph.to_edgelist()
-                 if e[0] in nodes or e[1] in nodes]
+                 if e[0] in nodes]
+
         # create a scene graph whet
         graph = SceneGraph(base_frame=node)
         graph.from_edgelist(edges)
