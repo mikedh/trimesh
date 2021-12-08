@@ -63,6 +63,16 @@ class GraphTests(g.unittest.TestCase):
         assert isinstance(s.graph.to_networkx(),
                           g.nx.DiGraph)
 
+    def test_nodes(self):
+        # get a scene graph
+        graph = g.get_mesh('models/cycloidal.3DXML').graph
+        # get any non-root node
+        node = list(graph.nodes.difference(['world']))[0]
+        # remove that node
+        graph.transforms.remove_node(node)
+        # should have dumped the cache and removed the node
+        assert node not in graph.nodes
+
     def test_kwargs(self):
         # test the function that converts various
         # arguments into a homogeneous transformation
