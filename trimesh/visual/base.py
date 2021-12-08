@@ -12,15 +12,9 @@ from ..util import ABC
 
 
 class Visuals(ABC):
-
     """
     Parent of Visual classes.
     """
-
-    def unique_verts_indices(self, face_indices):
-        indices = self.mesh.faces[face_indices].flatten()
-        return np.unique(indices)
-
     @abc.abstractproperty
     def kind(self):
         pass

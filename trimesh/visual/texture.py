@@ -166,9 +166,8 @@ class TextureVisuals(Visuals):
         Get a copy of
         """
         if self.uv is not None:
-            indices = self.unique_verts_indices(face_index)
+            indices = np.unique(self.mesh.faces[face_index].flatten())
             return self.copy(self.uv[indices])
-
         else:
             return self.copy()
 
