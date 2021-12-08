@@ -2502,6 +2502,42 @@ class Trimesh(Geometry3D):
         return Path3D(**faces_to_path(
             self, face_ids, **kwargs))
 
+    def projected(self,
+                  normal,
+                  **kwargs):
+        """
+        Project a mesh onto a plane and then extract the polygon
+        that outlines the mesh projection on that plane.
+
+        Parameters
+        ----------
+        mesh : trimesh.Trimesh
+          Source geometry
+        check : bool
+          If True make sure is flat
+        normal : (3,) float
+          Normal to extract flat pattern along
+        origin : None or (3,) float
+          Origin of plane to project mesh onto
+        pad : float
+          Proportion to pad polygons by before unioning
+          and then de-padding result by to avoid zero-width gaps.
+        tol_dot : float
+          Tolerance for discarding on-edge triangles.
+        max_regions : int
+          Raise an exception if the mesh has more than this
+          number of disconnected regions to fail quickly before unioning.
+
+        Returns
+        ----------
+        projected : trimesh.path.Path2D
+          Outline of source mesh
+        """
+        from .exchange.load import load_path
+        from .path.polygons import projected
+
+        return load_path(projected(mesh=self, normal=normal, **kwargs))
+
     @caching.cache_decorator
     def area(self):
         """
@@ -2525,8 +2561,9 @@ class Trimesh(Geometry3D):
         area_faces : (n, ) float
           Area of each face
         """
-        area_faces = triangles.area(crosses=self.triangles_cross,
-                                    sum=False)
+        area_faces = triangles.area(
+            crosses=self.triangles_cross,
+            sum=False)
         return area_faces
 
     @caching.cache_decorator

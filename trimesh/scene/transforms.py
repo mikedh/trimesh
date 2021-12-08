@@ -151,9 +151,8 @@ class SceneGraph(object):
         """
         Return the last time stamp data was modified.
         """
-        if hasattr(self, '_modified'):
-            return self._modified
-        return '0.0'
+        return (getattr(self, '_modified', '-') +
+                getattr(self.transforms, '_modified', '-'))
 
     def copy(self):
         """
@@ -520,6 +519,7 @@ class EnforcedForest(object):
         # topology has changed so clear cache
         if (u, v) not in self.edge_data:
             self._cache = {}
+            self._modified = str(uuid.uuid4())
         else:
             # check to see if matrix and geometry are identical
             edge = self.edge_data[(u, v)]
@@ -563,6 +563,7 @@ class EnforcedForest(object):
 
         # topology will change so clear cache
         self._cache = {}
+        self._modified = str(uuid.uuid4())
 
         # delete all children's references and parent reference
         children = [child for (child, parent) in self.parents.items() if parent == u]
@@ -702,6 +703,12 @@ class EnforcedForest(object):
                 queue.extend(childs)
                 collected.update(childs)
         return collected
+
+    def modified(self):
+        """
+        Return the last time stamp data was modified.
+        """
+        return getattr(self, '_modified', '-')
 
 
 def kwargs_to_matrix(

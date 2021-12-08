@@ -543,9 +543,7 @@ class DataStore(Mapping):
         is_mutable : bool
           Can data be altered in the DataStore
         """
-        if not hasattr(self, '_mutable'):
-            return True
-        return self._mutable
+        return getattr(self, '_mutable', True)
 
     @mutable.setter
     def mutable(self, value):
