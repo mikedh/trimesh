@@ -57,50 +57,54 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # load the materials library from the materials elements
     colors = {}
-    material_tree = as_etree['CATMaterialRef.3dxml']
-    for MaterialDomain in material_tree.iter('{*}MaterialDomain'):
-        material_id = MaterialDomain.attrib['id']
-        material_file = MaterialDomain.attrib['associatedFile'].split(
-            'urn:3DXML:')[-1]
-        rend = as_etree[material_file].find(
-            "{*}Feature[@Alias='RenderingFeature']")
-        diffuse = rend.find("{*}Attr[@Name='DiffuseColor']")
-        # specular = rend.find("{*}Attr[@Name='SpecularColor']")
-        # emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
-        rgb = (np.array(json.loads(
-            diffuse.attrib['Value'])) * 255).astype(np.uint8)
-        colors[material_id] = rgb
+    # but only if it exists
+    material_key = 'CATMaterialRef.3dxml'
+    if material_key in as_etree:
+        material_tree = as_etree[material_key]
+        for MaterialDomain in material_tree.iter('{*}MaterialDomain'):
+            material_id = MaterialDomain.attrib['id']
+            material_file = MaterialDomain.attrib['associatedFile'].split(
+                'urn:3DXML:')[-1]
+            rend = as_etree[material_file].find(
+                "{*}Feature[@Alias='RenderingFeature']")
+            diffuse = rend.find("{*}Attr[@Name='DiffuseColor']")
+            # specular = rend.find("{*}Attr[@Name='SpecularColor']")
+            # emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
+            rgb = (np.array(json.loads(
+                diffuse.attrib['Value'])) * 255).astype(np.uint8)
+            colors[material_id] = rgb
 
-    # copy indexes for instances of colors
-    for MaterialDomainInstance in material_tree.iter(
-            '{*}MaterialDomainInstance'):
-        instance = MaterialDomainInstance.find('{*}IsInstanceOf')
-        # colors[b.attrib['id']] = colors[instance.text]
-        for aggregate in MaterialDomainInstance.findall('{*}IsAggregatedBy'):
-            colors[aggregate.text] = colors[instance.text]
+        # copy indexes for instances of colors
+        for MaterialDomainInstance in material_tree.iter(
+                '{*}MaterialDomainInstance'):
+            instance = MaterialDomainInstance.find('{*}IsInstanceOf')
+            # colors[b.attrib['id']] = colors[instance.text]
+            for aggregate in MaterialDomainInstance.findall('{*}IsAggregatedBy'):
+                colors[aggregate.text] = colors[instance.text]
 
     # references which hold the 3DXML scene structure as a dict
     # element id : {key : value}
     references = collections.defaultdict(dict)
 
-    # the 3DXML can specify different visual properties for  occurrences
+    # the 3DXML can specify different visual properties for occurrences
     view = tree.find('{*}DefaultView')
-    for ViewProp in view.iter('{*}DefaultViewProperty'):
-        color = ViewProp.find('{*}GraphicProperties/' +
-                              '{*}SurfaceAttributes/{*}Color')
-        if (color is None or
-                'RGBAColorType' not in color.attrib.values()):
-            continue
-        rgba = np.array([color.attrib[i]
-                         for i in ['red',
-                                   'green',
-                                   'blue',
-                                   'alpha']],
-                        dtype=np.float64)
-        rgba = (rgba * 255).astype(np.uint8)
-        for occurrence in ViewProp.findall('{*}OccurenceId/{*}id'):
-            reference_id = occurrence.text.split('#')[-1]
-            references[reference_id]['color'] = rgba
+    if view is not None:
+        for ViewProp in view.iter('{*}DefaultViewProperty'):
+            color = ViewProp.find('{*}GraphicProperties/' +
+                                  '{*}SurfaceAttributes/{*}Color')
+            if (color is None or
+                    'RGBAColorType' not in color.attrib.values()):
+                continue
+            rgba = np.array([color.attrib[i]
+                             for i in ['red',
+                                       'green',
+                                       'blue',
+                                       'alpha']],
+                            dtype=np.float64)
+            rgba = (rgba * 255).astype(np.uint8)
+            for occurrence in ViewProp.findall('{*}OccurenceId/{*}id'):
+                reference_id = occurrence.text.split('#')[-1]
+                references[reference_id]['color'] = rgba
 
     # geometries will hold meshes
     geometries = dict()
@@ -117,6 +121,12 @@ def load_3DXML(file_obj, *args, **kwargs):
         mesh_colors = []
         mesh_normals = []
         mesh_vertices = []
+
+        if part_file not in as_etree and part_file in archive:
+            # the data is stored in some binary format
+            # blob = archive[part_file].read()
+            util.log.warning('unable to load binary Rep')
+            continue
 
         # the geometry is stored in a Rep
         for Rep in as_etree[part_file].iter('{*}Rep'):
@@ -296,7 +306,7 @@ def load_3DXML(file_obj, *args, **kwargs):
 
 def print_element(element):
     """
-    Pretty- print an lxml.etree element.
+    Pretty-print an lxml.etree element.
 
     Parameters
     ------------
