@@ -65,7 +65,7 @@ class GraphTests(g.unittest.TestCase):
 
     def test_nodes(self):
         # get a scene graph
-        graph = g.get_mesh('models/cycloidal.3DXML').graph
+        graph = g.get_mesh('cycloidal.3DXML').graph
         # get any non-root node
         node = list(graph.nodes.difference(['world']))[0]
         # remove that node
