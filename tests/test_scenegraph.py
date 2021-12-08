@@ -108,7 +108,7 @@ class GraphTests(g.unittest.TestCase):
         assert s.graph.transforms.remove_node("1")
 
         assert len(s.graph.nodes_geometry) == 5
-        assert len(s.graph.nodes) == 9
+        assert len(s.graph.nodes) == 8
         assert len(s.graph.transforms.node_data) == 8
         assert len(s.graph.transforms.edge_data) == 6
         assert len(s.graph.transforms.parents) == 6
