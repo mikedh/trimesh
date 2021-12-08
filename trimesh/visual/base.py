@@ -5,9 +5,6 @@ base.py
 The base class for `Visual` objects
 """
 import abc
-
-import numpy as np
-
 from ..util import ABC
 
 
