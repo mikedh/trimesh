@@ -125,7 +125,7 @@ class TextureVisuals(Visuals):
             self.vertex_attributes['uv'] = np.asanyarray(
                 values, dtype=np.float64)
 
-    def copy(self):
+    def copy(self, uv=None):
         """
         Return a copy of the current TextureVisuals object.
 
@@ -134,7 +134,8 @@ class TextureVisuals(Visuals):
         copied : TextureVisuals
           Contains the same information in a new object
         """
-        uv = self.uv
+        if uv is None:
+            uv = self.uv
         if uv is not None:
             uv = uv.copy()
         copied = TextureVisuals(
@@ -164,7 +165,12 @@ class TextureVisuals(Visuals):
         """
         Get a copy of
         """
-        return self.copy()
+        if self.uv is not None:
+            indices = self.unique_verts_indices(face_index)
+            return self.copy(self.uv[indices])
+
+        else:
+            return self.copy()
 
     def update_vertices(self, mask):
         """
