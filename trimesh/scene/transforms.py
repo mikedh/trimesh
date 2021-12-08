@@ -151,9 +151,8 @@ class SceneGraph(object):
         """
         Return the last time stamp data was modified.
         """
-        if hasattr(self, "_modified"):
-            return self._modified + self.transforms.modified()
-        return "0.0" + self.transforms.modified()
+        return (getattr(self, '_modified', '-') +
+                getattr(self.transforms, '_modified', '-'))
 
     def copy(self):
         """
@@ -709,9 +708,8 @@ class EnforcedForest(object):
         """
         Return the last time stamp data was modified.
         """
-        if hasattr(self, "_modified"):
-            return self._modified
-        return "0.0"
+        return getattr(self, '_modified', '-')
+
 
 def kwargs_to_matrix(
         matrix=None,

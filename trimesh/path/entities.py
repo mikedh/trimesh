@@ -585,9 +585,7 @@ class Arc(Entity):
         closed : bool
           If set True, Arc will be a closed circle
         """
-        if hasattr(self, '_closed'):
-            return self._closed
-        return False
+        return getattr(self, '_closed', False)
 
     @closed.setter
     def closed(self, value):
