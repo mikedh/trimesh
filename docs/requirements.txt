@@ -9,3 +9,4 @@ sphinx_rtd_theme
 pyopenssl
 autodocsumm
 jinja2
+matplotlib
