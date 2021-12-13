@@ -11,6 +11,7 @@ from . import util
 from . import bounds
 from . import transformations
 
+from .constants import tol
 from .transformations import transform_points
 
 try:
@@ -243,6 +244,9 @@ def procrustes(a,
         # no reflection allowed, so determinant must be 1.0
         R = np.dot(np.dot(u, np.diag(
             [1, 1, np.linalg.det(np.dot(u, vh))])), vh)
+
+    if not reflection and tol.strict:
+        assert np.linalg.det(R) > 0.0
 
     # Compute our 4D transformation matrix encoding
     # a -> (R @ (a - acenter)/ascale) * bscale + bcenter
