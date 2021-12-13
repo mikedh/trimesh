@@ -237,10 +237,9 @@ def procrustes(a,
     u, s, vh = np.linalg.svd(
         np.dot(((b - bcenter) / bscale).T, ((a - acenter) / ascale)))
 
-    R = np.dot(u, vh)
-    det = np.linalg.det(R)
-
-    if not reflection and det < 0.0:
+    if reflection:
+        R = np.dot(u, vh)
+    else:
         # no reflection allowed, so determinant must be 1.0
         R = np.dot(np.dot(u, np.diag(
             [1, 1, np.linalg.det(np.dot(u, vh))])), vh)

@@ -8,20 +8,27 @@ class RegistrationTest(g.unittest.TestCase):
 
     def test_procrustes(self):
 
-        # every combination of 3 possible boolean options
-        options = g.itertools.combinations([True, False] * 4, 4)
-        for reflection, flip, translation, scale in options:
+        # every combination of possible boolean options
+        # a_flip and a_scale are apply-to-test-data
+        opt = g.itertools.combinations([True, False] * 5, 5)
+        for reflection, translation, scale, a_flip, a_scale in opt:
             # create random points in space
             points_a = (g.np.random.random((1000, 3)) - .5) * 1000
             # create a random transform
             matrix = g.trimesh.transformations.random_rotation_matrix()
             # add a translation component to transform
             matrix[:3, 3] = g.np.random.random(3) * 100
-
-            if flip:
-                rmat = g.trimesh.transformations.reflection_matrix(
-                    point=[0, 0, 0], normal=[0, 1, 0])
-                matrix = g.np.dot(matrix, rmat)
+            # apply a flip (reflection) to test data
+            if a_flip:
+                matrix = g.np.dot(
+                    matrix,
+                    g.trimesh.transformations.reflection_matrix(
+                        point=[0, 0, 0], normal=[0, 1, 0]))
+            # apply scale to test data
+            if a_scale:
+                matrix = g.np.dot(
+                    matrix,
+                    g.trimesh.transformations.scale_matrix(0.1235234))
             # apply transform to points A
             points_b = g.trimesh.transform_points(points_a, matrix)
 
@@ -36,7 +43,12 @@ class RegistrationTest(g.unittest.TestCase):
 
             # the points should be identical if the function
             # was allowed to translate in space
-            if translation and (not flip and reflection):
+
+            identical = (translation and
+                         (not a_flip or reflection) and
+                         (not a_scale or scale))
+
+            if identical:
                 assert(cost < 0.001)
                 # it should have found the matrix we used
                 assert g.np.allclose(matrixN, matrix)
@@ -44,16 +56,24 @@ class RegistrationTest(g.unittest.TestCase):
             # if reflection is not allowed, the determinant
             # should always be close to 1.0 for the rotation
             det = g.np.linalg.det(matrixN[:3, :3])
+            # reflection not allowed
             if not reflection:
-                if scale:
-                    assert det > 1e-8
-                else:
+                # determinant should always be positive
+                assert det > 1e-8
+                if not scale:
+                    # no reflection or scale means determinant
+                    # of 1.0
                     assert g.np.isclose(det, 1.0)
-            elif not scale:
+
+            # scaling not allowed
+            if not scale:
                 # allowed to be -1.0 or 1.0
                 assert g.np.isclose(g.np.abs(det), 1.0)
 
-            if flip and reflection and not scale:
+            # points have a flip applied
+            # procrustes is allowed to use reflection
+            # and there is no scaling in the matrix
+            if a_flip and reflection and not scale:
                 assert g.np.isclose(det, -1.0)
 
     def test_icp_mesh(self):
