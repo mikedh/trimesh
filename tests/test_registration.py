@@ -7,23 +7,54 @@ except BaseException:
 class RegistrationTest(g.unittest.TestCase):
 
     def test_procrustes(self):
-        # create random points in space
-        points_a = (g.np.random.random((1000, 3)) - .5) * 1000
-        # create a random transform
-        matrix = g.trimesh.transformations.random_rotation_matrix()
-        # add a translation component to transform
-        matrix[:3, 3] = g.np.random.random(3) * 100
-        # apply transform to points A
-        points_b = g.trimesh.transform_points(points_a, matrix)
 
-        # run the solver
-        (matrixN,
-         transformed,
-         cost) = g.trimesh.registration.procrustes(points_a, points_b)
-        # the points should be identical
-        assert(cost < 0.01)
-        # it should have found the matrix we used
-        assert g.np.allclose(matrixN, matrix)
+        # every combination of 3 possible boolean options
+        options = g.itertools.combinations([True, False] * 4, 4)
+        for reflection, flip, translation, scale in options:
+            # create random points in space
+            points_a = (g.np.random.random((1000, 3)) - .5) * 1000
+            # create a random transform
+            matrix = g.trimesh.transformations.random_rotation_matrix()
+            # add a translation component to transform
+            matrix[:3, 3] = g.np.random.random(3) * 100
+
+            if flip:
+                rmat = g.trimesh.transformations.reflection_matrix(
+                    point=[0, 0, 0], normal=[0, 1, 0])
+                matrix = g.np.dot(matrix, rmat)
+            # apply transform to points A
+            points_b = g.trimesh.transform_points(points_a, matrix)
+
+            # run the solver
+            (matrixN,
+             transformed,
+             cost) = g.trimesh.registration.procrustes(
+                 points_a, points_b,
+                 reflection=reflection,
+                 translation=translation,
+                 scale=scale)
+
+            # the points should be identical if the function
+            # was allowed to translate in space
+            if translation and (not flip and reflection):
+                assert(cost < 0.001)
+                # it should have found the matrix we used
+                assert g.np.allclose(matrixN, matrix)
+
+            # if reflection is not allowed, the determinant
+            # should always be close to 1.0 for the rotation
+            det = g.np.linalg.det(matrixN[:3, :3])
+            if not reflection:
+                if scale:
+                    assert det > 1e-8
+                else:
+                    assert g.np.isclose(det, 1.0)
+            elif not scale:
+                # allowed to be -1.0 or 1.0
+                assert g.np.isclose(g.np.abs(det), 1.0)
+
+            if flip and reflection and not scale:
+                assert g.np.isclose(det, -1.0)
 
     def test_icp_mesh(self):
         # see if ICP alignment works with meshes
