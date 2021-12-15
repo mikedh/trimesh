@@ -28,13 +28,13 @@ from .. import grouping
 from .. import exceptions
 from .. import transformations as tf
 
-from . import raster
-from . import repair
-from . import simplify
-from . import creation  # NOQA
-from . import polygons
-from . import segments  # NOQA
-from . import traversal
+from .raster import *
+from .repair import *
+from .simplify import *
+from .creation import *# NOQA
+from .polygons import *
+from .segments import * # NOQA
+from .traversal import *
 
 from .exchange.export import export_path
 
