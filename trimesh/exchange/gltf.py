@@ -59,6 +59,7 @@ _default_material = {
 _GL_LINES = 1
 _GL_POINTS = 0
 _GL_TRIANGLES = 4
+_GL_STRIP = 5
 
 # specify dtypes with forced little endian
 float32 = np.dtype("<f4")
@@ -1252,7 +1253,7 @@ def _read_buffers(header,
                         points=np.arange(len(kwargs['vertices'])))]
                 elif mode == _GL_POINTS:
                     kwargs["vertices"] = access[attr["POSITION"]]
-                elif mode is None or mode == _GL_TRIANGLES:
+                elif mode is None or mode in (_GL_TRIANGLES, _GL_STRIP):
                     if mode is None:
                         # some people skip mode since GL_TRIANGLES
                         # is apparently the de-facto default
@@ -1261,7 +1262,13 @@ def _read_buffers(header,
                     kwargs["vertices"] = access[attr["POSITION"]]
                     # get faces from accessors
                     if 'indices' in p:
-                        kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
+                        if mode == _GL_STRIP:
+                            # this is triangle strips
+                            flat = access[p['indices']].reshape(-1)
+                            kwargs['faces'] = util.triangle_strips_to_faces([flat])
+                        else:
+                            kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
+
                     else:
                         # indices are apparently optional and we are supposed to
                         # do the same thing as webGL drawArrays?
@@ -1341,8 +1348,9 @@ def _read_buffers(header,
             if len(names) <= 1:
                 mesh_prim_replace[mesh_index] = names
                 continue
-            # use the first original name
             name = names_original[mesh_index][0]
+            if name in meshes:
+                name = name + '_' + str(np.random.random())[2:12]
             # remove the other meshes after we're done looping
             mesh_pop.extend(names[:])
             # collect the meshes

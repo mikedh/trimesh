@@ -106,7 +106,7 @@ class SceneViewer(pyglet.window.Window):
         self._line_offset = translation_matrix(
             [0, 0, scene.scale / 1000 if self.offset_lines else 0])
 
-        self.reset_view(flags=flags)
+        self.reset_view()
         self.batch = pyglet.graphics.Batch()
         self._smooth = smooth
 
@@ -193,6 +193,8 @@ class SceneViewer(pyglet.window.Window):
         # call after geometry is added
         self.init_gl()
         self.set_size(*resolution)
+        if flags is not None:
+            self.reset_view(flags=flags)
         self.update_flags()
 
         # someone has passed a callback to be called periodically

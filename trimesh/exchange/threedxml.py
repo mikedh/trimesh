@@ -124,9 +124,24 @@ def load_3DXML(file_obj, *args, **kwargs):
 
         if part_file not in as_etree and part_file in archive:
             # the data is stored in some binary format
-            # blob = archive[part_file].read()
-            util.log.warning('unable to load binary Rep')
-            continue
+            # 
+            #util.log.warning('unable to load binary Rep')
+            #continue
+            blob = archive[part_file].read()
+            h, c = blob.split(b'\r\n')
+            cn = c[c.find(b'\x00', c.find(b' '))-1:c.find(b'CB__END')]
+
+            d = [np.int64, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32]
+            for dt in d:
+                a = np.fromstring(cn, dt)
+                for start in range(6):
+                    for stride in range(1,3):
+                        ss = a[start::stride]
+                        print([dt, ss.min(), ss.max(), np.median(ss), len(ss)]) 
+            r = np.fromstring(cn, np.int16)
+            from IPython import embed
+            embed()
+
 
         # the geometry is stored in a Rep
         for Rep in as_etree[part_file].iter('{*}Rep'):

@@ -85,6 +85,13 @@ class GLTFTest(g.unittest.TestCase):
             merge_tex=True, merge_norm=True)
         assert geom.is_volume
 
+    def test_strips(self):
+        a = g.get_mesh('mode5.gltf')
+        assert len(a.geometry) > 0
+
+        b = g.get_mesh('mode5.gltf', merge_primitives=True)
+        assert len(b.geometry) > 0
+
     def test_buffer_dedupe(self):
         scene = g.trimesh.Scene()
         box_1 = g.trimesh.creation.box()
