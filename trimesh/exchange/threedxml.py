@@ -124,7 +124,6 @@ def load_3DXML(file_obj, *args, **kwargs):
 
         if part_file not in as_etree and part_file in archive:
             # the data is stored in some binary format
-            # blob = archive[part_file].read()
             util.log.warning('unable to load binary Rep')
             continue
 
