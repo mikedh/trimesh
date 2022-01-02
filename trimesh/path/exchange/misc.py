@@ -6,8 +6,6 @@ from ... import grouping
 
 from ..entities import Line, Arc
 
-from collections import deque
-
 
 def dict_to_path(as_dict):
     """
@@ -97,8 +95,13 @@ def polygon_to_path(polygon):
     # start vertices
     vertices = []
 
+    if hasattr(polygon.boundary, 'geoms'):
+        boundaries = polygon.boundary.geoms
+    else:
+        boundaries = [polygon.boundary]
+
     # append interiors as single Line objects
-    for boundary in polygon.boundary.geoms:
+    for boundary in boundaries:
         entities.append(Line(np.arange(len(boundary.coords)) +
                              len(vertices)))
         # append the new vertex array
