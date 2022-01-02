@@ -43,6 +43,8 @@ jobs:
             python-version: 2.7
           - os: macos-latest
             python-version: 3.9
+          - os: macos-latest
+            python-version: 2.7
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
