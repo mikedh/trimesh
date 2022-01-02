@@ -47,7 +47,7 @@ def load_path(file_obj, file_type=None, **kwargs):
             file_type = os.path.splitext(file_obj)[-1][1:].lower()
             # call the loader
             kwargs.update(path_loaders[file_type](f, file_type=file_type))
-    elif util.is_instance_named(file_obj, 'Polygon'):
+    elif util.is_instance_named(file_obj, ['Polygon', 'MultiPolygon']):
         # convert from shapely polygons to Path2D
         kwargs.update(misc.polygon_to_path(file_obj))
     elif util.is_instance_named(file_obj, 'MultiLineString'):
