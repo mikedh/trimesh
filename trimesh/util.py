@@ -1414,7 +1414,10 @@ def is_instance_named(obj, name):
       Whether the object is a member of the named class
     """
     try:
-        type_named(obj, name)
+        if isinstance(name, list):
+            return any(is_instance_named(obj, i) for i in name)
+        else:
+            type_named(obj, name)
         return True
     except ValueError:
         return False

@@ -607,7 +607,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     basic = polygon.buffer(tol.zero)
     # if it returned multiple polygons check the largest
     if util.is_sequence(basic):
-        basic = basic[np.argmax([i.area for i in basic])]
+        basic = basic.geoms[np.argmax([i.area for i in basic.geoms])]
 
     # check perimeter of result against original perimeter
     if basic.is_valid and np.isclose(basic.length,
@@ -654,7 +654,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     buffered = polygon.buffer(distance).buffer(-distance)
     # if it returned multiple polygons check the largest
     if util.is_sequence(buffered):
-        buffered = buffered[np.argmax([i.area for i in buffered])]
+        buffered = buffered.geoms[np.argmax([i.area for i in buffered.geoms])]
     # check perimeter of result against original perimeter
     if buffered.is_valid and np.isclose(buffered.length,
                                         polygon.length,

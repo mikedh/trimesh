@@ -93,20 +93,19 @@ def polygon_to_path(polygon):
       Keyword arguments for Path2D constructor
     """
     # start with a single polyline for the exterior
-    entities = deque([Line(points=np.arange(
-        len(polygon.exterior.coords)))])
+    entities = []
     # start vertices
-    vertices = np.array(polygon.exterior.coords).tolist()
+    vertices = []
 
     # append interiors as single Line objects
-    for boundary in polygon.interiors:
+    for boundary in polygon.boundary.geoms:
         entities.append(Line(np.arange(len(boundary.coords)) +
                              len(vertices)))
         # append the new vertex array
         vertices.extend(boundary.coords)
 
     # make sure result arrays are numpy
-    kwargs = {'entities': np.array(entities),
+    kwargs = {'entities': entities,
               'vertices': np.array(vertices)}
 
     return kwargs

@@ -97,6 +97,15 @@ class PolygonTests(g.unittest.TestCase):
         assert g.np.allclose(
             [i.area for i in p], g.np.pi, atol=0.05)
 
+    def test_project_multi(self):
+        mesh = (trimesh.creation.box() +
+                trimesh.creation.box().apply_translation([3, 0, 0]))
+        proj = mesh.projected(normal=[0, 0, 1])
+
+        assert mesh.body_count == 2
+        assert len(proj.root) == 2
+        assert np.isclose(proj.area, 2.0)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
