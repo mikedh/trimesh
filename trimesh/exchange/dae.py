@@ -115,7 +115,7 @@ def export_collada(mesh, **kwargs):
         input_list.addInput(0, 'VERTEX', '#verts-array')
         input_list.addInput(1, 'NORMAL', '#normals-array')
         arrays = [vertices, normals]
-        if uv is not None:
+        if ((uv is not None) and (len(uv) > 0)):
             texcoords = collada.source.FloatSource(
                 'texcoords-array', uv.flatten(), ('U', 'V'))
             input_list.addInput(2, 'TEXCOORD', '#texcoords-array')
@@ -345,6 +345,7 @@ def _unparse_material(material):
     # TODO EXPORT TEXTURES
     if isinstance(material, visual.material.PBRMaterial):
         diffuse = material.baseColorFactor
+        diffuse = diffuse / 255.0
         if diffuse is not None:
             diffuse = list(diffuse)
 
