@@ -59,8 +59,8 @@ class OBJTest(g.unittest.TestCase):
         mesh = g.get_mesh('negative_indices.obj')
 
         # make sure some data got loaded
-        assert g.trimesh.util.is_shape(mesh.faces, (-1, 6))
-        assert g.trimesh.util.is_shape(mesh.vertices, (-1, 8))
+        assert g.trimesh.util.is_shape(mesh.faces, (12, 3))
+        assert g.trimesh.util.is_shape(mesh.vertices, (8, 3))
 
     def test_obj_quad(self):
         mesh = g.get_mesh('quadknot.obj')
