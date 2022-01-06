@@ -54,6 +54,14 @@ class OBJTest(g.unittest.TestCase):
         # check to make sure there is signal not just zeros
         # assert mesh.metadata['face_groups'].ptp() > 0
 
+    def test_obj_negative_indices(self):
+        # a wavefront file with negative indices
+        mesh = g.get_mesh('negative_indices.obj')
+
+        # make sure some data got loaded
+        assert g.trimesh.util.is_shape(mesh.faces, (12, 3))
+        assert g.trimesh.util.is_shape(mesh.vertices, (8, 3))
+
     def test_obj_quad(self):
         mesh = g.get_mesh('quadknot.obj')
         # make sure some data got loaded

@@ -140,8 +140,10 @@ def load_obj(file_obj,
 
         # the fastest way to get to a numpy array
         # processes the whole string at once into a 1D array
+        array = np.fromstring(joined, sep=' ', dtype=np.int64)
         # also wavefront is 1-indexed (vs 0-indexed) so offset
-        array = np.fromstring(joined, sep=' ', dtype=np.int64) - 1
+        # only applies to positive indices
+        array[array > 0] -= 1
 
         # get the number of raw 2D columns in a sample line
         columns = len(face_lines[0].strip().replace('/', ' ').split())
