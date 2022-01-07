@@ -502,12 +502,16 @@ def _parse_faces_fallback(lines):
                 pass
 
     # shape into triangles and switch to 0-indexed
-    faces = np.array(v, dtype=np.int64).reshape((-1, 3)) - 1
+    # 0-indexing only applies to positive indices
+    faces = np.array(v, dtype=np.int64).reshape((-1, 3))
+    faces[faces > 0] -= 1
     faces_tex, normals = None, None
     if len(vt) == len(v):
-        faces_tex = np.array(vt, dtype=np.int64).reshape((-1, 3)) - 1
+        faces_tex = np.array(vt, dtype=np.int64).reshape((-1, 3))
+        faces_tex[faces_tex > 0] -= 1
     if len(vn) == len(v):
-        normals = np.array(vn, dtype=np.int64).reshape((-1, 3)) - 1
+        normals = np.array(vn, dtype=np.int64).reshape((-1, 3))
+        normals[normals > 0] -= 1
 
     return faces, faces_tex, normals
 
