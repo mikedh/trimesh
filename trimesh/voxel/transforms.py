@@ -112,9 +112,7 @@ class Transform(object):
         scale = np.diag(matrix[:3, :3])
         if not util.allclose(
                 matrix[:3, :3], scale * np.eye(3), scale * 1e-6 + 1e-8):
-            raise RuntimeError(
-                'scale ill-defined because transform features '
-                'a shear or rotation')
+            raise RuntimeError('transform features a shear or rotation')
         return scale
 
     @caching.cache_decorator
@@ -123,9 +121,7 @@ class Transform(object):
         if not util.allclose(
                 scale[0], scale[1:],
                 np.max(np.abs(scale)) * 1e-6 + 1e-8):
-            raise RuntimeError(
-                'pitch ill-defined because transform features '
-                'non-uniform scaling.')
+            raise RuntimeError('transform features non-uniform scaling')
         return scale
 
     @caching.cache_decorator
