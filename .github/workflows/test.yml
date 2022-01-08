@@ -14,7 +14,7 @@ jobs:
         python-version: 3.8
     - name: Install Formatting
       run: |
-        pip install autopep8 flake8
+        pip install autopep8 flake8 flake8-no-implicit-concat
     - name: Check Formatting
       run: |
         flake8 tests

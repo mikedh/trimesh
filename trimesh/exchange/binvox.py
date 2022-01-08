@@ -1,8 +1,10 @@
-"""Parsing functions for Binvox files.
+"""
+Parsing functions for Binvox files.
 
 https://www.patrickmin.com/binvox/binvox.html
 
-Exporting meshes as binvox files requires binvox CL tool to be on your path.
+Exporting meshes as binvox files requires the
+`binvox` executable to be in your path.
 """
 import os
 import subprocess
@@ -420,10 +422,10 @@ class Binvoxer(object):
             encoder = binvox_path
 
         if encoder is None:
-            raise IOError(
-                'No `binvox_path` provided, and no binvox executable found '
-                'on PATH. \nPlease go to https://www.patrickmin.com/binvox/ and '
-                'download the appropriate version.')
+            raise IOError(' '.join([
+                'No `binvox_path` provided and no binvox executable found',
+                'on PATH, please go to https://www.patrickmin.com/binvox/ and',
+                'download the appropriate version.']))
 
         if dimension > 1024 and not exact:
             raise ValueError(
@@ -444,8 +446,7 @@ class Binvoxer(object):
             args.append('-v')
         else:
             raise ValueError(
-                'At least one of `z_buffer_carving` or `z_buffer_voting` must '
-                'be True')
+                'One of `z_buffer_carving` or `z_buffer_voting` must be True')
         if dilated_carving:
             args.append('-dc')
 
@@ -521,9 +522,7 @@ class Binvoxer(object):
                 (ext, str(Binvoxer.SUPPORTED_INPUT_TYPES)))
         out_path = '%s.%s' % (head, self._file_type)
         if os.path.isfile(out_path) and not overwrite:
-            raise IOError(
-                'Attempted to voxelize object a %s, but there is already a '
-                'file at output path %s' % (path, out_path))
+            raise IOError('Attempted to voxelize object at existing path')
         self._args[-1] = path
 
         # generalizes to python2 and python3
