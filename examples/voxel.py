@@ -68,8 +68,8 @@ if __name__ == '__main__':
 
     chair_voxels.apply_transform(transform)
     print('warped transform volume:   %s' % str(chair_voxels.element_volume))
-    print('blue: transformed voxels. Transformation is lazy, and each voxel is '
-          'no longer a cube.')
+    print('blue: transformed voxels')
+    print('Transformation is lazy, and each voxel is no longer a cube.')
     show(transformed_chair_mesh, chair_voxels, colors=(0, 0, 1, 0.3))
 
     voxelized = chair_mesh.voxelized(pitch=0.02, method='subdivide').fill()
@@ -108,6 +108,6 @@ if __name__ == '__main__':
     show(chair_mesh, voxelized, colors=(0, 0, 1, 0.3))
 
     voxelized = chair_voxels.copy().fill(method='orthographic')
-    print('green: binvox (exact) filled (orthographic). '
-          'Doesn\'t do much as should be expected')
+    print('green: binvox (exact) filled (orthographic).')
+    print("Doesn't do much as should be expected")
     show(chair_mesh, voxelized, colors=(0, 1, 0, 0.3))

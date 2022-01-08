@@ -179,9 +179,7 @@ class DenseEncoding(Encoding):
     def __init__(self, data):
         if not isinstance(data, caching.TrackedArray):
             if not isinstance(data, np.ndarray):
-                raise ValueError(
-                    'DenseEncoding data should be a numpy array, got object of'
-                    ' type %s' % type(data))
+                raise ValueError('DenseEncoding data must be a numpy array')
             data = caching.tracked_array(data)
         super(DenseEncoding, self).__init__(data=data)
 

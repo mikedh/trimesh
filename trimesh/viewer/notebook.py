@@ -72,10 +72,10 @@ def scene_to_notebook(scene, height=500, **kwargs):
     # I tried this a dozen ways and this is the only one that works
     # display.IFrame/display.Javascript really, really don't work
     # note trailing space to avoid IPython's pointless hardcoded warning
-    embedded = display.HTML(
-        '<iframe srcdoc="{srcdoc}" '
-        'width="100%" height="{height}px" '
-        'style="border:none;"></iframe> '.format(
+    embedded = display.HTML(' '.join([
+        '<iframe srcdoc="{srcdoc}"',
+        'width="100%" height="{height}px"',
+        'style="border:none;"></iframe>']).format(
             srcdoc=srcdoc,
             height=height))
     return embedded

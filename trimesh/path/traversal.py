@@ -96,12 +96,12 @@ def vertex_to_entity_path(vertex_path,
         elif a[1] == b[1]:
             return 1, -1
         else:
-            constants.log.debug(
-                'edges not connected!\n'
-                'vertex path %s\n'
-                'entity path: %s\n'
-                'entity[a]: %s\n'
-                'entity[b]: %s',
+            constants.log.debug('\n'.join([
+                'edges not connected!',
+                'vertex path %s',
+                'entity path: %s',
+                'entity[a]: %s,',
+                'entity[b]: %s']),
                 vertex_path,
                 entity_path,
                 entities[ea].points,
