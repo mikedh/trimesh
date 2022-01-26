@@ -721,12 +721,16 @@ def face_to_vertex_color(
     """
     rgba = to_rgba(face_colors)
     vertex = mesh.faces_sparse.dot(rgba.astype(np.float64))
-    vertex = (vertex / mesh.vertex_degree.reshape(
-        (-1, 1))).astype(dtype)
+    degree = mesh.vertex_degree
+
+    # normalize color by the number of faces including
+    # the vertex (i.e. the vertex degree)
+    nonzero = degree > 0
+    vertex[nonzero] /= degree[nonzero].reshape((-1, 1))
 
     assert vertex.shape == (len(mesh.vertices), 4)
 
-    return vertex
+    return vertex.astype(dtype)
 
 
 def colors_to_materials(colors, count=None):
