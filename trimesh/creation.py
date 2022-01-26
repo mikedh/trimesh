@@ -151,8 +151,8 @@ def revolve(linestring,
 
     # strict checks run only in unit tests
     if (tol.strict and
-        np.allclose(radius[[0, -1]], 0.0) or
-            np.allclose(linestring[0], linestring[-1])):
+            (np.allclose(radius[[0, -1]], 0.0) or
+             np.allclose(linestring[0], linestring[-1]))):
         # if revolved curve starts and ends with zero radius
         # it should really be a valid volume, unless the sign
         # reversed on the input linestring
