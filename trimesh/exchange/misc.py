@@ -115,12 +115,23 @@ def load_meshio(file_obj, file_type=None, **kwargs):
       kwargs for Trimesh constructor
     """
     # trimesh "file types" are really filename extensions
-    file_format = meshio.extension_to_filetype["." + file_type]
+    file_formats = meshio.extension_to_filetypes["." + file_type]
     # load_meshio gets passed and io.BufferedReader
     # not all readers can cope with that
     # e.g., the ones that use h5m underneath
     # in that case use the associated file name instead
-    mesh = meshio.read(file_obj.name, file_format=file_format)
+    mesh = None
+    for file_format in file_formats:
+        try:
+            mesh = meshio.read(
+                file_obj.name,
+                file_format=file_format)
+            break
+        except BaseException:
+            util.log.debug('failed to load', exc_info=True)
+            pass
+    if mesh is None:
+        raise ValueError('Failed to load file!')
 
     # save data as kwargs for a trimesh.Trimesh
     result = {}
@@ -148,6 +159,6 @@ try:
     # add meshio loaders here
     _misc_loaders.update(
         {k[1:]: load_meshio for k in
-         meshio.extension_to_filetype.keys()})
+         meshio.extension_to_filetypes.keys()})
 except BaseException:
     pass
