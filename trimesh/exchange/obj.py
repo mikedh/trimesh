@@ -750,7 +750,8 @@ def export_obj(mesh,
                return_texture=False,
                write_texture=True,
                resolver=None,
-               digits=8):
+               digits=8,
+               header='https://github.com/mikedh/trimesh'):
     """
     Export a mesh as a Wavefront OBJ file.
     TODO: scenes with textured meshes
@@ -774,6 +775,8 @@ def export_obj(mesh,
       Resolver which can write referenced text objects
     digits : int
       Number of digits to include for floating point
+    header : str
+      Header string to include in obj file
 
     Returns
     -----------
@@ -892,7 +895,7 @@ def export_obj(mesh,
         objects.append('\n'.join(export))
 
     # add a created-with header to the top of the file
-    objects.appendleft('# https://github.com/mikedh/trimesh')
+    objects.appendleft('# {}'.format(header))
     # combine elements into a single string
     text = '\n'.join(objects)
 
