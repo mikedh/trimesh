@@ -1071,13 +1071,13 @@ def specular_to_pbr(
     ----------
     kwargs : dict
       Constructor args for a PBRMaterial object.
-    """
 
     if specularFactor is None:
         oneMinus = 1
     else:
         oneMinus = 1 - max(specularFactor)
     dielectricSpecular = np.array([0.04, 0.04, 0.04])
+    """
 
     result = {}
     if isinstance(diffuseTexture, dict):
