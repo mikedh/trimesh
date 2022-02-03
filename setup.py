@@ -22,7 +22,6 @@ if os.path.exists('README.md'):
 # note that `pip` requires setuptools itself
 requirements_default = set([
     'numpy',     # all data structures
-    'setuptools'  # used for packaging
 ])
 
 # "easy" requirements should install without compiling
