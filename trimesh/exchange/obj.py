@@ -164,10 +164,12 @@ def load_obj(file_obj,
             log.debug('faces have mixed data, using slow fallback!')
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
-        # TODO: name usually falls back to something useless
-        name = current_object
-        if name is None or len(name) == 0 or name in geometry:
-            name = '{}_{}'.format(name, util.unique_id())
+        if group_material:
+            name = material
+        else:
+            name = current_object
+            if name is None or len(name) == 0 or name in geometry:
+                name = '{}_{}'.format(name, util.unique_id())
 
         # try to get usable texture
         mesh = kwargs.copy()

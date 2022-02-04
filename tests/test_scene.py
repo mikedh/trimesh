@@ -361,6 +361,13 @@ class SceneTests(g.unittest.TestCase):
         scene.apply_translation([1, 0, 1])
         assert g.np.allclose(scene.bounds, [[.5, -.5, .5], [1.5, .5, 1.5]])
 
+    def test_material_group(self):
+        # check scene is correctly grouped by materials
+        s = g.get_mesh('box.obj')
+        assert set(s.geometry.keys()) == {'Material', 'SecondMaterial'}
+        assert len(s.geometry['Material'].faces) == 8
+        assert len(s.geometry['SecondMaterial'].faces) == 4
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
