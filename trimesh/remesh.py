@@ -179,6 +179,9 @@ def subdivide_to_size(vertices,
     # stack sequence into nice (n, 3) arrays
     final_vertices, final_faces = util.append_faces(
         done_vert, done_face)
+    if len(final_vertices) == 0:
+        # max_iter is too small to generate short-enough edges, thus reserve current result
+        final_vertices, final_faces = current_vertices, current_faces
 
     if return_index:
         final_index = np.concatenate(done_idx)
