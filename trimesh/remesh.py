@@ -173,15 +173,12 @@ def subdivide_to_size(vertices,
                                     current_faces[too_long])
 
     if i >= max_iter:
-        util.log.warning(
-            'subdivide_to_size reached maximum iterations before exit criteria!')
+        # max_iter is too small to generate short-enough edges
+        raise ValueError('edges too long at exit! try increasing max_iter')
 
     # stack sequence into nice (n, 3) arrays
     final_vertices, final_faces = util.append_faces(
         done_vert, done_face)
-    if len(final_vertices) == 0:
-        # max_iter is too small to generate short-enough edges, thus reserve current result
-        final_vertices, final_faces = current_vertices, current_faces
 
     if return_index:
         final_index = np.concatenate(done_idx)

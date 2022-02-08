@@ -143,6 +143,18 @@ class SubDivideTest(g.unittest.TestCase):
         assert ov.ptp(axis=1).mean(axis=0).max() < 0.1
         assert sv.ptp(axis=1).mean(axis=0).max() < 0.1
 
+    def test_max_iter(self):
+        m = trimesh.creation.box()
+        try:
+            m.subdivide_to_size(0.01, max_iter=1)
+            raise BaseException("that shouldn't have worked!")
+        except ValueError:
+            # this shouldn't have worked
+            pass
+        # this should be enough iterations
+        r = m.subdivide_to_size(0.01, max_iter=10)
+        assert r.is_watertight
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
