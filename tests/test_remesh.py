@@ -144,7 +144,7 @@ class SubDivideTest(g.unittest.TestCase):
         assert sv.ptp(axis=1).mean(axis=0).max() < 0.1
 
     def test_max_iter(self):
-        m = trimesh.creation.box()
+        m = g.trimesh.creation.box()
         try:
             m.subdivide_to_size(0.01, max_iter=1)
             raise BaseException("that shouldn't have worked!")
