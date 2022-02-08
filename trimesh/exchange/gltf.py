@@ -1054,8 +1054,10 @@ def _append_point(points, name, tree, buffer_items):
 def specular_to_pbr(
         specularFactor=None,
         glossinessFactor=None,
+        specularGlossinessTexture=None,
         diffuseTexture=None,
-        diffuseFactor=None):
+        diffuseFactor=None,
+        **kwargs):
     """
     TODO : implement specular to PBR as done in Javascript here:
     https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64

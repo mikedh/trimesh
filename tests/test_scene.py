@@ -363,10 +363,14 @@ class SceneTests(g.unittest.TestCase):
 
     def test_material_group(self):
         # check scene is correctly grouped by materials
-        s = g.get_mesh('box.obj')
+        s = g.get_mesh('box.obj', group_material=True)
         assert set(s.geometry.keys()) == {'Material', 'SecondMaterial'}
         assert len(s.geometry['Material'].faces) == 8
         assert len(s.geometry['SecondMaterial'].faces) == 4
+
+        # make sure our flag does something
+        s = g.get_mesh('box.obj', group_material=False)
+        assert set(s.geometry.keys()) != {'Material', 'SecondMaterial'}
 
 
 if __name__ == '__main__':
