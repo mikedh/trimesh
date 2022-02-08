@@ -250,6 +250,10 @@ class GLTFTest(g.unittest.TestCase):
             'CesiumMilkTruck.glb', merge_primitives=True)
         assert len(b.geometry) == 2
 
+    def test_specular_glossiness(self):
+        s = g.get_mesh('pyramid.zip')
+        assert len(s.geometry) > 0
+
     def test_write_dir(self):
         # try loading from a file name
         # will require a file path resolver

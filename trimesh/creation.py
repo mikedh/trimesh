@@ -300,7 +300,7 @@ def sweep_polygon(polygon,
     vecs = verts_3d - path[-1]
     coords = np.c_[np.einsum('ij,j->i', vecs, x),
                    np.einsum('ij,j->i', vecs, y)]
-    base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords))
+    base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords), **kwargs)
     base_verts_3d = (np.einsum('i,j->ij', base_verts_2d[:, 0], x) +
                      np.einsum('i,j->ij', base_verts_2d[:, 1], y)) + path[-1]
     faces = np.vstack((faces, faces_2d + len(vertices)))

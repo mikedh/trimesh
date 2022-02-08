@@ -1051,6 +1051,45 @@ def _append_point(points, name, tree, buffer_items):
     tree["meshes"].append(current)
 
 
+def specular_to_pbr(
+        specularFactor=None,
+        glossinessFactor=None,
+        specularGlossinessTexture=None,
+        diffuseTexture=None,
+        diffuseFactor=None,
+        **kwargs):
+    """
+    TODO : implement specular to PBR as done in Javascript here:
+    https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64
+
+    Convert the KHR_materials_pbrSpecularGlossiness to a
+    metallicRoughness visual.
+
+    Parameters
+    -----------
+    ...
+
+    Returns
+    ----------
+    kwargs : dict
+      Constructor args for a PBRMaterial object.
+
+    if specularFactor is None:
+        oneMinus = 1
+    else:
+        oneMinus = 1 - max(specularFactor)
+    dielectricSpecular = np.array([0.04, 0.04, 0.04])
+    """
+
+    result = {}
+    if isinstance(diffuseTexture, dict):
+        result['baseColorTexture'] = diffuseTexture
+    if diffuseFactor is not None:
+        result['baseColorFactor'] = diffuseFactor
+
+    return result
+
+
 def _parse_materials(header, views, resolver=None):
     """
     Convert materials and images stored in a GLTF header
@@ -1109,6 +1148,11 @@ def _parse_materials(header, views, resolver=None):
             if "pbrMetallicRoughness" in loopable:
                 # add keys of keys to top level dict
                 loopable.update(loopable.pop("pbrMetallicRoughness"))
+
+            ext = mat.get('extensions', {}).get(
+                'KHR_materials_pbrSpecularGlossiness', None)
+            if isinstance(ext, dict):
+                loopable.update(specular_to_pbr(**ext))
 
             # save flattened keys we can use for kwargs
             pbr = {}
@@ -1293,6 +1337,7 @@ def _read_buffers(header,
                                 # create a texture visual
                             visuals = visual.texture.TextureVisuals(
                                 uv=uv, material=materials[p["material"]])
+
                     if 'COLOR_0' in attr:
                         try:
                             # try to load vertex colors from the accessors
