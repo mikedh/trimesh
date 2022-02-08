@@ -40,7 +40,7 @@ jobs:
         exclude:
           # Shapely as far as I can tell has no Windows/2.7 wheels
           - os: windows-latest
-            python-version: 2.7
+            python-version: [2.7, 3.5]
           - os: macos-latest
             python-version: 3.9
           - os: macos-latest
