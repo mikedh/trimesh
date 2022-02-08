@@ -849,7 +849,7 @@ def export_obj(mesh,
                 log.debug('failed to convert vertex normals',
                           exc_info=True)
 
-        if include_texture and hasattr(mesh.visual, 'uv'):
+        if include_texture and hasattr(mesh.visual, 'uv') and mesh.visual.uv.size > 0:
             try:
                 material = mesh.visual.material
                 if hasattr(material, 'to_simple'):
