@@ -125,6 +125,7 @@ def load_3DXML(file_obj, *args, **kwargs):
         if part_file not in as_etree and part_file in archive:
             # the data is stored in some binary format
             util.log.warning('unable to load binary Rep')
+            # data = archive[part_file]
             continue
 
         # the geometry is stored in a Rep
@@ -144,15 +145,21 @@ def load_3DXML(file_obj, *args, **kwargs):
             (material_file, material_id) = material.attrib['id'].split(
                 'urn:3DXML:')[-1].split('#')
 
-            # triangle strips, sequence of arbitrary length lists
-            # np.fromstring is substantially faster than np.array(i.split())
-            # inside the list comprehension
-            strips = [np.fromstring(i, sep=' ', dtype=np.int64)
-                      for i in faces.attrib['strips'].split(',')]
+            if 'strips' in faces.attrib:
+                # triangle strips, sequence of arbitrary length lists
+                # np.fromstring is substantially faster than np.array(i.split())
+                # inside the list comprehension
+                strips = [np.fromstring(i, sep=' ', dtype=np.int64)
+                          for i in faces.attrib['strips'].split(',')]
 
-            # convert strips to (m,3) int
-            mesh_faces.append(util.triangle_strips_to_faces(strips))
-
+                # convert strips to (m,3) int
+                mesh_faces.append(util.triangle_strips_to_faces(strips))
+            if 'triangles' in faces.attrib:
+                # both triangles and strips are allowed to be defined so
+                # make this an if-if instaid of an if-elif
+                mesh_faces.append(
+                    np.fromstring(faces.attrib['triangles'],
+                                  sep=' ', dtype=np.int64).reshape((-1, 3)))
             # they mix delimiters like we couldn't figure it out from the
             # shape :(
             # load vertices into (n, 3) float64
