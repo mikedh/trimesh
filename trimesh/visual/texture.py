@@ -311,7 +311,7 @@ def unmerge_faces(faces, *args, **kwargs):
     remap[order] = np.arange(len(order))
 
     # the faces are just the inverse with the new order
-    new_faces = remap[inverse].reshape((-1, 3))
+    new_faces = remap[inverse].reshape((-1, faces.shape[1]))
 
     # the mask for vertices and masks for other args
     result = [new_faces]

@@ -198,6 +198,13 @@ class PlyTest(g.unittest.TestCase):
             assert hasattr(m, 'visual') and hasattr(m.visual, 'uv')
             assert m.visual.uv.shape[0] == m.vertices.shape[0]
 
+    def test_fix_texture(self):
+        # test loading of face indices when uv-coordinates are also contained
+        m1 = g.get_mesh('plane.ply')
+        m2 = g.get_mesh('plane_tri.ply')
+        assert m1.faces.shape == (2, 3)
+        assert m2.faces.shape == (2, 3)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
