@@ -249,7 +249,7 @@ def k_means(points, k, **kwargs):
 
     points = np.asanyarray(points, dtype=np.float64)
     points_std = points.std(axis=0)
-    points_std[points_std == 0] = 1
+    points_std[points_std < tol.zero] = 1
     whitened = points / points_std
     centroids_whitened, distortion = kmeans(whitened, k, **kwargs)
     centroids = centroids_whitened * points_std
