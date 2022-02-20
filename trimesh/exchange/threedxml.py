@@ -154,7 +154,9 @@ def load_3DXML(file_obj, *args, **kwargs):
 
                 # convert strips to (m,3) int
                 mesh_faces.append(util.triangle_strips_to_faces(strips))
-            elif 'triangles' in faces.attrib:
+            if 'triangles' in faces.attrib:
+                # both triangles and strips are allowed to be defined so
+                # make this an if-if instaid of an if-elif
                 mesh_faces.append(
                     np.fromstring(faces.attrib['triangles'],
                                   sep=' ', dtype=np.int64).reshape((-1, 3)))
