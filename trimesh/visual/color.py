@@ -898,5 +898,65 @@ def uv_to_color(uv, image):
     return colors
 
 
+def uv_to_interpolation_color(uv, image):
+    """
+    Get the color from texture image using bilinear sampling.
+
+    Parameters
+    -------------
+    uv : (n, 2) float
+      UV coordinates on texture image
+    image : PIL.Image
+      Texture image
+
+    Returns
+    ----------
+    colors : (n, 4) float
+      RGBA color at each of the UV coordinates
+    """
+    if image is None or uv is None:
+        return None
+
+    # UV coordinates should be (n, 2) float
+    uv = np.asanyarray(uv, dtype=np.float64)
+
+    # get texture image pixel positions of UV coordinates
+    x = (uv[:, 0] * (image.width - 1))
+    y = ((1 - uv[:, 1]) * (image.height - 1))
+
+    x_floor = np.floor(x).astype(np.int64) % image.width
+    y_floor = np.floor(y).astype(np.int64) % image.height
+
+    x_ceil = np.ceil(x).astype(np.int64) % image.width
+    y_ceil = np.ceil(y).astype(np.int64) % image.height
+
+    dx = x % image.width - x_floor
+    dy = y % image.height - y_floor
+
+    img = np.asanyarray(image.convert('RGBA'))
+
+    colors00 = img[y_floor, x_floor]
+    colors01 = img[y_ceil, x_floor]
+    colors10 = img[y_floor, x_ceil]
+    colors11 = img[y_ceil, x_ceil]
+
+    a00 = (1 - dx) * (1 - dy)
+    a01 = dx * (1 - dy)
+    a10 = (1 - dx) * dy
+    a11 = dx * dy
+
+    a00 = np.repeat(a00[:, None], 4, axis=1)
+    a01 = np.repeat(a01[:, None], 4, axis=1)
+    a10 = np.repeat(a10[:, None], 4, axis=1)
+    a11 = np.repeat(a11[:, None], 4, axis=1)
+
+    colors = a00 * colors00 + a01 * colors01 + a10 * colors10 + a11 * colors11
+
+    # conversion to RGBA should have corrected shape
+    assert colors.ndim == 2 and colors.shape[1] == 4
+
+    return colors
+
+
 # set an arbitrary grey as the default color
 DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)
