@@ -9,7 +9,7 @@ import numpy as np
 
 from . import util
 from . import transformations
-from .visual import uv_to_interpolation_color
+from .visual import uv_to_interpolated_color
 
 
 def sample_surface(mesh, count, face_weight=None):
@@ -153,7 +153,7 @@ def sample_surface_with_color(mesh, count, face_weight=None):
     uv_samples = sample_uv_vector + uv_origins
 
     texture = mesh.visual.material.image
-    colors = uv_to_interpolation_color(uv_samples, texture)
+    colors = uv_to_interpolated_color(uv_samples, texture)
 
     return samples, face_index, colors
 

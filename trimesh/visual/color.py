@@ -898,7 +898,7 @@ def uv_to_color(uv, image):
     return colors
 
 
-def uv_to_interpolation_color(uv, image):
+def uv_to_interpolated_color(uv, image):
     """
     Get the color from texture image using bilinear sampling.
 

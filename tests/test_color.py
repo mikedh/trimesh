@@ -221,7 +221,7 @@ class VisualTest(g.unittest.TestCase):
 
         g.np.testing.assert_allclose(colors, colors_expected, rtol=0, atol=0)
 
-    def test_uv_to_interpolation_color(self):
+    def test_uv_to_interpolated_color(self):
         try:
             import PIL.Image
         except ImportError:
@@ -236,7 +236,7 @@ class VisualTest(g.unittest.TestCase):
         texture = g.np.stack([x, y, z], axis=-1).astype(g.np.uint8)
 
         img = PIL.Image.fromarray(texture)
-        colors = g.trimesh.visual.uv_to_interpolation_color(uv, img)
+        colors = g.trimesh.visual.uv_to_interpolated_color(uv, img)
         colors_expected = [[7.75, 24.8, 128 + 7.75, 255],
                            [12.4, 15.5, 128 + 12.4, 255]]
 

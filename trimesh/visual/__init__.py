@@ -12,7 +12,7 @@ from .color import (ColorVisuals,
                     DEFAULT_COLOR,
                     interpolate,
                     uv_to_color,
-                    uv_to_interpolation_color,
+                    uv_to_interpolated_color,
                     linear_color_map)
 
 from .texture import TextureVisuals
@@ -39,4 +39,4 @@ __all__ = ['color',
            'interpolate',
            'linear_color_map',
            'uv_to_color',
-           'uv_to_interpolation_color']
+           'uv_to_interpolated_color']
