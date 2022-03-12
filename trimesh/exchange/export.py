@@ -163,6 +163,7 @@ def scene_to_dict(scene, use_base64=False):
     # save some basic data about the scene
     export = {'graph': scene.graph.to_edgelist(),
               'geometry': {},
+              'metadata': scene.metadata.copy(),
               'scene_cache': {'bounds': scene.bounds.tolist(),
                               'extents': scene.extents.tolist(),
                               'centroid': scene.centroid.tolist(),
