@@ -5,7 +5,7 @@ DEBIAN_FRONTEND=noninteractive
 # Install binary dependencies directly from APT.
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
-	wget bzip2 supervisor \
+	curl wget bzip2 supervisor \
 	libgl1-mesa-glx libgl1-mesa-dri xvfb xauth \
 	ca-certificates zstd freeglut3-dev git sudo \
 	build-essential g++ gcc cmake libfcl-dev
