@@ -8,6 +8,9 @@ from .. import util
 from .. import caching
 from .. import transformations
 
+# we compare to identity a lot
+_identity = np.eye(4)
+_identity.flags['WRITEABLE'] = False
 
 class SceneGraph(object):
     """
@@ -265,7 +268,7 @@ class SceneGraph(object):
                 # get the matrix from this edge
                 matrix = edge_data[(parent, node)]['matrix']
                 # only include if it's not an identify matrix
-                if np.abs(matrix - np.eye(4)).max() > 1e-5:
+                if not util.allclose(matrix, _identity):
                     info['matrix'] = matrix.T.reshape(-1).tolist()
 
                 # if an extra was stored on this edge
@@ -523,8 +526,9 @@ class EnforcedForest(object):
         else:
             # check to see if matrix and geometry are identical
             edge = self.edge_data[(u, v)]
-            if (np.allclose(kwargs.get('matrix', np.eye(4)),
-                            edge.get('matrix', np.eye(4)))
+            if (util.allclose(kwargs.get('matrix', _identity),
+                              edge.get('matrix', _identity),
+                              1e-8)
                 and (edge.get('geometry') ==
                      kwargs.get('geometry'))):
                 return False

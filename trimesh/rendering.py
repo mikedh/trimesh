@@ -359,9 +359,9 @@ def matrix_to_gl(matrix):
       Transform in pyglet format
     """
     from pyglet import gl
-
+        
     # convert to GLfloat, switch to column major and flatten to (16,)
-    return (gl.GLfloat * 16)(*np.asanyarray(
+    return (gl.GLfloat * 16)(*np.array(
         matrix, dtype=np.float32).T.ravel())
 
 

@@ -10,8 +10,9 @@ from . import util
 
 try:
     from scipy.sparse import coo_matrix
-except ImportError:
-    pass
+except ImportError as E:
+    from . import exceptions
+    coo_matrix = exceptions.closure(E)
 
 
 def face_angles_sparse(mesh):
