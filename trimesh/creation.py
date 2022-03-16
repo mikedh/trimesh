@@ -30,6 +30,12 @@ except BaseException as E:
     Polygon = exceptions.closure(E)
     load_wkb = exceptions.closure(E)
 
+try:
+    from triangle import triangulate
+except BaseException as E:
+    from . import exceptions
+    triangulate = exceptions.closure(E)
+
 
 def revolve(linestring,
             angle=None,
@@ -455,8 +461,6 @@ def triangulate_polygon(polygon,
 
         return vertices, faces
 
-    # do the import here for soft requirement
-    from triangle import triangulate
     # set default triangulation arguments if not specified
     if triangle_args is None:
         triangle_args = 'p'

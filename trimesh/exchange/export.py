@@ -145,7 +145,7 @@ def export_dict(mesh, encoding=None):
     return export
 
 
-def scene_to_dict(scene, use_base64=False):
+def scene_to_dict(scene, use_base64=False, include_metadata=True):
     """
     Export a Scene object as a dict.
 
@@ -167,6 +167,14 @@ def scene_to_dict(scene, use_base64=False):
                               'extents': scene.extents.tolist(),
                               'centroid': scene.centroid.tolist(),
                               'scale': scene.scale}}
+
+    if include_metadata:
+        try:
+            # jsonify will convert numpy arrays to lists recursively
+            # a little silly round-tripping to json but it is pretty fast
+            export['metadata'] = json.loads(util.jsonify(scene.metadata))
+        except BaseException:
+            log.warning('failed to serialize metadata', exc_info=True)
 
     # encode arrays with base64 or not
     if use_base64:

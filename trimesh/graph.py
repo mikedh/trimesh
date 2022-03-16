@@ -64,9 +64,11 @@ def face_adjacency(faces=None,
     ----------
     This is useful for lots of things such as finding
     face- connected components:
+    ```python
     >>> graph = nx.Graph()
     >>> graph.add_edges_from(mesh.face_adjacency)
     >>> groups = nx.connected_components(graph_connected)
+    ```
     """
 
     if mesh is None:

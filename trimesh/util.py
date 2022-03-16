@@ -2250,7 +2250,7 @@ def isclose(a, b, atol):
     return close
 
 
-def allclose(a, b, atol):
+def allclose(a, b, atol=1e-8):
     """
     A replacement for np.allclose that does few checks
     and validation and as a result is faster.
@@ -2268,7 +2268,7 @@ def allclose(a, b, atol):
     -----------
     bool indicating if all elements are within `atol`.
     """
-    return np.all(np.abs(a - b).max() < atol)
+    return float((a - b).ptp()) < atol
 
 
 class FunctionRegistry(Mapping):

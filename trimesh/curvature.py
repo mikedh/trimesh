@@ -9,9 +9,10 @@ import numpy as np
 from . import util
 
 try:
-    from scipy.sparse.coo import coo_matrix
-except ImportError:
-    pass
+    from scipy.sparse import coo_matrix
+except ImportError as E:
+    from . import exceptions
+    coo_matrix = exceptions.closure(E)
 
 
 def face_angles_sparse(mesh):
