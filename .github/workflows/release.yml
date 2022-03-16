@@ -144,9 +144,10 @@ jobs:
         # build image tagged with all our many tags
         docker build -t `echo "${TAGS//;/$' -t '}"` .
 
+        ci_env=`bash <(curl -s https://codecov.io/env)`
+docker run 
         # run unit tests in docker image
-        docker run -e CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest  bash -c 'pip install /trimesh[test] && pytest --cov=trimesh -x -p no:warnings -p no:alldep -p no:cacheprovider /trimesh/tests && bash <(curl -s https://codecov.io/bash)'
-
+        docker run $ci_env -e CI=true -e CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest  bash -c 'pip install /trimesh[test] && pytest --cov=trimesh -x -p no:warnings -p no:alldep -p no:cacheprovider /trimesh/tests && bash <(curl -s https://codecov.io/bash)'
         # push every tag to remote registry
         for i in ${TAGS//;/ }; do docker push $i; done;
     - name: Logout of registries
