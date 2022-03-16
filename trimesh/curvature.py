@@ -9,7 +9,7 @@ import numpy as np
 from . import util
 
 try:
-    from scipy.sparse.coo import coo_matrix
+    from scipy.sparse import coo_matrix
 except ImportError:
     pass
 
