@@ -12,6 +12,7 @@ from .. import transformations
 _identity = np.eye(4)
 _identity.flags['WRITEABLE'] = False
 
+
 class SceneGraph(object):
     """
     Hold data about positions and instances of geometry
