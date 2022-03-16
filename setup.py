@@ -20,9 +20,7 @@ if os.path.exists('README.md'):
 
 # minimal requirements for installing trimesh
 # note that `pip` requires setuptools itself
-requirements_default = set([
-    'numpy',     # all data structures
-])
+requirements_default = set(['numpy'])
 
 # "easy" requirements should install without compiling
 # anything on Windows, Linux, and Mac, for Python 2.7-3.4+

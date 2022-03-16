@@ -69,12 +69,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: sudo bash docker/builds/gltf_validator.bash
     - name: Run Pytest
-      run: pytest --cov=trimesh tests/
-    - name: Coverage Report
-      if: matrix.os == 'ubuntu-latest'
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      run: bash <(curl -s https://codecov.io/bash)
+      run: pytest tests/
   pypi:
     name: Release To PyPi
     needs: [tests, containers]
@@ -148,6 +143,10 @@ jobs:
         export TAGS="trimesh/trimesh:latest; trimesh/trimesh:$VERSION; trimesh/trimesh:$GIT_SHORT; mikedh/trimesh:latest; mikedh/trimesh:$VERSION; mikedh/trimesh:$GIT_SHORT; $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION; $ECR_REGISTRY/$ECR_REPOSITORY:latest; $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_SHORT"
         # build image tagged with all our many tags
         docker build -t `echo "${TAGS//;/$' -t '}"` .
+
+        # run unit tests in docker image
+        docker run -e CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest  bash -c "pip install /trimesh[test] && pytest --cov=trimesh -x -p no:warnings -p no:alldep -p no:cacheprovider /trimesh/tests && bash <(curl -s https://codecov.io/bash)"
+
         # push every tag to remote registry
         for i in ${TAGS//;/ }; do docker push $i; done;
     - name: Logout of registries
