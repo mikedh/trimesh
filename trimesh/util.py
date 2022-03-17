@@ -1488,6 +1488,8 @@ def concatenate(a, b=None):
     # if there is only one mesh just return the first
     if len(meshes) == 1:
         return meshes[0].copy()
+    elif len(meshes) == 0:
+        return []
 
     # extract the trimesh type to avoid a circular import
     # and assert that both inputs are Trimesh objects
@@ -1518,7 +1520,6 @@ def concatenate(a, b=None):
                         face_normals=face_normals,
                         visual=visual,
                         process=False)
-
     return mesh
 
 

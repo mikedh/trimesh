@@ -218,6 +218,9 @@ def export_scene(scene,
     export : bytes
       Only returned if file_obj is None
     """
+    if len(scene.geometry) == 0:
+        raise ValueError("Can't export empty scenes!")
+
     # if we weren't passed a file type extract from file_obj
     if file_type is None:
         if util.is_string(file_obj):
@@ -245,9 +248,9 @@ def export_scene(scene,
         from trimesh.path.exchange import svg_io
         data = svg_io.export_svg(scene, **kwargs)
     elif file_type == 'ply':
-        data = export_ply(scene)
+        data = export_ply(scene.dump(concatenate=True))
     elif file_type == 'stl':
-        data = export_stl(scene)
+        data = export_stl(scene.dump(concatenate=True))
     else:
         raise ValueError(
             'unsupported export format: {}'.format(file_type))

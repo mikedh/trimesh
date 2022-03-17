@@ -160,19 +160,18 @@ class PlyTest(g.unittest.TestCase):
 
         for empty_file in empty_files:
             e = g.get_mesh('emptyIO/' + empty_file)
-
-            # create export
-            export = e.export(file_type='ply')
-            reconstructed = g.wrapload(export, file_type='ply')
-
             if 'empty' in empty_file:
-                # result should be an empty scene without vertices
-                assert isinstance(e, g.trimesh.Scene)
-                assert not hasattr(e, 'vertices')
-                # export should not contain geometry
-                assert isinstance(reconstructed, g.trimesh.Scene)
-                assert not hasattr(reconstructed, 'vertices')
+                # result should be an empty scene
+                try:
+                    e.export(file_type='ply')
+                except BaseException:
+                    continue
+                raise ValueError('should not export empty')
             elif 'points' in empty_file:
+                # create export
+                export = e.export(file_type='ply')
+                reconstructed = g.wrapload(export, file_type='ply')
+
                 # result should be a point cloud instance
                 assert isinstance(e, g.trimesh.PointCloud)
                 assert hasattr(e, 'vertices')
