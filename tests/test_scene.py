@@ -107,9 +107,8 @@ class SceneTests(g.unittest.TestCase):
                 s.explode()
 
     def test_scaling(self):
-        """
-        Test the scaling of scenes including unit conversion.
-        """
+        # Test the scaling of scenes including unit conversion.
+
         scene = g.get_mesh('cycloidal.3DXML')
 
         md5 = scene.md5()
@@ -296,10 +295,9 @@ class SceneTests(g.unittest.TestCase):
         assert len(n) == 0
 
     def test_zipped(self):
-        """
-        Make sure a zip file with multiple file types
-        is returned as a single scene.
-        """
+        # Make sure a zip file with multiple file types
+        # is returned as a single scene.
+
         # allow mixed 2D and 3D geometry
         m = g.get_mesh('scenes.zip', mixed=True)
 
@@ -371,6 +369,24 @@ class SceneTests(g.unittest.TestCase):
         # make sure our flag does something
         s = g.get_mesh('box.obj', group_material=False)
         assert set(s.geometry.keys()) != {'Material', 'SecondMaterial'}
+
+    def test_export_concat(self):
+        # Scenes exported in mesh formats should be
+        # concatenating the meshes somewhere.
+        original = g.trimesh.creation.icosphere(
+            radius=0.123312)
+        original_hash = original.identifier_md5
+
+        scene = g.trimesh.Scene()
+        scene.add_geometry(original)
+
+        with g.TemporaryDirectory() as d:
+            for ext in ['stl', 'ply']:
+                file_name = g.os.path.join(d, 'mesh.' + ext)
+                scene.export(file_name)
+                loaded = g.trimesh.load(file_name)
+                assert g.np.isclose(loaded.volume,
+                                    original.volume)
 
 
 if __name__ == '__main__':
