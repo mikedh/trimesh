@@ -218,6 +218,9 @@ def export_scene(scene,
     export : bytes
       Only returned if file_obj is None
     """
+    if len(scene.geometry) == 0:
+        raise ValueError("Can't export empty scenes!")
+
     # if we weren't passed a file type extract from file_obj
     if file_type is None:
         if util.is_string(file_obj):

@@ -84,11 +84,11 @@ class STLTests(g.unittest.TestCase):
             assert not hasattr(e, 'vertices')
 
             # create export
-            export = e.export(file_type='ply')
-            reconstructed = g.wrapload(export, file_type='ply')
-            # export should not contain geometry
-            assert isinstance(reconstructed, g.trimesh.Scene)
-            assert not hasattr(reconstructed, 'vertices')
+            try:
+                export = e.export(file_type='ply')
+            except BaseException:
+                return
+            raise ValueError("Shouldn't export empty scenes!")
 
 
 if __name__ == '__main__':
