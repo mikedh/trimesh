@@ -387,6 +387,8 @@ class SceneTests(g.unittest.TestCase):
                 loaded = g.trimesh.load(file_name)
                 assert g.np.isclose(loaded.volume,
                                     original.volume)
+        # nothing should have changed
+        assert original.identifier_md5 == original_hash
 
 
 if __name__ == '__main__':
