@@ -85,7 +85,7 @@ class STLTests(g.unittest.TestCase):
 
             # create export
             try:
-                export = e.export(file_type='ply')
+                e.export(file_type='ply')
             except BaseException:
                 return
             raise ValueError("Shouldn't export empty scenes!")
