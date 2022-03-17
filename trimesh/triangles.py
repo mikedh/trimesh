@@ -31,6 +31,7 @@ def cross(triangles):
     crosses = np.cross(vectors[:, 0], vectors[:, 1])
     return crosses
 
+
 def area(triangles=None, crosses=None, sum=False):
     """
     Calculates the sum area of input triangles
