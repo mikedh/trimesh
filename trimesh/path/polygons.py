@@ -94,10 +94,14 @@ def enclosure_tree(polygons):
     if len(degrees) > 0 and degrees.max() > 1:
         # collect new edges for graph
         edges = []
+
+        # order the roots so they are sorted by degree
+        roots = roots[np.argsort([degree[r] for r in roots])]
         # find edges of subgraph for each root and children
         for root in roots:
             children = indexes[degrees == degree[root] + 1]
-            edges.extend(contains.subgraph(np.append(children, root)).edges())
+            edges.extend(contains.subgraph(
+                np.append(children, root)).edges())
         # stack edges into new directed graph
         contains = nx.from_edgelist(edges, nx.DiGraph())
         # if roots have no children add them anyway
