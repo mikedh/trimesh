@@ -275,7 +275,10 @@ def _svg_path_convert(paths, force=None):
 
     for attrib, matrix in paths:
         # the path string is stored under `d`
-        path_string = attrib['d']
+        path_string = attrib.get('d', '')
+        if len(path_string) == 0:
+            log.warning('empty path string!')
+            continue
 
         # get the name of the geometry if trimesh specified it
         # note that the get will by default return `None`
