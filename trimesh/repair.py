@@ -10,6 +10,7 @@ import numpy as np
 from . import graph
 from . import triangles
 
+from .util import diagonal_dot
 from .constants import log
 from .grouping import group_rows
 from .geometry import faces_to_edges
@@ -23,20 +24,23 @@ except BaseException as E:
     from .exceptions import ExceptionModule
     nx = ExceptionModule(E)
 
+try:
+    from .path.exchange.misc import faces_to_path
+except BaseException as E:
+    from .exceptions import closure
+    faces_to_path = closure(E)
+
 
 def fix_winding(mesh):
     """
-    Traverse and change mesh faces in-place to make sure winding
-    is correct, with edges on adjacent faces in
+    Traverse and change mesh faces in-place to make sure
+    winding is correct with edges on adjacent faces in
     opposite directions.
 
     Parameters
     -------------
-    mesh: Trimesh object
-
-    Notes
-    -------------
-    mesh.face : will reverse columns of certain faces
+    mesh : Trimesh
+      Source geometry to alter in-place.
     """
     # anything we would fix is already done
     if mesh.is_winding_consistent:
@@ -92,16 +96,13 @@ def fix_inversion(mesh, multibody=False):
     Parameters
     -------------
     mesh : trimesh.Trimesh
-      Mesh to fix.
+      Mesh to fix in-place.
     multibody : bool
       If True will try to fix normals on every body
-
-    Notes
-    -------------
-    mesh.face : may reverse faces
     """
     if multibody:
-        groups = graph.connected_components(mesh.face_adjacency)
+        groups = graph.connected_components(
+            mesh.face_adjacency)
         # escape early for single body
         if len(groups) == 1:
             if mesh.volume < 0.0:
@@ -355,3 +356,80 @@ def fill_holes(mesh):
 
     log.debug('Filled in mesh with %i triangles', np.sum(valid))
     return mesh.is_watertight
+
+
+def fan_stitch(mesh, faces):
+    """
+    Create a fan stitch over the boundary of the specified
+    faces. If the boundary is non-convex a triangle fan
+    is going to be extremely wonky.
+
+    Parameters
+    -----------
+    vertices : (n, 3) float
+      Vertices in space.
+    faces : (n,) int
+      Face indexes to stitch with triangle fans.
+
+    Returns
+    ----------
+    fan : (m, 3) int
+      New triangles referencing mesh.vertices.
+    """
+    if faces is None:
+        faces = np.arange(len(mesh.faces))
+
+    # get a sequence of vertex indices representing the
+    # boundary of the specified faces
+    # will be referencing the same indexes of `mesh.vertices`
+    points = [e.points for e in
+              faces_to_path(mesh, faces)['entities']
+              if len(e.points) > 3 and
+              e.points[0] == e.points[-1]]
+
+    # now create a triangle fan for each boundary curve
+    fan = [np.column_stack((
+        np.ones(len(p) - 3, dtype=int) * p[0],
+        p[1:-2],
+        p[2:-1]))
+        for p in points]
+
+    # get properties to avoid querying in loop
+    vertices = mesh.vertices
+    normals = mesh.face_normals
+    adjacency = mesh.face_adjacency
+    tree = mesh.face_adjacency_edges_tree
+
+    # we're going to want to see which faces were *not*
+    # specified in the original face set
+    mask = np.ones(len(mesh.faces), dtype=bool)
+    mask[faces] = False
+    # now we do a normal check against an adjacent face
+    # to see if each region needs to be flipped
+    for i, p, t in zip(range(len(fan)), points, fan):
+        # get the edges from the original mesh
+        # for the first 3 new triangles
+        e = t[:3, 1:].copy()
+        e.sort(axis=1)
+        # find which index of `face_adjacency` this
+        # edge represents using a tree query
+        distance, aid = tree.query(e)
+        # if this is nonzero it means the edge doesn't
+        # exist in the original mesh and something
+        # extremely suspicious is going on
+        assert distance.max() < 1e-10
+        adj = adjacency[aid]
+        # get the normal of the adjacent face that
+        # wasn't included in our original set of faces
+        original = normals[adj[mask[adj]]]
+        # calculate the normals for a few new faces
+        # note that this 3-face check is totally arbitrary
+        # and you could check anywhere from one to all faces
+        check = triangles.normals(vertices[t[:3]])[0]
+        # if our new faces are reversed from the original
+        # adjacent face flip them along their axis
+        sign = diagonal_dot(check, original)
+        if sign.mean() < 0:
+            fan[i] = np.fliplr(t)
+
+    return np.vstack(fan)
