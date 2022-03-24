@@ -679,6 +679,9 @@ def projected(mesh,
     Project a mesh onto a plane and then extract the polygon
     that outlines the mesh projection on that plane.
 
+    Note that this will ignore back-faces, which is only
+    relevant if the source mesh isn't watertight.
+
     Parameters
     ----------
     mesh : trimesh.Trimesh
@@ -696,11 +699,12 @@ def projected(mesh,
       Tolerance for discarding on-edge triangles.
     max_regions : int
       Raise an exception if the mesh has more than this
-      number of disconnected regions to fail quickly before unioning.
+      number of disconnected regions to fail quickly before
+      unioning.
 
     Returns
     ----------
-    projected : shapely.geometry.Polygon
+    projected : shapely.geometry.Polygon or None
       Outline of source mesh
 
     Raises
@@ -783,6 +787,8 @@ def projected(mesh,
         scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
         padding = scale * pad
         polygon = polygon.buffer(padding).buffer(-padding)
+    elif len(polygons) == 0:
+        return None
     else:
         # get all points for every AABB
         extrema = np.reshape([p.bounds for p in polygons], (-1, 2))

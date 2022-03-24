@@ -97,6 +97,17 @@ class PolygonTests(g.unittest.TestCase):
         assert g.np.allclose(
             [i.area for i in p], g.np.pi, atol=0.05)
 
+    def test_project_backface(self):
+        m = g.trimesh.Trimesh(
+            vertices=[[0, 0, 0], [0, 1, 0], [1, 0, 0]],
+            faces=[[0, 1, 2]])
+
+        front = m.projected(m.face_normals[0])
+        assert len(front.entities) == 1
+
+        back = m.projected(-m.face_normals[0])
+        assert len(back.entities) == 0
+
     def test_project_multi(self):
         mesh = (g.trimesh.creation.box() +
                 g.trimesh.creation.box().apply_translation([3, 0, 0]))
