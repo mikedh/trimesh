@@ -23,20 +23,23 @@ except BaseException as E:
     from .exceptions import ExceptionModule
     nx = ExceptionModule(E)
 
+try:
+    from .path.exchange.misc import faces_to_path
+except BaseException as E:
+    from .exceptions import closure
+    faces_to_path = closure(E)
+
 
 def fix_winding(mesh):
     """
-    Traverse and change mesh faces in-place to make sure winding
-    is correct, with edges on adjacent faces in
+    Traverse and change mesh faces in-place to make sure
+    winding is correct with edges on adjacent faces in
     opposite directions.
 
     Parameters
     -------------
-    mesh: Trimesh object
-
-    Notes
-    -------------
-    mesh.face : will reverse columns of certain faces
+    mesh : Trimesh
+      Source geometry to alter in-place.
     """
     # anything we would fix is already done
     if mesh.is_winding_consistent:
@@ -92,16 +95,13 @@ def fix_inversion(mesh, multibody=False):
     Parameters
     -------------
     mesh : trimesh.Trimesh
-      Mesh to fix.
+      Mesh to fix in-place.
     multibody : bool
       If True will try to fix normals on every body
-
-    Notes
-    -------------
-    mesh.face : may reverse faces
     """
     if multibody:
-        groups = graph.connected_components(mesh.face_adjacency)
+        groups = graph.connected_components(
+            mesh.face_adjacency)
         # escape early for single body
         if len(groups) == 1:
             if mesh.volume < 0.0:
@@ -355,3 +355,83 @@ def fill_holes(mesh):
 
     log.debug('Filled in mesh with %i triangles', np.sum(valid))
     return mesh.is_watertight
+
+
+def fan_stitch(mesh, faces=None):
+    """
+    Create a fan stitch over the boundary of the specified
+    faces. If the boundary is non-convex a triangle fan
+    is going to be extremely wonky.
+
+    Parameters
+    -----------
+    vertices : (n, 3) float
+      Vertices in space.
+    faces : (n,) int
+      Face indexes to stitch with triangle fans.
+
+    Returns
+    ----------
+    fan : (m, 3) int
+      New triangles referencing mesh.vertices.
+    """
+    if faces is None:
+        faces = np.arange(len(mesh.faces))
+
+    # get a sequence of vertex indices representing the
+    # boundary of the specified faces
+    # will be referencing the same indexes of `mesh.vertices`
+    points = [e.points for e in
+              faces_to_path(mesh, faces)['entities']
+              if len(e.points) > 3 and
+              e.points[0] == e.points[-1]]
+
+    # now create a triangle fan for each boundary curve
+    fan = [np.column_stack((
+        np.ones(len(p) - 3, dtype=int) * p[0],
+        p[1:-2],
+        p[2:-1]))
+        for p in points]
+
+    # get properties to avoid querying in loop
+    vertices = mesh.vertices
+    normals = mesh.face_normals
+
+    # find which faces are associated with an edge
+    edges_face = mesh.edges_face
+    tree_edge = mesh.edges_sorted_tree
+
+    # now we do a normal check against an adjacent face
+    # to see if each region needs to be flipped
+    for i, p, t in zip(range(len(fan)), points, fan):
+        # get the edges from the original mesh
+        # for the first `n` new triangles
+        e = t[:10, 1:].copy()
+        e.sort(axis=1)
+
+        # find which indexes of `mesh.edges` these
+        # new edges correspond with by finding edges
+        # that exactly correspond with the tree
+        query = tree_edge.query_ball_point(e, r=1e-10)
+        if len(query) == 0:
+            continue
+        # stack all the indices that exist
+        edge_index = np.concatenate(query)
+
+        # get the normals from the original mesh
+        original = normals[edges_face[edge_index]]
+
+        # calculate the normals for a few new faces
+        check, valid = triangles.normals(vertices[t[:3]])
+        if not valid.any():
+            continue
+        # take the first valid normal from our new faces
+        check = check[valid][0]
+
+        # if our new faces are reversed from the original
+        # Adjacent face flip them along their axis
+        sign = np.dot(original, check)
+        if sign.mean() < 0:
+            fan[i] = np.fliplr(t)
+
+    return np.vstack(fan)

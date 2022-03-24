@@ -168,6 +168,40 @@ class RepairTests(g.unittest.TestCase):
         m.fix_normals(multibody=True)
         assert g.np.isclose(m.volume, a.volume * 2.0)
 
+    def test_fan(self):
+
+        # start by creating an icosphere and removing
+        # all faces that include a single vertex to make
+        # a nice hole in the mesh
+        m = g.trimesh.creation.icosphere()
+        clip = m.vertex_faces[0]
+        clip = clip[clip >= 0]
+        assert len(clip) > 4
+        mask = g.np.ones(len(m.faces), dtype=bool)
+        mask[clip] = False
+
+        # should have been watertight
+        assert m.is_watertight
+        assert m.is_winding_consistent
+        m.update_faces(mask)
+        # now should not be watertight
+        assert not m.is_watertight
+        assert m.is_winding_consistent
+
+        # create a triangle fan to cover the hole
+        stitch = g.trimesh.repair.fan_stitch(m)
+        # should be an (n, 3) int
+        assert len(stitch.shape) == 2
+        assert stitch.shape[1] == 3
+        assert stitch.dtype.kind == 'i'
+
+        # now check our stitch to see if it handled the hole
+        repair = g.trimesh.Trimesh(
+            vertices=m.vertices.copy(),
+            faces=g.np.vstack((m.faces, stitch)))
+        assert repair.is_watertight
+        assert repair.is_winding_consistent
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

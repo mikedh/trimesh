@@ -71,41 +71,33 @@ def rasterize(path,
     # the path indexes that are exteriors
     # needed to know what to fill/empty but expensive
     roots = path.root
+    enclosure = path.enclosure_directed
 
     # draw the exteriors
-    exteriors = Image.new(mode='1', size=resolution)
-    edraw = ImageDraw.Draw(exteriors)
+    result = Image.new(mode='1', size=resolution)
+    draw = ImageDraw.Draw(result)
 
     # if a width is specified draw the outline
     if width is not None:
         width = int(width)
         for coords in discrete:
-            edraw.line(coords.flatten().tolist(),
-                       fill=1,
-                       width=width)
+            draw.line(coords.flatten().tolist(),
+                      fill=1,
+                      width=width)
         # if we are not filling the polygon exit
         if not fill:
-            del edraw
-            return exteriors
+            return result
 
-    # draw the interiors
-    interiors = Image.new(mode='1', size=resolution)
-    idraw = ImageDraw.Draw(interiors)
-    for i, points in enumerate(discrete):
-        # draw the polygon on either the exterior or
-        # interior image buffer
-        if i in roots:
-            edraw.polygon(points.flatten().tolist(),
-                          fill=1)
-        else:
-            idraw.polygon(points.flatten().tolist(),
-                          fill=1)
-    # clean up the draw objects
-    # this is in the PIL examples and I have
-    # no idea if it this is actually necessary
-    del edraw
-    del idraw
-    # the final result is the exteriors minus the interiors
-    raster = ImageChops.subtract(exteriors, interiors)
+    # roots are ordered by degree
+    # so we draw the outermost one first
+    # and then go in as we progress
+    for root in roots:
+        # draw the exterior
+        draw.polygon(discrete[root].flatten().tolist(),
+                     fill=1)
+        # draw the interior children
+        for child in enclosure[root]:
+            draw.polygon(discrete[child].flatten().tolist(),
+                         fill=0)
 
-    return raster
+    return result
