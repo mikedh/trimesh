@@ -714,23 +714,28 @@ def projected(mesh,
 
     # the projection of each face normal onto facet normal
     dot_face = np.dot(normal, mesh.face_normals.T)
-    # check if face lies on front or back of normal
-    front = dot_face > tol_dot
-    back = dot_face < -tol_dot
-    # divide the mesh into front facing section and back facing parts
-    # and discard the faces perpendicular to the axis.
-    # since we are doing a unary_union later we can use the front *or*
-    # the back so we use which ever one has fewer triangles
-    # we want the largest nonzero group
-    count = np.array([front.sum(), back.sum()])
-    if count.min() == 0:
-        # if one of the sides has zero faces we need the other
-        pick = count.argmax()
+    if mesh.is_watertight:
+        # for watertight mesh, speed up projection by handling side with less faces
+        # check if face lies on front or back of normal
+        front = dot_face > tol_dot
+        back = dot_face < -tol_dot
+        # divide the mesh into front facing section and back facing parts
+        # and discard the faces perpendicular to the axis.
+        # since we are doing a unary_union later we can use the front *or*
+        # the back so we use which ever one has fewer triangles
+        # we want the largest nonzero group
+        count = np.array([front.sum(), back.sum()])
+        if count.min() == 0:
+            # if one of the sides has zero faces we need the other
+            pick = count.argmax()
+        else:
+            # otherwise use the normal direction with the fewest faces
+            pick = count.argmin()
+        # use the picked side
+        side = [front, back][pick]
     else:
-        # otherwise use the normal direction with the fewest faces
-        pick = count.argmin()
-    # use the picked side
-    side = [front, back][pick]
+        # for non-watertight mesh, only handle the front side of normal
+        side = dot_face > tol_dot
 
     # subset the adjacency pairs to ones which have both faces included
     # on the side we are currently looking at
