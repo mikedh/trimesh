@@ -10,7 +10,6 @@ import numpy as np
 from . import graph
 from . import triangles
 
-from .util import diagonal_dot
 from .constants import log
 from .grouping import group_rows
 from .geometry import faces_to_edges
@@ -358,7 +357,7 @@ def fill_holes(mesh):
     return mesh.is_watertight
 
 
-def fan_stitch(mesh, faces):
+def fan_stitch(mesh, faces=None):
     """
     Create a fan stitch over the boundary of the specified
     faces. If the boundary is non-convex a triangle fan
@@ -397,38 +396,41 @@ def fan_stitch(mesh, faces):
     # get properties to avoid querying in loop
     vertices = mesh.vertices
     normals = mesh.face_normals
-    adjacency = mesh.face_adjacency
-    tree = mesh.face_adjacency_edges_tree
 
-    # we're going to want to see which faces were *not*
-    # specified in the original face set
-    mask = np.ones(len(mesh.faces), dtype=bool)
-    mask[faces] = False
+    # find which faces are associated with an edge
+    edges_face = mesh.edges_face
+    tree_edge = mesh.edges_sorted_tree
+
     # now we do a normal check against an adjacent face
     # to see if each region needs to be flipped
     for i, p, t in zip(range(len(fan)), points, fan):
         # get the edges from the original mesh
-        # for the first 3 new triangles
-        e = t[:3, 1:].copy()
+        # for the first `n` new triangles
+        e = t[:10, 1:].copy()
         e.sort(axis=1)
-        # find which index of `face_adjacency` this
-        # edge represents using a tree query
-        distance, aid = tree.query(e)
-        # if this is nonzero it means the edge doesn't
-        # exist in the original mesh and something
-        # extremely suspicious is going on
-        assert distance.max() < 1e-10
-        adj = adjacency[aid]
-        # get the normal of the adjacent face that
-        # wasn't included in our original set of faces
-        original = normals[adj[mask[adj]]]
+
+        # find which indexes of `mesh.edges` these
+        # new edges correspond with by finding edges
+        # that exactly correspond with the tree
+        query = tree_edge.query_ball_point(e, r=1e-10)
+        if len(query) == 0:
+            continue
+        # stack all the indices that exist
+        edge_index = np.concatenate(query)
+
+        # get the normals from the original mesh
+        original = normals[edges_face[edge_index]]
+
         # calculate the normals for a few new faces
-        # note that this 3-face check is totally arbitrary
-        # and you could check anywhere from one to all faces
-        check = triangles.normals(vertices[t[:3]])[0]
+        check, valid = triangles.normals(vertices[t[:3]])
+        if not valid.any():
+            continue
+        # take the first valid normal from our new faces
+        check = check[valid][0]
+
         # if our new faces are reversed from the original
-        # adjacent face flip them along their axis
-        sign = diagonal_dot(check, original)
+        # Adjacent face flip them along their axis
+        sign = np.dot(original, check)
         if sign.mean() < 0:
             fan[i] = np.fliplr(t)
 
