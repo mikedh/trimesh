@@ -805,7 +805,7 @@ def projected(mesh,
             # extract the model scale from the maximum AABB side length
             scale = extrema.ptp(axis=0).max()
             # pad each polygon proportionally to that scale
-            distance = abs(scale * pad)
+            distance = abs(scale * rpad)
         # inflate each polygon before unioning to remove zero-size
         # gaps then deflate the result after unioning by the same amount
         polygon = ops.unary_union(
