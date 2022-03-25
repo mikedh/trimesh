@@ -672,7 +672,8 @@ def repair_invalid(polygon, scale=None, rtol=.5):
 def projected(mesh,
               normal,
               origin=None,
-              pad=1e-5,
+              rpad=1e-5,
+              apad=None,
               tol_dot=0.01,
               max_regions=200):
     """
@@ -692,8 +693,11 @@ def projected(mesh,
       Normal to extract flat pattern along
     origin : None or (3,) float
       Origin of plane to project mesh onto
-    pad : float
+    rpad : float
       Proportion to pad polygons by before unioning
+      and then de-padding result by to avoid zero-width gaps.
+    apad : float
+      Absolute padding to pad polygons by before unioning
       and then de-padding result by to avoid zero-width gaps.
     tol_dot : float
       Tolerance for discarding on-edge triangles.
@@ -784,18 +788,24 @@ def projected(mesh,
     elif len(polygons) == 1:
         polygon = polygons[0]
         # we do however need to double buffer to de-garbage the polygon
-        scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
-        padding = scale * pad
+        if apad:
+            padding = apad
+        else:
+            scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
+            padding = scale * rpad
         polygon = polygon.buffer(padding).buffer(-padding)
     elif len(polygons) == 0:
         return None
     else:
-        # get all points for every AABB
-        extrema = np.reshape([p.bounds for p in polygons], (-1, 2))
-        # extract the model scale from the maximum AABB side length
-        scale = extrema.ptp(axis=0).max()
-        # pad each polygon proportionally to that scale
-        distance = abs(scale * pad)
+        if apad:
+            distance = apad
+        else:
+            # get all points for every AABB
+            extrema = np.reshape([p.bounds for p in polygons], (-1, 2))
+            # extract the model scale from the maximum AABB side length
+            scale = extrema.ptp(axis=0).max()
+            # pad each polygon proportionally to that scale
+            distance = abs(scale * pad)
         # inflate each polygon before unioning to remove zero-size
         # gaps then deflate the result after unioning by the same amount
         polygon = ops.unary_union(
