@@ -267,6 +267,12 @@ class OBJTest(g.unittest.TestCase):
             mesh.export(file_type='obj'), file_type='obj')
         assert g.np.isclose(mesh.area, rec.area)
 
+    def test_no_uv_but_mtl(self):
+        sphere = g.trimesh.creation.uv_sphere()
+        sphere.visual = g.trimesh.visual.TextureVisuals(uv=None, material=g.trimesh.visual.material.empty_material())
+        output = sphere.export('sphere.obj')
+        assert('usemtl' in output)
+
     def test_chair(self):
         mesh = next(iter(g.get_mesh('chair.zip').geometry.values()))
 
