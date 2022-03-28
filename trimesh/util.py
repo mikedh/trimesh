@@ -39,8 +39,6 @@ if PY3:
     basestring = str
     # Python 3
     from io import BytesIO, StringIO
-    # will be the highest granularity clock available
-    from time import perf_counter as now
 else:
     # Python 2
     from StringIO import StringIO
