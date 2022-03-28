@@ -167,6 +167,27 @@ class UtilTests(unittest.TestCase):
                             a.volume * count)
         assert a.md5() == hA
 
+    def test_unique_id(self):
+        num_ids = 10000
+
+        g.trimesh.util.random.seed(0)
+        unique_ids_0 = []
+        for i in range(num_ids):
+            s = g.trimesh.util.unique_id(denylist=unique_ids_0)
+            unique_ids_0.append(s)
+
+        # make sure every id is truly unique
+        assert len(unique_ids_0) == len(g.np.unique(unique_ids_0))
+
+        g.trimesh.util.random.seed(0)
+        unique_ids_1 = []
+        for i in range(num_ids):
+            s = g.trimesh.util.unique_id(denylist=unique_ids_1)
+            unique_ids_1.append(s)
+
+            # make sure id's can be reproduced
+            assert s == unique_ids_0[i]
+
 
 class ContainsTest(unittest.TestCase):
 

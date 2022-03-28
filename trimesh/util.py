@@ -13,7 +13,9 @@ import abc
 import sys
 import copy
 import json
+import uuid
 import base64
+import random
 import shutil
 import logging
 import hashlib
@@ -2121,44 +2123,30 @@ def write_encoded(file_obj,
     return stuff
 
 
-def unique_id(length=12, increment=0):
+def unique_id(length=12, increment=0, denylist=None):
     """
-    Generate a decent looking alphanumeric unique identifier.
-    First 16 bits are time-incrementing, followed by randomness.
-
-    This function is used as a nicer looking alternative to:
-    >>> uuid.uuid4().hex
-
-    Follows the advice in:
-    https://eager.io/blog/how-long-does-an-id-need-to-be/
+    Generate an alphanumeric unique identifier.
 
     Parameters
     ------------
     length : int
       Length of desired identifier
     increment : int
-      Number to add to header uint16
-      useful if calling this function repeatedly
-      in a tight loop executing faster than time
-      can increment the header
+      Unused. For backwards compatibility
+    denylist : list of str
+      Identifiers that are not allowed
 
     Returns
     ------------
     unique : str
       Unique alphanumeric identifier
     """
-    # head the identifier with 16 bits of time information
-    # this provides locality and reduces collision chances
-    head = np.array((increment + now() * 10) % 2**16,
-                    dtype=np.uint16).tobytes()
-    # get a bunch of random bytes
-    random = np.random.random(int(np.ceil(length / 5))).tobytes()
-    # encode the time header and random information as base64
-    # replace + and / with spaces
-    unique = base64.b64encode(head + random,
-                              b'  ').decode('utf-8')
-    # remove spaces and cut to length
-    unique = unique.replace(' ', '')[:length]
+    unique = str(uuid.UUID(int=random.getrandbits(128), version=4))[:length]
+
+    if denylist is not None:
+        while unique in denylist:
+            unique = str(uuid.UUID(int=random.getrandbits(128), version=4))[:length]
+
     return unique
 
 
