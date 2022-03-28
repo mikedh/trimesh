@@ -48,8 +48,6 @@ else:
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()
     BytesIO = StringIO
-    # perf_counter not available on python 2
-    from time import time as now
 
 
 try:
