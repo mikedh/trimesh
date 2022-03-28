@@ -269,7 +269,9 @@ class OBJTest(g.unittest.TestCase):
 
     def test_no_uv_but_mtl(self):
         sphere = g.trimesh.creation.uv_sphere()
-        sphere.visual = g.trimesh.visual.TextureVisuals(uv=None, material=g.trimesh.visual.material.empty_material())
+        sphere.visual = g.trimesh.visual.TextureVisuals(
+            uv=None,
+            material=g.trimesh.visual.material.empty_material())
         output = sphere.export('sphere.obj')
         assert('usemtl' in output)
 
