@@ -20,9 +20,7 @@ if os.path.exists('README.md'):
 
 # minimal requirements for installing trimesh
 # note that `pip` requires setuptools itself
-requirements_default = set([
-    'numpy',     # all data structures
-])
+requirements_default = set(['numpy'])
 
 # "easy" requirements should install without compiling
 # anything on Windows, Linux, and Mac, for Python 2.7-3.4+
@@ -74,7 +72,8 @@ current = (sys.version_info.major, sys.version_info.minor)
 lock = [((3, 4), 'lxml', '4.3.5'),
         ((3, 4), 'shapely', '1.6.4'),
         ((3, 4), 'pyglet', '1.4.10'),
-        ((3, 5), 'sympy', None)]
+        ((3, 5), 'sympy', None),
+        ((3, 6), 'svg.path', '4.1')]
 for max_python, name, version in lock:
     if current <= max_python:
         # remove version-free requirements

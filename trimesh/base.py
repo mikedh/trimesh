@@ -2506,8 +2506,9 @@ class Trimesh(Geometry3D):
                   normal,
                   **kwargs):
         """
-        Project a mesh onto a plane and then extract the polygon
-        that outlines the mesh projection on that plane.
+        Project a mesh onto a plane and then extract the
+        polygon that outlines the mesh projection on that
+        plane.
 
         Parameters
         ----------
@@ -2533,10 +2534,15 @@ class Trimesh(Geometry3D):
         projected : trimesh.path.Path2D
           Outline of source mesh
         """
+        from .path import Path2D
         from .exchange.load import load_path
         from .path.polygons import projected
 
-        return load_path(projected(mesh=self, normal=normal, **kwargs))
+        projection = projected(
+            mesh=self, normal=normal, **kwargs)
+        if projection is None:
+            return Path2D()
+        return load_path(projection)
 
     @caching.cache_decorator
     def area(self):

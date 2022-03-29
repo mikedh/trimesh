@@ -57,6 +57,35 @@ class RasterTest(g.unittest.TestCase):
         # A different pitch results in a different image
         assert fill_2dpitch_cnt != fill_cnt
 
+    def test_nested(self):
+        # make a test path with nested circles
+        theta = g.np.linspace(0, g.np.pi * 2, 100)
+        unit = g.np.column_stack((g.np.cos(theta), g.np.sin(theta)))
+        radii = g.np.linspace(1.0, 10.0, 10)
+        g.np.random.shuffle(radii)
+        paths = []
+        for R in radii:
+            paths.append(g.trimesh.load_path(R * unit))
+        path = g.trimesh.path.util.concatenate(paths)
+
+        # split and extrude should both show 5 regions
+        assert len(path.split()) == 5
+        assert len(path.extrude(1.0)) == 5
+
+        pitch = path.extents.max() / 1000
+        origin = path.bounds[0] - pitch
+        resolution = (g.np.ceil(
+            path.extents / pitch) + 2).astype(int)
+
+        # rasterize using the settings
+        r = path.rasterize(
+            pitch=pitch, origin=origin, resolution=resolution)
+        # it's a boolean image so filled cells times
+        # pitch area should be about the same as the area
+        filled = g.np.array(r).sum() * pitch ** 2
+
+        assert g.np.isclose(filled, path.area, rtol=0.01)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

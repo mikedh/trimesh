@@ -110,8 +110,10 @@ class Transform(object):
         matrix = self.matrix
         # get the (3,) diagonal of the rotation component
         scale = np.diag(matrix[:3, :3])
-        if not util.allclose(
-                matrix[:3, :3], scale * np.eye(3), scale * 1e-6 + 1e-8):
+        if not np.allclose(
+                matrix[:3, :3],
+                scale * np.eye(3),
+                scale * 1e-6 + 1e-8):
             raise RuntimeError('transform features a shear or rotation')
         return scale
 

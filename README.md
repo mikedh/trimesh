@@ -1,14 +1,14 @@
 [![trimesh](https://trimsh.org/images/logotype-a.svg)](http://trimsh.org)
 
 -----------
-[![Github Actions](https://github.com/mikedh/trimesh/workflows/Release%20Trimesh/badge.svg)](https://github.com/mikedh/trimesh/actions)  [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh) [![codecov](https://codecov.io/gh/mikedh/trimesh/branch/master/graph/badge.svg?token=4PVRQXyl2h)](https://codecov.io/gh/mikedh/trimesh)
+[![Github Actions](https://github.com/mikedh/trimesh/workflows/Release%20Trimesh/badge.svg)](https://github.com/mikedh/trimesh/actions)  [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh) [![codecov](https://codecov.io/gh/mikedh/trimesh/branch/main/graph/badge.svg?token=4PVRQXyl2h)](https://codecov.io/gh/mikedh/trimesh)
 
 
 Trimesh is a pure Python (2.7-3.4+) library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on watertight surfaces. The goal of the library is to provide a full featured and well tested Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the [Shapely library](https://github.com/Toblerity/Shapely).
 
 The API is mostly stable, but this should not be relied on and is not guaranteed: install a specific version if you plan on deploying something using trimesh.
 
-Pull requests are appreciated and responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/199) although things not on that list are also welcome. Here are some [tips for writing mesh code in Python.](https://github.com/mikedh/trimesh/blob/master/trimesh/exchange/README.md)
+Pull requests are appreciated and responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/199) although things not on that list are also welcome. Here are some [tips for writing mesh code in Python.](https://github.com/mikedh/trimesh/blob/main/trimesh/exchange/README.md)
 
 
 ## Basic Installation
@@ -29,7 +29,7 @@ Further information is available in the [advanced installation documentation](ht
 ## Quick Start
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](https://trimsh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimsh.org/examples/section.html) or possibly the [integration of a function over a mesh example](https://github.com/mikedh/trimesh/blob/master/examples/integrate.ipynb).
+[ipython notebook version](https://trimsh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimsh.org/examples/section.html) or possibly the [integration of a function over a mesh example](https://github.com/mikedh/trimesh/blob/main/examples/integrate.ipynb).
 
 ```python
 import numpy as np
@@ -216,9 +216,9 @@ A question that comes up pretty frequently is [how to cite the library.](https:/
 
 ## Containers
 
-If you want to deploy something in a container that uses trimesh, automated `debian:buster-slim` based builds with trimesh and dependencies are available on [Docker Hub](https://hub.docker.com/repository/docker/trimesh/trimesh) with image tags for `latest`, git short hash for the commit in master (i.e. `trimesh/trimesh:0c1298d`), and version (i.e. `trimesh/trimesh:3.5.27`):
+If you want to deploy something in a container that uses trimesh, automated `debian:buster-slim` based builds with trimesh and dependencies are available on [Docker Hub](https://hub.docker.com/repository/docker/trimesh/trimesh) with image tags for `latest`, git short hash for the commit in main (i.e. `trimesh/trimesh:0c1298d`), and version (i.e. `trimesh/trimesh:3.5.27`):
 
 `docker pull trimesh/trimesh`
 
-[Here's an example](https://github.com/mikedh/trimesh/tree/master/examples/dockerRender) of how to render meshes using LLVMpipe and XVFB inside a container.
+[Here's an example](https://github.com/mikedh/trimesh/tree/main/examples/dockerRender) of how to render meshes using LLVMpipe and XVFB inside a container.
 

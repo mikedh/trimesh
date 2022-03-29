@@ -1488,6 +1488,8 @@ def concatenate(a, b=None):
     # if there is only one mesh just return the first
     if len(meshes) == 1:
         return meshes[0].copy()
+    elif len(meshes) == 0:
+        return []
 
     # extract the trimesh type to avoid a circular import
     # and assert that both inputs are Trimesh objects
@@ -1518,7 +1520,6 @@ def concatenate(a, b=None):
                         face_normals=face_normals,
                         visual=visual,
                         process=False)
-
     return mesh
 
 
@@ -2250,7 +2251,7 @@ def isclose(a, b, atol):
     return close
 
 
-def allclose(a, b, atol):
+def allclose(a, b, atol=1e-8):
     """
     A replacement for np.allclose that does few checks
     and validation and as a result is faster.
@@ -2268,7 +2269,7 @@ def allclose(a, b, atol):
     -----------
     bool indicating if all elements are within `atol`.
     """
-    return np.all(np.abs(a - b).max() < atol)
+    return float((a - b).ptp()) < atol
 
 
 class FunctionRegistry(Mapping):

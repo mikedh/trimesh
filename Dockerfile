@@ -31,12 +31,6 @@ RUN pip install --no-cache-dir -e "${TRIMESH_PATH}[all,test]" pyassimp==4.1.3
 # Switch to non-root user.
 USER user
 
-# make sure build fails if tests are failing
-# -p no:warnings suppresses 10,000 useless upstream warnings
-# -p no:alldep means that tests will fail if a dependency is missing
-# -x will exit on first test failure
-RUN pytest -x -p no:warnings -p no:alldep -p no:cacheprovider "${TRIMESH_PATH}/tests"
-
 # Set environment variables for software rendering.
 ENV XVFB_WHD="1920x1080x24"\
     DISPLAY=":99" \

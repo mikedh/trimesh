@@ -145,7 +145,7 @@ def export_dict(mesh, encoding=None):
     return export
 
 
-def scene_to_dict(scene, use_base64=False):
+def scene_to_dict(scene, use_base64=False, include_metadata=True):
     """
     Export a Scene object as a dict.
 
@@ -167,6 +167,14 @@ def scene_to_dict(scene, use_base64=False):
                               'extents': scene.extents.tolist(),
                               'centroid': scene.centroid.tolist(),
                               'scale': scene.scale}}
+
+    if include_metadata:
+        try:
+            # jsonify will convert numpy arrays to lists recursively
+            # a little silly round-tripping to json but it is pretty fast
+            export['metadata'] = json.loads(util.jsonify(scene.metadata))
+        except BaseException:
+            log.warning('failed to serialize metadata', exc_info=True)
 
     # encode arrays with base64 or not
     if use_base64:
@@ -210,6 +218,9 @@ def export_scene(scene,
     export : bytes
       Only returned if file_obj is None
     """
+    if len(scene.geometry) == 0:
+        raise ValueError("Can't export empty scenes!")
+
     # if we weren't passed a file type extract from file_obj
     if file_type is None:
         if util.is_string(file_obj):
@@ -237,9 +248,9 @@ def export_scene(scene,
         from trimesh.path.exchange import svg_io
         data = svg_io.export_svg(scene, **kwargs)
     elif file_type == 'ply':
-        data = export_ply(scene)
+        data = export_ply(scene.dump(concatenate=True))
     elif file_type == 'stl':
-        data = export_stl(scene)
+        data = export_stl(scene.dump(concatenate=True))
     else:
         raise ValueError(
             'unsupported export format: {}'.format(file_type))
