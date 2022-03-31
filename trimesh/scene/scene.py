@@ -180,9 +180,10 @@ class Scene(Geometry3D):
             # if the name of the geometry is also a transform node
             if name in self.graph.nodes:
                 # a random unique identifier
-                unique = util.unique_id(increment=len(self.geometry))
+                unique = util.unique_id()
                 # geometry name + UUID
                 node_name = name + '_' + unique.upper()
+                assert node_name not in self.graph.nodes
             else:
                 # otherwise make the transform node name the same as the geom
                 node_name = name
