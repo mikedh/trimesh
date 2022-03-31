@@ -2121,31 +2121,23 @@ def write_encoded(file_obj,
     return stuff
 
 
-def unique_id(length=12, increment=0, denylist=None):
+def unique_id(length=12):
     """
-    Generate an alphanumeric unique identifier.
+    Generate a random alphanumeric unique identifier
+    using UUID logic.
 
     Parameters
     ------------
     length : int
       Length of desired identifier
-    increment : int
-      Unused. For backwards compatibility
-    denylist : list of str
-      Identifiers that are not allowed
 
     Returns
     ------------
     unique : str
       Unique alphanumeric identifier
     """
-    unique = str(uuid.UUID(int=random.getrandbits(128), version=4))[:length]
-
-    if denylist is not None:
-        while unique in denylist:
-            unique = str(uuid.UUID(int=random.getrandbits(128), version=4))[:length]
-
-    return unique
+    return uuid.UUID(int=random.getrandbits(128),
+                     version=4).hex[:length]
 
 
 def generate_basis(z, epsilon=1e-12):
