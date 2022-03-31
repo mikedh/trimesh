@@ -173,7 +173,7 @@ class UtilTests(unittest.TestCase):
         g.trimesh.util.random.seed(0)
         unique_ids_0 = []
         for i in range(num_ids):
-            s = g.trimesh.util.unique_id(denylist=unique_ids_0)
+            s = g.trimesh.util.unique_id()
             unique_ids_0.append(s)
 
         # make sure every id is truly unique
@@ -182,7 +182,7 @@ class UtilTests(unittest.TestCase):
         g.trimesh.util.random.seed(0)
         unique_ids_1 = []
         for i in range(num_ids):
-            s = g.trimesh.util.unique_id(denylist=unique_ids_1)
+            s = g.trimesh.util.unique_id()
             unique_ids_1.append(s)
 
             # make sure id's can be reproduced
