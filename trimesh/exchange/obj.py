@@ -851,7 +851,7 @@ def export_obj(mesh,
                 log.debug('failed to convert vertex normals',
                           exc_info=True)
 
-        if include_texture and len(np.shape(getattr(mesh.visual, 'uv', None))) == 2:
+        if include_texture and hasattr(mesh.visual, 'uv'):
             try:
                 material = mesh.visual.material
                 if hasattr(material, 'to_simple'):
@@ -859,15 +859,18 @@ def export_obj(mesh,
                 (tex_data,
                  tex_name,
                  mtl_name) = material.to_obj()
-                converted = util.array_to_string(
-                    mesh.visual.uv,
-                    col_delim=' ',
-                    row_delim='\nvt ',
-                    digits=digits)
-                # if vertex texture exists and is the right shape
-                face_type.append('vt')
-                # add the uv coordinates
-                export.append('vt ' + converted)
+
+                if len(np.shape(getattr(mesh.visual, 'uv', None))) == 2:
+                    converted = util.array_to_string(
+                        mesh.visual.uv,
+                        col_delim=' ',
+                        row_delim='\nvt ',
+                        digits=digits)
+                    # if vertex texture exists and is the right shape
+                    face_type.append('vt')
+                    # add the uv coordinates
+                    export.append('vt ' + converted)
+
                 # add the reference to the MTL file
                 objects.appendleft('mtllib {}'.format(mtl_name))
                 # add the directive to use the exported material
