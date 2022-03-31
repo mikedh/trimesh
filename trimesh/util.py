@@ -1535,11 +1535,13 @@ def submesh(mesh,
     Parameters
     ------------
     mesh : Trimesh
-       Source mesh to take geometry from
+        Source mesh to take geometry from
     faces_sequence : sequence (p,) int
         Indexes of mesh.faces
+    repair : bool
+        Try to make submeshes watertight
     only_watertight : bool
-        Only return submeshes which are watertight.
+        Only return submeshes which are watertight
     append : bool
         Return a single mesh which has the faces appended,
         if this flag is set, only_watertight is ignored
