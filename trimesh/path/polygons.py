@@ -683,6 +683,12 @@ def projected(mesh,
     Note that this will ignore back-faces, which is only
     relevant if the source mesh isn't watertight.
 
+    Also padding: this generates a result by unioning the
+    polygons of multiple connected regions, which requires
+    the polygons be padded by a distance so that a polygon
+    union produces a single coherent result. This distance
+    is calculated as: `apad + (rpad * scale)`
+
     Parameters
     ----------
     mesh : trimesh.Trimesh
@@ -778,6 +784,16 @@ def projected(mesh,
         polygons.extend(edges_to_polygons(
             edges=edge[group], vertices=vertices_2D))
 
+    padding = 0.0
+    if apad is not None:
+        # set padding by absolute value
+        padding += float(apad)
+    if rpad is not None:
+        # get the 2D scale as the longest side of the AABB
+        scale = vertices_2D.ptp(axis=0).max()
+        # apply the scale-relative padding
+        padding += float(rpad) * scale
+
     # some types of errors will lead to a bajillion disconnected
     # regions and the union will take forever to fail
     # so exit here early
@@ -786,29 +802,13 @@ def projected(mesh,
 
     # if there is only one region we don't need to run a union
     elif len(polygons) == 1:
-        polygon = polygons[0]
-        # we do however need to double buffer to de-garbage the polygon
-        if apad:
-            padding = apad
-        else:
-            scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
-            padding = scale * rpad
-        polygon = polygon.buffer(padding).buffer(-padding)
+        polygon = polygons[0].buffer(padding).buffer(-padding)
     elif len(polygons) == 0:
         return None
     else:
-        if apad:
-            distance = apad
-        else:
-            # get all points for every AABB
-            extrema = np.reshape([p.bounds for p in polygons], (-1, 2))
-            # extract the model scale from the maximum AABB side length
-            scale = extrema.ptp(axis=0).max()
-            # pad each polygon proportionally to that scale
-            distance = abs(scale * rpad)
         # inflate each polygon before unioning to remove zero-size
         # gaps then deflate the result after unioning by the same amount
         polygon = ops.unary_union(
-            [p.buffer(distance) for p in polygons]).buffer(-distance)
+            [p.buffer(padding) for p in polygons]).buffer(-padding)
 
     return polygon
