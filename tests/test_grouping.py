@@ -287,7 +287,7 @@ class GroupTests(g.unittest.TestCase):
         # shouldn't error because there are no vertices
         # even though faces are wrong
         mesh.merge_vertices()
-    
+
     def test_unique_ordered(self):
         a = g.np.array([9, 9, 9, 8, 8, 7, 7, 6,
                         6, 5, 5, 4, 4, 3, 3, 0,
@@ -299,7 +299,7 @@ class GroupTests(g.unittest.TestCase):
             return_index=True,
             return_inverse=True
         )
-        
+
         # indices are increasing, because we kept original order
         assert (g.np.diff(ind) > 0).all()
         # we can reconstruct original data
