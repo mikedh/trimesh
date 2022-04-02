@@ -1109,6 +1109,8 @@ class Trimesh(Geometry3D):
           Number of digits to consider for unit normals
         digits_uv : int
           Number of digits to consider for UV coordinates
+        keep_vertex_order: bool
+          If True, vertex order will be preserved
         """
         if 'textured' in kwargs:
             kwargs['merge_tex'] = not kwargs.pop('textured')

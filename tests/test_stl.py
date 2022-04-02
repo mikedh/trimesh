@@ -93,7 +93,7 @@ class STLTests(g.unittest.TestCase):
     def test_vertex_order(self):
         # removing doubles should respect the vertex order
         m_raw = g.get_mesh('featuretype.STL', process=False)
-        m_proc = g.get_mesh('featuretype.STL', process=True)
+        m_proc = g.get_mesh('featuretype.STL', process=True, keep_vertex_order=True)
 
         verts_raw = g.trimesh.grouping.hashable_rows(m_raw.vertices)
         verts_proc = g.trimesh.grouping.hashable_rows(m_proc.vertices)        
