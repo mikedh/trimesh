@@ -252,7 +252,7 @@ def float_to_int(data, digits=None, dtype=np.int32):
     return as_int
 
 
-def unique_ordered(data):
+def unique_ordered(data, return_index=False, return_inverse=False):
     """
     Returns the same as np.unique, but ordered as per the
     first occurrence of the unique value in data.
@@ -268,9 +268,23 @@ def unique_ordered(data):
     Out[3]: array([0, 3, 4, 1, 2])
     """
     data = np.asanyarray(data)
-    order = np.sort(np.unique(data, return_index=True)[1])
-    result = data[order]
-    return result
+    if not return_index and not return_inverse:
+        order = np.sort(np.unique(data, return_index=True)[1])
+        result = data[order]
+        return result 
+
+    uniques, uidxs, inverse = np.unique(data, return_index=True, return_inverse=True)
+    
+    sorted2ordered = np.argsort(uidxs)
+    uniques_ordered = uniques[sorted2ordered]
+    
+    ordered2sorted = np.argsort(sorted2ordered)
+    inv_ordered = ordered2sorted[inverse]
+    
+    if return_index and not return_inverse:
+        return uniques_ordered, uidxs[sorted2ordered]
+
+    return uniques_ordered, uidxs[sorted2ordered], inv_ordered
 
 
 def unique_bincount(values,
@@ -424,7 +438,7 @@ def unique_rows(data, digits=None):
       Example: data[unique][inverse] == data
     """
     rows = hashable_rows(data, digits=digits)
-    _, unique, inverse = np.unique(
+    _, unique, inverse = unique_ordered(
         rows,
         return_index=True,
         return_inverse=True)
