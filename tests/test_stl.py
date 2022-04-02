@@ -89,6 +89,25 @@ class STLTests(g.unittest.TestCase):
             except BaseException:
                 return
             raise ValueError("Shouldn't export empty scenes!")
+    
+    def test_vertex_order(self):
+        # removing doubles should respect the vertex order
+        m_raw = g.get_mesh('featuretype.STL', process=False)
+        m_proc = g.get_mesh('featuretype.STL', process=True)
+
+        verts_raw = g.trimesh.grouping.hashable_rows(m_raw.vertices)
+        verts_proc = g.trimesh.grouping.hashable_rows(m_proc.vertices)        
+
+        # go through all processed verts
+        # find index in unprocessed mesh
+        idxs = []
+        for vert in verts_proc:
+            idxs.append(g.np.where(verts_raw == vert)[0][0])
+
+        # indices should be increasing
+        assert (g.np.diff(idxs) >= 0).all()
+
+
 
 
 if __name__ == '__main__':
