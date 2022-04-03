@@ -274,16 +274,16 @@ def unique_ordered(data, return_index=False, return_inverse=False):
     if not return_index and not return_inverse:
         order = np.sort(np.unique(data, return_index=True)[1])
         result = data[order]
-        return result 
+        return result
 
     uniques, uidxs, inverse = np.unique(data, return_index=True, return_inverse=True)
-    
+
     sorted2ordered = np.argsort(uidxs)
     uniques_ordered = uniques[sorted2ordered]
-    
+
     ordered2sorted = np.argsort(sorted2ordered)
     inv_ordered = ordered2sorted[inverse]
-    
+
     if return_index and not return_inverse:
         return uniques_ordered, uidxs[sorted2ordered]
 
