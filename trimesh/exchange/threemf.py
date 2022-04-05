@@ -1,5 +1,7 @@
 import collections
 import numpy as np
+import uuid
+import io
 
 from .. import util
 from .. import graph
@@ -207,6 +209,104 @@ def load_3MF(file_obj,
               'metadata': metadata}
 
     return kwargs
+
+
+def export_3MF(mesh):
+    """
+    Converts a Trimesh object into a 3MF file.
+
+    Parameters
+    ---------
+    mesh: Trimesh object
+
+    Returns
+    ---------
+    export: bytes, representing mesh in 3MF form.
+    """
+    # collect geometry from scenes or single mesh
+    geometry = mesh.geometry if hasattr(mesh, "geometry") else {"object": mesh}
+
+    # 3mf archive dict {path: BytesIO}
+    archive = {}
+
+    # 3dmodel.model (xml stream to BytesIO)
+    archive["3D/3dmodel.model"] = f = io.BytesIO()
+    with etree.xmlfile(f, encoding="utf-8") as xf:
+        xf.write_declaration()
+        # xml namespaces
+        nsmap = {
+            None: "http://schemas.microsoft.com/3dmanufacturing/core/2015/02",
+            "m": "http://schemas.microsoft.com/3dmanufacturing/material/2015/02",
+            "p": "http://schemas.microsoft.com/3dmanufacturing/production/2015/06",
+            "b": "http://schemas.microsoft.com/3dmanufacturing/beamlattice/2017/02",
+            "s": "http://schemas.microsoft.com/3dmanufacturing/slice/2015/07",
+            "sc": "http://schemas.microsoft.com/3dmanufacturing/securecontent/2019/04",
+        }
+
+        # stream elements
+        with xf.element("model", {"unit": "millimeter"}, nsmap=nsmap):
+            with xf.element("resources"):
+                for i, (name, m) in enumerate(geometry.items()):
+                    attribs = {"id": str(i + 1), "name": name, "type": "model", "p:UUID": str(uuid.uuid4())}
+                    with xf.element("object", **attribs):
+                        with xf.element("mesh"):
+                            with xf.element("vertices"):
+                                for v1, v2, v3 in m.vertices:
+                                    xf.write(etree.Element("vertex", x=str(v1), y=str(v2), z=str(v3)))
+                            with xf.element("triangles"):
+                                for f1, f2, f3 in m.faces:
+                                    xf.write(etree.Element("triangle", v1=str(f1), v2=str(f2), v3=str(f3)))
+
+            with xf.element("build", {"p:UUID": str(uuid.uuid4())}):
+                for i in range(len(geometry)):
+                    xf.write(
+                        etree.Element(
+                            "item", {"objectid": str(i + 1), f"{{{nsmap['p']}}}UUID": str(uuid.uuid4())}, nsmap=nsmap
+                        )
+                    )
+    f.seek(0)
+
+    # .rels
+    archive["_rels/.rels"] = f = io.BytesIO()
+    with etree.xmlfile(f, encoding="utf-8") as xf:
+        xf.write_declaration()
+        # xml namespaces
+        nsmap = {None: "http://schemas.openxmlformats.org/package/2006/relationships"}
+
+        # stream elements
+        with xf.element("Relationships", nsmap=nsmap):
+            xf.write(
+                etree.Element(
+                    "Relationship",
+                    Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel",
+                    Target="/3D/3dmodel.model",
+                    Id="rel0",
+                )
+            )
+    f.seek(0)
+
+    # [Content_Types].xml
+    archive["[Content_Types].xml"] = f = io.BytesIO()
+    with etree.xmlfile(f, encoding="utf-8") as xf:
+        xf.write_declaration()
+        # xml namespaces
+        nsmap = {None: "http://schemas.openxmlformats.org/package/2006/content-types"}
+
+        # stream elements
+        types = [
+            ("jpeg", "image/jpeg"),
+            ("jpg", "image/jpeg"),
+            ("model", "application/vnd.ms-package.3dmanufacturing-3dmodel+xml"),
+            ("png", "image/png"),
+            ("rels", "application/vnd.openxmlformats-package.relationships+xml"),
+            ("texture", "application/vnd.ms-package.3dmanufacturing-3dmodeltexture"),
+        ]
+        with xf.element("Types", nsmap=nsmap):
+            for ext, ctype in types:
+                xf.write(etree.Element("Default", Extension=ext, ContentType=ctype))
+    f.seek(0)
+
+    return util.compress(archive)
 
 
 def _attrib_to_transform(attrib):

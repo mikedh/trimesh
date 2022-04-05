@@ -6,6 +6,7 @@ from ..constants import log
 from .. import util
 from .. import resolvers
 
+from .threemf import export_3MF
 from .urdf import export_urdf  # NOQA
 from .gltf import export_glb, export_gltf
 from .obj import export_obj
@@ -251,6 +252,8 @@ def export_scene(scene,
         data = export_ply(scene.dump(concatenate=True))
     elif file_type == 'stl':
         data = export_stl(scene.dump(concatenate=True))
+    elif file_type == '3mf':
+        data = export_3MF(scene)
     else:
         raise ValueError(
             'unsupported export format: {}'.format(file_type))
@@ -305,6 +308,7 @@ _mesh_exporters = {
     'stl': export_stl,
     'dict': export_dict,
     'json': export_json,
+    '3mf': export_3MF,
     'glb': export_glb,
     'obj': export_obj,
     'gltf': export_gltf,
