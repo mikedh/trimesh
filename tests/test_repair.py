@@ -189,7 +189,7 @@ class RepairTests(g.unittest.TestCase):
         assert m.is_winding_consistent
 
         # create a triangle fan to cover the hole
-        stitch = g.trimesh.repair.fan_stitch(m)
+        stitch = g.trimesh.repair.stitch(m)
         # should be an (n, 3) int
         assert len(stitch.shape) == 2
         assert stitch.shape[1] == 3

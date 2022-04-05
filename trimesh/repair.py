@@ -357,7 +357,7 @@ def fill_holes(mesh):
     return mesh.is_watertight
 
 
-def fan_stitch(mesh, faces=None):
+def stitch(mesh, faces=None, insert_vertices=False):
     """
     Create a fan stitch over the boundary of the specified
     faces. If the boundary is non-convex a triangle fan
@@ -369,11 +369,15 @@ def fan_stitch(mesh, faces=None):
       Vertices in space.
     faces : (n,) int
       Face indexes to stitch with triangle fans.
+    insert_vertices : bool
+      Allow stitching to insert new vertices?
 
     Returns
     ----------
     fan : (m, 3) int
       New triangles referencing mesh.vertices.
+    vertices : (p, 3) float
+      Inserted vertices (only returned `if insert_vertices`)
     """
     if faces is None:
         faces = np.arange(len(mesh.faces))
@@ -386,13 +390,6 @@ def fan_stitch(mesh, faces=None):
               if len(e.points) > 3 and
               e.points[0] == e.points[-1]]
 
-    # now create a triangle fan for each boundary curve
-    fan = [np.column_stack((
-        np.ones(len(p) - 3, dtype=int) * p[0],
-        p[1:-2],
-        p[2:-1]))
-        for p in points]
-
     # get properties to avoid querying in loop
     vertices = mesh.vertices
     normals = mesh.face_normals
@@ -400,6 +397,30 @@ def fan_stitch(mesh, faces=None):
     # find which faces are associated with an edge
     edges_face = mesh.edges_face
     tree_edge = mesh.edges_sorted_tree
+
+    if insert_vertices:
+        # create one new vertex per curve at the centroid
+        centroids = np.array([vertices[p].mean(axis=0)
+                              for p in points])
+        # save the original length of the vertices
+        count = len(vertices)
+        # for the normal check stack our local vertices
+        vertices = np.vstack((vertices, centroids))
+        # create a triangle between our new centroid vertex
+        # and each one of the boundary curves
+        fan = [np.column_stack((
+            np.ones(len(p) - 1, dtype=int) * (count + i),
+            p[:-1],
+            p[1:]))
+            for i, p in enumerate(points)]
+    else:
+        # since we're not allowed to insert new vertices
+        # create a triangle fan for each boundary curve
+        fan = [np.column_stack((
+            np.ones(len(p) - 3, dtype=int) * p[0],
+            p[1:-2],
+            p[2:-1]))
+            for p in points]
 
     # now we do a normal check against an adjacent face
     # to see if each region needs to be flipped
@@ -434,4 +455,8 @@ def fan_stitch(mesh, faces=None):
         if sign.mean() < 0:
             fan[i] = np.fliplr(t)
 
-    return np.vstack(fan)
+    fan = np.vstack(fan)
+
+    if insert_vertices:
+        return fan, centroids
+    return fan
