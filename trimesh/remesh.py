@@ -96,9 +96,10 @@ def subdivide(vertices,
             new_attributes[key] = np.vstack((
                 values, attr_mid))
         return new_vertices, new_faces, new_attributes
-        
+
     if return_index:
-        index_dict = {f: [f] + [len(faces) + 3 * fidx + i for i in range(3)] for fidx,f in enumerate(face_index)}
+        index_dict = {f: [f] + [len(faces) + 3 * fidx + i for i in range(3)] 
+                      for fidx, f in enumerate(face_index)}
         return new_vertices, new_faces, index_dict
 
     return new_vertices, new_faces
