@@ -1287,8 +1287,8 @@ def _read_buffers(header,
                 names_original[index].append(name)
                 # make name unique across multiple meshes
                 if name in meshes:
-                    name += "_" + util.unique_id(
-                        length=5, increment=index)
+                    name += "_" + util.unique_id(length=5)
+                    assert name not in meshes
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
                     from ..path.entities import Line

@@ -672,7 +672,8 @@ def repair_invalid(polygon, scale=None, rtol=.5):
 def projected(mesh,
               normal,
               origin=None,
-              pad=1e-5,
+              rpad=1e-5,
+              apad=None,
               tol_dot=0.01,
               max_regions=200):
     """
@@ -681,6 +682,12 @@ def projected(mesh,
 
     Note that this will ignore back-faces, which is only
     relevant if the source mesh isn't watertight.
+
+    Also padding: this generates a result by unioning the
+    polygons of multiple connected regions, which requires
+    the polygons be padded by a distance so that a polygon
+    union produces a single coherent result. This distance
+    is calculated as: `apad + (rpad * scale)`
 
     Parameters
     ----------
@@ -692,8 +699,11 @@ def projected(mesh,
       Normal to extract flat pattern along
     origin : None or (3,) float
       Origin of plane to project mesh onto
-    pad : float
+    rpad : float
       Proportion to pad polygons by before unioning
+      and then de-padding result by to avoid zero-width gaps.
+    apad : float
+      Absolute padding to pad polygons by before unioning
       and then de-padding result by to avoid zero-width gaps.
     tol_dot : float
       Tolerance for discarding on-edge triangles.
@@ -774,6 +784,16 @@ def projected(mesh,
         polygons.extend(edges_to_polygons(
             edges=edge[group], vertices=vertices_2D))
 
+    padding = 0.0
+    if apad is not None:
+        # set padding by absolute value
+        padding += float(apad)
+    if rpad is not None:
+        # get the 2D scale as the longest side of the AABB
+        scale = vertices_2D.ptp(axis=0).max()
+        # apply the scale-relative padding
+        padding += float(rpad) * scale
+
     # some types of errors will lead to a bajillion disconnected
     # regions and the union will take forever to fail
     # so exit here early
@@ -782,23 +802,13 @@ def projected(mesh,
 
     # if there is only one region we don't need to run a union
     elif len(polygons) == 1:
-        polygon = polygons[0]
-        # we do however need to double buffer to de-garbage the polygon
-        scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
-        padding = scale * pad
-        polygon = polygon.buffer(padding).buffer(-padding)
+        polygon = polygons[0].buffer(padding).buffer(-padding)
     elif len(polygons) == 0:
         return None
     else:
-        # get all points for every AABB
-        extrema = np.reshape([p.bounds for p in polygons], (-1, 2))
-        # extract the model scale from the maximum AABB side length
-        scale = extrema.ptp(axis=0).max()
-        # pad each polygon proportionally to that scale
-        distance = abs(scale * pad)
         # inflate each polygon before unioning to remove zero-size
         # gaps then deflate the result after unioning by the same amount
         polygon = ops.unary_union(
-            [p.buffer(distance) for p in polygons]).buffer(-distance)
+            [p.buffer(padding) for p in polygons]).buffer(-padding)
 
     return polygon
