@@ -253,7 +253,7 @@ def export_scene(scene,
     elif file_type == 'stl':
         data = export_stl(scene.dump(concatenate=True))
     elif file_type == '3mf':
-        data = export_3MF(scene)
+        data = export_3MF(scene, **kwargs)
     else:
         raise ValueError(
             'unsupported export format: {}'.format(file_type))
