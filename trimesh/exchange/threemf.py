@@ -230,9 +230,13 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
 
     # 3mf archive dict {path: BytesIO}
     file = io.BytesIO()
-    with zipfile.ZipFile(file, 'w', compression=compression, compresslevel=compresslevel) as z:
+    with zipfile.ZipFile(
+        file, "w", compression=compression, compresslevel=compresslevel
+    ) as z:
         # 3dmodel.model
-        with z.open('3D/3dmodel.model', 'w') as f, etree.xmlfile(f, encoding="utf-8") as xf:
+        with z.open("3D/3dmodel.model", "w") as f, etree.xmlfile(
+            f, encoding="utf-8"
+        ) as xf:
             xf.write_declaration()
             # xml namespaces
             nsmap = {
@@ -248,7 +252,12 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
             with xf.element("model", {"unit": "millimeter"}, nsmap=nsmap):
                 with xf.element("resources"):
                     for i, (name, m) in enumerate(geometry.items()):
-                        attribs = {"id": str(i + 1), "name": name, "type": "model", "p:UUID": str(uuid.uuid4())}
+                        attribs = {
+                            "id": str(i + 1),
+                            "name": name,
+                            "type": "model",
+                            "p:UUID": str(uuid.uuid4()),
+                        }
                         with xf.element("object", **attribs):
                             with xf.element("mesh"):
                                 with xf.element("vertices"):
@@ -256,26 +265,44 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                                     # so make sure lxml's buffer is flushed
                                     xf.flush()
                                     for i in range(0, len(m.vertices), batch_size):
-                                        batch = m.vertices[i:i+batch_size]
-                                        fragment = '<vertex x="{}" y="{}" z="{}" />' * len(batch)
-                                        f.write(fragment.format(*batch.flatten()).encode('utf-8'))
+                                        batch = m.vertices[i : i + batch_size]
+                                        fragment = (
+                                            '<vertex x="{}" y="{}" z="{}" />' * len(batch)
+                                        )
+                                        f.write(
+                                            fragment.format(*batch.flatten()).encode(
+                                                "utf-8"
+                                            )
+                                        )
                                 with xf.element("triangles"):
                                     xf.flush()
                                     for i in range(0, len(m.faces), batch_size):
-                                        batch = m.faces[i:i+batch_size]
-                                        fragment = '<triangle v1="{}" v2="{}" v3="{}" />' * len(batch)
-                                        f.write(fragment.format(*batch.flatten()).encode('utf-8'))
+                                        batch = m.faces[i : i + batch_size]
+                                        fragment = (
+                                            '<triangle v1="{}" v2="{}" v3="{}" />'
+                                            * len(batch)
+                                        )
+                                        f.write(
+                                            fragment.format(*batch.flatten()).encode(
+                                                "utf-8"
+                                            )
+                                        )
 
                 with xf.element("build", {"p:UUID": str(uuid.uuid4())}):
                     for i in range(len(geometry)):
                         xf.write(
                             etree.Element(
-                                "item", {"objectid": str(i + 1), "{{{}}}UUID".format(nsmap['p']): str(uuid.uuid4())}, nsmap=nsmap
+                                "item",
+                                {
+                                    "objectid": str(i + 1),
+                                    "{{{}}}UUID".format(nsmap["p"]): str(uuid.uuid4()),
+                                },
+                                nsmap=nsmap,
                             )
                         )
 
         # .rels
-        with z.open('_rels/.rels', 'w') as f, etree.xmlfile(f, encoding="utf-8") as xf:
+        with z.open("_rels/.rels", "w") as f, etree.xmlfile(f, encoding="utf-8") as xf:
             xf.write_declaration()
             # xml namespaces
             nsmap = {None: "http://schemas.openxmlformats.org/package/2006/relationships"}
@@ -292,7 +319,9 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                 )
 
         # [Content_Types].xml
-        with z.open('[Content_Types].xml', 'w') as f, etree.xmlfile(f, encoding="utf-8") as xf:
+        with z.open("[Content_Types].xml", "w") as f, etree.xmlfile(
+            f, encoding="utf-8"
+        ) as xf:
             xf.write_declaration()
             # xml namespaces
             nsmap = {None: "http://schemas.openxmlformats.org/package/2006/content-types"}
