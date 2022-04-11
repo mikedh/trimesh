@@ -497,6 +497,7 @@ class EnforcedForest(object):
         self.edge_data = collections.defaultdict(dict)
         # {u: data}
         self.node_data = collections.defaultdict(dict)
+        self.node_names = set()
 
         # if multiple calls are made for the same path
         # but the connectivity hasn't changed return cached
@@ -545,6 +546,8 @@ class EnforcedForest(object):
                 {'geometry': kwargs['geometry']})
         else:
             self.node_data[v].update({})
+        
+        self.node_names.add(u)
 
         return True
 
@@ -583,6 +586,7 @@ class EnforcedForest(object):
             del self.edge_data[e]
 
         # delete node data
+        self.node_names.remove(u)
         del self.node_data[u]
 
         return True
@@ -650,7 +654,7 @@ class EnforcedForest(object):
         nodes : set
           Every node currently stored.
         """
-        return set(self.node_data.keys())
+        return self.node_names
 
     @property
     def children(self):
