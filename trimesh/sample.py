@@ -9,9 +9,10 @@ import numpy as np
 
 from . import util
 from . import transformations
+from .visual import uv_to_interpolated_color
 
 
-def sample_surface(mesh, count, face_weight=None):
+def sample_surface(mesh, count, face_weight=None, sample_color=False):
     """
     Sample the surface of a mesh, returning the specified
     number of points
@@ -28,13 +29,18 @@ def sample_surface(mesh, count, face_weight=None):
     face_weight : None or len(mesh.faces) float
       Weight faces by a factor other than face area.
       If None will be the same as face_weight=mesh.area
-
+    sample_color : bool
+      Option to calculate the color of the sampled points.
+      Default is False.
     Returns
     ---------
     samples : (count, 3) float
       Points in space on the surface of mesh
     face_index : (count,) int
       Indices of faces for each sampled point
+    colors : (count, 4) float
+      Colors of each sampled point
+      Returns only when the sample_color is True
     """
 
     if face_weight is None:
@@ -51,13 +57,21 @@ def sample_surface(mesh, count, face_weight=None):
     face_index = np.searchsorted(weight_cum, face_pick)
 
     # pull triangles into the form of an origin + 2 vectors
-    tri_origins = mesh.triangles[:, 0]
-    tri_vectors = mesh.triangles[:, 1:].copy()
+    tri_origins = mesh.vertices[mesh.faces[:, 0]]
+    tri_vectors = mesh.vertices[mesh.faces[:, 1:]].copy()
     tri_vectors -= np.tile(tri_origins, (1, 2)).reshape((-1, 2, 3))
 
     # pull the vectors for the faces we are going to sample from
     tri_origins = tri_origins[face_index]
     tri_vectors = tri_vectors[face_index]
+
+    if sample_color:
+        uv_origins = mesh.visual.uv[mesh.faces[:, 0]]
+        uv_vectors = mesh.visual.uv[mesh.faces[:, 1:]].copy()
+        uv_origins_tile = np.tile(uv_origins, (1, 2)).reshape((-1, 2, 2))
+        uv_vectors -= uv_origins_tile
+        uv_origins = uv_origins[face_index]
+        uv_vectors = uv_vectors[face_index]
 
     # randomly generate two 0-1 scalar components to multiply edge vectors by
     random_lengths = np.random.random((len(tri_vectors), 2, 1))
@@ -76,6 +90,14 @@ def sample_surface(mesh, count, face_weight=None):
     # finally, offset by the origin to generate
     # (n,3) points in space on the triangle
     samples = sample_vector + tri_origins
+
+    if sample_color:
+        sample_uv_vector = (uv_vectors * random_lengths).sum(axis=1)
+        uv_samples = sample_uv_vector + uv_origins
+        texture = mesh.visual.material.image
+        colors = uv_to_interpolated_color(uv_samples, texture)
+
+        return samples, face_index, colors
 
     return samples, face_index
 

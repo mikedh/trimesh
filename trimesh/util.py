@@ -13,7 +13,9 @@ import abc
 import sys
 import copy
 import json
+import uuid
 import base64
+import random
 import shutil
 import logging
 import hashlib
@@ -37,8 +39,6 @@ if PY3:
     basestring = str
     # Python 3
     from io import BytesIO, StringIO
-    # will be the highest granularity clock available
-    from time import perf_counter as now
 else:
     # Python 2
     from StringIO import StringIO
@@ -46,8 +46,6 @@ else:
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()
     BytesIO = StringIO
-    # perf_counter not available on python 2
-    from time import time as now
 
 
 try:
@@ -1535,11 +1533,13 @@ def submesh(mesh,
     Parameters
     ------------
     mesh : Trimesh
-       Source mesh to take geometry from
+        Source mesh to take geometry from
     faces_sequence : sequence (p,) int
         Indexes of mesh.faces
+    repair : bool
+        Try to make submeshes watertight
     only_watertight : bool
-        Only return submeshes which are watertight.
+        Only return submeshes which are watertight
     append : bool
         Return a single mesh which has the faces appended,
         if this flag is set, only_watertight is ignored
@@ -2121,45 +2121,23 @@ def write_encoded(file_obj,
     return stuff
 
 
-def unique_id(length=12, increment=0):
+def unique_id(length=12):
     """
-    Generate a decent looking alphanumeric unique identifier.
-    First 16 bits are time-incrementing, followed by randomness.
-
-    This function is used as a nicer looking alternative to:
-    >>> uuid.uuid4().hex
-
-    Follows the advice in:
-    https://eager.io/blog/how-long-does-an-id-need-to-be/
+    Generate a random alphanumeric unique identifier
+    using UUID logic.
 
     Parameters
     ------------
     length : int
       Length of desired identifier
-    increment : int
-      Number to add to header uint16
-      useful if calling this function repeatedly
-      in a tight loop executing faster than time
-      can increment the header
 
     Returns
     ------------
     unique : str
       Unique alphanumeric identifier
     """
-    # head the identifier with 16 bits of time information
-    # this provides locality and reduces collision chances
-    head = np.array((increment + now() * 10) % 2**16,
-                    dtype=np.uint16).tobytes()
-    # get a bunch of random bytes
-    random = np.random.random(int(np.ceil(length / 5))).tobytes()
-    # encode the time header and random information as base64
-    # replace + and / with spaces
-    unique = base64.b64encode(head + random,
-                              b'  ').decode('utf-8')
-    # remove spaces and cut to length
-    unique = unique.replace(' ', '')[:length]
-    return unique
+    return uuid.UUID(int=random.getrandbits(128),
+                     version=4).hex[:length]
 
 
 def generate_basis(z, epsilon=1e-12):
