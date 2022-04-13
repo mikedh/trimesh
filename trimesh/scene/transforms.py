@@ -545,6 +545,7 @@ class EnforcedForest(object):
                 {'geometry': kwargs['geometry']})
         else:
             self.node_data[v].update({})
+
         return True
 
     def remove_node(self, u):
