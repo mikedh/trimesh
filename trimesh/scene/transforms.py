@@ -650,7 +650,7 @@ class EnforcedForest(object):
         nodes : set
           Every node currently stored.
         """
-        return set(self.node_data.keys())
+        return self.node_data.keys()
 
     @property
     def children(self):
