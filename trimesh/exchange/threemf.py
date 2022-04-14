@@ -1,7 +1,6 @@
 import collections
 import numpy as np
 import zipfile
-import uuid
 import io
 
 from .. import util
@@ -234,6 +233,20 @@ def export_3MF(
     graph = mesh.graph.to_networkx()
     base_frame = mesh.graph.base_frame
 
+    # xml namespaces
+    model_nsmap = {
+        None: "http://schemas.microsoft.com/3dmanufacturing/core/2015/02",
+        "m": "http://schemas.microsoft.com/3dmanufacturing/material/2015/02",
+        "p": "http://schemas.microsoft.com/3dmanufacturing/production/2015/06",
+        "b": "http://schemas.microsoft.com/3dmanufacturing/beamlattice/2017/02",
+        "s": "http://schemas.microsoft.com/3dmanufacturing/slice/2015/07",
+        "sc": "http://schemas.microsoft.com/3dmanufacturing/securecontent/2019/04",
+    }
+
+    rels_nsmap = {
+        None: "http://schemas.openxmlformats.org/package/2006/relationships"
+    }
+
     # 3mf archive dict {path: BytesIO}
     file = io.BytesIO()
     with zipfile.ZipFile(
@@ -244,18 +257,9 @@ def export_3MF(
             f, encoding="utf-8"
         ) as xf:
             xf.write_declaration()
-            # xml namespaces
-            nsmap = {
-                None: "http://schemas.microsoft.com/3dmanufacturing/core/2015/02",
-                "m": "http://schemas.microsoft.com/3dmanufacturing/material/2015/02",
-                "p": "http://schemas.microsoft.com/3dmanufacturing/production/2015/06",
-                "b": "http://schemas.microsoft.com/3dmanufacturing/beamlattice/2017/02",
-                "s": "http://schemas.microsoft.com/3dmanufacturing/slice/2015/07",
-                "sc": "http://schemas.microsoft.com/3dmanufacturing/securecontent/2019/04",
-            }
 
             # stream elements
-            with xf.element("model", {"unit": "millimeter"}, nsmap=nsmap):
+            with xf.element("model", {"unit": "millimeter"}, nsmap=model_nsmap):
                 # objects with mesh data and/or references to other objects
                 with xf.element("resources"):
                     # stream objects with actual mesh data
@@ -346,17 +350,13 @@ def export_3MF(
         # .rels
         with z.open("_rels/.rels", "w") as f, etree.xmlfile(f, encoding="utf-8") as xf:
             xf.write_declaration()
-            # xml namespaces
-            nsmap = {
-                None: "http://schemas.openxmlformats.org/package/2006/relationships"
-            }
-
             # stream elements
-            with xf.element("Relationships", nsmap=nsmap):
+            with xf.element("Relationships", nsmap=rels_nsmap):
+                rt = "http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"
                 xf.write(
                     etree.Element(
                         "Relationship",
-                        Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel",
+                        Type=rt,
                         Target="/3D/3dmodel.model",
                         Id="rel0",
                     )
