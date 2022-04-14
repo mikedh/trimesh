@@ -6,6 +6,7 @@ import io
 
 from .. import util
 from .. import graph
+from .. import Scene
 
 from ..constants import log
 
@@ -212,7 +213,9 @@ def load_3MF(file_obj,
     return kwargs
 
 
-def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compresslevel=5):
+def export_3MF(
+    mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compresslevel=5
+):
     """
     Converts a Trimesh object into a 3MF file.
 
@@ -225,8 +228,11 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
     ---------
     export: bytes, representing mesh in 3MF form.
     """
-    # collect geometry from scenes or single mesh
-    geometry = mesh.geometry if hasattr(mesh, "geometry") else {"object": mesh}
+    if not isinstance(mesh, Scene):
+        mesh = Scene(mesh)
+    geometry = mesh.geometry
+    graph = mesh.graph.to_networkx()
+    base_frame = mesh.graph.base_frame
 
     # 3mf archive dict {path: BytesIO}
     file = io.BytesIO()
@@ -250,13 +256,14 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
 
             # stream elements
             with xf.element("model", {"unit": "millimeter"}, nsmap=nsmap):
+                # objects with mesh data and/or references to other objects
                 with xf.element("resources"):
+                    # stream objects with actual mesh data
                     for i, (name, m) in enumerate(geometry.items()):
                         attribs = {
-                            "id": str(i + 1),
+                            "id": _to_id(name),
                             "name": name,
                             "type": "model",
-                            "p:UUID": str(uuid.uuid4()),
                         }
                         with xf.element("object", **attribs):
                             with xf.element("mesh"):
@@ -267,7 +274,8 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                                     for i in range(0, len(m.vertices), batch_size):
                                         batch = m.vertices[i : i + batch_size]
                                         fragment = (
-                                            '<vertex x="{}" y="{}" z="{}" />' * len(batch)
+                                            '<vertex x="{}" y="{}" z="{}" />'
+                                            * len(batch)
                                         )
                                         f.write(
                                             fragment.format(*batch.flatten()).encode(
@@ -288,16 +296,50 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                                             )
                                         )
 
-                with xf.element("build", {"p:UUID": str(uuid.uuid4())}):
-                    for i in range(len(geometry)):
+                    # stream components
+                    for node in graph.nodes:
+                        if node == base_frame or node.startswith("camera"):
+                            continue
+                        if len(graph[node]) == 0:
+                            continue
+
+                        attribs = {"id": _to_id(node), "name": node, "type": "model"}
+                        with xf.element("object", **attribs):
+                            with xf.element("components"):
+                                for next, data in graph[node].items():
+                                    transform = " ".join(
+                                        str(i)
+                                        for i in np.array(data["matrix"])[
+                                            :3, :4
+                                        ].T.flatten()
+                                    )
+                                    xf.write(
+                                        etree.Element(
+                                            "component",
+                                            {
+                                                "objectid": _to_id(data["geometry"])
+                                                if "geometry" in data
+                                                else _to_id(next),
+                                                "transform": transform,
+                                            },
+                                        )
+                                    )
+
+                # stream build (objects on base_frame)
+                with xf.element("build"):
+                    for node, data in graph[base_frame].items():
+                        if node.startswith("camera"):
+                            continue
+                        transform = " ".join(
+                            str(i) for i in np.array(data["matrix"])[:3, :4].T.flatten()
+                        )
                         xf.write(
                             etree.Element(
                                 "item",
                                 {
-                                    "objectid": str(i + 1),
-                                    "{{{}}}UUID".format(nsmap["p"]): str(uuid.uuid4()),
+                                    "objectid": _to_id(node),
+                                    "transform": transform,
                                 },
-                                nsmap=nsmap,
                             )
                         )
 
@@ -305,7 +347,9 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
         with z.open("_rels/.rels", "w") as f, etree.xmlfile(f, encoding="utf-8") as xf:
             xf.write_declaration()
             # xml namespaces
-            nsmap = {None: "http://schemas.openxmlformats.org/package/2006/relationships"}
+            nsmap = {
+                None: "http://schemas.openxmlformats.org/package/2006/relationships"
+            }
 
             # stream elements
             with xf.element("Relationships", nsmap=nsmap):
@@ -324,7 +368,9 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
         ) as xf:
             xf.write_declaration()
             # xml namespaces
-            nsmap = {None: "http://schemas.openxmlformats.org/package/2006/content-types"}
+            nsmap = {
+                None: "http://schemas.openxmlformats.org/package/2006/content-types"
+            }
 
             # stream elements
             types = [
@@ -333,7 +379,10 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                 ("model", "application/vnd.ms-package.3dmanufacturing-3dmodel+xml"),
                 ("png", "image/png"),
                 ("rels", "application/vnd.openxmlformats-package.relationships+xml"),
-                ("texture", "application/vnd.ms-package.3dmanufacturing-3dmodeltexture"),
+                (
+                    "texture",
+                    "application/vnd.ms-package.3dmanufacturing-3dmodeltexture",
+                ),
             ]
             with xf.element("Types", nsmap=nsmap):
                 for ext, ctype in types:
@@ -363,6 +412,21 @@ def _attrib_to_transform(attrib):
             dtype=np.float64).reshape((4, 3)).T
         transform[:3, :4] = values
     return transform
+
+
+def _to_id(name):
+    """
+    Converts and object name to a valid id.
+
+    Parameters
+    ------------
+    name: str
+
+    Returns
+    ------------
+    id: str, a positive number as a string
+    """
+    return str(abs(hash(name)))
 
 
 # do import here to keep lxml a soft dependency
