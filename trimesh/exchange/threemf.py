@@ -5,7 +5,7 @@ import io
 
 from .. import util
 from .. import graph
-from .. import Scene
+from ..scene.scene import Scene
 
 from ..constants import log
 
