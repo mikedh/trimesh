@@ -26,6 +26,7 @@ def merge_vertices(mesh,
                    digits_vertex=None,
                    digits_norm=2,
                    digits_uv=4,
+                   keep_vertex_order=False,
                    **kwargs):
     """
     Removes duplicate vertices, grouped by position and
@@ -47,6 +48,8 @@ def merge_vertices(mesh,
       Number of digits to consider for unit normals
     digits_uv : int
       Number of digits to consider for UV coordinates
+    keep_vertex_order: bool
+      If True, vertex order will be preserved
     """
     # no vertices so exit early
     if len(mesh.vertices) == 0:
@@ -88,7 +91,7 @@ def merge_vertices(mesh,
     stacked = np.column_stack(stacked).round().astype(np.int64)
 
     # check unique rows of referenced vertices
-    u, i = unique_rows(stacked[referenced])
+    u, i = unique_rows(stacked[referenced], keep_order=keep_vertex_order)
 
     # construct an inverse using the subset
     inverse = np.zeros(len(mesh.vertices), dtype=np.int64)
@@ -252,7 +255,7 @@ def float_to_int(data, digits=None, dtype=np.int32):
     return as_int
 
 
-def unique_ordered(data):
+def unique_ordered(data, return_index=False, return_inverse=False):
     """
     Returns the same as np.unique, but ordered as per the
     first occurrence of the unique value in data.
@@ -268,9 +271,23 @@ def unique_ordered(data):
     Out[3]: array([0, 3, 4, 1, 2])
     """
     data = np.asanyarray(data)
-    order = np.sort(np.unique(data, return_index=True)[1])
-    result = data[order]
-    return result
+    if not return_index and not return_inverse:
+        order = np.sort(np.unique(data, return_index=True)[1])
+        result = data[order]
+        return result
+
+    uniques, uidxs, inverse = np.unique(data, return_index=True, return_inverse=True)
+
+    sorted2ordered = np.argsort(uidxs)
+    uniques_ordered = uniques[sorted2ordered]
+
+    ordered2sorted = np.argsort(sorted2ordered)
+    inv_ordered = ordered2sorted[inverse]
+
+    if return_index and not return_inverse:
+        return uniques_ordered, uidxs[sorted2ordered]
+
+    return uniques_ordered, uidxs[sorted2ordered], inv_ordered
 
 
 def unique_bincount(values,
@@ -402,7 +419,7 @@ def unique_float(data,
     return tuple(result)
 
 
-def unique_rows(data, digits=None):
+def unique_rows(data, digits=None, keep_order=False):
     """
     Returns indices of unique rows. It will return the
     first occurrence of a row that is duplicated:
@@ -424,7 +441,10 @@ def unique_rows(data, digits=None):
       Example: data[unique][inverse] == data
     """
     rows = hashable_rows(data, digits=digits)
-    _, unique, inverse = np.unique(
+
+    unique_fun = unique_ordered if keep_order else np.unique
+
+    _, unique, inverse = unique_fun(
         rows,
         return_index=True,
         return_inverse=True)

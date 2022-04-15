@@ -288,6 +288,23 @@ class GroupTests(g.unittest.TestCase):
         # even though faces are wrong
         mesh.merge_vertices()
 
+    def test_unique_ordered(self):
+        a = g.np.array([9, 9, 9, 8, 8, 7, 7, 6,
+                        6, 5, 5, 4, 4, 3, 3, 0,
+                        2, 1, 1, 0, 0, -1, -1, -1],
+                       dtype=g.np.int64)
+
+        u, ind, inv = g.trimesh.grouping.unique_ordered(
+            a,
+            return_index=True,
+            return_inverse=True
+        )
+
+        # indices are increasing, because we kept original order
+        assert (g.np.diff(ind) > 0).all()
+        # we can reconstruct original data
+        assert (u[inv] == a).all()
+
 
 def check_roll_wrap(**kwargs):
     """
