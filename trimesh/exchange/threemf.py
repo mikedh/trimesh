@@ -6,7 +6,6 @@ import io
 
 from .. import util
 from .. import graph
-from ..scene.scene import Scene
 
 from ..constants import log
 
@@ -228,6 +227,9 @@ def export_3MF(
     ---------
     export: bytes, representing mesh in 3MF form.
     """
+
+    from ..scene.scene import Scene
+
     if not isinstance(mesh, Scene):
         mesh = Scene(mesh)
     geometry = mesh.geometry
