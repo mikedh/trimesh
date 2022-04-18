@@ -1,8 +1,10 @@
+import io
+import sys
+import uuid
+import zipfile
+
 import collections
 import numpy as np
-import zipfile
-import uuid
-import io
 
 from .. import util
 from .. import graph
@@ -212,26 +214,35 @@ def load_3MF(file_obj,
     return kwargs
 
 
-def export_3MF(
-    mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compresslevel=5
-):
+def export_3MF(mesh,
+               batch_size=4096,
+               compression=zipfile.ZIP_DEFLATED,
+               compresslevel=5):
     """
     Converts a Trimesh object into a 3MF file.
 
     Parameters
     ---------
-    mesh: Trimesh object.
-    batch_size: Number of nodes to write per batch.
+    mesh trimesh.trimesh
+      Mesh or Scene to export.
+    batch_size : int
+      Number of nodes to write per batch.
+    compression : zipfile.ZIP_*
+      Type of zip compression to use in this export.
+    compresslevel : int
+      For Python > 3.7 specify the 0-9 compression level.
 
     Returns
     ---------
-    export: bytes, representing mesh in 3MF form.
+    export : bytes
+      Represents geometry as a 3MF file.
     """
 
     from ..scene.scene import Scene
 
     if not isinstance(mesh, Scene):
         mesh = Scene(mesh)
+
     geometry = mesh.geometry
     graph = mesh.graph.to_networkx()
     base_frame = mesh.graph.base_frame
@@ -257,10 +268,15 @@ def export_3MF(
         return str(models.index(x) + 1)
 
     # 3mf archive dict {path: BytesIO}
-    file = io.BytesIO()
-    with zipfile.ZipFile(
-        file, "w", compression=compression, compresslevel=compresslevel
-    ) as z:
+    file_obj = io.BytesIO()
+
+    # specify the parameters for the zip container
+    zip_kwargs = {'compression': compression}
+    # compresslevel was added in Python 3.7
+    if sys.version_info >= (3, 7):
+        zip_kwargs['compresslevel'] = compresslevel
+
+    with zipfile.ZipFile(file_obj, "w", **zip_kwargs) as z:
         # 3dmodel.model
         with z.open("3D/3dmodel.model", "w") as f, etree.xmlfile(
             f, encoding="utf-8"
@@ -407,7 +423,7 @@ def export_3MF(
                 for ext, ctype in types:
                     xf.write(etree.Element("Default", Extension=ext, ContentType=ctype))
 
-    return file.getvalue()
+    return file_obj.getvalue()
 
 
 def _attrib_to_transform(attrib):
