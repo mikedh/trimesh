@@ -1,6 +1,7 @@
 import collections
 import numpy as np
 import zipfile
+import uuid
 import io
 
 from .. import util
@@ -247,6 +248,11 @@ def export_3MF(
         None: "http://schemas.openxmlformats.org/package/2006/relationships"
     }
 
+    # model ids
+    def model_id(x, models=[]):
+        if x not in models: models.append(x)
+        return str(models.index(x) + 1)
+
     # 3mf archive dict {path: BytesIO}
     file = io.BytesIO()
     with zipfile.ZipFile(
@@ -264,10 +270,12 @@ def export_3MF(
                 with xf.element("resources"):
                     # stream objects with actual mesh data
                     for i, (name, m) in enumerate(geometry.items()):
+                        # attributes for object
                         attribs = {
-                            "id": _to_id(name),
+                            "id": model_id(name),
                             "name": name,
                             "type": "model",
+                            "p:UUID": str(uuid.uuid4())
                         }
                         with xf.element("object", **attribs):
                             with xf.element("mesh"):
@@ -307,7 +315,12 @@ def export_3MF(
                         if len(graph[node]) == 0:
                             continue
 
-                        attribs = {"id": _to_id(node), "name": node, "type": "model"}
+                        attribs = {
+                            "id": model_id(node),
+                            "name": node,
+                            "type": "model",
+                            "p:UUID": str(uuid.uuid4())
+                        }
                         with xf.element("object", **attribs):
                             with xf.element("components"):
                                 for next, data in graph[node].items():
@@ -321,29 +334,32 @@ def export_3MF(
                                         etree.Element(
                                             "component",
                                             {
-                                                "objectid": _to_id(data["geometry"])
+                                                "objectid": model_id(data["geometry"])
                                                 if "geometry" in data
-                                                else _to_id(next),
+                                                else model_id(next),
                                                 "transform": transform,
                                             },
                                         )
                                     )
 
                 # stream build (objects on base_frame)
-                with xf.element("build"):
+                with xf.element("build", {"p:UUID": str(uuid.uuid4())}):
                     for node, data in graph[base_frame].items():
                         if node.startswith("camera"):
                             continue
                         transform = " ".join(
                             str(i) for i in np.array(data["matrix"])[:3, :4].T.flatten()
                         )
+                        uuid_tag = "{{{}}}UUID".format(model_nsmap['p'])
                         xf.write(
                             etree.Element(
                                 "item",
                                 {
-                                    "objectid": _to_id(node),
+                                    "objectid": model_id(node),
                                     "transform": transform,
+                                    uuid_tag: str(uuid.uuid4())
                                 },
+                                nsmap = model_nsmap
                             )
                         )
 
@@ -412,22 +428,6 @@ def _attrib_to_transform(attrib):
             dtype=np.float64).reshape((4, 3)).T
         transform[:3, :4] = values
     return transform
-
-
-def _to_id(name):
-    """
-    Converts and object name to a valid id.
-
-    Parameters
-    ------------
-    name: str
-
-    Returns
-    ------------
-    id: str, a positive number as a string
-    """
-    return str(abs(hash(name)))
-
 
 # do import here to keep lxml a soft dependency
 try:
