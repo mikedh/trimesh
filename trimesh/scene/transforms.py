@@ -1,8 +1,9 @@
 import uuid
-import copy
 
 import numpy as np
 import collections
+
+from copy import deepcopy
 
 from .. import util
 from .. import caching
@@ -167,7 +168,11 @@ class SceneGraph(object):
         copied : TransformForest
           Copy of current object.
         """
-        return copy.deepcopy(self)
+        # create a copy without transfering cache
+        copied = SceneGraph()
+        copied.base_frame = deepcopy(self.base_frame)
+        copied.transforms = deepcopy(self.transforms)
+        return copied
 
     def to_flattened(self):
         """
