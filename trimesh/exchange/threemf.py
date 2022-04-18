@@ -250,7 +250,8 @@ def export_3MF(
 
     # model ids
     def model_id(x, models=[]):
-        if x not in models: models.append(x)
+        if x not in models:
+            models.append(x)
         return str(models.index(x) + 1)
 
     # 3mf archive dict {path: BytesIO}
@@ -284,7 +285,7 @@ def export_3MF(
                                     # so make sure lxml's buffer is flushed
                                     xf.flush()
                                     for i in range(0, len(m.vertices), batch_size):
-                                        batch = m.vertices[i : i + batch_size]
+                                        batch = m.vertices[i: i + batch_size]
                                         fragment = (
                                             '<vertex x="{}" y="{}" z="{}" />'
                                             * len(batch)
@@ -297,7 +298,7 @@ def export_3MF(
                                 with xf.element("triangles"):
                                     xf.flush()
                                     for i in range(0, len(m.faces), batch_size):
-                                        batch = m.faces[i : i + batch_size]
+                                        batch = m.faces[i: i + batch_size]
                                         fragment = (
                                             '<triangle v1="{}" v2="{}" v3="{}" />'
                                             * len(batch)
@@ -359,7 +360,7 @@ def export_3MF(
                                     "transform": transform,
                                     uuid_tag: str(uuid.uuid4())
                                 },
-                                nsmap = model_nsmap
+                                nsmap=model_nsmap
                             )
                         )
 
@@ -428,6 +429,7 @@ def _attrib_to_transform(attrib):
             dtype=np.float64).reshape((4, 3)).T
         transform[:3, :4] = values
     return transform
+
 
 # do import here to keep lxml a soft dependency
 try:
