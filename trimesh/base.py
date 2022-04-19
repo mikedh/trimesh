@@ -1088,9 +1088,15 @@ class Trimesh(Geometry3D):
         units._convert_units(self, desired, guess)
         return self
 
-    def merge_vertices(self, **kwargs):
+    def merge_vertices(
+            self,
+            merge_tex=False,
+            merge_norm=False,
+            digits_vertex=None,
+            digits_norm=2,
+            digits_uv=4):
         """
-        Removes duplicate vertices, grouped by position and
+        Removes duplicate vertices grouped by position and
         optionally texture coordinate and normal.
 
         Parameters
@@ -1109,14 +1115,14 @@ class Trimesh(Geometry3D):
           Number of digits to consider for unit normals
         digits_uv : int
           Number of digits to consider for UV coordinates
-        keep_vertex_order: bool
-          If True, vertex order will be preserved
         """
-        if 'textured' in kwargs:
-            kwargs['merge_tex'] = not kwargs.pop('textured')
-            log.warning(
-                'merge_vertices depreciation: `not textured`->`merge_tex`')
-        grouping.merge_vertices(self, **kwargs)
+        grouping.merge_vertices(
+            mesh=self,
+            merge_tex=merge_tex,
+            merge_norm=merge_norm,
+            digits_vertex=digits_vertex,
+            digits_norm=digits_norm,
+            digits_uv=digits_uv)
 
     def update_vertices(self, mask, inverse=None):
         """
@@ -1293,7 +1299,7 @@ class Trimesh(Geometry3D):
     @caching.cache_decorator
     def face_adjacency(self):
         """
-        Find faces that share an edge, which we call here 'adjacent'.
+        Find faces that share an edge i.e. 'adjacent' faces.
 
         Returns
         ----------

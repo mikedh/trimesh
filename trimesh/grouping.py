@@ -25,9 +25,7 @@ def merge_vertices(mesh,
                    merge_norm=False,
                    digits_vertex=None,
                    digits_norm=2,
-                   digits_uv=4,
-                   keep_vertex_order=False,
-                   **kwargs):
+                   digits_uv=4):
     """
     Removes duplicate vertices, grouped by position and
     optionally texture coordinate and normal.
@@ -48,8 +46,6 @@ def merge_vertices(mesh,
       Number of digits to consider for unit normals
     digits_uv : int
       Number of digits to consider for UV coordinates
-    keep_vertex_order: bool
-      If True, vertex order will be preserved
     """
     # no vertices so exit early
     if len(mesh.vertices) == 0:
@@ -91,7 +87,7 @@ def merge_vertices(mesh,
     stacked = np.column_stack(stacked).round().astype(np.int64)
 
     # check unique rows of referenced vertices
-    u, i = unique_rows(stacked[referenced], keep_order=keep_vertex_order)
+    u, i = unique_rows(stacked[referenced], keep_order=True)
 
     # construct an inverse using the subset
     inverse = np.zeros(len(mesh.vertices), dtype=np.int64)
@@ -270,24 +266,32 @@ def unique_ordered(data, return_index=False, return_inverse=False):
     In [3]: trimesh.grouping.unique_ordered(a)
     Out[3]: array([0, 3, 4, 1, 2])
     """
-    data = np.asanyarray(data)
+    # uniques are the values, sorted
+    # index is the value in the original `data`
+    # i.e. `data[index] == unique`
+    # inverse is how to re-construct `data` from `unique`
+    # i.e. `unique[inverse] == data`
+    unique, index, inverse = np.unique(
+        data, return_index=True, return_inverse=True)
+
+    # we want to maintain the original index order
+    order = index.argsort()
+
     if not return_index and not return_inverse:
-        order = np.sort(np.unique(data, return_index=True)[1])
-        result = data[order]
-        return result
+        return unique[order]
 
-    uniques, uidxs, inverse = np.unique(data, return_index=True, return_inverse=True)
+    # collect return values
+    # start with the unique values in original order
+    result = [unique[order]]
+    # the new index values
+    if return_index:
+        # re-order the index in the original array
+        result.append(index[order])
+    if return_inverse:
+        # create the new inverse from the order of the order
+        result.append(order.argsort()[inverse])
 
-    sorted2ordered = np.argsort(uidxs)
-    uniques_ordered = uniques[sorted2ordered]
-
-    ordered2sorted = np.argsort(sorted2ordered)
-    inv_ordered = ordered2sorted[inverse]
-
-    if return_index and not return_inverse:
-        return uniques_ordered, uidxs[sorted2ordered]
-
-    return uniques_ordered, uidxs[sorted2ordered], inv_ordered
+    return result
 
 
 def unique_bincount(values,
@@ -440,16 +444,18 @@ def unique_rows(data, digits=None, keep_order=False):
       Array to reconstruct original
       Example: data[unique][inverse] == data
     """
+    # get rows hashable so we can run unique function on it
     rows = hashable_rows(data, digits=digits)
 
-    unique_fun = unique_ordered if keep_order else np.unique
-
-    _, unique, inverse = unique_fun(
-        rows,
-        return_index=True,
-        return_inverse=True)
-
-    return unique, inverse
+    # we are throwing away the first value which is the
+    # garbage row-hash and only returning index and inverse
+    if keep_order:
+        # keeps order of original occurance
+        return unique_ordered(
+            rows, return_index=True, return_inverse=True)[1:]
+    # returns values sorted by row-hash but since our row-hash
+    # were pretty much garbage the sort order isn't meaningful
+    return np.unique(rows, return_index=True, return_inverse=True)[1:]
 
 
 def unique_value_in_row(data, unique=None):

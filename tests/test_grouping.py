@@ -295,15 +295,29 @@ class GroupTests(g.unittest.TestCase):
                        dtype=g.np.int64)
 
         u, ind, inv = g.trimesh.grouping.unique_ordered(
-            a,
-            return_index=True,
-            return_inverse=True
-        )
+            a, return_index=True, return_inverse=True)
 
         # indices are increasing, because we kept original order
         assert (g.np.diff(ind) > 0).all()
         # we can reconstruct original data
         assert (u[inv] == a).all()
+
+    def test_unique_ordered_rows(self):
+        # check the ordering of unique_rows
+        v = g.np.random.random((100000, 3))
+        v = g.np.vstack((v, v, v, v))
+
+        # index, inverse
+        i, iv = g.trimesh.grouping.unique_rows(
+            v, keep_order=True)
+
+        # get the unique values from the index
+        u = v[i]
+
+        # inverse of uniques should equal original array
+        assert g.np.allclose(u[iv], v)
+        # unique_ordered means indexes are in order
+        assert (i == g.np.sort(i)).all()
 
 
 def check_roll_wrap(**kwargs):
