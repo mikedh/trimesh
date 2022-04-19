@@ -225,7 +225,7 @@ class Trimesh(Geometry3D):
         # avoid clearing the cache during operations
         with self._cache:
             self.remove_infinite_values()
-            self.merge_vertices(**kwargs)
+            self.merge_vertices()
             # if we're cleaning remove duplicate
             # and degenerate faces
             if validate:
