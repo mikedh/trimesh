@@ -21,11 +21,11 @@ except BaseException as E:
 
 
 def merge_vertices(mesh,
-                   merge_tex=False,
-                   merge_norm=False,
+                   merge_tex=None,
+                   merge_norm=None,
                    digits_vertex=None,
-                   digits_norm=2,
-                   digits_uv=4):
+                   digits_norm=None,
+                   digits_uv=None):
     """
     Removes duplicate vertices, grouped by position and
     optionally texture coordinate and normal.
@@ -50,10 +50,18 @@ def merge_vertices(mesh,
     # no vertices so exit early
     if len(mesh.vertices) == 0:
         return
-
-    # use tol.merge if digit precision not passed
-    if not isinstance(digits_vertex, int):
-        digits_vertex = util.decimal_to_digits(tol.merge)
+    if merge_tex is None:
+        merge_tex = False
+    if merge_norm is None:
+        merge_norm = False
+    if digits_norm is None:
+        digits_norm = 2
+    if digits_uv is None:
+        digits_uv = 4
+    if digits_vertex is None:
+        # use tol.merge if digit precision not passed
+        digits_vertex = util.decimal_to_digits(
+            tol.merge)
 
     # if we have a ton of unreferenced vertices it will
     # make the unique_rows call super slow so cull first

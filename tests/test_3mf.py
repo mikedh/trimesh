@@ -48,7 +48,7 @@ class MFTest(g.unittest.TestCase):
     def test_roundtrip(self):
 
         if g.sys.version_info <= (3, 5):
-            log.warning('relies on > Python 3.5')
+            g.log.warning('relies on > Python 3.5')
             return
         # test a scene round-tripped through the
         # 3MF exporter and importer
