@@ -238,6 +238,9 @@ def export_3MF(mesh,
       Represents geometry as a 3MF file.
     """
 
+    if sys.version_info <= (3, 5):
+        raise NotImplementedError(
+            "3MF export requires Python 3.6 or newer")
     from ..scene.scene import Scene
 
     if not isinstance(mesh, Scene):
@@ -276,10 +279,10 @@ def export_3MF(mesh,
     if sys.version_info >= (3, 7):
         zip_kwargs['compresslevel'] = compresslevel
 
-    with zipfile.ZipFile(file_obj, "w", **zip_kwargs) as z:
+    with zipfile.ZipFile(file_obj, mode='w', **zip_kwargs) as z:
         # 3dmodel.model
-        with z.open("3D/3dmodel.model", "w") as f, etree.xmlfile(
-            f, encoding="utf-8"
+        with z.open("3D/3dmodel.model", mode='w') as f, etree.xmlfile(
+                f, encoding="utf-8"
         ) as xf:
             xf.write_declaration()
 
