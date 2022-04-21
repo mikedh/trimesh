@@ -39,7 +39,14 @@ class SegmentsTest(g.unittest.TestCase):
             [[0, 1, 0], [0, 1, 0], [0, 2, 0]])).reshape((-1, 2, 3))
         L = segments.colinear_pairs(seg)
         assert len(L) == 3
+        n = segments.colinear_pairs(seg, length=0.01)
+        assert len(n) == 3
 
+        seg = g.np.column_stack((
+            g.np.zeros((3, 3)),
+            [[0, 1, 0], [0, 1, 0], [1, 2, 0]])).reshape((-1, 2, 3))
+        L = segments.colinear_pairs(seg)
+        assert len(L) == 1
         n = segments.colinear_pairs(seg, length=0.01)
         assert len(n) == 1
 
