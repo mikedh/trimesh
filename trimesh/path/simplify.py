@@ -201,7 +201,8 @@ def merge_colinear(points, scale):
     # if we have points A B C D
     # and direction vectors A-B, B-C, etc
     # these will be perpendicular to the vectors A-C, B-D, etc
-    perp = (points[2:] - points[:-2]).T[::-1].T
+    perp = (points[2:] - points[:-2]).[:, ::-1]
+    perp[:, 0] *= -1
     perp_norm = util.row_norm(perp)
     perp_nonzero = perp_norm > tol.merge
     perp[perp_nonzero] /= perp_norm[perp_nonzero].reshape((-1, 1))
