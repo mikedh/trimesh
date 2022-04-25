@@ -238,7 +238,7 @@ def export_3MF(mesh,
       Represents geometry as a 3MF file.
     """
 
-    if sys.version_info <= (3, 5):
+    if sys.version_info < (3, 6):
         # Python only added 'w' mode to `zipfile` in Python 3.6
         # and it is not worth the effort to work around
         raise NotImplementedError(
