@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import numpy as np
 
@@ -6,6 +7,7 @@ from ..constants import log
 from .. import util
 from .. import resolvers
 
+from .threemf import export_3MF
 from .urdf import export_urdf  # NOQA
 from .gltf import export_glb, export_gltf
 from .obj import export_obj
@@ -251,6 +253,8 @@ def export_scene(scene,
         data = export_ply(scene.dump(concatenate=True))
     elif file_type == 'stl':
         data = export_stl(scene.dump(concatenate=True))
+    elif file_type == '3mf':
+        data = export_3MF(scene, **kwargs)
     else:
         raise ValueError(
             'unsupported export format: {}'.format(file_type))
@@ -310,8 +314,12 @@ _mesh_exporters = {
     'gltf': export_gltf,
     'dict64': export_dict64,
     'msgpack': export_msgpack,
-    'stl_ascii': export_stl_ascii
-}
+    'stl_ascii': export_stl_ascii}
+
+# requires a newer `zipfile` module
+if sys.version_info >= (3, 6):
+    _mesh_exporters['3mf'] = export_3MF
+
 _mesh_exporters.update(_ply_exporters)
 _mesh_exporters.update(_off_exporters)
 _mesh_exporters.update(_collada_exporters)

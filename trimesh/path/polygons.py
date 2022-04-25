@@ -672,6 +672,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
 def projected(mesh,
               normal,
               origin=None,
+              ignore_sign=True,
               rpad=1e-5,
               apad=None,
               tol_dot=0.01,
@@ -699,6 +700,12 @@ def projected(mesh,
       Normal to extract flat pattern along
     origin : None or (3,) float
       Origin of plane to project mesh onto
+    ignore_sign : bool
+      Allow a projection from the normal vector in
+      either direction: this provides a substantial speedup
+      on watertight meshes where the direction is irrelevant
+      but if you have a triangle soup and want to discard
+      backfaces you should set this to False.
     rpad : float
       Proportion to pad polygons by before unioning
       and then de-padding result by to avoid zero-width gaps.
@@ -728,8 +735,8 @@ def projected(mesh,
 
     # the projection of each face normal onto facet normal
     dot_face = np.dot(normal, mesh.face_normals.T)
-    if mesh.is_watertight:
-        # for watertight mesh, speed up projection by handling side with less faces
+    if ignore_sign:
+        # for watertight mesh speed up projection by handling side with less faces
         # check if face lies on front or back of normal
         front = dot_face > tol_dot
         back = dot_face < -tol_dot
@@ -748,7 +755,8 @@ def projected(mesh,
         # use the picked side
         side = [front, back][pick]
     else:
-        # for non-watertight mesh, only handle the front side of normal
+        # if explicitly asked to care about the sign
+        # only handle the front side of normal
         side = dot_face > tol_dot
 
     # subset the adjacency pairs to ones which have both faces included
@@ -802,13 +810,21 @@ def projected(mesh,
 
     # if there is only one region we don't need to run a union
     elif len(polygons) == 1:
-        polygon = polygons[0].buffer(padding).buffer(-padding)
+        return polygons[0]
     elif len(polygons) == 0:
         return None
     else:
         # inflate each polygon before unioning to remove zero-size
         # gaps then deflate the result after unioning by the same amount
+        # note the following provides a 25% speedup but needs
+        # more testing to see if it deflates to a decent looking
+        # result:
+        # polygon = ops.unary_union(
+        #    [p.buffer(padding,
+        #              join_style=2,
+        #              mitre_limit=1.5)
+        #     for p in polygons]).buffer(-padding)
         polygon = ops.unary_union(
-            [p.buffer(padding) for p in polygons]).buffer(-padding)
-
+            [p.buffer(padding)
+             for p in polygons]).buffer(-padding)
     return polygon

@@ -1,3 +1,8 @@
+import io
+import sys
+import uuid
+import zipfile
+
 import collections
 import numpy as np
 
@@ -207,6 +212,223 @@ def load_3MF(file_obj,
               'metadata': metadata}
 
     return kwargs
+
+
+def export_3MF(mesh,
+               batch_size=4096,
+               compression=zipfile.ZIP_DEFLATED,
+               compresslevel=5):
+    """
+    Converts a Trimesh object into a 3MF file.
+
+    Parameters
+    ---------
+    mesh trimesh.trimesh
+      Mesh or Scene to export.
+    batch_size : int
+      Number of nodes to write per batch.
+    compression : zipfile.ZIP_*
+      Type of zip compression to use in this export.
+    compresslevel : int
+      For Python > 3.7 specify the 0-9 compression level.
+
+    Returns
+    ---------
+    export : bytes
+      Represents geometry as a 3MF file.
+    """
+
+    if sys.version_info < (3, 6):
+        # Python only added 'w' mode to `zipfile` in Python 3.6
+        # and it is not worth the effort to work around
+        raise NotImplementedError(
+            "3MF export requires Python >= 3.6")
+    from ..scene.scene import Scene
+
+    if not isinstance(mesh, Scene):
+        mesh = Scene(mesh)
+
+    geometry = mesh.geometry
+    graph = mesh.graph.to_networkx()
+    base_frame = mesh.graph.base_frame
+
+    # xml namespaces
+    model_nsmap = {
+        None: "http://schemas.microsoft.com/3dmanufacturing/core/2015/02",
+        "m": "http://schemas.microsoft.com/3dmanufacturing/material/2015/02",
+        "p": "http://schemas.microsoft.com/3dmanufacturing/production/2015/06",
+        "b": "http://schemas.microsoft.com/3dmanufacturing/beamlattice/2017/02",
+        "s": "http://schemas.microsoft.com/3dmanufacturing/slice/2015/07",
+        "sc": "http://schemas.microsoft.com/3dmanufacturing/securecontent/2019/04",
+    }
+
+    rels_nsmap = {
+        None: "http://schemas.openxmlformats.org/package/2006/relationships"
+    }
+
+    # model ids
+    def model_id(x, models=[]):
+        if x not in models:
+            models.append(x)
+        return str(models.index(x) + 1)
+
+    # 3mf archive dict {path: BytesIO}
+    file_obj = io.BytesIO()
+
+    # specify the parameters for the zip container
+    zip_kwargs = {'compression': compression}
+    # compresslevel was added in Python 3.7
+    if sys.version_info >= (3, 7):
+        zip_kwargs['compresslevel'] = compresslevel
+
+    with zipfile.ZipFile(file_obj, mode='w', **zip_kwargs) as z:
+        # 3dmodel.model
+        with z.open("3D/3dmodel.model", mode='w') as f, etree.xmlfile(
+                f, encoding="utf-8"
+        ) as xf:
+            xf.write_declaration()
+
+            # stream elements
+            with xf.element("model", {"unit": "millimeter"}, nsmap=model_nsmap):
+                # objects with mesh data and/or references to other objects
+                with xf.element("resources"):
+                    # stream objects with actual mesh data
+                    for i, (name, m) in enumerate(geometry.items()):
+                        # attributes for object
+                        attribs = {
+                            "id": model_id(name),
+                            "name": name,
+                            "type": "model",
+                            "p:UUID": str(uuid.uuid4())
+                        }
+                        with xf.element("object", **attribs):
+                            with xf.element("mesh"):
+                                with xf.element("vertices"):
+                                    # vertex nodes are writed directly to the file
+                                    # so make sure lxml's buffer is flushed
+                                    xf.flush()
+                                    for i in range(0, len(m.vertices), batch_size):
+                                        batch = m.vertices[i: i + batch_size]
+                                        fragment = (
+                                            '<vertex x="{}" y="{}" z="{}" />'
+                                            * len(batch)
+                                        )
+                                        f.write(
+                                            fragment.format(*batch.flatten()).encode(
+                                                "utf-8"
+                                            )
+                                        )
+                                with xf.element("triangles"):
+                                    xf.flush()
+                                    for i in range(0, len(m.faces), batch_size):
+                                        batch = m.faces[i: i + batch_size]
+                                        fragment = (
+                                            '<triangle v1="{}" v2="{}" v3="{}" />'
+                                            * len(batch)
+                                        )
+                                        f.write(
+                                            fragment.format(*batch.flatten()).encode(
+                                                "utf-8"
+                                            )
+                                        )
+
+                    # stream components
+                    for node in graph.nodes:
+                        if node == base_frame or node.startswith("camera"):
+                            continue
+                        if len(graph[node]) == 0:
+                            continue
+
+                        attribs = {
+                            "id": model_id(node),
+                            "name": node,
+                            "type": "model",
+                            "p:UUID": str(uuid.uuid4())
+                        }
+                        with xf.element("object", **attribs):
+                            with xf.element("components"):
+                                for next, data in graph[node].items():
+                                    transform = " ".join(
+                                        str(i)
+                                        for i in np.array(data["matrix"])[
+                                            :3, :4
+                                        ].T.flatten()
+                                    )
+                                    xf.write(
+                                        etree.Element(
+                                            "component",
+                                            {
+                                                "objectid": model_id(data["geometry"])
+                                                if "geometry" in data
+                                                else model_id(next),
+                                                "transform": transform,
+                                            },
+                                        )
+                                    )
+
+                # stream build (objects on base_frame)
+                with xf.element("build", {"p:UUID": str(uuid.uuid4())}):
+                    for node, data in graph[base_frame].items():
+                        if node.startswith("camera"):
+                            continue
+                        transform = " ".join(
+                            str(i) for i in np.array(data["matrix"])[:3, :4].T.flatten()
+                        )
+                        uuid_tag = "{{{}}}UUID".format(model_nsmap['p'])
+                        xf.write(
+                            etree.Element(
+                                "item",
+                                {
+                                    "objectid": model_id(node),
+                                    "transform": transform,
+                                    uuid_tag: str(uuid.uuid4())
+                                },
+                                nsmap=model_nsmap
+                            )
+                        )
+
+        # .rels
+        with z.open("_rels/.rels", "w") as f, etree.xmlfile(f, encoding="utf-8") as xf:
+            xf.write_declaration()
+            # stream elements
+            with xf.element("Relationships", nsmap=rels_nsmap):
+                rt = "http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"
+                xf.write(
+                    etree.Element(
+                        "Relationship",
+                        Type=rt,
+                        Target="/3D/3dmodel.model",
+                        Id="rel0",
+                    )
+                )
+
+        # [Content_Types].xml
+        with z.open("[Content_Types].xml", "w") as f, etree.xmlfile(
+            f, encoding="utf-8"
+        ) as xf:
+            xf.write_declaration()
+            # xml namespaces
+            nsmap = {
+                None: "http://schemas.openxmlformats.org/package/2006/content-types"
+            }
+
+            # stream elements
+            types = [
+                ("jpeg", "image/jpeg"),
+                ("jpg", "image/jpeg"),
+                ("model", "application/vnd.ms-package.3dmanufacturing-3dmodel+xml"),
+                ("png", "image/png"),
+                ("rels", "application/vnd.openxmlformats-package.relationships+xml"),
+                (
+                    "texture",
+                    "application/vnd.ms-package.3dmanufacturing-3dmodeltexture",
+                ),
+            ]
+            with xf.element("Types", nsmap=nsmap):
+                for ext, ctype in types:
+                    xf.write(etree.Element("Default", Extension=ext, ContentType=ctype))
+
+    return file_obj.getvalue()
 
 
 def _attrib_to_transform(attrib):

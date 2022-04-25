@@ -348,6 +348,7 @@ def _svg_path_convert(paths, force=None):
 def _entities_to_str(entities,
                      vertices,
                      name=None,
+                     digits=5,
                      only_layers=None):
     """
     Convert the entities of a path to path strings.
@@ -409,7 +410,7 @@ def _entities_to_str(entities,
         move_str = 'M ' + x_ex + ',' + y_ex
         return move_str
 
-    def svg_discrete(entity, reverse=False):
+    def svg_discrete(entity, digits=5, reverse=False):
         """
         Use an entities discrete representation to export a
         curve as a polyline
@@ -422,9 +423,10 @@ def _entities_to_str(entities,
         if reverse:
             discrete = discrete[::-1]
         # the format string for the SVG path
-        result = ('M {:0.5f},{:0.5f} ' + (
-            ' L {:0.5f},{:0.5f}' * (len(discrete) - 1))).format(
-                *discrete.reshape(-1))
+        result = ('M{:0.{digits}} {:0.{digits}}' + (
+            'L{:0.{digits}} {:0.{digits}}' * (
+                len(discrete) - 1))).format(
+                    *discrete.reshape(-1), digits=digits)
         return result
 
     # tuples of (metadata, path string)
