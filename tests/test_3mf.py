@@ -46,7 +46,7 @@ class MFTest(g.unittest.TestCase):
         assert(len(s.geometry) == 2)
 
     def test_roundtrip(self):
-        if sys.version_info < (3, 6):
+        if g.sys.version_info < (3, 6):
             g.log.warning('relies on > Python 3.5')
             return
 
