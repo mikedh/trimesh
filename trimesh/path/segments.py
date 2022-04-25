@@ -113,7 +113,7 @@ def colinear_pairs(segments,
       differ and still be considered colinear
     length : None or float
       If specified, will additionally require
-      that pairs have a vertex within this distance.
+      that pairs have a *vertex* within this distance.
 
     Returns
     ------------
@@ -146,9 +146,9 @@ def colinear_pairs(segments,
 
     # if length is specified check endpoint proximity
     if length is not None:
-        a, b  = param[colinear.T]
+        a, b = param[colinear.T]
         distance = np.abs(np.column_stack(
-            [a[:,:1] - b, a[:,1:] - b])).min(axis=1)
+            [a[:, :1] - b, a[:, 1:] - b])).min(axis=1)
         identical = distance < length
         # remove non- identical pairs
         colinear = colinear[identical]

@@ -34,21 +34,57 @@ class SegmentsTest(g.unittest.TestCase):
     def test_colinear(self):
         from trimesh.path import segments
 
-        seg = g.np.column_stack((
-            g.np.zeros((3, 3)),
-            [[0, 1, 0], [0, 1, 0], [0, 2, 0]])).reshape((-1, 2, 3))
-        L = segments.colinear_pairs(seg)
-        assert len(L) == 3
-        n = segments.colinear_pairs(seg, length=0.01)
-        assert len(n) == 3
+        seg = g.np.array([[[0., 0., 0.],
+                           [0., 1., 0.]],
 
-        seg = g.np.column_stack((
-            g.np.zeros((3, 3)),
-            [[0, 1, 0], [0, 1, 0], [1, 2, 0]])).reshape((-1, 2, 3))
+                          [[0., 1., 0.],
+                           [0., 0., 0.]],
+
+                          [[0., 0., 0.],
+                           [0., 2., 0.]],
+
+                          [[0., 0.5, 0.],
+                           [0., 0.75, 0.]],
+
+                          [[0., 2.1, 0.],
+                           [0., 2.2, 0.]],
+
+                          [[0., 2.0, 0.],
+                           [0., 2.3, 0.]],
+
+                          [[0., 0., 0.],
+                           [1., 1., 0.]]])
+
+        # get the unit direction vector for the segments
+        unit = g.trimesh.unitize(g.np.diff(
+            seg, axis=1).reshape((-1, 3)))
+
+        L = segments.colinear_pairs(seg[:3])
+        assert len(L) == 3
+        # make sure all pairs are really colinear
+        dots = [g.np.dot(*row) for row in unit[L]]
+        assert (g.np.isclose(dots, 1.0) |
+                g.np.isclose(dots, -1)).all()
+
         L = segments.colinear_pairs(seg)
-        assert len(L) == 1
-        n = segments.colinear_pairs(seg, length=0.01)
-        assert len(n) == 1
+        dots = [g.np.dot(*row) for row in unit[L]]
+        assert (g.np.isclose(dots, 1.0) |
+                g.np.isclose(dots, -1)).all()
+
+        epsilon = 1e-6
+        # length should only include vectors with one
+        # vertex closer than epsilon
+        n = segments.colinear_pairs(seg, length=epsilon)
+        dots = [g.np.dot(*row) for row in unit[L]]
+        assert (g.np.isclose(dots, 1.0) |
+                g.np.isclose(dots, -1)).all()
+
+        for pair in n:
+            val = seg[pair]
+            close = g.np.append(
+                (val[0] - val[1]).ptp(axis=1),
+                (val[0] - val[1][::-1]).ptp(axis=1)).min()
+            assert close < epsilon
 
     def test_extrude(self):
         from trimesh.path.segments import extrude
