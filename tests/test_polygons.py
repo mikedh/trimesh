@@ -37,7 +37,8 @@ class PolygonTests(g.unittest.TestCase):
         M = g.np.eye(3)
         M[0][2] = 10.0
         P2 = g.trimesh.path.polygons.transform_polygon(polygon[0], M)
-        distance = g.np.array(P2.centroid) - g.np.array(polygon[0].centroid)
+        distance = g.np.array(P2.centroid.coords)[
+            0] - g.np.array(polygon[0].centroid.coords)[0]
         assert g.np.allclose(distance, [10.0, 0])
 
     def test_random_polygon(self):
@@ -102,11 +103,16 @@ class PolygonTests(g.unittest.TestCase):
             vertices=[[0, 0, 0], [0, 1, 0], [1, 0, 0]],
             faces=[[0, 1, 2]])
 
-        front = m.projected(m.face_normals[0])
+        # check ignore_sign argument
+        front = m.projected(m.face_normals[0], ignore_sign=False)
+        assert len(front.entities) == 1
+        front = m.projected(m.face_normals[0], ignore_sign=True)
         assert len(front.entities) == 1
 
-        back = m.projected(-m.face_normals[0])
+        back = m.projected(-m.face_normals[0], ignore_sign=False)
         assert len(back.entities) == 0
+        back = m.projected(-m.face_normals[0], ignore_sign=True)
+        assert len(back.entities) == 1
 
     def test_project_multi(self):
         mesh = (g.trimesh.creation.box() +
