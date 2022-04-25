@@ -239,8 +239,10 @@ def export_3MF(mesh,
     """
 
     if sys.version_info <= (3, 5):
+        # Python only added 'w' mode to `zipfile` in Python 3.6
+        # and it is not worth the effort to work around
         raise NotImplementedError(
-            "3MF export requires Python 3.6 or newer")
+            "3MF export requires Python >= 3.6")
     from ..scene.scene import Scene
 
     if not isinstance(mesh, Scene):

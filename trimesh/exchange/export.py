@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import numpy as np
 
@@ -308,14 +309,17 @@ _mesh_exporters = {
     'stl': export_stl,
     'dict': export_dict,
     'json': export_json,
-    '3mf': export_3MF,
     'glb': export_glb,
     'obj': export_obj,
     'gltf': export_gltf,
     'dict64': export_dict64,
     'msgpack': export_msgpack,
-    'stl_ascii': export_stl_ascii
-}
+    'stl_ascii': export_stl_ascii}
+
+# requires a newer `zipfile` module
+if sys.version_info >= (3, 6):
+    _mesh_exporters['3mf'] = export_3MF
+
 _mesh_exporters.update(_ply_exporters)
 _mesh_exporters.update(_off_exporters)
 _mesh_exporters.update(_collada_exporters)
