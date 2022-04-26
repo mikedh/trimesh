@@ -45,7 +45,7 @@ class GraphTests(g.unittest.TestCase):
 
         # world should be root frame
         assert (s.graph.transforms.successors(
-            s.graph.base_frame) == s.graph.nodes)
+            s.graph.base_frame) == set(s.graph.nodes))
 
         for n in s.graph.nodes:
             # successors should always return subset of nodes
@@ -124,8 +124,7 @@ class GraphTests(g.unittest.TestCase):
         ss = s.subscene('3')
 
         assert ss.graph.base_frame == '3'
-        assert len(ss.graph.nodes) == 2
-        assert ss.graph.nodes == {'3', '4'}
+        assert set(ss.graph.nodes) == {'3', '4'}
         assert len(ss.graph.transforms.node_data) == 2
         assert len(ss.graph.transforms.edge_data) == 1
         assert list(ss.graph.transforms.edge_data.keys()) == [('3', '4')]
