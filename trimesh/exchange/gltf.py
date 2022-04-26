@@ -1189,19 +1189,19 @@ def unique_name(start, contains):
       A name that is not contained in `contains`
     """
     # exit early if name is not in bundle
-    if start not in contains:
+    if len(start) > 0 and start not in contains:
         return start
-
-    # split by our delimiter
-    split = start.rsplit('_')
-    if len(split) == 2 and split[1].isnumeric():
-        # start incrementing from the passed value
-        increment = int(split[1])
+    increment = 0
+    if len(start) == 0:
+        formatter = '{}'
     else:
-        # doesn't have an increment so start at zero
-        increment = 0
-    # keep the original name and add an integer to it
-    formatter = split[0] + '_{}'
+        # split by our delimiter once
+        split = start.rsplit('_', 1)
+        if len(split) == 2 and split[1].isnumeric():
+            # start incrementing from the passed value
+            increment = int(split[1])
+        # keep the original name and add an integer to it
+        formatter = split[0] + '_{}'
     # if contains is empty we will only need to check once
     for i in range(increment + 1, 1 + increment + len(contains)):
         check = formatter.format(i)
@@ -1472,11 +1472,11 @@ def _read_buffers(header,
     # save their string names if they have one
     # we have to accumulate in a for loop opposed
     # to a dict comprehension as it will be checking
-    # the mutated dict in every loop 
+    # the mutated dict in every loop
     name_index = {}
     for i, n in enumerate(nodes):
         name_index[unique_name(
-            n.get('name', 'node_' + str(i)), name_index)] = i
+            n.get('name', str(i)), name_index)] = i
     # invert the dict so we can look up by index
     # node index (int) : name (str)
     names = {v: k for k, v in name_index.items()}
