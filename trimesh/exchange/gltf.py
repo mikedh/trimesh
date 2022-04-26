@@ -1170,6 +1170,46 @@ def _parse_materials(header, views, resolver=None):
     return materials
 
 
+def unique_name(start, contains):
+    """
+    Deterministically generate a unique name not
+    contained in a dict. Will create names of the
+    form "start_10" and increment accordingly.
+
+    Parameters
+    -----------
+    start : str
+      Initial guess for name
+    contains : dict, set, or list
+      Bundle of existing names we cannot use.
+
+    Returns
+    ---------
+    unique : str
+      A name that is not contained in `contains`
+    """
+    # exit early if name is not in bundle
+    if len(start) > 0 and start not in contains:
+        return start
+    increment = 0
+    if len(start) == 0:
+        formatter = '{}'
+    else:
+        # split by our delimiter once
+        split = start.rsplit('_', 1)
+        if len(split) == 2 and split[1].isnumeric():
+            # start incrementing from the passed value
+            increment = int(split[1])
+        # keep the original name and add an integer to it
+        formatter = split[0] + '_{}'
+    # if contains is empty we will only need to check once
+    for i in range(increment + 1, 1 + increment + len(contains)):
+        check = formatter.format(i)
+        if check not in contains:
+            return check
+    raise ValueError('unable to establish unique name!')
+
+
 def _read_buffers(header,
                   buffers,
                   mesh_kwargs,
@@ -1286,9 +1326,7 @@ def _read_buffers(header,
                 name = m.get('name', 'GLTF')
                 names_original[index].append(name)
                 # make name unique across multiple meshes
-                if name in meshes:
-                    name += "_" + util.unique_id(length=5)
-                    assert name not in meshes
+                name = unique_name(name, meshes)
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
                     from ..path.entities import Line
@@ -1432,16 +1470,16 @@ def _read_buffers(header,
     nodes = header["nodes"]
     # nodes are referenced by index
     # save their string names if they have one
-    # node index (int) : name (str)
-    names = {}
+    # we have to accumulate in a for loop opposed
+    # to a dict comprehension as it will be checking
+    # the mutated dict in every loop
+    name_index = {}
     for i, n in enumerate(nodes):
-        if "name" in n:
-            if n["name"] in names.values():
-                names[i] = n["name"] + "_{}".format(util.unique_id())
-            else:
-                names[i] = n["name"]
-        else:
-            names[i] = str(i)
+        name_index[unique_name(
+            n.get('name', str(i)), name_index)] = i
+    # invert the dict so we can look up by index
+    # node index (int) : name (str)
+    names = {v: k for k, v in name_index.items()}
 
     # make sure we have a unique base frame name
     base_frame = "world"
