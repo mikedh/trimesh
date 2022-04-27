@@ -93,7 +93,9 @@ class SimplifyTest(g.unittest.TestCase):
         direction = g.trimesh.unitize([1, g.np.random.rand()])
         points = direction * dists.reshape((-1, 1))
         merged = g.trimesh.path.simplify.merge_colinear(points, scale=1000)
-        print(f'direction={direction}, points={points.shape}, merged={merged.shape}')
+        print('direction:', direction)
+        print('points:', points.shape)
+        print('merged:', merged.shape)
         assert merged.shape[0] == 2
 
 
