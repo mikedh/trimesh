@@ -24,7 +24,7 @@ class SimplifyTest(g.unittest.TestCase):
             # the simplified version shouldn't have lost area
             assert g.np.allclose(path.area,
                                  simplified.area,
-                                 rtol=1e-3)
+                                 rtol=1e-2)
 
             # see if we fit as many arcs as existed in the original drawing
             new_count = sum(int(type(i).__name__ == 'Arc')
