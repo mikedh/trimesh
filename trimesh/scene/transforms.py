@@ -642,7 +642,7 @@ class EnforcedForest(object):
                 self._cache[(u, v)] = backward
                 return backward
             elif forward[-1] is None and backward[-1] is None:
-                raise ValueError('No path between nodes!')
+                raise ValueError('No path between nodes {} and {}!'.format(u, v))
         raise ValueError('Iteration limit exceeded!')
 
     @property
