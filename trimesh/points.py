@@ -651,7 +651,10 @@ class PointCloud(Geometry3D):
         else:
             # preserve colors
             # if one point cloud has no color property use black
-            other_colors = [[0, 0, 0, 255]] * len(other.vertices) if len(other.colors) == 0 else other.colors
-            self_colors = [[0, 0, 0, 255]] * len(self.vertices) if len(self.colors) == 0 else self.colors
+            other_colors = [[0, 0, 0, 255]] * \
+                len(other.vertices) if len(other.colors) == 0 else other.colors
+            self_colors = [[0, 0, 0, 255]] * \
+                len(self.vertices) if len(self.colors) == 0 else self.colors
             colors = np.vstack((self_colors, other_colors))
-        return PointCloud(vertices=np.vstack((self.vertices, other.vertices)), colors=colors)
+        return PointCloud(vertices=np.vstack(
+            (self.vertices, other.vertices)), colors=colors)

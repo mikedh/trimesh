@@ -236,7 +236,9 @@ class PointsTest(g.unittest.TestCase):
         cloud_2 = g.trimesh.points.PointCloud(points_2, colors=colors_2)
 
         cloud_sum = cloud_1 + cloud_2
-        assert g.np.allclose(cloud_sum.colors, g.np.vstack((cloud_1.colors, cloud_2.colors)))
+        assert g.np.allclose(
+            cloud_sum.colors, g.np.vstack(
+                (cloud_1.colors, cloud_2.colors)))
 
         # Next test: Only second cloud has colors
         cloud_1 = g.trimesh.points.PointCloud(points_1)
@@ -251,8 +253,6 @@ class PointsTest(g.unittest.TestCase):
 
         cloud_sum = cloud_1 + cloud_2
         assert g.np.allclose(cloud_sum.colors[:len(cloud_1.vertices)], cloud_1.colors)
-
-
 
 
 if __name__ == '__main__':
