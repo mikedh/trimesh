@@ -98,7 +98,7 @@ def plane_fit(points):
 def radial_sort(points,
                 origin,
                 normal,
-                clock_12=None):
+                start=None):
     """
     Sorts a set of points radially (by angle) around an
     an axis specified by origin and normal vector.
@@ -111,7 +111,7 @@ def radial_sort(points,
       Origin to sort around
     normal : (3,)  float
       Vector to sort around
-    clock_12 : (3,) float
+    start : (3,) float
       Vector to specify position of 12 in clock viewing in
       direction of normal, must not parallel with normal
 
@@ -123,14 +123,14 @@ def radial_sort(points,
 
     # create two axis perpendicular to each other and the normal,
     # and project the points onto them
-    if clock_12 is None:
+    if start is None:
         axis0 = [normal[0], normal[2], -normal[1]]
         axis1 = np.cross(normal, axis0)
     else:
-        normal, clock_12 = util.unitize([normal, clock_12])
-        if np.abs(1 - np.abs(np.dot(normal, clock_12))) < tol.zero:
-            raise ValueError('clock_12 must not parallel with normal')
-        axis0 = np.cross(clock_12, normal)
+        normal, start = util.unitize([normal, start])
+        if np.abs(1 - np.abs(np.dot(normal, start))) < tol.zero:
+            raise ValueError('start must not parallel with normal')
+        axis0 = np.cross(start, normal)
         axis1 = np.cross(axis0, normal)
     ptVec = points - origin
     pr0 = np.dot(ptVec, axis0)
