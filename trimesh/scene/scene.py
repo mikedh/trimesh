@@ -1174,7 +1174,7 @@ def split_scene(geometry, **kwargs):
     return scene
 
 
-def append_scenes(iterable, common=['world']):
+def append_scenes(iterable, common=['world'], base_frame='world'):
     """
     Concatenate multiple scene objects into one scene.
 
@@ -1184,6 +1184,8 @@ def append_scenes(iterable, common=['world']):
        Geometries that should be appended
     common : (n,) str
        Nodes that shouldn't be remapped
+    base_frame : str
+       Base frame of the resulting scene
 
     Returns
     ------------
@@ -1278,7 +1280,7 @@ def append_scenes(iterable, common=['world']):
         consumed.update(current)
 
     # add all data to a new scene
-    result = Scene()
+    result = Scene(base_frame=base_frame)
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
 

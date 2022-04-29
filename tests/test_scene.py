@@ -390,6 +390,15 @@ class SceneTests(g.unittest.TestCase):
         # nothing should have changed
         assert original.identifier_md5 == original_hash
 
+    def test_append_scenes(self):
+        scene_0 = g.trimesh.Scene(base_frame='not_world')
+        scene_1 = g.trimesh.Scene(base_frame='not_world')
+
+        scene_sum = g.trimesh.scene.scene.append_scenes(
+            (scene_0, scene_1), common=['not_world'], base_frame='not_world')
+
+        assert scene_sum.graph.base_frame == 'not_world'
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
