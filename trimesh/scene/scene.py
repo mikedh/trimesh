@@ -799,7 +799,7 @@ class Scene(Geometry3D):
         edges = [e for e in graph.to_edgelist()
                  if e[0] in nodes]
 
-        # create a scene graph whet
+        # create a scene graph when
         graph = SceneGraph(base_frame=node)
         graph.from_edgelist(edges)
 

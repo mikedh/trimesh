@@ -168,7 +168,7 @@ class SceneGraph(object):
         copied : TransformForest
           Copy of current object.
         """
-        # create a copy without transfering cache
+        # create a copy without transferring cache
         copied = SceneGraph()
         copied.base_frame = deepcopy(self.base_frame)
         copied.transforms = deepcopy(self.transforms)

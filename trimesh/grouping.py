@@ -458,7 +458,7 @@ def unique_rows(data, digits=None, keep_order=False):
     # we are throwing away the first value which is the
     # garbage row-hash and only returning index and inverse
     if keep_order:
-        # keeps order of original occurance
+        # keeps order of original occurrence
         return unique_ordered(
             rows, return_index=True, return_inverse=True)[1:]
     # returns values sorted by row-hash but since our row-hash
