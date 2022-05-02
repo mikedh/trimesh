@@ -225,6 +225,35 @@ class PointsTest(g.unittest.TestCase):
         assert culled.shape == (100, 3)
         assert mask.shape == (200,)
 
+    def test_add_operator(self):
+        points_1 = g.np.random.random((10, 3))
+        points_2 = g.np.random.random((20, 3))
+        colors_1 = [[123, 123, 123, 255]] * len(points_1)
+        colors_2 = [[255, 0, 123, 255]] * len(points_2)
+
+        # Test: Both cloud's colors are preserved
+        cloud_1 = g.trimesh.points.PointCloud(points_1, colors=colors_1)
+        cloud_2 = g.trimesh.points.PointCloud(points_2, colors=colors_2)
+
+        cloud_sum = cloud_1 + cloud_2
+        assert g.np.allclose(
+            cloud_sum.colors, g.np.vstack(
+                (cloud_1.colors, cloud_2.colors)))
+
+        # Next test: Only second cloud has colors
+        cloud_1 = g.trimesh.points.PointCloud(points_1)
+        cloud_2 = g.trimesh.points.PointCloud(points_2, colors=colors_2)
+
+        cloud_sum = cloud_1 + cloud_2
+        assert g.np.allclose(cloud_sum.colors[len(cloud_1.vertices):], cloud_2.colors)
+
+        # Next test: Only first cloud has colors
+        cloud_1 = g.trimesh.points.PointCloud(points_1, colors=colors_1)
+        cloud_2 = g.trimesh.points.PointCloud(points_2)
+
+        cloud_sum = cloud_1 + cloud_2
+        assert g.np.allclose(cloud_sum.colors[:len(cloud_1.vertices)], cloud_1.colors)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
