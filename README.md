@@ -8,7 +8,7 @@ Trimesh is a pure Python (2.7-3.4+) library for loading and using [triangular me
 
 The API is mostly stable, but this should not be relied on and is not guaranteed: install a specific version if you plan on deploying something using trimesh.
 
-Pull requests are appreciated and responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/199) although things not on that list are also welcome. Here are some [tips for writing mesh code in Python.](https://github.com/mikedh/trimesh/blob/main/trimesh/exchange/README.md)
+Pull requests are appreciated and responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/1557) although things not on that list are also welcome. Here are some [tips for writing applications and contributing.](https://github.com/mikedh/trimesh/blob/main/trimesh/CONTRIBUTING.md)
 
 
 ## Basic Installation
@@ -216,7 +216,7 @@ A question that comes up pretty frequently is [how to cite the library.](https:/
 
 ## Containers
 
-If you want to deploy something in a container that uses trimesh, automated `debian:buster-slim` based builds with trimesh and dependencies are available on [Docker Hub](https://hub.docker.com/repository/docker/trimesh/trimesh) with image tags for `latest`, git short hash for the commit in main (i.e. `trimesh/trimesh:0c1298d`), and version (i.e. `trimesh/trimesh:3.5.27`):
+If you want to deploy something in a container that uses trimesh automated `debian:slim-bullseye` based builds with trimesh and most dependencies are available on [Docker Hub](https://hub.docker.com/repository/docker/trimesh/trimesh) with image tags for `latest`, git short hash for the commit in `main` (i.e. `trimesh/trimesh:0c1298d`), and version (i.e. `trimesh/trimesh:3.5.27`):
 
 `docker pull trimesh/trimesh`
 

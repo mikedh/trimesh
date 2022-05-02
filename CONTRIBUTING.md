@@ -1,14 +1,62 @@
-trimesh.exchange
-============
+Contributing To Trimesh
+=======================
 
-Mesh importers and exporters.
+Pull requests are appriciated! 
 
 
-## Tips for New Importers/Exporters/Code
+## Developer Quickstart
+
+Here's how I set up a new environment and write functions. It's not necessary to do it this way but it does make some things easier! Start with installing some stuff:
+```
+# no-implicit-concat adds a rule which disallows strings on
+# different lines with no comma being concatenated as this is
+# pretty much always a bug. 
+pip install autopep8 flake8 flake8-no-implicit-concat codespell pyinstrument ipython
+```
+
+I pretty much always start with a REPL inside a stub function:
+```
+def fancy_function(blah):
+    if blah.shape != (3, 3):
+       raise ValueError('this input was goofy!')
+
+    # do some obvious operations and whatnot
+    dots = np.dot(blah, [1,2,3])
+
+    # get a REPL inside my function so I can write each line
+    # with the context of the function, copy paste the lines
+    # in and at the end return the value and remove the embed
+    from IPython import embed
+    embed()
+    
+if __name__ == '__main__':
+    # I like pyinstrument as it's a sampling profiler
+    # and has nice looking print statements compared
+    # to cProfile or others.
+    import pyinstrument
+    
+    data = np.random.random((3, 3))
+    with pyinstrument.Profiler() as pr:
+        result = fancy_function(data)
+    pr.print()
+```
+
+When you remove the embed and see the profile result, you can then tweak the lines that are slow before finishing the function.
+
+Before PR'ing I run some auto-formatting rules:
+```
+# will run autopep8 and yell at you with any flake8 rules
+python setup.py format
+```
+
+
+
+
+## General Tips
 
 Python can be fast, but only when you use it as little as possible. In general, if you ever have a block which loops through faces and vertices it will be basically unusable with even moderately sized meshes. All operations on face or vertex arrays should be vectorized numpy operations unless absolutely unavoidable. Profiling helps figure out what is slow, but some general advice:
 
-### Do
+### Helpful
 - Run your test script with `ipython -i newstuff.py` and profile with magic, i.e. `%timeit var.split()`
 - Use `np.fromstring`, `np.frombuffer`
 - Use `str.split` or `np.fromstring`:
@@ -66,6 +114,6 @@ In [48]: %timeit np.unique(a)
 10000 loops, best of 3: 31.8 µs per loop
 ```
 
-# Try To Avoid
-- Looping in general, and *especially* looping on arrays that could have many elements(i.e. vertices and faces). The loop overhead is very high in Python, and if necessary list comprehensions are quite a bit faster probably for scoping reasons.
+### Try To Avoid
+- Looping in general, and *especially* looping on arrays that could have many elements(i.e. vertices and faces). The loop overhead is very high in Python. If necessary to loop you may find that list comprehensions are quite a bit faster (though definitely profile first!) probably for scoping reasons.
 - Boolean operations on meshes: they may seem like the answer, but they are nearly always flaky, slow, and unreliable. The best answer is usually to restructure your problem to use some form of vector checks if possible(i.e. dot products, ray tests, etc). Look at `trimesh.intersections` for examples of problems that could have used a boolean but didn't.
