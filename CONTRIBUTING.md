@@ -57,7 +57,7 @@ When you remove the embed and see the profile result you can then tweak the line
 Before PR'ing I run some auto-formatting rules which are available in `setup.py`:
 ```
 # run autopep8 and yell at you about any flake8 rule violations
-python setup.py format
+python setup.py --format
 ```
 
 

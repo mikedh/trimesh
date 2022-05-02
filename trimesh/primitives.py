@@ -417,7 +417,8 @@ class Sphere(_Primitive):
 
         Parameters
         ------------
-        matrix: (4,4) float, homogeneous transformation
+        matrix : (4, 4) float
+          Homogeneous transformation
         """
         matrix = np.asanyarray(matrix, dtype=np.float64)
         if matrix.shape != (4, 4):
@@ -505,7 +506,7 @@ class Box(_Primitive):
         extents : (3,) float
           Length of each side of the 3D box
         transform : (4, 4) float
-          Homogenous ransformation matrix for box center
+          Homogeneous transformation matrix for box center
         """
         super(Box, self).__init__(*args, **kwargs)
         defaults = {'transform': np.eye(4),
