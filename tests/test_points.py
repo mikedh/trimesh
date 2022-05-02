@@ -254,6 +254,27 @@ class PointsTest(g.unittest.TestCase):
         cloud_sum = cloud_1 + cloud_2
         assert g.np.allclose(cloud_sum.colors[:len(cloud_1.vertices)], cloud_1.colors)
 
+    def test_radial_sort(self):
+        theta = g.np.linspace(0.0, g.np.pi * 2.0, 1000)
+        points = g.np.column_stack((
+            g.np.cos(theta),
+            g.np.sin(theta),
+            g.np.zeros(len(theta))))
+        points *= g.random(len(theta)).reshape((-1, 1))
+
+        # apply a random order to the points
+        order = g.np.random.permutation(
+            g.np.arange(len(points)))
+
+        # get the sorted version of these points
+        # when we pass them the randomly ordered points
+        sort = g.trimesh.points.radial_sort(
+            points[order],
+            origin=[0, 0, 0],
+            normal=[0, 0, 1])
+        # should have re-established original order
+        assert g.np.allclose(points, sort)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

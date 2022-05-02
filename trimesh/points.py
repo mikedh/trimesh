@@ -113,7 +113,7 @@ def radial_sort(points,
       Vector to sort around
     start : (3,) float
       Vector to specify position of 12 in clock viewing in
-      direction of normal, must not parallel with normal
+      direction of normal, must not be parallel with normal
 
     Returns
     --------------
@@ -121,8 +121,8 @@ def radial_sort(points,
       Same as input points but reordered
     """
 
-    # create two axis perpendicular to each other and the normal,
-    # and project the points onto them
+    # create two axis perpendicular to each other and
+    # the normal and project the points onto them
     if start is None:
         axis0 = [normal[0], normal[2], -normal[1]]
         axis1 = np.cross(normal, axis0)
@@ -132,15 +132,12 @@ def radial_sort(points,
             raise ValueError('start must not parallel with normal')
         axis0 = np.cross(start, normal)
         axis1 = np.cross(axis0, normal)
-    ptVec = points - origin
-    pr0 = np.dot(ptVec, axis0)
-    pr1 = np.dot(ptVec, axis1)
-
+    vectors = points - origin
     # calculate the angles of the points on the axis
-    angles = np.arctan2(pr0, pr1)
-
+    angles = np.arctan2(np.dot(vectors, axis0),
+                        np.dot(vectors, axis1))
     # return the points sorted by angle
-    return points[[np.argsort(angles)]]
+    return points[angles.argsort()[::-1]]
 
 
 def project_to_plane(points,
