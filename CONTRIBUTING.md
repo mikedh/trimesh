@@ -1,21 +1,32 @@
 Contributing To Trimesh
 =======================
 
-Pull requests are appriciated! 
+Pull requests are appreciated! 
 
 
-## Developer Quickstart
+## Developer Quick Start
 
 Here's how I set up a new environment and write functions. It's not necessary to do it this way but it does make some things easier! Start with installing some stuff:
 ```
+# I create a virtul env I enter every time I open a
+# terminal. There are plenty of alternative
+# options like poetry, pipenv, conda, etc but for simple
+# pip-installing-to-my-home-dir needs this works fine
+python -m venv ~/myenv
+# enter the venv every time you open a new terminal
+echo "source ~/myenv/bin/activate" >> ~/.bashrc
+
+# pip install in our venv
 # no-implicit-concat adds a rule which disallows strings on
 # different lines with no comma being concatenated as this is
 # pretty much always a bug. 
 pip install autopep8 flake8 flake8-no-implicit-concat codespell pyinstrument ipython
 ```
 
-I pretty much always start with a REPL inside a stub function:
+I pretty much always start with an interactive terminal (i.e. a "REPL") inside a stub function:
 ```
+import numpy as np
+
 def fancy_function(blah):
     if blah.shape != (3, 3):
        raise ValueError('this input was goofy!')
@@ -30,8 +41,8 @@ def fancy_function(blah):
     embed()
     
 if __name__ == '__main__':
-    # I like pyinstrument as it's a sampling profiler
-    # and has nice looking print statements compared
+    # I like pyinstrument as it's a relatively low-overhead sampling
+    # profiler and has nice looking nested print statements compared
     # to cProfile or others.
     import pyinstrument
     
@@ -41,20 +52,18 @@ if __name__ == '__main__':
     pr.print()
 ```
 
-When you remove the embed and see the profile result, you can then tweak the lines that are slow before finishing the function.
+When you remove the embed and see the profile result you can then tweak the lines that are slow before finishing the function.
 
-Before PR'ing I run some auto-formatting rules:
+Before PR'ing I run some auto-formatting rules which are available in `setup.py`:
 ```
-# will run autopep8 and yell at you with any flake8 rules
+# run autopep8 and yell at you about any flake8 rule violations
 python setup.py format
 ```
 
 
-
-
 ## General Tips
 
-Python can be fast, but only when you use it as little as possible. In general, if you ever have a block which loops through faces and vertices it will be basically unusable with even moderately sized meshes. All operations on face or vertex arrays should be vectorized numpy operations unless absolutely unavoidable. Profiling helps figure out what is slow, but some general advice:
+Python can be fast but only when you use it as little as possible. In general, if you ever have a block which loops through faces and vertices it will be basically unusable with even moderately sized meshes. All operations on face or vertex arrays should be vectorized numpy operations unless absolutely unavoidable. Profiling helps figure out what is slow, but some general advice:
 
 ### Helpful
 - Run your test script with `ipython -i newstuff.py` and profile with magic, i.e. `%timeit var.split()`
@@ -116,4 +125,4 @@ In [48]: %timeit np.unique(a)
 
 ### Try To Avoid
 - Looping in general, and *especially* looping on arrays that could have many elements(i.e. vertices and faces). The loop overhead is very high in Python. If necessary to loop you may find that list comprehensions are quite a bit faster (though definitely profile first!) probably for scoping reasons.
-- Boolean operations on meshes: they may seem like the answer, but they are nearly always flaky, slow, and unreliable. The best answer is usually to restructure your problem to use some form of vector checks if possible(i.e. dot products, ray tests, etc). Look at `trimesh.intersections` for examples of problems that could have used a boolean but didn't.
+- Boolean operations (i.e. intersection, difference, union) on meshes may seem like the answer, but they are nearly always flaky and slow. The best answer is usually to restructure your problem to use some form of vector checks if possible (i.e. dot products, ray tests, etc). Look at `trimesh.intersections` for an example of a problem that could have used a boolean operation but didn't.
