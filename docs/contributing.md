@@ -1,25 +1,23 @@
 Contributing To Trimesh
 =======================
 
-Pull requests are appreciated! 
+Pull requests are always super welcome! Trimes is a relatively small open source project and really benefits from the bugfixes, features, and other stuff the 100+ contributors have PR'd, so thanks!
 
 
 ## Developer Quick Start
 
-Here's how I set up a new environment and write functions. It's not necessary to do it this way but it does make some things easier! Start with installing some stuff:
+Here's how I set up a new environment and write functions. It's not necessary to do it this way but it does make some things easier! If you don't have a "virtual environment" solution there's plenty of ways to do this (poetry, pipenv, conda, etc.) but I just use the `venv` module built into the standard library:
 ```
-# I create a virtul env I enter every time I open a
-# terminal. There are plenty of alternative
-# options like poetry, pipenv, conda, etc but for simple
-# pip-installing-to-my-home-dir needs this works fine
+# create the venv
 python -m venv ~/myenv
-# enter the venv every time you open a new terminal
-echo "source ~/myenv/bin/activate" >> ~/.bashrc
 
-# pip install in our venv
-# no-implicit-concat adds a rule which disallows strings on
-# different lines with no comma being concatenated as this is
-# pretty much always a bug. 
+# on linux this will use this venv
+# every time you open a new terminal
+echo "source ~/myenv/bin/activate" >> ~/.bashrc
+```
+
+With a virtual environment so pip doesn't dump files everywhere you can install some stuff. The `flake8-no-implicit-concat` adds a rule which disallows strings on different lines with no comma being concatenated as this is pretty much always a bug.
+```
 pip install autopep8 flake8 flake8-no-implicit-concat codespell pyinstrument ipython
 ```
 
@@ -54,12 +52,17 @@ if __name__ == '__main__':
 
 When you remove the embed and see the profile result you can then tweak the lines that are slow before finishing the function.
 
-Before PR'ing I run some auto-formatting rules which are available in `setup.py`:
+### Automatic Formatting
+Before opening a pull request I run some auto-formatting rules which will run autopep8 and yell at you about any flake8 rule violations. There is a convenience script baked into `setup.py` to run all of these which you can run with:
 ```
-# run autopep8 and yell at you about any flake8 rule violations
 python setup.py --format
 ```
 
+This is equivalent to running `codespell`, `autopep8`, and `flake8` on trimesh, examples, and tests. You can also run it yourself with these options:
+```
+autopep8 --recursive --verbose --in-place --aggressive trimesh
+flake8 trimesh
+```
 
 ## General Tips
 
