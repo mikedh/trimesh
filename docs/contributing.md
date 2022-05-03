@@ -1,7 +1,7 @@
 Contributing To Trimesh
 =======================
 
-Pull requests are always super welcome! Trimes is a relatively small open source project and really benefits from the bugfixes, features, and other stuff the 100+ contributors have PR'd, so thanks!
+Pull requests are always super welcome! Trimesh is a relatively small open source project and really benefits from the bugfixes, features, and other stuff the 100+ contributors have PR'd, so thanks!
 
 
 ## Developer Quick Start
