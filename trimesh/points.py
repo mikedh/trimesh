@@ -101,7 +101,7 @@ def radial_sort(points,
                 start=None):
     """
     Sorts a set of points radially (by angle) around an
-    an axis specified by origin and normal vector.
+    axis specified by origin and normal vector.
 
     Parameters
     --------------
@@ -112,8 +112,9 @@ def radial_sort(points,
     normal : (3,)  float
       Vector to sort around
     start : (3,) float
-      Vector to specify position of 12 in clock viewing in
-      direction of normal, must not be parallel with normal
+      Vector to specify start position in counter-clockwise
+      order viewing in direction of normal, MUST not be
+      parallel with normal
 
     Returns
     --------------
@@ -158,7 +159,7 @@ def project_to_plane(points,
     plane_origin : (3,)
       Origin point of plane
     transform : None or (4, 4) float
-       Homogeneous transform, if specified, normal+origin are overridden
+      Homogeneous transform, if specified, normal+origin are overridden
     return_transform : bool
       Returns the (4, 4) matrix used or not
     return_planar : bool
