@@ -7,8 +7,7 @@ from ..geometry import triangulate_quads
 
 def load_off(file_obj, **kwargs):
     """
-    Load an OFF file into the kwargs for a Trimesh constructor
-
+    Load an OFF file into the kwargs for a Trimesh constructor.
 
     Parameters
     ----------
