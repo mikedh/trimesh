@@ -55,7 +55,7 @@ def segments_to_parameters(segments):
 
     # parametric start and end of line segment
     parameters = np.column_stack((offset, offset + vectors_norm))
-    # make sure signs are consistant
+    # make sure signs are consistent
     vectors, signs = util.vector_hemisphere(
         vectors, return_sign=True)
     parameters *= signs.reshape((-1, 1))

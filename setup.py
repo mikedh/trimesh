@@ -83,6 +83,41 @@ for max_python, name, version in lock:
             # add working version locked requirements
             requirements_easy.add('{}=={}'.format(name, version))
 
+
+def format_all():
+    """
+    A shortcut to run automatic formatting and complaining
+    on all of the trimesh subdirectories.
+    """
+    import subprocess
+
+    def run_on(target):
+        # words that codespell hates
+        # note that it always checks against the lower case
+        word_skip = "datas,coo,nd,files',filetests,ba,childs,whats"
+        # files to skip spelling on
+        file_skip = "*.pyc,*.zip,.DS_Store,*.js,./trimesh/resources"
+        spell = ['codespell', '-i', '3',
+                 '--skip=' + file_skip,
+                 '-L', word_skip, '-w', target]
+        print("Running: \n {} \n\n\n".format(' '.join(spell)))
+        subprocess.check_call(spell)
+
+        formatter = ["autopep8", "--recursive", "--verbose",
+                     "--in-place", "--aggressive", target]
+        print("Running: \n {} \n\n\n".format(
+            ' '.join(formatter)))
+        subprocess.check_call(formatter)
+
+        flake = ['flake8', target]
+        print("Running: \n {} \n\n\n".format(' '.join(flake)))
+        subprocess.check_call(flake)
+
+    # run on our target locations
+    for t in ['trimesh', 'tests', 'examples']:
+        run_on(t)
+
+
 # if someone wants to output a requirements file
 # `python setup.py --list-all > requirements.txt`
 if '--list-all' in sys.argv:
@@ -93,6 +128,10 @@ elif '--list-easy' in sys.argv:
     # again will not include numpy+setuptools
     print('\n'.join(requirements_easy))
     exit()
+elif '--format' in sys.argv:
+    format_all()
+    exit()
+
 
 # call the magical setuptools setup
 setup(name='trimesh',

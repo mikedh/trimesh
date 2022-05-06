@@ -97,10 +97,11 @@ def plane_fit(points):
 
 def radial_sort(points,
                 origin,
-                normal):
+                normal,
+                start=None):
     """
     Sorts a set of points radially (by angle) around an
-    an axis specified by origin and normal vector.
+    axis specified by origin and normal vector.
 
     Parameters
     --------------
@@ -110,6 +111,10 @@ def radial_sort(points,
       Origin to sort around
     normal : (3,)  float
       Vector to sort around
+    start : (3,) float
+      Vector to specify start position in counter-clockwise
+      order viewing in direction of normal, MUST not be
+      parallel with normal
 
     Returns
     --------------
@@ -117,19 +122,23 @@ def radial_sort(points,
       Same as input points but reordered
     """
 
-    # create two axis perpendicular to each other and the normal,
-    # and project the points onto them
-    axis0 = [normal[0], normal[2], -normal[1]]
-    axis1 = np.cross(normal, axis0)
-    ptVec = points - origin
-    pr0 = np.dot(ptVec, axis0)
-    pr1 = np.dot(ptVec, axis1)
-
+    # create two axis perpendicular to each other and
+    # the normal and project the points onto them
+    if start is None:
+        axis0 = [normal[0], normal[2], -normal[1]]
+        axis1 = np.cross(normal, axis0)
+    else:
+        normal, start = util.unitize([normal, start])
+        if np.abs(1 - np.abs(np.dot(normal, start))) < tol.zero:
+            raise ValueError('start must not parallel with normal')
+        axis0 = np.cross(start, normal)
+        axis1 = np.cross(axis0, normal)
+    vectors = points - origin
     # calculate the angles of the points on the axis
-    angles = np.arctan2(pr0, pr1)
-
+    angles = np.arctan2(np.dot(vectors, axis0),
+                        np.dot(vectors, axis1))
     # return the points sorted by angle
-    return points[[np.argsort(angles)]]
+    return points[angles.argsort()[::-1]]
 
 
 def project_to_plane(points,
@@ -150,7 +159,7 @@ def project_to_plane(points,
     plane_origin : (3,)
       Origin point of plane
     transform : None or (4, 4) float
-       Homogeneous transform, if specified, normal+origin are overridden
+      Homogeneous transform, if specified, normal+origin are overridden
     return_transform : bool
       Returns the (4, 4) matrix used or not
     return_planar : bool
@@ -646,4 +655,15 @@ class PointCloud(Geometry3D):
                            **kwargs)
 
     def __add__(self, other):
-        return PointCloud(vertices=np.vstack((self.vertices, other.vertices)))
+        if len(other.colors) == len(self.colors) == 0:
+            colors = None
+        else:
+            # preserve colors
+            # if one point cloud has no color property use black
+            other_colors = [[0, 0, 0, 255]] * \
+                len(other.vertices) if len(other.colors) == 0 else other.colors
+            self_colors = [[0, 0, 0, 255]] * \
+                len(self.vertices) if len(self.colors) == 0 else self.colors
+            colors = np.vstack((self_colors, other_colors))
+        return PointCloud(vertices=np.vstack(
+            (self.vertices, other.vertices)), colors=colors)

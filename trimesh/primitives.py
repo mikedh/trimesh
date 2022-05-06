@@ -4,8 +4,8 @@ primitives.py
 
 Subclasses of Trimesh objects that are parameterized as primitives.
 
-Useful because you can move boxes and spheres around, and then use
-trimesh operations on them at any point.
+Useful because you can move boxes and spheres around
+and then use trimesh operations on them at any point.
 """
 import numpy as np
 import pprint
@@ -159,7 +159,6 @@ class _PrimitiveAttributes(object):
         # this is generated dynamically as the format operation can be surprisingly
         # slow and if generated in __init__ it is called a lot of times
         # when we didn't really need to generate it
-
         doc = (
             'Store the attributes of a {name} object.\n\n' +
             'When these values are changed, the mesh geometry will \n' +
@@ -418,7 +417,8 @@ class Sphere(_Primitive):
 
         Parameters
         ------------
-        matrix: (4,4) float, homogeneous transformation
+        matrix : (4, 4) float
+          Homogeneous transformation
         """
         matrix = np.asanyarray(matrix, dtype=np.float64)
         if matrix.shape != (4, 4):
@@ -499,20 +499,20 @@ class Box(_Primitive):
 
     def __init__(self, *args, **kwargs):
         """
-        Create a Box Primitive, a subclass of Trimesh
+        Create a Box Primitive as a subclass of Trimesh
 
         Parameters
         ----------
-        extents:   (3,)  float, size of box
-        transform: (4,4) float, transformation matrix for box center
+        extents : (3,) float
+          Length of each side of the 3D box
+        transform : (4, 4) float
+          Homogeneous transformation matrix for box center
         """
         super(Box, self).__init__(*args, **kwargs)
-
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
-        self.primitive = _PrimitiveAttributes(self,
-                                              defaults,
-                                              kwargs)
+        self.primitive = _PrimitiveAttributes(
+            self, defaults, kwargs)
 
     def sample_volume(self, count):
         """
@@ -590,7 +590,8 @@ class Box(_Primitive):
 
         Returns
         --------
-        volume: float, volume of box
+        volume : float
+          Volume of box.
         """
         volume = float(np.product(self.primitive.extents))
         return volume

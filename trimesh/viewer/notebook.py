@@ -71,11 +71,11 @@ def scene_to_notebook(scene, height=500, **kwargs):
     # embed this puppy as the srcdoc attr of an IFframe
     # I tried this a dozen ways and this is the only one that works
     # display.IFrame/display.Javascript really, really don't work
-    # note trailing space to avoid IPython's pointless hardcoded warning
+    # div is to avoid IPython's pointless hardcoded warning
     embedded = display.HTML(' '.join([
-        '<iframe srcdoc="{srcdoc}"',
+        '<div><iframe srcdoc="{srcdoc}"',
         'width="100%" height="{height}px"',
-        'style="border:none;"></iframe>']).format(
+        'style="border:none;"></iframe></div>']).format(
             srcdoc=srcdoc,
             height=height))
     return embedded
