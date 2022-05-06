@@ -762,7 +762,7 @@ class Trimesh(Geometry3D):
 
         Returns
         -----------
-        symmetry: None, 'radial', 'spherical'
+        symmetry : None, 'radial', 'spherical'
           What kind of symmetry does the mesh have.
         """
         symmetry, axis, section = inertia.radial_symmetry(self)
