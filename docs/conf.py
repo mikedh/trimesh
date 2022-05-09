@@ -79,6 +79,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages
 html_theme = 'sphinx_rtd_theme'
+# html_theme = 'insegel'
 
 # options for rtd-theme
 html_theme_options = {
@@ -101,15 +102,14 @@ html_theme_options = {
 html_static_path = ['_static']
 
 # custom css
-html_css_files = ['_static/custom.css']
+html_css_files = ['custom.css']
 
 html_context = {
-
-    "display_github": True,  # Add 'Edit on Github' link instead of 'View page source'
+    "display_github": True,
     "github_user": "mikedh",
     "github_repo": "trimesh",
-    "github_version": "master",
-    "conf_py_path": "/docs/",
+    "github_version": "main",
+    "conf_py_path": "/docs/"
 }
 
 # Output file base name for HTML help builder.
