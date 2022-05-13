@@ -115,44 +115,39 @@ jobs:
     name: Build Docker Images
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-2
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
     - name: Login to Docker Hub
       run: echo ${{ secrets.DH_PASS }} | docker login --username mikedh --password-stdin
     - name: Checkout trimesh
       uses: actions/checkout@v2
-    - name: Build/Push to DockerHub and AWS ECR
+    - name: Build Images
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         GIT_SHA: ${{ github.sha }}
       run: |
         # get the version of trimesh with python
         export VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
         # tag the image with the short git sha
         export GIT_SHORT=${GIT_SHA::7}
+
         # put a whole bunch of tags on image:
         # tag with version, git sha, and latest
         # push to DockerHub and AWS ECR
-        export TAGS="trimesh/trimesh:latest; trimesh/trimesh:$VERSION; trimesh/trimesh:$GIT_SHORT; mikedh/trimesh:latest; mikedh/trimesh:$VERSION; mikedh/trimesh:$GIT_SHORT; $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION; $ECR_REGISTRY/$ECR_REPOSITORY:latest; $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_SHORT"
+        export TAGS="trimesh/trimesh:latest; trimesh/trimesh:$VERSION; trimesh/trimesh:$GIT_SHORT"
+
         # build image tagged with all our many tags
         docker build -t `echo "${TAGS//;/$' -t '}"` .
         ci_env=`bash <(curl -s https://codecov.io/env)`
         # run unit tests in docker image
         docker run $ci_env -e CI=true -e CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest  bash -c 'pip install /trimesh[test] && pytest --cov=trimesh -x -p no:warnings -p no:alldep -p no:cacheprovider /trimesh/tests && bash <(curl -s https://codecov.io/bash)'
+
         # push every tag to remote registry
         for i in ${TAGS//;/ }; do docker push $i; done;
+    - name: Build with X11 for offscreen rendering
+      run: |
+        docker build -t "trimesh/trimesh-x:latest trimesh/trimesh-x:$VERSION --build-arg INCLUDE_X=true .
+        docker push trimesh/trimesh-x:latest trimesh/trimesh-x:$VERSION
     - name: Logout of registries
       if: always()
       run: |
-        docker logout ${{ steps.login-ecr.outputs.registry }}
         docker logout
 
   release:
