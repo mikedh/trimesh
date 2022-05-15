@@ -1,4 +1,4 @@
-FROM trimesh/trimesh:latest
+FROM trimesh/trimesh-x:latest
 MAINTAINER Michael Dawson-Haggerty <mikedh@kerfed.com>
 
 # copy our example file which renders a sphere
