@@ -735,8 +735,7 @@ def slice_mesh_plane(mesh,
                 # if path is None it means this plane didn't
                 # intersect anything so we can exit early without
                 # doing anything to cap the result
-
-                return Trimesh(vertices=vertices, faces=faces, **kwargs)
+                continue
             # transform Path3D onto XY plane for triangulation
             on_plane, to_3D = path.to_planar()
             # triangulate each closed region of 2D cap
