@@ -6,7 +6,6 @@ SPHINXGEN     ?= sphinx-apidoc
 NBCONVERT     ?= jupyter
 PYTHON        ?= python
 PIP           ?= pip
-APT           ?= sudo apt-get
 SOURCEDIR     = .
 BUILDDIR      = _build
 TEMPLATESDIR  = templates
@@ -27,8 +26,6 @@ html: conf.py index.rst *.md README.rst trimesh.rst examples.md $(example_rsts) 
 
 .deps: requirements.txt
 	$(PIP) install -r requirements.txt
-	$(APT) update
-	$(APT) install -qq -y --no-install-recommends pandoc
 	$(PIP) freeze > .deps
 
 $(STATICDIR)/examples/%.html: ../examples/%.ipynb .deps

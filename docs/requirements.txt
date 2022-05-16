@@ -1,4 +1,4 @@
-pypandoc==1.7.5
+pypandoc==1.8
 numpy==1.22.3
 scipy==1.8.0
 networkx==2.8

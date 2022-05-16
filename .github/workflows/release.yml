@@ -103,7 +103,7 @@ jobs:
       run: |
          # build docs in docker image to get working trimesh env for docstrings
          docker pull trimesh/trimesh:latest
-         docker run --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest make -C /trimesh/docs
+         docker run --user 0:0 --rm -v `pwd`:/trimesh trimesh/trimesh:latest bash -c "apt-get update && apt-get install pandoc -y && su user && cd /trimesh/docs && make"
     - name: Deploy To Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
