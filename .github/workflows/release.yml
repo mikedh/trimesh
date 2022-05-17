@@ -137,8 +137,8 @@ jobs:
         docker build -t `echo "${TAGS//;/$' -t '}"` .
         ci_env=`bash <(curl -s https://codecov.io/env)`
         # run unit tests in docker image
-        docker run $ci_env -e CI=true -e CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} --rm trimesh/trimesh:latest  bash -c 'pip install /opt/trimesh[test] && pytest --cov=trimesh -x -p no:warnings -p no:alldep -p no:cacheprovider /opt/trimesh/tests && bash <(curl -s https://codecov.io/bash)'
-
+        # note we're copying models into the image
+        docker run $ci_env -e CI=true -e CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} --rm -v `pwd`:/trimesh trimesh/trimesh:latest  bash -c 'cp -R /trimesh/models /opt/trimesh && cd /opt/trimesh && pip install .[test] && pytest --cov=trimesh -x -p no:warnings -p no:alldep -p no:cacheprovider tests && bash <(curl -s https://codecov.io/bash)'
         # push every tag to remote registry
         for i in ${TAGS//;/ }; do docker push $i; done;
     - name: Build with X11 for offscreen rendering
