@@ -143,7 +143,10 @@ jobs:
         for i in ${TAGS//;/ }; do docker push $i; done;
     - name: Build with X11 for offscreen rendering
       run: |
+        export VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
+
         docker build -t trimesh/trimesh-x:latest -t trimesh/trimesh-x:${VERSION} --build-arg INCLUDE_X=true .
+
         docker push trimesh/trimesh-x:latest trimesh/trimesh-x:$VERSION
     - name: Logout of registries
       if: always()
