@@ -103,12 +103,12 @@ jobs:
       run: |
          # build docs in docker image to get working trimesh env for docstrings
          docker pull trimesh/trimesh:latest
-         docker run --rm -v `pwd`:/trimesh trimesh/trimesh:latest bash -c "python /trimesh/docker/builds/pandoc.py && cp -R /trimesh/models /trimesh/docs /trimesh/examples /trimesh/README.md /opt/trimesh/ && cd /opt/trimesh/docs && make"
+         docker run --rm -v `pwd`:/trimesh trimesh/trimesh:latest bash -c "python /trimesh/docker/builds/pandoc.py && cp -R /trimesh/models /trimesh/docs /trimesh/examples /trimesh/README.md /opt/trimesh/ && cd /opt/trimesh/docs && make && cp -R /opt/trimesh/docs/_build /trimesh/docs/"
     - name: Deploy To Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: /opt/trimesh/docs/_build/html
+        publish_dir: ./docs/_build/html
         force_orphan: true
 
   containers:
