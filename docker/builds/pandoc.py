@@ -1,0 +1,48 @@
+"""
+A helper script to install `pandoc` to a user-writable
+location in their `PATH`.
+"""
+import os
+import tarfile
+import tempfile
+import subprocess
+
+url = 'https://github.com/jgm/pandoc/releases/download/2.18/pandoc-2.18-linux-amd64.tar.gz'
+
+if __name__ == '__main__':
+    # the values of PATH
+    candidates = os.environ['PATH'].split(':')
+    # locations that are writeable by current user
+    writeable = list(c for c in candidates if
+                     os.access(c, os.W_OK))
+
+    if len(writeable) == 0:
+        raise ValueError('no writeable locations in path!')
+
+    # rank the writeable locations by a metric
+    # here we're just using the path length
+    # this is totally arbitrary and could be whatever
+    score = [len(w) for w in writeable]
+
+    # take the writeable location with the lowest "score"
+    target = writeable[score.index(min(score))]
+
+    with tempfile.TemporaryDirectory() as d:
+        subprocess.check_call(['wget', url, '-P', d])
+
+        with tarfile.open(os.path.join(d, url.split('/')[-1])) as t:
+            for member in t.getmembers():
+                if member.name.split('/')[-1] == 'pandoc':
+                    data = t.extractfile(member).read()
+                    break
+
+        if data is None or len(data) == 0:
+            raise ValueError('unable to extract pandoc!')
+
+        full = os.path.join(target, 'pandoc')
+        print(f'writing `pandoc` to {full}')
+        with open(full, 'wb') as f:
+            f.write(data)
+
+        # make binary executable
+        os.chmod(full, 755)
