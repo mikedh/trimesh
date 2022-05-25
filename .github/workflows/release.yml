@@ -38,12 +38,18 @@ jobs:
         python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9]
         os: [ubuntu-latest, macos-latest, windows-latest]
         exclude:
+            # windows runners have gotten very flaky
+            # exclude all windows test runs except for one
           - os: windows-latest
             python-version: 2.7
           - os: windows-latest
             python-version: 3.5
           - os: windows-latest
+            python-version: 3.6
+          - os: windows-latest
             python-version: 3.8
+          - os: windows-latest
+            python-version: 3.9
           - os: macos-latest
             python-version: 3.9
           - os: macos-latest
