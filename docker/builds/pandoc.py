@@ -19,6 +19,7 @@ if __name__ == '__main__':
     if len(writeable) == 0:
         raise ValueError('no writeable locations in path!')
 
+    # we have multiple writeable locations in the user's path
     # rank the writeable locations by a metric
     # here we're just using the path length
     # this is totally arbitrary and could be whatever
@@ -28,7 +29,7 @@ if __name__ == '__main__':
     target = writeable[score.index(min(score))]
 
     with tempfile.TemporaryDirectory() as d:
-        subprocess.check_call(['wget', url, '-P', d])
+        subprocess.check_call(['wget', '-q', url, '-P', d])
 
         with tarfile.open(os.path.join(d, url.split('/')[-1])) as t:
             for member in t.getmembers():

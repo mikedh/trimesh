@@ -46,9 +46,3 @@ README.rst: ../README.md .deps
 
 clean:
 	rm -rvf "$(BUILDDIR)" "$(STATICDIR)/examples" examples.*.rst trimesh*.rst .deps
-
-# # All other Sphinx builders
-#%: conf.py index.rst install.rst examples.rst README.rst trimesh.rst $(example_rsts) $(example_htmls)
-#	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
-#
-#.PHONY: %
