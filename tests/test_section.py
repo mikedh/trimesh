@@ -292,6 +292,29 @@ class SliceTest(g.unittest.TestCase):
                                    cap=True)
         assert newmesh.is_watertight
 
+    def test_slice_exit(self):
+        m = g.trimesh.creation.box()
+        assert g.np.isclose(m.area, 6)
+
+        # start with a slice plane at every vertex
+        origins = m.vertices.copy()
+        # box centered at origin so get a unit normal
+        normals = g.trimesh.unitize(origins)
+
+        # slice the tip of the box off
+        origins -= normals * 0.1
+        # make the first plane non-intersecting
+        # to test the early exit case
+        origins[0] += normals[0] * 10
+
+        # reverse the normals to indicate positive volume
+        normals *= -1
+
+        # run the slices
+        s = m.slice_plane(origins, normals)
+
+        assert g.np.isclose(s.area, 5.685)
+
     def test_cap_nohit(self):
         # check to see if we handle capping with
         # non-intersecting planes well

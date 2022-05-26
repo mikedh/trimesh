@@ -25,6 +25,3 @@ if __name__ == '__main__':
     # write the render to a volume we should have docker mounted
     with open('/output/output.png', 'wb') as f:
         f.write(png)
-
-    # NOTE: if you raise an exception, supervisord will automatically
-    # restart this script which is pretty useful in long running workers
