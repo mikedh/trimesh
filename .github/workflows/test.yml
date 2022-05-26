@@ -2,6 +2,9 @@ name: Run Tests
 
 on: [pull_request,workflow_dispatch]
 
+permissions:
+  contents: read
+
 jobs:
   formatting:
     name: Check Formatting
