@@ -260,18 +260,14 @@ class SceneViewer(pyglet.window.Window):
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
-        try:
-            # if a geometry has UV coordinates that match vertices
-            assert len(geometry.visual.uv) == len(geometry.vertices)
-            has_tex = True
-        except BaseException:
-            has_tex = False
-
-        if has_tex:
-            tex = rendering.material_to_texture(
-                geometry.visual.material)
-            if tex is not None:
-                self.textures[name] = tex
+        visual = getattr(geometry, 'visual')
+        if hasattr(visual, 'uv') and hasattr(visual, 'material'):
+            try:
+                tex = rendering.material_to_texture(visual.material)
+                if tex is not None:
+                    self.textures[name] = tex
+            except BaseException:
+                log.warning('failed to load texture', exc_info=True)
 
     def cleanup_geometries(self):
         """
