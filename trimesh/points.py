@@ -524,8 +524,9 @@ class PointCloud(Geometry3D):
         transform : (4, 4) float
           Homogeneous transformation to apply to PointCloud
         """
-        self.vertices = transformations.transform_points(self.vertices,
-                                                         matrix=transform)
+        self.vertices = transformations.transform_points(
+            self.vertices, matrix=transform)
+        return self
 
     @property
     def bounds(self):
