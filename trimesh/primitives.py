@@ -10,6 +10,7 @@ and then use trimesh operations on them at any point.
 import numpy as np
 import pprint
 import copy
+import abc
 
 from . import util
 from . import sample
@@ -86,6 +87,18 @@ class _Primitive(Trimesh):
     def face_normals(self, values):
         if values is not None:
             log.warning('Primitive face normals are immutable! Not setting!')
+
+    @abc.abstractproperty
+    def transform(self):
+        """
+        The transform of the Primitive object.
+
+        Returns
+        -------------
+        transform : (4, 4) float
+          Homogeneous transformation matrix
+        """
+        pass
 
     def copy(self, **kwargs):
         """
@@ -243,6 +256,10 @@ class Cylinder(_Primitive):
                                               defaults,
                                               kwargs)
 
+    @property
+    def transform(self):
+        return self.primitive.transform
+
     @caching.cache_decorator
     def volume(self):
         """
@@ -364,6 +381,10 @@ class Capsule(_Primitive):
                                               defaults,
                                               kwargs)
 
+    @property
+    def transform(self):
+        return self.primitive.transform
+
     @caching.cache_decorator
     def direction(self):
         """
@@ -427,6 +448,12 @@ class Sphere(_Primitive):
         center = np.dot(matrix,
                         np.append(self.primitive.center, 1.0))[:3]
         self.primitive.center = center
+
+    @property
+    def transform(self):
+        transform = np.eye(4)
+        transform[:3, 3] = self.primitive.center
+        return transform
 
     @property
     def bounds(self):
@@ -513,6 +540,10 @@ class Box(_Primitive):
                     'extents': np.ones(3)}
         self.primitive = _PrimitiveAttributes(
             self, defaults, kwargs)
+
+    @property
+    def transform(self):
+        return self.primitive.transform
 
     def sample_volume(self, count):
         """
@@ -716,6 +747,10 @@ class Extrusion(_Primitive):
           Origin of extrusion plane
         """
         return self.primitive.transform[:3, 3]
+
+    @property
+    def transform(self):
+        return self.primitive.transform
 
     @caching.cache_decorator
     def bounding_box_oriented(self):
