@@ -456,6 +456,14 @@ class Sphere(_Primitive):
         return transform
 
     @property
+    def center(self):
+        return self.primitive.center
+
+    @center.setter
+    def center(self, value):
+        self.primitive.center = value
+
+    @property
     def bounds(self):
         # no docstring so will inherit Trimesh docstring
         # return exact bounds from primitive center and radius (rather than faces)
