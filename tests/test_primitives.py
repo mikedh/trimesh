@@ -170,6 +170,16 @@ class PrimitiveTest(g.unittest.TestCase):
                 assert g.np.allclose(primitive.primitive.center,
                                      primitive.transform[:3, 3])
 
+    def test_sphere_center(self):
+        s = g.trimesh.primitives.Sphere(center=[0, 0, 100], radius=10.0, subdivisions=5)
+        assert g.np.allclose(s.center, [0, 0, 100])
+
+        s.center = [1, 1, 1]
+        assert g.np.allclose(s.center, [1, 1, 1])
+
+        s.center[:2] = [0, 3]
+        assert g.np.allclose(s.center, [0, 3, 1])
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
