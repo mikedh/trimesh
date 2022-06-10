@@ -159,6 +159,17 @@ class PrimitiveTest(g.unittest.TestCase):
         # should contain line segment
         assert b.contains(c.segment).all()
 
+    def test_transform_attribute(self):
+        for primitive in self.primitives:
+            assert hasattr(primitive, 'transform')
+
+            assert g.trimesh.util.is_shape(primitive.transform,
+                                           (4, 4))
+
+            if hasattr(primitive.primitive, 'center'):
+                assert g.np.allclose(primitive.primitive.center,
+                                     primitive.transform[:3, 3])
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
