@@ -158,6 +158,63 @@ class RegistrationTest(g.unittest.TestCase):
 
         assert distance.mean() < noise
 
+    def test_nricp(self):
+
+        tooth = g.get_mesh('busted.STL', process=False)
+        ball = g.get_mesh('ballA.off', process=False)
+
+        # Center the mesh together
+        tooth.vertices = ball.scale * (tooth.vertices - tooth.centroid[None, :])\
+            / tooth.scale + ball.centroid
+
+        # Make copies to check nothing is modified
+        tooth_copy = tooth.copy()
+        ball_copy = ball.copy()
+
+        # First steps set : wl = 0
+        steps = [
+            [0.02, 0, 0.5, 10],
+            [0.007, 0.0, 0.5, 10],
+            [0.002, 0.0, 0.0, 10],
+        ]
+        ball_landmarks = g.np.array([0], dtype=g.np.int32)
+        tooth_landmarks = g.np.array([0], dtype=g.np.int32)
+        result_no_ldm, records_no_ldm = g.trimesh.registration.nricp(
+            ball, tooth, source_landmarks=ball_landmarks,
+            target_landmarks=tooth_landmarks, steps=steps, return_records=True)
+
+        assert len(records_no_ldm) >= 3
+        assert g.np.allclose(tooth.vertices, tooth_copy.vertices)
+        assert g.np.allclose(ball.vertices, ball_copy.vertices)
+        assert records_no_ldm[-1][1].mean() < 0.00011
+        assert not g.np.allclose(ball.vertices, result_no_ldm.vertices)
+
+        # Second steps set : wl > 5
+        steps = [
+            [0.02, 5, 0.5, 10],
+            [0.007, 5, 0.5, 10],
+            [0.002, 5, 0.0, 10],
+        ]
+        result_ldm, records_ldm = g.trimesh.registration.nricp(
+            ball, tooth, source_landmarks=ball_landmarks,
+            target_landmarks=tooth_landmarks, steps=steps, return_records=True,
+            use_faces=False)
+
+        distance_no_ldm = g.np.linalg.norm(
+                result_no_ldm.vertices[ball_landmarks[0]] -
+                tooth.vertices[tooth_landmarks[0]],
+                axis=-1)
+        distance_ldm = g.np.linalg.norm(
+                result_ldm.vertices[ball_landmarks[0]] -
+                tooth.vertices[tooth_landmarks[0]],
+                axis=-1)
+
+        assert distance_no_ldm > 11.0
+        assert distance_ldm < 0.03
+        assert len(records_ldm) >= 3
+        assert records_no_ldm[-1][1].mean() < records_ldm[-1][1].mean()
+        assert not g.np.allclose(ball.vertices, result_ldm.vertices)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
