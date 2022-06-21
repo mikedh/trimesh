@@ -71,27 +71,39 @@ def plane_fit(points):
 
     Parameters
     ---------
-    points : (n, 3) float
+    points : (n, 3) float or (p, n, 3,) float
       3D points in space
+      Second option allows to simultaneously compute
+      p centroids and normals
 
     Returns
     ---------
-    C : (3,) float
+    C : (3,) float or (p, 3,) float
       Point on the plane
-    N : (3,) float
+    N : (3,) float or (p, 3,) float
       Unit normal vector of plane
     """
     # make sure input is numpy array
     points = np.asanyarray(points, dtype=np.float64)
-    # make the plane origin the mean of the points
-    C = points.mean(axis=0)
-    # points offset by the plane origin
-    x = points - C
-    # create a (3, 3) matrix
-    M = np.dot(x.T, x)
+    assert points.ndim == 2 or points.ndim == 3
+    # with only one point set, np.dot is faster
+    if points.ndim == 2:
+        # make the plane origin the mean of the points
+        C = points.mean(axis=0)
+        # points offset by the plane origin
+        x = points - C[None, :]
+        # create a (3, 3) matrix
+        M = np.dot(x.T, x)
+    else:
+        # make the plane origin the mean of the points
+        C = points.mean(axis=1)
+        # points offset by the plane origin
+        x = points - C[:, None, :]
+        # create a (p, 3, 3) matrix
+        M = np.einsum('pnd, pnm->pdm', x, x)
     # run SVD
-    N = np.linalg.svd(M)[0][:, -1]
-
+    N = np.linalg.svd(M)[0][..., -1]
+    # return the centroid(s) and normal(s)
     return C, N
 
 
