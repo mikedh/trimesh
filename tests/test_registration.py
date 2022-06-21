@@ -195,8 +195,10 @@ class RegistrationTest(g.unittest.TestCase):
             [0.007, 5, 0.5, 10],
             [0.002, 5, 0.0, 10],
         ]
+        # Also test with target shape as a point cloud
+        tooth_pc = g.trimesh.PointCloud(tooth.vertices)
         result_ldm, records_ldm = g.trimesh.registration.nricp(
-            ball, tooth, source_landmarks=ball_landmarks,
+            ball, tooth_pc, source_landmarks=ball_landmarks,
             target_landmarks=tooth_landmarks, steps=steps, return_records=True,
             use_faces=False)
 

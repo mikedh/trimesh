@@ -581,8 +581,13 @@ def nricp(smesh,
             [0.01, 0, 0.0, 10],
         ]
     if return_records:
-        _, distances, _ = closest_point(tmesh, transformed_vertices)
-        records = [(scale * transformed_vertices + centroid[None, :], distances)]
+        if use_faces:
+            _, distances, _ = closest_point(tmesh, transformed_vertices)
+            records = [(scale * transformed_vertices + centroid[None, :], distances)]
+        else:
+            distances = kdtree.query(
+                transformed_vertices, k=1, workers=-1)[0]
+            records = [(scale * transformed_vertices + centroid[None, :], distances)]
 
     # Main loop
     for i, (ws, wl, wn, max_iter) in enumerate(steps):
