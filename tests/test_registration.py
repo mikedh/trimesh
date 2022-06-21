@@ -163,7 +163,7 @@ class RegistrationTest(g.unittest.TestCase):
         tooth = g.get_mesh('busted.STL', process=False)
         ball = g.get_mesh('ballA.off', process=False)
 
-        # Center the mesh together
+        # Center the meshes together
         tooth.vertices = ball.scale * (tooth.vertices - tooth.centroid[None, :])\
             / tooth.scale + ball.centroid
 
@@ -171,7 +171,7 @@ class RegistrationTest(g.unittest.TestCase):
         tooth_copy = tooth.copy()
         ball_copy = ball.copy()
 
-        # First steps set : wl = 0
+        # First step set : wl = 0
         steps = [
             [0.02, 0, 0.5, 10],
             [0.007, 0.0, 0.5, 10],
@@ -189,7 +189,7 @@ class RegistrationTest(g.unittest.TestCase):
         assert records_no_ldm[-1][1].mean() < 0.00011
         assert not g.np.allclose(ball.vertices, result_no_ldm.vertices)
 
-        # Second steps set : wl > 5
+        # Second step set : wl > 0
         steps = [
             [0.02, 5, 0.5, 10],
             [0.007, 5, 0.5, 10],
