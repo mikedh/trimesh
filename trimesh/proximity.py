@@ -5,6 +5,7 @@ proximity.py
 Query mesh- point proximity.
 """
 import numpy as np
+from dataclasses import dataclass
 
 from . import util
 
@@ -12,6 +13,7 @@ from .grouping import group_min
 from .constants import tol, log_time
 from .triangles import closest_point as closest_point_corresponding
 from .triangles import points_to_barycentric
+from .points import plane_fit
 
 try:
     from scipy.spatial import cKDTree
@@ -281,6 +283,137 @@ def signed_distance(mesh, points):
     distance[nonzero[~ontriangle]] *= sign
 
     return distance
+
+
+@dataclass
+class NearestQueryResult:
+    """
+    Stores the nearest points and attributes for nearest points queries.
+    """
+    nearest = None
+    distances = None
+    normals = None
+    triangle_indices = None
+    barycentric_coordinates = None
+    interpolated_normals = None
+    vertex_indices = None
+
+
+def query_from_points(target_points,
+                      input_points,
+                      kdtree=None,
+                      return_normals=False,
+                      neighbors_count=10,
+                      **kwargs):
+    """
+    Find the the closest points and associated attributes from a set of 3D points.
+
+    Parameters
+    -----------
+    target_points : (n, 3) float
+      Points from which the query is performed
+    input_points : (m, 3) float
+      Input query points
+    kdtree : scipy.cKDTree
+      KDTree used for query. Computed if not provided
+    return_normals : bool
+      If True, compute the normals at each nearest point
+    neighbors_count : int
+      The number of closest neighbors to query
+    kwargs : dict
+      Dict to accept other key word arguments (not used)
+    Returns
+    ----------
+    qres : NearestQueryResult
+      NearestQueryResult object containing the nearest points (m, 3) and their attributes
+    """
+    # Empty result
+    target_points = np.asanyarray(target_points)
+    input_points = np.asanyarray(input_points)
+    neighbors_count = min(neighbors_count, len(target_points))
+    qres = NearestQueryResult()
+
+    if kdtree is None:
+        kdtree = cKDTree(target_points)
+
+    if return_normals:
+        assert neighbors_count >= 3
+        distances, indices = kdtree.query(input_points, k=neighbors_count, workers=-1)
+        nearest = target_points[indices, :]
+        qres.normals = plane_fit(nearest)[1]
+        qres.nearest = nearest[:, 0]
+        qres.distances = distances[:, 0]
+        qres.vertex_indices = indices[:, 0]
+    else:
+        qres.distances, qres.vertex_indices = kdtree.query(input_points, workers=-1)
+        qres.nearest = target_points[qres.vertex_indices, :]
+
+    return qres
+
+
+def query_from_mesh(mesh,
+                    input_points,
+                    from_vertices_only=False,
+                    return_barycentric_coordinates=False,
+                    return_normals=False,
+                    return_interpolated_normals=False,
+                    neighbors_count=10,
+                    **kwargs):
+    """
+    Find the the closest points and associated attributes from a Trimesh.
+
+    Parameters
+    -----------
+    mesh : Trimesh
+        Trimesh from which the query is performed
+    input_points : (m, 3) float
+        Input query points
+    from_vertices_only : bool
+        If True, consider only the vertices and not the faces
+    return_barycentric_coordinates : bool
+        If True, return the barycentric coordinates
+    return_normals : bool
+        If True, compute the normals at each closest point
+    return_interpolated_normals : bool
+        If True, return the interpolated normal at each closest point
+    neighbors_count : int
+        The number of closest neighbors to query
+    kwargs : dict
+        Dict to accept other key word arguments (not used)
+    Returns
+    ----------
+    qres : NearestQueryResult
+        NearestQueryResult object containing the nearest points (m, 3) and their
+        attributes
+    """
+    input_points = np.asanyarray(input_points)
+    neighbors_count = min(neighbors_count, len(mesh.vertices))
+
+    if from_vertices_only or len(mesh.faces) == 0:
+        # Consider only the vertices
+        return query_from_points(
+            mesh.vertices, input_points, mesh.kdtree,
+            return_normals=return_normals,
+            neighbors_count=neighbors_count
+        )
+    # Else if we consider faces, use proximity.closest_point
+    qres = NearestQueryResult()
+
+    qres.nearest, qres.distances, qres.tids = closest_point(mesh, input_points)
+
+    if return_normals:
+        qres.normals = mesh.face_normals[qres.tids]
+    if return_barycentric_coordinates or return_interpolated_normals:
+        qres.barycentric_coordinates = points_to_barycentric(
+            mesh.vertices[mesh.faces[qres.tids]], qres.nearest)
+
+        if return_interpolated_normals:
+            # Interpolation from barycentric coordinates
+            qres.interpolated_normals = \
+                np.einsum('ij,ijk->ik',
+                          qres.barycentric_coordinates,
+                          mesh.vertex_normals[mesh.faces[qres.tids]])
+    return qres
 
 
 class ProximityQuery(object):
