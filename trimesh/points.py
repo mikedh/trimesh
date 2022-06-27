@@ -13,6 +13,7 @@ from .geometry import plane_transform
 from .constants import tol
 from .visual.color import VertexColor
 
+
 from . import util
 from . import caching
 from . import grouping
@@ -617,6 +618,22 @@ class PointCloud(Geometry3D):
         self.visual.vertex_colors = data
 
     @caching.cache_decorator
+    def kdtree(self):
+        """
+        Return a scipy.spatial.cKDTree of the vertices of the mesh.
+        Not cached as this lead to observed memory issues and segfaults.
+
+        Returns
+        ---------
+        tree : scipy.spatial.cKDTree
+          Contains mesh.vertices
+        """
+
+        from scipy.spatial import cKDTree
+        tree = cKDTree(self.vertices.view(np.ndarray))
+        return tree
+
+    @caching.cache_decorator
     def convex_hull(self):
         """
         A convex hull of every point.
@@ -666,6 +683,19 @@ class PointCloud(Geometry3D):
                            file_obj=file_obj,
                            file_type=file_type,
                            **kwargs)
+
+    def query(self, input_points, **kwargs):
+        """
+        Find the the closest points and associated attributes from this PointCloud.
+        Parameters
+        ------------
+        input_points : (n, 3) float
+          Input query points
+        kwargs : dict
+          Arguments for proximity.query_from_points
+        """
+        from .proximity import query_from_points
+        return query_from_points(self.vertices, input_points, self.kdtree, **kwargs)
 
     def __add__(self, other):
         if len(other.colors) == len(self.colors) == 0:

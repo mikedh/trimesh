@@ -2991,6 +2991,18 @@ class Trimesh(Geometry3D):
 
         return copied
 
+    def query(self, input_points, **kwargs):
+        """
+        Find the the closest points and associated attributes from this Trimesh.
+        Parameters
+        ------------
+        input_points : (n, 3) float
+          Input query points
+        kwargs : dict
+          Arguments for proximity.query_from_mesh
+        """
+        return proximity.query_from_mesh(self, input_points, **kwargs)
+
     def __deepcopy__(self, *args):
         # interpret deep copy as "get rid of cached data"
         return self.copy(include_cache=False)

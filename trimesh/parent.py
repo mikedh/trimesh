@@ -273,3 +273,7 @@ class Geometry3D(Geometry):
         matrix = np.linalg.inv(matrix)
         self.apply_transform(matrix)
         return matrix
+
+    @abc.abstractmethod
+    def query(self, input_points, **options):
+        pass
