@@ -13,7 +13,7 @@ from . import bounds
 from . import transformations
 
 from .transformations import transform_points
-from .points import PointCloud, plane_fit
+from .points import PointCloud
 from .proximity import closest_point
 from .triangles import points_to_barycentric
 
@@ -346,8 +346,8 @@ def icp(a,
     return total_matrix, transformed, cost
 
 
-def nricp(smesh,
-          tmesh,
+def nricp(source_mesh,
+          target_geometry,
           source_landmarks=None,
           target_landmarks=None,
           steps=None,
@@ -356,8 +356,8 @@ def nricp(smesh,
           distance_treshold=0.1,
           return_records=False,
           use_faces=True,
-          vertex_normals=True,
-          nb_neighbors=8):
+          use_vertex_normals=True,
+          neighbors_count=8):
     """
     Implementation of "Amberg et al. 2007: Optimal Step Nonrigid ICP Algorithms
     for Surface Registration."
@@ -366,10 +366,10 @@ def nricp(smesh,
 
     Parameters
     ----------
-    smesh : Trimesh
+    source_mesh : Trimesh
         Source mesh containing both vertices and faces.
-    tmesh : Trimesh or PointCloud
-        Target mesh. It can contain no faces or be a PointCloud.
+    target_geometry : Trimesh or PointCloud or (n, 3) float
+        Target geometry. It can contain no faces or be a PointCloud.
     source_landmarks : (n,) int or (n, 3) float or ((n,) int, (n, 3) float)
         n landmarks on the the source mesh.
         Either represented as vertex indices (n,) int or of 3d positions (n, 3).
@@ -394,11 +394,11 @@ def nricp(smesh,
     use_faces : bool
         If True and if target mesh has faces, use proximity.closest_point to find
         matching points. Else use scipy's cKDTree object.
-    vertex_normals :
+    use_vertex_normals :
         If True and if target mesh hhas faces, interpolate the normals of the target
         mesh matching points.
         Else use face normals or estimated normals if target mesh has no faces.
-    nb_neighbors :
+    neighbors_count :
         number of neighbors used for normal estimation. Only used if target mesh has
         no faces or if use_faces is False.
 
@@ -455,8 +455,8 @@ def nricp(smesh,
         return np.tile(X_, (nV, 1))
 
     def _create_Dl_Ul(D,
-                      smesh,
-                      tmesh,
+                      source_mesh,
+                      target_geometry,
                       source_landmarks,
                       target_landmarks,
                       centroid,
@@ -477,14 +477,15 @@ def nricp(smesh,
         # Retrieve target landmark 3d positions
         if isinstance(target_landmarks, tuple):
             target_tids, target_barys = target_landmarks
-            target_points = np.einsum('ij,ijk->ik',
-                                      target_barys,
-                                      tmesh.vertices[tmesh.faces[target_tids]])
+            target_points = np.einsum(
+                'ij,ijk->ik',
+                target_barys,
+                target_geometry.vertices[target_geometry.faces[target_tids]])
         elif isinstance(target_landmarks, np.ndarray):
             if target_landmarks.ndim == 2:
                 target_points = (target_landmarks - centroid[None, :]) / scale
             elif target_landmarks.ndim == 1 and target_landmarks.dtype == int:
-                target_points = tmesh.vertices[target_landmarks]
+                target_points = target_geometry.vertices[target_landmarks]
             else:
                 raise wrong_landmark_format
         else:
@@ -503,19 +504,19 @@ def nricp(smesh,
             # => w * x3 = y - u * x1 + v * x2
             if isinstance(source_landmarks, np.ndarray):
                 source_landmarks = (source_landmarks - centroid[None, :]) / scale
-                _, _, source_tids = closest_point(smesh, source_landmarks)
+                _, _, source_tids = closest_point(source_mesh, source_landmarks)
                 source_barys = points_to_barycentric(
-                    smesh.vertices[smesh.faces[source_tids]],
+                    source_mesh.vertices[source_mesh.faces[source_tids]],
                     source_landmarks)
             else:
                 source_tids, source_barys = source_landmarks
-            source_tri_vids = smesh.faces[source_tids]
+            source_tri_vids = source_mesh.faces[source_tids]
             # u * x1, v * x2 and w * x3 combined
             Dl = D[source_tri_vids.flatten(), :]
             Dl.data *= source_barys.flatten().repeat(np.diff(Dl.indptr))
-            x0 = smesh.vertices[source_tri_vids[:, 0]]
-            x1 = smesh.vertices[source_tri_vids[:, 1]]
-            x2 = smesh.vertices[source_tri_vids[:, 2]]
+            x0 = source_mesh.vertices[source_tri_vids[:, 0]]
+            x1 = source_mesh.vertices[source_tri_vids[:, 1]]
+            x2 = source_mesh.vertices[source_tri_vids[:, 2]]
             Ul0 = target_points - x1 * source_barys[:, 1, None] \
                 - x2 * source_barys[:, 2, None]
             Ul1 = target_points - x0 * source_barys[:, 0, None] \
@@ -536,39 +537,43 @@ def nricp(smesh,
             raise wrong_landmark_format
         return Dl, Ul
 
-    # Number of edges and vertices in smesh
-    nE = len(smesh.edges)
-    nV = len(smesh.vertices)
+    # Number of edges and vertices in source mesh
+    nE = len(source_mesh.edges)
+    nV = len(source_mesh.vertices)
+
     # Check if registration target is a mesh or a point cloud
-    is_target_pc = isinstance(tmesh, PointCloud) or len(tmesh.faces) == 0
+    if not util.is_instance_named(target_geometry, 'Trimesh') and \
+            not isinstance(target_geometry, PointCloud):
+        vertices = np.asanyarray(target_geometry)
+        target_geometry = PointCloud(vertices)
+
+    from_vertices_only = isinstance(target_geometry, PointCloud) or \
+        len(target_geometry.faces) == 0
 
     # Center and unitize source and target
-    centroid, scale = smesh.centroid, smesh.scale
-    smesh.vertices = (smesh.vertices - centroid[None, :]) / scale
-    tmesh.vertices = (tmesh.vertices - centroid[None, :]) / scale
+    centroid, scale = source_mesh.centroid, source_mesh.scale
+    source_mesh.vertices = (source_mesh.vertices - centroid[None, :]) / scale
+    target_geometry.vertices = (target_geometry.vertices - centroid[None, :]) / scale
 
     # Check whether using faces or points for matching point queries
-    use_faces = use_faces and not is_target_pc
-    if not use_faces:
-        # Form KDTree if using points
-        kdtree = cKDTree(tmesh.vertices)
+    use_faces = use_faces and not from_vertices_only
 
     # Initialize transformed vertices
-    transformed_vertices = smesh.vertices.copy()
+    transformed_vertices = source_mesh.vertices.copy()
     # Node-arc incidence (M in Eq. 10)
-    M = _node_arc_incidence(smesh, True)
+    M = _node_arc_incidence(source_mesh, True)
     # G (Eq. 10)
     G = np.diag([1, 1, 1, gamma])
     # M kronecker G (Eq. 10)
     M_kron_G = sparse.kron(M, G)
     # D (Eq. 8)
-    D = _create_D(smesh.vertices)
+    D = _create_D(source_mesh.vertices)
     # D but for normal computation from the transformations X
-    DN = _create_D(smesh.vertex_normals)
+    DN = _create_D(source_mesh.vertex_normals)
     # Unknowns 4x3 transformations X (Eq. 1)
     X = _create_X(nV)
     # Landmark related terms (Eq. 11)
-    Dl, Ul = _create_Dl_Ul(D, smesh, tmesh, source_landmarks,
+    Dl, Ul = _create_Dl_Ul(D, source_mesh, target_geometry, source_landmarks,
                            target_landmarks, centroid, scale)
 
     # Parameters of the algorithm (Eq. 6)
@@ -581,78 +586,51 @@ def nricp(smesh,
             [0.01, 0, 0.0, 10],
         ]
     if return_records:
-        if use_faces:
-            _, distances, _ = closest_point(tmesh, transformed_vertices)
-            records = [(scale * transformed_vertices + centroid[None, :], distances)]
-        else:
-            distances = kdtree.query(
-                transformed_vertices, k=1, workers=-1)[0]
-            records = [(scale * transformed_vertices + centroid[None, :], distances)]
+        qres = target_geometry.query(transformed_vertices)
+        records = [(scale * transformed_vertices + centroid[None, :], qres.distances)]
 
     # Main loop
     for i, (ws, wl, wn, max_iter) in enumerate(steps):
 
         # If normals are estimated from points and if there are less
         # than 3 points per query, avoid normal estimation
-        if not use_faces and nb_neighbors < 3:
+        if not use_faces and neighbors_count < 3:
             wn = 0
 
-        print(f'Step {i+1}/{len(steps)} : ws={ws}, wl={wl}, wn={wn}')
         last_error = np.finfo(np.float32).max
         error = np.finfo(np.float16).max
         cpt_iter = 0
 
         # Current step iterations loop
-        while last_error - error > eps and (max_iter < 0 or cpt_iter < max_iter):
+        while last_error - error > eps and (max_iter is None or cpt_iter < max_iter):
 
-            if use_faces:
-                # If using faces, use proximity.closest_point
-                nearest, distances, tids = closest_point(tmesh, transformed_vertices)
-                if wn > 0:
-                    if vertex_normals:
-                        # Normal interpolation
-                        barys = points_to_barycentric(
-                            tmesh.vertices[tmesh.faces[tids]], nearest)
-                        tnormals = np.einsum('ij,ijk->ik',
-                                             barys,
-                                             tmesh.vertex_normals[tmesh.faces[tids]])
-                    else:
-                        # Face normal
-                        tnormals = tmesh.face_normals[tids]
-            else:
-                # If using points, use scipy's cKDTree
-                distances, indices = kdtree.query(transformed_vertices,
-                                                  k=nb_neighbors,
-                                                  workers=-1)
-                nearest = tmesh.vertices[indices, :]
-                if wn > 0:
-                    # Estimate normal only if there is normal weighting
-                    tnormals = plane_fit(nearest)[1]
-                if nb_neighbors > 1:
-                    # Focus on the closest match only per source vertex
-                    nearest = nearest[:, 0]
-                    distances = distances[:, 0]
+            qres = target_geometry.query(
+                transformed_vertices,
+                from_vertices_only=not use_faces,
+                return_normals=wn > 0,
+                return_interpolated_normals=wn > 0 and use_vertex_normals,
+                neighbors_count=neighbors_count)
 
             # Data weighting
             wd_vec = np.ones((len(transformed_vertices), 1))
-            wd_vec[distances > distance_treshold] = 0
+            wd_vec[qres.distances > distance_treshold] = 0
 
             if wn > 0:
+                used_normals = qres.normals
+                if use_vertex_normals and qres.interpolated_normals is not None:
+                    used_normals = qres.interpolated_normals
                 # Normal weighting = multiplying wd by cosines^wn
                 snormals = DN * X
-                dot = np.einsum('ij,ij->i', snormals, tnormals)
+                dot = util.diagonal_dot(snormals, used_normals)
                 # Normal orientation is only known for meshes
-                if use_faces:
-                    dot = np.clip(dot, 0, 1)
-                else:
-                    dot = np.abs(dot)
+                dot = np.clip(dot, 0, 1) if use_faces else np.abs(dot)
                 wd_vec = wd_vec * dot[:, None] ** wn
 
             # Actual system solve
-            X = _solve_system(M_kron_G, D, wd_vec, nearest, ws, nE, nV, Dl, Ul, wl)
+            X = _solve_system(M_kron_G, D, wd_vec, qres.nearest, ws, nE, nV, Dl, Ul, wl)
             transformed_vertices = D * X
             last_error = error
-            error_vec = np.linalg.norm(nearest - transformed_vertices, axis=-1)
+            error_vec = np.linalg.norm(qres.nearest - transformed_vertices, axis=-1)
             error = (error_vec * wd_vec).mean()
             if return_records:
                 records.append((scale * transformed_vertices + centroid[None, :],
@@ -660,11 +638,9 @@ def nricp(smesh,
             cpt_iter += 1
 
     # Re-scale the meshes
-    smesh.vertices = scale * smesh.vertices + centroid[None, :]
-    tmesh.vertices = scale * tmesh.vertices + centroid[None, :]
+    source_mesh.vertices = scale * source_mesh.vertices + centroid[None, :]
+    target_geometry.vertices = scale * target_geometry.vertices + centroid[None, :]
 
-    result = smesh.copy()
-    result.vertices = scale * transformed_vertices + centroid[None, :]
     if return_records:
-        return result, records
-    return result
+        return records
+    return scale * transformed_vertices + centroid[None, :]

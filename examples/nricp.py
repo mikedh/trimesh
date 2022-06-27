@@ -38,9 +38,9 @@ if __name__ == '__main__':
     ball_landmarks = np.array([0], dtype=np.int32)
     tooth_landmarks = np.array([0], dtype=np.int32)
 
-    result, records = nricp(ball, tooth, source_landmarks=ball_landmarks,
-                            target_landmarks=tooth_landmarks, steps=steps,
-                            return_records=True)
+    records = nricp(ball, tooth, source_landmarks=ball_landmarks,
+                    target_landmarks=tooth_landmarks, steps=steps,
+                    return_records=True)
     # Show the result
     try:
         import pyvista as pv
@@ -59,5 +59,7 @@ if __name__ == '__main__':
         p.add_slider_widget(cb, rng=(0, len(records)), value=0,
                             color='black', event_type='always')
         p.show()
+
     except ImportError:
-        result.show()
+        ball.vertices = records[-1]
+        ball.show()

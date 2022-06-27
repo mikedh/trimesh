@@ -179,7 +179,7 @@ class RegistrationTest(g.unittest.TestCase):
         ]
         ball_landmarks = g.np.array([0], dtype=g.np.int32)
         tooth_landmarks = g.np.array([0], dtype=g.np.int32)
-        result_no_ldm, records_no_ldm = g.trimesh.registration.nricp(
+        records_no_ldm = g.trimesh.registration.nricp(
             ball, tooth, source_landmarks=ball_landmarks,
             target_landmarks=tooth_landmarks, steps=steps, return_records=True)
 
@@ -187,7 +187,7 @@ class RegistrationTest(g.unittest.TestCase):
         assert g.np.allclose(tooth.vertices, tooth_copy.vertices)
         assert g.np.allclose(ball.vertices, ball_copy.vertices)
         assert records_no_ldm[-1][1].mean() < 0.00011
-        assert not g.np.allclose(ball.vertices, result_no_ldm.vertices)
+        assert not g.np.allclose(ball.vertices, records_no_ldm[-1][0])
 
         # Second step set : wl > 0
         steps = [
@@ -197,17 +197,17 @@ class RegistrationTest(g.unittest.TestCase):
         ]
         # Also test with target shape as a point cloud
         tooth_pc = g.trimesh.PointCloud(tooth.vertices)
-        result_ldm, records_ldm = g.trimesh.registration.nricp(
+        records_ldm = g.trimesh.registration.nricp(
             ball, tooth_pc, source_landmarks=ball_landmarks,
             target_landmarks=tooth_landmarks, steps=steps, return_records=True,
             use_faces=False)
 
         distance_no_ldm = g.np.linalg.norm(
-                result_no_ldm.vertices[ball_landmarks[0]] -
+                records_no_ldm[-1][0][ball_landmarks[0]] -
                 tooth.vertices[tooth_landmarks[0]],
                 axis=-1)
         distance_ldm = g.np.linalg.norm(
-                result_ldm.vertices[ball_landmarks[0]] -
+                records_ldm[-1][0][ball_landmarks[0]] -
                 tooth.vertices[tooth_landmarks[0]],
                 axis=-1)
 
@@ -215,7 +215,7 @@ class RegistrationTest(g.unittest.TestCase):
         assert distance_ldm < 0.03
         assert len(records_ldm) >= 3
         assert records_no_ldm[-1][1].mean() < records_ldm[-1][1].mean()
-        assert not g.np.allclose(ball.vertices, result_ldm.vertices)
+        assert not g.np.allclose(ball.vertices, records_ldm[-1][0])
 
 
 if __name__ == '__main__':
