@@ -1127,6 +1127,30 @@ class Scene(Geometry3D):
         result = append_scenes([self, other],
                                common=[self.graph.base_frame])
         return result
+    
+    def query(self, input_points, **kwargs):
+        """
+        Find the the closest points and associated attributes from this Scene.
+
+        Parameters
+        ------------
+        input_points : (n, 3) float
+            Input query points
+        kwargs : dict
+            Arguments for proximity.query_from_mesh
+        
+        Returns
+        -------------
+        result : dict
+            All the query result for the geometries in self.geometry if they
+            implement the query method.
+        """
+        # TODO : merge the results regarding distance order and
+        #  store geometry name/index in the final result
+        return {name:geom3d.query(input_points, **kwargs)
+                for name, geom3d
+                in self.geometry.items()
+                if issubclass(geom3d, Geometry3D)}
 
 
 def split_scene(geometry, **kwargs):
@@ -1285,3 +1309,5 @@ def append_scenes(iterable, common=['world'], base_frame='world'):
     result.geometry.update(geometry)
 
     return result
+
+
