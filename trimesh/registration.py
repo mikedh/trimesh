@@ -779,7 +779,7 @@ def nricp_sumner(source_mesh,
     if steps is None:
         steps = [
             #[wc, wi, ws, wl, wn],
-            [0, 0.001, 1.0, 1000, 0],
+            [1, 0.001, 1.0, 1000, 0],
             [1, 0.001, 1.0, 1000, 0],
             [10, 0.001, 1.0, 1000, 0],
             [100, 0.001, 1.0, 1000, 0],
@@ -813,7 +813,7 @@ def nricp_sumner(source_mesh,
             Astack.append(AEl * wl)
             Bstack.append(target_positions * wl)
 
-        if i > 0 and wc > 0:
+        if (i > 0 or not use_landmarks) and wc > 0 :
             # Query the nearest points
             qres = target_geometry.query(
                 transformed_vertices[:nV],
