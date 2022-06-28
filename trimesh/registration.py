@@ -5,6 +5,7 @@ registration.py
 Functions for registering (aligning) point clouds with meshes.
 """
 
+from locale import normalize
 import numpy as np
 import scipy.sparse as sparse
 
@@ -14,8 +15,6 @@ from . import transformations
 
 from .transformations import transform_points
 from .points import PointCloud
-from .proximity import closest_point
-from .triangles import points_to_barycentric
 
 try:
     from scipy.spatial import cKDTree
@@ -346,23 +345,64 @@ def icp(a,
     return total_matrix, transformed, cost
 
 
-def nricp(source_mesh,
-          target_geometry,
-          source_landmarks=None,
-          target_landmarks=None,
-          steps=None,
-          eps=0.0001,
-          gamma=1,
-          distance_treshold=0.1,
-          return_records=False,
-          use_faces=True,
-          use_vertex_normals=True,
-          neighbors_count=8):
+def _normalize_by_source(source_mesh, target_geometry, target_positions):
+    # Utility function to put the source mesh in [-1, 1]^3 and transform target geometry accordingly
+    if not util.is_instance_named(target_geometry, 'Trimesh') and \
+            not isinstance(target_geometry, PointCloud):
+        vertices = np.asanyarray(target_geometry)
+        target_geometry = PointCloud(vertices)
+    centroid, scale = source_mesh.centroid, source_mesh.scale
+    source_mesh.vertices = (source_mesh.vertices - centroid[None, :]) / scale
+    # Dont forget to also transform the target positions
+    target_geometry.vertices = (target_geometry.vertices - centroid[None, :]) / scale
+    if target_positions is not None:
+        target_positions = (target_positions - centroid[None, :]) / scale
+    return target_geometry, target_positions, centroid, scale
+
+
+def _denormalize_by_source(source_mesh, target_geometry, target_positions, result, centroid, scale):
+    # Utility function to transform source mesh from [-1, 1]^3 to its original transofrm 
+    # and transform target geometry accordingly
+    source_mesh.vertices = scale * source_mesh.vertices + centroid[None, :]
+    target_geometry.vertices = scale * target_geometry.vertices + centroid[None, :]
+    if target_positions is not None:
+        target_positions = scale * target_positions + centroid[None, :]
+    if isinstance(result, list):
+        result = [scale * x + centroid[None, :] for x in result]
+    else:
+        result = scale * result + centroid[None, :]
+    return result
+
+
+def nricp_amberg(source_mesh,
+                 target_geometry,
+                 source_landmarks=None,
+                 target_positions=None,
+                 steps=None,
+                 eps=0.0001,
+                 gamma=1,
+                 distance_treshold=0.1,
+                 return_records=False,
+                 use_faces=True,
+                 use_vertex_normals=True,
+                 neighbors_count=8):
     """
+    Non Rigid Iterative Closest Points
+
     Implementation of "Amberg et al. 2007: Optimal Step Nonrigid ICP Algorithms
     for Surface Registration."
     Allows to register non-rigidly a mesh on another or on a point cloud.
     The core algorithm is explained at the end of page 3 of the paper.
+
+    Comparison between nricp_amberg and nricp_sumner:
+    * nricp_amberg fits to the target mesh in less steps
+    * nricp_amberg can generate sharp edges (only vertices and their 
+        neighbors are considered)
+    * nricp_sumner tend to preserve more the original shape
+    * nricp_sumner parameters are easier to tune
+    * nricp_sumner solves for triangle positions whereas nricp_amberg solves for
+        vertex transforms
+    * nricp_sumner is less optimized when wn > 0
 
     Parameters
     ----------
@@ -370,14 +410,14 @@ def nricp(source_mesh,
         Source mesh containing both vertices and faces.
     target_geometry : Trimesh or PointCloud or (n, 3) float
         Target geometry. It can contain no faces or be a PointCloud.
-    source_landmarks : (n,) int or (n, 3) float or ((n,) int, (n, 3) float)
+    source_landmarks : (n,) int or ((n,) int, (n, 3) float)
         n landmarks on the the source mesh.
-        Either represented as vertex indices (n,) int or of 3d positions (n, 3).
+        Represented as vertex indices (n,) int.
         It can also be represented as a tuple of triangle indices and barycentric
-        coordinates ((n,) int, (n, 3),).
-    target_landmarks : (n,) int or (n, 3) float or ((n,) int, (n, 3) float)
-        Same as source_landmarks
-    steps : Core parameters of the algorithms
+        coordinates ((n,) int, (n, 3) float,).
+    target_positions : (n, 3) float
+        Target positions assigned to source landmarks
+    steps : Core parameters of the algorithm
         Iterable of iterables (ws, wl, wn, max_iter,).
         ws is smoothness term, wl weights landmark importance, wn normal importance
         and max_iter is the maximum number of iterations per step.
@@ -392,29 +432,30 @@ def nricp(source_mesh,
         If True, also returns all the intermediate results. It can help debugging
         and tune the parameters to match a specific case.
     use_faces : bool
-        If True and if target mesh has faces, use proximity.closest_point to find
+        If True and if target geometry has faces, use proximity.closest_point to find
         matching points. Else use scipy's cKDTree object.
     use_vertex_normals :
-        If True and if target mesh hhas faces, interpolate the normals of the target
-        mesh matching points.
-        Else use face normals or estimated normals if target mesh has no faces.
+        If True and if target geometry has faces, interpolate the normals of the target
+        geometry matching points.
+        Else use face normals or estimated normals if target geometry has no faces.
     neighbors_count :
-        number of neighbors used for normal estimation. Only used if target mesh has
+        number of neighbors used for normal estimation. Only used if target geometry has
         no faces or if use_faces is False.
 
     Returns
     ----------
-    result : Trimesh
-        The source mesh registered non-rigidly onto the target mesh surface.
-    records : List[Tuple((n, 3), (n,))]
-        The vertex positions and error at each intermediate step iterations.
+    result : (n, 3) float or List[(n, 3) float]
+        The vertices positions of source_mesh such that it is registered non-rigidly 
+        onto the target geometry.
+        If return_records is True, it returns the list of the vertex positions at each
+        iteration.
     """
 
-    def _solve_system(M_kron_G, D, wd_vec, nearest, ws, nE, nV, Dl, Ul, wl):
+    def _solve_system(M_kron_G, D, vertices_weight, nearest, ws, nE, nV, Dl, Ul, wl):
         # Solve for Eq. 12
-        U = wd_vec * nearest
+        U = nearest * vertices_weight[:, None]
         use_landmarks = Dl is not None and Ul is not None
-        A_stack = [ws * M_kron_G, D.multiply(wd_vec)]
+        A_stack = [ws * M_kron_G, D.multiply(vertices_weight[:, None])]
         B_shape = (4 * nE + nV, 3)
         if use_landmarks:
             A_stack.append(wl * Dl)
@@ -456,60 +497,17 @@ def nricp(source_mesh,
 
     def _create_Dl_Ul(D,
                       source_mesh,
-                      target_geometry,
                       source_landmarks,
-                      target_landmarks,
-                      centroid,
-                      scale):
+                      target_positions):
         # Create landmark terms (Eq. 11)
-
         Dl, Ul = None, None
-        wrong_landmark_format = ValueError('landmarks must be formatted as a np.ndarray '
-                                           '(n, 3) float (3d positions) or (n,) int '
-                                           '(vertex indices) or as a tuple of two '
-                                           'np.ndarray (n,) int (face indices) and'
-                                           ' (n, 3) float (barycentric coordinates)')
 
-        if source_landmarks is None or target_landmarks is None:
+        if source_landmarks is None or target_positions is None:
             # If no landmarks are provided, return None for both
             return Dl, Ul
-
-        # Retrieve target landmark 3d positions
-        if isinstance(target_landmarks, tuple):
-            target_tids, target_barys = target_landmarks
-            target_points = np.einsum(
-                'ij,ijk->ik',
-                target_barys,
-                target_geometry.vertices[target_geometry.faces[target_tids]])
-        elif isinstance(target_landmarks, np.ndarray):
-            if target_landmarks.ndim == 2:
-                target_points = (target_landmarks - centroid[None, :]) / scale
-            elif target_landmarks.ndim == 1 and target_landmarks.dtype == int:
-                target_points = target_geometry.vertices[target_landmarks]
-            else:
-                raise wrong_landmark_format
-        else:
-            raise wrong_landmark_format
-
-        if isinstance(source_landmarks, np.ndarray) and \
-                source_landmarks.ndim == 2 or \
-                isinstance(source_landmarks, tuple):
-            # If source landmark are provided as barycentric coordinates :
-            # (u, v, w) : barycentric coordinates
-            # x1, x2, x3 : positions of triangle vertices
-            # y : position of target landmark
-            # what we want : u * x1 + v * x2 + w * x3 = y
-            # => u * x1 = y - v * x2 + w * x3
-            # => v * x2 = y - u * x1 + w * x3
-            # => w * x3 = y - u * x1 + v * x2
-            if isinstance(source_landmarks, np.ndarray):
-                source_landmarks = (source_landmarks - centroid[None, :]) / scale
-                _, _, source_tids = closest_point(source_mesh, source_landmarks)
-                source_barys = points_to_barycentric(
-                    source_mesh.vertices[source_mesh.faces[source_tids]],
-                    source_landmarks)
-            else:
-                source_tids, source_barys = source_landmarks
+        
+        if isinstance(source_landmarks, tuple):
+            source_tids, source_barys = source_landmarks
             source_tri_vids = source_mesh.faces[source_tids]
             # u * x1, v * x2 and w * x3 combined
             Dl = D[source_tri_vids.flatten(), :]
@@ -517,46 +515,26 @@ def nricp(source_mesh,
             x0 = source_mesh.vertices[source_tri_vids[:, 0]]
             x1 = source_mesh.vertices[source_tri_vids[:, 1]]
             x2 = source_mesh.vertices[source_tri_vids[:, 2]]
-            Ul0 = target_points - x1 * source_barys[:, 1, None] \
+            Ul0 = target_positions - x1 * source_barys[:, 1, None] \
                 - x2 * source_barys[:, 2, None]
-            Ul1 = target_points - x0 * source_barys[:, 0, None] \
+            Ul1 = target_positions - x0 * source_barys[:, 0, None] \
                 - x2 * source_barys[:, 2, None]
-            Ul2 = target_points - x0 * source_barys[:, 0, None] \
+            Ul2 = target_positions - x0 * source_barys[:, 0, None] \
                 - x1 * source_barys[:, 1, None]
             Ul = np.zeros((Ul0.shape[0] * 3, 3))
             Ul[0::3] = Ul0  # y - v * x2 + w * x3
             Ul[1::3] = Ul1  # y - u * x1 + w * x3
             Ul[2::3] = Ul2  # y - u * x1 + v * x2
-        elif isinstance(source_landmarks, np.ndarray) and \
-                source_landmarks.ndim == 1 and \
-                source_landmarks.dtype == int:
-            # Else if source landmarks are vertex indices, it is much simpler
-            Dl = D[source_landmarks, :]
-            Ul = target_points
         else:
-            raise wrong_landmark_format
+            Dl = D[source_landmarks, :]
+            Ul = target_positions
         return Dl, Ul
+
+    target_geometry, target_positions, centroid, scale = _normalize_by_source(source_mesh, target_geometry, target_positions)
 
     # Number of edges and vertices in source mesh
     nE = len(source_mesh.edges)
     nV = len(source_mesh.vertices)
-
-    # Check if registration target is a mesh or a point cloud
-    if not util.is_instance_named(target_geometry, 'Trimesh') and \
-            not isinstance(target_geometry, PointCloud):
-        vertices = np.asanyarray(target_geometry)
-        target_geometry = PointCloud(vertices)
-
-    from_vertices_only = isinstance(target_geometry, PointCloud) or \
-        len(target_geometry.faces) == 0
-
-    # Center and unitize source and target
-    centroid, scale = source_mesh.centroid, source_mesh.scale
-    source_mesh.vertices = (source_mesh.vertices - centroid[None, :]) / scale
-    target_geometry.vertices = (target_geometry.vertices - centroid[None, :]) / scale
-
-    # Check whether using faces or points for matching point queries
-    use_faces = use_faces and not from_vertices_only
 
     # Initialize transformed vertices
     transformed_vertices = source_mesh.vertices.copy()
@@ -573,8 +551,7 @@ def nricp(source_mesh,
     # Unknowns 4x3 transformations X (Eq. 1)
     X = _create_X(nV)
     # Landmark related terms (Eq. 11)
-    Dl, Ul = _create_Dl_Ul(D, source_mesh, target_geometry, source_landmarks,
-                           target_landmarks, centroid, scale)
+    Dl, Ul = _create_Dl_Ul(D, source_mesh, source_landmarks, target_positions)
 
     # Parameters of the algorithm (Eq. 6)
     # order : Alpha, Beta, normal weighting, and max iteration for step
@@ -586,8 +563,7 @@ def nricp(source_mesh,
             [0.01, 0, 0.0, 10],
         ]
     if return_records:
-        qres = target_geometry.query(transformed_vertices)
-        records = [(scale * transformed_vertices + centroid[None, :], qres.distances)]
+        records = [transformed_vertices]
 
     # Main loop
     for i, (ws, wl, wn, max_iter) in enumerate(steps):
@@ -612,35 +588,280 @@ def nricp(source_mesh,
                 neighbors_count=neighbors_count)
 
             # Data weighting
-            wd_vec = np.ones((len(transformed_vertices), 1))
-            wd_vec[qres.distances > distance_treshold] = 0
+            vertices_weight = np.ones(nV)
+            vertices_weight[qres.distances > distance_treshold] = 0
 
-            if wn > 0:
-                used_normals = qres.normals
+            if wn > 0 and qres.has_normals():
+                target_normals = qres.normals
                 if use_vertex_normals and qres.interpolated_normals is not None:
-                    used_normals = qres.interpolated_normals
-                # Normal weighting = multiplying wd by cosines^wn
-                snormals = DN * X
-                dot = util.diagonal_dot(snormals, used_normals)
-                # Normal orientation is only known for meshes
+                    target_normals = qres.interpolated_normals
+                # Normal weighting = multiplying weights by cosines^wn
+                source_normals = DN * X
+                dot = util.diagonal_dot(source_normals, target_normals)
+                # Normal orientation is only known for meshes as target
                 dot = np.clip(dot, 0, 1) if use_faces else np.abs(dot)
-                wd_vec = wd_vec * dot[:, None] ** wn
+                vertices_weight = vertices_weight * dot ** wn
 
             # Actual system solve
-            X = _solve_system(M_kron_G, D, wd_vec, qres.nearest, ws, nE, nV, Dl, Ul, wl)
+            X = _solve_system(M_kron_G, D, vertices_weight, qres.nearest, ws, nE, nV, Dl, Ul, wl)
             transformed_vertices = D * X
             last_error = error
             error_vec = np.linalg.norm(qres.nearest - transformed_vertices, axis=-1)
-            error = (error_vec * wd_vec).mean()
+            error = (error_vec * vertices_weight).mean()
             if return_records:
-                records.append((scale * transformed_vertices + centroid[None, :],
-                                error_vec))
+                records.append(transformed_vertices)
             cpt_iter += 1
 
-    # Re-scale the meshes
-    source_mesh.vertices = scale * source_mesh.vertices + centroid[None, :]
-    target_geometry.vertices = scale * target_geometry.vertices + centroid[None, :]
+    if return_records:
+        result = records
+    else:
+        result = transformed_vertices
+
+    result = _denormalize_by_source(source_mesh, target_geometry, target_positions, result, centroid, scale)
+    return result
+
+
+def nricp_sumner(source_mesh, 
+                 target_geometry,
+                 source_landmarks=None,
+                 target_positions=None,
+                 steps=None,
+                 distance_treshold=0.1,
+                 return_records=False,
+                 use_faces=True,
+                 use_vertex_normals=True,
+                 neighbors_count=8):
+    """
+    Non Rigid Iterative Closest Points
+
+    Implementation of the correspondence computation part of 
+    "Sumner and Popovic 2004: Deformation Transfer for Triangle Meshes"
+    Allows to register non-rigidly a mesh on another geometry.
+
+    Comparison between nricp_amberg and nricp_sumner:
+    * nricp_amberg fits to the target mesh in less steps
+    * nricp_amberg can generate sharp edges (only vertices and their 
+        neighbors are considered)
+    * nricp_sumner tend to preserve more the original shape
+    * nricp_sumner parameters are easier to tune
+    * nricp_sumner solves for triangle positions whereas nricp_amberg solves for
+        vertex transforms
+    * nricp_sumner is less optimized when wn > 0
+
+    Parameters
+    ----------
+    source_mesh : Trimesh
+        Source mesh containing both vertices and faces.
+    target_geometry : Trimesh or PointCloud or (n, 3) float
+        Target geometry. It can contain no faces or be a PointCloud.
+    source_landmarks : (n,) int or ((n,) int, (n, 3) float)
+        n landmarks on the the source mesh.
+        Represented as vertex indices (n,) int.
+        It can also be represented as a tuple of triangle indices and barycentric
+        coordinates ((n,) int, (n, 3) float,).
+    target_positions : (n, 3) float
+        Target positions assigned to source landmarks
+    steps : Core parameters of the algorithm
+        Iterable of iterables (wc, wi, ws, wl, wn).
+        wc is the correspondence term (strengh of fitting), wi is the identity term
+        (recommanded value : 0.001), ws is smoothness term, wl weights the landmark
+        importance and wn the normal importance.
+    distance_treshold : float
+        Distance threshold to account for a vertex match or not.
+    return_records : bool
+        If True, also returns all the intermediate results. It can help debugging
+        and tune the parameters to match a specific case.
+    use_faces : bool
+        If True and if target geometry has faces, use proximity.closest_point to find
+        matching points. Else use scipy's cKDTree object.
+    use_vertex_normals :
+        If True and if target geometry has faces, interpolate the normals of the target
+        geometry matching points.
+        Else use face normals or estimated normals if target geometry has no faces.
+    neighbors_count :
+        number of neighbors used for normal estimation. Only used if target geometry has
+        no faces or if use_faces is False.
+
+    Returns
+    ----------
+    result : (n, 3) float or List[(n, 3) float]
+        The vertices positions of source_mesh such that it is registered non-rigidly 
+        onto the target geometry.
+        If return_records is True, it returns the list of the vertex positions at each
+        iteration.
+    """
+
+    def _construct_transform_matrix(faces, Vinv, size):
+        # Utility function for constructing the per-frame transforms
+        _construct_transform_matrix._row = np.array([0, 1, 2] * 4)
+        nV = len(Vinv)
+        rows = np.tile(_construct_transform_matrix._row, nV) + 3 * np.repeat(np.arange(nV), 12)
+        cols = np.repeat(faces.flat, 3)
+        minus_inv_sum = -Vinv.sum(axis=1)
+        Vinv_flat = Vinv.reshape(nV, 9)
+        data = np.concatenate((minus_inv_sum, Vinv_flat), axis=-1).flatten()
+        return sparse.coo_matrix((data, (rows, cols)), shape=(3*nV, size), dtype=float) 
+
+    def _build_tetrahedrons(mesh):
+        # UUtility function for constructing the frames
+        v4_vec = mesh.face_normals
+        v1 = mesh.triangles[:, 0]    
+        v2 = mesh.triangles[:, 1]
+        v3 = mesh.triangles[:, 2]    
+        v4 = v1 + v4_vec
+        vertices = np.concatenate((mesh.vertices, v4))
+        nV, nT = len(mesh.vertices), len(mesh.faces)
+        v4_indices = np.arange(nV, nV + nT)[:, None]
+        tetrahedrons = np.concatenate((mesh.faces, v4_indices), axis=-1)
+        frames = np.concatenate(((v2-v1)[..., None],
+                                (v3-v1)[..., None],
+                                v4_vec[..., None]), axis=-1)
+        return vertices, tetrahedrons, frames
+
+    def _construct_identity_cost(vtet, tet, Vinv):
+        # Utility function for constructing the identity cost
+        AEi = _construct_transform_matrix(tet, Vinv, len(vtet),).tocsr()
+        Bi = np.tile(np.identity(3, dtype=float), (len(tet), 1))
+        return AEi, Bi
+
+    def _construct_smoothness_cost(vtet, tet, Vinv, face_neighborhoods):
+        # Utility function for constructing the smoothness (stiffness) cost
+        AEs_r = _construct_transform_matrix(tet[face_neighborhoods[:, 0]], Vinv[face_neighborhoods[:, 0]], len(vtet),).tocsr()
+        AEs_l = _construct_transform_matrix(tet[face_neighborhoods[:, 1]], Vinv[face_neighborhoods[:, 1]], len(vtet),).tocsr()
+        AEs = (AEs_r - AEs_l).tocsc()
+        AEs.eliminate_zeros()
+        Bs = np.zeros((len(face_neighborhoods) * 3, 3))
+        return AEs, Bs
+
+    def _construct_landmark_cost(vtet, source_mesh, source_landmarks):
+        # Utility function for constructing the landmark cost
+        if source_landmarks is None:
+            return None, np.ones(len(source_mesh.vertices), dtype=bool)
+        if isinstance(source_landmarks, tuple):
+            # If the input source landmarks are in barycentric form
+            source_landmarks_tids, source_landmarks_barys = source_landmarks
+            source_landmarks_vids = source_mesh.faces[source_landmarks_tids]
+            nL, nVT = len(source_landmarks_tids), len(vtet)
+
+            rows = np.repeat(np.arange(nL), 3)
+            cols = source_landmarks_vids.flat
+            data = source_landmarks_barys.flat
+
+            AEl = sparse.coo_matrix((data, (rows, cols)), shape=(nL, nVT))
+            marker_vids = source_landmarks_vids[source_landmarks_barys > np.finfo(np.float16).eps]
+            non_markers_mask = np.ones(len(source_mesh.vertices), dtype=bool)
+            non_markers_mask[marker_vids] = False
+        else:
+            # Else if they are in vertex index form
+            nL, nVT = len(source_landmarks), len(vtet)
+            rows = np.arange(nL)
+            cols = source_landmarks.flat
+            data = np.ones(nL)
+            AEl = sparse.coo_matrix((data, (rows, cols)), shape=(nL, nVT))
+            non_markers_mask = np.ones(len(source_mesh.vertices), dtype=bool)
+            non_markers_mask[source_landmarks] = False
+        return AEl, non_markers_mask
+
+    def _construct_correspondence_cost(points, non_markers_mask, size):
+        # Utility function for constructing the correspondence cost
+        AEc = sparse.identity(size, dtype=float, format="csc")[:len(non_markers_mask)]
+        AEc = AEc[non_markers_mask]
+        Bc = points[non_markers_mask]
+        return AEc, Bc
+    
+    # First, normalize the source and target to [-1, 1]^3
+    target_geometry, target_positions, centroid, scale = _normalize_by_source(source_mesh, target_geometry, target_positions)
+
+    nV = len(source_mesh.vertices)
+
+    use_landmarks = source_landmarks is not None and target_positions is not None
+
+    if steps is None:
+        steps = [
+            #[wc, wi, ws, wl, wn],
+            [0, 0.001, 1.0, 1000, 0],
+            [1, 0.001, 1.0, 1000, 0],
+            [10, 0.001, 1.0, 1000, 0],
+            [100, 0.001, 1.0, 1000, 0],
+        ]
+
+    source_vtet, source_tet, V = _build_tetrahedrons(source_mesh)
+    Vinv = np.linalg.inv(V)
+    
+    # List of (n, 2) faces index which share a vertex
+    face_neighborhoods = source_mesh.face_neighborhood
+    
+    # Construct the cost matrices
+    # Identity cost (Eq. 12)
+    AEi, Bi = _construct_identity_cost(source_vtet, source_tet, Vinv)
+    # Smoothness cost (Eq. 11)
+    AEs, Bs = _construct_smoothness_cost(source_vtet, source_tet, Vinv, face_neighborhoods)
+    # Landmark cost (Eq. 13)
+    AEl, non_markers_mask = _construct_landmark_cost(source_vtet, source_mesh, source_landmarks)
+    
+    transformed_vertices = source_vtet.copy()
+    if return_records:
+        records = [transformed_vertices[:nV]]
+
+    # Main loop
+    for i, (wc, wi, ws, wl, wn) in enumerate(steps):
+        
+        Astack = [AEi * wi, AEs * ws]
+        Bstack = [Bi * wi, Bs * ws]
+
+        if use_landmarks:
+            Astack.append(AEl * wl)
+            Bstack.append(target_positions * wl)
+
+        if i > 0 and wc > 0:
+            # Query the nearest points
+            qres = target_geometry.query(
+                transformed_vertices[:nV],
+                from_vertices_only=not use_faces,
+                return_normals=wn > 0,
+                return_interpolated_normals=wn > 0 and use_vertex_normals,
+                neighbors_count=neighbors_count)
+
+            # Correspondence cost (Eq. 13)
+            AEc, Bc = _construct_correspondence_cost(qres.nearest, non_markers_mask, len(source_vtet))
+            
+            vertices_weight = np.ones(nV)
+            vertices_weight[qres.distances > distance_treshold] = 0
+            if wn > 0 or qres.has_normals():
+                target_normals = qres.normals
+                if use_vertex_normals and qres.interpolated_normals is not None:
+                    target_normals = qres.interpolated_normals
+                # Normal weighting = multiplying weights by cosines^wn
+                from .base import Trimesh
+                source_normals = Trimesh(transformed_vertices[:nV], source_mesh.faces, process=False).vertex_normals
+                dot = util.diagonal_dot(source_normals, target_normals)
+                # Normal orientation is only known for meshes as target
+                dot = np.clip(dot, 0, 1) if use_faces else np.abs(dot)
+                vertices_weight = vertices_weight * dot ** wn
+
+            # Account for vertices' weight
+            AEc.data *= vertices_weight[non_markers_mask][AEc.indices]
+            Bc *= vertices_weight[non_markers_mask, None]
+
+            Astack.append(AEc * wc)
+            Bstack.append(Bc * wc)
+
+        # Now solve Eq. 14 ...
+        A = sparse.vstack(Astack, format="csc")
+        A.eliminate_zeros()
+        b = np.concatenate(Bstack)
+
+        LU = sparse.linalg.splu((A.T * A).tocsc())
+        transformed_vertices = LU.solve(A.T * b)
+        # done !
+
+        if return_records:
+            records.append(transformed_vertices[:nV])
 
     if return_records:
-        return records
-    return scale * transformed_vertices + centroid[None, :]
+        result = records
+    else:
+        transformed_vertices[:nV]
+
+    result = _denormalize_by_source(source_mesh, target_geometry, target_positions, result, centroid, scale)
+    return result
