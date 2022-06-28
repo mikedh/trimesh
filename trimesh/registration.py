@@ -5,7 +5,6 @@ registration.py
 Functions for registering (aligning) point clouds with meshes.
 """
 
-from locale import normalize
 import numpy as np
 import scipy.sparse as sparse
 
@@ -346,7 +345,8 @@ def icp(a,
 
 
 def _normalize_by_source(source_mesh, target_geometry, target_positions):
-    # Utility function to put the source mesh in [-1, 1]^3 and transform target geometry accordingly
+    # Utility function to put the source mesh in [-1, 1]^3 and transform
+    # target geometry accordingly
     if not util.is_instance_named(target_geometry, 'Trimesh') and \
             not isinstance(target_geometry, PointCloud):
         vertices = np.asanyarray(target_geometry)
@@ -360,8 +360,9 @@ def _normalize_by_source(source_mesh, target_geometry, target_positions):
     return target_geometry, target_positions, centroid, scale
 
 
-def _denormalize_by_source(source_mesh, target_geometry, target_positions, result, centroid, scale):
-    # Utility function to transform source mesh from [-1, 1]^3 to its original transofrm 
+def _denormalize_by_source(source_mesh, target_geometry, target_positions, result,
+                           centroid, scale):
+    # Utility function to transform source mesh from [-1, 1]^3 to its original transform
     # and transform target geometry accordingly
     source_mesh.vertices = scale * source_mesh.vertices + centroid[None, :]
     target_geometry.vertices = scale * target_geometry.vertices + centroid[None, :]
@@ -396,7 +397,7 @@ def nricp_amberg(source_mesh,
 
     Comparison between nricp_amberg and nricp_sumner:
     * nricp_amberg fits to the target mesh in less steps
-    * nricp_amberg can generate sharp edges (only vertices and their 
+    * nricp_amberg can generate sharp edges (only vertices and their
         neighbors are considered)
     * nricp_sumner tend to preserve more the original shape
     * nricp_sumner parameters are easier to tune
@@ -445,7 +446,7 @@ def nricp_amberg(source_mesh,
     Returns
     ----------
     result : (n, 3) float or List[(n, 3) float]
-        The vertices positions of source_mesh such that it is registered non-rigidly 
+        The vertices positions of source_mesh such that it is registered non-rigidly
         onto the target geometry.
         If return_records is True, it returns the list of the vertex positions at each
         iteration.
@@ -505,7 +506,7 @@ def nricp_amberg(source_mesh,
         if source_landmarks is None or target_positions is None:
             # If no landmarks are provided, return None for both
             return Dl, Ul
-        
+
         if isinstance(source_landmarks, tuple):
             source_tids, source_barys = source_landmarks
             source_tri_vids = source_mesh.faces[source_tids]
@@ -530,7 +531,8 @@ def nricp_amberg(source_mesh,
             Ul = target_positions
         return Dl, Ul
 
-    target_geometry, target_positions, centroid, scale = _normalize_by_source(source_mesh, target_geometry, target_positions)
+    target_geometry, target_positions, centroid, scale = \
+        _normalize_by_source(source_mesh, target_geometry, target_positions)
 
     # Number of edges and vertices in source mesh
     nE = len(source_mesh.edges)
@@ -603,7 +605,8 @@ def nricp_amberg(source_mesh,
                 vertices_weight = vertices_weight * dot ** wn
 
             # Actual system solve
-            X = _solve_system(M_kron_G, D, vertices_weight, qres.nearest, ws, nE, nV, Dl, Ul, wl)
+            X = _solve_system(M_kron_G, D, vertices_weight, qres.nearest,
+                              ws, nE, nV, Dl, Ul, wl)
             transformed_vertices = D * X
             last_error = error
             error_vec = np.linalg.norm(qres.nearest - transformed_vertices, axis=-1)
@@ -617,11 +620,12 @@ def nricp_amberg(source_mesh,
     else:
         result = transformed_vertices
 
-    result = _denormalize_by_source(source_mesh, target_geometry, target_positions, result, centroid, scale)
+    result = _denormalize_by_source(source_mesh, target_geometry, target_positions,
+                                    result, centroid, scale)
     return result
 
 
-def nricp_sumner(source_mesh, 
+def nricp_sumner(source_mesh,
                  target_geometry,
                  source_landmarks=None,
                  target_positions=None,
@@ -634,13 +638,13 @@ def nricp_sumner(source_mesh,
     """
     Non Rigid Iterative Closest Points
 
-    Implementation of the correspondence computation part of 
+    Implementation of the correspondence computation part of
     "Sumner and Popovic 2004: Deformation Transfer for Triangle Meshes"
     Allows to register non-rigidly a mesh on another geometry.
 
     Comparison between nricp_amberg and nricp_sumner:
     * nricp_amberg fits to the target mesh in less steps
-    * nricp_amberg can generate sharp edges (only vertices and their 
+    * nricp_amberg can generate sharp edges (only vertices and their
         neighbors are considered)
     * nricp_sumner tend to preserve more the original shape
     * nricp_sumner parameters are easier to tune
@@ -663,8 +667,8 @@ def nricp_sumner(source_mesh,
         Target positions assigned to source landmarks
     steps : Core parameters of the algorithm
         Iterable of iterables (wc, wi, ws, wl, wn).
-        wc is the correspondence term (strengh of fitting), wi is the identity term
-        (recommanded value : 0.001), ws is smoothness term, wl weights the landmark
+        wc is the correspondence term (strength of fitting), wi is the identity term
+        (recommended value : 0.001), ws is smoothness term, wl weights the landmark
         importance and wn the normal importance.
     distance_treshold : float
         Distance threshold to account for a vertex match or not.
@@ -685,7 +689,7 @@ def nricp_sumner(source_mesh,
     Returns
     ----------
     result : (n, 3) float or List[(n, 3) float]
-        The vertices positions of source_mesh such that it is registered non-rigidly 
+        The vertices positions of source_mesh such that it is registered non-rigidly
         onto the target geometry.
         If return_records is True, it returns the list of the vertex positions at each
         iteration.
@@ -695,26 +699,27 @@ def nricp_sumner(source_mesh,
         # Utility function for constructing the per-frame transforms
         _construct_transform_matrix._row = np.array([0, 1, 2] * 4)
         nV = len(Vinv)
-        rows = np.tile(_construct_transform_matrix._row, nV) + 3 * np.repeat(np.arange(nV), 12)
+        rows = np.tile(_construct_transform_matrix._row, nV) \
+            + 3 * np.repeat(np.arange(nV), 12)
         cols = np.repeat(faces.flat, 3)
         minus_inv_sum = -Vinv.sum(axis=1)
         Vinv_flat = Vinv.reshape(nV, 9)
         data = np.concatenate((minus_inv_sum, Vinv_flat), axis=-1).flatten()
-        return sparse.coo_matrix((data, (rows, cols)), shape=(3*nV, size), dtype=float) 
+        return sparse.coo_matrix((data, (rows, cols)), shape=(3 * nV, size), dtype=float)
 
     def _build_tetrahedrons(mesh):
         # UUtility function for constructing the frames
         v4_vec = mesh.face_normals
-        v1 = mesh.triangles[:, 0]    
+        v1 = mesh.triangles[:, 0]
         v2 = mesh.triangles[:, 1]
-        v3 = mesh.triangles[:, 2]    
+        v3 = mesh.triangles[:, 2]
         v4 = v1 + v4_vec
         vertices = np.concatenate((mesh.vertices, v4))
         nV, nT = len(mesh.vertices), len(mesh.faces)
         v4_indices = np.arange(nV, nV + nT)[:, None]
         tetrahedrons = np.concatenate((mesh.faces, v4_indices), axis=-1)
-        frames = np.concatenate(((v2-v1)[..., None],
-                                (v3-v1)[..., None],
+        frames = np.concatenate(((v2 - v1)[..., None],
+                                (v3 - v1)[..., None],
                                 v4_vec[..., None]), axis=-1)
         return vertices, tetrahedrons, frames
 
@@ -726,8 +731,12 @@ def nricp_sumner(source_mesh,
 
     def _construct_smoothness_cost(vtet, tet, Vinv, face_neighborhoods):
         # Utility function for constructing the smoothness (stiffness) cost
-        AEs_r = _construct_transform_matrix(tet[face_neighborhoods[:, 0]], Vinv[face_neighborhoods[:, 0]], len(vtet),).tocsr()
-        AEs_l = _construct_transform_matrix(tet[face_neighborhoods[:, 1]], Vinv[face_neighborhoods[:, 1]], len(vtet),).tocsr()
+        AEs_r = _construct_transform_matrix(tet[face_neighborhoods[:, 0]],
+                                            Vinv[face_neighborhoods[:, 0]],
+                                            len(vtet)).tocsr()
+        AEs_l = _construct_transform_matrix(tet[face_neighborhoods[:, 1]],
+                                            Vinv[face_neighborhoods[:, 1]],
+                                            len(vtet)).tocsr()
         AEs = (AEs_r - AEs_l).tocsc()
         AEs.eliminate_zeros()
         Bs = np.zeros((len(face_neighborhoods) * 3, 3))
@@ -748,7 +757,8 @@ def nricp_sumner(source_mesh,
             data = source_landmarks_barys.flat
 
             AEl = sparse.coo_matrix((data, (rows, cols)), shape=(nL, nVT))
-            marker_vids = source_landmarks_vids[source_landmarks_barys > np.finfo(np.float16).eps]
+            marker_vids = \
+                source_landmarks_vids[source_landmarks_barys > np.finfo(np.float16).eps]
             non_markers_mask = np.ones(len(source_mesh.vertices), dtype=bool)
             non_markers_mask[marker_vids] = False
         else:
@@ -768,9 +778,10 @@ def nricp_sumner(source_mesh,
         AEc = AEc[non_markers_mask]
         Bc = points[non_markers_mask]
         return AEc, Bc
-    
+
     # First, normalize the source and target to [-1, 1]^3
-    target_geometry, target_positions, centroid, scale = _normalize_by_source(source_mesh, target_geometry, target_positions)
+    target_geometry, target_positions, centroid, scale = \
+        _normalize_by_source(source_mesh, target_geometry, target_positions)
 
     nV = len(source_mesh.vertices)
 
@@ -778,7 +789,7 @@ def nricp_sumner(source_mesh,
 
     if steps is None:
         steps = [
-            #[wc, wi, ws, wl, wn],
+            # [wc, wi, ws, wl, wn],
             [1, 0.001, 1.0, 1000, 0],
             [1, 0.001, 1.0, 1000, 0],
             [10, 0.001, 1.0, 1000, 0],
@@ -787,25 +798,27 @@ def nricp_sumner(source_mesh,
 
     source_vtet, source_tet, V = _build_tetrahedrons(source_mesh)
     Vinv = np.linalg.inv(V)
-    
+
     # List of (n, 2) faces index which share a vertex
     face_neighborhoods = source_mesh.face_neighborhood
-    
+
     # Construct the cost matrices
     # Identity cost (Eq. 12)
     AEi, Bi = _construct_identity_cost(source_vtet, source_tet, Vinv)
     # Smoothness cost (Eq. 11)
-    AEs, Bs = _construct_smoothness_cost(source_vtet, source_tet, Vinv, face_neighborhoods)
+    AEs, Bs = _construct_smoothness_cost(source_vtet, source_tet,
+                                         Vinv, face_neighborhoods)
     # Landmark cost (Eq. 13)
-    AEl, non_markers_mask = _construct_landmark_cost(source_vtet, source_mesh, source_landmarks)
-    
+    AEl, non_markers_mask = _construct_landmark_cost(source_vtet, source_mesh,
+                                                     source_landmarks)
+
     transformed_vertices = source_vtet.copy()
     if return_records:
         records = [transformed_vertices[:nV]]
 
     # Main loop
     for i, (wc, wi, ws, wl, wn) in enumerate(steps):
-        
+
         Astack = [AEi * wi, AEs * ws]
         Bstack = [Bi * wi, Bs * ws]
 
@@ -813,7 +826,7 @@ def nricp_sumner(source_mesh,
             Astack.append(AEl * wl)
             Bstack.append(target_positions * wl)
 
-        if (i > 0 or not use_landmarks) and wc > 0 :
+        if (i > 0 or not use_landmarks) and wc > 0:
             # Query the nearest points
             qres = target_geometry.query(
                 transformed_vertices[:nV],
@@ -823,8 +836,10 @@ def nricp_sumner(source_mesh,
                 neighbors_count=neighbors_count)
 
             # Correspondence cost (Eq. 13)
-            AEc, Bc = _construct_correspondence_cost(qres.nearest, non_markers_mask, len(source_vtet))
-            
+            AEc, Bc = _construct_correspondence_cost(qres.nearest,
+                                                     non_markers_mask,
+                                                     len(source_vtet))
+
             vertices_weight = np.ones(nV)
             vertices_weight[qres.distances > distance_treshold] = 0
             if wn > 0 or qres.has_normals():
@@ -833,7 +848,9 @@ def nricp_sumner(source_mesh,
                     target_normals = qres.interpolated_normals
                 # Normal weighting = multiplying weights by cosines^wn
                 from .base import Trimesh
-                source_normals = Trimesh(transformed_vertices[:nV], source_mesh.faces, process=False).vertex_normals
+                source_normals = Trimesh(transformed_vertices[:nV],
+                                         source_mesh.faces,
+                                         process=False).vertex_normals
                 dot = util.diagonal_dot(source_normals, target_normals)
                 # Normal orientation is only known for meshes as target
                 dot = np.clip(dot, 0, 1) if use_faces else np.abs(dot)
@@ -863,5 +880,6 @@ def nricp_sumner(source_mesh,
     else:
         transformed_vertices[:nV]
 
-    result = _denormalize_by_source(source_mesh, target_geometry, target_positions, result, centroid, scale)
+    result = _denormalize_by_source(source_mesh, target_geometry, target_positions,
+                                    result, centroid, scale)
     return result

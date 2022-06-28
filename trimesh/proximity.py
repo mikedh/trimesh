@@ -297,7 +297,7 @@ class NearestQueryResult:
     barycentric_coordinates = None
     interpolated_normals = None
     vertex_indices = None
-  
+
     def has_normals(self):
         return self.normals is not None or self.interpolated_normals is not None
 

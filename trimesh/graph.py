@@ -111,6 +111,7 @@ def face_adjacency(faces=None,
         return adjacency, adjacency_edges
     return adjacency
 
+
 def face_neighborhood(mesh):
     """
     Find faces that share a vertex i.e. 'neighbors' faces.
