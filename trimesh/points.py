@@ -693,6 +693,8 @@ class PointCloud(Geometry3D):
           Input query points
         kwargs : dict
           Arguments for proximity.query_from_points
+        result : proximity.NearestQueryResult
+            Result of the query.
         """
         from .proximity import query_from_points
         return query_from_points(self.vertices, input_points, self.kdtree, **kwargs)

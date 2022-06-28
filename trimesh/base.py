@@ -3012,6 +3012,11 @@ class Trimesh(Geometry3D):
           Input query points
         kwargs : dict
           Arguments for proximity.query_from_mesh
+
+        Returns
+        -------------
+        result : proximity.NearestQueryResult
+            Result of the query.
         """
         return proximity.query_from_mesh(self, input_points, **kwargs)
 
