@@ -159,64 +159,132 @@ class RegistrationTest(g.unittest.TestCase):
         assert distance.mean() < noise
 
     def test_nricp(self):
+        
+            # Get two meshes that have a comparable shape
+        source = g.get_mesh('reference.obj', process=False)
+        target = g.get_mesh('target.obj', process=False)
 
-        tooth = g.get_mesh('busted.STL', process=False)
-        ball = g.get_mesh('ballA.off', process=False)
+        # Vertex indices of landmarks source / target
+        landmarks_vertex_indices = g.np.array([
+            [177, 1633],
+            [181, 1561],
+            [614, 1556],
+            [610, 1629],
+            [114, 315],
+            [398, 413],
+            [812, 412],
+            [227, 99],
+            [241, 87],
+            [674, 86],
+            [660, 98],
+            [362, 574],
+            [779, 573],
+        ])
 
-        # Center the meshes together
-        tooth.vertices = ball.scale * (tooth.vertices - tooth.centroid[None, :])\
-            / tooth.scale + ball.centroid
+        source_markers_vertices = source.vertices[landmarks_vertex_indices[:, 0]]
+        target_markers_vertices = target.vertices[landmarks_vertex_indices[:, 1]]
 
+        T = g.trimesh.registration.procrustes(source_markers_vertices, target_markers_vertices)[0]
+        source.vertices = g.trimesh.transformations.transform_points(source.vertices, T)
+
+        # Just for the sake of using barycentric coordinates...
+        use_barycentric_coordinates = True
+        if use_barycentric_coordinates:
+            source_markers_vertices = source.vertices[landmarks_vertex_indices[:, 0]]
+            source_markers_tids =  g.trimesh.proximity.closest_point(source, source_markers_vertices)[2]
+            source_markers_barys = g.trimesh.triangles.points_to_barycentric(source.triangles[source_markers_tids], source_markers_vertices)
+            source_landmarks = (source_markers_tids, source_markers_barys)
+        else:
+            source_landmarks = landmarks_vertex_indices[:, 0]
         # Make copies to check nothing is modified
-        tooth_copy = tooth.copy()
-        ball_copy = ball.copy()
+        source_copy = source.copy()
+        target_copy = target.copy()
 
-        # First step set : wl = 0
-        steps = [
-            [0.02, 0, 0.5, 10],
-            [0.007, 0.0, 0.5, 10],
-            [0.002, 0.0, 0.0, 10],
+        # Parameters for nricp_amberg
+        wl = 3
+        max_iter = 10
+        wn = 0.5
+        steps_amberg = [
+            # ws, wl, wn, max_iter
+            [0.02, wl, wn, max_iter],
+            [0.007, wl, wn, max_iter],
+            [0.002, wl, wn, max_iter],
         ]
-        ball_landmarks = g.np.array([0], dtype=g.np.int32)
-        tooth_landmarks = g.np.array([0], dtype=g.np.int32)
-        records_no_ldm = g.trimesh.registration.nricp(
-            ball, tooth, source_landmarks=ball_landmarks,
-            target_landmarks=tooth_landmarks, steps=steps, return_records=True)
 
-        assert len(records_no_ldm) >= 3
-        assert g.np.allclose(tooth.vertices, tooth_copy.vertices)
-        assert g.np.allclose(ball.vertices, ball_copy.vertices)
-        assert records_no_ldm[-1][1].mean() < 0.00011
-        assert not g.np.allclose(ball.vertices, records_no_ldm[-1][0])
-
-        # Second step set : wl > 0
-        steps = [
-            [0.02, 5, 0.5, 10],
-            [0.007, 5, 0.5, 10],
-            [0.002, 5, 0.0, 10],
+        # Parameters for nricp_sumner
+        wl = 1000
+        wi = 0.0001
+        ws = 1
+        wn = 1
+        steps_sumner = [
+            # wc, wi, ws, wl, wn
+            [0.1, wi, ws, wl, wn],
+            [0.1, wi, ws, wl, wn],
+            [1, wi, ws, wl, wn],
+            [5, wi, ws, wl, wn],
+            [10, wi, ws, wl, wn],
+            [50, wi, ws, wl, wn],
+            [100, wi, ws, wl, wn],
+            [1000, wi, ws, wl, wn],
+            [10000, wi, ws, wl, wn],
         ]
-        # Also test with target shape as a point cloud
-        tooth_pc = g.trimesh.PointCloud(tooth.vertices)
-        records_ldm = g.trimesh.registration.nricp(
-            ball, tooth_pc, source_landmarks=ball_landmarks,
-            target_landmarks=tooth_landmarks, steps=steps, return_records=True,
-            use_faces=False)
+        # Amberg et. al 2007
+        records_amberg_no_ldm = g.trimesh.registration.nricp_amberg(source, target, distance_treshold=0.05, steps=steps_amberg, return_records=True)
+        records_amberg_ldm = g.trimesh.registration.nricp_amberg(source, target, source_landmarks=source_landmarks, distance_treshold=0.05,
+                            target_positions=target_markers_vertices, steps=steps_amberg,
+                            return_records=True)
+        # Sumner and Popovic 2004
+        records_sumner_no_ldm = g.trimesh.registration.nricp_sumner(source, target, distance_treshold=0.05, steps=steps_sumner, return_records=True)
+        records_sumner_ldm = g.trimesh.registration.nricp_sumner(source, target, source_landmarks=source_landmarks, distance_treshold=0.05,
+                           target_positions=target_markers_vertices, steps=steps_sumner,
+                           return_records=True)
+    
+        d_amberg_no_ldm = g.trimesh.proximity.closest_point(target, records_amberg_no_ldm[-1])[1]
+        d_amberg_ldm = g.trimesh.proximity.closest_point(target, records_amberg_ldm[-1])[1]
+        d_sumner_no_ldm = g.trimesh.proximity.closest_point(target, records_sumner_no_ldm[-1])[1]
+        d_sumner_ldm = g.trimesh.proximity.closest_point(target, records_sumner_ldm[-1])[1]
 
-        distance_no_ldm = g.np.linalg.norm(
-                records_no_ldm[-1][0][ball_landmarks[0]] -
-                tooth.vertices[tooth_landmarks[0]],
-                axis=-1)
-        distance_ldm = g.np.linalg.norm(
-                records_ldm[-1][0][ball_landmarks[0]] -
-                tooth.vertices[tooth_landmarks[0]],
-                axis=-1)
+        # Meshes should remain untouched
+        assert g.np.allclose(source.vertices, source_copy.vertices)
+        assert g.np.allclose(target.vertices, target_copy.vertices)
 
-        assert distance_no_ldm > 11.0
-        assert distance_ldm < 0.03
-        assert len(records_ldm) >= 3
-        assert records_no_ldm[-1][1].mean() < records_ldm[-1][1].mean()
-        assert not g.np.allclose(ball.vertices, records_ldm[-1][0])
+        # Basically a lot of check to check if the return values change somehow
+        assert d_amberg_no_ldm.min() < 1e-7
+        assert d_amberg_no_ldm.max() > 0.05
+        assert d_amberg_no_ldm.mean() < 1e-3
 
+        assert d_amberg_ldm.min() > 1e-7
+        assert d_amberg_ldm.max() < 0.06
+        assert d_amberg_ldm.mean() < 1e-3
+
+        assert d_sumner_no_ldm.min() < 1e-8
+        assert d_sumner_no_ldm.max() < 0.03
+        assert d_sumner_no_ldm.mean() < 1e-3
+
+        assert d_sumner_ldm.min() < 1e-8
+        assert d_sumner_ldm.max() > 0.05
+        assert d_sumner_ldm.mean() < 1e-3
+        
+        dl_amberg_no_ldm = g.np.linalg.norm(records_amberg_no_ldm[-1][landmarks_vertex_indices[:, 0]] - target_markers_vertices, axis=-1)
+        dl_amberg_ldm = g.np.linalg.norm(records_amberg_ldm[-1][landmarks_vertex_indices[:, 0]] - target_markers_vertices, axis=-1)
+        dl_sumner_no_ldm = g.np.linalg.norm(records_sumner_no_ldm[-1][landmarks_vertex_indices[:, 0]] - target_markers_vertices, axis=-1)
+        dl_sumner_ldm = g.np.linalg.norm(records_sumner_ldm[-1][landmarks_vertex_indices[:, 0]] - target_markers_vertices, axis=-1)
+
+        assert dl_amberg_no_ldm.min() > 0.01
+        assert dl_amberg_no_ldm.max() > 0.1
+        assert dl_amberg_no_ldm.mean() > 0.05
+
+        assert dl_amberg_ldm.min() < 0.0002
+        assert dl_amberg_ldm.max() < 0.001
+        assert dl_amberg_ldm.mean() < 0.0004
+
+        assert dl_sumner_no_ldm.min() > 0.01
+        assert dl_sumner_no_ldm.max() > 0.1
+        assert dl_sumner_no_ldm.mean() > 0.05
+
+        assert dl_sumner_ldm.min() < 0.0007
+        assert dl_sumner_ldm.max() < 0.006
+        assert dl_sumner_ldm.mean() < 0.004  
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
