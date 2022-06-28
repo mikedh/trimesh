@@ -1342,6 +1342,18 @@ class Trimesh(Geometry3D):
         return adjacency
 
     @caching.cache_decorator
+    def face_neighborhood(self):
+        """
+        Find faces that share a vertex i.e. 'neighbors' faces.
+
+        Returns
+        ----------
+        neighborhood : (n, 2) int
+          Pairs of faces which share a vertex
+        """
+        return graph.face_neighborhood(self)
+
+    @caching.cache_decorator
     def face_adjacency_edges(self):
         """
         Returns the edges that are shared by the adjacent faces.
