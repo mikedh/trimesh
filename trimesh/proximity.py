@@ -288,6 +288,7 @@ class NearestQueryResult:
     """
     Stores the nearest points and attributes for nearest points queries.
     """
+
     def __init__(self):
         self.nearest = None
         self.distances = None

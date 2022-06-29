@@ -437,11 +437,11 @@ def nricp_amberg(source_mesh,
     use_faces : bool
         If True and if target geometry has faces, use proximity.closest_point to find
         matching points. Else use scipy's cKDTree object.
-    use_vertex_normals :
+    use_vertex_normals : bool
         If True and if target geometry has faces, interpolate the normals of the target
         geometry matching points.
         Else use face normals or estimated normals if target geometry has no faces.
-    neighbors_count :
+    neighbors_count : int
         number of neighbors used for normal estimation. Only used if target geometry has
         no faces or if use_faces is False.
 
@@ -636,7 +636,8 @@ def nricp_sumner(source_mesh,
                  return_records=False,
                  use_faces=True,
                  use_vertex_normals=True,
-                 neighbors_count=8):
+                 neighbors_count=8,
+                 face_pairs_type='vertex'):
     """
     Non Rigid Iterative Closest Points
 
@@ -680,13 +681,17 @@ def nricp_sumner(source_mesh,
     use_faces : bool
         If True and if target geometry has faces, use proximity.closest_point to find
         matching points. Else use scipy's cKDTree object.
-    use_vertex_normals :
+    use_vertex_normals : bool
         If True and if target geometry has faces, interpolate the normals of the target
         geometry matching points.
         Else use face normals or estimated normals if target geometry has no faces.
-    neighbors_count :
+    neighbors_count : int
         number of neighbors used for normal estimation. Only used if target geometry has
         no faces or if use_faces is False.
+    face_pairs_type : str 'vertex' or 'edge'
+        Method to determine face pairs used in the smoothness cost. 'vertex' yields
+        smoother results.
+
 
     Returns
     ----------
@@ -731,17 +736,17 @@ def nricp_sumner(source_mesh,
         Bi = np.tile(np.identity(3, dtype=float), (len(tet), 1))
         return AEi, Bi
 
-    def _construct_smoothness_cost(vtet, tet, Vinv, face_neighborhoods):
+    def _construct_smoothness_cost(vtet, tet, Vinv, face_pairs):
         # Utility function for constructing the smoothness (stiffness) cost
-        AEs_r = _construct_transform_matrix(tet[face_neighborhoods[:, 0]],
-                                            Vinv[face_neighborhoods[:, 0]],
+        AEs_r = _construct_transform_matrix(tet[face_pairs[:, 0]],
+                                            Vinv[face_pairs[:, 0]],
                                             len(vtet)).tocsr()
-        AEs_l = _construct_transform_matrix(tet[face_neighborhoods[:, 1]],
-                                            Vinv[face_neighborhoods[:, 1]],
+        AEs_l = _construct_transform_matrix(tet[face_pairs[:, 1]],
+                                            Vinv[face_pairs[:, 1]],
                                             len(vtet)).tocsr()
         AEs = (AEs_r - AEs_l).tocsc()
         AEs.eliminate_zeros()
-        Bs = np.zeros((len(face_neighborhoods) * 3, 3))
+        Bs = np.zeros((len(face_pairs) * 3, 3))
         return AEs, Bs
 
     def _construct_landmark_cost(vtet, source_mesh, source_landmarks):
@@ -802,14 +807,17 @@ def nricp_sumner(source_mesh,
     Vinv = np.linalg.inv(V)
 
     # List of (n, 2) faces index which share a vertex
-    face_neighborhoods = source_mesh.face_neighborhood
+    if face_pairs_type == 'vertex':
+        face_pairs = source_mesh.face_neighborhood
+    else:
+        face_pairs = source_mesh.face_adjacency
 
     # Construct the cost matrices
     # Identity cost (Eq. 12)
     AEi, Bi = _construct_identity_cost(source_vtet, source_tet, Vinv)
     # Smoothness cost (Eq. 11)
     AEs, Bs = _construct_smoothness_cost(source_vtet, source_tet,
-                                         Vinv, face_neighborhoods)
+                                         Vinv, face_pairs)
     # Landmark cost (Eq. 13)
     AEl, non_markers_mask = _construct_landmark_cost(source_vtet, source_mesh,
                                                      source_landmarks)
