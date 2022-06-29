@@ -6,7 +6,7 @@ Functions for registering (aligning) point clouds with meshes.
 """
 
 import numpy as np
-import scipy.sparse as sparse
+
 
 from . import util
 from . import bounds
@@ -17,11 +17,13 @@ from .points import PointCloud
 
 try:
     from scipy.spatial import cKDTree
+    import scipy.sparse as sparse
 except BaseException as E:
     # wrapping just ImportError fails in some cases
     # will raise the error when someone tries to use KDtree
     from . import exceptions
     cKDTree = exceptions.closure(E)
+    sparse = exceptions.closure(E)
 
 
 def mesh_other(mesh,
