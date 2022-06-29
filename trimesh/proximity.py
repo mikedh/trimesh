@@ -5,7 +5,6 @@ proximity.py
 Query mesh- point proximity.
 """
 import numpy as np
-from dataclasses import dataclass
 
 from . import util
 
@@ -285,18 +284,18 @@ def signed_distance(mesh, points):
     return distance
 
 
-@dataclass
 class NearestQueryResult:
     """
     Stores the nearest points and attributes for nearest points queries.
     """
-    nearest = None
-    distances = None
-    normals = None
-    triangle_indices = None
-    barycentric_coordinates = None
-    interpolated_normals = None
-    vertex_indices = None
+    def __init__(self):
+        self.nearest = None
+        self.distances = None
+        self.normals = None
+        self.triangle_indices = None
+        self.barycentric_coordinates = None
+        self.interpolated_normals = None
+        self.vertex_indices = None
 
     def has_normals(self):
         return self.normals is not None or self.interpolated_normals is not None
