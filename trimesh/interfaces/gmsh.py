@@ -63,7 +63,8 @@ def load_gmsh(file_name, gmsh_args=None):
         raise ValueError('No import since no file was provided!')
 
     # if we initialize with sys.argv it could be anything
-    gmsh.initialize()
+    if not gmsh.isInitialized():
+        gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh.model.add('Surface_Mesh_Generation')
     gmsh.open(file_name)
@@ -92,6 +93,8 @@ def load_gmsh(file_name, gmsh_args=None):
     # load the data from the temporary outfile
     with open(out_data.name, 'rb') as f:
         kwargs = load_stl(f)
+
+    gmsh.finalize()
 
     return kwargs
 
