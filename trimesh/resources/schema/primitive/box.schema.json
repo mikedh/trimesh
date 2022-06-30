@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "description": "A 3D box primitive.",
+  "properties": {
+    "transform": { "$ref": "transform.schema.json" },
+    "kind": { "type": "string", "pattern": "(^box$)" },
+    "extents": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minItems": 3,
+        "maxItems": 3
+      },
+      "description": "The length of each side of the 3D box. The center of mass will be at the origin, and the minimum values will be at (-extents / 2) and the maximum values will be at (extents / 2)."
+    }
+  },
+  "additionalProperties": false,
+  "required": ["extents", "kind"]
+}

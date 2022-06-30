@@ -7,7 +7,7 @@ try:
     import triangle  # NOQA
     has_triangle = True
 except ImportError:
-    g.log.warning('No triangle! Not testing extrude primitives!')
+    g.log.warning('Not testing extrude primitives!')
     has_triangle = False
 
 
@@ -63,7 +63,33 @@ class PrimitiveTest(g.unittest.TestCase):
                                                             height=10))
 
     def test_primitives(self):
+
+        kind = set([i.__class__.__name__
+                    for i in self.primitives])
+        # make sure our test data has every primitive
+        assert kind == {'Box', 'Capsule', 'Cylinder',
+                        'Extrusion', 'Sphere'}
+
+        # this schema should define every primitive.
+        schema = g.trimesh.resources.get_schema(
+            'primitive/primitive.schema.json')
+
         for primitive in self.primitives:
+
+            # convert to a dict
+            d = primitive.to_dict()
+
+            # validate the output of the to-dict method
+            g.jsonschema.validate(d, schema)
+
+            # just triple-check that we have a transform
+            # this should have been validated by the schema
+            assert g.np.shape(d['transform']) == (4, 4)
+            assert g.trimesh.transformations.is_rigid(
+                d['transform'])
+            # make sure the value actually json-dumps
+            assert len(g.json.dumps(d)) > 0
+
             # make sure faces and vertices are correct
             assert g.trimesh.util.is_shape(primitive.faces,
                                            (-1, 3))
@@ -79,12 +105,8 @@ class PrimitiveTest(g.unittest.TestCase):
             # convert to base class trimesh
             as_mesh = primitive.to_mesh()
 
-            try:
-                assert as_mesh.volume > 0.0
-                assert as_mesh.area > 0.0
-            except BaseException:
-                from IPython import embed
-                embed()
+            assert as_mesh.volume > 0.0
+            assert as_mesh.area > 0.0
 
             assert g.np.allclose(primitive.extents,
                                  as_mesh.extents)
@@ -104,9 +126,9 @@ class PrimitiveTest(g.unittest.TestCase):
             assert as_mesh.is_watertight
 
             # check that overload of dir worked
-            assert len([i
-                        for i in dir(primitive.primitive) if '_' not in i]) > 0
-
+            assert len([i for i in
+                        dir(primitive.primitive)
+                        if '_' not in i]) > 0
             if hasattr(primitive, 'direction'):
                 assert primitive.direction.shape == (3,)
 

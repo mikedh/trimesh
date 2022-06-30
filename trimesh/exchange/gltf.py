@@ -1833,7 +1833,8 @@ def get_schema():
     from ..resolvers import ZipResolver
 
     # get a blob of a zip file including the GLTF 2.0 schema
-    blob = resources.get('gltf_2_schema.zip', decode=False)
+    blob = resources.get(
+        'schema/gltf2.schema.zip', decode=False)
     # get the zip file as a dict keyed by file name
     archive = util.decompress(util.wrap_as_stream(blob), 'zip')
     # get a resolver object for accessing the schema

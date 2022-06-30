@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "description": "A 3D cylinder primitive.",
+  "properties": {
+    "transform": { "$ref": "transform.schema.json" },
+    "radius": {
+      "type": "number",
+      "description": "The radius of the cylinder."
+    },
+    "height": {
+      "type": "number",
+      "description": "The height of the cylinder along Z. The maximum Z value will be at (height / 2) and the minimum will be at (-height / 2)"
+    },
+    "kind": { "type": "string", "pattern": "(^capsule$)" }
+  },
+  "required": ["radius", "height", "kind"]
+}

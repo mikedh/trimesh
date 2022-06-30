@@ -54,6 +54,8 @@ class FilePathResolver(Resolver):
         # remove everything other than absolute path
         clean = os.path.expanduser(
             os.path.abspath(str(source)))
+
+        self.clean = clean
         if os.path.isdir(clean):
             # if we were passed a directory use it
             self.parent = clean
@@ -82,7 +84,11 @@ class FilePathResolver(Resolver):
           Loaded data from asset
         """
         # load the file by path name
-        with open(os.path.join(self.parent, name.strip()), 'rb') as f:
+        path = os.path.join(self.parent, name.strip())
+        if not os.path.exists(path):
+            path = os.path.join(
+                self.parent, os.path.split(name)[-1])
+        with open(path, 'rb') as f:
             data = f.read()
         return data
 

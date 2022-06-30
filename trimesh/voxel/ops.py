@@ -361,8 +361,6 @@ def indices_to_points(indices, pitch=None, origin=None):
     """
     indices = np.asanyarray(indices)
     if indices.shape[1:] != (3,):
-        from IPython import embed
-        embed()
         raise ValueError('shape of indices must be (q, 3)')
 
     points = np.array(indices, dtype=np.float64)
