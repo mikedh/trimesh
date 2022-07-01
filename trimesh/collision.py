@@ -30,8 +30,21 @@ class ContactData(object):
             names[0]: contact.b1,
             names[1]: contact.b2
         }
+        self._normal = contact.normal
         self._point = contact.pos
         self._depth = contact.penetration_depth
+
+    @property
+    def normal(self):
+        """
+        The 3D vector intersection for this contact.
+
+        Returns
+        -------
+        point : (3,) float
+          The intersection point.
+        """
+        return self._point
 
     @property
     def point(self):
@@ -165,9 +178,9 @@ class CollisionManager(object):
         # unpopulated values will return None
         self._names = collections.defaultdict(lambda: None)
 
-        # cache BVH objects
-        # {mesh.md5(): fcl.BVHModel object}
-        self._bvh = {}
+        # cache fcl objects
+        # {mesh.md5(): fcl.BVHModel or fcl.Convex object}
+        self._fcl_cache = {}
         self._manager = fcl.DynamicAABBTreeCollisionManager()
         self._manager.setup()
 
@@ -198,19 +211,20 @@ class CollisionManager(object):
         if transform.shape != (4, 4):
             raise ValueError('transform must be (4,4)!')
 
-        # create or recall from cache BVH
-        bvh = self._get_BVH(mesh)
+        # create or recall BVH/Convex from cache
+        geom = self._get_fcl_obj(mesh)
+
         # create the FCL transform from (4,4) matrix
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
-        o = fcl.CollisionObject(bvh, t)
+        o = fcl.CollisionObject(geom, t)
 
         # Add collision object to set
         if name in self._objs:
             self._manager.unregisterObject(self._objs[name])
         self._objs[name] = {'obj': o,
-                            'geom': bvh}
+                            'geom': geom}
         # store the name of the geometry
-        self._names[id(bvh)] = name
+        self._names[id(geom)] = name
 
         self._manager.registerObject(o)
         self._manager.update()
@@ -289,10 +303,12 @@ class CollisionManager(object):
         if transform is None:
             transform = np.eye(4)
 
-        # Create FCL data
-        b = self._get_BVH(mesh)
+        # create or recall BVH/Convex from cache
+        geom = self._get_fcl_obj(mesh)
+
+        # create the FCL transform from (4,4) matrix
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
-        o = fcl.CollisionObject(b, t)
+        o = fcl.CollisionObject(geom, t)
 
         # Collide with manager's objects
         cdata = fcl.CollisionData()
@@ -310,7 +326,7 @@ class CollisionManager(object):
         if return_names or return_data:
             for contact in cdata.result.contacts:
                 cg = contact.o1
-                if cg == b:
+                if cg == geom:
                     cg = contact.o2
                 name = self._extract_name(cg)
 
@@ -486,17 +502,21 @@ class CollisionManager(object):
         if transform is None:
             transform = np.eye(4)
 
-        # Create FCL data
-        b = self._get_BVH(mesh)
+        # create or recall BVH/Convex from cache
+        geom = self._get_fcl_obj(mesh)
 
+        # create the FCL transform from (4,4) matrix
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
-        o = fcl.CollisionObject(b, t)
+        o = fcl.CollisionObject(geom, t)
 
         # Collide with manager's objects
-        ddata = fcl.DistanceData()
+        ddata = fcl.DistanceData(fcl.DistanceRequest(enable_signed_distance=True))
         if return_data:
             ddata = fcl.DistanceData(
-                fcl.DistanceRequest(enable_nearest_points=True),
+                fcl.DistanceRequest(
+                    enable_nearest_points=True,
+                    enable_signed_distance=True
+                ),
                 fcl.DistanceResult()
             )
 
@@ -508,7 +528,7 @@ class CollisionManager(object):
         name, data = None, None
         if return_name or return_data:
             cg = ddata.result.o1
-            if cg == b:
+            if cg == geom:
                 cg = ddata.result.o2
 
             name = self._extract_name(cg)
@@ -548,10 +568,13 @@ class CollisionManager(object):
         data : DistanceData
           Extra data about the distance query
         """
-        ddata = fcl.DistanceData()
+        ddata = fcl.DistanceData(fcl.DistanceRequest(enable_signed_distance=True))
         if return_data:
             ddata = fcl.DistanceData(
-                fcl.DistanceRequest(enable_nearest_points=True),
+                fcl.DistanceRequest(
+                    enable_nearest_points=True,
+                    enable_signed_distance=True,
+                ),
                 fcl.DistanceResult()
             )
 
@@ -603,10 +626,13 @@ class CollisionManager(object):
         data : DistanceData
           Extra data about the distance query
         """
-        ddata = fcl.DistanceData()
+        ddata = fcl.DistanceData(fcl.DistanceRequest(enable_signed_distance=True))
         if return_data:
             ddata = fcl.DistanceData(
-                fcl.DistanceRequest(enable_nearest_points=True),
+                fcl.DistanceRequest(
+                    enable_nearest_points=True,
+                    enable_signed_distance=True,
+                ),
                 fcl.DistanceResult()
             )
 
@@ -640,22 +666,29 @@ class CollisionManager(object):
         else:
             return distance
 
-    def _get_BVH(self, mesh):
+    def _get_fcl_obj(self, mesh):
         """
-        Get a BVH for a mesh.
+        Get a BVH or Convex for a mesh.
 
         Parameters
         -------------
         mesh : Trimesh
-          Mesh to create BVH for
+          Mesh to create BVH/Convex for
 
         Returns
         --------------
-        bvh : fcl.BVHModel
-          BVH object of source mesh
+        obj : fcl.BVHModel or fcl.Convex
+          BVH/Convex object of source mesh
         """
-        bvh = mesh_to_BVH(mesh)
-        return bvh
+        mk = mesh.md5()
+        if mk in self._fcl_cache:
+            return self._fcl_cache[mk]
+        if mesh.is_convex:
+            obj = mesh_to_convex(mesh)
+        else:
+            obj = mesh_to_BVH(mesh)
+        self._fcl_cache[mk] = obj
+        return obj
 
     def _extract_name(self, geom):
         """
@@ -696,6 +729,25 @@ def mesh_to_BVH(mesh):
                     triangles=mesh.faces)
     bvh.endModel()
     return bvh
+
+
+def mesh_to_convex(mesh):
+    """
+    Create a Convex object from a Trimesh object
+
+    Parameters
+    -----------
+    mesh : Trimesh
+      Input geometry
+
+    Returns
+    ------------
+    convex : fcl.Convex
+      Convex of input geometry
+    """
+    fs = np.concatenate((3 * np.ones((len(mesh.faces), 1), dtype=np.int64), mesh.faces),
+                        axis=1)
+    return fcl.Convex(mesh.vertices, len(fs), fs.flatten())
 
 
 def scene_to_collision(scene):

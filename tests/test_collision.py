@@ -118,12 +118,18 @@ class CollisionTest(g.unittest.TestCase):
         tf4 = g.np.eye(4)
         tf4[:3, 3] = g.np.array([-2, 0, 0])
 
+        tf5 = g.np.eye(4)
+        tf5[:3, 3] = g.np.array([5.75, 0, 0])
+
         # Test one-to-many distance checking
         m = g.trimesh.collision.CollisionManager()
         m.add_object('cube1', cube, tf1)
 
         dist = m.min_distance_single(cube)
         assert g.np.isclose(dist, 4.0)
+
+        dist = m.min_distance_single(cube, tf5)
+        assert g.np.isclose(dist, -0.25)
 
         dist, name = m.min_distance_single(cube, return_name=True)
         assert g.np.isclose(dist, 4.0)
@@ -168,15 +174,23 @@ class CollisionTest(g.unittest.TestCase):
         n = g.trimesh.collision.CollisionManager()
         n.add_object('cube0', cube, tf2)
 
-        dist, names = m.min_distance_other(n, return_names=True)
+        dist, names, data = m.min_distance_other(n, return_names=True, return_data=True)
         assert g.np.isclose(dist, 4.0)
         assert names == ('cube0', 'cube0')
+        assert g.np.isclose(
+            g.np.linalg.norm(data.point(names[0]) - data.point(names[1])),
+            dist
+        )
 
         n.add_object('cube4', cube, tf4)
 
-        dist, names = m.min_distance_other(n, return_names=True)
+        dist, names, data = m.min_distance_other(n, return_names=True, return_data=True)
         assert g.np.isclose(dist, 1.0)
         assert names == ('cube0', 'cube4')
+        assert g.np.isclose(
+            g.np.linalg.norm(data.point(names[0]) - data.point(names[1])),
+            dist
+        )
 
     def test_scene(self):
         try:
