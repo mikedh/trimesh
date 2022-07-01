@@ -42,7 +42,7 @@ def get(name, decode=True, decode_json=False):
     # make sure we return it as a string if asked
     if decode:
         # will decode into text if possibly
-        resource = docode_text(resource)
+        resource = decode_text(resource)
 
     if decode_json:
         resource = json.loads(resource)
