@@ -67,8 +67,10 @@ class PrimitiveTest(g.unittest.TestCase):
         kind = set([i.__class__.__name__
                     for i in self.primitives])
         # make sure our test data has every primitive
-        assert kind == {'Box', 'Capsule', 'Cylinder',
-                        'Extrusion', 'Sphere'}
+        kinds = {'Box', 'Capsule', 'Cylinder', 'Sphere'}
+        if has_triangle:
+            kinds.add('Extrusion')
+        assert kind == kinds
 
         # this schema should define every primitive.
         schema = g.trimesh.resources.get_schema(
