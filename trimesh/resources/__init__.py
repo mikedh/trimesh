@@ -1,6 +1,8 @@
 import os
 import json
 
+from ..util import decode_text
+
 # find the current absolute path to this directory
 _pwd = os.path.expanduser(os.path.abspath(
     os.path.dirname(__file__)))
@@ -38,8 +40,9 @@ def get(name, decode=True, decode_json=False):
         resource = f.read()
 
     # make sure we return it as a string if asked
-    if decode and hasattr(resource, 'decode'):
-        resource = resource.decode('utf-8')
+    if decode:
+        # will decode into text if possibly
+        resource = docode_text(resource)
 
     if decode_json:
         resource = json.loads(resource)
@@ -71,6 +74,6 @@ def get_schema(name):
         os.path.join(_pwd, 'schema', name))
     # recursively load $ref keys
     schema = resolve(
-        json.loads(resolver.get(name)),
+        json.loads(decode_text(resolver.get(name))),
         resolver=resolver)
     return schema
