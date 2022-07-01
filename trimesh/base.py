@@ -2733,18 +2733,18 @@ class Trimesh(Geometry3D):
 
     def to_dict(self):
         """
-        Return a dictionary representation of the current mesh, with keys
-        that can be used as the kwargs for the Trimesh constructor, eg:
-
-        a = Trimesh(**other_mesh.to_dict())
+        Return a dictionary representation of the current mesh
+        with keys that can be used as the kwargs for the
+        Trimesh constructor and matches the schema in:
+        `trimesh/resources/schema/primitive/trimesh.schema.json`
 
         Returns
         ----------
         result : dict
-          With keys that match trimesh constructor
+          Matches schema and Trimesh constructor.
         """
-        result = self.export(file_type='dict')
-        return result
+        return {'vertices': self.vertices.tolist(),
+                'faces': self.faces.tolist()}
 
     def convex_decomposition(self, maxhulls=20, **kwargs):
         """

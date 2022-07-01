@@ -2,7 +2,7 @@
 set -xe
 DEBIAN_FRONTEND=noninteractive
 
-PACKAGES="wget curl sudo make g++"
+PACKAGES="wget curl sudo g++ make"
 if [ $1 = true ]
 then
     # add the X11 options if requested

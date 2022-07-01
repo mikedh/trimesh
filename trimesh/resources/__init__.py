@@ -2,7 +2,8 @@ import os
 import json
 
 # find the current absolute path to this directory
-_pwd = os.path.expanduser(os.path.abspath(os.path.dirname(__file__)))
+_pwd = os.path.expanduser(os.path.abspath(
+    os.path.dirname(__file__)))
 
 # once resources are loaded cache them
 _cache = {}
@@ -47,3 +48,29 @@ def get(name, decode=True, decode_json=False):
     _cache[cache_key] = resource
 
     return resource
+
+
+def get_schema(name):
+    """
+    Load a schema and evaluate the referenced files.
+
+    Parameters
+    ------------
+    name : str
+      Filename of schema.
+
+    Returns
+    ----------
+    schema : dict
+      Loaded and resolved schema.
+    """
+    from ..schemas import resolve
+    from ..resolvers import FilePathResolver
+    # get a resolver for our base path
+    resolver = FilePathResolver(
+        os.path.join(_pwd, 'schema', name))
+    # recursively load $ref keys
+    schema = resolve(
+        json.loads(resolver.get(name)),
+        resolver=resolver)
+    return schema
