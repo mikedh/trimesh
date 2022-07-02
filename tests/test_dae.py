@@ -60,6 +60,26 @@ class DAETest(g.unittest.TestCase):
         assert (s.visual.material.baseColorTexture.size ==
                 rec.visual.material.image.size)
 
+    def test_material_round(self):
+        """
+        Test to make sure materials survive a roundtrip
+        with an actually identical result
+        """
+        s = g.get_mesh('blue_cube.dae')
+        assert len(s.geometry) == 1
+        m = next(iter(s.geometry.values()))
+
+        rs = g.trimesh.load(
+            file_obj=g.trimesh.util.wrap_as_stream(
+                m.export(file_type='dae')),
+            file_type='dae')
+        assert len(rs.geometry) == 1
+        r = next(iter(rs.geometry.values()))
+
+        # this will compare everything in `material._data`
+        assert (hash(m.visual.material) ==
+                hash(r.visual.material))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

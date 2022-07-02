@@ -28,7 +28,7 @@ try:
     def _MAX_MEMORY():
         # if we have psutil check actual free memory when called
         return psutil.virtual_memory().free / 2.0
-except ImportError:
+except BaseException:
     def _MAX_MEMORY():
         # use a hardcoded best guess estimate
         return 1e9
@@ -46,7 +46,7 @@ def minimum_nsphere(obj):
     Parameters
     ----------
     obj : (n, d) float or trimesh.Trimesh
-      Points or mesh to find minimum bounidng nsphere
+      Points or mesh to find minimum bounding nsphere
 
     Returns
     ----------

@@ -1,4 +1,5 @@
 import os
+import json
 
 from .. import util
 from .. import resolvers
@@ -10,6 +11,8 @@ from ..scene.scene import Scene, append_scenes
 from ..constants import log_time, log
 
 from . import misc
+
+from .xyz import _xyz_loaders
 from .ply import _ply_loaders
 from .stl import _stl_loaders
 from .dae import _collada_loaders
@@ -17,12 +20,12 @@ from .obj import _obj_loaders
 from .off import _off_loaders
 from .misc import _misc_loaders
 from .gltf import _gltf_loaders
+from .xaml import _xaml_loaders
+from .binvox import _binvox_loaders
 from .assimp import _assimp_loaders
 from .threemf import _three_loaders
 from .openctm import _ctm_loaders
-from .xml_based import _xml_loaders
-from .binvox import _binvox_loaders
-from .xyz import _xyz_loaders
+from .threedxml import _threedxml_loaders
 
 
 try:
@@ -37,13 +40,13 @@ except BaseException as E:
 
 def mesh_formats():
     """
-    Get a list of mesh formats
+    Get a list of mesh formats available to load.
 
     Returns
     -----------
     loaders : list
-        Extensions of available mesh loaders
-        i.e. 'stl', 'ply', etc.
+      Extensions of available mesh loaders,
+      i.e. 'stl', 'ply', etc.
     """
     return list(mesh_loaders.keys())
 
@@ -207,7 +210,6 @@ def load_mesh(file_obj,
                                           file_type=file_type,
                                           resolver=resolver,
                                           **kwargs)
-
         if not isinstance(results, list):
             results = [results]
 
@@ -294,29 +296,43 @@ def load_compressed(file_obj,
             else:
                 available = mesh_formats()
 
+        meta_archive = {}
         for name, data in files.items():
-            # only load formats that we support
-            compressed_type = util.split_extension(name).lower()
-            if compressed_type not in available:
-                # don't raise an exception, just try the next one
-                continue
-            # store the file name relative to the archive
-            metadata['file_name'] = (archive_name + '/' +
-                                     os.path.basename(name))
-            # load the individual geometry
-            loaded = load(file_obj=data,
-                          file_type=compressed_type,
-                          resolver=resolver,
-                          metadata=metadata,
-                          **kwargs)
+            try:
+                # only load formats that we support
+                compressed_type = util.split_extension(name).lower()
 
-            # some loaders return multiple geometries
-            if util.is_sequence(loaded):
-                # if the loader has returned a list of meshes
-                geometries.extend(loaded)
-            else:
-                # if the loader has returned a single geometry
-                geometries.append(loaded)
+                # if file has metadata type include it
+                if compressed_type in 'yaml':
+                    import yaml
+                    meta_archive[name] = yaml.safe_load(data)
+                elif compressed_type in 'json':
+                    import json
+                    meta_archive[name] = json.loads(data)
+
+                if compressed_type not in available:
+                    # don't raise an exception, just try the next one
+                    continue
+                # store the file name relative to the archive
+                metadata['file_name'] = (archive_name + '/' +
+                                         os.path.basename(name))
+                # load the individual geometry
+                loaded = load(file_obj=data,
+                              file_type=compressed_type,
+                              resolver=resolver,
+                              metadata=metadata,
+                              **kwargs)
+
+                # some loaders return multiple geometries
+                if util.is_sequence(loaded):
+                    # if the loader has returned a list of meshes
+                    geometries.extend(loaded)
+                else:
+                    # if the loader has returned a single geometry
+                    geometries.append(loaded)
+            except BaseException:
+                log.debug('failed to load file in zip',
+                          exc_info=True)
 
     finally:
         # if we opened the file in this function
@@ -326,6 +342,10 @@ def load_compressed(file_obj,
 
     # append meshes or scenes into a single Scene object
     result = append_scenes(geometries)
+
+    # append any archive metadata files
+    if isinstance(result, Scene):
+        result.metadata.update(meta_archive)
 
     return result
 
@@ -410,8 +430,25 @@ def load_kwargs(*args, **kwargs):
 
         if 'base_frame' in kwargs:
             scene.graph.base_frame = kwargs['base_frame']
-        if 'metadata' in kwargs:
+        metadata = kwargs.get('metadata')
+        if isinstance(metadata, dict):
             scene.metadata.update(kwargs['metadata'])
+        elif isinstance(metadata, str):
+            # some ways someone might have encoded a string
+            # note that these aren't evaluated until we
+            # actually call the lambda in the loop
+            candidates = [
+                lambda: json.loads(metadata),
+                lambda: json.loads(metadata.replace("'", '"'))]
+            for c in candidates:
+                try:
+                    scene.metadata.update(c())
+                    break
+                except BaseException:
+                    pass
+        elif metadata is not None:
+            log.warning('unloadable metadata')
+
         return scene
 
     def handle_mesh():
@@ -432,21 +469,20 @@ def load_kwargs(*args, **kwargs):
         data, file_type = kwargs['data'], kwargs['file_type']
         if not isinstance(data, dict):
             data = util.wrap_as_stream(data)
-        k = mesh_loaders[file_type](data,
-                                    file_type=file_type)
+        k = mesh_loaders[file_type](
+            data, file_type=file_type)
         return Trimesh(**k)
 
     def handle_path():
         from ..path import Path2D, Path3D
-        e, v = kwargs['entities'], kwargs['vertices']
-        if 'metadata' in kwargs:
-            m = kwargs['metadata']
+        shape = kwargs['vertices'].shape
+
+        if shape[1] == 2:
+            return Path2D(**kwargs)
+        elif shape[1] == 3:
+            return Path3D(**kwargs)
         else:
-            m = None
-        if v.shape[1] == 2:
-            return Path2D(entities=e, vertices=v, metadata=m)
-        elif v.shape[1] == 3:
-            return Path3D(entities=e, vertices=v, metadata=m)
+            raise ValueError('Vertices must be 2D or 3D!')
 
     def handle_pointcloud():
         return PointCloud(**kwargs)
@@ -626,11 +662,12 @@ mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_stl_loaders)
 mesh_loaders.update(_ctm_loaders)
 mesh_loaders.update(_ply_loaders)
-mesh_loaders.update(_xml_loaders)
 mesh_loaders.update(_obj_loaders)
 mesh_loaders.update(_off_loaders)
 mesh_loaders.update(_collada_loaders)
 mesh_loaders.update(_gltf_loaders)
+mesh_loaders.update(_xaml_loaders)
+mesh_loaders.update(_threedxml_loaders)
 mesh_loaders.update(_three_loaders)
 mesh_loaders.update(_xyz_loaders)
 

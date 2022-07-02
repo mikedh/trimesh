@@ -196,12 +196,15 @@ class VectorTests(g.unittest.TestCase):
         # make sure we have entities
         assert len(p.entities) > 0
         # make sure shape of colors is correct
-        assert p.colors.shape == (len(p.entities), 4)
+        assert all(e.color is None for e in p.entities)
+        assert p.colors is None
+
         color = [255, 0, 0, 255]
         # assign a color to the entity
         p.entities[0].color = color
         # make sure this is reflected in the path color
         assert g.np.allclose(p.colors[0], color)
+        assert p.colors.shape == (len(p.entities), 4)
 
 
 class SplitTest(g.unittest.TestCase):

@@ -1,5 +1,4 @@
 import copy
-import tempfile
 import collections
 
 import numpy as np
@@ -156,59 +155,6 @@ def load_pyassimp(file_obj,
     return result
 
 
-def load_cyassimp(file_obj,
-                  file_type=None,
-                  resolver=None,
-                  **kwargs):
-    """
-    Load a file using the cyassimp bindings.
-
-    The easiest way to install these is with conda:
-    conda install -c menpo/label/master cyassimp
-
-    Parameters
-    ---------
-    file_obj: str, or file object
-      File path or object containing mesh data
-    file_type : str
-      File extension, aka 'stl'
-    resolver : trimesh.visual.resolvers.Resolver
-      Used to load referenced data (like texture files)
-    kwargs : dict
-      Passed through to mesh constructor
-
-    Returns
-    ---------
-    meshes : (n,) list of dict
-      Contain kwargs for Trimesh constructor
-    """
-
-    if hasattr(file_obj, 'read'):
-        # if it has a read attribute it is probably a file object
-        with tempfile.NamedTemporaryFile(
-                suffix=str(file_type)) as file_temp:
-
-            file_temp.write(file_obj.read())
-            # file name should be bytes
-            scene = cyassimp.AIImporter(
-                file_temp.name.encode('utf-8'))
-            scene.build_scene()
-    else:
-        scene = cyassimp.AIImporter(file_obj.encode('utf-8'))
-        scene.build_scene()
-
-    meshes = []
-    for m in scene.meshes:
-        mesh_kwargs = kwargs.copy()
-        mesh_kwargs.update({'vertices': m.points,
-                            'faces': m.trilist})
-        meshes.append(mesh_kwargs)
-
-    if len(meshes) == 1:
-        return meshes[0]
-    return meshes
-
-
 _assimp_formats = [
     'fbx',
     'dae',
@@ -257,24 +203,9 @@ _assimp_formats = [
     'mdl',
     'hmp',
     'ndo']
-_assimp_loaders = {}
 
-
-# try importing both assimp bindings but prefer cyassimp
-loader = None
 try:
     import pyassimp
-    loader = load_pyassimp
+    _assimp_loaders = {k: load_pyassimp for k in _assimp_formats}
 except BaseException:
-    pass
-
-try:
-    import cyassimp
-    loader = load_cyassimp
-except BaseException:
-    pass
-
-
-if loader:
-    _assimp_loaders.update(zip(_assimp_formats,
-                               [loader] * len(_assimp_formats)))
+    _assimp_loaders = {}

@@ -1,8 +1,11 @@
 import os
 import json
 
+from ..util import decode_text
+
 # find the current absolute path to this directory
-_pwd = os.path.expanduser(os.path.abspath(os.path.dirname(__file__)))
+_pwd = os.path.expanduser(os.path.abspath(
+    os.path.dirname(__file__)))
 
 # once resources are loaded cache them
 _cache = {}
@@ -37,8 +40,9 @@ def get(name, decode=True, decode_json=False):
         resource = f.read()
 
     # make sure we return it as a string if asked
-    if decode and hasattr(resource, 'decode'):
-        resource = resource.decode('utf-8')
+    if decode:
+        # will decode into text if possibly
+        resource = decode_text(resource)
 
     if decode_json:
         resource = json.loads(resource)
@@ -47,3 +51,29 @@ def get(name, decode=True, decode_json=False):
     _cache[cache_key] = resource
 
     return resource
+
+
+def get_schema(name):
+    """
+    Load a schema and evaluate the referenced files.
+
+    Parameters
+    ------------
+    name : str
+      Filename of schema.
+
+    Returns
+    ----------
+    schema : dict
+      Loaded and resolved schema.
+    """
+    from ..schemas import resolve
+    from ..resolvers import FilePathResolver
+    # get a resolver for our base path
+    resolver = FilePathResolver(
+        os.path.join(_pwd, 'schema', name))
+    # recursively load $ref keys
+    schema = resolve(
+        json.loads(decode_text(resolver.get(name))),
+        resolver=resolver)
+    return schema

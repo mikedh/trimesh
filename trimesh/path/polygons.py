@@ -94,10 +94,14 @@ def enclosure_tree(polygons):
     if len(degrees) > 0 and degrees.max() > 1:
         # collect new edges for graph
         edges = []
+
+        # order the roots so they are sorted by degree
+        roots = roots[np.argsort([degree[r] for r in roots])]
         # find edges of subgraph for each root and children
         for root in roots:
             children = indexes[degrees == degree[root] + 1]
-            edges.extend(contains.subgraph(np.append(children, root)).edges())
+            edges.extend(contains.subgraph(
+                np.append(children, root)).edges())
         # stack edges into new directed graph
         contains = nx.from_edgelist(edges, nx.DiGraph())
         # if roots have no children add them anyway
@@ -226,7 +230,7 @@ def transform_polygon(polygon, matrix):
     return result
 
 
-def plot_polygon(polygon, show=True, **kwargs):
+def plot(polygon, show=True, **kwargs):
     """
     Plot a shapely polygon using matplotlib.
 
@@ -245,7 +249,7 @@ def plot_polygon(polygon, show=True, **kwargs):
         plt.plot(*single.exterior.xy, **kwargs)
         for interior in single.interiors:
             plt.plot(*interior.xy, **kwargs)
-    # make aspect ratio non- stupid
+    # make aspect ratio non-stupid
     plt.axes().set_aspect('equal', 'datalim')
     if util.is_sequence(polygon):
         [plot_single(i) for i in polygon]
@@ -607,7 +611,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     basic = polygon.buffer(tol.zero)
     # if it returned multiple polygons check the largest
     if util.is_sequence(basic):
-        basic = basic[np.argmax([i.area for i in basic])]
+        basic = basic.geoms[np.argmax([i.area for i in basic.geoms])]
 
     # check perimeter of result against original perimeter
     if basic.is_valid and np.isclose(basic.length,
@@ -654,7 +658,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     buffered = polygon.buffer(distance).buffer(-distance)
     # if it returned multiple polygons check the largest
     if util.is_sequence(buffered):
-        buffered = buffered[np.argmax([i.area for i in buffered])]
+        buffered = buffered.geoms[np.argmax([i.area for i in buffered.geoms])]
     # check perimeter of result against original perimeter
     if buffered.is_valid and np.isclose(buffered.length,
                                         polygon.length,
@@ -668,12 +672,23 @@ def repair_invalid(polygon, scale=None, rtol=.5):
 def projected(mesh,
               normal,
               origin=None,
-              pad=1e-5,
+              ignore_sign=True,
+              rpad=1e-5,
+              apad=None,
               tol_dot=0.01,
               max_regions=200):
     """
     Project a mesh onto a plane and then extract the polygon
     that outlines the mesh projection on that plane.
+
+    Note that this will ignore back-faces, which is only
+    relevant if the source mesh isn't watertight.
+
+    Also padding: this generates a result by unioning the
+    polygons of multiple connected regions, which requires
+    the polygons be padded by a distance so that a polygon
+    union produces a single coherent result. This distance
+    is calculated as: `apad + (rpad * scale)`
 
     Parameters
     ----------
@@ -685,18 +700,28 @@ def projected(mesh,
       Normal to extract flat pattern along
     origin : None or (3,) float
       Origin of plane to project mesh onto
-    pad : float
+    ignore_sign : bool
+      Allow a projection from the normal vector in
+      either direction: this provides a substantial speedup
+      on watertight meshes where the direction is irrelevant
+      but if you have a triangle soup and want to discard
+      backfaces you should set this to False.
+    rpad : float
       Proportion to pad polygons by before unioning
+      and then de-padding result by to avoid zero-width gaps.
+    apad : float
+      Absolute padding to pad polygons by before unioning
       and then de-padding result by to avoid zero-width gaps.
     tol_dot : float
       Tolerance for discarding on-edge triangles.
     max_regions : int
       Raise an exception if the mesh has more than this
-      number of disconnected regions to fail quickly before unioning.
+      number of disconnected regions to fail quickly before
+      unioning.
 
     Returns
     ----------
-    projected : shapely.geometry.Polygon
+    projected : shapely.geometry.Polygon or None
       Outline of source mesh
 
     Raises
@@ -710,23 +735,29 @@ def projected(mesh,
 
     # the projection of each face normal onto facet normal
     dot_face = np.dot(normal, mesh.face_normals.T)
-    # check if face lies on front or back of normal
-    front = dot_face > tol_dot
-    back = dot_face < -tol_dot
-    # divide the mesh into front facing section and back facing parts
-    # and discard the faces perpendicular to the axis.
-    # since we are doing a unary_union later we can use the front *or*
-    # the back so we use which ever one has fewer triangles
-    # we want the largest nonzero group
-    count = np.array([front.sum(), back.sum()])
-    if count.min() == 0:
-        # if one of the sides has zero faces we need the other
-        pick = count.argmax()
+    if ignore_sign:
+        # for watertight mesh speed up projection by handling side with less faces
+        # check if face lies on front or back of normal
+        front = dot_face > tol_dot
+        back = dot_face < -tol_dot
+        # divide the mesh into front facing section and back facing parts
+        # and discard the faces perpendicular to the axis.
+        # since we are doing a unary_union later we can use the front *or*
+        # the back so we use which ever one has fewer triangles
+        # we want the largest nonzero group
+        count = np.array([front.sum(), back.sum()])
+        if count.min() == 0:
+            # if one of the sides has zero faces we need the other
+            pick = count.argmax()
+        else:
+            # otherwise use the normal direction with the fewest faces
+            pick = count.argmin()
+        # use the picked side
+        side = [front, back][pick]
     else:
-        # otherwise use the normal direction with the fewest faces
-        pick = count.argmin()
-    # use the picked side
-    side = [front, back][pick]
+        # if explicitly asked to care about the sign
+        # only handle the front side of normal
+        side = dot_face > tol_dot
 
     # subset the adjacency pairs to ones which have both faces included
     # on the side we are currently looking at
@@ -761,6 +792,16 @@ def projected(mesh,
         polygons.extend(edges_to_polygons(
             edges=edge[group], vertices=vertices_2D))
 
+    padding = 0.0
+    if apad is not None:
+        # set padding by absolute value
+        padding += float(apad)
+    if rpad is not None:
+        # get the 2D scale as the longest side of the AABB
+        scale = vertices_2D.ptp(axis=0).max()
+        # apply the scale-relative padding
+        padding += float(rpad) * scale
+
     # some types of errors will lead to a bajillion disconnected
     # regions and the union will take forever to fail
     # so exit here early
@@ -769,21 +810,21 @@ def projected(mesh,
 
     # if there is only one region we don't need to run a union
     elif len(polygons) == 1:
-        polygon = polygons[0]
-        # we do however need to double buffer to de-garbage the polygon
-        scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
-        padding = scale * pad
-        polygon = polygon.buffer(padding).buffer(-padding)
+        return polygons[0]
+    elif len(polygons) == 0:
+        return None
     else:
-        # get all points for every AABB
-        extrema = np.reshape([p.bounds for p in polygons], (-1, 2))
-        # extract the model scale from the maximum AABB side length
-        scale = extrema.ptp(axis=0).max()
-        # pad each polygon proportionally to that scale
-        distance = abs(scale * pad)
         # inflate each polygon before unioning to remove zero-size
         # gaps then deflate the result after unioning by the same amount
+        # note the following provides a 25% speedup but needs
+        # more testing to see if it deflates to a decent looking
+        # result:
+        # polygon = ops.unary_union(
+        #    [p.buffer(padding,
+        #              join_style=2,
+        #              mitre_limit=1.5)
+        #     for p in polygons]).buffer(-padding)
         polygon = ops.unary_union(
-            [p.buffer(distance) for p in polygons]).buffer(-distance)
-
+            [p.buffer(padding)
+             for p in polygons]).buffer(-padding)
     return polygon

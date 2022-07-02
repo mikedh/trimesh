@@ -1,6 +1,4 @@
 /* override table width restrictions */
-@media screen and (min-width: 767px) {
-
    .wy-table-responsive table td {
       /* !important prevents the common CSS stylesheets from overriding
          this as on RTD they are loaded after this stylesheet */
@@ -10,4 +8,12 @@
    .wy-table-responsive {
       overflow: visible !important;
    }
+
+
+dl.py.property {
+    display: unset;
+}
+
+.wy-nav-content {
+    max-width: 70em;
 }

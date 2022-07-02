@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "description": "A 3D sphere primitive.",
+  "properties": {
+    "transform": { "$ref": "transform.schema.json" },
+    "kind": { "type": "string", "pattern": "(^sphere$)" },
+    "radius": { "type": "number" }
+  },
+  "additionalProperties": false,
+  "required": ["radius", "kind"]
+}

@@ -33,6 +33,10 @@ from .exchange.load import (
 
 # avoid a circular import in trimesh.base
 from . import voxel
+from . import bounds
+from . import nsphere
+from . import collision
+from . import smoothing
 from . import primitives
 
 try:
@@ -51,6 +55,10 @@ __all__ = [__version__,
            'Scene',
            'voxel',
            'unitize',
+           'bounds',
+           'nsphere',
+           'collision',
+           'smoothing',
            'tol',
            'path',
            'load',

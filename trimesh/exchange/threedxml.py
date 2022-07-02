@@ -1,11 +1,15 @@
+"""
+threedxml.py
+-------------
+
+Load 3DXML files, a scene format from Solidworks.
+"""
 import numpy as np
 
-import collections
 import json
+import collections
 
 from .. import util
-from .. import visual
-from .. import transformations as tf
 
 try:
     import networkx as nx
@@ -14,145 +18,6 @@ except BaseException as E:
     # or other exception only when someone tries to use networkx
     from ..exceptions import ExceptionModule
     nx = ExceptionModule(E)
-
-
-def load_XAML(file_obj, *args, **kwargs):
-    """
-    Load a 3D XAML file.
-
-    Parameters
-    ----------
-    file_obj : file object
-                Open, containing XAML file
-
-    Returns
-    ----------
-    result : dict
-                kwargs for a trimesh constructor, including:
-                vertices:       (n,3) np.float64, points in space
-                faces:          (m,3) np.int64, indices of vertices
-                face_colors:    (m,4) np.uint8, RGBA colors
-                vertex_normals: (n,3) np.float64, vertex normals
-    """
-    def element_to_color(element):
-        """
-        Turn an XML element into a (4,) np.uint8 RGBA color
-        """
-        if element is None:
-            return visual.DEFAULT_COLOR
-        hexcolor = int(element.attrib['Color'].replace('#', ''), 16)
-        opacity = float(element.attrib['Opacity'])
-        rgba = [(hexcolor >> 16) & 0xFF,
-                (hexcolor >> 8) & 0xFF,
-                (hexcolor & 0xFF),
-                opacity * 0xFF]
-        rgba = np.array(rgba, dtype=np.uint8)
-        return rgba
-
-    def element_to_transform(element):
-        """
-        Turn an XML element into a (4,4) np.float64
-        transformation matrix.
-        """
-        try:
-            matrix = next(element.iter(
-                tag=ns + 'MatrixTransform3D')).attrib['Matrix']
-            matrix = np.array(matrix.split(),
-                              dtype=np.float64).reshape((4, 4)).T
-            return matrix
-        except StopIteration:
-            # this will be raised if the MatrixTransform3D isn't in the passed
-            # elements tree
-            return np.eye(4)
-
-    # read the file and parse XML
-    file_data = file_obj.read()
-    root = etree.XML(file_data)
-
-    # the XML namespace
-    ns = root.tag.split('}')[0] + '}'
-
-    # the linked lists our results are going in
-    vertices = []
-    faces = []
-    colors = []
-    normals = []
-
-    # iterate through the element tree
-    # the GeometryModel3D tag contains a material and geometry
-    for geometry in root.iter(tag=ns + 'GeometryModel3D'):
-
-        # get the diffuse and specular colors specified in the material
-        color_search = './/{ns}{color}Material/*/{ns}SolidColorBrush'
-        diffuse = geometry.find(color_search.format(ns=ns,
-                                                    color='Diffuse'))
-        specular = geometry.find(color_search.format(ns=ns,
-                                                     color='Specular'))
-
-        # convert the element into a (4,) np.uint8 RGBA color
-        diffuse = element_to_color(diffuse)
-        specular = element_to_color(specular)
-
-        # to get the final transform of a component we'll have to traverse
-        # all the way back to the root node and save transforms we find
-        current = geometry
-        transforms = collections.deque()
-        # when the root node is reached its parent will be None and we stop
-        while current is not None:
-            # element.find will only return elements that are direct children
-            # of the current element as opposed to element.iter,
-            # which will return any depth of child
-            transform_element = current.find(ns + 'ModelVisual3D.Transform')
-            if transform_element is not None:
-                # we are traversing the tree backwards, so append new
-                # transforms to the left of the deque
-                transforms.appendleft(element_to_transform(transform_element))
-            # we are going from the lowest level of the tree to the highest
-            # this avoids having to traverse any branches that don't have
-            # geometry
-            current = current.getparent()
-
-        if len(transforms) == 0:
-            # no transforms in the tree mean an identity matrix
-            transform = np.eye(4)
-        elif len(transforms) == 1:
-            # one transform in the tree we can just use
-            transform = transforms.pop()
-        else:
-            # multiple transforms we apply all of them in order
-            transform = util.multi_dot(transforms)
-
-        # iterate through the contained mesh geometry elements
-        for g in geometry.iter(tag=ns + 'MeshGeometry3D'):
-            c_normals = np.array(g.attrib['Normals'].replace(',', ' ').split(),
-                                 dtype=np.float64).reshape((-1, 3))
-
-            c_vertices = np.array(
-                g.attrib['Positions'].replace(
-                    ',', ' ').split(), dtype=np.float64).reshape(
-                (-1, 3))
-            # bake in the transform as we're saving
-            c_vertices = tf.transform_points(c_vertices, transform)
-
-            c_faces = np.array(
-                g.attrib['TriangleIndices'].replace(
-                    ',', ' ').split(), dtype=np.int64).reshape(
-                (-1, 3))
-
-            # save data to a sequence
-            vertices.append(c_vertices)
-            faces.append(c_faces)
-            colors.append(np.tile(diffuse, (len(c_faces), 1)))
-            normals.append(c_normals)
-
-    # compile the results into clean numpy arrays
-    result = dict()
-    result['vertices'], result['faces'] = util.append_faces(vertices,
-                                                            faces)
-    result['face_colors'] = np.vstack(colors)
-    result['vertex_normals'] = np.vstack(normals)
-
-    return result
 
 
 def load_3DXML(file_obj, *args, **kwargs):
@@ -192,50 +57,54 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # load the materials library from the materials elements
     colors = {}
-    material_tree = as_etree['CATMaterialRef.3dxml']
-    for MaterialDomain in material_tree.iter('{*}MaterialDomain'):
-        material_id = MaterialDomain.attrib['id']
-        material_file = MaterialDomain.attrib['associatedFile'].split(
-            'urn:3DXML:')[-1]
-        rend = as_etree[material_file].find(
-            "{*}Feature[@Alias='RenderingFeature']")
-        diffuse = rend.find("{*}Attr[@Name='DiffuseColor']")
-        # specular = rend.find("{*}Attr[@Name='SpecularColor']")
-        # emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
-        rgb = (np.array(json.loads(
-            diffuse.attrib['Value'])) * 255).astype(np.uint8)
-        colors[material_id] = rgb
+    # but only if it exists
+    material_key = 'CATMaterialRef.3dxml'
+    if material_key in as_etree:
+        material_tree = as_etree[material_key]
+        for MaterialDomain in material_tree.iter('{*}MaterialDomain'):
+            material_id = MaterialDomain.attrib['id']
+            material_file = MaterialDomain.attrib['associatedFile'].split(
+                'urn:3DXML:')[-1]
+            rend = as_etree[material_file].find(
+                "{*}Feature[@Alias='RenderingFeature']")
+            diffuse = rend.find("{*}Attr[@Name='DiffuseColor']")
+            # specular = rend.find("{*}Attr[@Name='SpecularColor']")
+            # emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
+            rgb = (np.array(json.loads(
+                diffuse.attrib['Value'])) * 255).astype(np.uint8)
+            colors[material_id] = rgb
 
-    # copy indexes for instances of colors
-    for MaterialDomainInstance in material_tree.iter(
-            '{*}MaterialDomainInstance'):
-        instance = MaterialDomainInstance.find('{*}IsInstanceOf')
-        # colors[b.attrib['id']] = colors[instance.text]
-        for aggregate in MaterialDomainInstance.findall('{*}IsAggregatedBy'):
-            colors[aggregate.text] = colors[instance.text]
+        # copy indexes for instances of colors
+        for MaterialDomainInstance in material_tree.iter(
+                '{*}MaterialDomainInstance'):
+            instance = MaterialDomainInstance.find('{*}IsInstanceOf')
+            # colors[b.attrib['id']] = colors[instance.text]
+            for aggregate in MaterialDomainInstance.findall('{*}IsAggregatedBy'):
+                colors[aggregate.text] = colors[instance.text]
 
     # references which hold the 3DXML scene structure as a dict
     # element id : {key : value}
     references = collections.defaultdict(dict)
 
-    # the 3DXML can specify different visual properties for  occurrences
+    # the 3DXML can specify different visual properties for occurrences
     view = tree.find('{*}DefaultView')
-    for ViewProp in view.iter('{*}DefaultViewProperty'):
-        color = ViewProp.find('{*}GraphicProperties/' +
-                              '{*}SurfaceAttributes/{*}Color')
-        if (color is None or
-                'RGBAColorType' not in color.attrib.values()):
-            continue
-        rgba = np.array([color.attrib[i]
-                         for i in ['red',
-                                   'green',
-                                   'blue',
-                                   'alpha']],
-                        dtype=np.float64)
-        rgba = (rgba * 255).astype(np.uint8)
-        for occurrence in ViewProp.findall('{*}OccurenceId/{*}id'):
-            reference_id = occurrence.text.split('#')[-1]
-            references[reference_id]['color'] = rgba
+    if view is not None:
+        for ViewProp in view.iter('{*}DefaultViewProperty'):
+            color = ViewProp.find('{*}GraphicProperties/' +
+                                  '{*}SurfaceAttributes/{*}Color')
+            if (color is None or
+                    'RGBAColorType' not in color.attrib.values()):
+                continue
+            rgba = np.array([color.attrib[i]
+                             for i in ['red',
+                                       'green',
+                                       'blue',
+                                       'alpha']],
+                            dtype=np.float64)
+            rgba = (rgba * 255).astype(np.uint8)
+            for occurrence in ViewProp.findall('{*}OccurenceId/{*}id'):
+                reference_id = occurrence.text.split('#')[-1]
+                references[reference_id]['color'] = rgba
 
     # geometries will hold meshes
     geometries = dict()
@@ -252,6 +121,12 @@ def load_3DXML(file_obj, *args, **kwargs):
         mesh_colors = []
         mesh_normals = []
         mesh_vertices = []
+
+        if part_file not in as_etree and part_file in archive:
+            # the data is stored in some binary format
+            util.log.warning('unable to load binary Rep')
+            # data = archive[part_file]
+            continue
 
         # the geometry is stored in a Rep
         for Rep in as_etree[part_file].iter('{*}Rep'):
@@ -270,15 +145,21 @@ def load_3DXML(file_obj, *args, **kwargs):
             (material_file, material_id) = material.attrib['id'].split(
                 'urn:3DXML:')[-1].split('#')
 
-            # triangle strips, sequence of arbitrary length lists
-            # np.fromstring is substantially faster than np.array(i.split())
-            # inside the list comprehension
-            strips = [np.fromstring(i, sep=' ', dtype=np.int64)
-                      for i in faces.attrib['strips'].split(',')]
+            if 'strips' in faces.attrib:
+                # triangle strips, sequence of arbitrary length lists
+                # np.fromstring is substantially faster than np.array(i.split())
+                # inside the list comprehension
+                strips = [np.fromstring(i, sep=' ', dtype=np.int64)
+                          for i in faces.attrib['strips'].split(',')]
 
-            # convert strips to (m,3) int
-            mesh_faces.append(util.triangle_strips_to_faces(strips))
-
+                # convert strips to (m,3) int
+                mesh_faces.append(util.triangle_strips_to_faces(strips))
+            if 'triangles' in faces.attrib:
+                # both triangles and strips are allowed to be defined so
+                # make this an if-if instaid of an if-elif
+                mesh_faces.append(
+                    np.fromstring(faces.attrib['triangles'],
+                                  sep=' ', dtype=np.int64).reshape((-1, 3)))
             # they mix delimiters like we couldn't figure it out from the
             # shape :(
             # load vertices into (n, 3) float64
@@ -369,9 +250,8 @@ def load_3DXML(file_obj, *args, **kwargs):
     # paths from the root to a geometry to generate the tree of the scene
     paths = []
     for geometry_id in geometries.keys():
-        paths.extend(nx.all_simple_paths(graph,
-                                         source=root_id,
-                                         target=geometry_id))
+        paths.extend(nx.all_simple_paths(
+            graph, source=root_id, target=geometry_id))
 
     # the name of the root frame
     root_name = references[root_id]['name']
@@ -432,7 +312,7 @@ def load_3DXML(file_obj, *args, **kwargs):
 
 def print_element(element):
     """
-    Pretty- print an lxml.etree element.
+    Pretty-print an lxml.etree element.
 
     Parameters
     ------------
@@ -446,8 +326,6 @@ def print_element(element):
 
 try:
     from lxml import etree
-    _xml_loaders = {'xaml': load_XAML,
-                    '3dxml': load_3DXML}
-
+    _threedxml_loaders = {'3dxml': load_3DXML}
 except ImportError:
-    _xml_loaders = {}
+    _threedxml_loaders = {}

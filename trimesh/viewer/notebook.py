@@ -31,7 +31,7 @@ def scene_to_html(scene):
     # fetch HTML template from ZIP archive
     # it is bundling all of three.js so compression is nice
     base = util.decompress(
-        resources.get('viewer.template.zip', decode=False),
+        resources.get('templates/viewer.zip', decode=False),
         file_type='zip')['viewer.html.template'].read().decode('utf-8')
     scene.camera
     # get export as bytes
@@ -71,11 +71,11 @@ def scene_to_notebook(scene, height=500, **kwargs):
     # embed this puppy as the srcdoc attr of an IFframe
     # I tried this a dozen ways and this is the only one that works
     # display.IFrame/display.Javascript really, really don't work
-    # note trailing space to avoid IPython's pointless hardcoded warning
-    embedded = display.HTML(
-        '<iframe srcdoc="{srcdoc}" '
-        'width="100%" height="{height}px" '
-        'style="border:none;"></iframe> '.format(
+    # div is to avoid IPython's pointless hardcoded warning
+    embedded = display.HTML(' '.join([
+        '<div><iframe srcdoc="{srcdoc}"',
+        'width="100%" height="{height}px"',
+        'style="border:none;"></iframe></div>']).format(
             srcdoc=srcdoc,
             height=height))
     return embedded

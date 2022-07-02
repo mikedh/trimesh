@@ -3,7 +3,7 @@ name: Release Trimesh
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   formatting:
@@ -12,13 +12,13 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: 3.8
     - name: Install Formatting
       run: |
         python -m pip install --upgrade pip
-        pip install autopep8 flake8
+        pip install autopep8 flake8 flake8-no-implicit-concat
     - name: Check Formatting
       run: |
         flake8 tests
@@ -38,15 +38,26 @@ jobs:
         python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9]
         os: [ubuntu-latest, macos-latest, windows-latest]
         exclude:
-          # Shapely as far as I can tell has no Windows/2.7 wheels
+            # windows runners have gotten very flaky
+            # exclude all windows test runs except for one
           - os: windows-latest
             python-version: 2.7
+          - os: windows-latest
+            python-version: 3.5
+          - os: windows-latest
+            python-version: 3.6
+          - os: windows-latest
+            python-version: 3.8
+          - os: windows-latest
+            python-version: 3.9
           - os: macos-latest
             python-version: 3.9
+          - os: macos-latest
+            python-version: 2.7
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install APT On Linux
@@ -62,19 +73,13 @@ jobs:
       run: |
         brew install geos
         brew install --cask openscad
-    - name: Install Pytest
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-cov wheel coveralls setuptools
     - name: Install Trimesh
-      run: pip install .[easy]
-    - name: Run Pytest
-      run: pytest --cov=trimesh tests/
-    - name: Coverage Report
+      run: pip install .[easy,test]
+    - name: Install Linux Deps
       if: matrix.os == 'ubuntu-latest'
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      run: bash <(curl -s https://codecov.io/bash)
+      run: sudo bash docker/builds/gltf_validator.bash
+    - name: Run Pytest
+      run: pytest tests/
   pypi:
     name: Release To PyPi
     needs: [tests, containers]
@@ -82,19 +87,19 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v2
       with:
         python-version: '3.x'
     - name: Install publishing dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install setuptools wheel twine
+        pip install build twine
     - name: Build and publish
       env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
       run: |
-        python setup.py sdist bdist_wheel
+        pyproject-build --outdir dist .
         twine upload dist/*
 
   docs:
@@ -105,55 +110,54 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build Docs
       run: |
-         # build docs in docker image to get working trimesh env for docstrings
-         docker pull trimesh/trimesh:latest
-         docker run --rm --user 0:0 -v `pwd`:/trimesh trimesh/trimesh:latest make -C /trimesh/docs
+         # build docs in docker image
+         cd docs
+         bash docker.bash
     - name: Deploy To Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/_build/html
+        publish_dir: ./docs/html
         force_orphan: true
-
   containers:
     name: Build Docker Images
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-2
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
     - name: Login to Docker Hub
       run: echo ${{ secrets.DH_PASS }} | docker login --username mikedh --password-stdin
     - name: Checkout trimesh
       uses: actions/checkout@v2
-    - name: Build/Push to DockerHub and AWS ECR
+    - name: Build Images
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         GIT_SHA: ${{ github.sha }}
       run: |
         # get the version of trimesh with python
         export VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
         # tag the image with the short git sha
         export GIT_SHORT=${GIT_SHA::7}
+
         # put a whole bunch of tags on image:
         # tag with version, git sha, and latest
         # push to DockerHub and AWS ECR
-        export TAGS="trimesh/trimesh:latest; trimesh/trimesh:$VERSION; trimesh/trimesh:$GIT_SHORT; mikedh/trimesh:latest; mikedh/trimesh:$VERSION; mikedh/trimesh:$GIT_SHORT; $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION; $ECR_REGISTRY/$ECR_REPOSITORY:latest; $ECR_REGISTRY/$ECR_REPOSITORY:$GIT_SHORT"
+        export TAGS="trimesh/trimesh:latest; trimesh/trimesh:$VERSION; trimesh/trimesh:$GIT_SHORT"
+
         # build image tagged with all our many tags
         docker build -t `echo "${TAGS//;/$' -t '}"` .
+        ci_env=`bash <(curl -s https://codecov.io/env)`
+        # run unit tests in docker image
+        # note we're copying models into the image
+        docker run $ci_env -e CI=true -e CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} --rm -v `pwd`:/trimesh trimesh/trimesh:latest  bash -c 'cp -R /trimesh/models /opt/trimesh && cd /opt/trimesh && pip install .[test] && pytest --cov=trimesh -x -p no:warnings -p no:alldep -p no:cacheprovider tests && bash <(curl -s https://codecov.io/bash)'
         # push every tag to remote registry
         for i in ${TAGS//;/ }; do docker push $i; done;
+    - name: Build with X11 for offscreen rendering
+      run: |
+        export VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
+        docker build -t trimesh/trimesh-x:latest -t trimesh/trimesh-x:${VERSION} --build-arg INCLUDE_X=true .
+        docker push trimesh/trimesh-x:latest
+        docker push trimesh/trimesh-x:$VERSION
     - name: Logout of registries
       if: always()
       run: |
-        docker logout ${{ steps.login-ecr.outputs.registry }}
         docker logout
 
   release:

@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "items": {
+    "type": "array",
+    "minItems": 4,
+    "maxItems": 4,
+    "items": { "type": "number", "minItems": 4, "maxItems": 4 }
+  },
+
+  "description": "The homogenous transformation matrix applied to this primitive."
+}

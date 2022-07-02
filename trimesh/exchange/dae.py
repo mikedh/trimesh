@@ -10,7 +10,10 @@ from .. import visual
 from ..constants import log
 
 
-def load_collada(file_obj, resolver=None, **kwargs):
+def load_collada(file_obj,
+                 resolver=None,
+                 ignore_broken=False,
+                 **kwargs):
     """
     Load a COLLADA (.dae) file into a list of trimesh kwargs.
 
@@ -20,6 +23,10 @@ def load_collada(file_obj, resolver=None, **kwargs):
       Containing a COLLADA file
     resolver : trimesh.visual.Resolver or None
       For loading referenced files, like texture images
+    ignore_broken: bool
+      Ignores broken references during loading:
+        [collada.common.DaeUnsupportedError,
+         collada.common.DaeBrokenRefError]
     kwargs : **
       Passed to trimesh.Trimesh.__init__
 
@@ -31,7 +38,11 @@ def load_collada(file_obj, resolver=None, **kwargs):
     import collada
 
     # load scene using pycollada
-    c = collada.Collada(file_obj)
+    c = collada.Collada(
+        file_obj,
+        ignore=[collada.common.DaeUnsupportedError,
+                collada.common.DaeBrokenRefError]
+        if ignore_broken else None)
 
     # Create material map from Material ID to trimesh material
     material_map = {}
@@ -104,7 +115,7 @@ def export_collada(mesh, **kwargs):
         input_list.addInput(0, 'VERTEX', '#verts-array')
         input_list.addInput(1, 'NORMAL', '#normals-array')
         arrays = [vertices, normals]
-        if uv is not None:
+        if ((uv is not None) and (len(uv) > 0)):
             texcoords = collada.source.FloatSource(
                 'texcoords-array', uv.flatten(), ('U', 'V'))
             input_list.addInput(2, 'TEXCOORD', '#texcoords-array')
@@ -192,7 +203,7 @@ def _parse_node(node,
                     color = s['COLOR'][0][4].data
                     color_index = primitive.index[:, :, s['COLOR'][0][0]]
                     colors = color[color_index].reshape(
-                        len(color_index) * 3, 3)
+                        len(color_index) * 3, -1)
 
                 faces = np.arange(
                     vertices.shape[0]).reshape(
@@ -313,7 +324,7 @@ def _parse_material(effect, resolver):
     if (effect.transparent is not None
             and not isinstance(effect.transparent, collada.material.Map)):
         baseColorFactor = tuple(
-            np.append(baseColorFactor[:3], float(int(255 * effect.transparent[3]))))
+            np.append(baseColorFactor[:3], float(effect.transparent[3])))
 
     return visual.material.PBRMaterial(
         emissiveFactor=emissiveFactor,
@@ -334,6 +345,7 @@ def _unparse_material(material):
     # TODO EXPORT TEXTURES
     if isinstance(material, visual.material.PBRMaterial):
         diffuse = material.baseColorFactor
+        diffuse = diffuse / 255.0
         if diffuse is not None:
             diffuse = list(diffuse)
 

@@ -15,7 +15,8 @@ from .geometry import faces_to_edges
 def subdivide(vertices,
               faces,
               face_index=None,
-              vertex_attributes=None):
+              vertex_attributes=None,
+              return_index=False):
     """
     Subdivide a mesh into smaller triangles.
 
@@ -34,6 +35,8 @@ def subdivide(vertices,
       if (n,) int array of indices: only specified faces
     vertex_attributes : dict
       Contains (n, d) attribute data
+    return_index : bool
+      If True, return index of original face for new faces
 
     Returns
     ----------
@@ -41,6 +44,9 @@ def subdivide(vertices,
       Vertices in space
     new_faces : (p, 3) int
       Remeshed faces
+    index_dict : dict
+      Only returned if `return_index`, {index of
+      original face : index of new faces}.
     """
     if face_index is None:
         face_index = np.arange(len(faces))
@@ -90,6 +96,11 @@ def subdivide(vertices,
             new_attributes[key] = np.vstack((
                 values, attr_mid))
         return new_vertices, new_faces, new_attributes
+
+    if return_index:
+        index_dict = {f: [f] + [len(faces) + 3 * fidx + i for i in range(3)]
+                      for fidx, f in enumerate(face_index)}
+        return new_vertices, new_faces, index_dict
 
     return new_vertices, new_faces
 
@@ -144,8 +155,8 @@ def subdivide_to_size(vertices,
     for i in range(max_iter + 1):
         # compute the length of every triangle edge
         edge_length = (np.diff(
-            current_vertices[current_faces[:, [0, 1, 2, 0]]],
-            axis=1) ** 2).sum(axis=2) ** .5
+            current_vertices[current_faces[:, [0, 1, 2, 0]], :3],
+            axis=1) ** 2).sum(axis=2) ** 0.5
         # check edge length against maximum
         too_long = (edge_length > max_edge).any(axis=1)
         # faces that are OK
@@ -173,8 +184,8 @@ def subdivide_to_size(vertices,
                                     current_faces[too_long])
 
     if i >= max_iter:
-        util.log.warning(
-            'subdivide_to_size reached maximum iterations before exit criteria!')
+        # max_iter is too small to generate short-enough edges
+        raise ValueError('edges too long at exit! try increasing max_iter')
 
     # stack sequence into nice (n, 3) arrays
     final_vertices, final_faces = util.append_faces(

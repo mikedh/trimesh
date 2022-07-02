@@ -4,12 +4,12 @@ primitives.py
 
 Subclasses of Trimesh objects that are parameterized as primitives.
 
-Useful because you can move boxes and spheres around, and then use
-trimesh operations on them at any point.
+Useful because you can move boxes and spheres around
+and then use trimesh operations on them at any point.
 """
 import numpy as np
-import pprint
 import copy
+import abc
 
 from . import util
 from . import sample
@@ -85,7 +85,26 @@ class _Primitive(Trimesh):
     @face_normals.setter
     def face_normals(self, values):
         if values is not None:
-            log.warning('Primitive face normals are immutable! Not setting!')
+            log.warning('Primitive face normals are immutable!')
+
+    @property
+    def transform(self):
+        """
+        The transform of the Primitive object.
+
+        Returns
+        -------------
+        transform : (4, 4) float
+          Homogeneous transformation matrix
+        """
+        return self.primitive.transform
+
+    @abc.abstractmethod
+    def to_dict(self):
+        """
+        Should be implemented by each primitive.
+        """
+        raise NotImplementedError()
 
     def copy(self, **kwargs):
         """
@@ -100,12 +119,18 @@ class _Primitive(Trimesh):
 
     def to_mesh(self):
         """
-        Return a copy of the Primitive object as a Trimesh object.
+        Return a copy of the Primitive object as a Trimesh.
+
+        Returns
+        ------------
+        mesh : trimesh.Trimesh
+          Tesselated version of the primitive.
         """
-        result = Trimesh(vertices=self.vertices.copy(),
-                         faces=self.faces.copy(),
-                         face_normals=self.face_normals.copy(),
-                         process=False)
+        result = Trimesh(
+            vertices=self.vertices.copy(),
+            faces=self.faces.copy(),
+            face_normals=self.face_normals.copy(),
+            process=False)
         return result
 
     def apply_transform(self, matrix):
@@ -118,10 +143,10 @@ class _Primitive(Trimesh):
         matrix: (4,4) float
           Homogeneous transformation
         """
-        matrix = np.asanyarray(matrix, order='C', dtype=np.float64)
+        matrix = np.asanyarray(
+            matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
-
         if util.allclose(matrix, np.eye(4), 1e-8):
             log.debug('apply_transform received identity matrix')
             return
@@ -149,17 +174,17 @@ class _PrimitiveAttributes(object):
             if key in defaults:
                 self._data[key] = util.convert_like(
                     value, defaults[key])
-        # if configured as immutable, apply setting after instantiation values
-        # are set
+        # if configured as immutable apply setting after
+        # instantiation values are set
         if 'mutable' in kwargs:
             self._mutable = bool(kwargs['mutable'])
 
     @property
     def __doc__(self):
-        # this is generated dynamically as the format operation can be surprisingly
-        # slow and if generated in __init__ it is called a lot of times
-        # when we didn't really need to generate it
-
+        # this is generated dynamically as the format
+        # operation can be surprisingly slow and most
+        # people never call it
+        import pprint
         doc = (
             'Store the attributes of a {name} object.\n\n' +
             'When these values are changed, the mesh geometry will \n' +
@@ -178,14 +203,27 @@ class _PrimitiveAttributes(object):
     def __getattr__(self, key):
         if key.startswith('_'):
             return super(_PrimitiveAttributes, self).__getattr__(key)
+        elif key == 'center':
+            # this whole __getattr__ is a little hacky
+            return self._data['transform'][:3, 3]
+
         elif key in self._defaults:
-            return util.convert_like(self._data[key], self._defaults[key])
+            return util.convert_like(self._data[key],
+                                     self._defaults[key])
         raise AttributeError(
             "primitive object has no attribute '{}' ".format(key))
 
     def __setattr__(self, key, value):
+
         if key.startswith('_'):
-            return super(_PrimitiveAttributes, self).__setattr__(key, value)
+            return super(_PrimitiveAttributes,
+                         self).__setattr__(key, value)
+        elif key == 'center':
+            value = np.array(value, dtype=np.float64)
+            transform = np.eye(4)
+            transform[:3, 3] = value
+            self._data['transform'] = transform
+            return
         elif key in self._defaults:
             if self._mutable:
                 self._data[key] = util.convert_like(
@@ -197,19 +235,6 @@ class _PrimitiveAttributes(object):
             keys = list(self._defaults.keys())
             raise ValueError(
                 'Only default attributes {} can be set!'.format(keys))
-
-    def to_kwargs(self):
-        """
-        Return a dict with copies of kwargs for the current
-        Primitive.
-
-        Returns
-        ------------
-        kwargs : dict
-          Arguments to reconstruct current PrimitiveAttributes
-        """
-        return {k: copy.deepcopy(self._data[k])
-                for k in self._defaults.keys()}
 
     def __dir__(self):
         result = sorted(dir(type(self)) +
@@ -303,14 +328,31 @@ class Cylinder(_Primitive):
         # apply the transform to the Z- aligned segment
         points = np.dot(
             self.primitive.transform,
-            np.transpose([[0, 0, -half, 1], [0, 0, half, 1]])).T[:, :3]
+            np.transpose([[0, 0, -half, 1],
+                          [0, 0, half, 1]])).T[:, :3]
         return points
+
+    def to_dict(self):
+        """
+        Get a copy of the current Cylinder primitive as
+        a JSON-serializable dict that matches the schema
+        in `trimesh/resources/schema/cylinder.schema.json`
+
+        Returns
+        ----------
+        as_dict : dict
+          Serializable data for this primitive.
+        """
+        return {'kind': 'cylinder',
+                'transform': self.primitive.transform.tolist(),
+                'radius': float(self.primitive.radius),
+                'height': float(self.primitive.height), }
 
     def buffer(self, distance):
         """
-        Return a cylinder primitive which covers the source cylinder
-        by distance: radius is inflated by distance, height by twice
-        the distance.
+        Return a cylinder primitive which covers the source
+        cylinder by distance: radius is inflated by distance
+        height by twice the distance.
 
         Parameters
         ------------
@@ -323,7 +365,6 @@ class Cylinder(_Primitive):
          Cylinder primitive inflated by distance
         """
         distance = float(distance)
-
         buffered = Cylinder(
             height=self.primitive.height + distance * 2,
             radius=self.primitive.radius + distance,
@@ -365,6 +406,26 @@ class Capsule(_Primitive):
                                               defaults,
                                               kwargs)
 
+    @property
+    def transform(self):
+        return self.primitive.transform
+
+    def to_dict(self):
+        """
+        Get a copy of the current Capsule primitive as
+        a JSON-serializable dict that matches the schema
+        in `trimesh/resources/schema/capsule.schema.json`
+
+        Returns
+        ----------
+        as_dict : dict
+          Serializable data for this primitive.
+        """
+        return {'kind': 'capsule',
+                'transform': self.primitive.transform.tolist(),
+                'height': float(self.primitive.height),
+                'radius': float(self.primitive.radius)}
+
     @caching.cache_decorator
     def direction(self):
         """
@@ -397,36 +458,44 @@ class Sphere(_Primitive):
 
         Parameters
         ----------
-        radius: float, radius of sphere
-        center: (3,) float, center of sphere
-        subdivisions: int, number of subdivisions for icosphere. Default is 3
+        radius : float
+          Radius of sphere
+        center : (3,) float
+          Center of sphere
+        subdivisions : int
+          Number of subdivisions for icosphere.
         """
-
         super(Sphere, self).__init__(*args, **kwargs)
-
         defaults = {'radius': 1.0,
-                    'center': np.zeros(3, dtype=np.float64),
+                    'transform': np.eye(4),
                     'subdivisions': 3}
+        self.primitive = _PrimitiveAttributes(
+            self, defaults, kwargs)
+        if 'center' in kwargs:
+            self.primitive.center = kwargs['center']
 
-        self.primitive = _PrimitiveAttributes(self,
-                                              defaults,
-                                              kwargs)
+    @property
+    def center(self):
+        return self.primitive.center
 
-    def apply_transform(self, matrix):
+    @center.setter
+    def center(self, value):
+        self.primitive.center = value
+
+    def to_dict(self):
         """
-        Apply a transform to the sphere primitive
+        Get a copy of the current Sphere primitive as
+        a JSON-serializable dict that matches the schema
+        in `trimesh/resources/schema/sphere.schema.json`
 
-        Parameters
-        ------------
-        matrix: (4,4) float, homogeneous transformation
+        Returns
+        ----------
+        as_dict : dict
+          Serializable data for this primitive.
         """
-        matrix = np.asanyarray(matrix, dtype=np.float64)
-        if matrix.shape != (4, 4):
-            raise ValueError('shape must be 4,4')
-
-        center = np.dot(matrix,
-                        np.append(self.primitive.center, 1.0))[:3]
-        self.primitive.center = center
+        return {'kind': 'sphere',
+                'transform': self.primitive.transform.tolist(),
+                'radius': float(self.primitive.radius)}
 
     @property
     def bounds(self):
@@ -499,20 +568,39 @@ class Box(_Primitive):
 
     def __init__(self, *args, **kwargs):
         """
-        Create a Box Primitive, a subclass of Trimesh
+        Create a Box Primitive as a subclass of Trimesh
 
         Parameters
         ----------
-        extents:   (3,)  float, size of box
-        transform: (4,4) float, transformation matrix for box center
+        extents : (3,) float
+          Length of each side of the 3D box
+        transform : (4, 4) float
+          Homogeneous transformation matrix for box center
         """
         super(Box, self).__init__(*args, **kwargs)
-
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
-        self.primitive = _PrimitiveAttributes(self,
-                                              defaults,
-                                              kwargs)
+        self.primitive = _PrimitiveAttributes(
+            self, defaults, kwargs)
+
+    def to_dict(self):
+        """
+        Get a copy of the current Box primitive as
+        a JSON-serializable dict that matches the schema
+        in `trimesh/resources/schema/box.schema.json`
+
+        Returns
+        ----------
+        as_dict : dict
+          Serializable data for this primitive.
+        """
+        return {'kind': 'box',
+                'transform': self.primitive.transform.tolist(),
+                'extents': self.primitive.extents.tolist()}
+
+    @property
+    def transform(self):
+        return self.primitive.transform
 
     def sample_volume(self, count):
         """
@@ -590,7 +678,8 @@ class Box(_Primitive):
 
         Returns
         --------
-        volume: float, volume of box
+        volume : float
+          Volume of box.
         """
         volume = float(np.product(self.primitive.extents))
         return volume
@@ -716,6 +805,10 @@ class Extrusion(_Primitive):
         """
         return self.primitive.transform[:3, 3]
 
+    @property
+    def transform(self):
+        return self.primitive.transform
+
     @caching.cache_decorator
     def bounding_box_oriented(self):
         # no docstring for inheritance
@@ -797,11 +890,19 @@ class Extrusion(_Primitive):
 
     def to_dict(self):
         """
+        Get a copy of the current Extrusion primitive as
+        a JSON-serializable dict that matches the schema
+        in `trimesh/resources/schema/extrusion.schema.json`
+
+        Returns
+        ----------
+        as_dict : dict
+          Serializable data for this primitive.
         """
-        kwargs = {'polygon': self.primitive.polygon.wkt,
-                  'transform': self.primitive.transform.tolist(),
-                  'height': float(self.primitive.height)}
-        return kwargs
+        return {'kind': 'extrusion',
+                'polygon': self.primitive.polygon.wkt,
+                'transform': self.primitive.transform.tolist(),
+                'height': float(self.primitive.height)}
 
     def _create_mesh(self):
         log.debug('creating mesh for Extrusion primitive')

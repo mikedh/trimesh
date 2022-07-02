@@ -3,8 +3,6 @@ try:
 except BaseException:
     import generic as g
 
-from trimesh.scene.transforms import EnforcedForest
-
 
 def random_chr():
     return chr(ord('a') + int(round(g.np.random.random() * 25)))
@@ -92,24 +90,25 @@ class SceneTests(g.unittest.TestCase):
                     # try exporting the scene as a dict
                     # then make sure json can serialize it
                     e = g.json.dumps(s.export(file_type=export_format))
-
                     # reconstitute the dict into a scene
                     r = g.trimesh.load(g.json.loads(e))
 
                     # make sure the extents are similar before and after
-                    assert g.np.allclose(g.np.product(s.extents),
-                                         g.np.product(r.extents))
+                    assert g.np.allclose(
+                        g.np.product(s.extents),
+                        g.np.product(r.extents))
 
+                # move the scene to origin
                 s.rezero()
-                assert (g.np.abs(s.centroid) < 1e-3).all()
+                # if our cache dump was bad this will fail
+                assert g.np.allclose(s.centroid, 0, atol=1e-5)
 
                 # make sure explode doesn't crash
                 s.explode()
 
     def test_scaling(self):
-        """
-        Test the scaling of scenes including unit conversion.
-        """
+        # Test the scaling of scenes including unit conversion.
+
         scene = g.get_mesh('cycloidal.3DXML')
 
         md5 = scene.md5()
@@ -248,6 +247,21 @@ class SceneTests(g.unittest.TestCase):
         assert len(s.geometry) == 3
         assert len(s.graph.nodes_geometry) == 29
 
+        dupe = s.duplicate_nodes
+        assert len(dupe) == 3
+        assert sum(len(i) for i in dupe) == 29
+
+        # test cache dumping and survivability of bad
+        # non-existent geometry specified in node_geometry
+        s.graph.update(dupe[0][0], geometry='GARBAGE')
+        # make sure geometry was updated
+        assert s.graph[dupe[0][0]][1] == 'GARBAGE'
+        # get the regenerated duplicates
+        dupe = s.duplicate_nodes
+        assert len(dupe) == 3
+        # should have been cleanly dropped
+        assert sum(len(i) for i in dupe) == 28
+
     def test_tri(self):
         scene = g.get_mesh('cycloidal.3DXML')
 
@@ -281,10 +295,9 @@ class SceneTests(g.unittest.TestCase):
         assert len(n) == 0
 
     def test_zipped(self):
-        """
-        Make sure a zip file with multiple file types
-        is returned as a single scene.
-        """
+        # Make sure a zip file with multiple file types
+        # is returned as a single scene.
+
         # allow mixed 2D and 3D geometry
         m = g.get_mesh('scenes.zip', mixed=True)
 
@@ -346,27 +359,45 @@ class SceneTests(g.unittest.TestCase):
         scene.apply_translation([1, 0, 1])
         assert g.np.allclose(scene.bounds, [[.5, -.5, .5], [1.5, .5, 1.5]])
 
+    def test_material_group(self):
+        # check scene is correctly grouped by materials
+        s = g.get_mesh('box.obj', group_material=True)
+        assert set(s.geometry.keys()) == {'Material', 'SecondMaterial'}
+        assert len(s.geometry['Material'].faces) == 8
+        assert len(s.geometry['SecondMaterial'].faces) == 4
 
-class GraphTests(g.unittest.TestCase):
+        # make sure our flag does something
+        s = g.get_mesh('box.obj', group_material=False)
+        assert set(s.geometry.keys()) != {'Material', 'SecondMaterial'}
 
-    def test_forest(self):
-        g = EnforcedForest(assert_forest=True)
-        for i in range(5000):
-            g.add_edge(random_chr(), random_chr())
+    def test_export_concat(self):
+        # Scenes exported in mesh formats should be
+        # concatenating the meshes somewhere.
+        original = g.trimesh.creation.icosphere(
+            radius=0.123312)
+        original_hash = original.identifier_md5
 
-    def test_cache(self):
-        for i in range(10):
-            scene = g.trimesh.Scene()
-            scene.add_geometry(g.trimesh.creation.box())
+        scene = g.trimesh.Scene()
+        scene.add_geometry(original)
 
-            scene.set_camera()
-            assert not g.np.allclose(
-                scene.camera_transform,
-                g.np.eye(4))
-            scene.camera_transform = g.np.eye(4)
-            assert g.np.allclose(
-                scene.camera_transform,
-                g.np.eye(4))
+        with g.TemporaryDirectory() as d:
+            for ext in ['stl', 'ply']:
+                file_name = g.os.path.join(d, 'mesh.' + ext)
+                scene.export(file_name)
+                loaded = g.trimesh.load(file_name)
+                assert g.np.isclose(loaded.volume,
+                                    original.volume)
+        # nothing should have changed
+        assert original.identifier_md5 == original_hash
+
+    def test_append_scenes(self):
+        scene_0 = g.trimesh.Scene(base_frame='not_world')
+        scene_1 = g.trimesh.Scene(base_frame='not_world')
+
+        scene_sum = g.trimesh.scene.scene.append_scenes(
+            (scene_0, scene_1), common=['not_world'], base_frame='not_world')
+
+        assert scene_sum.graph.base_frame == 'not_world'
 
 
 if __name__ == '__main__':

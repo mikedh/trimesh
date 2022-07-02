@@ -4,30 +4,42 @@ material.py
 
 Store visual materials as objects.
 """
+import abc
 import copy
 import numpy as np
 
 from . import color
 from .. import util
 from .. import grouping
+from .. import exceptions
+
+# epsilon for comparing floating point
+_eps = 1e-5
 
 
-class Material(object):
+class Material(util.ABC):
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError('material must be subclassed!')
+        raise NotImplementedError('must be subclassed!')
 
     def __hash__(self):
         return id(self)
 
-    @property
+    @abc.abstractproperty
     def main_color(self):
-        raise NotImplementedError('material must be subclassed!')
+        """
+        The "average" color of this material.
+
+        Returns
+        ---------
+        color : (4,) uint8
+          Average color of this material.
+        """
 
     @property
     def name(self):
         if hasattr(self, '_name'):
             return self._name
-        return 'material0'
+        return 'material_0'
 
     @name.setter
     def name(self, value):
@@ -69,7 +81,8 @@ class SimpleMaterial(Material):
 
     def to_obj(self, mtl_name=None):
         """
-        Convert the current material to an OBJ format material.
+        Convert the current material to an OBJ format
+        material.
 
         Parameters
         -----------
@@ -111,8 +124,7 @@ class SimpleMaterial(Material):
             # what is the name of the export image to save
             if image_type is None:
                 image_type = 'png'
-            image_name = '{}.{}'.format(
-                tex_name, image_type).lower()
+            image_name = '{}.{}'.format(tex_name, image_type.lower())
             # save the reference to the image
             mtl.append('map_Kd {}'.format(image_name))
 
@@ -176,7 +188,8 @@ class SimpleMaterial(Material):
 
     def to_pbr(self):
         """
-        Convert the current simple material to a PBR material.
+        Convert the current simple material to a
+        PBR material.
 
         Returns
         ------------
@@ -189,6 +202,93 @@ class SimpleMaterial(Material):
         return PBRMaterial(roughnessFactor=roughness,
                            baseColorTexture=self.image,
                            baseColorFactor=self.diffuse)
+
+
+class MultiMaterial(Material):
+    def __init__(self, materials=None, **kwargs):
+        """
+        Wrapper for a list of Materials.
+
+        Parameters
+        ----------
+        materials : Optional[List[Material]]
+            List of materials with which the container to be initialized.
+        """
+        if materials is None:
+            self.materials = []
+        else:
+            self.materials = materials
+
+    def to_pbr(self):
+        """
+        TODO : IMPLEMENT
+        """
+        pbr = [m for m in self.materials
+               if isinstance(m, PBRMaterial)]
+        if len(pbr) == 0:
+            return PBRMaterial()
+        return pbr[0]
+
+    def __hash__(self):
+        """
+        Provide a hash of the multi material so we can detect
+        duplicates.
+
+        Returns
+        ------------
+        hash : int
+          Xor hash of the contained materials.
+        """
+        hashed = int(np.bitwise_xor.reduce(
+            [hash(m) for m in self.materials]))
+
+        return hashed
+
+    def __iter__(self):
+        return iter(self.materials)
+
+    def __next__(self):
+        return next(self.materials)
+
+    def __len__(self):
+        return len(self.materials)
+
+    @property
+    def main_color(self):
+        """
+        The "average" color of this material.
+
+        Returns
+        ---------
+        color : (4,) uint8
+          Average color of this material.
+        """
+
+    def add(self, material):
+        """
+        Adds new material to the container.
+
+        Parameters
+        ----------
+        material : Material
+            The material to be added.
+        """
+        self.materials.append(material)
+
+    def get(self, idx):
+        """
+        Get material by index.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the material to be retrieved.
+
+        Returns
+        -------
+            The material on the given index.
+        """
+        return self.materials[idx]
 
 
 class PBRMaterial(Material):
@@ -204,27 +304,24 @@ class PBRMaterial(Material):
                  name=None,
                  emissiveFactor=None,
                  emissiveTexture=None,
-                 normalTexture=None,
-                 occlusionTexture=None,
-                 baseColorTexture=None,
                  baseColorFactor=None,
                  metallicFactor=None,
                  roughnessFactor=None,
+                 normalTexture=None,
+                 occlusionTexture=None,
+                 baseColorTexture=None,
                  metallicRoughnessTexture=None,
                  doubleSided=False,
-                 alphaMode='OPAQUE',
-                 alphaCutoff=0.5):
+                 alphaMode=None,
+                 alphaCutoff=None):
 
-        # (4,) float
-        if baseColorFactor is not None:
-            baseColorFactor = color.to_rgba(baseColorFactor)
-        self.baseColorFactor = baseColorFactor
-
-        if emissiveFactor is not None:
-            emissiveFactor = np.array(emissiveFactor, dtype=np.float64)
+        # store values in an internal dict
+        self._data = {}
 
         # (3,) float
         self.emissiveFactor = emissiveFactor
+        # (3,) or (4,) float with RGBA colors
+        self.baseColorFactor = baseColorFactor
 
         # float
         self.metallicFactor = metallicFactor
@@ -245,15 +342,201 @@ class PBRMaterial(Material):
         self.name = name
         self.alphaMode = alphaMode
 
+    @property
+    def emissiveFactor(self):
+        """
+        The factors for the emissive color of the material.
+        This value defines linear multipliers for the sampled
+        texels of the emissive texture.
+
+        Returns
+        -----------
+        emissiveFactor : (3,) float
+           Ech element in the array MUST be greater than
+           or equal to 0 and less than or equal to 1.
+        """
+        return self._data.get('emissiveFactor')
+
+    @emissiveFactor.setter
+    def emissiveFactor(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('emissiveFactor', None)
+        else:
+            # non-None values must be a floating point
+            emissive = np.array(value, dtype=np.float64).reshape(3)
+            if emissive.min() < -_eps or emissive.max() > (1 + _eps):
+                raise ValueError('all factors must be between 0.0-1.0')
+            self._data['emissiveFactor'] = emissive
+
+    @property
+    def alphaMode(self):
+        """
+        The material alpha rendering mode enumeration
+        specifying the interpretation of the alpha value of
+        the base color.
+
+        Returns
+        -----------
+        alphaMode : str
+          One of 'OPAQUE', 'MASK', 'BLEND'
+        """
+        return self._data.get('alphaMode')
+
+    @alphaMode.setter
+    def alphaMode(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('alphaMode', None)
+        else:
+            # non-None values must be one of three values
+            value = str(value).upper().strip()
+            if value not in ['OPAQUE', 'MASK', 'BLEND']:
+                raise ValueError('incorrect alphaMode: %s', value)
+            self._data['alphaMode'] = value
+
+    @property
+    def alphaCutoff(self):
+        """
+        Specifies the cutoff threshold when in MASK alpha mode.
+        If the alpha value is greater than or equal to this value
+        then it is rendered as fully opaque, otherwise, it is rendered
+        as fully transparent. A value greater than 1.0 will render
+        the entire material as fully transparent. This value MUST be
+        ignored for other alpha modes. When alphaMode is not defined,
+        this value MUST NOT be defined.
+
+        Returns
+        -----------
+        alphaCutoff : float
+          Value of cutoff.
+        """
+        return self._data.get('alphaCutoff')
+
+    @alphaCutoff.setter
+    def alphaCutoff(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('alphaCutoff', None)
+        else:
+            self._data['alphaCutoff'] = float(value)
+
+    @property
+    def doubleSided(self):
+        """
+Specifies whether the material is double sided.
+
+        Returns
+        -----------
+        doubleSided : bool
+          Specifies whether the material is double sided.
+        """
+        return self._data.get('doubleSided')
+
+    @doubleSided.setter
+    def doubleSided(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('doubleSided', None)
+        else:
+            self._data['doubleSided'] = bool(value)
+
+    @property
+    def metallicFactor(self):
+        """
+        The factor for the metalness of the material. This value
+        defines a linear multiplier for the sampled metalness values
+        of the metallic-roughness texture.
+
+
+        Returns
+        -----------
+        metallicFactor : float
+          How metally is the material
+        """
+        return self._data.get('metallicFactor')
+
+    @metallicFactor.setter
+    def metallicFactor(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('metallicFactor', None)
+        else:
+            self._data['metallicFactor'] = float(value)
+
+    @property
+    def roughnessFactor(self):
+        """
+        The factor for the roughness of the material. This value
+        defines a linear multiplier for the sampled roughness values
+        of the metallic-roughness texture.
+
+        Returns
+        -----------
+        roughnessFactor : float
+          Roughness of material.
+        """
+        return self._data.get('roughnessFactor')
+
+    @roughnessFactor.setter
+    def roughnessFactor(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('roughnessFactor', None)
+        else:
+            self._data['roughnessFactor'] = float(value)
+
+    @property
+    def baseColorFactor(self):
+        """
+        The factors for the base color of the material. This
+        value defines linear multipliers for the sampled texels
+        of the base color texture.
+
+        Returns
+        ---------
+        color : (4,) uint8
+          RGBA color
+        """
+        return self._data.get('baseColorFactor')
+
+    @baseColorFactor.setter
+    def baseColorFactor(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('baseColorFactor', None)
+        else:
+            # non-None values must be RGBA color
+            self._data['baseColorFactor'] = color.to_rgba(value)
+
+    @property
+    def baseColorTexture(self):
+        """
+        The base color texture image.
+
+        Returns
+        ----------
+        image : PIL.Image
+          Color texture.
+        """
+        return self._data.get('baseColorTexture')
+
+    @baseColorTexture.setter
+    def baseColorTexture(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('baseColorTexture', None)
+        else:
+            # non-None values must be RGBA color
+            self._data['baseColorTexture'] = value
+
     def copy(self):
-        # doing a straight deepcopy fails probably due to PIL images
+        # doing a straight deepcopy fails due to PIL images
         kwargs = {}
         # collect stored values as kwargs
-        for k, v in self.__dict__.items():
+        for k, v in self._data.items():
             if v is None:
                 continue
-            if k.startswith('_'):
-                k = k[1:]
             if hasattr(v, 'copy'):
                 # use an objects explicit copy if available
                 kwargs[k] = v.copy()
@@ -264,7 +547,8 @@ class PBRMaterial(Material):
 
     def to_color(self, uv):
         """
-        Get the rough color at a list of specified UV coordinates.
+        Get the rough color at a list of specified UV
+        coordinates.
 
         Parameters
         -------------
@@ -275,14 +559,16 @@ class PBRMaterial(Material):
         -------------
         colors :
         """
-        colors = color.uv_to_color(uv=uv, image=self.baseColorTexture)
+        colors = color.uv_to_color(
+            uv=uv, image=self.baseColorTexture)
         if colors is None and self.baseColorFactor is not None:
             colors = self.baseColorFactor.copy()
         return colors
 
     def to_simple(self):
         """
-        Get a copy of the current PBR material as a simple material.
+        Get a copy of the current PBR material as
+        a simple material.
 
         Returns
         ------------
@@ -309,19 +595,9 @@ class PBRMaterial(Material):
         hash : int
           Hash of image and parameters
         """
-        if hasattr(self.baseColorTexture, 'tobytes'):
-            # start with hash of raw image bytes
-            hashed = hash(self.baseColorTexture.tobytes())
-        else:
-            # otherwise start with zero
-            hashed = 0
-        # we will add additional parameters with
-        # an in-place xor of the additional value
-        # if stored as numpy arrays add parameters
-        if hasattr(self.baseColorFactor, 'tobytes'):
-            hashed ^= hash(self.baseColorFactor.tobytes())
-
-        return hashed
+        return hash(bytes().join(
+            np.asanyarray(v).tobytes()
+            for v in self._data.values() if v is not None))
 
 
 def empty_material(color=None):
@@ -338,7 +614,11 @@ def empty_material(color=None):
     material : SimpleMaterial
       Image is a a one pixel RGB
     """
-    from PIL import Image
+    try:
+        from PIL import Image
+    except BaseException as E:
+        return exceptions.ExceptionModule(E)
+
     if color is None or np.shape(color) not in ((3,), (4,)):
         color = np.array([255, 255, 255], dtype=np.uint8)
     else:
@@ -401,7 +681,8 @@ def pack(materials, uvs, deduplicate=True):
     if deduplicate:
         # start by collecting a list of indexes for each material hash
         unique_idx = collections.defaultdict(list)
-        [unique_idx[hash(m)].append(i) for i, m in enumerate(materials)]
+        [unique_idx[hash(m)].append(i)
+         for i, m in enumerate(materials)]
         # now we only need the indexes and don't care about the hashes
         mat_idx = list(unique_idx.values())
     else:
@@ -440,11 +721,17 @@ def pack(materials, uvs, deduplicate=True):
         # how big was the original image
         scale = img.size / final_size
         # what is the offset in fractions of final image
-        uv_off = off / final_size
+        xy_off = off / final_size
         # scale and translate each of the new UV coordinates
         # [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
         # TODO : figure out why this is broken sometimes...
-        [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
+
+        def transform_uvs(uv, scale, xy_off):
+            xy = np.stack([uv[:, 0], 1 - uv[:, 1]], axis=-1)
+            xy = (xy * scale) + xy_off
+            return np.stack([xy[:, 0], 1 - xy[:, 1]], axis=-1)
+
+        [new_uv.append(transform_uvs(uvs[i], scale, xy_off)) for i in idxs]
 
     # stack UV coordinates into single (n, 2) array
     stacked = np.vstack(new_uv)

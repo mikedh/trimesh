@@ -80,8 +80,6 @@ def arc_center(points, return_normal=True, return_angle=True):
     if not (return_normal or return_angle):
         return result
 
-    # vectors from points on arc to center point
-    vector = util.unitize(points - center)
     if return_normal:
         if points.shape == (3, 2):
             # for 2D arcs still use the cross product so that
@@ -94,6 +92,8 @@ def arc_center(points, return_normal=True, return_angle=True):
                 np.cross(CA, BA))
 
     if return_angle:
+        # vectors from points on arc to center point
+        vector = util.unitize(points - center)
         edge_direction = np.diff(points, axis=0)
         # find the angle between the first and last vector
         dot = np.dot(*vector[[0, 2]])

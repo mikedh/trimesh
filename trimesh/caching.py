@@ -9,7 +9,7 @@ and clearing cached values based on those changes.
 import numpy as np
 
 import zlib
-import hashlib
+from hashlib import md5
 
 from functools import wraps
 
@@ -21,13 +21,22 @@ try:
 except ImportError:
     from collections import Mapping
 
+# xxhash is roughly 5x faster than zlib.adler32 and
+# up to 30x faster than MD5, but is only
+# packaged in easy wheels on linux (`pip install xxhash`)
 try:
-    # xxhash is roughly 5x faster than zlib.adler32 but is only
-    # packaged in easy wheels on linux (`pip install xxhash`)
-    # so we keep it a soft dependency
-    import xxhash
-except ImportError:
-    xxhash = None
+    # newest version of algorithm
+    from xxhash import xxh3_64_intdigest as fast_hash
+except BaseException:
+    try:
+        # older version of the algorithm
+        from xxhash import xxh64_intdigest as fast_hash
+    except BaseException:
+        log.debug('falling back to MD5 hashing: ' +
+                  '`pip install xxhash`' +
+                  ' for 30x faster cache checks')
+        # use MD5 as a fallback hashing algorithm
+        def fast_hash(a): return int(md5(a).hexdigest(), 16)
 
 
 def tracked_array(array, dtype=None):
@@ -166,16 +175,14 @@ class TrackedArray(np.ndarray):
         """
         if self._modified_m or not hasattr(self, '_hashed_md5'):
             if self.flags['C_CONTIGUOUS']:
-                hasher = hashlib.md5(self)
-                self._hashed_md5 = hasher.hexdigest()
+                self._hashed_md5 = md5(self).hexdigest()
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
-                contiguous = np.ascontiguousarray(self)
-                hasher = hashlib.md5(contiguous)
-                self._hashed_md5 = hasher.hexdigest()
+                self._hashed_md5 = md5(
+                    np.ascontiguousarray(self)).hexdigest()
         self._modified_m = False
         return self._hashed_md5
 
@@ -202,7 +209,7 @@ class TrackedArray(np.ndarray):
         self._modified_c = False
         return self._hashed_crc
 
-    def _xxhash(self):
+    def fast_hash(self):
         """
         An xxhash.b64 hash of the array.
 
@@ -216,14 +223,15 @@ class TrackedArray(np.ndarray):
         # these functions are called millions of times so everything helps
         if self._modified_x or not hasattr(self, '_hashed_xx'):
             if self.flags['C_CONTIGUOUS']:
-                self._hashed_xx = xxhash.xxh64(self).intdigest()
+                self._hashed_xx = fast_hash(self)
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
-                self._hashed_xx = xxhash.xxh64(np.ascontiguousarray(self)).intdigest()
+                self._hashed_xx = fast_hash(np.ascontiguousarray(self))
         self._modified_x = False
+
         return self._hashed_xx
 
     def __hash__(self):
@@ -353,13 +361,6 @@ class TrackedArray(np.ndarray):
         super(self.__class__, self).__setslice__(*args,
                                                  **kwargs)
 
-    if xxhash is None:
-        # otherwise use our fastest CRC
-        fast_hash = crc
-    else:
-        # if xxhash is installed use it
-        fast_hash = _xxhash
-
 
 class Cache(object):
     """
@@ -423,7 +424,12 @@ class Cache(object):
 
     def clear(self, exclude=None):
         """
-        Remove all elements in the cache.
+        Remove elements in the cache.
+
+        Parameters
+        -----------
+        exclude : list
+          List of keys in cache to not clear.
         """
         if exclude is None:
             self.cache = {}
@@ -521,8 +527,11 @@ class DataStore(Mapping):
     def __iter__(self):
         return iter(self.data)
 
+    def pop(self, key):
+        return self.data.pop(key, None)
+
     def __delitem__(self, key):
-        del self.data[key]
+        self.data.pop(key, None)
 
     @property
     def mutable(self):
@@ -534,9 +543,7 @@ class DataStore(Mapping):
         is_mutable : bool
           Can data be altered in the DataStore
         """
-        if not hasattr(self, '_mutable'):
-            return True
-        return self._mutable
+        return getattr(self, '_mutable', True)
 
     @mutable.setter
     def mutable(self, value):
@@ -629,11 +636,10 @@ class DataStore(Mapping):
         md5 : str
           MD5 of data in hexadecimal
         """
-        hasher = hashlib.md5()
-        for key in sorted(self.data.keys()):
-            hasher.update(self.data[key].md5().encode('utf-8'))
-        md5 = hasher.hexdigest()
-        return md5
+        hasher = md5(''.join(
+            self.data[key].md5()
+            for key in sorted(self.data.keys())).encode('utf-8'))
+        return hasher.hexdigest()
 
     def crc(self):
         """
@@ -662,7 +668,7 @@ class DataStore(Mapping):
         return fast
 
 
-def _fast_crc(count=25):
+def _fast_crc(count=10):
     """
     On certain platforms/builds zlib.adler32 is substantially
     faster than zlib.crc32, but it is not consistent across

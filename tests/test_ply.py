@@ -160,25 +160,49 @@ class PlyTest(g.unittest.TestCase):
 
         for empty_file in empty_files:
             e = g.get_mesh('emptyIO/' + empty_file)
-
-            # create export
-            export = e.export(file_type='ply')
-            reconstructed = g.wrapload(export, file_type='ply')
-
             if 'empty' in empty_file:
-                # result should be an empty scene without vertices
-                assert isinstance(e, g.trimesh.Scene)
-                assert not hasattr(e, 'vertices')
-                # export should not contain geometry
-                assert isinstance(reconstructed, g.trimesh.Scene)
-                assert not hasattr(reconstructed, 'vertices')
+                # result should be an empty scene
+                try:
+                    e.export(file_type='ply')
+                except BaseException:
+                    continue
+                raise ValueError('should not export empty')
             elif 'points' in empty_file:
+                # create export
+                export = e.export(file_type='ply')
+                reconstructed = g.wrapload(export, file_type='ply')
+
                 # result should be a point cloud instance
                 assert isinstance(e, g.trimesh.PointCloud)
                 assert hasattr(e, 'vertices')
                 # point cloud export should contain vertices
                 assert isinstance(reconstructed, g.trimesh.PointCloud)
                 assert hasattr(reconstructed, 'vertices')
+
+    def test_blender_uv(self):
+        # test texture coordinate loading for Blender exported ply files
+        mesh_names = []
+
+        # test texture coordinate loading for simple triangulated Blender-export
+        mesh_names.append('cube_blender_uv.ply')
+
+        # same mesh but re-exported from meshlab as binary ply (and with changed header)
+        mesh_names.append('cube_blender_uv_meshlab.ply')
+
+        # test texture coordinate loading for mesh with mixed quads and triangles
+        mesh_names.append('suzanne.ply')
+
+        for mesh_name in mesh_names:
+            m = g.get_mesh(mesh_name)
+            assert hasattr(m, 'visual') and hasattr(m.visual, 'uv')
+            assert m.visual.uv.shape[0] == m.vertices.shape[0]
+
+    def test_fix_texture(self):
+        # test loading of face indices when uv-coordinates are also contained
+        m1 = g.get_mesh('plane.ply')
+        m2 = g.get_mesh('plane_tri.ply')
+        assert m1.faces.shape == (2, 3)
+        assert m2.faces.shape == (2, 3)
 
 
 if __name__ == '__main__':

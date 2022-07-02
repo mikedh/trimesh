@@ -26,21 +26,26 @@ def abspath(rel):
     return os.path.abspath(os.path.join(cwd, rel))
 
 
-extensions = ['sphinx.ext.napoleon']
+extensions = ['sphinx.ext.napoleon',  # numpy-style docstring
+              'myst_parser']         # allows markdown
+myst_all_links_external = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
 # The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-source_suffix = ['.rst']
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.txt': 'markdown',
+    '.md': 'markdown',
+}
 
 # The master toctree document.
 master_doc = 'index'
 
 # General information about the project.
 project = 'trimesh'
-copyright = '2020, Michael Dawson-Haggerty'
+copyright = '2022, Michael Dawson-Haggerty'
 author = 'Michael Dawson-Haggerty'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -74,6 +79,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages
 html_theme = 'sphinx_rtd_theme'
+# html_theme = 'insegel'
 
 # options for rtd-theme
 html_theme_options = {
@@ -95,22 +101,22 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# custom css
+html_css_files = ['custom.css']
+
 html_context = {
-    'css_files': [
-        '_static/custom.css',  # override non-wrapping tables in RTD theme
-    ],
-    "display_github": True,  # Add 'Edit on Github' link instead of 'View page source'
+    "display_github": True,
     "github_user": "mikedh",
     "github_repo": "trimesh",
-    "github_version": "master",
-    "conf_py_path": "/docs/",
+    "github_version": "main",
+    "conf_py_path": "/docs/"
 }
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'trimeshdoc'
 
-# -- Extensions configuration ----------------------------------------
-
+# -- Extensions configuration ----------------------------------
 autodoc_default_options = {
     'autosummary': True,
+    'special-members': '__init__',
 }

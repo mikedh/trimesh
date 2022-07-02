@@ -140,8 +140,10 @@ def load_obj(file_obj,
 
         # the fastest way to get to a numpy array
         # processes the whole string at once into a 1D array
+        array = np.fromstring(joined, sep=' ', dtype=np.int64)
         # also wavefront is 1-indexed (vs 0-indexed) so offset
-        array = np.fromstring(joined, sep=' ', dtype=np.int64) - 1
+        # only applies to positive indices
+        array[array > 0] -= 1
 
         # get the number of raw 2D columns in a sample line
         columns = len(face_lines[0].strip().replace('/', ' ').split())
@@ -162,10 +164,12 @@ def load_obj(file_obj,
             log.debug('faces have mixed data, using slow fallback!')
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
-        # TODO: name usually falls back to something useless
-        name = current_object
-        if name is None or len(name) == 0 or name in geometry:
-            name = '{}_{}'.format(name, util.unique_id())
+        if group_material:
+            name = material
+        else:
+            name = current_object
+            if name is None or len(name) == 0 or name in geometry:
+                name = '{}_{}'.format(name, util.unique_id())
 
         # try to get usable texture
         mesh = kwargs.copy()
@@ -229,13 +233,22 @@ def load_obj(file_obj,
             # start with vertices and faces
             mesh.update({'faces': new_faces,
                          'vertices': v[mask_v].copy()})
-            # if vertex colors are OK save them
-            if vc is not None:
-                mesh['vertex_colors'] = vc[mask_v]
-            # if vertex normals are OK save them
-            if mask_vn is not None:
-                mesh['vertex_normals'] = vn[mask_vn]
 
+            # if colors and normals are OK save them
+            if vc is not None:
+                try:
+                    # may fail on a malformed color mask
+                    mesh['vertex_colors'] = vc[mask_v]
+                except BaseException:
+                    log.warning('failed to load vertex_colors',
+                                exc_info=True)
+            if mask_vn is not None:
+                try:
+                    # may fail on a malformed mask
+                    mesh['vertex_normals'] = vn[mask_vn]
+                except BaseException:
+                    log.warning('failed to load vertex_normals',
+                                exc_info=True)
         visual = None
         if material in materials:
             # use the material with the UV coordinates
@@ -491,12 +504,16 @@ def _parse_faces_fallback(lines):
                 pass
 
     # shape into triangles and switch to 0-indexed
-    faces = np.array(v, dtype=np.int64).reshape((-1, 3)) - 1
+    # 0-indexing only applies to positive indices
+    faces = np.array(v, dtype=np.int64).reshape((-1, 3))
+    faces[faces > 0] -= 1
     faces_tex, normals = None, None
     if len(vt) == len(v):
-        faces_tex = np.array(vt, dtype=np.int64).reshape((-1, 3)) - 1
+        faces_tex = np.array(vt, dtype=np.int64).reshape((-1, 3))
+        faces_tex[faces_tex > 0] -= 1
     if len(vn) == len(v):
-        normals = np.array(vn, dtype=np.int64).reshape((-1, 3)) - 1
+        normals = np.array(vn, dtype=np.int64).reshape((-1, 3))
+        normals[normals > 0] -= 1
 
     return faces, faces_tex, normals
 
@@ -735,7 +752,8 @@ def export_obj(mesh,
                return_texture=False,
                write_texture=True,
                resolver=None,
-               digits=8):
+               digits=8,
+               header='https://github.com/mikedh/trimesh'):
     """
     Export a mesh as a Wavefront OBJ file.
     TODO: scenes with textured meshes
@@ -748,7 +766,7 @@ def export_obj(mesh,
       Include vertex normals in export
     include_color : bool
       Include vertex color in export
-    include_texture bool
+    include_texture : bool
       Include `vt` texture in file text
     return_texture : bool
       If True, return a dict with texture files
@@ -759,13 +777,14 @@ def export_obj(mesh,
       Resolver which can write referenced text objects
     digits : int
       Number of digits to include for floating point
+    header : str or None
+      Header string for top of file or None for no header.
 
     Returns
     -----------
     export : str
       OBJ format output
     texture : dict
-      [OPTIONAL]
       Contains files that need to be saved in the same
       directory as the exported mesh: {file name : bytes}
     """
@@ -840,15 +859,18 @@ def export_obj(mesh,
                 (tex_data,
                  tex_name,
                  mtl_name) = material.to_obj()
-                converted = util.array_to_string(
-                    mesh.visual.uv,
-                    col_delim=' ',
-                    row_delim='\nvt ',
-                    digits=digits)
-                # if vertex texture exists and is the right shape
-                face_type.append('vt')
-                # add the uv coordinates
-                export.append('vt ' + converted)
+
+                if len(np.shape(getattr(mesh.visual, 'uv', None))) == 2:
+                    converted = util.array_to_string(
+                        mesh.visual.uv,
+                        col_delim=' ',
+                        row_delim='\nvt ',
+                        digits=digits)
+                    # if vertex texture exists and is the right shape
+                    face_type.append('vt')
+                    # add the uv coordinates
+                    export.append('vt ' + converted)
+
                 # add the reference to the MTL file
                 objects.appendleft('mtllib {}'.format(mtl_name))
                 # add the directive to use the exported material
@@ -876,8 +898,9 @@ def export_obj(mesh,
         # add this object
         objects.append('\n'.join(export))
 
-    # add a created-with header to the top of the file
-    objects.appendleft('# https://github.com/mikedh/trimesh')
+    if header is not None:
+        # add a created-with header to the top of the file
+        objects.appendleft('# {}'.format(header))
     # combine elements into a single string
     text = '\n'.join(objects)
 

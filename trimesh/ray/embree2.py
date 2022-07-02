@@ -98,6 +98,34 @@ class RayMeshIntersector(parent.RayMeshParent):
                       multiple_hits=True,
                       max_hits=20,
                       return_locations=False):
+        """
+        Find the triangles hit by a list of rays, including
+        optionally multiple hits along a single ray.
+
+
+        Parameters
+        ----------
+        ray_origins : (n, 3) float
+          Origins of rays
+        ray_directions : (n, 3) float
+          Direction (vector) of rays
+        multiple_hits : bool
+          If True will return every hit along the ray
+          If False will only return first hit
+        max_hits : int
+          Maximum number of hits per ray
+        return_locations : bool
+          Should we return hit locations or not
+
+        Returns
+        ---------
+        index_tri : (m,) int
+          Indexes of mesh.faces
+        index_ray : (m,) int
+          Indexes of ray
+        locations : (m) sequence of (p, 3) float
+          Intersection points, only returned if return_locations
+        """
         # inherits docstring from parent
         origins = np.asanyarray(
             deepcopy(origins),
@@ -133,10 +161,10 @@ class RayMeshIntersector(parent.RayMeshParent):
             # run the pyembree query
             # if you set output=1 it will calculate distance along
             # ray, which is bizzarely slower than our calculation
+
             query = self._scene.run(
                 origins[current],
                 directions[current])
-
             # basically we need to reduce the rays to the ones that hit
             # something
             hit = query != -1

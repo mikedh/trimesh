@@ -3,6 +3,55 @@ try:
 except BaseException:
     import generic as g
 
+# Khronos' official file validator
+# can be installed with the helper script:
+# `trimesh/docker/builds/gltf_validator.bash`
+_gltf_validator = g.find_executable('gltf_validator')
+
+
+def validate_glb(data):
+    """
+    Run the Khronos validator on GLB files using
+    subprocess.
+
+    Parameters
+    ------------
+    data : bytes
+      GLB export
+
+    Raises
+    ------------
+    ValueError
+      If Khronos validator reports errors.
+    """
+    # subprocess options not in old python
+    if g.PY_VER < (3, 7):
+        return
+    if _gltf_validator is None:
+        g.log.warning('no gltf_validator!')
+        return
+
+    with g.tempfile.NamedTemporaryFile(suffix='.glb') as f:
+        f.write(data)
+        f.flush()
+        # run the khronos gltf-validator
+        report = g.subprocess.run(
+            [_gltf_validator, f.name, '-o'],
+            capture_output=True)
+        # -o prints JSON to stdout
+        content = report.stdout.decode('utf-8')
+        if report.returncode != 0:
+            # log the whole error report
+            g.log.error(content)
+            raise ValueError('Khronos GLTF validator error!')
+
+        # log the GLTF validator report if
+        # there are any warnings or hints
+        decode = g.json.loads(content)
+        if any(decode['issues'][i] > 0 for i in
+               ['numWarnings', 'numInfos', 'numHints']):
+            g.log.warning(content)
+
 
 class GLTFTest(g.unittest.TestCase):
 
@@ -15,11 +64,15 @@ class GLTFTest(g.unittest.TestCase):
         # get the mesh
         geom = next(iter(scene.geometry.values()))
 
+        # vertex normals should have been loaded
+        assert 'vertex_normals' in geom._cache.cache
+
         # should not be watertight
         assert not geom.is_volume
         # make sure export doesn't crash
         export = scene.export(file_type='glb')
-        assert len(export) > 0
+        validate_glb(export)
+
         # check a roundtrip
         reloaded = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
@@ -28,8 +81,37 @@ class GLTFTest(g.unittest.TestCase):
         g.scene_equal(scene, reloaded)
 
         # if we merge ugly it should now be watertight
-        geom.merge_vertices(merge_tex=True)
+        geom.merge_vertices(
+            merge_tex=True, merge_norm=True)
         assert geom.is_volume
+
+    def test_strips(self):
+        a = g.get_mesh('mode5.gltf')
+        assert len(a.geometry) > 0
+
+        b = g.get_mesh('mode5.gltf', merge_primitives=True)
+        assert len(b.geometry) > 0
+
+    def test_buffer_dedupe(self):
+        scene = g.trimesh.Scene()
+        box_1 = g.trimesh.creation.box()
+        box_2 = g.trimesh.creation.box()
+        box_3 = g.trimesh.creation.box()
+        box_3.visual.face_colors = [0, 255, 0, 255]
+
+        tm = g.trimesh.transformations.translation_matrix
+        scene.add_geometry(
+            box_1, 'box_1',
+            transform=tm((1, 1, 1)))
+        scene.add_geometry(
+            box_2, 'box_2',
+            transform=tm((-1, -1, -1)))
+        scene.add_geometry(
+            box_3, 'box_3',
+            transform=tm((-1, 20, -1)))
+        a = g.json.loads(scene.export(
+            file_type='gltf')['model.gltf'].decode('utf-8'))
+        assert len(a['buffers']) <= 3
 
     def test_tex_export(self):
         # load textured PLY
@@ -38,15 +120,14 @@ class GLTFTest(g.unittest.TestCase):
 
         # make sure export as GLB doesn't crash on scenes
         export = mesh.scene().export(file_type='glb')
-        assert len(export) > 0
+        validate_glb(export)
         # make sure it works on meshes
         export = mesh.export(file_type='glb')
-        assert len(export) > 0
+        validate_glb(export)
 
     def test_cesium(self):
-        """
-        A GLTF with a multi- primitive mesh
-        """
+        # A GLTF with a multi- primitive mesh
+
         s = g.get_mesh('CesiumMilkTruck.glb')
         # should be one Trimesh object per GLTF "primitive"
         assert len(s.geometry) == 4
@@ -55,7 +136,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # make sure export doesn't crash
         export = s.export(file_type='glb')
-        assert len(export) > 0
+        validate_glb(export)
 
         reloaded = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
@@ -64,14 +145,16 @@ class GLTFTest(g.unittest.TestCase):
         g.scene_equal(s, reloaded)
 
     def test_units(self):
-        """
-        Trimesh will store units as a GLTF extra if they
-        are defined so check that.
-        """
+
+        # Trimesh will store units as a GLTF extra if they
+        # are defined so check that.
+
         original = g.get_mesh('pins.glb')
 
         # export it as a a GLB file
         export = original.export(file_type='glb')
+        validate_glb(export)
+
         kwargs = g.trimesh.exchange.gltf.load_glb(
             g.trimesh.util.wrap_as_stream(export))
         # roundtrip it
@@ -163,8 +246,64 @@ class GLTFTest(g.unittest.TestCase):
         assert len(a.geometry) == 4
 
         # should combine the multiple primitives into a single mesh
-        b = g.get_mesh('CesiumMilkTruck.glb', merge_primitives=True)
+        b = g.get_mesh(
+            'CesiumMilkTruck.glb', merge_primitives=True)
         assert len(b.geometry) == 2
+
+    def test_specular_glossiness(self):
+        s = g.get_mesh('pyramid.zip')
+        assert len(s.geometry) > 0
+
+    def test_write_dir(self):
+        # try loading from a file name
+        # will require a file path resolver
+        original = g.get_mesh('fuze.obj')
+        assert isinstance(original, g.trimesh.Trimesh)
+        s = original.scene()
+        with g.TemporaryDirectory() as d:
+            path = g.os.path.join(d, 'heyy.gltf')
+            s.export(file_obj=path)
+            r = g.trimesh.load(path)
+            assert isinstance(r, g.trimesh.Scene)
+            assert len(r.geometry) == 1
+            m = next(iter(r.geometry.values()))
+            assert g.np.isclose(original.area, m.area)
+
+    def test_merge_primitives_materials(self):
+        # test to see if the `merge_primitives` logic is working
+        a = g.get_mesh('rgb_cube_with_primitives.gltf',
+                       merge_primitives=True)
+        assert len(a.geometry['Cube'].visual.material) == 3
+        # what the face materials should be
+        truth = [0, 0, 0, 0, 1, 1,
+                 1, 1, 2, 2, 2, 2]
+        assert g.np.allclose(
+            a.geometry['Cube'].visual.face_materials,
+            truth)
+        # make sure copying did the things correctly
+        c = a.copy()
+        assert g.np.allclose(
+            c.geometry['Cube'].visual.face_materials,
+            truth)
+
+    def test_merge_primitives_materials_roundtrip(self):
+        # test to see if gltf loaded with `merge_primitives`
+        # and then exported back
+        # to gltf, produces a valid gltf.
+        a = g.get_mesh('rgb_cube_with_primitives.gltf',
+                       merge_primitives=True)
+        result = a.export(file_type='gltf', merge_buffers=True)
+        with g.TemporaryDirectory() as d:
+            for file_name, data in result.items():
+                with open(g.os.path.join(d, file_name), 'wb') as f:
+                    f.write(data)
+
+            rd = g.trimesh.load(
+                g.os.path.join(d, 'model.gltf'), merge_primitives=True)
+            assert isinstance(rd, g.trimesh.Scene)
+            # will assert round trip is roughly equal
+            # TODO : restore
+            # g.scene_equal(rd, a)
 
     def test_optional_camera(self):
         gltf_cameras_key = 'cameras'
@@ -190,7 +329,7 @@ class GLTFTest(g.unittest.TestCase):
         assert len(scene.geometry) == 11
 
         export = scene.export(file_type='glb')
-        assert len(export) > 0
+        validate_glb(export)
         # check a roundtrip
         reloaded = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
@@ -222,9 +361,10 @@ class GLTFTest(g.unittest.TestCase):
         assert len(header['meshes']) == 2
 
         # get a reloaded version
+        export = scene.export(file_type='glb')
+        validate_glb(export)
         reloaded = g.trimesh.load(
-            file_obj=g.trimesh.util.wrap_as_stream(
-                scene.export(file_type='glb')),
+            file_obj=g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
 
         # meshes should have survived
@@ -246,22 +386,31 @@ class GLTFTest(g.unittest.TestCase):
         assert ahash != 0
 
     def test_node_name(self):
-        """
-        Test to see if node names generally survive
-        an export-import cycle.
-        """
+        # Test to see if node names generally survive
+        # an export-import cycle.
+
         # a scene
         s = g.get_mesh('cycloidal.3DXML')
         # export as GLB then re-load
+        export = s.export(file_type='glb')
+        validate_glb(export)
         r = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(
-                s.export(file_type='glb')),
+            g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
         # make sure we have the same geometries before and after
         assert set(s.geometry.keys()) == set(r.geometry.keys())
         # make sure the node names are the same before and after
         assert (set(s.graph.nodes_geometry) ==
                 set(r.graph.nodes_geometry))
+
+    def test_nested_scale(self):
+        # nested transforms with scale
+        s = g.get_mesh('nested.glb')
+        assert len(s.graph.nodes_geometry) == 3
+        assert g.np.allclose(
+            [[-1.16701, -2.3366, -0.26938],
+             [0.26938, 1., 0.26938]],
+            s.bounds, atol=1e-4)
 
     def test_schema(self):
         # get a copy of the GLTF schema and do simple checks
@@ -307,9 +456,10 @@ class GLTFTest(g.unittest.TestCase):
             v_count, 4, 4).astype(g.np.float32)
 
         # export as GLB then re-load
+        export = sphere.export(file_type='glb')
+        validate_glb(export)
         r = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(
-                sphere.export(file_type='glb')),
+            g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
 
         for _, val in r.geometry.items():
@@ -330,26 +480,15 @@ class GLTFTest(g.unittest.TestCase):
         dummy = {'who': 'likes cheese', 'potatoes': 25}
 
         # export as GLB with extras passed to the exporter then re-load
+        s.metadata = dummy
+        export = s.export(file_type='glb')
+        validate_glb(export)
         r = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(
-                s.export(file_type='glb', extras=dummy)),
+            g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
 
-        # shouldn't be in original metadata
-        assert 'extras' not in s.metadata
         # make sure extras survived a round trip
-        assert all(r.metadata['extras'][k] == v
-                   for k, v in dummy.items())
-
-        # now assign the extras to the metadata
-        s.metadata['extras'] = dummy
-        # export as GLB then re-load
-        r = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(
-                s.export(file_type='glb')),
-            file_type='glb')
-        # make sure extras survived a round trip
-        assert all(r.metadata['extras'][k] == v
+        assert all(r.metadata[k] == v
                    for k, v in dummy.items())
 
     def test_extras_nodes(self):
@@ -363,18 +502,24 @@ class GLTFTest(g.unittest.TestCase):
             'test_dict': {'a': 1, 'b': 2}}
 
         sphere1 = g.trimesh.primitives.Sphere(radius=1.0)
+        sphere1.metadata.update(test_metadata)
         sphere2 = g.trimesh.primitives.Sphere(radius=2.0)
+        sphere2.metadata.update(test_metadata)
 
-        # transformations.euler_from_quaternion(obj.transform.rotation, axes='sxyz')
-        node1_transform = g.trimesh.transformations.translation_matrix([0, 0, -2])
-        node2_transform = g.trimesh.transformations.translation_matrix([5, 5, 5])
+        tf1 = g.trimesh.transformations.translation_matrix([0, 0, -2])
+        tf2 = g.trimesh.transformations.translation_matrix([5, 5, 5])
 
         s = g.trimesh.scene.Scene()
-        s.add_geometry(sphere1, node_name="Sphere1", geom_name="Geom Sphere1",
-                       transform=node1_transform, extras=test_metadata)
-        s.add_geometry(sphere2, node_name="Sphere2", geom_name="Geom Sphere2",
-                       parent_node_name="Sphere1", transform=node2_transform,
-                       extras=test_metadata)
+        s.add_geometry(
+            sphere1,
+            node_name="Sphere1",
+            geom_name="Geom Sphere1",
+            transform=tf1)
+        s.add_geometry(sphere2,
+                       node_name="Sphere2",
+                       geom_name="Geom Sphere2",
+                       parent_node_name="Sphere1",
+                       transform=tf2)
 
         # Test extras appear in the exported model nodes
         files = s.export(None, "gltf")
@@ -382,15 +527,23 @@ class GLTFTest(g.unittest.TestCase):
         assert 'test_value' in gltf_data.decode('utf8')
 
         # Check node extras survive a round trip
+        export = s.export(file_type='glb')
+        validate_glb(export)
         r = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(
-                s.export(file_type='glb')),
+            g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
         files = r.export(None, "gltf")
         gltf_data = files["model.gltf"]
         assert 'test_value' in gltf_data.decode('utf8')
-        edge_data = r.graph.transforms.get_edge_data("world", "Sphere1")
-        assert edge_data['extras'] == test_metadata
+        edge = r.graph.transforms.edge_data[("world", "Sphere1")]
+        assert g.np.allclose(edge['matrix'], tf1)
+
+        # all geometry should be the same
+        assert set(r.geometry.keys()) == set(s.geometry.keys())
+        for mesh in r.geometry.values():
+            # metadata should have all survived
+            assert all(mesh.metadata[k] == v
+                       for k, v in test_metadata.items())
 
     def test_read_scene_extras(self):
         # loads a glb with scene extras
@@ -399,16 +552,11 @@ class GLTFTest(g.unittest.TestCase):
         # expected data
         check = {'name': 'monkey', 'age': 32, 'height': 0.987}
 
-        # get the scene extras
-        extras = scene.metadata["scene_extras"]
-
-        # check number
-        assert len(extras) == 3
-
+        meta = scene.metadata
         for key in check:
             # \check key existence and value
-            assert key in extras
-            assert extras[key] == check[key]
+            assert key in meta
+            assert meta[key] == check[key]
 
     def test_load_empty_nodes(self):
         # loads a glb with no meshes
@@ -460,9 +608,11 @@ class GLTFTest(g.unittest.TestCase):
         # get a mesh with face colors
         m = g.get_mesh('machinist.XAML')
         # export as GLB then re-import
+        export = m.export(file_type='glb')
+        validate_glb(export)
         r = next(iter(
             g.trimesh.load(g.trimesh.util.wrap_as_stream(
-                m.export(file_type='glb')),
+                export),
                 file_type='glb').geometry.values()))
         # original mesh should have vertex colors
         assert m.visual.kind == 'face'
@@ -480,9 +630,11 @@ class GLTFTest(g.unittest.TestCase):
 
         # set the color vertex attribute
         m.visual.vertex_attributes['color'] = colors
+        export = m.export(file_type='glb')
+        validate_glb(export)
         r = next(iter(
-            g.trimesh.load(g.trimesh.util.wrap_as_stream(
-                m.export(file_type='glb')),
+            g.trimesh.load(
+                g.trimesh.util.wrap_as_stream(export),
                 file_type='glb').geometry.values()))
 
         # make sure the color vertex attributes survived the roundtrip
@@ -511,6 +663,87 @@ class GLTFTest(g.unittest.TestCase):
 
         assert "extensions" not in extract_materials(gltf_1)[-1]
         assert "extensions" in extract_materials(gltf_2)[-1]
+
+    def test_primitive_geometry_meta(self):
+        # Model with primitives
+        s = g.get_mesh('CesiumMilkTruck.glb')
+
+        # Assert that primitive geometries are marked as such
+        assert s.geometry['Cesium_Milk_Truck_0'].metadata['from_gltf_primitive']
+
+        # Assert that geometries that are not primitives are not marked as such
+        assert not s.geometry['Wheels'].metadata['from_gltf_primitive']
+
+    def test_points(self):
+        # test a simple pointcloud export-import cycle
+        points = g.np.arange(30).reshape((-1, 3))
+        export = g.trimesh.Scene(
+            g.trimesh.PointCloud(points)).export(file_type='glb')
+        validate_glb(export)
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(export),
+            file_type='glb')
+        # make sure points survived export and reload
+        assert g.np.allclose(next(iter(reloaded.geometry.values())).vertices, points)
+
+    def test_bulk(self):
+        # Try exporting every loadable model to GLTF and checking
+        # the generated header against the schema.
+
+        # strict mode runs a schema header validation
+        assert g.trimesh.tol.strict
+
+        # check mesh, path, pointcloud exports
+        for root in [g.dir_models, g.os.path.join(g.dir_models, '2D')]:
+            for fn in g.os.listdir(root):
+                path_in = g.os.path.join(root, fn)
+                try:
+                    geom = g.trimesh.load(path_in)
+                    if isinstance(geom, g.trimesh.path.path.Path):
+                        geom = g.trimesh.Scene(geom)
+                except BaseException as E:
+                    print(E)
+                    continue
+                # voxels don't have an export to gltf mode
+                if not hasattr(geom, 'export'):
+                    continue
+                elif hasattr(geom, 'vertices') and len(geom.vertices) == 0:
+                    continue
+                elif hasattr(geom, 'geometry') and len(geom.geometry) == 0:
+                    continue
+
+                g.log.info('Testing: {}'.format(fn))
+                # check a roundtrip which will validate on export
+                # and crash on reload if we've done anything screwey
+                export = geom.export(file_type='glb')
+                validate_glb(export)
+                # todo : importer breaks on `models/empty*` as it
+                # doesn't know what to do with empty meshes
+                # reloaded = g.trimesh.load(
+                #    g.trimesh.util.wrap_as_stream(export),
+                #    file_type='glb')
+
+    def test_equal_by_default(self):
+        # all things being equal we shouldn't be moving things
+        # for the usual load-export loop
+        s = g.get_mesh('fuze.obj')
+        # export as GLB then re-load
+        export = s.export(file_type='glb')
+        validate_glb(export)
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(export),
+            file_type='glb', process=False)
+        assert len(reloaded.geometry) == 1
+        m = next(iter(reloaded.geometry.values()))
+        assert g.np.allclose(m.visual.uv,
+                             s.visual.uv)
+        assert g.np.allclose(m.vertices,
+                             s.vertices)
+        assert g.np.allclose(m.faces,
+                             s.faces)
+
+        # will run a kdtree check
+        g.texture_equal(s, m)
 
 
 if __name__ == '__main__':

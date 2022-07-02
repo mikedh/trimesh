@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 
 from .base import Visuals
@@ -14,7 +16,8 @@ class TextureVisuals(Visuals):
     def __init__(self,
                  uv=None,
                  material=None,
-                 image=None):
+                 image=None,
+                 face_materials=None):
         """
         Store a single material and per-vertex UV coordinates
         for a mesh.
@@ -49,6 +52,8 @@ class TextureVisuals(Visuals):
         else:
             # if passed assign
             self.material = material
+
+        self.face_materials = face_materials
 
     def _verify_crc(self):
         """
@@ -120,7 +125,7 @@ class TextureVisuals(Visuals):
             self.vertex_attributes['uv'] = np.asanyarray(
                 values, dtype=np.float64)
 
-    def copy(self):
+    def copy(self, uv=None):
         """
         Return a copy of the current TextureVisuals object.
 
@@ -129,12 +134,14 @@ class TextureVisuals(Visuals):
         copied : TextureVisuals
           Contains the same information in a new object
         """
-        uv = self.uv
+        if uv is None:
+            uv = self.uv
         if uv is not None:
             uv = uv.copy()
         copied = TextureVisuals(
             uv=uv,
-            material=self.material.copy())
+            material=self.material.copy(),
+            face_materials=copy.copy(self.face_materials))
 
         return copied
 
@@ -158,7 +165,11 @@ class TextureVisuals(Visuals):
         """
         Get a copy of
         """
-        return self.copy()
+        if self.uv is not None:
+            indices = np.unique(self.mesh.faces[face_index].flatten())
+            return self.copy(self.uv[indices])
+        else:
+            return self.copy()
 
     def update_vertices(self, mask):
         """
@@ -300,7 +311,7 @@ def unmerge_faces(faces, *args, **kwargs):
     remap[order] = np.arange(len(order))
 
     # the faces are just the inverse with the new order
-    new_faces = remap[inverse].reshape((-1, 3))
+    new_faces = remap[inverse].reshape((-1, faces.shape[1]))
 
     # the mask for vertices and masks for other args
     result = [new_faces]

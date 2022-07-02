@@ -202,6 +202,7 @@ def merge_colinear(points, scale):
     # and direction vectors A-B, B-C, etc
     # these will be perpendicular to the vectors A-C, B-D, etc
     perp = (points[2:] - points[:-2]).T[::-1].T
+    perp[:, 0] *= -1
     perp_norm = util.row_norm(perp)
     perp_nonzero = perp_norm > tol.merge
     perp[perp_nonzero] /= perp_norm[perp_nonzero].reshape((-1, 1))
@@ -409,15 +410,14 @@ def simplify_spline(path, smooth=None, verbose=False):
     scale = path.scale
 
     for discrete in path.discrete:
-        circle = is_circle(discrete,
-                           scale=scale,
-                           verbose=verbose)
+        circle = is_circle(
+            discrete, scale=scale, verbose=verbose)
         if circle is not None:
             # the points are circular enough for our high standards
             # so replace them with a closed Arc entity
-            new_entities.append(entities.Arc(points=np.arange(3) +
-                                             len(new_vertices),
-                                             closed=True))
+            new_entities.append(entities.Arc(
+                points=np.arange(3) + len(new_vertices),
+                closed=True))
             new_vertices.extend(circle)
             continue
 

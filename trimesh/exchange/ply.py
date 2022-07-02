@@ -255,7 +255,7 @@ def export_ply(mesh,
     # if vertex normals aren't specifically asked for
     # only export them if they are stored in cache
     if vertex_normal is None:
-        vertex_normal = 'vertex_normal' in mesh._cache
+        vertex_normal = 'vertex_normals' in mesh._cache
 
     # if we want to include mesh attributes in the export
     if include_attributes:
@@ -273,7 +273,8 @@ def export_ply(mesh,
     dtype_color = ('rgba', '<u1', (4))
 
     # get template strings in dict
-    templates = resources.get('ply.template', decode_json=True)
+    templates = resources.get('templates/ply.json',
+                              decode_json=True)
     # start collecting elements into a string for the header
     header = [templates['intro']]
 
@@ -531,11 +532,32 @@ def elements_to_kwargs(elements,
             # we may have mixed quads and triangles handle them with function
             faces = triangulate_quads(faces)
 
+    if texcoord is None:
+        # ply has no clear definition of how texture coordinates are stored,
+        # unfortunately there are many common names that we need to try
+        texcoord_names = [('texture_u', 'texture_v'), ('u', 'v'), ('s', 't')]
+        for names in texcoord_names:
+            # If texture coordinates are defined with vertices
+            try:
+                t_u = elements['vertex']['data'][names[0]]
+                t_v = elements['vertex']['data'][names[1]]
+                texcoord = np.stack((
+                    t_u[faces.reshape(-1)],
+                    t_v[faces.reshape(-1)]), axis=-1).reshape(
+                        (faces.shape[0], -1))
+                # stop trying once succeeded
+                break
+            except (ValueError, KeyError):
+                # if the fields didn't exist
+                pass
+
+    if faces is not None:
+        shape = np.shape(faces)
+
         # PLY stores texture coordinates per-face which is
         # slightly annoying, as we have to then figure out
         # which vertices have the same position but different UV
-        if (image is not None and
-            texcoord is not None and
+        if (texcoord is not None and
             len(shape) == 2 and
                 texcoord.shape == (faces.shape[0], faces.shape[1] * 2)):
 
@@ -573,6 +595,12 @@ def elements_to_kwargs(elements,
             # create the visuals object for the texture
             kwargs['visual'] = visual.texture.TextureVisuals(
                 uv=uv, image=image)
+        elif texcoord is not None:
+            # create a texture with an empty material
+            from ..visual.texture import TextureVisuals
+            uv = np.zeros((len(vertices), 2))
+            uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
+            kwargs['visual'] = TextureVisuals(uv=uv)
         # faces were not none so assign them
         kwargs['faces'] = faces
     # kwargs for Trimesh or PointCloud
@@ -625,7 +653,7 @@ def load_element_different(properties, data):
     data : array
       Data rows for this element.
     """
-    element_data = {k: [] for k in properties.keys()}
+    edata = {k: [] for k in properties.keys()}
     for row in data:
         start = 0
         for name, dt in properties.items():
@@ -637,12 +665,18 @@ def load_element_different(properties, data):
                 # skip the first entry (the length), when reading the data
                 start += 1
             end = start + length
-            element_data[name].append(row[start:end].astype(dt))
+            edata[name].append(row[start:end].astype(dt))
             # start next property at the end of this one
             start = end
-    # try converting to numpy arrays
-    squeeze = {k: np.array(v).squeeze() for k, v in
-               element_data.items()}
+
+    # if the shape of any array is (n, 1) we want to
+    # squeeze/concatenate it into (n,)
+    squeeze = {k: np.array(v, dtype='object')
+               for k, v in edata.items()}
+    # squeeze and convert any clean 2D arrays
+    squeeze.update({k: v.squeeze().astype(edata[k][0].dtype)
+                    for k, v in squeeze.items() if len(v.shape) == 2})
+
     return squeeze
 
 

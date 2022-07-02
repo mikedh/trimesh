@@ -9,7 +9,7 @@ from .. import util
 
 
 try:
-    from scipy.ndimage import morphology as _m
+    from scipy import ndimage as _m
 except BaseException as E:
     # scipy is a soft dependency
     from ..exceptions import ExceptionModule

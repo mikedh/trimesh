@@ -35,8 +35,8 @@ def convert_to_vertexlist(geometry, **kwargs):
     elif util.is_instance_named(geometry, 'Path'):
         # works for Path3D and Path2D
         # both of which inherit from Path
-        return path_to_vertexlist(geometry,
-                                  **kwargs)
+        return path_to_vertexlist(
+            geometry, **kwargs)
     elif util.is_instance_named(geometry, 'PointCloud'):
         # pointcloud objects contain colors
         return points_to_vertexlist(geometry.vertices,
@@ -181,11 +181,13 @@ def path_to_vertexlist(path, group=None, **kwargs):
     index = np.arange(count).tolist()
     # convert from entity color to the color of
     # each vertex in the line segments
-    vcolor = np.vstack(
-        [(np.ones((len(s), 4)) * c).astype(np.uint8)
-         for s, c in zip(stacked, path.colors)])
+    colors = path.colors
+    if colors is not None:
+        colors = np.vstack(
+            [(np.ones((len(s), 4)) * c).astype(np.uint8)
+             for s, c in zip(stacked, path.colors)])
     # convert to gl-friendly colors
-    gl_colors = colors_to_gl(vcolor, count=count)
+    gl_colors = colors_to_gl(colors, count=count)
 
     # collect args for vertexlist constructor
     args = (count,    # number of lines
@@ -359,7 +361,7 @@ def matrix_to_gl(matrix):
     from pyglet import gl
 
     # convert to GLfloat, switch to column major and flatten to (16,)
-    return (gl.GLfloat * 16)(*np.asanyarray(
+    return (gl.GLfloat * 16)(*np.array(
         matrix, dtype=np.float32).T.ravel())
 
 

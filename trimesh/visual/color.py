@@ -72,7 +72,6 @@ class ColorVisuals(Visuals):
         try:
             if face_colors is not None:
                 self.face_colors = face_colors
-
             if vertex_colors is not None:
                 self.vertex_colors = vertex_colors
         except ValueError:
@@ -118,15 +117,20 @@ class ColorVisuals(Visuals):
         mode : str or None
           One of ('face', 'vertex', None)
         """
-        self._verify_crc()
-        if 'vertex_colors' in self._data:
-            mode = 'vertex'
-        elif 'face_colors' in self._data:
-            mode = 'face'
-        else:
-            mode = None
+        # if nothing is stored anywhere it's a safe bet mode is None
+        if not (len(self._cache.cache) > 0 or len(self._data.data) > 0):
+            return None
 
-        return mode
+        # do bookkeeping
+        self._verify_crc()
+
+        # check modes in data
+        if 'vertex_colors' in self._data:
+            return 'vertex'
+        elif 'face_colors' in self._data:
+            return 'face'
+
+        return None
 
     def crc(self):
         """
@@ -149,6 +153,7 @@ class ColorVisuals(Visuals):
     def copy(self):
         """
         Return a copy of the current ColorVisuals object.
+
 
         Returns
         ----------
@@ -408,11 +413,17 @@ class ColorVisuals(Visuals):
         ----------
         visual: ColorVisuals object containing a subset of faces.
         """
+        kwargs = {}
         if self.defined:
-            result = ColorVisuals(
-                face_colors=self.face_colors[face_index])
-        else:
-            result = ColorVisuals()
+            if self.face_colors is not None:
+                kwargs.update(face_colors=self.face_colors[face_index])
+
+            if self.vertex_colors is not None:
+                indices = np.unique(self.mesh.faces[face_index].flatten())
+                vertex_colors = self.vertex_colors[indices]
+                kwargs.update(vertex_colors=vertex_colors)
+
+        result = ColorVisuals(**kwargs)
 
         return result
 
@@ -566,7 +577,7 @@ def to_rgba(colors, dtype=np.uint8):
     colors : (n, 4) list of RGBA colors
              (4,)  single RGBA color
     """
-    if colors is None or not util.is_sequence(colors):
+    if colors is None:
         return DEFAULT_COLOR
 
     # colors as numpy array
@@ -710,12 +721,16 @@ def face_to_vertex_color(
     """
     rgba = to_rgba(face_colors)
     vertex = mesh.faces_sparse.dot(rgba.astype(np.float64))
-    vertex = (vertex / mesh.vertex_degree.reshape(
-        (-1, 1))).astype(dtype)
+    degree = mesh.vertex_degree
+
+    # normalize color by the number of faces including
+    # the vertex (i.e. the vertex degree)
+    nonzero = degree > 0
+    vertex[nonzero] /= degree[nonzero].reshape((-1, 1))
 
     assert vertex.shape == (len(mesh.vertices), 4)
 
-    return vertex
+    return vertex.astype(dtype)
 
 
 def colors_to_materials(colors, count=None):
@@ -876,6 +891,66 @@ def uv_to_color(uv, image):
     # access colors from pixel locations
     # make sure image is RGBA before getting values
     colors = np.asanyarray(image.convert('RGBA'))[y, x]
+
+    # conversion to RGBA should have corrected shape
+    assert colors.ndim == 2 and colors.shape[1] == 4
+
+    return colors
+
+
+def uv_to_interpolated_color(uv, image):
+    """
+    Get the color from texture image using bilinear sampling.
+
+    Parameters
+    -------------
+    uv : (n, 2) float
+      UV coordinates on texture image
+    image : PIL.Image
+      Texture image
+
+    Returns
+    ----------
+    colors : (n, 4) float
+      RGBA color at each of the UV coordinates
+    """
+    if image is None or uv is None:
+        return None
+
+    # UV coordinates should be (n, 2) float
+    uv = np.asanyarray(uv, dtype=np.float64)
+
+    # get texture image pixel positions of UV coordinates
+    x = (uv[:, 0] * (image.width - 1))
+    y = ((1 - uv[:, 1]) * (image.height - 1))
+
+    x_floor = np.floor(x).astype(np.int64) % image.width
+    y_floor = np.floor(y).astype(np.int64) % image.height
+
+    x_ceil = np.ceil(x).astype(np.int64) % image.width
+    y_ceil = np.ceil(y).astype(np.int64) % image.height
+
+    dx = x % image.width - x_floor
+    dy = y % image.height - y_floor
+
+    img = np.asanyarray(image.convert('RGBA'))
+
+    colors00 = img[y_floor, x_floor]
+    colors01 = img[y_ceil, x_floor]
+    colors10 = img[y_floor, x_ceil]
+    colors11 = img[y_ceil, x_ceil]
+
+    a00 = (1 - dx) * (1 - dy)
+    a01 = dx * (1 - dy)
+    a10 = (1 - dx) * dy
+    a11 = dx * dy
+
+    a00 = np.repeat(a00[:, None], 4, axis=1)
+    a01 = np.repeat(a01[:, None], 4, axis=1)
+    a10 = np.repeat(a10[:, None], 4, axis=1)
+    a11 = np.repeat(a11[:, None], 4, axis=1)
+
+    colors = a00 * colors00 + a01 * colors01 + a10 * colors10 + a11 * colors11
 
     # conversion to RGBA should have corrected shape
     assert colors.ndim == 2 and colors.shape[1] == 4

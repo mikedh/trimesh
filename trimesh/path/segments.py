@@ -55,6 +55,10 @@ def segments_to_parameters(segments):
 
     # parametric start and end of line segment
     parameters = np.column_stack((offset, offset + vectors_norm))
+    # make sure signs are consistent
+    vectors, signs = util.vector_hemisphere(
+        vectors, return_sign=True)
+    parameters *= signs.reshape((-1, 1))
 
     return origins, vectors, parameters
 
@@ -109,8 +113,7 @@ def colinear_pairs(segments,
       differ and still be considered colinear
     length : None or float
       If specified, will additionally require
-      that pairs have a mean vertex distance less
-      than this value from each other to qualify.
+      that pairs have a *vertex* within this distance.
 
     Returns
     ------------
@@ -143,13 +146,9 @@ def colinear_pairs(segments,
 
     # if length is specified check endpoint proximity
     if length is not None:
-        # make sure parameter pairs are ordered
-        param.sort(axis=1)
-        # calculate the mean parameter distance for each colinear pair
-        distance = param[colinear].ptp(axis=1).mean(axis=1)
-        # if the MEAN distance is less than specified length consider
-        # the segment to be identical: worst case single- vertex
-        # distance is 2*length
+        a, b = param[colinear.T]
+        distance = np.abs(np.column_stack(
+            [a[:, :1] - b, a[:, 1:] - b])).min(axis=1)
         identical = distance < length
         # remove non- identical pairs
         colinear = colinear[identical]
@@ -545,8 +544,8 @@ def to_svg(segments, digits=4, matrix=None, merge=True):
         segments = unique(segments, digits=digits)
 
     # create the format string for a single line segment
-    base = ' M _ _ L _ _'.replace(
+    base = 'M_ _L_ _'.replace(
         '_', '{:0.' + str(int(digits)) + 'f}')
     # create one large format string then apply points
-    result = (base * len(segments))[1:].format(*segments.ravel())
+    result = (base * len(segments)).format(*segments.ravel())
     return result

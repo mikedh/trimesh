@@ -18,17 +18,21 @@ def line_line(origins,
 
     Parameters
     ---------
-    origins:      (2, d) float, points on lines (d in [2,3])
-    directions:   (2, d) float, direction vectors
-    plane_normal: (3, ) float, if not passed computed from cross
+    origins : (2, d) float
+      Points on lines (d in [2,3])
+    directions : (2, d) float
+      Direction vectors
+    plane_normal : (3, ) float
+      If not passed computed from cross
 
     Returns
     ---------
-    intersects:   boolean, whether the lines intersect.
-                  In 2D, false if the lines are parallel
-                  In 3D, false if lines are not coplanar
-    intersection: if intersects: (d) length point of intersection
-                  else:          None
+    intersects : bool
+      Whether the lines intersect.
+        In 2D, false if the lines are parallel
+        In 3D, false if lines are not coplanar
+    intersection : (d,) float or None
+      Point of intersection
     """
     # check so we can accept 2D or 3D points
     origins, is_2D = util.stack_3D(origins, return_2D=True)

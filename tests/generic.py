@@ -3,13 +3,6 @@
 Module which contains most imports and data unit tests
 might need, to reduce the amount of boilerplate.
 """
-from trimesh.base import Trimesh
-from trimesh.constants import tol, tol_path
-from collections import deque
-from copy import deepcopy
-import collections
-import trimesh
-from distutils.spawn import find_executable
 import os
 import sys
 import json
@@ -21,13 +14,24 @@ import base64
 import inspect
 import logging
 import platform
+import warnings
 import tempfile
 import unittest
-import itertools
-import subprocess
-import contextlib
 import threading
-import warnings
+import itertools
+import contextlib
+import subprocess
+import collections
+
+import trimesh
+
+from trimesh.base import Trimesh
+from trimesh.constants import tol, tol_path
+from collections import deque
+from copy import deepcopy
+
+
+from distutils.spawn import find_executable
 
 try:
     # Python 3
@@ -53,7 +57,12 @@ try:
 except ImportError as E:
     if all_dep:
         raise E
+    sp = None
 
+try:
+    import jsonschema
+except BaseException as E:
+    jsonschema = trimesh.exceptions.ExceptionModule(E)
 
 # make sure functions know they should run additional
 # potentially slow validation checks and raise exceptions
@@ -76,12 +85,17 @@ except BaseException as E:
     if all_dep:
         raise E
 
+try:
+    import networkx as nx
+except BaseException as E:
+    pass
+
 # find_executable for binvox
 has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
 
-# Python version as an array, i.e. [3, 6]
-python_version = np.array([sys.version_info.major,
-                           sys.version_info.minor])
+# Python version as a tuple, i.e. [3, 6]
+PY_VER = (sys.version_info.major,
+          sys.version_info.minor)
 
 # some repeatable homogeneous transforms to use in tests
 transforms = [trimesh.transformations.euler_matrix(np.pi / 4, i, 0)
@@ -92,12 +106,12 @@ transforms = np.array(transforms)
 try:
     # do the imports for Python 2
     from cStringIO import StringIO
-    _PY3 = False
+    PY3 = False
 except ImportError:
     # if that didn't work we're probably on Python 3
     from io import StringIO
     from io import BytesIO
-    _PY3 = True
+    PY3 = True
 
 # are we on linux
 is_linux = 'linux' in platform.system().lower()
@@ -181,6 +195,16 @@ def get_mesh(file_name, *args, **kwargs):
 def get_path(file_name):
     """
     Get the absolute location of a referenced model file.
+
+    Parameters
+    ------------
+    file_name : str
+      Name of model relative to `repo/models`
+
+    Returns
+    ------------
+    full : str
+      Full absolute path to model.
     """
     return os.path.abspath(
         os.path.join(dir_models, file_name))
@@ -323,7 +347,8 @@ def check_path2D(path):
     assert all(path.polygons_closed[i] is not None
                for i in path.enclosure_directed.nodes())
 
-    assert path.colors.shape == (len(path.entities), 4)
+    if any(e.color is not None for e in path.entities):
+        assert path.colors.shape == (len(path.entities), 4)
 
 
 def scene_equal(a, b):
@@ -345,6 +370,34 @@ def scene_equal(a, b):
         # and have the same volume
         assert np.isclose(
             m.volume, b.geometry[k].volume, rtol=0.001)
+
+
+def texture_equal(a, b):
+    """
+    Make sure the texture in two meshes have the same
+    face-uv-position results.
+
+    Parameters
+    ------------
+    a : trimesh.Trimesh
+      Mesh to check
+    b : trimesh.Trimesh
+      Should be identical
+    """
+    try:
+        from scipy.spatial import cKDTree
+    except BaseException:
+        log.error('no scipy for check!', exc_info=True)
+        return
+
+    # an ordered position-face-UV blob to check
+    pa = np.hstack((a.vertices, a.visual.uv))[
+        a.faces].reshape((-1, 15))
+    pb = np.hstack((b.vertices, b.visual.uv))[
+        b.faces].reshape((-1, 15))
+    # query their actual ordered values against each other
+    q = cKDTree(pa).query_ball_tree(cKDTree(pb), r=1e-4)
+    assert all(i in match for i, match in enumerate(q))
 
 
 def check_fuze(fuze):

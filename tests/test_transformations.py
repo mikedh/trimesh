@@ -126,16 +126,17 @@ class TransformTest(g.unittest.TestCase):
                                        direc, point)))
 
         # test symbolic
-        angle = g.sp.Symbol('angle')
-        Rs = rotation_matrix(angle, [0, 0, 1], [1, 0, 0])
+        if g.sp is not None:
+            angle = g.sp.Symbol('angle')
+            Rs = rotation_matrix(angle, [0, 0, 1], [1, 0, 0])
 
-        R = g.np.array(Rs.subs(
-            angle,
-            g.np.pi / 2.0).evalf()).astype(g.np.float64)
+            R = g.np.array(Rs.subs(
+                angle,
+                g.np.pi / 2.0).evalf()).astype(g.np.float64)
 
-        assert g.np.allclose(g.np.dot(R,
-                                      [0, 0, 0, 1]),
-                             [1, -1, 0, 1])
+            assert g.np.allclose(
+                g.np.dot(R, [0, 0, 0, 1]),
+                [1, -1, 0, 1])
 
     def test_tiny(self):
         """

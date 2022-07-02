@@ -30,6 +30,12 @@ except BaseException as E:
     Polygon = exceptions.closure(E)
     load_wkb = exceptions.closure(E)
 
+try:
+    from triangle import triangulate
+except BaseException as E:
+    from . import exceptions
+    triangulate = exceptions.closure(E)
+
 
 def revolve(linestring,
             angle=None,
@@ -151,8 +157,8 @@ def revolve(linestring,
 
     # strict checks run only in unit tests
     if (tol.strict and
-        np.allclose(radius[[0, -1]], 0.0) or
-            np.allclose(linestring[0], linestring[-1])):
+            (np.allclose(radius[[0, -1]], 0.0) or
+             np.allclose(linestring[0], linestring[-1]))):
         # if revolved curve starts and ends with zero radius
         # it should really be a valid volume, unless the sign
         # reversed on the input linestring
@@ -228,7 +234,8 @@ def sweep_polygon(polygon,
 
     # Extract 2D vertices and triangulation
     verts_2d = np.array(polygon.exterior)[:-1]
-    base_verts_2d, faces_2d = triangulate_polygon(polygon, **kwargs)
+    base_verts_2d, faces_2d = triangulate_polygon(
+        polygon, **kwargs)
     n = len(verts_2d)
 
     # Create basis for first planar polygon cap
@@ -299,7 +306,7 @@ def sweep_polygon(polygon,
     vecs = verts_3d - path[-1]
     coords = np.c_[np.einsum('ij,j->i', vecs, x),
                    np.einsum('ij,j->i', vecs, y)]
-    base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords))
+    base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords), **kwargs)
     base_verts_3d = (np.einsum('i,j->ij', base_verts_2d[:, 0], x) +
                      np.einsum('i,j->ij', base_verts_2d[:, 1], y)) + path[-1]
     faces = np.vstack((faces, faces_2d + len(vertices)))
@@ -454,8 +461,6 @@ def triangulate_polygon(polygon,
 
         return vertices, faces
 
-    # do the import here for soft requirement
-    from triangle import triangulate
     # set default triangulation arguments if not specified
     if triangle_args is None:
         triangle_args = 'p'

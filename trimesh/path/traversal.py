@@ -96,12 +96,12 @@ def vertex_to_entity_path(vertex_path,
         elif a[1] == b[1]:
             return 1, -1
         else:
-            constants.log.debug(
-                'edges not connected!\n'
-                'vertex path %s\n'
-                'entity path: %s\n'
-                'entity[a]: %s\n'
-                'entity[b]: %s',
+            constants.log.debug('\n'.join([
+                'edges not connected!',
+                'vertex path %s',
+                'entity path: %s',
+                'entity[a]: %s,',
+                'entity[b]: %s']),
                 vertex_path,
                 entity_path,
                 entities[ea].points,
@@ -299,18 +299,15 @@ class PathSample:
         if offset < constants.tol_path.merge:
             truncated = self._points[:position + 1]
         else:
-            vector = util.unitize(np.diff(self._points[np.arange(2) + position],
-                                          axis=0).reshape(-1))
+            vector = util.unitize(np.diff(
+                self._points[np.arange(2) + position],
+                axis=0).reshape(-1))
             vector *= offset
             endpoint = self._points[position] + vector
             truncated = np.vstack((self._points[:position + 1],
                                    endpoint))
-
-        assert (
-            util.row_norm(
-                np.diff(
-                    truncated,
-                    axis=0)).sum() -
+        assert (util.row_norm(np.diff(
+            truncated, axis=0)).sum() -
             distance) < constants.tol_path.merge
 
         return truncated

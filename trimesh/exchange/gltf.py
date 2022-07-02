@@ -18,7 +18,9 @@ from .. import rendering
 from .. import resources
 from .. import transformations
 
+from ..caching import fast_hash
 from ..constants import log, tol
+
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -53,6 +55,12 @@ _default_material = {
         "metallicFactor": 0,
         "roughnessFactor": 0}}
 
+# GL geometry modes
+_GL_LINES = 1
+_GL_POINTS = 0
+_GL_TRIANGLES = 4
+_GL_STRIP = 5
+
 # specify dtypes with forced little endian
 float32 = np.dtype("<f4")
 uint32 = np.dtype("<u4")
@@ -60,7 +68,6 @@ uint8 = np.dtype("<u1")
 
 
 def export_gltf(scene,
-                extras=None,
                 include_normals=None,
                 merge_buffers=False,
                 tree_postprocessor=None):
@@ -74,6 +81,14 @@ def export_gltf(scene,
     -----------
     scene : trimesh.Scene
       Scene to be exported
+    include_normals : None or bool
+      Include vertex normals
+    merge_buffers : bool
+      Merge buffers into one blob.
+    resolver : trimesh.resolvers.Resolver
+      If passed will use to write each file.
+    tree_postprocesser : None or callable
+      Run this on the header tree before exiting.
 
     Returns
     ----------
@@ -88,7 +103,6 @@ def export_gltf(scene,
     # create the header and buffer data
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
-        extras=extras,
         include_normals=include_normals)
 
     # allow custom postprocessing
@@ -101,11 +115,9 @@ def export_gltf(scene,
     if merge_buffers:
         views = _build_views(buffer_items)
         buffer_name = "gltf_buffer.bin"
-        buffer_data = bytes().join(buffer_items)
-        buffers = [{
-            "uri": buffer_name,
-            "byteLength": len(buffer_data)}
-        ]
+        buffer_data = bytes().join(buffer_items.values())
+        buffers = [{"uri": buffer_name,
+                    "byteLength": len(buffer_data)}]
         files[buffer_name] = buffer_data
     else:
         # make one buffer per buffer_items
@@ -113,28 +125,32 @@ def export_gltf(scene,
         # A bufferView is a slice of a file
         views = [None] * len(buffer_items)
         # create the buffer views
-        for i, item in enumerate(buffer_items):
-            views[i] = {
-                "buffer": i,
-                "byteOffset": 0,
-                "byteLength": len(item)}
-
-            buffer_data = _byte_pad(bytes().join(buffer_items[i: i + 2]))
+        for i, item in enumerate(buffer_items.values()):
+            views[i] = {"buffer": i,
+                        "byteOffset": 0,
+                        "byteLength": len(item)}
             buffer_name = "gltf_buffer_{}.bin".format(i)
-            buffers[i] = {
-                "uri": buffer_name,
-                "byteLength": len(buffer_data)}
-            files[buffer_name] = buffer_data
+            buffers[i] = {"uri": buffer_name,
+                          "byteLength": len(item)}
+            files[buffer_name] = item
 
-    tree["buffers"] = buffers
-    tree["bufferViews"] = views
+    if len(buffers) > 0:
+        tree["buffers"] = buffers
+        tree["bufferViews"] = views
     # dump tree with compact separators
     files["model.gltf"] = util.jsonify(
         tree, separators=(',', ':')).encode("utf-8")
+
+    if tol.strict:
+        validate(tree)
+
     return files
 
 
-def export_glb(scene, extras=None, include_normals=None, tree_postprocessor=None):
+def export_glb(
+        scene,
+        include_normals=None,
+        tree_postprocessor=None):
     """
     Export a scene as a binary GLTF (GLB) file.
 
@@ -143,11 +159,12 @@ def export_glb(scene, extras=None, include_normals=None, tree_postprocessor=None
     scene: trimesh.Scene
       Input geometry
     extras : JSON serializable
-      Will be stored in the extras field
+      Will be stored in the extras field.
     include_normals : bool
       Include vertex normals in output file?
     tree_postprocessor : func
-      Custom function to (in-place) post-process the tree before exporting.
+      Custom function to (in-place) post-process the tree
+      before exporting.
 
     Returns
     ----------
@@ -162,7 +179,6 @@ def export_glb(scene, extras=None, include_normals=None, tree_postprocessor=None
 
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
-        extras=extras,
         include_normals=include_normals)
 
     # allow custom postprocessing
@@ -173,10 +189,12 @@ def export_glb(scene, extras=None, include_normals=None, tree_postprocessor=None
     views = _build_views(buffer_items)
 
     # combine bytes into a single blob
-    buffer_data = bytes().join(buffer_items)
+    buffer_data = bytes().join(buffer_items.values())
+
     # add the information about the buffer data
-    tree["buffers"] = [{"byteLength": len(buffer_data)}]
-    tree["bufferViews"] = views
+    if len(buffer_data) > 0:
+        tree["buffers"] = [{"byteLength": len(buffer_data)}]
+        tree["bufferViews"] = views
 
     # export the tree to JSON for the header
     content = util.jsonify(tree, separators=(',', ':'))
@@ -212,11 +230,15 @@ def export_glb(scene, extras=None, include_normals=None, tree_postprocessor=None
                              bin_header,
                              buffer_data])
 
+    if tol.strict:
+        validate(tree)
+
     return exported
 
 
 def load_gltf(file_obj=None,
               resolver=None,
+              ignore_broken=False,
               merge_primitives=False,
               **mesh_kwargs):
     """
@@ -229,8 +251,13 @@ def load_gltf(file_obj=None,
       Object containing header JSON, or None
     resolver : trimesh.visual.Resolver
       Object which can be used to load other files by name
+    ignore_broken : bool
+      If there is a mesh we can't load and this
+      is True don't raise an exception but return
+      a partial result
     merge_primitives : bool
-      If True, each GLTF 'mesh' will correspond to a single Trimesh object
+      If True, each GLTF 'mesh' will correspond
+      to a single Trimesh object
     **mesh_kwargs : dict
       Passed to mesh constructor
 
@@ -256,6 +283,7 @@ def load_gltf(file_obj=None,
     # that can be used to instantiate a trimesh.Scene object
     kwargs = _read_buffers(header=tree,
                            buffers=buffers,
+                           ignore_broken=ignore_broken,
                            merge_primitives=merge_primitives,
                            mesh_kwargs=mesh_kwargs,
                            resolver=resolver)
@@ -264,6 +292,7 @@ def load_gltf(file_obj=None,
 
 def load_glb(file_obj,
              resolver=None,
+             ignore_broken=False,
              merge_primitives=False,
              **mesh_kwargs):
     """
@@ -327,7 +356,6 @@ def load_glb(file_obj,
             # double check to make sure we didn't
             # read the whole file
             break
-
         chunk_length, chunk_type = np.frombuffer(
             chunk_head, dtype="<u4")
         # make sure we have the right data type
@@ -343,6 +371,7 @@ def load_glb(file_obj,
     # that can be used to instantiate a trimesh.Scene object
     kwargs = _read_buffers(header=header,
                            buffers=buffers,
+                           ignore_broken=ignore_broken,
                            merge_primitives=merge_primitives,
                            mesh_kwargs=mesh_kwargs)
     return kwargs
@@ -375,6 +404,112 @@ def _uri_to_bytes(uri, resolver):
     # we have a base64 header so strip off
     # leading index and then decode into bytes
     return base64.b64decode(uri[index + 7:])
+
+
+def _buffer_append(ordered, data):
+    """
+    Append data to an existing OrderedDict and
+    pad it to a 4-byte boundary.
+
+    Parameters
+    ----------
+    od : collections.OrderedDict
+      Keyed like { hash : data }
+    data : bytes
+      To be stored
+
+    Returns
+    ----------
+    index : int
+      Index of buffer_items stored in
+    """
+    # hash the data to see if we have it already
+    hashed = fast_hash(data)
+    if hashed in ordered:
+        # apparently they never implemented keys().index -_-
+        return list(ordered.keys()).index(hashed)
+    # not in buffer items so append and then return index
+    ordered[hashed] = _byte_pad(data)
+
+    return len(ordered) - 1
+
+
+def _data_append(acc, buff, blob, data):
+    """
+    Append a new accessor to an OrderedDict.
+
+    Parameters
+    ------------
+    acc : collections.OrderedDict
+      Collection of accessors, will be mutated in-place
+    buff : collections.OrderedDict
+      Collection of buffer bytes, will be mutated in-place
+    blob : dict
+      Candidate accessor
+    data : numpy.array
+      Data to fill in details to blob
+
+    Returns
+    ----------
+    index : int
+      Index of accessor that was added or reused.
+    """
+    # if we have data include that in the key
+    if hasattr(data, 'fast_hash'):
+        # passed a TrackedArray object
+        hashed = data.fast_hash()
+    else:
+        # someone passed a vanilla numpy array
+        hashed = fast_hash(data.tobytes())
+
+    if hashed in buff:
+        blob['bufferView'] = list(buff.keys()).index(hashed)
+    else:
+        # not in buffer items so append and then return index
+        buff[hashed] = _byte_pad(data.tobytes())
+        blob['bufferView'] = len(buff) - 1
+
+    # start by hashing the dict blob
+    # note that this will not work if a value is a list
+    try:
+        # simple keys can be hashed as tuples without JSON
+        key = hash(tuple(blob.items()))
+    except BaseException:
+        # if there are list keys that break the simple hash
+        key = hash(json.dumps(blob, sort_keys=True))
+
+    # xor the hash for the blob to the key
+    key ^= hashed
+
+    # if key exists return the index in the OrderedDict
+    if key in acc:
+        return list(acc.keys()).index(key)
+
+    # get a numpy dtype for our components
+    dtype = np.dtype(_dtypes[blob['componentType']])
+    # see if we're an array, matrix, etc
+    kind = blob['type']
+
+    if kind == 'SCALAR':
+        # is probably (n, 1)
+        blob['count'] = int(np.product(data.shape))
+        blob['max'] = np.array(
+            [data.max()], dtype=dtype).tolist()
+        blob['min'] = np.array(
+            [data.min()], dtype=dtype).tolist()
+    elif kind.startswith('MAT'):
+        # i.e. (n, 4, 4) matrices
+        blob['count'] = len(data)
+    else:
+        # reshape the data into what we're actually exporting
+        resh = data.reshape((-1, _shapes[kind]))
+        blob['count'] = len(resh)
+        blob['max'] = resh.max(axis=0).astype(dtype).tolist()
+        blob['min'] = resh.min(axis=0).astype(dtype).tolist()
+
+    # store the accessor and return the index
+    acc[key] = blob
+    return len(acc) - 1
 
 
 def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
@@ -412,8 +547,8 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
 
 
 def _create_gltf_structure(scene,
-                           extras=None,
-                           include_normals=None):
+                           include_normals=None,
+                           include_metadata=True):
     """
     Generate a GLTF header.
 
@@ -421,8 +556,8 @@ def _create_gltf_structure(scene,
     -------------
     scene : trimesh.Scene
       Input scene data
-    extras : JSON serializable
-      Will be stored in the extras field
+    include_metadata : bool
+      Include `scene.metadata` as `scenes/{idx}/extras/metadata`
     include_normals : bool
       Include vertex normals in output file?
 
@@ -440,42 +575,36 @@ def _create_gltf_structure(scene,
         "scenes": [{"nodes": [0]}],
         "asset": {"version": "2.0",
                   "generator": "https://github.com/mikedh/trimesh"},
-        "accessors": [],
+        "accessors": collections.OrderedDict(),
         "meshes": [],
         "images": [],
         "textures": [],
-        "samplers": [{}],
         "materials": [],
     }
 
     if scene.has_camera:
         tree["cameras"] = [_convert_camera(scene.camera)]
 
-    # collect extras from passed arguments and metadata
-    collected = {}
-    try:
-        # start with scene metadata
-        if 'extras' in scene.metadata:
-            collected.update(scene.metadata['extras'])
-        # override with passed extras
-        if extras is not None:
-            collected.update(extras)
-        # fail here if data isn't json compatible
-        util.jsonify(collected)
-        # only export the extras if there is something there
-        if len(collected) > 0:
-            tree['extras'] = collected
-    except BaseException:
-        log.warning('failed to export extras!', exc_info=True)
-
-    # grab the flattened scene graph in GLTF's format
-    nodes = scene.graph.to_gltf(scene=scene)
-    tree.update(nodes)
+    if include_metadata and len(scene.metadata) > 0:
+        try:
+            # collect extras from passed arguments and metadata
+            meta = scene.metadata.copy()
+            # fail here if data isn't json compatible
+            util.jsonify(meta)
+            # only export the extras if there is something there
+            tree['scenes'][0]['extras'] = meta
+        except BaseException:
+            log.warning(
+                'failed to export scene metadata!', exc_info=True)
 
     # store materials as {hash : index} to avoid duplicates
     mat_hashes = {}
     # store data from geometries
-    buffer_items = []
+    buffer_items = collections.OrderedDict()
+
+    # map the name of each mesh to the index in tree['meshes']
+    mesh_index = {}
+    previous = len(tree['meshes'])
 
     # loop through every geometry
     for name, geometry in scene.geometry.items():
@@ -503,16 +632,24 @@ def _create_gltf_structure(scene,
                 tree=tree,
                 buffer_items=buffer_items)
 
+        # only store the index if the append did anything
+        if len(tree['meshes']) != previous:
+            previous = len(tree['meshes'])
+            mesh_index[name] = previous - 1
+
+    # grab the flattened scene graph in GLTF's format
+    nodes = scene.graph.to_gltf(
+        scene=scene, mesh_index=mesh_index)
+    tree.update(nodes)
+
+    # convert accessors back to a flat list
+    tree['accessors'] = list(tree['accessors'].values())
+
     # cull empty or unpopulated fields
     # check keys that might be empty so we can remove them
-    check = ['textures', 'samplers', 'materials', 'images']
-    for key in check:
-        if len(tree[key]) == 0:
-            tree.pop(key)
-
-    # in unit tests compare our header against the schema
-    if tol.strict:
-        validate(tree)
+    check = ['textures', 'materials', 'images', 'accessors', 'meshes']
+    # remove the keys with nothing stored in them
+    [tree.pop(key) for key in check if len(tree[key]) == 0]
 
     return tree, buffer_items
 
@@ -543,56 +680,48 @@ def _append_mesh(mesh,
       Which materials have already been added
     """
     # return early from empty meshes to avoid crashing later
-    if len(mesh.faces) == 0:
+    if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
         log.warning('skipping empty mesh!')
         return
+    # convert mesh data to the correct dtypes
+    # faces: 5125 is an unsigned 32 bit integer
+    # accessors refer to data locations
+    # mesh faces are stored as flat list of integers
+    acc_face = _data_append(acc=tree['accessors'],
+                            buff=buffer_items,
+                            blob={"componentType": 5125,
+                                  "type": "SCALAR"},
+                            data=mesh.faces.astype(uint32))
+
+    # vertices: 5126 is a float32
+    # create or reuse an accessor for these vertices
+    acc_vertex = _data_append(acc=tree['accessors'],
+                              buff=buffer_items,
+                              blob={"componentType": 5126,
+                                    "type": "VEC3",
+                                    "byteOffset": 0},
+                              data=mesh.vertices.astype(float32))
 
     # meshes reference accessor indexes
-    # mode 4 is GL_TRIANGLES
-    tree["meshes"].append({
-        "name": name,
-        "primitives": [{
-            "attributes": {"POSITION": len(tree["accessors"]) + 1},
-            "indices": len(tree["accessors"]),
-            "mode": 4}]})
-
+    current = {"name": name,
+               "extras": {},
+               "primitives": [{
+                   "attributes": {"POSITION": acc_vertex},
+                   "indices": acc_face,
+                   "mode": _GL_TRIANGLES}]}
     # if units are defined, store them as an extra
     # the GLTF spec says everything is implicit meters
     # we're not doing that as our unit conversions are expensive
     # although that might be better, implicit works for 3DXML
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
-    if mesh.units is not None and 'meter' not in mesh.units:
-        tree["meshes"][-1]["extras"] = {"units": str(mesh.units)}
-
-    # accessors refer to data locations
-    # mesh faces are stored as flat list of integers
-    tree["accessors"].append({
-        "bufferView": len(buffer_items),
-        "componentType": 5125,
-        "count": len(mesh.faces) * 3,
-        "max": [int(mesh.faces.max())],
-        "min": [0],
-        "type": "SCALAR"})
-    # convert mesh data to the correct dtypes
-    # faces: 5125 is an unsigned 32 bit integer
-    buffer_items.append(_byte_pad(
-        mesh.faces.astype(uint32).tobytes()))
-
-    # the vertex accessor
-    tree["accessors"].append({
-        "bufferView": len(buffer_items),
-        "componentType": 5126,
-        "count": len(mesh.vertices),
-        "type": "VEC3",
-        "byteOffset": 0,
-        "max": mesh.vertices.max(axis=0).tolist(),
-        "min": mesh.vertices.min(axis=0).tolist()})
-    # vertices: 5126 is a float32
-    buffer_items.append(_byte_pad(
-        mesh.vertices.astype(float32).tobytes()))
-
-    # make sure nothing fell off the truck
-    assert len(buffer_items) >= tree['accessors'][-1]['bufferView']
+    try:
+        current['extras'] = json.loads(util.jsonify(
+            mesh.metadata))
+        if mesh.units not in [None, 'm', 'meters', 'meter']:
+            current["extras"]["units"] = str(mesh.units)
+    except BaseException:
+        log.warning('metadata not serializable, dropping!',
+                    exc_info=True)
 
     # check to see if we have vertex or face colors
     # or if a TextureVisual has colors included as an attribute
@@ -605,25 +734,23 @@ def _append_mesh(mesh,
         vertex_colors = None
 
     if vertex_colors is not None:
+        # convert color data to bytes and append
+        acc_color = _data_append(
+            acc=tree['accessors'],
+            buff=buffer_items,
+            blob={"componentType": 5121,
+                  "normalized": True,
+                  "type": "VEC4",
+                  "byteOffset": 0},
+            data=vertex_colors.astype(uint8))
+
         # add the reference for vertex color
-        tree["meshes"][-1]["primitives"][0]["attributes"][
-            "COLOR_0"] = len(tree["accessors"])
-        # convert color data to bytes
-        color_data = _byte_pad(vertex_colors.astype(uint8).tobytes())
-        # the vertex color accessor data
-        tree["accessors"].append({
-            "bufferView": len(buffer_items),
-            "componentType": 5121,
-            "normalized": True,
-            "count": len(vertex_colors),
-            "type": "VEC4",
-            "byteOffset": 0})
-        # the actual color data
-        buffer_items.append(color_data)
+        current["primitives"][0]["attributes"][
+            "COLOR_0"] = acc_color
 
     if hasattr(mesh.visual, 'material'):
         # append the material and then set from returned index
-        tree["meshes"][-1]["primitives"][0]["material"] = _append_material(
+        current["primitives"][0]["material"] = _append_material(
             mat=mesh.visual.material,
             tree=tree,
             buffer_items=buffer_items,
@@ -634,66 +761,73 @@ def _append_mesh(mesh,
                   mesh.visual.uv is not None and
                   len(mesh.visual.uv) == len(mesh.vertices))
         if has_uv:
-            # add the reference for UV coordinates
-            tree["meshes"][-1]["primitives"][0]["attributes"][
-                "TEXCOORD_0"] = len(tree["accessors"])
             # slice off W if passed
             uv = mesh.visual.uv.copy()[:, :2]
             # reverse the Y for GLTF
             uv[:, 1] = 1.0 - uv[:, 1]
-            # convert UV coordinate data to bytes and pad
-            uv_data = _byte_pad(uv.astype(float32).tobytes())
             # add an accessor describing the blob of UV's
-            tree["accessors"].append({
-                "bufferView": len(buffer_items),
-                "componentType": 5126,
-                "count": len(mesh.visual.uv),
-                "type": "VEC2",
-                "byteOffset": 0})
-            # immediately add UV data so bufferView indices are correct
-            buffer_items.append(uv_data)
+            acc_uv = _data_append(acc=tree['accessors'],
+                                  buff=buffer_items,
+                                  blob={"componentType": 5126,
+                                        "type": "VEC2",
+                                        "byteOffset": 0},
+                                  data=uv.astype(float32))
+            # add the reference for UV coordinates
+            current["primitives"][0]["attributes"][
+                "TEXCOORD_0"] = acc_uv
 
-    if (include_normals or (include_normals is None and
-                            'vertex_normals' in mesh._cache.cache)):
+    if (include_normals or
+        (include_normals is None and
+         'vertex_normals' in mesh._cache.cache)):
+        # store vertex normals if requested
+        acc_norm = _data_append(
+            acc=tree['accessors'],
+            buff=buffer_items,
+            blob={"componentType": 5126,
+                  "count": len(mesh.vertices),
+                  "type": "VEC3",
+                  "byteOffset": 0},
+            data=mesh.vertex_normals.astype(float32))
         # add the reference for vertex color
-        tree["meshes"][-1]["primitives"][0]["attributes"][
-            "NORMAL"] = len(tree["accessors"])
-        normal_data = _byte_pad(mesh.vertex_normals.astype(
-            float32).tobytes())
-        # the vertex color accessor data
-        tree["accessors"].append({
-            "bufferView": len(buffer_items),
-            "componentType": 5126,
-            "count": len(mesh.vertices),
-            "type": "VEC3",
-            "byteOffset": 0})
-        # the actual color data
-        buffer_items.append(normal_data)
+        current["primitives"][0]["attributes"][
+            "NORMAL"] = acc_norm
 
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
-    for key in mesh.vertex_attributes:
+    for key, attrib in mesh.vertex_attributes.items():
         attribute_name = key
         # Application specific attributes must be prefixed with an underscore
         if not key.startswith("_"):
             attribute_name = "_" + key
-        tree["meshes"][-1]["primitives"][0]["attributes"][attribute_name] = len(
-            tree["accessors"])
-        attribute_data = _byte_pad(mesh.vertex_attributes[key].tobytes())
-        accessor = {
-            "bufferView": len(buffer_items),
-            "count": len(mesh.vertex_attributes[key])
-        }
-        accessor.update(_build_accessor(mesh.vertex_attributes[key]))
-        tree["accessors"].append(accessor)
-        buffer_items.append(attribute_data)
+        # store custom vertex attributes
+        acc_atr = _data_append(acc=tree['accessors'],
+                               buff=buffer_items,
+                               blob=_build_accessor(attrib),
+                               data=attrib)
+        current["primitives"][0]["attributes"][attribute_name] = acc_atr
+
+    tree["meshes"].append(current)
 
 
 def _build_views(buffer_items):
+    """
+    Create views for buffers that are simply
+    based on how many bytes they are long.
+
+    Parameters
+    --------------
+    buffer_items : collections.OrderedDict
+      Buffers to build views for
+
+    Returns
+    ----------
+    views : (n,) list of dict
+      GLTF views
+    """
     views = []
     # create the buffer views
     current_pos = 0
-    for current_item in buffer_items:
+    for current_item in buffer_items.values():
         views.append(
             {"buffer": 0,
              "byteOffset": current_pos,
@@ -703,6 +837,19 @@ def _build_views(buffer_items):
 
 
 def _build_accessor(array):
+    """
+    Build an accessor for an arbitrary array.
+
+    Parameters
+    -----------
+    array : numpy array
+      The array to build an accessor for
+
+    Returns
+    ----------
+    accessor : dict
+      The accessor for array.
+    """
     shape = array.shape
     data_type = "SCALAR"
     if len(shape) == 2:
@@ -754,7 +901,6 @@ def _byte_pad(data, bound=4):
     padded : bytes
       Result where: (len(padded) % bound) == 0
     """
-    bound = int(bound)
     if len(data) % bound != 0:
         # extra bytes to pad with
         count = bound - (len(data) % bound)
@@ -763,7 +909,7 @@ def _byte_pad(data, bound=4):
         # combine the padding and data
         result = bytes().join([data, pad])
         # we should always divide evenly
-        if (len(result) % bound) != 0:
+        if tol.strict and (len(result) % bound) != 0:
             raise ValueError(
                 'byte_pad failed! ori:{} res:{} pad:{} req:{}'.format(
                     len(data), len(result), count, bound))
@@ -792,6 +938,10 @@ def _append_path(path, name, tree, buffer_items):
     # a pyglet vertex list
     vxlist = rendering.path_to_vertexlist(path)
 
+    # of the count of things to export is zero exit early
+    if vxlist[0] == 0:
+        return
+
     # TODO add color support to Path object
     # this is just exporting everying as black
     try:
@@ -800,54 +950,49 @@ def _append_path(path, name, tree, buffer_items):
         material_idx = len(tree["materials"])
         tree["materials"].append(_default_material)
 
-    tree["meshes"].append({
+    # data is the second value of the fifth field
+    # which is a (data type, data) tuple
+    acc_vertex = _data_append(
+        acc=tree['accessors'],
+        buff=buffer_items,
+        blob={"componentType": 5126,
+              "type": "VEC3",
+              "byteOffset": 0},
+        data=vxlist[4][1].astype(float32))
+
+    current = {
         "name": name,
         "primitives": [{
-            "attributes": {"POSITION": len(tree["accessors"])},
-            "mode": 1,  # mode 1 is GL_LINES
-            "material": material_idx}]})
+            "attributes": {"POSITION": acc_vertex},
+            "mode": _GL_LINES,  # i.e. 1
+            "material": material_idx}]}
 
     # if units are defined, store them as an extra:
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
-    if path.units is not None and 'meter' not in path.units:
-        tree["meshes"][-1]["extras"] = {"units": str(path.units)}
+    try:
+        current["extras"] = json.loads(util.jsonify(path.metadata))
+    except BaseException:
+        log.warning('failed to serialize metadata, dropping!',
+                    exc_info=True)
 
-    tree["accessors"].append(
-        {
-            "bufferView": len(buffer_items),
-            "componentType": 5126,
-            "count": vxlist[0],
-            "type": "VEC3",
-            "byteOffset": 0,
-            "max": path.vertices.max(axis=0).tolist(),
-            "min": path.vertices.min(axis=0).tolist()})
+    if path.colors is not None:
+        acc_color = _data_append(acc=tree['accessors'],
+                                 buff=buffer_items,
+                                 blob={"componentType": 5121,
+                                       "normalized": True,
+                                       "type": "VEC4",
+                                       "byteOffset": 0},
+                                 data=np.array(vxlist[5][1]).astype(uint8))
+        # add color to attributes
+        current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
 
-    # data is the second value of the fifth field
-    # which is a (data type, data) tuple
-    buffer_items.append(_byte_pad(
-        vxlist[4][1].astype(float32).tobytes()))
-
-    # add color to attributes
-    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
-
-    # the vertex color accessor data
-    tree["accessors"].append({
-        "bufferView": len(buffer_items),
-        "componentType": 5121,
-        "count": vxlist[0],
-        "normalized": True,
-        "type": "VEC4",
-        "byteOffset": 0})
-
-    # the actual color data
-    buffer_items.append(_byte_pad(
-        np.array(vxlist[5][1]).astype(uint8).tobytes()))
+    tree["meshes"].append(current)
 
 
 def _append_point(points, name, tree, buffer_items):
     """
-    Append a 2D or 3D pointCloud to the scene structure and put the
-    data into buffer_items.
+    Append a 2D or 3D pointCloud to the scene structure and
+    put the data into buffer_items.
 
     Parameters
     -------------
@@ -863,49 +1008,86 @@ def _append_point(points, name, tree, buffer_items):
 
     # convert the points to the unnamed args for
     # a pyglet vertex list
-    vxlist = rendering.points_to_vertexlist(points=points.vertices, colors=points.colors)
+    vxlist = rendering.points_to_vertexlist(
+        points=points.vertices, colors=points.colors)
 
-    tree["meshes"].append({
-        "name": name,
-        "primitives": [{
-            "attributes": {"POSITION": len(tree["accessors"])},
-            "mode": 0,  # mode 0 is GL_POINTS
-            "material": len(tree["materials"])}]})
-
-    tree["accessors"].append(
-        {
-            "bufferView": len(buffer_items),
-            "componentType": 5126,
-            "count": vxlist[0],
-            "type": "VEC3",
-            "byteOffset": 0,
-            "max": points.vertices.max(axis=0).tolist(),
-            "min": points.vertices.min(axis=0).tolist()})
+    # data is the second value of the fifth field
+    # which is a (data type, data) tuple
+    acc_vertex = _data_append(acc=tree['accessors'],
+                              buff=buffer_items,
+                              blob={"componentType": 5126,
+                                    "type": "VEC3",
+                                    "byteOffset": 0},
+                              data=vxlist[4][1].astype(float32))
+    current = {"name": name,
+               "primitives": [{
+                   "attributes": {"POSITION": acc_vertex},
+                   "mode": _GL_POINTS,
+                   "material": len(tree["materials"])}]}
 
     # TODO add color support to Points object
     # this is just exporting everying as black
     tree["materials"].append(_default_material)
 
-    # data is the second value of the fifth field
-    # which is a (data type, data) tuple
-    buffer_items.append(_byte_pad(
-        vxlist[4][1].astype(float32).tobytes()))
+    if len(np.shape(points.colors)) == 2:
+        # colors may be returned as "c3f" or other RGBA
+        color_type, color_data = vxlist[5]
+        if '3' in color_type:
+            kind = 'VEC3'
+        elif '4' in color_type:
+            kind = 'VEC4'
+        else:
+            raise ValueError('unknown color: %s', color_type)
+        acc_color = _data_append(acc=tree['accessors'],
+                                 buff=buffer_items,
+                                 blob={"componentType": 5121,
+                                       "count": vxlist[0],
+                                       "normalized": True,
+                                       "type": kind,
+                                       "byteOffset": 0},
+                                 data=np.array(color_data).astype(uint8))
+        # add color to attributes
+        current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+    tree["meshes"].append(current)
 
-    # add color to attributes
-    tree["meshes"][-1]["primitives"][0]["attributes"]["COLOR_0"] = len(tree["accessors"])
 
-    # the vertex color accessor data
-    tree["accessors"].append({
-        "bufferView": len(buffer_items),
-        "componentType": 5121,
-        "count": vxlist[0],
-        "normalized": True,
-        "type": "VEC4",
-        "byteOffset": 0})
+def specular_to_pbr(
+        specularFactor=None,
+        glossinessFactor=None,
+        specularGlossinessTexture=None,
+        diffuseTexture=None,
+        diffuseFactor=None,
+        **kwargs):
+    """
+    TODO : implement specular to PBR as done in Javascript here:
+    https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64
 
-    # the actual color data
-    buffer_items.append(_byte_pad(
-        np.array(vxlist[5][1]).astype(uint8).tobytes()))
+    Convert the KHR_materials_pbrSpecularGlossiness to a
+    metallicRoughness visual.
+
+    Parameters
+    -----------
+    ...
+
+    Returns
+    ----------
+    kwargs : dict
+      Constructor args for a PBRMaterial object.
+
+    if specularFactor is None:
+        oneMinus = 1
+    else:
+        oneMinus = 1 - max(specularFactor)
+    dielectricSpecular = np.array([0.04, 0.04, 0.04])
+    """
+
+    result = {}
+    if isinstance(diffuseTexture, dict):
+        result['baseColorTexture'] = diffuseTexture
+    if diffuseFactor is not None:
+        result['baseColorFactor'] = diffuseFactor
+
+    return result
 
 
 def _parse_materials(header, views, resolver=None):
@@ -967,6 +1149,11 @@ def _parse_materials(header, views, resolver=None):
                 # add keys of keys to top level dict
                 loopable.update(loopable.pop("pbrMetallicRoughness"))
 
+            ext = mat.get('extensions', {}).get(
+                'KHR_materials_pbrSpecularGlossiness', None)
+            if isinstance(ext, dict):
+                loopable.update(specular_to_pbr(**ext))
+
             # save flattened keys we can use for kwargs
             pbr = {}
             for k, v in loopable.items():
@@ -983,9 +1170,54 @@ def _parse_materials(header, views, resolver=None):
     return materials
 
 
-def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver=None):
+def unique_name(start, contains):
     """
-    Given a list of binary data and a layout, return the
+    Deterministically generate a unique name not
+    contained in a dict. Will create names of the
+    form "start_10" and increment accordingly.
+
+    Parameters
+    -----------
+    start : str
+      Initial guess for name
+    contains : dict, set, or list
+      Bundle of existing names we cannot use.
+
+    Returns
+    ---------
+    unique : str
+      A name that is not contained in `contains`
+    """
+    # exit early if name is not in bundle
+    if len(start) > 0 and start not in contains:
+        return start
+    increment = 0
+    if len(start) == 0:
+        formatter = '{}'
+    else:
+        # split by our delimiter once
+        split = start.rsplit('_', 1)
+        if len(split) == 2 and split[1].isnumeric():
+            # start incrementing from the passed value
+            increment = int(split[1])
+        # keep the original name and add an integer to it
+        formatter = split[0] + '_{}'
+    # if contains is empty we will only need to check once
+    for i in range(increment + 1, 1 + increment + len(contains)):
+        check = formatter.format(i)
+        if check not in contains:
+            return check
+    raise ValueError('unable to establish unique name!')
+
+
+def _read_buffers(header,
+                  buffers,
+                  mesh_kwargs,
+                  ignore_broken=False,
+                  merge_primitives=False,
+                  resolver=None):
+    """
+    Given binary data and a layout return the
     kwargs to create a scene object.
 
     Parameters
@@ -994,8 +1226,16 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
       With GLTF keys
     buffers : list of bytes
       Stored data
-    passed : dict
-      Kwargs for mesh constructors
+    mesh_kwargs : dict
+      To be passed to the mesh constructor.
+    ignore_broken : bool
+      If there is a mesh we can't load and this
+      is True don't raise an exception but return
+      a partial result
+    merge_primitives : bool
+      If true, combine primitives into a single mesh.
+    resolver : trimesh.resolvers.Resolver
+      Resolver to load referenced assets
 
     Returns
     -----------
@@ -1046,6 +1286,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
 
                 access[index] = np.frombuffer(
                     data[start:start + length], dtype=dtype).reshape(shape)
+
             else:
                 # a "sparse" accessor should be initialized as zeros
                 access[index] = np.zeros(
@@ -1059,106 +1300,124 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
 
-    if "meshes" in header:
-        for index, m in enumerate(header["meshes"]):
+    names_original = collections.defaultdict(list)
 
-            metadata = {}
-            unique = util.unique_id()
-            try:
-                # try loading units from the GLTF extra
-                metadata['units'] = str(m["extras"]["units"])
-            except BaseException:
-                # GLTF spec indicates the default units are meters
-                metadata['units'] = 'meters'
+    for index, m in enumerate(header.get("meshes", [])):
 
-            try:
-                # load extras metadata if available
-                metadata['extras'] = str(m["extras"])
-            except BaseException:
-                pass
+        try:
+            # GLTF spec indicates implicit units are meters
+            metadata = {'units': 'meters'}
+            # try to load all mesh metadata
+            if isinstance(m.get('extras'), dict):
+                metadata.update(m['extras'])
 
             for j, p in enumerate(m["primitives"]):
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
-                if "mode" in p and p["mode"] != 4:
-                    log.warning('skipping primitive with mode {}!'.format(p['mode']))
-                    continue
-
-                # store those units
-                kwargs = {"metadata": {}}
+                kwargs = {"metadata": {}, "process": False}
                 kwargs.update(mesh_kwargs)
                 kwargs["metadata"].update(metadata)
 
-                # get vertices from accessors
-                kwargs["vertices"] = access[p["attributes"]["POSITION"]]
-
-                # get faces from accessors
-                if 'indices' in p:
-                    kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
-                else:
-                    # indices are apparently optional and we are supposed to
-                    # do the same thing as webGL drawArrays?
-                    kwargs['faces'] = np.arange(
-                        len(kwargs['vertices']),
-                        dtype=np.int64).reshape((-1, 3))
-
-                # do we have UV coordinates
-                visuals = None
-                if "material" in p:
-                    if materials is None:
-                        log.warning('no materials! `pip install pillow`')
-                    else:
-                        uv = None
-                        if "TEXCOORD_0" in p["attributes"]:
-                            # flip UV's top- bottom to move origin to lower-left:
-                            # https://github.com/KhronosGroup/glTF/issues/1021
-                            uv = access[p["attributes"]["TEXCOORD_0"]].copy()
-                            uv[:, 1] = 1.0 - uv[:, 1]
-                            # create a texture visual
-                        visuals = visual.texture.TextureVisuals(
-                            uv=uv, material=materials[p["material"]])
-                if 'COLOR_0' in p['attributes']:
-                    try:
-                        # try to load vertex colors from the accessors
-                        colors = access[p['attributes']['COLOR_0']]
-                        if len(colors) == len(kwargs['vertices']):
-                            if visuals is None:
-                                # just pass to mesh as vertex color
-                                kwargs['vertex_colors'] = colors
-                            else:
-                                # we ALSO have texture so save as vertex attribute
-                                visuals.vertex_attributes['color'] = colors
-                    except BaseException:
-                        # survive failed colors
-                        log.debug('failed to load colors', exc_info=True)
-                if visuals is not None:
-                    kwargs['visual'] = visuals
-
+                # i.e. GL_LINES, GL_TRIANGLES, etc
+                mode = p.get('mode')
+                # colors, normals, etc
+                attr = p['attributes']
                 # create a unique mesh name per- primitive
-                if "name" in m:
-                    name = m["name"]
-                else:
-                    name = "GLTF_geometry"
-
-                # each primitive gets it's own Trimesh object
-                if len(m["primitives"]) > 1:
-                    name += "_{}".format(j)
-
+                name = m.get('name', 'GLTF')
+                names_original[index].append(name)
                 # make name unique across multiple meshes
-                if name in meshes:
-                    name += "_{}".format(unique)
+                name = unique_name(name, meshes)
+                if mode == _GL_LINES:
+                    # load GL_LINES into a Path object
+                    from ..path.entities import Line
+                    kwargs["vertices"] = access[attr["POSITION"]]
+                    kwargs['entities'] = [Line(
+                        points=np.arange(len(kwargs['vertices'])))]
+                elif mode == _GL_POINTS:
+                    kwargs["vertices"] = access[attr["POSITION"]]
+                elif mode is None or mode in (_GL_TRIANGLES, _GL_STRIP):
+                    if mode is None:
+                        # some people skip mode since GL_TRIANGLES
+                        # is apparently the de-facto default
+                        log.warning('primitive has no mode! trying GL_TRIANGLES?')
+                        # get vertices from accessors
+                    kwargs["vertices"] = access[attr["POSITION"]]
+                    # get faces from accessors
+                    if 'indices' in p:
+                        if mode == _GL_STRIP:
+                            # this is triangle strips
+                            flat = access[p['indices']].reshape(-1)
+                            kwargs['faces'] = util.triangle_strips_to_faces([flat])
+                        else:
+                            kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
 
-                custom_attrs = [attr for attr in p["attributes"]
-                                if attr.startswith("_")]
-                if len(custom_attrs):
-                    vertex_attributes = {}
-                    for attr in custom_attrs:
-                        vertex_attributes[attr] = access[p["attributes"][attr]]
-                    kwargs["vertex_attributes"] = vertex_attributes
-                kwargs["process"] = False
+                    else:
+                        # indices are apparently optional and we are supposed to
+                        # do the same thing as webGL drawArrays?
+                        kwargs['faces'] = np.arange(
+                            len(kwargs['vertices']),
+                            dtype=np.int64).reshape((-1, 3))
+                    if 'NORMAL' in attr:
+                        # vertex normals are specified
+                        kwargs['vertex_normals'] = access[attr['NORMAL']]
+                        # do we have UV coordinates
+                    visuals = None
+                    if "material" in p:
+                        if materials is None:
+                            log.warning('no materials! `pip install pillow`')
+                        else:
+                            uv = None
+                            if "TEXCOORD_0" in attr:
+                                # flip UV's top- bottom to move origin to lower-left:
+                                # https://github.com/KhronosGroup/glTF/issues/1021
+                                uv = access[attr["TEXCOORD_0"]].copy()
+                                uv[:, 1] = 1.0 - uv[:, 1]
+                                # create a texture visual
+                            visuals = visual.texture.TextureVisuals(
+                                uv=uv, material=materials[p["material"]])
+
+                    if 'COLOR_0' in attr:
+                        try:
+                            # try to load vertex colors from the accessors
+                            colors = access[attr['COLOR_0']]
+                            if len(colors) == len(kwargs['vertices']):
+                                if visuals is None:
+                                    # just pass to mesh as vertex color
+                                    kwargs['vertex_colors'] = colors
+                                else:
+                                    # we ALSO have texture so save as vertex attribute
+                                    visuals.vertex_attributes['color'] = colors
+                        except BaseException:
+                            # survive failed colors
+                            log.debug('failed to load colors', exc_info=True)
+                    if visuals is not None:
+                        kwargs['visual'] = visuals
+
+                    # By default the created mesh is not from primitive,
+                    # in case it is the value will be updated
+                    # each primitive gets it's own Trimesh object
+                    if len(m["primitives"]) > 1:
+                        kwargs['metadata']['from_gltf_primitive'] = True
+                        name += "_{}".format(j)
+                    else:
+                        kwargs['metadata']['from_gltf_primitive'] = False
+
+                    # custom attributes starting with a `_`
+                    custom = {a: access[attr[a]] for a in attr.keys()
+                              if a.startswith('_')}
+                    if len(custom) > 0:
+                        kwargs["vertex_attributes"] = custom
+                else:
+                    log.warning('skipping primitive with mode %s!', mode)
+                    continue
                 meshes[name] = kwargs
                 mesh_prim[index].append(name)
-
+        except BaseException as E:
+            if ignore_broken:
+                log.debug('failed to load mesh',
+                          exc_info=True),
+            else:
+                raise E
     # sometimes GLTF "meshes" come with multiple "primitives"
     # by default we return one Trimesh object per "primitive"
     # but if merge_primitives is True we combine the primitives
@@ -1172,16 +1431,25 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             if len(names) <= 1:
                 mesh_prim_replace[mesh_index] = names
                 continue
-            # use the first name
-            name = names[0]
+            name = names_original[mesh_index][0]
+            if name in meshes:
+                name = name + '_' + str(np.random.random())[2:12]
             # remove the other meshes after we're done looping
-            mesh_pop.extend(names[1:])
+            mesh_pop.extend(names[:])
             # collect the meshes
             # TODO : use mesh concatenation with texture support
             current = [meshes[n] for n in names]
             v_seq = [p['vertices'] for p in current]
             f_seq = [p['faces'] for p in current]
             v, f = util.append_faces(v_seq, f_seq)
+            materials = [p['visual'].material for p in current]
+            face_materials = []
+            for i, p in enumerate(current):
+                face_materials += [i] * len(p['faces'])
+            visuals = visual.texture.TextureVisuals(
+                material=visual.material.MultiMaterial(materials=materials),
+                face_materials=face_materials
+            )
             if 'metadata' in meshes[names[0]]:
                 metadata = meshes[names[0]]['metadata']
             else:
@@ -1189,6 +1457,7 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
             meshes[name] = {
                 'vertices': v,
                 'faces': f,
+                'visual': visuals,
                 'metadata': metadata,
                 'process': False}
             mesh_prim_replace[mesh_index] = [name]
@@ -1201,16 +1470,16 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
     nodes = header["nodes"]
     # nodes are referenced by index
     # save their string names if they have one
-    # node index (int) : name (str)
-    names = {}
+    # we have to accumulate in a for loop opposed
+    # to a dict comprehension as it will be checking
+    # the mutated dict in every loop
+    name_index = {}
     for i, n in enumerate(nodes):
-        if "name" in n:
-            if n["name"] in names.values():
-                names[i] = n["name"] + "_{}".format(util.unique_id())
-            else:
-                names[i] = n["name"]
-        else:
-            names[i] = str(i)
+        name_index[unique_name(
+            n.get('name', str(i)), name_index)] = i
+    # invert the dict so we can look up by index
+    # node index (int) : name (str)
+    names = {v: k for k, v in name_index.items()}
 
     # make sure we have a unique base frame name
     base_frame = "world"
@@ -1281,10 +1550,11 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
                 np.diag(np.concatenate((child['scale'], [1.0]))))
 
         if "extras" in child:
-            kwargs["extras"] = child["extras"]
+            kwargs["metadata"] = child["extras"]
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]
+
             # if the node has a mesh associated with it
             if len(geometries) > 1:
                 # append root node
@@ -1317,64 +1587,15 @@ def _read_buffers(header, buffers, mesh_kwargs, merge_primitives=False, resolver
               "geometry": meshes,
               "graph": graph,
               "base_frame": base_frame}
-    # load any extras into scene.metadata
-
-    result.update(_parse_extras(header))
-    result.update(_parse_scene_extras(header, scene_index=scene_index))
+    try:
+        # load any scene extras into scene.metadata
+        # use a try except to avoid nested key checks
+        result['metadata'] = header['scenes'][
+            header['scene']]['extras']
+    except BaseException:
+        pass
 
     return result
-
-
-def _parse_extras(header):
-    """
-    Load any GLTF "extras" into scene.metadata['extras'].
-
-    Parameters
-    --------------
-    header : dict
-      GLTF header
-
-    Returns
-    -------------
-    kwargs : dict
-      Includes metadata
-    """
-    if 'extras' not in header:
-        return {}
-    try:
-        return {'metadata': {'extras': dict(header['extras'])}}
-    except BaseException:
-        log.warning('failed to load extras', exc_info=True)
-        return {}
-
-
-def _parse_scene_extras(header, scene_index):
-    """
-    Load any GLTF "scene extras" into scene.metadata['scene_extras'].
-
-    Parameters
-    --------------
-    header : dict
-      GLTF header
-
-    scene_index: int
-      index of the scene
-
-    Returns
-    -------------
-    kwargs : dict
-      Includes metadata
-    """
-
-    try:
-        if 'extras' not in header['scenes'][scene_index]:
-            return {}
-
-        extras = header['scenes'][scene_index]['extras']
-        return {'metadata': {'scene_extras': dict(extras)}}
-    except BaseException:
-        log.warning('failed to load scene extras', exc_info=True)
-        return {}
 
 
 def _convert_camera(camera):
@@ -1438,12 +1659,11 @@ def _append_image(img, tree, buffer_items):
         f.seek(0)
         data = f.read()
 
+    index = _buffer_append(buffer_items, data)
     # append buffer index and the GLTF-acceptable mimetype
     tree['images'].append({
-        'bufferView': len(buffer_items),
+        'bufferView': index,
         'mimeType': 'image/{}'.format(save_as.lower())})
-    # append data so bufferView matches
-    buffer_items.append(_byte_pad(data))
 
     # index is length minus one
     return len(tree['images']) - 1
@@ -1506,11 +1726,8 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
         result['name'] = as_pbr.name
 
     # if alphaMode is defined, export
-    if isinstance(as_pbr.alphaMode, str):
+    if isinstance(as_pbr.alphaMode, str) and isinstance(as_pbr.alphaCutoff, float):
         result['alphaMode'] = as_pbr.alphaMode
-
-    # if alphaCutoff is defined, export
-    if isinstance(as_pbr.alphaCutoff, float):
         result['alphaCutoff'] = as_pbr.alphaCutoff
 
     # if doubleSided is defined, export
@@ -1545,7 +1762,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
             # add a reference to the base color texture
             result[key] = {'index': len(tree['textures'])}
             # add an object for the texture
-            tree['textures'].append({'source': index, 'sampler': 0})
+            tree['textures'].append({'source': index})
 
     # for our PBRMaterial object we flatten all keys
     # however GLTF would like some of them under the
@@ -1596,7 +1813,9 @@ def validate(header):
     # will do the reference replacement
     schema = get_schema()
     # validate the passed header against the schema
-    return jsonschema.validate(header, schema=schema)
+    valid = jsonschema.validate(header, schema=schema)
+
+    return valid
 
 
 def get_schema():
@@ -1614,7 +1833,8 @@ def get_schema():
     from ..resolvers import ZipResolver
 
     # get a blob of a zip file including the GLTF 2.0 schema
-    blob = resources.get('gltf_2_schema.zip', decode=False)
+    blob = resources.get(
+        'schema/gltf2.schema.zip', decode=False)
     # get the zip file as a dict keyed by file name
     archive = util.decompress(util.wrap_as_stream(blob), 'zip')
     # get a resolver object for accessing the schema
@@ -1622,9 +1842,8 @@ def get_schema():
     # get a loaded dict from the base file
     unresolved = json.loads(util.decode_text(
         resolver.get('glTF.schema.json')))
-    # remove references to other files in the schema
-    schema = resolve(unresolved,
-                     resolver=resolver)
+    # resolve `$ref` references to other files in the schema
+    schema = resolve(unresolved, resolver=resolver)
 
     return schema
 

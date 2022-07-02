@@ -52,7 +52,10 @@ class FilePathResolver(Resolver):
           File path where mesh was loaded from
         """
         # remove everything other than absolute path
-        clean = os.path.expanduser(os.path.abspath(str(source)))
+        clean = os.path.expanduser(
+            os.path.abspath(str(source)))
+
+        self.clean = clean
         if os.path.isdir(clean):
             # if we were passed a directory use it
             self.parent = clean
@@ -81,7 +84,11 @@ class FilePathResolver(Resolver):
           Loaded data from asset
         """
         # load the file by path name
-        with open(os.path.join(self.parent, name.strip()), 'rb') as f:
+        path = os.path.join(self.parent, name.strip())
+        if not os.path.exists(path):
+            path = os.path.join(
+                self.parent, os.path.split(name)[-1])
+        with open(path, 'rb') as f:
             data = f.read()
         return data
 
@@ -248,7 +255,7 @@ def nearby_names(name):
     cleaners = [lambda x: x,
                 lambda x: x.strip(),
                 lambda x: x.lstrip('./'),
-                lambda x: x.split('/')[-1],
+                lambda x: os.path.split(x)[-1],
                 lambda x: x.replace('%20', ' ')]
 
     # make sure we don't return repeat values

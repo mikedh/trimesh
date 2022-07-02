@@ -8,6 +8,7 @@ those stored in a DXF or SVG file.
 import numpy as np
 
 import copy
+import hashlib
 import collections
 
 from ..points import plane_fit
@@ -128,12 +129,11 @@ class Path(parent.Geometry):
           RGBA colors for each entity
         """
         # start with default colors
-        colors = np.ones((len(self.entities), 4))
-        colors = (colors * [100, 100, 100, 255]).astype(np.uint8)
-        # collect colors from entities
-        for i, e in enumerate(self.entities):
-            if hasattr(e, 'color') and e.color is not None:
-                colors[i] = to_rgba(e.color)
+        raw = [e.color for e in self.entities]
+        if not any(c is not None for c in raw):
+            return None
+
+        colors = np.array([to_rgba(c) for c in raw])
         # don't allow parts of the color array to be written
         colors.flags['WRITEABLE'] = False
         return colors
@@ -211,9 +211,8 @@ class Path(parent.Geometry):
         layers : (len(entities), ) any
           Whatever is stored in each `entity.layer`
         """
-        # layer is a required property for entities
-        layers = [e.layer for e in self.entities]
-        return layers
+        # layer is a required meta-property for entities
+        return [e.layer for e in self.entities]
 
     def crc(self):
         """
@@ -242,8 +241,8 @@ class Path(parent.Geometry):
         """
         # first MD5 the points in every entity
         target = '{}{}'.format(
-            util.md5_object(bytes().join(
-                e._bytes() for e in self.entities)),
+            hashlib.md5(bytes().join(
+                e._bytes() for e in self.entities)).hexdigest(),
             self.vertices.md5())
 
         return target
@@ -315,7 +314,8 @@ class Path(parent.Geometry):
 
         Returns
         --------
-        length: float, summed length of every entity
+        length : float
+          Summed length of every entity
         """
         length = float(sum(i.length(self.vertices)
                            for i in self.entities))
@@ -1045,15 +1045,21 @@ class Path2D(Path):
 
         Parameters
         ------------
-        pitch:      float or (2,) float, length(s) in model space of pixel edges
-        origin:     (2,) float, origin position in model space
-        resolution: (2,) int, resolution in pixel space
-        fill:       bool, if True will return closed regions as filled
-        width:      int, if not None will draw outline this wide (pixels)
+        pitch : float or (2,) float
+          Length(s) in model space of pixel edges
+        origin : (2,) float
+          Origin position in model space
+        resolution : (2,) int
+          Resolution in pixel space
+        fill : bool
+          If True will return closed regions as filled
+        width : int
+          If not None will draw outline this wide (pixels)
 
         Returns
         ------------
-        raster: PIL.Image object, mode 1
+        raster : PIL.Image object, mode 1
+          Rasterized version of closed regions.
         """
         image = raster.rasterize(self,
                                  pitch=pitch,
@@ -1070,22 +1076,22 @@ class Path2D(Path):
 
         Parameters
         -----------
-        count   : int
-                    Number of points to return
-                    If there are multiple bodies, there will
-                    be up to count * bodies points returned
-        factor  : float
-                    How many points to test per loop
-                    IE, count * factor
+        count : int
+          Number of points to return
+          If there are multiple bodies, there will
+          be up to count * bodies points returned
+        factor : float
+          How many points to test per loop
+          IE, count * factor
         max_iter : int,
-                    Maximum number of intersection loops
-                    to run, total points sampled is
-                    count * factor * max_iter
+          Maximum number of intersection loops
+          to run, total points sampled is
+          count * factor * max_iter
 
         Returns
         -----------
         hit : (n, 2) float
-               Random points inside polygon
+          Random points inside polygon
         """
 
         poly = self.polygons_full
@@ -1102,6 +1108,15 @@ class Path2D(Path):
 
     @property
     def body_count(self):
+        """
+        Returns a count of the number of unconnected polygons that
+        may contain other curves but aren't contained themselves.
+
+        Returns
+        ---------
+        body_count : int
+          Number of unconnected independent polygons.
+        """
         return len(self.root)
 
     def to_3D(self, transform=None):
@@ -1111,13 +1126,14 @@ class Path2D(Path):
         Parameters
         -------------
         transform : (4, 4) float
-            If passed, will transform vertices.
-            If not passed and 'to_3D' is in metadata
-            that transform will be used.
+          If passed, will transform vertices.
+          If not passed and 'to_3D' is in self.metadata
+          that transform will be used.
 
         Returns
         -----------
-        path_3D: Path3D version of current path
+        path_3D : Path3D
+          3D version of current path
         """
         # if there is a stored 'to_3D' transform in metadata use it
         if transform is None and 'to_3D' in self.metadata:
@@ -1196,7 +1212,8 @@ class Path2D(Path):
 
         Returns
         ---------
-        area: float, total area of polygons minus interiors
+        area : float
+          Total area of polygons minus interiors
         """
         area = float(sum(i.area for i in self.polygons_full))
         return area
@@ -1392,7 +1409,16 @@ class Path2D(Path):
 
     def plot_entities(self, show=False, annotations=True, color=None):
         """
-        Plot the entities of the path, with no notion of topology
+        Plot the entities of the path with no notion of topology.
+
+        Parameters
+        ------------
+        show : bool
+          Open a window immediately or not
+        annotations : bool
+          Call an entities custom plot function.
+        color : str
+          Override entity colors and make them all this color.
         """
         import matplotlib.pyplot as plt
         # keep plot axis scaled the same
@@ -1435,7 +1461,8 @@ class Path2D(Path):
 
         Returns
         ---------
-        identifier: (5,) float, unique identifier
+        identifier : (5,) float
+          Unique identifier
         """
         if len(self.polygons_full) != 1:
             raise TypeError('Identifier only valid for single body')
@@ -1444,10 +1471,15 @@ class Path2D(Path):
     @caching.cache_decorator
     def identifier_md5(self):
         """
-        Return an MD5 of the identifier
+        Return an MD5 of the identifier.
+
+        Returns
+        ----------
+        hashed : str
+          Hashed identifier.
         """
         as_int = (self.identifier * 1e4).astype(np.int64)
-        hashed = util.md5_object(as_int.tobytes(order='C'))
+        hashed = hashlib.md5(as_int.tobytes(order='C')).hexdigest()
         return hashed
 
     @property
@@ -1455,22 +1487,25 @@ class Path2D(Path):
         """
         Returns
         ----------
-        path_valid: (n,) bool, indexes of self.paths self.polygons_closed
-                         which are valid polygons
+        path_valid : (n,) bool
+          Indexes of self.paths self.polygons_closed
+          which are valid polygons.
         """
-        valid = [i is not None for i in self.polygons_closed]
-        valid = np.array(valid, dtype=bool)
+        valid = np.array(
+            [i is not None for i in self.polygons_closed],
+            dtype=bool)
         return valid
 
     @caching.cache_decorator
     def root(self):
         """
-        Which indexes of self.paths/self.polygons_closed are root curves.
-        Also known as 'shell' or 'exterior.
+        Which indexes of self.paths/self.polygons_closed
+        are root curves, also known as 'shell' or 'exterior.
 
         Returns
         ---------
-        root: (n,) int, list of indexes
+        root : (n,) int
+          List of indexes
         """
         populate = self.enclosure_directed  # NOQA
         return self._cache['root']
@@ -1478,7 +1513,12 @@ class Path2D(Path):
     @caching.cache_decorator
     def enclosure(self):
         """
-        Networkx Graph object of polygon enclosure.
+        Undirected graph object of polygon enclosure.
+
+        Returns
+        -----------
+        enclosure : networkx.Graph
+          Enclosure graph of self.polygons by index.
         """
         with self._cache:
             undirected = self.enclosure_directed.to_undirected()
@@ -1487,7 +1527,13 @@ class Path2D(Path):
     @caching.cache_decorator
     def enclosure_directed(self):
         """
-        Networkx DiGraph of polygon enclosure
+        Directed graph of polygon enclosure.
+
+        Returns
+        ----------
+        enclosure_directed : networkx.DiGraph
+          Directed graph: child nodes are fully
+          contained by their parent node.
         """
         root, enclosure = polygons.enclosure_tree(self.polygons_closed)
         self._cache['root'] = root
@@ -1501,7 +1547,8 @@ class Path2D(Path):
 
         Returns
         ----------
-        corresponding: dict, {index of self.paths of shell : [indexes of holes]}
+        corresponding : dict
+          {index of self.paths of shell : [indexes of holes]}
         """
         pairs = [(r, self.connected_paths(r, include_self=False))
                  for r in self.root]

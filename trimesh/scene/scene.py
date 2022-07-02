@@ -1,3 +1,4 @@
+import hashlib
 import numpy as np
 import collections
 
@@ -16,7 +17,7 @@ from ..parent import Geometry3D
 from . import cameras
 from . import lighting
 
-from .transforms import TransformForest
+from .transforms import SceneGraph
 
 
 class Scene(Geometry3D):
@@ -59,7 +60,7 @@ class Scene(Geometry3D):
         self.geometry = collections.OrderedDict()
 
         # create a new graph
-        self.graph = TransformForest(base_frame=base_frame)
+        self.graph = SceneGraph(base_frame=base_frame)
 
         # create our cache
         self._cache = caching.Cache(id_function=self.md5)
@@ -77,7 +78,9 @@ class Scene(Geometry3D):
 
         self.camera = camera
         self.lights = lights
-        self.camera_transform = camera_transform
+
+        if camera is not None and camera_transform is not None:
+            self.camera_transform = camera_transform
 
     def apply_transform(self, transform):
         """
@@ -177,9 +180,10 @@ class Scene(Geometry3D):
             # if the name of the geometry is also a transform node
             if name in self.graph.nodes:
                 # a random unique identifier
-                unique = util.unique_id(increment=len(self.geometry))
+                unique = util.unique_id()
                 # geometry name + UUID
                 node_name = name + '_' + unique.upper()
+                assert node_name not in self.graph.nodes
             else:
                 # otherwise make the transform node name the same as the geom
                 node_name = name
@@ -228,24 +232,37 @@ class Scene(Geometry3D):
           MD5 hash of scene
         """
         # start with transforms hash
-        return util.md5_object(self._hashable())
+        return hashlib.md5(self._hashable()).hexdigest()
 
     def crc(self):
+        """
+        Get a CRC of the current geometry and graph information.
+
+        Returns
+        ---------
+        crc : int
+          Hash of current graph and geometry.
+        """
         return caching.crc32(self._hashable())
 
     def _hashable(self):
-        hashes = [self.graph.md5()]
-        for g in self.geometry.values():
-            if hasattr(g, 'md5'):
-                hashes.append(g.md5())
-            elif hasattr(g, 'tostring'):
-                hashes.append(str(hash(g.tostring())))
-            else:
-                # try to just straight up hash
-                # this may raise errors
-                hashes.append(str(hash(g)))
-        hashable = ''.join(sorted(hashes)).encode('utf-8')
-        return hashable
+        """
+        Return information about scene which is hashable.
+
+        Returns
+        ---------
+        hashable : str
+          Data which can be hashed.
+        """
+        # start with the last modified time of the scene graph
+        hashable = [self.graph.modified()]
+        # crc is an abstractmethod for all Geometry3D
+        # objects so everything should really have it
+        hashable.extend(str(i.crc()) for i in
+                        self.geometry.values()
+                        if hasattr(i, 'crc'))
+        # crc requires bytes so encode to utf-8
+        return ':'.join(sorted(hashable)).encode('utf-8')
 
     @property
     def is_empty(self):
@@ -296,7 +313,8 @@ class Scene(Geometry3D):
 
         Returns
         -----------
-        corners: (n, 3) float, points in space
+        corners: (n, 3) float
+          Points in space
         """
         # the saved corners of each instance
         corners_inst = []
@@ -474,29 +492,35 @@ class Scene(Geometry3D):
 
         Returns
         -----------
-        duplicates : (m) sequenc
-          Keys of self.nodes that represent identical geometry
+        duplicates : (m) sequence
+          Keys of self.graph that represent identical geometry
         """
         # if there is no geometry we can have no duplicate nodes
         if len(self.geometry) == 0:
             return []
 
         # geometry name : md5 of mesh
-        mesh_hash = {k: int(m.identifier_md5, 16)
-                     for k, m in self.geometry.items()}
-        # the name of nodes in the scene graph with geometry
-        node_names = np.array(self.graph.nodes_geometry)
-        # the geometry names for each node in the same order
-        node_geom = np.array([self.graph[i][1] for i in node_names])
-        # the mesh md5 for each node in the same order
-        node_hash = np.array([mesh_hash[v] for v in node_geom])
-        # indexes of identical hashes
-        node_groups = grouping.group(node_hash)
-        # sequence of node names where each
-        # sublist has identical geometry
-        duplicates = [np.sort(node_names[g]).tolist()
-                      for g in node_groups]
-        return duplicates
+        hashes = {k: int(m.identifier_md5, 16)
+                  for k, m in self.geometry.items()
+                  if hasattr(m, 'identifier_md5')}
+
+        # bring into local scope for loop
+        graph = self.graph
+        # get a hash for each node name
+        # scene.graph node name : hashed geometry
+        node_hash = {node: hashes.get(
+            graph[node][1]) for
+            node in graph.nodes_geometry}
+
+        # collect node names for each hash key
+        duplicates = collections.defaultdict(list)
+        # use a slightly off-label list comprehension
+        # for debatable function call overhead avoidance
+        [duplicates[hashed].append(node) for node, hashed
+         in node_hash.items() if hashed is not None]
+
+        # we only care about the values keys are garbage
+        return list(duplicates.values())
 
     def deduplicated(self):
         """
@@ -579,7 +603,7 @@ class Scene(Geometry3D):
     @property
     def camera_transform(self):
         """
-        Get camera transform in the base frame
+        Get camera transform in the base frame.
 
         Returns
         -------
@@ -587,6 +611,18 @@ class Scene(Geometry3D):
           Camera transform in the base frame
         """
         return self.graph[self.camera.name][0]
+
+    @camera_transform.setter
+    def camera_transform(self, matrix):
+        """
+        Set the camera transform in the base frame
+
+        Parameters
+        ----------
+        camera_transform : (4, 4) float
+          Camera transform in the base frame
+        """
+        self.graph[self.camera.name] = matrix
 
     def camera_rays(self):
         """
@@ -616,20 +652,6 @@ class Scene(Geometry3D):
         origins = (np.ones_like(vectors) *
                    transformations.translation_from_matrix(transform))
         return origins, vectors, pixels
-
-    @camera_transform.setter
-    def camera_transform(self, camera_transform):
-        """
-        Set the camera transform in the base frame
-
-        Parameters
-        ----------
-        camera_transform : (4, 4) float
-          Camera transform in the base frame
-        """
-        if camera_transform is None:
-            return
-        self.graph[self.camera.name] = camera_transform
 
     @property
     def camera(self):
@@ -755,6 +777,38 @@ class Scene(Geometry3D):
 
         return np.array(result)
 
+    def subscene(self, node):
+        """
+        Get part of a scene that succeeds a specified node.
+
+        Parameters
+        ------------
+        node : any
+          Hashable key in `scene.graph`
+
+        Returns
+        -----------
+        subscene : Scene
+          Partial scene generated from current.
+        """
+        # get every node that is a successor to specified node
+        # this includes `node`
+        graph = self.graph
+        nodes = graph.transforms.successors(node)
+        # get every edge that has an included node
+        edges = [e for e in graph.to_edgelist()
+                 if e[0] in nodes]
+
+        # create a scene graph when
+        graph = SceneGraph(base_frame=node)
+        graph.from_edgelist(edges)
+
+        geometry_names = set([e[2]['geometry'] for e in edges
+                              if 'geometry' in e[2]])
+        geometry = {k: self.geometry[k] for k in geometry_names}
+        result = Scene(geometry=geometry, graph=graph)
+        return result
+
     @caching.cache_decorator
     def convex_hull(self):
         """
@@ -810,10 +864,9 @@ class Scene(Geometry3D):
         png : bytes
           Render of scene as a PNG
         """
-        from ..viewer import render_scene
-        png = render_scene(scene=self,
-                           resolution=resolution,
-                           **kwargs)
+        from ..viewer.windowed import render_scene
+        png = render_scene(
+            scene=self, resolution=resolution, **kwargs)
         return png
 
     @property
@@ -1121,7 +1174,7 @@ def split_scene(geometry, **kwargs):
     return scene
 
 
-def append_scenes(iterable, common=['world']):
+def append_scenes(iterable, common=['world'], base_frame='world'):
     """
     Concatenate multiple scene objects into one scene.
 
@@ -1131,6 +1184,8 @@ def append_scenes(iterable, common=['world']):
        Geometries that should be appended
     common : (n,) str
        Nodes that shouldn't be remapped
+    base_frame : str
+       Base frame of the resulting scene
 
     Returns
     ------------
@@ -1225,7 +1280,7 @@ def append_scenes(iterable, common=['world']):
         consumed.update(current)
 
     # add all data to a new scene
-    result = Scene()
+    result = Scene(base_frame=base_frame)
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
 

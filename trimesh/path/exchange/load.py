@@ -8,15 +8,15 @@ from . import misc
 from ... import util
 
 
-def load_path(obj, file_type=None, **kwargs):
+def load_path(file_obj, file_type=None, **kwargs):
     """
-    Load a file to a Path object.
+    Load a file to a Path file_object.
 
     Parameters
     -----------
-    obj : One of the following:
-         - Path, Path2D, or Path3D objects
-         - open file object (dxf or svg)
+    file_obj : One of the following:
+         - Path, Path2D, or Path3D file_objects
+         - open file file_object (dxf or svg)
          - file name (dxf or svg)
          - shapely.geometry.Polygon
          - shapely.geometry.MultiLineString
@@ -24,43 +24,42 @@ def load_path(obj, file_type=None, **kwargs):
          - (n,2,(2|3)) float, line segments
     file_type : str
         Type of file is required if file
-        object passed.
+        file_object passed.
 
     Returns
     ---------
-    path : Path, Path2D, Path3D object
-        Data as a native trimesh Path object
+    path : Path, Path2D, Path3D file_object
+        Data as a native trimesh Path file_object
     """
 
-    if isinstance(obj, Path):
-        # we have been passed a Path object so
-        # do nothing and return the passed object
-        return obj
-    elif util.is_file(obj):
-        # for open file objects use loaders
+    if isinstance(file_obj, Path):
+        # we have been passed a Path file_object so
+        # do nothing and return the passed file_object
+        return file_obj
+    elif util.is_file(file_obj):
+        # for open file file_objects use loaders
         kwargs.update(path_loaders[file_type](
-            obj, file_type=file_type))
-    elif util.is_string(obj):
-        # strings passed are evaluated as file objects
-        with open(obj, 'rb') as file_obj:
+            file_obj, file_type=file_type))
+    elif util.is_string(file_obj):
+        # strings passed are evaluated as file file_objects
+        with open(file_obj, 'rb') as f:
             # get the file type from the extension
-            file_type = os.path.splitext(obj)[-1][1:].lower()
+            file_type = os.path.splitext(file_obj)[-1][1:].lower()
             # call the loader
-            kwargs.update(path_loaders[file_type](
-                file_obj, file_type=file_type))
-    elif util.is_instance_named(obj, 'Polygon'):
+            kwargs.update(path_loaders[file_type](f, file_type=file_type))
+    elif util.is_instance_named(file_obj, ['Polygon', 'MultiPolygon']):
         # convert from shapely polygons to Path2D
-        kwargs.update(misc.polygon_to_path(obj))
-    elif util.is_instance_named(obj, 'MultiLineString'):
+        kwargs.update(misc.polygon_to_path(file_obj))
+    elif util.is_instance_named(file_obj, 'MultiLineString'):
         # convert from shapely LineStrings to Path2D
-        kwargs.update(misc.linestrings_to_path(obj))
-    elif isinstance(obj, dict):
+        kwargs.update(misc.linestrings_to_path(file_obj))
+    elif isinstance(file_obj, dict):
         # load as kwargs
         from ...exchange.load import load_kwargs
-        return load_kwargs(obj)
-    elif util.is_sequence(obj):
+        return load_kwargs(file_obj)
+    elif util.is_sequence(file_obj):
         # load as lines in space
-        kwargs.update(misc.lines_to_path(obj))
+        kwargs.update(misc.lines_to_path(file_obj))
     else:
         raise ValueError('Not a supported object type!')
 

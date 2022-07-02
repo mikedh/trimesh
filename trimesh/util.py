@@ -13,7 +13,9 @@ import abc
 import sys
 import copy
 import json
+import uuid
 import base64
+import random
 import shutil
 import logging
 import hashlib
@@ -37,8 +39,6 @@ if PY3:
     basestring = str
     # Python 3
     from io import BytesIO, StringIO
-    # will be the highest granularity clock available
-    from time import perf_counter as now
 else:
     # Python 2
     from StringIO import StringIO
@@ -46,8 +46,6 @@ else:
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()
     BytesIO = StringIO
-    # perf_counter not available on python 2
-    from time import time as now
 
 
 try:
@@ -889,29 +887,6 @@ def hash_file(file_obj,
     return hashed
 
 
-def md5_object(obj):
-    """
-    If an object is hashable, return the string of the MD5.
-
-    Parameters
-    ------------
-    obj: object
-
-    Returns
-    ----------
-    md5: str, MD5 hash
-    """
-    hasher = hashlib.md5()
-    if isinstance(obj, basestring) and PY3:
-        # in python3 convert strings to bytes before hashing
-        hasher.update(obj.encode('utf-8'))
-    else:
-        hasher.update(obj)
-
-    md5 = hasher.hexdigest()
-    return md5
-
-
 def attach_to_log(level=logging.DEBUG,
                   handler=None,
                   loggers=None,
@@ -940,10 +915,9 @@ def attach_to_log(level=logging.DEBUG,
         blacklist = ['TerminalIPythonApp',
                      'PYREADLINE',
                      'pyembree',
-                     'shapely.geos',
-                     'shapely.speedups._speedups',
-                     'parso.cache',
-                     'parso.python.diff']
+                     'shapely',
+                     'matplotlib',
+                     'parso']
 
     # make sure we log warnings from the warnings module
     logging.captureWarnings(capture_warnings)
@@ -990,7 +964,7 @@ def attach_to_log(level=logging.DEBUG,
     for logger in loggers:
         # skip loggers on the blacklist
         if (logger.__class__.__name__ != 'Logger' or
-                logger.name in blacklist):
+                any(logger.name.startswith(b) for b in blacklist)):
             continue
         logger.addHandler(handler)
         logger.setLevel(level)
@@ -1438,7 +1412,10 @@ def is_instance_named(obj, name):
       Whether the object is a member of the named class
     """
     try:
-        type_named(obj, name)
+        if isinstance(name, list):
+            return any(is_instance_named(obj, i) for i in name)
+        else:
+            type_named(obj, name)
         return True
     except ValueError:
         return False
@@ -1509,6 +1486,8 @@ def concatenate(a, b=None):
     # if there is only one mesh just return the first
     if len(meshes) == 1:
         return meshes[0].copy()
+    elif len(meshes) == 0:
+        return []
 
     # extract the trimesh type to avoid a circular import
     # and assert that both inputs are Trimesh objects
@@ -1539,7 +1518,6 @@ def concatenate(a, b=None):
                         face_normals=face_normals,
                         visual=visual,
                         process=False)
-
     return mesh
 
 
@@ -1555,11 +1533,13 @@ def submesh(mesh,
     Parameters
     ------------
     mesh : Trimesh
-       Source mesh to take geometry from
+        Source mesh to take geometry from
     faces_sequence : sequence (p,) int
         Indexes of mesh.faces
+    repair : bool
+        Try to make submeshes watertight
     only_watertight : bool
-        Only return submeshes which are watertight.
+        Only return submeshes which are watertight
     append : bool
         Return a single mesh which has the faces appended,
         if this flag is set, only_watertight is ignored
@@ -2141,45 +2121,23 @@ def write_encoded(file_obj,
     return stuff
 
 
-def unique_id(length=12, increment=0):
+def unique_id(length=12):
     """
-    Generate a decent looking alphanumeric unique identifier.
-    First 16 bits are time-incrementing, followed by randomness.
-
-    This function is used as a nicer looking alternative to:
-    >>> uuid.uuid4().hex
-
-    Follows the advice in:
-    https://eager.io/blog/how-long-does-an-id-need-to-be/
+    Generate a random alphanumeric unique identifier
+    using UUID logic.
 
     Parameters
     ------------
     length : int
       Length of desired identifier
-    increment : int
-      Number to add to header uint16
-      useful if calling this function repeatedly
-      in a tight loop executing faster than time
-      can increment the header
 
     Returns
     ------------
     unique : str
       Unique alphanumeric identifier
     """
-    # head the identifier with 16 bits of time information
-    # this provides locality and reduces collision chances
-    head = np.array((increment + now() * 10) % 2**16,
-                    dtype=np.uint16).tobytes()
-    # get a bunch of random bytes
-    random = np.random.random(int(np.ceil(length / 5))).tobytes()
-    # encode the time header and random information as base64
-    # replace + and / with spaces
-    unique = base64.b64encode(head + random,
-                              b'  ').decode('utf-8')
-    # remove spaces and cut to length
-    unique = unique.replace(' ', '')[:length]
-    return unique
+    return uuid.UUID(int=random.getrandbits(128),
+                     version=4).hex[:length]
 
 
 def generate_basis(z, epsilon=1e-12):
@@ -2271,7 +2229,7 @@ def isclose(a, b, atol):
     return close
 
 
-def allclose(a, b, atol):
+def allclose(a, b, atol=1e-8):
     """
     A replacement for np.allclose that does few checks
     and validation and as a result is faster.
@@ -2289,7 +2247,7 @@ def allclose(a, b, atol):
     -----------
     bool indicating if all elements are within `atol`.
     """
-    return np.all(np.abs(a - b).max() < atol)
+    return float((a - b).ptp()) < atol
 
 
 class FunctionRegistry(Mapping):

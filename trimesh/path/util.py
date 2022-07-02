@@ -38,9 +38,11 @@ def concatenate(paths):
         vertices.append(path.vertices.copy())
         # copy entity then reindex points
         for entity in path.entities:
-            entities.append(entity.copy())
-            entities[-1].points += offset
-
+            # cleanly copy the entity into a new object
+            copied = entity.copy()
+            # offset the indexes
+            copied.points += offset
+            entities.append(copied)
     # generate the single new concatenated path
     # use input types so we don't have circular imports
     concat = type(path)(metadata=metadata,

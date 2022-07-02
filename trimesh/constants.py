@@ -1,6 +1,13 @@
 import numpy as np
 
-from .util import log, now
+from .util import log, PY3
+
+if PY3:
+    # will be the highest granularity clock available
+    from time import perf_counter as now
+else:
+    # perf_counter not available on python 2
+    from time import time as now
 
 
 class ToleranceMesh(object):
@@ -59,20 +66,27 @@ class TolerancePath(object):
       still be considered to be on the plane
     tol.seg_frac : float
       When simplifying line segments what percentage of the drawing
-                  scale can a segment be and have a curve fitted
-    tol.seg_angle: when simplifying line segments to arcs, what angle
-                   can a segment span to be acceptable.
-    tol.aspect_frac: when simplifying line segments to closed arcs (circles)
-                     what percentage can the aspect ratio differfrom 1:1
-                     before escaping the fit early
-    tol.radius_frac: when simplifying line segments to arcs, what percentage
-                     of the fit radius can vertices deviate to be acceptable
-    tol.radius_min: when simplifying line segments to arcs, what is the minimum
-                    radius multiplied by document scale for an acceptable fit
-    tol.radius_max: when simplifying line segments to arcs, what is the maximum
-                    radius multiplied by document scale for an acceptable fit
-    tol.tangent: when simplifying line segments to curves, what is the maximum
-                 angle the end sections can deviate from tangent that is acceptable.
+       scale can a segment be and have a curve fitted
+    tol.seg_angle : float
+      When simplifying line segments to arcs, what angle
+      can a segment span to be acceptable.
+    tol.aspect_frac : float
+      When simplifying line segments to closed arcs (circles)
+      what percentage can the aspect ratio differfrom 1:1
+      before escaping the fit early
+    tol.radius_frac : float
+      When simplifying line segments to arcs, what percentage
+      of the fit radius can vertices deviate to be acceptable
+    tol.radius_min :
+       When simplifying line segments to arcs, what is the minimum
+       radius multiplied by document scale for an acceptable fit
+    tol.radius_max :
+       When simplifying line segments to arcs, what is the maximum
+       radius multiplied by document scale for an acceptable fit
+    tol.tangent :
+       When simplifying line segments to curves, what is the maximum
+       angle the end sections can deviate from tangent that is
+       acceptable.
     """
 
     def __init__(self, **kwargs):
@@ -97,21 +111,26 @@ class TolerancePath(object):
 
 class ResolutionPath(object):
     """
-    res.seg_frac: when discretizing curves, what percentage of the drawing
-                  scale should we aim to make a single segment
-    res.seg_angle: when discretizing curves, what angle should a section span
-    res.max_sections: when discretizing splines, what is the maximum number
-                      of segments per control point
-    res.min_sections: when discretizing splines, what is the minimum number
-                      of segments per control point
-    res.export: format string to use when exporting floating point vertices
+    res.seg_frac : float
+      When discretizing curves, what percentage of the drawing
+      scale should we aim to make a single segment
+    res.seg_angle : float
+      When discretizing curves, what angle should a section span
+    res.max_sections : int
+      When discretizing splines, what is the maximum number
+      of segments per control point
+    res.min_sections : int
+      When discretizing splines, what is the minimum number
+      of segments per control point
+    res.export : str
+      Format string to use when exporting floating point vertices
     """
 
     def __init__(self, **kwargs):
         self.seg_frac = .05
         self.seg_angle = .08
-        self.max_sections = 10
-        self.min_sections = 5
+        self.max_sections = 500
+        self.min_sections = 20
         self.export = '0.10f'
 
 

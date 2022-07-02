@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "description": "A 3D triangular mesh in the simplest possible JSON format.",
+  "properties": {
+    "kind": { "type": "string", "pattern": "(^trimesh$)" },
+    "vertices": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": { "type": "number", "minItems": 3, "maxItems": 3 }
+      }
+    },
+    "faces": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": { "type": "integer", "minItems": 3, "maxItems": 3 }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": ["vertices", "faces"]
+}

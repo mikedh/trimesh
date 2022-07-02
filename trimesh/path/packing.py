@@ -217,12 +217,9 @@ def paths(paths, **kwargs):
     """
     from .util import concatenate
 
-    quantity = []
-    for path in paths:
-        if 'quantity' in path.metadata:
-            quantity.append(path.metadata['quantity'])
-        else:
-            quantity.append(1)
+    # default quantity to 1
+    quantity = [i.metadata.get('quantity', 1)
+                for i in paths]
 
     # pack using exterior polygon (will OBB)
     packable = [i.polygons_closed[i.root[0]] for i in paths]
@@ -273,7 +270,8 @@ def polygons(polygons,
     overall_inserted : (m,) int
       Indexes of inserted polygons
     packed : (m, 3, 3) float
-      Homogeonous transforms from original frame to packed frame
+      Homogeonous transforms from original frame to
+      packed frame.
     """
 
     from .polygons import polygons_obb

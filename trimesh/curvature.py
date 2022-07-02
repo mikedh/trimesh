@@ -9,9 +9,10 @@ import numpy as np
 from . import util
 
 try:
-    from scipy.sparse.coo import coo_matrix
-except ImportError:
-    pass
+    from scipy.sparse import coo_matrix
+except ImportError as E:
+    from . import exceptions
+    coo_matrix = exceptions.closure(E)
 
 
 def face_angles_sparse(mesh):
@@ -20,20 +21,20 @@ def face_angles_sparse(mesh):
 
     Returns
     ----------
-    sparse: scipy.sparse.coo_matrix with:
-            dtype: float
-            shape: (len(mesh.vertices), len(mesh.faces))
+    sparse : scipy.sparse.coo_matrix
+      matrix is float shaped (len(vertices), len(faces))
     """
-    matrix = coo_matrix((mesh.face_angles.flatten(),
-                         (mesh.faces_sparse.row, mesh.faces_sparse.col)),
-                        mesh.faces_sparse.shape)
+    matrix = coo_matrix((
+        mesh.face_angles.flatten(),
+        (mesh.faces_sparse.row, mesh.faces_sparse.col)),
+        mesh.faces_sparse.shape)
     return matrix
 
 
 def vertex_defects(mesh):
     """
-    Return the vertex defects, or (2*pi) minus the sum of the angles
-    of every face that includes that vertex.
+    Return the vertex defects, or (2*pi) minus the sum of the
+    angles of every face that includes that vertex.
 
     If a vertex is only included by coplanar triangles, this
     will be zero. For convex regions this is positive, and
@@ -44,25 +45,32 @@ def vertex_defects(mesh):
     vertex_defect : (len(self.vertices), ) float
                      Vertex defect at the every vertex
     """
-    angle_sum = np.asarray(mesh.face_angles_sparse.sum(axis=1)).flatten()
+    angle_sum = np.array(mesh.face_angles_sparse.sum(axis=1)).flatten()
     defect = (2 * np.pi) - angle_sum
     return defect
 
 
 def discrete_gaussian_curvature_measure(mesh, points, radius):
     """
-    Return the discrete gaussian curvature measure of a sphere centered
-    at a point as detailed in 'Restricted Delaunay triangulations and normal
-    cycle', Cohen-Steiner and Morvan.
+    Return the discrete gaussian curvature measure of a sphere
+    centered at a point as detailed in 'Restricted Delaunay
+    triangulations and normal cycle'- Cohen-Steiner and Morvan.
+
+    This is the sum of the vertex defects at all vertices
+    within the radius for each point.
 
     Parameters
     ----------
-    points : (n,3) float, list of points in space
-    radius : float, the sphere radius
+    points : (n, 3) float
+      Points in space
+    radius : float ,
+      The sphere radius, which can be zero if vertices
+      passed are points.
 
     Returns
     --------
-    gaussian_curvature: (n,) float, discrete gaussian curvature measure.
+    gaussian_curvature:  (n,) float
+      Discrete gaussian curvature measure.
     """
 
     points = np.asanyarray(points, dtype=np.float64)
@@ -77,18 +85,24 @@ def discrete_gaussian_curvature_measure(mesh, points, radius):
 
 def discrete_mean_curvature_measure(mesh, points, radius):
     """
-    Return the discrete mean curvature measure of a sphere centered
-    at a point as detailed in 'Restricted Delaunay triangulations and normal
-    cycle', Cohen-Steiner and Morvan.
+    Return the discrete mean curvature measure of a sphere
+    centered at a point as detailed in 'Restricted Delaunay
+    triangulations and normal cycle'- Cohen-Steiner and Morvan.
+
+    This is the sum of the angle at all edges contained in the
+    sphere for each point.
 
     Parameters
     ----------
-    points : (n,3) float, list of points in space
-    radius : float, the sphere radius
+    points : (n, 3) float
+      Points in space
+    radius : float
+      Sphere radius which should typically be greater than zero
 
     Returns
     --------
-    mean_curvature: (n,) float, discrete mean curvature measure.
+    mean_curvature : (n,) float
+      Discrete mean curvature measure.
     """
 
     points = np.asanyarray(points, dtype=np.float64)

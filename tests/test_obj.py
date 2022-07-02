@@ -54,6 +54,14 @@ class OBJTest(g.unittest.TestCase):
         # check to make sure there is signal not just zeros
         # assert mesh.metadata['face_groups'].ptp() > 0
 
+    def test_obj_negative_indices(self):
+        # a wavefront file with negative indices
+        mesh = g.get_mesh('negative_indices.obj')
+
+        # make sure some data got loaded
+        assert g.trimesh.util.is_shape(mesh.faces, (12, 3))
+        assert g.trimesh.util.is_shape(mesh.vertices, (8, 3))
+
     def test_obj_quad(self):
         mesh = g.get_mesh('quadknot.obj')
         # make sure some data got loaded
@@ -231,17 +239,16 @@ class OBJTest(g.unittest.TestCase):
             e = g.get_mesh('emptyIO/' + empty_file)
 
             # create export
-            export = e.export(file_type='ply')
-            reconstructed = g.wrapload(export, file_type='ply')
-
             if 'empty' in empty_file:
-                # result should be an empty scene without vertices
-                assert isinstance(e, g.trimesh.Scene)
-                assert not hasattr(e, 'vertices')
-                # export should not contain geometry
-                assert isinstance(reconstructed, g.trimesh.Scene)
-                assert not hasattr(reconstructed, 'vertices')
+                try:
+                    export = e.export(file_type='ply')
+                except BaseException:
+                    continue
+                raise ValueError('cannot export empty')
             elif 'points' in empty_file:
+                export = e.export(file_type='ply')
+                reconstructed = g.wrapload(export, file_type='ply')
+
                 # result should be a point cloud instance
                 assert isinstance(e, g.trimesh.PointCloud)
                 assert hasattr(e, 'vertices')
@@ -259,6 +266,33 @@ class OBJTest(g.unittest.TestCase):
         rec = g.wrapload(
             mesh.export(file_type='obj'), file_type='obj')
         assert g.np.isclose(mesh.area, rec.area)
+
+    def test_no_uv_but_mtl(self):
+        sphere = g.trimesh.creation.uv_sphere()
+        sphere.visual = g.trimesh.visual.TextureVisuals(
+            uv=None,
+            material=g.trimesh.visual.material.empty_material())
+        output = sphere.export('sphere.obj')
+        assert('usemtl' in output)
+
+    def test_chair(self):
+        mesh = next(iter(g.get_mesh('chair.zip').geometry.values()))
+
+        # this model comes with vertex normals
+        assert 'vertex_normals' in mesh._cache
+        assert g.np.allclose(
+            1.0, g.np.linalg.norm(mesh.vertex_normals, axis=1))
+        mesh.apply_scale(0.46377314288075433)
+        assert 'vertex_normals' in mesh._cache
+        assert g.np.allclose(
+            1.0, g.np.linalg.norm(mesh.vertex_normals, axis=1))
+        assert 'vertex_normals' in mesh._cache
+        mesh._cache.clear()
+        assert 'vertex_normals' not in mesh._cache
+        # if we recomputed now, the degenerate faces
+        # would lead some of these vertex normals to be zero
+        # assert g.np.allclose(
+        #    1.0, g.np.linalg.norm(mesh.vertex_normals, axis=1))
 
 
 def simple_load(text):

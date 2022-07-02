@@ -142,8 +142,9 @@ class CreationTest(g.unittest.TestCase):
         path = g.np.c_[x, y, z]
 
         # Extrude
-        mesh = g.trimesh.creation.sweep_polygon(poly, path)
-        assert mesh.is_volume
+        for engine in self.engines:
+            mesh = g.trimesh.creation.sweep_polygon(poly, path, engine=engine)
+            assert mesh.is_volume
 
     def test_annulus(self):
         """
@@ -264,8 +265,9 @@ class CreationTest(g.unittest.TestCase):
         if len(self.engines) == 0:
             return
         p = g.get_mesh('2D/ChuteHolderPrint.DXF')
-        v, f = p.triangulate()
-        check_triangulation(v, f, p.area)
+        for engine in self.engines:
+            v, f = p.triangulate(engine=engine)
+            check_triangulation(v, f, p.area)
 
     def test_truncated(self, count=10):
         # create some random triangles
