@@ -14,5 +14,6 @@
     },
     "kind": { "type": "string", "pattern": "(^cylinder$)" }
   },
+  "additionalProperties": false,
   "required": ["radius", "height", "kind"]
 }

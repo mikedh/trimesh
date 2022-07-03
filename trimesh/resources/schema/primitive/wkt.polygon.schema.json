@@ -1,0 +1,6 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "string",
+  "pattern": " *POLYGON *\\( *\\( *([+-]?([0-9]*[.])?[0-9]+ *[+-]?([0-9]*[.])?[0-9]+ *,* *)*\\) *\\) *",
+  "description": "A single polygon in the Well Known Text format (WKT)."
+}

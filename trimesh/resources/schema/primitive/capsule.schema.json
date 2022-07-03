@@ -1,18 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
-  "description": "A 3D cylinder primitive.",
+  "description": "A 3D capsule primitive: a cylinder capped by tangent hemispheres.",
   "properties": {
     "transform": { "$ref": "transform.schema.json" },
     "radius": {
       "type": "number",
-      "description": "The radius of the cylinder."
+      "description": "The radius of the cylinder and hemispherical caps."
     },
     "height": {
       "type": "number",
-      "description": "The height of the cylinder along Z. The maximum Z value will be at (height / 2) and the minimum will be at (-height / 2)"
+      "description": "The total height of the capsule including caps."
     },
     "kind": { "type": "string", "pattern": "(^capsule$)" }
   },
+  "additionalProperties": false,
   "required": ["radius", "height", "kind"]
 }

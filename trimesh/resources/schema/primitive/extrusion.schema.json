@@ -1,13 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
-
   "properties": {
     "transform": { "$ref": "transform.schema.json" },
     "kind": { "type": "string", "pattern": "(^extrusion$)" },
-    "polygon": { "type": "string" },
+    "polygon": { "$ref": "wkt.polygon.schema.json" },
     "height": { "type": "number" }
   },
-  "description": "A 2D polygon extruded along positive Z by `height` then transformed by a matrix",
-  "required": ["kind", "transform", "polygon", "height"]
+  "description": "A 2D polygon extruded from Z=0 along positive Z by `height` then transformed by the `transform` matrix.",
+  "additionalProperties": false,
+  "required": ["kind", "polygon", "height"]
 }
