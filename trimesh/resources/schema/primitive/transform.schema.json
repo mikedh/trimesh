@@ -7,6 +7,5 @@
     "maxItems": 4,
     "items": { "type": "number", "minItems": 4, "maxItems": 4 }
   },
-
-  "description": "The homogenous transformation matrix applied to this primitive."
+  "description": "A homogenous transformation matrix. If not passed it is assumed to be an identity matrix "
 }
