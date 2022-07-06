@@ -9,9 +9,9 @@ class CollisionTest(g.unittest.TestCase):
     def test_collision(self):
         # Ensure that FCL is importable
         try:
-            g.trimesh.collision.CollisionManager()
-        except ValueError:
-            g.log.warning('skipping collision tests, no FCL installed')
+            import fcl
+        except BaseException:
+            g.log.warning('skipping FCL tests: not installed')
             return
 
         cube = g.get_mesh('unit_cube.STL')
