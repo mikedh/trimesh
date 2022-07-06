@@ -677,6 +677,7 @@ class CollisionManager(object):
         obj : fcl.BVHModel or fcl.Convex
           BVH/Convex object of source mesh
         """
+
         if mesh.is_convex:
             obj = mesh_to_convex(mesh)
         else:

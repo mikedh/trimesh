@@ -96,6 +96,19 @@ class CollisionTest(g.unittest.TestCase):
         assert ('cube1', 'cube3') in names
         assert ('cube3', 'cube1') not in names
 
+    def test_random_spheres(self):
+        # check to see if a scene with a bunch of random
+        # spheres
+        spheres = [g.trimesh.creation.icosphere(
+            radius=i[0]).apply_translation(
+                i[1:] * 100) for i in
+            g.random((1000, 4))]
+        scene = g.trimesh.Scene(spheres)
+        manager, _ = g.trimesh.collision.scene_to_collision(
+            scene)
+        collides = manager.in_collision_internal()
+        assert isinstance(collides, bool)
+
     def test_distance(self):
         # Ensure that FCL is importable
         try:
