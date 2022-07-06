@@ -97,6 +97,12 @@ class CollisionTest(g.unittest.TestCase):
         assert ('cube3', 'cube1') not in names
 
     def test_random_spheres(self):
+        try:
+            import fcl
+        except BaseException:
+            g.log.warning('skipping FCL tests: not installed')
+            return
+
         # check to see if a scene with a bunch of random
         # spheres
         spheres = [g.trimesh.creation.icosphere(
