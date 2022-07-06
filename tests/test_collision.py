@@ -172,21 +172,21 @@ class CollisionTest(g.unittest.TestCase):
         m.add_object('cube1', cube, tf1)
 
         n = g.trimesh.collision.CollisionManager()
-        n.add_object('cube0', cube, tf2)
+        n.add_object('cube4', cube, tf2)
 
         dist, names, data = m.min_distance_other(n, return_names=True, return_data=True)
         assert g.np.isclose(dist, 4.0)
-        assert names == ('cube0', 'cube0')
+        assert names == ('cube0', 'cube4')
         assert g.np.isclose(
             g.np.linalg.norm(data.point(names[0]) - data.point(names[1])),
             dist
         )
 
-        n.add_object('cube4', cube, tf4)
+        n.add_object('cube5', cube, tf4)
 
         dist, names, data = m.min_distance_other(n, return_names=True, return_data=True)
         assert g.np.isclose(dist, 1.0)
-        assert names == ('cube0', 'cube4')
+        assert names == ('cube0', 'cube5')
         assert g.np.isclose(
             g.np.linalg.norm(data.point(names[0]) - data.point(names[1])),
             dist

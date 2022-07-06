@@ -178,9 +178,6 @@ class CollisionManager(object):
         # unpopulated values will return None
         self._names = collections.defaultdict(lambda: None)
 
-        # cache fcl objects
-        # {mesh.md5(): fcl.BVHModel or fcl.Convex object}
-        self._fcl_cache = {}
         self._manager = fcl.DynamicAABBTreeCollisionManager()
         self._manager.setup()
 
@@ -211,7 +208,7 @@ class CollisionManager(object):
         if transform.shape != (4, 4):
             raise ValueError('transform must be (4,4)!')
 
-        # create or recall BVH/Convex from cache
+        # create BVH/Convex
         geom = self._get_fcl_obj(mesh)
 
         # create the FCL transform from (4,4) matrix
@@ -303,7 +300,7 @@ class CollisionManager(object):
         if transform is None:
             transform = np.eye(4)
 
-        # create or recall BVH/Convex from cache
+        # create BVH/Convex
         geom = self._get_fcl_obj(mesh)
 
         # create the FCL transform from (4,4) matrix
@@ -502,7 +499,7 @@ class CollisionManager(object):
         if transform is None:
             transform = np.eye(4)
 
-        # create or recall BVH/Convex from cache
+        # create BVH/Convex
         geom = self._get_fcl_obj(mesh)
 
         # create the FCL transform from (4,4) matrix
@@ -680,14 +677,10 @@ class CollisionManager(object):
         obj : fcl.BVHModel or fcl.Convex
           BVH/Convex object of source mesh
         """
-        mk = mesh.md5()
-        if mk in self._fcl_cache:
-            return self._fcl_cache[mk]
         if mesh.is_convex:
             obj = mesh_to_convex(mesh)
         else:
             obj = mesh_to_BVH(mesh)
-        self._fcl_cache[mk] = obj
         return obj
 
     def _extract_name(self, geom):
