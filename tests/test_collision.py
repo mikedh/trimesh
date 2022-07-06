@@ -3,14 +3,17 @@ try:
 except BaseException:
     import generic as g
 
+try:
+    import fcl
+except BaseException:
+    fcl = None
+
 
 class CollisionTest(g.unittest.TestCase):
 
     def test_collision(self):
         # Ensure that FCL is importable
-        try:
-            import fcl
-        except BaseException:
+        if fcl is None:
             g.log.warning('skipping FCL tests: not installed')
             return
 
@@ -30,10 +33,11 @@ class CollisionTest(g.unittest.TestCase):
         ret = m.in_collision_single(cube)
         assert ret is True
 
-        ret, names, data = m.in_collision_single(cube,
-                                                 tf1,
-                                                 return_names=True,
-                                                 return_data=True)
+        ret, names, data = m.in_collision_single(
+            cube,
+            tf1,
+            return_names=True,
+            return_data=True)
 
         assert ret is True
         assert all(len(i.point) == 3 for i in data)
@@ -97,9 +101,7 @@ class CollisionTest(g.unittest.TestCase):
         assert ('cube3', 'cube1') not in names
 
     def test_random_spheres(self):
-        try:
-            import fcl
-        except BaseException:
+        if fcl is None:
             g.log.warning('skipping FCL tests: not installed')
             return
 
@@ -116,11 +118,8 @@ class CollisionTest(g.unittest.TestCase):
         assert isinstance(collides, bool)
 
     def test_distance(self):
-        # Ensure that FCL is importable
-        try:
-            g.trimesh.collision.CollisionManager()
-        except ValueError:
-            g.log.warning('skipping collision tests, no FCL installed')
+        if fcl is None:
+            g.log.warning('skipping FCL tests: not installed')
             return
 
         cube = g.get_mesh('unit_cube.STL')
@@ -212,15 +211,13 @@ class CollisionTest(g.unittest.TestCase):
         )
 
     def test_scene(self):
-        try:
-            import fcl  # NOQA
-        except ImportError:
+        if fcl is None:
             return
         scene = g.get_mesh('cycloidal.3DXML')
-
         manager, objects = g.trimesh.collision.scene_to_collision(scene)
 
         assert manager.in_collision_internal()
+        assert objects is not None
 
 
 if __name__ == '__main__':
