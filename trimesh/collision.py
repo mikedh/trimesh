@@ -37,14 +37,14 @@ class ContactData(object):
     @property
     def normal(self):
         """
-        The 3D vector intersection for this contact.
+        The 3D intersection normal for this contact.
 
         Returns
         -------
-        point : (3,) float
-          The intersection point.
+        normal : (3,) float
+          The intersection normal.
         """
-        return self._point
+        return self._normal
 
     @property
     def point(self):
