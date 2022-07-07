@@ -36,8 +36,10 @@ class CollisionTest(g.unittest.TestCase):
                                                  return_data=True)
 
         assert ret is True
-        assert all(len(i.point) == 3 for i in data)
-        assert (int(i.depth) for i in data)
+        for c in data:
+            assert g.np.allclose(c.point, g.np.array([5.0, -0.5, 0.5]))
+            assert g.np.isclose(c.depth, 1.0)
+            assert g.np.allclose(c.normal, g.np.array([-1.0, 0.0, 0.0]))
 
         if 'cube1' not in names:
             print('\n\n', m._objs.keys(), names)
