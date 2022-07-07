@@ -1,12 +1,20 @@
 {
+  "$id": "https://github.com/mikedh/trimesh/blob/main/trimesh/resources/schema/primitive/sphere.schema.json",
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "object",
+  "additionalProperties": false,
   "description": "A 3D sphere primitive.",
   "properties": {
-    "transform": { "$ref": "transform.schema.json" },
-    "kind": { "type": "string", "pattern": "(^sphere$)" },
-    "radius": { "type": "number" }
+    "kind": {
+      "pattern": "(^sphere$)",
+      "type": "string"
+    },
+    "radius": {
+      "type": "number"
+    },
+    "transform": {
+      "$ref": "transform.schema.json"
+    }
   },
-  "additionalProperties": false,
-  "required": ["radius", "kind"]
+  "required": ["radius", "kind"],
+  "type": "object"
 }

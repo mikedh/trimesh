@@ -1,24 +1,36 @@
 {
+  "$id": "https://github.com/mikedh/trimesh/blob/main/trimesh/resources/schema/primitive/trimesh.schema.json",
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "object",
+  "additionalProperties": false,
   "description": "A 3D triangular mesh in the simplest possible JSON format.",
   "properties": {
-    "kind": { "type": "string", "pattern": "(^trimesh$)" },
-    "vertices": {
-      "type": "array",
-      "items": {
-        "type": "array",
-        "items": { "type": "number", "minItems": 3, "maxItems": 3 }
-      }
-    },
     "faces": {
-      "type": "array",
       "items": {
-        "type": "array",
-        "items": { "type": "integer", "minItems": 3, "maxItems": 3 }
-      }
+        "items": {
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "integer"
+        },
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "kind": {
+      "pattern": "(^trimesh$)",
+      "type": "string"
+    },
+    "vertices": {
+      "items": {
+        "items": {
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "type": "array"
     }
   },
-  "additionalProperties": false,
-  "required": ["vertices", "faces"]
+  "required": ["vertices", "faces"],
+  "type": "object"
 }
