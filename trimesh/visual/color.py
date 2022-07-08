@@ -161,7 +161,12 @@ class ColorVisuals(Visuals):
           Contains the same information as self
         """
         copied = ColorVisuals()
+        # call the literally insane generators
+        self.face_colors
+        self.vertex_colors
+        # copy anything that's actually data
         copied._data.data = copy.deepcopy(self._data.data)
+
         return copied
 
     @property
