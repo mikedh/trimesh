@@ -75,11 +75,11 @@ def subdivide(vertices,
                          faces_subset[:, 2],
                          mid_idx[:, 0],
                          mid_idx[:, 1],
-                         mid_idx[:, 2]]).reshape((-1, 3))
+                         mid_idx[:, 2]]).reshape((-1, 4, 3))
     # add the 3 new faces_subset per old face
-    new_faces = np.vstack((faces, f[len(face_index):]))
+    new_faces = np.vstack((faces, f[:, 1:].reshape((-1, 3))))
     # replace the old face with a smaller face
-    new_faces[face_index] = f[:len(face_index)]
+    new_faces[face_index] = f[:, 0]
 
     new_vertices = np.vstack((vertices, mid))
 
