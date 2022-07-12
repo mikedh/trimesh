@@ -14,6 +14,7 @@ from . import transformations
 
 from .transformations import transform_points
 from .points import PointCloud
+from .geometry import weighted_vertex_normals
 
 try:
     from scipy.spatial import cKDTree
@@ -826,6 +827,8 @@ def nricp_sumner(source_mesh,
     if return_records:
         records = [transformed_vertices[:nV]]
 
+    source_mesh_copy = source_mesh.copy()
+
     # Main loop
     for i, (wc, wi, ws, wl, wn) in enumerate(steps):
 
@@ -857,10 +860,12 @@ def nricp_sumner(source_mesh,
                 if use_vertex_normals and qres.interpolated_normals is not None:
                     target_normals = qres.interpolated_normals
                 # Normal weighting = multiplying weights by cosines^wn
-                from .base import Trimesh
-                source_normals = Trimesh(transformed_vertices[:nV],
-                                         source_mesh.faces,
-                                         process=False).vertex_normals
+                source_mesh_copy.vertices = transformed_vertices[:nV]
+                source_normals = weighted_vertex_normals(
+                    vertex_count=nV,
+                    faces=source_mesh_copy.faces,
+                    face_normals=source_mesh_copy.face_normals,
+                    face_angles=source_mesh_copy.face_angles)
                 dot = util.diagonal_dot(source_normals, target_normals)
                 # Normal orientation is only known for meshes as target
                 dot = np.clip(dot, 0, 1) if use_faces else np.abs(dot)
