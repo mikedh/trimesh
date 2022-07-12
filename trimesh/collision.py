@@ -329,7 +329,7 @@ class CollisionManager(object):
 
                 names = (name, '__external')
                 if cg == contact.o2:
-                    names = reversed(names)
+                    names = tuple(reversed(names))
 
                 if return_names:
                     objs_in_collision.add(name)
@@ -455,7 +455,7 @@ class CollisionManager(object):
                     objs_in_collision.add(names)
                 if return_data:
                     if reverse:
-                        names = reversed(names)
+                        names = tuple(reversed(names))
                     contact_data.append(ContactData(names, contact))
 
         if return_names and return_data:
@@ -532,7 +532,7 @@ class CollisionManager(object):
 
             names = (name, '__external')
             if cg == ddata.result.o2:
-                names = reversed(names)
+                names = tuple(reversed(names))
             data = DistanceData(names, ddata.result)
 
         if return_name and return_data:
@@ -651,7 +651,7 @@ class CollisionManager(object):
 
             dnames = tuple(names)
             if reverse:
-                dnames = reversed(dnames)
+                dnames = tuple(reversed(dnames))
             data = DistanceData(dnames, ddata.result)
 
         if return_names and return_data:
