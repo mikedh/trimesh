@@ -903,7 +903,7 @@ def nricp_sumner(source_mesh,
     if return_records:
         result = records
     else:
-        transformed_vertices[:nV]
+        result = transformed_vertices[:nV]
 
     result = _denormalize_by_source(source_mesh, target_geometry, target_positions,
                                     result, centroid, scale)
