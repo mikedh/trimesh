@@ -15,6 +15,7 @@ from . import transformations
 from .transformations import transform_points
 from .points import PointCloud
 from .geometry import weighted_vertex_normals
+from .triangles import normals, angles, cross
 
 try:
     from scipy.spatial import cKDTree
@@ -787,6 +788,21 @@ def nricp_sumner(source_mesh,
         Bc = points[non_markers_mask]
         return AEc, Bc
 
+    def _compute_vertex_normals(vertices, faces):
+        # Utility function for computing source vertex normals
+        mesh_triangles = vertices[faces]
+        mesh_triangles_cross = cross(mesh_triangles)
+        mesh_face_normals = normals(
+            triangles=mesh_triangles,
+            crosses=mesh_triangles_cross)[0]
+        mesh_face_angles = angles(mesh_triangles)
+        mesh_normals = weighted_vertex_normals(
+            vertex_count=nV,
+            faces=faces,
+            face_normals=mesh_face_normals,
+            face_angles=mesh_face_angles)
+        return mesh_normals
+
     # First, normalize the source and target to [-1, 1]^3
     target_geometry, target_positions, centroid, scale = \
         _normalize_by_source(source_mesh, target_geometry, target_positions)
@@ -827,8 +843,6 @@ def nricp_sumner(source_mesh,
     if return_records:
         records = [transformed_vertices[:nV]]
 
-    source_mesh_copy = source_mesh.copy()
-
     # Main loop
     for i, (wc, wi, ws, wl, wn) in enumerate(steps):
 
@@ -859,13 +873,9 @@ def nricp_sumner(source_mesh,
                 target_normals = qres.normals
                 if use_vertex_normals and qres.interpolated_normals is not None:
                     target_normals = qres.interpolated_normals
-                # Normal weighting = multiplying weights by cosines^wn
-                source_mesh_copy.vertices = transformed_vertices[:nV]
-                source_normals = weighted_vertex_normals(
-                    vertex_count=nV,
-                    faces=source_mesh_copy.faces,
-                    face_normals=source_mesh_copy.face_normals,
-                    face_angles=source_mesh_copy.face_angles)
+                # Normal weighting : multiplying weights by cosines^wn
+                source_normals = _compute_vertex_normals(transformed_vertices,
+                                                         source_mesh.faces)
                 dot = util.diagonal_dot(source_normals, target_normals)
                 # Normal orientation is only known for meshes as target
                 dot = np.clip(dot, 0, 1) if use_faces else np.abs(dot)
