@@ -3,15 +3,18 @@ try:
 except BaseException:
     import generic as g
 
+try:
+    import fcl
+except BaseException:
+    fcl = None
+
 
 class CollisionTest(g.unittest.TestCase):
 
     def test_collision(self):
         # Ensure that FCL is importable
-        try:
-            g.trimesh.collision.CollisionManager()
-        except ValueError:
-            g.log.warning('skipping collision tests, no FCL installed')
+        if fcl is None:
+            g.log.warning('skipping FCL tests: not installed')
             return
 
         cube = g.get_mesh('unit_cube.STL')
@@ -30,14 +33,17 @@ class CollisionTest(g.unittest.TestCase):
         ret = m.in_collision_single(cube)
         assert ret is True
 
-        ret, names, data = m.in_collision_single(cube,
-                                                 tf1,
-                                                 return_names=True,
-                                                 return_data=True)
+        ret, names, data = m.in_collision_single(
+            cube,
+            tf1,
+            return_names=True,
+            return_data=True)
 
         assert ret is True
-        assert all(len(i.point) == 3 for i in data)
-        assert (int(i.depth) for i in data)
+        for c in data:
+            assert g.np.allclose(c.point, g.np.array([5.0, -0.5, 0.5]))
+            assert g.np.isclose(c.depth, 1.0)
+            assert g.np.allclose(c.normal, g.np.array([-1.0, 0.0, 0.0]))
 
         if 'cube1' not in names:
             print('\n\n', m._objs.keys(), names)
@@ -96,12 +102,26 @@ class CollisionTest(g.unittest.TestCase):
         assert ('cube1', 'cube3') in names
         assert ('cube3', 'cube1') not in names
 
+    def test_random_spheres(self):
+        if fcl is None:
+            g.log.warning('skipping FCL tests: not installed')
+            return
+
+        # check to see if a scene with a bunch of random
+        # spheres
+        spheres = [g.trimesh.creation.icosphere(
+            radius=i[0]).apply_translation(
+                i[1:] * 100) for i in
+            g.random((1000, 4))]
+        scene = g.trimesh.Scene(spheres)
+        manager, _ = g.trimesh.collision.scene_to_collision(
+            scene)
+        collides = manager.in_collision_internal()
+        assert isinstance(collides, bool)
+
     def test_distance(self):
-        # Ensure that FCL is importable
-        try:
-            g.trimesh.collision.CollisionManager()
-        except ValueError:
-            g.log.warning('skipping collision tests, no FCL installed')
+        if fcl is None:
+            g.log.warning('skipping FCL tests: not installed')
             return
 
         cube = g.get_mesh('unit_cube.STL')
@@ -118,12 +138,18 @@ class CollisionTest(g.unittest.TestCase):
         tf4 = g.np.eye(4)
         tf4[:3, 3] = g.np.array([-2, 0, 0])
 
+        tf5 = g.np.eye(4)
+        tf5[:3, 3] = g.np.array([5.75, 0, 0])
+
         # Test one-to-many distance checking
         m = g.trimesh.collision.CollisionManager()
         m.add_object('cube1', cube, tf1)
 
         dist = m.min_distance_single(cube)
         assert g.np.isclose(dist, 4.0)
+
+        dist = m.min_distance_single(cube, tf5)
+        assert g.np.isclose(dist, -0.25)
 
         dist, name = m.min_distance_single(cube, return_name=True)
         assert g.np.isclose(dist, 4.0)
@@ -166,28 +192,34 @@ class CollisionTest(g.unittest.TestCase):
         m.add_object('cube1', cube, tf1)
 
         n = g.trimesh.collision.CollisionManager()
-        n.add_object('cube0', cube, tf2)
+        n.add_object('cube4', cube, tf2)
 
-        dist, names = m.min_distance_other(n, return_names=True)
+        dist, names, data = m.min_distance_other(n, return_names=True, return_data=True)
         assert g.np.isclose(dist, 4.0)
-        assert names == ('cube0', 'cube0')
-
-        n.add_object('cube4', cube, tf4)
-
-        dist, names = m.min_distance_other(n, return_names=True)
-        assert g.np.isclose(dist, 1.0)
         assert names == ('cube0', 'cube4')
+        assert g.np.isclose(
+            g.np.linalg.norm(data.point(names[0]) - data.point(names[1])),
+            dist
+        )
+
+        n.add_object('cube5', cube, tf4)
+
+        dist, names, data = m.min_distance_other(n, return_names=True, return_data=True)
+        assert g.np.isclose(dist, 1.0)
+        assert names == ('cube0', 'cube5')
+        assert g.np.isclose(
+            g.np.linalg.norm(data.point(names[0]) - data.point(names[1])),
+            dist
+        )
 
     def test_scene(self):
-        try:
-            import fcl  # NOQA
-        except ImportError:
+        if fcl is None:
             return
         scene = g.get_mesh('cycloidal.3DXML')
-
         manager, objects = g.trimesh.collision.scene_to_collision(scene)
 
         assert manager.in_collision_internal()
+        assert objects is not None
 
 
 if __name__ == '__main__':

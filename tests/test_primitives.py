@@ -80,7 +80,6 @@ class PrimitiveTest(g.unittest.TestCase):
 
             # convert to a dict
             d = primitive.to_dict()
-
             # validate the output of the to-dict method
             g.jsonschema.validate(d, schema)
 

@@ -182,14 +182,24 @@ def is_convex(mesh):
         return False
 
     # don't consider zero- area faces
-    nonzero = mesh.area_faces > tol.merge
+    nonzero = mesh.area_faces > tol.zero
     # adjacencies with two nonzero faces
     adj_ok = nonzero[mesh.face_adjacency].all(axis=1)
+
+    # if none of our face pairs are both nonzero exit
+    # TODO : is this the correct check?
+    # or should we just compare the projections
+    # to the mesh scale
+    if not adj_ok.any():
+        return False
+
     # make threshold of convexity scale- relative
     threshold = tol.planar * mesh.scale
+
     # if projections of vertex onto plane of adjacent
     # face is negative, it means the face pair is locally
     # convex, and if that is true for all faces the mesh is convex
+
     convex = bool(mesh.face_adjacency_projections[adj_ok].max() < threshold)
 
     return convex
