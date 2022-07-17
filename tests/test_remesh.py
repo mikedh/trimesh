@@ -156,17 +156,17 @@ class SubDivideTest(g.unittest.TestCase):
         assert r.is_watertight
 
     def test_idx_simple(self):
-        vertices = np.array(
+        vertices = g.np.array(
             [0, 0, 0,
              0, 1, 0,
              1, 1, 0,
              1, 0, 0]).reshape((-1, 3)) * 10
-        faces = np.array(
+        faces = g.np.array(
             [0, 1, 2,
              0, 2, 3, ]).reshape((-1, 3))
 
         def test(fidx):
-            v, f, idx = trimesh.remesh.subdivide(
+            v, f, idx = g.trimesh.remesh.subdivide(
                 vertices,
                 faces,
                 face_index=fidx,
@@ -174,19 +174,21 @@ class SubDivideTest(g.unittest.TestCase):
             tri = v[f]
             eps = 1e-8
             for fid in fidx:
-
                 # get the new triangles, as indicated by the index
                 tri_new = v[f[idx[fid]]]
 
                 # this is the original triangle
-                original = vertices[faces[np.tile(fid, len(tri_new) * 3)]]
+                original = vertices[faces[
+                    g.np.tile(fid, len(tri_new) * 3)]]
 
-                bary = trimesh.triangles.points_to_barycentric(
+                bary = g.trimesh.triangles.points_to_barycentric(
                     triangles=original,
                     points=tri_new.reshape((-1, 3)))
 
                 assert (bary < 1 + eps).all()
                 assert (bary > -eps).all()
+        test([0, 1])
+        test([1, 0])
 
 
 if __name__ == '__main__':

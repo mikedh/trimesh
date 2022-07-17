@@ -49,12 +49,13 @@ def subdivide(vertices,
       original face : index of new faces}.
     """
     if face_index is None:
-        face_index = np.arange(len(faces))
+        face_mask = np.ones(len(faces), dtype=bool)
     else:
-        face_index = np.sort(face_index)
+        face_mask = np.zeros(len(faces), dtype=bool)
+        face_mask[face_index] = True
 
     # the (c, 3) int array of vertex indices
-    faces_subset = faces[face_index]
+    faces_subset = faces[face_mask]
 
     # find the unique edges of our faces subset
     edges = np.sort(faces_to_edges(faces_subset), axis=1)
@@ -75,13 +76,13 @@ def subdivide(vertices,
                          faces_subset[:, 2],
                          mid_idx[:, 0],
                          mid_idx[:, 1],
-                         mid_idx[:, 2]]).reshape((-1, 4, 3))
+                         mid_idx[:, 2]]).reshape((-1, 3))
 
-    # add the 3 new faces_subset per old face
-    new_faces = np.vstack((faces, f[:, 1:].reshape((-1, 3))))
-    # replace the old face with a smaller face
-    new_faces[face_index] = f[:, 0]
-
+    # add the 3 new faces_subset per old face all on the end
+    # by putting all the new faces after all the old faces
+    # it makes it easier to understand the indexes
+    new_faces = np.vstack((faces[~face_mask], f))
+    # stack the new midpoint vertices on the end
     new_vertices = np.vstack((vertices, mid))
 
     if vertex_attributes is not None:
@@ -99,19 +100,16 @@ def subdivide(vertices,
         return new_vertices, new_faces, new_attributes
 
     if return_index:
-
-        # stack = np.column_stack((
-        #    face_index,
-        #    (np.arange(len(f)-len(face_index)) +
-        #     len(face_index)).reshape((-1, 3))))
-        stack = np.column_stack((
-            face_index,
-            np.arange(len(face_index),
-                      len(face_index) + len(f) * 3).reshape(
-                          (-1, 3))))
-        index_dict = {k: v for k, v in zip(face_index, stack)}
-        #from IPython import embed
-        # embed()
+        # turn the mask back into integer indexes
+        nonzero = np.nonzero(face_mask)[0]
+        # new faces start past the original faces
+        # but we've removed all the faces in face_mask
+        start = len(faces) - len(nonzero)
+        # indexes are just offset from start
+        stack = np.arange(
+            start, start + len(f) * 4).reshape((-1, 4))
+        # reformat into a slightly silly dict for some reason
+        index_dict = {k: v for k, v in zip(nonzero, stack)}
 
         return new_vertices, new_faces, index_dict
 
@@ -162,6 +160,8 @@ def subdivide_to_size(vertices,
         faces, dtype=np.int64, copy=True)
     current_vertices = np.array(
         vertices, dtype=np.float64, copy=True)
+
+    # store a map to the original face index
     current_index = np.arange(len(faces))
 
     # loop through iteration cap
@@ -184,13 +184,16 @@ def subdivide_to_size(vertices,
         # store vertices and faces meeting criteria
         done_vert.append(current_vertices[unique])
         done_face.append(inverse.reshape((-1, 3)))
-        done_idx.append(current_index[face_ok])
+
+        if return_index:
+            done_idx.append(current_index[face_ok])
+            current_index = np.tile(current_index[too_long],
+                                    (4, 1)).T.ravel()
 
         # met our goals so exit
         if not too_long.any():
             break
 
-        current_index = np.tile(current_index[too_long], (4, 1)).T.ravel()
         # run subdivision again
         (current_vertices,
          current_faces) = subdivide(current_vertices,
@@ -198,7 +201,7 @@ def subdivide_to_size(vertices,
 
     if i >= max_iter:
         # max_iter is too small to generate short-enough edges
-        raise ValueError('edges too long at exit! try increasing max_iter')
+        raise ValueError('max_iter exceeded!')
 
     # stack sequence into nice (n, 3) arrays
     final_vertices, final_faces = util.append_faces(
