@@ -171,7 +171,6 @@ class SubDivideTest(g.unittest.TestCase):
                 faces,
                 face_index=fidx,
                 return_index=True)
-            tri = v[f]
             eps = 1e-8
             for fid in fidx:
                 # get the new triangles, as indicated by the index
