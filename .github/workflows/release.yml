@@ -158,6 +158,8 @@ jobs:
         docker logout
 
   release:
+    permissions:
+      contents: write  # for actions/create-release to create a release
     name: Create GitHub Release
     needs: [tests, containers]
     runs-on: ubuntu-latest

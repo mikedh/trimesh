@@ -51,7 +51,7 @@ def subdivide(vertices,
     if face_index is None:
         face_index = np.arange(len(faces))
     else:
-        face_index = np.asanyarray(face_index)
+        face_index = np.sort(face_index)
 
     # the (c, 3) int array of vertex indices
     faces_subset = faces[face_index]
@@ -75,11 +75,12 @@ def subdivide(vertices,
                          faces_subset[:, 2],
                          mid_idx[:, 0],
                          mid_idx[:, 1],
-                         mid_idx[:, 2]]).reshape((-1, 3))
+                         mid_idx[:, 2]]).reshape((-1, 4, 3))
+
     # add the 3 new faces_subset per old face
-    new_faces = np.vstack((faces, f[len(face_index):]))
+    new_faces = np.vstack((faces, f[:, 1:].reshape((-1, 3))))
     # replace the old face with a smaller face
-    new_faces[face_index] = f[:len(face_index)]
+    new_faces[face_index] = f[:, 0]
 
     new_vertices = np.vstack((vertices, mid))
 
@@ -98,8 +99,20 @@ def subdivide(vertices,
         return new_vertices, new_faces, new_attributes
 
     if return_index:
-        index_dict = {f: [f] + [len(faces) + 3 * fidx + i for i in range(3)]
-                      for fidx, f in enumerate(face_index)}
+
+        # stack = np.column_stack((
+        #    face_index,
+        #    (np.arange(len(f)-len(face_index)) +
+        #     len(face_index)).reshape((-1, 3))))
+        stack = np.column_stack((
+            face_index,
+            np.arange(len(face_index),
+                      len(face_index) + len(f) * 3).reshape(
+                          (-1, 3))))
+        index_dict = {k: v for k, v in zip(face_index, stack)}
+        #from IPython import embed
+        # embed()
+
         return new_vertices, new_faces, index_dict
 
     return new_vertices, new_faces
