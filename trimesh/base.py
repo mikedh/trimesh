@@ -1342,6 +1342,18 @@ class Trimesh(Geometry3D):
         return adjacency
 
     @caching.cache_decorator
+    def face_neighborhood(self):
+        """
+        Find faces that share a vertex i.e. 'neighbors' faces.
+
+        Returns
+        ----------
+        neighborhood : (n, 2) int
+          Pairs of faces which share a vertex
+        """
+        return graph.face_neighborhood(self)
+
+    @caching.cache_decorator
     def face_adjacency_edges(self):
         """
         Returns the edges that are shared by the adjacent faces.
@@ -2990,6 +3002,23 @@ class Trimesh(Geometry3D):
             copied._cache.cache.update(self._cache.cache)
 
         return copied
+
+    def query(self, input_points, **kwargs):
+        """
+        Find the the closest points and associated attributes from this Trimesh.
+        Parameters
+        ------------
+        input_points : (n, 3) float
+          Input query points
+        kwargs : dict
+          Arguments for proximity.query_from_mesh
+
+        Returns
+        -------------
+        result : proximity.NearestQueryResult
+            Result of the query.
+        """
+        return proximity.query_from_mesh(self, input_points, **kwargs)
 
     def __deepcopy__(self, *args):
         # interpret deep copy as "get rid of cached data"
