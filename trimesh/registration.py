@@ -12,10 +12,10 @@ from . import util
 from . import bounds
 from . import transformations
 
-from .transformations import transform_points
 from .points import PointCloud
 from .geometry import weighted_vertex_normals
 from .triangles import normals, angles, cross
+from .transformations import transform_points
 
 try:
     from scipy.spatial import cKDTree
@@ -364,9 +364,15 @@ def _normalize_by_source(source_mesh, target_geometry, target_positions):
     return target_geometry, target_positions, centroid, scale
 
 
-def _denormalize_by_source(source_mesh, target_geometry, target_positions, result,
-                           centroid, scale):
-    # Utility function to transform source mesh from [-1, 1]^3 to its original transform
+def _denormalize_by_source(
+        source_mesh,
+        target_geometry,
+        target_positions,
+        result,
+        centroid,
+        scale):
+    # Utility function to transform source mesh from
+    # [-1, 1]^3 to its original transform
     # and transform target geometry accordingly
     source_mesh.vertices = scale * source_mesh.vertices + centroid[None, :]
     target_geometry.vertices = scale * target_geometry.vertices + centroid[None, :]
@@ -386,7 +392,7 @@ def nricp_amberg(source_mesh,
                  steps=None,
                  eps=0.0001,
                  gamma=1,
-                 distance_treshold=0.1,
+                 distance_threshold=0.1,
                  return_records=False,
                  use_faces=True,
                  use_vertex_normals=True,
@@ -394,19 +400,20 @@ def nricp_amberg(source_mesh,
     """
     Non Rigid Iterative Closest Points
 
-    Implementation of "Amberg et al. 2007: Optimal Step Nonrigid ICP Algorithms
-    for Surface Registration."
-    Allows to register non-rigidly a mesh on another or on a point cloud.
-    The core algorithm is explained at the end of page 3 of the paper.
+    Implementation of "Amberg et al. 2007: Optimal Step
+    Nonrigid ICP Algorithms for Surface Registration."
+    Allows to register non-rigidly a mesh on another or
+    on a point cloud. The core algorithm is explained
+    at the end of page 3 of the paper.
 
     Comparison between nricp_amberg and nricp_sumner:
     * nricp_amberg fits to the target mesh in less steps
-    * nricp_amberg can generate sharp edges (only vertices and their
-        neighbors are considered)
+    * nricp_amberg can generate sharp edges
+      * only vertices and their neighbors are considered
     * nricp_sumner tend to preserve more the original shape
     * nricp_sumner parameters are easier to tune
-    * nricp_sumner solves for triangle positions whereas nricp_amberg solves for
-        vertex transforms
+    * nricp_sumner solves for triangle positions whereas
+      nricp_amberg solves for vertex transforms
     * nricp_sumner is less optimized when wn > 0
 
     Parameters
@@ -418,8 +425,8 @@ def nricp_amberg(source_mesh,
     source_landmarks : (n,) int or ((n,) int, (n, 3) float)
         n landmarks on the the source mesh.
         Represented as vertex indices (n,) int.
-        It can also be represented as a tuple of triangle indices and barycentric
-        coordinates ((n,) int, (n, 3) float,).
+        It can also be represented as a tuple of triangle
+        indices and barycentric coordinates ((n,) int, (n, 3) float,).
     target_positions : (n, 3) float
         Target positions assigned to source landmarks
     steps : Core parameters of the algorithm
@@ -431,7 +438,7 @@ def nricp_amberg(source_mesh,
     gamma : float
         Weight the translation part against the rotational/skew part.
         Recommended value : 1.
-    distance_treshold : float
+    distance_threshold : float
         Distance threshold to account for a vertex match or not.
     return_records : bool
         If True, also returns all the intermediate results. It can help debugging
@@ -595,7 +602,7 @@ def nricp_amberg(source_mesh,
 
             # Data weighting
             vertices_weight = np.ones(nV)
-            vertices_weight[qres.distances > distance_treshold] = 0
+            vertices_weight[qres.distances > distance_threshold] = 0
 
             if wn > 0 and qres.has_normals():
                 target_normals = qres.normals
@@ -634,7 +641,7 @@ def nricp_sumner(source_mesh,
                  source_landmarks=None,
                  target_positions=None,
                  steps=None,
-                 distance_treshold=0.1,
+                 distance_threshold=0.1,
                  return_records=False,
                  use_faces=True,
                  use_vertex_normals=True,
@@ -804,11 +811,12 @@ def nricp_sumner(source_mesh,
         return mesh_normals
 
     # First, normalize the source and target to [-1, 1]^3
-    target_geometry, target_positions, centroid, scale = \
-        _normalize_by_source(source_mesh, target_geometry, target_positions)
-
+    (target_geometry,
+     target_positions,
+     centroid,
+     scale) = _normalize_by_source(
+         source_mesh, target_geometry, target_positions)
     nV = len(source_mesh.vertices)
-
     use_landmarks = source_landmarks is not None and target_positions is not None
 
     if steps is None:
@@ -863,12 +871,12 @@ def nricp_sumner(source_mesh,
                 neighbors_count=neighbors_count)
 
             # Correspondence cost (Eq. 13)
-            AEc, Bc = _construct_correspondence_cost(qres.nearest,
-                                                     non_markers_mask,
-                                                     len(source_vtet))
-
+            AEc, Bc = _construct_correspondence_cost(
+                qres.nearest,
+                non_markers_mask,
+                len(source_vtet))
             vertices_weight = np.ones(nV)
-            vertices_weight[qres.distances > distance_treshold] = 0
+            vertices_weight[qres.distances > distance_threshold] = 0
             if wn > 0 or qres.has_normals():
                 target_normals = qres.normals
                 if use_vertex_normals and qres.interpolated_normals is not None:
@@ -905,6 +913,11 @@ def nricp_sumner(source_mesh,
     else:
         result = transformed_vertices[:nV]
 
-    result = _denormalize_by_source(source_mesh, target_geometry, target_positions,
-                                    result, centroid, scale)
+    result = _denormalize_by_source(
+        source_mesh,
+        target_geometry,
+        target_positions,
+        result,
+        centroid,
+        scale)
     return result

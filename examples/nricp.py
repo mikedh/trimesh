@@ -47,7 +47,7 @@ if __name__ == '__main__':
     target_markers_vertices = target.vertices[landmarks_vertex_indices[:, 1]]
 
     T = procrustes(source_markers_vertices, target_markers_vertices)[0]
-    source.vertices = transform_points(source.vertices, T)
+    source.apply_transform(T)
 
     # Just for the sake of using barycentric coordinates...
     use_barycentric_coordinates = True
@@ -91,15 +91,19 @@ if __name__ == '__main__':
     ]
 
     # Amberg et. al 2007
-    records_amberg = nricp_amberg(source, target, source_landmarks=source_landmarks,
-                                  distance_treshold=0.05,
-                                  target_positions=target_markers_vertices,
-                                  steps=steps_amberg, return_records=True)
+    records_amberg = nricp_amberg(
+        source, target, source_landmarks=source_landmarks,
+        distance_threshold=0.05,
+        target_positions=target_markers_vertices,
+        steps=steps_amberg, return_records=True)
+
     # Sumner and Popovic 2004
-    records_sumner = nricp_sumner(source, target, source_landmarks=source_landmarks,
-                                  distance_treshold=0.05,
-                                  target_positions=target_markers_vertices,
-                                  steps=steps_sumner, return_records=True)
+    records_sumner = nricp_sumner(
+        source, target,
+        source_landmarks=source_landmarks,
+        distance_threshold=0.05,
+        target_positions=target_markers_vertices,
+        steps=steps_sumner, return_records=True)
     # Show the result
     try:
         import pyvista as pv
@@ -111,9 +115,10 @@ if __name__ == '__main__':
             pv_mesh = pv.wrap(source)
             pv_mesh['scalars'] = distances[0]
             p.add_text(name, color=(0, 0, 0))
-            p.add_mesh(pv_mesh, color=(0.6, 0.6, 0.9), cmap='rainbow',
-                       clim=(0, target.scale / 100), scalars='scalars',
-                       scalar_bar_args={'color': (0, 0, 0)})
+            p.add_mesh(
+                pv_mesh, color=(0.6, 0.6, 0.9), cmap='rainbow',
+                clim=(0, target.scale / 100), scalars='scalars',
+                scalar_bar_args={'color': (0, 0, 0)})
             p.add_mesh(pv.wrap(target), style='wireframe')
 
             def cb(value):
