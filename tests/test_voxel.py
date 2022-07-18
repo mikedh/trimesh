@@ -244,9 +244,22 @@ class VoxelGridTest(g.unittest.TestCase):
         grid += 1.0
         assert not vox.is_filled(grid).any()
 
+    def test_roundtrip(self):
+        # try exporting and reloading in the "binvox" format
+        m = g.trimesh.creation.box()
+        v = m.voxelized(pitch=0.1)
+        e = v.export(file_type='binvox')
+        r = g.trimesh.load(
+            file_obj=g.trimesh.util.wrap_as_stream(e),
+            file_type='binvox')
+
+        assert v.filled_count == r.filled_count
+        assert g.np.allclose(r.bounds, v.bounds)
+
     def _test_equiv(self, v0, v1, query_points=None):
         """
-        Test whether or not two `VoxelGrid` representation are consistent.
+        Test whether or not two `VoxelGrid` representation
+        are consistent.
 
         Tests consistency of:
             shape
@@ -322,9 +335,10 @@ class VoxelGridTest(g.unittest.TestCase):
             g.log.warning('no binvox to test!')
             return
 
-        filled = Sphere().voxelized(pitch=0.1,
-                                    method='binvox',
-                                    exact=True)
+        filled = Sphere().voxelized(
+            pitch=0.1,
+            method='binvox',
+            exact=True)
         hollow = filled.copy().hollow()
         self.assertLess(hollow.filled_count, filled.filled_count)
         self.assertGreater(hollow.filled_count, 0)
