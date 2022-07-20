@@ -298,6 +298,8 @@ class ExportTest(g.unittest.TestCase):
         assert args[1] == 'stl'
 
     def test_buffered_random(self):
+        """Test writing to non-standard file
+        """
         mesh = list( g.get_meshes(1) )[0]
         with io.BufferedRandom(io.BytesIO()) as rw:
             mesh.export( rw, 'STL' )
