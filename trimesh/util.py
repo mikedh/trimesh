@@ -2096,6 +2096,9 @@ def write_encoded(file_obj,
     If a file is open in text mode and bytes are
     passed decode bytes to str and write.
 
+    Assumes binary mode if file_obj does not have
+    a 'mode' attribute (e.g. io.BufferedRandom).
+
     Parameters
     -----------
     file_obj : file object
@@ -2105,7 +2108,9 @@ def write_encoded(file_obj,
     encoding : str
       Encoding of text
     """
-    binary_file = 'b' in file_obj.mode
+    binary_file = True
+    if hasattr(file_obj, 'mode'):
+        binary_file = 'b' in file_obj.mode
     string_stuff = isinstance(stuff, basestring)
     binary_stuff = isinstance(stuff, bytes)
 
