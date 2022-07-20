@@ -3,6 +3,8 @@ try:
 except BaseException:
     import generic as g
 
+import io
+
 
 class ExportTest(g.unittest.TestCase):
 
@@ -295,6 +297,16 @@ class ExportTest(g.unittest.TestCase):
         assert len(args) == RET_COUNT
         # should have used manually passed type over .obj
         assert args[1] == 'stl'
+
+    def test_buffered_random(self):
+        """Test writing to non-standard file
+        """
+        mesh = list(g.get_meshes(1))[0]
+        with io.BufferedRandom(io.BytesIO()) as rw:
+            mesh.export(rw, 'STL')
+            rw.seek(0)
+            binary_stl = rw.read()
+            self.assertLess(0, len(binary_stl))
 
 
 if __name__ == '__main__':
