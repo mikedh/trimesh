@@ -307,6 +307,7 @@ class ExportTest(g.unittest.TestCase):
             binary_stl = rw.read()
             self.assertLess( 0, len( binary_stl ) )
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
