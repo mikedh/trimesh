@@ -5,6 +5,7 @@ except BaseException:
 
 import io
 
+
 class ExportTest(g.unittest.TestCase):
 
     def test_export(self):
@@ -300,12 +301,12 @@ class ExportTest(g.unittest.TestCase):
     def test_buffered_random(self):
         """Test writing to non-standard file
         """
-        mesh = list( g.get_meshes(1) )[0]
+        mesh = list(g.get_meshes(1))[0]
         with io.BufferedRandom(io.BytesIO()) as rw:
-            mesh.export( rw, 'STL' )
-            rw.seek( 0 )
+            mesh.export(rw, 'STL')
+            rw.seek(0)
             binary_stl = rw.read()
-            self.assertLess( 0, len( binary_stl ) )
+            self.assertLess(0, len(binary_stl))
 
 
 if __name__ == '__main__':
