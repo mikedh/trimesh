@@ -11,10 +11,11 @@ For more information, see
 
 import trimesh
 import numpy as np
-from trimesh.registration import nricp_amberg, nricp_sumner, procrustes
+from trimesh.registration import (nricp_amberg,
+                                  nricp_sumner,
+                                  procrustes)
 from trimesh.proximity import closest_point
 from trimesh.triangles import points_to_barycentric
-from trimesh.transformations import transform_points
 
 
 if __name__ == '__main__':
