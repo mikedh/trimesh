@@ -234,20 +234,20 @@ class RegistrationTest(g.unittest.TestCase):
         ]
         # Amberg et. al 2007
         records_amberg_no_ldm = g.trimesh.registration.nricp_amberg(
-            source, target, distance_treshold=0.05,
+            source, target, distance_threshold=0.05,
             steps=steps_amberg, return_records=True)
         records_amberg_ldm = g.trimesh.registration.nricp_amberg(
             source, target, source_landmarks=source_landmarks,
             target_positions=target_markers_vertices, steps=steps_amberg,
-            return_records=True, distance_treshold=0.05)
+            return_records=True, distance_threshold=0.05)
         # Sumner and Popovic 2004
         records_sumner_no_ldm = g.trimesh.registration.nricp_sumner(
-            source, target, distance_treshold=0.05,
+            source, target, distance_threshold=0.05,
             steps=steps_sumner, return_records=True)
         records_sumner_ldm = g.trimesh.registration.nricp_sumner(
             source, target, source_landmarks=source_landmarks,
             target_positions=target_markers_vertices, steps=steps_sumner,
-            return_records=True, distance_treshold=0.05)
+            return_records=True, distance_threshold=0.05)
 
         d_amberg_no_ldm = \
             g.trimesh.proximity.closest_point(target, records_amberg_no_ldm[-1])[1]

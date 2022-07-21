@@ -682,7 +682,7 @@ def nricp_sumner(source_mesh,
         wc is the correspondence term (strength of fitting), wi is the identity term
         (recommended value : 0.001), ws is smoothness term, wl weights the landmark
         importance and wn the normal importance.
-    distance_treshold : float
+    distance_threshold : float
         Distance threshold to account for a vertex match or not.
     return_records : bool
         If True, also returns all the intermediate results. It can help debugging
