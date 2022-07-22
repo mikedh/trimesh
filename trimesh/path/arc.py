@@ -6,6 +6,9 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..constants import res_path as res
 
+# floating point zero
+_TOL_ZERO = 1e-12
+
 
 def arc_center(points, return_normal=True, return_angle=True):
     """
@@ -33,21 +36,14 @@ def arc_center(points, return_normal=True, return_angle=True):
     """
     points = np.asanyarray(points, dtype=np.float64)
 
-    # get the vectors between the arc points
-    A, B, C = points
-    CB = C - B
-    CA = C - A
-    BA = B - A
-    # the lengths of those edges
-    a = np.linalg.norm(CB)
-    b = np.linalg.norm(CA)
-    c = np.linalg.norm(BA)
+    vectors = np.diff(points[[0, 1, 2, 0], :], axis=0)[[1, 2, 0], :]
+    abc = np.sqrt(np.dot(vectors ** 2, [1] * points.shape[1]))
 
     # perform radius calculation scaled to shortest edge
     # to avoid precision issues with small or large arcs
-    scale = min([a, b, c])
+    scale = abc.min()
     # get the edge lengths scaled to the smallest
-    edges = np.array([a, b, c]) / scale
+    edges = abc / scale
     # half the total length of the edges
     half = edges.sum() / 2.0
     # check the denominator for the radius calculation
@@ -57,39 +53,34 @@ def arc_center(points, return_normal=True, return_angle=True):
     # find the radius and scale back after the operation
     radius = scale * ((np.product(edges) / 4.0) / np.sqrt(denom))
 
-    # run the center calculation
-    a2 = a**2
-    b2 = b**2
-    c2 = c**2
-    # barycentric approach
-    ba = [a2 * (b2 + c2 - a2),
-          b2 * (a2 + c2 - b2),
-          c2 * (a2 + b2 - c2)]
-    center = (points.T).dot(ba) / sum(ba)
+    # use a barycentric approach to get the center
+    abc2 = abc ** 2
+    ba2 = (abc2[[1, 2, 0, 0, 2, 1, 0, 1, 2]] *
+           [1, 1, -1, 1, 1, -1, 1, 1, -1]).reshape(
+               (3, 3)).sum(axis=1) * abc2
+    center = points.T.dot(ba2) / ba2.sum()
 
     if tol.strict:
         # all points should be at the calculated radius from center
-        assert np.allclose(
+        assert util.allclose(
             np.linalg.norm(points - center, axis=1),
             radius)
 
     # start with initial results
     result = {'center': center,
               'radius': radius}
-    # exit early if we can
-    if not (return_normal or return_angle):
-        return result
 
     if return_normal:
         if points.shape == (3, 2):
             # for 2D arcs still use the cross product so that
             # the sign of the normal vector is consistent
             result['normal'] = util.unitize(
-                np.cross(np.append(CA, 0), np.append(BA, 0)))
+                np.cross(np.append(-vectors[1], 0),
+                         np.append(vectors[2], 0)))
         else:
             # otherwise just take the cross product
             result['normal'] = util.unitize(
-                np.cross(CA, BA))
+                np.cross(-vectors[1], vectors[2]))
 
     if return_angle:
         # vectors from points on arc to center point
@@ -97,15 +88,15 @@ def arc_center(points, return_normal=True, return_angle=True):
         edge_direction = np.diff(points, axis=0)
         # find the angle between the first and last vector
         dot = np.dot(*vector[[0, 2]])
-        if dot < (tol.zero - 1):
+        if dot < (_TOL_ZERO - 1):
             angle = np.pi
-        elif dot > 1 - tol.zero:
+        elif dot > 1 - _TOL_ZERO:
             angle = 0.0
         else:
             angle = np.arccos(dot)
         # if the angle is nonzero and vectors are opposite direction
         # it means we have a long arc rather than the short path
-        if abs(angle) > tol.zero and np.dot(*edge_direction) < 0.0:
+        if abs(angle) > _TOL_ZERO and np.dot(*edge_direction) < 0.0:
             angle = (np.pi * 2) - angle
         # convoluted angle logic
         angles = np.arctan2(*vector[:, :2].T[::-1]) + np.pi * 2
@@ -183,7 +174,7 @@ def discretize_arc(points,
 
     # do an in-process check to make sure result endpoints
     # match the endpoints of the source arc
-    if not close:
+    if tol.strict and not close:
         arc_dist = util.row_norm(points[[0, -1]] - discrete[[0, -1]])
         arc_ok = (arc_dist < tol.merge).all()
         if not arc_ok:

@@ -302,6 +302,7 @@ class NearestQueryResult:
         return self.normals is not None or self.interpolated_normals is not None
 
 
+    
 def query_from_points(target_points,
                       input_points,
                       kdtree=None,
@@ -325,6 +326,7 @@ def query_from_points(target_points,
       The number of closest neighbors to query
     kwargs : dict
       Dict to accept other key word arguments (not used)
+
     Returns
     ----------
     qres : NearestQueryResult

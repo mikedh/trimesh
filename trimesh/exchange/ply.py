@@ -394,10 +394,11 @@ def parse_header(file_obj):
     image_name = None
 
     while True:
-        line = file_obj.readline()
-        if line is None:
+        raw = file_obj.readline()
+        if raw is None:
             raise ValueError("Header not terminated properly!")
-        line = line.decode('utf-8').strip().split()
+        raw = raw.decode('utf-8').strip()
+        line = raw.split()
 
         # we're done
         if 'end_header' in line:
@@ -430,12 +431,12 @@ def parse_header(file_obj):
                     endian +
                     dtypes[dtype])
         # referenced as a file name
-        elif 'TextureFile' in line:
+        elif 'texturefile' in raw.lower():
             # textures come listed like:
             # `comment TextureFile fuze_uv.jpg`
-            index = line.index('TextureFile') + 1
-            if index < len(line):
-                image_name = " ".join(line[index:])
+            index = raw.lower().index('texturefile') + 11
+            # use the value from raw to preserve whitespace
+            image_name = raw[index:].strip()
 
     return elements, is_ascii, image_name
 
