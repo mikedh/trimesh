@@ -207,7 +207,7 @@ def export_glb(
     # the initial header of the file
     header = _byte_pad(
         np.array([_magic["gltf"],  # magic, turns into glTF
-                  2,  # GLTF version
+                  2,               # GLTF version
                   # length is the total length of the Binary glTF
                   # including Header and all Chunks, in bytes.
                   len(content) + len(buffer_data) + 28,
@@ -1284,16 +1284,12 @@ def _read_buffers(header,
                 buffer_view = header["bufferViews"][a["bufferView"]]
                 if "byteStride" in buffer_view and start < buffer_view["byteStride"]:
                     stride = buffer_view["byteStride"]
-                    dataTemp = np.frombuffer(
-                        data[start:start + count * stride], dtype=np.uint8)\
-                        .reshape([count, stride])
-                    if start > 0:
-                        dataTemp = np.delete(dataTemp, np.arange(start), axis=1)
-
                     bytesPerCount = np.dtype(dtype).itemsize * per_count
-                    dataTemp = np.delete(dataTemp,
-                                         np.arange(bytesPerCount, stride - start), axis=1)
-                    dataTemp = dataTemp.tobytes()
+                    dataTemp = bytearray()
+                    prev_stride_ = 0
+                    for stride_ in range(stride, len(data) + stride, stride):
+                        dataTemp.extend(data[start + prev_stride_ : start + prev_stride_ + bytesPerCount])
+                        prev_stride_ = stride_
                     access[index] = np.frombuffer(dataTemp, dtype=dtype).reshape(shape)
                 else:
                     # length is the number of bytes per item times total
