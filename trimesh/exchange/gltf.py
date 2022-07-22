@@ -1287,7 +1287,8 @@ def _read_buffers(header,
                     bytesPerCount = np.dtype(dtype).itemsize * per_count
                     dataTemp = bytearray()
                     prev_stride_ = 0
-                    for stride_ in range(stride, len(data) + stride, stride):
+                    length = bytesPerCount * count
+                    for stride_ in range(stride, length + stride, stride):
                         dataTemp.extend(
                             data[start + prev_stride_:
                                  start + prev_stride_ + bytesPerCount])
