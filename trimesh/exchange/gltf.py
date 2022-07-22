@@ -1280,21 +1280,22 @@ def _read_buffers(header,
                 else:
                     # otherwise assume we start at first byte
                     start = 0
-                # length is the number of bytes per item times total
-                length = np.dtype(dtype).itemsize * count * per_count
+
                 # load the bytes data into correct dtype and shape
-                bufferViewTest = header["bufferViews"][a["bufferView"]]
-                if "byteStride" in bufferViewTest:
-                    stride_ = bufferViewTest["byteStride"]
-                    bytes_per_count = np.dtype(dtype).itemsize * per_count
-                    dataTemp = np.frombuffer(data, dtype=np.uint8).reshape([count, stride_])
+                buffer_view = header["bufferViews"][a["bufferView"]]
+                if "byteStride" in buffer_view and start < buffer_view["byteStride"]:
+                    stride_ = buffer_view["byteStride"]
+                    dataTemp = np.frombuffer(data[start:start + count * stride_], dtype=np.uint8).reshape([count, stride_])
                     if start > 0:
                         dataTemp = np.delete(dataTemp, np.arange(start), axis=1)
 
+                    bytes_per_count = np.dtype(dtype).itemsize * per_count
                     dataTemp = np.delete(dataTemp, np.arange(bytes_per_count, stride_ - start), axis=1)
                     dataTemp = dataTemp.tobytes()
                     access[index] = np.frombuffer(dataTemp, dtype=dtype).reshape(shape)
                 else:
+                    # length is the number of bytes per item times total
+                    length = np.dtype(dtype).itemsize * count * per_count
                     access[index] = np.frombuffer(data[start:start + length], dtype=dtype).reshape(shape)
 
             else:
