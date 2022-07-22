@@ -21,6 +21,7 @@ from .. import transformations
 from ..caching import fast_hash
 from ..constants import log, tol
 
+
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
 _magic = {"gltf": 1179937895,
@@ -776,8 +777,8 @@ def _append_mesh(mesh,
                 "TEXCOORD_0"] = acc_uv
 
     if (include_normals or
-            (include_normals is None and
-             'vertex_normals' in mesh._cache.cache)):
+        (include_normals is None and
+         'vertex_normals' in mesh._cache.cache)):
         # store vertex normals if requested
         acc_norm = _data_append(
             acc=tree['accessors'],
