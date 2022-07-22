@@ -302,7 +302,6 @@ class NearestQueryResult:
         return self.normals is not None or self.interpolated_normals is not None
 
 
-    
 def query_from_points(target_points,
                       input_points,
                       kdtree=None,
