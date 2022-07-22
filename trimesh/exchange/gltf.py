@@ -21,7 +21,6 @@ from .. import transformations
 from ..caching import fast_hash
 from ..constants import log, tol
 
-
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
 _magic = {"gltf": 1179937895,
@@ -208,7 +207,7 @@ def export_glb(
     # the initial header of the file
     header = _byte_pad(
         np.array([_magic["gltf"],  # magic, turns into glTF
-                  2,               # GLTF version
+                  2,  # GLTF version
                   # length is the total length of the Binary glTF
                   # including Header and all Chunks, in bytes.
                   len(content) + len(buffer_data) + 28,
@@ -777,8 +776,8 @@ def _append_mesh(mesh,
                 "TEXCOORD_0"] = acc_uv
 
     if (include_normals or
-        (include_normals is None and
-         'vertex_normals' in mesh._cache.cache)):
+            (include_normals is None and
+             'vertex_normals' in mesh._cache.cache)):
         # store vertex normals if requested
         acc_norm = _data_append(
             acc=tree['accessors'],
@@ -1285,7 +1284,8 @@ def _read_buffers(header,
                 buffer_view = header["bufferViews"][a["bufferView"]]
                 if "byteStride" in buffer_view and start < buffer_view["byteStride"]:
                     stride_ = buffer_view["byteStride"]
-                    dataTemp = np.frombuffer(data[start:start + count * stride_], dtype=np.uint8).reshape([count, stride_])
+                    dataTemp = np.frombuffer(
+                        data[start:start + count * stride_], dtype=np.uint8).reshape([count, stride_])
                     if start > 0:
                         dataTemp = np.delete(dataTemp, np.arange(start), axis=1)
 
@@ -1296,7 +1296,8 @@ def _read_buffers(header,
                 else:
                     # length is the number of bytes per item times total
                     length = np.dtype(dtype).itemsize * count * per_count
-                    access[index] = np.frombuffer(data[start:start + length], dtype=dtype).reshape(shape)
+                    access[index] = np.frombuffer(
+                        data[start:start + length], dtype=dtype).reshape(shape)
 
             else:
                 # a "sparse" accessor should be initialized as zeros
