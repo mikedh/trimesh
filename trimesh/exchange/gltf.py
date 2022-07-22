@@ -1285,24 +1285,17 @@ def _read_buffers(header,
                 # load the bytes data into correct dtype and shape
                 bufferViewTest = header["bufferViews"][a["bufferView"]]
                 if "byteStride" in bufferViewTest:
-                    # dataTemp = data[start:start + length]
                     stride_ = bufferViewTest["byteStride"]
                     bytes_per_count = np.dtype(dtype).itemsize * per_count
-                    if index == 80:
-                        print()
                     dataTemp = np.frombuffer(data, dtype=np.uint8).reshape([count, stride_])
                     if start > 0:
                         dataTemp = np.delete(dataTemp, np.arange(start), axis=1)
 
                     dataTemp = np.delete(dataTemp, np.arange(bytes_per_count, stride_ - start), axis=1)
                     dataTemp = dataTemp.tobytes()
-                    try:
-                        access[index] = np.frombuffer(dataTemp, dtype=dtype).reshape(shape)
-                    except:
-                        print()
+                    access[index] = np.frombuffer(dataTemp, dtype=dtype).reshape(shape)
                 else:
-                    access[index] = np.frombuffer(
-                        data[start:start + length], dtype=dtype).reshape(shape)
+                    access[index] = np.frombuffer(data[start:start + length], dtype=dtype).reshape(shape)
 
             else:
                 # a "sparse" accessor should be initialized as zeros
