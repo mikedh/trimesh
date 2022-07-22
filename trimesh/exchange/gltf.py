@@ -1283,14 +1283,16 @@ def _read_buffers(header,
                 # load the bytes data into correct dtype and shape
                 buffer_view = header["bufferViews"][a["bufferView"]]
                 if "byteStride" in buffer_view and start < buffer_view["byteStride"]:
-                    stride_ = buffer_view["byteStride"]
+                    stride = buffer_view["byteStride"]
                     dataTemp = np.frombuffer(
-                        data[start:start + count * stride_], dtype=np.uint8).reshape([count, stride_])
+                        data[start:start + count * stride], dtype=np.uint8)\
+                        .reshape([count, stride])
                     if start > 0:
                         dataTemp = np.delete(dataTemp, np.arange(start), axis=1)
 
-                    bytes_per_count = np.dtype(dtype).itemsize * per_count
-                    dataTemp = np.delete(dataTemp, np.arange(bytes_per_count, stride_ - start), axis=1)
+                    bytesPerCount = np.dtype(dtype).itemsize * per_count
+                    dataTemp = np.delete(dataTemp,
+                                         np.arange(bytesPerCount, stride - start), axis=1)
                     dataTemp = dataTemp.tobytes()
                     access[index] = np.frombuffer(dataTemp, dtype=dtype).reshape(shape)
                 else:
