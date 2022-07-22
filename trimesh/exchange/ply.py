@@ -435,7 +435,7 @@ def parse_header(file_obj):
             # `comment TextureFile fuze_uv.jpg`
             index = line.index('TextureFile') + 1
             if index < len(line):
-                image_name = line[index]
+                image_name = " ".join(line[index:])
 
     return elements, is_ascii, image_name
 
