@@ -1288,7 +1288,8 @@ def _read_buffers(header,
                     dataTemp = bytearray()
                     prev_stride_ = 0
                     for stride_ in range(stride, len(data) + stride, stride):
-                        dataTemp.extend(data[start + prev_stride_ : start + prev_stride_ + bytesPerCount])
+                        dataTemp.extend(
+                            data[start+prev_stride_:start+prev_stride_+bytesPerCount])
                         prev_stride_ = stride_
                     access[index] = np.frombuffer(dataTemp, dtype=dtype).reshape(shape)
                 else:
