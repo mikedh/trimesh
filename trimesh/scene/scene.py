@@ -221,6 +221,16 @@ class Scene(Geometry3D):
         # remove the geometries from our geometry store
         [self.geometry.pop(name, None) for name in names]
 
+    def strip_visuals(self):
+        """
+        Strip visuals from every Trimesh geometry
+        and set them to an empty `ColorVisuals`.
+        """
+        from ..visual.color import ColorVisuals
+        for geometry in self.geometry.values():
+            if util.is_instance_named(geometry, 'Trimesh'):
+                geometry.visual = ColorVisuals(mesh=geometry)
+
     def md5(self):
         """
         MD5 of scene which will change when meshes or

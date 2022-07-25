@@ -1203,8 +1203,6 @@ def unique_name(start, contains):
         # keep the original name and add an integer to it
         formatter = split[0] + '_{}'
 
-        formatter = start + '{}'
-
     # if contains is empty we will only need to check once
     for i in range(increment + 1, 1 + increment + len(contains)):
         check = formatter.format(i)
@@ -1267,7 +1265,7 @@ def _read_buffers(header,
             # number of items
             count = a['count']
             # what is the datatype
-            dtype = _dtypes[a["componentType"]]
+            dtype = np.dtype(_dtypes[a["componentType"]])
             # basically how many columns
             per_item = _shapes[a["type"]]
             # use reported count to generate shape
@@ -1287,22 +1285,32 @@ def _read_buffers(header,
                 # in numpy rather than in python looping
                 data = views[a["bufferView"]]
 
+                # both bufferView *and* accessors are allowed
+                # to have a byteOffset
+                start = a.get('byteOffset', 0)
+
                 if "byteStride" in buffer_view:
                     # how many bytes for each chunk
                     stride = buffer_view["byteStride"]
-                    # convert the whole thing to a numpy array
-                    new_col = stride // np.dtype(dtype).itemsize
-                    # but slice off the part that's not requested
+                    # the total block we're looking at
+                    length = count * stride
+                    # we want to get the bytes for every row
+                    per_row = per_item * dtype.itemsize
+                    # we have to offset the (already offset) buffer
+                    # and then pull chunks per-stride
+                    # do as a list comprehension as the numpy
+                    # buffer wangling was
+                    raw = b''.join(
+                        data[i:i + per_row] for i in
+                        range(start, start + length, stride))
+                    # the reshape should fail if we screwed up
                     access[index] = np.frombuffer(
-                        data, dtype=dtype).reshape((count, new_col))[
-                            :, :per_item]
-                    # we shouldn't have messed up the shape
-                    assert access[index].shape == tuple(shape)
+                        raw, dtype=dtype).reshape(shape)
                 else:
                     # length is the number of bytes per item times total
-                    length = np.dtype(dtype).itemsize * count * per_count
+                    length = dtype.itemsize * count * per_count
                     access[index] = np.frombuffer(
-                        data[:length], dtype=dtype).reshape(shape)
+                        data[start:start + length], dtype=dtype).reshape(shape)
             else:
                 # a "sparse" accessor should be initialized as zeros
                 access[index] = np.zeros(
