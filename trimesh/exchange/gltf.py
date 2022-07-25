@@ -1202,11 +1202,15 @@ def unique_name(start, contains):
             increment = int(split[1])
         # keep the original name and add an integer to it
         formatter = split[0] + '_{}'
+
+        formatter = start + '{}'
+
     # if contains is empty we will only need to check once
     for i in range(increment + 1, 1 + increment + len(contains)):
         check = formatter.format(i)
         if check not in contains:
             return check
+
     raise ValueError('unable to establish unique name!')
 
 
@@ -1273,34 +1277,32 @@ def _read_buffers(header,
             per_count = np.abs(np.product(per_item))
             if 'bufferView' in a:
                 # data was stored in a buffer view so get raw bytes
-                data = views[a["bufferView"]]
-                # is the accessor offset in a buffer
-                if "byteOffset" in a:
-                    start = a["byteOffset"]
-                else:
-                    # otherwise assume we start at first byte
-                    start = 0
 
                 # load the bytes data into correct dtype and shape
                 buffer_view = header["bufferViews"][a["bufferView"]]
-                if "byteStride" in buffer_view and start < buffer_view["byteStride"]:
+
+                # is the accessor offset in a buffer
+                # will include the start, length, and offset
+                # but not the bytestride as that is easier to do
+                # in numpy rather than in python looping
+                data = views[a["bufferView"]]
+
+                if "byteStride" in buffer_view:
+                    # how many bytes for each chunk
                     stride = buffer_view["byteStride"]
-                    bytesPerCount = np.dtype(dtype).itemsize * per_count
-                    dataTemp = bytearray()
-                    prev_stride_ = 0
-                    length = bytesPerCount * count
-                    for stride_ in range(stride, length + stride, stride):
-                        dataTemp.extend(
-                            data[start + prev_stride_:
-                                 start + prev_stride_ + bytesPerCount])
-                        prev_stride_ = stride_
-                    access[index] = np.frombuffer(dataTemp, dtype=dtype).reshape(shape)
+                    # convert the whole thing to a numpy array
+                    new_col = stride // np.dtype(dtype).itemsize
+                    # but slice off the part that's not requested
+                    access[index] = np.frombuffer(
+                        data, dtype=dtype).reshape((count, new_col))[
+                            :, :per_item]
+                    # we shouldn't have messed up the shape
+                    assert access[index].shape == tuple(shape)
                 else:
                     # length is the number of bytes per item times total
                     length = np.dtype(dtype).itemsize * count * per_count
                     access[index] = np.frombuffer(
-                        data[start:start + length], dtype=dtype).reshape(shape)
-
+                        data[:length], dtype=dtype).reshape(shape)
             else:
                 # a "sparse" accessor should be initialized as zeros
                 access[index] = np.zeros(
