@@ -733,7 +733,7 @@ class GLTFTest(g.unittest.TestCase):
         assert c['vertex_normals'].shape == c['vertices'].shape
         # interleaved vertex normals should all be unit vectors
         assert g.np.allclose(
-            1.0, np.linalg.norm(c['vertex_normals'], axis=1))
+            1.0, g.np.linalg.norm(c['vertex_normals'], axis=1))
 
         # should also load as a box
         m = g.get_mesh('BoxInterleaved.glb').geometry['Mesh']
