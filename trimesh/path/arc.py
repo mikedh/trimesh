@@ -36,8 +36,12 @@ def arc_center(points, return_normal=True, return_angle=True):
     """
     points = np.asanyarray(points, dtype=np.float64)
 
-    vectors = np.diff(points[[0, 1, 2, 0], :], axis=0)[[1, 2, 0], :]
-    abc = np.sqrt(np.dot(vectors ** 2, [1] * points.shape[1]))
+    # get the non-unit vectors of the three points
+    vectors = points[[2, 0, 1]] - points[[1, 2, 0]]
+    # we need both the squared row sum and the non-squared
+    abc2 = np.dot(vectors ** 2, [1] * points.shape[1])
+    # same as np.linalg.norm(vectors, axis=1)
+    abc = np.sqrt(abc2)
 
     # perform radius calculation scaled to shortest edge
     # to avoid precision issues with small or large arcs
@@ -54,7 +58,6 @@ def arc_center(points, return_normal=True, return_angle=True):
     radius = scale * ((np.product(edges) / 4.0) / np.sqrt(denom))
 
     # use a barycentric approach to get the center
-    abc2 = abc ** 2
     ba2 = (abc2[[1, 2, 0, 0, 2, 1, 0, 1, 2]] *
            [1, 1, -1, 1, 1, -1, 1, 1, -1]).reshape(
                (3, 3)).sum(axis=1) * abc2
