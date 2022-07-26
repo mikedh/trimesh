@@ -723,6 +723,22 @@ class GLTFTest(g.unittest.TestCase):
                 #    g.trimesh.util.wrap_as_stream(export),
                 #    file_type='glb')
 
+    def test_interleaved(self):
+        # do a quick check on a mesh that uses byte stride
+        with open(g.get_path('BoxInterleaved.glb'), 'rb') as f:
+            k = g.trimesh.exchange.gltf.load_glb(f)
+        # get the kwargs for the mesh constructor
+        c = k['geometry']['Mesh']
+        # should have vertex normals
+        assert c['vertex_normals'].shape == c['vertices'].shape
+        # interleaved vertex normals should all be unit vectors
+        assert g.np.allclose(
+            1.0, np.linalg.norm(c['vertex_normals'], axis=1))
+
+        # should also load as a box
+        m = g.get_mesh('BoxInterleaved.glb').geometry['Mesh']
+        assert g.np.isclose(m.volume, 1.0)
+
     def test_equal_by_default(self):
         # all things being equal we shouldn't be moving things
         # for the usual load-export loop

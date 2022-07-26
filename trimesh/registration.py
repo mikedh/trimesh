@@ -12,7 +12,7 @@ from . import util
 from . import bounds
 from . import transformations
 
-from .points import PointCloud
+from .points import PointCloud, plane_fit
 from .geometry import weighted_vertex_normals
 from .triangles import normals, angles, cross
 from .transformations import transform_points
@@ -593,7 +593,8 @@ def nricp_amberg(source_mesh,
         # Current step iterations loop
         while last_error - error > eps and (max_iter is None or cpt_iter < max_iter):
 
-            qres = target_geometry.query(
+            qres = _from_mesh(
+                target_geometry,
                 transformed_vertices,
                 from_vertices_only=not use_faces,
                 return_normals=wn > 0,
@@ -602,12 +603,12 @@ def nricp_amberg(source_mesh,
 
             # Data weighting
             vertices_weight = np.ones(nV)
-            vertices_weight[qres.distances > distance_threshold] = 0
+            vertices_weight[qres['distances'] > distance_threshold] = 0
 
-            if wn > 0 and qres.has_normals():
-                target_normals = qres.normals
-                if use_vertex_normals and qres.interpolated_normals is not None:
-                    target_normals = qres.interpolated_normals
+            if wn > 0 and 'normals' in qres:
+                target_normals = qres['normals']
+                if use_vertex_normals and qres['interpolated_normals'] is not None:
+                    target_normals = qres['interpolated_normals']
                 # Normal weighting = multiplying weights by cosines^wn
                 source_normals = DN * X
                 dot = util.diagonal_dot(source_normals, target_normals)
@@ -616,11 +617,11 @@ def nricp_amberg(source_mesh,
                 vertices_weight = vertices_weight * dot ** wn
 
             # Actual system solve
-            X = _solve_system(M_kron_G, D, vertices_weight, qres.nearest,
+            X = _solve_system(M_kron_G, D, vertices_weight, qres['nearest'],
                               ws, nE, nV, Dl, Ul, wl)
             transformed_vertices = D * X
             last_error = error
-            error_vec = np.linalg.norm(qres.nearest - transformed_vertices, axis=-1)
+            error_vec = np.linalg.norm(qres['nearest'] - transformed_vertices, axis=-1)
             error = (error_vec * vertices_weight).mean()
             if return_records:
                 records.append(transformed_vertices)
@@ -634,6 +635,126 @@ def nricp_amberg(source_mesh,
     result = _denormalize_by_source(source_mesh, target_geometry, target_positions,
                                     result, centroid, scale)
     return result
+
+
+def _from_mesh(mesh,
+               input_points,
+               from_vertices_only=False,
+               return_barycentric_coordinates=False,
+               return_normals=False,
+               return_interpolated_normals=False,
+               neighbors_count=10,
+               **kwargs):
+    """
+    Find the the closest points and associated attributes from a Trimesh.
+
+    Parameters
+    -----------
+    mesh : Trimesh
+        Trimesh from which the query is performed
+    input_points : (m, 3) float
+        Input query points
+    from_vertices_only : bool
+        If True, consider only the vertices and not the faces
+    return_barycentric_coordinates : bool
+        If True, return the barycentric coordinates
+    return_normals : bool
+        If True, compute the normals at each closest point
+    return_interpolated_normals : bool
+        If True, return the interpolated normal at each closest point
+    neighbors_count : int
+        The number of closest neighbors to query
+    kwargs : dict
+        Dict to accept other key word arguments (not used)
+    Returns
+    ----------
+    qres : NearestQueryResult
+        NearestQueryResult object containing the nearest points (m, 3) and their
+        attributes
+    """
+    input_points = np.asanyarray(input_points)
+    neighbors_count = min(neighbors_count, len(mesh.vertices))
+
+    if from_vertices_only or len(mesh.faces) == 0:
+        # Consider only the vertices
+        return _from_points(
+            mesh.vertices, input_points, mesh.kdtree,
+            return_normals=return_normals,
+            neighbors_count=neighbors_count)
+    # Else if we consider faces, use proximity.closest_point
+    qres = {}
+    from .proximity import closest_point
+    from .triangles import points_to_barycentric
+    qres['nearest'], qres['distances'], qres['tids'] = closest_point(mesh, input_points)
+
+    if return_normals:
+        qres['normals'] = mesh.face_normals[qres['tids']]
+    if return_barycentric_coordinates or return_interpolated_normals:
+        qres['barycentric_coordinates'] = points_to_barycentric(
+            mesh.vertices[mesh.faces[qres['tids']]], qres['nearest'])
+
+        if return_interpolated_normals:
+            # Interpolation from barycentric coordinates
+            qres['interpolated_normals'] = \
+                np.einsum('ij,ijk->ik',
+                          qres['barycentric_coordinates'],
+                          mesh.vertex_normals[mesh.faces[qres['tids']]])
+    return qres
+
+
+def _from_points(target_points,
+                 input_points,
+                 kdtree=None,
+                 return_normals=False,
+                 neighbors_count=10,
+                 **kwargs):
+    """
+    Find the the closest points and associated attributes
+    from a set of 3D points.
+
+    Parameters
+    -----------
+    target_points : (n, 3) float
+      Points from which the query is performed
+    input_points : (m, 3) float
+      Input query points
+    kdtree : scipy.cKDTree
+      KDTree used for query. Computed if not provided
+    return_normals : bool
+      If True, compute the normals at each nearest point
+    neighbors_count : int
+      The number of closest neighbors to query
+    kwargs : dict
+      Dict to accept other key word arguments (not used)
+
+    Returns
+    ----------
+    qres : NearestQueryResult
+      NearestQueryResult object containing the nearest points (m, 3) and their attributes
+    """
+    # Empty result
+    target_points = np.asanyarray(target_points)
+    input_points = np.asanyarray(input_points)
+    neighbors_count = min(neighbors_count, len(target_points))
+    qres = {'has_normals': return_normals}
+    if kdtree is None:
+        kdtree = cKDTree(target_points)
+
+    if return_normals:
+        assert neighbors_count >= 3
+        distances, indices = kdtree.query(
+            input_points, k=neighbors_count, workers=-1)
+        nearest = target_points[indices, :]
+        qres['normals'] = plane_fit(nearest)[1]
+        qres['nearest'] = nearest[:, 0]
+        qres['distances'] = distances[:, 0]
+        qres['vertex_indices'] = indices[:, 0]
+    else:
+        qres['distances'], qres['vertex_indices'] = kdtree.query(
+            input_points, workers=-1)
+        qres['nearest'] = target_points[qres['vertex_indices'], :]
+
+    return qres
 
 
 def nricp_sumner(source_mesh,
@@ -863,24 +984,26 @@ def nricp_sumner(source_mesh,
 
         if (i > 0 or not use_landmarks) and wc > 0:
             # Query the nearest points
-            qres = target_geometry.query(
+            qres = _from_mesh(
+                target_geometry,
                 transformed_vertices[:nV],
                 from_vertices_only=not use_faces,
                 return_normals=wn > 0,
-                return_interpolated_normals=wn > 0 and use_vertex_normals,
+                return_interpolated_normals=(
+                    use_vertex_normals and wn > 0),
                 neighbors_count=neighbors_count)
 
             # Correspondence cost (Eq. 13)
             AEc, Bc = _construct_correspondence_cost(
-                qres.nearest,
+                qres['nearest'],
                 non_markers_mask,
                 len(source_vtet))
             vertices_weight = np.ones(nV)
-            vertices_weight[qres.distances > distance_threshold] = 0
-            if wn > 0 or qres.has_normals():
-                target_normals = qres.normals
-                if use_vertex_normals and qres.interpolated_normals is not None:
-                    target_normals = qres.interpolated_normals
+            vertices_weight[qres['distances'] > distance_threshold] = 0
+            if wn > 0 or qres['has_normals']:
+                target_normals = qres['normals']
+                if use_vertex_normals and qres['interpolated_normals'] is not None:
+                    target_normals = qres['interpolated_normals']
                 # Normal weighting : multiplying weights by cosines^wn
                 source_normals = _compute_vertex_normals(transformed_vertices,
                                                          source_mesh.faces)
