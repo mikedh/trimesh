@@ -688,7 +688,8 @@ class GLTFTest(g.unittest.TestCase):
             g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
         # make sure points survived export and reload
-        assert g.np.allclose(next(iter(reloaded.geometry.values())).vertices, points)
+        assert g.np.allclose(next(iter(
+            reloaded.geometry.values())).vertices, points)
 
     def test_bulk(self):
         # Try exporting every loadable model to GLTF and checking
