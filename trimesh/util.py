@@ -2108,9 +2108,7 @@ def write_encoded(file_obj,
     encoding : str
       Encoding of text
     """
-    binary_file = True
-    if hasattr(file_obj, 'mode'):
-        binary_file = 'b' in file_obj.mode
+    binary_file = 'b' in getattr(file_obj, 'mode', 'b')
     string_stuff = isinstance(stuff, basestring)
     binary_stuff = isinstance(stuff, bytes)
 

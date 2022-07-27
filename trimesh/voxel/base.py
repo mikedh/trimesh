@@ -11,6 +11,7 @@ from . import transforms
 from . import morphology
 
 from .encoding import Encoding, DenseEncoding
+from .. import util
 from .. import caching
 from .. import bounds as bounds_module
 from .. import transformations as tr
@@ -397,6 +398,12 @@ class VoxelGrid(Geometry):
         export : bytes
           Value of export.
         """
+        if isinstance(file_obj, str) and file_type is None:
+            file_type = util.split_extension(file_obj).lower()
+
+        if file_type != 'binvox':
+            raise ValueError('only binvox exports supported!')
+
         exported = export_binvox(self, **kwargs)
         if hasattr(file_obj, 'write'):
             file_obj.write(exported)
@@ -421,12 +428,11 @@ class VoxelGrid(Geometry):
           Of the given shape with possibly non-uniform
           scale and translation transformation matrix.
         """
-        from .. import util
         shape = tuple(shape)
         bounds = self.bounds.copy()
         extents = self.extents
-        points = util.grid_linspace(bounds, shape).reshape(
-            shape + (3,))
+        points = util.grid_linspace(
+            bounds, shape).reshape(shape + (3,))
         dense = self.is_filled(points)
         scale = extents / np.asanyarray(shape)
         translate = bounds[0]

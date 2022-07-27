@@ -43,6 +43,8 @@ def validate_glb(data):
         if report.returncode != 0:
             # log the whole error report
             g.log.error(content)
+            from IPython import embed
+            embed()
             raise ValueError('Khronos GLTF validator error!')
 
         # log the GLTF validator report if
@@ -705,11 +707,18 @@ class GLTFTest(g.unittest.TestCase):
                     print(E)
                     continue
                 # voxels don't have an export to gltf mode
-                if not hasattr(geom, 'export'):
+                if isinstance(geom, g.trimesh.voxel.VoxelGrid):
+                    try:
+                        geom.export(file_type='glb')
+                    except ValueError:
+                        # should have raised so all good
+                        continue
+                    raise ValueError(
+                        'voxel was allowed to export wrong GLB!')
+
+                if hasattr(geom, 'vertices') and len(geom.vertices) == 0:
                     continue
-                elif hasattr(geom, 'vertices') and len(geom.vertices) == 0:
-                    continue
-                elif hasattr(geom, 'geometry') and len(geom.geometry) == 0:
+                if hasattr(geom, 'geometry') and len(geom.geometry) == 0:
                     continue
 
                 g.log.info('Testing: {}'.format(fn))
