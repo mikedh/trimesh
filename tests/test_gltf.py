@@ -9,7 +9,7 @@ except BaseException:
 _gltf_validator = g.find_executable('gltf_validator')
 
 
-def validate_glb(data):
+def validate_glb(data, name=None):
     """
     Run the Khronos validator on GLB files using
     subprocess.
@@ -18,6 +18,8 @@ def validate_glb(data):
     ------------
     data : bytes
       GLB export
+    name : str or None
+      Hint to log.
 
     Raises
     ------------
@@ -43,8 +45,8 @@ def validate_glb(data):
         if report.returncode != 0:
             # log the whole error report
             g.log.error(content)
-            from IPython import embed
-            embed()
+            if name is not None:
+                g.log.error('failed on: %s', name)
             raise ValueError('Khronos GLTF validator error!')
 
         # log the GLTF validator report if
@@ -52,7 +54,7 @@ def validate_glb(data):
         decode = g.json.loads(content)
         if any(decode['issues'][i] > 0 for i in
                ['numWarnings', 'numInfos', 'numHints']):
-            g.log.warning(content)
+            g.log.debug(content)
 
 
 class GLTFTest(g.unittest.TestCase):
@@ -725,7 +727,7 @@ class GLTFTest(g.unittest.TestCase):
                 # check a roundtrip which will validate on export
                 # and crash on reload if we've done anything screwey
                 export = geom.export(file_type='glb')
-                validate_glb(export)
+                validate_glb(export, name=fn)
                 # todo : importer breaks on `models/empty*` as it
                 # doesn't know what to do with empty meshes
                 # reloaded = g.trimesh.load(
