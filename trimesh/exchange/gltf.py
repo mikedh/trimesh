@@ -795,16 +795,17 @@ def _append_mesh(mesh,
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
     for key, attrib in mesh.vertex_attributes.items():
-        attribute_name = key
-        # Application specific attributes must be prefixed with an underscore
+        # Application specific attributes must be
+        # prefixed with an underscore
         if not key.startswith("_"):
-            attribute_name = "_" + key
+            key = "_" + key
         # store custom vertex attributes
-        acc_atr = _data_append(acc=tree['accessors'],
-                               buff=buffer_items,
-                               blob=_build_accessor(attrib),
-                               data=attrib)
-        current["primitives"][0]["attributes"][attribute_name] = acc_atr
+        current["primitives"][0][
+            "attributes"][key] = _data_append(
+                acc=tree['accessors'],
+                buff=buffer_items,
+                blob=_build_accessor(attrib),
+                data=attrib)
 
     tree["meshes"].append(current)
 
@@ -871,7 +872,7 @@ def _build_accessor(array):
     # contains indices i.e. the accessor is only referenced
     # by `primitive.indices`
     # therefore switch all `u` (unsigned) with `i` (signed)
-    lookup = array.dtype.str[-2:].replace('u', 'i')
+    lookup = array.dtype.str[-2:]
 
     # map the numpy dtype to a GLTF code (i.e. 5121)
     componentType = _dtypes_lookup[lookup]
@@ -1368,7 +1369,8 @@ def _read_buffers(header,
                     if mode is None:
                         # some people skip mode since GL_TRIANGLES
                         # is apparently the de-facto default
-                        log.warning('primitive has no mode! trying GL_TRIANGLES?')
+                        log.debug(
+                            'primitive has no mode! trying GL_TRIANGLES?')
                         # get vertices from accessors
                     kwargs["vertices"] = access[attr["POSITION"]]
                     # get faces from accessors
