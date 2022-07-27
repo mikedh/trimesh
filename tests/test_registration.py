@@ -308,6 +308,42 @@ class RegistrationTest(g.unittest.TestCase):
         assert dl_sumner_ldm.max() < 0.006
         assert dl_sumner_ldm.mean() < 0.004
 
+    def test_query_from_points(self):
+        points = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+        query_point = [[0, 0.5, 0]]
+        qres = g.trimesh.registration._from_points(
+            points, query_point, return_normals=False)
+        assert qres['vertex_indices'][0] == 1
+        assert g.np.all(qres['nearest'][0] == [0, 1, 0])
+        assert 'normals' not in qres
+        qres = g.trimesh.registration._from_points(
+            points, query_point, return_normals=True)
+        normal = g.np.ones(3)
+        normal = normal / g.np.linalg.norm(normal)
+        assert g.np.allclose(qres['normals'][0], normal) or \
+            g.np.allclose(qres['normals'][0], -normal)
+
+    def test_query_from_mesh(self):
+        points = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+        faces = [[0, 1, 2]]
+        mesh = g.trimesh.Trimesh(vertices=points, faces=faces)
+        query_point = [[0, 0.5, 0]]
+        qres = g.trimesh.registration._from_mesh(
+            mesh, query_point, return_barycentric_coordinates=False,
+            return_normals=False, return_interpolated_normals=False)
+
+        assert 'normals' not in qres
+        assert 'barycentric_coordinates' not in qres
+        assert 'interpolated_normals'not in qres
+
+        qres = g.trimesh.registration._from_mesh(
+            mesh, query_point, return_barycentric_coordinates=False,
+            return_normals=False, return_interpolated_normals=True)
+
+        assert 'normals' not in qres
+        assert 'barycentric_coordinates' in qres
+        assert 'interpolated_normals' in qres
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

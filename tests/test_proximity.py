@@ -248,42 +248,6 @@ class NearestTest(g.unittest.TestCase):
         assert len(q) == 3
         assert all(len(i) == 1 for i in q)
 
-    def test_query_from_points(self):
-        points = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-        query_point = [[0, 0.5, 0]]
-        qres = g.trimesh.proximity.query_from_points(
-            points, query_point, return_normals=False)
-        assert qres.vertex_indices[0] == 1
-        assert g.np.all(qres.nearest[0] == [0, 1, 0])
-        assert qres.normals is None
-        qres = g.trimesh.proximity.query_from_points(
-            points, query_point, return_normals=True)
-        normal = g.np.ones(3)
-        normal = normal / g.np.linalg.norm(normal)
-        assert g.np.allclose(qres.normals[0], normal) or \
-            g.np.allclose(qres.normals[0], -normal)
-
-    def test_query_from_mesh(self):
-        points = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-        faces = [[0, 1, 2]]
-        mesh = g.trimesh.Trimesh(vertices=points, faces=faces)
-        query_point = [[0, 0.5, 0]]
-        qres = g.trimesh.proximity.query_from_mesh(
-            mesh, query_point, return_barycentric_coordinates=False,
-            return_normals=False, return_interpolated_normals=False)
-
-        assert qres.normals is None
-        assert qres.barycentric_coordinates is None
-        assert qres.interpolated_normals is None
-
-        qres = g.trimesh.proximity.query_from_mesh(
-            mesh, query_point, return_barycentric_coordinates=False,
-            return_normals=False, return_interpolated_normals=True)
-
-        assert qres.normals is None
-        assert qres.barycentric_coordinates is not None
-        assert qres.interpolated_normals is not None
-
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
