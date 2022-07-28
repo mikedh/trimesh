@@ -448,20 +448,47 @@ class GLTFTest(g.unittest.TestCase):
         sphere = g.trimesh.primitives.Sphere()
         v_count, _ = sphere.vertices.shape
 
-        sphere.vertex_attributes['_CustomFloat32Scalar'] = g.np.random.rand(
-            v_count, 1).astype(
-            g.np.float32)
-        sphere.vertex_attributes['_CustomUIntScalar'] = g.np.random.randint(
-            0, 1000, size=(v_count, 1)
-        ).astype(g.np.uintc)
-        sphere.vertex_attributes['_CustomFloat32Vec3'] = g.np.random.rand(
-            v_count, 3).astype(g.np.float32)
-        sphere.vertex_attributes['_CustomFloat32Mat4'] = g.np.random.rand(
+        sphere.vertex_attributes[
+            '_CustomFloat32Scalar'] = g.np.random.rand(
+                v_count, 1).astype(g.np.float32)
+        sphere.vertex_attributes[
+            '_CustomUInt16Scalar'] = g.np.random.randint(
+                0, 1000, size=(v_count, 1)).astype(g.np.uint16)
+
+        sphere.vertex_attributes[
+            '_CustomInt16Scalar'] = g.np.random.randint(
+            0, 1000, size=(v_count, 1)).astype(g.np.int16)
+
+        sphere.vertex_attributes[
+            '_CustomFloat32Vec3'] = g.np.random.rand(
+                v_count, 3).astype(g.np.float32)
+        sphere.vertex_attributes[
+            '_CustomFloat32Mat4'] = g.np.random.rand(
             v_count, 4, 4).astype(g.np.float32)
+
+        # export as GLB bytes
+        export = sphere.export(file_type='glb')
+        # this should validate just fine
+        validate_glb(export)
+
+        # uint32 is slightly off-label and may cause
+        # validators to fail but if you're a bad larry who
+        # doesn't follow the rules it should be fine
+        sphere.vertex_attributes[
+            '_CustomUInt32Scalar'] = g.np.random.randint(
+                0, 1000, size=(v_count, 1)).astype(g.np.uint32)
 
         # export as GLB then re-load
         export = sphere.export(file_type='glb')
-        validate_glb(export)
+
+        raised = False
+        try:
+            # validator is going to complain about this
+            validate_glb(export)
+        except BaseException:
+            raised = True
+        assert raised
+
         r = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
             file_type='glb')

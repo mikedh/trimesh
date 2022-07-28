@@ -868,11 +868,13 @@ def _build_accessor(array):
         data_type = "MAT%d" % shape[2]
 
     # get the array data type as a str stripping off endian
-    # spec: UNSIGNED_INT is only allowed when the accessor
-    # contains indices i.e. the accessor is only referenced
-    # by `primitive.indices`
-    # therefore switch all `u` (unsigned) with `i` (signed)
     lookup = array.dtype.str[-2:]
+
+    if lookup == 'u4':
+        # spec: UNSIGNED_INT is only allowed when the accessor
+        # contains indices i.e. the accessor is only referenced
+        # by `primitive.indices`
+        log.debug('custom uint32 may cause validation failures')
 
     # map the numpy dtype to a GLTF code (i.e. 5121)
     componentType = _dtypes_lookup[lookup]
