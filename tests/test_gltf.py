@@ -452,14 +452,6 @@ class GLTFTest(g.unittest.TestCase):
             '_CustomFloat32Scalar'] = g.np.random.rand(
                 v_count, 1).astype(g.np.float32)
         sphere.vertex_attributes[
-            '_CustomUInt16Scalar'] = g.np.random.randint(
-                0, 1000, size=(v_count, 1)).astype(g.np.uint16)
-
-        sphere.vertex_attributes[
-            '_CustomInt16Scalar'] = g.np.random.randint(
-            0, 1000, size=(v_count, 1)).astype(g.np.int16)
-
-        sphere.vertex_attributes[
             '_CustomFloat32Vec3'] = g.np.random.rand(
                 v_count, 3).astype(g.np.float32)
         sphere.vertex_attributes[
@@ -477,6 +469,17 @@ class GLTFTest(g.unittest.TestCase):
         sphere.vertex_attributes[
             '_CustomUInt32Scalar'] = g.np.random.randint(
                 0, 1000, size=(v_count, 1)).astype(g.np.uint32)
+
+        # when you add a uint16/int16 the gltf-validator
+        # complains about the 4-byte boundaries even though
+        # all their lengths and offsets mod 4 are zero
+        # not sure if thats a validator bug or what
+        sphere.vertex_attributes[
+            '_CustomUInt16Scalar'] = g.np.random.randint(
+                0, 1000, size=(v_count, 1)).astype(g.np.uint16)
+        sphere.vertex_attributes[
+            '_CustomInt16Scalar'] = g.np.random.randint(
+            0, 1000, size=(v_count, 1)).astype(g.np.int16)
 
         # export as GLB then re-load
         export = sphere.export(file_type='glb')

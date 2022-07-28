@@ -216,7 +216,7 @@ def export_glb(
                   # of the glTF content (JSON)
                   len(content),
                   # magic number which is 'JSON'
-                  1313821514],
+                  _magic["json"]],
                  dtype="<u4",
                  ).tobytes())
 
@@ -455,18 +455,19 @@ def _data_append(acc, buff, blob, data):
       Index of accessor that was added or reused.
     """
     # if we have data include that in the key
+    as_bytes = data.tobytes()
     if hasattr(data, 'fast_hash'):
         # passed a TrackedArray object
         hashed = data.fast_hash()
     else:
         # someone passed a vanilla numpy array
-        hashed = fast_hash(data.tobytes())
+        hashed = fast_hash(as_bytes)
 
     if hashed in buff:
         blob['bufferView'] = list(buff.keys()).index(hashed)
     else:
         # not in buffer items so append and then return index
-        buff[hashed] = _byte_pad(data.tobytes())
+        buff[hashed] = _byte_pad(as_bytes)
         blob['bufferView'] = len(buff) - 1
 
     # start by hashing the dict blob
@@ -833,6 +834,8 @@ def _build_views(buffer_items):
             {"buffer": 0,
              "byteOffset": current_pos,
              "byteLength": len(current_item)})
+        assert (current_pos % 4) == 0
+        assert (len(current_item) % 4) == 0
         current_pos += len(current_item)
     return views
 
@@ -909,6 +912,7 @@ def _byte_pad(data, bound=4):
     padded : bytes
       Result where: (len(padded) % bound) == 0
     """
+    assert isinstance(data, bytes)
     if len(data) % bound != 0:
         # extra bytes to pad with
         count = bound - (len(data) % bound)
