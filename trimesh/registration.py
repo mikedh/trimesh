@@ -743,7 +743,7 @@ def _from_points(target_points,
     if return_normals:
         assert neighbors_count >= 3
         distances, indices = kdtree.query(
-            input_points, k=neighbors_count, workers=-1)
+            input_points, k=neighbors_count)
         nearest = target_points[indices, :]
         qres['normals'] = plane_fit(nearest)[1]
         qres['nearest'] = nearest[:, 0]
@@ -751,7 +751,7 @@ def _from_points(target_points,
         qres['vertex_indices'] = indices[:, 0]
     else:
         qres['distances'], qres['vertex_indices'] = kdtree.query(
-            input_points, workers=-1)
+            input_points)
         qres['nearest'] = target_points[qres['vertex_indices'], :]
 
     return qres
