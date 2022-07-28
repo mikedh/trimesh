@@ -174,6 +174,7 @@ def mesh_other(mesh,
 
 def procrustes(a,
                b,
+               weights=None,
                reflection=True,
                translation=True,
                scale=True,
@@ -189,6 +190,8 @@ def procrustes(a,
       List of points in space
     b : (n,3) float
       List of points in space
+    weights : (n,) float
+      List of floats representing how much weight is assigned to each point of a
     reflection : bool
       If the transformation is allowed reflections
     translation : bool
@@ -210,15 +213,23 @@ def procrustes(a,
 
     a = np.asanyarray(a, dtype=np.float64)
     b = np.asanyarray(b, dtype=np.float64)
+    weights = np.ones(len(a)) if weights is None else weights
+    w = np.asanyarray(weights, dtype=np.float64)
+    w_normed = w / np.sum(w)
+    w_mat = np.diag(w)
     if not util.is_shape(a, (-1, 3)) or not util.is_shape(b, (-1, 3)):
         raise ValueError('points must be (n,3)!')
 
     if len(a) != len(b):
         raise ValueError('a and b must contain same number of points!')
 
+    if len(w) != len(a):
+        raise ValueError("weights must have same length as a and b!")
+
     # Remove translation component
     if translation:
-        acenter = a.mean(axis=0)
+        # acenter is a weighted average of the individual points.
+        acenter = np.sum(np.expand_dims(w_normed, axis=1) * a, axis=0)
         bcenter = b.mean(axis=0)
     else:
         acenter = np.zeros(a.shape[1])
@@ -226,7 +237,8 @@ def procrustes(a,
 
     # Remove scale component
     if scale:
-        ascale = np.sqrt(((a - acenter)**2).sum() / len(a))
+        # ascale is the square root of weighted average of the squared difference between each point and acenter.
+        ascale = np.sqrt(np.sum(((a - acenter)**2) * np.expand_dims(w_normed, axis=1)))
         bscale = np.sqrt(((b - bcenter)**2).sum() / len(b))
     else:
         ascale = 1
@@ -234,8 +246,9 @@ def procrustes(a,
 
     # Use SVD to find optimal orthogonal matrix R
     # constrained to det(R) = 1 if necessary.
+    # w_mat is multiplied with the centered and scaled a, such that the points can be weighted differently.
     u, s, vh = np.linalg.svd(
-        np.dot(((b - bcenter) / bscale).T, ((a - acenter) / ascale)))
+        np.dot(((b - bcenter) / bscale).T, (w_mat.dot((a - acenter) / ascale))))
 
     if reflection:
         R = np.dot(u, vh)
