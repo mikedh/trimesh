@@ -42,16 +42,18 @@ def validate_glb(data, name=None):
             capture_output=True)
         # -o prints JSON to stdout
         content = report.stdout.decode('utf-8')
-        if report.returncode != 0:
+        # log the GLTF validator report if
+        # there are any warnings or hints
+        decode = g.json.loads(content)
+
+        if (len(decode['issues']['numErrors']) > 0 or
+                report.returncode != 0):
             # log the whole error report
             g.log.error(content)
             if name is not None:
                 g.log.error('failed on: %s', name)
             raise ValueError('Khronos GLTF validator error!')
 
-        # log the GLTF validator report if
-        # there are any warnings or hints
-        decode = g.json.loads(content)
         if any(decode['issues'][i] > 0 for i in
                ['numWarnings', 'numInfos', 'numHints']):
             g.log.debug(content)
