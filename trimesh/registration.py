@@ -182,7 +182,11 @@ def procrustes(a,
     """
     Perform Procrustes' analysis subject to constraints. Finds the
     transformation T mapping a to b which minimizes the square sum
-    distances between Ta and b, also called the cost.
+    distances between Ta and b, also called the cost. Optionally
+    specify different weights for the points in a to minimize the
+    weighted square sum distances between Ta and b. This can
+    improve transformation robustness on noisy data if the points'
+    probability distribution is known.
 
     Parameters
     ----------
