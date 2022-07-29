@@ -84,15 +84,18 @@ class Scene(Geometry3D):
 
     def apply_transform(self, transform):
         """
-        Apply a transform to every geometry in the scene.
+        Apply a transform to all children of the base frame
+        without modifying any geometry.
 
         Parameters
         --------------
         transform : (4, 4)
-          Homogeneous transformation matrix
+          Homogeneous transformation matrix.
         """
-        for geometry in self.geometry.values():
-            geometry.apply_transform(transform)
+        base = self.graph.base_frame
+        for child in self.graph.transforms.children[base]:
+            combined = np.dot(self.graph[child][0], transform)
+            self.graph.update(child, matrix=combined)
 
     def add_geometry(self,
                      geometry,
