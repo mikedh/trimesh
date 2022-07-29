@@ -486,16 +486,6 @@ class GLTFTest(g.unittest.TestCase):
         # export as GLB then re-load
         export = sphere.export(file_type='glb')
 
-        # if we don't have the validator installed
-        # give this check a pass regardless
-        raised = _gltf_validator is None
-        try:
-            # validator is going to complain about this
-            validate_glb(export)
-        except BaseException:
-            raised = True
-        assert raised
-
         r = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
