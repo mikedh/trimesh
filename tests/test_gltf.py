@@ -46,7 +46,7 @@ def validate_glb(data, name=None):
         # there are any warnings or hints
         decode = g.json.loads(content)
 
-        if (len(decode['issues']['numErrors']) > 0 or
+        if (decode['issues']['numErrors'] > 0 or
                 report.returncode != 0):
             # log the whole error report
             g.log.error(content)
