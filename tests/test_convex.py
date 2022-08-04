@@ -7,13 +7,24 @@ except BaseException:
 class ConvexTest(g.unittest.TestCase):
 
     def test_convex(self):
-        for name in ['featuretype.STL',
-                     'quadknot.obj',
-                     'unit_cube.STL',
-                     '1002_tray_bottom.STL']:
 
-            mesh = g.get_mesh(name)
+        # store (true is_convex, mesh) tuples
+        meshes = [(False, g.get_mesh('featuretype.STL')),
+                  (False, g.get_mesh('quadknot.obj')),
+                  (True, g.get_mesh('unit_cube.STL')),
+                  (False, g.get_mesh('1002_tray_bottom.STL')),
+                  (True, g.trimesh.creation.icosphere()),
+                  (True, g.trimesh.creation.uv_sphere()),
+                  (True, g.trimesh.creation.box()),
+                  (True, g.trimesh.creation.cylinder(
+                      radius=1, height=10)),
+                  (True, g.trimesh.creation.capsule())]
+
+        for is_convex, mesh in meshes:
             assert mesh.is_watertight
+
+            # mesh should match it's true convexity
+            assert mesh.is_convex == is_convex
 
             hulls = []
             volume = []

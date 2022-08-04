@@ -1,13 +1,23 @@
 {
+  "$id": "https://github.com/mikedh/trimesh/blob/main/trimesh/resources/schema/primitive/extrusion.schema.json",
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "object",
-
+  "additionalProperties": false,
+  "description": "A 2D polygon extruded from Z=0 along positive Z by `height` then transformed by the `transform` matrix.",
   "properties": {
-    "transform": { "$ref": "transform.schema.json" },
-    "kind": { "type": "string", "pattern": "(^extrusion$)" },
-    "polygon": { "type": "string" },
-    "height": { "type": "number" }
+    "height": {
+      "type": "number"
+    },
+    "kind": {
+      "pattern": "(^extrusion$)",
+      "type": "string"
+    },
+    "polygon": {
+      "$ref": "wkt.polygon.schema.json"
+    },
+    "transform": {
+      "$ref": "transform.schema.json"
+    }
   },
-  "description": "A 2D polygon extruded along positive Z by `height` then transformed by a matrix",
-  "required": ["kind", "transform", "polygon", "height"]
+  "required": ["kind", "polygon", "height"],
+  "type": "object"
 }

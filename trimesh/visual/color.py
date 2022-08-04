@@ -161,7 +161,12 @@ class ColorVisuals(Visuals):
           Contains the same information as self
         """
         copied = ColorVisuals()
+        # call the literally insane generators
+        self.face_colors
+        self.vertex_colors
+        # copy anything that's actually data
         copied._data.data = copy.deepcopy(self._data.data)
+
         return copied
 
     @property
@@ -173,7 +178,8 @@ class ColorVisuals(Visuals):
 
         Returns
         ----------
-        colors: (len(mesh.faces), 4) uint8, RGBA color for each face
+        colors : (len(mesh.faces), 4) uint8
+          RGBA color for each face
         """
         return self._get_colors(name='face')
 
@@ -187,10 +193,10 @@ class ColorVisuals(Visuals):
 
         Parameters
         ------------
-        colors: (len(mesh.faces), 3), set each face to the specified color
-                (len(mesh.faces), 4), set each face to the specified color
-                (3,) int, set the whole mesh this color
-                (4,) int, set the whole mesh this color
+        colors : (len(mesh.faces), 3), set each face to the specified color
+                 (len(mesh.faces), 4), set each face to the specified color
+                 (3,) int, set the whole mesh this color
+                 (4,) int, set the whole mesh this color
         """
         if values is None:
             if 'face_colors' in self._data:
@@ -230,10 +236,10 @@ class ColorVisuals(Visuals):
 
         Parameters
         ------------
-        colors: (len(mesh.vertices), 3), set each face to the color
-                (len(mesh.vertices), 4), set each face to the color
-                (3,) int, set the whole mesh this color
-                (4,) int, set the whole mesh this color
+        colors : (len(mesh.vertices), 3), set each face to the color
+                 (len(mesh.vertices), 4), set each face to the color
+                 (3,) int, set the whole mesh this color
+                 (4,) int, set the whole mesh this color
         """
         if values is None:
             if 'vertex_colors' in self._data:
@@ -261,8 +267,7 @@ class ColorVisuals(Visuals):
         self._data['vertex_colors'] = colors
         self._cache.verify()
 
-    def _get_colors(self,
-                    name):
+    def _get_colors(self, name):
         """
         A magical function which maintains the sanity of vertex and face colors.
 
@@ -278,11 +283,13 @@ class ColorVisuals(Visuals):
 
         Parameters
         -----------
-        name: str, 'face', or 'vertex'
+        name : str
+          Values 'face' or 'vertex'
 
         Returns
         -----------
-        colors: (count, 4) uint8, RGBA colors
+        colors : (count, 4) uint8
+          RGBA colors
         """
 
         count = None

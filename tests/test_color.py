@@ -255,6 +255,19 @@ class VisualTest(g.unittest.TestCase):
 
         assert g.np.allclose(m.visual.face_colors, color)
 
+    def test_copy(self):
+        s = g.trimesh.creation.uv_sphere().scene()
+        s.geometry['geometry_0'].visual.face_colors[:, :3] = [0, 255, 0]
+
+        a = s.geometry['geometry_0']
+        assert id(a) == id(s.geometry['geometry_0'])
+
+        b = s.geometry['geometry_0'].copy()
+        assert id(a) != id(b)
+
+        assert g.np.allclose(a.visual.face_colors,
+                             b.visual.face_colors)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

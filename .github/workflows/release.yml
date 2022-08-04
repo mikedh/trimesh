@@ -35,7 +35,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9]
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, "3.10"]
         os: [ubuntu-latest, macos-latest, windows-latest]
         exclude:
             # windows runners have gotten very flaky
@@ -161,6 +161,8 @@ jobs:
         docker logout
 
   release:
+    permissions:
+      contents: write  # for actions/create-release to create a release
     name: Create GitHub Release
     needs: [tests, containers]
     runs-on: ubuntu-latest
