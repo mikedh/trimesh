@@ -75,7 +75,7 @@ class RegistrationTest(g.unittest.TestCase):
                          (not a_scale or scale))
 
             if identical:
-                assert(cost < 0.001)
+                assert cost < 0.001
                 # it should have found the matrix we used
                 assert g.np.allclose(matrixN, matrix)
 
@@ -109,7 +109,7 @@ class RegistrationTest(g.unittest.TestCase):
         X = X + [0.1, 0.1, 0.1]
         matrix, transformed, cost = g.trimesh.registration.icp(
             X, m, scale=False)
-        assert(cost < 0.01)
+        assert cost < 0.01
 
     def test_icp_points(self):
         # see if ICP alignment works with point clouds

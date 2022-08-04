@@ -273,7 +273,7 @@ class OBJTest(g.unittest.TestCase):
             uv=None,
             material=g.trimesh.visual.material.empty_material())
         output = sphere.export('sphere.obj')
-        assert('usemtl' in output)
+        assert 'usemtl' in output
 
     def test_chair(self):
         mesh = next(iter(g.get_mesh('chair.zip').geometry.values()))
