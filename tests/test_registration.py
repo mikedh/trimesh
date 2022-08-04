@@ -10,8 +10,8 @@ class RegistrationTest(g.unittest.TestCase):
 
         # every combination of possible boolean options
         # a_flip and a_scale are apply-to-test-data
-        opt = g.itertools.combinations([True, False] * 5, 5)
-        for reflection, translation, scale, a_flip, a_scale in opt:
+        opt = g.itertools.combinations([True, False] * 6, 6)
+        for reflection, translation, scale, a_flip, a_scale, weight in opt:
             # create random points in space
             points_a = (g.np.random.random((1000, 3)) - .5) * 1000
             # create a random transform
@@ -32,6 +32,12 @@ class RegistrationTest(g.unittest.TestCase):
             # apply transform to points A
             points_b = g.trimesh.transform_points(points_a, matrix)
 
+            # weight points or not
+            if weight:
+                weights = (g.np.random.random(len(points_a)) + 9) / 10
+            else:
+                weights = None
+
             # run the solver
             (matrixN,
              transformed,
@@ -39,12 +45,32 @@ class RegistrationTest(g.unittest.TestCase):
                  points_a, points_b,
                  reflection=reflection,
                  translation=translation,
-                 scale=scale)
+                 scale=scale,
+                 weights=weights)
+            # if we're not weighting the results
+            # should be identical with None vs all-ones
+            (matrixN_C,
+             transformed_C,
+             cost_C) = g.trimesh.registration.procrustes(
+                 points_a, points_b,
+                 reflection=reflection,
+                 translation=translation,
+                 scale=scale,
+                 weights=g.np.ones(len(points_a)))
+            if weight:
+                # weights should have changed the matrix
+                assert not g.np.allclose(matrixN, matrixN_C)
+            else:
+                # no weights so everything should be identical
+                assert g.np.allclose(matrixN, matrixN_C)
+                assert g.np.allclose(transformed_C, transformed)
+                assert g.np.isclose(cost, cost_C)
 
             # the points should be identical if the function
             # was allowed to translate in space
-
+            # and there were no weights, scaling, or reflection
             identical = (translation and
+                         (not weight) and
                          (not a_flip or reflection) and
                          (not a_scale or scale))
 
