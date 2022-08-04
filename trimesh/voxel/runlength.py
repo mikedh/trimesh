@@ -621,7 +621,7 @@ def rle_to_sparse(rle_data):
     except StopIteration:
         pass
     if len(indices) == 0:
-        assert(len(values)) == 0
+        assert len(values) == 0
         return indices, values
 
     indices = np.concatenate(indices)

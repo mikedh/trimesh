@@ -9,7 +9,7 @@ except BaseException:
 _gltf_validator = g.find_executable('gltf_validator')
 
 
-def validate_glb(data):
+def validate_glb(data, name=None):
     """
     Run the Khronos validator on GLB files using
     subprocess.
@@ -18,6 +18,8 @@ def validate_glb(data):
     ------------
     data : bytes
       GLB export
+    name : str or None
+      Hint to log.
 
     Raises
     ------------
@@ -40,17 +42,21 @@ def validate_glb(data):
             capture_output=True)
         # -o prints JSON to stdout
         content = report.stdout.decode('utf-8')
-        if report.returncode != 0:
-            # log the whole error report
-            g.log.error(content)
-            raise ValueError('Khronos GLTF validator error!')
-
         # log the GLTF validator report if
         # there are any warnings or hints
         decode = g.json.loads(content)
+
+        if (decode['issues']['numErrors'] > 0 or
+                report.returncode != 0):
+            # log the whole error report
+            g.log.error(content)
+            if name is not None:
+                g.log.error('failed on: %s', name)
+            raise ValueError('Khronos GLTF validator error!')
+
         if any(decode['issues'][i] > 0 for i in
                ['numWarnings', 'numInfos', 'numHints']):
-            g.log.warning(content)
+            g.log.debug(content)
 
 
 class GLTFTest(g.unittest.TestCase):
@@ -444,20 +450,42 @@ class GLTFTest(g.unittest.TestCase):
         sphere = g.trimesh.primitives.Sphere()
         v_count, _ = sphere.vertices.shape
 
-        sphere.vertex_attributes['_CustomFloat32Scalar'] = g.np.random.rand(
-            v_count, 1).astype(
-            g.np.float32)
-        sphere.vertex_attributes['_CustomUIntScalar'] = g.np.random.randint(
-            0, 1000, size=(v_count, 1)
-        ).astype(g.np.uintc)
-        sphere.vertex_attributes['_CustomFloat32Vec3'] = g.np.random.rand(
-            v_count, 3).astype(g.np.float32)
-        sphere.vertex_attributes['_CustomFloat32Mat4'] = g.np.random.rand(
+        sphere.vertex_attributes[
+            '_CustomFloat32Scalar'] = g.np.random.rand(
+                v_count, 1).astype(g.np.float32)
+        sphere.vertex_attributes[
+            '_CustomFloat32Vec3'] = g.np.random.rand(
+                v_count, 3).astype(g.np.float32)
+        sphere.vertex_attributes[
+            '_CustomFloat32Mat4'] = g.np.random.rand(
             v_count, 4, 4).astype(g.np.float32)
+
+        # export as GLB bytes
+        export = sphere.export(file_type='glb')
+        # this should validate just fine
+        validate_glb(export)
+
+        # uint32 is slightly off-label and may cause
+        # validators to fail but if you're a bad larry who
+        # doesn't follow the rules it should be fine
+        sphere.vertex_attributes[
+            '_CustomUInt32Scalar'] = g.np.random.randint(
+                0, 1000, size=(v_count, 1)).astype(g.np.uint32)
+
+        # when you add a uint16/int16 the gltf-validator
+        # complains about the 4-byte boundaries even though
+        # all their lengths and offsets mod 4 are zero
+        # not sure if thats a validator bug or what
+        sphere.vertex_attributes[
+            '_CustomUInt16Scalar'] = g.np.random.randint(
+                0, 1000, size=(v_count, 1)).astype(g.np.uint16)
+        sphere.vertex_attributes[
+            '_CustomInt16Scalar'] = g.np.random.randint(
+            0, 1000, size=(v_count, 1)).astype(g.np.int16)
 
         # export as GLB then re-load
         export = sphere.export(file_type='glb')
-        validate_glb(export)
+
         r = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
@@ -684,7 +712,8 @@ class GLTFTest(g.unittest.TestCase):
             g.trimesh.util.wrap_as_stream(export),
             file_type='glb')
         # make sure points survived export and reload
-        assert g.np.allclose(next(iter(reloaded.geometry.values())).vertices, points)
+        assert g.np.allclose(next(iter(
+            reloaded.geometry.values())).vertices, points)
 
     def test_bulk(self):
         # Try exporting every loadable model to GLTF and checking
@@ -705,23 +734,46 @@ class GLTFTest(g.unittest.TestCase):
                     print(E)
                     continue
                 # voxels don't have an export to gltf mode
-                if not hasattr(geom, 'export'):
+                if isinstance(geom, g.trimesh.voxel.VoxelGrid):
+                    try:
+                        geom.export(file_type='glb')
+                    except ValueError:
+                        # should have raised so all good
+                        continue
+                    raise ValueError(
+                        'voxel was allowed to export wrong GLB!')
+
+                if hasattr(geom, 'vertices') and len(geom.vertices) == 0:
                     continue
-                elif hasattr(geom, 'vertices') and len(geom.vertices) == 0:
-                    continue
-                elif hasattr(geom, 'geometry') and len(geom.geometry) == 0:
+                if hasattr(geom, 'geometry') and len(geom.geometry) == 0:
                     continue
 
                 g.log.info('Testing: {}'.format(fn))
                 # check a roundtrip which will validate on export
                 # and crash on reload if we've done anything screwey
                 export = geom.export(file_type='glb')
-                validate_glb(export)
+                validate_glb(export, name=fn)
                 # todo : importer breaks on `models/empty*` as it
                 # doesn't know what to do with empty meshes
                 # reloaded = g.trimesh.load(
                 #    g.trimesh.util.wrap_as_stream(export),
                 #    file_type='glb')
+
+    def test_interleaved(self):
+        # do a quick check on a mesh that uses byte stride
+        with open(g.get_path('BoxInterleaved.glb'), 'rb') as f:
+            k = g.trimesh.exchange.gltf.load_glb(f)
+        # get the kwargs for the mesh constructor
+        c = k['geometry']['Mesh']
+        # should have vertex normals
+        assert c['vertex_normals'].shape == c['vertices'].shape
+        # interleaved vertex normals should all be unit vectors
+        assert g.np.allclose(
+            1.0, g.np.linalg.norm(c['vertex_normals'], axis=1))
+
+        # should also load as a box
+        m = g.get_mesh('BoxInterleaved.glb').geometry['Mesh']
+        assert g.np.isclose(m.volume, 1.0)
 
     def test_equal_by_default(self):
         # all things being equal we shouldn't be moving things

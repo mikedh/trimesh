@@ -353,7 +353,7 @@ class SparseEncoding(Encoding):
         return sp.csc_matrix((values, indices, indptr), shape=(self.size, 1))
 
     def _flat_indices(self, indices):
-        assert(indices.shape[1] == 3 and len(indices.shape) == 2)
+        assert indices.shape[1] == 3 and len(indices.shape) == 2
         return np.ravel_multi_index(indices.T, self.shape)
 
     def _shaped_indices(self, flat_indices):

@@ -8,7 +8,9 @@ import time
 import numpy as np
 
 from ..constants import log
-from ..constants import tol_path as tol
+
+# floating point zero
+_TOL_ZERO = 1e-12
 
 
 class RectangleBin:
@@ -86,7 +88,7 @@ class RectangleBin:
         size_test = (bounds[2:] - bounds[:2]) - rectangle
 
         # this means the inserted rectangle is too big for the cell
-        if any(size_test < -tol.zero):
+        if any(size_test < -_TOL_ZERO):
             return None
 
         # since the cell is big enough for the current rectangle, either it
@@ -96,7 +98,7 @@ class RectangleBin:
 
         # this means the inserted rectangle fits perfectly
         # since we already checked to see if it was negative, no abs is needed
-        if all(size_test < tol.zero):
+        if all(size_test < _TOL_ZERO):
             return self.bounds[:2]
 
         # since the rectangle fits but the empty space is too big,
@@ -168,6 +170,8 @@ def rectangles_single(rectangles, sheet_size=None, shuffle=False):
     consumed_box : (2,) float
       Bounding box size of packed result
     """
+    rectangles = np.asanyarray(rectangles, dtype=np.float64)
+
     offset = np.zeros((len(rectangles), 2))
     inserted = np.zeros(len(rectangles), dtype=bool)
     box_order = np.argsort(np.sum(rectangles**2, axis=1))[::-1]

@@ -52,10 +52,10 @@ class ArcTests(g.unittest.TestCase):
         points_2D *= radii.reshape((-1, 1))
         points_2D += g.np.tile(center_2D, (1, 3))
         points_2D = points_2D.reshape((-1, 3, 2))
-        points_3D = g.np.column_stack((points_2D.reshape((-1, 2)),
-                                       g.np.tile(center_3D[:, 2].reshape((-1, 1)),
-                                                 (1, 3)).reshape(-1))).reshape((-1, 3, 3))
-
+        points_3D = g.np.column_stack((
+            points_2D.reshape((-1, 2)),
+            g.np.tile(center_3D[:, 2].reshape((-1, 1)),
+                      (1, 3)).reshape(-1))).reshape((-1, 3, 3))
         for center, radius, three in zip(center_2D,
                                          radii,
                                          points_2D):

@@ -53,7 +53,7 @@ Trimesh has a lot of soft-required upstream packages. We try to make sure they'r
  
 | Package | Description | Alternatives | Level |
 | ------  | ---------   | ----------   | ----- |
-| `numpy` | The base container for fast array types. | None. | `required` | 
+| `numpy` | The base container for fast array types. | | `required` | 
 | `scipy` | Provides convex hulls (`scipy.spatial.ConvexHull`), fast graph operations (`scipy.sparse.csgraph`), fast nearest-point queries (`scipy.spatial.cKDTree`), b-spline evaluation (`scipy.interpolate`). | Nothing comes to mind, it does a whole heck of a lot. | `easy` |  
 | `lxml` | Parse XML documents. We use this over the built-in ones as it was slightly faster, and there was a format implemented which was extremely annoying to handle without the ability to get parent nodes (which `lxml` has but built-in XML doesn't). | Standard library's XML | `easy` |
 | `networkx` | A nice-to-use pure Python graph library that's faster than you'd think. It implements DFS, BFS, and the usual FAANG-interview-question algorithms. A lot of the commonly run stuff in trimesh has been re-written to use `scipy.sparse.csgraph` as it's also an easy install and is way faster in most cases. But if you have a small-ish graph the API for `networkx` is way easier to "grok". | `graph-tool`, `scipy.sparse.csgraph` | `easy` |

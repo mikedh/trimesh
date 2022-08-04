@@ -13,6 +13,7 @@ from .geometry import plane_transform
 from .constants import tol
 from .visual.color import VertexColor
 
+
 from . import util
 from . import caching
 from . import grouping
@@ -71,27 +72,39 @@ def plane_fit(points):
 
     Parameters
     ---------
-    points : (n, 3) float
+    points : (n, 3) float or (p, n, 3,) float
       3D points in space
+      Second option allows to simultaneously compute
+      p centroids and normals
 
     Returns
     ---------
-    C : (3,) float
+    C : (3,) float or (p, 3,) float
       Point on the plane
-    N : (3,) float
+    N : (3,) float or (p, 3,) float
       Unit normal vector of plane
     """
     # make sure input is numpy array
     points = np.asanyarray(points, dtype=np.float64)
-    # make the plane origin the mean of the points
-    C = points.mean(axis=0)
-    # points offset by the plane origin
-    x = points - C
-    # create a (3, 3) matrix
-    M = np.dot(x.T, x)
+    assert points.ndim == 2 or points.ndim == 3
+    # with only one point set, np.dot is faster
+    if points.ndim == 2:
+        # make the plane origin the mean of the points
+        C = points.mean(axis=0)
+        # points offset by the plane origin
+        x = points - C[None, :]
+        # create a (3, 3) matrix
+        M = np.dot(x.T, x)
+    else:
+        # make the plane origin the mean of the points
+        C = points.mean(axis=1)
+        # points offset by the plane origin
+        x = points - C[:, None, :]
+        # create a (p, 3, 3) matrix
+        M = np.einsum('pnd, pnm->pdm', x, x)
     # run SVD
-    N = np.linalg.svd(M)[0][:, -1]
-
+    N = np.linalg.svd(M)[0][..., -1]
+    # return the centroid(s) and normal(s)
     return C, N
 
 
@@ -605,6 +618,22 @@ class PointCloud(Geometry3D):
         self.visual.vertex_colors = data
 
     @caching.cache_decorator
+    def kdtree(self):
+        """
+        Return a scipy.spatial.cKDTree of the vertices of the mesh.
+        Not cached as this lead to observed memory issues and segfaults.
+
+        Returns
+        ---------
+        tree : scipy.spatial.cKDTree
+          Contains mesh.vertices
+        """
+
+        from scipy.spatial import cKDTree
+        tree = cKDTree(self.vertices.view(np.ndarray))
+        return tree
+
+    @caching.cache_decorator
     def convex_hull(self):
         """
         A convex hull of every point.
@@ -654,6 +683,21 @@ class PointCloud(Geometry3D):
                            file_obj=file_obj,
                            file_type=file_type,
                            **kwargs)
+
+    def query(self, input_points, **kwargs):
+        """
+        Find the the closest points and associated attributes from this PointCloud.
+        Parameters
+        ------------
+        input_points : (n, 3) float
+          Input query points
+        kwargs : dict
+          Arguments for proximity.query_from_points
+        result : proximity.NearestQueryResult
+            Result of the query.
+        """
+        from .proximity import query_from_points
+        return query_from_points(self.vertices, input_points, self.kdtree, **kwargs)
 
     def __add__(self, other):
         if len(other.colors) == len(self.colors) == 0:
