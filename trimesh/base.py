@@ -1852,9 +1852,10 @@ class Trimesh(Geometry3D):
         cost : float
           Average square distance per point
         """
-        mesh_to_other, cost = registration.mesh_other(mesh=self,
-                                                      other=other,
-                                                      **kwargs)
+        mesh_to_other, cost = registration.mesh_other(
+            mesh=self,
+            other=other,
+            **kwargs)
         return mesh_to_other, cost
 
     def compute_stable_poses(self,
