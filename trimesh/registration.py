@@ -33,7 +33,8 @@ def mesh_other(mesh,
                samples=500,
                scale=False,
                icp_first=10,
-               icp_final=50):
+               icp_final=50,
+               **kwargs):
     """
     Align a mesh with another mesh or a PointCloud using
     the principal axes of inertia as a starting point which
@@ -55,6 +56,8 @@ def mesh_other(mesh,
     icp_final : int
       How many ICP iterations for the closest
       candidate from the wider search
+    kwargs : dict
+      Passed through to `icp`, which passes through to `procrustes`
 
     Returns
     -----------
@@ -247,7 +250,8 @@ def procrustes(a,
 
     # Remove scale component
     if scale:
-        # ascale is the square root of weighted average of the squared difference between each point and acenter.
+        # ascale is the square root of weighted average of the squared difference
+        # between each point and acenter.
         ascale = np.sqrt(np.sum(((a - acenter)**2) * np.expand_dims(w_normed, axis=1)))
         bscale = np.sqrt(((b - bcenter)**2).sum() / len(b))
     else:
@@ -256,7 +260,8 @@ def procrustes(a,
 
     # Use SVD to find optimal orthogonal matrix R
     # constrained to det(R) = 1 if necessary.
-    # w_mat is multiplied with the centered and scaled a, such that the points can be weighted differently.
+    # w_mat is multiplied with the centered and scaled a, such that the points
+    # can be weighted differently.
     u, s, vh = np.linalg.svd(
         np.dot(((b - bcenter) / bscale).T, (w_mat.dot((a - acenter) / ascale))))
 
