@@ -10,7 +10,7 @@ class RegistrationTest(g.unittest.TestCase):
 
         # every combination of possible boolean options
         # a_flip and a_scale are apply-to-test-data
-        opt = g.itertools.combinations([True, False] * 6, 6)
+        opt = set(g.itertools.combinations([True, False] * 6, 6))
         for reflection, translation, scale, a_flip, a_scale, weight in opt:
             # create random points in space
             points_a = (g.np.random.random((1000, 3)) - .5) * 1000
