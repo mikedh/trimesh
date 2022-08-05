@@ -112,6 +112,29 @@ def face_adjacency(faces=None,
     return adjacency
 
 
+def face_neighborhood(mesh):
+    """
+    Find faces that share a vertex i.e. 'neighbors' faces.
+    Relies on the fact that an adjacency matrix at a power p
+    contains the number of paths of length p connecting two nodes.
+    Here we take the bipartite graph from mesh.faces_sparse to the power 2.
+    The non-zeros are the faces connected by one vertex.
+
+    Returns
+    ----------
+    neighborhood : (n, 2) int
+        Pairs of faces which share a vertex
+    """
+
+    VT = mesh.faces_sparse
+    TT = VT.T * VT
+    TT.setdiag(0)
+    TT.eliminate_zeros()
+    TT = TT.tocoo()
+    neighborhood = np.concatenate((TT.row[:, None], TT.col[:, None]), axis=-1)
+    return neighborhood
+
+
 def face_adjacency_unshared(mesh):
     """
     Return the vertex index of the two vertices not in the shared

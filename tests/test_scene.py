@@ -370,6 +370,14 @@ class SceneTests(g.unittest.TestCase):
         s = g.get_mesh('box.obj', group_material=False)
         assert set(s.geometry.keys()) != {'Material', 'SecondMaterial'}
 
+    def test_strip(self):
+        m = g.get_mesh('cycloidal.3DXML')
+        assert any(g.visual.kind is not None
+                   for g in m.geometry.values())
+        m.strip_visuals()
+        assert all(g.visual.kind is None
+                   for g in m.geometry.values())
+
     def test_export_concat(self):
         # Scenes exported in mesh formats should be
         # concatenating the meshes somewhere.

@@ -211,7 +211,8 @@ def voxel_from_binvox(
         raise ValueError(
             "Invalid axis_order '%s': must be None, 'xyz' or 'xzy'")
 
-    assert(encoding.shape == shape)
+    assert encoding.shape == shape
+
     return VoxelGrid(encoding, transform)
 
 

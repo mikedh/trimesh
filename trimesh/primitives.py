@@ -124,7 +124,7 @@ class _Primitive(Trimesh):
         Returns
         ------------
         mesh : trimesh.Trimesh
-          Tesselated version of the primitive.
+          Tessellated version of the primitive.
         """
         result = Trimesh(
             vertices=self.vertices.copy(),

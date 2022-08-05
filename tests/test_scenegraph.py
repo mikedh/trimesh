@@ -129,6 +129,32 @@ class GraphTests(g.unittest.TestCase):
         assert len(ss.graph.transforms.edge_data) == 1
         assert list(ss.graph.transforms.edge_data.keys()) == [('3', '4')]
 
+    def test_scene_transform(self):
+        # get a scene graph
+        scene = g.get_mesh('cycloidal.3DXML')
+
+        # copy the original bounds of the scene's convex hull
+        b = scene.convex_hull.bounds.tolist()
+        # dump it into a single mesh
+        m = scene.dump(concatenate=True)
+
+        # mesh bounds should match exactly
+        assert g.np.allclose(m.bounds, b)
+        assert g.np.allclose(scene.convex_hull.bounds, b)
+
+        # get a random rotation matrix
+        T = g.trimesh.transformations.random_rotation_matrix()
+
+        # apply it to both the mesh and the scene
+        m.apply_transform(T)
+        scene.apply_transform(T)
+
+        # the mesh and scene should have the same bounds
+        assert g.np.allclose(m.convex_hull.bounds,
+                             scene.convex_hull.bounds)
+        # should have moved from original position
+        assert not g.np.allclose(m.convex_hull.bounds, b)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

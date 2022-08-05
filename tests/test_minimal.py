@@ -10,6 +10,7 @@ import os
 
 import unittest
 import trimesh
+import numpy as np
 
 # the path of the current directory
 _pwd = os.path.dirname(
@@ -25,6 +26,20 @@ def get_mesh(file_name, **kwargs):
 
 
 class MinimalTest(unittest.TestCase):
+
+    def test_path_exc(self):
+        # this should require *no deps*
+        from trimesh.path import packing
+        (density,
+         offset,
+         inserted,
+         box) = packing.rectangles_single(
+            [[1, 1], [2, 2]],
+            sheet_size=[2, 4])
+        assert inserted.all()
+        assert np.allclose(box, [2, 3])
+        assert offset.shape == (2, 2)
+        assert density > .833
 
     def test_load(self):
         # kinds of files we should be able to

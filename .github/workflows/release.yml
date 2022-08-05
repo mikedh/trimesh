@@ -73,6 +73,10 @@ jobs:
       run: |
         brew install geos
         brew install --cask openscad
+    - name: Test a minimal install
+      run: |
+        pip install .
+        python tests/test_minimal.py
     - name: Install Trimesh
       run: pip install .[easy,test]
     - name: Install Linux Deps

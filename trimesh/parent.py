@@ -59,6 +59,10 @@ class Geometry(ABC):
     def __add__(self, other):
         pass
 
+    @abc.abstractmethod
+    def export(self, file_obj, file_type=None):
+        pass
+
     def __repr__(self):
         """
         Print quick summary of the current geometry without

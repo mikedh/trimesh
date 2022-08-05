@@ -320,7 +320,7 @@ def parse_mtl(mtl, resolver=None):
         if len(split) <= 1:
             continue
         # the first value is the parameter name
-        key = split[0]
+        key = split[0].lower()
         # start a new material
         if key == 'newmtl':
             # material name extracted from line like:
@@ -331,10 +331,12 @@ def parse_mtl(mtl, resolver=None):
             # start a fresh new material
             material = {'newmtl': ' '.join(split[1:])}
 
-        elif key == 'map_Kd':
+        elif key == 'map_kd':
             # represents the file name of the texture image
+            index = line.lower().index('map_kd') + 6
+            file_name = line[index:].strip()
             try:
-                file_data = resolver.get(split[1])
+                file_data = resolver.get(file_name)
                 # load the bytes into a PIL image
                 # an image file name
                 material['image'] = Image.open(

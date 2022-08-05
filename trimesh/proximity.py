@@ -10,7 +10,7 @@ from . import util
 
 from .grouping import group_min
 from .constants import tol, log_time
-from .triangles import closest_point as closest_point_corresponding
+from .triangles import closest_point as _corresponding
 from .triangles import points_to_barycentric
 
 try:
@@ -101,7 +101,7 @@ def closest_point_naive(mesh, points):
 
     # create a giant tiled array of each point tiled len(triangles) times
     points_tiled = np.tile(points, (1, len(triangles)))
-    on_triangle = np.array([closest_point_corresponding(
+    on_triangle = np.array([_corresponding(
         triangles, i.reshape((-1, 3))) for i in points_tiled])
 
     # distance squared
@@ -159,7 +159,7 @@ def closest_point(mesh, points):
     query_tri = triangles[all_candidates]
 
     # do the computation for closest point
-    query_close = closest_point_corresponding(query_tri, query_point)
+    query_close = _corresponding(query_tri, query_point)
     query_group = np.cumsum(num_candidates)[:-1]
 
     # vectors and distances for
@@ -281,6 +281,24 @@ def signed_distance(mesh, points):
     distance[nonzero[~ontriangle]] *= sign
 
     return distance
+
+
+class NearestQueryResult:
+    """
+    Stores the nearest points and attributes for nearest points queries.
+    """
+
+    def __init__(self):
+        self.nearest = None
+        self.distances = None
+        self.normals = None
+        self.triangle_indices = None
+        self.barycentric_coordinates = None
+        self.interpolated_normals = None
+        self.vertex_indices = None
+
+    def has_normals(self):
+        return self.normals is not None or self.interpolated_normals is not None
 
 
 class ProximityQuery(object):

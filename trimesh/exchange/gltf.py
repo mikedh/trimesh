@@ -216,7 +216,7 @@ def export_glb(
                   # of the glTF content (JSON)
                   len(content),
                   # magic number which is 'JSON'
-                  1313821514],
+                  _magic["json"]],
                  dtype="<u4",
                  ).tobytes())
 
@@ -455,18 +455,19 @@ def _data_append(acc, buff, blob, data):
       Index of accessor that was added or reused.
     """
     # if we have data include that in the key
+    as_bytes = data.tobytes()
     if hasattr(data, 'fast_hash'):
         # passed a TrackedArray object
         hashed = data.fast_hash()
     else:
         # someone passed a vanilla numpy array
-        hashed = fast_hash(data.tobytes())
+        hashed = fast_hash(as_bytes)
 
     if hashed in buff:
         blob['bufferView'] = list(buff.keys()).index(hashed)
     else:
         # not in buffer items so append and then return index
-        buff[hashed] = _byte_pad(data.tobytes())
+        buff[hashed] = _byte_pad(as_bytes)
         blob['bufferView'] = len(buff) - 1
 
     # start by hashing the dict blob
@@ -795,16 +796,17 @@ def _append_mesh(mesh,
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
     for key, attrib in mesh.vertex_attributes.items():
-        attribute_name = key
-        # Application specific attributes must be prefixed with an underscore
+        # Application specific attributes must be
+        # prefixed with an underscore
         if not key.startswith("_"):
-            attribute_name = "_" + key
+            key = "_" + key
         # store custom vertex attributes
-        acc_atr = _data_append(acc=tree['accessors'],
-                               buff=buffer_items,
-                               blob=_build_accessor(attrib),
-                               data=attrib)
-        current["primitives"][0]["attributes"][attribute_name] = acc_atr
+        current["primitives"][0][
+            "attributes"][key] = _data_append(
+                acc=tree['accessors'],
+                buff=buffer_items,
+                blob=_build_accessor(attrib),
+                data=attrib)
 
     tree["meshes"].append(current)
 
@@ -832,6 +834,8 @@ def _build_views(buffer_items):
             {"buffer": 0,
              "byteOffset": current_pos,
              "byteLength": len(current_item)})
+        assert (current_pos % 4) == 0
+        assert (len(current_item) % 4) == 0
         current_pos += len(current_item)
     return views
 
@@ -866,8 +870,15 @@ def _build_accessor(array):
             raise ValueError("Matrix types must have 4, 9 or 16 components")
         data_type = "MAT%d" % shape[2]
 
-    # get the array data type as a str, stripping off endian
+    # get the array data type as a str stripping off endian
     lookup = array.dtype.str[-2:]
+
+    if lookup == 'u4':
+        # spec: UNSIGNED_INT is only allowed when the accessor
+        # contains indices i.e. the accessor is only referenced
+        # by `primitive.indices`
+        log.debug('custom uint32 may cause validation failures')
+
     # map the numpy dtype to a GLTF code (i.e. 5121)
     componentType = _dtypes_lookup[lookup]
     accessor = {
@@ -901,6 +912,7 @@ def _byte_pad(data, bound=4):
     padded : bytes
       Result where: (len(padded) % bound) == 0
     """
+    assert isinstance(data, bytes)
     if len(data) % bound != 0:
         # extra bytes to pad with
         count = bound - (len(data) % bound)
@@ -1202,11 +1214,13 @@ def unique_name(start, contains):
             increment = int(split[1])
         # keep the original name and add an integer to it
         formatter = split[0] + '_{}'
+
     # if contains is empty we will only need to check once
     for i in range(increment + 1, 1 + increment + len(contains)):
         check = formatter.format(i)
         if check not in contains:
             return check
+
     raise ValueError('unable to establish unique name!')
 
 
@@ -1263,7 +1277,7 @@ def _read_buffers(header,
             # number of items
             count = a['count']
             # what is the datatype
-            dtype = _dtypes[a["componentType"]]
+            dtype = np.dtype(_dtypes[a["componentType"]])
             # basically how many columns
             per_item = _shapes[a["type"]]
             # use reported count to generate shape
@@ -1273,20 +1287,42 @@ def _read_buffers(header,
             per_count = np.abs(np.product(per_item))
             if 'bufferView' in a:
                 # data was stored in a buffer view so get raw bytes
-                data = views[a["bufferView"]]
-                # is the accessor offset in a buffer
-                if "byteOffset" in a:
-                    start = a["byteOffset"]
-                else:
-                    # otherwise assume we start at first byte
-                    start = 0
-                # length is the number of bytes per item times total
-                length = np.dtype(dtype).itemsize * count * per_count
+
                 # load the bytes data into correct dtype and shape
+                buffer_view = header["bufferViews"][a["bufferView"]]
 
-                access[index] = np.frombuffer(
-                    data[start:start + length], dtype=dtype).reshape(shape)
+                # is the accessor offset in a buffer
+                # will include the start, length, and offset
+                # but not the bytestride as that is easier to do
+                # in numpy rather than in python looping
+                data = views[a["bufferView"]]
 
+                # both bufferView *and* accessors are allowed
+                # to have a byteOffset
+                start = a.get('byteOffset', 0)
+
+                if "byteStride" in buffer_view:
+                    # how many bytes for each chunk
+                    stride = buffer_view["byteStride"]
+                    # the total block we're looking at
+                    length = count * stride
+                    # we want to get the bytes for every row
+                    per_row = per_item * dtype.itemsize
+                    # we have to offset the (already offset) buffer
+                    # and then pull chunks per-stride
+                    # do as a list comprehension as the numpy
+                    # buffer wangling was
+                    raw = b''.join(
+                        data[i:i + per_row] for i in
+                        range(start, start + length, stride))
+                    # the reshape should fail if we screwed up
+                    access[index] = np.frombuffer(
+                        raw, dtype=dtype).reshape(shape)
+                else:
+                    # length is the number of bytes per item times total
+                    length = dtype.itemsize * count * per_count
+                    access[index] = np.frombuffer(
+                        data[start:start + length], dtype=dtype).reshape(shape)
             else:
                 # a "sparse" accessor should be initialized as zeros
                 access[index] = np.zeros(
@@ -1339,7 +1375,8 @@ def _read_buffers(header,
                     if mode is None:
                         # some people skip mode since GL_TRIANGLES
                         # is apparently the de-facto default
-                        log.warning('primitive has no mode! trying GL_TRIANGLES?')
+                        log.debug(
+                            'primitive has no mode! trying GL_TRIANGLES?')
                         # get vertices from accessors
                     kwargs["vertices"] = access[attr["POSITION"]]
                     # get faces from accessors

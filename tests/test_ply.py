@@ -204,6 +204,13 @@ class PlyTest(g.unittest.TestCase):
         assert m1.faces.shape == (2, 3)
         assert m2.faces.shape == (2, 3)
 
+    def test_texturefile(self):
+        # try loading a PLY with texture
+        m = g.get_mesh('fuze.ply')
+        # run the checks to make sure fuze has the
+        # correct number of vertices and has texture loaded
+        g.check_fuze(m)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

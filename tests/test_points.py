@@ -107,9 +107,37 @@ class PointsTest(g.unittest.TestCase):
                                                translate=False)[0]
             # run the plane fit
             C, N = g.trimesh.points.plane_fit(p)
-
             # sign of normal is arbitrary on fit so check both
             assert g.np.allclose(truth, N) or g.np.allclose(truth, -N)
+        # make sure plane fit works with multiple point sets at once
+        nb_points_sets = 20
+        for i in range(10):
+            # create a random rotation
+            matrices = [g.trimesh.transformations.random_rotation_matrix()
+                        for _ in range(nb_points_sets)]
+            # create some random points in spacd
+            p = g.np.random.random((nb_points_sets, 1000, 3))
+            # make them all lie on the XY plane so we know
+            # the correct normal to check against
+            p[..., 2] = 0
+            # transform them into random frame
+            for j, matrix in enumerate(matrices):
+                p[j, ...] = g.trimesh.transform_points(p[j, ...], matrix)
+            # p = g.trimesh.transform_points(p, matrix)
+            # we made the Z values zero before transforming
+            # so the true normal should be Z then rotated
+            truths = g.np.zeros((len(p), 3))
+            for j, matrix in enumerate(matrices):
+                truths[j, :] = g.trimesh.transform_points(
+                    [[0, 0, 1]],
+                    matrix,
+                    translate=False)[0]
+            # run the plane fit
+            C, N = g.trimesh.points.plane_fit(p)
+
+            # sign of normal is arbitrary on fit so check both
+            cosines = g.np.einsum('ij,ij->i', N, truths)
+            assert g.np.allclose(g.np.abs(cosines), g.np.ones_like(cosines))
 
     def test_kmeans(self,
                     cluster_count=5,

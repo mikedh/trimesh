@@ -84,15 +84,18 @@ class Scene(Geometry3D):
 
     def apply_transform(self, transform):
         """
-        Apply a transform to every geometry in the scene.
+        Apply a transform to all children of the base frame
+        without modifying any geometry.
 
         Parameters
         --------------
         transform : (4, 4)
-          Homogeneous transformation matrix
+          Homogeneous transformation matrix.
         """
-        for geometry in self.geometry.values():
-            geometry.apply_transform(transform)
+        base = self.graph.base_frame
+        for child in self.graph.transforms.children[base]:
+            combined = np.dot(self.graph[child][0], transform)
+            self.graph.update(child, matrix=combined)
 
     def add_geometry(self,
                      geometry,
@@ -220,6 +223,16 @@ class Scene(Geometry3D):
         self.graph.remove_geometries(names)
         # remove the geometries from our geometry store
         [self.geometry.pop(name, None) for name in names]
+
+    def strip_visuals(self):
+        """
+        Strip visuals from every Trimesh geometry
+        and set them to an empty `ColorVisuals`.
+        """
+        from ..visual.color import ColorVisuals
+        for geometry in self.geometry.values():
+            if util.is_instance_named(geometry, 'Trimesh'):
+                geometry.visual = ColorVisuals(mesh=geometry)
 
     def md5(self):
         """
@@ -1124,8 +1137,9 @@ class Scene(Geometry3D):
         appended : trimesh.Scene
            Scene with geometry from both scenes
         """
-        result = append_scenes([self, other],
-                               common=[self.graph.base_frame])
+        result = append_scenes(
+            [self, other],
+            common=[self.graph.base_frame])
         return result
 
 

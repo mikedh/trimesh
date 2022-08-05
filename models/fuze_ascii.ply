@@ -1,7 +1,7 @@
 ply
 format ascii 1.0
 comment VCGLIB generated
-comment TextureFile fuze_uv.jpg
+comment TextureFile fuze uv.jpg
 element vertex 502
 property float x
 property float y
