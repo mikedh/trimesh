@@ -40,5 +40,5 @@ def resolve(item, resolver):
             resolve(item, resolver)
         else:
             # make sure all keys are evaluated
-            [resolve(v, resolver) for v in item.values]
+            [resolve(v, resolver) for v in item.values()]
     return item
