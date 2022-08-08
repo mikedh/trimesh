@@ -15,12 +15,12 @@ import logging
 log = logging.getLogger('trimesh')
 
 
-class RayMeshParent(ABC):
+class RayParent(ABC):
 
     @abc.abstractmethod
     def intersects_location(self,
                             origins,
-                            directions,
+                            vectors,
                             multiple_hits=True):
         """
         Return the location of where a ray hits a surface.
@@ -29,7 +29,7 @@ class RayMeshParent(ABC):
         ----------
         origins : (n, 3) float
           Origins of rays
-        directions : (n, 3) float
+        vectors : (n, 3) float
           Direction (vector) of rays
 
         Returns
@@ -45,7 +45,7 @@ class RayMeshParent(ABC):
     @abc.abstractmethod
     def intersects_id(self,
                       origins,
-                      directions,
+                      vectors,
                       multiple_hits=True,
                       max_hits=20,
                       return_locations=False):
@@ -58,7 +58,7 @@ class RayMeshParent(ABC):
         ----------
         origins : (n, 3) float
           Origins of rays
-        directions : (n, 3) float
+        vectors : (n, 3) float
           Direction (vector) of rays
         multiple_hits : bool
           If True will return every hit along the ray
@@ -80,7 +80,7 @@ class RayMeshParent(ABC):
 
     @abc.abstractmethod
     def intersects_first(
-            self, origins, directions):
+            self, origins, vectors):
         """
         Find the index of the first triangle a ray hits.
 
@@ -89,7 +89,7 @@ class RayMeshParent(ABC):
         ----------
         origins : (n, 3) float
           Origins of rays
-        directions : (n, 3) float
+        vectors : (n, 3) float
           Direction (vector) of rays
 
         Returns
@@ -99,18 +99,16 @@ class RayMeshParent(ABC):
         """
 
     @abc.abstractmethod
-    def intersects_any(self,
-                       origins,
-                       directions):
+    def intersects_any(self, origins, vectors):
         """
-        Check if a list of rays hits the surface.
+        Check if rays hit anything.
 
 
         Parameters
         -----------
         origins : (n, 3) float
           Origins of rays
-        directions : (n, 3) float
+        vectors : (n, 3) float
           Direction (vector) of rays
 
         Returns
@@ -138,10 +136,10 @@ class RayMeshParent(ABC):
         return contains_points(self, points)
 
 
-def _kwarg_deprecated(function):
+def _kwarg_depr(function):
     """
-    A decorator which replaces `ray_directions` with
-    `directions` until we can deprecate the arguments.
+    A decorator which replaces `ray_vectors` with
+    `vectors` until we can deprecate the arguments.
     """
     # use wraps to preserve docstring
     @wraps(function)
@@ -154,20 +152,20 @@ def _kwarg_deprecated(function):
             log.warning(
                 "Deprecation! The `ray_origins` kwarg for "
                 "*all ray operations* has been renamed to `origins`. "
-                "Versions of trimesh released after September 2021 "
+                "Versions of trimesh released after December 2022"
                 "will not include this warning and calls will fail if "
                 "you don't rename your kwargs! "
                 "Called from: `{}`.".format(function.__name__))
             kwargs['origins'] = kwargs.pop('ray_origins')
         if 'ray_directions' in kwargs:
             log.warning(
-                "Deprecation! The `ray_directions` kwarg for "
-                "*all ray operations* has been renamed to `directions`. "
-                "Versions of trimesh released after September 2021 "
+                "Deprecation! The `ray_vectors` kwarg for "
+                "*all ray operations* has been renamed to `vectors`. "
+                "Versions of trimesh released after December 2022 "
                 "will not include this warning and will fail if "
                 "you don't rename your kwargs! "
                 "Called from `{}`.".format(function.__name__))
-            kwargs['directions'] = kwargs.pop('ray_directions')
+            kwargs['vectors'] = kwargs.pop('ray_directions')
         # value not in cache so execute the function
         return function(*args, **kwargs)
 

@@ -3,8 +3,6 @@ A basic slow implementation of ray- triangle queries.
 """
 import numpy as np
 
-from . import parent
-
 from .. import util
 from .. import caching
 from .. import grouping
@@ -12,9 +10,9 @@ from .. import intersections
 from .. import triangles as triangles_mod
 
 from ..constants import tol
+from .parent import RayParent, _kwarg_depr
 
-
-class RayMeshIntersector(parent.RayMeshParent):
+class RayMeshIntersector(RayParent):
     """
     An object to query a mesh for ray intersections using basic
     numpy, precomputes an r-tree for each triangle on the mesh.
@@ -24,7 +22,7 @@ class RayMeshIntersector(parent.RayMeshParent):
         self.mesh = mesh
         self._cache = caching.Cache(self.mesh.crc)
 
-    @parent._kwarg_deprecated
+    @_kwarg_depr
     def intersects_id(self,
                       origins,
                       directions,
@@ -49,7 +47,7 @@ class RayMeshIntersector(parent.RayMeshParent):
             return index_tri[unique], index_ray[unique], locations[unique]
         return index_tri, index_ray
 
-    @parent._kwarg_deprecated
+    @_kwarg_depr
     def intersects_location(self,
                             origins,
                             directions,
@@ -64,7 +62,7 @@ class RayMeshIntersector(parent.RayMeshParent):
              **kwargs)
         return locations, index_ray, index_tri
 
-    @parent._kwarg_deprecated
+    @_kwarg_depr
     def intersects_first(
             self,
             origins,
@@ -86,7 +84,7 @@ class RayMeshIntersector(parent.RayMeshParent):
 
         return result
 
-    @parent._kwarg_deprecated
+    @_kwarg_depr
     def intersects_any(self,
                        origins,
                        directions,

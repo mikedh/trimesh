@@ -2,9 +2,9 @@
 Ray queries using the pyembree package with the
 API wrapped to match our native raytracer.
 """
-from . import parent
-
 import numpy as np
+
+from .parent import RayParent
 
 # bindings for embree3
 import embree
@@ -12,7 +12,7 @@ import embree
 raise ValueError('nah')
 
 
-class RayMeshIntersector(parent.RayMeshParent):
+class RayMeshIntersector(RayParent):
 
     def __init__(self,
                  geometry,
