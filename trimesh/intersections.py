@@ -363,7 +363,7 @@ def plane_lines(plane_origin,
 def planes_lines(plane_origins,
                  plane_normals,
                  line_origins,
-                 line_directions,
+                 line_vectors,
                  return_distance=False,
                  return_denom=False):
     """
@@ -377,7 +377,7 @@ def planes_lines(plane_origins,
         Normal vector of each plane
     line_origins : (n,3) float
         Point at origin of each line
-    line_directions : (n,3) float
+    line_vectors : (n,3) float
         Direction vector of each line
     return_distance : bool
       Return distance from origin to point also
@@ -400,20 +400,20 @@ def planes_lines(plane_origins,
     plane_origins = np.asanyarray(plane_origins, dtype=np.float64)
     plane_normals = np.asanyarray(plane_normals, dtype=np.float64)
     line_origins = np.asanyarray(line_origins, dtype=np.float64)
-    line_directions = np.asanyarray(line_directions, dtype=np.float64)
+    line_vectors = np.asanyarray(line_vectors, dtype=np.float64)
 
     # vector from line to plane
     origin_vectors = plane_origins - line_origins
 
     projection_ori = util.diagonal_dot(origin_vectors, plane_normals)
-    projection_dir = util.diagonal_dot(line_directions, plane_normals)
+    projection_dir = util.diagonal_dot(line_vectors, plane_normals)
 
     valid = np.abs(projection_dir) > 1e-5
 
     distance = np.divide(projection_ori[valid],
                          projection_dir[valid])
 
-    on_plane = line_directions[valid] * distance.reshape((-1, 1))
+    on_plane = line_vectors[valid] * distance.reshape((-1, 1))
     on_plane += line_origins[valid]
 
     result = [on_plane, valid]

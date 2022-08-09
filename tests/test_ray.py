@@ -27,35 +27,40 @@ class RayTests(g.unittest.TestCase):
             broken = hit_any[i].astype(g.np.int64).ptp(axis=0).sum()
             assert broken == 0
 
-    def test_rps(self):
-        for use_embree in [True, False]:
-            dimension = (10000, 3)
-            sphere = g.get_mesh('unit_sphere.STL',
-                                use_embree=use_embree)
+    def test_rps(self, count=50000):
+        # do a rudimentary benchmark
+        count = int(count)
+        mesh = g.trimesh.creation.icosphere(subdivisions=5)
+        origins = g.np.random.random((count, 3))
+        origins[:, 2] = -5
+        vectors = g.np.tile([0, 0, 1], (count, 1))
+        rps = {}
 
-            origins = g.np.random.random(dimension)
-            directions = g.np.tile([0, 0, 1], (dimension[0], 1))
-            origins[:, 2] = -5
-
-            # force ray object to allocate tree before timing it
-            # tree = sphere.ray.tree
+        for engine in g.trimesh.ray.engines:
+            # collect allocation time
             tic = [g.time.time()]
-            a = sphere.ray.intersects_id(
-                origins, directions)
+            e = engine(mesh)
+            # it might be doing lazy creation of acceleration
+            # structures so assume it's caching and do a single
+            # ray check to include in the allocation bucket
+            e.intersects_id(origins=[[0, 0, 0]],
+                            vectors=[[0, 0, 1]])
             tic.append(g.time.time())
-            b = sphere.ray.intersects_location(
-                origins, directions)
+
+            # collect the rays/sec on a full query
+            a = e.intersects_id(origins=origins, vectors=vectors)
+
             tic.append(g.time.time())
 
             # make sure ray functions always return numpy arrays
             assert all(len(i.shape) >= 0 for i in a)
-            assert all(len(i.shape) >= 0 for i in b)
 
-            rps = dimension[0] / g.np.diff(tic)
+            # store the allocation and ray-check time
+            rps[str(e)] = g.np.diff(tic)
 
-            g.log.info('Measured %s rays/second with embree %d',
-                       str(rps),
-                       use_embree)
+        g.log.info('\n'.join(
+            f'\n\n{k}\n{v[0]:0.4f}s allocation\n{sum(v):0.4f}s total\n{count/v[1]:0.1f} rays/sec'
+            for k, v in rps.items()))
 
     def test_empty(self):
         """
@@ -67,7 +72,7 @@ class RayTests(g.unittest.TestCase):
                                 use_embree=use_embree)
             # should never hit the sphere
             origins = g.np.random.random(dimension)
-            directions = g.np.tile([0, 1, 0], (dimension[0], 1))
+            vectors = g.np.tile([0, 1, 0], (dimension[0], 1))
             origins[:, 2] = -5
 
             # make sure ray functions always return numpy arrays
@@ -75,10 +80,10 @@ class RayTests(g.unittest.TestCase):
             # should always be a numpy array
             assert all(len(i.shape) >= 0 for i in
                        sphere.ray.intersects_id(
-                           origins, directions))
+                           origins, vectors))
             assert all(len(i.shape) >= 0 for i in
                        sphere.ray.intersects_location(
-                           origins, directions))
+                           origins, vectors))
 
     def test_contains(self):
         scale = 1.5
@@ -110,12 +115,12 @@ class RayTests(g.unittest.TestCase):
             vectors = m.vertices.copy()
 
             assert m.ray.intersects_any(origins=origins,
-                                        directions=vectors).all()
+                                        vectors=vectors).all()
 
             (locations,
              index_ray,
              index_tri) = m.ray.intersects_location(origins=origins,
-                                                    directions=vectors)
+                                                    vectors=vectors)
 
             hit_count = g.np.bincount(index_ray,
                                       minlength=len(origins))
@@ -139,20 +144,20 @@ class RayTests(g.unittest.TestCase):
         f = g.np.array([1000., 1000.])
         h, w = 256, 256
 
-        # Set up a list of ray directions - one for each pixel in our (256,
+        # Set up a list of ray vectors - one for each pixel in our (256,
         # 256) output image.
-        directions = g.trimesh.util.grid_arange(
+        vectors = g.trimesh.util.grid_arange(
             [[-h / 2, -w / 2],
              [h / 2, w / 2]],
             step=2.0)
-        directions = g.np.column_stack(
-            (directions,
-             g.np.ones(len(directions)) * f[0]))
+        vectors = g.np.column_stack(
+            (vectors,
+             g.np.ones(len(vectors)) * f[0]))
 
         # Initialize the camera origin to be somewhere behind the cube.
         cam_t = g.np.array([0, 0, -15.])
         # Duplicate to ensure we have an camera_origin per ray direction
-        origins = g.np.tile(cam_t, (directions.shape[0], 1))
+        origins = g.np.tile(cam_t, (vectors.shape[0], 1))
 
         for use_embree in [True, False]:
             # Generate a 1 x 1 x 1 cube using the trimesh box primitive
@@ -163,13 +168,13 @@ class RayTests(g.unittest.TestCase):
             # plane. We only want the 'first' hit.
             index_triangles, index_ray = cube_mesh.ray.intersects_id(
                 origins=origins,
-                directions=directions,
+                vectors=vectors,
                 multiple_hits=False)
             assert len(g.np.unique(index_triangles)) == 2
 
             index_triangles, index_ray = cube_mesh.ray.intersects_id(
                 origins=origins,
-                directions=directions,
+                vectors=vectors,
                 multiple_hits=True)
             assert len(g.np.unique(index_triangles)) > 2
 
@@ -214,7 +219,7 @@ class RayTests(g.unittest.TestCase):
             # (m,) int, index of mesh.faces
             pos, ray, tri = mesh.ray.intersects_location(
                 origins=origins,
-                directions=vectors)
+                vectors=vectors)
 
             for p, r in zip(pos, ray):
                 # intersect location XY should match ray origin XY
@@ -230,20 +235,23 @@ class RayTests(g.unittest.TestCase):
 
             origins = g.np.array([[0.12801793, 24.5030052, -5.],
                                   [0.12801793, 24.5030052, -5.]])
-            directions = g.np.array([[-0.13590759, -0.98042506, 0.],
-                                     [0.13590759, 0.98042506, -0.]])
+            vectors = g.np.array([[-0.13590759, -0.98042506, 0.],
+                                  [0.13590759, 0.98042506, -0.]])
 
             for kwargs in [{'use_embree': True},
                            {'use_embree': False}]:
                 mesh = g.get_mesh('broken.STL', **kwargs)
 
                 locations, index_ray, index_tri = mesh.ray.intersects_location(
-                    origins=origins, directions=directions)
+                    origins=origins, vectors=vectors)
 
                 # should be same number of location hits
                 assert len(locations) == len(origins)
 
 
 if __name__ == '__main__':
+    import faulthandler
+
+    faulthandler.enable()
     g.trimesh.util.attach_to_log()
     g.unittest.main()

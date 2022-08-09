@@ -12,12 +12,11 @@ from pyembree.mesh_construction import TriangleMesh
 
 from pkg_resources import parse_version
 
-from . import parent
-
 from .. import util
 from .. import caching
 from .. import intersections
 
+from .parent import RayParent
 from .util import contains_points
 from ..constants import log_time
 
@@ -33,7 +32,7 @@ _embree_new = parse_version(_ver) >= parse_version('0.1.4')
 _embree_dtype = [np.float64, np.float32][int(_embree_new)]
 
 
-class RayMeshIntersector(parent.RayMeshParent):
+class RayMeshIntersector(RayParent):
 
     def __init__(self,
                  geometry,
@@ -76,25 +75,13 @@ class RayMeshIntersector(parent.RayMeshParent):
                            faces=self.mesh.faces,
                            scale=self._scale)
 
-    def intersects_location(self,
-                            origins,
-                            directions,
-                            multiple_hits=True):
-        # inherits docstring from parent
-        (index_tri,
-         index_ray,
-         locations) = self.intersects_id(
-             origins=origins,
-             directions=directions,
-             multiple_hits=multiple_hits,
-             return_locations=True)
-
-        return locations, index_ray, index_tri
+    def __repr__(self):
+        return 'embree2.RayMesh'
 
     @log_time
     def intersects_id(self,
                       origins,
-                      directions,
+                      vectors,
                       multiple_hits=True,
                       max_hits=20,
                       return_locations=False):
@@ -107,7 +94,7 @@ class RayMeshIntersector(parent.RayMeshParent):
         ----------
         ray_origins : (n, 3) float
           Origins of rays
-        ray_directions : (n, 3) float
+        ray_vectors : (n, 3) float
           Direction (vector) of rays
         multiple_hits : bool
           If True will return every hit along the ray
@@ -130,9 +117,9 @@ class RayMeshIntersector(parent.RayMeshParent):
         origins = np.asanyarray(
             deepcopy(origins),
             dtype=np.float64)
-        directions = np.asanyarray(directions,
-                                   dtype=np.float64)
-        directions = util.unitize(directions)
+        vectors = np.asanyarray(vectors,
+                                dtype=np.float64)
+        vectors = util.unitize(vectors)
 
         # since we are constructing all hits save them to a
         # deque then stack into (depth, len(rays)) at the end
@@ -148,7 +135,7 @@ class RayMeshIntersector(parent.RayMeshParent):
             distance = np.clip(_offset_factor * self._scale,
                                _offset_floor,
                                np.inf)
-            offsets = directions * distance
+            offsets = vectors * distance
 
             # grab the planes from triangles
             plane_origins = self.mesh.triangles[:, 0, :]
@@ -164,7 +151,7 @@ class RayMeshIntersector(parent.RayMeshParent):
 
             query = self._scene.run(
                 origins[current],
-                directions[current])
+                vectors[current])
             # basically we need to reduce the rays to the ones that hit
             # something
             hit = query != -1
@@ -192,7 +179,7 @@ class RayMeshIntersector(parent.RayMeshParent):
                 plane_origins=plane_origins[hit_triangle],
                 plane_normals=plane_normals[hit_triangle],
                 line_origins=origins[current],
-                line_directions=directions[current])
+                line_vectors=vectors[current])
 
             if not valid.all():
                 # since a plane intersection was invalid we have to go back and
@@ -228,10 +215,9 @@ class RayMeshIntersector(parent.RayMeshParent):
             return index_tri, index_ray, locations
         return index_tri, index_ray
 
-    @log_time
     def intersects_first(self,
                          origins,
-                         directions):
+                         vectors):
         """
         Find the index of the first triangle a ray hits.
 
@@ -240,7 +226,7 @@ class RayMeshIntersector(parent.RayMeshParent):
         ----------
         origins : (n, 3) float
           Origins of rays
-        directions : (n, 3) float
+        vectors : (n, 3) float
           Direction (vector) of rays
 
         Returns
@@ -250,15 +236,13 @@ class RayMeshIntersector(parent.RayMeshParent):
         """
 
         origins = np.asanyarray(deepcopy(origins))
-        directions = np.asanyarray(directions)
+        vectors = np.asanyarray(vectors)
 
         triangle_index = self._scene.run(origins,
-                                         directions)
+                                         vectors)
         return triangle_index
 
-    def intersects_any(self,
-                       origins,
-                       directions):
+    def intersects_any(self, origins, vectors):
         """
         Check if a list of rays hits the surface.
 
@@ -267,7 +251,7 @@ class RayMeshIntersector(parent.RayMeshParent):
         -----------
         origins : (n, 3) float
           Origins of rays
-        directions : (n, 3) float
+        vectors : (n, 3) float
           Direction (vector) of rays
 
         Returns
@@ -277,26 +261,9 @@ class RayMeshIntersector(parent.RayMeshParent):
         """
 
         first = self.intersects_first(origins=origins,
-                                      directions=directions)
+                                      vectors=vectors)
         hit = first != -1
         return hit
-
-    def contains_points(self, points):
-        """
-        Check if a mesh contains a list of points, using ray tests.
-
-        If the point is on the surface of the mesh, behavior is undefined.
-
-        Parameters
-        ---------
-        points: (n, 3) points in space
-
-        Returns
-        ---------
-        contains: (n,) bool
-                         Whether point is inside mesh or not
-        """
-        return contains_points(self, points)
 
 
 class _EmbreeWrap(object):

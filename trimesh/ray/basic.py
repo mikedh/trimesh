@@ -10,7 +10,8 @@ from .. import intersections
 from .. import triangles as triangles_mod
 
 from ..constants import tol
-from .parent import RayParent, _kwarg_depr
+from .parent import RayParent, _kwarg_deprecate
+
 
 class RayMeshIntersector(RayParent):
     """
@@ -22,10 +23,13 @@ class RayMeshIntersector(RayParent):
         self.mesh = mesh
         self._cache = caching.Cache(self.mesh.crc)
 
-    @_kwarg_depr
+    def __repr__(self):
+        return 'basic.RayMesh'
+
+    @_kwarg_deprecate
     def intersects_id(self,
                       origins,
-                      directions,
+                      vectors,
                       return_locations=False,
                       multiple_hits=True,
                       **kwargs):
@@ -35,7 +39,7 @@ class RayMeshIntersector(RayParent):
          locations) = triangle_id(
              triangles=self.mesh.triangles,
              origins=origins,
-             directions=directions,
+             vectors=vectors,
              tree=self.mesh.triangles_tree,
              multiple_hits=multiple_hits,
              triangles_normal=self.mesh.face_normals)
@@ -47,62 +51,11 @@ class RayMeshIntersector(RayParent):
             return index_tri[unique], index_ray[unique], locations[unique]
         return index_tri, index_ray
 
-    @_kwarg_depr
-    def intersects_location(self,
-                            origins,
-                            directions,
-                            **kwargs):
-        # inherits docstring from parent
-        (index_tri,
-         index_ray,
-         locations) = self.intersects_id(
-             origins=origins,
-             directions=directions,
-             return_locations=True,
-             **kwargs)
-        return locations, index_ray, index_tri
-
-    @_kwarg_depr
-    def intersects_first(
-            self,
-            origins,
-            directions,
-            **kwargs):
-        # inherits docstring from parent
-        (index_tri,
-         index_ray) = self.intersects_id(
-             origins=origins,
-             directions=directions,
-             return_locations=False,
-             multiple_hits=False,
-             **kwargs)
-
-        # put the result into the form of
-        # "one triangle index per ray"
-        result = np.ones(len(origins), dtype=np.int64) * -1
-        result[index_ray] = index_tri
-
-        return result
-
-    @_kwarg_depr
-    def intersects_any(self,
-                       origins,
-                       directions,
-                       **kwargs):
-        # inherits docstring from parent
-        index_tri, index_ray = self.intersects_id(
-            origins, directions)
-        hit_any = np.zeros(len(origins), dtype=bool)
-        hit_idx = np.unique(index_ray)
-        if len(hit_idx) > 0:
-            hit_any[hit_idx] = True
-        return hit_any
-
 
 def triangle_id(
         triangles,
         origins,
-        directions,
+        vectors,
         triangles_normal=None,
         tree=None,
         multiple_hits=True):
@@ -115,7 +68,7 @@ def triangle_id(
       Triangles in space
     origins : (m, 3) float
       Ray origin points
-    directions : (m, 3) float
+    vectors : (m, 3) float
       Ray direction vectors
     triangles_normal : (n, 3) float
       Normal vector of triangles, optional
@@ -133,7 +86,7 @@ def triangle_id(
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
     origins = np.asanyarray(origins, dtype=np.float64)
-    directions = np.asanyarray(directions, dtype=np.float64)
+    vectors = np.asanyarray(vectors, dtype=np.float64)
 
     # if we didn't get passed an r-tree for the bounds of each
     # triangle create one here
@@ -144,7 +97,7 @@ def triangle_id(
     # correspond with, via rtree queries
     candidates, ids = ray_triangle_candidates(
         origins=origins,
-        directions=directions,
+        vectors=vectors,
         tree=tree)
 
     # get subsets which are corresponding rays and triangles
@@ -152,7 +105,7 @@ def triangle_id(
     triangle_candidates = triangles[candidates]
     # (c,3) origins and vectors for the rays
     line_origins = origins[ids]
-    line_directions = directions[ids]
+    line_vectors = vectors[ids]
 
     # get the plane origins and normals from the triangle candidates
     plane_origins = triangle_candidates[:, 0, :]
@@ -169,7 +122,7 @@ def triangle_id(
         plane_origins=plane_origins,
         plane_normals=plane_normals,
         line_origins=line_origins,
-        line_directions=line_directions)
+        line_vectors=line_vectors)
 
     if (len(triangle_candidates) == 0 or
             not valid.any()):
@@ -202,7 +155,7 @@ def triangle_id(
     # only return points that are forward from the origin
     vector = location - origins[index_ray]
     distance = util.diagonal_dot(
-        vector, directions[index_ray])
+        vector, vectors[index_ray])
     forward = distance > -1e-6
 
     index_tri = index_tri[forward]
@@ -226,7 +179,7 @@ def triangle_id(
     return index_tri[first], index_ray[first], location[first]
 
 
-def ray_triangle_candidates(origins, directions, tree):
+def ray_triangle_candidates(origins, vectors, tree):
     """
     Do broad- phase search for triangles that the rays
     may intersect.
@@ -238,7 +191,7 @@ def ray_triangle_candidates(origins, directions, tree):
     ------------
     origins : (m, 3) float
       Ray origin points
-    directions : (m, 3) float
+    vectors : (m, 3) float
       Ray direction vectors
     tree : rtree.Index
        Contains AABB of each triangle
@@ -251,7 +204,7 @@ def ray_triangle_candidates(origins, directions, tree):
       Corresponding ray index for a triangle candidate
     """
     bounding = ray_bounds(origins=origins,
-                          directions=directions,
+                          vectors=vectors,
                           bounds=tree.bounds)
     candidates = [[]] * len(origins)
     ids = [[]] * len(origins)
@@ -268,7 +221,7 @@ def ray_triangle_candidates(origins, directions, tree):
 
 
 def ray_bounds(origins,
-               directions,
+               vectors,
                bounds,
                buffer_dist=1e-5):
     """
@@ -280,7 +233,7 @@ def ray_bounds(origins,
     ------------
     origins : (m, 3) float
       Ray origin points
-    directions : (m, 3) float
+    vectors : (m, 3) float
       Ray direction vectors
     bounds : (2, 3) float
       Bounding box (min, max)
@@ -294,17 +247,17 @@ def ray_bounds(origins,
     """
 
     origins = np.asanyarray(origins, dtype=np.float64)
-    directions = np.asanyarray(directions, dtype=np.float64)
+    vectors = np.asanyarray(vectors, dtype=np.float64)
 
     # bounding box we are testing against
     bounds = np.asanyarray(bounds)
 
     # find the primary axis of the vector
-    axis = np.abs(directions).argmax(axis=1)
+    axis = np.abs(vectors).argmax(axis=1)
     axis_bound = bounds.reshape((2, -1)).T[axis]
     axis_ori = np.array([origins[i][a]
                          for i, a in enumerate(axis)]).reshape((-1, 1))
-    axis_dir = np.array([directions[i][a]
+    axis_dir = np.array([vectors[i][a]
                          for i, a in enumerate(axis)]).reshape((-1, 1))
 
     # parametric equation of a line
@@ -323,12 +276,12 @@ def ray_bounds(origins,
 
     # the cartesion point for where the line hits the plane defined by
     # axis
-    on_a = (directions * t_a) + origins
-    on_b = (directions * t_b) + origins
+    on_a = (vectors * t_a) + origins
+    on_b = (vectors * t_b) + origins
 
     on_plane = np.column_stack(
         (on_a, on_b)).reshape(
-        (-1, 2, directions.shape[1]))
+        (-1, 2, vectors.shape[1]))
 
     bounding = np.hstack((on_plane.min(axis=1),
                           on_plane.max(axis=1)))
