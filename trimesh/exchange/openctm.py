@@ -44,7 +44,7 @@ try:
     else:
         _ctm_loader = ctypes.CDLL
 except BaseException:
-    pass
+    _ctm_lib_name = None
 
 
 def load_ctm(file_obj, file_type=None, **kwargs):
