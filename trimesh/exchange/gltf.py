@@ -1216,7 +1216,7 @@ def unique_name(start, contains):
         formatter = split[0] + '_{}'
 
     # if contains is empty we will only need to check once
-    for i in range(increment + 1, 1 + increment + len(contains)):
+    for i in range(increment + 1, 2 + increment + len(contains)):
         check = formatter.format(i)
         if check not in contains:
             return check
@@ -1363,6 +1363,7 @@ def _read_buffers(header,
                 names_original[index].append(name)
                 # make name unique across multiple meshes
                 name = unique_name(name, meshes)
+
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
                     from ..path.entities import Line
@@ -1435,7 +1436,7 @@ def _read_buffers(header,
                     # each primitive gets it's own Trimesh object
                     if len(m["primitives"]) > 1:
                         kwargs['metadata']['from_gltf_primitive'] = True
-                        name += "_{}".format(j)
+                        name = unique_name(name, meshes)
                     else:
                         kwargs['metadata']['from_gltf_primitive'] = False
 
@@ -1447,6 +1448,8 @@ def _read_buffers(header,
                 else:
                     log.warning('skipping primitive with mode %s!', mode)
                     continue
+                # this should absolutely not be stomping on itself
+                assert name not in meshes
                 meshes[name] = kwargs
                 mesh_prim[index].append(name)
         except BaseException as E:
@@ -1455,6 +1458,7 @@ def _read_buffers(header,
                           exc_info=True),
             else:
                 raise E
+
     # sometimes GLTF "meshes" come with multiple "primitives"
     # by default we return one Trimesh object per "primitive"
     # but if merge_primitives is True we combine the primitives
