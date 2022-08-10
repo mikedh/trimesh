@@ -308,10 +308,10 @@ def parse_mtl(mtl, resolver=None):
     lines = str.splitlines(str(mtl).strip())
 
     # remap OBJ property names to kwargs for SimpleMaterial
-    mapped = {'Kd': 'diffuse',
-              'Ka': 'ambient',
-              'Ks': 'specular',
-              'Ns': 'glossiness'}
+    mapped = {'kd': 'diffuse',
+              'ka': 'ambient',
+              'ks': 'specular',
+              'ns': 'glossiness'}
 
     for line in lines:
         # split by white space

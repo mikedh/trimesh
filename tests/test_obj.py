@@ -294,6 +294,38 @@ class OBJTest(g.unittest.TestCase):
         # assert g.np.allclose(
         #    1.0, g.np.linalg.norm(mesh.vertex_normals, axis=1))
 
+    def test_mtl_color_roundtrip(self):
+
+        # create a mesh with a simple material
+        m = g.trimesh.creation.box()
+        m.visual = m.visual.to_texture()
+        # set each color component to a unique value
+        colors = [g.trimesh.visual.color.random_color()
+                  for _ in range(3)]
+        m.visual.material.ambient = colors[0]
+        m.visual.material.specular = colors[1]
+        m.visual.material.diffuse = colors[2]
+        m.visual.material.glossiness = 0.52622
+
+        with g.trimesh.util.TemporaryDirectory() as d:
+            # exporting by filename will automatically
+            # create a FilePathResolver which writes the
+            # `mtl` file to the same directory
+            file_name = g.os.path.join(d, 'hi.obj')
+            m.export(file_name)
+            # reload the export by file name
+            r = g.trimesh.load(file_name)
+
+        # these values should have survived the roundtrip
+        assert g.np.allclose(m.visual.material.ambient,
+                             r.visual.material.ambient)
+        assert g.np.allclose(m.visual.material.specular,
+                             r.visual.material.specular)
+        assert g.np.allclose(m.visual.material.diffuse,
+                             r.visual.material.diffuse)
+        assert g.np.isclose(m.visual.material.glossiness,
+                            r.visual.material.glossiness)
+
 
 def simple_load(text):
     # we're going to load faces in a basic text way
