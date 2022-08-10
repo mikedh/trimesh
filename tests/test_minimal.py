@@ -41,6 +41,12 @@ class MinimalTest(unittest.TestCase):
         assert offset.shape == (2, 2)
         assert density > .833
 
+    def test_path_imports(self):
+        # check various utility functions that should
+        # import cleanly even if there's no shapely/etc
+        from trimesh.path import packing
+        from trimesh.path.segments import resample
+
     def test_load(self):
         # kinds of files we should be able to
         # load even with a minimal install
