@@ -1,6 +1,6 @@
 {
   "$id": "https://github.com/mikedh/trimesh/blob/main/trimesh/resources/schema/primitive/transform.schema.json",
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema",
   "description": "A homogeneous transformation matrix. If not passed it is assumed to be an identity matrix ",
   "items": {
     "items": {

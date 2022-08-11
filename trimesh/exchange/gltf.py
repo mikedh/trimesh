@@ -1201,19 +1201,20 @@ def unique_name(start, contains):
       A name that is not contained in `contains`
     """
     # exit early if name is not in bundle
-    if len(start) > 0 and start not in contains:
+    if len(contains) == 0 or (len(start) > 0 and start not in contains):
         return start
+
     increment = 0
-    if len(start) == 0:
-        formatter = '{}'
-    else:
+    formatter = start + '_{}'
+    if len(start) > 0:
         # split by our delimiter once
         split = start.rsplit('_', 1)
         if len(split) == 2 and split[1].isnumeric():
+            if split[0] not in contains:
+                return split[0]
             # start incrementing from the passed value
             increment = int(split[1])
-        # keep the original name and add an integer to it
-        formatter = split[0] + '_{}'
+            formatter = split[0] + '_{}'
 
     # if contains is empty we will only need to check once
     for i in range(increment + 1, 2 + increment + len(contains)):
@@ -1467,18 +1468,21 @@ def _read_buffers(header,
         # if we are only returning one Trimesh object
         # replace `mesh_prim` with updated values
         mesh_prim_replace = dict()
-        mesh_pop = []
+        # these are the names of meshes we need to remove
+        mesh_pop = set()
         for mesh_index, names in mesh_prim.items():
             if len(names) <= 1:
                 mesh_prim_replace[mesh_index] = names
                 continue
-            name = names_original[mesh_index][0]
-            if name in meshes:
-                name = name + '_' + str(np.random.random())[2:12]
+
+            # just take the shortest name option available
+            name = min(names)
             # remove the other meshes after we're done looping
-            mesh_pop.extend(names[:])
-            # collect the meshes
-            # TODO : use mesh concatenation with texture support
+            # since we're reusing the shortest one don't pop
+            # that as we'll be overwriting it with the combined
+            mesh_pop.update(set(names).difference([name]))
+
+            # get all meshes for this group
             current = [meshes[n] for n in names]
             v_seq = [p['vertices'] for p in current]
             f_seq = [p['faces'] for p in current]
@@ -1488,9 +1492,9 @@ def _read_buffers(header,
             for i, p in enumerate(current):
                 face_materials += [i] * len(p['faces'])
             visuals = visual.texture.TextureVisuals(
-                material=visual.material.MultiMaterial(materials=materials),
-                face_materials=face_materials
-            )
+                material=visual.material.MultiMaterial(
+                    materials=materials),
+                face_materials=face_materials)
             if 'metadata' in meshes[names[0]]:
                 metadata = meshes[names[0]]['metadata']
             else:

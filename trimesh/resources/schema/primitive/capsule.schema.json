@@ -1,6 +1,6 @@
 {
   "$id": "https://github.com/mikedh/trimesh/blob/main/trimesh/resources/schema/primitive/capsule.schema.json",
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema",
   "additionalProperties": false,
   "description": "A 3D capsule primitive: a cylinder capped by tangent hemispheres.",
   "properties": {
@@ -20,6 +20,10 @@
       "$ref": "transform.schema.json"
     }
   },
-  "required": ["radius", "height", "kind"],
+  "required": [
+    "radius",
+    "height",
+    "kind"
+  ],
   "type": "object"
 }

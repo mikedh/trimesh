@@ -695,12 +695,34 @@ class GLTFTest(g.unittest.TestCase):
     def test_primitive_geometry_meta(self):
         # Model with primitives
         s = g.get_mesh('CesiumMilkTruck.glb')
-
+        # check to see if names are somewhat sane
+        assert set(s.geometry.keys()) == set([
+            'Cesium_Milk_Truck',
+            'Cesium_Milk_Truck_1',
+            'Cesium_Milk_Truck_2',
+            'Wheels'])
         # Assert that primitive geometries are marked as such
-        assert s.geometry['Cesium_Milk_Truck_0'].metadata['from_gltf_primitive']
+        assert s.geometry['Cesium_Milk_Truck'].metadata[
+            'from_gltf_primitive']
+        assert s.geometry['Cesium_Milk_Truck_1'].metadata[
+            'from_gltf_primitive']
+        assert s.geometry['Cesium_Milk_Truck_2'].metadata[
+            'from_gltf_primitive']
+        # Assert that geometries that are not primitives
+        # are not marked as such
+        assert not s.geometry['Wheels'].metadata[
+            'from_gltf_primitive']
 
-        # Assert that geometries that are not primitives are not marked as such
-        assert not s.geometry['Wheels'].metadata['from_gltf_primitive']
+        # make sure the flags survive being merged
+        m = g.get_mesh('CesiumMilkTruck.glb',
+                       merge_primitives=True)
+        # names should be non-insane
+        assert set(m.geometry.keys()) == set([
+            'Cesium_Milk_Truck', 'Wheels'])
+        assert not s.geometry['Wheels'].metadata[
+            'from_gltf_primitive']
+        assert s.geometry['Cesium_Milk_Truck'].metadata[
+            'from_gltf_primitive']
 
     def test_points(self):
         # test a simple pointcloud export-import cycle
