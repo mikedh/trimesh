@@ -155,7 +155,7 @@ class GLTFTest(g.unittest.TestCase):
         s = g.get_mesh('AlphaBlendModeTest.glb')
         # should be 5 test geometries
         assert len([geom for geom in
-                    s.geometry if g.startswith('Test')]) == 5
+                    s.geometry if geom.startswith('Test')]) == 5
         assert s.geometry['TestCutoffDefaultMesh'].visual.material.alphaMode == 'MASK'
         assert s.geometry['TestCutoff25Mesh'].visual.material.alphaMode == 'MASK'
         assert s.geometry['TestCutoff25Mesh'].visual.material.alphaCutoff == 0.25
@@ -178,7 +178,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # make sure export keeps alpha modes
         # should be the same
-        assert len([geom for geom in rs.geometry if g.startswith('Test')]) == 5
+        assert len([geom for geom in rs.geometry if geom.startswith('Test')]) == 5
         assert rs.geometry['TestCutoffDefaultMesh'].visual.material.alphaMode == 'MASK'
         assert rs.geometry['TestCutoff25Mesh'].visual.material.alphaMode == 'MASK'
         assert rs.geometry['TestCutoff25Mesh'].visual.material.alphaCutoff == 0.25
