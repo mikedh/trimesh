@@ -150,6 +150,44 @@ class GLTFTest(g.unittest.TestCase):
         # make basic assertions
         g.scene_equal(s, reloaded)
 
+    def test_alphamode(self):
+        # A GLTF with combinations of AlphaMode and AlphaCutoff
+
+        s = g.get_mesh('AlphaBlendModeTest.glb')
+        # should be 5 test geometries
+        assert len([g for g in s.geometry if g.startswith('Test')]) == 5
+        assert s.geometry['TestCutoffDefaultMesh'].visual.material.alphaMode == 'MASK'
+        assert s.geometry['TestCutoff25Mesh'].visual.material.alphaMode == 'MASK'
+        assert s.geometry['TestCutoff25Mesh'].visual.material.alphaCutoff == 0.25
+        assert s.geometry['TestCutoff75Mesh'].visual.material.alphaMode == 'MASK'
+        assert s.geometry['TestCutoff75Mesh'].visual.material.alphaCutoff == 0.75
+        assert s.geometry['TestBlendMesh'].visual.material.alphaMode == 'BLEND'
+        # defaults OPAQUE
+        assert s.geometry['TestOpaqueMesh'].visual.material.alphaMode is None
+
+        export = s.export(file_type='glb')
+        validate_glb(export)
+
+        # roundtrip it
+        rs = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(export),
+            file_type='glb')
+
+        # make basic assertions
+        g.scene_equal(s, rs)
+
+        # make sure export keeps alpha modes
+        # should be the same
+        assert len([g for g in rs.geometry if g.startswith('Test')]) == 5
+        assert rs.geometry['TestCutoffDefaultMesh'].visual.material.alphaMode == 'MASK'
+        assert rs.geometry['TestCutoff25Mesh'].visual.material.alphaMode == 'MASK'
+        assert rs.geometry['TestCutoff25Mesh'].visual.material.alphaCutoff == 0.25
+        assert rs.geometry['TestCutoff75Mesh'].visual.material.alphaMode == 'MASK'
+        assert rs.geometry['TestCutoff75Mesh'].visual.material.alphaCutoff == 0.75
+        assert rs.geometry['TestBlendMesh'].visual.material.alphaMode == 'BLEND'
+        # defaults OPAQUE
+        assert rs.geometry['TestOpaqueMesh'].visual.material.alphaMode is None
+
     def test_units(self):
 
         # Trimesh will store units as a GLTF extra if they
