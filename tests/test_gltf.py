@@ -806,7 +806,7 @@ class GLTFTest(g.unittest.TestCase):
                 # are non-unit-vectors so pop them on export here
                 if 'vertex_normals' in geom._cache:
                     cached = geom._cache.cache['vertex_normals']
-                    if not g.np.isclose(g.np.linalg.norm(
+                    if not g.np.allclose(g.np.linalg.norm(
                             cached, axis=1), 1.0, atol=1e-6):
                         geom._cache.cache.pop('vertex_normals')
 

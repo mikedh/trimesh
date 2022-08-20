@@ -332,6 +332,8 @@ def simple_load(text):
     # we're going to load faces in a basic text way
     # and compare the order from this method to the
     # trimesh loader, to see if we get the same thing
+    # note that trimesh's extremely convoluted string
+    # wangling is wildly faster than this
     f = []
     v = []
     vt = []
