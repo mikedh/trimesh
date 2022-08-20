@@ -202,7 +202,9 @@ class SceneTests(g.unittest.TestCase):
         [s.graph[n] for n in s.graph.nodes]
 
     def test_dupe(self):
-        m = g.get_mesh('tube.obj')
+        m = g.get_mesh('tube.obj',
+                       merge_norm=True,
+                       merge_tex=True)
 
         assert m.body_count == 1
 
