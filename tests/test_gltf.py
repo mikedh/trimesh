@@ -802,6 +802,13 @@ class GLTFTest(g.unittest.TestCase):
                         continue
                     raise ValueError(
                         'voxel was allowed to export wrong GLB!')
+                # GLTF validator will fail if vertex normals
+                # are non-unit-vectors so pop them on export here
+                if 'vertex_normals' in geom._cache:
+                    cached = geom._cache.cache['vertex_normals']
+                    if not g.np.allclose(g.np.linalg.norm(
+                            cached, axis=1), 1.0, atol=1e-6):
+                        geom._cache.cache.pop('vertex_normals')
 
                 if hasattr(geom, 'vertices') and len(geom.vertices) == 0:
                     continue

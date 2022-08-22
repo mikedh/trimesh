@@ -140,6 +140,7 @@ class OBJTest(g.unittest.TestCase):
 
     def test_obj_compressed(self):
         mesh = g.get_mesh('cube_compressed.obj', process=False)
+        assert mesh._cache.cache['vertex_normals'].shape == mesh.vertices.shape
         assert g.np.allclose(
             g.np.abs(mesh.vertex_normals).sum(axis=1), 1.0)
 
@@ -180,10 +181,10 @@ class OBJTest(g.unittest.TestCase):
     def test_export_path(self):
         m = g.get_mesh('fuze.obj')
         g.check_fuze(m)
+        assert m._cache.cache['vertex_normals'].shape == m.vertices.shape
         with g.TemporaryDirectory() as d:
             file_path = g.os.path.join(d, 'fz.obj')
             m.export(file_path)
-
             r = g.trimesh.load(file_path)
             g.check_fuze(r)
 
@@ -331,6 +332,8 @@ def simple_load(text):
     # we're going to load faces in a basic text way
     # and compare the order from this method to the
     # trimesh loader, to see if we get the same thing
+    # note that trimesh's extremely convoluted string
+    # wangling is wildly faster than this
     f = []
     v = []
     vt = []
