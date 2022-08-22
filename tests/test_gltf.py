@@ -243,6 +243,7 @@ class GLTFTest(g.unittest.TestCase):
         r = g.trimesh.load(file_obj=None,
                            file_type='gltf',
                            resolver=export)
+
         # will assert round trip is roughly equal
         g.scene_equal(r, scene)
 
@@ -802,26 +803,22 @@ class GLTFTest(g.unittest.TestCase):
                         continue
                     raise ValueError(
                         'voxel was allowed to export wrong GLB!')
-                        
-                        
                 if hasattr(geom, 'vertices') and len(geom.vertices) == 0:
                     continue
-                if hasattr(geom, 'geometry'):
-                    if len(geom.geometry) == 0:
-                        continue
-                    for g in geom.geometry
-                
+                if hasattr(geom, 'geometry') and len(geom.geometry) == 0:
+                    continue
 
                 g.log.info('Testing: {}'.format(fn))
                 # check a roundtrip which will validate on export
                 # and crash on reload if we've done anything screwey
-                export = geom.export(file_type='glb')
+                # unitize normals will unitize any normals to comply with
+                # the validator although there are probably reasons you'd
+                # want to roundtrip non-unit normals for things, stuff, and activities
+                export = geom.export(file_type='glb', unitize_normals=True)
                 validate_glb(export, name=fn)
-                # todo : importer breaks on `models/empty*` as it
-                # doesn't know what to do with empty meshes
-                # reloaded = g.trimesh.load(
-                #    g.trimesh.util.wrap_as_stream(export),
-                #    file_type='glb')
+                # shouldn't crash on a reload
+                g.trimesh.load(file_obj=g.trimesh.util.wrap_as_stream(export),
+                               file_type='glb')
 
     def test_interleaved(self):
         # do a quick check on a mesh that uses byte stride

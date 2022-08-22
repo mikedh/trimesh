@@ -10,7 +10,6 @@ from ..arc import arc_center
 from ..entities import Line, Arc, Bezier
 
 from ...constants import log, tol
-from ...constants import res_path as res
 
 from ... import util
 from ... import grouping
@@ -580,7 +579,8 @@ def _encode(stuff):
     if util.is_string(stuff) and '"' not in stuff:
         return stuff
     pack = base64.urlsafe_b64encode(jsonify(
-        stuff, separators=(',', ':')).encode('utf-8'))
+        {k: v for k, v in stuff.items()
+         if not k.startswith('_')}, separators=(',', ':')).encode('utf-8'))
     result = 'base64,' + util.decode_text(pack)
     if tol.strict:
         # make sure we haven't broken the things

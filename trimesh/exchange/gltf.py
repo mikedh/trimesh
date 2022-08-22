@@ -70,6 +70,7 @@ uint8 = np.dtype("<u1")
 def export_gltf(scene,
                 include_normals=None,
                 merge_buffers=False,
+                unitize_normals=False,
                 tree_postprocessor=None):
     """
     Export a scene object as a GLTF directory.
@@ -103,6 +104,7 @@ def export_gltf(scene,
     # create the header and buffer data
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
+        unitize_normals=unitize_normals,
         include_normals=include_normals)
 
     # allow custom postprocessing
@@ -150,6 +152,7 @@ def export_gltf(scene,
 def export_glb(
         scene,
         include_normals=None,
+        unitize_normals=False,
         tree_postprocessor=None):
     """
     Export a scene as a binary GLTF (GLB) file.
@@ -179,6 +182,7 @@ def export_glb(
 
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
+        unitize_normals=unitize_normals,
         include_normals=include_normals)
 
     # allow custom postprocessing
@@ -547,9 +551,20 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
     return material
 
 
+def _jsonify(blob):
+    """
+    Roundtrip a blob through json export-import cycle
+    skipping any internal keys.
+    """
+    return json.loads(util.jsonify(
+        {k: v for k, v in blob.items()
+         if not k.startswith('_')}))
+
+
 def _create_gltf_structure(scene,
                            include_normals=None,
-                           include_metadata=True):
+                           include_metadata=True,
+                           unitize_normals=None,):
     """
     Generate a GLTF header.
 
@@ -561,6 +576,8 @@ def _create_gltf_structure(scene,
       Include `scene.metadata` as `scenes/{idx}/extras/metadata`
     include_normals : bool
       Include vertex normals in output file?
+    unitize_normals : bool
+      Unitize all exported normals so as to pass GLTF validation
 
     Returns
     ---------------
@@ -588,12 +605,9 @@ def _create_gltf_structure(scene,
 
     if include_metadata and len(scene.metadata) > 0:
         try:
-            # collect extras from passed arguments and metadata
-            meta = scene.metadata.copy()
             # fail here if data isn't json compatible
-            util.jsonify(meta)
             # only export the extras if there is something there
-            tree['scenes'][0]['extras'] = meta
+            tree['scenes'][0]['extras'] = _jsonify(scene.metadata)
         except BaseException:
             log.warning(
                 'failed to export scene metadata!', exc_info=True)
@@ -617,6 +631,7 @@ def _create_gltf_structure(scene,
                 tree=tree,
                 buffer_items=buffer_items,
                 include_normals=include_normals,
+                unitize_normals=unitize_normals,
                 mat_hashes=mat_hashes)
         elif util.is_instance_named(geometry, "Path"):
             # add Path2D and Path3D objects
@@ -660,6 +675,7 @@ def _append_mesh(mesh,
                  tree,
                  buffer_items,
                  include_normals,
+                 unitize_normals,
                  mat_hashes):
     """
     Append a mesh to the scene structure and put the
@@ -677,6 +693,10 @@ def _append_mesh(mesh,
       Will have buffer appended with mesh data
     include_normals : bool
       Include vertex normals in export or not
+    unitize_normals : bool
+      Transform normals into unit vectors.
+      May be undesirable but will fail validators without this.
+
     mat_hashes : dict
       Which materials have already been added
     """
@@ -716,8 +736,9 @@ def _append_mesh(mesh,
     # although that might be better, implicit works for 3DXML
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
     try:
-        current['extras'] = json.loads(util.jsonify(
-            mesh.metadata))
+        # skip jsonify any metadata, skipping internal keys
+        current['extras'] = _jsonify(mesh.metadata)
+
         if mesh.units not in [None, 'm', 'meters', 'meter']:
             current["extras"]["units"] = str(mesh.units)
     except BaseException:
@@ -781,6 +802,13 @@ def _append_mesh(mesh,
         (include_normals is None and
          'vertex_normals' in mesh._cache.cache)):
         # store vertex normals if requested
+        #
+        normals = mesh.vertex_normals.copy()
+        if unitize_normals:
+            norms = np.linalg.norm(normals, axis=1)
+            if not util.allclose(norms, 1.0, atol=1e-4):
+                normals /= norms.reshape((-1, 1))
+
         acc_norm = _data_append(
             acc=tree['accessors'],
             buff=buffer_items,
@@ -788,7 +816,7 @@ def _append_mesh(mesh,
                   "count": len(mesh.vertices),
                   "type": "VEC3",
                   "byteOffset": 0},
-            data=mesh.vertex_normals.astype(float32))
+            data=normals.astype(float32))
         # add the reference for vertex color
         current["primitives"][0]["attributes"][
             "NORMAL"] = acc_norm
@@ -982,7 +1010,7 @@ def _append_path(path, name, tree, buffer_items):
     # if units are defined, store them as an extra:
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
     try:
-        current["extras"] = json.loads(util.jsonify(path.metadata))
+        current["extras"] = _jsonify(path.metadata)
     except BaseException:
         log.warning('failed to serialize metadata, dropping!',
                     exc_info=True)
