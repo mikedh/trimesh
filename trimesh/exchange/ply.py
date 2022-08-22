@@ -467,8 +467,8 @@ def elements_to_kwargs(elements,
     kwargs : dict
       Keyword arguments for Trimesh constructor
     """
-
-    kwargs = {'metadata': {'ply_raw': elements}}
+    # store the raw ply structure as an internal key in metadata
+    kwargs = {'metadata': {'_ply_raw': elements}}
 
     if 'vertex' in elements and elements['vertex']['length']:
         vertices = np.column_stack([elements['vertex']['data'][i]

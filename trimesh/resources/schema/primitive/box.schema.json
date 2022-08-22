@@ -1,6 +1,6 @@
 {
   "$id": "https://github.com/mikedh/trimesh/blob/main/trimesh/resources/schema/primitive/box.schema.json",
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema",
   "additionalProperties": false,
   "description": "A 3D box primitive.",
   "properties": {
@@ -21,6 +21,9 @@
       "$ref": "transform.schema.json"
     }
   },
-  "required": ["extents", "kind"],
+  "required": [
+    "extents",
+    "kind"
+  ],
   "type": "object"
 }

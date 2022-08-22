@@ -154,6 +154,7 @@ def log_time(method):
         log.debug('%s executed in %.4f seconds.',
                   method.__name__,
                   now() - tic)
+
         return result
     timed.__name__ = method.__name__
     timed.__doc__ = method.__doc__

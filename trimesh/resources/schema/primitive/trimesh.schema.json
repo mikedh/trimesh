@@ -1,6 +1,6 @@
 {
   "$id": "https://github.com/mikedh/trimesh/blob/main/trimesh/resources/schema/primitive/trimesh.schema.json",
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema",
   "additionalProperties": false,
   "description": "A 3D triangular mesh in the simplest possible JSON format.",
   "properties": {
@@ -31,6 +31,9 @@
       "type": "array"
     }
   },
-  "required": ["vertices", "faces"],
+  "required": [
+    "vertices",
+    "faces"
+  ],
   "type": "object"
 }

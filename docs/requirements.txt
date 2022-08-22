@@ -1,10 +1,11 @@
-pypandoc==1.8
+pypandoc==1.8.1
 recommonmark==0.7.1
-sphinx==4.5.0
+sphinx==5.1.1
 jupyter==1.0.0
 sphinx_rtd_theme==1.0.0
-myst-parser==0.17.2
+myst-parser==0.18.0
 pyopenssl==22.0.0
-autodocsumm==0.2.8
+autodocsumm==0.2.9
 jinja2==3.1.2
-matplotlib==3.5.2
+matplotlib==3.5.3
+nbconvert==6.5.0

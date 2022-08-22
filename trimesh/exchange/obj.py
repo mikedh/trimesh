@@ -208,15 +208,15 @@ def load_obj(file_obj,
         else:
             # otherwise just use unmasked vertices
             uv = None
-
             # check to make sure indexes are in bounds
             if tol.strict:
                 assert faces.max() < len(v)
-
             if vn is not None and np.shape(faces_norm) == faces.shape:
                 # do the crazy unmerging logic for split indices
                 new_faces, mask_v, mask_vn = unmerge_faces(
-                    faces, faces_norm, maintain_faces=maintain_order)
+                    faces,
+                    faces_norm,
+                    maintain_faces=maintain_order)
             else:
                 # generate the mask so we only include
                 # referenced vertices in every new mesh
@@ -234,21 +234,27 @@ def load_obj(file_obj,
             mesh.update({'faces': new_faces,
                          'vertices': v[mask_v].copy()})
 
-            # if colors and normals are OK save them
-            if vc is not None:
-                try:
-                    # may fail on a malformed color mask
-                    mesh['vertex_colors'] = vc[mask_v]
-                except BaseException:
-                    log.warning('failed to load vertex_colors',
-                                exc_info=True)
-            if mask_vn is not None:
-                try:
-                    # may fail on a malformed mask
-                    mesh['vertex_normals'] = vn[mask_vn]
-                except BaseException:
-                    log.warning('failed to load vertex_normals',
-                                exc_info=True)
+        # if colors and normals are OK save them
+        if vc is not None:
+            try:
+                # may fail on a malformed color mask
+                mesh['vertex_colors'] = vc[mask_v]
+            except BaseException:
+                log.warning('failed to load vertex_colors',
+                            exc_info=True)
+        if mask_vn is not None:
+            try:
+                # may fail on a malformed mask
+                normals = vn[mask_vn]
+                if normals.shape != mesh['vertices'].shape:
+                    raise ValueError('incorrect normals {} != {}'.format(
+                        str(normals.shape),
+                        str(mesh['vertices'].shape)))
+                mesh['vertex_normals'] = normals
+            except BaseException:
+                log.warning('failed to load vertex_normals',
+                            exc_info=True)
+
         visual = None
         if material in materials:
             # use the material with the UV coordinates
@@ -308,10 +314,10 @@ def parse_mtl(mtl, resolver=None):
     lines = str.splitlines(str(mtl).strip())
 
     # remap OBJ property names to kwargs for SimpleMaterial
-    mapped = {'Kd': 'diffuse',
-              'Ka': 'ambient',
-              'Ks': 'specular',
-              'Ns': 'glossiness'}
+    mapped = {'kd': 'diffuse',
+              'ka': 'ambient',
+              'ks': 'specular',
+              'ns': 'glossiness'}
 
     for line in lines:
         # split by white space

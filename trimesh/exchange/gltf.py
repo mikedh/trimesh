@@ -70,6 +70,7 @@ uint8 = np.dtype("<u1")
 def export_gltf(scene,
                 include_normals=None,
                 merge_buffers=False,
+                unitize_normals=False,
                 tree_postprocessor=None):
     """
     Export a scene object as a GLTF directory.
@@ -103,6 +104,7 @@ def export_gltf(scene,
     # create the header and buffer data
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
+        unitize_normals=unitize_normals,
         include_normals=include_normals)
 
     # allow custom postprocessing
@@ -150,6 +152,7 @@ def export_gltf(scene,
 def export_glb(
         scene,
         include_normals=None,
+        unitize_normals=False,
         tree_postprocessor=None):
     """
     Export a scene as a binary GLTF (GLB) file.
@@ -179,6 +182,7 @@ def export_glb(
 
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
+        unitize_normals=unitize_normals,
         include_normals=include_normals)
 
     # allow custom postprocessing
@@ -547,9 +551,20 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
     return material
 
 
+def _jsonify(blob):
+    """
+    Roundtrip a blob through json export-import cycle
+    skipping any internal keys.
+    """
+    return json.loads(util.jsonify(
+        {k: v for k, v in blob.items()
+         if not k.startswith('_')}))
+
+
 def _create_gltf_structure(scene,
                            include_normals=None,
-                           include_metadata=True):
+                           include_metadata=True,
+                           unitize_normals=None,):
     """
     Generate a GLTF header.
 
@@ -561,6 +576,8 @@ def _create_gltf_structure(scene,
       Include `scene.metadata` as `scenes/{idx}/extras/metadata`
     include_normals : bool
       Include vertex normals in output file?
+    unitize_normals : bool
+      Unitize all exported normals so as to pass GLTF validation
 
     Returns
     ---------------
@@ -588,12 +605,9 @@ def _create_gltf_structure(scene,
 
     if include_metadata and len(scene.metadata) > 0:
         try:
-            # collect extras from passed arguments and metadata
-            meta = scene.metadata.copy()
             # fail here if data isn't json compatible
-            util.jsonify(meta)
             # only export the extras if there is something there
-            tree['scenes'][0]['extras'] = meta
+            tree['scenes'][0]['extras'] = _jsonify(scene.metadata)
         except BaseException:
             log.warning(
                 'failed to export scene metadata!', exc_info=True)
@@ -617,6 +631,7 @@ def _create_gltf_structure(scene,
                 tree=tree,
                 buffer_items=buffer_items,
                 include_normals=include_normals,
+                unitize_normals=unitize_normals,
                 mat_hashes=mat_hashes)
         elif util.is_instance_named(geometry, "Path"):
             # add Path2D and Path3D objects
@@ -660,6 +675,7 @@ def _append_mesh(mesh,
                  tree,
                  buffer_items,
                  include_normals,
+                 unitize_normals,
                  mat_hashes):
     """
     Append a mesh to the scene structure and put the
@@ -677,6 +693,10 @@ def _append_mesh(mesh,
       Will have buffer appended with mesh data
     include_normals : bool
       Include vertex normals in export or not
+    unitize_normals : bool
+      Transform normals into unit vectors.
+      May be undesirable but will fail validators without this.
+
     mat_hashes : dict
       Which materials have already been added
     """
@@ -716,8 +736,9 @@ def _append_mesh(mesh,
     # although that might be better, implicit works for 3DXML
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
     try:
-        current['extras'] = json.loads(util.jsonify(
-            mesh.metadata))
+        # skip jsonify any metadata, skipping internal keys
+        current['extras'] = _jsonify(mesh.metadata)
+
         if mesh.units not in [None, 'm', 'meters', 'meter']:
             current["extras"]["units"] = str(mesh.units)
     except BaseException:
@@ -781,6 +802,13 @@ def _append_mesh(mesh,
         (include_normals is None and
          'vertex_normals' in mesh._cache.cache)):
         # store vertex normals if requested
+        #
+        normals = mesh.vertex_normals.copy()
+        if unitize_normals:
+            norms = np.linalg.norm(normals, axis=1)
+            if not util.allclose(norms, 1.0, atol=1e-4):
+                normals /= norms.reshape((-1, 1))
+
         acc_norm = _data_append(
             acc=tree['accessors'],
             buff=buffer_items,
@@ -788,7 +816,7 @@ def _append_mesh(mesh,
                   "count": len(mesh.vertices),
                   "type": "VEC3",
                   "byteOffset": 0},
-            data=mesh.vertex_normals.astype(float32))
+            data=normals.astype(float32))
         # add the reference for vertex color
         current["primitives"][0]["attributes"][
             "NORMAL"] = acc_norm
@@ -982,7 +1010,7 @@ def _append_path(path, name, tree, buffer_items):
     # if units are defined, store them as an extra:
     # https://github.com/KhronosGroup/glTF/tree/master/extensions
     try:
-        current["extras"] = json.loads(util.jsonify(path.metadata))
+        current["extras"] = _jsonify(path.metadata)
     except BaseException:
         log.warning('failed to serialize metadata, dropping!',
                     exc_info=True)
@@ -1201,22 +1229,23 @@ def unique_name(start, contains):
       A name that is not contained in `contains`
     """
     # exit early if name is not in bundle
-    if len(start) > 0 and start not in contains:
+    if len(contains) == 0 or (len(start) > 0 and start not in contains):
         return start
+
     increment = 0
-    if len(start) == 0:
-        formatter = '{}'
-    else:
+    formatter = start + '_{}'
+    if len(start) > 0:
         # split by our delimiter once
         split = start.rsplit('_', 1)
         if len(split) == 2 and split[1].isnumeric():
+            if split[0] not in contains:
+                return split[0]
             # start incrementing from the passed value
             increment = int(split[1])
-        # keep the original name and add an integer to it
-        formatter = split[0] + '_{}'
+            formatter = split[0] + '_{}'
 
     # if contains is empty we will only need to check once
-    for i in range(increment + 1, 1 + increment + len(contains)):
+    for i in range(increment + 1, 2 + increment + len(contains)):
         check = formatter.format(i)
         if check not in contains:
             return check
@@ -1363,6 +1392,7 @@ def _read_buffers(header,
                 names_original[index].append(name)
                 # make name unique across multiple meshes
                 name = unique_name(name, meshes)
+
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
                     from ..path.entities import Line
@@ -1435,7 +1465,7 @@ def _read_buffers(header,
                     # each primitive gets it's own Trimesh object
                     if len(m["primitives"]) > 1:
                         kwargs['metadata']['from_gltf_primitive'] = True
-                        name += "_{}".format(j)
+                        name = unique_name(name, meshes)
                     else:
                         kwargs['metadata']['from_gltf_primitive'] = False
 
@@ -1447,6 +1477,8 @@ def _read_buffers(header,
                 else:
                     log.warning('skipping primitive with mode %s!', mode)
                     continue
+                # this should absolutely not be stomping on itself
+                assert name not in meshes
                 meshes[name] = kwargs
                 mesh_prim[index].append(name)
         except BaseException as E:
@@ -1455,6 +1487,7 @@ def _read_buffers(header,
                           exc_info=True),
             else:
                 raise E
+
     # sometimes GLTF "meshes" come with multiple "primitives"
     # by default we return one Trimesh object per "primitive"
     # but if merge_primitives is True we combine the primitives
@@ -1463,18 +1496,21 @@ def _read_buffers(header,
         # if we are only returning one Trimesh object
         # replace `mesh_prim` with updated values
         mesh_prim_replace = dict()
-        mesh_pop = []
+        # these are the names of meshes we need to remove
+        mesh_pop = set()
         for mesh_index, names in mesh_prim.items():
             if len(names) <= 1:
                 mesh_prim_replace[mesh_index] = names
                 continue
-            name = names_original[mesh_index][0]
-            if name in meshes:
-                name = name + '_' + str(np.random.random())[2:12]
+
+            # just take the shortest name option available
+            name = min(names)
             # remove the other meshes after we're done looping
-            mesh_pop.extend(names[:])
-            # collect the meshes
-            # TODO : use mesh concatenation with texture support
+            # since we're reusing the shortest one don't pop
+            # that as we'll be overwriting it with the combined
+            mesh_pop.update(set(names).difference([name]))
+
+            # get all meshes for this group
             current = [meshes[n] for n in names]
             v_seq = [p['vertices'] for p in current]
             f_seq = [p['faces'] for p in current]
@@ -1484,9 +1520,9 @@ def _read_buffers(header,
             for i, p in enumerate(current):
                 face_materials += [i] * len(p['faces'])
             visuals = visual.texture.TextureVisuals(
-                material=visual.material.MultiMaterial(materials=materials),
-                face_materials=face_materials
-            )
+                material=visual.material.MultiMaterial(
+                    materials=materials),
+                face_materials=face_materials)
             if 'metadata' in meshes[names[0]]:
                 metadata = meshes[names[0]]['metadata']
             else:
@@ -1763,8 +1799,11 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
         result['name'] = as_pbr.name
 
     # if alphaMode is defined, export
-    if isinstance(as_pbr.alphaMode, str) and isinstance(as_pbr.alphaCutoff, float):
+    if isinstance(as_pbr.alphaMode, str):
         result['alphaMode'] = as_pbr.alphaMode
+
+    # if alphaCutoff is defined, export
+    if isinstance(as_pbr.alphaCutoff, float):
         result['alphaCutoff'] = as_pbr.alphaCutoff
 
     # if doubleSided is defined, export

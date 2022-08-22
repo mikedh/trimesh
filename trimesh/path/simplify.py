@@ -322,9 +322,9 @@ def simplify_basic(drawing, process=False, **kwargs):
       Original path but with some closed line-loops converted to circles
     """
 
-    if any(i.__class__.__name__ != 'Line'
-           for i in drawing.entities):
-        log.debug('Path contains non- linear entities, skipping')
+    if any(entity.__class__.__name__ != 'Line'
+           for entity in drawing.entities):
+        log.debug('Skipping path containing entities other than `Line`')
         return drawing
 
     # we are going to do a bookkeeping to avoid having

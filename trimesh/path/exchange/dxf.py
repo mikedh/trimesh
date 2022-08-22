@@ -11,14 +11,6 @@ from ... import util
 from ... import grouping
 from ... import transformations as tf
 
-# stuff for DWG loading
-import os
-import shutil
-import tempfile
-import subprocess
-
-from distutils.spawn import find_executable
-
 
 # unit codes
 _DXF_UNITS = {1: 'inches',
@@ -83,12 +75,8 @@ def load_dxf(file_obj, **kwargs):
         # search for the sentinel string indicating binary DXF
         # do it by encoding sentinel to bytes and subset searching
         if raw[:22].find(b'AutoCAD Binary DXF') != -1:
-            if _teigha is None:
-                # no converter to ASCII DXF available
-                raise ValueError('binary DXF not supported!')
-            else:
-                # convert binary DXF to R14 ASCII DXF
-                raw = _teigha_convert(raw, extension='dxf')
+            # no converter to ASCII DXF available
+            raise ValueError('binary DXF not supported!')
         else:
             # we've been passed bytes that don't have the
             # header for binary DXF so try decoding as UTF-8
@@ -835,30 +823,6 @@ def export_dxf(path, only_layers=None):
     return blob
 
 
-def load_dwg(file_obj, **kwargs):
-    """
-    Load DWG files by converting them to DXF files using
-    TeighaFileConverter.
-
-    Parameters
-    -------------
-    file_obj : file- like object
-
-    Returns
-    -------------
-    loaded : dict
-        kwargs for a Path2D constructor
-    """
-    # read the DWG data into a bytes object
-    data = file_obj.read()
-    # convert data into R14 ASCII DXF
-    converted = _teigha_convert(data)
-    # load into kwargs for Path2D constructor
-    result = load_dxf(util.wrap_as_stream(converted))
-
-    return result
-
-
 def bulge_to_arcs(lines,
                   bulge,
                   bulge_idx,
@@ -1018,95 +982,5 @@ def get_key(blob, field, code):
         return None
 
 
-def _teigha_convert(data, extension='dwg'):
-    """
-    Convert any DXF/DWG to R14 ASCII DXF using Teigha Converter.
-
-    Parameters
-    ---------------
-    data : str or bytes
-       The contents of a DXF or DWG file
-    extension : str
-       The format of data: 'dwg' or 'dxf'
-
-    Returns
-    --------------
-    converted : str
-       Result as R14 ASCII DXF
-    """
-    # temp directory for DWG file
-    dir_dwg = tempfile.mkdtemp()
-    # temp directory for DXF output
-    dir_out = tempfile.mkdtemp()
-
-    # put together the subprocess command
-    cmd = [_xvfb_run,  # suppress the GUI QT status bar
-           '-a',      # use an automatic screen
-           _teigha,   # run the converter
-           dir_dwg,   # the directory containing DWG files
-           dir_out,   # the directory for output DXF files
-           'ACAD14',  # the revision of DXF
-           'DXF',     # the output format
-           '1',       # recurse input folder
-           '1']       # audit each file
-
-    # if Xvfb is already running it probably
-    # has a working configuration so use it
-    running = b'Xvfb' in subprocess.check_output(['ps', '-eaf'])
-    # chop off XVFB if it isn't installed or is running
-    if running or _xvfb_run is None:
-        cmd = cmd[2:]
-
-    # create file in correct mode for data
-    if hasattr(data, 'encode'):
-        # data is a string which can be encoded to bytes
-        mode = 'w'
-    else:
-        # data is already bytes
-        mode = 'wb'
-
-    # write the file_obj in the temp directory
-    dwg_name = os.path.join(dir_dwg, 'drawing.' + extension)
-    with open(dwg_name, mode) as f:
-        f.write(data)
-
-    # run the conversion
-    output = subprocess.check_output(cmd)
-
-    # load the ASCII DXF produced from the conversion
-    name_result = os.path.join(dir_out, 'drawing.dxf')
-    # if the conversion failed log things before failing
-    if not os.path.exists(name_result):
-        log.error('teigha convert failed!\nls {}: {}\n\n {}'.format(
-            dir_out,
-            os.listdir(dir_out),
-            output))
-        raise ValueError('conversion using Teigha failed!')
-
-    # load converted file into a string
-    with open(name_result, 'rb') as f:
-        converted = f.read().decode(errors='ignore')
-
-    # remove the temporary directories
-    shutil.rmtree(dir_out)
-    shutil.rmtree(dir_dwg)
-
-    return converted
-
-
-# the DWG to DXF converter
-# they renamed it at some point but it is the same
-for _name in ['ODAFileConverter',
-              'TeighaFileConverter']:
-    _teigha = find_executable(_name)
-    if _teigha is not None:
-        break
-
-# suppress X11 output
-_xvfb_run = find_executable('xvfb-run')
-
 # store the loaders we have available
 _dxf_loaders = {'dxf': load_dxf}
-# DWG is only available if teigha converter is installed
-if _teigha is not None:
-    _dxf_loaders['dwg'] = load_dwg

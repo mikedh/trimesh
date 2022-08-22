@@ -150,6 +150,44 @@ class GLTFTest(g.unittest.TestCase):
         # make basic assertions
         g.scene_equal(s, reloaded)
 
+    def test_alphamode(self):
+        # A GLTF with combinations of AlphaMode and AlphaCutoff
+        s = g.get_mesh('AlphaBlendModeTest.glb')
+        # should be 5 test geometries
+        assert len([geom for geom in
+                    s.geometry if geom.startswith('Test')]) == 5
+        assert s.geometry['TestCutoffDefaultMesh'].visual.material.alphaMode == 'MASK'
+        assert s.geometry['TestCutoff25Mesh'].visual.material.alphaMode == 'MASK'
+        assert s.geometry['TestCutoff25Mesh'].visual.material.alphaCutoff == 0.25
+        assert s.geometry['TestCutoff75Mesh'].visual.material.alphaMode == 'MASK'
+        assert s.geometry['TestCutoff75Mesh'].visual.material.alphaCutoff == 0.75
+        assert s.geometry['TestBlendMesh'].visual.material.alphaMode == 'BLEND'
+        # defaults OPAQUE
+        assert s.geometry['TestOpaqueMesh'].visual.material.alphaMode is None
+
+        export = s.export(file_type='glb')
+        validate_glb(export)
+
+        # roundtrip it
+        rs = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(export),
+            file_type='glb')
+
+        # make basic assertions
+        g.scene_equal(s, rs)
+
+        # make sure export keeps alpha modes
+        # should be the same
+        assert len([geom for geom in rs.geometry if geom.startswith('Test')]) == 5
+        assert rs.geometry['TestCutoffDefaultMesh'].visual.material.alphaMode == 'MASK'
+        assert rs.geometry['TestCutoff25Mesh'].visual.material.alphaMode == 'MASK'
+        assert rs.geometry['TestCutoff25Mesh'].visual.material.alphaCutoff == 0.25
+        assert rs.geometry['TestCutoff75Mesh'].visual.material.alphaMode == 'MASK'
+        assert rs.geometry['TestCutoff75Mesh'].visual.material.alphaCutoff == 0.75
+        assert rs.geometry['TestBlendMesh'].visual.material.alphaMode == 'BLEND'
+        # defaults OPAQUE
+        assert rs.geometry['TestOpaqueMesh'].visual.material.alphaMode is None
+
     def test_units(self):
 
         # Trimesh will store units as a GLTF extra if they
@@ -205,6 +243,7 @@ class GLTFTest(g.unittest.TestCase):
         r = g.trimesh.load(file_obj=None,
                            file_type='gltf',
                            resolver=export)
+
         # will assert round trip is roughly equal
         g.scene_equal(r, scene)
 
@@ -695,12 +734,34 @@ class GLTFTest(g.unittest.TestCase):
     def test_primitive_geometry_meta(self):
         # Model with primitives
         s = g.get_mesh('CesiumMilkTruck.glb')
-
+        # check to see if names are somewhat sane
+        assert set(s.geometry.keys()) == set([
+            'Cesium_Milk_Truck',
+            'Cesium_Milk_Truck_1',
+            'Cesium_Milk_Truck_2',
+            'Wheels'])
         # Assert that primitive geometries are marked as such
-        assert s.geometry['Cesium_Milk_Truck_0'].metadata['from_gltf_primitive']
+        assert s.geometry['Cesium_Milk_Truck'].metadata[
+            'from_gltf_primitive']
+        assert s.geometry['Cesium_Milk_Truck_1'].metadata[
+            'from_gltf_primitive']
+        assert s.geometry['Cesium_Milk_Truck_2'].metadata[
+            'from_gltf_primitive']
+        # Assert that geometries that are not primitives
+        # are not marked as such
+        assert not s.geometry['Wheels'].metadata[
+            'from_gltf_primitive']
 
-        # Assert that geometries that are not primitives are not marked as such
-        assert not s.geometry['Wheels'].metadata['from_gltf_primitive']
+        # make sure the flags survive being merged
+        m = g.get_mesh('CesiumMilkTruck.glb',
+                       merge_primitives=True)
+        # names should be non-insane
+        assert set(m.geometry.keys()) == set([
+            'Cesium_Milk_Truck', 'Wheels'])
+        assert not s.geometry['Wheels'].metadata[
+            'from_gltf_primitive']
+        assert s.geometry['Cesium_Milk_Truck'].metadata[
+            'from_gltf_primitive']
 
     def test_points(self):
         # test a simple pointcloud export-import cycle
@@ -742,7 +803,6 @@ class GLTFTest(g.unittest.TestCase):
                         continue
                     raise ValueError(
                         'voxel was allowed to export wrong GLB!')
-
                 if hasattr(geom, 'vertices') and len(geom.vertices) == 0:
                     continue
                 if hasattr(geom, 'geometry') and len(geom.geometry) == 0:
@@ -751,13 +811,14 @@ class GLTFTest(g.unittest.TestCase):
                 g.log.info('Testing: {}'.format(fn))
                 # check a roundtrip which will validate on export
                 # and crash on reload if we've done anything screwey
-                export = geom.export(file_type='glb')
+                # unitize normals will unitize any normals to comply with
+                # the validator although there are probably reasons you'd
+                # want to roundtrip non-unit normals for things, stuff, and activities
+                export = geom.export(file_type='glb', unitize_normals=True)
                 validate_glb(export, name=fn)
-                # todo : importer breaks on `models/empty*` as it
-                # doesn't know what to do with empty meshes
-                # reloaded = g.trimesh.load(
-                #    g.trimesh.util.wrap_as_stream(export),
-                #    file_type='glb')
+                # shouldn't crash on a reload
+                g.trimesh.load(file_obj=g.trimesh.util.wrap_as_stream(export),
+                               file_type='glb')
 
     def test_interleaved(self):
         # do a quick check on a mesh that uses byte stride

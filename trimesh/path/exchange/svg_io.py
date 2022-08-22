@@ -10,7 +10,6 @@ from ..arc import arc_center
 from ..entities import Line, Arc, Bezier
 
 from ...constants import log, tol
-from ...constants import res_path as res
 
 from ... import util
 from ... import grouping
@@ -348,7 +347,7 @@ def _svg_path_convert(paths, force=None):
 def _entities_to_str(entities,
                      vertices,
                      name=None,
-                     digits=5,
+                     digits=None,
                      only_layers=None):
     """
     Convert the entities of a path to path strings.
@@ -361,20 +360,28 @@ def _entities_to_str(entities,
       Vertices entities reference
     name : any
       Trimesh namespace name to assign to entity
+    digits : int
+      Number of digits to format exports into
     only_layers : set
       Only export these layers if passed
     """
+    if digits is None:
+        digits = 13
 
     points = vertices.copy()
 
-    def circle_to_svgpath(center, radius, reverse):
-        c = 'M {x},{y} a {r},{r},0,1,0,{d},0 a {r},{r},0,1,{rev},-{d},0 Z'
-        fmt = '{{:{}}}'.format(res.export)
-        return c.format(x=fmt.format(center[0] - radius),
-                        y=fmt.format(center[1]),
-                        r=fmt.format(radius),
-                        d=fmt.format(2.0 * radius),
-                        rev=int(bool(reverse)))
+    # generate a format string with the requested digits
+    temp_digits = '0.{}f'.format(int(digits))
+    # generate a format string for circles as two arc segments
+    temp_circle = ('M {x:DI},{y:DI}a{r:DI},{r:DI},0,1,0,{d:DI},' +
+                   '0a{r:DI},{r:DI},0,1,{rev},-{d:DI},0Z').replace('DI', temp_digits)
+    # generate a format string for an absolute move-to command
+    temp_move = 'M{:DI},{:DI}'.replace('DI', temp_digits)
+    # generate a format string for an absolute-line command
+    temp_line = 'L{:DI},{:DI}'.replace('DI', temp_digits)
+    # generate a format string for a single arc
+    temp_arc = 'M{SX:DI} {SY:DI}A{R},{R} 0 {L:d},{S:d} {EX:DI},{EY:DI}'.replace(
+        'DI', temp_digits)
 
     def svg_arc(arc, reverse=False):
         """
@@ -385,32 +392,28 @@ def _entities_to_str(entities,
         arc_idx = arc.points[::((reverse * -2) + 1)]
         vertices = points[arc_idx]
         vertex_start, vertex_mid, vertex_end = vertices
-        center_info = arc_center(
+        info = arc_center(
             vertices, return_normal=False, return_angle=True)
-        C, R, angle = (center_info['center'],
-                       center_info['radius'],
-                       center_info['span'])
+        C, R, angle = info['center'], info['radius'], info['span']
         if arc.closed:
-            return circle_to_svgpath(C, R, reverse)
-        large_flag = str(int(angle > np.pi))
-        sweep_flag = str(int(np.cross(
-            vertex_mid - vertex_start,
-            vertex_end - vertex_start) > 0.0))
-        return (move_to(arc_idx[0]) +
-                'A {R},{R} 0 {}, {} {},{}'.format(
-                    large_flag,
-                    sweep_flag,
-                    vertex_end[0],
-                    vertex_end[1],
-                    R=R))
+            return temp_circle.format(x=C[0] - R,
+                                      y=C[1],
+                                      r=R,
+                                      d=2.0 * R,
+                                      rev=int(bool(reverse)))
 
-    def move_to(vertex_id):
-        x_ex = format(points[vertex_id][0], res.export)
-        y_ex = format(points[vertex_id][1], res.export)
-        move_str = 'M ' + x_ex + ',' + y_ex
-        return move_str
+        large_flag = int(angle > np.pi)
+        sweep_flag = int(np.cross(vertex_mid - vertex_start,
+                                  vertex_end - vertex_start) > 0.0)
+        return temp_arc.format(SX=vertex_start[0],
+                               SY=vertex_start[1],
+                               L=large_flag,
+                               S=sweep_flag,
+                               EX=vertex_end[0],
+                               EY=vertex_end[1],
+                               R=R)
 
-    def svg_discrete(entity, digits=5, reverse=False):
+    def svg_discrete(entity, reverse=False):
         """
         Use an entities discrete representation to export a
         curve as a polyline
@@ -423,10 +426,10 @@ def _entities_to_str(entities,
         if reverse:
             discrete = discrete[::-1]
         # the format string for the SVG path
-        result = ('M{:0.{digits}} {:0.{digits}}' + (
-            'L{:0.{digits}} {:0.{digits}}' * (
-                len(discrete) - 1))).format(
-                    *discrete.reshape(-1), digits=digits)
+        result = (temp_move + (temp_line * (len(discrete) - 1))).format(
+            *discrete.reshape(-1))
+        assert result.count('L') == len(discrete) - 1
+
         return result
 
     # tuples of (metadata, path string)
@@ -453,6 +456,7 @@ def _entities_to_str(entities,
 def export_svg(drawing,
                return_path=False,
                only_layers=None,
+               digits=None,
                **kwargs):
     """
     Export a Path2D object into an SVG file.
@@ -463,6 +467,10 @@ def export_svg(drawing,
      Source geometry
     return_path : bool
       If True return only path string not wrapped in XML
+    only_layers : None or set
+      If passed only export the specified layers
+    digits : None or int
+      Number of digits for floating point values
 
     Returns
     -----------
@@ -474,7 +482,6 @@ def export_svg(drawing,
 
     if util.is_instance_named(drawing, 'Scene'):
         pairs = []
-
         geom_meta = {}
         for name, geom in drawing.geometry.items():
             if not util.is_instance_named(geom, 'Path2D'):
@@ -485,6 +492,7 @@ def export_svg(drawing,
                 entities=geom.entities,
                 vertices=geom.vertices,
                 name=name,
+                digits=digits,
                 only_layers=only_layers))
         if len(geom_meta) > 0:
             # encode the whole metadata bundle here to avoid
@@ -494,6 +502,7 @@ def export_svg(drawing,
         pairs = _entities_to_str(
             entities=drawing.entities,
             vertices=drawing.vertices,
+            digits=digits,
             only_layers=only_layers)
 
     else:
@@ -570,7 +579,8 @@ def _encode(stuff):
     if util.is_string(stuff) and '"' not in stuff:
         return stuff
     pack = base64.urlsafe_b64encode(jsonify(
-        stuff, separators=(',', ':')).encode('utf-8'))
+        {k: v for k, v in stuff.items()
+         if not k.startswith('_')}, separators=(',', ':')).encode('utf-8'))
     result = 'base64,' + util.decode_text(pack)
     if tol.strict:
         # make sure we haven't broken the things

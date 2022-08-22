@@ -43,8 +43,12 @@ try:
         _ctm_loader = ctypes.WinDLL
     else:
         _ctm_loader = ctypes.CDLL
-except BaseException:
-    pass
+    if _ctm_lib_name is None or len(_ctm_lib_name) == 0:
+        raise ImportError('libopenctm library not found!')
+except BaseException as E:
+    from ..exceptions import closure
+    _ctm_lib_name = None
+    _ctm_loader = closure(E)
 
 
 def load_ctm(file_obj, file_type=None, **kwargs):
@@ -53,14 +57,13 @@ def load_ctm(file_obj, file_type=None, **kwargs):
 
     Parameters
     ----------
-    file_obj : open file- like object
+    file_obj : file object
+      Open file-like object with CTM data.
 
     Returns
     ----------
     loaded : dict
-              kwargs for a Trimesh constructor:
-                {vertices: (n,3) float, vertices
-                 faces:    (m,3) int, indexes of vertices}
+     Keyword arguments for the Trimesh constructor
     """
     # actually load the library here
     _ctm_lib = _ctm_loader(_ctm_lib_name)
