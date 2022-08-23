@@ -481,10 +481,15 @@ def _parse_faces_fallback(lines):
                      split[0]]
         elif len_split > 4:
             # triangulate polygon as a triangles fan
-            split = [' '.join([split[0],
-                               split[i + 1],
-                               split[i + 2]])
-                     for i in range(len(split) - 2)]
+            collect = []
+            # we need a flat list so append inside
+            # a list comprehension
+            collect_append = collect.append
+            [[collect.append(split[0]),
+              collect.append(split[i + 1]),
+              collect.append(split[i + 2])]
+             for i in range(len(split) - 2)]
+            split = collect
         else:
             log.warning(
                 'face needs more values 3>{} skipping!'.format(

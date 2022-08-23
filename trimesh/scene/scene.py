@@ -426,8 +426,8 @@ class Scene(Geometry3D):
         areas = {n: g.area for n, g in self.geometry.items()
                  if hasattr(g, 'area')}
         # sum the area including instancing
-        return sum((areas[self.graph[n][1]] for n in
-                    self.graph.nodes_geometry if n in areas), 0.0)
+        return sum((areas.get(self.graph[n][1], 0.0) for n in
+                    self.graph.nodes_geometry), 0.0)
 
     @caching.cache_decorator
     def triangles(self):
