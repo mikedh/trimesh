@@ -115,7 +115,8 @@ class ExportTest(g.unittest.TestCase):
             assert isinstance(p, g.trimesh.path.Path2D)
             # load the exported SVG
             r = g.trimesh.load(
-                g.trimesh.util.wrap_as_stream(p.export(file_type='svg')),
+                g.trimesh.util.wrap_as_stream(
+                    p.export(file_type='svg')),
                 file_type='svg')
             assert isinstance(r, g.trimesh.path.Path2D)
             assert g.np.isclose(r.length, p.length)
@@ -143,7 +144,7 @@ class ExportTest(g.unittest.TestCase):
                 assert g.np.isclose(a.area, b.area)
                 assert a.body_count == b.body_count
 
-            assert r.metadata['file_path'].endswith(fn)
+            assert r.metadata['file_path'].endswith(fn[3:])
 
 
 if __name__ == '__main__':
