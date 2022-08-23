@@ -485,9 +485,9 @@ def _parse_faces_fallback(lines):
             # we need a flat list so append inside
             # a list comprehension
             collect_append = collect.append
-            [[collect.append(split[0]),
-              collect.append(split[i + 1]),
-              collect.append(split[i + 2])]
+            [[collect_append(split[0]),
+              collect_append(split[i + 1]),
+              collect_append(split[i + 2])]
              for i in range(len(split) - 2)]
             split = collect
         else:
