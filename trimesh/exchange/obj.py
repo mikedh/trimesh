@@ -480,12 +480,14 @@ def _parse_faces_fallback(lines):
                      split[3],
                      split[0]]
         elif len_split > 4:
-            # triangulate polygon, as a triangles fan
-            split = [[split[0], split[i + 1], split[i + 2]]
+            # triangulate polygon as a triangles fan
+            split = [' '.join([split[0],
+                               split[i + 1],
+                               split[i + 2]])
                      for i in range(len(split) - 2)]
         else:
             log.warning(
-                'face need at least 3 elements (got {})! skipping!'.format(
+                'face needs more values 3>{} skipping!'.format(
                     len(split)))
             continue
 
