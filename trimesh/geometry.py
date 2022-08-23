@@ -176,12 +176,21 @@ def triangulate_quads(quads, dtype=np.int64):
         # mixed tris, and quads, and other so filter and handle
         tri = np.array([i for i in quads if len(i) == 3])
         quad = np.array([i for i in quads if len(i) == 4])
-        if len(quad) == 0:
+        # triangulate arbitrary polygons as fans
+        poly = [[[f[0], f[i + 1], f[i + 2]]
+                 for i in range(len(f) - 2)]
+                for f in quads if len(f) > 4]
+
+        if len(quad) == 0 and len(poly) == 0:
             return tri.astype(dtype)
+        if len(poly) > 0:
+            poly = np.vstack(poly)
+        if len(quad) > 0:
+            quad = np.vstack((quad[:, [0, 1, 2]],
+                              quad[:, [2, 3, 0]]))
         # combine triangulated quads with triangles
         return util.vstack_empty([
-            tri, np.vstack((quad[:, [0, 1, 2]],
-                            quad[:, [2, 3, 0]]))]).astype(dtype)
+            tri, quad, poly]).astype(dtype)
 
 
 def vertex_face_indices(vertex_count,

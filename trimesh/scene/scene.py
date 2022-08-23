@@ -425,12 +425,9 @@ class Scene(Geometry3D):
         # get the area of every geometry that has an area property
         areas = {n: g.area for n, g in self.geometry.items()
                  if hasattr(g, 'area')}
-        # get the name of every geometry instance in the scene
-        geoms = [self.graph[n][1] for n in
-                 self.graph.nodes_geometry]
-        # sum the area for every instanced geometry
-        area = sum(areas[n] for n in geoms if n in geoms)
-        return area
+        # sum the area including instancing
+        return sum((areas[self.graph[n][1]] for n in
+                    self.graph.nodes_geometry if n in areas), 0.0)
 
     @caching.cache_decorator
     def triangles(self):

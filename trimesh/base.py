@@ -311,8 +311,8 @@ class Trimesh(Geometry3D):
             values = np.asanyarray(values, dtype=np.int64)
 
         # automatically triangulate quad faces
-        if len(values.shape) == 2 and values.shape[1] == 4:
-            log.info('triangulating quad faces')
+        if len(values.shape) == 2 and values.shape[1] != 3:
+            log.info('triangulating faces')
             values = geometry.triangulate_quads(values)
         self._data['faces'] = values
 

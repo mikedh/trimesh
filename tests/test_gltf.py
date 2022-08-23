@@ -815,20 +815,20 @@ class GLTFTest(g.unittest.TestCase):
                 # the validator although there are probably reasons you'd
                 # want to roundtrip non-unit normals for things, stuff, and activities
                 export = geom.export(file_type='glb', unitize_normals=True)
-                try:
-                    validate_glb(export, name=fn)
-                except:
-                    from IPython import embed
-                    embed()
-                
+                validate_glb(export, name=fn)
+
                 # shouldn't crash on a reload
                 reloaded = g.trimesh.load(
                     file_obj=g.trimesh.util.wrap_as_stream(export),
                     file_type='glb')
 
-                if hasattr(geom, 'area') and hasattr(reloaded, 'area'):
+                if isinstance(geom, g.trimesh.Trimesh):
                     assert g.np.isclose(geom.area, reloaded.area)
-                
+
+                # compute some stuff
+                assert isinstance(reloaded.area, float)
+                assert isinstance(reloaded.duplicate_nodes, list)
+
     def test_interleaved(self):
         # do a quick check on a mesh that uses byte stride
         with open(g.get_path('BoxInterleaved.glb'), 'rb') as f:

@@ -1417,7 +1417,6 @@ def _read_buffers(header,
                             kwargs['faces'] = util.triangle_strips_to_faces([flat])
                         else:
                             kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
-
                     else:
                         # indices are apparently optional and we are supposed to
                         # do the same thing as webGL drawArrays?
