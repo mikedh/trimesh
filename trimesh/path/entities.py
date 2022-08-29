@@ -636,11 +636,15 @@ class Arc(Entity):
             # we don't need the angular span as
             # it's indicated as a closed circle
             fit = self.center(
-                vertices, return_normal=False, return_angle=False)
+                vertices,
+                return_normal=False,
+                return_angle=False)
             return np.pi * fit['radius'] * 4
         # get the angular span of the circular arc
         fit = self.center(
-            vertices, return_normal=False, return_angle=True)
+            vertices,
+            return_normal=False,
+            return_angle=True)
         return fit['span'] * fit['radius'] * 2
 
     def discrete(self, vertices, scale=1.0):
@@ -695,21 +699,21 @@ class Arc(Entity):
         bounds : (2, dimension) float
           Coordinates of AABB in (min, max) form
         """
-        if util.is_shape(vertices, (-1, 2)) and self.closed:
-            # if we have a closed arc (a circle), we can return the actual bounds
-            # this only works in two dimensions, otherwise this would return the
-            # AABB of an sphere
-            info = self.center(vertices, return_normal=False, return_angle=False)
-            bounds = np.array([info['center'] - info['radius'],
-                               info['center'] + info['radius']],
-                              dtype=np.float64)
-        else:
-            # since the AABB of a partial arc is hard, approximate
-            # the bounds by just looking at the discrete values
-            discrete = self.discrete(vertices)
-            bounds = np.array([discrete.min(axis=0),
-                               discrete.max(axis=0)],
-                              dtype=np.float64)
+        info = self.center(
+            vertices,
+            return_normal=True,
+            return_angle=True)
+        center, radius = info['center'], info['radius']
+
+        vectors = vertices[self.points] - center
+
+        bounds = np.array([info['center'] - info['radius'],
+                           info['center'] + info['radius']],
+                          dtype=np.float64)
+
+        from IPython import embed
+        embed()
+
         return bounds
 
 

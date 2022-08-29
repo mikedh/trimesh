@@ -1,3 +1,4 @@
+from numba import njit
 import numpy as np
 
 from .. import util
@@ -7,10 +8,12 @@ from ..constants import tol_path as tol
 from ..constants import res_path as res
 
 # floating point zero
-_TOL_ZERO = 1e-12
+_EPS_ZERO = 1e-10
+_EPS_ONE = 1 - _EPS_ZERO
+_EPS_NEG = _EPS_ZERO - 1
 
 
-def arc_center(points, return_normal=True, return_angle=True):
+def arc_center_ori(points, return_normal=True, return_angle=True):
     """
     Given three points on a 2D or 3D arc find the center,
     radius, normal, and angular span.
@@ -52,7 +55,7 @@ def arc_center(points, return_normal=True, return_angle=True):
     half = edges.sum() / 2.0
     # check the denominator for the radius calculation
     denom = half * np.product(half - edges)
-    if denom < tol.merge:
+    if denom < 1e-8:
         raise ValueError('arc is colinear!')
     # find the radius and scale back after the operation
     radius = scale * ((np.product(edges) / 4.0) / np.sqrt(denom))
@@ -88,28 +91,165 @@ def arc_center(points, return_normal=True, return_angle=True):
     if return_angle:
         # vectors from points on arc to center point
         vector = util.unitize(points - center)
-        edge_direction = np.diff(points, axis=0)
         # find the angle between the first and last vector
         dot = np.dot(*vector[[0, 2]])
-        if dot < (_TOL_ZERO - 1):
+        if dot < _EPS_NEG:
             angle = np.pi
-        elif dot > 1 - _TOL_ZERO:
+        elif dot > _EPS_ONE:
             angle = 0.0
         else:
             angle = np.arccos(dot)
         # if the angle is nonzero and vectors are opposite direction
         # it means we have a long arc rather than the short path
-        if abs(angle) > _TOL_ZERO and np.dot(*edge_direction) < 0.0:
+        edge_direction = np.diff(points, axis=0)
+
+        edot = np.dot(points[1] - points[0], points[2] - points[1])
+
+        assert np.isclose(np.dot(*edge_direction), edot)
+
+        if abs(angle) > _EPS_ZERO and np.dot(*edge_direction) < 0.0:
             angle = (np.pi * 2) - angle
         # convoluted angle logic
         angles = np.arctan2(*vector[:, :2].T[::-1]) + np.pi * 2
         angles_sorted = np.sort(angles[[0, 2]])
         reverse = angles_sorted[0] < angles[1] < angles_sorted[1]
         angles_sorted = angles_sorted[::(1 - int(not reverse) * 2)]
-        result['angles'] = angles_sorted
+        #result['angles'] = angles_sorted
         result['span'] = angle
 
     return result
+
+
+def arc_center(points, return_normal=True, return_angle=True):
+    a = arc_center_njit(points, return_normal, return_angle)
+    b = arc_center_ori(points, return_normal, return_angle)
+
+    if set(a.keys()) != set(b.keys()):
+        from IPython import embed
+        embed()
+
+    if not all(np.allclose(a[k], b[k])
+               for k in a.keys()):
+        #from IPython import embed
+        # embed()
+        pass
+    return a
+
+
+def arc_center_njit(points, return_normal=True, return_angle=True):
+    points = np.array(points, dtype=np.float64)
+    c, r, a = _arc_center(points)
+    result = {'center': c, 'radius': r}
+    if return_angle:
+        result['span'] = a
+
+    if return_normal:
+        # get the non-unit vectors of the three points
+        vectors = points[[2, 0, 1]] - points[[1, 2, 0]]
+        if points.shape == (3, 2):
+            # for 2D arcs still use the cross product so that
+            # the sign of the normal vector is consistent
+            result['normal'] = util.unitize(
+                np.cross(np.append(-vectors[1], 0),
+                         np.append(vectors[2], 0)))
+        else:
+            # otherwise just take the cross product
+            result['normal'] = util.unitize(
+                np.cross(-vectors[1], vectors[2]))
+    return result
+
+
+@njit
+def _arc_center(points):
+    """
+    Given three points on a 2D or 3D arc find the center,
+    radius, normal, and angular span.
+
+    Parameters
+    ---------
+    points : (3, dimension) float
+      Points in space, where dimension is either 2 or 3
+    return_normal : bool
+      If True calculate the 3D normal unit vector
+    return_angle : bool
+      If True calculate the start and stop angle and span
+
+    Returns
+    ---------
+    result : dict
+      Contains arc center and other keys:
+       'center' : (d,) float, cartesian center of the arc
+       'radius' : float, radius of the arc
+       'normal' : (3,) float, the plane normal.
+       'angles' : (2,) float, angle of start and end in radians
+       'span'   : float, angle swept by the arc in radians
+    """
+
+    idx_diff = np.array([[2, 0, 1], [1, 2, 0]], dtype=np.int32)
+
+    # get the non-unit vectors of the three points
+    vectors = points[idx_diff[0]] - points[idx_diff[1]]
+
+    # get the non-unit vectors of the three points
+
+    # we need both the squared row sum and the non-squared
+    abc2 = (vectors ** 2).sum(axis=1)
+    # same as np.linalg.norm(vectors, axis=1)
+    abc = np.sqrt(abc2)
+
+    # perform radius calculation scaled to shortest edge
+    # to avoid precision issues with small or large arcs
+    scale = abc.min()
+    # get the edge lengths scaled to the smallest
+    edges = abc / scale
+    # half the total length of the edges
+    half = edges.sum() / 2.0
+    # check the denominator for the radius calculation
+    #denom = half * np.product(half - edges)
+
+    he = half - edges
+    denom = half * he[0] * he[1] * he[2]
+
+    edges_prod = edges[0] * edges[1] * edges[2]
+
+    if denom < _EPS_ZERO:
+        raise ValueError('arc is colinear!')
+    # find the radius and scale back after the operation
+    radius = scale * ((edges_prod / 4.0) / np.sqrt(denom))
+
+    idx_ba2 = np.array([1, 2, 0, 0, 2, 1, 0, 1, 2], dtype=np.int32)
+    signs = np.array([1, 1, -1, 1, 1, -1, 1, 1, -1], dtype=np.float64)
+    # use a barycentric approach to get the center
+    ba2 = (abc2[idx_ba2] * signs).reshape(
+        (3, 3)).sum(axis=1) * abc2
+    center = points.T.dot(ba2) / ba2.sum()
+
+    # vectors from points on arc to center point
+    vector = points - center
+    for i, v in enumerate(vectors):
+        vectors[i] = v / np.linalg.norm(v)
+
+    # find the angle between the first and last vector
+    dot = np.dot(vector[0], vector[2])
+
+    if dot < _EPS_NEG:
+        angle = np.pi
+    elif dot > _EPS_ONE:
+        angle = 0.0
+    else:
+        angle = np.arccos(dot)
+
+    vec = np.array([[points[1] - points[0]],
+                    [points[2] - points[1]]])
+    edge_dot = np.dot(vec[0] / np.linalg.norm(vec[0]),
+                      vec[1] / np.linalg.norm(vec[1]))
+    # if the angle is nonzero and vectors are opposite direction
+    # it means we have a long arc rather than the short path
+    if abs(angle) > -_EPS_ZERO and edge_dot < _EPS_ZERO:
+        angle = (np.pi * 2.0) - angle
+        # pass
+
+    return center, radius, angle
 
 
 def discretize_arc(points,
