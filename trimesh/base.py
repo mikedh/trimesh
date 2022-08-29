@@ -2495,7 +2495,8 @@ class Trimesh(Geometry3D):
         simple : trimesh.Trimesh
           Simplified version of mesh.
         """
-        simple = self.as_open3d.simplify_quadric_decimation(int(face_count))
+        simple = self.as_open3d.simplify_quadric_decimation(
+            int(face_count))
         return Trimesh(vertices=simple.vertices, faces=simple.triangles)
 
     def outline(self, face_ids=None, **kwargs):
