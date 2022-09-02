@@ -1,7 +1,6 @@
 import numpy as np
 
 from string import Template
-from shutil import which
 
 import tempfile
 import subprocess
@@ -951,8 +950,8 @@ def load_draco(file_obj, **kwargs):
 
 _ply_loaders = {'ply': load_ply}
 _ply_exporters = {'ply': export_ply}
-draco_encoder = which('draco_encoder')
-draco_decoder = which('draco_decoder')
+draco_encoder = util.which('draco_encoder')
+draco_decoder = util.which('draco_decoder')
 
 if draco_decoder is not None:
     _ply_loaders['drc'] = load_draco

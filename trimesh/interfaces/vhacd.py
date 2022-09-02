@@ -3,8 +3,7 @@ import platform
 
 from .generic import MeshScript
 from ..constants import log
-
-from shutil import which
+from ..util import which
 
 _search_path = os.environ['PATH']
 if platform.system() == 'Windows':

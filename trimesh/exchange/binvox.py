@@ -11,13 +11,11 @@ import subprocess
 import numpy as np
 import collections
 
-from shutil import which
-
 from .. import util
 from ..base import Trimesh
 
 # find the executable for binvox in PATH
-binvox_encoder = which('binvox')
+binvox_encoder = util.which('binvox')
 Binvox = collections.namedtuple(
     'Binvox', ['rle_data', 'shape', 'translate', 'scale'])
 
