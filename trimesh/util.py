@@ -39,9 +39,11 @@ if PY3:
     basestring = str
     # Python 3
     from io import BytesIO, StringIO
+    from shutil import which  # noqa
 else:
     # Python 2
     from StringIO import StringIO
+    from distutils.spawn import find_executable as which  # noqa
     # monkey patch StringIO so `with` statements work
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()

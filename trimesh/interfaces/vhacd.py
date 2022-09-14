@@ -3,8 +3,7 @@ import platform
 
 from .generic import MeshScript
 from ..constants import log
-
-from distutils.spawn import find_executable
+from ..util import which
 
 _search_path = os.environ['PATH']
 if platform.system() == 'Windows':
@@ -15,13 +14,11 @@ if platform.system() == 'Windows':
     _search_path = ';'.join(_search_path)
     log.debug('searching for vhacd in: %s', _search_path)
 
-
 _vhacd_executable = None
 for _name in ['vhacd', 'testVHACD']:
-    _vhacd_executable = find_executable(_name, path=_search_path)
+    _vhacd_executable = which(_name, path=_search_path)
     if _vhacd_executable is not None:
         break
-
 exists = _vhacd_executable is not None
 
 
