@@ -21,10 +21,14 @@ def voxelize_subdivide(mesh,
 
     Parameters
     -----------
-    mesh:        Trimesh object
-    pitch:       float, side length of a single voxel cube
-    max_iter:    int, cap maximum subdivisions or None for no limit.
-    edge_factor: float,
+    mesh : trimesh.Trimesh
+      Source mesh
+    pitch : float
+      Side length of a single voxel cube
+    max_iter : int
+      Cap maximum subdivisions or None for no limit.
+    edge_factor : float
+      Proportion of pitch maximum edge length.
 
     Returns
     -----------
@@ -33,17 +37,20 @@ def voxelize_subdivide(mesh,
     max_edge = pitch / edge_factor
 
     if max_iter is None:
-        longest_edge = np.linalg.norm(mesh.vertices[mesh.edges[:, 0]] -
-                                      mesh.vertices[mesh.edges[:, 1]],
-                                      axis=1).max()
-        max_iter = max(int(np.ceil(np.log2(longest_edge / max_edge))), 0)
+        longest_edge = np.linalg.norm(
+            mesh.vertices[mesh.edges[:, 0]] -
+            mesh.vertices[mesh.edges[:, 1]],
+            axis=1).max()
+        max_iter = max(int(np.ceil(np.log2(
+            longest_edge / max_edge))), 0)
 
     # get the same mesh sudivided so every edge is shorter
     # than a factor of our pitch
-    v, f = remesh.subdivide_to_size(mesh.vertices,
-                                    mesh.faces,
-                                    max_edge=max_edge,
-                                    max_iter=max_iter)
+    v, f, idx = remesh.subdivide_to_size(mesh.vertices,
+                                         mesh.faces,
+                                         max_edge=max_edge,
+                                         max_iter=max_iter,
+                                         return_index=True)
 
     # convert the vertices to their voxel grid position
     hit = v / pitch
