@@ -6,7 +6,7 @@ except BaseException:
 # Khronos' official file validator
 # can be installed with the helper script:
 # `trimesh/docker/builds/gltf_validator.bash`
-_gltf_validator = g.find_executable('gltf_validator')
+_gltf_validator = g.trimesh.util.which('gltf_validator')
 
 
 def validate_glb(data, name=None):
@@ -52,7 +52,7 @@ def validate_glb(data, name=None):
             g.log.error(content)
             if name is not None:
                 g.log.error('failed on: %s', name)
-            raise ValueError('Khronos GLTF validator error!')
+            raise ValueError(content)
 
         if any(decode['issues'][i] > 0 for i in
                ['numWarnings', 'numInfos', 'numHints']):
@@ -514,7 +514,7 @@ class GLTFTest(g.unittest.TestCase):
         # when you add a uint16/int16 the gltf-validator
         # complains about the 4-byte boundaries even though
         # all their lengths and offsets mod 4 are zero
-        # not sure if thats a validator bug or what
+        # not sure if that's a validator bug or what
         sphere.vertex_attributes[
             '_CustomUInt16Scalar'] = g.np.random.randint(
                 0, 1000, size=(v_count, 1)).astype(g.np.uint16)

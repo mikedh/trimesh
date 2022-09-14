@@ -31,8 +31,6 @@ from collections import deque
 from copy import deepcopy
 
 
-from distutils.spawn import find_executable
-
 try:
     # Python 3
     from http.server import SimpleHTTPRequestHandler
@@ -472,7 +470,7 @@ data = _load_data()
 
 # find executables to run with subprocess
 # formats supported by meshlab for export tests
-if any(find_executable(i) is None
+if any(trimesh.util.which(i) is None
        for i in ['xfvb-run', 'meshlabserver']):
     meshlab_formats = []
 else:

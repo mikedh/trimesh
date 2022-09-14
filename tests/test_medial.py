@@ -12,8 +12,10 @@ class MedialTests(g.unittest.TestCase):
 
         assert len(p.polygons_full) == 1
         poly = p.polygons_full[0]
-        med = p.medial_axis()
-        assert all(poly.contains(g.Point(v)) for v in med.vertices)
+        medial = p.medial_axis()
+        points = medial.vertices.view(g.np.ndarray)
+        assert all(poly.contains(g.Point(v))
+                   for v in points)
 
         # circles are a special case for medial axis
         poly = g.Point([0, 0]).buffer(1.0)
@@ -21,7 +23,8 @@ class MedialTests(g.unittest.TestCase):
         med = g.trimesh.path.Path2D(
             **g.trimesh.path.exchange.misc.edges_to_path(
                 *g.trimesh.path.polygons.medial_axis(poly)))
-        # should have returned a single tiny line with midpoint at origin
+        # should have returned a single tiny line
+        # with midpoint at origin
         assert len(med.vertices) == 2
         assert len(med.entities) == 1
         assert float(med.vertices.mean(axis=0).ptp()) < 1e-8

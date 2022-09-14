@@ -235,7 +235,7 @@ class RayMeshIntersector(object):
             else:
                 break
 
-        # stack the deques into nice 1D numpy arrays
+        # stack the dequeues into nice 1D numpy arrays
         index_tri = np.hstack(result_triangle)
         index_ray = np.hstack(result_ray_idx)
 
