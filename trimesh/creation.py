@@ -237,7 +237,7 @@ def sweep_polygon(polygon,
         raise ValueError('Path must be (n, 3)!')
 
     # Extract 2D vertices and triangulation
-    verts_2d = np.array(polygon.exterior)[:-1]
+    verts_2d = np.array(polygon.exterior.coords)[:-1]
     base_verts_2d, faces_2d = triangulate_polygon(
         polygon, **kwargs)
     n = len(verts_2d)
@@ -452,8 +452,9 @@ def triangulate_polygon(polygon,
     if engine is None or engine == 'earcut':
         # get vertices as sequence where exterior
         # is the first value
-        vertices = [np.array(polygon.exterior)]
-        vertices.extend(np.array(i) for i in polygon.interiors)
+        vertices = [np.array(polygon.exterior.coords)]
+        vertices.extend(np.array(i.coords)
+                        for i in polygon.interiors)
         # record the index from the length of each vertex array
         rings = np.cumsum([len(v) for v in vertices])
         # stack vertices into (n, 2) float array

@@ -143,7 +143,8 @@ class CreationTest(g.unittest.TestCase):
 
         # Extrude
         for engine in self.engines:
-            mesh = g.trimesh.creation.sweep_polygon(poly, path, engine=engine)
+            mesh = g.trimesh.creation.sweep_polygon(
+                poly, path, engine=engine)
             assert mesh.is_volume
 
     def test_annulus(self):
@@ -261,8 +262,9 @@ class CreationTest(g.unittest.TestCase):
                 except BaseException:
                     g.log.error(
                         'failed to benchmark triangle', exc_info=True)
-        g.log.warning(
-            'benchmarked triangle interfaces on {} polygons: {}'.format(len(bench), str(times)))
+        g.log.info(
+            'benchmarked triangulation on {} polygons: {}'.format(
+                len(bench), str(times)))
 
     def test_triangulate_plumbing(self):
         """
