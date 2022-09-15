@@ -25,9 +25,6 @@ try:
     from shapely.geometry import Polygon
     from shapely.wkb import loads as load_wkb
 except BaseException as E:
-    # shapely will sometimes raise OSErrors
-    # on import rather than just ImportError
-    from . import exceptions
     # re-raise the exception when someone tries
     # to use the module that they don't have
     Polygon = exceptions.closure(E)
