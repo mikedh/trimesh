@@ -240,9 +240,11 @@ class Path(parent.Geometry):
           Appended MD5 hashes
         """
         # first MD5 the points in every entity
+        md5_obj = hashlib.new('md5', usedforsecurity=False)
+        md5_obj.update(bytes().join(
+                e._bytes() for e in self.entities))
         target = '{}{}'.format(
-            hashlib.md5(bytes().join(
-                e._bytes() for e in self.entities)).hexdigest(),
+            md5_obj.hexdigest(),
             self.vertices.md5())
 
         return target
@@ -1479,7 +1481,9 @@ class Path2D(Path):
           Hashed identifier.
         """
         as_int = (self.identifier * 1e4).astype(np.int64)
-        hashed = hashlib.md5(as_int.tobytes(order='C')).hexdigest()
+        md5_obj = hashlib.new('md5', usedforsecurity=False)
+        md5_obj.update(as_int.tobytes(order='C'))
+        hashed = md5_obj.hexdigest()
         return hashed
 
     @property

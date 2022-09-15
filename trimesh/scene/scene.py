@@ -245,7 +245,9 @@ class Scene(Geometry3D):
           MD5 hash of scene
         """
         # start with transforms hash
-        return hashlib.md5(self._hashable()).hexdigest()
+        md5_obj = hashlib.new('md5', usedforsecurity=False)
+        md5_obj.update(self._hashable())
+        return md5_obj.hexdigest()
 
     def crc(self):
         """

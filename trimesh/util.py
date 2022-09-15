@@ -861,7 +861,7 @@ def decimal_to_digits(decimal, min_digits=None):
 
 
 def hash_file(file_obj,
-              hash_function=hashlib.md5):
+              hash_function=None):
     """
     Get the hash of an open file-like object.
 
@@ -878,7 +878,10 @@ def hash_file(file_obj,
     # in the file (which is probably 0)
     file_position = file_obj.tell()
     # create an instance of the hash object
-    hasher = hash_function()
+    if hash_function is None:
+        hasher = hashlib.new('md5', usedforsecurity=False)
+    else:
+        hasher = hash_function()
     # read all data from the file into the hasher
     hasher.update(file_obj.read())
     # get a hex version of the result

@@ -154,7 +154,9 @@ def identifier_hash(identifier, sigfig=None):
     if (multiplier < 0).any():
         multiplier += np.abs(multiplier.min())
     hashable = (as_int * (10 ** multiplier)).astype(np.int64)
-    return hashlib.md5(hashable).hexdigest()
+    md5_obj = hashlib.new('md5', usedforsecurity=False)
+    md5_obj.update(hashable)
+    return md5_obj.hexdigest()
 
 
 def face_ordering(mesh):

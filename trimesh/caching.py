@@ -9,7 +9,7 @@ and clearing cached values based on those changes.
 import numpy as np
 
 import zlib
-from hashlib import md5
+import hashlib
 
 from functools import wraps
 
@@ -174,15 +174,17 @@ class TrackedArray(np.ndarray):
           Hexadecimal MD5 of the array
         """
         if self._modified_m or not hasattr(self, '_hashed_md5'):
+            md5_obj = hashlib.new('md5', usedforsecurity=False)
             if self.flags['C_CONTIGUOUS']:
-                self._hashed_md5 = md5(self).hexdigest()
+                md5_obj.update(self)
+                self._hashed_md5 = md5_obj.hexdigest()
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
-                self._hashed_md5 = md5(
-                    np.ascontiguousarray(self)).hexdigest()
+                md5_obj.update(np.ascontiguousarray(self))
+                self._hashed_md5 = md5_obj.hexdigest()
         self._modified_m = False
         return self._hashed_md5
 
@@ -636,10 +638,11 @@ class DataStore(Mapping):
         md5 : str
           MD5 of data in hexadecimal
         """
-        hasher = md5(''.join(
+        md5_obj = hashlib.new('md5', usedforsecurity=False)
+        md5_obj.update(''.join(
             self.data[key].md5()
             for key in sorted(self.data.keys())).encode('utf-8'))
-        return hasher.hexdigest()
+        return md5_obj.hexdigest()
 
     def crc(self):
         """
