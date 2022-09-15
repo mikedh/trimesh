@@ -31,14 +31,9 @@ except BaseException as E:
     load_wkb = exceptions.closure(E)
 
 try:
-    from triangle import triangulate as _triangulate_triangle
+    from mapbox_earcut import triangulate_float64 as _tri_earcut
 except BaseException as E:
-    from . import exceptions
-    _triangulate_triangle = exceptions.closure(E)
-try:
-    from mapbox_earcut import triangulate_float64 as _triangulate_earcut
-except BaseException as E:
-    _triangulate_earcut = exceptions.closure(E)
+    _tri_earcut = exceptions.closure(E)
 
 
 def revolve(linestring,
@@ -460,18 +455,26 @@ def triangulate_polygon(polygon,
         # stack vertices into (n, 2) float array
         vertices = np.vstack(vertices)
         # run triangulation
-        faces = _triangulate_earcut(vertices, rings).reshape(
+        faces = _tri_earcut(vertices, rings).reshape(
             (-1, 3)).astype(np.int64).reshape((-1, 3))
         return vertices, faces
 
-    # set default triangulation arguments if not specified
-    if triangle_args is None:
-        triangle_args = 'p'
-        # turn the polygon in to vertices, segments, and holes
-    arg = _polygon_to_kwargs(polygon)
-    # run the triangulation
-    result = _triangulate_triangle(arg, triangle_args)
-    return result['vertices'], result['triangles']
+    elif engine == 'triangle':
+        from triangle import triangulate
+        # set default triangulation arguments if not specified
+        if triangle_args is None:
+            triangle_args = 'p'
+            # turn the polygon in to vertices, segments, and holes
+        arg = _polygon_to_kwargs(polygon)
+        # run the triangulation
+        result = triangulate(arg, triangle_args)
+        return result['vertices'], result['triangles']
+    else:
+        log.warning('try running `pip install mapbox-earcut`' +
+                    'or explicitly pass:\n' +
+                    '`triangulate_polygon(*args, engine="triangle")`\n' +
+                    'to use the non-FSF-approved-license triangle engine')
+        raise ValueError('no valid triangulation engine!')
 
 
 def _polygon_to_kwargs(polygon):
