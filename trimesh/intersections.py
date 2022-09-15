@@ -712,13 +712,13 @@ def slice_mesh_plane(mesh,
         else:
             dots = cached_dots
         # save the new vertices and faces
-        vertices, faces = slice_faces_plane(vertices=vertices,
-                                            faces=faces,
-                                            plane_normal=normal,
-                                            plane_origin=origin,
-                                            face_index=face_index,
-                                            cached_dots=dots)
-
+        vertices, faces = slice_faces_plane(
+            vertices=vertices,
+            faces=faces,
+            plane_normal=normal,
+            plane_origin=origin,
+            face_index=face_index)
+ 
         # check if cap arg specified
         if cap:
             if face_index:
@@ -726,64 +726,53 @@ def slice_mesh_plane(mesh,
                 raise NotImplementedError("face_index and cap can't be used together")
             # check if mesh is watertight (can't cap if not)
             if not sliced_mesh.is_watertight:
-                raise ValueError('Input mesh must be watertight to cap slice')
-            path = sliced_mesh.section(
-                plane_normal=normal,
-                plane_origin=origin,
-                cached_dots=dots)
-            if path is None:
-                # if path is None it means this plane didn't
-                # intersect anything so we can exit early without
-                # doing anything to cap the result
+                util.log.warning('non-watertight cap')
+                from IPython import embed
+                embed()
+
+            import trimesh
+            u, i = trimesh.grouping.unique_rows(vertices)
+            v = vertices[u]
+            f = i[faces]
+            e = trimesh.geometry.faces_to_edges(f)
+            e.sort(axis=1)
+
+
+            on_plane = np.abs(np.dot(v - origin, normal)) < 1e-10
+
+            e = e[on_plane[e].all(axis=1)]
+
+            
+            #from IPython import embed
+            #embed()
+            
+            u = trimesh.grouping.group_rows(e, require_count=1)
+
+            if len(u) == 0:
                 continue
-            # transform Path3D onto XY plane for triangulation
-            on_plane, to_3D = path.to_planar()
-            # triangulate each closed region of 2D cap
-            # without adding any new vertices
-            v, f = [], []
-            for polygon in on_plane.polygons_full:
-                t = triangulate_polygon(
-                    polygon, triangle_args='pY', engine='triangle')
-                v.append(t[0])
-                f.append(t[1])
+            
+            to_2D = trimesh.geometry.plane_transform(
+                origin=origin,
+                normal=-normal)
+            to_3D = np.linalg.inv(to_2D)
+            
+            op = trimesh.transform_points(v, to_2D)
 
-                if tol.strict:
-                    # in unit tests make sure that our triangulation didn't
-                    # insert any new vertices which would break watertightness
-                    from scipy.spatial import cKDTree
-                    # get all interior and exterior points on tree
-                    check = [np.array(polygon.exterior.coords)]
-                    check.extend(np.array(i.coords) for i in polygon.interiors)
-                    tree = cKDTree(np.vstack(check))
-                    # every new vertex should be on an old vertex
-                    assert np.allclose(tree.query(v[-1])[0], 0.0)
-
+            vertices = [v]
+            faces = [f]
+            for p in trimesh.path.polygons.edges_to_polygons(e[u], op[:,:2]):
+                vn, fn = trimesh.creation.triangulate_polygon(p)
+                vertices.append(trimesh.transform_points(
+                    trimesh.util.stack_3D(vn), to_3D))
+                faces.append(fn)
+                
             # append regions and reindex
-            vf, ff = util.append_faces(v, f)
-
-            # make vertices 3D and transform back to mesh frame
-            vf = tf.transform_points(
-                np.column_stack((vf, np.zeros(len(vf)))),
-                to_3D)
-
-            # check to see if our new faces are aligned with our normal
-            check = windings_aligned(vf[ff], normal)
-
-            # if 50% of our new faces are aligned with the normal flip
-            if check.astype(np.float64).mean() > 0.5:
-                ff = np.fliplr(ff)
-
-            # check vertices to see which ones are on plane
-            on_plane = np.abs(np.dot(vertices - origin, normal)) < tol.merge
-            # add cap vertices and faces and reindex
-            # remove any original faces which are coplanar with cap plane
-            # as these will be replaced by newly generated faces
-            vertices, faces = util.append_faces(
-                [vertices, vf], [faces[~on_plane[faces].all(axis=1)], ff])
-
-            # Update mesh with cap (processing needed to merge vertices)
-            sliced_mesh = Trimesh(vertices=vertices, faces=faces)
-            vertices, faces = sliced_mesh.vertices.copy(), sliced_mesh.faces.copy()
-
+            vertices, faces = util.append_faces(vertices, faces)            
+            u, i = trimesh.grouping.unique_rows(vertices)
+            vertices = vertices[u]
+            faces = i[faces]
+            sliced_mesh = trimesh.Trimesh(vertices, faces)
+            
+            
     # return the sliced mesh
     return Trimesh(vertices=vertices, faces=faces, **kwargs)
