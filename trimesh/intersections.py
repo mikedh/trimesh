@@ -673,6 +673,8 @@ def slice_mesh_plane(mesh,
     # avoid circular import
     from .base import Trimesh
     from .creation import triangulate_polygon
+    from .path import polygons
+    from scipy.spatial import cKDTree
 
     # check input plane
     plane_normal = np.asanyarray(
@@ -690,7 +692,6 @@ def slice_mesh_plane(mesh,
         raise ValueError('plane origins and normals must be (n, 3)!')
 
     # start with copy of original mesh, faces, and vertices
-    sliced_mesh = mesh.copy()
     vertices = mesh.vertices.copy()
     faces = mesh.faces.copy()
 
@@ -700,17 +701,6 @@ def slice_mesh_plane(mesh,
     # slice away specified planes
     for origin, normal in zip(plane_origin.reshape((-1, 3)),
                               plane_normal.reshape((-1, 3))):
-
-        # calculate dots here if not passed in to save time
-        # in case of cap
-        if cached_dots is None:
-            # dot product of each vertex with the plane normal indexed by face
-            # so for each face the dot product of each vertex is a row
-            # shape is the same as faces (n,3)
-            dots = np.einsum('i,ij->j', normal,
-                             (vertices - origin).T)
-        else:
-            dots = cached_dots
         # save the new vertices and faces
         vertices, faces = slice_faces_plane(
             vertices=vertices,
@@ -718,61 +708,51 @@ def slice_mesh_plane(mesh,
             plane_normal=normal,
             plane_origin=origin,
             face_index=face_index)
- 
         # check if cap arg specified
         if cap:
             if face_index:
                 # This hasn't been implemented yet.
-                raise NotImplementedError("face_index and cap can't be used together")
-            # check if mesh is watertight (can't cap if not)
-            if not sliced_mesh.is_watertight:
-                util.log.warning('non-watertight cap')
-                from IPython import embed
-                embed()
+                raise NotImplementedError(
+                    "face_index and cap can't be used together")
 
-            import trimesh
-            u, i = trimesh.grouping.unique_rows(vertices)
-            v = vertices[u]
-            f = i[faces]
-            e = trimesh.geometry.faces_to_edges(f)
-            e.sort(axis=1)
+            # start by deduplicating vertices again
+            unique, inverse = grouping.unique_rows(vertices)
+            vertices = vertices[unique]
+            # will collect additional faces
+            f = inverse[faces]
 
-
-            on_plane = np.abs(np.dot(v - origin, normal)) < 1e-10
-
-            e = e[on_plane[e].all(axis=1)]
-
-            
-            #from IPython import embed
-            #embed()
-            
-            u = trimesh.grouping.group_rows(e, require_count=1)
-
-            if len(u) == 0:
-                continue
-            
-            to_2D = trimesh.geometry.plane_transform(
+            # transform to the cap plane
+            to_2D = geometry.plane_transform(
                 origin=origin,
                 normal=-normal)
             to_3D = np.linalg.inv(to_2D)
-            
-            op = trimesh.transform_points(v, to_2D)
 
-            vertices = [v]
+            vertices_2D = tf.transform_points(vertices, to_2D)
+            edges = geometry.faces_to_edges(f)
+            edges.sort(axis=1)
+
+            on_plane = np.abs(vertices_2D[:, 2]) < 1e-8
+            edges = edges[on_plane[edges].all(axis=1)]
+            edges = edges[edges[:, 0] != edges[:, 1]]
+
+            unique_edge = grouping.group_rows(
+                edges, require_count=1)
+            if len(unique) < 3:
+                continue
+
+            tree = cKDTree(vertices)
+            # collect new faces
             faces = [f]
-            for p in trimesh.path.polygons.edges_to_polygons(e[u], op[:,:2]):
-                vn, fn = trimesh.creation.triangulate_polygon(p)
-                vertices.append(trimesh.transform_points(
-                    trimesh.util.stack_3D(vn), to_3D))
-                faces.append(fn)
-                
-            # append regions and reindex
-            vertices, faces = util.append_faces(vertices, faces)            
-            u, i = trimesh.grouping.unique_rows(vertices)
-            vertices = vertices[u]
-            faces = i[faces]
-            sliced_mesh = trimesh.Trimesh(vertices, faces)
-            
-            
+            for p in polygons.edges_to_polygons(
+                    edges[unique_edge], vertices_2D[:, :2]):
+                vn, fn = triangulate_polygon(p)
+                # collect the original index for the new vertices
+                vn3 = tf.transform_points(util.stack_3D(vn), to_3D)
+                distance, vid = tree.query(vn3)
+                # triangulation should not have inserted vertices
+                assert distance.max() < 1e-8
+                faces.append(vid[fn])
+            faces = np.vstack(faces)
+
     # return the sliced mesh
     return Trimesh(vertices=vertices, faces=faces, **kwargs)

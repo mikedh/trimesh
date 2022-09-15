@@ -273,7 +273,7 @@ class SliceTest(g.unittest.TestCase):
         # existing coplanar faces correctly
 
         try:
-            from triangle import triangulate  # NOQA
+            from mapbox_earcut import triangulate_float64
         except BaseException as E:
             if g.all_dep:
                 raise E
