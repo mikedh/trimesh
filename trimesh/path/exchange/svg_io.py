@@ -297,8 +297,8 @@ def _svg_path_convert(paths, force=None):
 
         if tol.strict:
             # in unit tests make sure we didn't lose any entities
-            assert np.allclose(np.hstack(blocks),
-                               np.arange(len(raw)))
+            assert util.allclose(np.hstack(blocks),
+                                 np.arange(len(raw)))
 
         # Combine consecutive lines into a single MultiLine
         parsed = []
@@ -374,7 +374,7 @@ def _entities_to_str(entities,
     temp_digits = '0.{}f'.format(int(digits))
     # generate a format string for circles as two arc segments
     temp_circle = ('M {x:DI},{y:DI}a{r:DI},{r:DI},0,1,0,{d:DI},' +
-                   '0a{r:DI},{r:DI},0,1,{rev},-{d:DI},0Z').replace('DI', temp_digits)
+                   '0a{r:DI},{r:DI},0,1,0,-{d:DI},0Z').replace('DI', temp_digits)
     # generate a format string for an absolute move-to command
     temp_move = 'M{:DI},{:DI}'.replace('DI', temp_digits)
     # generate a format string for an absolute-line command
@@ -383,15 +383,13 @@ def _entities_to_str(entities,
     temp_arc = 'M{SX:DI} {SY:DI}A{R},{R} 0 {L:d},{S:d} {EX:DI},{EY:DI}'.replace(
         'DI', temp_digits)
 
-    def svg_arc(arc, reverse=False):
+    def svg_arc(arc):
         """
         arc string: (rx ry x-axis-rotation large-arc-flag sweep-flag x y)+
         large-arc-flag: greater than 180 degrees
         sweep flag: direction (cw/ccw)
         """
-        arc_idx = arc.points[::((reverse * -2) + 1)]
-        vertices = points[arc_idx]
-        vertex_start, vertex_mid, vertex_end = vertices
+        vertices = points[arc.points]
         info = arc_center(
             vertices, return_normal=False, return_angle=True)
         C, R, angle = info['center'], info['radius'], info['span']
@@ -399,9 +397,9 @@ def _entities_to_str(entities,
             return temp_circle.format(x=C[0] - R,
                                       y=C[1],
                                       r=R,
-                                      d=2.0 * R,
-                                      rev=int(bool(reverse)))
+                                      d=2.0 * R)
 
+        vertex_start, vertex_mid, vertex_end = vertices
         large_flag = int(angle > np.pi)
         sweep_flag = int(np.cross(vertex_mid - vertex_start,
                                   vertex_end - vertex_start) > 0.0)
@@ -413,7 +411,7 @@ def _entities_to_str(entities,
                                EY=vertex_end[1],
                                R=R)
 
-    def svg_discrete(entity, reverse=False):
+    def svg_discrete(entity):
         """
         Use an entities discrete representation to export a
         curve as a polyline
@@ -422,14 +420,9 @@ def _entities_to_str(entities,
         # if entity contains no geometry return
         if len(discrete) == 0:
             return ''
-        # are we reversing the entity
-        if reverse:
-            discrete = discrete[::-1]
         # the format string for the SVG path
         result = (temp_move + (temp_line * (len(discrete) - 1))).format(
             *discrete.reshape(-1))
-        assert result.count('L') == len(discrete) - 1
-
         return result
 
     # tuples of (metadata, path string)
@@ -438,9 +431,8 @@ def _entities_to_str(entities,
     for entity in entities:
         if only_layers is not None and entity.layer not in only_layers:
             continue
-        # the class name of the entity
-        etype = entity.__class__.__name__
-        if etype == 'Arc':
+        # check the class name of the entity
+        if entity.__class__.__name__ == 'Arc':
             # export the exact version of the entity
             path_string = svg_arc(entity)
         else:

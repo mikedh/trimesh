@@ -1676,9 +1676,10 @@ def jsonify(obj, **kwargs):
 
     Parameters
     --------------
-    obj : JSON-serializable blob
-    **kwargs :
-        Passed to json.dumps
+    obj : list, dict
+      A JSON-serializable blob
+    kwargs : dict
+      Passed to json.dumps
 
     Returns
     --------------

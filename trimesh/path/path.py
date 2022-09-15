@@ -1445,7 +1445,7 @@ class Path2D(Path):
 
             fmt = eformat[e_key].copy()
             if color is not None:
-                # passed color will override other optons
+                # passed color will override other options
                 fmt['color'] = color
             elif hasattr(entity, 'color'):
                 # if entity has specified color use it

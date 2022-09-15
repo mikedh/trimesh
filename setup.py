@@ -41,14 +41,13 @@ requirements_easy = set([
     'jsonschema',  # validate JSON schemas like GLTF
     'pycollada',   # parse collada/dae/zae files
     'chardet',     # figure out if someone used UTF-16
+    'mapbox-earcut',  # fast 2D triangulations of polygons
     'colorlog'])   # log in pretty colors
 
 # "all" requirements only need to be installable
 # through some mechanism on Linux with Python 3.5+
 # and are allowed to compile code
 requirements_all = requirements_easy.union([
-    'mapbox-earcut',  # faster 2D triangulations of polygons
-    'triangle',      # 2D triangulations of polygons
     'python-fcl',    # do fast 3D collision queries
     'psutil',        # figure out how much memory we have
     'glooey',        # make GUI applications with 3D stuff
