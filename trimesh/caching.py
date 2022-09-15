@@ -37,6 +37,7 @@ except BaseException:
                   ' for 30x faster cache checks')
         # use MD5 as a fallback hashing algorithm
         def fast_hash(a):
+
             md5_obj = hashlib.new('md5', usedforsecurity=False)
             md5_obj.update(a)
             return int(md5_obj.hexdigest(), 16)
