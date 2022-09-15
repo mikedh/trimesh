@@ -7,11 +7,14 @@ Create meshes from primitives, or with operations.
 
 from .base import Trimesh
 from .constants import log, tol
-from .geometry import faces_to_edges, align_vectors, plane_transform
+from .geometry import (faces_to_edges,
+                       align_vectors,
+                       plane_transform)
 
 from . import util
 from . import grouping
 from . import triangles
+from . import exceptions
 from . import transformations as tf
 
 import numpy as np

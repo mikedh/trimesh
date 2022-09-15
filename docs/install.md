@@ -75,6 +75,5 @@ Trimesh has a lot of soft-required upstream packages. We try to make sure they'r
 |`glooey`| Provide a viewer with widgets. | | `all`|
 |`meshio`| Load additional mesh formats. | | `all`|
 |`scikit-image`| Used in voxel ops | | `all`|
-|`triangle`| Triangulate 2D polygons with unclear licensing. | `mapbox-earcut` | Not included in deps  |
-|`mapbox-earcut`| Triangulate 2D polygons, with a permissive license but mostly abandoned | `triangle` | `all`|
+|`mapbox-earcut`| Triangulate 2D polygons | `triangle` which has an unusual license | `all`|
 |`psutil`| Get current memory usage, useful for checking to see if we're going to run out of memory instantiating a giant array | | `all`|
