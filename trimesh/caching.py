@@ -6,8 +6,6 @@ Functions and classes that help with tracking changes in ndarrays
 and clearing cached values based on those changes.
 """
 
-from sys import version_info
-
 import numpy as np
 
 import zlib
@@ -38,8 +36,8 @@ except BaseException:
                   ' hashing: `pip install xxhash`' +
                   ' for 30x faster cache checks')
         def fast_hash(a):
-            return int(hash_func(a), 16)
 
+            return int(hash_func(a), 16)
 
 
 def tracked_array(array, dtype=None):

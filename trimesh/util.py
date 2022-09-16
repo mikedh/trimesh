@@ -2415,6 +2415,7 @@ def is_ccw(points):
 
     return ccw
 
+
 def hash_func(val):
     """
     Hash a value val
