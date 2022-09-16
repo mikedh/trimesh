@@ -13,7 +13,7 @@ class CopyTests(g.unittest.TestCase):
         for mesh in g.get_meshes(raise_error=True):
             if not isinstance(mesh, g.trimesh.Trimesh) or len(mesh.faces) == 0:
                 continue
-            start = {mesh.md5(), mesh.crc()}
+            start = {mesh.hash(), mesh.crc()}
 
             # make sure some stuff is populated
             mesh.kdtree
@@ -51,7 +51,7 @@ class CopyTests(g.unittest.TestCase):
                                      mesh.identifier)
 
             # ...still shouldn't have changed anything
-            assert start == {mesh.md5(), mesh.crc()}
+            assert start == {mesh.hash(), mesh.crc()}
 
 
 if __name__ == '__main__':

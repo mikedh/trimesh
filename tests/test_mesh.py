@@ -26,7 +26,7 @@ class MeshTests(g.unittest.TestCase):
                 continue
 
             g.log.info('Testing %s', file_name)
-            start = {mesh.md5(), mesh.crc()}
+            start = {mesh.hash(), mesh.crc()}
             assert len(mesh.faces) > 0
             assert len(mesh.vertices) > 0
 
@@ -58,13 +58,13 @@ class MeshTests(g.unittest.TestCase):
             assert mesh.bounding_primitive.volume > 0.0
 
             # none of these should have mutated anything
-            assert start == {mesh.md5(), mesh.crc()}
+            assert start == {mesh.hash(), mesh.crc()}
 
             # run processing, again
             mesh.process()
 
             # still shouldn't have changed anything
-            assert start == {mesh.md5(), mesh.crc()}
+            assert start == {mesh.hash(), mesh.crc()}
 
             if not (mesh.is_watertight and
                     mesh.is_winding_consistent):
@@ -141,7 +141,7 @@ class MeshTests(g.unittest.TestCase):
                                      file_name, name)
 
             # ...still shouldn't have changed anything
-            assert start == {mesh.md5(), mesh.crc()}
+            assert start == {mesh.hash(), mesh.crc()}
 
             # log the names of properties we need to make read-only
             if len(writeable) > 0:
