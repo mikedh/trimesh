@@ -35,6 +35,7 @@ except BaseException:
         log.debug('falling back to hashlib ' +
                   ' hashing: `pip install xxhash`' +
                   ' for 30x faster cache checks')
+
         def fast_hash(a):
 
             return int(hash_func(a), 16)
