@@ -272,13 +272,8 @@ class SliceTest(g.unittest.TestCase):
         # check to see if we handle capping with
         # existing coplanar faces correctly
 
-        try:
-            from mapbox_earcut import triangulate_float64  # noqa
-        except BaseException as E:
-            if g.all_dep:
-                raise E
-            else:
-                return
+        if not g.has_earcut:
+            return
 
         s = g.get_mesh('cap.zip')
         mesh = next(iter(s.geometry.values()))
@@ -319,13 +314,8 @@ class SliceTest(g.unittest.TestCase):
         # check to see if we handle capping with
         # non-intersecting planes well
 
-        try:
-            from triangle import triangulate  # NOQA
-        except BaseException as E:
-            if g.all_dep:
-                raise E
-            else:
-                return
+        if not g.has_earcut:
+            return
 
         for i in range(100):
             from trimesh.transformations import random_rotation_matrix
@@ -344,15 +334,8 @@ class SliceTest(g.unittest.TestCase):
             assert len(result.faces) > 0
 
     def test_cap(self):
-
-        try:
-            from triangle import triangulate  # NOQA
-        except BaseException as E:
-            if g.all_dep:
-                raise E
-            else:
-                return
-
+        if not g.has_earcut:
+            return
         mesh = g.trimesh.creation.box()
 
         # Cut corner off of box and make sure the bounds and number of faces is correct
