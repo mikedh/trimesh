@@ -12,7 +12,6 @@ from . import grouping
 from . import transformations as tf
 
 from .constants import tol
-from .triangles import windings_aligned
 
 
 def mesh_plane(mesh,
