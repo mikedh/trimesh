@@ -12,6 +12,8 @@ TEMPLATESDIR  = templates
 STATICDIR     = _static
 
 example_notebooks := $(wildcard ../examples/*.ipynb)
+example_notebooks := $(filter-out ../examples/save_image.ipynb, $(example_notebooks))
+
 example_names = $(foreach path, $(example_notebooks), $(basename $(notdir $(path))))
 example_htmls = $(foreach name, $(example_names), $(STATICDIR)/examples/$(name).html)
 example_rsts = $(foreach name, $(example_names), examples.$(name).rst)
