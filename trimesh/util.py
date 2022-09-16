@@ -879,13 +879,13 @@ def hash_file(file_obj,
     file_position = file_obj.tell()
     # create an instance of the hash object
     if hash_function is None:
-        hasher = hashlib.new('md5', usedforsecurity=False)
+        hashed = hash_func(file_obj.read())
     else:
         hasher = hash_function()
-    # read all data from the file into the hasher
-    hasher.update(file_obj.read())
-    # get a hex version of the result
-    hashed = hasher.hexdigest()
+        # read all data from the file into the hasher
+        hasher.update(file_obj.read())
+        # get a hex version of the result
+        hashed = hasher.hexdigest()
     # return the file object to its original position
     file_obj.seek(file_position)
 
@@ -2414,3 +2414,21 @@ def is_ccw(points):
     ccw = area < 0
 
     return ccw
+
+def hash_func(val):
+    """
+    Hash a value val
+
+    Parameters
+    -----------
+    val : bytes string
+
+    Returns
+    ----------
+    hash : str
+        hash of val in str form
+    """
+    if PY3:
+        return hashlib.blake2b(val).hexdigest()
+    else:
+        return hashlib.sha256(val).hexdigest()

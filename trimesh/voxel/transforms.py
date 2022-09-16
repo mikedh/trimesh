@@ -35,16 +35,16 @@ class Transform(object):
         # dump cache when matrix changes
         self._cache = caching.Cache(id_function=self._data.fast_hash)
 
-    def md5(self):
+    def hash(self):
         """
-        Get the MD5 hash of the current transformation matrix.
+        Get the hash of the current transformation matrix.
 
         Returns
         ------------
-        md5 : str
+        hash : str
           Hash of transformation matrix
         """
-        return self._data.md5()
+        return self._data.hash()
 
     def crc(self):
         """

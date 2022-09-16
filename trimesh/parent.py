@@ -44,7 +44,7 @@ class Geometry(ABC):
         pass
 
     @abc.abstractmethod
-    def md5(self):
+    def hash(self):
         pass
 
     @abc.abstractmethod

@@ -1,4 +1,3 @@
-import hashlib
 import numpy as np
 import collections
 
@@ -63,7 +62,7 @@ class Scene(Geometry3D):
         self.graph = SceneGraph(base_frame=base_frame)
 
         # create our cache
-        self._cache = caching.Cache(id_function=self.md5)
+        self._cache = caching.Cache(id_function=self.hash)
 
         # add passed geometry to scene
         self.add_geometry(geometry)
@@ -234,20 +233,18 @@ class Scene(Geometry3D):
             if util.is_instance_named(geometry, 'Trimesh'):
                 geometry.visual = ColorVisuals(mesh=geometry)
 
-    def md5(self):
+    def hash(self):
         """
-        MD5 of scene which will change when meshes or
+        hash of scene which will change when meshes or
         transforms are changed
 
         Returns
         --------
         hashed : str
-          MD5 hash of scene
+          hash of scene
         """
         # start with transforms hash
-        md5_obj = hashlib.new('md5', usedforsecurity=False)
-        md5_obj.update(self._hashable())
-        return md5_obj.hexdigest()
+        return util.hash_func(self._hashable())
 
     def crc(self):
         """
@@ -483,14 +480,14 @@ class Scene(Geometry3D):
     @caching.cache_decorator
     def geometry_identifiers(self):
         """
-        Look up geometries by identifier MD5
+        Look up geometries by identifier hash
 
         Returns
         ---------
         identifiers : dict
-          {Identifier MD5: key in self.geometry}
+          {Identifier hash: key in self.geometry}
         """
-        identifiers = {mesh.identifier_md5: name
+        identifiers = {mesh.identifier_hash: name
                        for name, mesh in self.geometry.items()}
         return identifiers
 
@@ -511,10 +508,10 @@ class Scene(Geometry3D):
         if len(self.geometry) == 0:
             return []
 
-        # geometry name : md5 of mesh
-        hashes = {k: int(m.identifier_md5, 16)
+        # geometry name : hash of mesh
+        hashes = {k: int(m.identifier_hash, 16)
                   for k, m in self.geometry.items()
-                  if hasattr(m, 'identifier_md5')}
+                  if hasattr(m, 'identifier_hash')}
 
         # bring into local scope for loop
         graph = self.graph

@@ -6,15 +6,16 @@ Functions and classes that help with tracking changes in ndarrays
 and clearing cached values based on those changes.
 """
 
+from sys import version_info
+
 import numpy as np
 
 import zlib
-import hashlib
 
 from functools import wraps
 
 from .constants import log
-from .util import is_sequence
+from .util import is_sequence, hash_func
 
 try:
     from collections.abc import Mapping
@@ -32,15 +33,13 @@ except BaseException:
         # older version of the algorithm
         from xxhash import xxh64_intdigest as fast_hash
     except BaseException:
-        log.debug('falling back to MD5 hashing: ' +
-                  '`pip install xxhash`' +
+        # use hashlib as a fallback hashing library
+        log.debug('falling back to hashlib ' +
+                  ' hashing: `pip install xxhash`' +
                   ' for 30x faster cache checks')
-        # use MD5 as a fallback hashing algorithm
         def fast_hash(a):
+            return int(hash_func(a), 16)
 
-            md5_obj = hashlib.new('md5', usedforsecurity=False)
-            md5_obj.update(a)
-            return int(md5_obj.hexdigest(), 16)
 
 
 def tracked_array(array, dtype=None):
@@ -141,7 +140,7 @@ class TrackedArray(np.ndarray):
 
     Methods
     ----------
-    md5 :       str, hexadecimal MD5 of array
+    hash :      str, hexadecimal hash of array
     crc :       int, zlib crc32/adler32 checksum
     fast_hash : int, CRC or xxhash.xx64
     """
@@ -168,29 +167,26 @@ class TrackedArray(np.ndarray):
     def mutable(self, value):
         self.flags.writeable = value
 
-    def md5(self):
+    def hash(self):
         """
-        Return an MD5 hash of the current array.
+        Return a sha256 hash of the current array.
 
         Returns
         -----------
-        md5 : str
-          Hexadecimal MD5 of the array
+        sha256 : str
+          Hexadecimal sha256 of the array
         """
-        if self._modified_m or not hasattr(self, '_hashed_md5'):
-            md5_obj = hashlib.new('md5', usedforsecurity=False)
+        if self._modified_m or not hasattr(self, '_hashed_self'):
             if self.flags['C_CONTIGUOUS']:
-                md5_obj.update(self)
-                self._hashed_md5 = md5_obj.hexdigest()
+                self._hashed_self = hash_func(self)
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
                 # t = util.tracked_array(np.random.random(10))[::-1]
-                md5_obj.update(np.ascontiguousarray(self))
-                self._hashed_md5 = md5_obj.hexdigest()
+                self._hashed_self = hash_func((np.ascontiguousarray(self)))
         self._modified_m = False
-        return self._hashed_md5
+        return self._hashed_self
 
     def crc(self):
         """
@@ -607,7 +603,7 @@ class DataStore(Mapping):
         if not self.mutable:
             raise ValueError('DataStore is configured immutable!')
 
-        if hasattr(data, 'md5'):
+        if hasattr(data, 'hash'):
             # don't bother to re-track TrackedArray
             tracked = data
         else:
@@ -633,20 +629,18 @@ class DataStore(Mapping):
         for key, value in values.items():
             self[key] = value
 
-    def md5(self):
+    def hash(self):
         """
-        Get an MD5 reflecting everything in the DataStore.
+        Get a hash reflecting everything in the DataStore.
 
         Returns
         ----------
-        md5 : str
-          MD5 of data in hexadecimal
+        hash : str
+          hash of data in hexadecimal
         """
-        md5_obj = hashlib.new('md5', usedforsecurity=False)
-        md5_obj.update(''.join(
-            self.data[key].md5()
+        return hash_func(''.join(
+            self.data[key].hash()
             for key in sorted(self.data.keys())).encode('utf-8'))
-        return md5_obj.hexdigest()
 
     def crc(self):
         """

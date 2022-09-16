@@ -851,8 +851,8 @@ def geometry_hash(geometry):
     if hasattr(geometry, 'crc'):
         # for most of our trimesh objects
         h = str(geometry.crc())
-    elif hasattr(geometry, 'md5'):
-        h = geometry.md5()
+    elif hasattr(geometry, 'hash'):
+        h = geometry.hash()
     elif hasattr(geometry, 'tostring'):
         # for unwrap ndarray objects
         h = str(hash(geometry.tostring()))

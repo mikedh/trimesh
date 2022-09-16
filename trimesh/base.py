@@ -102,7 +102,7 @@ class Trimesh(Geometry3D):
         # in the base class all that is stored here is vertex and
         # face information
         # any data put into the store is converted to a TrackedArray
-        # which is a subclass of np.ndarray that provides md5 and crc
+        # which is a subclass of np.ndarray that provides hash and crc
         # methods which can be used to detect changes in the array.
         self._data = caching.DataStore()
 
@@ -246,23 +246,23 @@ class Trimesh(Geometry3D):
         self.metadata['processed'] = True
         return self
 
-    def md5(self):
+    def hash(self):
         """
-        An MD5 of the core geometry information for the mesh,
+        A hash of the core geometry information for the mesh,
         faces and vertices.
 
         Generated from TrackedArray which subclasses np.ndarray to
         monitor array for changes and returns a correct lazily
-        evaluated md5 so it only has to recalculate the hash
+        evaluated hash so it only has to recalculate the hash
         occasionally, rather than on every call.
 
         Returns
         ----------
-        md5 : string
-          MD5 of everything in the DataStore
+        hash : string
+          hash of everything in the DataStore
         """
-        md5 = self._data.md5()
-        return md5
+        hash_val = self._data.hash()
+        return hash_val
 
     def crc(self):
         """
@@ -808,7 +808,7 @@ class Trimesh(Geometry3D):
           Points of triangle vertices
         """
         # use of advanced indexing on our tracked arrays will
-        # trigger a change flag which means the MD5 will have to be
+        # trigger a change flag which means the hash will have to be
         # recomputed. We can escape this check by viewing the array.
         triangles = self.vertices.view(np.ndarray)[self.faces]
 
@@ -2710,14 +2710,14 @@ class Trimesh(Geometry3D):
         return identifier
 
     @caching.cache_decorator
-    def identifier_md5(self):
+    def identifier_hash(self):
         """
-        An MD5 of the rotation invariant identifier vector
+        A hash of the rotation invariant identifier vector
 
         Returns
         ---------
         hashed : str
-          MD5 hash of the identifier vector
+            hash of the identifier vector
         """
         hashed = comparison.identifier_hash(self.identifier)
         return hashed
@@ -3047,14 +3047,14 @@ class Trimesh(Geometry3D):
 
     def __hash__(self):
         """
-        Return the MD5 hash of the mesh as an integer.
+        Return the hash of the mesh as an integer.
 
         Returns
         ----------
         hashed : int
-          MD5 of mesh data
+          hash of mesh data
         """
-        hashed = int(self.md5(), 16)
+        hashed = int(self.hash(), 16)
         return hashed
 
     def __add__(self, other):
