@@ -12,7 +12,6 @@ from . import grouping
 from . import transformations as tf
 
 from .constants import tol
-from .triangles import windings_aligned
 
 
 def mesh_plane(mesh,
@@ -673,6 +672,8 @@ def slice_mesh_plane(mesh,
     # avoid circular import
     from .base import Trimesh
     from .creation import triangulate_polygon
+    from .path import polygons
+    from scipy.spatial import cKDTree
 
     # check input plane
     plane_normal = np.asanyarray(
@@ -690,7 +691,6 @@ def slice_mesh_plane(mesh,
         raise ValueError('plane origins and normals must be (n, 3)!')
 
     # start with copy of original mesh, faces, and vertices
-    sliced_mesh = mesh.copy()
     vertices = mesh.vertices.copy()
     faces = mesh.faces.copy()
 
@@ -700,90 +700,58 @@ def slice_mesh_plane(mesh,
     # slice away specified planes
     for origin, normal in zip(plane_origin.reshape((-1, 3)),
                               plane_normal.reshape((-1, 3))):
-
-        # calculate dots here if not passed in to save time
-        # in case of cap
-        if cached_dots is None:
-            # dot product of each vertex with the plane normal indexed by face
-            # so for each face the dot product of each vertex is a row
-            # shape is the same as faces (n,3)
-            dots = np.einsum('i,ij->j', normal,
-                             (vertices - origin).T)
-        else:
-            dots = cached_dots
         # save the new vertices and faces
-        vertices, faces = slice_faces_plane(vertices=vertices,
-                                            faces=faces,
-                                            plane_normal=normal,
-                                            plane_origin=origin,
-                                            face_index=face_index,
-                                            cached_dots=dots)
-
+        vertices, faces = slice_faces_plane(
+            vertices=vertices,
+            faces=faces,
+            plane_normal=normal,
+            plane_origin=origin,
+            face_index=face_index)
         # check if cap arg specified
         if cap:
             if face_index:
                 # This hasn't been implemented yet.
-                raise NotImplementedError("face_index and cap can't be used together")
-            # check if mesh is watertight (can't cap if not)
-            if not sliced_mesh.is_watertight:
-                raise ValueError('Input mesh must be watertight to cap slice')
-            path = sliced_mesh.section(
-                plane_normal=normal,
-                plane_origin=origin,
-                cached_dots=dots)
-            if path is None:
-                # if path is None it means this plane didn't
-                # intersect anything so we can exit early without
-                # doing anything to cap the result
+                raise NotImplementedError(
+                    "face_index and cap can't be used together")
+
+            # start by deduplicating vertices again
+            unique, inverse = grouping.unique_rows(vertices)
+            vertices = vertices[unique]
+            # will collect additional faces
+            f = inverse[faces]
+
+            # transform to the cap plane
+            to_2D = geometry.plane_transform(
+                origin=origin,
+                normal=-normal)
+            to_3D = np.linalg.inv(to_2D)
+
+            vertices_2D = tf.transform_points(vertices, to_2D)
+            edges = geometry.faces_to_edges(f)
+            edges.sort(axis=1)
+
+            on_plane = np.abs(vertices_2D[:, 2]) < 1e-8
+            edges = edges[on_plane[edges].all(axis=1)]
+            edges = edges[edges[:, 0] != edges[:, 1]]
+
+            unique_edge = grouping.group_rows(
+                edges, require_count=1)
+            if len(unique) < 3:
                 continue
-            # transform Path3D onto XY plane for triangulation
-            on_plane, to_3D = path.to_planar()
-            # triangulate each closed region of 2D cap
-            # without adding any new vertices
-            v, f = [], []
-            for polygon in on_plane.polygons_full:
-                t = triangulate_polygon(
-                    polygon, triangle_args='pY', engine='triangle')
-                v.append(t[0])
-                f.append(t[1])
 
-                if tol.strict:
-                    # in unit tests make sure that our triangulation didn't
-                    # insert any new vertices which would break watertightness
-                    from scipy.spatial import cKDTree
-                    # get all interior and exterior points on tree
-                    check = [np.array(polygon.exterior.coords)]
-                    check.extend(np.array(i.coords) for i in polygon.interiors)
-                    tree = cKDTree(np.vstack(check))
-                    # every new vertex should be on an old vertex
-                    assert np.allclose(tree.query(v[-1])[0], 0.0)
-
-            # append regions and reindex
-            vf, ff = util.append_faces(v, f)
-
-            # make vertices 3D and transform back to mesh frame
-            vf = tf.transform_points(
-                np.column_stack((vf, np.zeros(len(vf)))),
-                to_3D)
-
-            # check to see if our new faces are aligned with our normal
-            check = windings_aligned(vf[ff], normal)
-
-            # if 50% of our new faces are aligned with the normal flip
-            if check.astype(np.float64).mean() > 0.5:
-                ff = np.fliplr(ff)
-
-            # check vertices to see which ones are on plane
-            on_plane = np.abs(np.dot(vertices - origin, normal)) < tol.merge
-            # add cap vertices and faces and reindex
-            # remove any original faces which are coplanar with cap plane
-            # as these will be replaced by newly generated faces
-            vertices, faces = util.append_faces(
-                [vertices, vf], [faces[~on_plane[faces].all(axis=1)], ff])
-
-            # Update mesh with cap (processing needed to merge vertices)
-            sliced_mesh = Trimesh(vertices=vertices, faces=faces)
-            vertices, faces = sliced_mesh.vertices.copy(), sliced_mesh.faces.copy()
+            tree = cKDTree(vertices)
+            # collect new faces
+            faces = [f]
+            for p in polygons.edges_to_polygons(
+                    edges[unique_edge], vertices_2D[:, :2]):
+                vn, fn = triangulate_polygon(p)
+                # collect the original index for the new vertices
+                vn3 = tf.transform_points(util.stack_3D(vn), to_3D)
+                distance, vid = tree.query(vn3)
+                # triangulation should not have inserted vertices
+                assert distance.max() < 1e-8
+                faces.append(vid[fn])
+            faces = np.vstack(faces)
 
     # return the sliced mesh
     return Trimesh(vertices=vertices, faces=faces, **kwargs)

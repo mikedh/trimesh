@@ -457,6 +457,7 @@ def triangulate_polygon(polygon,
         # run triangulation
         faces = _tri_earcut(vertices, rings).reshape(
             (-1, 3)).astype(np.int64).reshape((-1, 3))
+
         return vertices, faces
 
     elif engine == 'triangle':
