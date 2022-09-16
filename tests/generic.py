@@ -70,6 +70,15 @@ trimesh.constants.tol_path.strict = True
 
 
 try:
+    from mapbox_earcut import triangulate_float64
+    has_earcut = True
+except BaseException as E:
+    if all_dep:
+        raise E
+    else:
+        has_earcut = False
+
+try:
     from shapely.geometry import Point, Polygon, LineString
     has_path = True
 except ImportError as E:
