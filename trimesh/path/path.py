@@ -240,8 +240,7 @@ class Path(parent.Geometry):
         hashes = [hash(self.vertices),
                   caching.hash_fast(bytes().join(
                       e._bytes() for e in self.entities))]
-        return caching.hash_fast(np.array(
-            hashes, dtype=np.int64).tobytes())
+        return caching.hash_fast(np.array(hashes).tobytes())
 
     @caching.cache_decorator
     def paths(self):

@@ -269,8 +269,7 @@ class Scene(Geometry3D):
         hashable = [hash(self.graph.modified)]
         hashable.extend(hash(i) for i in
                         self.geometry.values())
-        return caching.hash_fast(np.array(
-            hashable, dtype=np.int64).tobytes())
+        return caching.hash_fast(np.array(hashable).tobytes())
 
     @property
     def is_empty(self):
