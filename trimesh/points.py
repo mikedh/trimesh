@@ -499,7 +499,7 @@ class PointCloud(Geometry3D):
         hash : str
           Hash of self.vertices
         """
-        return self._data.hash()
+        return self._data.__hash__()
 
     def crc(self):
         """
