@@ -194,7 +194,7 @@ class TrackedArray(np.ndarray):
         log.warning(
             '`array.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `hash(array)`')
+            'with `array.__hash__()` or `hash(array)`')
 
         return hash(self)
 
@@ -202,38 +202,39 @@ class TrackedArray(np.ndarray):
         log.warning(
             '`array.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `hash(array)`')
+            'with `array.__hash__()` or `hash(array)`')
         return hash(self)
 
     def md5(self):
         log.warning(
             '`array.md5()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `hash(array)`')
+            'with `array.__hash__()` or `hash(array)`')
         return hash(self)
 
     def __hash__(self):
         """
-        An xxhash.b64 hash of the array.
+        Return a fast hash of the contents of the array.
 
         Returns
         -------------
-        xx : int
-          xxhash.xxh64 hash of array.
+        hash : long int
+          A hash of the array contents.
         """
         # repeat the bookkeeping to get a contiguous array
-        if self._dirty_hash or not hasattr(self, '_hashed'):
-            if self.flags['C_CONTIGUOUS']:
-                hashed = hash_fast(self)
-            else:
-                # the case where we have sliced our nice
-                # contiguous array into a non- contiguous block
-                # for example (note slice *after* track operation):
-                # t = tracked_array(np.random.random(10))[::-1]
-                hashed = hash_fast(
-                    np.ascontiguousarray(self))
-        else:
+        if not self._dirty_hash and hasattr(self, '_hashed'):
+            # we have a valid hash without recomputing.
             return self._hashed
+
+        if self.flags['C_CONTIGUOUS']:
+            hashed = hash_fast(self)
+        else:
+            # the case where we have sliced our nice
+            # contiguous array into a non- contiguous block
+            # for example (note slice *after* track operation):
+            # t = tracked_array(np.random.random(10))[::-1]
+            hashed = hash_fast(
+                np.ascontiguousarray(self))
 
         # assign the value and set the flag
         self._hashed = hashed

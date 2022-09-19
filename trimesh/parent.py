@@ -44,25 +44,25 @@ class Geometry(ABC):
         util.log.warning(
             '`geometry.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `hash(geometry)`')
+            'with `geometry.__hash__()` or `hash(geometry)`')
         return hash(self)
 
     def hash(self):
         util.log.warning(
             '`geometry.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `hash(geometry)`')
+            'with `geometry.__hash__()` or `hash(geometry)`')
         return hash(self)
 
     def md5(self):
         util.log.warning(
             '`geometry.md5()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `hash(geometry)`')
+            'with `geometry.__hash__()` or `hash(geometry)`')
         return hash(self)
 
     def __hash__(self):
-        return hash(self._data)
+        return self._data.__hash__()
 
     @abc.abstractmethod
     def copy(self):

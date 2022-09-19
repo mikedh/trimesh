@@ -266,10 +266,14 @@ class Scene(Geometry3D):
           Data which can be hashed.
         """
         # start with the last modified time of the scene graph
-        hashable = [hash(self.graph.modified).to_bytes(32, 'little')]
-        hashable.extend(hash(i).to_bytes(32, 'little') for i in
-                        self.geometry.values())
-        return caching.hash_fast(b''.join(hashable))
+        hashable = [hex(hash(self.graph))]
+        # avoid accessing attribute in tight loop
+        geometry = self.geometry
+        # take the re-hex string of the hash
+        hashable.extend(hex(geometry[k].__hash__()) for k in
+                        sorted(geometry.keys()))
+        return caching.hash_fast(
+            ''.join(hashable).encode('utf-8'))
 
     @property
     def is_empty(self):

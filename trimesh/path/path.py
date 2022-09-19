@@ -222,10 +222,18 @@ class Path(parent.Geometry):
         crc : int
           CRC of entity points and vertices
         """
-        return hash(self)
+        util.log.warning(
+            '`geometry.crc()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geometry.__hash__()` or `hash(geometry)`')
+        return self.__hash__()
 
     def hash(self):
-        return hash(self)
+        util.log.warning(
+            '`geometry.hash()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geometry.__hash__()` or `hash(geometry)`')
+        return self.__hash__()
 
     def __hash__(self):
         """
@@ -233,11 +241,11 @@ class Path(parent.Geometry):
 
         Returns
         ------------
-        hash : int
+        hash : long int
           Appended hashes
         """
 
-        hashable = [hash(self.vertices).to_bytes(32, 'little')]
+        hashable = [hex(self.vertices.__hash__()).encode('utf-8')]
         hashable.extend(e._bytes() for e in self.entities)
         return caching.hash_fast(b''.join(hashable))
 
@@ -251,8 +259,8 @@ class Path(parent.Geometry):
         paths : (n,) sequence of (*,) int
           Referencing self.entities
         """
-        paths = traversal.closed_paths(self.entities,
-                                       self.vertices)
+        paths = traversal.closed_paths(
+            self.entities, self.vertices)
         return paths
 
     @caching.cache_decorator

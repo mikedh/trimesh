@@ -55,9 +55,10 @@ class TextureVisuals(Visuals):
 
         self.face_materials = face_materials
 
-    def _verify_crc(self):
+    def _verify_hash(self):
         """
-        Dump the cache if anything in self.vertex_attributes has changed.
+        Dump the cache if anything in self.vertex_attributes
+        has changed.
         """
         self._cache.verify()
 

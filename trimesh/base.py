@@ -2020,7 +2020,7 @@ class Trimesh(Geometry3D):
         """
 
         # smooth should be recomputed if visuals change
-        self.visual._verify_crc()
+        self.visual._verify_hash()
         cached = self.visual._cache['smoothed']
         if cached is not None:
             return cached
