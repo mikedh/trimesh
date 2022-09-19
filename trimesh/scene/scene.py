@@ -243,8 +243,7 @@ class Scene(Geometry3D):
         hashed : str
           hash of scene
         """
-        # start with transforms hash
-        return util.hash_func(self._hashable())
+        return hash(self)
 
     def crc(self):
         """
@@ -255,9 +254,9 @@ class Scene(Geometry3D):
         crc : int
           Hash of current graph and geometry.
         """
-        return caching.crc32(self._hashable())
+        return hash(self)
 
-    def _hashable(self):
+    def __hash__(self):
         """
         Return information about scene which is hashable.
 
@@ -267,15 +266,11 @@ class Scene(Geometry3D):
           Data which can be hashed.
         """
         # start with the last modified time of the scene graph
-        hashable = [self.graph.modified()]
-        # crc is an abstractmethod for all Geometry3D
-        # objects so everything should really have it
-        hashable.extend(str(i.crc()) for i in
-                        self.geometry.values()
-                        if hasattr(i, 'crc'))
-        # crc requires bytes so encode to utf-8
-        return ':'.join(sorted(hashable)).encode('utf-8')
-
+        hashable = [hash(self.graph.modified)]
+        hashable.extend(hash(i) for i in
+                        self.geometry.values())
+        return caching.hash_fast(np.array(
+            hashable, dtype=np.int64).tobytes())
     @property
     def is_empty(self):
         """

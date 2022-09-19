@@ -860,38 +860,6 @@ def decimal_to_digits(decimal, min_digits=None):
     return digits
 
 
-def hash_file(file_obj,
-              hash_function=None):
-    """
-    Get the hash of an open file-like object.
-
-    Parameters
-    ------------
-    file_obj: file like object
-    hash_function: function to use to hash data
-
-    Returns
-    ---------
-    hashed: str, hex version of result
-    """
-    # before we read the file data save the current position
-    # in the file (which is probably 0)
-    file_position = file_obj.tell()
-    # create an instance of the hash object
-    if hash_function is None:
-        hashed = hash_func(file_obj.read())
-    else:
-        hasher = hash_function()
-        # read all data from the file into the hasher
-        hasher.update(file_obj.read())
-        # get a hex version of the result
-        hashed = hasher.hexdigest()
-    # return the file object to its original position
-    file_obj.seek(file_position)
-
-    return hashed
-
-
 def attach_to_log(level=logging.DEBUG,
                   handler=None,
                   loggers=None,
@@ -2415,22 +2383,3 @@ def is_ccw(points):
     ccw = area < 0
 
     return ccw
-
-
-def hash_func(val):
-    """
-    Hash a value val
-
-    Parameters
-    -----------
-    val : bytes string
-
-    Returns
-    ----------
-    hash : str
-        hash of val in str form
-    """
-    if PY3:
-        return hashlib.blake2b(val).hexdigest()
-    else:
-        return hashlib.sha256(val).hexdigest()

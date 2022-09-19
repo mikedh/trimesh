@@ -25,7 +25,7 @@ import numpy as np
 from functools import wraps
 
 from .constants import log
-from .util import is_sequence, hash_func
+from .util import is_sequence
 
 try:
     from collections.abc import Mapping
@@ -191,24 +191,24 @@ class TrackedArray(np.ndarray):
         self.flags.writeable = value
 
     def hash(self):
-        util.log.warning(
+        log.warning(
             '`array.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace '
+            'be removed in October 2023: replace ' +
             'with `hash(array)`')
 
         return hash(self)
 
     def crc(self):
-        util.log.warning(
+        log.warning(
             '`array.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace '
+            'be removed in October 2023: replace ' +
             'with `hash(array)`')
         return hash(self)
 
     def md5(self):
-        util.log.warning(
+        log.warning(
             '`array.md5()` is deprecated and will ' +
-            'be removed in October 2023: replace '
+            'be removed in October 2023: replace ' +
             'with `hash(array)`')
         return hash(self)
 
@@ -604,7 +604,8 @@ class DataStore(Mapping):
           hash of data in hexadecimal
         """
         return hash_fast(np.array(
-            [hash(v) for v in self.data.values()]).tobytes())
+            [hash(v) for v in self.data.values()],
+            dtype=np.int64).tobytes())
 
     def crc(self):
         """
@@ -615,6 +616,10 @@ class DataStore(Mapping):
         crc : int
           CRC of data
         """
+        log.warning(
+            '`array.hash()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `hash(array)`')
         return hash(self)
 
     def fast_hash(self):
@@ -626,4 +631,16 @@ class DataStore(Mapping):
         hashed : int
           Checksum of data
         """
+        log.warning(
+            '`array.fast_hash()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `hash(array)`')
+        return hash(self)
+
+    def hash(self):
+        log.warning(
+            '`array.hash()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `hash(array)`')
+
         return hash(self)

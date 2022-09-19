@@ -23,7 +23,7 @@ class RayMeshIntersector(object):
 
     def __init__(self, mesh):
         self.mesh = mesh
-        self._cache = caching.Cache(self.mesh.crc)
+        self._cache = caching.Cache(self.mesh.__hash__)
 
     def intersects_id(self,
                       ray_origins,

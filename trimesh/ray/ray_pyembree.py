@@ -51,7 +51,8 @@ class RayMeshIntersector(object):
         """
         self.mesh = geometry
         self._scale_to_box = scale_to_box
-        self._cache = caching.Cache(id_function=self.mesh.crc)
+        self._cache = caching.Cache(
+            id_function=self.mesh.__hash__)
 
     @property
     def _scale(self):

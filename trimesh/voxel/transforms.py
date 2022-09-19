@@ -33,7 +33,7 @@ class Transform(object):
         # store matrix as data
         self._data = caching.tracked_array(matrix, dtype=np.float64)
         # dump cache when matrix changes
-        self._cache = caching.Cache(id_function=self._data.fast_hash)
+        self._cache = caching.Cache(id_function=self._data.__hash__)
 
     def hash(self):
         """

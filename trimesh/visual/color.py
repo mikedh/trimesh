@@ -58,7 +58,7 @@ class ColorVisuals(Visuals):
         """
         self.mesh = mesh
         self._data = caching.DataStore()
-        self._cache = caching.Cache(id_function=self.crc)
+        self._cache = caching.Cache(id_function=self.__hash__)
 
         self.defaults = {
             'material_diffuse': np.array([102, 102, 102, 255],
@@ -122,7 +122,7 @@ class ColorVisuals(Visuals):
             return None
 
         # do bookkeeping
-        self._verify_crc()
+        self._verify_hash()
 
         # check modes in data
         if 'vertex_colors' in self._data:
@@ -144,11 +144,8 @@ class ColorVisuals(Visuals):
         # will make sure everything has been transferred
         # to datastore that needs to be before returning crc
 
-        result = self._data.fast_hash()
-        if hasattr(self.mesh, 'crc'):
-            # bitwise xor combines hashes better than a sum
-            result ^= self.mesh.crc()
-        return result
+        # bitwise xor combines hashes better than a sum
+        return hash(self._data) ^ hash(self.mesh)
 
     def copy(self):
         """
@@ -317,7 +314,7 @@ class ColorVisuals(Visuals):
             colors = self._cache[key_colors]
             # if the cached colors have been changed since creation we move
             # them to data
-            if colors.crc() != self._cache[key_crc]:
+            if hash(colors) != self._cache[key_crc]:
                 # call the setter on the property using exec
                 # this avoids having to pass a setter to this function
                 if name == 'face':
@@ -357,11 +354,11 @@ class ColorVisuals(Visuals):
         colors = caching.tracked_array(colors)
         # put the generated colors and their initial checksum into cache
         self._cache[key_colors] = colors
-        self._cache[key_crc] = colors.crc()
+        self._cache[key_crc] = hash(colors)
 
         return colors
 
-    def _verify_crc(self):
+    def _verify_hash(self):
         """
         Verify the checksums of cached face and vertex color, to verify
         that a user hasn't altered them since they were generated from
@@ -386,7 +383,7 @@ class ColorVisuals(Visuals):
             colors = self._cache[key_colors]
             # if the cached colors have been changed since creation
             # move them to data
-            if colors.crc() != self._cache[key_crc]:
+            if hash(colors) != self._cache[key_crc]:
                 if name == 'face':
                     self.face_colors = colors
                 elif name == 'vertex':
@@ -519,9 +516,9 @@ class VertexColor(Visuals):
     def kind(self):
         return 'vertex'
 
-    def crc(self):
-        return self._colors.crc()
-
+    def crc(self):    
+        return hash(self._colors)
+    
     def update_vertices(self, mask):
         if self._colors is not None:
             self._colors = self._colors[mask]

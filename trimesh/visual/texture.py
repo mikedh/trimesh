@@ -38,7 +38,7 @@ class TextureVisuals(Visuals):
         # store values we care about enough to hash
         self.vertex_attributes = caching.DataStore()
         # cache calculated values
-        self._cache = caching.Cache(self.vertex_attributes.fast_hash)
+        self._cache = caching.Cache(self.vertex_attributes.__hash__)
 
         # should be (n, 2) float
         self.uv = uv

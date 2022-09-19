@@ -222,31 +222,27 @@ class Path(parent.Geometry):
         crc : int
           CRC of entity points and vertices
         """
-        # first CRC the points in every entity
-        target = caching.crc32(bytes().join(
-            e._bytes() for e in self.entities))
-        # XOR the CRC for the vertices
-        target ^= self.vertices.fast_hash()
-        return target
+        return hash(self)
 
     def hash(self):
+        return hash(self)
+    
+    def __hash__(self):
         """
         A hash of the current vertices and entities.
 
         Returns
         ------------
-        hash : str
+        hash : int
           Appended hashes
         """
-        # first hash the points in every entity
-        hash_val = util.hash_func(bytes().join(
-            e._bytes() for e in self.entities))
-        target = '{}{}'.format(
-            hash_val,
-            self.vertices.hash())
 
-        return target
-
+        hashes = [hash(self.vertices),
+                  caching.hash_fast(bytes().join(
+                      e._bytes() for e in self.entities))]
+        return caching.hash_fast(np.array(
+            hashes, dtype=np.int64).tobytes())
+    
     @caching.cache_decorator
     def paths(self):
         """

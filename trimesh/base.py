@@ -111,7 +111,7 @@ class Trimesh(Geometry3D):
         # In order to maintain consistency
         # the cache is cleared when self._data.crc() changes
         self._cache = caching.Cache(
-            id_function=self._data.fast_hash,
+            id_function=self._data.__hash__,
             force_immutable=True)
 
         self._cache.update(initial_cache)
@@ -2663,7 +2663,7 @@ class Trimesh(Geometry3D):
             mesh=self,
             faces_sequence=faces_sequence,
             **kwargs)
-    
+
     @caching.cache_decorator
     def identifier(self):
         """
@@ -2680,41 +2680,46 @@ class Trimesh(Geometry3D):
     @caching.cache_decorator
     def identifier_hash(self):
         """
-        A hash of the rotation invariant identifier vector
+        A hash of the rotation invariant identifier vector.
 
         Returns
         ---------
         hashed : str
-            hash of the identifier vector
+          Hex string of the SHA256 hash from
+          the identifier vector at hand-tuned sigfigs.
         """
         return comparison.identifier_hash(self.identifier)
 
     @property
     def identifier_md5(self):
+        util.log.warning(
+            '`geom.identifier_md5` is deprecated and will ' +
+            'be removed in October 2023: replace '
+            'with `geom.identifier_hash`')
         return self.identifier_hash
-    
-    
+
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
 
-        Supported formats are stl, off, ply, collada, json, dict, glb,
-        dict64, msgpack.
+        Supported formats are stl, off, ply, collada, json,
+        dict, glb, dict64, msgpack.
 
         Parameters
         ------------
-        file_obj: open writeable file object
+        file_obj : open writeable file object
           str, file name where to save the mesh
-          None, if you would like this function to return the export blob
-        file_type: str
-          Which file type to export as.
-          If file name is passed this is not required
+          None, return the export blob
+        file_type : str
+          Which file type to export as, if `file_name`
+          is passed this is not required.
         """
-        return export_mesh(mesh=self,
-                           file_obj=file_obj,
-                           file_type=file_type,
-                           **kwargs)
+        return export_mesh(
+            mesh=self,
+            file_obj=file_obj,
+            file_type=file_type,
+            **kwargs)
 
     def to_dict(self):
         """
