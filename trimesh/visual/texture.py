@@ -87,7 +87,7 @@ class TextureVisuals(Visuals):
         ok = self.material is not None
         return ok
 
-    def crc(self):
+    def __hash__(self):
         """
         Get a CRC of the stored data.
 
@@ -96,7 +96,7 @@ class TextureVisuals(Visuals):
         crc : int
           Hash of items in self.vertex_attributes
         """
-        return self.vertex_attributes.crc()
+        return self.vertex_attributes.__hash__()
 
     @property
     def uv(self):

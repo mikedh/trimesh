@@ -58,7 +58,8 @@ class ColorVisuals(Visuals):
         """
         self.mesh = mesh
         self._data = caching.DataStore()
-        self._cache = caching.Cache(id_function=self.__hash__)
+        self._cache = caching.Cache(
+            id_function=self._data.__hash__)
 
         self.defaults = {
             'material_diffuse': np.array([102, 102, 102, 255],
@@ -132,20 +133,8 @@ class ColorVisuals(Visuals):
 
         return None
 
-    def crc(self):
-        """
-        A checksum for the current visual object and its parent mesh.
-
-        Returns
-        ----------
-        crc : int
-          Checksum of data in visual object and its parent mesh
-        """
-        # will make sure everything has been transferred
-        # to datastore that needs to be before returning crc
-
-        # bitwise xor combines hashes better than a sum
-        return hash(self._data) ^ hash(self.mesh)
+    def __hash__(self):
+        return self._data.__hash__()
 
     def copy(self):
         """
@@ -466,7 +455,8 @@ class ColorVisuals(Visuals):
 
     def concatenate(self, other, *args):
         """
-        Concatenate two or more ColorVisuals objects into a single object.
+        Concatenate two or more ColorVisuals objects
+        into a single object.
 
         Parameters
         -----------
@@ -476,8 +466,9 @@ class ColorVisuals(Visuals):
 
         Returns
         -----------
-        result: ColorVisuals object containing information from current
-                object and others in the order it was passed.
+        result : ColorVisuals
+          Containing information from current
+          object and others in the order it was passed.
         """
         # avoid a circular import
         from . import objects
@@ -515,9 +506,6 @@ class VertexColor(Visuals):
     @property
     def kind(self):
         return 'vertex'
-
-    def crc(self):
-        return hash(self._colors)
 
     def update_vertices(self, mask):
         if self._colors is not None:
