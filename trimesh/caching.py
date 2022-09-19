@@ -2,13 +2,25 @@
 caching.py
 -----------
 
-Functions and classes that help with tracking changes in ndarrays
-and clearing cached values based on those changes.
+Functions and classes that help with tracking changes
+in `numpy.ndarray` and clearing cached values based
+on those changes.
+
+You should really `pip install xxhash`:
+
+```
+In [23]: %timeit int(blake2b(d).hexdigest(), 16)
+102 us +/- 684 ns per loop
+
+In [24]: %timeit int(sha256(d).hexdigest(), 16)
+142 us +/- 3.73 us
+
+In [25]: %timeit xxh3_64_intdigest(d)
+3.37 us +/- 116 ns per loop
+```
 """
 
 import numpy as np
-
-import zlib
 
 from functools import wraps
 
@@ -20,25 +32,40 @@ try:
 except ImportError:
     from collections import Mapping
 
-# xxhash is roughly 5x faster than zlib.adler32 and
-# up to 30x faster than MD5, but is only
-# packaged in easy wheels on linux (`pip install xxhash`)
+
+# sha256 is always available
+from hashlib import sha256 as _sha256
+
+
+def sha256(item):
+    return int(_sha256(item).hexdigest(), 16)
+
+
+try:
+    # blake2b is available on Python 3 and
+    from hashlib import blake2b as _blake2b
+
+    def hash_fallback(item):
+        return int(_blake2b(item).hexdigest(), 16)
+except BaseException:
+    # fallback to sha256
+    hash_fallback = sha256
+
+# xxhash is up to 30x faster than sha256:
+# `pip install xxhash`
 try:
     # newest version of algorithm
-    from xxhash import xxh3_64_intdigest as fast_hash
+    from xxhash import xxh3_64_intdigest as hash_fast
 except BaseException:
     try:
         # older version of the algorithm
-        from xxhash import xxh64_intdigest as fast_hash
+        from xxhash import xxh64_intdigest as hash_fast
     except BaseException:
         # use hashlib as a fallback hashing library
         log.debug('falling back to hashlib ' +
-                  ' hashing: `pip install xxhash`' +
-                  ' for 30x faster cache checks')
-
-        def fast_hash(a):
-
-            return int(hash_func(a), 16)
+                  'hashing: `pip install xxhash`' +
+                  'for 50x faster cache checks')
+        hash_fast = hash_fallback
 
 
 def tracked_array(array, dtype=None):
@@ -58,7 +85,7 @@ def tracked_array(array, dtype=None):
     Returns
     ------------
     tracked : TrackedArray
-      Contains input array data
+      Contains input array data.
     """
     # if someone passed us None, just create an empty array
     if array is None:
@@ -139,9 +166,9 @@ class TrackedArray(np.ndarray):
 
     Methods
     ----------
-    hash :      str, hexadecimal hash of array
-    crc :       int, zlib crc32/adler32 checksum
-    fast_hash : int, CRC or xxhash.xx64
+    __hash__ : int
+      Runs the fastest available hash in this order:
+        `xxh3_64, xxh_64, blake2b, sha256`
     """
 
     def __array_finalize__(self, obj):
@@ -150,13 +177,10 @@ class TrackedArray(np.ndarray):
         This flag will be set on every change as well as
         during copies and certain types of slicing.
         """
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
+
+        self._dirty_hash = True
         if isinstance(obj, type(self)):
-            obj._modified_c = True
-            obj._modified_m = True
-            obj._modified_x = True
+            obj._dirty_hash = True
 
     @property
     def mutable(self):
@@ -167,50 +191,28 @@ class TrackedArray(np.ndarray):
         self.flags.writeable = value
 
     def hash(self):
-        """
-        Return a sha256 hash of the current array.
+        util.log.warning(
+            '`array.hash()` is deprecated and will ' +
+            'be removed in October 2023: replace '
+            'with `hash(array)`')
 
-        Returns
-        -----------
-        sha256 : str
-          Hexadecimal sha256 of the array
-        """
-        if self._modified_m or not hasattr(self, '_hashed_self'):
-            if self.flags['C_CONTIGUOUS']:
-                self._hashed_self = hash_func(self)
-            else:
-                # the case where we have sliced our nice
-                # contiguous array into a non- contiguous block
-                # for example (note slice *after* track operation):
-                # t = util.tracked_array(np.random.random(10))[::-1]
-                self._hashed_self = hash_func((np.ascontiguousarray(self)))
-        self._modified_m = False
-        return self._hashed_self
+        return hash(self)
 
     def crc(self):
-        """
-        A zlib.crc32 or zlib.adler32 checksum
-        of the current data.
+        util.log.warning(
+            '`array.crc()` is deprecated and will ' +
+            'be removed in October 2023: replace '
+            'with `hash(array)`')
+        return hash(self)
 
-        Returns
-        -----------
-        crc : int
-          Checksum from zlib.crc32 or zlib.adler32
-        """
-        if self._modified_c or not hasattr(self, '_hashed_crc'):
-            if self.flags['C_CONTIGUOUS']:
-                self._hashed_crc = crc32(self)
-            else:
-                # the case where we have sliced our nice
-                # contiguous array into a non- contiguous block
-                # for example (note slice *after* track operation):
-                # t = util.tracked_array(np.random.random(10))[::-1]
-                contiguous = np.ascontiguousarray(self)
-                self._hashed_crc = crc32(contiguous)
-        self._modified_c = False
-        return self._hashed_crc
+    def md5(self):
+        util.log.warning(
+            '`array.md5()` is deprecated and will ' +
+            'be removed in October 2023: replace '
+            'with `hash(array)`')
+        return hash(self)
 
-    def fast_hash(self):
+    def __hash__(self):
         """
         An xxhash.b64 hash of the array.
 
@@ -219,148 +221,112 @@ class TrackedArray(np.ndarray):
         xx : int
           xxhash.xxh64 hash of array.
         """
-        # repeat the bookkeeping to get a contiguous array inside
-        # the function to avoid additional function calls
-        # these functions are called millions of times so everything helps
-        if self._modified_x or not hasattr(self, '_hashed_xx'):
+        # repeat the bookkeeping to get a contiguous array
+        if self._dirty_hash or not hasattr(self, '_hashed'):
             if self.flags['C_CONTIGUOUS']:
-                self._hashed_xx = fast_hash(self)
+                hashed = hash_fast(self)
             else:
                 # the case where we have sliced our nice
                 # contiguous array into a non- contiguous block
                 # for example (note slice *after* track operation):
-                # t = util.tracked_array(np.random.random(10))[::-1]
-                self._hashed_xx = fast_hash(np.ascontiguousarray(self))
-        self._modified_x = False
+                # t = tracked_array(np.random.random(10))[::-1]
+                hashed = hash_fast(
+                    np.ascontiguousarray(self))
+        else:
+            return self._hashed
 
-        return self._hashed_xx
+        # assign the value and set the flag
+        self._hashed = hashed
+        self._dirty_hash = False
 
-    def __hash__(self):
-        """
-        Hash is required to return an int.
-
-        Returns
-        -----------
-        hash : int
-          Result of fast_hash
-        """
-        return self.fast_hash()
+        return hashed
 
     def __iadd__(self, *args, **kwargs):
         """
-        In- place addition.
+        In-place addition.
 
         The i* operations are in- place and modify the array,
         so we better catch all of them.
         """
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__iadd__(*args,
-                                                    **kwargs)
+
+        self._dirty_hash = True
+        return super(self.__class__, self).__iadd__(
+            *args, **kwargs)
 
     def __isub__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__isub__(*args,
-                                                    **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__isub__(
+            *args, **kwargs)
 
     def __imul__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__imul__(*args,
-                                                    **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__imul__(
+            *args, **kwargs)
 
     def __idiv__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__idiv__(*args,
-                                                    **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__idiv__(
+            *args, **kwargs)
 
     def __itruediv__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__itruediv__(*args,
-                                                        **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__itruediv__(
+            *args, **kwargs)
 
     def __imatmul__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__imatmul__(*args,
-                                                       **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__imatmul__(
+            *args, **kwargs)
 
     def __ipow__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__ipow__(*args, **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__ipow__(
+            *args, **kwargs)
 
     def __imod__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__imod__(*args, **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__imod__(
+            *args, **kwargs)
 
     def __ifloordiv__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__ifloordiv__(*args,
-                                                         **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__ifloordiv__(
+            *args, **kwargs)
 
     def __ilshift__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__ilshift__(*args,
-                                                       **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__ilshift__(
+            *args, **kwargs)
 
     def __irshift__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__irshift__(*args,
-                                                       **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__irshift__(
+            *args, **kwargs)
 
     def __iand__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__iand__(*args,
-                                                    **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__iand__(
+            *args, **kwargs)
 
     def __ixor__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__ixor__(*args,
-                                                    **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__ixor__(
+            *args, **kwargs)
 
     def __ior__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        return super(self.__class__, self).__ior__(*args,
-                                                   **kwargs)
+        self._dirty_hash = True
+        return super(self.__class__, self).__ior__(
+            *args, **kwargs)
 
     def __setitem__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        super(self.__class__, self).__setitem__(*args,
-                                                **kwargs)
+        self._dirty_hash = True
+        super(self.__class__, self).__setitem__(
+            *args, **kwargs)
 
     def __setslice__(self, *args, **kwargs):
-        self._modified_c = True
-        self._modified_m = True
-        self._modified_x = True
-        super(self.__class__, self).__setslice__(*args,
-                                                 **kwargs)
+        self._dirty_hash = True
+        super(self.__class__, self).__setslice__(
+            *args, **kwargs)
 
 
 class Cache(object):
@@ -387,7 +353,7 @@ class Cache(object):
         self.id_current = self._id_function()
         # a counter for locks
         self._lock = 0
-        # actual store for data
+        # actuSal store for data
         self.cache = {}
 
     def delete(self, key):
@@ -628,7 +594,7 @@ class DataStore(Mapping):
         for key, value in values.items():
             self[key] = value
 
-    def hash(self):
+    def __hash__(self):
         """
         Get a hash reflecting everything in the DataStore.
 
@@ -637,9 +603,8 @@ class DataStore(Mapping):
         hash : str
           hash of data in hexadecimal
         """
-        return hash_func(''.join(
-            self.data[key].hash()
-            for key in sorted(self.data.keys())).encode('utf-8'))
+        return hash_fast(np.array(
+            [hash(v) for v in self.data.values()]).tobytes())
 
     def crc(self):
         """
@@ -650,9 +615,7 @@ class DataStore(Mapping):
         crc : int
           CRC of data
         """
-        # combine with a sum of every hash
-        crc = sum(i.crc() for i in self.data.values())
-        return crc
+        return hash(self)
 
     def fast_hash(self):
         """
@@ -663,49 +626,4 @@ class DataStore(Mapping):
         hashed : int
           Checksum of data
         """
-        # combine every hash
-        fast = sum(i.fast_hash() for i in self.data.values())
-        return fast
-
-
-def _fast_crc(count=10):
-    """
-    On certain platforms/builds zlib.adler32 is substantially
-    faster than zlib.crc32, but it is not consistent across
-    Windows/Linux/OSX.
-
-    This function runs a quick check (2ms on my machines) to
-    determine the fastest hashing function available in zlib.
-
-    Parameters
-    ------------
-    count : int
-      Number of repetitions to do on the speed trial
-
-    Returns
-    ----------
-    crc32 : function
-      Either `zlib.adler32` or `zlib.crc32`
-    """
-    import timeit
-
-    # create an array of random numbers
-    setup = 'import numpy, zlib;'
-    setup += 'd = numpy.random.random((500,3));'
-    # time crc32
-    crc32 = timeit.timeit(setup=setup,
-                          stmt='zlib.crc32(d)',
-                          number=count)
-    # time adler32
-    adler32 = timeit.timeit(setup=setup,
-                            stmt='zlib.adler32(d)',
-                            number=count)
-    if adler32 < crc32:
-        return zlib.adler32
-    else:
-        return zlib.crc32
-
-
-# get the fastest CRC32 available on the
-# current platform when trimesh is imported
-crc32 = _fast_crc()
+        return hash(self)

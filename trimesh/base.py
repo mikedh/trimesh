@@ -246,39 +246,6 @@ class Trimesh(Geometry3D):
         self.metadata['processed'] = True
         return self
 
-    def hash(self):
-        """
-        A hash of the core geometry information for the mesh,
-        faces and vertices.
-
-        Generated from TrackedArray which subclasses np.ndarray to
-        monitor array for changes and returns a correct lazily
-        evaluated hash so it only has to recalculate the hash
-        occasionally, rather than on every call.
-
-        Returns
-        ----------
-        hash : string
-          hash of everything in the DataStore
-        """
-        hash_val = self._data.hash()
-        return hash_val
-
-    def crc(self):
-        """
-        A zlib.adler32 checksum for the current mesh data.
-
-        This is about 5x faster than an MD5, and the checksum is
-        checked every time something is requested from the cache so
-        it gets called a lot.
-
-        Returns
-        ----------
-        crc : int
-          Checksum of current mesh data
-        """
-        return self._data.fast_hash()
-
     @property
     def faces(self):
         """
@@ -2689,13 +2656,14 @@ class Trimesh(Geometry3D):
 
         Returns
         ---------
-        if append : trimesh.Trimesh object
-        else :      list of trimesh.Trimesh objects
+        submesh : Trimesh or (n,) Trimesh
+          Single mesh if `append` or list of submeshes
         """
-        return util.submesh(mesh=self,
-                            faces_sequence=faces_sequence,
-                            **kwargs)
-
+        return util.submesh(
+            mesh=self,
+            faces_sequence=faces_sequence,
+            **kwargs)
+    
     @caching.cache_decorator
     def identifier(self):
         """
@@ -2704,11 +2672,10 @@ class Trimesh(Geometry3D):
 
         Returns
         -----------
-        identifier : (6, ) float
+        identifier : (7,) float
           Identifying properties of the current mesh
         """
-        identifier = comparison.identifier_simple(self)
-        return identifier
+        return comparison.identifier_simple(self)
 
     @caching.cache_decorator
     def identifier_hash(self):
@@ -2720,9 +2687,13 @@ class Trimesh(Geometry3D):
         hashed : str
             hash of the identifier vector
         """
-        hashed = comparison.identifier_hash(self.identifier)
-        return hashed
+        return comparison.identifier_hash(self.identifier)
 
+    @property
+    def identifier_md5(self):
+        return self.identifier_hash
+    
+    
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
         Export the current mesh to a file object.
@@ -3045,18 +3016,6 @@ class Trimesh(Geometry3D):
         result = eval(statement)
         self._cache[key] = result
         return result
-
-    def __hash__(self):
-        """
-        Return the hash of the mesh as an integer.
-
-        Returns
-        ----------
-        hashed : int
-          hash of mesh data
-        """
-        hashed = int(self.hash(), 16)
-        return hashed
 
     def __add__(self, other):
         """

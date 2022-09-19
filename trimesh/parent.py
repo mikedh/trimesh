@@ -8,19 +8,19 @@ import abc
 
 import numpy as np
 
+from . import util
 from . import caching
 from . import transformations as tf
 from .util import ABC
-
 
 class Geometry(ABC):
 
     """
     `Geometry` is the parent class for all geometry.
 
-    By decorating a method with `abc.abstractmethod` it just means
-    the objects that inherit from `Geometry` MUST implement those
-    methods.
+    By decorating a method with `abc.abstractmethod` it means
+    the objects that inherit from `Geometry` MUST implement
+    those methods.
     """
 
     @abc.abstractproperty
@@ -39,13 +39,29 @@ class Geometry(ABC):
     def is_empty(self):
         pass
 
-    @abc.abstractmethod
     def crc(self):
-        pass
+        util.log.warning(
+            '`geometry.crc()` is deprecated and will ' +
+            'be removed in October 2023: replace '
+            'with `hash(geometry)`')
+        return hash(self)
 
-    @abc.abstractmethod
     def hash(self):
-        pass
+        util.log.warning(
+            '`geometry.hash()` is deprecated and will ' +
+            'be removed in October 2023: replace '
+            'with `hash(geometry)`')
+        return hash(self)
+
+    def md5(self):
+        util.log.warning(
+            '`geometry.md5()` is deprecated and will ' +
+            'be removed in October 2023: replace '
+            'with `hash(geometry)`')
+        return hash(self)
+
+    def __hash__(self):
+        return hash(self._data)
 
     @abc.abstractmethod
     def copy(self):

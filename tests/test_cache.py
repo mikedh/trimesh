@@ -3,169 +3,116 @@ try:
 except BaseException:
     import generic as g
 
-TEST_DIM = (10000, 3)
+TEST_DIM = (100000, 3)
 
 
 class CacheTest(g.unittest.TestCase):
-
-    def test_hash(self):
-        setup = 'import numpy, trimesh;'
-        setup += 'd = numpy.random.random((10000,3));'
-        setup += 't = trimesh.caching.tracked_array(d)'
-
-        count = 10000
-
-        g.timeit.timeit(setup=setup,
-                        stmt='t._modified_m=True;t.hash()',
-                        number=count)
-        g.timeit.timeit(setup=setup,
-                        stmt='t._modified_c=True;t.crc()',
-                        number=count)
-        g.timeit.timeit(setup=setup,
-                        stmt='t._modified_x=True;t.fast_hash()',
-                        number=count)
-
-        m = g.get_mesh('featuretype.STL')
-        # log result values
-        g.log.info('\nResult\nhash:\n{}\nCRC:\n{}\nXX:\n{}'.format(
-            m.vertices.hash(),
-            m.vertices.crc(),
-            m.vertices.fast_hash()))
 
     def test_track(self):
         """
         Check to make sure our fancy caching system only changes
         hashes when data actually changes.
         """
-        # generate test data and perform numpy operations
-        a = g.trimesh.caching.tracked_array(
-            g.np.random.random(TEST_DIM))
-        modified = []
 
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-        a[0][0] = 10
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
+        original = g.trimesh.caching.hash_fast
+        options = [g.trimesh.caching.hash_fast,
+                   g.trimesh.caching.hash_fallback,
+                   g.trimesh.caching.sha256]
 
-        a[0][0] += 0.1
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
+        for option in options:
+            g.log.info('testing hash function: {}'.format(
+                option.__name__))
+            g.trimesh.caching.hash_fast = option
 
-        a[:10] = g.np.fliplr(a[:10])
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
+            # generate test data and perform numpy operations
+            a = g.trimesh.caching.tracked_array(
+                g.np.random.random(TEST_DIM))
+            modified = [hash(a)]
+            a[0][0] = 10
+            modified.append(hash(a))
+            a[0][0] += 0.1
+            modified.append(hash(a))
+            a[:10] = g.np.fliplr(a[:10])
+            modified.append(hash(a))
+            a[1] = 5
+            modified.append(hash(a))
+            a[2:] = 2
+            modified.append(hash(a))
+            # these operations altered data and
+            # the hash SHOULD have changed
+            modified = g.np.array(modified, dtype=g.np.int64)
+            assert (g.np.diff(modified) != 0).all()
 
-        a[1] = 5
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-        a[2:] = 2
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
+            # now do slice operations which don't alter data
+            modified = []
+            modified.append(hash(a))
+            b = a[[0, 1, 2]]  # NOQA
+            modified.append(hash(a))
+            c = a[1:]  # NOQA
+            modified.append(hash(a))
+            # double slice brah
+            a = a[::-1][::-1]
+            modified.append(hash(a))
+            # these operations should have been cosmetic and
+            # the hash should NOT have changed
+            modified = g.np.array(modified, dtype=g.np.int64)
+            assert (g.np.diff(modified, axis=0) == 0).all()
 
-        # these operations altered data and
-        # the hash SHOULD have changed
-        modified = g.np.array(modified)
-        assert (g.np.diff(modified, axis=0) != 0).all()
+            # now change stuff and see if checksums change
+            a = g.trimesh.caching.tracked_array([0, 0, 4])
+            modified = []
 
-        # now do slice operations which don't alter data
-        modified = []
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-        b = a[[0, 1, 2]]  # NOQA
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-        c = a[1:]  # NOQA
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-        # double slice brah
-        a = a[::-1][::-1]
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
+            modified.append(hash(a))
+            a += 10
+            modified.append(hash(a))
+            # assign some new data
+            a = g.trimesh.caching.tracked_array(
+                [.125, 115.32444, 4],
+                dtype=g.np.float64)
 
-        # these operations should have been cosmetic and
-        # the hash should NOT have changed
-        modified = g.np.array(modified)
-        assert (g.np.diff(modified, axis=0) == 0).all()
+            modified.append(hash(a))
+            a += [10, 0, 0]
+            modified.append(hash(a))
+            a *= 10
+            modified.append(hash(a))
+            # itruediv rather than idiv
+            a /= 2.0
+            modified.append(hash(a))
+            # idiv
+            a /= 2.123
+            modified.append(hash(a))
+            a -= 1.0
+            modified.append(hash(a))
+            # in place floor division :|
+            a //= 2
+            modified.append(hash(a))
+            # these operations altered data and
+            # the hash SHOULD have changed
+            modified = g.np.array(modified, dtype=g.np.int64)
+            assert (g.np.diff(modified) != 0).all()
 
-        # now change stuff and see if checksums change
-        a = g.trimesh.caching.tracked_array([0, 0, 4])
-        modified = []
-
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-        a += 10
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-
-        # assign some new data
-        a = g.trimesh.caching.tracked_array([.125, 115.32444, 4],
-                                            dtype=g.np.float64)
-
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-
-        a += [10, 0, 0]
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-
-        a *= 10
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-
-        # itruediv rather than idiv
-        a /= 2.0
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-
-        # idiv
-        a /= 2.123
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-
-        a -= 1.0
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-
-        # in place floor division :|
-        a //= 2
-        modified.append([int(a.hash(), 16),
-                         a.crc(),
-                         a.fast_hash()])
-
-        # these operations altered data and
-        # the hash SHOULD have changed
-        modified = g.np.array(modified)
-        assert (g.np.diff(modified, axis=0) != 0).all()
+        # reset our patched hash function
+        g.trimesh.caching.hash_fast = original
 
     def test_contiguous(self):
         a = g.np.random.random((100, 3))
         t = g.trimesh.caching.tracked_array(a)
 
-        # hashing will fail on non- contiguous arrays
-        # make sure our utility function has handled this properly
-        # for both hash and CRC
-        assert t.hash() != t[::-1].hash()
-        assert t.crc() != t[::-1].crc()
-        assert t.fast_hash() != t[::-1].fast_hash()
+        original = g.trimesh.caching.hash_fast
+        options = [g.trimesh.caching.hash_fast,
+                   g.trimesh.caching.hash_fallback,
+                   g.trimesh.caching.sha256]
+
+        for option in options:
+            g.log.info('testing hash function: {}'.format(
+                option.__name__))
+            g.trimesh.caching.hash_fast = option
+            # hashing will fail on non- contiguous arrays
+            # make sure our utility function has handled this
+            assert hash(t) != hash(t[::-1])
+
+        # reset our patched hash function
+        g.trimesh.caching.hash_fast = original
 
     def test_mutable(self):
         """
@@ -174,10 +121,10 @@ class CacheTest(g.unittest.TestCase):
         d = g.trimesh.caching.DataStore()
 
         d['hi'] = g.np.random.random(100)
-        hash_initial = d.fast_hash()
+        hash_initial = hash(d)
         # mutate internal data
         d['hi'][0] += 1
-        assert d.fast_hash() != hash_initial
+        assert hash(d) != hash_initial
 
         # should be mutable by default
         assert d.mutable
@@ -217,8 +164,8 @@ class CacheTest(g.unittest.TestCase):
                              6, 7, 1, 2, 7, 5, 2,
                              1, 7, 4, 5, 7, 6, 4, 7],
                             dtype=g.np.int64).reshape(-1, 3)
-        fast_hash = g.trimesh.caching.fast_hash
-        assert fast_hash(faces1) != fast_hash(faces2)
+        hash_fast = g.trimesh.caching.hash_fast
+        assert hash_fast(faces1) != hash_fast(faces2)
 
 
 if __name__ == '__main__':
