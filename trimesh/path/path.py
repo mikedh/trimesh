@@ -237,10 +237,9 @@ class Path(parent.Geometry):
           Appended hashes
         """
 
-        hashes = [hash(self.vertices),
-                  caching.hash_fast(bytes().join(
-                      e._bytes() for e in self.entities))]
-        return caching.hash_fast(np.array(hashes).tobytes())
+        hashable = [hash(self.vertices).to_bytes(32, 'little')]
+        hashable.extend(e._bytes() for e in self.entities)
+        return caching.hash_fast(b''.join(hashable))
 
     @caching.cache_decorator
     def paths(self):
