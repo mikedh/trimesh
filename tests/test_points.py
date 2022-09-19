@@ -22,7 +22,7 @@ class PointsTest(g.unittest.TestCase):
         # create a pointcloud object
         cloud = g.trimesh.points.PointCloud(points)
 
-        initial_md5 = cloud.md5()
+        initial_hash = cloud.hash()
 
         assert cloud.convex_hull.volume > 0.0
 
@@ -32,7 +32,7 @@ class PointsTest(g.unittest.TestCase):
         assert cloud.extents.shape == (3,)
         assert cloud.bounds.shape == (2, 3)
 
-        assert cloud.md5() == initial_md5
+        assert cloud.hash() == initial_hash
 
         # set some random colors
         cloud.colors = g.np.random.random((shape[0], 4))
@@ -45,7 +45,7 @@ class PointsTest(g.unittest.TestCase):
         # make sure vertices and colors are new shape
         assert cloud.vertices.shape == new_shape
         assert len(cloud.colors) == new_shape[0]
-        assert cloud.md5() != initial_md5
+        assert cloud.hash() != initial_hash
 
         # AABB volume should be same as points
         assert g.np.isclose(cloud.bounding_box.volume,

@@ -17,14 +17,14 @@ class IdentifierTest(g.unittest.TestCase):
                 continue
 
             g.log.info('Trying hash at %d random transforms', count)
-            md5 = g.deque()
+            hash_val = g.deque()
             idf = g.deque()
             for i in range(count):
                 permutated = mesh.permutate.transform()
-                md5.append(permutated.identifier_md5)
+                hash_val.append(permutated.identifier_hash)
                 idf.append(permutated.identifier)
 
-            result = g.np.array(md5)
+            result = g.np.array(hash_val)
             ok = (result[0] == result[1:]).all()
 
             if not ok:
@@ -39,8 +39,8 @@ class IdentifierTest(g.unittest.TestCase):
 
                 raise ValueError('values differ after transform!')
 
-            if md5[-1] == permutated.permutate.noise(
-                    mesh.scale / 100.0).identifier_md5:
+            if hash_val[-1] == permutated.permutate.noise(
+                    mesh.scale / 100.0).identifier_hash:
                 raise ValueError('Hashes on %s didn\'t change after noise!',
                                  mesh.metadata['file_name'])
 
@@ -63,13 +63,13 @@ class IdentifierTest(g.unittest.TestCase):
                     m = s.geometry[geo].copy()
                     m.apply_transform(T)
                     meshes.append(m)
-                if not all(meshes[0].identifier_md5 == i.identifier_md5
+                if not all(meshes[0].identifier_hash == i.identifier_hash
                            for i in meshes):
                     raise ValueError(
                         '{} differs after transform!'.format(geom_name))
 
-        assert (scenes[0].geometry['disc_cam_B'].identifier_md5 !=
-                scenes[0].geometry['disc_cam_A'].identifier_md5)
+        assert (scenes[0].geometry['disc_cam_B'].identifier_hash !=
+                scenes[0].geometry['disc_cam_A'].identifier_hash)
 
 
 if __name__ == '__main__':

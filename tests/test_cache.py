@@ -16,7 +16,7 @@ class CacheTest(g.unittest.TestCase):
         count = 10000
 
         g.timeit.timeit(setup=setup,
-                        stmt='t._modified_m=True;t.md5()',
+                        stmt='t._modified_m=True;t.hash()',
                         number=count)
         g.timeit.timeit(setup=setup,
                         stmt='t._modified_c=True;t.crc()',
@@ -27,8 +27,8 @@ class CacheTest(g.unittest.TestCase):
 
         m = g.get_mesh('featuretype.STL')
         # log result values
-        g.log.info('\nResult\nMD5:\n{}\nCRC:\n{}\nXX:\n{}'.format(
-            m.vertices.md5(),
+        g.log.info('\nResult\nhash:\n{}\nCRC:\n{}\nXX:\n{}'.format(
+            m.vertices.hash(),
             m.vertices.crc(),
             m.vertices.fast_hash()))
 
@@ -42,30 +42,30 @@ class CacheTest(g.unittest.TestCase):
             g.np.random.random(TEST_DIM))
         modified = []
 
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
         a[0][0] = 10
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
         a[0][0] += 0.1
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
         a[:10] = g.np.fliplr(a[:10])
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
         a[1] = 5
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
         a[2:] = 2
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
@@ -76,20 +76,20 @@ class CacheTest(g.unittest.TestCase):
 
         # now do slice operations which don't alter data
         modified = []
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
         b = a[[0, 1, 2]]  # NOQA
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
         c = a[1:]  # NOQA
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
         # double slice brah
         a = a[::-1][::-1]
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
@@ -102,11 +102,11 @@ class CacheTest(g.unittest.TestCase):
         a = g.trimesh.caching.tracked_array([0, 0, 4])
         modified = []
 
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
         a += 10
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
@@ -114,40 +114,40 @@ class CacheTest(g.unittest.TestCase):
         a = g.trimesh.caching.tracked_array([.125, 115.32444, 4],
                                             dtype=g.np.float64)
 
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
         a += [10, 0, 0]
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
         a *= 10
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
         # itruediv rather than idiv
         a /= 2.0
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
         # idiv
         a /= 2.123
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
         a -= 1.0
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
         # in place floor division :|
         a //= 2
-        modified.append([int(a.md5(), 16),
+        modified.append([int(a.hash(), 16),
                          a.crc(),
                          a.fast_hash()])
 
@@ -162,8 +162,8 @@ class CacheTest(g.unittest.TestCase):
 
         # hashing will fail on non- contiguous arrays
         # make sure our utility function has handled this properly
-        # for both MD5 and CRC
-        assert t.md5() != t[::-1].md5()
+        # for both hash and CRC
+        assert t.hash() != t[::-1].hash()
         assert t.crc() != t[::-1].crc()
         assert t.fast_hash() != t[::-1].fast_hash()
 

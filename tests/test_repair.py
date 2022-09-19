@@ -25,7 +25,7 @@ class RepairTests(g.unittest.TestCase):
                 continue
 
             hashes = [{mesh._data.crc(),
-                       mesh._data.md5(),
+                       mesh._data.hash(),
                        mesh._data.fast_hash()}]
 
             mesh.faces = mesh.faces[1:-1]
@@ -37,7 +37,7 @@ class RepairTests(g.unittest.TestCase):
                 mesh, color=[255, 0, 0, 255])
 
             hashes.append({mesh._data.crc(),
-                           mesh._data.md5(),
+                           mesh._data.hash(),
                            mesh._data.fast_hash()})
 
             assert hashes[0] != hashes[1]
@@ -50,7 +50,7 @@ class RepairTests(g.unittest.TestCase):
             assert mesh.is_winding_consistent
 
             hashes.append({mesh._data.crc(),
-                           mesh._data.md5(),
+                           mesh._data.hash(),
                            mesh._data.fast_hash()})
             assert hashes[1] != hashes[2]
 

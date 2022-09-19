@@ -133,7 +133,7 @@ class MutateTests(g.unittest.TestCase):
         mesh.mass_properties
         mesh.scene()
         mesh.identifier
-        mesh.identifier_md5
+        mesh.identifier_hash
         mesh.to_dict()
         mesh.face_angles
         mesh.face_angles_sparse

@@ -47,8 +47,8 @@ class VoxelGrid(Geometry):
             raise ValueError(
                 'metadata should be a dict or None, got %s' % str(metadata))
 
-    def md5(self):
-        return self._data.md5()
+    def hash(self):
+        return self._data.hash()
 
     def crc(self):
         return self._data.crc()

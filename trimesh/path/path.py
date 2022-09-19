@@ -8,7 +8,6 @@ those stored in a DXF or SVG file.
 import numpy as np
 
 import copy
-import hashlib
 import collections
 
 from ..points import plane_fit
@@ -230,20 +229,21 @@ class Path(parent.Geometry):
         target ^= self.vertices.fast_hash()
         return target
 
-    def md5(self):
+    def hash(self):
         """
-        An MD5 hash of the current vertices and entities.
+        A hash of the current vertices and entities.
 
         Returns
         ------------
-        md5 : str
-          Appended MD5 hashes
+        hash : str
+          Appended hashes
         """
-        # first MD5 the points in every entity
+        # first hash the points in every entity
+        hash_val = util.hash_func(bytes().join(
+            e._bytes() for e in self.entities))
         target = '{}{}'.format(
-            hashlib.md5(bytes().join(
-                e._bytes() for e in self.entities)).hexdigest(),
-            self.vertices.md5())
+            hash_val,
+            self.vertices.hash())
 
         return target
 
@@ -1469,9 +1469,9 @@ class Path2D(Path):
         return polygons.polygon_hash(self.polygons_full[0])
 
     @caching.cache_decorator
-    def identifier_md5(self):
+    def identifier_hash(self):
         """
-        Return an MD5 of the identifier.
+        Return a hash of the identifier.
 
         Returns
         ----------
@@ -1479,8 +1479,7 @@ class Path2D(Path):
           Hashed identifier.
         """
         as_int = (self.identifier * 1e4).astype(np.int64)
-        hashed = hashlib.md5(as_int.tobytes(order='C')).hexdigest()
-        return hashed
+        return util.hash_func(as_int.tobytes(order='C'))
 
     @property
     def path_valid(self):

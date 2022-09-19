@@ -8,8 +8,8 @@ class VectorTests(g.unittest.TestCase):
 
     def test_discrete(self):
         for d in g.get_2D():
-            # store md5 before requesting passive functions
-            md5 = d.md5()
+            # store hash before requesting passive functions
+            hash_val = d.hash()
 
             # make sure various methods return
             # basically the same bounds
@@ -38,7 +38,7 @@ class VectorTests(g.unittest.TestCase):
             copied = d.copy()
 
             # these operations shouldn't have mutated anything!
-            assert d.md5() == md5
+            assert d.hash() == hash_val
 
             # copy should have saved the metadata
             assert set(copied.metadata.keys()) == set(d.metadata.keys())

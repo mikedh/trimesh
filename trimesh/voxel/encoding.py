@@ -118,8 +118,8 @@ class Encoding(ABC):
     def _flip(self, axes):
         return FlippedEncoding(self, axes)
 
-    def md5(self):
-        return self._data.md5()
+    def hash(self):
+        return self._data.hash()
 
     def crc(self):
         return self._data.crc()
@@ -451,8 +451,8 @@ class RunLengthEncoding(Encoding):
     def dtype(self):
         return self._dtype
 
-    def md5(self):
-        return self._data.md5()
+    def hash(self):
+        return self._data.hash()
 
     def crc(self):
         return self._data.crc()
