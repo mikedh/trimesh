@@ -13,6 +13,7 @@ from . import caching
 from . import transformations as tf
 from .util import ABC
 
+
 class Geometry(ABC):
 
     """
@@ -42,21 +43,21 @@ class Geometry(ABC):
     def crc(self):
         util.log.warning(
             '`geometry.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace '
+            'be removed in October 2023: replace ' +
             'with `hash(geometry)`')
         return hash(self)
 
     def hash(self):
         util.log.warning(
             '`geometry.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace '
+            'be removed in October 2023: replace ' +
             'with `hash(geometry)`')
         return hash(self)
 
     def md5(self):
         util.log.warning(
             '`geometry.md5()` is deprecated and will ' +
-            'be removed in October 2023: replace '
+            'be removed in October 2023: replace ' +
             'with `hash(geometry)`')
         return hash(self)
 

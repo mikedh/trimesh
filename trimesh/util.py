@@ -18,7 +18,6 @@ import base64
 import random
 import shutil
 import logging
-import hashlib
 import zipfile
 import tempfile
 import collections

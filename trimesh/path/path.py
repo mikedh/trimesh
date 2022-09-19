@@ -226,7 +226,7 @@ class Path(parent.Geometry):
 
     def hash(self):
         return hash(self)
-    
+
     def __hash__(self):
         """
         A hash of the current vertices and entities.
@@ -242,7 +242,7 @@ class Path(parent.Geometry):
                       e._bytes() for e in self.entities))]
         return caching.hash_fast(np.array(
             hashes, dtype=np.int64).tobytes())
-    
+
     @caching.cache_decorator
     def paths(self):
         """

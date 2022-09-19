@@ -516,9 +516,9 @@ class VertexColor(Visuals):
     def kind(self):
         return 'vertex'
 
-    def crc(self):    
+    def crc(self):
         return hash(self._colors)
-    
+
     def update_vertices(self, mask):
         if self._colors is not None:
             self._colors = self._colors[mask]

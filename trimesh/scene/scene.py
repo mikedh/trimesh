@@ -271,6 +271,7 @@ class Scene(Geometry3D):
                         self.geometry.values())
         return caching.hash_fast(np.array(
             hashable, dtype=np.int64).tobytes())
+
     @property
     def is_empty(self):
         """

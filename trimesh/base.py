@@ -614,7 +614,8 @@ class Trimesh(Geometry3D):
         Parameters
         -------------
         density : float
-          Specify the density of the mesh to be used in inertia calculations
+          Specify the density of the mesh to be
+          used in inertia calculations.
         """
         self._density = float(value)
         self._cache.delete('mass_properties')
@@ -2694,7 +2695,7 @@ class Trimesh(Geometry3D):
     def identifier_md5(self):
         util.log.warning(
             '`geom.identifier_md5` is deprecated and will ' +
-            'be removed in October 2023: replace '
+            'be removed in October 2023: replace ' +
             'with `geom.identifier_hash`')
         return self.identifier_hash
 
