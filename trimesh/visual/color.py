@@ -538,7 +538,8 @@ class VertexColor(Visuals):
 
     def concatenate(self, other):
         """
-        Concatenate this visual object with another VertexVisuals.
+        Concatenate this visual object with another
+        VertexVisuals.
 
         Parameters
         -----------
@@ -553,6 +554,9 @@ class VertexColor(Visuals):
         return VertexColor(colors=np.vstack(
             self.vertex_colors,
             other.vertex_colors))
+
+    def __hash__(self):
+        return self._colors.__hash__()
 
 
 def to_rgba(colors, dtype=np.uint8):

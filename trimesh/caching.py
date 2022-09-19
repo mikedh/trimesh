@@ -618,10 +618,11 @@ class DataStore(Mapping):
           CRC of data
         """
         log.warning(
-            '`array.hash()` is deprecated and will ' +
+            '`array.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `hash(array)`')
-        return hash(self)
+            'with `array.__hash__()` or `hash(array)`')
+
+        return self.__hash__()
 
     def fast_hash(self):
         """
@@ -635,13 +636,13 @@ class DataStore(Mapping):
         log.warning(
             '`array.fast_hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `hash(array)`')
-        return hash(self)
+            'with `array.__hash__()` or `hash(array)`')
+        return self.__hash__()
 
     def hash(self):
         log.warning(
             '`array.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `hash(array)`')
+            'with `array.__hash__()` or `hash(array)`')
 
-        return hash(self)
+        return self.__hash__()
