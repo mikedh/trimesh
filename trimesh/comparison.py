@@ -10,7 +10,6 @@ import numpy as np
 from . import util
 
 from hashlib import sha256
-
 from .constants import tol
 
 # how many significant figures to use for each
@@ -134,20 +133,18 @@ def identifier_simple(mesh):
 
 def identifier_hash(identifier):
     """
-    Hash an identifier array to a specified number of
-    significant figures.
+    Hash an identifier array in a way that is hand-tuned to be
+    somewhat robust to likely changes.
 
     Parameters
     ------------
     identifier : (n,) float
       Vector of properties
-    sigfig : (n,) int
-      Number of sigfigs per property
 
     Returns
     ----------
-    hash : str
-      hash of identifier
+    hash : (32,) str
+      First 32 charecters hash of identifier
     """
 
     # convert identifier to integers and order of magnitude
@@ -158,7 +155,7 @@ def identifier_hash(identifier):
     if (multiplier < 0).any():
         multiplier += np.abs(multiplier.min())
     data = (as_int * (10 ** multiplier)).astype(np.int64)
-    return sha256(data.tobytes()).hexdigest()
+    return sha256(data.tobytes()).hexdigest()[-32:]
 
 
 def face_ordering(mesh):
