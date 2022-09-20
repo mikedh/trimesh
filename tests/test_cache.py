@@ -172,7 +172,10 @@ class CacheTest(g.unittest.TestCase):
         # thing as numpy with our subclass
         o = g.np.arange(10)
         a = g.trimesh.caching.tracked_array(o)
-        assert not isinstance(a, type(o))
+        # tracked array should be different type
+        # but with the same values (i.e. subclass)
+        assert not isinstance(o, type(a))
+        assert isinstance(a, g.np.ndarray)
         assert g.np.allclose(a, o)
 
         # this should be a scalar and subclasses
