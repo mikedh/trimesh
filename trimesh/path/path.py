@@ -92,7 +92,8 @@ class Path(parent.Geometry):
             self.metadata.update(metadata)
 
         # cache will dump whenever self.crc changes
-        self._cache = caching.Cache(id_function=self.crc)
+        self._cache = caching.Cache(
+            id_function=self.__hash__)
 
         if process:
             # literally nothing will work if vertices
@@ -157,20 +158,6 @@ class Path(parent.Geometry):
         # otherwise assign each color to the entity
         for c, e in zip(colors, self.entities):
             e.color = c
-
-    def colors_crc(self):
-        """
-        A CRC of the current entity colors.
-
-        Returns
-        -------
-        crc : int
-          CRC of the current entity colors
-        """
-        # first CRC the colors in every entity
-        target = caching.crc32(bytes().join(
-            e.color.tobytes() for e in self.entities))
-        return target
 
     @property
     def vertices(self):

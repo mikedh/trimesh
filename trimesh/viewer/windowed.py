@@ -848,21 +848,10 @@ def geometry_hash(geometry):
     ------------
     hash : str
     """
-    if hasattr(geometry, 'crc'):
-        # for most of our trimesh objects
-        h = str(geometry.crc())
-    elif hasattr(geometry, 'hash'):
-        h = geometry.hash()
-    elif hasattr(geometry, 'tostring'):
-        # for unwrap ndarray objects
-        h = str(hash(geometry.tostring()))
-
+    h = str(hash(geometry))
     if hasattr(geometry, 'visual'):
         # if visual properties are defined
-        h += str(geometry.visual.crc())
-    elif hasattr(geometry, 'visual_crc'):
-        # paths do not use the visual attribute
-        h += str(geometry.colors_crc())
+        h += str(hash(geometry.visual))
 
     return h
 
