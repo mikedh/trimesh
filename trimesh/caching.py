@@ -182,6 +182,17 @@ class TrackedArray(np.ndarray):
         if isinstance(obj, type(self)):
             obj._dirty_hash = True
 
+    def __array_wrap__(self, out_arr, context=None):
+        """
+        Return a numpy scalar if array is 0d.
+        See https://github.com/numpy/numpy/issues/5819
+        """
+        if out_arr.ndim:
+            return np.ndarray.__array_wrap__(
+                self, out_arr, context)
+        # Match numpy's behavior and return a numpy dtype scalar
+        return out_arr[()]
+
     @property
     def mutable(self):
         return self.flags['WRITEABLE']

@@ -167,6 +167,18 @@ class CacheTest(g.unittest.TestCase):
         hash_fast = g.trimesh.caching.hash_fast
         assert hash_fast(faces1) != hash_fast(faces2)
 
+    def test_scalar(self):
+        # check to make sure we're doing the same
+        # thing as numpy with our subclass
+        o = g.np.arange(10)
+        a = g.trimesh.caching.tracked_array(o)
+        assert not isinstance(a, type(o))
+        assert g.np.allclose(a, o)
+
+        # this should be a scalar and subclasses
+        # for some reason return a different type?
+        assert isinstance(a.max(), type(o.max()))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
