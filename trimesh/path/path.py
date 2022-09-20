@@ -9,6 +9,7 @@ import numpy as np
 
 import copy
 import collections
+from hashlib import sha256
 
 from ..points import plane_fit
 from ..geometry import plane_transform
@@ -1453,9 +1454,14 @@ class Path2D(Path):
         identifier : (5,) float
           Unique identifier
         """
-        if len(self.polygons_full) != 1:
-            raise TypeError('Identifier only valid for single body')
-        return polygons.polygon_hash(self.polygons_full[0])
+        hasher = polygons.polygon_hash
+        target = self.polygons_full
+        if len(target) == 1:
+            return hasher(self.polygons_full[0])
+        elif len(target) == 0:
+            return np.zeros(5)
+
+        return np.sum([hasher(p) for p in target], axis=1)
 
     @caching.cache_decorator
     def identifier_hash(self):
@@ -1468,7 +1474,7 @@ class Path2D(Path):
           Hashed identifier.
         """
         as_int = (self.identifier * 1e4).astype(np.int64)
-        return util.hash_func(as_int.tobytes(order='C'))
+        return sha256(as_int.tobytes(order='C')).hexdigest()[-32:]
 
     @property
     def path_valid(self):

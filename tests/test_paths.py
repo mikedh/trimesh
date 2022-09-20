@@ -9,7 +9,10 @@ class VectorTests(g.unittest.TestCase):
     def test_discrete(self):
         for d in g.get_2D():
             # store hash before requesting passive functions
-            hash_val = d.hash()
+            hash_val = d.__hash__()
+
+            assert isinstance(d.identifier, g.np.ndarray)
+            assert isinstance(d.identifier_hash, str)
 
             # make sure various methods return
             # basically the same bounds
@@ -38,7 +41,7 @@ class VectorTests(g.unittest.TestCase):
             copied = d.copy()
 
             # these operations shouldn't have mutated anything!
-            assert d.hash() == hash_val
+            assert d.__hash__() == hash_val
 
             # copy should have saved the metadata
             assert set(copied.metadata.keys()) == set(d.metadata.keys())
