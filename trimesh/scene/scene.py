@@ -245,7 +245,7 @@ class Scene(Geometry3D):
         hashed : str
           hash of scene
         """
-        log.warning(
+        util.log.warning(
             '`scene.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `scene.__hash__()` or `scene(array)`')
@@ -262,7 +262,7 @@ class Scene(Geometry3D):
         crc : int
           Hash of current graph and geometry.
         """
-        log.warning(
+        util.log.warning(
             '`scene.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `scene.__hash__()` or `scene(array)`')
