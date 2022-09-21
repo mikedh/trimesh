@@ -26,7 +26,8 @@ class SceneTests(g.unittest.TestCase):
             assert scene_split.__hash__() == pre[0]
             assert scene_base.__hash__() == pre[1]
 
-            assert isinstance(scene_base.__hash__(), int)
+            # __hash__ is a long int which fails isinstance in Python 2
+            assert type(scene_base.__hash__()).__name__ in ('int', 'long')
 
             # try out scene appending
             concat = scene_split + scene_base

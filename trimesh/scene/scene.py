@@ -62,7 +62,7 @@ class Scene(Geometry3D):
         self.graph = SceneGraph(base_frame=base_frame)
 
         # create our cache
-        self._cache = caching.Cache(id_function=self.hash)
+        self._cache = caching.Cache(id_function=self.__hash__)
 
         # add passed geometry to scene
         self.add_geometry(geometry)
