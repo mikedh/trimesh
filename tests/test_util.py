@@ -143,16 +143,16 @@ class UtilTests(unittest.TestCase):
         a = g.get_mesh('ballA.off')
         b = g.get_mesh('ballB.off')
 
-        hA = a.hash()
-        hB = b.hash()
+        hA = a.__hash__()
+        hB = b.__hash__()
 
         # make sure we're not mutating original mesh
         for i in range(4):
             c = a + b
             assert g.np.isclose(c.volume,
                                 a.volume + b.volume)
-            assert a.hash() == hA
-            assert b.hash() == hB
+            assert a.__hash__() == hA
+            assert b.__hash__() == hB
 
         count = 5
         meshes = []
@@ -165,7 +165,7 @@ class UtilTests(unittest.TestCase):
         r = g.trimesh.util.concatenate(meshes)
         assert g.np.isclose(r.volume,
                             a.volume * count)
-        assert a.hash() == hA
+        assert a.__hash__() == hA
 
     def test_unique_id(self):
         num_ids = 10000

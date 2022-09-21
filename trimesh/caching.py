@@ -244,8 +244,7 @@ class TrackedArray(np.ndarray):
             # contiguous array into a non- contiguous block
             # for example (note slice *after* track operation):
             # t = tracked_array(np.random.random(10))[::-1]
-            hashed = hash_fast(
-                np.ascontiguousarray(self))
+            hashed = hash_fast(np.ascontiguousarray(self))
 
         # assign the value and set the flag
         self._hashed = hashed

@@ -12,13 +12,13 @@ class SimplifyTest(g.unittest.TestCase):
         path = g.trimesh.load_path(polygon)
 
         # save the hash before doing operations
-        hash_pre = g.deepcopy(path.hash())
+        hash_pre = g.deepcopy(path.__hash__())
 
         # this should return a copy of the path
         simplified = path.simplify()
 
         # make sure the simplify call didn't alter our original mesh
-        assert path.hash() == hash_pre
+        assert path.__hash__() == hash_pre
 
         for garbage in range(2):
             # the simplified version shouldn't have lost area
@@ -43,7 +43,7 @@ class SimplifyTest(g.unittest.TestCase):
             simplified._cache.clear()
 
         # make sure the simplify call didn't alter our original mesh
-        assert path.hash() == hash_pre
+        assert path.__hash__() == hash_pre
 
     def test_simplify(self):
 

@@ -43,7 +43,7 @@ class PermutateTest(g.unittest.TestCase):
                              mesh.faces)
             assert not close(test.vertices,
                              mesh.vertices)
-            assert not test.hash() == mesh.hash()
+            assert not test.__hash__() == mesh.__hash__()
 
             # rigid transforms don't change area or volume
             if rigid:
@@ -80,7 +80,7 @@ class PermutateTest(g.unittest.TestCase):
                 make_assertions(mesh, tessellate, rigid=True)
 
             # make sure permutate didn't alter the original mesh
-            assert original.hash() == mesh.hash()
+            assert original.__hash__() == mesh.__hash__()
 
     def test_tesselation(self):
         for mesh in g.get_meshes(5):

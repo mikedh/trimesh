@@ -24,8 +24,8 @@ class RepairTests(g.unittest.TestCase):
                 assert returned == mesh.is_watertight
                 continue
 
-            hashes = [{mesh._data.crc(),
-                       mesh._data.hash(),
+            hashes = [{mesh._data.__hash__(),
+                       mesh._data.__hash__(),
                        mesh._data.fast_hash()}]
 
             mesh.faces = mesh.faces[1:-1]
@@ -36,8 +36,8 @@ class RepairTests(g.unittest.TestCase):
             g.trimesh.repair.broken_faces(
                 mesh, color=[255, 0, 0, 255])
 
-            hashes.append({mesh._data.crc(),
-                           mesh._data.hash(),
+            hashes.append({mesh._data.__hash__(),
+                           mesh._data.__hash__(),
                            mesh._data.fast_hash()})
 
             assert hashes[0] != hashes[1]
@@ -49,8 +49,8 @@ class RepairTests(g.unittest.TestCase):
             assert mesh.is_watertight
             assert mesh.is_winding_consistent
 
-            hashes.append({mesh._data.crc(),
-                           mesh._data.hash(),
+            hashes.append({mesh._data.__hash__(),
+                           mesh._data.__hash__(),
                            mesh._data.fast_hash()})
             assert hashes[1] != hashes[2]
 

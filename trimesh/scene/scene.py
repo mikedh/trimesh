@@ -235,6 +235,8 @@ class Scene(Geometry3D):
 
     def hash(self):
         """
+        DEPRECATED OCTOBER 2023 : Use `hash(scene)`
+
         hash of scene which will change when meshes or
         transforms are changed
 
@@ -243,10 +245,16 @@ class Scene(Geometry3D):
         hashed : str
           hash of scene
         """
+        log.warning(
+            '`scene.hash()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `scene.__hash__()` or `scene(array)`')
         return hash(self)
 
     def crc(self):
         """
+        DEPRECATED OCTOBER 2023 : Use `hash(scene)`
+
         Get a CRC of the current geometry and graph information.
 
         Returns
@@ -254,6 +262,11 @@ class Scene(Geometry3D):
         crc : int
           Hash of current graph and geometry.
         """
+        log.warning(
+            '`scene.crc()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `scene.__hash__()` or `scene(array)`')
+
         return hash(self)
 
     def __hash__(self):
@@ -265,10 +278,10 @@ class Scene(Geometry3D):
         hashable : str
           Data which can be hashed.
         """
-        # start with the last modified time of the scene graph
-        hashable = [hex(hash(self.graph))]
         # avoid accessing attribute in tight loop
         geometry = self.geometry
+        # start with the last modified time of the scene graph
+        hashable = [hex(hash(self.graph))]
         # take the re-hex string of the hash
         hashable.extend(hex(geometry[k].__hash__()) for k in
                         sorted(geometry.keys()))
