@@ -8,7 +8,9 @@ those stored in a DXF or SVG file.
 import numpy as np
 
 import copy
+import warnings
 import collections
+
 from hashlib import sha256
 
 from ..points import plane_fit
@@ -1455,6 +1457,15 @@ class Path2D(Path):
         """
         as_int = (self.identifier * 1e4).astype(np.int64)
         return sha256(as_int.tobytes(order='C')).hexdigest()[-32:]
+
+    @property
+    def identifier_md5(self):
+        warnings.warn(
+            '`geom.identifier_md5` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geom.identifier_hash`',
+            DeprecationWarning)
+        return self.identifier_hash
 
     @property
     def path_valid(self):

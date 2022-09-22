@@ -20,12 +20,14 @@ class DepTest(g.unittest.TestCase):
             # the modern cool way of hashing
             assert hash(m) == hash(copy)
             assert m.__hash__() == copy.__hash__()
+            assert m.identifier_hash == copy.identifier_hash
 
             # october 2023 deprecated ways of hashing
             # geometries
             assert m.md5() == copy.md5()
             assert m.crc() == copy.crc()
             assert m.hash() == copy.hash()
+            assert m.identifier_md5 == copy.identifier_md5
             # trackedarray
             assert m.vertices.md5() == copy.vertices.md5()
             assert m.vertices.hash() == copy.vertices.hash()

@@ -38,6 +38,7 @@ from .scene import Scene
 from .parent import Geometry3D
 
 import copy
+import warnings
 import numpy as np
 
 
@@ -2694,10 +2695,11 @@ class Trimesh(Geometry3D):
 
     @property
     def identifier_md5(self):
-        util.log.warning(
+        warnings.warn(
             '`geom.identifier_md5` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `geom.identifier_hash`')
+            'with `geom.identifier_hash`',
+            DeprecationWarning)
         return self.identifier_hash
 
     def export(self, file_obj=None, file_type=None, **kwargs):

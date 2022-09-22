@@ -144,7 +144,7 @@ def identifier_hash(identifier):
     Returns
     ----------
     hash : (32,) str
-      First 32 charecters hash of identifier
+      First 32 characters hash of identifier
     """
 
     # convert identifier to integers and order of magnitude
