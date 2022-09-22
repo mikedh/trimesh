@@ -113,7 +113,6 @@ class Trimesh(Geometry3D):
         self._cache = caching.Cache(
             id_function=self._data.__hash__,
             force_immutable=True)
-
         self._cache.update(initial_cache)
 
         # check for None only to avoid warning messages in subclasses
@@ -251,16 +250,18 @@ class Trimesh(Geometry3D):
         """
         The faces of the mesh.
 
-        This is regarded as core information which cannot be regenerated from
-        cache, and as such is stored in self._data which tracks the array for
-        changes and clears cached values of the mesh if this is altered.
+        This is regarded as core information which cannot be
+        regenerated from cache and as such is stored in
+        `self._data` which tracks the array for changes and
+        clears cached values of the mesh altered.
 
         Returns
         ----------
-        faces : (n, 3) int
-          Representing triangles which reference self.vertices
+        faces : (n, 3) int64
+          References for `self.vertices` for triangles.
         """
-        return self._data.get('faces', np.empty(shape=(0, 3), dtype=np.int64))
+        return self._data.get(
+            'faces', np.empty(shape=(0, 3), dtype=np.int64))
 
     @faces.setter
     def faces(self, values):
@@ -269,7 +270,7 @@ class Trimesh(Geometry3D):
 
         Parameters
         --------------
-        values : (n, 3) int
+        values : (n, 3) int64
           Indexes of self.vertices
         """
         if values is None or len(values) == 0:

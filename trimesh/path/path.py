@@ -201,28 +201,6 @@ class Path(parent.Geometry):
         # layer is a required meta-property for entities
         return [e.layer for e in self.entities]
 
-    def crc(self):
-        """
-        A CRC of the current vertices and entities.
-
-        Returns
-        ------------
-        crc : int
-          CRC of entity points and vertices
-        """
-        util.log.warning(
-            '`geometry.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`')
-        return self.__hash__()
-
-    def hash(self):
-        util.log.warning(
-            '`geometry.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`')
-        return self.__hash__()
-
     def __hash__(self):
         """
         A hash of the current vertices and entities.
@@ -232,9 +210,11 @@ class Path(parent.Geometry):
         hash : long int
           Appended hashes
         """
-
+        # get the hash of the trackedarray vertices
         hashable = [hex(self.vertices.__hash__()).encode('utf-8')]
+        # get the bytes for each entity
         hashable.extend(e._bytes() for e in self.entities)
+        # hash the combined result
         return caching.hash_fast(b''.join(hashable))
 
     @caching.cache_decorator

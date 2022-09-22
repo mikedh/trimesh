@@ -233,42 +233,6 @@ class Scene(Geometry3D):
             if util.is_instance_named(geometry, 'Trimesh'):
                 geometry.visual = ColorVisuals(mesh=geometry)
 
-    def hash(self):
-        """
-        DEPRECATED OCTOBER 2023 : Use `hash(scene)`
-
-        hash of scene which will change when meshes or
-        transforms are changed
-
-        Returns
-        --------
-        hashed : str
-          hash of scene
-        """
-        util.log.warning(
-            '`scene.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `scene.__hash__()` or `scene(array)`')
-        return hash(self)
-
-    def crc(self):
-        """
-        DEPRECATED OCTOBER 2023 : Use `hash(scene)`
-
-        Get a CRC of the current geometry and graph information.
-
-        Returns
-        ---------
-        crc : int
-          Hash of current graph and geometry.
-        """
-        util.log.warning(
-            '`scene.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `scene.__hash__()` or `scene(array)`')
-
-        return hash(self)
-
     def __hash__(self):
         """
         Return information about scene which is hashable.

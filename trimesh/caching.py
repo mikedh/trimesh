@@ -19,9 +19,9 @@ In [25]: %timeit xxh3_64_intdigest(d)
 3.37 us +/- 116 ns per loop
 ```
 """
-
 import numpy as np
 
+import warnings
 from functools import wraps
 
 from .constants import log
@@ -202,26 +202,28 @@ class TrackedArray(np.ndarray):
         self.flags.writeable = value
 
     def hash(self):
-        log.warning(
+        warnings.warn(
             '`array.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`')
-
-        return hash(self)
+            'with `array.__hash__()` or `hash(array)`',
+            DeprecationWarning)
+        return self.__hash__()
 
     def crc(self):
-        log.warning(
+        warnings.warn(
             '`array.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`')
-        return hash(self)
+            'with `array.__hash__()` or `hash(array)`',
+            DeprecationWarning)
+        return self.__hash__()
 
     def md5(self):
-        log.warning(
+        warnings.warn(
             '`array.md5()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`')
-        return hash(self)
+            'with `array.__hash__()` or `hash(array)`',
+            DeprecationWarning)
+        return self.__hash__()
 
     def __hash__(self):
         """
@@ -627,11 +629,11 @@ class DataStore(Mapping):
         crc : int
           CRC of data
         """
-        log.warning(
+        warnings.warn(
             '`array.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`')
-
+            'with `array.__hash__()` or `hash(array)`',
+            DeprecationWarning)
         return self.__hash__()
 
     def fast_hash(self):
@@ -643,16 +645,18 @@ class DataStore(Mapping):
         hashed : int
           Checksum of data
         """
-        log.warning(
+        warnings.warn(
             '`array.fast_hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`')
+            'with `array.__hash__()` or `hash(array)`',
+            DeprecationWarning)
         return self.__hash__()
 
     def hash(self):
-        log.warning(
+        warnings.warn(
             '`array.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`')
+            'with `array.__hash__()` or `hash(array)`',
+            DeprecationWarning)
 
         return self.__hash__()

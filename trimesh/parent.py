@@ -5,10 +5,10 @@ parent.py
 The base class for Trimesh, PointCloud, and Scene objects
 """
 import abc
+import warnings
 
 import numpy as np
 
-from . import util
 from . import caching
 from . import transformations as tf
 from .util import ABC
@@ -41,27 +41,68 @@ class Geometry(ABC):
         pass
 
     def crc(self):
-        util.log.warning(
+        """
+        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
+
+        Get a hash of the current geometry.
+
+        Returns
+        ---------
+        hash : int
+          Hash of current graph and geometry.
+        """
+        warnings.warn(
             '`geometry.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`')
+            'with `geometry.__hash__()` or `hash(geometry)`',
+            DeprecationWarning)
         return self.__hash__()
 
     def hash(self):
-        util.log.warning(
+        """
+        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
+
+        Get a hash of the current geometry.
+
+        Returns
+        ---------
+        hash : int
+          Hash of current graph and geometry.
+        """
+        warnings.warn(
             '`geometry.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`')
+            'with `geometry.__hash__()` or `hash(geometry)`',
+            DeprecationWarning)
         return self.__hash__()
 
     def md5(self):
-        util.log.warning(
+        """
+        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
+
+        Get a hash of the current geometry.
+
+        Returns
+        ---------
+        hash : int
+          Hash of current graph and geometry.
+        """
+        warnings.warn(
             '`geometry.md5()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`')
+            'with `geometry.__hash__()` or `hash(geometry)`',
+            DeprecationWarning)
         return self.__hash__()
 
     def __hash__(self):
+        """
+        Get a hash of the current geometry.
+
+        Returns
+        ---------
+        hash : int
+          Hash of current graph and geometry.
+        """
         return self._data.__hash__()
 
     @abc.abstractmethod
