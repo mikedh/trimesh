@@ -31,8 +31,6 @@ from collections import deque
 from copy import deepcopy
 
 
-from distutils.spawn import find_executable
-
 try:
     # Python 3
     from http.server import SimpleHTTPRequestHandler
@@ -70,6 +68,15 @@ trimesh.util._STRICT = True
 trimesh.constants.tol.strict = True
 trimesh.constants.tol_path.strict = True
 
+
+try:
+    from mapbox_earcut import triangulate_float64
+    has_earcut = True
+except BaseException as E:
+    if all_dep:
+        raise E
+    else:
+        has_earcut = False
 
 try:
     from shapely.geometry import Point, Polygon, LineString
@@ -472,7 +479,7 @@ data = _load_data()
 
 # find executables to run with subprocess
 # formats supported by meshlab for export tests
-if any(find_executable(i) is None
+if any(trimesh.util.which(i) is None
        for i in ['xfvb-run', 'meshlabserver']):
     meshlab_formats = []
 else:

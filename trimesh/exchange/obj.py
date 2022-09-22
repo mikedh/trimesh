@@ -162,7 +162,8 @@ def load_obj(file_obj,
             #  '31407 31406 31408',
             #  '32303/2469 32304/2469 32305/2469',
             log.debug('faces have mixed data, using slow fallback!')
-            faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
+            faces, faces_tex, faces_norm = _parse_faces_fallback(
+                face_lines)
 
         if group_material:
             name = material
@@ -479,17 +480,19 @@ def _parse_faces_fallback(lines):
                      split[3],
                      split[0]]
         elif len_split > 4:
-            # triangulate polygon, as a triangles fan
-            r_split = []
-            r_split_append = r_split.append
-            for i in range(len(split) - 2):
-                r_split_append(split[0])
-                r_split_append(split[i + 1])
-                r_split_append(split[i + 2])
-            split = r_split
+            # triangulate polygon as a triangles fan
+            collect = []
+            # we need a flat list so append inside
+            # a list comprehension
+            collect_append = collect.append
+            [[collect_append(split[0]),
+              collect_append(split[i + 1]),
+              collect_append(split[i + 2])]
+             for i in range(len(split) - 2)]
+            split = collect
         else:
             log.warning(
-                'face need at least 3 elements (got {})! skipping!'.format(
+                'face needs more values 3>{} skipping!'.format(
                     len(split)))
             continue
 

@@ -11,14 +11,14 @@ class SimplifyTest(g.unittest.TestCase):
         # loading the polygon will make all arcs discrete
         path = g.trimesh.load_path(polygon)
 
-        # save the md5 before doing operations
-        md5_pre = g.deepcopy(path.md5())
+        # save the hash before doing operations
+        hash_pre = g.deepcopy(path.__hash__())
 
         # this should return a copy of the path
         simplified = path.simplify()
 
         # make sure the simplify call didn't alter our original mesh
-        assert path.md5() == md5_pre
+        assert path.__hash__() == hash_pre
 
         for garbage in range(2):
             # the simplified version shouldn't have lost area
@@ -43,7 +43,7 @@ class SimplifyTest(g.unittest.TestCase):
             simplified._cache.clear()
 
         # make sure the simplify call didn't alter our original mesh
-        assert path.md5() == md5_pre
+        assert path.__hash__() == hash_pre
 
     def test_simplify(self):
 

@@ -6,7 +6,7 @@ except BaseException:
 # Khronos' official file validator
 # can be installed with the helper script:
 # `trimesh/docker/builds/gltf_validator.bash`
-_gltf_validator = g.find_executable('gltf_validator')
+_gltf_validator = g.trimesh.util.which('gltf_validator')
 
 
 def validate_glb(data, name=None):
@@ -52,7 +52,7 @@ def validate_glb(data, name=None):
             g.log.error(content)
             if name is not None:
                 g.log.error('failed on: %s', name)
-            raise ValueError('Khronos GLTF validator error!')
+            raise ValueError(content)
 
         if any(decode['issues'][i] > 0 for i in
                ['numWarnings', 'numInfos', 'numHints']):
@@ -125,10 +125,10 @@ class GLTFTest(g.unittest.TestCase):
         assert hasattr(mesh.visual, 'uv')
 
         # make sure export as GLB doesn't crash on scenes
-        export = mesh.scene().export(file_type='glb')
+        export = mesh.scene().export(file_type='glb', unitize_normals=True)
         validate_glb(export)
         # make sure it works on meshes
-        export = mesh.export(file_type='glb')
+        export = mesh.export(file_type='glb', unitize_normals=True)
         validate_glb(export)
 
     def test_cesium(self):
@@ -399,14 +399,14 @@ class GLTFTest(g.unittest.TestCase):
         scene = g.trimesh.Scene([a, b])
         # get the exported GLTF header of a scene with both meshes
         header = g.json.loads(scene.export(
-            file_type='gltf')['model.gltf'].decode('utf-8'))
+            file_type='gltf', unitize_normals=True)['model.gltf'].decode('utf-8'))
         # header should contain exactly one material
         assert len(header['materials']) == 1
         # both meshes should be contained in the export
         assert len(header['meshes']) == 2
 
         # get a reloaded version
-        export = scene.export(file_type='glb')
+        export = scene.export(file_type='glb', unitize_normals=True)
         validate_glb(export)
         reloaded = g.trimesh.load(
             file_obj=g.trimesh.util.wrap_as_stream(export),
@@ -514,7 +514,7 @@ class GLTFTest(g.unittest.TestCase):
         # when you add a uint16/int16 the gltf-validator
         # complains about the 4-byte boundaries even though
         # all their lengths and offsets mod 4 are zero
-        # not sure if thats a validator bug or what
+        # not sure if that's a validator bug or what
         sphere.vertex_attributes[
             '_CustomUInt16Scalar'] = g.np.random.randint(
                 0, 1000, size=(v_count, 1)).astype(g.np.uint16)
@@ -697,7 +697,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # set the color vertex attribute
         m.visual.vertex_attributes['color'] = colors
-        export = m.export(file_type='glb')
+        export = m.export(file_type='glb', unitize_normals=True)
         validate_glb(export)
         r = next(iter(
             g.trimesh.load(
@@ -816,9 +816,18 @@ class GLTFTest(g.unittest.TestCase):
                 # want to roundtrip non-unit normals for things, stuff, and activities
                 export = geom.export(file_type='glb', unitize_normals=True)
                 validate_glb(export, name=fn)
+
                 # shouldn't crash on a reload
-                g.trimesh.load(file_obj=g.trimesh.util.wrap_as_stream(export),
-                               file_type='glb')
+                reloaded = g.trimesh.load(
+                    file_obj=g.trimesh.util.wrap_as_stream(export),
+                    file_type='glb')
+
+                if isinstance(geom, g.trimesh.Trimesh):
+                    assert g.np.isclose(geom.area, reloaded.area)
+
+                # compute some stuff
+                assert isinstance(reloaded.area, float)
+                assert isinstance(reloaded.duplicate_nodes, list)
 
     def test_interleaved(self):
         # do a quick check on a mesh that uses byte stride
@@ -841,7 +850,7 @@ class GLTFTest(g.unittest.TestCase):
         # for the usual load-export loop
         s = g.get_mesh('fuze.obj')
         # export as GLB then re-load
-        export = s.export(file_type='glb')
+        export = s.export(file_type='glb', unitize_normals=True)
         validate_glb(export)
         reloaded = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),

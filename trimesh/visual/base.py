@@ -29,7 +29,7 @@ class Visuals(ABC):
         pass
 
     @abc.abstractmethod
-    def crc(self):
+    def __hash__(self):
         pass
 
     @abc.abstractmethod

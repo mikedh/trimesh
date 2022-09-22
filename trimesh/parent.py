@@ -5,6 +5,7 @@ parent.py
 The base class for Trimesh, PointCloud, and Scene objects
 """
 import abc
+import warnings
 
 import numpy as np
 
@@ -18,9 +19,9 @@ class Geometry(ABC):
     """
     `Geometry` is the parent class for all geometry.
 
-    By decorating a method with `abc.abstractmethod` it just means
-    the objects that inherit from `Geometry` MUST implement those
-    methods.
+    By decorating a method with `abc.abstractmethod` it means
+    the objects that inherit from `Geometry` MUST implement
+    those methods.
     """
 
     @abc.abstractproperty
@@ -39,13 +40,70 @@ class Geometry(ABC):
     def is_empty(self):
         pass
 
-    @abc.abstractmethod
     def crc(self):
-        pass
+        """
+        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
 
-    @abc.abstractmethod
+        Get a hash of the current geometry.
+
+        Returns
+        ---------
+        hash : int
+          Hash of current graph and geometry.
+        """
+        warnings.warn(
+            '`geometry.crc()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geometry.__hash__()` or `hash(geometry)`',
+            DeprecationWarning)
+        return self.__hash__()
+
+    def hash(self):
+        """
+        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
+
+        Get a hash of the current geometry.
+
+        Returns
+        ---------
+        hash : int
+          Hash of current graph and geometry.
+        """
+        warnings.warn(
+            '`geometry.hash()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geometry.__hash__()` or `hash(geometry)`',
+            DeprecationWarning)
+        return self.__hash__()
+
     def md5(self):
-        pass
+        """
+        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
+
+        Get a hash of the current geometry.
+
+        Returns
+        ---------
+        hash : int
+          Hash of current graph and geometry.
+        """
+        warnings.warn(
+            '`geometry.md5()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geometry.__hash__()` or `hash(geometry)`',
+            DeprecationWarning)
+        return self.__hash__()
+
+    def __hash__(self):
+        """
+        Get a hash of the current geometry.
+
+        Returns
+        ---------
+        hash : int
+          Hash of current graph and geometry.
+        """
+        return self._data.__hash__()
 
     @abc.abstractmethod
     def copy(self):

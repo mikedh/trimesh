@@ -18,7 +18,6 @@ import base64
 import random
 import shutil
 import logging
-import hashlib
 import zipfile
 import tempfile
 import collections
@@ -39,9 +38,11 @@ if PY3:
     basestring = str
     # Python 3
     from io import BytesIO, StringIO
+    from shutil import which  # noqa
 else:
     # Python 2
     from StringIO import StringIO
+    from distutils.spawn import find_executable as which  # noqa
     # monkey patch StringIO so `with` statements work
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()
@@ -858,35 +859,6 @@ def decimal_to_digits(decimal, min_digits=None):
     return digits
 
 
-def hash_file(file_obj,
-              hash_function=hashlib.md5):
-    """
-    Get the hash of an open file-like object.
-
-    Parameters
-    ------------
-    file_obj: file like object
-    hash_function: function to use to hash data
-
-    Returns
-    ---------
-    hashed: str, hex version of result
-    """
-    # before we read the file data save the current position
-    # in the file (which is probably 0)
-    file_position = file_obj.tell()
-    # create an instance of the hash object
-    hasher = hash_function()
-    # read all data from the file into the hasher
-    hasher.update(file_obj.read())
-    # get a hex version of the result
-    hashed = hasher.hexdigest()
-    # return the file object to its original position
-    file_obj.seek(file_position)
-
-    return hashed
-
-
 def attach_to_log(level=logging.DEBUG,
                   handler=None,
                   loggers=None,
@@ -1674,9 +1646,10 @@ def jsonify(obj, **kwargs):
 
     Parameters
     --------------
-    obj : JSON-serializable blob
-    **kwargs :
-        Passed to json.dumps
+    obj : list, dict
+      A JSON-serializable blob
+    kwargs : dict
+      Passed to json.dumps
 
     Returns
     --------------

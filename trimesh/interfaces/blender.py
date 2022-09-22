@@ -4,8 +4,6 @@ from .. import resources
 from .generic import MeshScript
 from ..constants import log
 
-from distutils.spawn import find_executable
-
 import os
 import platform
 
@@ -33,7 +31,7 @@ if platform.system() == 'Darwin':
     _search_path = ':'.join(_search_path)
     log.debug('searching for blender in: %s', _search_path)
 
-_blender_executable = find_executable('blender', path=_search_path)
+_blender_executable = util.which('blender', path=_search_path)
 exists = _blender_executable is not None
 
 

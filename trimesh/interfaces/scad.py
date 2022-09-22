@@ -1,14 +1,12 @@
 import os
 import platform
 
+from ..util import which
 from .generic import MeshScript
 from ..constants import log
 
-from distutils.spawn import find_executable
-
 # start the search with the user's PATH
 _search_path = os.environ['PATH']
-
 # add additional search locations on windows
 if platform.system() == 'Windows':
     # split existing path by delimiter
@@ -23,11 +21,10 @@ if platform.system() == 'Darwin':
     _search_path.append('/Applications/OpenSCAD.app/Contents/MacOS')
     _search_path = ':'.join(_search_path)
     log.debug('searching for scad in: %s', _search_path)
-
 # try to find the SCAD executable by name
-_scad_executable = find_executable('openscad', path=_search_path)
+_scad_executable = which('openscad', path=_search_path)
 if _scad_executable is None:
-    _scad_executable = find_executable('OpenSCAD', path=_search_path)
+    _scad_executable = which('OpenSCAD', path=_search_path)
 exists = _scad_executable is not None
 
 

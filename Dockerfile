@@ -1,5 +1,4 @@
-FROM python:3.9-slim-bullseye
-
+FROM python:3.10-slim-bullseye
 LABEL maintainer="mikedh@kerfed.com"
 
 # where should this image install `trimesh`

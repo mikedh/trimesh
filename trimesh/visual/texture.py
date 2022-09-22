@@ -38,7 +38,7 @@ class TextureVisuals(Visuals):
         # store values we care about enough to hash
         self.vertex_attributes = caching.DataStore()
         # cache calculated values
-        self._cache = caching.Cache(self.vertex_attributes.fast_hash)
+        self._cache = caching.Cache(self.vertex_attributes.__hash__)
 
         # should be (n, 2) float
         self.uv = uv
@@ -55,9 +55,10 @@ class TextureVisuals(Visuals):
 
         self.face_materials = face_materials
 
-    def _verify_crc(self):
+    def _verify_hash(self):
         """
-        Dump the cache if anything in self.vertex_attributes has changed.
+        Dump the cache if anything in self.vertex_attributes
+        has changed.
         """
         self._cache.verify()
 
@@ -86,7 +87,7 @@ class TextureVisuals(Visuals):
         ok = self.material is not None
         return ok
 
-    def crc(self):
+    def __hash__(self):
         """
         Get a CRC of the stored data.
 
@@ -95,7 +96,7 @@ class TextureVisuals(Visuals):
         crc : int
           Hash of items in self.vertex_attributes
         """
-        return self.vertex_attributes.crc()
+        return self.vertex_attributes.__hash__()
 
     @property
     def uv(self):

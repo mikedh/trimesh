@@ -143,16 +143,16 @@ class UtilTests(unittest.TestCase):
         a = g.get_mesh('ballA.off')
         b = g.get_mesh('ballB.off')
 
-        hA = a.md5()
-        hB = b.md5()
+        hA = a.__hash__()
+        hB = b.__hash__()
 
         # make sure we're not mutating original mesh
         for i in range(4):
             c = a + b
             assert g.np.isclose(c.volume,
                                 a.volume + b.volume)
-            assert a.md5() == hA
-            assert b.md5() == hB
+            assert a.__hash__() == hA
+            assert b.__hash__() == hB
 
         count = 5
         meshes = []
@@ -165,7 +165,7 @@ class UtilTests(unittest.TestCase):
         r = g.trimesh.util.concatenate(meshes)
         assert g.np.isclose(r.volume,
                             a.volume * count)
-        assert a.md5() == hA
+        assert a.__hash__() == hA
 
     def test_unique_id(self):
         num_ids = 10000
@@ -233,22 +233,6 @@ class IOWrapTests(unittest.TestCase):
         hi = 'hi'
         with util.StringIO(hi) as f:
             assert f.read() == hi
-
-    def test_file_hash(self):
-        data = g.np.random.random(10).tobytes()
-        path = g.os.path.join(g.dir_data, 'nestable.json')
-
-        for file_obj in [g.trimesh.util.wrap_as_stream(data),
-                         open(path, 'rb')]:
-            start = file_obj.tell()
-
-            hashed = g.trimesh.util.hash_file(file_obj)
-
-            self.assertTrue(file_obj.tell() == start)
-            self.assertTrue(hashed is not None)
-            self.assertTrue(len(hashed) > 5)
-
-            file_obj.close()
 
 
 class CompressTests(unittest.TestCase):

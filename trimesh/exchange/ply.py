@@ -1,6 +1,5 @@
 import numpy as np
 
-from distutils.spawn import find_executable
 from string import Template
 
 import tempfile
@@ -951,8 +950,8 @@ def load_draco(file_obj, **kwargs):
 
 _ply_loaders = {'ply': load_ply}
 _ply_exporters = {'ply': export_ply}
-draco_encoder = find_executable('draco_encoder')
-draco_decoder = find_executable('draco_decoder')
+draco_encoder = util.which('draco_encoder')
+draco_decoder = util.which('draco_decoder')
 
 if draco_decoder is not None:
     _ply_loaders['drc'] = load_draco

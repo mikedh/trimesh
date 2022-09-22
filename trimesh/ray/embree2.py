@@ -51,7 +51,8 @@ class RayMeshIntersector(RayParent):
         """
         self.mesh = geometry
         self._scale_to_box = scale_to_box
-        self._cache = caching.Cache(id_function=self.mesh.crc)
+        self._cache = caching.Cache(
+            id_function=self.mesh.__hash__)
 
     @property
     def _scale(self):
@@ -203,7 +204,7 @@ class RayMeshIntersector(RayParent):
             else:
                 break
 
-        # stack the deques into nice 1D numpy arrays
+        # stack the dequeues into nice 1D numpy arrays
         index_tri = np.hstack(result_triangle)
         index_ray = np.hstack(result_idx)
 

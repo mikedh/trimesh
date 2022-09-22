@@ -5,28 +5,31 @@ comparison.py
 Provide methods for quickly hashing and comparing meshes.
 """
 
-import hashlib
 import numpy as np
 
 from . import util
 
+from hashlib import sha256
 from .constants import tol
 
-# how many significant figures to use for each field of the identifier
-id_sigfig = np.array([5,  # area
-                      10,  # euler number
-                      5,  # area/volume ratio
-                      2,  # convex/mesh area ratio
-                      2,  # convex area/volume ratio
-                      3,  # max radius squared / area
-                      1])  # signed triangle count for mirrored
+# how many significant figures to use for each
+# field of the identifier based on hand-tuning
+id_sigfig = np.array(
+    [5,  # area
+     10,  # euler number
+     5,  # area/volume ratio
+     2,  # convex/mesh area ratio
+     2,  # convex area/volume ratio
+     3,  # max radius squared / area
+     1])  # signed triangle count for mirrored
 
 
 def identifier_simple(mesh):
     """
-    Return a basic identifier for a mesh, consisting of properties
-    that have been hand tuned to be somewhat robust to rigid
-    transformations and different tesselations.
+    Return a basic identifier for a mesh consisting of
+    properties that have been hand tuned to be somewhat
+    robust to rigid transformations and different
+    tesselations.
 
     Parameters
     ------------
@@ -35,7 +38,7 @@ def identifier_simple(mesh):
 
     Returns
     ----------
-    identifier : (6,) float
+    identifier : (7,) float
       Identifying values of the mesh
     """
     # verify the cache once
@@ -128,33 +131,31 @@ def identifier_simple(mesh):
     return identifier
 
 
-def identifier_hash(identifier, sigfig=None):
+def identifier_hash(identifier):
     """
-    Hash an identifier array to a specified number of
-    significant figures.
+    Hash an identifier array in a way that is hand-tuned to be
+    somewhat robust to likely changes.
 
     Parameters
     ------------
     identifier : (n,) float
       Vector of properties
-    sigfig : (n,) int
-      Number of sigfigs per property
 
     Returns
     ----------
-    md5 : str
-      MD5 hash of identifier
+    hash : (32,) str
+      First 32 characters hash of identifier
     """
-    if sigfig is None:
-        sigfig = id_sigfig
 
     # convert identifier to integers and order of magnitude
-    as_int, multiplier = util.sigfig_int(identifier, sigfig)
+    as_int, multiplier = util.sigfig_int(
+        identifier, id_sigfig)
+
     # make all scales positive
     if (multiplier < 0).any():
         multiplier += np.abs(multiplier.min())
-    hashable = (as_int * (10 ** multiplier)).astype(np.int64)
-    return hashlib.md5(hashable).hexdigest()
+    data = (as_int * (10 ** multiplier)).astype(np.int64)
+    return sha256(data.tobytes()).hexdigest()[-32:]
 
 
 def face_ordering(mesh):

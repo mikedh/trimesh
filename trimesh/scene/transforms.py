@@ -152,6 +152,9 @@ class SceneGraph(object):
 
         return matrix, geometry
 
+    def __hash__(self):
+        return hash(self.modified())
+
     def modified(self):
         """
         Return the last time stamp data was modified.

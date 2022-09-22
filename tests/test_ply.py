@@ -63,7 +63,7 @@ class PlyTest(g.unittest.TestCase):
         """
         m = g.get_mesh('points_ascii_with_lists.ply')
 
-        point_list = m.metadata['ply_raw']['point_list']['data']
+        point_list = m.metadata['_ply_raw']['point_list']['data']
         assert g.np.array_equal(
             point_list['point_indices1'][0], g.np.array([10, 11, 12], dtype=g.np.uint32))
         assert g.np.array_equal(
@@ -91,7 +91,7 @@ class PlyTest(g.unittest.TestCase):
         reconstructed = g.wrapload(export,
                                    file_type='ply')
 
-        vertex_attributes = reconstructed.metadata['ply_raw']['vertex']['data']
+        vertex_attributes = reconstructed.metadata['_ply_raw']['vertex']['data']
         result_1d = vertex_attributes['test_1d_attribute']
         result_nd = vertex_attributes['test_nd_attribute']['f1']
 
@@ -111,7 +111,7 @@ class PlyTest(g.unittest.TestCase):
         export = m.export(file_type='ply')
         reconstructed = g.wrapload(export, file_type='ply')
 
-        face_attributes = reconstructed.metadata['ply_raw']['face']['data']
+        face_attributes = reconstructed.metadata['_ply_raw']['face']['data']
         result_1d = face_attributes['test_1d_attribute']
         result_nd = face_attributes['test_nd_attribute']['f1']
 

@@ -18,7 +18,7 @@ from .. import rendering
 from .. import resources
 from .. import transformations
 
-from ..caching import fast_hash
+from ..caching import hash_fast
 from ..constants import log, tol
 
 
@@ -428,7 +428,7 @@ def _buffer_append(ordered, data):
       Index of buffer_items stored in
     """
     # hash the data to see if we have it already
-    hashed = fast_hash(data)
+    hashed = hash_fast(data)
     if hashed in ordered:
         # apparently they never implemented keys().index -_-
         return list(ordered.keys()).index(hashed)
@@ -460,12 +460,12 @@ def _data_append(acc, buff, blob, data):
     """
     # if we have data include that in the key
     as_bytes = data.tobytes()
-    if hasattr(data, 'fast_hash'):
+    if hasattr(data, 'hash_fast'):
         # passed a TrackedArray object
-        hashed = data.fast_hash()
+        hashed = data.hash_fast()
     else:
         # someone passed a vanilla numpy array
-        hashed = fast_hash(as_bytes)
+        hashed = hash_fast(as_bytes)
 
     if hashed in buff:
         blob['bufferView'] = list(buff.keys()).index(hashed)
@@ -1417,7 +1417,6 @@ def _read_buffers(header,
                             kwargs['faces'] = util.triangle_strips_to_faces([flat])
                         else:
                             kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
-
                     else:
                         # indices are apparently optional and we are supposed to
                         # do the same thing as webGL drawArrays?

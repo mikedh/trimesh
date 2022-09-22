@@ -143,7 +143,8 @@ class CreationTest(g.unittest.TestCase):
 
         # Extrude
         for engine in self.engines:
-            mesh = g.trimesh.creation.sweep_polygon(poly, path, engine=engine)
+            mesh = g.trimesh.creation.sweep_polygon(
+                poly, path, engine=engine)
             assert mesh.is_volume
 
     def test_annulus(self):
@@ -227,36 +228,43 @@ class CreationTest(g.unittest.TestCase):
         assert g.np.isclose(donut.area,
                             bigger.area - smaller.area)
 
-        times = {}
+        times = {'earcut': 0.0, 'triangle': 0.0}
         iterations = 50
         # get a polygon to benchmark times with including interiors
-        bench = g.get_mesh('2D/wrench.dxf').polygons_full[0]
+        bench = [bigger, smaller, donut]
+        bench.extend(g.get_mesh(
+            '2D/ChuteHolderPrint.DXF').polygons_full)
+        bench.extend(g.get_mesh(
+            '2D/wrench.dxf').polygons_full)
+
         # check triangulation of both meshpy and triangle engine
         # including an example that has interiors
         for engine in self.engines:
             # make sure all our polygons triangulate resonably
-            for poly in [bigger, smaller, donut, bench]:
+            for poly in bench:
                 v, f = g.trimesh.creation.triangulate_polygon(
                     poly, engine=engine)
                 # run asserts
                 check_triangulation(v, f, poly.area)
-            try:
-                # do a quick benchmark per engine
-                # in general triangle appears to be 2x
-                # faster than meshpy
-                times[engine] = min(
-                    g.timeit.repeat(
-                        't(p, engine=e)',
-                        repeat=3,
-                        number=iterations,
-                        globals={'t': g.trimesh.creation.triangulate_polygon,
-                                 'p': bench,
-                                 'e': engine})) / iterations
-            except BaseException:
-                g.log.error(
-                    'failed to benchmark triangle', exc_info=True)
-        g.log.warning(
-            'benchmarked triangle interfaces: {}'.format(str(times)))
+                try:
+                    # do a quick benchmark per engine
+                    # in general triangle appears to be 2x
+                    # faster than
+                    times[engine] += min(
+                        g.timeit.repeat(
+                            't(p, engine=e)',
+                            repeat=3,
+                            number=iterations,
+                            globals={
+                                't': g.trimesh.creation.triangulate_polygon,
+                                'p': poly,
+                                'e': engine})) / iterations
+                except BaseException:
+                    g.log.error(
+                        'failed to benchmark triangle', exc_info=True)
+        g.log.info(
+            'benchmarked triangulation on {} polygons: {}'.format(
+                len(bench), str(times)))
 
     def test_triangulate_plumbing(self):
         """

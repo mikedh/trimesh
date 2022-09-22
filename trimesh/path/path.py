@@ -8,8 +8,10 @@ those stored in a DXF or SVG file.
 import numpy as np
 
 import copy
-import hashlib
+import warnings
 import collections
+
+from hashlib import sha256
 
 from ..points import plane_fit
 from ..geometry import plane_transform
@@ -93,7 +95,8 @@ class Path(parent.Geometry):
             self.metadata.update(metadata)
 
         # cache will dump whenever self.crc changes
-        self._cache = caching.Cache(id_function=self.crc)
+        self._cache = caching.Cache(
+            id_function=self.__hash__)
 
         if process:
             # literally nothing will work if vertices
@@ -159,20 +162,6 @@ class Path(parent.Geometry):
         for c, e in zip(colors, self.entities):
             e.color = c
 
-    def colors_crc(self):
-        """
-        A CRC of the current entity colors.
-
-        Returns
-        -------
-        crc : int
-          CRC of the current entity colors
-        """
-        # first CRC the colors in every entity
-        target = caching.crc32(bytes().join(
-            e.color.tobytes() for e in self.entities))
-        return target
-
     @property
     def vertices(self):
         return self._vertices
@@ -214,38 +203,21 @@ class Path(parent.Geometry):
         # layer is a required meta-property for entities
         return [e.layer for e in self.entities]
 
-    def crc(self):
+    def __hash__(self):
         """
-        A CRC of the current vertices and entities.
+        A hash of the current vertices and entities.
 
         Returns
         ------------
-        crc : int
-          CRC of entity points and vertices
+        hash : long int
+          Appended hashes
         """
-        # first CRC the points in every entity
-        target = caching.crc32(bytes().join(
-            e._bytes() for e in self.entities))
-        # XOR the CRC for the vertices
-        target ^= self.vertices.fast_hash()
-        return target
-
-    def md5(self):
-        """
-        An MD5 hash of the current vertices and entities.
-
-        Returns
-        ------------
-        md5 : str
-          Appended MD5 hashes
-        """
-        # first MD5 the points in every entity
-        target = '{}{}'.format(
-            hashlib.md5(bytes().join(
-                e._bytes() for e in self.entities)).hexdigest(),
-            self.vertices.md5())
-
-        return target
+        # get the hash of the trackedarray vertices
+        hashable = [hex(self.vertices.__hash__()).encode('utf-8')]
+        # get the bytes for each entity
+        hashable.extend(e._bytes() for e in self.entities)
+        # hash the combined result
+        return caching.hash_fast(b''.join(hashable))
 
     @caching.cache_decorator
     def paths(self):
@@ -257,8 +229,8 @@ class Path(parent.Geometry):
         paths : (n,) sequence of (*,) int
           Referencing self.entities
         """
-        paths = traversal.closed_paths(self.entities,
-                                       self.vertices)
+        paths = traversal.closed_paths(
+            self.entities, self.vertices)
         return paths
 
     @caching.cache_decorator
@@ -1445,7 +1417,7 @@ class Path2D(Path):
 
             fmt = eformat[e_key].copy()
             if color is not None:
-                # passed color will override other optons
+                # passed color will override other options
                 fmt['color'] = color
             elif hasattr(entity, 'color'):
                 # if entity has specified color use it
@@ -1464,14 +1436,19 @@ class Path2D(Path):
         identifier : (5,) float
           Unique identifier
         """
-        if len(self.polygons_full) != 1:
-            raise TypeError('Identifier only valid for single body')
-        return polygons.polygon_hash(self.polygons_full[0])
+        hasher = polygons.polygon_hash
+        target = self.polygons_full
+        if len(target) == 1:
+            return hasher(self.polygons_full[0])
+        elif len(target) == 0:
+            return np.zeros(5)
+
+        return np.sum([hasher(p) for p in target], axis=1)
 
     @caching.cache_decorator
-    def identifier_md5(self):
+    def identifier_hash(self):
         """
-        Return an MD5 of the identifier.
+        Return a hash of the identifier.
 
         Returns
         ----------
@@ -1479,8 +1456,16 @@ class Path2D(Path):
           Hashed identifier.
         """
         as_int = (self.identifier * 1e4).astype(np.int64)
-        hashed = hashlib.md5(as_int.tobytes(order='C')).hexdigest()
-        return hashed
+        return sha256(as_int.tobytes(order='C')).hexdigest()[-32:]
+
+    @property
+    def identifier_md5(self):
+        warnings.warn(
+            '`geom.identifier_md5` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geom.identifier_hash`',
+            DeprecationWarning)
+        return self.identifier_hash
 
     @property
     def path_valid(self):

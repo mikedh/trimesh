@@ -26,7 +26,7 @@ class CreationTests(g.unittest.TestCase):
         assert g.np.isclose(circle.area, g.np.pi, rtol=0.01)
         # should be centered at 0
         assert g.np.allclose(
-            circle.polygons_full[0].centroid, [
+            circle.polygons_full[0].centroid.coords, [
                 1.0, 1.0], atol=1e-3)
         assert len(circle.entities) == 1
         assert len(circle.polygons_closed) == 1
@@ -58,13 +58,12 @@ class CreationTests(g.unittest.TestCase):
 
     def test_grid(self):
         grid = g.trimesh.path.creation.grid(side=5.0)
-        print(grid.extents)
         assert g.np.allclose(grid.extents, [10, 10, 0])
-
         # check grid along a plane
-        grid = g.trimesh.path.creation.grid(side=10.0,
-                                            plane_origin=[5.0, 0, 0],
-                                            plane_normal=[1, 0, 0])
+        grid = g.trimesh.path.creation.grid(
+            side=10.0,
+            plane_origin=[5.0, 0, 0],
+            plane_normal=[1, 0, 0])
         # make sure plane is applied correctly
         assert g.np.allclose(grid.extents, [0, 20, 20])
         assert g.np.allclose(grid.bounds, [[5, -10, -10], [5, 10, 10]])

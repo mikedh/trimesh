@@ -7,11 +7,14 @@ Create meshes from primitives, or with operations.
 
 from .base import Trimesh
 from .constants import log, tol
-from .geometry import faces_to_edges, align_vectors, plane_transform
+from .geometry import (faces_to_edges,
+                       align_vectors,
+                       plane_transform)
 
 from . import util
 from . import grouping
 from . import triangles
+from . import exceptions
 from . import transformations as tf
 
 import numpy as np
@@ -22,19 +25,15 @@ try:
     from shapely.geometry import Polygon
     from shapely.wkb import loads as load_wkb
 except BaseException as E:
-    # shapely will sometimes raise OSErrors
-    # on import rather than just ImportError
-    from . import exceptions
     # re-raise the exception when someone tries
     # to use the module that they don't have
     Polygon = exceptions.closure(E)
     load_wkb = exceptions.closure(E)
 
 try:
-    from triangle import triangulate
+    from mapbox_earcut import triangulate_float64 as _tri_earcut
 except BaseException as E:
-    from . import exceptions
-    triangulate = exceptions.closure(E)
+    _tri_earcut = exceptions.closure(E)
 
 
 def revolve(linestring,
@@ -233,7 +232,7 @@ def sweep_polygon(polygon,
         raise ValueError('Path must be (n, 3)!')
 
     # Extract 2D vertices and triangulation
-    verts_2d = np.array(polygon.exterior)[:-1]
+    verts_2d = np.array(polygon.exterior.coords)[:-1]
     base_verts_2d, faces_2d = triangulate_polygon(
         polygon, **kwargs)
     n = len(verts_2d)
@@ -445,31 +444,38 @@ def triangulate_polygon(polygon,
     faces : (n, 3) int
        Index of vertices that make up triangles
     """
-    if engine == 'earcut':
-        from mapbox_earcut import triangulate_float64
-
-        # get vertices as sequence where exterior is the first value
-        vertices = [np.array(polygon.exterior)]
-        vertices.extend(np.array(i) for i in polygon.interiors)
+    if engine is None or engine == 'earcut':
+        # get vertices as sequence where exterior
+        # is the first value
+        vertices = [np.array(polygon.exterior.coords)]
+        vertices.extend(np.array(i.coords)
+                        for i in polygon.interiors)
         # record the index from the length of each vertex array
         rings = np.cumsum([len(v) for v in vertices])
         # stack vertices into (n, 2) float array
         vertices = np.vstack(vertices)
         # run triangulation
-        faces = triangulate_float64(vertices, rings).reshape(
+        faces = _tri_earcut(vertices, rings).reshape(
             (-1, 3)).astype(np.int64).reshape((-1, 3))
 
         return vertices, faces
 
-    # set default triangulation arguments if not specified
-    if triangle_args is None:
-        triangle_args = 'p'
-    # turn the polygon in to vertices, segments, and hole points
-    arg = _polygon_to_kwargs(polygon)
-    # run the triangulation
-    result = triangulate(arg, triangle_args)
-
-    return result['vertices'], result['triangles']
+    elif engine == 'triangle':
+        from triangle import triangulate
+        # set default triangulation arguments if not specified
+        if triangle_args is None:
+            triangle_args = 'p'
+            # turn the polygon in to vertices, segments, and holes
+        arg = _polygon_to_kwargs(polygon)
+        # run the triangulation
+        result = triangulate(arg, triangle_args)
+        return result['vertices'], result['triangles']
+    else:
+        log.warning('try running `pip install mapbox-earcut`' +
+                    'or explicitly pass:\n' +
+                    '`triangulate_polygon(*args, engine="triangle")`\n' +
+                    'to use the non-FSF-approved-license triangle engine')
+        raise ValueError('no valid triangulation engine!')
 
 
 def _polygon_to_kwargs(polygon):
@@ -526,7 +532,8 @@ def _polygon_to_kwargs(polygon):
         # the points, but this is more robust (to things like concavity), if
         # slower.
         test = Polygon(cleaned)
-        holes.append(np.array(test.representative_point().coords)[0])
+        holes.append(np.array(
+            test.representative_point().coords)[0])
 
         return len(cleaned)
 
@@ -550,12 +557,10 @@ def _polygon_to_kwargs(polygon):
     # by stacking the sequence of (p,2) arrays
     vertices = np.vstack(vertices)
     facets = np.vstack(facets).tolist()
-
     # shapely polygons can include a Z component
     # strip it out for the triangulation
     if vertices.shape[1] == 3:
         vertices = vertices[:, :2]
-
     result = {'vertices': vertices,
               'segments': facets}
     # holes in meshpy lingo are a (h, 2) list of (x,y) points
@@ -564,7 +569,6 @@ def _polygon_to_kwargs(polygon):
     holes = np.array(holes)[1:]
     if len(holes) > 0:
         result['holes'] = holes
-
     return result
 
 
