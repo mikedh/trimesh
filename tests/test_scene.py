@@ -20,27 +20,28 @@ class SceneTests(g.unittest.TestCase):
             scene_split.convert_units('in')
             scene_base = g.trimesh.Scene(mesh)
 
-            # save MD5 of scene before concat
-            pre = [scene_split.md5(), scene_base.md5()]
-            # make sure MD5's give the same result twice
-            assert scene_split.md5() == pre[0]
-            assert scene_base.md5() == pre[1]
+            # save hash of scene before concat
+            pre = [scene_split.__hash__(), scene_base.__hash__()]
+            # make sure hash's give the same result twice
+            assert scene_split.__hash__() == pre[0]
+            assert scene_base.__hash__() == pre[1]
 
-            assert isinstance(scene_base.crc(), int)
+            # __hash__ is a long int which fails isinstance in Python 2
+            assert type(scene_base.__hash__()).__name__ in ('int', 'long')
 
             # try out scene appending
             concat = scene_split + scene_base
 
             # make sure concat didn't mess with original scenes
-            assert scene_split.md5() == pre[0]
-            assert scene_base.md5() == pre[1]
+            assert scene_split.__hash__() == pre[0]
+            assert scene_base.__hash__() == pre[1]
 
             # make sure concatenate appended things, stuff
             assert len(concat.geometry) == (len(scene_split.geometry) +
                                             len(scene_base.geometry))
 
             for s in [scene_split, scene_base]:
-                pre = s.md5()
+                pre = s.__hash__()
                 assert len(s.geometry) > 0
                 assert s.is_valid
 
@@ -56,8 +57,8 @@ class SceneTests(g.unittest.TestCase):
                 assert g.trimesh.util.is_shape(s.triangles, (-1, 3, 3))
                 assert len(s.triangles) == len(s.triangles_node)
 
-                assert s.md5() == pre
-                assert s.md5() is not None
+                assert s.__hash__() == pre
+                assert s.__hash__() is not None
 
                 # should be some duplicate nodes
                 assert len(s.duplicate_nodes) > 0
@@ -111,7 +112,7 @@ class SceneTests(g.unittest.TestCase):
 
         scene = g.get_mesh('cycloidal.3DXML')
 
-        md5 = scene.md5()
+        hash_val = scene.__hash__()
         extents = scene.bounding_box_oriented.primitive.extents.copy()
 
         # TODO: have OBB return sorted extents
@@ -132,8 +133,8 @@ class SceneTests(g.unittest.TestCase):
         assert scene.bounding_primitive.volume > 0.0
 
         # we shouldn't have modified the original scene
-        assert scene.md5() == md5
-        assert scaled.md5() != md5
+        assert scene.__hash__() == hash_val
+        assert scaled.__hash__() != hash_val
 
         # 3DXML comes in as mm
         assert all(m.units == 'mm'
@@ -159,8 +160,8 @@ class SceneTests(g.unittest.TestCase):
         assert scene.units == 'mm'
 
         # we shouldn't have modified the original scene
-        assert scene.md5() == md5
-        assert converted.md5() != md5
+        assert scene.__hash__() == hash_val
+        assert converted.__hash__() != hash_val
 
     def test_add_geometry(self):
         # list-typed geometry should create multiple nodes,
@@ -385,7 +386,7 @@ class SceneTests(g.unittest.TestCase):
         # concatenating the meshes somewhere.
         original = g.trimesh.creation.icosphere(
             radius=0.123312)
-        original_hash = original.identifier_md5
+        original_hash = original.identifier_hash
 
         scene = g.trimesh.Scene()
         scene.add_geometry(original)
@@ -398,7 +399,7 @@ class SceneTests(g.unittest.TestCase):
                 assert g.np.isclose(loaded.volume,
                                     original.volume)
         # nothing should have changed
-        assert original.identifier_md5 == original_hash
+        assert original.identifier_hash == original_hash
 
     def test_append_scenes(self):
         scene_0 = g.trimesh.Scene(base_frame='not_world')

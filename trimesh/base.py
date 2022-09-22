@@ -38,6 +38,7 @@ from .scene import Scene
 from .parent import Geometry3D
 
 import copy
+import warnings
 import numpy as np
 
 
@@ -102,7 +103,7 @@ class Trimesh(Geometry3D):
         # in the base class all that is stored here is vertex and
         # face information
         # any data put into the store is converted to a TrackedArray
-        # which is a subclass of np.ndarray that provides md5 and crc
+        # which is a subclass of np.ndarray that provides hash and crc
         # methods which can be used to detect changes in the array.
         self._data = caching.DataStore()
 
@@ -111,9 +112,8 @@ class Trimesh(Geometry3D):
         # In order to maintain consistency
         # the cache is cleared when self._data.crc() changes
         self._cache = caching.Cache(
-            id_function=self._data.fast_hash,
+            id_function=self._data.__hash__,
             force_immutable=True)
-
         self._cache.update(initial_cache)
 
         # check for None only to avoid warning messages in subclasses
@@ -246,54 +246,23 @@ class Trimesh(Geometry3D):
         self.metadata['processed'] = True
         return self
 
-    def md5(self):
-        """
-        An MD5 of the core geometry information for the mesh,
-        faces and vertices.
-
-        Generated from TrackedArray which subclasses np.ndarray to
-        monitor array for changes and returns a correct lazily
-        evaluated md5 so it only has to recalculate the hash
-        occasionally, rather than on every call.
-
-        Returns
-        ----------
-        md5 : string
-          MD5 of everything in the DataStore
-        """
-        md5 = self._data.md5()
-        return md5
-
-    def crc(self):
-        """
-        A zlib.adler32 checksum for the current mesh data.
-
-        This is about 5x faster than an MD5, and the checksum is
-        checked every time something is requested from the cache so
-        it gets called a lot.
-
-        Returns
-        ----------
-        crc : int
-          Checksum of current mesh data
-        """
-        return self._data.fast_hash()
-
     @property
     def faces(self):
         """
         The faces of the mesh.
 
-        This is regarded as core information which cannot be regenerated from
-        cache, and as such is stored in self._data which tracks the array for
-        changes and clears cached values of the mesh if this is altered.
+        This is regarded as core information which cannot be
+        regenerated from cache and as such is stored in
+        `self._data` which tracks the array for changes and
+        clears cached values of the mesh altered.
 
         Returns
         ----------
-        faces : (n, 3) int
-          Representing triangles which reference self.vertices
+        faces : (n, 3) int64
+          References for `self.vertices` for triangles.
         """
-        return self._data.get('faces', np.empty(shape=(0, 3), dtype=np.int64))
+        return self._data.get(
+            'faces', np.empty(shape=(0, 3), dtype=np.int64))
 
     @faces.setter
     def faces(self, values):
@@ -302,7 +271,7 @@ class Trimesh(Geometry3D):
 
         Parameters
         --------------
-        values : (n, 3) int
+        values : (n, 3) int64
           Indexes of self.vertices
         """
         if values is None or len(values) == 0:
@@ -647,7 +616,8 @@ class Trimesh(Geometry3D):
         Parameters
         -------------
         density : float
-          Specify the density of the mesh to be used in inertia calculations
+          Specify the density of the mesh to be
+          used in inertia calculations.
         """
         self._density = float(value)
         self._cache.delete('mass_properties')
@@ -808,7 +778,7 @@ class Trimesh(Geometry3D):
           Points of triangle vertices
         """
         # use of advanced indexing on our tracked arrays will
-        # trigger a change flag which means the MD5 will have to be
+        # trigger a change flag which means the hash will have to be
         # recomputed. We can escape this check by viewing the array.
         triangles = self.vertices.view(np.ndarray)[self.faces]
 
@@ -2052,7 +2022,7 @@ class Trimesh(Geometry3D):
         """
 
         # smooth should be recomputed if visuals change
-        self.visual._verify_crc()
+        self.visual._verify_hash()
         cached = self.visual._cache['smoothed']
         if cached is not None:
             return cached
@@ -2689,12 +2659,13 @@ class Trimesh(Geometry3D):
 
         Returns
         ---------
-        if append : trimesh.Trimesh object
-        else :      list of trimesh.Trimesh objects
+        submesh : Trimesh or (n,) Trimesh
+          Single mesh if `append` or list of submeshes
         """
-        return util.submesh(mesh=self,
-                            faces_sequence=faces_sequence,
-                            **kwargs)
+        return util.submesh(
+            mesh=self,
+            faces_sequence=faces_sequence,
+            **kwargs)
 
     @caching.cache_decorator
     def identifier(self):
@@ -2704,46 +2675,55 @@ class Trimesh(Geometry3D):
 
         Returns
         -----------
-        identifier : (6, ) float
+        identifier : (7,) float
           Identifying properties of the current mesh
         """
-        identifier = comparison.identifier_simple(self)
-        return identifier
+        return comparison.identifier_simple(self)
 
     @caching.cache_decorator
-    def identifier_md5(self):
+    def identifier_hash(self):
         """
-        An MD5 of the rotation invariant identifier vector
+        A hash of the rotation invariant identifier vector.
 
         Returns
         ---------
         hashed : str
-          MD5 hash of the identifier vector
+          Hex string of the SHA256 hash from
+          the identifier vector at hand-tuned sigfigs.
         """
-        hashed = comparison.identifier_hash(self.identifier)
-        return hashed
+        return comparison.identifier_hash(self.identifier)
+
+    @property
+    def identifier_md5(self):
+        warnings.warn(
+            '`geom.identifier_md5` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geom.identifier_hash`',
+            DeprecationWarning)
+        return self.identifier_hash
 
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
 
-        Supported formats are stl, off, ply, collada, json, dict, glb,
-        dict64, msgpack.
+        Supported formats are stl, off, ply, collada, json,
+        dict, glb, dict64, msgpack.
 
         Parameters
         ------------
-        file_obj: open writeable file object
+        file_obj : open writeable file object
           str, file name where to save the mesh
-          None, if you would like this function to return the export blob
-        file_type: str
-          Which file type to export as.
-          If file name is passed this is not required
+          None, return the export blob
+        file_type : str
+          Which file type to export as, if `file_name`
+          is passed this is not required.
         """
-        return export_mesh(mesh=self,
-                           file_obj=file_obj,
-                           file_type=file_type,
-                           **kwargs)
+        return export_mesh(
+            mesh=self,
+            file_obj=file_obj,
+            file_type=file_type,
+            **kwargs)
 
     def to_dict(self):
         """
@@ -3045,18 +3025,6 @@ class Trimesh(Geometry3D):
         result = eval(statement)
         self._cache[key] = result
         return result
-
-    def __hash__(self):
-        """
-        Return the MD5 hash of the mesh as an integer.
-
-        Returns
-        ----------
-        hashed : int
-          MD5 of mesh data
-        """
-        hashed = int(self.md5(), 16)
-        return hashed
 
     def __add__(self, other):
         """

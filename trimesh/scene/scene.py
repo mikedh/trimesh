@@ -1,4 +1,3 @@
-import hashlib
 import numpy as np
 import collections
 
@@ -63,7 +62,7 @@ class Scene(Geometry3D):
         self.graph = SceneGraph(base_frame=base_frame)
 
         # create our cache
-        self._cache = caching.Cache(id_function=self.md5)
+        self._cache = caching.Cache(id_function=self.__hash__)
 
         # add passed geometry to scene
         self.add_geometry(geometry)
@@ -234,31 +233,7 @@ class Scene(Geometry3D):
             if util.is_instance_named(geometry, 'Trimesh'):
                 geometry.visual = ColorVisuals(mesh=geometry)
 
-    def md5(self):
-        """
-        MD5 of scene which will change when meshes or
-        transforms are changed
-
-        Returns
-        --------
-        hashed : str
-          MD5 hash of scene
-        """
-        # start with transforms hash
-        return hashlib.md5(self._hashable()).hexdigest()
-
-    def crc(self):
-        """
-        Get a CRC of the current geometry and graph information.
-
-        Returns
-        ---------
-        crc : int
-          Hash of current graph and geometry.
-        """
-        return caching.crc32(self._hashable())
-
-    def _hashable(self):
+    def __hash__(self):
         """
         Return information about scene which is hashable.
 
@@ -267,15 +242,15 @@ class Scene(Geometry3D):
         hashable : str
           Data which can be hashed.
         """
+        # avoid accessing attribute in tight loop
+        geometry = self.geometry
         # start with the last modified time of the scene graph
-        hashable = [self.graph.modified()]
-        # crc is an abstractmethod for all Geometry3D
-        # objects so everything should really have it
-        hashable.extend(str(i.crc()) for i in
-                        self.geometry.values()
-                        if hasattr(i, 'crc'))
-        # crc requires bytes so encode to utf-8
-        return ':'.join(sorted(hashable)).encode('utf-8')
+        hashable = [hex(hash(self.graph))]
+        # take the re-hex string of the hash
+        hashable.extend(hex(geometry[k].__hash__()) for k in
+                        sorted(geometry.keys()))
+        return caching.hash_fast(
+            ''.join(hashable).encode('utf-8'))
 
     @property
     def is_empty(self):
@@ -481,14 +456,14 @@ class Scene(Geometry3D):
     @caching.cache_decorator
     def geometry_identifiers(self):
         """
-        Look up geometries by identifier MD5
+        Look up geometries by identifier hash
 
         Returns
         ---------
         identifiers : dict
-          {Identifier MD5: key in self.geometry}
+          {Identifier hash: key in self.geometry}
         """
-        identifiers = {mesh.identifier_md5: name
+        identifiers = {mesh.identifier_hash: name
                        for name, mesh in self.geometry.items()}
         return identifiers
 
@@ -509,10 +484,10 @@ class Scene(Geometry3D):
         if len(self.geometry) == 0:
             return []
 
-        # geometry name : md5 of mesh
-        hashes = {k: int(m.identifier_md5, 16)
+        # geometry name : hash of mesh
+        hashes = {k: int(m.identifier_hash, 16)
                   for k, m in self.geometry.items()
-                  if hasattr(m, 'identifier_md5')}
+                  if hasattr(m, 'identifier_hash')}
 
         # bring into local scope for loop
         graph = self.graph

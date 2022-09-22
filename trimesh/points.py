@@ -418,7 +418,7 @@ class PointCloud(Geometry3D):
           Metadata about points
         """
         self._data = caching.DataStore()
-        self._cache = caching.Cache(self._data.md5)
+        self._cache = caching.Cache(self._data.hash)
         self.metadata = {}
 
         if metadata is not None:
@@ -490,16 +490,16 @@ class PointCloud(Geometry3D):
 
         return copied
 
-    def md5(self):
+    def hash(self):
         """
-        Get an MD5 hash of the current vertices.
+        Get a hash of the current vertices.
 
         Returns
         ----------
-        md5 : str
+        hash : str
           Hash of self.vertices
         """
-        return self._data.md5()
+        return self._data.__hash__()
 
     def crc(self):
         """

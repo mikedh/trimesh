@@ -58,9 +58,12 @@ class MinimalTest(unittest.TestCase):
                 assert len(m.vertices.shape) == 2
 
                 # make sure hash changes
-                initial = m._data.fast_hash()
+                initial = hash(m)
+                m.faces += 0
+
+                assert hash(m) == initial
                 m.vertices[:, 0] += 1.0
-                assert m._data.fast_hash() != initial
+                assert hash(m) != initial
 
 
 if __name__ == '__main__':

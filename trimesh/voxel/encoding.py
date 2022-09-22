@@ -2,9 +2,9 @@
 import numpy as np
 
 import abc
-from ..util import ABC
+from ..util import ABC, log
 
-from . import runlength as rl
+from . import runlength
 from .. import caching
 
 try:
@@ -36,7 +36,8 @@ class Encoding(ABC):
 
     def __init__(self, data):
         self._data = data
-        self._cache = caching.Cache(id_function=data.crc)
+        self._cache = caching.Cache(
+            id_function=self._data.__hash__)
 
     @abc.abstractproperty
     def dtype(self):
@@ -118,11 +119,30 @@ class Encoding(ABC):
     def _flip(self, axes):
         return FlippedEncoding(self, axes)
 
-    def md5(self):
-        return self._data.md5()
-
     def crc(self):
-        return self._data.crc()
+        log.warning(
+            '`geometry.crc()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geometry.__hash__()` or `hash(geometry)`')
+        return self.__hash__()
+
+    def hash(self):
+        log.warning(
+            '`geometry.hash()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geometry.__hash__()` or `hash(geometry)`')
+        return self.__hash__()
+
+    def __hash__(self):
+        """
+        Get the hash of the current transformation matrix.
+
+        Returns
+        ------------
+        hash : str
+          Hash of transformation matrix
+        """
+        return self._data.__hash__()
 
     @property
     def ndims(self):
@@ -150,13 +170,13 @@ class Encoding(ABC):
         if self.ndims != 1:
             raise ValueError(
                 '`run_length_data` only valid for flat encodings')
-        return rl.dense_to_rle(self.dense, dtype=dtype)
+        return runlength.dense_to_rle(self.dense, dtype=dtype)
 
     def binary_run_length_data(self, dtype=np.int64):
         if self.ndims != 1:
             raise ValueError(
                 '`run_length_data` only valid for flat encodings')
-        return rl.dense_to_brle(self.dense, dtype=dtype)
+        return runlength.dense_to_brle(self.dense, dtype=dtype)
 
     def transpose(self, perm):
         return _transposed(self, perm)
@@ -451,32 +471,51 @@ class RunLengthEncoding(Encoding):
     def dtype(self):
         return self._dtype
 
-    def md5(self):
-        return self._data.md5()
-
     def crc(self):
-        return self._data.crc()
+        log.warning(
+            '`geometry.crc()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geometry.__hash__()` or `hash(geometry)`')
+        return self.__hash__()
+
+    def hash(self):
+        log.warning(
+            '`geometry.hash()` is deprecated and will ' +
+            'be removed in October 2023: replace ' +
+            'with `geometry.__hash__()` or `hash(geometry)`')
+        return self.__hash__()
+
+    def __hash__(self):
+        """
+        Get the hash of the current transformation matrix.
+
+        Returns
+        ------------
+        hash : str
+          Hash of transformation matrix
+        """
+        return self._data.__hash__()
 
     @staticmethod
     def from_dense(dense_data, dtype=np.int64, encoding_dtype=np.int64):
         return RunLengthEncoding(
-            rl.dense_to_rle(dense_data, dtype=encoding_dtype), dtype=dtype)
+            runlength.dense_to_rle(dense_data, dtype=encoding_dtype), dtype=dtype)
 
     @staticmethod
     def from_rle(rle_data, dtype=None):
         if dtype != rle_data.dtype:
-            rle_data = rl.rle_to_rle(rle_data, dtype=dtype)
+            rle_data = runlength.rle_to_rle(rle_data, dtype=dtype)
         return RunLengthEncoding(rle_data)
 
     @staticmethod
     def from_brle(brle_data, dtype=None):
-        return RunLengthEncoding(rl.brle_to_rle(brle_data, dtype=dtype))
+        return RunLengthEncoding(runlength.brle_to_rle(brle_data, dtype=dtype))
 
     @caching.cache_decorator
     def stripped(self):
         if self.is_empty:
             return _empty_stripped(self.shape)
-        data, padding = rl.rle_strip(self._data)
+        data, padding = runlength.rle_strip(self._data)
         if padding == (0, 0):
             encoding = self
         else:
@@ -490,17 +529,17 @@ class RunLengthEncoding(Encoding):
 
     @caching.cache_decorator
     def size(self):
-        return rl.rle_length(self._data)
+        return runlength.rle_length(self._data)
 
     def _flip(self, axes):
         if axes != (0,):
             raise ValueError(
                 'encoding is 1D - cannot flip on axis %s' % str(axes))
-        return RunLengthEncoding(rl.rle_reverse(self._data))
+        return RunLengthEncoding(runlength.rle_reverse(self._data))
 
     @caching.cache_decorator
     def sparse_components(self):
-        return rl.rle_to_sparse(self._data)
+        return runlength.rle_to_sparse(self._data)
 
     @caching.cache_decorator
     def sparse_indices(self):
@@ -512,10 +551,10 @@ class RunLengthEncoding(Encoding):
 
     @caching.cache_decorator
     def dense(self):
-        return rl.rle_to_dense(self._data, dtype=self._dtype)
+        return runlength.rle_to_dense(self._data, dtype=self._dtype)
 
     def gather(self, indices):
-        return rl.rle_gather_1d(self._data, indices, dtype=self._dtype)
+        return runlength.rle_gather_1d(self._data, indices, dtype=self._dtype)
 
     def gather_nd(self, indices):
         indices = np.squeeze(indices, axis=-1)
@@ -523,12 +562,12 @@ class RunLengthEncoding(Encoding):
 
     def sorted_gather(self, ordered_indices):
         return np.array(
-            tuple(rl.sorted_rle_gather_1d(self._data, ordered_indices)),
+            tuple(runlength.sorted_rle_gather_1d(self._data, ordered_indices)),
             dtype=self._dtype)
 
     def mask(self, mask):
         return np.array(
-            tuple(rl.rle_mask(self._data, mask)), dtype=self._dtype)
+            tuple(runlength.rle_mask(self._data, mask)), dtype=self._dtype)
 
     def get_value(self, index):
         for value in self.sorted_gather((index,)):
@@ -538,10 +577,10 @@ class RunLengthEncoding(Encoding):
         return RunLengthEncoding(self._data.copy(), dtype=self.dtype)
 
     def run_length_data(self, dtype=np.int64):
-        return rl.rle_to_rle(self._data, dtype=dtype)
+        return runlength.rle_to_rle(self._data, dtype=dtype)
 
     def binary_run_length_data(self, dtype=np.int64):
-        return rl.rle_to_brle(self._data, dtype=dtype)
+        return runlength.rle_to_brle(self._data, dtype=dtype)
 
 
 class BinaryRunLengthEncoding(RunLengthEncoding):
@@ -565,24 +604,24 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
     @staticmethod
     def from_dense(dense_data, encoding_dtype=np.int64):
         return BinaryRunLengthEncoding(
-            rl.dense_to_brle(dense_data, dtype=encoding_dtype))
+            runlength.dense_to_brle(dense_data, dtype=encoding_dtype))
 
     @staticmethod
     def from_rle(rle_data, dtype=None):
         return BinaryRunLengthEncoding(
-            rl.rle_to_brle(rle_data, dtype=dtype))
+            runlength.rle_to_brle(rle_data, dtype=dtype))
 
     @staticmethod
     def from_brle(brle_data, dtype=None):
         if dtype != brle_data.dtype:
-            brle_data = rl.brle_to_brle(brle_data, dtype=dtype)
+            brle_data = runlength.brle_to_brle(brle_data, dtype=dtype)
         return BinaryRunLengthEncoding(brle_data)
 
     @caching.cache_decorator
     def stripped(self):
         if self.is_empty:
             return _empty_stripped(self.shape)
-        data, padding = rl.rle_strip(self._data)
+        data, padding = runlength.rle_strip(self._data)
         if padding == (0, 0):
             encoding = self
         else:
@@ -596,13 +635,13 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
 
     @caching.cache_decorator
     def size(self):
-        return rl.brle_length(self._data)
+        return runlength.brle_length(self._data)
 
     def _flip(self, axes):
         if axes != (0,):
             raise ValueError(
                 'encoding is 1D - cannot flip on axis %s' % str(axes))
-        return BinaryRunLengthEncoding(rl.brle_reverse(self._data))
+        return BinaryRunLengthEncoding(runlength.brle_reverse(self._data))
 
     @property
     def sparse_components(self):
@@ -614,35 +653,35 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
 
     @caching.cache_decorator
     def sparse_indices(self):
-        return rl.brle_to_sparse(self._data)
+        return runlength.brle_to_sparse(self._data)
 
     @caching.cache_decorator
     def dense(self):
-        return rl.brle_to_dense(self._data)
+        return runlength.brle_to_dense(self._data)
 
     def gather(self, indices):
-        return rl.brle_gather_1d(self._data, indices)
+        return runlength.brle_gather_1d(self._data, indices)
 
     def gather_nd(self, indices):
         indices = np.squeeze(indices)
         return self.gather(indices)
 
     def sorted_gather(self, ordered_indices):
-        gen = rl.sorted_brle_gather_1d(self._data, ordered_indices)
+        gen = runlength.sorted_brle_gather_1d(self._data, ordered_indices)
         return np.array(tuple(gen), dtype=bool)
 
     def mask(self, mask):
-        gen = rl.brle_mask(self._data, mask)
+        gen = runlength.brle_mask(self._data, mask)
         return np.array(tuple(gen), dtype=bool)
 
     def copy(self):
         return BinaryRunLengthEncoding(self._data.copy())
 
     def run_length_data(self, dtype=np.int64):
-        return rl.brle_to_rle(self._data, dtype=dtype)
+        return runlength.brle_to_rle(self._data, dtype=dtype)
 
     def binary_run_length_data(self, dtype=np.int64):
-        return rl.brle_to_brle(self._data, dtype=dtype)
+        return runlength.brle_to_brle(self._data, dtype=dtype)
 
 
 class LazyIndexMap(Encoding):
