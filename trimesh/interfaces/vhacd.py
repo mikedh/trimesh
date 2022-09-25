@@ -15,7 +15,7 @@ if platform.system() == 'Windows':
     log.debug('searching for vhacd in: %s', _search_path)
 
 _vhacd_executable = None
-for _name in ['vhacd', 'testVHACD']:
+for _name in ['vhacd', 'testVHACD', 'TestVHACD']:
     _vhacd_executable = which(_name, path=_search_path)
     if _vhacd_executable is not None:
         break
