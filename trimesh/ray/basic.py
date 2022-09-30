@@ -60,7 +60,8 @@ def triangle_id(
         tree=None,
         multiple_hits=True):
     """
-    Find the intersections between a group of triangles and rays
+    Find the intersections between a group of triangles
+    and rays.
 
     Parameters
     -------------

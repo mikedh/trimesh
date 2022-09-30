@@ -67,13 +67,20 @@ class RayMeshIntersector(RayParent):
           large or small meshes.
         """
 
-        #self.mesh = geometry
+        self.geometry = geometry
 
+    def _build(self):
+        """
+        Generate the embree objects.
+        """
+        if getattr(self, '_geometry_hash', None) == hash(self.geometry):
+            return
+        
         self._device = embree.Device()
         self._scene = self._device.make_scene()
 
         # add the mesh to the embree scene
-        _add_mesh(mesh=geometry,
+        _add_mesh(mesh=self.geometry,
                   slot=0,
                   device=self._device,
                   scene=self._scene)
@@ -87,6 +94,8 @@ class RayMeshIntersector(RayParent):
                       multiple_hits=True,
                       max_hits=20,
                       return_locations=False):
+
+        self._build()
         # inherits docstring from parent
         origins = np.asanyarray(origins, dtype=np.float32)
         vectors = np.asanyarray(vectors, dtype=np.float32)
@@ -107,8 +116,8 @@ class RayMeshIntersector(RayParent):
 
         # self._scene.release()
         # self._device.release()
-        #from IPython import embed
-        # embed()
+        from IPython import embed
+        embed()
 
         # make sure to copy all return values
         # otherwise things sure get segfaulty
