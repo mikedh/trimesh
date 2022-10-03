@@ -133,7 +133,7 @@ jobs:
         GIT_SHA: ${{ github.sha }}
       run: |
         # get the version of trimesh with python
-        export VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
+        export VERSION=$(python trimesh/version.py)
         # tag the image with the short git sha
         export GIT_SHORT=${GIT_SHA::7}
 
@@ -152,7 +152,7 @@ jobs:
         for i in ${TAGS//;/ }; do docker push $i; done;
     - name: Build with X11 for offscreen rendering
       run: |
-        export VERSION=$(python -c "exec(open('trimesh/version.py','r').read()); print(__version__)")
+        export VERSION=$(python trimesh/version.py)
         docker build -t trimesh/trimesh-x:latest -t trimesh/trimesh-x:${VERSION} --build-arg INCLUDE_X=true .
         docker push trimesh/trimesh-x:latest
         docker push trimesh/trimesh-x:$VERSION
@@ -173,7 +173,7 @@ jobs:
       - name: Tag Version
         id: set_tag
         run: |
-          export VER=$(python -c "exec(open('trimesh/version.py','r').read());print(__version__)")
+          export VER=$(python trimesh/version.py)
           echo "::set-output name=tag_name::${VER}"
       - name: Create Release
         id: create_release

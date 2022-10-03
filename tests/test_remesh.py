@@ -18,7 +18,8 @@ class SubDivideTest(g.unittest.TestCase):
             assert len(sub.faces) > len(m.faces)
 
             max_edge = m.scale / 50
-            sub, idx = m.subdivide_to_size(max_edge=max_edge, return_index=True)
+            sub, idx = m.subdivide_to_size(
+                max_edge=max_edge, return_index=True)
             assert g.np.allclose(m.area, sub.area)
             edge_len = (g.np.diff(sub.vertices[sub.edges_unique],
                                   axis=1).reshape((-1, 3))**2).sum(axis=1)**.5
@@ -75,6 +76,12 @@ class SubDivideTest(g.unittest.TestCase):
                 assert bary.min() > -epsilon
                 # make sure it's not all zeros
                 assert bary.ptp() > epsilon
+
+            check = m.subdivide_to_size(
+                max_edge=m.extents.sum(),
+                max_iter=1,
+                return_index=False)
+            assert check.faces.shape == m.faces.shape
 
     def test_sub(self):
         # try on some primitives
