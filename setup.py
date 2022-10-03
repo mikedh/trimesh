@@ -10,7 +10,7 @@ version_file = os.path.join(
     'trimesh/version.py')
 with open(version_file, 'r') as f:
     # use eval to get a clean string of version from file
-    __version__ = eval(f.read().strip().split('=')[-1])
+    __version__ = eval(f.readline().strip().split('=')[-1])
 
 # load README.md as long_description
 long_description = ''
