@@ -65,6 +65,12 @@ class MinimalTest(unittest.TestCase):
                 m.vertices[:, 0] += 1.0
                 assert hash(m) != initial
 
+    def test_load_path(self):
+        scene = trimesh.Scene()
+        path = trimesh.load_path(np.asarray([(0, 0, 0), (1, 0, 0), (1, 1, 0)]))
+        scene.add_geometry(path)
+        assert len(scene.geometry) == 1
+
 
 if __name__ == '__main__':
     trimesh.util.attach_to_log()

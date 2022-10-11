@@ -31,24 +31,27 @@ from .. import exceptions
 from .. import transformations as tf
 
 from . import raster
-from . import repair
 from . import simplify
 from . import creation  # NOQA
-from . import polygons
 from . import segments  # NOQA
 from . import traversal
 
 from .exchange.export import export_path
 
-from scipy.spatial import cKDTree
-from shapely.geometry import Polygon
-
 try:
+    from . import repair
+    from . import polygons
+    from scipy.spatial import cKDTree
+    from shapely.geometry import Polygon
     import networkx as nx
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
     nx = exceptions.ExceptionModule(E)
+    repair = exceptions.ExceptionModule(E)
+    polygons = exceptions.ExceptionModule(E)
+    cKDTree = exceptions.ExceptionModule(E)
+    Polygon = exceptions.ExceptionModule(E)
 
 
 class Path(parent.Geometry):
