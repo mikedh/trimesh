@@ -71,6 +71,7 @@ class MinimalTest(unittest.TestCase):
         scene.add_geometry(path)
         assert len(scene.geometry) == 1
 
+
 if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()
