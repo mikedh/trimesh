@@ -2412,12 +2412,16 @@ def unique_name(start, contains):
     if len(start) > 0:
         # split by our delimiter once
         split = start.rsplit('_', 1)
-        if len(split) == 2 and split[1].isnumeric():
+        if len(split) == 2:
             if split[0] not in contains:
                 return split[0]
-            # start incrementing from the passed value
-            increment = int(split[1])
-            formatter = split[0] + '_{}'
+            try:
+                # start incrementing from the passed value
+                # if it is not an integer this will fail
+                increment = int(split[1])
+                formatter = split[0] + '_{}'
+            except BaseException:
+                pass
 
     # if contains is empty we will only need to check once
     for i in range(increment + 1, 2 + increment + len(contains)):
