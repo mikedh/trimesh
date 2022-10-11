@@ -10,9 +10,9 @@ jobs:
     name: Check Code Formatting
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
     - name: Install Formatting
@@ -55,9 +55,9 @@ jobs:
           - os: macos-latest
             python-version: 2.7
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install APT On Linux
@@ -86,9 +86,9 @@ jobs:
     needs: [tests, containers]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: '3.x'
     - name: Install publishing dependencies
@@ -108,7 +108,7 @@ jobs:
     needs: [tests, containers]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Build Docs
       run: |
          # build docs in docker image
@@ -127,7 +127,7 @@ jobs:
     - name: Login to Docker Hub
       run: echo ${{ secrets.DH_PASS }} | docker login --username mikedh --password-stdin
     - name: Checkout trimesh
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Build Images
       env:
         GIT_SHA: ${{ github.sha }}
@@ -169,7 +169,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@master
+        uses: actions/checkout@v3
       - name: Tag Version
         id: set_tag
         run: |
