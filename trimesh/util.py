@@ -569,6 +569,7 @@ try:
     multi_dot = np.linalg.multi_dot
 except AttributeError:
     log.debug('np.linalg.multi_dot not available, using fallback')
+
     def multi_dot(arrays):
         """
         Compute the dot product of two or more arrays in a single function call.

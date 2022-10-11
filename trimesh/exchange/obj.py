@@ -87,7 +87,7 @@ def load_obj(file_obj,
         except BaseException:
             # something else happened so log a warning
             log.debug('unable to load materials from: {}'.format(mtl_path),
-                        exc_info=True)
+                      exc_info=True)
 
     # extract vertices from raw text
     v, vn, vt, vc = _parse_vertices(text=text)

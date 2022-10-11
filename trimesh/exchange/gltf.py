@@ -745,7 +745,7 @@ def _append_mesh(mesh,
             current["extras"]["units"] = str(mesh.units)
     except BaseException:
         log.debug('metadata not serializable, dropping!',
-                    exc_info=True)
+                  exc_info=True)
 
     # check to see if we have vertex or face colors
     # or if a TextureVisual has colors included as an attribute
@@ -1018,7 +1018,7 @@ def _append_path(path, name, tree, buffer_items):
         current["extras"] = _jsonify(path.metadata)
     except BaseException:
         log.debug('failed to serialize metadata, dropping!',
-                    exc_info=True)
+                  exc_info=True)
 
     if path.colors is not None:
         acc_color = _data_append(acc=tree['accessors'],
