@@ -1,20 +1,20 @@
 import numpy as np
 import collections
 
+from . import cameras
+from . import lighting
+
 from .. import util
 from .. import units
 from .. import convex
 from .. import caching
 from .. import grouping
 from .. import transformations
-
 from .. import bounds as bounds_module
 
+from ..util import unique_name
 from ..exchange import export
 from ..parent import Geometry3D
-
-from . import cameras
-from . import lighting
 
 from .transforms import SceneGraph
 
@@ -141,9 +141,9 @@ class Scene(Geometry3D):
                 extras=extras) for value in geometry]
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
-            for key, value in geometry.items():
-                self.add_geometry(value, geom_name=key, extras=extras)
-            return
+            return {k: self.add_geometry(v, geom_name=k, extras=extras)
+                    for k, v in geometry.items()}
+
         elif isinstance(geometry, Scene):
             # concatenate current scene with passed scene
             concat = self + geometry
@@ -153,9 +153,11 @@ class Scene(Geometry3D):
             # replace graph data with concatenated graph
             self.graph.transforms = concat.graph.transforms
             return
-        elif not hasattr(geometry, 'vertices'):
+
+        if not hasattr(geometry, 'vertices'):
             util.log.warning('unknown type ({}) added to scene!'.format(
                 type(geometry).__name__))
+            return
 
         # get or create a name to reference the geometry by
         if geom_name is not None:
@@ -170,25 +172,20 @@ class Scene(Geometry3D):
             # try to create a simple name
             name = 'geometry_' + str(len(self.geometry))
 
-        # if its already taken add a unique random string to it
-        if name in self.geometry:
-            name += ':' + util.unique_id().upper()
-
+        # if its already taken use our unique name logic
+        name = unique_name(start=name, contains=self.geometry.keys())
         # save the geometry reference
         self.geometry[name] = geometry
 
         # create a unique node name if not passed
         if node_name is None:
             # if the name of the geometry is also a transform node
-            if name in self.graph.nodes:
-                # a random unique identifier
-                unique = util.unique_id()
-                # geometry name + UUID
-                node_name = name + '_' + unique.upper()
-                assert node_name not in self.graph.nodes
-            else:
-                # otherwise make the transform node name the same as the geom
-                node_name = name
+            # which graph nodes already exist
+            existing = self.graph.transforms.node_data.keys()
+            # find a name that isn't contained already starting
+            # at the name we have
+            node_name = unique_name(name, existing)
+            assert node_name not in existing
 
         if transform is None:
             # create an identity transform from parent_node
@@ -1213,7 +1210,8 @@ def append_scenes(iterable, common=['world'], base_frame='world'):
         # if a node is consumed and isn't one of the nodes
         # we're going to hold common between scenes remap it
         if node not in common and node in consumed:
-            name = str(node) + '-' + util.unique_id().upper()
+            # generate a name not in consumed
+            name = node + util.unique_id()
             map_node[node] = name
             node = name
 
@@ -1236,10 +1234,7 @@ def append_scenes(iterable, common=['world'], base_frame='world'):
         map_geom = {}
         for k, v in s.geometry.items():
             # if a geometry already exists add a UUID to the name
-            if k in geometry:
-                name = str(k) + '-' + util.unique_id().upper()
-            else:
-                name = k
+            name = unique_name(start=k, contains=geometry.keys())
             # store name mapping
             map_geom[k] = name
             # store geometry with new name

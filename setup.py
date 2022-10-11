@@ -5,12 +5,16 @@ import sys
 from setuptools import setup
 
 # load __version__ without importing anything
-version_file = os.path.join(
+_version_file = os.path.join(
     os.path.dirname(__file__),
-    'trimesh/version.py')
-with open(version_file, 'r') as f:
-    # use eval to get a clean string of version from file
-    __version__ = eval(f.readline().strip().split('=')[-1])
+    'trimesh', 'version.py')
+with open(_version_file, 'r') as f:
+    _version_raw = f.read()
+# use eval to get a clean string of version from file
+__version__ = eval(next(
+    line.strip().split('=')[-1]
+    for line in str.splitlines(_version_raw)
+    if '_version_' in line))
 
 # load README.md as long_description
 long_description = ''
@@ -129,6 +133,22 @@ elif '--list-easy' in sys.argv:
     exit()
 elif '--format' in sys.argv:
     format_all()
+    exit()
+elif '--bump' in sys.argv:
+    # bump the version number
+    # convert current version to integers
+    bumped = [int(i) for i in __version__.split('.')]
+    # increment the last field by one
+    bumped[-1] += 1
+    # re-combine into a version string
+    version_new = '.'.join(str(i) for i in bumped)
+    print('version bump `{}` => `{}`'.format(
+        __version__, version_new))
+    # write back the original version file with
+    # just the value replaced with the new one
+    raw_new = _version_raw.replace(__version__, version_new)
+    with open(_version_file, 'w') as f:
+        f.write(raw_new)
     exit()
 
 

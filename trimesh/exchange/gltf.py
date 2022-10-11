@@ -18,6 +18,7 @@ from .. import rendering
 from .. import resources
 from .. import transformations
 
+from ..util import unique_name
 from ..caching import hash_fast
 from ..constants import log, tol
 
@@ -378,6 +379,7 @@ def load_glb(file_obj,
                            ignore_broken=ignore_broken,
                            merge_primitives=merge_primitives,
                            mesh_kwargs=mesh_kwargs)
+
     return kwargs
 
 
@@ -609,7 +611,7 @@ def _create_gltf_structure(scene,
             # only export the extras if there is something there
             tree['scenes'][0]['extras'] = _jsonify(scene.metadata)
         except BaseException:
-            log.warning(
+            log.debug(
                 'failed to export scene metadata!', exc_info=True)
 
     # store materials as {hash : index} to avoid duplicates
@@ -702,7 +704,7 @@ def _append_mesh(mesh,
     """
     # return early from empty meshes to avoid crashing later
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
-        log.warning('skipping empty mesh!')
+        log.debug('skipping empty mesh!')
         return
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
@@ -742,8 +744,8 @@ def _append_mesh(mesh,
         if mesh.units not in [None, 'm', 'meters', 'meter']:
             current["extras"]["units"] = str(mesh.units)
     except BaseException:
-        log.warning('metadata not serializable, dropping!',
-                    exc_info=True)
+        log.debug('metadata not serializable, dropping!',
+                  exc_info=True)
 
     # check to see if we have vertex or face colors
     # or if a TextureVisual has colors included as an attribute
@@ -802,12 +804,15 @@ def _append_mesh(mesh,
         (include_normals is None and
          'vertex_normals' in mesh._cache.cache)):
         # store vertex normals if requested
-        #
-        normals = mesh.vertex_normals.copy()
         if unitize_normals:
+            normals = mesh.vertex_normals.copy()
             norms = np.linalg.norm(normals, axis=1)
             if not util.allclose(norms, 1.0, atol=1e-4):
                 normals /= norms.reshape((-1, 1))
+        else:
+            # we don't have to copy them since
+            # they aren't being altered
+            normals = mesh.vertex_normals
 
         acc_norm = _data_append(
             acc=tree['accessors'],
@@ -1012,8 +1017,8 @@ def _append_path(path, name, tree, buffer_items):
     try:
         current["extras"] = _jsonify(path.metadata)
     except BaseException:
-        log.warning('failed to serialize metadata, dropping!',
-                    exc_info=True)
+        log.debug('failed to serialize metadata, dropping!',
+                  exc_info=True)
 
     if path.colors is not None:
         acc_color = _data_append(acc=tree['accessors'],
@@ -1150,7 +1155,7 @@ def _parse_materials(header, views, resolver=None):
     try:
         import PIL.Image
     except ImportError:
-        log.warning("unable to load textures without pillow!")
+        log.debug("unable to load textures without pillow!")
         return None
 
     # load any images
@@ -1167,7 +1172,7 @@ def _parse_materials(header, views, resolver=None):
                 # will get bytes from filesystem or base64 URI
                 blob = _uri_to_bytes(uri=img['uri'], resolver=resolver)
             else:
-                log.warning('unable to load image from: {}'.format(
+                log.debug('unable to load image from: {}'.format(
                     img.keys()))
                 continue
             # i.e. 'image/jpeg'
@@ -1208,49 +1213,6 @@ def _parse_materials(header, views, resolver=None):
             materials.append(visual.material.PBRMaterial(**pbr))
 
     return materials
-
-
-def unique_name(start, contains):
-    """
-    Deterministically generate a unique name not
-    contained in a dict. Will create names of the
-    form "start_10" and increment accordingly.
-
-    Parameters
-    -----------
-    start : str
-      Initial guess for name
-    contains : dict, set, or list
-      Bundle of existing names we cannot use.
-
-    Returns
-    ---------
-    unique : str
-      A name that is not contained in `contains`
-    """
-    # exit early if name is not in bundle
-    if len(contains) == 0 or (len(start) > 0 and start not in contains):
-        return start
-
-    increment = 0
-    formatter = start + '_{}'
-    if len(start) > 0:
-        # split by our delimiter once
-        split = start.rsplit('_', 1)
-        if len(split) == 2 and split[1].isnumeric():
-            if split[0] not in contains:
-                return split[0]
-            # start incrementing from the passed value
-            increment = int(split[1])
-            formatter = split[0] + '_{}'
-
-    # if contains is empty we will only need to check once
-    for i in range(increment + 1, 2 + increment + len(contains)):
-        check = formatter.format(i)
-        if check not in contains:
-            return check
-
-    raise ValueError('unable to establish unique name!')
 
 
 def _read_buffers(header,
@@ -1430,7 +1392,7 @@ def _read_buffers(header,
                     visuals = None
                     if "material" in p:
                         if materials is None:
-                            log.warning('no materials! `pip install pillow`')
+                            log.debug('no materials! `pip install pillow`')
                         else:
                             uv = None
                             if "TEXCOORD_0" in attr:
@@ -1474,7 +1436,7 @@ def _read_buffers(header,
                     if len(custom) > 0:
                         kwargs["vertex_attributes"] = custom
                 else:
-                    log.warning('skipping primitive with mode %s!', mode)
+                    log.debug('skipping primitive with mode %s!', mode)
                     continue
                 # this should absolutely not be stomping on itself
                 assert name not in meshes

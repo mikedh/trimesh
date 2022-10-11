@@ -31,23 +31,35 @@ from .. import exceptions
 from .. import transformations as tf
 
 from . import raster
-from . import repair
 from . import simplify
 from . import creation  # NOQA
-from . import polygons
 from . import segments  # NOQA
 from . import traversal
 
 from .exchange.export import export_path
 
-from scipy.spatial import cKDTree
-from shapely.geometry import Polygon
-
+# now import things which require non-minimal install of Trimesh
+# create a dummy module which will raise the ImportError
+# or other exception only when someone tries to use that function
+try:
+    from . import repair
+except BaseException as E:
+    repair = exceptions.ExceptionModule(E)
+try:
+    from . import polygons
+except BaseException as E:
+    polygons = exceptions.ExceptionModule(E)
+try:
+    from scipy.spatial import cKDTree
+except BaseException as E:
+    cKDTree = exceptions.closure(E)
+try:
+    from shapely.geometry import Polygon
+except BaseException as E:
+    Polygon = exceptions.closure(E)
 try:
     import networkx as nx
 except BaseException as E:
-    # create a dummy module which will raise the ImportError
-    # or other exception only when someone tries to use networkx
     nx = exceptions.ExceptionModule(E)
 
 
@@ -879,7 +891,7 @@ class Path3D(Path):
                     N *= np.sign(np.dot(N, normal))
                     N = normal
                 else:
-                    log.warning(
+                    log.debug(
                         "passed normal not used: {}".format(
                             normal.shape))
             # create a transform from fit plane to XY
@@ -1452,11 +1464,11 @@ class Path2D(Path):
 
         Returns
         ----------
-        hashed : str
-          Hashed identifier.
+        hashed : (64,) str
+          SHA256 hash of the identifier vector.
         """
         as_int = (self.identifier * 1e4).astype(np.int64)
-        return sha256(as_int.tobytes(order='C')).hexdigest()[-32:]
+        return sha256(as_int.tobytes(order='C')).hexdigest()
 
     @property
     def identifier_md5(self):

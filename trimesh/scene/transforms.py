@@ -38,7 +38,7 @@ class SceneGraph(object):
         # hashable, the base or root frame
         self.base_frame = base_frame
         # cache transformation matrices keyed with tuples
-        self._cache = caching.Cache(self.modified)
+        self._cache = caching.Cache(self.__hash__)
 
     def update(self, frame_to, frame_from=None, **kwargs):
         """

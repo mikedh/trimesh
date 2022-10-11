@@ -83,11 +83,11 @@ def load_obj(file_obj,
                          for k, v in material_kwargs.items()}
         except IOError:
             # usually the resolver couldn't find the asset
-            log.warning('unable to load materials from: {}'.format(mtl_path))
+            log.debug('unable to load materials from: {}'.format(mtl_path))
         except BaseException:
             # something else happened so log a warning
-            log.warning('unable to load materials from: {}'.format(mtl_path),
-                        exc_info=True)
+            log.debug('unable to load materials from: {}'.format(mtl_path),
+                      exc_info=True)
 
     # extract vertices from raw text
     v, vn, vt, vc = _parse_vertices(text=text)
@@ -199,7 +199,7 @@ def load_obj(file_obj,
                 # want materials without UV coordinates
                 uv = vt[mask_vt]
             except BaseException:
-                log.warning('index failed on UV coordinates, skipping!')
+                log.debug('index failed on UV coordinates, skipping!')
                 uv = None
 
             # mask vertices and use new faces

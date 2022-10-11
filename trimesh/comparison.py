@@ -143,8 +143,8 @@ def identifier_hash(identifier):
 
     Returns
     ----------
-    hash : (32,) str
-      First 32 characters hash of identifier
+    hash : (64,) str
+      A SHA256 of the identifier vector at hand-tuned precision.
     """
 
     # convert identifier to integers and order of magnitude
@@ -155,7 +155,7 @@ def identifier_hash(identifier):
     if (multiplier < 0).any():
         multiplier += np.abs(multiplier.min())
     data = (as_int * (10 ** multiplier)).astype(np.int64)
-    return sha256(data.tobytes()).hexdigest()[-32:]
+    return sha256(data.tobytes()).hexdigest()
 
 
 def face_ordering(mesh):

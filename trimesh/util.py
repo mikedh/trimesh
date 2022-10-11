@@ -568,7 +568,7 @@ try:
     # only included in recent-ish version of numpy
     multi_dot = np.linalg.multi_dot
 except AttributeError:
-    log.warning('np.linalg.multi_dot not available, using fallback')
+    log.debug('np.linalg.multi_dot not available, using fallback')
 
     def multi_dot(arrays):
         """
@@ -2320,7 +2320,7 @@ def decode_text(text, initial='utf-8'):
         # try to detect the encoding of the file
         detect = chardet.detect(text)
         # warn on files that aren't UTF-8
-        log.warning(
+        log.debug(
             'Data not {}! Trying {} (confidence {})'.format(
                 initial,
                 detect['encoding'],
@@ -2382,3 +2382,54 @@ def is_ccw(points):
     ccw = area < 0
 
     return ccw
+
+
+def unique_name(start, contains):
+    """
+    Deterministically generate a unique name not
+    contained in a dict, set or other grouping with
+    `__includes__` defined. Will create names of the
+    form "start_10" and increment accordingly.
+
+    Parameters
+    -----------
+    start : str
+      Initial guess for name.
+    contains : dict, set, or list
+      Bundle of existing names we can *not* use.
+
+    Returns
+    ---------
+    unique : str
+      A name that is not contained in `contains`
+    """
+    # exit early if name is not in bundle
+    if len(contains) == 0 or (len(start) > 0 and start not in contains):
+        return start
+
+    # start checking with zero index
+    increment = 0
+    formatter = start + '_{}'
+
+    if len(start) > 0:
+        # split by our delimiter once
+        split = start.rsplit('_', 1)
+        if len(split) == 2:
+            try:
+                # start incrementing from the existing trailing value
+                # if it is not an integer this will fail
+                increment = int(split[1])
+                # include the first split value
+                formatter = split[0] + '_{}'
+            except BaseException:
+                pass
+
+    # if contains is empty we will only need to check once
+    for i in range(increment + 1, 2 + increment + len(contains)):
+        check = formatter.format(i)
+        if check not in contains:
+            return check
+
+    # this should really never happen since we looped
+    # through the full length of contains
+    raise ValueError('Unable to establish unique name!')
