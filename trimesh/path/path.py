@@ -5,6 +5,8 @@ path.py
 A module designed to work with vector paths such as
 those stored in a DXF or SVG file.
 """
+import logging
+
 import numpy as np
 
 import copy
@@ -31,17 +33,20 @@ from .. import exceptions
 from .. import transformations as tf
 
 from . import raster
-from . import repair
 from . import simplify
 from . import creation  # NOQA
-from . import polygons
 from . import segments  # NOQA
 from . import traversal
 
 from .exchange.export import export_path
 
-from scipy.spatial import cKDTree
-from shapely.geometry import Polygon
+try:
+    from . import repair
+    from . import polygons
+    from scipy.spatial import cKDTree
+    from shapely.geometry import Polygon
+except ModuleNotFoundError as e:
+    logging.warning(e)
 
 try:
     import networkx as nx
