@@ -5,8 +5,6 @@ path.py
 A module designed to work with vector paths such as
 those stored in a DXF or SVG file.
 """
-import logging
-
 import numpy as np
 
 import copy
