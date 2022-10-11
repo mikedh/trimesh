@@ -2407,19 +2407,22 @@ def unique_name(start, contains):
     if len(contains) == 0 or (len(start) > 0 and start not in contains):
         return start
 
+    # start checking with zero index
     increment = 0
     formatter = start + '_{}'
+
     if len(start) > 0:
         # split by our delimiter once
         split = start.rsplit('_', 1)
         if len(split) == 2:
             if split[0] not in contains:
                 return split[0]
+            # include the first split value
+            formatter = split[0] + '_{}'
             try:
-                # start incrementing from the passed value
+                # start incrementing from the existing trailing value
                 # if it is not an integer this will fail
                 increment = int(split[1])
-                formatter = split[0] + '_{}'
             except BaseException:
                 pass
 
@@ -2429,4 +2432,6 @@ def unique_name(start, contains):
         if check not in contains:
             return check
 
-    raise ValueError('unable to establish unique name!')
+    # this should really never happen since we looped
+    # through the full length of contains
+    raise ValueError('Unable to establish unique name!')
