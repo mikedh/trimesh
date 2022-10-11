@@ -45,15 +45,15 @@ try:
     from . import polygons
     from scipy.spatial import cKDTree
     from shapely.geometry import Polygon
-except ModuleNotFoundError as e:
-    logging.warning(e)
-
-try:
     import networkx as nx
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
     nx = exceptions.ExceptionModule(E)
+    repair = exceptions.ExceptionModule(E)
+    polygons = exceptions.ExceptionModule(E)
+    cKDTree = exceptions.ExceptionModule(E)
+    Polygon = exceptions.ExceptionModule(E)
 
 
 class Path(parent.Geometry):
