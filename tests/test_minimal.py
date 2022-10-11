@@ -66,10 +66,30 @@ class MinimalTest(unittest.TestCase):
                 assert hash(m) != initial
 
     def test_load_path(self):
-        scene = trimesh.Scene()
+        # should be able to load a path and export it as a GLB
+        # try with a Path3D
         path = trimesh.load_path(np.asarray([(0, 0, 0), (1, 0, 0), (1, 1, 0)]))
-        scene.add_geometry(path)
+        assert isinstance(path, trimesh.path.Path3D)
+        scene = trimesh.Scene(path)
         assert len(scene.geometry) == 1
+        glb = scene.export(file_type='glb')
+        assert len(glb) > 0
+
+        # now create a Path2D
+        path = trimesh.load_path(np.asarray([(0, 0), (1, 0), (1, 1)]))
+        assert isinstance(path, trimesh.path.Path2D)
+
+        # export to an SVG
+        svg = path.export(file_type='svg')
+        assert len(svg) > 0
+
+        dxf = path.export(file_type='dxf')
+        assert len(dxf) > 0
+
+        scene = trimesh.Scene(path)
+        assert len(scene.geometry) == 1
+        glb = scene.export(file_type='glb')
+        assert len(glb) > 0
 
 
 if __name__ == '__main__':
