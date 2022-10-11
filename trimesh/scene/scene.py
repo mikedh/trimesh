@@ -141,9 +141,9 @@ class Scene(Geometry3D):
                 extras=extras) for value in geometry]
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
-            for key, value in geometry.items():
-                self.add_geometry(value, geom_name=key, extras=extras)
-            return
+            return {k: self.add_geometry(v, geom_name=k, extras=extras)
+                    for k, v in geometry.items()}
+
         elif isinstance(geometry, Scene):
             # concatenate current scene with passed scene
             concat = self + geometry
@@ -153,9 +153,11 @@ class Scene(Geometry3D):
             # replace graph data with concatenated graph
             self.graph.transforms = concat.graph.transforms
             return
-        elif not hasattr(geometry, 'vertices'):
+
+        if not hasattr(geometry, 'vertices'):
             util.log.warning('unknown type ({}) added to scene!'.format(
                 type(geometry).__name__))
+            return
 
         # get or create a name to reference the geometry by
         if geom_name is not None:
@@ -172,12 +174,11 @@ class Scene(Geometry3D):
 
         # if its already taken use our unique name logic
         name = unique_name(start=name, contains=self.geometry.keys())
-
         # save the geometry reference
         self.geometry[name] = geometry
 
         # create a unique node name if not passed
-        if node_name is None:
+        if True or node_name is None:
             # if the name of the geometry is also a transform node
             # which graph nodes already exist
             existing = self.graph.transforms.node_data.keys()
@@ -1210,7 +1211,7 @@ def append_scenes(iterable, common=['world'], base_frame='world'):
         # we're going to hold common between scenes remap it
         if node not in common and node in consumed:
             # generate a name not in consumed
-            name = unique_name(str(node), consumed)
+            name = node + util.unique_id()
             map_node[node] = name
             node = name
 

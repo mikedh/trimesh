@@ -110,7 +110,7 @@ def svg_to_path(file_obj, file_type=None):
         pass
     except BaseException:
         # no metadata stored with trimesh ns
-        log.warning('failed metadata', exc_info=True)
+        log.debug('failed metadata', exc_info=True)
 
     # if the result is a scene try to get the metadata
     # for each subgeometry here
@@ -128,7 +128,7 @@ def svg_to_path(file_obj, file_type=None):
             pass
         except BaseException:
             # failed to load existing metadata
-            log.warning('failed metadata', exc_info=True)
+            log.debug('failed metadata', exc_info=True)
 
     return result
 
@@ -196,7 +196,7 @@ def transform_to_matrices(transform):
             mat[:2, :2] *= values
             matrices.append(mat)
         else:
-            log.warning('unknown SVG transform: {}'.format(key))
+            log.debug('unknown SVG transform: {}'.format(key))
 
     return matrices
 
@@ -276,7 +276,7 @@ def _svg_path_convert(paths, force=None):
         # the path string is stored under `d`
         path_string = attrib.get('d', '')
         if len(path_string) == 0:
-            log.warning('empty path string!')
+            log.debug('empty path string!')
             continue
 
         # get the name of the geometry if trimesh specified it
@@ -525,7 +525,7 @@ def export_svg(drawing,
         attribs['metadata'] = _encode(drawing.metadata)
     except BaseException:
         # log failed metadata encoding
-        log.warning('failed to encode', exc_info=True)
+        log.debug('failed to encode', exc_info=True)
 
     subs = {'elements': '\n'.join(elements),
             'min_x': drawing.bounds[0][0],

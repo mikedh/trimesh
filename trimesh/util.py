@@ -568,8 +568,7 @@ try:
     # only included in recent-ish version of numpy
     multi_dot = np.linalg.multi_dot
 except AttributeError:
-    log.warning('np.linalg.multi_dot not available, using fallback')
-
+    log.debug('np.linalg.multi_dot not available, using fallback')
     def multi_dot(arrays):
         """
         Compute the dot product of two or more arrays in a single function call.
@@ -2320,7 +2319,7 @@ def decode_text(text, initial='utf-8'):
         # try to detect the encoding of the file
         detect = chardet.detect(text)
         # warn on files that aren't UTF-8
-        log.warning(
+        log.debug(
             'Data not {}! Trying {} (confidence {})'.format(
                 initial,
                 detect['encoding'],

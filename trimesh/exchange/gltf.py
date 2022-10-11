@@ -611,7 +611,7 @@ def _create_gltf_structure(scene,
             # only export the extras if there is something there
             tree['scenes'][0]['extras'] = _jsonify(scene.metadata)
         except BaseException:
-            log.warning(
+            log.debug(
                 'failed to export scene metadata!', exc_info=True)
 
     # store materials as {hash : index} to avoid duplicates
@@ -704,7 +704,7 @@ def _append_mesh(mesh,
     """
     # return early from empty meshes to avoid crashing later
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
-        log.warning('skipping empty mesh!')
+        log.debug('skipping empty mesh!')
         return
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
@@ -744,7 +744,7 @@ def _append_mesh(mesh,
         if mesh.units not in [None, 'm', 'meters', 'meter']:
             current["extras"]["units"] = str(mesh.units)
     except BaseException:
-        log.warning('metadata not serializable, dropping!',
+        log.debug('metadata not serializable, dropping!',
                     exc_info=True)
 
     # check to see if we have vertex or face colors
@@ -1017,7 +1017,7 @@ def _append_path(path, name, tree, buffer_items):
     try:
         current["extras"] = _jsonify(path.metadata)
     except BaseException:
-        log.warning('failed to serialize metadata, dropping!',
+        log.debug('failed to serialize metadata, dropping!',
                     exc_info=True)
 
     if path.colors is not None:
@@ -1155,7 +1155,7 @@ def _parse_materials(header, views, resolver=None):
     try:
         import PIL.Image
     except ImportError:
-        log.warning("unable to load textures without pillow!")
+        log.debug("unable to load textures without pillow!")
         return None
 
     # load any images
@@ -1172,7 +1172,7 @@ def _parse_materials(header, views, resolver=None):
                 # will get bytes from filesystem or base64 URI
                 blob = _uri_to_bytes(uri=img['uri'], resolver=resolver)
             else:
-                log.warning('unable to load image from: {}'.format(
+                log.debug('unable to load image from: {}'.format(
                     img.keys()))
                 continue
             # i.e. 'image/jpeg'
@@ -1392,7 +1392,7 @@ def _read_buffers(header,
                     visuals = None
                     if "material" in p:
                         if materials is None:
-                            log.warning('no materials! `pip install pillow`')
+                            log.debug('no materials! `pip install pillow`')
                         else:
                             uv = None
                             if "TEXCOORD_0" in attr:
@@ -1436,7 +1436,7 @@ def _read_buffers(header,
                     if len(custom) > 0:
                         kwargs["vertex_attributes"] = custom
                 else:
-                    log.warning('skipping primitive with mode %s!', mode)
+                    log.debug('skipping primitive with mode %s!', mode)
                     continue
                 # this should absolutely not be stomping on itself
                 assert name not in meshes

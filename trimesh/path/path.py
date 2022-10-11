@@ -879,7 +879,7 @@ class Path3D(Path):
                     N *= np.sign(np.dot(N, normal))
                     N = normal
                 else:
-                    log.warning(
+                    log.debug(
                         "passed normal not used: {}".format(
                             normal.shape))
             # create a transform from fit plane to XY
