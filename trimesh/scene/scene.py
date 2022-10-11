@@ -178,7 +178,7 @@ class Scene(Geometry3D):
         self.geometry[name] = geometry
 
         # create a unique node name if not passed
-        if True or node_name is None:
+        if node_name is None:
             # if the name of the geometry is also a transform node
             # which graph nodes already exist
             existing = self.graph.transforms.node_data.keys()

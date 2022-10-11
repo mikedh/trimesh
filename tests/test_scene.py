@@ -333,8 +333,6 @@ class SceneTests(g.unittest.TestCase):
         set_ori = set([len(i) * 2 for i in s.duplicate_nodes])
         set_dbl = set([len(i) for i in r.duplicate_nodes])
 
-        from IPython import embed
-        embed()
         assert set_ori == set_dbl
 
     def test_empty_scene(self):

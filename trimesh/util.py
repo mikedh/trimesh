@@ -2414,14 +2414,12 @@ def unique_name(start, contains):
         # split by our delimiter once
         split = start.rsplit('_', 1)
         if len(split) == 2:
-            if split[0] not in contains:
-                return split[0]
-            # include the first split value
-            formatter = split[0] + '_{}'
             try:
                 # start incrementing from the existing trailing value
                 # if it is not an integer this will fail
                 increment = int(split[1])
+                # include the first split value
+                formatter = split[0] + '_{}'
             except BaseException:
                 pass
 
