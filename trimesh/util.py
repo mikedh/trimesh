@@ -2382,3 +2382,47 @@ def is_ccw(points):
     ccw = area < 0
 
     return ccw
+
+
+def unique_name(start, contains):
+    """
+    Deterministically generate a unique name not
+    contained in a dict, set or other grouping with
+    `__includes__` defined. Will create names of the
+    form "start_10" and increment accordingly.
+
+    Parameters
+    -----------
+    start : str
+      Initial guess for name.
+    contains : dict, set, or list
+      Bundle of existing names we can *not* use.
+
+    Returns
+    ---------
+    unique : str
+      A name that is not contained in `contains`
+    """
+    # exit early if name is not in bundle
+    if len(contains) == 0 or (len(start) > 0 and start not in contains):
+        return start
+
+    increment = 0
+    formatter = start + '_{}'
+    if len(start) > 0:
+        # split by our delimiter once
+        split = start.rsplit('_', 1)
+        if len(split) == 2 and split[1].isnumeric():
+            if split[0] not in contains:
+                return split[0]
+            # start incrementing from the passed value
+            increment = int(split[1])
+            formatter = split[0] + '_{}'
+
+    # if contains is empty we will only need to check once
+    for i in range(increment + 1, 2 + increment + len(contains)):
+        check = formatter.format(i)
+        if check not in contains:
+            return check
+
+    raise ValueError('unable to establish unique name!')
