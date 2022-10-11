@@ -1464,11 +1464,11 @@ class Path2D(Path):
 
         Returns
         ----------
-        hashed : str
-          Hashed identifier.
+        hashed : (64,) str
+          SHA256 hash of the identifier vector.
         """
         as_int = (self.identifier * 1e4).astype(np.int64)
-        return sha256(as_int.tobytes(order='C')).hexdigest()[-32:]
+        return sha256(as_int.tobytes(order='C')).hexdigest()
 
     @property
     def identifier_md5(self):
