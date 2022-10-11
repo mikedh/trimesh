@@ -13,30 +13,38 @@ import trimesh
 import numpy as np
 
 # the path of the current directory
-_pwd = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
+_pwd = os.path.dirname(
+    os.path.abspath(os.path.expanduser(__file__)))
 # the absolute path for our reference models
-_mwd = os.path.abspath(os.path.join(_pwd, "..", "models"))
+_mwd = os.path.abspath(
+    os.path.join(_pwd, '..', 'models'))
 
 
 def get_mesh(file_name, **kwargs):
-    return trimesh.load(os.path.join(_mwd, file_name), **kwargs)
+    return trimesh.load(os.path.join(_mwd, file_name),
+                        **kwargs)
 
 
 class MinimalTest(unittest.TestCase):
+
     def test_path_exc(self):
         # this should require *no deps*
         from trimesh.path import packing
-
-        (density, offset, inserted, box) = packing.rectangles_single([[1, 1], [2, 2]], sheet_size=[2, 4])
+        (density,
+         offset,
+         inserted,
+         box) = packing.rectangles_single(
+            [[1, 1], [2, 2]],
+            sheet_size=[2, 4])
         assert inserted.all()
         assert np.allclose(box, [2, 3])
         assert offset.shape == (2, 2)
-        assert density > 0.833
+        assert density > .833
 
     def test_load(self):
         # kinds of files we should be able to
         # load even with a minimal install
-        kinds = "stl ply obj off gltf glb".split()
+        kinds = 'stl ply obj off gltf glb'.split()
 
         for file_name in os.listdir(_mwd):
             ext = os.path.splitext(file_name)[-1].lower()[1:]
@@ -63,7 +71,6 @@ class MinimalTest(unittest.TestCase):
         scene.add_geometry(path)
         assert len(scene.geometry) == 1
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     trimesh.util.attach_to_log()
     unittest.main()
