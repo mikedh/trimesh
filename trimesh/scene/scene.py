@@ -10,7 +10,6 @@ from .. import convex
 from .. import caching
 from .. import grouping
 from .. import transformations
-from .. import bounds as bounds_module
 
 from ..util import unique_name
 from ..exchange import export
@@ -301,16 +300,20 @@ class Scene(Geometry3D):
         """
         # collect AABB for each geometry
         corners = {}
+        # collect vertices for every mesh
         vertices = {k: m.vertices for k, m in self.geometry.items()
-                    if hasattr(m, 'vertices')}
+                    if hasattr(m, 'vertices') and len(m.vertices) > 0}
+        # handle 2D geometries
+        vertices.update({k: np.column_stack((v, np.zeros(len(v))))
+                         for k, v in vertices.items() if v.shape[1] == 2})
+        # loop through every node with geometry
         for node_name in self.graph.nodes_geometry:
             # access the transform and geometry name from node
             transform, geometry_name = self.graph[node_name]
             points = vertices.get(geometry_name)
-
-            if points is None or len(points) == 0:
+            # skip empty geometries
+            if points is None:
                 continue
-
             # apply just the rotation to skip a multiply
             dot = np.dot(transform[:3, :3], points.T)
             # append the AABB with translation applied after
@@ -334,7 +337,7 @@ class Scene(Geometry3D):
         if len(bounds_corners) == 0:
             return None
         # combine each geometry node AABB into a larger list
-        corners = np.vstack(self.bounds_corners.values())
+        corners = np.vstack(list(self.bounds_corners.values()))
         return np.array([corners.min(axis=0),
                          corners.max(axis=0)], dtype=np.float64)
 
