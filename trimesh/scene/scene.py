@@ -290,42 +290,34 @@ class Scene(Geometry3D):
     @caching.cache_decorator
     def bounds_corners(self):
         """
-        A list of points that represent the corners of the
-        AABB of every geometry in the scene.
-
-        This can be useful if you want to take the AABB in
-        a specific frame.
+        Get the post-transform AABB for each node
+        which has geometry defined.
 
         Returns
         -----------
-        corners: (n, 3) float
-          Points in space
+        corners : dict
+          Bounds for each node with vertices:
+           {node_name : (2, 3) float}
         """
-        # the saved corners of each instance
-        corners_inst = []
-        # (n, 3) float corners of each geometry
-        corners_geom = {k: bounds_module.corners(v.bounds)
-                        for k, v in self.geometry.items()
-                        if v.bounds is not None}
-        if len(corners_geom) == 0:
-            return np.array([])
-
+        # collect AABB for each geometry
+        corners = {}
+        vertices = {k: m.vertices for k, m in self.geometry.items()
+                    if hasattr(m, 'vertices')}
         for node_name in self.graph.nodes_geometry:
             # access the transform and geometry name from node
             transform, geometry_name = self.graph[node_name]
-            # not all nodes have associated geometry
-            if geometry_name not in corners_geom:
+            points = vertices.get(geometry_name)
+
+            if points is None or len(points) == 0:
                 continue
-            # transform geometry corners into where
-            # the instance of the geometry is located
-            corners_inst.extend(
-                transformations.transform_points(
-                    corners_geom[geometry_name],
-                    transform))
-        # make corners numpy array
-        corners_inst = np.array(corners_inst,
-                                dtype=np.float64)
-        return corners_inst
+
+            # apply just the rotation to skip a multiply
+            dot = np.dot(transform[:3, :3], points.T)
+            # append the AABB with translation applied after
+            corners[node_name] = np.array(
+                [dot.min(axis=1) + transform[:3, 3],
+                 dot.max(axis=1) + transform[:3, 3]])
+        return corners
 
     @caching.cache_decorator
     def bounds(self):
@@ -338,12 +330,13 @@ class Scene(Geometry3D):
           Position of [min, max] bounding box
           Returns None if no valid bounds exist
         """
-        corners = self.bounds_corners
-        if len(corners) == 0:
+        bounds_corners = self.bounds_corners
+        if len(bounds_corners) == 0:
             return None
-        bounds = np.array([corners.min(axis=0),
-                           corners.max(axis=0)])
-        return bounds
+        # combine each geometry node AABB into a larger list
+        corners = np.vstack(self.bounds_corners.values())
+        return np.array([corners.min(axis=0),
+                         corners.max(axis=0)], dtype=np.float64)
 
     @caching.cache_decorator
     def extents(self):
@@ -564,7 +557,7 @@ class Scene(Geometry3D):
 
         rotation = transformations.euler_matrix(*angles)
         transform = cameras.look_at(
-            self.bounds_corners,
+            self.bounds,
             fov=fov,
             rotation=rotation,
             distance=distance,
