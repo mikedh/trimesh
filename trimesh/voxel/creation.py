@@ -152,7 +152,7 @@ def local_voxelize(mesh,
 
     # Fill internal regions
     if fill:
-        regions, n = ndimage.measurements.label(~voxels)
+        regions, n = ndimage.label(~voxels)
         distance = ndimage.distance_transform_cdt(~voxels)
         representatives = [
             np.unravel_index((distance * (regions == i)).argmax(),
