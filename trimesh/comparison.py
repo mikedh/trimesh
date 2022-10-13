@@ -109,8 +109,9 @@ def identifier_simple(mesh):
             # just what we're looking for in a hash but hey
             identifier[3] = mesh_area / hull_area
             # cube side length ratio for the hull
-            identifier[4] = (((hull_area / 6.0) ** (1.0 / 2.0)) /
-                             (hull_volume ** (1.0 / 3.0)))
+            if hull_volume > 1e-12:
+                identifier[4] = (((hull_area / 6.0) ** (1.0 / 2.0)) /
+                                 (hull_volume ** (1.0 / 3.0)))
             # calculate maximum mesh radius
             vertices = mesh.vertices - mesh.centroid
             # add in max radius^2 to area ratio

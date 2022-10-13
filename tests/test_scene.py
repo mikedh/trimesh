@@ -4,15 +4,11 @@ except BaseException:
     import generic as g
 
 
-def random_chr():
-    return chr(ord('a') + int(round(g.np.random.random() * 25)))
-
-
 class SceneTests(g.unittest.TestCase):
 
     def test_scene(self):
-        for mesh in g.get_mesh('cycloidal.ply',
-                               'sphere.ply'):
+        for file_name in ['cycloidal.ply', 'sphere.ply']:
+            mesh = g.get_mesh(file_name)
             if mesh.units is None:
                 mesh.units = 'in'
 
@@ -401,6 +397,16 @@ class SceneTests(g.unittest.TestCase):
                                     original.volume)
         # nothing should have changed
         assert original.identifier_hash == original_hash
+
+    def test_exact_bounds(self):
+        m = g.get_mesh('cycloidal.3DXML')
+        assert isinstance(m, g.trimesh.Scene)
+
+        dump = m.dump(concatenate=True)
+        assert isinstance(dump, g.trimesh.Trimesh)
+
+        # scene bounds should exactly match mesh bounds
+        assert g.np.allclose(m.bounds, dump.bounds)
 
     def test_append_scenes(self):
         scene_0 = g.trimesh.Scene(base_frame='not_world')
