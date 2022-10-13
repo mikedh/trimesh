@@ -301,20 +301,25 @@ class Scene(Geometry3D):
         # collect AABB for each geometry
         corners = {}
         # collect vertices for every mesh
-        vertices = {k: m.vertices for k, m in self.geometry.items()
-                    if hasattr(m, 'vertices') and len(m.vertices) > 0}
+        vertices = {k: m.vertices for k, m in
+                    self.geometry.items()
+                    if hasattr(m, 'vertices') and
+                    len(m.vertices) > 0}
         # handle 2D geometries
-        vertices.update({k: np.column_stack((v, np.zeros(len(v))))
-                         for k, v in vertices.items() if v.shape[1] == 2})
+        vertices.update(
+            {k: np.column_stack((v, np.zeros(len(v))))
+             for k, v in vertices.items() if v.shape[1] == 2})
+
         # loop through every node with geometry
         for node_name in self.graph.nodes_geometry:
             # access the transform and geometry name from node
             transform, geometry_name = self.graph[node_name]
+            # will be None if no vertices for this node
             points = vertices.get(geometry_name)
             # skip empty geometries
             if points is None:
                 continue
-            # apply just the rotation to skip a multiply
+            # apply just the rotation to skip N multiplies
             dot = np.dot(transform[:3, :3], points.T)
             # append the AABB with translation applied after
             corners[node_name] = np.array(
@@ -339,7 +344,8 @@ class Scene(Geometry3D):
         # combine each geometry node AABB into a larger list
         corners = np.vstack(list(self.bounds_corners.values()))
         return np.array([corners.min(axis=0),
-                         corners.max(axis=0)], dtype=np.float64)
+                         corners.max(axis=0)],
+                        dtype=np.float64)
 
     @caching.cache_decorator
     def extents(self):
@@ -796,7 +802,9 @@ class Scene(Geometry3D):
         ---------
         hull: Trimesh object, convex hull of all meshes in scene
         """
-        points = util.vstack_empty([m.vertices for m in self.dump()])
+        points = util.vstack_empty(
+            [m.vertices
+             for m in self.dump()])
         hull = convex.convex_hull(points)
         return hull
 
