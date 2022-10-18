@@ -49,8 +49,8 @@ def load_stl(file_obj, **kwargs):
         # move the file back to where it was initially
         file_obj.seek(file_pos)
         # try to load the file as an ASCII STL
-        # if the header doesn't match the file length a HeaderError will be
-        # raised
+        # if the header doesn't match the file length
+        # HeaderError will be raised
         return load_stl_ascii(file_obj)
 
 
@@ -165,7 +165,7 @@ def load_stl_ascii(file_obj):
 
     for solid in solids:
 
-        stripped = solid.split('solid', 1)
+        stripped = solid.split('solid ', 1)
         if len(stripped) != 2:
             continue
         header, text = stripped[1].split('\n', 1)
