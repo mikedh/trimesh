@@ -193,8 +193,9 @@ def load_stl_ascii(file_obj):
             if len(normals) == len(vertices):
                 face_normals = normals.reshape((-1, 3))
         except BaseException:
-            log.warning('failed to extract face_normals',
-                        exc_info=True)
+            util.log.warning(
+                'failed to extract face_normals',
+                exc_info=True)
 
         try:
             # try to extract the name from the header
