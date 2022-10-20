@@ -300,7 +300,8 @@ def load_compressed(file_obj,
         for name, data in files.items():
             try:
                 # only load formats that we support
-                compressed_type = util.split_extension(name).lower()
+                compressed_type = util.split_extension(
+                    name).lower()
 
                 # if file has metadata type include it
                 if compressed_type in 'yaml':
