@@ -35,6 +35,7 @@ except BaseException as E:
     from ..exceptions import closure
     load_path = closure(E)
     # no path formats available
+
     def path_formats():
         return set()
 
