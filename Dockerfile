@@ -10,8 +10,8 @@ ARG TRIMESH_PATH=/opt/trimesh
 ARG INCLUDE_X=false
 
 # Install binary APT dependencies.
-COPY docker/builds/apt.bash /tmp/
-RUN bash /tmp/apt.bash ${INCLUDE_X}
+COPY docker/builds/apt-trimesh /usr/local/bin/
+RUN apt-trimesh ${INCLUDE_X}
 
 # Install `embree`, Intel's fast ray checking engine
 COPY docker/builds/embree.bash /tmp/
@@ -19,6 +19,7 @@ RUN bash /tmp/embree.bash
 
 # XVFB runs in the background if you start supervisor.
 COPY docker/config/xvfb.supervisord.conf /etc/supervisor/conf.d/
+
 
 # Create a local non-root user.
 RUN useradd -m -s /bin/bash user

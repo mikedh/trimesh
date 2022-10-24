@@ -19,17 +19,19 @@ In [25]: %timeit xxh3_64_intdigest(d)
 3.37 us +/- 116 ns per loop
 ```
 """
+import os
+import time
+import warnings
 import numpy as np
 
-import warnings
 from functools import wraps
-
 from .constants import log
 from .util import is_sequence
+from base64 import urlsafe_b64encode
 
 try:
     from collections.abc import Mapping
-except ImportError:
+except BaseException:
     from collections import Mapping
 
 
@@ -491,6 +493,50 @@ class Cache(object):
     def __exit__(self, *args):
         self._lock -= 1
         self.id_current = self._id_function()
+
+
+class DiskCache(object):
+    def __init__(self, path, expire_days=30):
+        """
+
+        """
+        self.expire_days = int(expire_days)
+        self.path = os.path.abspath(
+            os.path.expanduser(path))
+        os.makedirs(self.path, exist_ok=True)
+
+    def get(self, key, fetch):
+        """
+        Get a key from the cache, or retrive it.
+        """
+        # encode key as base64 so we can write it to a file
+        key_b64 = urlsafe_b64encode(key.encode(
+            'utf-8')).decode('utf-8')
+        # full path of result
+        path = os.path.join(self.path, key_b64)
+
+        # check to see if we can use the cache
+        if os.path.isfile(path):
+            age_days = (time.time() - os.stat(path).st_mtime) / 86400
+            if age_days < self.expire_days:
+                # this nested condition means that
+                # the file both exists and is recent
+                # enough, so just return its contents
+                with open(path, 'rb') as f:
+                    return f.read()
+
+        # our data isn't cached
+        # run the expensive function to fetch the file
+        raw = fetch()
+        # make a home for the data
+        os.makedirs(os.path.dirname(path),
+                    exist_ok=True)
+        # write the data so we can save it
+        with open(path, 'wb') as f:
+            f.write(raw)
+
+        # return the data
+        return raw
 
 
 class DataStore(Mapping):
