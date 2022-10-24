@@ -25,6 +25,9 @@ class ExportTest(g.unittest.TestCase):
                 assert g.np.isclose(d.length,
                                     loaded.length,
                                     rtol=.01)
+
+                assert len(d.entities) == len(loaded.entities)
+
                 path_str = g.trimesh.path.exchange.svg_io.export_svg(
                     d, return_path=True)
                 assert isinstance(path_str, str)

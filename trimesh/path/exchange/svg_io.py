@@ -229,7 +229,12 @@ def _svg_path_convert(paths, force=None):
         points = complex_to_float([svg_arc.start,
                                    svg_arc.point(0.5),
                                    svg_arc.end])
-        return Arc(points=np.arange(3) + counts[name]), points
+        # create an arc from the now numpy points
+        arc = Arc(points=np.arange(3) + counts[name],
+                  # we may have monkey-patched the entity to
+                  # indicate that it is a closed circle
+                  closed=getattr(svg_arc, 'closed', False))
+        return arc, points
 
     def load_quadratic(svg_quadratic):
         # load a quadratic bezier spline
@@ -287,28 +292,65 @@ def _svg_path_convert(paths, force=None):
         # if there is no path string exit
         if len(raw) == 0:
             continue
-        # check to see if each entity is "line-like"
-        is_line = np.array([type(i).__name__ in
-                            ('Line', 'Close')
-                            for i in raw])
-        # find groups of consecutive lines so we can combine them
+
+        # create an integer code for entities we can combine
+        kinds_lookup = {'Line': 1, 'Close': 1, 'Arc': 2}
+        # get a code for each entity we parsed
+        kinds = np.array([kinds_lookup.get(type(i).__name__, 0) for i in raw], dtype=int)
+        # find groups of consecutive lines and arcs so we can combine them
         blocks = grouping.blocks(
-            is_line, min_len=1, only_nonzero=False)
+            kinds,
+            min_len=1,
+            only_nonzero=False)
 
         if tol.strict:
             # in unit tests make sure we didn't lose any entities
             assert util.allclose(np.hstack(blocks),
                                  np.arange(len(raw)))
 
-        # Combine consecutive lines into a single MultiLine
+        # Combine consecutive entities that can be represented
+        # more concisely as a single trimesh entity.
         parsed = []
         for b in blocks:
-            if type(raw[b[0]]).__name__ in ('Line', 'Close'):
+            chunk = raw[b]
+            current = type(raw[b[0]]).__name__
+            if current in ('Line', 'Close'):
                 # if entity consists of lines add a multiline
-                parsed.append(MultiLine(raw[b]))
+                parsed.append(MultiLine(chunk))
+            elif len(b) > 1 and current == 'Arc':
+                # if we have multiple arcs check to see if they
+                # actually represent a single closed circle
+                # get a single array with the relevant arc points
+                verts = np.array([[a.start.real,
+                                   a.start.imag,
+                                   a.end.real,
+                                   a.end.imag,
+                                   a.center.real,
+                                   a.center.imag,
+                                   a.radius.real,
+                                   a.radius.imag,
+                                   a.rotation] for a in chunk],
+                                 dtype=np.float64)
+                # all arcs share the same center radius and rotation
+                closed = False
+                if verts[:, 4:].ptp(axis=0).mean() < 1e-3:
+                    start, end = verts[:, :2], verts[:, 2:4]
+                    # if every end point matches the start point of a new
+                    # arc that means this is really a closed circle made
+                    # up of multiple arc segments
+                    closed = util.allclose(start, np.roll(end, 1, axis=0))
+                if closed:
+                    # hot-patch a closed arc flag
+                    chunk[0].closed = True
+                    # all arcs in this block are now represented by one entity
+                    parsed.append(chunk[0])
+                else:
+                    # we don't have a closed circle so add each
+                    # arc entity individually without combining
+                    parsed.extend(chunk)
             else:
                 # otherwise just add the entities
-                parsed.extend(raw[b])
+                parsed.extend(chunk)
         try:
             # try to retrieve any trimesh attributes as metadata
             entity_meta = {
