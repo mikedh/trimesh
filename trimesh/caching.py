@@ -27,7 +27,6 @@ import numpy as np
 from functools import wraps
 from .constants import log
 from .util import is_sequence
-from base64 import urlsafe_b64encode
 
 try:
     from collections.abc import Mapping
@@ -500,6 +499,7 @@ class DiskCache(object):
     Store results of expensive operations on disk
     with an option to expire the results.
     """
+
     def __init__(self, path, expire_days=30):
         """
         Create a cache on disk for storing expensive results.
@@ -523,7 +523,7 @@ class DiskCache(object):
     def get(self, key, fetch):
         """
         Get a key from the cache or run a calculation.
-        
+
         Parameters
         -----------
         key : str
