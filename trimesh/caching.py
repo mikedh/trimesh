@@ -496,28 +496,51 @@ class Cache(object):
 
 
 class DiskCache(object):
+    """
+    Store results of expensive operations on disk
+    with an option to expire the results.
+    """
     def __init__(self, path, expire_days=30):
         """
+        Create a cache on disk for storing expensive results.
+
+        Parameters
+        --------------
+        path : str
+          A writeable location on the current file path.
+        expire_days : int or float
+          How old should results be considered expired.
 
         """
-        self.expire_days = int(expire_days)
+        # store how old we allow results to be
+        self.expire_days = expire_days
+        # store the location for saving results
         self.path = os.path.abspath(
             os.path.expanduser(path))
+        # make sure the specified path exists
         os.makedirs(self.path, exist_ok=True)
 
     def get(self, key, fetch):
         """
-        Get a key from the cache, or retrive it.
+        Get a key from the cache or run a calculation.
+        
+        Parameters
+        -----------
+        key : str
+          Key to reference item with
+        fetch : function
+          If key isn't stored and recent run this
+          function and store its result on disk.
         """
-        # encode key as base64 so we can write it to a file
-        key_b64 = urlsafe_b64encode(key.encode(
-            'utf-8')).decode('utf-8')
-        # full path of result
-        path = os.path.join(self.path, key_b64)
+        # hash the key so we have a fixed length string
+        key_hash = _sha256(key.encode('utf-8')).hexdigest()
+        # full path of result on local disk
+        path = os.path.join(self.path, key_hash)
 
         # check to see if we can use the cache
         if os.path.isfile(path):
-            age_days = (time.time() - os.stat(path).st_mtime) / 86400
+            # compute the age of the existing file in days
+            age_days = (time.time() - os.stat(path).st_mtime) / 86400.0
             if age_days < self.expire_days:
                 # this nested condition means that
                 # the file both exists and is recent
@@ -525,12 +548,9 @@ class DiskCache(object):
                 with open(path, 'rb') as f:
                     return f.read()
 
-        # our data isn't cached
+        # since we made it here our data isn't cached
         # run the expensive function to fetch the file
         raw = fetch()
-        # make a home for the data
-        os.makedirs(os.path.dirname(path),
-                    exist_ok=True)
         # write the data so we can save it
         with open(path, 'wb') as f:
             f.write(raw)

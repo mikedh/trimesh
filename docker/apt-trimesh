@@ -10,10 +10,12 @@ def install(packages):
     packages : iterable
       List, set, or other with package names.
     """
-    print(subprocess.check_output('apt-get update -qq'.split()))
+    print(subprocess.check_output(
+        'apt-get update -qq'.split()))
 
     install = 'apt-get install -qq --no-install-recommends'.split()
     install.extend(packages)
+    print('running: `{}`'.format(' '.join(install)))
     print(subprocess.check_output(install))
 
     print(subprocess.check_output(
@@ -69,6 +71,10 @@ if __name__ == '__main__':
         '--build',
         default='0',
         help='Install compilers to build stuff')
+    parser.add_argument(
+        '--docs',
+        default='0',
+        help='Install stuff required to build docs')
     args = parser.parse_args()
 
     print(args)
@@ -83,6 +89,8 @@ if __name__ == '__main__':
     # things to compile
     build = 'build-essential g++ make'.split()
 
+    docs = 'make pandoc'.split()
+    
     packages = []
     if truthy(args.x11):
         packages.extend(x11)
@@ -90,6 +98,8 @@ if __name__ == '__main__':
         packages.extend(base)
     if truthy(args.build):
         packages.extend(build)
+    if truthy(args.docs):
+        packages.extend(docs)
 
     packages = set(packages)
     print('Installing: ' + ' '.join(packages))

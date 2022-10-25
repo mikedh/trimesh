@@ -35,30 +35,35 @@ build: ## Build the docker images
 		--tag $(TAG_LATEST) \
 		--tag $(TAG_VERSION) \
 		--tag $(TAG_GIT_SHA) \
-		--cache-from $(TAG_LATEST) \
 		--build-arg "BUILDKIT_INLINE_CACHE=1" \
 		--build-arg "VERSION=$(VERSION)" \
 		.
 
 .PHONY: test
-test: build ## Run unit tests inside Docker image
-	docker run -v $(PWD):/home/user/trimesh -t $(TAG_LATEST) bash -c "python /home/user/trimesh/setup.py --list-test > req.txt && pip install -r req.txt && pytest /home/user/trimesh/tests"
-
+test: ## Run unit tests inside docker images.
+	DOCKER_BUILDKIT=1 \
+	docker build \
+		--target tests \
+		--build-arg "BUILDKIT_INLINE_CACHE=1" \
+		--build-arg "CODECOV_TOKEN=$(CODECOV_TOKEN)" \
+		.
 
 # trimesh images are non-root user
 # we need to copy the docs, examples and readme into the image
 # the docker volume is read-only for "docker reasons" so build
 # inside of the image trimesh install then copy
 .PHONY: docs
-docs: build ## Build trimesh's sphinx docs
-	docker rm -f dummy
-	docker run -t --name dummy -v `pwd`/:/trimesh $(TAG_LATEST) bash -c "cp -R /trimesh/ /home/user/trimesh/ && python /home/user/trimesh/docker/builds/pandoc.py && cd /home/user/trimesh/docs && make";
-        # copy the built docs out of the image
-	docker cp dummy:/homeuser/trimesh/docs/_build/html ./docs/
-	docker rm -f dummy
+docs: ## Build trimesh's sphinx docs
+	DOCKER_BUILDKIT=1 \
+	docker build \
+		--target docs \
+		--progress=plain \
+		--build-arg "BUILDKIT_INLINE_CACHE=1" \
+		--output html \
+		.
 
 .PHONY: bash
-bash: build ## Start a bash terminal inside the image for debugging.
+bash: build ## Start a bash terminal inside the image.
 	docker run -it $(TAG_LATEST) /bin/bash
 
 .PHONY: publish-docker
