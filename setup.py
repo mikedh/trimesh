@@ -131,6 +131,10 @@ elif '--list-easy' in sys.argv:
     # again will not include numpy+setuptools
     print('\n'.join(requirements_easy))
     exit()
+elif '--list-test' in sys.argv:
+    # again will not include numpy+setuptools
+    print('\n'.join(requirements_test))
+    exit()
 elif '--format' in sys.argv:
     format_all()
     exit()

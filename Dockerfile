@@ -7,11 +7,11 @@ LABEL maintainer="mikedh@kerfed.com"
 ARG INCLUDE_X=false
 
 # Install binary APT dependencies.
-COPY docker/builds/apt-trimesh /usr/local/bin/
+COPY docker/apt-trimesh /usr/local/bin/
 RUN apt-trimesh --base=true --x11=${INCLUDE_X}
 
 # Install `embree`, Intel's fast ray checking engine
-COPY docker/builds/embree.bash /tmp/
+COPY docker/embree.bash /tmp/
 RUN bash /tmp/embree.bash
 
 # Create a local non-root user.
@@ -29,22 +29,22 @@ FROM trimesh AS build
 RUN apt-trimesh --build=true
 
 # copy in essential files
-RUN mkdir -p /tmp/trimesh
-RUN chown user:user /tmp/trimesh
-COPY --chown=user:user trimesh/ /tmp/trimesh/trimesh
-COPY --chown=user:user tests/ /tmp/trimesh/tests
-COPY --chown=user:user setup.py /tmp/trimesh/
+COPY --chown=user:user trimesh/ /home/user/trimesh
+COPY --chown=user:user setup.py /home/user/
 
 # switch to non-root user
 USER user
 
+ARG TRIMESH_EXTRAS="all"
+
 # install trimesh into .local
-RUN pip install /tmp/trimesh[all]
+RUN pip install /home/user[all]
 RUN pip install https://github.com/scopatz/pyembree/releases/download/0.1.6/pyembree-0.1.6.tar.gz
 
 FROM trimesh AS output
 
 USER user
+WORKDIR /home/user
 
 # just copy over the build
 COPY --from=build /home/user/.local /home/user/.local
