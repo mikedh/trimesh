@@ -81,7 +81,7 @@ def load_obj(file_obj,
             # turn parsed kwargs into material objects
             materials = {k: SimpleMaterial(**v)
                          for k, v in material_kwargs.items()}
-        except IOError:
+        except (IOError, TypeError):
             # usually the resolver couldn't find the asset
             log.debug('unable to load materials from: {}'.format(mtl_path))
         except BaseException:

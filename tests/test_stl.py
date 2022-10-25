@@ -91,10 +91,13 @@ class STLTests(g.unittest.TestCase):
             raise ValueError("Shouldn't export empty scenes!")
 
     def test_vertex_order(self):
-        for stl in ['featuretype.STL', 'ADIS16480.STL', '1002_tray_bottom.STL']:
+        for stl in ['featuretype.STL',
+                    'ADIS16480.STL',
+                    '1002_tray_bottom.STL']:
             # removing doubles should respect the vertex order
             m_raw = g.get_mesh(stl, process=False)
-            m_proc = g.get_mesh(stl, process=True, keep_vertex_order=True)
+            m_proc = g.get_mesh(stl, process=True,
+                                keep_vertex_order=True)
 
             verts_raw = g.trimesh.grouping.hashable_rows(m_raw.vertices)
             verts_proc = g.trimesh.grouping.hashable_rows(m_proc.vertices)
@@ -113,8 +116,12 @@ class STLTests(g.unittest.TestCase):
 
             # of course mesh needs to have same faces as before
             assert g.np.allclose(
-                g.np.sort(tris_raw, axis=0), g.np.sort(tris_proc, axis=0)
-            )
+                g.np.sort(tris_raw, axis=0),
+                g.np.sort(tris_proc, axis=0))
+
+    def test_ascii_keyword(self):
+        m = g.get_mesh('ascii.stl.zip', force='mesh')
+        assert m.is_watertight
 
 
 if __name__ == '__main__':

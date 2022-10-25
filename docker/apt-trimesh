@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+
+
+def install(packages):
+    """
+    Install a list of debian packages using apt-get.
+
+    Parameters
+    ------------
+    packages : iterable
+      List, set, or other with package names.
+    """
+    print(subprocess.check_output(
+        'apt-get update -qq'.split()))
+
+    install = 'apt-get install -qq --no-install-recommends'.split()
+    install.extend(packages)
+    print('running: `{}`'.format(' '.join(install)))
+    print(subprocess.check_output(install))
+
+    print(subprocess.check_output(
+        'rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*'.split()))
+
+
+def truthy(item):
+    """
+    Pretty gross but still better than a bash script.
+
+    Parameters
+    ----------
+    item : any
+      Item to check the true-or-falseness of
+
+    Returns
+    ----------
+    truth : bool
+      Was the input mostly true?
+    """
+    if isinstance(item, bool):
+        return item
+    if isinstance(item, int):
+        return item > 0
+    if not isinstance(item, str):
+        raise ValueError(type(item).__name__)
+    item = item.lower().strip()
+    if '0' in item:
+        return False
+    if '1' in item:
+        return True
+    if 't' in item:
+        return True
+    if 'f' in item:
+        return False
+    raise ValueError(item)
+
+
+if __name__ == '__main__':
+    import argparse
+    import subprocess
+    parser = argparse.ArgumentParser(
+        description='Install debian packages for trimesh')
+    parser.add_argument(
+        '--x11',
+        default='0',
+        help='Install packages for non-gpu offscreen rendering')
+    parser.add_argument(
+        '--base',
+        default='0',
+        help='Install base packages')
+    parser.add_argument(
+        '--build',
+        default='0',
+        help='Install compilers to build stuff')
+    parser.add_argument(
+        '--docs',
+        default='0',
+        help='Install stuff required to build docs')
+    args = parser.parse_args()
+
+    print(args)
+
+    # very simple base packages
+    base = 'wget curl sudo bzip2 zstd git'.split()
+
+    # things to get offscreen rendering working
+    x11 = ('libgl1-mesa-glx libgl1-mesa-dri' +
+           ' xvfb xauth ca-certificates freeglut3-dev').split()
+
+    # things to compile
+    build = 'build-essential g++ make'.split()
+
+    docs = 'make pandoc'.split()
+    
+    packages = []
+    if truthy(args.x11):
+        packages.extend(x11)
+    if truthy(args.base):
+        packages.extend(base)
+    if truthy(args.build):
+        packages.extend(build)
+    if truthy(args.docs):
+        packages.extend(docs)
+
+    packages = set(packages)
+    print('Installing: ' + ' '.join(packages))
+
+    install(packages)

@@ -262,8 +262,8 @@ class ColorVisuals(Visuals):
         when requested.
         * If colors have never been set, a (count,4) tiled copy of the default diffuse
         color will be stored in the cache
-        ** the CRC on creation for these cached default colors will also be stored
-        ** if the cached color array is altered (different CRC than when it was
+        ** the hash on creation for these cached default colors will also be stored
+        ** if the cached color array is altered (different hash than when it was
         created) we consider that now to be user data and the array is moved from
         the cache to the DataStore.
 
@@ -289,8 +289,8 @@ class ColorVisuals(Visuals):
 
         # the face or vertex colors
         key_colors = str(name) + '_colors'
-        # the initial crc of the
-        key_crc = key_colors + '_crc'
+        # the initial hash of the colors
+        key_hash = key_colors + '_hash'
 
         if key_colors in self._data:
             # if a user has explicitly stored or changed the color it
@@ -303,7 +303,7 @@ class ColorVisuals(Visuals):
             colors = self._cache[key_colors]
             # if the cached colors have been changed since creation we move
             # them to data
-            if hash(colors) != self._cache[key_crc]:
+            if hash(colors) != self._cache[key_hash]:
                 # call the setter on the property using exec
                 # this avoids having to pass a setter to this function
                 if name == 'face':
@@ -339,11 +339,11 @@ class ColorVisuals(Visuals):
                 colors.shape != (count, 4)):
             raise ValueError('face colors incorrect shape!')
 
-        # subclass the array to track for changes using a CRC
+        # subclass the array to track for changes using a hash
         colors = caching.tracked_array(colors)
         # put the generated colors and their initial checksum into cache
         self._cache[key_colors] = colors
-        self._cache[key_crc] = hash(colors)
+        self._cache[key_hash] = hash(colors)
 
         return colors
 
@@ -363,8 +363,8 @@ class ColorVisuals(Visuals):
         for name in ['face', 'vertex']:
             # the face or vertex colors
             key_colors = str(name) + '_colors'
-            # the initial crc of the
-            key_crc = key_colors + '_crc'
+            # the initial hash of the colors
+            key_hash = key_colors + '_hash'
 
             if key_colors not in self._cache:
                 continue
@@ -372,7 +372,7 @@ class ColorVisuals(Visuals):
             colors = self._cache[key_colors]
             # if the cached colors have been changed since creation
             # move them to data
-            if hash(colors) != self._cache[key_crc]:
+            if hash(colors) != self._cache[key_hash]:
                 if name == 'face':
                     self.face_colors = colors
                 elif name == 'vertex':

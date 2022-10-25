@@ -299,8 +299,8 @@ class SceneTests(g.unittest.TestCase):
 
         # allow mixed 2D and 3D geometry
         m = g.get_mesh('scenes.zip', mixed=True)
-
         assert len(m.geometry) >= 6
+
         assert len(m.graph.nodes_geometry) >= 10
         assert any(isinstance(i, g.trimesh.path.Path2D)
                    for i in m.geometry.values())

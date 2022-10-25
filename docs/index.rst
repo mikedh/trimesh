@@ -29,6 +29,13 @@ Contributing
 
    Contributing <contributing.md>
 
+Docker
+==========  
+.. toctree::
+   :maxdepth: 1
+
+   Docker <docker.md>
+
 API Reference
 =============
 .. toctree::

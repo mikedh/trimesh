@@ -60,11 +60,6 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install APT On Linux
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update -qq -y
-        sudo apt-get install -qq -y libgeos-dev
     - name: Install Brew On Mac
       if: matrix.os == 'macos-latest'
       run: |
@@ -78,9 +73,10 @@ jobs:
       run: pip install .[easy,test]
     - name: Install Linux Deps
       if: matrix.os == 'ubuntu-latest'
-      run: sudo bash docker/builds/gltf_validator.bash
+      run: sudo bash docker/gltfvalidator.bash
     - name: Run Pytest
       run: pytest tests/
+
   pypi:
     name: Release To PyPi
     needs: [tests, containers]
@@ -103,59 +99,27 @@ jobs:
         pyproject-build --outdir dist .
         twine upload dist/*
 
-  docs:
-    name: Build Docs
-    needs: [tests, containers]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Build Docs
-      run: |
-         # build docs in docker image
-         cd docs
-         bash docker.bash
-    - name: Deploy To Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/html
-        force_orphan: true
   containers:
     name: Build Docker Images
     runs-on: ubuntu-latest
     steps:
-    - name: Login to Docker Hub
+    - name: Log In to Docker Hub
       run: echo ${{ secrets.DH_PASS }} | docker login --username mikedh --password-stdin
     - name: Checkout trimesh
       uses: actions/checkout@v3
-    - name: Build Images
+    - name: Build Images And Docs
       env:
-        GIT_SHA: ${{ github.sha }}
+        CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }}
       run: |
-        # get the version of trimesh with python
-        export VERSION=$(python trimesh/version.py)
-        # tag the image with the short git sha
-        export GIT_SHORT=${GIT_SHA::7}
-
-        # put a whole bunch of tags on image:
-        # tag with version, git sha, and latest
-        # push to DockerHub and AWS ECR
-        export TAGS="trimesh/trimesh:latest; trimesh/trimesh:$VERSION; trimesh/trimesh:$GIT_SHORT"
-
-        # build image tagged with all our many tags
-        docker build -t `echo "${TAGS//;/$' -t '}"` .
-        ci_env=`bash <(curl -s https://codecov.io/env)`
-        # run unit tests in docker image
-        # note we're copying models into the image
-        docker run $ci_env -e CI=true -e CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} --rm -v `pwd`:/trimesh trimesh/trimesh:latest  bash -c 'cp -R /trimesh/models /opt/trimesh && cd /opt/trimesh && pip install .[test] && pytest --cov=trimesh -x -p no:warnings -p no:alldep -p no:cacheprovider tests && bash <(curl -s https://codecov.io/bash)'
-        # push every tag to remote registry
-        for i in ${TAGS//;/ }; do docker push $i; done;
-    - name: Build with X11 for offscreen rendering
-      run: |
-        export VERSION=$(python trimesh/version.py)
-        docker build -t trimesh/trimesh-x:latest -t trimesh/trimesh-x:${VERSION} --build-arg INCLUDE_X=true .
-        docker push trimesh/trimesh-x:latest
-        docker push trimesh/trimesh-x:$VERSION
+        make tests # build docker images and run unit tests
+        make publish-docker # push images to docker hub
+        make docs # build sphinx docs
+    - name: Deploy Github Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./html
+        force_orphan: true
     - name: Logout of registries
       if: always()
       run: |

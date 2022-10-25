@@ -19,17 +19,18 @@ In [25]: %timeit xxh3_64_intdigest(d)
 3.37 us +/- 116 ns per loop
 ```
 """
+import os
+import time
+import warnings
 import numpy as np
 
-import warnings
 from functools import wraps
-
 from .constants import log
 from .util import is_sequence
 
 try:
     from collections.abc import Mapping
-except ImportError:
+except BaseException:
     from collections import Mapping
 
 
@@ -491,6 +492,72 @@ class Cache(object):
     def __exit__(self, *args):
         self._lock -= 1
         self.id_current = self._id_function()
+
+
+class DiskCache(object):
+    """
+    Store results of expensive operations on disk
+    with an option to expire the results.
+    """
+
+    def __init__(self, path, expire_days=30):
+        """
+        Create a cache on disk for storing expensive results.
+
+        Parameters
+        --------------
+        path : str
+          A writeable location on the current file path.
+        expire_days : int or float
+          How old should results be considered expired.
+
+        """
+        # store how old we allow results to be
+        self.expire_days = expire_days
+        # store the location for saving results
+        self.path = os.path.abspath(
+            os.path.expanduser(path))
+        # make sure the specified path exists
+        os.makedirs(self.path, exist_ok=True)
+
+    def get(self, key, fetch):
+        """
+        Get a key from the cache or run a calculation.
+
+        Parameters
+        -----------
+        key : str
+          Key to reference item with
+        fetch : function
+          If key isn't stored and recent run this
+          function and store its result on disk.
+        """
+        # hash the key so we have a fixed length string
+        key_hash = _sha256(key.encode('utf-8')).hexdigest()
+        # full path of result on local disk
+        path = os.path.join(self.path, key_hash)
+
+        # check to see if we can use the cache
+        if os.path.isfile(path):
+            # compute the age of the existing file in days
+            age_days = (time.time() - os.stat(path).st_mtime) / 86400.0
+            if age_days < self.expire_days:
+                # this nested condition means that
+                # the file both exists and is recent
+                # enough, so just return its contents
+                with open(path, 'rb') as f:
+                    return f.read()
+
+        log.debug('not in cache fetching: `{}`'.format(key))
+        # since we made it here our data isn't cached
+        # run the expensive function to fetch the file
+        raw = fetch()
+        # write the data so we can save it
+        with open(path, 'wb') as f:
+            f.write(raw)
+
+        # return the data
+        return raw
 
 
 class DataStore(Mapping):

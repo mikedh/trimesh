@@ -35,7 +35,9 @@ except BaseException as E:
     from ..exceptions import closure
     load_path = closure(E)
     # no path formats available
-    def path_formats(): return []
+
+    def path_formats():
+        return set()
 
 
 def mesh_formats():
@@ -48,7 +50,7 @@ def mesh_formats():
       Extensions of available mesh loaders,
       i.e. 'stl', 'ply', etc.
     """
-    return list(mesh_loaders.keys())
+    return set(mesh_loaders.keys())
 
 
 def available_formats():
@@ -61,9 +63,10 @@ def available_formats():
         Extensions of available loaders
         i.e. 'stl', 'ply', 'dxf', etc.
     """
+    # set
     loaders = mesh_formats()
-    loaders.extend(path_formats())
-    loaders.extend(compressed_loaders.keys())
+    loaders.update(path_formats())
+    loaders.update(compressed_loaders.keys())
     return loaders
 
 
@@ -300,7 +303,8 @@ def load_compressed(file_obj,
         for name, data in files.items():
             try:
                 # only load formats that we support
-                compressed_type = util.split_extension(name).lower()
+                compressed_type = util.split_extension(
+                    name).lower()
 
                 # if file has metadata type include it
                 if compressed_type in 'yaml':

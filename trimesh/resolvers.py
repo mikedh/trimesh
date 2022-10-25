@@ -8,9 +8,11 @@ archives, web assets, or a local file path.
 """
 
 import os
+import abc
 import itertools
 
 from . import util
+from . import caching
 
 # URL parsing for remote resources via WebResolver
 try:
@@ -21,20 +23,27 @@ except ImportError:
     from urlparse import urlparse, urljoin
 
 
-class Resolver(object):
+class Resolver(util.ABC):
     """
     The base class for resolvers.
     """
 
+    @abc.abstractmethod
     def __init__(self, *args, **kwargs):
         raise NotImplementedError('Use a resolver subclass!')
 
+    @abc.abstractmethod
+    def get(self, key):
+        raise NotImplementedError()
+
     def write(self, name, data):
-        raise NotImplementedError('write not implemented for {}'.format(
-            self.__class__.__name__))
+        raise NotImplementedError('`write` not implemented!')
 
     def __getitem__(self, key):
         return self.get(key)
+
+    def __setitem(self, key, value):
+        return self.write(key, value)
 
 
 class FilePathResolver(Resolver):
@@ -66,8 +75,22 @@ class FilePathResolver(Resolver):
 
         # exit if directory doesn't exist
         if not os.path.isdir(self.parent):
-            raise ValueError('path `{} `not a directory!'.format(
-                self.parent))
+            raise ValueError(
+                'path `{} `not a directory!'.format(
+                    self.parent))
+
+    def keys(self):
+        """
+        List all files available to be loaded
+
+        Yields
+        -----------
+        name : str
+          Name of a file which can be accessed.
+        """
+        for path, _, names in os.walk(self.parent):
+            for name in names:
+                yield os.path.join(path, name)
 
     def get(self, name):
         """
@@ -126,6 +149,9 @@ class ZipResolver(Resolver):
         """
         self.archive = archive
 
+    def keys(self):
+        return self.archive.keys()
+
     def get(self, name):
         """
         Get an asset from the ZIP archive.
@@ -154,7 +180,8 @@ class ZipResolver(Resolver):
             # loop through unique results
             for option in nearby_names(name):
                 if option in archive:
-                    # cleaned option is in archive so store value and exit
+                    # cleaned option is in archive
+                    # so store value and exit
                     name = option
                     break
 
@@ -237,6 +264,83 @@ class WebResolver(Resolver):
         return response.content
 
 
+class GithubResolver(Resolver):
+    def __init__(self,
+                 repo,
+                 branch=None,
+                 commit=None,
+                 save=None):
+        """
+        Get files from a remote Github repository by
+        downloading a zip file with the entire branch
+        or a specific commit.
+
+        Parameters
+        -------------
+        repo : str
+          In the format of `owner/repo`
+        branch : str
+          The remote branch you want to get files from.
+        commit : str
+          The full commit hash: pass either this OR branch.
+        save : None or str
+          A path if you want to save results locally.
+        """
+        # the github URL for the latest commit of a branch.
+        if commit is None:
+            self.url = (
+                'https://github.com/{repo}/archive/' +
+                'refs/heads/{branch}.zip').format(
+                    repo=repo, branch=branch)
+        else:
+            # get a commit URL
+            self.url = ('https://github.com/{repo}/archive/' +
+                        '{commit}.zip').format(
+                            repo=repo, commit=commit)
+
+        if save is not None:
+            self.cache = caching.DiskCache(save)
+        else:
+            self.cache = None
+
+    def keys(self):
+        """
+        List the available files in the repository.
+        """
+        return self.zipped.keys()
+
+    @property
+    def zipped(self):
+        """
+
+        - opened zip file
+        - locally saved zip file
+        - retrieve zip file and saved
+        """
+        def fetch():
+            """
+            Fetch the remote zip file.
+            """
+            import requests
+            response = requests.get(self.url)
+            if not response.ok:
+                raise ValueError(response.content)
+            return response.content
+
+        if hasattr(self, '_zip'):
+            return self._zip
+        # download the archive or get from disc
+        raw = self.cache.get(self.url, fetch)
+        # create a zip resolver for the archive
+        self._zip = ZipResolver(util.decompress(
+            util.wrap_as_stream(raw), file_type='zip'))
+
+        return self._zip
+
+    def get(self, key):
+        return self.zipped.get(key)
+
+
 def nearby_names(name):
     """
     Try to find nearby variants of a specified name.
@@ -249,7 +353,8 @@ def nearby_names(name):
     Yields
     -----------
     nearby : str
-      Name that is a lightly permutated version of initial name.
+      Name that is a lightly permutated version
+      of the initial name.
     """
     # the various operations that *might* result in a correct key
     cleaners = [lambda x: x,

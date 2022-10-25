@@ -8,13 +8,17 @@ from setuptools import setup
 _version_file = os.path.join(
     os.path.dirname(__file__),
     'trimesh', 'version.py')
-with open(_version_file, 'r') as f:
-    _version_raw = f.read()
-# use eval to get a clean string of version from file
-__version__ = eval(next(
-    line.strip().split('=')[-1]
-    for line in str.splitlines(_version_raw)
-    if '_version_' in line))
+
+if os.path.isfile(_version_file):
+    with open(_version_file, 'r') as f:
+        _version_raw = f.read()
+    # use eval to get a clean string of version from file
+    __version__ = eval(next(
+        line.strip().split('=')[-1]
+        for line in str.splitlines(_version_raw)
+        if '_version_' in line))
+else:
+    __version__ = None
 
 # load README.md as long_description
 long_description = ''
@@ -130,6 +134,10 @@ if '--list-all' in sys.argv:
 elif '--list-easy' in sys.argv:
     # again will not include numpy+setuptools
     print('\n'.join(requirements_easy))
+    exit()
+elif '--list-test' in sys.argv:
+    # again will not include numpy+setuptools
+    print('\n'.join(requirements_test))
     exit()
 elif '--format' in sys.argv:
     format_all()

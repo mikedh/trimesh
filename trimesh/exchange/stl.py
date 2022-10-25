@@ -49,8 +49,8 @@ def load_stl(file_obj, **kwargs):
         # move the file back to where it was initially
         file_obj.seek(file_pos)
         # try to load the file as an ASCII STL
-        # if the header doesn't match the file length a HeaderError will be
-        # raised
+        # if the header doesn't match the file length
+        # HeaderError will be raised
         return load_stl_ascii(file_obj)
 
 
@@ -165,44 +165,50 @@ def load_stl_ascii(file_obj):
 
     for solid in solids:
 
-        stripped = solid.split('solid', 1)
-        if len(stripped) != 2:
+        # get just the vertices
+        vertex_text = solid.split('vertex')
+        vertices = np.fromstring(
+            ' '.join(line[:line.find('\n')] for line
+                     in vertex_text[1:]),
+            sep=' ',
+            dtype=np.float64)
+        if len(vertices) < 3:
             continue
-        header, text = stripped[1].split('\n', 1)
+        if len(vertices) % 3 != 0:
+            raise ValueError('incorrect number of vertices')
 
-        name = header.strip()
-        if name in kwargs or len(name) == 0:
-            name = '{}_{}'.format(name, util.unique_id())
+        # reshape vertices to final 3D shape
+        vertices = vertices.reshape((-1, 3))
+        faces = np.arange(len(vertices)).reshape((-1, 3))
 
-        # create array of splits
-        blob = np.array(text.strip().split())
+        # try to extract the face normals the same way
+        face_normals = None
+        try:
+            normal_text = solid.split('normal')
+            normals = np.fromstring(
+                ' '.join(line[:line.find('\n')] for line
+                         in normal_text[1:]),
+                sep=' ',
+                dtype=np.float64)
+            if len(normals) == len(vertices):
+                face_normals = normals.reshape((-1, 3))
+        except BaseException:
+            util.log.warning(
+                'failed to extract face_normals',
+                exc_info=True)
 
-        # there are 21 'words' in each face
-        face_len = 21
+        try:
+            # try to extract the name from the header
+            name = str.splitlines(
+                vertex_text[0])[0].lstrip('solid').strip()
+        except BaseException:
+            name = 'geometry'
 
-        # length of blob should be multiple of face_len
-        if (len(blob) % face_len) != 0:
-            util.log.warning('skipping solid!')
-            continue
-        face_count = int(len(blob) / face_len)
-
-        # this offset is to be added to a fixed set of tiled indices
-        offset = face_len * np.arange(face_count).reshape((-1, 1))
-        normal_index = np.tile([2, 3, 4], (face_count, 1)) + offset
-        vertex_index = np.tile([8, 9, 10,
-                                12, 13, 14,
-                                16, 17, 18], (face_count, 1)) + offset
-
-        # faces are groups of three sequential vertices
-        faces = np.arange(face_count * 3).reshape((-1, 3))
-        face_normals = blob[normal_index].astype('<f8')
-        vertices = blob[vertex_index.reshape((-1, 3))].astype('<f8')
-
-        # only add vertices and faces if there is geometry
-        if len(vertices):
-            kwargs[name] = {'vertices': vertices,
-                            'faces': faces,
-                            'face_normals': face_normals}
+        # make sure geometry has a unique name
+        name = util.unique_name(name, kwargs)
+        kwargs[name] = {'vertices': vertices.reshape((-1, 3)),
+                        'faces': faces,
+                        'face_normals': face_normals}
 
     if len(kwargs) == 1:
         return next(iter(kwargs.values()))

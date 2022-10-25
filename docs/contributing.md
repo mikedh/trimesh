@@ -21,8 +21,20 @@ With a virtual environment so pip doesn't dump files everywhere you can install 
 pip install autopep8 flake8 flake8-no-implicit-concat codespell pyinstrument ipython
 ```
 
+If you're planning on editing trimesh you might want to fork it via the Github interface, then install it via an editable pip install:
+```
+# you probably want to clone your fork
+git clone git@github.com:mikedh/trimesh.git
+
+# do an editable install so you can experiment
+cd trimesh
+pip install -e .
+```
+
+
 I pretty much always start with an interactive terminal (i.e. a "REPL") inside a stub function:
 ```
+import trimesh
 import numpy as np
 
 def fancy_function(blah):
@@ -39,6 +51,10 @@ def fancy_function(blah):
     embed()
     
 if __name__ == '__main__':
+    # print out all the debug messages so we can see
+    # if there's something going on we need to look at
+    trimesh.util.attach_to_log()
+
     # I like pyinstrument as it's a relatively low-overhead sampling
     # profiler and has nice looking nested print statements compared
     # to cProfile or others.

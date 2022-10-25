@@ -77,7 +77,7 @@ def path_formats():
         Extensions of loadable formats, ie:
         ['svg', 'dxf']
     """
-    return list(path_loaders.keys())
+    return set(path_loaders.keys())
 
 
 path_loaders = {'svg': svg_to_path}

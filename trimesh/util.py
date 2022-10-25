@@ -2404,7 +2404,7 @@ def unique_name(start, contains):
       A name that is not contained in `contains`
     """
     # exit early if name is not in bundle
-    if len(contains) == 0 or (len(start) > 0 and start not in contains):
+    if len(start) > 0 and start not in contains:
         return start
 
     # start checking with zero index
@@ -2423,6 +2423,8 @@ def unique_name(start, contains):
                 formatter = split[0] + '_{}'
             except BaseException:
                 pass
+    else:
+        formatter = 'geometry_{}'
 
     # if contains is empty we will only need to check once
     for i in range(increment + 1, 2 + increment + len(contains)):

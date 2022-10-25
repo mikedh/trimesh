@@ -1,15 +1,18 @@
-"""
-A helper script to install `pandoc` to a user-writable
-location in their `PATH`.
-"""
-import os
-import tarfile
-import tempfile
-import subprocess
+#!/usr/bin/env python3
 
-url = 'https://github.com/jgm/pandoc/releases/download/2.18/pandoc-2.18-linux-amd64.tar.gz'
 
 if __name__ == '__main__':
+    """
+    A helper script to install `pandoc` to a user-writable
+    location in their `PATH`.
+    """
+    import os
+    import tarfile
+    import tempfile
+    import subprocess
+
+    url = 'https://github.com/jgm/pandoc/releases/download/2.18/pandoc-2.18-linux-amd64.tar.gz'
+
     # the values of PATH
     candidates = os.environ['PATH'].split(':')
     # locations that are writeable by current user
