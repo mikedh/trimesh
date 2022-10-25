@@ -296,12 +296,12 @@ def _svg_path_convert(paths, force=None):
         # create an integer code for entities we can combine
         kinds_lookup = {'Line': 1, 'Close': 1, 'Arc': 2}
         # get a code for each entity we parsed
-        kinds = np.array([kinds_lookup.get(type(i).__name__, 0) for i in raw], dtype=int)
-        # find groups of consecutive lines and arcs so we can combine them
+        kinds = np.array([kinds_lookup.get(type(i).__name__, 0)
+                          for i in raw], dtype=int)
+
+        # find groups of consecutive entities so we can combine
         blocks = grouping.blocks(
-            kinds,
-            min_len=1,
-            only_nonzero=False)
+            kinds, min_len=1, only_nonzero=False)
 
         if tol.strict:
             # in unit tests make sure we didn't lose any entities
