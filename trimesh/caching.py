@@ -548,6 +548,7 @@ class DiskCache(object):
                 with open(path, 'rb') as f:
                     return f.read()
 
+        log.debug('not in cache fetching: `{}`'.format(key))
         # since we made it here our data isn't cached
         # run the expensive function to fetch the file
         raw = fetch()

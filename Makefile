@@ -70,3 +70,4 @@ bash: build ## Start a bash terminal inside the image.
 publish-docker: build ## Publish Docker images.
 	docker push $(DOCKER_REPO)/$(IMAGE_NAME):latest
 	docker push $(DOCKER_REPO)/$(IMAGE_NAME):$(VERSION)
+	docker push $(DOCKER_REPO)/$(IMAGE_NAME):$(GIT_SHA)

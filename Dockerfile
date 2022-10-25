@@ -66,7 +66,10 @@ COPY --chown=user:user models ./models/
 COPY --chown=user:user setup.py .
 COPY --chown=user:user docker/gltfvalidator.bash .
 
-# RUN bash gltfvalidator.bash
+USER root
+RUN bash gltfvalidator.bash
+USER user
+
 # install things like pytest
 RUN pip install `python setup.py --list-test`
 
