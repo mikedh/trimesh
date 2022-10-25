@@ -18,6 +18,6 @@ echo "$SHA  validator.tar.xz" | sha256sum --check
 tar -xvf validator.tar.xz
 chmod +x gltf_validator
 
-mv gltf_validator ~/.local/bin/
+mv gltf_validator /usr/local/bin
 
 rm validator.tar.xz
