@@ -36,7 +36,6 @@ build: ## Build the docker images
 		--tag $(TAG_VERSION) \
 		--tag $(TAG_GIT_SHA) \
 		--build-arg "BUILDKIT_INLINE_CACHE=1" \
-		--build-arg "VERSION=$(VERSION)" \
 		.
 
 .PHONY: test

@@ -7,7 +7,7 @@ LABEL maintainer="mikedh@kerfed.com"
 ARG INCLUDE_X=false
 
 # Install binary APT dependencies.
-COPY docker/apt-trimesh /usr/local/bin/
+COPY --chmod=755 docker/apt-trimesh /usr/local/bin/
 RUN apt-trimesh --base=true --x11=${INCLUDE_X}
 
 # Install `embree`, Intel's fast ray checking engine
