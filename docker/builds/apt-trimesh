@@ -63,13 +63,11 @@ if __name__ == '__main__':
         help='Install packages for non-gpu offscreen rendering')
     parser.add_argument(
         '--base',
-        action='count',
-        default=0,
+        default='0',
         help='Install base packages')
     parser.add_argument(
         '--build',
-        action='count',
-        default=0,
+        default='0',
         help='Install compilers to build stuff')
     args = parser.parse_args()
 

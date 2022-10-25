@@ -8,7 +8,7 @@ ARG INCLUDE_X=false
 
 # Install binary APT dependencies.
 COPY docker/builds/apt-trimesh /usr/local/bin/
-RUN apt-trimesh --base --x11=${INCLUDE_X}
+RUN apt-trimesh --base=true --x11=${INCLUDE_X}
 
 # Install `embree`, Intel's fast ray checking engine
 COPY docker/builds/embree.bash /tmp/
@@ -26,7 +26,7 @@ ENV PATH="/home/user/.local/bin:$PATH"
 FROM trimesh AS build
 
 # install build-essentials
-RUN apt-trimesh --build
+RUN apt-trimesh --build=true
 
 # copy in essential files
 RUN mkdir -p /tmp/trimesh
@@ -46,7 +46,7 @@ FROM trimesh AS output
 
 USER user
 
-z# just copy over the build
+# just copy over the build
 COPY --from=build /home/user/.local /home/user/.local
 
 # Set environment variables for software rendering.

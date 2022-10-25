@@ -7,11 +7,15 @@ SHELL := bash
 .SUFFIXES:
 
 VERSION := $(shell python trimesh/version.py)
+GIT_SHA := $(shell git rev-parse --short HEAD) 
+
 
 IMAGE_NAME=trimesh/trimesh
 DOCKER_REPO=docker.io
 
+# the tags
 TAG_LATEST=$(DOCKER_REPO)/$(IMAGE_NAME):latest
+TAG_GIT_SHA=$(DOCKER_REPO)/$(IMAGE_NAME):$(GIT_SHA)
 TAG_VERSION=$(DOCKER_REPO)/$(IMAGE_NAME):$(VERSION)
 
 # This will output the help for each task
@@ -30,6 +34,7 @@ build: ## Build the docker images
 		--target output \
 		--tag $(TAG_LATEST) \
 		--tag $(TAG_VERSION) \
+		--tag $(TAG_GIT_SHA) \
 		--cache-from $(TAG_LATEST) \
 		--build-arg "BUILDKIT_INLINE_CACHE=1" \
 		--build-arg "VERSION=$(VERSION)" \
@@ -37,7 +42,10 @@ build: ## Build the docker images
 
 .PHONY: test
 test: build ## Run unit tests inside Docker image
-	docker run -v $(PWD):/opt/trimesh -t $(TAG_LATEST) pytest /opt/trimesh/tests
+	docker run -v $(PWD):/tmp/trimesh -t $(TAG_LATEST) \
+		pip install /tmp/trimesh[test] && \
+		ls -altrsh /tmp && \
+		pytest /tmp/trimesh/tests
 
 .PHONY: bash
 bash: build ## Start a bash terminal inside the image for debugging.
