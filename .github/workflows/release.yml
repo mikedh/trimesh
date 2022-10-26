@@ -111,7 +111,7 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
-        make tests # build docker images and run unit tests
+        make test # build docker images and run unit tests
         make publish-docker # push images to docker hub
         make docs # build sphinx docs
     - name: Deploy Github Pages

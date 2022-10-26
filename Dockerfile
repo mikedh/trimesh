@@ -66,19 +66,18 @@ COPY --chown=user:user models ./models/
 COPY --chown=user:user setup.py .
 COPY --chown=user:user docker/gltfvalidator.bash .
 
-USER root
+# install the khronos GLTF validator
 RUN bash gltfvalidator.bash
-USER user
 
 # install things like pytest
 RUN pip install `python setup.py --list-test`
 
-# run tests with no warning
-RUN pytest --cov=trimesh -x \
+# run tests
+RUN pytest --cov=trimesh \
     -p no:alldep \
     -p no:cacheprovider tests
 
-# set codecov token to upload
+# set codecov token as a build arg to upload
 ARG CODECOV_TOKEN=""
 RUN curl -Os https://uploader.codecov.io/latest/linux/codecov && \
     	 chmod +x codecov && \
