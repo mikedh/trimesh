@@ -8,9 +8,13 @@ SHELL := bash
 
 # get the git short hash and trimesh semver.
 VERSION := $(shell python trimesh/version.py)
-GIT_SHA := $(shell git rev-parse --short HEAD) 
+GIT_SHA := $(shell git rev-parse --short HEAD)
 
-# the name of the images
+# for coverage reports
+GIT_SHA_FULL := $(shell git rev-parse HEAD)
+GIT_REPO := "mikedh/trimesh"
+
+# the name of the docker images
 NAME=trimesh/trimesh
 REPO=docker.io
 IMAGE=$(REPO)/$(NAME)
@@ -46,6 +50,8 @@ test: ## Run unit tests inside docker images.
 		--target tests \
 		--progress=plain \
 		--build-arg "CODECOV_TOKEN=$(CODECOV_TOKEN)" \
+		--build-arg "CODECOV_REPO=$(GIT_REPO)" \
+		--build-arg "CODECOV_SHA=$(GIT_SHA_FULL)" \
 		.
 
 # build the docs inside our image and eject the contents
