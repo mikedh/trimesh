@@ -9,6 +9,7 @@ SHA="374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a"
 # SHA="f807ebd35d46bb513cab88a920e63ac0c335b77dcf4b91cd8d09ea661b335bcd"
 
 rm validator.tar.xz | true
+
 wget $URL -O validator.tar.xz
 
 # Check the hash of the downloaded file
@@ -18,6 +19,6 @@ echo "$SHA  validator.tar.xz" | sha256sum --check
 tar -xvf validator.tar.xz
 chmod +x gltf_validator
 
-mv gltf_validator /usr/local/bin
+mv gltf_validator /home/user/.local/bin
 
 rm validator.tar.xz

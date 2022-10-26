@@ -80,7 +80,7 @@ if __name__ == '__main__':
     print(args)
 
     # very simple base packages
-    base = 'wget curl sudo bzip2 zstd git'.split()
+    base = 'wget curl xz-utils git'.split()
 
     # things to get offscreen rendering working
     x11 = ('libgl1-mesa-glx libgl1-mesa-dri' +

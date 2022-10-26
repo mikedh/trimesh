@@ -63,7 +63,6 @@ jobs:
     - name: Install Brew On Mac
       if: matrix.os == 'macos-latest'
       run: |
-        brew install geos
         brew install --cask openscad
     - name: Test a minimal install
       run: |
@@ -71,9 +70,6 @@ jobs:
         python tests/test_minimal.py
     - name: Install Trimesh
       run: pip install .[easy,test]
-    - name: Install Linux Deps
-      if: matrix.os == 'ubuntu-latest'
-      run: sudo bash docker/gltfvalidator.bash
     - name: Run Pytest
       run: pytest tests/
 
@@ -111,7 +107,7 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
-        make tests # build docker images and run unit tests
+        make test # build docker images and run unit tests
         make publish-docker # push images to docker hub
         make docs # build sphinx docs
     - name: Deploy Github Pages
