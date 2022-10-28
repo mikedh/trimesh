@@ -51,7 +51,7 @@ test: ## Run unit tests inside docker images.
 		--progress=plain \
 		--build-arg "CODECOV_TOKEN=$(CODECOV_TOKEN)" \
 		--build-arg "CODECOV_REPO=$(GIT_REPO)" \
-		--build-arg "CODECOV_SHA=$(GIT_SHA_FULL)" \
+		--build-arg "CODECOV_COMMIT=$(GIT_SHA_FULL)" \
 		.
 
 # build the docs inside our image and eject the contents
