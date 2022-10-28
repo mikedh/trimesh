@@ -400,7 +400,7 @@ def convert_entities(
         # append the text origin and direction
         vertices.append(origin)
         vertices.append(vector)
-        
+
     def convert_insert(e):
         """
         Convert an INSERT entity, which inserts a named group of

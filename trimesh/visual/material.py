@@ -347,7 +347,7 @@ class PBRMaterial(Material):
             util.log.debug(
                 'unsupported material keys: {}'.format(
                     ', '.join(kwargs.keys())))
-        
+
     @property
     def emissiveFactor(self):
         """

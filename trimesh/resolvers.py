@@ -221,6 +221,21 @@ class ZipResolver(Resolver):
         return data
 
     def namespaced(self, namespace):
+        """
+        Return a "sub-resolver" with a root namespace.
+
+        Parameters
+        -------------
+        namespace : str
+          The root of the key to clip off, i.e. if
+          this resolver has key `a/b/c` you can get
+          'a/b/c' with resolver.namespaced('a/b').get('c')
+
+        Returns
+        -----------
+        resolver : Resolver
+          Namespaced resolver.
+        """
         return ZipResolver(archive=self.archive,
                            namespace=namespace)
 
@@ -331,6 +346,11 @@ class GithubResolver(Resolver):
     def keys(self):
         """
         List the available files in the repository.
+
+        Returns
+        ----------
+        keys : iterable
+          Keys available to the resolved.
         """
         return self.zipped.keys()
 
@@ -367,7 +387,19 @@ class GithubResolver(Resolver):
 
     def namespaced(self, namespace):
         """
-        Return a "sub-resolver" with a root namespae.
+        Return a "sub-resolver" with a root namespace.
+
+        Parameters
+        -------------
+        namespace : str
+          The root of the key to clip off, i.e. if
+          this resolver has key `a/b/c` you can get
+          'a/b/c' with resolver.namespaced('a/b').get('c')
+
+        Returns
+        -----------
+        resolver : Resolver
+          Namespaced resolver.
         """
         return self.zipped.namespaced(namespace)
 
