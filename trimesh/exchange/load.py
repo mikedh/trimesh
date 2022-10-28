@@ -22,7 +22,6 @@ from .misc import _misc_loaders
 from .gltf import _gltf_loaders
 from .xaml import _xaml_loaders
 from .binvox import _binvox_loaders
-from .assimp import _assimp_loaders
 from .threemf import _three_loaders
 from .openctm import _ctm_loaders
 from .threedxml import _threedxml_loaders
@@ -480,7 +479,8 @@ def load_kwargs(*args, **kwargs):
     def handle_path():
         from ..path import Path2D, Path3D
         shape = kwargs['vertices'].shape
-
+        if len(shape) < 2:
+            return Path2D()
         if shape[1] == 2:
             return Path2D(**kwargs)
         elif shape[1] == 3:
@@ -659,9 +659,6 @@ compressed_loaders = {'zip': load_compressed,
 
 # map file_type to loader function
 mesh_loaders = {}
-# assimp has a lot of loaders, but they are all quite slow
-# load first and replace with native loaders where possible
-mesh_loaders.update(_assimp_loaders)
 mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_stl_loaders)
 mesh_loaders.update(_ctm_loaders)

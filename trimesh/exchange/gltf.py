@@ -62,6 +62,9 @@ _GL_POINTS = 0
 _GL_TRIANGLES = 4
 _GL_STRIP = 5
 
+_EYE = np.eye(4)
+_EYE.flags.writeable = False
+
 # specify dtypes with forced little endian
 float32 = np.dtype("<f4")
 uint32 = np.dtype("<u4")
@@ -280,9 +283,19 @@ def load_gltf(file_obj=None,
         # old versions of python/json need strings
         tree = json.loads(util.decode_text(data))
 
+    # gltf 1.0 is a totally different format
+    # that wasn't widely deployed before they fixed it
+    version = tree.get('asset', {}).get('version', '2.0')
+    if float(version) < 2.0:
+        raise NotImplementedError(
+            'only GLTF 2.0 is supported not `{}`'.format(
+                version))
+
     # use the URI and resolver to get data from file names
-    buffers = [_uri_to_bytes(uri=b['uri'], resolver=resolver)
-               for b in tree['buffers']]
+    buffers = [_uri_to_bytes(
+        uri=b['uri'],
+            resolver=resolver)
+        for b in tree.get('buffers', [])]
 
     # turn the layout header and data into kwargs
     # that can be used to instantiate a trimesh.Scene object
@@ -328,10 +341,14 @@ def load_glb(file_obj,
     head_data = file_obj.read(20)
     head = np.frombuffer(head_data, dtype="<u4")
 
-    # check to make sure first index is gltf
-    # and second is 2, for GLTF 2.0
-    if head[0] != _magic["gltf"] or head[1] != 2:
-        raise ValueError("file is not GLTF 2.0")
+    # check to make sure first index is gltf magic header
+    if head[0] != _magic["gltf"]:
+        raise ValueError('incorrect header on GLB file')
+
+    # and second value is version: should be 2 for GLTF 2.0
+    if head[1] != 2:
+        raise NotImplementedError(
+            'file is not GLTF 2: `{}`'.format(head[1]))
 
     # overall file length
     # first chunk length
@@ -1536,20 +1553,31 @@ def _read_buffers(header,
     # start the traversal from the base frame to the roots
     for root in header["scenes"][scene_index]["nodes"]:
         # add transform from base frame to these root nodes
-        queue.append([base_frame, root])
+        queue.append((base_frame, root))
+
+    # make sure we don't process an edge multiple times
+    consumed = set()
 
     # go through the nodes tree to populate
     # kwargs for scene graph loader
     while len(queue) > 0:
         # (int, int) pair of node indexes
-        a, b = queue.pop()
+        edge = queue.pop()
+
+        # avoid looping forever if someone specified
+        # recursive nodes
+        if edge in consumed:
+            continue
+
+        consumed.add(edge)
+        a, b = edge
 
         # dict of child node
         # parent = nodes[a]
         child = nodes[b]
         # add edges of children to be processed
         if "children" in child:
-            queue.extend([[b, i] for i in child["children"]])
+            queue.extend([(b, i) for i in child["children"]])
 
         # kwargs to be passed to scene.graph.update
         kwargs = {"frame_from": names[a], "frame_to": names[b]}
@@ -1559,10 +1587,11 @@ def _read_buffers(header,
         # for the transform from parent to child
         if "matrix" in child:
             kwargs["matrix"] = np.array(
-                child["matrix"], dtype=np.float64).reshape((4, 4)).T
+                child["matrix"],
+                dtype=np.float64).reshape((4, 4)).T
         else:
             # if no matrix set identity
-            kwargs["matrix"] = np.eye(4)
+            kwargs["matrix"] = _EYE
 
         # Now apply keyword translations
         # GLTF applies these in order: T * R * S
@@ -1598,7 +1627,7 @@ def _read_buffers(header,
                     # save the name of the geometry
                     kwargs["geometry"] = geom_name
                     # no transformations
-                    kwargs["matrix"] = np.eye(4)
+                    kwargs["matrix"] = _EYE
                     kwargs['frame_from'] = names[b]
                     # if we have more than one primitive assign a new UUID
                     # frame name for the primitives after the first one

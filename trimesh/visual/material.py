@@ -313,7 +313,8 @@ class PBRMaterial(Material):
                  metallicRoughnessTexture=None,
                  doubleSided=False,
                  alphaMode=None,
-                 alphaCutoff=None):
+                 alphaCutoff=None,
+                 **kwargs):
 
         # store values in an internal dict
         self._data = {}
@@ -342,6 +343,11 @@ class PBRMaterial(Material):
         self.name = name
         self.alphaMode = alphaMode
 
+        if len(kwargs) > 0:
+            util.log.debug(
+                'unsupported material keys: {}'.format(
+                    ', '.join(kwargs.keys())))
+        
     @property
     def emissiveFactor(self):
         """

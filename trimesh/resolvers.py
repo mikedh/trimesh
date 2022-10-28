@@ -39,6 +39,9 @@ class Resolver(util.ABC):
     def write(self, name, data):
         raise NotImplementedError('`write` not implemented!')
 
+    def namespaced(self, namespace):
+        raise NotImplementedError('`namespaced` not implemented!')
+
     def __getitem__(self, key):
         return self.get(key)
 
@@ -81,7 +84,7 @@ class FilePathResolver(Resolver):
 
     def keys(self):
         """
-        List all files available to be loaded
+        List all files available to be loaded.
 
         Yields
         -----------
@@ -137,7 +140,7 @@ class ZipResolver(Resolver):
     Resolve files inside a ZIP archive.
     """
 
-    def __init__(self, archive):
+    def __init__(self, archive, namespace=None):
         """
         Resolve files inside a ZIP archive as loaded by
         trimesh.util.decompress
@@ -146,10 +149,27 @@ class ZipResolver(Resolver):
         -------------
         archive : dict
           Contains resources as file object
+        namespace : None or str
+          If passed will only show keys that start
+          with this value and this substring must be
+          removed for any get calls.
         """
         self.archive = archive
+        if isinstance(namespace, str):
+            self.namespace = namespace.strip().rstrip('/')
+        else:
+            self.namespace = namespace
 
     def keys(self):
+        if self.namespace is not None:
+            namespace = self.namespace
+            length = len(namespace) + 1
+            # only return keys that start with the namespace
+            # and strip off the namespace from the returned
+            # keys.
+            return [k[length:] for k in self.archive.keys()
+                    if k.startswith(namespace)
+                    and len(k) > length]
         return self.archive.keys()
 
     def get(self, name):
@@ -172,10 +192,13 @@ class ZipResolver(Resolver):
         # make sure name is a string
         if hasattr(name, 'decode'):
             name = name.decode('utf-8')
+        if self.namespace is not None:
+            name = '{}/{}'.format(self.namespace, name)
         # store reference to archive inside this function
         archive = self.archive
 
-        # requested name not identical in storage so attempt to recover
+        # requested name not identical in
+        # storage so attempt to recover
         if name not in archive:
             # loop through unique results
             for option in nearby_names(name):
@@ -184,13 +207,11 @@ class ZipResolver(Resolver):
                     # so store value and exit
                     name = option
                     break
-
         # get the stored data
         obj = archive[name]
         # if the dict is storing data as bytes just return
         if isinstance(obj, (bytes, str)):
             return obj
-
         # otherwise get it as a file object
         # read file object from beginning
         obj.seek(0)
@@ -198,6 +219,10 @@ class ZipResolver(Resolver):
         data = obj.read()
         obj.seek(0)
         return data
+
+    def namespaced(self, namespace):
+        return ZipResolver(archive=self.archive,
+                           namespace=namespace)
 
 
 class WebResolver(Resolver):
@@ -339,6 +364,12 @@ class GithubResolver(Resolver):
 
     def get(self, key):
         return self.zipped.get(key)
+
+    def namespaced(self, namespace):
+        """
+        Return a "sub-resolver" with a root namespae.
+        """
+        return self.zipped.namespaced(namespace)
 
 
 def nearby_names(name):
