@@ -49,10 +49,14 @@ jobs:
       run: |
         pip install .
         python tests/test_minimal.py
-    - name: Install Linux Deps
-      if: matrix.os == 'ubuntu-latest'
-      run: sudo bash docker/gltfvalidator.bash
     - name: Install Trimesh
       run: pip install .[easy,test]
     - name: Run Pytest
       run: pytest
+  docker:
+    name: Run Tests In Docker
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run Pytest In Docker
+      run: make test
