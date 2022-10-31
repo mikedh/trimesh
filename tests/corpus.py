@@ -1,5 +1,4 @@
 import trimesh
-import numpy as np
 from trimesh.util import wrap_as_stream
 
 if __name__ == '__main__':
@@ -72,5 +71,3 @@ if __name__ == '__main__':
     P.print()
 
     print('\n'.join(f'{k}: {v}' for k, v in results.items()))
-    
-    
