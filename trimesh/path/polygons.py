@@ -151,7 +151,12 @@ def edges_to_polygons(edges, vertices):
     complete = []
     for root in roots:
         interior = list(tree[root].keys())
-        shell = polygons[root].exterior.coords
+        try:
+            shell = polygons[root].exterior.coords
+        except:
+            from IPython import embed
+            embed()
+
         holes = [polygons[i].exterior.coords for i in interior]
         complete.append(Polygon(shell=shell,
                                 holes=holes))
@@ -253,8 +258,8 @@ def plot(polygon, show=True, **kwargs):
             plt.plot(*interior.xy, **kwargs)
     # make aspect ratio non-stupid
     plt.axes().set_aspect('equal', 'datalim')
-    if util.is_sequence(polygon):
-        [plot_single(i) for i in polygon]
+    if polygon.__class__.__name__ == 'MultiPolygon':
+        [plot_single(i) for i in polygon.geoms]
     else:
         plot_single(polygon)
 
