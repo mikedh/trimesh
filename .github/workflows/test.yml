@@ -14,7 +14,7 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
-        python-version: 3.10
+        python-version: "3.10"
     - name: Install Formatting
       run: |
         pip install autopep8 flake8 flake8-no-implicit-concat
@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [3.10]
+        python-version: ["3.10"]
         os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - os: ubuntu-latest
@@ -74,7 +74,7 @@ jobs:
     - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
-         python-version: 3.10
+         python-version: "3.10"
     - name: Install Trimesh
       run: pip install .[easy,test]
     - name: Run Corpus Check
