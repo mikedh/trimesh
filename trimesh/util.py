@@ -2319,7 +2319,7 @@ def decode_text(text, initial='utf-8'):
         import chardet
         # try to detect the encoding of the file
         # only look at the first 1000 charecters otherwise
-        # for big files chardet looks at everything and is slow 
+        # for big files chardet looks at everything and is slow
         detect = chardet.detect(text[:1000])
         # warn on files that aren't UTF-8
         log.debug(

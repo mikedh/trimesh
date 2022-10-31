@@ -16,10 +16,10 @@ class DXFTest(g.unittest.TestCase):
         # get a path we can write
         temp_name = g.tempfile.NamedTemporaryFile(
             suffix='.dxf', delete=False).name
-
+        loaded = g.get_2D()
         # split drawings into single body parts
         splits = []
-        for d in g.get_2D():
+        for d in loaded:
             s = d.split()
             # check area of split result vs source
             assert g.np.isclose(sum(i.area for i in s),

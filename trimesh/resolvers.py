@@ -156,9 +156,9 @@ class ZipResolver(Resolver):
         """
         self.archive = archive
         if isinstance(namespace, str):
-            self.namespace = namespace.strip().rstrip('/')
+            self.namespace = namespace.strip().rstrip('/') + '/'
         else:
-            self.namespace = namespace
+            self.namespace = None
 
     def keys(self):
         if self.namespace is not None:
@@ -192,21 +192,19 @@ class ZipResolver(Resolver):
         # make sure name is a string
         if hasattr(name, 'decode'):
             name = name.decode('utf-8')
-        if self.namespace is not None:
-            name = '{}/{}'.format(self.namespace, name)
         # store reference to archive inside this function
         archive = self.archive
-
         # requested name not identical in
         # storage so attempt to recover
         if name not in archive:
             # loop through unique results
-            for option in nearby_names(name):
+            for option in nearby_names(name, self.namespace):
                 if option in archive:
                     # cleaned option is in archive
                     # so store value and exit
                     name = option
                     break
+
         # get the stored data
         obj = archive[name]
         # if the dict is storing data as bytes just return
@@ -404,7 +402,7 @@ class GithubResolver(Resolver):
         return self.zipped.namespaced(namespace)
 
 
-def nearby_names(name):
+def nearby_names(name, namespace=None):
     """
     Try to find nearby variants of a specified name.
 
@@ -423,8 +421,13 @@ def nearby_names(name):
     cleaners = [lambda x: x,
                 lambda x: x.strip(),
                 lambda x: x.lstrip('./'),
+                lambda x: x.lstrip('.\\'),
+                lambda x: x.lstrip('\\'),
                 lambda x: os.path.split(x)[-1],
                 lambda x: x.replace('%20', ' ')]
+
+    if namespace is None:
+        namespace = ''
 
     # make sure we don't return repeat values
     hit = set()
@@ -434,7 +437,7 @@ def nearby_names(name):
         if current in hit:
             continue
         hit.add(current)
-        yield current
+        yield namespace + current
 
     for a, b in itertools.combinations(cleaners, 2):
         # apply both clean functions
@@ -442,11 +445,11 @@ def nearby_names(name):
         if current in hit:
             continue
         hit.add(current)
-        yield current
+        yield namespace + current
 
         # try applying in reverse order
         current = b(a(name))
         if current in hit:
             continue
         hit.add(current)
-        yield current
+        yield namespace + current
