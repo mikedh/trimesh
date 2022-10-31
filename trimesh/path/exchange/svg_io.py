@@ -289,6 +289,7 @@ def _svg_path_convert(paths, force=None):
         name = _decode(attrib.get(_ns + 'name'))
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
+        
         # if there is no path string exit
         if len(raw) == 0:
             continue

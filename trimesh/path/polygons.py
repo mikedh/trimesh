@@ -128,6 +128,8 @@ def edges_to_polygons(edges, vertices):
       Polygon objects with interiors
     """
 
+    assert isinstance(vertices, np.ndarray)
+
     # create closed polygon objects
     polygons = []
     # loop through a sequence of ordered traversals
@@ -620,7 +622,8 @@ def repair_invalid(polygon, scale=None, rtol=.5):
         return basic
 
     if scale is None:
-        distance = 0.002 * polygon_scale(polygon)
+        distance = 0.002 * np.reshape(
+            polygon.bounds, (2, 2)).ptp(axis=0).mean()
     else:
         distance = 0.002 * scale
 
@@ -640,7 +643,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
                 return recon
 
         # try de-deuplicating the outside ring
-        points = np.array(polygon.exterior)
+        points = np.array(polygon.exterior.coords)
         # remove any segments shorter than tol.merge
         # this is a little risky as if it was discretized more
         # finely than 1-e8 it may remove detail

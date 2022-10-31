@@ -2318,7 +2318,9 @@ def decode_text(text, initial='utf-8'):
         # detect different file encodings
         import chardet
         # try to detect the encoding of the file
-        detect = chardet.detect(text)
+        # only look at the first 1000 charecters otherwise
+        # for big files chardet looks at everything and is slow 
+        detect = chardet.detect(text[:1000])
         # warn on files that aren't UTF-8
         log.debug(
             'Data not {}! Trying {} (confidence {})'.format(
