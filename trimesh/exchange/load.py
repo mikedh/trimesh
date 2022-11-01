@@ -1,5 +1,6 @@
 import os
 import json
+import numpy as np
 
 from .. import util
 from .. import resolvers
@@ -478,7 +479,7 @@ def load_kwargs(*args, **kwargs):
 
     def handle_path():
         from ..path import Path2D, Path3D
-        shape = kwargs['vertices'].shape
+        shape = np.shape(kwargs['vertices'])
         if len(shape) < 2:
             return Path2D()
         if shape[1] == 2:

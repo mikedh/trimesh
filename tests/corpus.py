@@ -14,7 +14,7 @@ available.difference_update(
               trimesh.exchange.dae.load_collada)])
 # remove loaders we don't care about
 available.difference_update({'json'})
-
+available.update(trimesh.exchange.load.path_formats())
 
 def on_repo(repo, commit):
     """
