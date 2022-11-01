@@ -136,7 +136,12 @@ def edges_to_polygons(edges, vertices):
     for dfs in graph.traversals(edges, mode='dfs'):
         try:
             # try to recover polygons before they are more complicated
-            polygons.append(repair_invalid(Polygon(vertices[dfs])))
+            repaired = repair_invalid(Polygon(vertices[dfs]))
+            # if it returned a multipolygon extend into a flat list
+            if hasattr(repaired, 'geoms'):
+                polygons.extend(repaired.geoms)
+            else:
+                polygons.append(repaired)
         except ValueError:
             continue
 
@@ -151,12 +156,7 @@ def edges_to_polygons(edges, vertices):
     complete = []
     for root in roots:
         interior = list(tree[root].keys())
-        try:
-            shell = polygons[root].exterior.coords
-        except:
-            from IPython import embed
-            embed()
-
+        shell = polygons[root].exterior.coords
         holes = [polygons[i].exterior.coords for i in interior]
         complete.append(Polygon(shell=shell,
                                 holes=holes))
@@ -221,7 +221,7 @@ def transform_polygon(polygon, matrix):
     """
     matrix = np.asanyarray(matrix, dtype=np.float64)
 
-    if util.is_sequence(polygon):
+    if hasattr(polygon, 'geoms'):
         result = [transform_polygon(p, t)
                   for p, t in zip(polygon, matrix)]
         return result
@@ -462,8 +462,8 @@ def random_polygon(segments=8, radius=1.0):
         (np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
     points = np.vstack((points, points[0]))
     polygon = Polygon(points).buffer(0.0)
-    if util.is_sequence(polygon):
-        return polygon[0]
+    if hasattr(polygon, 'geoms'):
+        return polygon.geoms[0]
     return polygon
 
 
@@ -617,7 +617,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     # this will fix a subset of problems.
     basic = polygon.buffer(tol.zero)
     # if it returned multiple polygons check the largest
-    if util.is_sequence(basic):
+    if hasattr(basic, 'geoms'):
         basic = basic.geoms[np.argmax([i.area for i in basic.geoms])]
 
     # check perimeter of result against original perimeter
@@ -665,8 +665,10 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     # buffer and unbuffer the whole polygon
     buffered = polygon.buffer(distance).buffer(-distance)
     # if it returned multiple polygons check the largest
-    if util.is_sequence(buffered):
-        buffered = buffered.geoms[np.argmax([i.area for i in buffered.geoms])]
+    if hasattr(buffered, 'geoms'):
+        areas = np.array([b.area for b in buffered.geoms])
+        return buffered.geoms[areas.argmax()]
+
     # check perimeter of result against original perimeter
     if buffered.is_valid and np.isclose(buffered.length,
                                         polygon.length,
