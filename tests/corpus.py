@@ -60,8 +60,6 @@ def on_repo(repo, commit):
             raised = True
             if not should_raise:
                 print(path, E)
-                from IPython import embed
-                embed()
                 raise E
             report[saveas] = str(E)
 

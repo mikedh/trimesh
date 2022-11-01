@@ -290,7 +290,7 @@ def load_gltf(file_obj=None,
         # parse semver like '1.0.1' into just a major integer
         major = int(version.split('.', 1)[0])
     else:
-        major = int(version)
+        major = int(float(version))
 
     if major < 2:
         raise NotImplementedError(
