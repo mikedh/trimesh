@@ -286,9 +286,15 @@ def load_gltf(file_obj=None,
     # gltf 1.0 is a totally different format
     # that wasn't widely deployed before they fixed it
     version = tree.get('asset', {}).get('version', '2.0')
-    if float(version) < 2.0:
+    if isinstance(version, str):
+        # parse semver like '1.0.1' into just a major integer
+        major = int(version.split('.', 1)[0])
+    else:
+        major = int(version)
+
+    if major < 2:
         raise NotImplementedError(
-            'only GLTF 2.0 is supported not `{}`'.format(
+            'only GLTF 2 is supported not `{}`'.format(
                 version))
 
     # use the URI and resolver to get data from file names
@@ -348,7 +354,8 @@ def load_glb(file_obj,
     # and second value is version: should be 2 for GLTF 2.0
     if head[1] != 2:
         raise NotImplementedError(
-            'file is not GLTF 2: `{}`'.format(head[1]))
+            'only GLTF 2 is supported not `{}`'.format(
+                head[1]))
 
     # overall file length
     # first chunk length
@@ -1223,9 +1230,13 @@ def _parse_materials(header, views, resolver=None):
                     pbr[k] = v
                 elif "index" in v:
                     # get the index of image for texture
-                    idx = header["textures"][v["index"]]["source"]
-                    # store the actual image as the value
-                    pbr[k] = images[idx]
+                    try:
+                        idx = header["textures"][v["index"]]["source"]
+                        # store the actual image as the value
+                        pbr[k] = images[idx]
+                    except BaseException:
+                        log.debug('unable to store texture',
+                                  exc_info=True)
             # create a PBR material object for the GLTF material
             materials.append(visual.material.PBRMaterial(**pbr))
 
@@ -1361,7 +1372,6 @@ def _read_buffers(header,
                 kwargs = {"metadata": {}, "process": False}
                 kwargs.update(mesh_kwargs)
                 kwargs["metadata"].update(metadata)
-
                 # i.e. GL_LINES, GL_TRIANGLES, etc
                 mode = p.get('mode')
                 # colors, normals, etc
@@ -1400,8 +1410,9 @@ def _read_buffers(header,
                         # indices are apparently optional and we are supposed to
                         # do the same thing as webGL drawArrays?
                         kwargs['faces'] = np.arange(
-                            len(kwargs['vertices']),
+                            len(kwargs['vertices']) * 3,
                             dtype=np.int64).reshape((-1, 3))
+
                     if 'NORMAL' in attr:
                         # vertex normals are specified
                         kwargs['vertex_normals'] = access[attr['NORMAL']]
@@ -1518,7 +1529,7 @@ def _read_buffers(header,
         [meshes.pop(p, None) for p in mesh_pop]
 
     # make it easier to reference nodes
-    nodes = header["nodes"]
+    nodes = header.get("nodes", [])
     # nodes are referenced by index
     # save their string names if they have one
     # we have to accumulate in a for loop opposed
@@ -1550,10 +1561,11 @@ def _read_buffers(header,
         # otherwise just use the first index
         scene_index = 0
 
-    # start the traversal from the base frame to the roots
-    for root in header["scenes"][scene_index]["nodes"]:
-        # add transform from base frame to these root nodes
-        queue.append((base_frame, root))
+    if 'scenes' in header:
+        # start the traversal from the base frame to the roots
+        for root in header["scenes"][scene_index].get("nodes", []):
+            # add transform from base frame to these root nodes
+            queue.append((base_frame, root))
 
     # make sure we don't process an edge multiple times
     consumed = set()

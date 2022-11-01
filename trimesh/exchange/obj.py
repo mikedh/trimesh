@@ -58,6 +58,7 @@ def load_obj(file_obj,
     text = file_obj.read()
     # if text was bytes decode into string
     text = util.decode_text(text)
+
     # add leading and trailing newlines so we can use the
     # same logic even if they jump directly in to data lines
     text = '\n{}\n'.format(text.strip().replace('\r\n', '\n'))
