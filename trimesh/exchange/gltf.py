@@ -298,10 +298,8 @@ def load_gltf(file_obj=None,
                 version))
 
     # use the URI and resolver to get data from file names
-    buffers = [_uri_to_bytes(
-        uri=b['uri'],
-            resolver=resolver)
-        for b in tree.get('buffers', [])]
+    buffers = [_uri_to_bytes(uri=b['uri'], resolver=resolver)
+               for b in tree.get('buffers', [])]
 
     # turn the layout header and data into kwargs
     # that can be used to instantiate a trimesh.Scene object
@@ -332,7 +330,8 @@ def load_glb(file_obj,
     resolver : trimesh.visual.Resolver
       Object which can be used to load other files by name
     merge_primitives : bool
-      If True, each GLTF 'mesh' will correspond to a single Trimesh object
+      If True, each GLTF 'mesh' will correspond to a
+      single Trimesh object.
 
     Returns
     ------------

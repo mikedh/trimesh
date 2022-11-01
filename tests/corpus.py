@@ -14,15 +14,22 @@ available.difference_update(
               trimesh.exchange.dae.load_collada)])
 # remove loaders we don't care about
 available.difference_update({'json'})
-available.update(trimesh.exchange.load.path_formats())
+available.update({'dxf', 'svg'})
 
 
 def on_repo(repo, commit):
     """
     Try loading all supported files in a Github repo.
+
+    Parameters
+    -----------
+    repo : str
+      Github "slug" i.e. "assimp/assimp"
+    commit : str
+      Full hash of the commit to check.
     """
 
-    # get a copy of a recent commit from assimp
+    # get a resolver for the specific commit
     repo = trimesh.resolvers.GithubResolver(
         repo=repo, commit=commit,
         save='~/.trimesh-cache')
@@ -39,12 +46,13 @@ def on_repo(repo, commit):
 
         check = path.lower()
         broke = ('malformed empty outofmemory ' +
-                 'bad incorrect missing failures pond.0.ply').split()
+                 'bad incorrect missing ' +
+                 'failures pond.0.ply').split()
         should_raise = any(b in check for b in broke)
         raised = False
 
-        # clip off the front of the report
-        saveas = path[path.find('models') + 7:]
+        # clip off the big old name from the archive
+        saveas = path[path.find(commit) + len(commit):]
 
         try:
             m = trimesh.load(
@@ -59,12 +67,13 @@ def on_repo(repo, commit):
             report[saveas] = str(E)
         except BaseException as E:
             raised = True
+            # we got an error on a file that should have passed
             if not should_raise:
                 print(path, E)
                 raise E
             report[saveas] = str(E)
 
-        # if it worked and it shouldn't have, raise
+        # if it worked when it didn't have to add a label
         if should_raise and not raised:
             # raise ValueError(name)
             report[saveas] += ' SHOULD HAVE RAISED'
@@ -77,12 +86,15 @@ if __name__ == '__main__':
     trimesh.util.attach_to_log()
 
     with Profiler() as P:
+        # check the assimp corpus, about 50mb
         report = on_repo(
             repo='assimp/assimp',
             commit='c2967cf79acdc4cd48ecb0729e2733bf45b38a6f')
+        # check the gltf-sample-models, about 1gb
         report.update(on_repo(
             repo='KhronosGroup/glTF-Sample-Models',
             commit='8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b'))
     P.print()
 
+    # print a formatted report of what we loaded
     print('\n'.join(f'# {k}\n{v}\n' for k, v in report.items()))
