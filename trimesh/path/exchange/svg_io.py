@@ -375,13 +375,16 @@ def _svg_path_convert(paths, force=None):
                 vertices[name].append(transform_points(v, matrix))
                 counts[name] += len(v)
 
+    if len(vertices) == 0:
+        return {'vertices': [], 'entities': []}
+
     geoms = {name: {'vertices': np.vstack(v),
                     'entities': entities[name]}
              for name, v in vertices.items()}
     if len(geoms) > 1 or force == 'Scene':
         kwargs = {'geometry': geoms}
     else:
-        # return a Path2D
+        # return a single Path2D
         kwargs = next(iter(geoms.values()))
 
     return kwargs
