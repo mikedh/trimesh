@@ -113,9 +113,10 @@ def load_ply(file_obj,
         if image_name is not None:
             data = resolver.get(image_name)
             image = PIL.Image.open(util.wrap_as_stream(data))
+    except ImportError:
+        log.debug('textures require `pip install pillow`')
     except BaseException:
-        log.warning(
-            'unable to load image!', exc_info=True)
+        log.warning('unable to load image!', exc_info=True)
 
     # translate loaded PLY elements to kwargs
     kwargs = elements_to_kwargs(
