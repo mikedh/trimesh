@@ -3,7 +3,6 @@ import numpy as np
 from shapely import ops
 from shapely.geometry import Polygon
 
-from .. import util
 from .. import bounds
 from .. import graph
 from .. import geometry
