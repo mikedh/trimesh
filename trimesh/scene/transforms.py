@@ -127,26 +127,38 @@ class SceneGraph(object):
             frame_to].get('geometry')
 
         # get a local reference to edge data
-        edge_data = self.transforms.edge_data
+        data = self.transforms.edge_data
 
         if frame_from == frame_to:
             # if we're going from ourself return identity
-            matrix = np.eye(4)
-        elif key in edge_data:
+            matrix = _identity
+        elif key in data:
             # if the path is just an edge return early
-            matrix = edge_data[key]['matrix']
+            matrix = data[key]['matrix']
         else:
             # we have a 3+ node path
             # get the path from the forest always going from
             # parent -> child -> child
             path = self.transforms.shortest_path(
                 frame_from, frame_to)
-            # collect a homogeneous transform for each edge
-            matrices = [edge_data[(u, v)]['matrix'] for u, v in
-                        zip(path[:-1], path[1:])]
+
+            # the first and last nodes should be
+            assert set([path[0], path[-1]]) == set(
+                [frame_from, frame_to])
+
+            matrices = []
+            for u, v in zip(path[:-1], path[1:]):
+                forward = data.get((u, v), {}).get('matrix')
+                if forward is not None:
+                    # append the matrix from u to v
+                    matrices.append(forward)
+                else:
+                    # append the backwards matrix
+                    matrices.append(np.linalg.inv(
+                        data[(v, u)]['matrix']))
+
             # multiply matrices into single transform
             matrix = util.multi_dot(matrices)
-
         # store the result
         self._cache[key] = (matrix, geometry)
 

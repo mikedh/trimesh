@@ -155,6 +155,34 @@ class GraphTests(g.unittest.TestCase):
         # should have moved from original position
         assert not g.np.allclose(m.convex_hull.bounds, b)
 
+    def test_reverse(self):
+        tf = g.trimesh.transformations
+
+        s = g.trimesh.scene.Scene()
+        s.add_geometry(
+            g.trimesh.creation.box(),
+            parent_node_name='world',
+            node_name='foo',
+            transform=tf.translation_matrix([0, 0, 1]))
+
+        s.add_geometry(
+            g.trimesh.creation.box(),
+            parent_node_name='foo',
+            node_name='foo2',
+            transform=tf.translation_matrix([0, 0, 1]))
+
+        assert len(s.graph.transforms.edge_data) == 2
+        a = s.graph.get('world', 'foo2')
+
+        assert len(s.graph.transforms.edge_data) == 2
+
+        b = s.graph.get('foo2')
+        # get should not have edited edge data
+        assert len(s.graph.transforms.edge_data) == 2
+
+        # matrix should be the same both ways
+        assert g.np.allclose(b[0], a[0])
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
