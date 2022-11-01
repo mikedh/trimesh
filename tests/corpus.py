@@ -16,6 +16,7 @@ available.difference_update(
 available.difference_update({'json'})
 available.update(trimesh.exchange.load.path_formats())
 
+
 def on_repo(repo, commit):
     """
     Try loading all supported files in a Github repo.
