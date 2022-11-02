@@ -8,6 +8,8 @@ from ..constants import res_path as res
 
 # floating point zero
 _TOL_ZERO = 1e-12
+_TOL_MERGE = 1e-8
+_TOL_MINUS = _TOL_ZERO - 1
 
 
 def arc_center(points, return_normal=True, return_angle=True):
@@ -52,7 +54,7 @@ def arc_center(points, return_normal=True, return_angle=True):
     half = edges.sum() / 2.0
     # check the denominator for the radius calculation
     denom = half * np.product(half - edges)
-    if denom < tol.merge:
+    if denom < _TOL_MERGE:
         raise ValueError('arc is colinear!')
     # find the radius and scale back after the operation
     radius = scale * ((np.product(edges) / 4.0) / np.sqrt(denom))
@@ -63,51 +65,55 @@ def arc_center(points, return_normal=True, return_angle=True):
                (3, 3)).sum(axis=1) * abc2
     center = points.T.dot(ba2) / ba2.sum()
 
-    if tol.strict:
-        # all points should be at the calculated radius from center
-        assert util.allclose(
-            np.linalg.norm(points - center, axis=1),
-            radius)
-
     # start with initial results
     result = {'center': center,
               'radius': radius}
 
-    if return_normal:
-        if points.shape == (3, 2):
-            # for 2D arcs still use the cross product so that
-            # the sign of the normal vector is consistent
-            result['normal'] = util.unitize(
-                np.cross(np.append(-vectors[1], 0),
-                         np.append(vectors[2], 0)))
-        else:
-            # otherwise just take the cross product
-            result['normal'] = util.unitize(
-                np.cross(-vectors[1], vectors[2]))
+    if points.shape == (3, 2) or points[:, 2].ptp() < tol.merge:
+        # for 2D arcs still use the cross product so that
+        # the sign of the normal vector is consistent
+        # normal_dumb = util.unitize(
+        #    np.cross(np.append(-vectors[1][:2], 0),
+        #             np.append(vectors[2][:2], 0)))
 
-    if return_angle:
+        # sign = np.sign(
+        #    ((points[1,1] - points[0,1]) * (points[2,0] - points[1,0])) -
+        #    ((points[1,0] - points[0,0]) * (points[2,1] - points[1,1])))
+
+        # 3v = np.diff(points, axis=0)[:,:2]
+        # equvilant to:
+        # vectors[[2,0],:2]
+        # slope = np.divide(*v.T[::-1])
+
+        # check slopes
+        sign = np.sign(np.subtract(*(vectors[[2, 0], 1] / vectors[[2, 0], 0])))
+        result['normal'] = [0.0, 0.0, -sign]
+    else:
+        # otherwise just take the cross product
+        result['normal'] = np.cross(-vectors[2], vectors[0])
+
         # vectors from points on arc to center point
-        vector = util.unitize(points - center)
-        edge_direction = np.diff(points, axis=0)
-        # find the angle between the first and last vector
-        dot = np.dot(*vector[[0, 2]])
-        if dot < (_TOL_ZERO - 1):
-            angle = np.pi
-        elif dot > 1 - _TOL_ZERO:
-            angle = 0.0
-        else:
-            angle = np.arccos(dot)
-        # if the angle is nonzero and vectors are opposite direction
-        # it means we have a long arc rather than the short path
-        if abs(angle) > _TOL_ZERO and np.dot(*edge_direction) < 0.0:
-            angle = (np.pi * 2) - angle
-        # convoluted angle logic
-        angles = np.arctan2(*vector[:, :2].T[::-1]) + np.pi * 2
-        angles_sorted = np.sort(angles[[0, 2]])
-        reverse = angles_sorted[0] < angles[1] < angles_sorted[1]
-        angles_sorted = angles_sorted[::(1 - int(not reverse) * 2)]
-        result['angles'] = angles_sorted
-        result['span'] = angle
+    vector = (points - center) / radius
+
+    # find the angle between the first and last vector
+    dot = np.dot(*vector[[0, 2]])
+    if dot < _TOL_MINUS:
+        angle = np.pi
+    elif dot > 1 - _TOL_ZERO:
+        angle = 0.0
+    else:
+        angle = np.arccos(dot)
+    # if the angle is nonzero and vectors are opposite direction
+    # it means we have a long arc rather than the short path
+    if abs(angle) > _TOL_ZERO and dot > 0.0:
+        angle = (np.pi * 2) - angle
+    # convoluted angle logic
+    angles = np.arctan2(*vector[:, :2].T[::-1]) + np.pi * 2
+    angles_sorted = np.sort(angles[[0, 2]])
+    reverse = angles_sorted[0] < angles[1] < angles_sorted[1]
+
+    result['angles'] = angles_sorted[::(1 - int(not reverse) * 2)]
+    result['span'] = angle
 
     return result
 

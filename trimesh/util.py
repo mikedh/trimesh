@@ -2371,10 +2371,8 @@ def is_ccw(points):
     yd = np.dot(np.column_stack((
         points[:, 1],
         points[:, 1])).reshape(-1)[1:-1].reshape((-1, 2)), [1, 1])
-    area = np.sum(xd * yd) * .5
-    ccw = area < 0
-
-    return ccw
+    # check sign of the effective area
+    return (xd * yd).sum() < 0.0
 
 
 def unique_name(start, contains):
@@ -2417,7 +2415,7 @@ def unique_name(start, contains):
             except BaseException:
                 pass
     else:
-        formatter = 'geometry_{}'
+        formatter = 'item_{}'
 
     # if contains is empty we will only need to check once
     for i in range(increment + 1, 2 + increment + len(contains)):

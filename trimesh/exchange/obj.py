@@ -347,6 +347,8 @@ def parse_mtl(mtl, resolver=None):
                 # an image file name
                 material['image'] = Image.open(
                     util.wrap_as_stream(file_data))
+            except ImportError:
+                log.debug('images require `pip install pillow`')
             except BaseException:
                 log.debug('failed to load image', exc_info=True)
 
