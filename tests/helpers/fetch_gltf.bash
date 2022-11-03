@@ -9,4 +9,4 @@ zip --junk-paths gltf2.schema.zip glTF-main/specification/2.0/schema/*.json
 # remove the giant artifacts
 rm -rf glTF-main
 rm -f main.zip
-mv gltf2.schema.zip ../schema
+mv gltf2.schema.zip ../../trimesh/resources/schema

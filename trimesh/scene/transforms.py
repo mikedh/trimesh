@@ -314,6 +314,8 @@ class SceneGraph(object):
         edgelist : (n,) list
           Of edge tuples
         """
+        # save local reference to node_data
+        nodes = self.transforms.node_data
         # save cleaned edges
         export = []
         # loop through (node, node, edge attributes)
@@ -322,7 +324,7 @@ class SceneGraph(object):
             a, b = edge
             # geometry is a node property but save it to the
             # edge so we don't need two dictionaries
-            b_attr = self.transforms.node_data[b]
+            b_attr = nodes[b]
             # make sure we're not stomping on original
             attr_new = attr.copy()
             # apply node geometry to edge attributes
@@ -332,7 +334,7 @@ class SceneGraph(object):
             attr_new.update(
                 {k: v.tolist() for k, v in attr_new.items()
                  if hasattr(v, 'tolist')})
-            export.append((a, b, attr_new))
+            export.append([a, b, attr_new])
         return export
 
     def from_edgelist(self, edges, strict=True):
@@ -348,6 +350,7 @@ class SceneGraph(object):
           If True raise a ValueError when a
           malformed edge is passed in a tuple.
         """
+
         # loop through each edge
         for edge in edges:
             # edge contains attributes
