@@ -1,5 +1,3 @@
-import uuid
-
 import numpy as np
 import collections
 
@@ -8,6 +6,8 @@ from copy import deepcopy
 from .. import util
 from .. import caching
 from .. import transformations
+
+from ..caching import hash_fast
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -38,7 +38,7 @@ class SceneGraph(object):
         # hashable, the base or root frame
         self.base_frame = base_frame
         # cache transformation matrices keyed with tuples
-        self._cache = caching.Cache(self.__hash__)
+        self._cache = caching.Cache(self.transforms.__hash__)
 
     def update(self, frame_to, frame_from=None, **kwargs):
         """
@@ -79,11 +79,7 @@ class SceneGraph(object):
 
         # add the edges for the transforms
         # will return if it changed anything
-        if self.transforms.add_edge(
-                frame_from, frame_to, **attr):
-            # clear all cached matrices by setting
-            # modified hash to a random string
-            self._modified = str(uuid.uuid4())
+        self.transforms.add_edge(frame_from, frame_to, **attr)
 
         # set the node attribute with the geometry information
         if 'geometry' in kwargs:
@@ -165,14 +161,7 @@ class SceneGraph(object):
         return matrix, geometry
 
     def __hash__(self):
-        return hash(self.modified())
-
-    def modified(self):
-        """
-        Return the last time stamp data was modified.
-        """
-        return (getattr(self, '_modified', '-') +
-                getattr(self.transforms, '_modified', '-'))
+        return self.transforms.__hash__()
 
     def copy(self):
         """
@@ -546,7 +535,6 @@ class EnforcedForest(object):
         # topology has changed so clear cache
         if (u, v) not in self.edge_data:
             self._cache = {}
-            self._modified = str(uuid.uuid4())
         else:
             # check to see if matrix and geometry are identical
             edge = self.edge_data[(u, v)]
@@ -591,7 +579,6 @@ class EnforcedForest(object):
 
         # topology will change so clear cache
         self._cache = {}
-        self._modified = str(uuid.uuid4())
 
         # delete all children's references and parent reference
         children = [child for (child, parent) in self.parents.items() if parent == u]
@@ -732,11 +719,26 @@ class EnforcedForest(object):
                 collected.update(childs)
         return collected
 
-    def modified(self):
+    def __hash__(self):
         """
-        Return the last time stamp data was modified.
+        Actually hash all of the data.
+
+        Previously we were relying on "dirty" flags but
+        that made the bookkeeping unreasonably critical.
+
+        This was optimized a bit, and is evaluating on an
+        older laptop on a scene with 77 nodes and 76 edges
+        10,000 times in 0.7s which seems fast enough.
         """
-        return getattr(self, '_modified', '-')
+
+        return hash_fast(
+            (''.join(k[0] + k[1] + v.get('geometry', '')
+                     for k, v in self.edge_data.items()) +
+             ''.join(k + v.get('geometry', '')
+                     for k, v in self.node_data.items())).encode('utf-8') +
+            b''.join(v['matrix'].tobytes()
+                     for v in self.edge_data.values()
+                     if 'matrix' in v))
 
 
 def kwargs_to_matrix(

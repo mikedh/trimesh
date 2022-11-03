@@ -241,10 +241,10 @@ class Scene(Geometry3D):
         # avoid accessing attribute in tight loop
         geometry = self.geometry
         # start with the last modified time of the scene graph
-        hashable = [hex(hash(self.graph))]
+        hashable = [hex(self.graph.transforms.__hash__())]
         # take the re-hex string of the hash
         hashable.extend(hex(geometry[k].__hash__()) for k in
-                        sorted(geometry.keys()))
+                        geometry.keys())
         return caching.hash_fast(
             ''.join(hashable).encode('utf-8'))
 
