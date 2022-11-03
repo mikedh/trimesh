@@ -974,7 +974,8 @@ def annulus(r_min,
         return cylinder(radius=r_max,
                         height=height,
                         sections=sections,
-                        transform=transform)
+                        transform=transform,
+                        **kwargs)
     r_max = abs(float(r_max))
     # we're going to center at XY plane so take half the height
     half = abs(float(height)) / 2.0
