@@ -1887,27 +1887,19 @@ def decompress(file_obj, file_type):
       Data from archive in format {file name : file-like}
     """
 
-    def is_zip():
-        archive = zipfile.ZipFile(file_obj)
-        result = {name: wrap_as_stream(archive.read(name))
-                  for name in archive.namelist()}
-        return result
-
-    def is_tar():
-        import tarfile
-        archive = tarfile.open(fileobj=file_obj, mode='r')
-        result = {name: archive.extractfile(name)
-                  for name in archive.getnames()}
-        return result
-
     file_type = str(file_type).lower()
     if isinstance(file_obj, bytes):
         file_obj = wrap_as_stream(file_obj)
 
-    if file_type[-3:] == 'zip':
-        return is_zip()
+    if file_type.endswith('zip'):
+        archive = zipfile.ZipFile(file_obj)
+        return {name: wrap_as_stream(archive.read(name))
+                for name in archive.namelist()}
     if 'tar' in file_type[-6:]:
-        return is_tar()
+        import tarfile
+        archive = tarfile.open(fileobj=file_obj, mode='r')
+        return {name: archive.extractfile(name)
+                for name in archive.getnames()}
     raise ValueError('Unsupported type passed!')
 
 
@@ -2310,7 +2302,6 @@ def decode_text(text, initial='utf-8'):
     # if not bytes just return input
     if not hasattr(text, 'decode'):
         return text
-
     try:
         # initially guess file is UTF-8 or specified encoding
         text = text.decode(initial)
@@ -2318,7 +2309,9 @@ def decode_text(text, initial='utf-8'):
         # detect different file encodings
         import chardet
         # try to detect the encoding of the file
-        detect = chardet.detect(text)
+        # only look at the first 1000 charecters otherwise
+        # for big files chardet looks at everything and is slow
+        detect = chardet.detect(text[:1000])
         # warn on files that aren't UTF-8
         log.debug(
             'Data not {}! Trying {} (confidence {})'.format(
@@ -2326,7 +2319,7 @@ def decode_text(text, initial='utf-8'):
                 detect['encoding'],
                 detect['confidence']))
         # try to decode again, unwrap in try
-        text = text.decode(detect['encoding'])
+        text = text.decode(detect['encoding'], errors='ignore')
     return text
 
 

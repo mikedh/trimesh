@@ -40,7 +40,7 @@ _ns_url = 'https://github.com/mikedh/trimesh'
 _ns = '{{{}}}'.format(_ns_url)
 
 
-def svg_to_path(file_obj, file_type=None):
+def svg_to_path(file_obj=None, file_type=None, path_string=None):
     """
     Load an SVG file into a Path2D object.
 
@@ -50,6 +50,8 @@ def svg_to_path(file_obj, file_type=None):
       Contains SVG data
     file_type: None
       Not used
+    path_string : None or str
+      If passed, parse a single path string and ignore `file_obj`.
 
     Returns
     -----------
@@ -84,21 +86,29 @@ def svg_to_path(file_obj, file_type=None):
         else:
             return util.multi_dot(matrices[::-1])
 
-    # first parse the XML
-    tree = etree.fromstring(file_obj.read())
-    # store paths and transforms as
-    # (path string, 3x3 matrix)
-    paths = []
-    for element in tree.iter('{*}path'):
-        # store every path element attributes and transform
-        paths.append((element.attrib,
-                      element_transform(element)))
+    force = None
+    if file_obj is not None:
+        # first parse the XML
+        tree = etree.fromstring(file_obj.read())
+        # store paths and transforms as
+        # (path string, 3x3 matrix)
+        paths = []
+        for element in tree.iter('{*}path'):
+            # store every path element attributes and transform
+            paths.append((element.attrib,
+                          element_transform(element)))
 
-    try:
-        # see if the SVG should be reproduced as a scene
-        force = tree.attrib[_ns + 'class']
-    except BaseException:
-        force = None
+        try:
+            # see if the SVG should be reproduced as a scene
+            force = tree.attrib[_ns + 'class']
+        except BaseException:
+            pass
+
+    elif path_string is not None:
+        # parse a single SVG path string
+        paths = [({'d': path_string}, np.eye(3))]
+    else:
+        raise ValueError('`file_obj` or `pathstring` required')
 
     result = _svg_path_convert(paths=paths, force=force)
     try:
@@ -289,6 +299,7 @@ def _svg_path_convert(paths, force=None):
         name = _decode(attrib.get(_ns + 'name'))
         # get parsed entities from svg.path
         raw = np.array(list(parse_path(path_string)))
+
         # if there is no path string exit
         if len(raw) == 0:
             continue
@@ -374,13 +385,16 @@ def _svg_path_convert(paths, force=None):
                 vertices[name].append(transform_points(v, matrix))
                 counts[name] += len(v)
 
+    if len(vertices) == 0:
+        return {'vertices': [], 'entities': []}
+
     geoms = {name: {'vertices': np.vstack(v),
                     'entities': entities[name]}
              for name, v in vertices.items()}
     if len(geoms) > 1 or force == 'Scene':
         kwargs = {'geometry': geoms}
     else:
-        # return a Path2D
+        # return a single Path2D
         kwargs = next(iter(geoms.values()))
 
     return kwargs

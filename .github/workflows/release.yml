@@ -35,7 +35,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, "3.10", "3.11"]
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, "3.10"]
         os: [ubuntu-latest, macos-latest, windows-latest]
         exclude:
             # windows runners have gotten very flaky
@@ -121,9 +121,29 @@ jobs:
       run: |
         docker logout
 
+  corpus:
+    runs-on: ubuntu-latest
+    name: Check Corpus Loading
+    steps:
+    - uses: actions/checkout@v3
+    - name: Trimesh DiskCache
+      id: cache-resolvers
+      uses: actions/cache@v3
+      with:
+        path: ~/.trimesh-cache
+        key: trimesh-cache
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+         python-version: "3.10"
+    - name: Install Trimesh
+      run: pip install .[easy,test]
+    - name: Run Corpus Check
+      run: python tests/corpus.py
+
   release:
     permissions:
-      contents: write  # for actions/create-release to create a release
+      contents: write  # for actions/create-release
     name: Create GitHub Release
     needs: [tests, containers]
     runs-on: ubuntu-latest
