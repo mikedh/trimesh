@@ -56,7 +56,6 @@ def load_obj(file_obj,
     """
     # get text as bytes or string blob
     text = file_obj.read()
-
     # if text was bytes decode into string
     text = util.decode_text(text)
 
@@ -241,8 +240,8 @@ def load_obj(file_obj,
                 # may fail on a malformed color mask
                 mesh['vertex_colors'] = vc[mask_v]
             except BaseException:
-                log.warning('failed to load vertex_colors',
-                            exc_info=True)
+                log.debug('failed to load vertex_colors',
+                          exc_info=True)
         if mask_vn is not None:
             try:
                 # may fail on a malformed mask
@@ -253,8 +252,8 @@ def load_obj(file_obj,
                         str(mesh['vertices'].shape)))
                 mesh['vertex_normals'] = normals
             except BaseException:
-                log.warning('failed to load vertex_normals',
-                            exc_info=True)
+                log.debug('failed to load vertex_normals',
+                          exc_info=True)
 
         visual = None
         if material in materials:
@@ -266,7 +265,7 @@ def load_obj(file_obj,
             visual = TextureVisuals(uv=uv)
         elif material is not None:
             # case where material is specified but not available
-            log.warning('specified material ({})  not loaded!'.format(
+            log.debug('specified material ({})  not loaded!'.format(
                 material))
         # assign the visual
         mesh['visual'] = visual
@@ -349,7 +348,7 @@ def parse_mtl(mtl, resolver=None):
                 material['image'] = Image.open(
                     util.wrap_as_stream(file_data))
             except BaseException:
-                log.warning('failed to load image', exc_info=True)
+                log.debug('failed to load image', exc_info=True)
 
         elif key in mapped.keys():
             try:
@@ -363,7 +362,7 @@ def parse_mtl(mtl, resolver=None):
                 # also store key by OBJ name
                 material[key] = value
             except BaseException:
-                log.warning('failed to convert color!', exc_info=True)
+                log.debug('failed to convert color!', exc_info=True)
         # pass everything as kwargs to material constructor
         elif material is not None:
             # save any other unspecified keys
@@ -432,7 +431,7 @@ def _parse_faces_vectorized(array, columns, sample_line):
             # which is vertex/texture
             faces_tex = array[:, index + 1]
         else:
-            log.warning('face lines are weird: {}'.format(
+            log.debug('face lines are weird: {}'.format(
                 sample_line))
     elif columns == 9:
         # if we have three values per vertex
@@ -491,7 +490,7 @@ def _parse_faces_fallback(lines):
              for i in range(len(split) - 2)]
             split = collect
         else:
-            log.warning(
+            log.debug(
                 'face needs more values 3>{} skipping!'.format(
                     len(split)))
             continue

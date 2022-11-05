@@ -14,7 +14,7 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: "3.10"
     - name: Install Formatting
       run: |
         pip install autopep8 flake8 flake8-no-implicit-concat
@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [3.8]
+        python-version: ["3.10"]
         os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - os: ubuntu-latest
@@ -49,10 +49,36 @@ jobs:
       run: |
         pip install .
         python tests/test_minimal.py
-    - name: Install Linux Deps
-      if: matrix.os == 'ubuntu-latest'
-      run: sudo bash docker/gltfvalidator.bash
     - name: Install Trimesh
       run: pip install .[easy,test]
     - name: Run Pytest
       run: pytest
+
+  docker:
+    name: Run Tests In Docker
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run Pytest In Docker
+      run: make test
+
+  corpus:
+    runs-on: ubuntu-latest
+    name: Check Corpus Loading
+    steps:
+    - uses: actions/checkout@v3
+    - name: Trimesh DiskCache
+      id: cache-resolvers
+      uses: actions/cache@v3
+      with:
+        path: ~/.trimesh-cache
+        key: trimesh-cache
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+         python-version: "3.10"
+    - name: Install Trimesh
+      run: pip install .[easy,test]
+    - name: Run Corpus Check
+      run: python tests/corpus.py
+

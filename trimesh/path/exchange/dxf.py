@@ -1,5 +1,7 @@
 import numpy as np
 
+from collections import defaultdict
+
 from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline, Text
 
@@ -454,6 +456,8 @@ def convert_entities(
     # chunks of entities are divided by group-code-0
     inflection = np.nonzero(blob[:, 0] == '0')[0]
 
+    unsupported = defaultdict(lambda: 0)
+
     # loop through chunks of entity information
     for index in np.array_split(
             np.arange(len(blob)), inflection):
@@ -533,9 +537,12 @@ def convert_entities(
             entity_data = chunker(chunk)
             # append data to the lists we're collecting
             loader(entity_data)
-        else:
-            log.debug('Entity type %s not supported',
-                      entity_type)
+        elif entity_type != 'ENTITIES':
+            unsupported[entity_type] += 1
+    if len(unsupported) > 0:
+        log.debug('skipping dxf entities: {}'.format(
+            ', '.join('{}: {}'.format(k, v) for k, v
+                      in unsupported.items())))
     # stack vertices into single array
     vertices = util.vstack_empty(vertices).astype(np.float64)
     if return_name:

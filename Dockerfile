@@ -79,11 +79,13 @@ RUN pytest --cov=trimesh \
 
 # set codecov token as a build arg to upload
 ARG CODECOV_TOKEN=""
-ARG CODECOV_REPO="mikedh/trimesh"
+ARG CODECOV_REPO=""
 ARG CODECOV_COMMIT=""
 RUN curl -Os https://uploader.codecov.io/latest/linux/codecov && \
     	 chmod +x codecov && \
-        ./codecov -t ${CODECOV_TOKEN} --slug ${CODECOV_REPO} ----sha ${CODECOV_COMMIT}
+        ./codecov -t ${CODECOV_TOKEN} \
+	--slug ${CODECOV_REPO} \
+	--sha ${CODECOV_COMMIT}
 
 
 ################################
