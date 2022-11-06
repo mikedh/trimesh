@@ -158,7 +158,7 @@ class SceneTests(g.unittest.TestCase):
         # we shouldn't have modified the original scene
         assert scene.__hash__() == hash_val
         assert converted.__hash__() != hash_val
-    
+
     def test_scaling_3D(self):
         scene = g.get_mesh('cycloidal.3DXML')
         extents = scene.extents.copy()
@@ -170,7 +170,7 @@ class SceneTests(g.unittest.TestCase):
             scaled.extents /
             extents,
             factor)
-    
+
         factor = [3.0, 3.0, 3.0]
         scaled = scene.scaled(factor)
 
@@ -191,7 +191,7 @@ class SceneTests(g.unittest.TestCase):
             scaled.extents /
             extents,
             factor)
-    
+
         factor = [3.0, 3.0, 3.0]
         scaled = scene.scaled(factor)
 

@@ -992,14 +992,14 @@ class Scene(Geometry3D):
         """
         # convert 2D geometries to 3D for 3D scaling factors
         scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
-        
+
         if scale_is_3D and np.all(np.asarray(scale) == scale[0]):
             # scale is uniform
             scale = float(scale[0])
             scale_is_3D = False
         elif not scale_is_3D:
             scale = float(scale)
-        
+
         # result is a copy
         result = self.copy()
 
@@ -1020,23 +1020,26 @@ class Scene(Geometry3D):
                             geom_name=geom_name,
                             node_name=n,
                             parent_node_name=p,
-                            transform=result.graph.transforms.edge_data[(p, n)].get('matrix', None),
-                            extras=result.graph.transforms.edge_data[(p, n)].get('extras', None),
+                            transform=result.graph.transforms.edge_data[(
+                                p, n)].get('matrix', None),
+                            extras=result.graph.transforms.edge_data[(
+                                p, n)].get('extras', None),
                         )
                     result.delete_geometry(geom_name)
-            
+
             # Convert all 2D paths to 3D paths
             for geom_name in result.geometry:
                 if result.geometry[geom_name].vertices.shape[1] == 2:
                     result.geometry[geom_name] = result.geometry[geom_name].to_3D()
-            
-            # Scale all geoemtries by un-doing their local rotations first
+
+            # Scale all geometries by un-doing their local rotations first
             for key in result.graph.nodes_geometry:
                 T, geom_name = result.graph.get(key)
                 T[:3, 3] = 0.0
 
                 # Get geometry transform w.r.t. base frame
-                result.geometry[geom_name].apply_transform(T).apply_scale(scale).apply_transform(np.linalg.inv(T))
+                result.geometry[geom_name].apply_transform(T).apply_scale(
+                    scale).apply_transform(np.linalg.inv(T))
 
             # Scale all transformations in the scene graph
             edge_data = result.graph.transforms.edge_data
@@ -1077,7 +1080,7 @@ class Scene(Geometry3D):
                 original = transforms[group[0]]
                 # transform for geometry
                 new_geom = np.dot(scale_3D, original)
-                            
+
                 if result.geometry[geometry].vertices.shape[1] == 2:
                     # if our scene is 2D only scale in 2D
                     result.geometry[geometry].apply_transform(scale_2D)
@@ -1086,7 +1089,7 @@ class Scene(Geometry3D):
                     result.geometry[geometry].apply_transform(new_geom)
 
                 for node, T in zip(nodes[group],
-                                transforms[group]):
+                                   transforms[group]):
                     # generate the new transforms
                     transform = util.multi_dot(
                         [scale_3D, T, np.linalg.inv(new_geom)])
