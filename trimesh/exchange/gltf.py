@@ -1158,23 +1158,7 @@ def specular_to_pbr(
     return result
 
 
-def _parse_materials(header, views, resolver=None):
-    """
-    Convert materials and images stored in a GLTF header
-    and buffer views to PBRMaterial objects.
-
-    Parameters
-    ------------
-    header : dict
-      Contains layout of file
-    views : (n,) bytes
-      Raw data
-
-    Returns
-    ------------
-    materials : list
-      List of trimesh.visual.texture.Material objects
-    """
+def _parse_textures(header, views, resolver=None):
     try:
         import PIL.Image
     except ImportError:
@@ -1205,6 +1189,27 @@ def _parse_materials(header, views, resolver=None):
                 images[i] = PIL.Image.open(util.wrap_as_stream(blob))
             except BaseException:
                 log.error("failed to load image!", exc_info=True)
+    return images
+
+
+def _parse_materials(header, views, resolver=None):
+    """
+    Convert materials and images stored in a GLTF header
+    and buffer views to PBRMaterial objects.
+
+    Parameters
+    ------------
+    header : dict
+      Contains layout of file
+    views : (n,) bytes
+      Raw data
+
+    Returns
+    ------------
+    materials : list
+      List of trimesh.visual.texture.Material objects
+    """
+    images = _parse_textures(header, views, resolver)
 
     # store materials which reference images
     materials = []
