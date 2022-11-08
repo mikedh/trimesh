@@ -196,12 +196,10 @@ True
 True
 
 """
-
 from __future__ import division, print_function
-from .util import allclose
+
 
 import math
-
 import numpy as np
 
 __version__ = '2017.02.17'
