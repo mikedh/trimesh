@@ -497,7 +497,7 @@ class EnforcedForest(object):
     reference, it enforces the structure for "free."
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, edges=None):
         # since every node can have only one parent
         # this data structure transparently enforces
         # the forest data structure without checks
@@ -514,6 +514,11 @@ class EnforcedForest(object):
         # but the connectivity hasn't changed return cached
         self._cache = {}
 
+        if isinstance(edges, dict):
+            for k, v in edges.items():
+                self.add_edge(*k, **v)
+        
+        
     def add_edge(self, u, v, **kwargs):
         """
         Add an edge to the forest cleanly.
@@ -732,9 +737,9 @@ class EnforcedForest(object):
         """
 
         return hash_fast(
-            (''.join(k[0] + k[1] + v.get('geometry', '')
+            (''.join(str(hash(k)) + v.get('geometry', '')
                      for k, v in self.edge_data.items()) +
-             ''.join(k + v.get('geometry', '')
+             ''.join(str(k) + v.get('geometry', '')
                      for k, v in self.node_data.items())).encode('utf-8') +
             b''.join(v['matrix'].tobytes()
                      for v in self.edge_data.values()
