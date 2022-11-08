@@ -180,8 +180,56 @@ class GraphTests(g.unittest.TestCase):
         # get should not have edited edge data
         assert len(s.graph.transforms.edge_data) == 2
 
-        # matrix should be the same both ways
-        assert g.np.allclose(b[0], a[0])
+        # matrix should be inverted if you're going the other way
+        assert g.np.allclose(b[0], g.np.linalg.inv(a[0]))
+
+    def test_shortest_path(self):
+        # compare the EnforcedForest shortest path algo
+        # to the more general networkx.shortest_path algo
+
+        tf = g.trimesh.transformations
+
+        # start with creating a random tree
+        edgelist = {}
+        tree = g.nx.random_tree(n=1000, seed=0, create_using=g.nx.DiGraph)
+        for e in tree.edges:
+            data = {}
+            if g.np.random.random() > .5:
+                # if a matrix is omitted but an edge exists it is
+                # the same as passing an identity matrix
+                data['matrix'] = tf.random_rotation_matrix()
+            if g.np.random.random() > .4:
+                # a geometry is not required for a node
+                data['geometry'] = str(int(g.np.random.random() * 1e8))
+            edgelist[e] = data
+
+        # now apply the random data to an EnforcedForest
+        forest = g.trimesh.scene.transforms.EnforcedForest()
+        for k, v in edgelist.items():
+            forest.add_edge(*k, **v)
+
+        # generate a lot of random queries
+        queries = g.np.random.choice(
+            list(forest.nodes), 10000).reshape((-1, 2))
+        # filter out any self-queries as networkx doesn't handle them
+        queries = queries[queries.ptp(axis=1) > 0]
+
+        # now run our shortest path algorithm in a profiler
+        with g.Profiler() as P:
+            ours = [forest.shortest_path(*q) for q in queries]
+        P.print()
+
+        # check truth from networkx with an undirected graph
+        undir = tree.to_undirected()
+        with g.Profiler() as P:
+            truth = [g.nx.shortest_path(undir, *q) for q in queries]
+        P.print()
+
+        # now compare our shortest path with networkx
+        for a, b, q in zip(truth, ours, queries):
+            if tuple(a) != tuple(b):
+                # raise the query that killed us
+                raise ValueError(q)
 
 
 if __name__ == '__main__':

@@ -78,7 +78,7 @@ class SceneGraph(object):
         attr['matrix'] = kwargs_to_matrix(**kwargs)
 
         # add the edges for the transforms
-        # will return if it changed anything
+        # wi ll return if it changed anything
         self.transforms.add_edge(frame_from, frame_to, **attr)
 
         # set the node attribute with the geometry information
@@ -135,24 +135,29 @@ class SceneGraph(object):
             # we have a 3+ node path
             # get the path from the forest always going from
             # parent -> child -> child
-            path = self.transforms.shortest_path(
-                frame_from, frame_to)
+            path = self.transforms.shortest_path(frame_from, frame_to)
 
-            # the first and last nodes should be
-            assert set([path[0], path[-1]]) == set(
-                [frame_from, frame_to])
+            # the path should always start with `frame_from`
+            assert path[0] == frame_from
+            # and end with the `frame_to` node
+            assert path[-1] == frame_to
 
+            # loop through pairs of the path
             matrices = []
             for u, v in zip(path[:-1], path[1:]):
-                forward = data.get((u, v), {}).get('matrix')
+                forward = data.get((u, v))
                 if forward is not None:
-                    # append the matrix from u to v
-                    matrices.append(forward)
-                else:
-                    # append the backwards matrix
-                    matrices.append(np.linalg.inv(
-                        data[(v, u)]['matrix']))
-
+                    if 'matrix' in forward:
+                        # append the matrix from u to v
+                        matrices.append(forward['matrix'])
+                    continue
+                # since forwards didn't exist backward must
+                # exist otherwise this is a disconnected path
+                # and we should raise an error anyway
+                backward = data[(v, u)]
+                if 'matrix' in backward:
+                    # append the inverted backwards matrix
+                    matrices.append(np.linalg.inv(backward['matrix']))
             # multiply matrices into single transform
             matrix = util.multi_dot(matrices)
         # store the result
@@ -606,11 +611,9 @@ class EnforcedForest(object):
 
     def shortest_path(self, u, v):
         """
-        Find the shortest path between `u` and `v`.
-
-        Note that it will *always* be ordered from
-        root direction to leaf direction, so `u` may
-        be either the first *or* last element.
+        Find the shortest path between `u` and `v`, returning
+        a path where the first element is always `u` and the
+        last element is always `v`, disregarding edge direction.
 
         Parameters
         -----------
@@ -632,7 +635,7 @@ class EnforcedForest(object):
             # return the same path for either direction
             return self._cache[(u, v)]
         elif (v, u) in self._cache:
-            return self._cache[(v, u)]
+            return self._cache[(v, u)][::-1]
 
         # local reference to parent dict for performance
         parents = self.parents
@@ -654,7 +657,29 @@ class EnforcedForest(object):
                 self._cache[(u, v)] = backward
                 return backward
             elif forward[-1] is None and backward[-1] is None:
-                raise ValueError('No path between nodes {} and {}!'.format(u, v))
+                # find the common elements between forward and backwards traversal
+                common = list(set(backward).intersection(forward).difference({None}))
+                if len(common) == 0:
+                    raise ValueError('No path between nodes {} and {}!'.format(u, v))
+                elif len(common) > 1:
+                    # get the first occuring common element in "forward"
+                    link = common[np.argmin([forward.index(i) for i in common])]
+                    assert link in common
+                else:
+                    # take the only common element
+                    link = common[0]
+
+                # combine the forward and backwards traversals
+                a = forward[:forward.index(link) + 1]
+                b = backward[:backward.index(link)]
+                path = a + b[::-1]
+
+                assert path[0] == u
+                assert path[-1] == v
+                self._cache[(u, v)] = path
+
+                return path
+
         raise ValueError('Iteration limit exceeded!')
 
     @property

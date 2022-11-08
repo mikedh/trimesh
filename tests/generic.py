@@ -22,6 +22,7 @@ import itertools
 import contextlib
 import subprocess
 import collections
+import numpy as np
 
 import trimesh
 
@@ -40,7 +41,8 @@ except ImportError:
     from SimpleHTTPServer import SimpleHTTPRequestHandler
     import SocketServer as socketserver
 
-import numpy as np
+
+from pyinstrument import Profiler
 
 # should we require all soft dependencies
 # this is set in the docker images to catch missing packages
