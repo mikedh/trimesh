@@ -397,8 +397,9 @@ def merge_runs(data, digits=None):
     Out[2]: array([-1,  0,  1,  2,  0,  3,  4,  5,  6,  7,  8,  9])
     """
     data = np.asanyarray(data)
-    mask = np.abs(np.diff(data)) > tol.merge
-    mask = np.concatenate((np.array([True]), mask))
+    mask = np.empty(len(data), dtype=bool)
+    mask[0] = True
+    mask[1:] = np.abs(data[1:] - data[:-1]) > tol.merge
 
     return data[mask]
 
