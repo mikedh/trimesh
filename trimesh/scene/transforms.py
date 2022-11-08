@@ -517,8 +517,7 @@ class EnforcedForest(object):
         if isinstance(edges, dict):
             for k, v in edges.items():
                 self.add_edge(*k, **v)
-        
-        
+
     def add_edge(self, u, v, **kwargs):
         """
         Add an edge to the forest cleanly.
@@ -537,6 +536,8 @@ class EnforcedForest(object):
         changed : bool
           Return if this operation changed anything.
        """
+        self._hash = None
+
         # topology has changed so clear cache
         if (u, v) not in self.edge_data:
             self._cache = {}
@@ -584,6 +585,7 @@ class EnforcedForest(object):
 
         # topology will change so clear cache
         self._cache = {}
+        self._hash = None
 
         # delete all children's references and parent reference
         children = [child for (child, parent) in self.parents.items() if parent == u]
@@ -735,8 +737,11 @@ class EnforcedForest(object):
         older laptop on a scene with 77 nodes and 76 edges
         10,000 times in 0.7s which seems fast enough.
         """
+        hashed = getattr(self, '_hash', None)
+        if hashed is not None:
+            return hashed
 
-        return hash_fast(
+        hashed = hash_fast(
             (''.join(str(hash(k)) + v.get('geometry', '')
                      for k, v in self.edge_data.items()) +
              ''.join(str(k) + v.get('geometry', '')
@@ -744,6 +749,8 @@ class EnforcedForest(object):
             b''.join(v['matrix'].tobytes()
                      for v in self.edge_data.values()
                      if 'matrix' in v))
+        self._hash = hashed
+        return hashed
 
 
 def kwargs_to_matrix(

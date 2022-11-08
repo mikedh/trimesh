@@ -1372,7 +1372,8 @@ def _read_buffers(header,
                 kwargs.update(mesh_kwargs)
                 kwargs["metadata"].update(metadata)
                 # i.e. GL_LINES, GL_TRIANGLES, etc
-                mode = p.get('mode')
+                # specification says the default mode is GL_TRIANGLES
+                mode = p.get('mode', _GL_TRIANGLES)
                 # colors, normals, etc
                 attr = p['attributes']
                 # create a unique mesh name per- primitive
@@ -1389,13 +1390,8 @@ def _read_buffers(header,
                         points=np.arange(len(kwargs['vertices'])))]
                 elif mode == _GL_POINTS:
                     kwargs["vertices"] = access[attr["POSITION"]]
-                elif mode is None or mode in (_GL_TRIANGLES, _GL_STRIP):
-                    if mode is None:
-                        # some people skip mode since GL_TRIANGLES
-                        # is apparently the de-facto default
-                        log.debug(
-                            'primitive has no mode! trying GL_TRIANGLES?')
-                        # get vertices from accessors
+                elif mode in (_GL_TRIANGLES, _GL_STRIP):
+                    # get vertices from accessors
                     kwargs["vertices"] = access[attr["POSITION"]]
                     # get faces from accessors
                     if 'indices' in p:

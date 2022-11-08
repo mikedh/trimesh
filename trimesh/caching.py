@@ -342,7 +342,6 @@ class TrackedArray(np.ndarray):
         super(self.__class__, self).__setslice__(
             *args, **kwargs)
 
-
         
 class Cache(object):
     """
