@@ -157,8 +157,9 @@ _misc_loaders = {'dict': load_dict,
 try:
     import meshio
     # add meshio loaders here
-    _misc_loaders.update(
-        {k[1:]: load_meshio for k in
-         meshio.extension_to_filetypes.keys()})
+    _meshio_loaders = {
+        k[1:]: load_meshio for k in
+        meshio.extension_to_filetypes.keys()}
+    _misc_loaders.update(_meshio_loaders)
 except BaseException:
-    pass
+    _meshio_loaders = dict()

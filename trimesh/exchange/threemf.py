@@ -38,8 +38,9 @@ def load_3MF(file_obj,
     """
     # dict, {name in archive: BytesIo}
     archive = util.decompress(file_obj, file_type='zip')
-    # get model file
-    model = archive['3D/3dmodel.model']
+    # get model with case-insensitive keys
+    model = next(iter(v for k, v in archive.items()
+                      if '3d/3dmodel.model' in k.lower()))
 
     # read root attributes only from XML first
     event, root = next(etree.iterparse(model, tag=('{*}model'), events=('start',)))

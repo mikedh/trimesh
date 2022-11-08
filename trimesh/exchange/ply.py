@@ -113,9 +113,10 @@ def load_ply(file_obj,
         if image_name is not None:
             data = resolver.get(image_name)
             image = PIL.Image.open(util.wrap_as_stream(data))
+    except ImportError:
+        log.debug('textures require `pip install pillow`')
     except BaseException:
-        log.warning(
-            'unable to load image!', exc_info=True)
+        log.warning('unable to load image!', exc_info=True)
 
     # translate loaded PLY elements to kwargs
     kwargs = elements_to_kwargs(
@@ -470,8 +471,9 @@ def elements_to_kwargs(elements,
     kwargs = {'metadata': {'_ply_raw': elements}}
 
     if 'vertex' in elements and elements['vertex']['length']:
-        vertices = np.column_stack([elements['vertex']['data'][i]
-                                    for i in 'xyz'])
+        vertices = np.column_stack(
+            [elements['vertex']['data'][i]
+             for i in 'xyz'])
         if not util.is_shape(vertices, (-1, 3)):
             raise ValueError('Vertices were not (n,3)!')
     else:
@@ -688,29 +690,37 @@ def load_element_single(properties, data):
     Parameters
     ------------
     properties : dict
-      Property definitions encoded in a dict where the property name is the key
-      and the property data type the value.
+      Property definitions encoded in a dict where
+      the property name is the key and the property
+      data type the value.
     data : array
-      Data rows for this element. If the data contains list-properties,
-      all lists belonging to one property must have the same length.
+      Data rows for this element, if the data contains
+      list-properties all lists belonging to one property
+      must have the same length.
     """
-    col_ranges = []
-    start = 0
-    row0 = data[0]
-    for name, dt in properties.items():
-        length = 1
-        if '$LIST' in dt:
-            # the first entry in a list-property is the number of elements in the list
-            length = int(row0[start])
-            # skip the first entry (the length), when reading the data
-            start += 1
-        end = start + length
-        col_ranges.append((start, end))
-        # start next property at the end of this one
-        start = end
 
-    return {n: data[:, c[0]:c[1]].astype(dt.split('($LIST,)')[-1])
-            for c, (n, dt) in zip(col_ranges, properties.items())}
+    first = data[0]
+    columns = {}
+    current = 0
+    for name, dt in properties.items():
+        # if the current index has gone past the number
+        # of items we actually have exit the loop early
+        if current >= len(first):
+            break
+        if '$LIST' in dt:
+            dtype = dt.split('($LIST,)')[-1]
+            # the first entry in a list-property
+            # is the number of elements in the list
+
+            length = int(first[current])
+            columns[name] = data[
+                :, current + 1:current + 1 + length].astype(dtype)
+            current += length
+        else:
+            columns[name] = data[:, current:current + 1].astype(dt)
+            current += 1
+
+    return columns
 
 
 def ply_ascii(elements, file_obj):
@@ -878,7 +888,7 @@ def ply_binary(elements, file_obj):
 
     # if the number of bytes is not the same the file is probably corrupt
     if size_file != size_elements:
-        raise ValueError('File is unexpected length!')
+        raise ValueError('PLY is unexpected length!')
 
     # with everything populated and a reasonable confidence the file
     # is intact, read the data fields described by the header

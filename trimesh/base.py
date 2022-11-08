@@ -374,16 +374,16 @@ class Trimesh(Geometry3D):
             values, order='C', dtype=np.float64)
         # face normals need to correspond to faces
         if len(values) == 0 or values.shape != self.faces.shape:
-            log.warning('face_normals incorrect shape, ignoring!')
+            log.debug('face_normals incorrect shape, ignoring!')
             return
         # check if any values are larger than tol.merge
         # don't set the normals if they are all zero
         ptp = values.ptp()
         if not np.isfinite(ptp):
-            log.warning('face_normals contain NaN, ignoring!')
+            log.debug('face_normals contain NaN, ignoring!')
             return
         if ptp < tol.merge:
-            log.warning('face_normals all zero, ignoring!')
+            log.debug('face_normals all zero, ignoring!')
             return
 
         # make sure the first few normals match the first few triangles
@@ -469,8 +469,7 @@ class Trimesh(Geometry3D):
             if values.shape == self.vertices.shape:
                 # check to see if they assigned all zeros
                 if values.ptp() < tol.merge:
-                    log.warning(
-                        'vertex_normals are all set to zero!')
+                    log.debug('vertex_normals are all zero!')
                 self._cache['vertex_normals'] = values
 
     @caching.cache_decorator
@@ -2857,10 +2856,7 @@ class Trimesh(Geometry3D):
         contains : (n, ) bool
           Whether or not each point is inside the mesh
         """
-        if not self.is_watertight:
-            log.warning('Mesh is non-watertight for contained point query!')
-        contains = self.ray.contains_points(points)
-        return contains
+        return self.ray.contains_points(points)
 
     @caching.cache_decorator
     def face_angles(self):
