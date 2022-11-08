@@ -767,11 +767,18 @@ def blocks(data,
     """
     data = float_to_int(data, digits=digits)
 
-    # find the inflection points
-    # AKA locations where the array goes from True to False.
-    infl = np.concatenate((
-        [0], np.nonzero(np.diff(data))[0] + 1, [len(data)]))
-    infl_len = np.diff(infl)
+    # keep an integer range around so we can slice
+    arange = np.arange(len(data))
+    arange.flags['WRITEABLE'] = False
+
+    nonzero = arange[1:][data[1:] != data[:-1]]
+    infl = np.zeros(len(nonzero) + 2, dtype=int)
+    infl[-1] = len(data)
+    infl[1:-1] = nonzero
+
+    # the length of each chunk
+    infl_len = infl[1:] - infl[:-1]
+
     # check the length of each group
     infl_ok = np.logical_and(infl_len >= min_len,
                              infl_len <= max_len)
@@ -783,7 +790,7 @@ def blocks(data,
             infl_ok, data[infl[:-1]])
 
     # inflate start/end indexes into full ranges of values
-    blocks = [np.arange(infl[i], infl[i + 1])
+    blocks = [arange[infl[i]:infl[i + 1]]
               for i, ok in enumerate(infl_ok) if ok]
 
     if wrap:

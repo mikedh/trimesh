@@ -1,3 +1,10 @@
+"""
+corpus.py
+------------
+
+Test loaders against large corpuses of test data from github:
+will download more than a gigabyte to your home directory!
+"""
 import trimesh
 from trimesh.util import wrap_as_stream
 from pyinstrument import Profiler
