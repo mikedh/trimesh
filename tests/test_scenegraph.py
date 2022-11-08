@@ -217,13 +217,14 @@ class GraphTests(g.unittest.TestCase):
         # now run our shortest path algorithm in a profiler
         with g.Profiler() as P:
             ours = [forest.shortest_path(*q) for q in queries]
-        P.print()
+        # print this way to avoid a python2 syntax error
+        print(P.output_text())
 
         # check truth from networkx with an undirected graph
         undir = tree.to_undirected()
         with g.Profiler() as P:
             truth = [g.nx.shortest_path(undir, *q) for q in queries]
-        P.print()
+        print(P.output_text())
 
         # now compare our shortest path with networkx
         for a, b, q in zip(truth, ours, queries):

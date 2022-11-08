@@ -342,7 +342,7 @@ class TrackedArray(np.ndarray):
         super(self.__class__, self).__setslice__(
             *args, **kwargs)
 
-        
+
 class Cache(object):
     """
     Class to cache values which will be stored until the
@@ -498,7 +498,7 @@ class DiskCache(object):
     """
     Store results of expensive operations on disk
     with an option to expire the results. This is used
-    to cache the multi-gigabyte test corpuses in 
+    to cache the multi-gigabyte test corpuses in
     `tests/corpus.py`
     """
 
