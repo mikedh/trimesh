@@ -172,16 +172,24 @@ class GraphTests(g.unittest.TestCase):
             transform=tf.translation_matrix([0, 0, 1]))
 
         assert len(s.graph.transforms.edge_data) == 2
-        a = s.graph.get('world', 'foo2')
+        a = s.graph.get(frame_from='world', frame_to='foo2')
 
         assert len(s.graph.transforms.edge_data) == 2
 
-        b = s.graph.get('foo2')
+        # try going backward
+        i = s.graph.get(frame_from='foo2', frame_to='world')
+        # matrix should be inverted if you're going the other way
+        assert g.np.allclose(a[0], g.np.linalg.inv(i[0]))
+
+        # try getting foo2 with shorthand
+        b = s.graph.get(frame_to='foo2')
+        c = s.graph['foo2']
+        # matrix should be inverted if you're going the other way
+        assert g.np.allclose(a[0], c[0])
+        assert g.np.allclose(b[0], c[0])
+
         # get should not have edited edge data
         assert len(s.graph.transforms.edge_data) == 2
-
-        # matrix should be inverted if you're going the other way
-        assert g.np.allclose(b[0], g.np.linalg.inv(a[0]))
 
     def test_shortest_path(self):
         # compare the EnforcedForest shortest path algo
