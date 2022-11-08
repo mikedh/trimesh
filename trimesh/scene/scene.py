@@ -1,5 +1,6 @@
 import numpy as np
 import collections
+import uuid
 
 from . import cameras
 from . import lighting
@@ -981,7 +982,7 @@ class Scene(Geometry3D):
 
         Parameters
         -----------
-        scale : float
+        scale : float or (3,) float
           Factor to scale meshes and transforms
 
         Returns
@@ -989,52 +990,115 @@ class Scene(Geometry3D):
         scaled : trimesh.Scene
           A copy of the current scene but scaled
         """
-        scale = float(scale)
-        # matrix for 2D scaling
-        scale_2D = np.eye(3) * scale
-        # matrix for 3D scaling
-        scale_3D = np.eye(4) * scale
+        # convert 2D geometries to 3D for 3D scaling factors
+        scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
 
-        # preallocate transforms and geometries
-        nodes = np.array(self.graph.nodes_geometry)
-        transforms = np.zeros((len(nodes), 4, 4))
-        geometries = [None] * len(nodes)
-
-        # collect list of transforms
-        for i, node in enumerate(nodes):
-            transforms[i], geometries[i] = self.graph[node]
+        if scale_is_3D and np.all(np.asarray(scale) == scale[0]):
+            # scale is uniform
+            scale = float(scale[0])
+            scale_is_3D = False
+        elif not scale_is_3D:
+            scale = float(scale)
 
         # result is a copy
         result = self.copy()
-        # remove all existing transforms
-        result.graph.clear()
 
-        for group in grouping.group(geometries):
-            # hashable reference to self.geometry
-            geometry = geometries[group[0]]
-            # original transform from world to geometry
-            original = transforms[group[0]]
-            # transform for geometry
-            new_geom = np.dot(scale_3D, original)
+        if scale_is_3D:
+            # Copy all geometries that appear multiple times in the scene,
+            # such that no two nodes share the same geometry.
+            # This is required since the non-uniform scaling will most likely
+            # affect the same geometry in different poses differently.
+            # Note, that this is not needed in the case of uniform scaling.
+            for geom_name in result.graph.geometry_nodes:
+                nodes_with_geom = result.graph.geometry_nodes[geom_name]
+                if len(nodes_with_geom) > 1:
+                    geom = result.geometry[geom_name]
+                    for n in nodes_with_geom:
+                        p = result.graph.transforms.parents[n]
+                        result.add_geometry(
+                            geometry=geom.copy(),
+                            geom_name=geom_name,
+                            node_name=n,
+                            parent_node_name=p,
+                            transform=result.graph.transforms.edge_data[(
+                                p, n)].get('matrix', None),
+                            extras=result.graph.transforms.edge_data[(
+                                p, n)].get('extras', None),
+                        )
+                    result.delete_geometry(geom_name)
 
-            if result.geometry[geometry].vertices.shape[1] == 2:
-                # if our scene is 2D only scale in 2D
-                result.geometry[geometry].apply_transform(scale_2D)
-            else:
-                # otherwise apply the full transform
-                result.geometry[geometry].apply_transform(new_geom)
+            # Convert all 2D paths to 3D paths
+            for geom_name in result.geometry:
+                if result.geometry[geom_name].vertices.shape[1] == 2:
+                    result.geometry[geom_name] = result.geometry[geom_name].to_3D()
 
-            for node, T in zip(nodes[group],
-                               transforms[group]):
-                # generate the new transforms
-                transform = util.multi_dot(
-                    [scale_3D, T, np.linalg.inv(new_geom)])
-                # apply scale to translation
-                transform[:3, 3] *= scale
-                # update scene with new transforms
-                result.graph.update(frame_to=node,
-                                    matrix=transform,
-                                    geometry=geometry)
+            # Scale all geometries by un-doing their local rotations first
+            for key in result.graph.nodes_geometry:
+                T, geom_name = result.graph.get(key)
+                T[:3, 3] = 0.0
+
+                # Get geometry transform w.r.t. base frame
+                result.geometry[geom_name].apply_transform(T).apply_scale(
+                    scale).apply_transform(np.linalg.inv(T))
+
+            # Scale all transformations in the scene graph
+            edge_data = result.graph.transforms.edge_data
+            for uv in edge_data:
+                if 'matrix' in edge_data[uv]:
+                    props = edge_data[uv]
+                    T = edge_data[uv]['matrix']
+                    T[:3, 3] *= scale
+                    props['matrix'] = T
+                    result.graph.update(frame_from=uv[0], frame_to=uv[1], **props)
+
+            # Clear cache
+            result.graph.transforms._cache = {}
+            result.graph.transforms._modified = str(uuid.uuid4())
+            result.graph._cache.clear()
+        else:
+            # matrix for 2D scaling
+            scale_2D = np.eye(3) * scale
+            # matrix for 3D scaling
+            scale_3D = np.eye(4) * scale
+
+            # preallocate transforms and geometries
+            nodes = np.array(self.graph.nodes_geometry)
+            transforms = np.zeros((len(nodes), 4, 4))
+            geometries = [None] * len(nodes)
+
+            # collect list of transforms
+            for i, node in enumerate(nodes):
+                transforms[i], geometries[i] = self.graph[node]
+
+            # remove all existing transforms
+            result.graph.clear()
+
+            for group in grouping.group(geometries):
+                # hashable reference to self.geometry
+                geometry = geometries[group[0]]
+                # original transform from world to geometry
+                original = transforms[group[0]]
+                # transform for geometry
+                new_geom = np.dot(scale_3D, original)
+
+                if result.geometry[geometry].vertices.shape[1] == 2:
+                    # if our scene is 2D only scale in 2D
+                    result.geometry[geometry].apply_transform(scale_2D)
+                else:
+                    # otherwise apply the full transform
+                    result.geometry[geometry].apply_transform(new_geom)
+
+                for node, T in zip(nodes[group],
+                                   transforms[group]):
+                    # generate the new transforms
+                    transform = util.multi_dot(
+                        [scale_3D, T, np.linalg.inv(new_geom)])
+                    # apply scale to translation
+                    transform[:3, 3] *= scale
+                    # update scene with new transforms
+                    result.graph.update(frame_to=node,
+                                        matrix=transform,
+                                        geometry=geometry)
         return result
 
     def copy(self):

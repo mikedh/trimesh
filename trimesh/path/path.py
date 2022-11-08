@@ -485,7 +485,7 @@ class Path(parent.Geometry):
             raise ValueError('transform is incorrect shape!')
         elif np.abs(transform - np.eye(dimension + 1)).max() < 1e-8:
             # if we've been passed an identity matrix do nothing
-            return
+            return self
 
         # make sure cache is up to date
         self._cache.verify()

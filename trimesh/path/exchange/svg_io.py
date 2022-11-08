@@ -43,7 +43,7 @@ _IDENTITY = np.eye(3)
 _IDENTITY.flags['WRITEABLE'] = False
 
 
-def svg_to_path(file_obj, file_type=None):
+def svg_to_path(file_obj=None, file_type=None, path_string=None):
     """
     Load an SVG file into a Path2D object.
 
@@ -53,6 +53,8 @@ def svg_to_path(file_obj, file_type=None):
       Contains SVG data
     file_type: None
       Not used
+    path_string : None or str
+      If passed, parse a single path string and ignore `file_obj`.
 
     Returns
     -----------
@@ -87,21 +89,29 @@ def svg_to_path(file_obj, file_type=None):
         else:
             return util.multi_dot(matrices[::-1])
 
-    # first parse the XML
-    tree = etree.fromstring(file_obj.read())
-    # store paths and transforms as
-    # (path string, 3x3 matrix)
-    paths = []
-    for element in tree.iter('{*}path'):
-        # store every path element attributes and transform
-        paths.append((element.attrib,
-                      element_transform(element)))
+    force = None
+    if file_obj is not None:
+        # first parse the XML
+        tree = etree.fromstring(file_obj.read())
+        # store paths and transforms as
+        # (path string, 3x3 matrix)
+        paths = []
+        for element in tree.iter('{*}path'):
+            # store every path element attributes and transform
+            paths.append((element.attrib,
+                          element_transform(element)))
 
-    try:
-        # see if the SVG should be reproduced as a scene
-        force = tree.attrib[_ns + 'class']
-    except BaseException:
-        force = None
+        try:
+            # see if the SVG should be reproduced as a scene
+            force = tree.attrib[_ns + 'class']
+        except BaseException:
+            pass
+
+    elif path_string is not None:
+        # parse a single SVG path string
+        paths = [({'d': path_string}, np.eye(3))]
+    else:
+        raise ValueError('`file_obj` or `pathstring` required')
 
     result = _svg_path_convert(paths=paths, force=force)
     try:
