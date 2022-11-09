@@ -63,6 +63,8 @@ FROM output AS tests
 # copy in tests and supporting files
 COPY --chown=user:user tests ./tests/
 COPY --chown=user:user models ./models/
+# for coverage report
+COPY --chown=user:user .git ./.git/
 COPY --chown=user:user setup.py .
 COPY --chown=user:user docker/gltfvalidator.bash .
 
@@ -79,13 +81,9 @@ RUN pytest --cov=trimesh \
 
 # set codecov token as a build arg to upload
 ARG CODECOV_TOKEN=""
-ARG CODECOV_REPO=""
-ARG CODECOV_COMMIT=""
 RUN curl -Os https://uploader.codecov.io/latest/linux/codecov && \
     	 chmod +x codecov && \
         ./codecov -t ${CODECOV_TOKEN} \
-	--slug ${CODECOV_REPO} \
-	--sha ${CODECOV_COMMIT}
 
 
 ################################

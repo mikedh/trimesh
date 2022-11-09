@@ -43,15 +43,12 @@ build: ## Build the docker images
 		.
 
 # build the tests stage of the image
-.PHONY: test
-test: ## Run unit tests inside docker images.
+.PHONY: tests
+tests: ## Run unit tests inside docker images.
 	DOCKER_BUILDKIT=1 \
 	docker build \
 		--target tests \
-		--progress=plain \
 		--build-arg "CODECOV_TOKEN=$(CODECOV_TOKEN)" \
-		--build-arg "CODECOV_REPO=$(GIT_REPO)" \
-		--build-arg "CODECOV_COMMIT=$(GIT_SHA_FULL)" \
 		.
 
 # build the docs inside our image and eject the contents

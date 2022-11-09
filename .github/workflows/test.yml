@@ -60,7 +60,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Run Pytest In Docker
-      run: make test
+      run: make tests
 
   corpus:
     runs-on: ubuntu-latest
