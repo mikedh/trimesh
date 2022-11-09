@@ -648,6 +648,7 @@ class EnforcedForest(object):
             # store the parent both forwards and backwards
             forward.append(parents.get(forward[-1]))
             backward.append(parents.get(backward[-1]))
+
             if forward[-1] == v:
                 self._cache[(u, v)] = forward
                 return forward
@@ -657,10 +658,12 @@ class EnforcedForest(object):
                 self._cache[(u, v)] = backward
                 return backward
             elif forward[-1] is None and backward[-1] is None:
-                # find the common elements between forward and backwards traversal
-                common = list(set(backward).intersection(forward).difference({None}))
+                # find the common elements between
+                # the forward and backwards traversal
+                common = list(set(backward).intersection(
+                    forward).difference({None}))
                 if len(common) == 0:
-                    raise ValueError('No path between nodes {} and {}!'.format(u, v))
+                    raise ValueError('No path from {}->{}!'.format(u, v))
                 elif len(common) > 1:
                     # get the first occuring common element in "forward"
                     link = common[np.argmin([forward.index(i) for i in common])]

@@ -862,12 +862,14 @@ def second_moment(coords):
       The values of `[Ix, Iy, Ixy]`
     """
     if hasattr(coords, 'exterior'):
+        # if we have been passed a shapely.geometry.Polygon
         exterior = second_moment(np.array(coords.exterior.coords))
         interiors = np.sum([second_moment(np.array(i.coords))
                             for i in coords.interiors],
                            axis=0)
         return exterior - interiors
-
+    
+    coords = np.asanyarray(coords, dtype=np.float64)
     # shorthand the coordinates
     x1, y1 = np.vstack((coords[-1], coords[:-1])).T
     x2, y2 = coords.T
