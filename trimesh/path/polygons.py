@@ -866,7 +866,7 @@ def second_moment(coords):
         interiors = np.sum([second_moment(np.array(i.coords))
                             for i in coords.interiors],
                            axis=0)
-        return exterior + interiors
+        return exterior - interiors
 
     # shorthand the coordinates
     x1, y1 = np.vstack((coords[-1], coords[:-1])).T
