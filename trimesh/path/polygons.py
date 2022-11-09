@@ -868,7 +868,7 @@ def second_moment(coords):
                             for i in coords.interiors],
                            axis=0)
         return exterior - interiors
-    
+
     coords = np.asanyarray(coords, dtype=np.float64)
     # shorthand the coordinates
     x1, y1 = np.vstack((coords[-1], coords[:-1])).T
