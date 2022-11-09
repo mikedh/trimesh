@@ -646,39 +646,44 @@ class EnforcedForest(object):
         # cap iteration to number of total nodes
         for _ in range(len(parents) + 1):
             # store the parent both forwards and backwards
-            forward.append(parents.get(forward[-1]))
-            backward.append(parents.get(backward[-1]))
+            f = parents.get(forward[-1])
+            b = parents.get(backward[-1])
+            forward.append(f)
+            backward.append(b)
 
-            if forward[-1] == v:
+            if f == v:
                 self._cache[(u, v)] = forward
                 return forward
-            elif backward[-1] == u:
+            elif b == u:
                 # return reversed path
                 backward = backward[::-1]
                 self._cache[(u, v)] = backward
                 return backward
-            elif forward[-1] is None and backward[-1] is None:
-                # find the common elements between
-                # the forward and backwards traversal
-                common = list(set(backward).intersection(
-                    forward).difference({None}))
+            elif (b in forward) or f is None and b is None:
+                # we have a either a common element between both
+                # traversal directions or we have consumed the whole
+                # tree in both directions, so try to find the common element
+                common = set(backward).intersection(
+                    forward).difference({None})
                 if len(common) == 0:
                     raise ValueError('No path from {}->{}!'.format(u, v))
                 elif len(common) > 1:
                     # get the first occuring common element in "forward"
-                    link = common[np.argmin([forward.index(i) for i in common])]
+                    link = next(f for f in forward if f in common)
                     assert link in common
                 else:
                     # take the only common element
-                    link = common[0]
+                    link = next(iter(common))
 
                 # combine the forward and backwards traversals
                 a = forward[:forward.index(link) + 1]
                 b = backward[:backward.index(link)]
                 path = a + b[::-1]
 
+                # verify we didn't screw up the order
                 assert path[0] == u
                 assert path[-1] == v
+
                 self._cache[(u, v)] = path
 
                 return path
