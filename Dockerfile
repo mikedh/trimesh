@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bullseye AS base
+FROM python:3.10-slim-bullseye as base
 LABEL maintainer="mikedh@kerfed.com"
 
 # Install the llvmpipe software renderer
@@ -23,7 +23,7 @@ ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
 ENV PATH="/home/user/.local/bin:$PATH"
 
 ## install things that need building
-FROM base AS build
+FROM base as build
 
 # install build-essentials
 RUN apt-trimesh --build=true
@@ -41,7 +41,7 @@ RUN pip install https://github.com/scopatz/pyembree/releases/download/0.1.6/pyem
 
 ####################################
 ### Build output image most things should run on
-FROM base AS output
+FROM base as output
 
 # switch to non-root user
 USER user
@@ -58,7 +58,7 @@ ENV XVFB_WHD="1920x1080x24"\
 
 ###############################
 #### Run Unit Tests
-FROM output AS tests
+FROM output as tests
 
 # copy in tests and supporting files
 COPY --chown=user:user tests ./tests/
@@ -88,7 +88,7 @@ RUN curl -Os https://uploader.codecov.io/latest/linux/codecov && \
 
 ################################
 ### Build Sphinx Docs
-FROM output AS build_docs
+FROM output as docsbuilder
 
 USER root
 # install APT packages for docs
@@ -105,5 +105,5 @@ WORKDIR /home/user/docs
 RUN make
 
 ### Copy just the docs so we can output them
-FROM scratch AS docs
-COPY --from=build_docs /home/user/docs/_build/html/ ./
+FROM scratch as docs
+COPY --from=docsbuilder /home/user/docs/_build/html/ ./
