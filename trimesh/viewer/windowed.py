@@ -12,6 +12,13 @@ import numpy as np
 
 import pyglet
 
+# pyglet 2.0 is close to a re-write moving from fixed-function
+# to shaders and we will likely support it by forking an entirely
+# new viewer `trimesh.viewer.shaders` and then basically keeping
+# `windowed` around for backwards-compatibility with no changes
+if int(pyglet.version.split('.')[0]) >= 2:
+    raise ImportError('`trimesh.viewer.windowed` requires `pip install "pyglet<2"`')
+
 from .trackball import Trackball
 
 from .. import util

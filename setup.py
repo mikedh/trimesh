@@ -36,7 +36,7 @@ requirements_easy = set([
     'scipy',     # provide convex hulls, fast graph ops, etc
     'networkx',  # provide slow graph ops with a nice API
     'lxml',      # handle XML better and faster than built- in XML
-    'pyglet',    # render preview windows nicely
+    'pyglet<2',  # render preview windows nicely : note pyglet 2.0 is basically a re-write
     'shapely',   # handle 2D polygons robustly
     'rtree',     # create N-dimension trees for broad-phase queries
     'svg.path',  # handle SVG format path strings
