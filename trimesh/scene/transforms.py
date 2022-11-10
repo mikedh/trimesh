@@ -136,7 +136,6 @@ class SceneGraph(object):
             # get the path from the forest always going from
             # parent -> child -> child
             path = self.transforms.shortest_path(frame_from, frame_to)
-
             # the path should always start with `frame_from`
             assert path[0] == frame_from
             # and end with the `frame_to` node
@@ -659,10 +658,10 @@ class EnforcedForest(object):
                 backward = backward[::-1]
                 self._cache[(u, v)] = backward
                 return backward
-            elif (b in forward) or f is None and b is None:
-                # we have a either a common element between both
+            elif (b in forward) or (f is None and b is None):
+                # we have a either a common node between both
                 # traversal directions or we have consumed the whole
-                # tree in both directions, so try to find the common element
+                # tree in both directions so try to find the common node
                 common = set(backward).intersection(
                     forward).difference({None})
                 if len(common) == 0:
