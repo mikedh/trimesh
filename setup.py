@@ -80,6 +80,7 @@ lock = [((3, 4), 'lxml', '4.3.5'),
         ((3, 4), 'shapely', '1.6.4'),
         ((3, 4), 'pyglet', '1.4.10'),
         ((3, 5), 'sympy', None),
+        ((3, 0), 'pyglet<2', None),
         ((3, 6), 'svg.path', '4.1')]
 for max_python, name, version in lock:
     if current <= max_python:
@@ -89,7 +90,6 @@ for max_python, name, version in lock:
         if version is not None:
             # add working version locked requirements
             requirements_easy.add('{}=={}'.format(name, version))
-
 
 def format_all():
     """
