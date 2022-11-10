@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bullseye as base
+FROM python:3.10-slim-bullseye AS base
 LABEL maintainer="mikedh@kerfed.com"
 
 # Install the llvmpipe software renderer
@@ -23,7 +23,7 @@ ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
 ENV PATH="/home/user/.local/bin:$PATH"
 
 ## install things that need building
-FROM base as build
+FROM base AS build
 
 # install build-essentials
 RUN apt-trimesh --build=true
@@ -41,7 +41,7 @@ RUN pip install https://github.com/scopatz/pyembree/releases/download/0.1.6/pyem
 
 ####################################
 ### Build output image most things should run on
-FROM base as output
+FROM base AS output
 
 # switch to non-root user
 USER user
@@ -58,15 +58,14 @@ ENV XVFB_WHD="1920x1080x24"\
 
 ###############################
 #### Run Unit Tests
-FROM output as tests
+FROM output AS tests
 
 # copy in tests and supporting files
 COPY --chown=user:user tests ./tests/
 COPY --chown=user:user models ./models/
-# for coverage report
-COPY --chown=user:user .git ./.git/
 COPY --chown=user:user setup.py .
 COPY --chown=user:user docker/gltfvalidator.bash .
+COPY --chown=user:user ./.git ./.git/
 
 # install the khronos GLTF validator
 RUN bash gltfvalidator.bash
@@ -83,12 +82,11 @@ RUN pytest --cov=trimesh \
 ARG CODECOV_TOKEN=""
 RUN curl -Os https://uploader.codecov.io/latest/linux/codecov && \
     	 chmod +x codecov && \
-        ./codecov -t ${CODECOV_TOKEN} \
-
+        ./codecov -t ${CODECOV_TOKEN} 
 
 ################################
 ### Build Sphinx Docs
-FROM output as docsbuilder
+FROM output AS build_docs
 
 USER root
 # install APT packages for docs
@@ -106,4 +104,4 @@ RUN make
 
 ### Copy just the docs so we can output them
 FROM scratch as docs
-COPY --from=docsbuilder /home/user/docs/_build/html/ ./
+COPY --from=build_docs /home/user/docs/_build/html/ ./

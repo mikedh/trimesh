@@ -63,7 +63,7 @@ docs: ## Build trimesh's sphinx docs
 		.
 
 .PHONY: bash
-bash: build ## Start a bash terminal inside the image.
+bash: build ## Start a bash terminal in the image.
 	docker run -it $(TAG_LATEST) /bin/bash
 
 .PHONY: publish-docker
