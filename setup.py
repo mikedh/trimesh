@@ -91,6 +91,7 @@ for max_python, name, version in lock:
             # add working version locked requirements
             requirements_easy.add('{}=={}'.format(name, version))
 
+
 def format_all():
     """
     A shortcut to run automatic formatting and complaining
