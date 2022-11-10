@@ -94,7 +94,10 @@ class Scene(Geometry3D):
         base = self.graph.base_frame
         for child in self.graph.transforms.children[base]:
             combined = np.dot(self.graph[child][0], transform)
-            self.graph.update(child, matrix=combined)
+            self.graph.update(frame_from=base,
+                              frame_to=child,
+                              matrix=combined)
+        return self
 
     def add_geometry(self,
                      geometry,

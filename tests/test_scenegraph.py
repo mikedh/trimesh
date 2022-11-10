@@ -242,6 +242,28 @@ class GraphTests(g.unittest.TestCase):
                 # raise the query that killed us
                 raise ValueError(q)
 
+    def test_scaling_order(self):
+        s = g.trimesh.creation.box().scene()
+        scaling = 1.0 / 3.0
+        c = s.scaled(scaling)
+        factor = (c.geometry['geometry_0'].vertices /
+                  s.geometry['geometry_0'].vertices)
+        assert g.np.allclose(factor, scaling)
+        # should be returning itself
+        r = s.apply_translation([10.5, 10.5, 10.5])
+        assert g.np.allclose(r.bounds, [[10, 10, 10], [11, 11, 11]])
+        assert g.np.allclose(s.bounds, [[10, 10, 10], [11, 11, 11]])
+
+    def test_translation_cache(self):
+        # scene with non-geometry nodes
+        c = g.get_mesh('models/cycloidal.3DXML')
+        s = c.scaled(1.0 / c.extents)
+        # get the pre-translation bounds
+        ori = s.bounds.copy()
+        # apply a translation
+        s.apply_translation([10, 10, 10])
+        assert np.allclose(s.bounds, ori + 10)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

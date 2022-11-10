@@ -38,7 +38,7 @@ class SceneGraph(object):
         # hashable, the base or root frame
         self.base_frame = base_frame
         # cache transformation matrices keyed with tuples
-        self._cache = caching.Cache(self.transforms.__hash__)
+        self._cache = caching.Cache(self.__hash__)
 
     def update(self, frame_to, frame_from=None, **kwargs):
         """
@@ -501,7 +501,7 @@ class EnforcedForest(object):
     reference, it enforces the structure for "free."
     """
 
-    def __init__(self, edges=None):
+    def __init__(self):
         # since every node can have only one parent
         # this data structure transparently enforces
         # the forest data structure without checks
@@ -517,10 +517,6 @@ class EnforcedForest(object):
         # if multiple calls are made for the same path
         # but the connectivity hasn't changed return cached
         self._cache = {}
-
-        if isinstance(edges, dict):
-            for k, v in edges.items():
-                self.add_edge(*k, **v)
 
     def add_edge(self, u, v, **kwargs):
         """
