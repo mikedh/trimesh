@@ -93,7 +93,7 @@ class Scene(Geometry3D):
         """
         base = self.graph.base_frame
         for child in self.graph.transforms.children[base]:
-            combined = np.dot(self.graph[child][0], transform)
+            combined = np.dot(transform, self.graph[child][0])
             self.graph.update(frame_from=base,
                               frame_to=child,
                               matrix=combined)

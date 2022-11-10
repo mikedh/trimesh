@@ -256,13 +256,24 @@ class GraphTests(g.unittest.TestCase):
 
     def test_translation_cache(self):
         # scene with non-geometry nodes
-        c = g.get_mesh('models/cycloidal.3DXML')
+        c = g.get_mesh('cycloidal.3DXML')
         s = c.scaled(1.0 / c.extents)
         # get the pre-translation bounds
         ori = s.bounds.copy()
         # apply a translation
         s.apply_translation([10, 10, 10])
-        assert np.allclose(s.bounds, ori + 10)
+        assert g.np.allclose(s.bounds, ori + 10)
+
+    def test_translation_origin(self):
+        # check to see if we can translate to the origin
+        c = g.get_mesh('cycloidal.3DXML')
+        c.apply_transform(g.trimesh.transformations.random_rotation_matrix())
+        s = c.scaled(1.0 / c.extents)
+        # shouldn't be at the origin
+        assert not g.np.allclose(s.bounds[0], 0.0)
+        # should move to the origin
+        s.apply_translation(-s.bounds[0])
+        assert g.np.allclose(s.bounds[0], 0)
 
 
 if __name__ == '__main__':
