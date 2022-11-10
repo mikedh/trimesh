@@ -497,7 +497,9 @@ class Cache(object):
 class DiskCache(object):
     """
     Store results of expensive operations on disk
-    with an option to expire the results.
+    with an option to expire the results. This is used
+    to cache the multi-gigabyte test corpuses in
+    `tests/corpus.py`
     """
 
     def __init__(self, path, expire_days=30):

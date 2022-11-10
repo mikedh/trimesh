@@ -22,6 +22,7 @@ import itertools
 import contextlib
 import subprocess
 import collections
+import numpy as np
 
 import trimesh
 
@@ -31,16 +32,26 @@ from collections import deque
 from copy import deepcopy
 
 
-try:
+if sys.version_info >= (3, 1):
     # Python 3
     from http.server import SimpleHTTPRequestHandler
     import socketserver
-except ImportError:
+
+    from pyinstrument import Profiler
+
+else:
     # Python 2
     from SimpleHTTPServer import SimpleHTTPRequestHandler
     import SocketServer as socketserver
 
-import numpy as np
+    # make a dummy profiler
+    class Profiler(object):
+        def __enter__(*args, **kwargs):
+            pass
+
+        def __exit__(*args, **kwargs):
+            pass
+
 
 # should we require all soft dependencies
 # this is set in the docker images to catch missing packages

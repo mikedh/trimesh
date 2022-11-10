@@ -1,5 +1,14 @@
+"""
+corpus.py
+------------
+
+Test loaders against large corpuses of test data from github:
+will download more than a gigabyte to your home directory!
+"""
 import trimesh
 from trimesh.util import wrap_as_stream
+import numpy as np
+
 from pyinstrument import Profiler
 
 
@@ -60,6 +69,32 @@ def on_repo(repo, commit):
                 file_type=name,
                 resolver=resolver)
             report[saveas] = str(m)
+
+            # if our source was a GLTF we should be able to roundtrip without dropping
+            if name.lower().split('.')[-1] in ('gltf', 'glb') and len(m.geometry) > 0:
+                # try round-tripping the file
+                e = trimesh.load(file_obj=wrap_as_stream(m.export(file_type='glb')),
+                                 file_type='glb', process=False)
+
+                # geometry keys should have survived roundtrip
+                assert set(m.geometry.keys()) == set(e.geometry.keys())
+                assert set(m.graph.nodes) == set(e.graph.nodes)
+                for key, geom in e.geometry.items():
+                    # the original loaded mesh
+                    ori = m.geometry[key]
+                    # todo : why doesn't this pass
+                    # assert np.allclose(ori.vertices, geom.vertices)
+                    if isinstance(getattr(geom, 'visual', None),
+                                  trimesh.visual.TextureVisuals):
+                        a, b = geom.visual.material, ori.visual.material
+                        # try our fancy equal
+                        assert equal(a.baseColorFactor, b.baseColorFactor)
+                        try:
+                            assert equal(a.baseColorTexture, b.baseColorTexture)
+                        except BaseException:
+                            from IPython import embed
+                            embed()
+
         except NotImplementedError as E:
             # this is what unsupported formats
             # like GLTF 1.0 should raise
@@ -79,6 +114,50 @@ def on_repo(repo, commit):
             report[saveas] += ' SHOULD HAVE RAISED'
 
     return report
+
+
+def equal(a, b):
+    """
+    Check equality of two things.
+
+    Parameters
+    -----------
+    a : any
+      Something.
+    b : any
+      Another thing.
+
+    Returns
+    ----------------
+    equal : bool
+      Are these things equal-ish.
+    """
+    if a is None:
+        return b is None
+
+    if type(a) != type(b):
+        return False
+
+    if isinstance(a, np.ndarray):
+        # if we have a numpy array first check shape
+        if a.shape != b.shape:
+            return False
+        # return every-element-is-close
+        return np.allclose(a, b)
+
+    # a PIL image of some variety
+    if hasattr(a, 'getpixel'):
+        if a.size != b.size:
+            return False
+        # very crude: it's pretty hard to check if two images
+        # are similar and JPEG produces diffs that are like 25%
+        # different but something is better than nothing I suppose
+        aa, bb = np.array(a), np.array(b)
+        percent = np.abs(aa - bb).sum() / (np.product(aa.shape) * 256)
+        return percent < 0.5
+
+    # try built-in eq method
+    return a == b
 
 
 if __name__ == '__main__':

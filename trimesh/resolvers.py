@@ -453,3 +453,9 @@ def nearby_names(name, namespace=None):
             continue
         hit.add(current)
         yield namespace + current
+
+    if '..' in name and namespace is not None:
+        # if someone specified relative paths give it one attempt
+        strip = namespace.strip('/').split('/')[:-name.count('..')]
+        strip.extend(name.split('..')[-1].strip('/').split('/'))
+        yield '/'.join(strip)

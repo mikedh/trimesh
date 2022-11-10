@@ -236,7 +236,7 @@ def transform_polygon(polygon, matrix):
     return result
 
 
-def plot(polygon, show=True, **kwargs):
+def plot(polygon, show=True, axes=None, **kwargs):
     """
     Plot a shapely polygon using matplotlib.
 
@@ -252,18 +252,25 @@ def plot(polygon, show=True, **kwargs):
     import matplotlib.pyplot as plt
 
     def plot_single(single):
-        plt.plot(*single.exterior.xy, **kwargs)
+        axes.plot(*single.exterior.xy, **kwargs)
         for interior in single.interiors:
-            plt.plot(*interior.xy, **kwargs)
+            axes.plot(*interior.xy, **kwargs)
     # make aspect ratio non-stupid
-    plt.axes().set_aspect('equal', 'datalim')
+    if axes is None:
+        axes = plt.axes()
+    axes.set_aspect('equal', 'datalim')
+
     if polygon.__class__.__name__ == 'MultiPolygon':
         [plot_single(i) for i in polygon.geoms]
+    elif hasattr(polygon, '__iter__'):
+        [plot_single(i) for i in polygon]
     else:
         plot_single(polygon)
 
     if show:
         plt.show()
+
+    return axes
 
 
 def resample_boundaries(polygon, resolution, clip=None):
@@ -837,3 +844,41 @@ def projected(mesh,
             [p.buffer(padding)
              for p in polygons]).buffer(-padding)
     return polygon
+
+
+def second_moment(coords):
+    """
+    Calculate the second moment of area of a polygon
+    from the boundary.
+
+    Parameters
+    ------------
+    coords : (n, 2) float or Polygon
+      Closed polygon.
+
+    Returns
+    ----------
+    moments : (3,) float
+      The values of `[Ix, Iy, Ixy]`
+    """
+    if hasattr(coords, 'exterior'):
+        # if we have been passed a shapely.geometry.Polygon
+        exterior = second_moment(np.array(coords.exterior.coords))
+        interiors = np.sum([second_moment(np.array(i.coords))
+                            for i in coords.interiors],
+                           axis=0)
+        return exterior - interiors
+
+    coords = np.asanyarray(coords, dtype=np.float64)
+    # shorthand the coordinates
+    x1, y1 = np.vstack((coords[-1], coords[:-1])).T
+    x2, y2 = coords.T
+    # do vectorized operations
+    v = x1 * y2 - x2 * y1
+    Ix = v * (y1 * y1 + y1 * y2 + y2 * y2)
+    Iy = v * (x1 * x1 + x1 * x2 + x2 * x2)
+    Ixy = v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1)
+    # divide by constants and return
+    return np.array([Ix.sum() / 12.0,
+                     Iy.sum() / 12.0,
+                     Ixy.sum() / 24.0], dtype=np.float64)

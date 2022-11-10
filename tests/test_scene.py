@@ -159,6 +159,47 @@ class SceneTests(g.unittest.TestCase):
         assert scene.__hash__() == hash_val
         assert converted.__hash__() != hash_val
 
+    def test_scaling_3D(self):
+        scene = g.get_mesh('cycloidal.3DXML')
+        extents = scene.extents.copy()
+
+        factor = [0.2, 1.3, 3.3]
+        scaled = scene.scaled(factor)
+
+        assert g.np.allclose(
+            scaled.extents /
+            extents,
+            factor)
+
+        factor = [3.0, 3.0, 3.0]
+        scaled = scene.scaled(factor)
+
+        assert g.np.allclose(
+            scaled.extents /
+            extents,
+            factor)
+
+    def test_scaling_3D_mixed(self):
+        # same as test_scaling_3D but input scene contains 2D and 3D geometry
+        scene = g.get_mesh('scenes.zip', mixed=True)
+        extents = scene.extents.copy()
+
+        factor = [0.2, 1.3, 3.3]
+        scaled = scene.scaled(factor)
+
+        assert g.np.allclose(
+            scaled.extents /
+            extents,
+            factor)
+
+        factor = [3.0, 3.0, 3.0]
+        scaled = scene.scaled(factor)
+
+        assert g.np.allclose(
+            scaled.extents /
+            extents,
+            factor)
+
     def test_add_geometry(self):
         # list-typed geometry should create multiple nodes,
         # e.g., below code is equivalent to

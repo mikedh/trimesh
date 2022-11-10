@@ -196,16 +196,18 @@ True
 True
 
 """
-
 from __future__ import division, print_function
 
-import math
 
+import math
 import numpy as np
 
 __version__ = '2017.02.17'
 __docformat__ = 'restructuredtext en'
 __all__ = ()
+
+_IDENTITY = np.eye(4)
+_IDENTITY.flags['WRITEABLE'] = False
 
 
 def identity_matrix():
@@ -2118,30 +2120,25 @@ def transform_points(points,
     transformed : (n, d) float
       Transformed points
     """
-    points = np.asanyarray(
-        points, dtype=np.float64)
-    # no points no cry
+    points = np.asanyarray(points, dtype=np.float64)
     if len(points) == 0:
         return points.copy()
 
+    # check the matrix against the points
     matrix = np.asanyarray(matrix, dtype=np.float64)
-    if (len(points.shape) != 2 or
-            (points.shape[1] + 1 != matrix.shape[1])):
-        raise ValueError('matrix shape ({}) doesn\'t match points ({})'.format(
-            matrix.shape,
-            points.shape))
+    # shorthand the shape
+    count, dim = points.shape
 
     # check to see if we've been passed an identity matrix
-    identity = np.abs(matrix - np.eye(matrix.shape[0])).max()
-    if identity < 1e-8:
+    if np.abs(matrix - _IDENTITY[:dim + 1, :dim + 1]).max() < 1e-8:
         return np.ascontiguousarray(points.copy())
 
-    dimension = points.shape[1]
-    column = np.zeros(len(points)) + int(bool(translate))
-    stacked = np.column_stack((points, column))
-    transformed = np.dot(matrix, stacked.T).T[:, :dimension]
-    transformed = np.ascontiguousarray(transformed)
-    return transformed
+    if translate:
+        stack = np.column_stack((points, np.ones(count)))
+    else:
+        stack = np.column_stack((points, np.zeros(count)))
+
+    return np.dot(matrix, stack.T).T[:, :dim]
 
 
 def is_rigid(matrix, epsilon=1e-8):

@@ -1,5 +1,3 @@
-import uuid
-
 import numpy as np
 import collections
 
@@ -8,6 +6,8 @@ from copy import deepcopy
 from .. import util
 from .. import caching
 from .. import transformations
+
+from ..caching import hash_fast
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -38,7 +38,7 @@ class SceneGraph(object):
         # hashable, the base or root frame
         self.base_frame = base_frame
         # cache transformation matrices keyed with tuples
-        self._cache = caching.Cache(self.__hash__)
+        self._cache = caching.Cache(self.transforms.__hash__)
 
     def update(self, frame_to, frame_from=None, **kwargs):
         """
@@ -78,12 +78,8 @@ class SceneGraph(object):
         attr['matrix'] = kwargs_to_matrix(**kwargs)
 
         # add the edges for the transforms
-        # will return if it changed anything
-        if self.transforms.add_edge(
-                frame_from, frame_to, **attr):
-            # clear all cached matrices by setting
-            # modified hash to a random string
-            self._modified = str(uuid.uuid4())
+        # wi ll return if it changed anything
+        self.transforms.add_edge(frame_from, frame_to, **attr)
 
         # set the node attribute with the geometry information
         if 'geometry' in kwargs:
@@ -127,40 +123,50 @@ class SceneGraph(object):
             frame_to].get('geometry')
 
         # get a local reference to edge data
-        edge_data = self.transforms.edge_data
+        data = self.transforms.edge_data
 
         if frame_from == frame_to:
             # if we're going from ourself return identity
-            matrix = np.eye(4)
-        elif key in edge_data:
+            matrix = _identity
+        elif key in data:
             # if the path is just an edge return early
-            matrix = edge_data[key]['matrix']
+            matrix = data[key]['matrix']
         else:
             # we have a 3+ node path
             # get the path from the forest always going from
             # parent -> child -> child
-            path = self.transforms.shortest_path(
-                frame_from, frame_to)
-            # collect a homogeneous transform for each edge
-            matrices = [edge_data[(u, v)]['matrix'] for u, v in
-                        zip(path[:-1], path[1:])]
+            path = self.transforms.shortest_path(frame_from, frame_to)
+
+            # the path should always start with `frame_from`
+            assert path[0] == frame_from
+            # and end with the `frame_to` node
+            assert path[-1] == frame_to
+
+            # loop through pairs of the path
+            matrices = []
+            for u, v in zip(path[:-1], path[1:]):
+                forward = data.get((u, v))
+                if forward is not None:
+                    if 'matrix' in forward:
+                        # append the matrix from u to v
+                        matrices.append(forward['matrix'])
+                    continue
+                # since forwards didn't exist backward must
+                # exist otherwise this is a disconnected path
+                # and we should raise an error anyway
+                backward = data[(v, u)]
+                if 'matrix' in backward:
+                    # append the inverted backwards matrix
+                    matrices.append(np.linalg.inv(backward['matrix']))
             # multiply matrices into single transform
             matrix = util.multi_dot(matrices)
-
         # store the result
         self._cache[key] = (matrix, geometry)
 
         return matrix, geometry
 
     def __hash__(self):
-        return hash(self.modified())
-
-    def modified(self):
-        """
-        Return the last time stamp data was modified.
-        """
-        return (getattr(self, '_modified', '-') +
-                getattr(self.transforms, '_modified', '-'))
+        return self.transforms.__hash__()
 
     def copy(self):
         """
@@ -302,6 +308,8 @@ class SceneGraph(object):
         edgelist : (n,) list
           Of edge tuples
         """
+        # save local reference to node_data
+        nodes = self.transforms.node_data
         # save cleaned edges
         export = []
         # loop through (node, node, edge attributes)
@@ -310,7 +318,7 @@ class SceneGraph(object):
             a, b = edge
             # geometry is a node property but save it to the
             # edge so we don't need two dictionaries
-            b_attr = self.transforms.node_data[b]
+            b_attr = nodes[b]
             # make sure we're not stomping on original
             attr_new = attr.copy()
             # apply node geometry to edge attributes
@@ -320,7 +328,7 @@ class SceneGraph(object):
             attr_new.update(
                 {k: v.tolist() for k, v in attr_new.items()
                  if hasattr(v, 'tolist')})
-            export.append((a, b, attr_new))
+            export.append([a, b, attr_new])
         return export
 
     def from_edgelist(self, edges, strict=True):
@@ -336,6 +344,7 @@ class SceneGraph(object):
           If True raise a ValueError when a
           malformed edge is passed in a tuple.
         """
+
         # loop through each edge
         for edge in edges:
             # edge contains attributes
@@ -493,7 +502,7 @@ class EnforcedForest(object):
     reference, it enforces the structure for "free."
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, edges=None):
         # since every node can have only one parent
         # this data structure transparently enforces
         # the forest data structure without checks
@@ -509,6 +518,10 @@ class EnforcedForest(object):
         # if multiple calls are made for the same path
         # but the connectivity hasn't changed return cached
         self._cache = {}
+
+        if isinstance(edges, dict):
+            for k, v in edges.items():
+                self.add_edge(*k, **v)
 
     def add_edge(self, u, v, **kwargs):
         """
@@ -528,10 +541,11 @@ class EnforcedForest(object):
         changed : bool
           Return if this operation changed anything.
        """
+        self._hash = None
+
         # topology has changed so clear cache
         if (u, v) not in self.edge_data:
             self._cache = {}
-            self._modified = str(uuid.uuid4())
         else:
             # check to see if matrix and geometry are identical
             edge = self.edge_data[(u, v)]
@@ -576,7 +590,7 @@ class EnforcedForest(object):
 
         # topology will change so clear cache
         self._cache = {}
-        self._modified = str(uuid.uuid4())
+        self._hash = None
 
         # delete all children's references and parent reference
         children = [child for (child, parent) in self.parents.items() if parent == u]
@@ -597,11 +611,9 @@ class EnforcedForest(object):
 
     def shortest_path(self, u, v):
         """
-        Find the shortest path between `u` and `v`.
-
-        Note that it will *always* be ordered from
-        root direction to leaf direction, so `u` may
-        be either the first *or* last element.
+        Find the shortest path between `u` and `v`, returning
+        a path where the first element is always `u` and the
+        last element is always `v`, disregarding edge direction.
 
         Parameters
         -----------
@@ -623,7 +635,7 @@ class EnforcedForest(object):
             # return the same path for either direction
             return self._cache[(u, v)]
         elif (v, u) in self._cache:
-            return self._cache[(v, u)]
+            return self._cache[(v, u)][::-1]
 
         # local reference to parent dict for performance
         parents = self.parents
@@ -634,18 +646,48 @@ class EnforcedForest(object):
         # cap iteration to number of total nodes
         for _ in range(len(parents) + 1):
             # store the parent both forwards and backwards
-            forward.append(parents.get(forward[-1]))
-            backward.append(parents.get(backward[-1]))
-            if forward[-1] == v:
+            f = parents.get(forward[-1])
+            b = parents.get(backward[-1])
+            forward.append(f)
+            backward.append(b)
+
+            if f == v:
                 self._cache[(u, v)] = forward
                 return forward
-            elif backward[-1] == u:
+            elif b == u:
                 # return reversed path
                 backward = backward[::-1]
                 self._cache[(u, v)] = backward
                 return backward
-            elif forward[-1] is None and backward[-1] is None:
-                raise ValueError('No path between nodes {} and {}!'.format(u, v))
+            elif (b in forward) or f is None and b is None:
+                # we have a either a common element between both
+                # traversal directions or we have consumed the whole
+                # tree in both directions, so try to find the common element
+                common = set(backward).intersection(
+                    forward).difference({None})
+                if len(common) == 0:
+                    raise ValueError('No path from {}->{}!'.format(u, v))
+                elif len(common) > 1:
+                    # get the first occuring common element in "forward"
+                    link = next(f for f in forward if f in common)
+                    assert link in common
+                else:
+                    # take the only common element
+                    link = next(iter(common))
+
+                # combine the forward and backwards traversals
+                a = forward[:forward.index(link) + 1]
+                b = backward[:backward.index(link)]
+                path = a + b[::-1]
+
+                # verify we didn't screw up the order
+                assert path[0] == u
+                assert path[-1] == v
+
+                self._cache[(u, v)] = path
+
+                return path
+
         raise ValueError('Iteration limit exceeded!')
 
     @property
@@ -717,11 +759,31 @@ class EnforcedForest(object):
                 collected.update(childs)
         return collected
 
-    def modified(self):
+    def __hash__(self):
         """
-        Return the last time stamp data was modified.
+        Actually hash all of the data.
+
+        Previously we were relying on "dirty" flags but
+        that made the bookkeeping unreasonably critical.
+
+        This was optimized a bit, and is evaluating on an
+        older laptop on a scene with 77 nodes and 76 edges
+        10,000 times in 0.7s which seems fast enough.
         """
-        return getattr(self, '_modified', '-')
+        hashed = getattr(self, '_hash', None)
+        if hashed is not None:
+            return hashed
+
+        hashed = hash_fast(
+            (''.join(str(hash(k)) + v.get('geometry', '')
+                     for k, v in self.edge_data.items()) +
+             ''.join(str(k) + v.get('geometry', '')
+                     for k, v in self.node_data.items())).encode('utf-8') +
+            b''.join(v['matrix'].tobytes()
+                     for v in self.edge_data.values()
+                     if 'matrix' in v))
+        self._hash = hashed
+        return hashed
 
 
 def kwargs_to_matrix(

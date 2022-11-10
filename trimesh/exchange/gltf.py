@@ -1158,23 +1158,7 @@ def specular_to_pbr(
     return result
 
 
-def _parse_materials(header, views, resolver=None):
-    """
-    Convert materials and images stored in a GLTF header
-    and buffer views to PBRMaterial objects.
-
-    Parameters
-    ------------
-    header : dict
-      Contains layout of file
-    views : (n,) bytes
-      Raw data
-
-    Returns
-    ------------
-    materials : list
-      List of trimesh.visual.texture.Material objects
-    """
+def _parse_textures(header, views, resolver=None):
     try:
         import PIL.Image
     except ImportError:
@@ -1205,6 +1189,27 @@ def _parse_materials(header, views, resolver=None):
                 images[i] = PIL.Image.open(util.wrap_as_stream(blob))
             except BaseException:
                 log.error("failed to load image!", exc_info=True)
+    return images
+
+
+def _parse_materials(header, views, resolver=None):
+    """
+    Convert materials and images stored in a GLTF header
+    and buffer views to PBRMaterial objects.
+
+    Parameters
+    ------------
+    header : dict
+      Contains layout of file
+    views : (n,) bytes
+      Raw data
+
+    Returns
+    ------------
+    materials : list
+      List of trimesh.visual.texture.Material objects
+    """
+    images = _parse_textures(header, views, resolver)
 
     # store materials which reference images
     materials = []
@@ -1372,7 +1377,8 @@ def _read_buffers(header,
                 kwargs.update(mesh_kwargs)
                 kwargs["metadata"].update(metadata)
                 # i.e. GL_LINES, GL_TRIANGLES, etc
-                mode = p.get('mode')
+                # specification says the default mode is GL_TRIANGLES
+                mode = p.get('mode', _GL_TRIANGLES)
                 # colors, normals, etc
                 attr = p['attributes']
                 # create a unique mesh name per- primitive
@@ -1389,13 +1395,8 @@ def _read_buffers(header,
                         points=np.arange(len(kwargs['vertices'])))]
                 elif mode == _GL_POINTS:
                     kwargs["vertices"] = access[attr["POSITION"]]
-                elif mode is None or mode in (_GL_TRIANGLES, _GL_STRIP):
-                    if mode is None:
-                        # some people skip mode since GL_TRIANGLES
-                        # is apparently the de-facto default
-                        log.debug(
-                            'primitive has no mode! trying GL_TRIANGLES?')
-                        # get vertices from accessors
+                elif mode in (_GL_TRIANGLES, _GL_STRIP):
+                    # get vertices from accessors
                     kwargs["vertices"] = access[attr["POSITION"]]
                     # get faces from accessors
                     if 'indices' in p:

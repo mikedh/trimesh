@@ -22,16 +22,16 @@ class GraphTests(g.unittest.TestCase):
             scene = g.trimesh.Scene()
             scene.add_geometry(g.trimesh.creation.box())
 
-            mod = [scene.graph.modified()]
+            mod = [scene.graph.__hash__()]
             scene.set_camera()
-            mod.append(scene.graph.modified())
+            mod.append(scene.graph.__hash__())
             assert mod[-1] != mod[-2]
 
             assert not g.np.allclose(
                 scene.camera_transform,
                 g.np.eye(4))
             scene.camera_transform = g.np.eye(4)
-            mod.append(scene.graph.modified())
+            mod.append(scene.graph.__hash__())
             assert mod[-1] != mod[-2]
 
             assert g.np.allclose(
@@ -154,6 +154,93 @@ class GraphTests(g.unittest.TestCase):
                              scene.convex_hull.bounds)
         # should have moved from original position
         assert not g.np.allclose(m.convex_hull.bounds, b)
+
+    def test_reverse(self):
+        tf = g.trimesh.transformations
+
+        s = g.trimesh.scene.Scene()
+        s.add_geometry(
+            g.trimesh.creation.box(),
+            parent_node_name='world',
+            node_name='foo',
+            transform=tf.translation_matrix([0, 0, 1]))
+
+        s.add_geometry(
+            g.trimesh.creation.box(),
+            parent_node_name='foo',
+            node_name='foo2',
+            transform=tf.translation_matrix([0, 0, 1]))
+
+        assert len(s.graph.transforms.edge_data) == 2
+        a = s.graph.get(frame_from='world', frame_to='foo2')
+
+        assert len(s.graph.transforms.edge_data) == 2
+
+        # try going backward
+        i = s.graph.get(frame_from='foo2', frame_to='world')
+        # matrix should be inverted if you're going the other way
+        assert g.np.allclose(a[0], g.np.linalg.inv(i[0]))
+
+        # try getting foo2 with shorthand
+        b = s.graph.get(frame_to='foo2')
+        c = s.graph['foo2']
+        # matrix should be inverted if you're going the other way
+        assert g.np.allclose(a[0], c[0])
+        assert g.np.allclose(b[0], c[0])
+
+        # get should not have edited edge data
+        assert len(s.graph.transforms.edge_data) == 2
+
+    def test_shortest_path(self):
+        # compare the EnforcedForest shortest path algo
+        # to the more general networkx.shortest_path algo
+        if not g.PY3:
+            # old networkx is a lot different
+            return
+
+        tf = g.trimesh.transformations
+        # start with creating a random tree
+        edgelist = {}
+        tree = g.nx.random_tree(n=1000, seed=0, create_using=g.nx.DiGraph)
+        for e in tree.edges:
+            data = {}
+            if g.np.random.random() > .5:
+                # if a matrix is omitted but an edge exists it is
+                # the same as passing an identity matrix
+                data['matrix'] = tf.random_rotation_matrix()
+            if g.np.random.random() > .4:
+                # a geometry is not required for a node
+                data['geometry'] = str(int(g.np.random.random() * 1e8))
+            edgelist[e] = data
+
+        # now apply the random data to an EnforcedForest
+        forest = g.trimesh.scene.transforms.EnforcedForest()
+        for k, v in edgelist.items():
+            forest.add_edge(*k, **v)
+
+        # generate a lot of random queries
+        queries = g.np.random.choice(
+            list(forest.nodes), 10000).reshape((-1, 2))
+        # filter out any self-queries as networkx doesn't handle them
+        queries = queries[queries.ptp(axis=1) > 0]
+
+        # now run our shortest path algorithm in a profiler
+        with g.Profiler() as P:
+            ours = [forest.shortest_path(*q) for q in queries]
+        # print this way to avoid a python2 syntax error
+        print(P.output_text())
+
+        # check truth from networkx with an undirected graph
+        undir = tree.to_undirected()
+        with g.Profiler() as P:
+            truth = [g.nx.shortest_path(undir, *q) for q in queries]
+        print(P.output_text())
+
+        # now compare our shortest path with networkx
+        for a, b, q in zip(truth, ours, queries):
+            if tuple(a) != tuple(b):
+                # raise the query that killed us
+                raise ValueError(q)
 
 
 if __name__ == '__main__':
