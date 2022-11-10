@@ -194,7 +194,7 @@ class GraphTests(g.unittest.TestCase):
     def test_shortest_path(self):
         # compare the EnforcedForest shortest path algo
         # to the more general networkx.shortest_path algo
-        if not g.PY3:
+        if g.sys.version_info < (3, 7):
             # old networkx is a lot different
             return
 
