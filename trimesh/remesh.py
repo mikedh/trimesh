@@ -218,6 +218,26 @@ def subdivide_to_size(vertices,
 
 def loop(vertices,
          faces):
+    """
+    Subdivide a mesh by dividing each triangle into four triangles 
+    with approximation scheme of its smoothed surface.
+    
+    Will return a triangle soup, not a nicely structured mesh.
+
+    Parameters
+    ------------
+    vertices : (n, 3) float
+      Vertices in space
+    faces : (m, 3) int
+      Indices of vertices which make up triangles
+
+    Returns
+    ------------
+    vertices : (j, 3) float
+      Vertices in space
+    faces : (q, 3) int
+      Indices of vertices
+    """
     # find the unique edges of our faces 
     edges, edges_face = faces_to_edges(faces, return_index=True)
     edges = np.sort(edges, axis=1)
