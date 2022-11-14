@@ -1996,6 +1996,26 @@ class Trimesh(Geometry3D):
             return result, final_index
 
         return result
+      
+    def loop(self, iterations=1):
+        """
+        Subdivide a mesh by dividing each triangle into four triangles 
+        and approximating their smoothed surface (loop subdivision).
+
+        Parameters
+        ------------
+        iterations : int
+          Number of iterations to run subdivisio
+        """
+        vertices = self.vertices
+        faces = self.faces
+        for _index in range(iterations):
+          vertices, faces = remesh.loop(vertices, faces)
+        result = Trimesh(
+          vertices=vertices,
+          faces=faces)
+        return result
+        
 
     @log_time
     def smoothed(self, **kwargs):

@@ -220,7 +220,7 @@ def loop(vertices,
          faces):
     """
     Subdivide a mesh by dividing each triangle into four triangles 
-    with approximation scheme of its smoothed surface.
+    and approximating their smoothed surface (loop subdivision).
     This function is an array-based implementation of loop subdivision,
     which avoids slow for loop and enables faster calculation.
     
@@ -270,6 +270,8 @@ def loop(vertices,
     # set interior edges if there are two edges and boundary if there is one.
     edge_inter = np.sort(grouping.group_rows(edges, require_count=2), axis=1)
     edge_bound = grouping.group_rows(edges, require_count=1)
+    # make sure that one edge is shared by only one or two faces.
+    assert len(edge_inter) * 2 + len(edge_bound) == len(edges)
     
     # set interior, boundary mask for unique edges
     edge_bound_mask = np.zeros(len(edges), dtype=bool)
