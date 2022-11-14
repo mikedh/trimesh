@@ -221,9 +221,30 @@ def loop(vertices,
     """
     Subdivide a mesh by dividing each triangle into four triangles 
     with approximation scheme of its smoothed surface.
+    Overall process:
+    1. Calculate odd vertices.
+      Assign a new odd vertex on each edge and 
+      calculate the value for the boundary case and the interior case.
+      The value is calculated as follows.
+          v2           
+        / f0 \         0
+      v0--e--v1      /   \ 
+        \ f1 /     v0--e--v1
+          v3      
+      - interior case : 3:1 ratio of mean(v0,v1) and mean(v2,v3)
+      - boundary case : mean(v0,v1)
+    2. Calculate even vertices.
+      The new even vertices are calculated with the existing
+      vertices and their adjacent vertices.
+        1---2
+       / \ / \       0---1
+      0---v---3     / \ / \
+       \ / \ /    b0---v---b1  
+        k...4    
+      - interior case : (1-kβ):β ratio of v and k adjacencies
+      - boundary case : 3:1 ratio of v and mean(b0,b1)
+    3. Compose new faces with new vertices.
     
-    Will return a triangle soup, not a nicely structured mesh.
-
     Parameters
     ------------
     vertices : (n, 3) float
@@ -296,7 +317,7 @@ def loop(vertices,
       boundary_neighbors[~vrt_bound_mask[neighbors[vrt_bound_mask]]] = -1
       even[vrt_bound_mask] = 1/8 * vertices_[boundary_neighbors].sum(1) + 3/4 * vertices[vrt_bound_mask]
 
-    # the new faces with correct winding
+    # the new faces with odd vertices
     odd_idx = inverse.reshape((-1, 3)) + len(vertices)
     new_faces = np.column_stack([faces[:, 0],
                         odd_idx[:, 0],
