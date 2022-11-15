@@ -1997,7 +1997,7 @@ class Trimesh(Geometry3D):
 
         return result
       
-    def loop(self, iterations=1):
+    def loop(self, iterations=1, multibody=False):
         """
         Subdivide a mesh by dividing each triangle into four triangles 
         and approximating their smoothed surface (loop subdivision).
@@ -2006,16 +2006,38 @@ class Trimesh(Geometry3D):
         ------------
         iterations : int
           Number of iterations to run subdivisio
-        """
-        vertices = self.vertices
-        faces = self.faces
-        for _index in range(iterations):
-          vertices, faces = remesh.loop(vertices, faces)
+        multibody : bool
+          If True will try to subdivide for each submesh
+        """ 
+        if multibody:
+          splited_meshes = self.split(only_watertight=False)    
+          if len(splited_meshes) > 1:             
+            new_meshes = []
+            # perform subdivision for all submesh
+            for splited_mesh in splited_meshes:
+                new_vertices, new_faces = remesh.loop(
+                    vertices=splited_mesh.vertices, 
+                    faces=splited_mesh.faces, 
+                    iterations=iterations)
+                # create new mesh
+                new_mesh = Trimesh(
+                    vertices=new_vertices,
+                    faces=new_faces)
+                new_meshes.append(new_mesh)
+            # concatenate all meshes into one
+            result = util.concatenate(new_meshes)
+            return result
+          
+        # perform subdivision for one mesh
+        new_vertices, new_faces = remesh.loop(
+            vertices=self.vertices, 
+            faces=self.faces, 
+            iterations=iterations)
+        # create new mesh
         result = Trimesh(
-          vertices=vertices,
-          faces=faces)
+            vertices=new_vertices,
+            faces=new_faces)
         return result
-        
 
     @log_time
     def smoothed(self, **kwargs):
