@@ -38,7 +38,7 @@ class SceneGraph(object):
         # hashable, the base or root frame
         self.base_frame = base_frame
         # cache transformation matrices keyed with tuples
-        self._cache = caching.Cache(self.transforms.__hash__)
+        self._cache = caching.Cache(self.__hash__)
 
     def update(self, frame_to, frame_from=None, **kwargs):
         """
@@ -137,7 +137,6 @@ class SceneGraph(object):
             # parent -> child -> child
             path = self.transforms.shortest_path(
                 frame_from, frame_to)
-
             # the path should always start with `frame_from`
             assert path[0] == frame_from
             # and end with the `frame_to` node
@@ -512,7 +511,7 @@ class EnforcedForest(object):
     reference, it enforces the structure for "free."
     """
 
-    def __init__(self, edges=None):
+    def __init__(self):
         # since every node can have only one parent
         # this data structure transparently enforces
         # the forest data structure without checks
@@ -528,10 +527,6 @@ class EnforcedForest(object):
         # if multiple calls are made for the same path
         # but the connectivity hasn't changed return cached
         self._cache = {}
-
-        if isinstance(edges, dict):
-            for k, v in edges.items():
-                self.add_edge(*k, **v)
 
     def add_edge(self, u, v, **kwargs):
         """
@@ -669,10 +664,10 @@ class EnforcedForest(object):
                 backward = backward[::-1]
                 self._cache[(u, v)] = backward
                 return backward
-            elif (b in forward) or f is None and b is None:
-                # we have a either a common element between both
+            elif (b in forward) or (f is None and b is None):
+                # we have a either a common node between both
                 # traversal directions or we have consumed the whole
-                # tree in both directions, so try to find the common element
+                # tree in both directions so try to find the common node
                 common = set(backward).intersection(
                     forward).difference({None})
                 if len(common) == 0:
