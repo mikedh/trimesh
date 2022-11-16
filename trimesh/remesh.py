@@ -275,7 +275,8 @@ def loop(vertices,
       edge_inter = np.sort(grouping.group_rows(edges, require_count=2), axis=1)
       edge_bound = grouping.group_rows(edges, require_count=1)
       # make sure that one edge is shared by only one or two faces.
-      assert len(edge_inter) * 2 + len(edge_bound) == len(edges)
+      if not len(edge_inter)*2 + len(edge_bound) == len(edges):
+        raise ValueError('Some edges are shared by more than 2 faces')
       
       # set interior, boundary mask for unique edges
       edge_bound_mask = np.zeros(len(edges), dtype=bool)
