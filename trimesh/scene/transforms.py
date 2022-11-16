@@ -135,7 +135,8 @@ class SceneGraph(object):
             # we have a 3+ node path
             # get the path from the forest always going from
             # parent -> child -> child
-            path = self.transforms.shortest_path(frame_from, frame_to)
+            path = self.transforms.shortest_path(
+                frame_from, frame_to)
             # the path should always start with `frame_from`
             assert path[0] == frame_from
             # and end with the `frame_to` node
@@ -156,9 +157,20 @@ class SceneGraph(object):
                 backward = data[(v, u)]
                 if 'matrix' in backward:
                     # append the inverted backwards matrix
-                    matrices.append(np.linalg.inv(backward['matrix']))
-            # multiply matrices into single transform
-            matrix = util.multi_dot(matrices)
+                    matrices.append(
+                        np.linalg.inv(backward['matrix']))
+            # filter out any identity matrices
+            matrices = [m for m in matrices if
+                        np.abs((m - _identity)).max() > 1e-8]
+            if len(matrices) == 0:
+                matrix = _identity
+            elif len(matrices) == 1:
+                matrix = matrices[0]
+            else:
+                # multiply matrices into single transform
+                matrix = util.multi_dot(matrices)
+        # matrix being edited in-place leads to subtle bugs
+        matrix.flags['WRITEABLE'] = False
         # store the result
         self._cache[key] = (matrix, geometry)
 

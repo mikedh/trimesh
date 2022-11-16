@@ -201,7 +201,8 @@ class GraphTests(g.unittest.TestCase):
         tf = g.trimesh.transformations
         # start with creating a random tree
         edgelist = {}
-        tree = g.nx.random_tree(n=1000, seed=0, create_using=g.nx.DiGraph)
+        tree = g.nx.random_tree(
+            n=1000, seed=0, create_using=g.nx.DiGraph)
         for e in tree.edges:
             data = {}
             if g.np.random.random() > .5:
@@ -241,6 +242,21 @@ class GraphTests(g.unittest.TestCase):
             if tuple(a) != tuple(b):
                 # raise the query that killed us
                 raise ValueError(q)
+
+        # now try creating this as a full scenegraph
+        sg = g.trimesh.scene.transforms.SceneGraph()
+        [sg.update(frame_from=k[0],
+                   frame_to=k[1], **kwargs)
+         for k, kwargs in edgelist.items()]
+
+        with g.Profiler() as P:
+            matgeom = [sg.get(
+                frame_from=q[0],
+                frame_to=q[1]) for q in queries]
+        print(P.output_text())
+
+        # all of the matrices should be rigid transforms
+        assert all(tf.is_rigid(mat) for mat, _ in matgeom)
 
     def test_scaling_order(self):
         s = g.trimesh.creation.box().scene()

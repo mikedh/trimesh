@@ -233,12 +233,34 @@ class SliceTest(g.unittest.TestCase):
                    + 0.01 * g.trimesh.unitize([1, 0, 2])]
         normals = [g.trimesh.unitize([1, 1, 1]), g.trimesh.unitize([1, 2, 3])]
 
+    def test_slice_onplane(self):
+        m = g.get_mesh('featuretype.STL')
+        # on a plane with a lot of coplanar triangles
+        n = g.np.array([0, 0, 1.0])
+        o = g.np.array([0, 0, 1.0])
+
+        # slice the mesh in two pieces
+        a = m.slice_plane(plane_origin=o,
+                          plane_normal=-n,
+                          cap=True)
+        b = m.slice_plane(plane_origin=o,
+                          plane_normal=n,
+                          cap=True)
+
+        # both slices should be watertiight
+        assert a.is_watertight
+        assert b.is_watertight
+        # volume should match original
+        assert g.np.isclose(m.volume, a.volume + b.volume)
+
     def test_slice_submesh(self):
         bunny = g.get_mesh('bunny.ply')
 
         # Find the faces on the body.
-        neck_plane_origin = g.np.array([-0.0441905, 0.124347, 0.0235287])
-        neck_plane_normal = g.np.array([0.35534835, -0.93424839, -0.03012456])
+        neck_plane_origin = g.np.array(
+            [-0.0441905, 0.124347, 0.0235287])
+        neck_plane_normal = g.np.array(
+            [0.35534835, -0.93424839, -0.03012456])
 
         dots = g.np.einsum('i,ij->j', neck_plane_normal,
                            (bunny.vertices - neck_plane_origin).T)
@@ -317,8 +339,8 @@ class SliceTest(g.unittest.TestCase):
         if not g.has_earcut:
             return
 
+        from trimesh.transformations import random_rotation_matrix
         for i in range(100):
-            from trimesh.transformations import random_rotation_matrix
             box1 = g.trimesh.primitives.Box(
                 extents=[10, 20, 30],
                 transform=random_rotation_matrix())

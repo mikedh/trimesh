@@ -9,6 +9,7 @@ import numpy as np
 from . import util
 from . import geometry
 from . import grouping
+from . import triangles as tm
 from . import transformations as tf
 
 from .constants import tol
@@ -465,11 +466,8 @@ def slice_faces_plane(vertices,
         return vertices, faces
 
     # Construct a mask for the faces to slice.
-    if face_index is None:
-        mask = np.ones(len(faces), dtype=bool)
-    else:
-        mask = np.zeros(len(faces), dtype=bool)
-        mask[face_index] = True
+    if face_index is not None:
+        faces = faces[face_index]
 
     if cached_dots is not None:
         dots = cached_dots
@@ -477,8 +475,7 @@ def slice_faces_plane(vertices,
         # dot product of each vertex with the plane normal indexed by face
         # so for each face the dot product of each vertex is a row
         # shape is the same as faces (n,3)
-        dots = np.einsum('i,ij->j', plane_normal,
-                         (vertices - plane_origin).T)
+        dots = np.dot(vertices - plane_origin, plane_normal)
 
     # Find vertex orientations w.r.t. faces for all triangles:
     #  -1 -> vertex "inside" plane (positive normal direction)
@@ -499,12 +496,28 @@ def slice_faces_plane(vertices,
     # (0,0,0),  (-1,0,0),  (-1,-1,0), (-1,-1,-1) <- inside
     # (1,0,0),  (1,1,0),   (1,1,1)               <- outside
     # (1,0,-1), (1,-1,-1), (1,1,-1)              <- onedge
-    onedge = np.logical_and(np.logical_and(signs_asum >= 2,
-                                           np.abs(signs_sum) <= 1),
-                            mask)
+    onedge = np.logical_and(
+        signs_asum >= 2,
+        np.abs(signs_sum) <= 1)
 
-    inside = np.logical_or((signs_sum == -signs_asum),
-                           ~mask)
+    inside = signs_sum == -signs_asum
+
+    # for any faces that lie exactly on-the-plane
+    # we want to only include them if their normal
+    # is backwards from the slicing normal
+    on_plane = signs_asum == 0
+    if on_plane.any():
+        # compute the normals and whether
+        # face is degenerate here
+        check, valid = tm.normals(vertices[faces[on_plane]])
+        # only include faces back from normal
+        dot_check = np.dot(check, plane_normal)
+        # exclude any degenerate faces from the result
+        inside[on_plane] = valid
+        # exclude the degenerate face from our mask
+        on_plane[on_plane] = valid
+        # apply results for this subset
+        inside[on_plane] = dot_check < 0.0
 
     # Automatically include all faces that are "inside"
     new_faces = faces[inside]
@@ -638,8 +651,9 @@ def slice_mesh_plane(mesh,
                      cached_dots=None,
                      **kwargs):
     """
-    Slice a mesh with a plane, returning a new mesh that is the
-    portion of the original mesh to the positive normal side of the plane
+    Slice a mesh with a plane returning a new mesh that is the
+    portion of the original mesh to the positive normal side
+    of the plane.
 
     Parameters
     ---------
@@ -719,7 +733,9 @@ def slice_mesh_plane(mesh,
             vertices = vertices[unique]
             # will collect additional faces
             f = inverse[faces]
-
+            # remove degenerate faces by checking to make sure
+            # that each face has three unique indices
+            f = f[(f[:, :1] != f[:, 1:]).all(axis=1)]
             # transform to the cap plane
             to_2D = geometry.plane_transform(
                 origin=origin,
@@ -748,8 +764,9 @@ def slice_mesh_plane(mesh,
                 # collect the original index for the new vertices
                 vn3 = tf.transform_points(util.stack_3D(vn), to_3D)
                 distance, vid = tree.query(vn3)
+                if distance.max() > 1e-8:
+                    util.log.debug('triangulate may have inserted vertex!')
                 # triangulation should not have inserted vertices
-                assert distance.max() < 1e-8
                 faces.append(vid[fn])
             faces = np.vstack(faces)
 
