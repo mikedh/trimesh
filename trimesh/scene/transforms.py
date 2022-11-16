@@ -169,6 +169,8 @@ class SceneGraph(object):
             else:
                 # multiply matrices into single transform
                 matrix = util.multi_dot(matrices)
+        # matrix being edited in-place leads to subtle bugs
+        matrix.flags['WRITEABLE'] = False
         # store the result
         self._cache[key] = (matrix, geometry)
 

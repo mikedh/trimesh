@@ -960,7 +960,6 @@ class Scene(Geometry3D):
 
         for node_name in self.graph.nodes_geometry:
             transform, geometry_name = self.graph[node_name]
-
             centroid = self.geometry[geometry_name].centroid
             # transform centroid into nodes location
             centroid = np.dot(transform,
@@ -975,8 +974,10 @@ class Scene(Geometry3D):
             else:
                 raise ValueError('explode vector wrong shape!')
 
-            transform[:3, 3] += offset
-            self.graph[node_name] = transform
+            # original transform is read-only
+            T_new = transform.copy()
+            T_new[:3, 3] += offset
+            self.graph[node_name] = T_new
 
     def scaled(self, scale):
         """
@@ -994,7 +995,8 @@ class Scene(Geometry3D):
           A copy of the current scene but scaled
         """
         # convert 2D geometries to 3D for 3D scaling factors
-        scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
+        scale_is_3D = isinstance(
+            scale, (list, tuple, np.ndarray)) and len(scale) == 3
 
         if scale_is_3D and np.all(np.asarray(scale) == scale[0]):
             # scale is uniform
@@ -1026,8 +1028,7 @@ class Scene(Geometry3D):
                             transform=result.graph.transforms.edge_data[(
                                 p, n)].get('matrix', None),
                             extras=result.graph.transforms.edge_data[(
-                                p, n)].get('extras', None),
-                        )
+                                p, n)].get('extras', None))
                     result.delete_geometry(geom_name)
 
             # Convert all 2D paths to 3D paths
@@ -1038,6 +1039,8 @@ class Scene(Geometry3D):
             # Scale all geometries by un-doing their local rotations first
             for key in result.graph.nodes_geometry:
                 T, geom_name = result.graph.get(key)
+                # transform from graph should be read-only
+                T = T.copy()
                 T[:3, 3] = 0.0
 
                 # Get geometry transform w.r.t. base frame
@@ -1049,11 +1052,11 @@ class Scene(Geometry3D):
             for uv in edge_data:
                 if 'matrix' in edge_data[uv]:
                     props = edge_data[uv]
-                    T = edge_data[uv]['matrix']
+                    T = edge_data[uv]['matrix'].copy()
                     T[:3, 3] *= scale
                     props['matrix'] = T
-                    result.graph.update(frame_from=uv[0], frame_to=uv[1], **props)
-
+                    result.graph.update(
+                        frame_from=uv[0], frame_to=uv[1], **props)
             # Clear cache
             result.graph.transforms._cache = {}
             result.graph.transforms._modified = str(uuid.uuid4())
