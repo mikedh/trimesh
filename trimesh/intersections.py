@@ -466,11 +466,8 @@ def slice_faces_plane(vertices,
         return vertices, faces
 
     # Construct a mask for the faces to slice.
-    if face_index is None:
-        mask = np.ones(len(faces), dtype=bool)
-    else:
-        mask = np.zeros(len(faces), dtype=bool)
-        mask[face_index] = True
+    if face_index is not None:
+        faces = faces[face_index]
 
     if cached_dots is not None:
         dots = cached_dots
@@ -499,27 +496,26 @@ def slice_faces_plane(vertices,
     # (0,0,0),  (-1,0,0),  (-1,-1,0), (-1,-1,-1) <- inside
     # (1,0,0),  (1,1,0),   (1,1,1)               <- outside
     # (1,0,-1), (1,-1,-1), (1,1,-1)              <- onedge
-    onedge = np.logical_and(np.logical_and(
+    onedge = np.logical_and(
         signs_asum >= 2,
-        np.abs(signs_sum) <= 1), mask)
+        np.abs(signs_sum) <= 1)
 
-    inside = np.logical_or((signs_sum == -signs_asum),
-                           ~mask)
+    inside = signs_sum == -signs_asum
 
     # for any faces that lie exactly on-the-plane
     # we want to only include them if their normal
     # is backwards from the slicing normal
-    on_plane = signs_sum == 0
+    on_plane = signs_asum == 0
     if on_plane.any():
         # compute the normals and whether
         # face is degenerate here
         check, valid = tm.normals(vertices[faces[on_plane]])
+        # only include faces back from normal
+        dot_check = np.dot(check, plane_normal)
         # exclude any degenerate faces from the result
         inside[on_plane] = valid
         # exclude the degenerate face from our mask
         on_plane[on_plane] = valid
-        # only include faces back from normal
-        dot_check = np.dot(check, plane_normal)
         # apply results for this subset
         inside[on_plane] = dot_check < 0.0
 
@@ -737,7 +733,9 @@ def slice_mesh_plane(mesh,
             vertices = vertices[unique]
             # will collect additional faces
             f = inverse[faces]
-
+            # remove degenerate faces by checking to make sure
+            # that each face has three unique indices
+            f = f[(f[:, :1] != f[:, 1:]).any(axis=1)]
             # transform to the cap plane
             to_2D = geometry.plane_transform(
                 origin=origin,
@@ -766,8 +764,9 @@ def slice_mesh_plane(mesh,
                 # collect the original index for the new vertices
                 vn3 = tf.transform_points(util.stack_3D(vn), to_3D)
                 distance, vid = tree.query(vn3)
+                if distance.max() > 1e-8:
+                    util.log.debug('triangulate may have inserted vertex!')
                 # triangulation should not have inserted vertices
-                assert distance.max() < 1e-8
                 faces.append(vid[fn])
             faces = np.vstack(faces)
 

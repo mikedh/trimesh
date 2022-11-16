@@ -339,8 +339,8 @@ class SliceTest(g.unittest.TestCase):
         if not g.has_earcut:
             return
 
+        from trimesh.transformations import random_rotation_matrix
         for i in range(100):
-            from trimesh.transformations import random_rotation_matrix
             box1 = g.trimesh.primitives.Box(
                 extents=[10, 20, 30],
                 transform=random_rotation_matrix())
