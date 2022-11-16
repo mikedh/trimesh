@@ -117,7 +117,7 @@ class SubDivideTest(g.unittest.TestCase):
             assert len(sub.faces) > len(m.faces)
             # subdivided faces are smaller
             assert sub.area_faces.mean() < m.area_faces.mean()
-   
+        
     def test_loop_multibody(self):
         mesh = g.get_mesh('cycloidal.ply')  # a mesh with multiple bodies
         sub = mesh.loop(iterations=1, multibody=True)
@@ -125,7 +125,7 @@ class SubDivideTest(g.unittest.TestCase):
         assert len(sub.faces) > len(mesh.faces)
         # subdivided faces are smaller
         assert sub.area_faces.mean() < mesh.area_faces.mean()
-
+        
     def test_loop_correct(self):
         box = g.trimesh.creation.box()
         big_sphere = g.trimesh.creation.icosphere(radius=0.5)
@@ -135,8 +135,8 @@ class SubDivideTest(g.unittest.TestCase):
         assert big_sphere.contains(sub.vertices).all()
         # bigger than 0.4 sphere
         assert (~small_sphere.contains(sub.vertices)).all()
-
-    def test_loop_bound(self):
+        
+    def test_loop_bound(self): 
         def _get_boundary_vertices(mesh):
             boundary_groups = g.trimesh.grouping.group_rows(
                 mesh.edges_sorted, require_count=1)
@@ -144,7 +144,7 @@ class SubDivideTest(g.unittest.TestCase):
 
         box = g.trimesh.creation.box()
         bottom_mask = g.np.zeros(len(box.faces), dtype=bool)
-        bottom_faces = [1, 5]
+        bottom_faces = [1,5]
         bottom_mask[bottom_faces] = True
         # eliminate bottom of the box
         box.update_faces(~bottom_mask)
@@ -155,7 +155,7 @@ class SubDivideTest(g.unittest.TestCase):
         epsilon = 1e-5
         # y value of bottom boundary vertices should not be changed
         assert (bottom_vrts[:, 1].mean() - sub_bottom_vrts[:, 1].mean()) < epsilon
-
+        
     def test_uv(self):
         # get a mesh with texture
         m = g.get_mesh('fuze.obj')
@@ -250,3 +250,4 @@ class SubDivideTest(g.unittest.TestCase):
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
+
