@@ -4,7 +4,6 @@ remesh.py
 
 Deal with re- triangulation of existing meshes.
 """
-from itertools import zip_longest
 import numpy as np
 
 from . import util
@@ -265,6 +264,11 @@ def loop(vertices,
     iterations : int
           Number of iterations to run subdivision
     """
+    try: 
+        from itertools import zip_longest
+    except: 
+        from itertools import izip_longest as zip_longest # python2
+        
     def _subdivide(vertices, faces):
         # find the unique edges of our faces
         edges, edges_face = faces_to_edges(faces, return_index=True)
