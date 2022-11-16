@@ -735,7 +735,7 @@ def slice_mesh_plane(mesh,
             f = inverse[faces]
             # remove degenerate faces by checking to make sure
             # that each face has three unique indices
-            f = f[(f[:, :1] != f[:, 1:]).any(axis=1)]
+            f = f[(f[:, :1] != f[:, 1:]).all(axis=1)]
             # transform to the cap plane
             to_2D = geometry.plane_transform(
                 origin=origin,
