@@ -81,6 +81,17 @@ class ExtrudeTest(g.unittest.TestCase):
             assert current.direction.shape == (3,)
             assert current.origin.shape == (3,)
 
+    def test_extrude_degen(self):
+        # don't error on degenerate triangle
+        # validate=True should remove the degenerate triangle
+        # on creation of the mesh
+        coords = g.np.array([[0, 0], [0, 0], [0, 1], [1, 0]])
+        mesh = g.trimesh.creation.extrude_triangulation(
+            vertices=coords,
+            faces=[[0, 1, 2],
+                   [0, 2, 3]], height=1, validate=True)
+        assert mesh.is_watertight
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
