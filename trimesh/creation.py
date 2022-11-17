@@ -349,16 +349,12 @@ def extrude_triangulation(vertices,
     if np.abs(height) < tol.merge:
         raise ValueError('Height must be nonzero!')
 
-    # make sure triangulation winding is pointing up
-    normal_test = triangles.normals(
-        [util.stack_3D(vertices[faces[0]])])[0]
-
-    normal_dot = np.dot(normal_test,
-                        [0.0, 0.0, np.sign(height)])[0]
-
+    # check the winding of the first few triangles
+    signs = np.array([np.cross(*i) for i in
+                      np.diff(vertices[faces[:10]], axis=1)])
     # make sure the triangulation is aligned with the sign of
     # the height we've been passed
-    if normal_dot < 0.0:
+    if len(signs) > 0 and np.sign(signs.mean()) != np.sign(height):
         faces = np.fliplr(faces)
 
     # stack the (n,3) faces into (3*n, 2) edges

@@ -616,7 +616,7 @@ class SceneViewer(pyglet.window.Window):
         width, height = self._update_perspective(width, height)
         self.scene.camera.resolution = (width, height)
         self.view['ball'].resize(self.scene.camera.resolution)
-        self.scene.camera_transform[...] = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def on_mouse_press(self, x, y, buttons, modifiers):
         """
@@ -638,21 +638,21 @@ class SceneViewer(pyglet.window.Window):
             self.view['ball'].set_state(Trackball.STATE_ZOOM)
 
         self.view['ball'].down(np.array([x, y]))
-        self.scene.camera_transform[...] = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """
         Pan or rotate the view.
         """
         self.view['ball'].drag(np.array([x, y]))
-        self.scene.camera_transform[...] = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def on_mouse_scroll(self, x, y, dx, dy):
         """
         Zoom the view.
         """
         self.view['ball'].scroll(dy)
-        self.scene.camera_transform[...] = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def on_key_press(self, symbol, modifiers):
         """
@@ -690,7 +690,7 @@ class SceneViewer(pyglet.window.Window):
                 self.view['ball'].drag([0, -magnitude])
             elif symbol == pyglet.window.key.UP:
                 self.view['ball'].drag([0, magnitude])
-            self.scene.camera_transform[...] = self.view['ball'].pose
+            self.scene.camera_transform = self.view['ball'].pose
 
     def on_draw(self):
         """
