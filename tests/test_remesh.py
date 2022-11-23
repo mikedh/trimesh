@@ -106,6 +106,56 @@ class SubDivideTest(g.unittest.TestCase):
             # volume should be the same
             assert g.np.isclose(m.volume, s.volume)
 
+    def test_loop(self):
+        meshes = [
+            g.get_mesh('soup.stl'),  # a soup of random triangles
+            g.get_mesh('featuretype.STL')]  # a mesh with a single body
+
+        for m in meshes:
+            sub = m.loop(iterations=1)
+            # number of faces should increase
+            assert len(sub.faces) > len(m.faces)
+            # subdivided faces are smaller
+            assert sub.area_faces.mean() < m.area_faces.mean()
+
+    def test_loop_multibody(self):
+        mesh = g.get_mesh('cycloidal.ply')  # a mesh with multiple bodies
+        sub = mesh.loop(iterations=1, multibody=True)
+        # number of faces should increase
+        assert len(sub.faces) > len(mesh.faces)
+        # subdivided faces are smaller
+        assert sub.area_faces.mean() < mesh.area_faces.mean()
+
+    def test_loop_correct(self):
+        box = g.trimesh.creation.box()
+        big_sphere = g.trimesh.creation.icosphere(radius=0.5)
+        small_sphere = g.trimesh.creation.icosphere(radius=0.4)
+        sub = box.loop(iterations=2)
+        # smaller than 0.5 sphere
+        assert big_sphere.contains(sub.vertices).all()
+        # bigger than 0.4 sphere
+        assert (~small_sphere.contains(sub.vertices)).all()
+
+    def test_loop_bound(self):
+        def _get_boundary_vertices(mesh):
+            boundary_groups = g.trimesh.grouping.group_rows(
+                mesh.edges_sorted, require_count=1)
+            return mesh.vertices[g.np.unique(mesh.edges_sorted[boundary_groups])]
+
+        box = g.trimesh.creation.box()
+        bottom_mask = g.np.zeros(len(box.faces), dtype=bool)
+        bottom_faces = [1, 5]
+        bottom_mask[bottom_faces] = True
+        # eliminate bottom of the box
+        box.update_faces(~bottom_mask)
+        bottom_vrts = _get_boundary_vertices(box)
+        # subdivide box
+        sub = box.loop(iterations=2)
+        sub_bottom_vrts = _get_boundary_vertices(sub)
+        epsilon = 1e-5
+        # y value of bottom boundary vertices should not be changed
+        assert (bottom_vrts[:, 1].mean() - sub_bottom_vrts[:, 1].mean()) < epsilon
+
     def test_uv(self):
         # get a mesh with texture
         m = g.get_mesh('fuze.obj')
