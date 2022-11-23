@@ -217,7 +217,7 @@ def subdivide_to_size(vertices,
 
 def loop(vertices,
          faces,
-         iterations=1):
+         iterations=None):
     """
     Subdivide a mesh by dividing each triangle into four triangles
     and approximating their smoothed surface (loop subdivision).
@@ -267,7 +267,11 @@ def loop(vertices,
     try:
         from itertools import zip_longest
     except BaseException:
-        from itertools import izip_longest as zip_longest  # python2
+        # python2
+        from itertools import izip_longest as zip_longest
+
+    if iterations is None:
+        iterations = 1
 
     def _subdivide(vertices, faces):
         # find the unique edges of our faces

@@ -1997,15 +1997,18 @@ class Trimesh(Geometry3D):
 
         return result
 
-    def loop(self, iterations=1, multibody=False):
+    def subdivide_loop(self, iterations=None, multibody=False):
         """
-        Subdivide a mesh by dividing each triangle into four triangles
-        and approximating their smoothed surface (loop subdivision).
+        Subdivide a mesh by dividing each triangle into four
+        triangles and approximating their smoothed surface
+        using loop subdivision. Loop subdivision often looks
+        better on triangular meshes than catmul-clark, which
+        operates primarily on quads.
 
         Parameters
         ------------
         iterations : int
-          Number of iterations to run subdivisio
+          Number of iterations to run subdivision.
         multibody : bool
           If True will try to subdivide for each submesh
         """
