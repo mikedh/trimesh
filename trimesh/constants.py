@@ -1,13 +1,6 @@
 import numpy as np
 
-from .util import log, PY3
-
-if PY3:
-    # will be the highest granularity clock available
-    from time import perf_counter as now
-else:
-    # perf_counter not available on python 2
-    from time import time as now
+from .util import log, now
 
 
 class ToleranceMesh(object):

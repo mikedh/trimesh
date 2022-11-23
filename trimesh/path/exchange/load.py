@@ -31,6 +31,10 @@ def load_path(file_obj, file_type=None, **kwargs):
     path : Path, Path2D, Path3D file_object
         Data as a native trimesh Path file_object
     """
+    # avoid a circular import
+    from ...exchange.load import load_kwargs
+    # record how long we took
+    tic = util.now()
 
     if isinstance(file_obj, Path):
         # we have been passed a Path file_object so
@@ -46,7 +50,8 @@ def load_path(file_obj, file_type=None, **kwargs):
             # get the file type from the extension
             file_type = os.path.splitext(file_obj)[-1][1:].lower()
             # call the loader
-            kwargs.update(path_loaders[file_type](f, file_type=file_type))
+            kwargs.update(path_loaders[file_type](
+                f, file_type=file_type))
     elif util.is_instance_named(file_obj, ['Polygon', 'MultiPolygon']):
         # convert from shapely polygons to Path2D
         kwargs.update(misc.polygon_to_path(file_obj))
@@ -55,7 +60,6 @@ def load_path(file_obj, file_type=None, **kwargs):
         kwargs.update(misc.linestrings_to_path(file_obj))
     elif isinstance(file_obj, dict):
         # load as kwargs
-        from ...exchange.load import load_kwargs
         return load_kwargs(file_obj)
     elif util.is_sequence(file_obj):
         # load as lines in space
@@ -63,8 +67,11 @@ def load_path(file_obj, file_type=None, **kwargs):
     else:
         raise ValueError('Not a supported object type!')
 
-    from ...exchange.load import load_kwargs
-    return load_kwargs(kwargs)
+    result = load_kwargs(kwargs)
+    util.log.debug('loaded {} in {:0.4f}s'.format(
+        str(result), util.now() - tic))
+
+    return result
 
 
 def path_formats():

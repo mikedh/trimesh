@@ -33,12 +33,14 @@ else:
 
 # a flag we can check elsewhere for Python 3
 PY3 = sys.version_info.major >= 3
+
 if PY3:
     # for type checking
     basestring = str
     # Python 3
     from io import BytesIO, StringIO
     from shutil import which  # noqa
+    from time import perf_counter as now  # noqa
 else:
     # Python 2
     from StringIO import StringIO
@@ -47,6 +49,7 @@ else:
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()
     BytesIO = StringIO
+    from time import time as now  # noqa
 
 
 try:
@@ -2309,7 +2312,7 @@ def decode_text(text, initial='utf-8'):
         # detect different file encodings
         import chardet
         # try to detect the encoding of the file
-        # only look at the first 1000 charecters otherwise
+        # only look at the first 1000 characters otherwise
         # for big files chardet looks at everything and is slow
         detect = chardet.detect(text[:1000])
         # warn on files that aren't UTF-8

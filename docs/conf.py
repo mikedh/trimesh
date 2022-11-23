@@ -80,6 +80,7 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages
 html_theme = 'sphinx_rtd_theme'
 # html_theme = 'insegel'
+# html_theme = 'furo'
 
 # options for rtd-theme
 html_theme_options = {

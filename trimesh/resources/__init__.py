@@ -1,7 +1,7 @@
 import os
 import json
 
-from ..util import decode_text
+from ..util import decode_text, wrap_as_stream
 
 # find the current absolute path to this directory
 _pwd = os.path.expanduser(os.path.abspath(
@@ -11,7 +11,7 @@ _pwd = os.path.expanduser(os.path.abspath(
 _cache = {}
 
 
-def get(name, decode=True, decode_json=False):
+def get(name, decode=True, decode_json=False, as_stream=False):
     """
     Get a resource from the `trimesh/resources` folder.
 
@@ -23,6 +23,8 @@ def get(name, decode=True, decode_json=False):
       Whether or not to decode result as UTF-8
     decode_json : bool
       Run `json.loads` on resource if True.
+    as_stream : bool
+      Return as a file-like object
 
     Returns
     -------------
@@ -30,10 +32,15 @@ def get(name, decode=True, decode_json=False):
       File data
     """
     # key by name and decode
-    cache_key = (name, bool(decode), bool(decode_json))
-    if cache_key in _cache:
-        # return cached resource
-        return _cache[cache_key]
+    cache_key = (name,
+                 bool(decode),
+                 bool(decode_json),
+                 bool(as_stream))
+    cached = _cache.get(cache_key)
+    if hasattr(cached, 'seek'):
+        cached.seek(0)
+    if cached is not None:
+        return cached
 
     # get the resource using relative names
     with open(os.path.join(_pwd, name), 'rb') as f:
@@ -46,6 +53,8 @@ def get(name, decode=True, decode_json=False):
 
     if decode_json:
         resource = json.loads(resource)
+    elif as_stream:
+        resource = wrap_as_stream(resource)
 
     # store for later access
     _cache[cache_key] = resource
