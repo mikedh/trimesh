@@ -2400,19 +2400,21 @@ def unique_name(start, contains):
       A name that is not contained in `contains`
     """
     # exit early if name is not in bundle
-    if len(start) > 0 and start not in contains:
+    if (start is not None and
+        len(start) > 0 and
+            start not in contains):
         return start
 
     # start checking with zero index
     increment = 0
-    formatter = start + '_{}'
-
-    if len(start) > 0:
+    if start is not None and len(start) > 0:
+        formatter = start + '_{}'
         # split by our delimiter once
         split = start.rsplit('_', 1)
         if len(split) == 2:
             try:
-                # start incrementing from the existing trailing value
+                # start incrementing from the existing
+                # trailing value
                 # if it is not an integer this will fail
                 increment = int(split[1])
                 # include the first split value

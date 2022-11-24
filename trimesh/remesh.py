@@ -283,7 +283,7 @@ def loop(vertices,
         edge_inter = np.sort(grouping.group_rows(edges, require_count=2), axis=1)
         edge_bound = grouping.group_rows(edges, require_count=1)
         # make sure that one edge is shared by only one or two faces.
-        if not len(edge_inter)*2 + len(edge_bound) == len(edges):
+        if not len(edge_inter) * 2 + len(edge_bound) == len(edges):
             raise ValueError('Some edges are shared by more than 2 faces')
 
         # set interior, boundary mask for unique edges
@@ -311,7 +311,7 @@ def loop(vertices,
         e_v3_idx = e_f1[~(e_f1[:, :, None] == e[:, None, :]).any(-1)]
         e_v2 = vertices[e_v2_idx]
         e_v3 = vertices[e_v3_idx]
-        odd[edge_inter_mask] = 3/8 * (e_v0 + e_v1) + 1/8 * (e_v2 + e_v3)
+        odd[edge_inter_mask] = 3 / 8 * (e_v0 + e_v1) + 1 / 8 * (e_v2 + e_v3)
 
         # find vertex neighbors of each vertex
         neighbors = graph.neighbors(edges=edges[unique], max_index=len(vertices))
@@ -325,7 +325,7 @@ def loop(vertices,
 
         # calculate even vertices for the interior case
         even = np.zeros_like(vertices)
-        beta = 1/k * (5/8 - (3/8 + 1/4 * np.cos(2 * np.pi / k)) ** 2)
+        beta = 1 / k * (5 / 8 - (3 / 8 + 1 / 4 * np.cos(2 * np.pi / k)) ** 2)
         even = beta[:, None] * vertices_[neighbors].sum(1) \
             + (1 - k[:, None] * beta[:, None]) * vertices
 
@@ -337,24 +337,24 @@ def loop(vertices,
             # one boundary vertex has two neighbor boundary vertices (set others as -1)
             boundary_neighbors = neighbors[vrt_bound_mask]
             boundary_neighbors[~vrt_bound_mask[neighbors[vrt_bound_mask]]] = -1
-            even[vrt_bound_mask] = 1/8 * vertices_[boundary_neighbors].sum(1) \
-                + 3/4 * vertices[vrt_bound_mask]
+            even[vrt_bound_mask] = 1 / 8 * vertices_[boundary_neighbors].sum(1) \
+                + 3 / 4 * vertices[vrt_bound_mask]
 
         # the new faces with odd vertices
         odd_idx = inverse.reshape((-1, 3)) + len(vertices)
         new_faces = np.column_stack([
-                            faces[:, 0],
-                            odd_idx[:, 0],
-                            odd_idx[:, 2],
-                            odd_idx[:, 0],
-                            faces[:, 1],
-                            odd_idx[:, 1],
-                            odd_idx[:, 2],
-                            odd_idx[:, 1],
-                            faces[:, 2],
-                            odd_idx[:, 0],
-                            odd_idx[:, 1],
-                            odd_idx[:, 2]]).reshape((-1, 3))
+            faces[:, 0],
+            odd_idx[:, 0],
+            odd_idx[:, 2],
+            odd_idx[:, 0],
+            faces[:, 1],
+            odd_idx[:, 1],
+            odd_idx[:, 2],
+            odd_idx[:, 1],
+            faces[:, 2],
+            odd_idx[:, 0],
+            odd_idx[:, 1],
+            odd_idx[:, 2]]).reshape((-1, 3))
 
         # stack the new even vertices and odd vertices
         new_vertices = np.vstack((even, odd))
