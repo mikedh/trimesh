@@ -239,20 +239,20 @@ def export_scene(scene,
     elif file_type == 'glb':
         data = export_glb(scene, **kwargs)
     elif file_type == 'dict':
-        data = scene_to_dict(scene)
+        data = scene_to_dict(scene, *kwargs)
     elif file_type == 'obj':
         if resolver is None and util.is_string(file_obj):
             resolver = resolvers.FilePathResolver(file_obj)
-        data = export_obj(scene, resolver=resolver)
+        data = export_obj(scene, resolver=resolver, **kwargs)
     elif file_type == 'dict64':
         data = scene_to_dict(scene, use_base64=True)
     elif file_type == 'svg':
         from trimesh.path.exchange import svg_io
         data = svg_io.export_svg(scene, **kwargs)
     elif file_type == 'ply':
-        data = export_ply(scene.dump(concatenate=True))
+        data = export_ply(scene.dump(concatenate=True), **kwargs)
     elif file_type == 'stl':
-        data = export_stl(scene.dump(concatenate=True))
+        data = export_stl(scene.dump(concatenate=True), **kwargs)
     elif file_type == '3mf':
         data = export_3MF(scene, **kwargs)
     else:

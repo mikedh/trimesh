@@ -112,7 +112,7 @@ class SubDivideTest(g.unittest.TestCase):
             g.get_mesh('featuretype.STL')]  # a mesh with a single body
 
         for m in meshes:
-            sub = m.loop(iterations=1)
+            sub = m.subdivide_loop(iterations=1)
             # number of faces should increase
             assert len(sub.faces) > len(m.faces)
             # subdivided faces are smaller
@@ -120,7 +120,7 @@ class SubDivideTest(g.unittest.TestCase):
 
     def test_loop_multibody(self):
         mesh = g.get_mesh('cycloidal.ply')  # a mesh with multiple bodies
-        sub = mesh.loop(iterations=1, multibody=True)
+        sub = mesh.subdivide_loop(iterations=1)
         # number of faces should increase
         assert len(sub.faces) > len(mesh.faces)
         # subdivided faces are smaller
@@ -130,7 +130,7 @@ class SubDivideTest(g.unittest.TestCase):
         box = g.trimesh.creation.box()
         big_sphere = g.trimesh.creation.icosphere(radius=0.5)
         small_sphere = g.trimesh.creation.icosphere(radius=0.4)
-        sub = box.loop(iterations=2)
+        sub = box.subdivide_loop(iterations=2)
         # smaller than 0.5 sphere
         assert big_sphere.contains(sub.vertices).all()
         # bigger than 0.4 sphere
@@ -150,7 +150,7 @@ class SubDivideTest(g.unittest.TestCase):
         box.update_faces(~bottom_mask)
         bottom_vrts = _get_boundary_vertices(box)
         # subdivide box
-        sub = box.loop(iterations=2)
+        sub = box.subdivide_loop(iterations=2)
         sub_bottom_vrts = _get_boundary_vertices(sub)
         epsilon = 1e-5
         # y value of bottom boundary vertices should not be changed

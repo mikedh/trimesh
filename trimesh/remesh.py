@@ -215,9 +215,9 @@ def subdivide_to_size(vertices,
     return final_vertices, final_faces
 
 
-def loop(vertices,
-         faces,
-         iterations=None):
+def subdivide_loop(vertices,
+                   faces,
+                   iterations=None):
     """
     Subdivide a mesh by dividing each triangle into four triangles
     and approximating their smoothed surface (loop subdivision).

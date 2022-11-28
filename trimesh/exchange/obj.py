@@ -4,7 +4,7 @@ from collections import deque, defaultdict
 try:
     # `pip install pillow`
     # optional: used for textured meshes
-    import PIL.Image as Image
+    from PIL import Image
 except BaseException as E:
     # if someone tries to use Image re-raise
     # the import error so they can debug easily
@@ -160,7 +160,7 @@ def load_obj(file_obj,
             # i.e. something like:
             #  '31407 31406 31408',
             #  '32303/2469 32304/2469 32305/2469',
-            log.debug('faces have mixed data, using slow fallback!')
+            log.debug('faces have mixed data: using slow fallback!')
             faces, faces_tex, faces_norm = _parse_faces_fallback(
                 face_lines)
 
@@ -168,8 +168,9 @@ def load_obj(file_obj,
             name = material
         else:
             name = current_object
-            if name is None or len(name) == 0 or name in geometry:
-                name = '{}_{}'.format(name, util.unique_id())
+
+        # ensure the name is always unique
+        name = util.unique_name(name, geometry)
 
         # try to get usable texture
         mesh = kwargs.copy()
@@ -277,7 +278,8 @@ def load_obj(file_obj,
         return next(iter(geometry.values()))
 
     # add an identity transform for every geometry
-    graph = [{'geometry': k, 'frame_to': k, 'matrix': np.eye(4)}
+    graph = [{'geometry': k,
+              'frame_to': k}
              for k in geometry.keys()]
 
     # convert to scene kwargs
@@ -734,8 +736,10 @@ def _preprocess_faces(text, split_object=False):
             o_split = [m_chunk]
         if len(o_split) > 1:
             for o_chunk in o_split:
+                if len(o_chunk) == 0:
+                    continue
                 # set the object label
-                current_object = o_chunk[:o_chunk.find('\n')].strip()
+                current_object = o_chunk.split('\n', 1)[0].strip()
                 # find the first face in the chunk
                 f_idx = o_chunk.find('\nf ')
                 # if we have any faces append it to our search tuple
@@ -763,6 +767,7 @@ def export_obj(mesh,
                write_texture=True,
                resolver=None,
                digits=8,
+               mtl_name=None,
                header='https://github.com/mikedh/trimesh'):
     """
     Export a mesh as a Wavefront OBJ file.
@@ -787,6 +792,8 @@ def export_obj(mesh,
       Resolver which can write referenced text objects
     digits : int
       Number of digits to include for floating point
+    mtl_name : None or str
+      If passed, the file name of the MTL file.
     header : str or None
       Header string for top of file or None for no header.
 
@@ -815,27 +822,29 @@ def export_obj(mesh,
     else:
         raise ValueError('must be Trimesh or Scene!')
 
+    # collect lines to export
     objects = deque([])
-
+    # keep track of the number of each export element
     counts = {'v': 0, 'vn': 0, 'vt': 0}
+    # collect materials as we go
+    materials = {}
+    materials_name = set()
 
-    tex_data = None
-
-    for mesh in meshes:
+    for current in meshes:
         # we are going to reference face_formats with this
         face_type = ['v']
         # OBJ includes vertex color as RGB elements on the same line
         if (include_color and
-            mesh.visual.kind in ['vertex', 'face'] and
-                len(mesh.visual.vertex_colors)):
+            current.visual.kind in ['vertex', 'face'] and
+                len(current.visual.vertex_colors)):
 
             # create a stacked blob with position and color
             v_blob = np.column_stack((
-                mesh.vertices,
-                to_float(mesh.visual.vertex_colors[:, :3])))
+                current.vertices,
+                to_float(current.visual.vertex_colors[:, :3])))
         else:
             # otherwise just export vertices
-            v_blob = mesh.vertices
+            v_blob = current.vertices
 
             # add the first vertex key and convert the array
         # add the vertices
@@ -846,11 +855,11 @@ def export_obj(mesh,
                 row_delim='\nv ',
                 digits=digits)])
         # only include vertex normals if they're already stored
-        if include_normals and mesh._cache.cache.get('vertex_normals') is not None:
+        if include_normals and current._cache.cache.get('vertex_normals') is not None:
 
             try:
                 converted = util.array_to_string(
-                    mesh.vertex_normals,
+                    current.vertex_normals,
                     col_delim=' ',
                     row_delim='\nvn ',
                     digits=digits)
@@ -861,18 +870,33 @@ def export_obj(mesh,
                 log.debug('failed to convert vertex normals',
                           exc_info=True)
 
-        if include_texture and hasattr(mesh.visual, 'uv'):
+        # collect materials into a dict
+        if include_texture and hasattr(current.visual, 'uv'):
             try:
-                material = mesh.visual.material
+                # get a SimpleMaterial
+                material = current.visual.material
                 if hasattr(material, 'to_simple'):
                     material = material.to_simple()
-                (tex_data,
-                 tex_name,
-                 mtl_name) = material.to_obj()
 
-                if len(np.shape(getattr(mesh.visual, 'uv', None))) == 2:
+                # hash the material to avoid duplicates
+                hashed = hash(material)
+                if hashed not in materials:
+                    # get a unique name for the material
+                    name = util.unique_name(
+                        material.name, materials_name)
+                    # add the name to our collection
+                    materials_name.add(name)
+                    # convert material to an OBJ MTL
+                    materials[hashed] = material.to_obj(
+                        header=False, name=name)
+
+                # get the name of the current material as-stored
+                tex_name = materials[hashed][1]
+
+                # export the UV coordinates
+                if len(np.shape(getattr(current.visual, 'uv', None))) == 2:
                     converted = util.array_to_string(
-                        mesh.visual.uv,
+                        current.visual.uv,
                         col_delim=' ',
                         row_delim='\nvt ',
                         digits=digits)
@@ -880,9 +904,6 @@ def export_obj(mesh,
                     face_type.append('vt')
                     # add the uv coordinates
                     export.append('vt ' + converted)
-
-                # add the reference to the MTL file
-                objects.appendleft('mtllib {}'.format(mtl_name))
                 # add the directive to use the exported material
                 export.appendleft('usemtl {}'.format(tex_name))
             except BaseException:
@@ -892,21 +913,55 @@ def export_obj(mesh,
         # the format for a single vertex reference of a face
         face_format = face_formats[tuple(face_type)]
         # add the exported faces to the export if available
-        if hasattr(mesh, 'faces'):
+        if hasattr(current, 'faces'):
             export.append('f ' + util.array_to_string(
-                mesh.faces + 1 + counts['v'],
+                current.faces + 1 + counts['v'],
                 col_delim=' ',
                 row_delim='\nf ',
                 value_format=face_format))
         # offset our vertex position
-        counts['v'] += len(mesh.vertices)
+        counts['v'] += len(current.vertices)
 
         # add object name if found in metadata
-        if 'name' in mesh.metadata:
+        if 'name' in current.metadata:
             export.appendleft(
-                '\no {}'.format(mesh.metadata['name']))
+                '\no {}'.format(current.metadata['name']))
         # add this object
         objects.append('\n'.join(export))
+
+    # combine materials
+    if len(materials) > 0:
+        # collect text for a single mtllib file
+        mtl_lib = []
+        # collect files like images to write
+        mtl_data = {}
+        # now loop through: keys are garbage hash
+        # values are (data, name)
+        for data, name in materials.values():
+            for file_name, file_data in data.items():
+                if file_name.lower().endswith('.mtl'):
+                    # collect mtl lines into single file
+                    mtl_lib.append(file_data)
+                elif file_name not in mtl_data:
+                    # things like images
+                    mtl_data[file_name] = file_data
+                else:
+                    log.warning('not writing {}'.format(file_name))
+
+        if mtl_name is None:
+            # if no name passed set a default
+            mtl_name = 'material.mtl'
+
+        # prepend a header to the MTL text if requested
+        if header is not None:
+            prepend = '# {}\n\n'.format(header).encode('utf-8')
+        else:
+            prepend = b''
+
+        # save the material data
+        mtl_data[mtl_name] = prepend + b'\n\n'.join(mtl_lib)
+        # add the reference to the MTL file
+        objects.appendleft('mtllib {}'.format(mtl_name))
 
     if header is not None:
         # add a created-with header to the top of the file
@@ -915,13 +970,13 @@ def export_obj(mesh,
     text = '\n'.join(objects)
 
     # if we have a resolver and have asked to write texture
-    if write_texture and resolver is not None and tex_data is not None:
+    if write_texture and resolver is not None and len(materials) > 0:
         # not all resolvers have a write method
-        [resolver.write(k, v) for k, v in tex_data.items()]
+        [resolver.write(k, v) for k, v in mtl_data.items()]
 
     # if we exported texture it changes returned values
     if return_texture:
-        return text, tex_data
+        return text, mtl_data
 
     return text
 
