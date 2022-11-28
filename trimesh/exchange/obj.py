@@ -1,4 +1,6 @@
 import numpy as np
+
+import re
 from collections import deque, defaultdict
 
 try:
@@ -133,7 +135,8 @@ def load_obj(file_obj,
         # after it finds the first newline
         # passed as arg as it's not a kwarg in python2
         face_lines = [i.split('\n', 1)[0]
-                      for i in chunk.split('\nf ')[1:]]
+                      for i in chunk.split('f ')[1:]]
+
         # then we are going to replace all slashes with spaces
         joined = ' '.join(face_lines).replace('/', ' ')
 
@@ -714,48 +717,32 @@ def _preprocess_faces(text, split_object=False):
     # first divide faces into groups split by material and objects
     # face chunks using different materials will be treated
     # as different meshes
-    for m_chunk in f_chunk.split('\nusemtl '):
-        # if empty continue
-        if len(m_chunk) == 0:
-            continue
 
-        # find the first newline in the chunk
-        # everything before it will be the usemtl direction
-        new_line = m_chunk.find('\n')
-        # if the file contained no materials it will start with a newline
-        if new_line == 0:
-            current_material = None
-        else:
-            # remove internal double spaces because why wouldn't that be OK
-            current_material = ' '.join(m_chunk[:new_line].strip().split())
+    idx_mtl = np.array([m.start(0) for m in re.finditer(
+        'usemtl ', f_chunk)], dtype=int)
+    idx_obj = np.array([m.start(0) for m in re.finditer(
+        '\no ', f_chunk)], dtype=int)
 
-        # material chunk contains multiple objects
-        if split_object:
-            o_split = m_chunk.split('\no ')
-        else:
-            o_split = [m_chunk]
-        if len(o_split) > 1:
-            for o_chunk in o_split:
-                if len(o_chunk) == 0:
-                    continue
-                # set the object label
-                current_object = o_chunk.split('\n', 1)[0].strip()
-                # find the first face in the chunk
-                f_idx = o_chunk.find('\nf ')
-                # if we have any faces append it to our search tuple
-                if f_idx >= 0:
-                    face_tuples.append(
-                        (current_material,
-                         current_object,
-                         o_chunk[f_idx:]))
-        else:
-            # if there are any faces in this chunk add them
-            f_idx = m_chunk.find('\nf ')
-            if f_idx >= 0:
-                face_tuples.append(
-                    (current_material,
-                     current_object,
-                     m_chunk[f_idx:]))
+    # find all the indexes where we want to split
+    splits = np.unique(np.concatenate((
+        [0, len(f_chunk)],
+        idx_mtl,
+        idx_obj)))
+
+    current_obj = None
+    current_mtl = None
+    face_tuples = []
+    for start, end in zip(splits[:-1], splits[1:]):
+        # ensure there's always a trailing newline
+        chunk = f_chunk[start:end].strip() + '\n'
+        if chunk.startswith('o '):
+            current_obj, chunk = chunk.split('\n', 1)
+            current_obj = current_obj[2:].strip()
+        elif chunk.startswith('usemtl'):
+            current_mtl, chunk = chunk.split('\n', 1)
+            current_mtl = current_mtl[6:].strip()
+        if 'f ' in chunk:
+            face_tuples.append((current_mtl, current_obj, chunk))
     return face_tuples
 
 
