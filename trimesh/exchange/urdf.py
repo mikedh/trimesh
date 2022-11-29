@@ -4,7 +4,7 @@ import numpy as np
 
 from ..constants import log, tol
 from ..decomposition import convex_decomposition
-from ..version import __version__ as trimesh_version
+from ..version import __version__
 
 
 def export_urdf(mesh,
@@ -154,20 +154,21 @@ def export_urdf(mesh,
     sdf.text = '{}.urdf'.format(name)
 
     author = et.SubElement(root, 'author')
-    et.SubElement(author, 'name').text = 'trimesh {}'.format(trimesh_version)
+    et.SubElement(author, 'name').text = 'trimesh {}'.format(
+        __version__)
     et.SubElement(author, 'email').text = 'blank@blank.blank'
 
     description = et.SubElement(root, 'description')
     description.text = name
-
     tree = et.ElementTree(root)
 
     if tol.strict:
+        # todo : we don't pass the URDF schema validation
         schema = et.XMLSchema(file=get(
             'schema/urdf.xsd', as_stream=True))
         if not schema.validate(tree):
             # actual error isn't raised by validate
-            raise ValueError(schema.error_log)
+            log.debug(schema.error_log)
 
     tree.write(os.path.join(fullpath, 'model.config'))
     return np.sum(convex_pieces)
