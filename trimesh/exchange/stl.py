@@ -195,13 +195,19 @@ def load_stl_ascii(file_obj):
                 exc_info=True)
 
         try:
-            # try to extract the name after
+            # try to extract the name from the header
             text = vertex_text[0]
-            name = str.splitlines(
-                text[text.find('solid') + 6:])[0].strip()
+            # find the keyword for the header format:
+            #    `solid {name}`
+            index = text.find('solid')
+            if index < 0:
+                raise ValueError('missing `solid` keyword')
+            # clip to the first newline after the `solid`
+            name = text[index + 6:].strip().split(
+                '\n', 1)[0].strip()
         except BaseException:
             # will be filled in by unique_name
-            name = ''
+            name = None
 
         # make sure geometry has a unique name
         name = util.unique_name(name, kwargs)
