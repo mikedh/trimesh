@@ -21,7 +21,7 @@ available.difference_update(
      trimesh.exchange.load.mesh_loaders.items()
      if v in (trimesh.exchange.misc.load_meshio,)])
 # remove loaders we don't care about
-available.difference_update({'json'})
+available.difference_update({'json', 'dae', 'zae'})
 available.update({'dxf', 'svg'})
 
 
@@ -173,6 +173,8 @@ if __name__ == '__main__':
             repo='KhronosGroup/glTF-Sample-Models',
             commit='8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b'))
 
+        # add back collada for this repo
+        available.update(['dae', 'zae'])
         report.update(on_repo(
             repo='ros-industrial/universal_robot',
             commit='8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe'))
