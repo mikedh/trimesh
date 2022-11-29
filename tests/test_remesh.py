@@ -121,6 +121,7 @@ class SubDivideTest(g.unittest.TestCase):
     def test_loop_multibody(self):
         mesh = g.get_mesh('cycloidal.ply')  # a mesh with multiple bodies
         sub = mesh.subdivide_loop(iterations=1)
+
         # number of faces should increase
         assert len(sub.faces) > len(mesh.faces)
         # subdivided faces are smaller

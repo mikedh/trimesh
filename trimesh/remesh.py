@@ -275,8 +275,9 @@ def subdivide_loop(vertices,
 
     def _subdivide(vertices, faces):
         # find the unique edges of our faces
-        edges, edges_face = faces_to_edges(faces, return_index=True)
-        edges = np.sort(edges, axis=1)
+        edges, edges_face = faces_to_edges(
+            faces, return_index=True)
+        edges.sort(axis=1)
         unique, inverse = grouping.unique_rows(edges)
 
         # set interior edges if there are two edges and boundary if there is one.
@@ -284,7 +285,28 @@ def subdivide_loop(vertices,
         edge_bound = grouping.group_rows(edges, require_count=1)
         # make sure that one edge is shared by only one or two faces.
         if not len(edge_inter) * 2 + len(edge_bound) == len(edges):
-            raise ValueError('Some edges are shared by more than 2 faces')
+            # we have multiple bodies it's a party!
+            # edges shared by 2 faces are "connected"
+            # so this connected components operation is
+            # essentially identical to `face_adjacency`
+            faces_group = graph.connected_components(
+                edges_face[edge_inter])
+
+            if len(faces_group) == 1:
+                raise ValueError('Some edges are shared by more than 2 faces')
+
+            # set vertices to not-writeable to make sure
+            # the subdivision isn't subtly changing them
+            vertices.flags['WRITEABLE'] = False
+
+            stacked = [_subdivide(
+                vertices=vertices, faces=faces[f])
+                for f in faces_group if len(f) > 0]
+
+            # re-index the faces into one single array
+            return util.append_faces(
+                [i[0] for i in stacked],
+                [i[1] for i in stacked])
 
         # set interior, boundary mask for unique edges
         edge_bound_mask = np.zeros(len(edges), dtype=bool)
