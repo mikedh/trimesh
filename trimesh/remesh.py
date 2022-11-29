@@ -244,7 +244,7 @@ def subdivide_loop(vertices,
       0---v---3     / \\/ \\
        \\ /\\/    b0---v---b1
         k...4
-      - interior case : (1-kβ):β ratio of v and k adjacencies
+      - interior case : (1-kB):B ratio of v and k adjacencies
       - boundary case : 3:1 ratio of v and mean(b0,b1)
     3. Compose new faces with new vertices.
 
