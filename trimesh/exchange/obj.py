@@ -23,7 +23,6 @@ from ..constants import log, tol
 
 def load_obj(file_obj,
              resolver=None,
-             split_object=False,
              group_material=True,
              skip_materials=False,
              maintain_order=False,
@@ -39,8 +38,6 @@ def load_obj(file_obj,
     resolver : trimesh.visual.resolvers.Resolver
       Allow assets such as referenced textures and
       material files to be loaded
-    split_object : bool
-      Split meshes at each `o` declared in file
     group_material : bool
       Group faces that share the same material
       into the same mesh.
@@ -95,8 +92,7 @@ def load_obj(file_obj,
 
     # get relevant chunks that have face data
     # in the form of (material, object, chunk)
-    face_tuples = _preprocess_faces(
-        text=text, split_object=split_object)
+    face_tuples = _preprocess_faces(text=text)
 
     # combine chunks that have the same material
     # some meshes end up with a LOT of components
@@ -674,12 +670,26 @@ def _group_by_material(face_tuples):
     return list(grouped.values())
 
 
-def _preprocess_faces(text, split_object=False):
-    # Pre-Process Face Text
-    # Rather than looking at each line in a loop we're
-    # going to split lines by directives which indicate
-    # a new mesh, specifically 'usemtl' and 'o' keys
-    # search for materials, objects, faces, or groups
+def _preprocess_faces(text):
+    """
+    Pre-Process Face Text
+
+    Rather than looking at each line in a loop we're
+    going to split lines by directives which indicate
+    a new mesh, specifically 'usemtl' and 'o' keys
+    search for materials, objects, faces, or groups
+
+    Parameters
+    ------------
+    text : str
+      Raw file
+
+    Returns
+    ------------
+    triple : (n, 3) tuple
+      Tuples of (material, object, data-chunk)
+    """
+    # see which chunk is relevant
     starters = ['\nusemtl ', '\no ', '\nf ', '\ng ', '\ns ']
     f_start = len(text)
     # first index of material, object, face, group, or smoother
@@ -706,20 +716,13 @@ def _preprocess_faces(text, split_object=False):
         # check to make sure our subsetting didn't miss any faces
         assert f_chunk.count('\nf ') == text.count('\nf ')
 
-    # start with undefined objects and material
-    current_object = None
-    current_material = None
-    # where we're going to store result tuples
-    # containing (material, object, face lines)
-    face_tuples = []
-
-    # two things cause new meshes to be created: objects and materials
-    # first divide faces into groups split by material and objects
-    # face chunks using different materials will be treated
-    # as different meshes
-
+    # two things cause new meshes to be created:
+    # objects and materials
+    # re.finditer was faster than find in a loop
+    # find the index of every material change
     idx_mtl = np.array([m.start(0) for m in re.finditer(
         'usemtl ', f_chunk)], dtype=int)
+    # find the index of every new object
     idx_obj = np.array([m.start(0) for m in re.finditer(
         '\no ', f_chunk)], dtype=int)
 
@@ -729,9 +732,12 @@ def _preprocess_faces(text, split_object=False):
         idx_mtl,
         idx_obj)))
 
+    # track the current material and object ID
     current_obj = None
     current_mtl = None
+    # store (material, object, face lines)
     face_tuples = []
+
     for start, end in zip(splits[:-1], splits[1:]):
         # ensure there's always a trailing newline
         chunk = f_chunk[start:end].strip() + '\n'
