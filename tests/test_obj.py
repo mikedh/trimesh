@@ -311,7 +311,7 @@ class OBJTest(g.unittest.TestCase):
         assert len(mtl) == 1
         mtl_names = [
             L.strip().split()[-1].strip() for L in
-            str.splitlines(mtl['material.mtl'].decode('utf-8'))
+            mtl['material.mtl'].decode('utf-8').split('\n')
             if 'newmtl' in L]
         # there should be 5 unique material names
         assert len(set(mtl_names)) == 5
@@ -388,9 +388,10 @@ class OBJTest(g.unittest.TestCase):
         assert len(mtl) == 4
 
         # get the material names specified
+
         mtl_names = [
             L.strip().split()[-1].strip() for L in
-            str.splitlines(mtl['material.mtl'].decode('utf-8'))
+            mtl['material.mtl'].decode('utf-8').split('\n')
             if 'newmtl' in L]
         # there should be 3 unique material names
         assert len(set(mtl_names)) == 3

@@ -1505,7 +1505,8 @@ class Trimesh(Geometry3D):
         [1, 2, 3, 4]
         """
         return graph.neighbors(
-            edges=self.edges_unique, max_index=len(self.vertices))
+            edges=self.edges_unique,
+            max_index=len(self.vertices))
 
     @caching.cache_decorator
     def is_winding_consistent(self):
