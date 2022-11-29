@@ -881,7 +881,7 @@ def export_obj(mesh,
                     materials_name.add(name)
                     # convert material to an OBJ MTL
                     materials[hashed] = material.to_obj(
-                        header=False, name=name)
+                        name=name)
 
                 # get the name of the current material as-stored
                 tex_name = materials[hashed][1]

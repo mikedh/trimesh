@@ -79,7 +79,7 @@ class SimpleMaterial(Material):
     def to_color(self, uv):
         return color.uv_to_color(uv, self.image)
 
-    def to_obj(self, header=None, name=None):
+    def to_obj(self, name=None):
         """
         Convert the current material to an OBJ format
         material.
@@ -106,19 +106,12 @@ class SimpleMaterial(Material):
         if name is None:
             name = self.name
 
-        if header is None:
-            mtl = ['# https://github.com/mikedh/trimesh']
-        elif not header:
-            mtl = []
-        else:
-            mtl = [header]
-
         # create an MTL file
-        mtl.extend(['newmtl {}'.format(name),
-                    'Ka {:0.8f} {:0.8f} {:0.8f}'.format(*Ka),
-                    'Kd {:0.8f} {:0.8f} {:0.8f}'.format(*Kd),
-                    'Ks {:0.8f} {:0.8f} {:0.8f}'.format(*Ks),
-                    'Ns {:0.8f}'.format(self.glossiness)])
+        mtl = ['newmtl {}'.format(name),
+               'Ka {:0.8f} {:0.8f} {:0.8f}'.format(*Ka),
+               'Kd {:0.8f} {:0.8f} {:0.8f}'.format(*Kd),
+               'Ks {:0.8f} {:0.8f} {:0.8f}'.format(*Ks),
+               'Ns {:0.8f}'.format(self.glossiness)]
 
         # collect the OBJ data into files
         data = {}
