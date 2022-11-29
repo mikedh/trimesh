@@ -295,18 +295,36 @@ def subdivide_loop(vertices,
             if len(faces_group) == 1:
                 raise ValueError('Some edges are shared by more than 2 faces')
 
-            # set vertices to not-writeable to make sure
-            # the subdivision isn't subtly changing them
-            vertices.flags['WRITEABLE'] = False
+            # collect a subdivided copy of each body
+            seq_verts = []
+            seq_faces = []
+            # keep track of vertex count as we go so
+            # we can do a single vstack at the end
+            count = 0
+            # loop through original face indexes
+            for f in faces_group:
+                # a lot of the complexity in this operation
+                # is computing vertex neighbors so we only
+                # want to pass forward the referenced vertices
+                # for this particular group of connected faces
+                unique, inverse = grouping.unique_bincount(
+                    faces[f].reshape(-1), return_inverse=True)
 
-            stacked = [_subdivide(
-                vertices=vertices, faces=faces[f])
-                for f in faces_group if len(f) > 0]
+                # subdivide this subset of faces
+                cur_verts, cur_faces = _subdivide(
+                    vertices=vertices[unique],
+                    faces=inverse.reshape((-1, 3)))
+                # increment the face references to match
+                # the vertices when we stack them later
+                cur_faces += count
+                # increment the total vertex count
+                count += len(cur_verts)
+                # append to the sequence
+                seq_verts.append(cur_verts)
+                seq_faces.append(cur_faces)
 
-            # re-index the faces into one single array
-            return util.append_faces(
-                [i[0] for i in stacked],
-                [i[1] for i in stacked])
+            # return results as clean (n, 3) arrays
+            return np.vstack(seq_verts), np.vstack(seq_faces)
 
         # set interior, boundary mask for unique edges
         edge_bound_mask = np.zeros(len(edges), dtype=bool)
