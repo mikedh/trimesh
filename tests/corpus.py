@@ -21,7 +21,7 @@ available.difference_update(
      trimesh.exchange.load.mesh_loaders.items()
      if v in (trimesh.exchange.misc.load_meshio,)])
 # remove loaders we don't care about
-available.difference_update({'json', 'dae', 'zae'})
+available.difference_update({'json',})
 available.update({'dxf', 'svg'})
 
 
