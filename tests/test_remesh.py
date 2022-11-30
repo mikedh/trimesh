@@ -153,9 +153,12 @@ class SubDivideTest(g.unittest.TestCase):
         # subdivide box
         sub = box.subdivide_loop(iterations=2)
         sub_bottom_vrts = _get_boundary_vertices(sub)
-        epsilon = 1e-5
+
+        from IPython import embed
+        embed()
         # y value of bottom boundary vertices should not be changed
-        assert (bottom_vrts[:, 1].mean() - sub_bottom_vrts[:, 1].mean()) < epsilon
+        assert g.np.isclose(bottom_vrts[:, 1].mean(),
+                            sub_bottom_vrts[:, 1].mean(), atol=1e-5)
 
     def test_uv(self):
         # get a mesh with texture

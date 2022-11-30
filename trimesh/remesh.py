@@ -9,7 +9,9 @@ import numpy as np
 from . import util
 from . import grouping
 from . import graph
+
 from .geometry import faces_to_edges
+from .constants import tol
 
 
 def subdivide(vertices,
@@ -351,7 +353,10 @@ def subdivide_loop(vertices,
         e_v3_idx = e_f1[~(e_f1[:, :, None] == e[:, None, :]).any(-1)]
         e_v2 = vertices[e_v2_idx]
         e_v3 = vertices[e_v3_idx]
-        odd[edge_inter_mask] = 3 / 8 * (e_v0 + e_v1) + 1 / 8 * (e_v2 + e_v3)
+
+        # simplified from:
+        # # 3 / 8 * (e_v0 + e_v1) + 1 / 8 * (e_v2 + e_v3)
+        odd[edge_inter_mask] = 0.375 * e_v0 + 0.375 * e_v1 + e_v2 / 8.0 + e_v3 / 8.0
 
         # find vertex neighbors of each vertex
         neighbors = graph.neighbors(edges=edges[unique], max_index=len(vertices))
@@ -359,26 +364,30 @@ def subdivide_loop(vertices,
         neighbors = np.array(list(zip_longest(*neighbors, fillvalue=-1))).T
         # if the neighbor has -1 index, its point is (0, 0, 0), so that
         # it is not included in the summation of neighbors when calculating the even
-        vertices_ = np.vstack([vertices, [0, 0, 0]])
+        vertices_ = np.vstack([vertices, [0.0, 0.0, 0.0]])
         # number of neighbors
-        k = (neighbors + 1).astype(bool).sum(-1)
+        k = (neighbors + 1).astype(bool).sum(axis=1)
 
         # calculate even vertices for the interior case
         even = np.zeros_like(vertices)
-        beta = 1 / k * (5 / 8 - (3 / 8 + 1 / 4 * np.cos(2 * np.pi / k)) ** 2)
+
+        # beta = 1 / k * (5 / 8 - (3 / 8 + 1 / 4 * np.cos(2 * np.pi / k)) ** 2)
+        # simplified with sympy.parse_expr('...').simplify()
+        beta = (40.0 - (2.0 * np.cos(2 * np.pi / k) + 3)**2) / (64 * k)
         even = beta[:, None] * vertices_[neighbors].sum(1) \
             + (1 - k[:, None] * beta[:, None]) * vertices
 
         # calculate even vertices for the boundary case
-        if True in edge_bound_mask:
+        if edge_bound_mask.any():
             # boundary vertices from boundary edges
             vrt_bound_mask = np.zeros(len(vertices), dtype=bool)
             vrt_bound_mask[np.unique(edges[unique][~edge_inter_mask])] = True
             # one boundary vertex has two neighbor boundary vertices (set others as -1)
             boundary_neighbors = neighbors[vrt_bound_mask]
             boundary_neighbors[~vrt_bound_mask[neighbors[vrt_bound_mask]]] = -1
-            even[vrt_bound_mask] = 1 / 8 * vertices_[boundary_neighbors].sum(1) \
-                + 3 / 4 * vertices[vrt_bound_mask]
+
+            even[vrt_bound_mask] = (vertices_[boundary_neighbors].sum(axis=1) / 8.0 +
+                                    (3.0 / 4.0) * vertices[vrt_bound_mask])
 
         # the new faces with odd vertices
         odd_idx = inverse.reshape((-1, 3)) + len(vertices)
@@ -401,6 +410,17 @@ def subdivide_loop(vertices,
 
         return new_vertices, new_faces
 
-    for _index in range(iterations):
+    for _ in range(iterations):
         vertices, faces = _subdivide(vertices, faces)
+
+    if tol.strict or True:
+        assert np.isfinite(vertices).all()
+        assert np.isfinite(faces).all()
+        # should raise if faces are malformed
+        assert np.isfinite(vertices[faces]).all()
+
+        # none of the faces returned should be degenerate
+        # i.e. every face should have 3 unique vertices
+        assert (faces[:, 1:] != faces[:, :1]).all()
+
     return vertices, faces

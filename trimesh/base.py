@@ -2021,7 +2021,8 @@ class Trimesh(Geometry3D):
         # create new mesh
         result = Trimesh(
             vertices=new_vertices,
-            faces=new_faces)
+            faces=new_faces,
+            process=False)
         return result
 
     @log_time
