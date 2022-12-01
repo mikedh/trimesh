@@ -188,6 +188,23 @@ class UtilTests(unittest.TestCase):
             # make sure id's can be reproduced
             assert s == unique_ids_0[i]
 
+    def test_unique_name(self):
+        from trimesh.util import unique_name
+
+        assert len(unique_name(None, {})) > 0
+        assert len(unique_name('', {})) > 0
+
+        count = 10
+        names = set()
+        for i in range(count):
+            names.add(unique_name('hi', names))
+        assert len(names) == count
+
+        names = set()
+        for i in range(count):
+            names.add(unique_name('', names))
+        assert len(names) == count
+
 
 class ContainsTest(unittest.TestCase):
 

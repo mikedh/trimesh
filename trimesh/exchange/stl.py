@@ -159,12 +159,9 @@ def load_stl_ascii(file_obj):
     raw = util.decode_text(file_obj.read()).strip().lower()
 
     # split into solid body
-    solids = raw.split('endsolid')
-
     kwargs = {}
-
+    solids = raw.split('endsolid')
     for solid in solids:
-
         # get just the vertices
         vertex_text = solid.split('vertex')
         vertices = np.fromstring(
@@ -199,16 +196,24 @@ def load_stl_ascii(file_obj):
 
         try:
             # try to extract the name from the header
-            name = str.splitlines(
-                vertex_text[0])[0].lstrip('solid').strip()
+            text = vertex_text[0]
+            # find the keyword for the header format:
+            #    `solid {name}`
+            index = text.find('solid')
+            if index < 0:
+                raise ValueError('missing `solid` keyword')
+            # clip to the first newline after the `solid`
+            name = text[index + 6:].strip().split(
+                '\n', 1)[0].strip()
         except BaseException:
-            name = 'geometry'
+            # will be filled in by unique_name
+            name = None
 
         # make sure geometry has a unique name
         name = util.unique_name(name, kwargs)
         kwargs[name] = {'vertices': vertices.reshape((-1, 3)),
-                        'faces': faces,
-                        'face_normals': face_normals}
+                        'face_normals': face_normals,
+                        'faces': faces}
 
     if len(kwargs) == 1:
         return next(iter(kwargs.values()))

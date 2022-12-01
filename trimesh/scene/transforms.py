@@ -675,7 +675,7 @@ class EnforcedForest(object):
                 if len(common) == 0:
                     raise ValueError('No path from {}->{}!'.format(u, v))
                 elif len(common) > 1:
-                    # get the first occuring common element in "forward"
+                    # get the first occurring common element in "forward"
                     link = next(f for f in forward if f in common)
                     assert link in common
                 else:

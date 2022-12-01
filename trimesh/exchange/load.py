@@ -9,10 +9,9 @@ from ..base import Trimesh
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..constants import log_time, log
+from ..util import log, now
 
 from . import misc
-
 from .xyz import _xyz_loaders
 from .ply import _ply_loaders
 from .stl import _stl_loaders
@@ -173,7 +172,6 @@ def load(file_obj,
     return loaded
 
 
-@log_time
 def load_mesh(file_obj,
               file_type=None,
               resolver=None,
@@ -209,10 +207,12 @@ def load_mesh(file_obj,
     try:
         # make sure we keep passed kwargs to loader
         # but also make sure loader keys override passed keys
-        results = mesh_loaders[file_type](file_obj,
-                                          file_type=file_type,
-                                          resolver=resolver,
-                                          **kwargs)
+        loader = mesh_loaders[file_type]
+        tic = now()
+        results = loader(file_obj,
+                         file_type=file_type,
+                         resolver=resolver,
+                         **kwargs)
         if not isinstance(results, list):
             results = [results]
 
@@ -223,10 +223,9 @@ def load_mesh(file_obj,
             loaded[-1].metadata.update(metadata)
         if len(loaded) == 1:
             loaded = loaded[0]
-        # show the repr for loaded
-        log.debug('loaded {} using {}'.format(
-            str(loaded),
-            mesh_loaders[file_type].__name__))
+        # show the repr for loaded, loader used, and time
+        log.debug('loaded {} using `{}` in {:0.4f}s'.format(
+            str(loaded), loader.__name__, now() - tic))
     finally:
         # if we failed to load close file
         if opened:

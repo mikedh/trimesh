@@ -33,12 +33,14 @@ else:
 
 # a flag we can check elsewhere for Python 3
 PY3 = sys.version_info.major >= 3
+
 if PY3:
     # for type checking
     basestring = str
     # Python 3
     from io import BytesIO, StringIO
     from shutil import which  # noqa
+    from time import perf_counter as now  # noqa
 else:
     # Python 2
     from StringIO import StringIO
@@ -47,6 +49,7 @@ else:
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()
     BytesIO = StringIO
+    from time import time as now  # noqa
 
 
 try:
@@ -1485,12 +1488,11 @@ def concatenate(a, b=None):
             'failed to combine visuals', exc_info=True)
         visual = None
     # create the mesh object
-    mesh = trimesh_type(vertices=vertices,
+    return trimesh_type(vertices=vertices,
                         faces=faces,
                         face_normals=face_normals,
                         visual=visual,
                         process=False)
-    return mesh
 
 
 def submesh(mesh,
@@ -2309,7 +2311,7 @@ def decode_text(text, initial='utf-8'):
         # detect different file encodings
         import chardet
         # try to detect the encoding of the file
-        # only look at the first 1000 charecters otherwise
+        # only look at the first 1000 characters otherwise
         # for big files chardet looks at everything and is slow
         detect = chardet.detect(text[:1000])
         # warn on files that aren't UTF-8
@@ -2397,19 +2399,21 @@ def unique_name(start, contains):
       A name that is not contained in `contains`
     """
     # exit early if name is not in bundle
-    if len(start) > 0 and start not in contains:
+    if (start is not None and
+        len(start) > 0 and
+            start not in contains):
         return start
 
     # start checking with zero index
     increment = 0
-    formatter = start + '_{}'
-
-    if len(start) > 0:
+    if start is not None and len(start) > 0:
+        formatter = start + '_{}'
         # split by our delimiter once
         split = start.rsplit('_', 1)
         if len(split) == 2:
             try:
-                # start incrementing from the existing trailing value
+                # start incrementing from the existing
+                # trailing value
                 # if it is not an integer this will fail
                 increment = int(split[1])
                 # include the first split value

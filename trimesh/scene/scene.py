@@ -756,7 +756,9 @@ class Scene(Geometry3D):
             current = self.geometry[geometry_name].copy()
             # move the geometry vertices into the requested frame
             current.apply_transform(transform)
-            current.metadata['name'] = node_name
+            current.metadata['name'] = geometry_name
+            current.metadata['node'] = node_name
+
             # save to our list of meshes
             result.append(current)
 

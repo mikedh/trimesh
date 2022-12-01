@@ -1505,7 +1505,8 @@ class Trimesh(Geometry3D):
         [1, 2, 3, 4]
         """
         return graph.neighbors(
-            edges=self.edges_unique, max_index=len(self.vertices))
+            edges=self.edges_unique,
+            max_index=len(self.vertices))
 
     @caching.cache_decorator
     def is_winding_consistent(self):
@@ -1995,6 +1996,33 @@ class Trimesh(Geometry3D):
         if return_index:
             return result, final_index
 
+        return result
+
+    def subdivide_loop(self, iterations=None):
+        """
+        Subdivide a mesh by dividing each triangle into four
+        triangles and approximating their smoothed surface
+        using loop subdivision. Loop subdivision often looks
+        better on triangular meshes than catmul-clark, which
+        operates primarily on quads.
+
+        Parameters
+        ------------
+        iterations : int
+          Number of iterations to run subdivision.
+        multibody : bool
+          If True will try to subdivide for each submesh
+        """
+        # perform subdivision for one mesh
+        new_vertices, new_faces = remesh.subdivide_loop(
+            vertices=self.vertices,
+            faces=self.faces,
+            iterations=iterations)
+        # create new mesh
+        result = Trimesh(
+            vertices=new_vertices,
+            faces=new_faces,
+            process=False)
         return result
 
     @log_time

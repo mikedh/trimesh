@@ -157,7 +157,8 @@ def export_glb(
         scene,
         include_normals=None,
         unitize_normals=False,
-        tree_postprocessor=None):
+        tree_postprocessor=None,
+        buffer_postprocessor=None):
     """
     Export a scene as a binary GLTF (GLB) file.
 
@@ -187,7 +188,7 @@ def export_glb(
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
         unitize_normals=unitize_normals,
-        include_normals=include_normals)
+        include_normals=include_normals, buffer_postprocessor=buffer_postprocessor)
 
     # allow custom postprocessing
     if tree_postprocessor is not None:
@@ -589,7 +590,8 @@ def _jsonify(blob):
 def _create_gltf_structure(scene,
                            include_normals=None,
                            include_metadata=True,
-                           unitize_normals=None,):
+                           unitize_normals=None,
+                           buffer_postprocessor=None):
     """
     Generate a GLTF header.
 
@@ -682,6 +684,9 @@ def _create_gltf_structure(scene,
     nodes = scene.graph.to_gltf(
         scene=scene, mesh_index=mesh_index)
     tree.update(nodes)
+
+    if buffer_postprocessor is not None:
+        buffer_postprocessor(buffer_items, tree)
 
     # convert accessors back to a flat list
     tree['accessors'] = list(tree['accessors'].values())

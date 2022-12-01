@@ -79,7 +79,7 @@ class SimpleMaterial(Material):
     def to_color(self, uv):
         return color.uv_to_color(uv, self.image)
 
-    def to_obj(self, mtl_name=None):
+    def to_obj(self, name=None):
         """
         Convert the current material to an OBJ format
         material.
@@ -103,14 +103,11 @@ class SimpleMaterial(Material):
         Kd = color.to_float(self.diffuse)[:3]
         Ks = color.to_float(self.specular)[:3]
 
-        # get the name of this material
-        tex_name = self.name
-        if mtl_name is None:
-            mtl_name = '{}.mtl'.format(tex_name)
+        if name is None:
+            name = self.name
 
         # create an MTL file
-        mtl = ['# https://github.com/mikedh/trimesh',
-               'newmtl {}'.format(tex_name),
+        mtl = ['newmtl {}'.format(name),
                'Ka {:0.8f} {:0.8f} {:0.8f}'.format(*Ka),
                'Kd {:0.8f} {:0.8f} {:0.8f}'.format(*Kd),
                'Ks {:0.8f} {:0.8f} {:0.8f}'.format(*Ks),
@@ -124,7 +121,7 @@ class SimpleMaterial(Material):
             # what is the name of the export image to save
             if image_type is None:
                 image_type = 'png'
-            image_name = '{}.{}'.format(tex_name, image_type.lower())
+            image_name = '{}.{}'.format(name, image_type.lower())
             # save the reference to the image
             mtl.append('map_Kd {}'.format(image_name))
 
@@ -134,9 +131,9 @@ class SimpleMaterial(Material):
             f_obj.seek(0)
             data[image_name] = f_obj.read()
 
-        data[mtl_name] = '\n'.join(mtl).encode('utf-8')
+        data['{}.mtl'.format(name)] = '\n'.join(mtl).encode('utf-8')
 
-        return data, tex_name, mtl_name
+        return data, name
 
     def __hash__(self):
         """

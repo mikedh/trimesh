@@ -2,9 +2,9 @@ import os
 
 import numpy as np
 
-from ..constants import log
+from ..constants import log, tol
 from ..decomposition import convex_decomposition
-from ..version import __version__ as trimesh_version
+from ..version import __version__
 
 
 def export_urdf(mesh,
@@ -13,25 +13,28 @@ def export_urdf(mesh,
                 color=[0.75, 0.75, 0.75],
                 **kwargs):
     """
-    Convert a Trimesh object into a URDF package for physics simulation.
-    This breaks the mesh into convex pieces and writes them to the same
-    directory as the .urdf file.
+    Convert a Trimesh object into a URDF package for physics
+    simulation. This breaks the mesh into convex pieces and
+    writes them to the same directory as the .urdf file.
 
     Parameters
     ---------
-    mesh      : Trimesh object
+    mesh : trimesh.Trimesh
+      Input geometry
     directory : str
-                  The directory path for the URDF package
+      The directory path for the URDF package
 
     Returns
     ---------
-    mesh : Trimesh object
-             Multi-body mesh containing convex decomposition
+    mesh : Trimesh
+      Multi-body mesh containing convex decomposition
     """
 
     import lxml.etree as et
     # TODO: fix circular import
     from .export import export_mesh
+    from ..resources import get
+
     # Extract the save directory and the file name
     fullpath = os.path.abspath(directory)
     name = os.path.basename(fullpath)
@@ -151,13 +154,21 @@ def export_urdf(mesh,
     sdf.text = '{}.urdf'.format(name)
 
     author = et.SubElement(root, 'author')
-    et.SubElement(author, 'name').text = 'trimesh {}'.format(trimesh_version)
+    et.SubElement(author, 'name').text = 'trimesh {}'.format(
+        __version__)
     et.SubElement(author, 'email').text = 'blank@blank.blank'
 
     description = et.SubElement(root, 'description')
     description.text = name
-
     tree = et.ElementTree(root)
-    tree.write(os.path.join(fullpath, 'model.config'))
 
+    if tol.strict:
+        # todo : we don't pass the URDF schema validation
+        schema = et.XMLSchema(file=get(
+            'schema/urdf.xsd', as_stream=True))
+        if not schema.validate(tree):
+            # actual error isn't raised by validate
+            log.debug(schema.error_log)
+
+    tree.write(os.path.join(fullpath, 'model.config'))
     return np.sum(convex_pieces)

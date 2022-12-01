@@ -12,7 +12,7 @@ from ..constants import log
 
 def load_collada(file_obj,
                  resolver=None,
-                 ignore_broken=False,
+                 ignore_broken=True,
                  **kwargs):
     """
     Load a COLLADA (.dae) file into a list of trimesh kwargs.
@@ -37,12 +37,19 @@ def load_collada(file_obj,
     """
     import collada
 
+    if ignore_broken:
+        ignores = [collada.common.DaeError,
+                   collada.common.DaeIncompleteError,
+                   collada.common.DaeMalformedError,
+                   collada.common.DaeBrokenRefError,
+                   collada.common.DaeIncompleteError]
+    else:
+        ignores = None
+
     # load scene using pycollada
     c = collada.Collada(
         file_obj,
-        ignore=[collada.common.DaeUnsupportedError,
-                collada.common.DaeBrokenRefError]
-        if ignore_broken else None)
+        ignore=ignores)
 
     # Create material map from Material ID to trimesh material
     material_map = {}

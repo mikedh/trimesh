@@ -21,10 +21,13 @@ class SubDivideTest(g.unittest.TestCase):
             sub, idx = m.subdivide_to_size(
                 max_edge=max_edge, return_index=True)
             assert g.np.allclose(m.area, sub.area)
-            edge_len = (g.np.diff(sub.vertices[sub.edges_unique],
-                                  axis=1).reshape((-1, 3))**2).sum(axis=1)**.5
+            edge_len = (g.np.diff(
+                sub.vertices[sub.edges_unique],
+                axis=1).reshape((-1, 3))**2).sum(axis=1)**.5
             assert (edge_len < max_edge).all()
 
+            # should be the same order of magnitude size
+            assert g.np.allclose(m.extents, sub.extents, rtol=2)
             # should be one index per new face
             assert len(idx) == len(sub.faces)
             # every face should be subdivided
@@ -105,6 +108,80 @@ class SubDivideTest(g.unittest.TestCase):
             assert g.np.isclose(m.area, s.area)
             # volume should be the same
             assert g.np.isclose(m.volume, s.volume)
+
+    def test_loop(self):
+        meshes = [
+            g.get_mesh('soup.stl'),  # a soup of random triangles
+            g.get_mesh('featuretype.STL')]  # a mesh with a single body
+
+        for m in meshes:
+            sub = m.subdivide_loop(iterations=1)
+            # number of faces should increase
+            assert len(sub.faces) > len(m.faces)
+            # subdivided faces are smaller
+            assert sub.area_faces.mean() < m.area_faces.mean()
+
+    def test_loop_multibody(self):
+        # a mesh with multiple bodies
+        mesh = g.get_mesh('cycloidal.ply')
+        sub = mesh.subdivide_loop(iterations=2)
+
+        # number of faces should increase
+        assert len(sub.faces) > len(mesh.faces)
+        # subdivided faces are smaller
+        assert sub.area_faces.mean() < mesh.area_faces.mean()
+        # should be the same order of magnitude area
+        # rtol=2 means it can be up to twice/half
+        assert g.np.isclose(sub.area, mesh.area, rtol=2)
+        # should have the same number of bodies
+        assert len(mesh.split()) == len(sub.split())
+
+    def test_loop_multi_simple(self, count=10):
+        meshes = []
+        for i in range(count):
+            current = g.trimesh.creation.icosahedron()
+            current.apply_translation([i * 1.5, 0, 0])
+            meshes.append(current)
+        # concatenate into a single multibody mesh
+        m = g.trimesh.util.concatenate(meshes)
+        # run subdivision on that
+        a = m.subdivide_loop(iterations=4)
+        # make sure it splits and is watertight
+        split = a.split()
+        assert len(split) == count
+        assert all(i.is_watertight for i in split)
+
+    def test_loop_correct(self):
+        box = g.trimesh.creation.box()
+        big_sphere = g.trimesh.creation.icosphere(radius=0.5)
+        small_sphere = g.trimesh.creation.icosphere(radius=0.4)
+        sub = box.subdivide_loop(iterations=2)
+        # smaller than 0.5 sphere
+        assert big_sphere.contains(sub.vertices).all()
+        # bigger than 0.4 sphere
+        assert (~small_sphere.contains(sub.vertices)).all()
+
+    def test_loop_bound(self):
+        def _get_boundary_vertices(mesh):
+            boundary_groups = g.trimesh.grouping.group_rows(
+                mesh.edges_sorted, require_count=1)
+            return mesh.vertices[g.np.unique(mesh.edges_sorted[boundary_groups])]
+
+        box = g.trimesh.creation.box()
+        bottom_mask = g.np.zeros(len(box.faces), dtype=bool)
+        bottom_faces = [1, 5]
+        bottom_mask[bottom_faces] = True
+        # eliminate bottom of the box
+        box.update_faces(~bottom_mask)
+        bottom_vrts = _get_boundary_vertices(box)
+        # subdivide box
+        sub = box.subdivide_loop(iterations=2)
+        sub_bottom_vrts = _get_boundary_vertices(sub)
+
+        # y value of bottom boundary vertices should not be changed
+        assert g.np.isclose(bottom_vrts[:, 1].mean(),
+                            sub_bottom_vrts[:, 1].mean(),
+                            atol=1e-5)
 
     def test_uv(self):
         # get a mesh with texture

@@ -295,6 +295,27 @@ class OBJTest(g.unittest.TestCase):
         # assert g.np.allclose(
         #    1.0, g.np.linalg.norm(mesh.vertex_normals, axis=1))
 
+    def test_multi_nodupe(self):
+        s = g.get_mesh("forearm.zae")
+        obj, mtl = g.trimesh.exchange.obj.export_obj(
+            s, include_color=True,
+            include_texture=True,
+            return_texture=True)
+        # should be using one material file
+        assert obj.count('mtllib') == 1
+        assert 'mtllib material.mtl' in obj
+        # should be specifying 5 materials
+        assert obj.count('usemtl') == 5
+
+        # this file has only the properties (no images)
+        assert len(mtl) == 1
+        mtl_names = [
+            L.strip().split()[-1].strip() for L in
+            mtl['material.mtl'].decode('utf-8').split('\n')
+            if 'newmtl' in L]
+        # there should be 5 unique material names
+        assert len(set(mtl_names)) == 5
+
     def test_mtl_color_roundtrip(self):
 
         # create a mesh with a simple material
@@ -326,6 +347,65 @@ class OBJTest(g.unittest.TestCase):
                              r.visual.material.diffuse)
         assert g.np.isclose(m.visual.material.glossiness,
                             r.visual.material.glossiness)
+
+    def test_compound_scene_export(self):
+
+        # generate a mesh with multiple textures
+        a = g.get_mesh('BoxTextured.glb')
+        a = a.scaled(1.0 / a.extents.max())
+        a.apply_translation(-a.bounds[0])
+
+        b = g.get_mesh('fuze.obj').scene()
+        b = b.scaled(1.0 / b.extents.max())
+        b.apply_translation(-b.bounds[0] + [2, 0, 0])
+
+        d = next(iter(b.copy().geometry.values()))
+        d.apply_translation([-1, 0, 0])
+        assert hash(d.visual.material) == hash(
+            b.geometry['fuze.obj'].visual.material)
+
+        # should change the material hash
+        d.visual.material.glossiness = 0.1
+        assert hash(d.visual.material) != hash(
+            b.geometry['fuze.obj'].visual.material)
+
+        # generate a compound scene
+        c = a + b + d
+        for i in c.geometry.values():
+            # name all the materials the same thing
+            i.visual.material.name = 'material_0'
+
+        # export the compound scene
+        obj, mtl = c.export(file_type='obj', return_texture=True)
+        # there should be exactly one mtllib referenced
+        assert obj.count('mtllib') == 1
+        assert obj.count('usemtl') == 3
+
+        # should be one texture image for each of 3
+        # plus the `.mtl` file itself
+        # if we had image-hash-deduplication this should
+        # be changed to 3 as the image for `b` and `d` are the same
+        assert len(mtl) == 4
+
+        # get the material names specified
+
+        mtl_names = [
+            L.strip().split()[-1].strip() for L in
+            mtl['material.mtl'].decode('utf-8').split('\n')
+            if 'newmtl' in L]
+        # there should be 3 unique material names
+        assert len(set(mtl_names)) == 3
+
+        # now reload the compound scene
+        t = g.trimesh.load(
+            file_obj=g.trimesh.util.wrap_as_stream(obj),
+            file_type='obj',
+            resolver=g.trimesh.resolvers.ZipResolver(mtl),
+            group_material=False,
+            split_object=True)
+        # these names should match eventually
+        assert len(t.geometry.keys()) == len(c.geometry.keys())
+        assert g.np.isclose(t.area, c.area)
 
 
 def simple_load(text):
