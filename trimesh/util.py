@@ -1488,12 +1488,11 @@ def concatenate(a, b=None):
             'failed to combine visuals', exc_info=True)
         visual = None
     # create the mesh object
-    mesh = trimesh_type(vertices=vertices,
+    return trimesh_type(vertices=vertices,
                         faces=faces,
                         face_normals=face_normals,
                         visual=visual,
                         process=False)
-    return mesh
 
 
 def submesh(mesh,

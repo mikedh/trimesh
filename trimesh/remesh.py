@@ -316,6 +316,7 @@ def subdivide_loop(vertices,
                 cur_verts, cur_faces = _subdivide(
                     vertices=vertices[unique],
                     faces=inverse.reshape((-1, 3)))
+
                 # increment the face references to match
                 # the vertices when we stack them later
                 cur_faces += count

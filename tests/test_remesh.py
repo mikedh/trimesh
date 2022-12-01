@@ -21,10 +21,13 @@ class SubDivideTest(g.unittest.TestCase):
             sub, idx = m.subdivide_to_size(
                 max_edge=max_edge, return_index=True)
             assert g.np.allclose(m.area, sub.area)
-            edge_len = (g.np.diff(sub.vertices[sub.edges_unique],
-                                  axis=1).reshape((-1, 3))**2).sum(axis=1)**.5
+            edge_len = (g.np.diff(
+                sub.vertices[sub.edges_unique],
+                axis=1).reshape((-1, 3))**2).sum(axis=1)**.5
             assert (edge_len < max_edge).all()
 
+            # should be the same order of magnitude size
+            assert g.np.allclose(m.extents, sub.extents, rtol=2)
             # should be one index per new face
             assert len(idx) == len(sub.faces)
             # every face should be subdivided
@@ -119,13 +122,34 @@ class SubDivideTest(g.unittest.TestCase):
             assert sub.area_faces.mean() < m.area_faces.mean()
 
     def test_loop_multibody(self):
-        mesh = g.get_mesh('cycloidal.ply')  # a mesh with multiple bodies
-        sub = mesh.subdivide_loop(iterations=1)
+        # a mesh with multiple bodies
+        mesh = g.get_mesh('cycloidal.ply')
+        sub = mesh.subdivide_loop(iterations=2)
 
         # number of faces should increase
         assert len(sub.faces) > len(mesh.faces)
         # subdivided faces are smaller
         assert sub.area_faces.mean() < mesh.area_faces.mean()
+        # should be the same order of magnitude area
+        # rtol=2 means it can be up to twice/half
+        assert g.np.isclose(sub.area, mesh.area, rtol=2)
+        # should have the same number of bodies
+        assert len(mesh.split()) == len(sub.split())
+
+    def test_loop_multi_simple(self, count=10):
+        meshes = []
+        for i in range(count):
+            current = g.trimesh.creation.icosahedron()
+            current.apply_translation([i * 1.5, 0, 0])
+            meshes.append(current)
+        # concatenate into a single multibody mesh
+        m = g.trimesh.util.concatenate(meshes)
+        # run subdivision on that
+        a = m.subdivide_loop(iterations=4)
+        # make sure it splits and is watertight
+        split = a.split()
+        assert len(split) == count
+        assert all(i.is_watertight for i in split)
 
     def test_loop_correct(self):
         box = g.trimesh.creation.box()
