@@ -42,6 +42,7 @@ def load_collada(file_obj,
                    collada.common.DaeIncompleteError,
                    collada.common.DaeMalformedError,
                    collada.common.DaeBrokenRefError,
+                   collada.common.DaeUnsupportedError,
                    collada.common.DaeIncompleteError]
     else:
         ignores = None
