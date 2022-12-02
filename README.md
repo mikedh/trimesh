@@ -220,5 +220,5 @@ If you want to deploy something in a container that uses trimesh automated `debi
 
 `docker pull trimesh/trimesh`
 
-[Here's an example](https://github.com/mikedh/trimesh/tree/main/examples/dockerRender) of how to render meshes using LLVMpipe and XVFB inside a container.
+[Here's an example](https://github.com/mikedh/trimesh/tree/main/examples/docker/render) of how to render meshes using LLVMpipe and XVFB inside a container.
 
