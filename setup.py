@@ -8,7 +8,6 @@ from setuptools import setup
 _version_file = os.path.join(
     os.path.dirname(__file__),
     'trimesh', 'version.py')
-
 if os.path.isfile(_version_file):
     with open(_version_file, 'r') as f:
         _version_raw = f.read()

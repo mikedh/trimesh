@@ -4,3 +4,130 @@ requires = [
     "setuptools >= 40.8",
     "wheel",
 ]
+
+[project]
+name = "trimesh"
+version = "3.17.1"
+authors = [
+    {
+    name = "Michael Dawson-Haggerty",
+    email = "mikedh@kerfed.com"
+    },
+]
+description = "Import, export, process, analyze and view triangular meshes."
+keywords = [
+    "graphics",
+    "mesh",
+    "geometry",
+    "3D",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy",
+]
+
+[project.license]
+text = "MIT"
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.urls]
+Homepage = "https://github.com/mikedh/trimesh"
+
+[project.optional-dependencies]
+test = [
+    "pyinstrument",
+    "coveralls",
+    "pytest",
+    "pytest-cov",
+    "ezdxf",
+]
+easy = [
+    "mapbox-earcut",
+    "requests",
+    "chardet",
+    "shapely; python_version>'3.4'",
+    "msgpack",
+    "sympy; python_version>'3.4'",
+    "pyglet<2",
+    "jsonschema",
+    "xxhash",
+    "pillow",
+    "setuptools",
+    "colorlog",
+    "lxml; python_version>'3.4'",
+    "svg.path; python_version>'3.5'",
+    "networkx",
+    "pycollada",
+    "rtree",
+    "scipy",
+]
+all = [
+    "xatlas",
+    "requests",
+    "shapely",
+    "colorlog",
+    "python-fcl",
+    "lxml",
+    "svg.path",
+    "psutil",
+    "rtree",
+    "networkx",
+    "scipy",
+    "mapbox-earcut",
+    "chardet",
+    "msgpack",
+    "sympy",
+    "scikit-image",
+    "pyglet<2",
+    "jsonschema",
+    "pillow",
+    "setuptools",
+    "glooey",
+    "pycollada",
+    "xxhash",
+    "meshio",
+]
+
+[tool.flake8]
+max_line_length = "90"
+
+[tool.setuptools]
+packages = [
+    "trimesh",
+    "trimesh.ray",
+    "trimesh.path",
+    "trimesh.path.exchange",
+    "trimesh.scene",
+    "trimesh.voxel",
+    "trimesh.visual",
+    "trimesh.viewer",
+    "trimesh.exchange",
+    "trimesh.resources",
+    "trimesh.interfaces",
+]
+include-package-data = false
+
+[tool.setuptools.package-data]
+trimesh = [
+    "resources/templates/*",
+    "resources/*.json",
+    "resources/schema/*",
+    "resources/schema/primitive/*.json",
+    "resources/*.zip",
+]
