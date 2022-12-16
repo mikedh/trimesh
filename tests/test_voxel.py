@@ -334,7 +334,7 @@ class VoxelGridTest(g.unittest.TestCase):
             g.log.warning('no binvox to test!')
             return
 
-        filled = Sphere().voxelized(
+        filled = g.trimesh.primitives.Sphere().voxelized(
             pitch=0.1,
             method='binvox',
             exact=True)
@@ -355,9 +355,10 @@ class VoxelGridTest(g.unittest.TestCase):
             g.log.warning('no binvox to test!')
             return
 
-        octant = Sphere().voxelized(pitch=0.1,
-                                    method='binvox',
-                                    exact=True)
+        octant = g.trimesh.primitives.Sphere().voxelized(
+            pitch=0.1,
+            method='binvox',
+            exact=True)
         dense = octant.encoding.dense.copy()
         nx, ny, nz = octant.shape
         dense[:nx // 2] = 0
@@ -376,11 +377,12 @@ class VoxelGridTest(g.unittest.TestCase):
             return
 
         dim = 10
-        octant = Sphere().voxelized(pitch=None,
-                                    dimension=dim,
-                                    method='binvox',
-                                    exact=True)
-        self.assertEqual(octant.shape, (dim,) * 3)
+        octant = g.trimesh.primitives.Sphere().voxelized(
+            pitch=None,
+            dimension=dim,
+            method='binvox',
+            exact=True)
+        assert octant.shape == (dim, dim, dim)
 
 
 if __name__ == '__main__':
