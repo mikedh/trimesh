@@ -400,6 +400,9 @@ class GithubResolver(Resolver):
         """
         return self.zipped.keys()
 
+    def write(self, name, data):
+        raise NotImplementedError('`write` not implemented!')
+
     @property
     def zipped(self):
         """
