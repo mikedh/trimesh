@@ -36,17 +36,22 @@ class Resolver(util.ABC):
     def get(self, key):
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def write(self, name, data):
         raise NotImplementedError('`write` not implemented!')
 
+    @abc.abstractmethod
     def namespaced(self, namespace):
         raise NotImplementedError('`namespaced` not implemented!')
 
     def __getitem__(self, key):
         return self.get(key)
 
-    def __setitem(self, key, value):
+    def __setitem__(self, key, value):
         return self.write(key, value)
+
+    def __contains__(self, key):
+        return key in self.keys()
 
 
 class FilePathResolver(Resolver):
@@ -91,9 +96,32 @@ class FilePathResolver(Resolver):
         name : str
           Name of a file which can be accessed.
         """
+        parent = self.parent
         for path, _, names in os.walk(self.parent):
+            # strip any leading parent key
+            if path.startswith(parent):
+                path = path[len(parent):]
+            # yield each name
             for name in names:
                 yield os.path.join(path, name)
+
+    def namespaced(self, namespace):
+        """
+        Return a resolver which changes the root of the
+        resolver by an added namespace.
+
+        Parameters
+        -------------
+        namespace : str
+          Probably a subdirectory
+
+        Returns
+        --------------
+        resolver : FilePathResolver
+          Resolver with root directory changed.
+        """
+        return FilePathResolver(os.path.join(
+            self.parent, namespace))
 
     def get(self, name):
         """
@@ -140,7 +168,7 @@ class ZipResolver(Resolver):
     Resolve files inside a ZIP archive.
     """
 
-    def __init__(self, archive, namespace=None):
+    def __init__(self, archive=None, namespace=None):
         """
         Resolve files inside a ZIP archive as loaded by
         trimesh.util.decompress
@@ -163,7 +191,7 @@ class ZipResolver(Resolver):
     def keys(self):
         if self.namespace is not None:
             namespace = self.namespace
-            length = len(namespace) + 1
+            length = len(namespace)
             # only return keys that start with the namespace
             # and strip off the namespace from the returned
             # keys.
@@ -171,6 +199,13 @@ class ZipResolver(Resolver):
                     if k.startswith(namespace)
                     and len(k) > length]
         return self.archive.keys()
+
+    def write(self, key, value):
+        """
+        """
+        if self.archive is None:
+            self.archive = {}
+        self.archive[key] = value
 
     def get(self, name):
         """
@@ -237,6 +272,18 @@ class ZipResolver(Resolver):
         return ZipResolver(archive=self.archive,
                            namespace=namespace)
 
+    def export(self):
+        """
+        Export the contents of the current archive as
+        a ZIP file.
+
+        Returns
+        ------------
+        compressed : bytes
+          Compressed data in ZIP format.
+        """
+        return util.compress(self.archive)
+
 
 class WebResolver(Resolver):
     """
@@ -291,9 +338,10 @@ class WebResolver(Resolver):
 
         if response.status_code != 200:
             # try to strip off filesystem crap
+            if name.startswith('./'):
+                name = name[2:]
             response = requests.get(urljoin(
-                self.base_url,
-                name.lstrip('./')))
+                self.base_url, name))
 
         if response.status_code == '404':
             raise ValueError(response.content)
@@ -418,11 +466,16 @@ def nearby_names(name, namespace=None):
       of the initial name.
     """
     # the various operations that *might* result in a correct key
+    def trim(prefix, item):
+        if item.startswith(prefix):
+            return item[len(prefix):]
+        return item
+
     cleaners = [lambda x: x,
                 lambda x: x.strip(),
-                lambda x: x.lstrip('./'),
-                lambda x: x.lstrip('.\\'),
-                lambda x: x.lstrip('\\'),
+                lambda x: trim('./', x),
+                lambda x: trim('.\\', x),
+                lambda x: trim('\\', x),
                 lambda x: os.path.split(x)[-1],
                 lambda x: x.replace('%20', ' ')]
 

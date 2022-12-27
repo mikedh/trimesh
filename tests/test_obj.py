@@ -348,6 +348,22 @@ class OBJTest(g.unittest.TestCase):
         assert g.np.isclose(m.visual.material.glossiness,
                             r.visual.material.glossiness)
 
+    def test_scene_export_material_name(self):
+        s = g.get_mesh('fuze.obj', force='scene')
+        dummy = 'fuxx'
+        s.geometry['fuze.obj'].visual.material.name = dummy
+
+        r = g.trimesh.resolvers.ZipResolver()
+        r['model.obj'] = s.export(
+            file_type='obj',
+            mtl_name='mystuff.mtl',
+            resolver=r)
+
+        mtl = r['mystuff.mtl'].decode('utf-8')
+        assert mtl.count('newmtl') == 1
+        assert 'newmtl {}'.format(dummy) in mtl
+        assert '{}.jpeg'.format(dummy) in r
+
     def test_compound_scene_export(self):
 
         # generate a mesh with multiple textures
