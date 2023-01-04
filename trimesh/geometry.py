@@ -162,35 +162,48 @@ def triangulate_quads(quads, dtype=np.int64):
     faces : (m, 3) int
       Vertex indices of triangular faces.c
     """
-    quads = np.asanyarray(quads)
-    if len(quads) == 0:
-        return quads.astype(dtype)
-    elif len(quads.shape) == 2 and quads.shape[1] == 3:
-        # if they are just triangles return immediately
-        return quads.astype(dtype)
-    elif len(quads.shape) == 2 and quads.shape[1] == 4:
-        # if they are just quads stack and return
-        return np.vstack((quads[:, [0, 1, 2]],
-                          quads[:, [2, 3, 0]])).astype(dtype)
-    else:
-        # mixed tris, and quads, and other so filter and handle
-        tri = np.array([i for i in quads if len(i) == 3])
-        quad = np.array([i for i in quads if len(i) == 4])
-        # triangulate arbitrary polygons as fans
-        poly = [[[f[0], f[i + 1], f[i + 2]]
-                 for i in range(len(f) - 2)]
-                for f in quads if len(f) > 4]
 
-        if len(quad) == 0 and len(poly) == 0:
-            return tri.astype(dtype)
-        if len(poly) > 0:
-            poly = np.vstack(poly)
-        if len(quad) > 0:
-            quad = np.vstack((quad[:, [0, 1, 2]],
-                              quad[:, [2, 3, 0]]))
-        # combine triangulated quads with triangles
-        return util.vstack_empty([
-            tri, quad, poly]).astype(dtype)
+    if len(quads) == 0:
+        return np.zeros(0, dtype=dtype)
+
+    try:
+        # this will fail in newer versions of numpy
+        # if there are mixed quads and tris
+        quads = np.array(quads, dtype=dtype)
+
+        if len(quads.shape) == 2 and quads.shape[1] == 3:
+            # if they are just triangles return immediately
+            return quads.astype(dtype)
+
+        if len(quads.shape) == 2 and quads.shape[1] == 4:
+            # if they are just quads stack and return
+            return np.vstack((quads[:, [0, 1, 2]],
+                              quads[:, [2, 3, 0]])).astype(dtype)
+    except ValueError:
+        # new numpy raises an error for sequences
+        pass
+
+    # we made it here so we have mixed tris/quads/polygons
+    # filter into the three cases
+    tri = np.array([i for i in quads if len(i) == 3])
+    quad = np.array([i for i in quads if len(i) == 4])
+    # triangulate arbitrary polygons as triangle fans
+    # this isn't guarenteed to be sane if the polygons
+    # aren't convex but that would require a real maniac
+    poly = [[[f[0], f[i + 1], f[i + 2]]
+             for i in range(len(f) - 2)]
+            for f in quads if len(f) > 4]
+
+    if len(quad) == 0 and len(poly) == 0:
+        return tri.astype(dtype)
+    if len(poly) > 0:
+        poly = np.vstack(poly)
+    if len(quad) > 0:
+        quad = np.vstack((quad[:, [0, 1, 2]],
+                          quad[:, [2, 3, 0]]))
+    # combine triangulated quads with triangles
+    return util.vstack_empty([
+        tri, quad, poly]).astype(dtype)
 
 
 def vertex_face_indices(vertex_count,

@@ -1567,7 +1567,7 @@ def random_quaternion(rand=None, num=1):
                      np.cos(t1) * r1, np.sin(t2) * r2]).T.squeeze()
 
 
-def random_rotation_matrix(rand=None, num=1):
+def random_rotation_matrix(rand=None, num=1, translate=False):
     """Return uniform random rotation matrix.
 
     rand: array like
@@ -1582,7 +1582,12 @@ def random_rotation_matrix(rand=None, num=1):
     True
 
     """
-    return quaternion_matrix(random_quaternion(rand=rand, num=num))
+    matrix = quaternion_matrix(
+        random_quaternion(rand=rand, num=num))
+    if translate:
+        scale = float(translate)
+        matrix[:3, 3] = (np.random.random(3) - 0.5) * scale
+    return matrix
 
 
 class Arcball(object):

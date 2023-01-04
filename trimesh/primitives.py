@@ -22,6 +22,10 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 
+# immutable identity matrix for checks
+_IDENTITY = np.eye(4)
+_IDENTITY.flags['WRITEABLE'] = False
+
 
 class _Primitive(Trimesh):
     """
@@ -147,11 +151,27 @@ class _Primitive(Trimesh):
             matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
             raise ValueError('Transformation matrix must be (4,4)!')
-        if util.allclose(matrix, np.eye(4), 1e-8):
+        if util.allclose(matrix, _IDENTITY, 1e-8):
             log.debug('apply_transform received identity matrix')
             return
 
-        new_transform = np.dot(matrix, self.primitive.transform)
+        # see if matrix has scale
+        scale, factor, origin = tf.scale_from_matrix(matrix)
+        if abs(scale - 1.0) > 1e-8:
+            matrix = np.dot(matrix, tf.scale_matrix(1.0 / scale))
+            prim = self.primitive
+            if hasattr(prim, 'height'):
+                prim.height *= scale
+            if hasattr(prim, 'radius'):
+                prim.radius *= scale
+
+        # get the current transform
+        #current = self.primitive.transform
+        new_transform = np.dot(
+            matrix, self.primitive.transform)
+
+        assert tf.is_rigid(new_transform)
+
         self.primitive.transform = new_transform
         return self
 
