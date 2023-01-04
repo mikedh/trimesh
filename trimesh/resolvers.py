@@ -306,11 +306,18 @@ class WebResolver(Resolver):
         # parse string into namedtuple
         parsed = urlparse(url)
 
-        # we want a base url where the mesh was located
-        path = parsed.path
-        if path[-1] != '/':
+        # we want a base url
+        split = [i for i in parsed.path.split('/')
+                 if len(i) > 0]
+
+        # if the last item in the url path is a filename
+        # move up a "directory" for the base path
+        if len(split) > 0 and '.' in split[-1]:
             # clip off last item
-            path = '/'.join(path.split('/')[:-1]) + '/'
+            path = '/'.join(split[:-1])
+        else:
+            # recombine into string ignoring any double slashes
+            path = '/'.join(split)
 
         # store the base url
         self.base_url = '{scheme}://{netloc}/{path}'.format(
@@ -348,6 +355,27 @@ class WebResolver(Resolver):
 
         # return the bytes of the response
         return response.content
+
+    def namespaced(self, namespace):
+        """
+        Return a namespaced version of current resolver.
+
+        Parameters
+        -------------
+        namespace : str
+          URL fragment
+
+        Returns
+        -----------
+        resolver : WebResolver
+          With sub-url: `https://example.com/{namespace}`
+        """
+        # join the base url and the namespace
+        return WebResolver(url=urljoin(
+            self.base_url, namespace))
+
+    def write(self, key, value):
+        raise NotImplementedError("can't write to remote")
 
 
 class GithubResolver(Resolver):

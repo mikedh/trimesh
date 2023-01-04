@@ -27,6 +27,19 @@ class ResolverTest(g.unittest.TestCase):
         assert set(ns.keys()).issuperset(['tray-easy1.dxf',
                                           'single_arc.dxf'])
 
+    def test_web_namespace(self):
+        base = 'https://example.com'
+        ns = 'stuff'
+        # check with a trailing slash
+        a = g.trimesh.resolvers.WebResolver(base + '/')
+        b = a.namespaced(ns)
+
+        # should have correct slashes
+        truth = base + '/' + ns
+        assert b.base_url == truth
+        # should not have altered original
+        assert a.base_url == base + '/'
+
     def test_items(self):
         # check __getitem__ and __setitem__
         archive = {}
