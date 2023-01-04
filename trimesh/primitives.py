@@ -165,14 +165,12 @@ class _Primitive(Trimesh):
             if hasattr(prim, 'radius'):
                 prim.radius *= scale
 
-        # get the current transform
-        #current = self.primitive.transform
+        # apply the new transform to the old
         new_transform = np.dot(
             matrix, self.primitive.transform)
-
         assert tf.is_rigid(new_transform)
-
         self.primitive.transform = new_transform
+
         return self
 
     def _create_mesh(self):
