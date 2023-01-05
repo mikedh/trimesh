@@ -8,7 +8,6 @@ Useful because you can move boxes and spheres around
 and then use trimesh operations on them at any point.
 """
 import numpy as np
-import copy
 import abc
 
 from . import util
@@ -124,7 +123,7 @@ class _Primitive(Trimesh):
           Copy of current primitive
         """
         # get the constructor arguments
-        kwargs = self.to_dict()
+        kwargs.update(self.to_dict())
         # remove the type indicator, i.e. `Cylinder`
         kwargs.pop('kind')
         # create a new object with kwargs
