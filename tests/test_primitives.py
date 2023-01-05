@@ -62,6 +62,78 @@ class PrimitiveTest(g.unittest.TestCase):
         self.primitives.append(g.trimesh.primitives.Capsule(radius=1.5,
                                                             height=10))
 
+    def test_scaling(self):
+        # try a simple scaling test
+        p = g.trimesh.primitives.Sphere(radius=1.0)
+        m = p.to_mesh()
+        assert g.np.allclose(p.extents, 2.0)
+        assert g.np.allclose(m.extents, 2.0)
+        p.apply_scale(0.5)
+        m.apply_scale(0.5)
+        assert g.np.isclose(p.primitive.radius, 0.5)
+        assert g.np.allclose(p.extents, 1.0)
+        assert g.np.allclose(m.extents, 1.0)
+        assert g.np.allclose(p.extents, m.extents, atol=1e-3)
+
+        # now try with more complicated generated data
+        prims = [g.trimesh.primitives.Sphere(radius=1.0),
+                 g.trimesh.primitives.Sphere(radius=112.007),
+                 g.trimesh.primitives.Cylinder(radius=1.0,
+                                               height=10.0),
+
+                 g.trimesh.primitives.Cylinder(radius=1.1212,
+                                               height=0.001),
+                 g.trimesh.primitives.Capsule(radius=1.0,
+                                              height=7.0)]
+
+        for original in prims:
+            perm = [original, original.copy(), original.copy()]
+            # try with a simple translation
+            perm[1].primitive.transform = g.tf.translation_matrix([0, 0, 7])
+            # try with a gnarly rotation
+            perm[2].primitive.transform = g.tf.random_rotation_matrix(
+                translate=1000)
+
+            fields = set(dir(original.primitive))
+            ori_radius, ori_height = None, None
+            if 'radius' in fields:
+                ori_radius = original.primitive.radius
+            if 'height' in fields:
+                ori_height = original.primitive.height
+
+            for scale in [1e-2, 0.123, 0.5, 100.2]:
+                for po in perm:
+                    # converting to mesh will do all scaling
+                    # and transformations on simple discrete
+                    # copy of primitive and should match with
+                    # only tesselation differences
+                    p = po.copy()
+                    m = p.to_mesh()
+
+                    # make sure we have the types we think we do
+                    assert isinstance(p, g.trimesh.primitives._Primitive)
+                    assert isinstance(m, g.trimesh.Trimesh)
+
+                    assert g.np.allclose(p.extents, m.extents)
+
+                    p.apply_scale(scale)
+                    m.apply_scale(scale)
+
+                    # matrix should never have scale
+                    assert g.tf.is_rigid(p.primitive.transform)
+
+                    if ori_radius is not None:
+                        assert g.np.isclose(p.primitive.radius,
+                                            ori_radius * scale)
+                    if ori_height is not None:
+                        assert g.np.isclose(p.primitive.height,
+                                            ori_height * scale)
+
+                    # should be the same size
+                    assert g.np.allclose(p.extents, m.extents, atol=1e-3 * scale)
+                    # should be in the same place
+                    assert g.np.allclose(p.bounds, m.bounds, atol=1e-3 * scale)
+
     def test_primitives(self):
 
         kind = set([i.__class__.__name__

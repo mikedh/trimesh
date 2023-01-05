@@ -46,7 +46,8 @@ class _Primitive(Trimesh):
         self._cache.force_immutable = True
 
     def __repr__(self):
-        return '<trimesh.primitives.{}>'.format(type(self).__name__)
+        return '<trimesh.primitives.{}>'.format(
+            type(self).__name__)
 
     @property
     def faces(self):
@@ -58,7 +59,7 @@ class _Primitive(Trimesh):
 
     @faces.setter
     def faces(self, values):
-        log.warning('primitive faces are immutable not setting!')
+        log.warning('primitive faces are immutable: not setting!')
 
     @property
     def vertices(self):
@@ -122,7 +123,12 @@ class _Primitive(Trimesh):
         copied : object
           Copy of current primitive
         """
-        return copy.deepcopy(self)
+        # get the constructor arguments
+        kwargs = self.to_dict()
+        # remove the type indicator, i.e. `Cylinder`
+        kwargs.pop('kind')
+        # create a new object with kwargs
+        return type(self)(**kwargs)
 
     def to_mesh(self):
         """
@@ -143,7 +149,7 @@ class _Primitive(Trimesh):
     def apply_transform(self, matrix):
         """
         Apply a transform to the current primitive by
-        setting self.transform
+        setting `self.primitive.transform`
 
         Parameters
         ------------
@@ -152,39 +158,40 @@ class _Primitive(Trimesh):
         """
         matrix = np.asanyarray(
             matrix, order='C', dtype=np.float64)
-
         if matrix.shape != (4, 4):
-            raise ValueError('matrix must be (4, 4)!')
+            raise ValueError('matrix must be `(4, 4)`!')
         if util.allclose(matrix, _IDENTITY, 1e-8):
             # identity matrix is a no-op
             return
 
-        # see if matrix has scale factor
+        prim = self.primitive
+        current = prim.transform
+        # see if matrix has scaling from the matrix
         scale, factor, origin = tf.scale_from_matrix(matrix)
         if abs(scale - 1.0) > 1e-8:
-            iscale = 1.0 / scale
 
-            prim = self.primitive
-            # if not util.allclose(matrix, _IDENTITY):
-            #from IPython import embed
-            # embed()
-
+            # scale the primitive attributes
             if hasattr(prim, 'height'):
-
-                matrix = np.dot(matrix, tf.translation_matrix(
-                    [0, 0, -prim.height / 2.0]))
                 prim.height *= scale
-
             if hasattr(prim, 'radius'):
                 prim.radius *= scale
 
-            matrix = np.dot(matrix, tf.scale_matrix(1.0 / scale))
+            # apply new matrix, rescale, translate, current
+            updated = util.multi_dot([
+                matrix,
+                tf.scale_matrix(1.0 / scale),
+                tf.translation_matrix(current[:3, 3] * -scale),
+                current])
 
-        # apply the new transform to the old
-        new_transform = np.dot(
-            matrix, self.primitive.transform)
-        assert tf.is_rigid(new_transform)
-        self.primitive.transform = new_transform
+        else:
+            # without scaling just multiply
+            updated = np.dot(matrix, current)
+
+        # make sure matrix is a rigid transform
+        assert tf.is_rigid(updated)
+
+        # apply the new matrix
+        self.primitive.transform = updated
 
         return self
 
@@ -203,14 +210,23 @@ class _PrimitiveAttributes(object):
         self._parent = parent
         self._data.update(defaults)
         self._mutable = True
-        for key, value in kwargs.items():
-            if key in defaults:
+        for key, default in defaults.items():
+            if key == 'transform':
+                pass  # continue
+            elif key in kwargs:
                 self._data[key] = util.convert_like(
-                    value, defaults[key])
-        # if configured as immutable apply setting after
-        # instantiation values are set
-        if 'mutable' in kwargs:
-            self._mutable = bool(kwargs['mutable'])
+                    kwargs[key], default)
+
+        # special case `transform` as it may
+        # have scaling which we need to apply
+        # after other things like radius and height
+        # if 'transform' in kwargs:
+        #    self._apply_transform(kwargs['transform'])
+
+        # if configured as immutable apply setting
+        # after initial values are set
+        if not kwargs.get('mutable', True):
+            self._mutable = False
 
     @property
     def __doc__(self):
