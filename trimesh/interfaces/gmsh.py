@@ -135,7 +135,7 @@ def to_volume(mesh,
       Maximum length of an element in the volume mesh
     mesher_id : int
       3D unstructured algorithms:
-      1: Delaunay, 4: Frontal, 7: MMG3D, 10: HXT
+      1: Delaunay, 3: Initial mesh only, 4: Frontal, 7: MMG3D, 9: R-tree, 10: HXT
 
     Returns
     ------------
@@ -148,7 +148,7 @@ def to_volume(mesh,
 
     # checks mesher selection
     if mesher_id not in [1, 3, 4, 7, 9, 10]:
-        raise ValueError('unavilable mesher selected!')
+        raise ValueError('unavailable mesher selected!')
     else:
         mesher_id = int(mesher_id)
 
