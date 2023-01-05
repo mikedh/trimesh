@@ -152,7 +152,7 @@ def load_3DXML(file_obj, *args, **kwargs):
                 strips = [np.fromstring(i, sep=' ', dtype=np.int64)
                           for i in faces.attrib['strips'].split(',')]
 
-                # convert strips to (m,3) int
+                # convert strips to (m, 3) int
                 mesh_faces.append(util.triangle_strips_to_faces(strips))
             if 'triangles' in faces.attrib:
                 # both triangles and strips are allowed to be defined so
@@ -174,7 +174,7 @@ def load_3DXML(file_obj, *args, **kwargs):
                 sep=' ',
                 dtype=np.float64).reshape((-1, 3)))
 
-            # store the material information as (m,3) uint8 FACE COLORS
+            # store the material information as (m, 3) uint8 FACE COLORS
             mesh_colors.append(np.tile(colors[material_id],
                                        (len(mesh_faces[-1]), 1)))
 

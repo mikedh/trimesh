@@ -418,7 +418,7 @@ class PointCloud(Geometry3D):
           Metadata about points
         """
         self._data = caching.DataStore()
-        self._cache = caching.Cache(self._data.hash)
+        self._cache = caching.Cache(self._data.__hash__)
         self.metadata = {}
 
         if metadata is not None:

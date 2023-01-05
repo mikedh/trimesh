@@ -361,13 +361,13 @@ class Cache(object):
           If set will make all numpy arrays read-only
         """
         self._id_function = id_function
-        # force stored numpy arrays to have flags.writable=False
+        # for stored numpy arrays set `flags.writable = False`
         self.force_immutable = bool(force_immutable)
         # call the id function for initial value
         self.id_current = self._id_function()
         # a counter for locks
         self._lock = 0
-        # actuSal store for data
+        # actual store for data
         self.cache = {}
 
     def delete(self, key):

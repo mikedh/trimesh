@@ -24,7 +24,7 @@ from .constants import log, tol
 
 # immutable identity matrix for checks
 _IDENTITY = np.eye(4)
-_IDENTITY.flags['WRITEABLE'] = False
+_IDENTITY.flags.writeable = False
 
 
 class _Primitive(Trimesh):
@@ -41,6 +41,9 @@ class _Primitive(Trimesh):
         super(_Primitive, self).__init__(*args, **kwargs)
         self._data.clear()
         self._validate = False
+        # make sure any cached numpy arrays have
+        # set `array.flags.writable = False`
+        self._cache.force_immutable = True
 
     def __repr__(self):
         return '<trimesh.primitives.{}>'.format(type(self).__name__)
@@ -55,7 +58,7 @@ class _Primitive(Trimesh):
 
     @faces.setter
     def faces(self, values):
-        log.warning('Primitive faces are immutable! Not setting!')
+        log.warning('primitive faces are immutable not setting!')
 
     @property
     def vertices(self):
@@ -69,7 +72,7 @@ class _Primitive(Trimesh):
     @vertices.setter
     def vertices(self, values):
         if values is not None:
-            log.warning('Primitive vertices are immutable! Not setting!')
+            log.warning('primitive vertices are immutable: not setting!')
 
     @property
     def face_normals(self):
@@ -144,26 +147,38 @@ class _Primitive(Trimesh):
 
         Parameters
         ------------
-        matrix: (4,4) float
+        matrix: (4, 4) float
           Homogeneous transformation
         """
         matrix = np.asanyarray(
             matrix, order='C', dtype=np.float64)
+
         if matrix.shape != (4, 4):
-            raise ValueError('Transformation matrix must be (4,4)!')
+            raise ValueError('matrix must be (4, 4)!')
         if util.allclose(matrix, _IDENTITY, 1e-8):
-            log.debug('apply_transform received identity matrix')
+            # identity matrix is a no-op
             return
 
-        # see if matrix has scale
+        # see if matrix has scale factor
         scale, factor, origin = tf.scale_from_matrix(matrix)
         if abs(scale - 1.0) > 1e-8:
-            matrix = np.dot(matrix, tf.scale_matrix(1.0 / scale))
+            iscale = 1.0 / scale
+
             prim = self.primitive
+            # if not util.allclose(matrix, _IDENTITY):
+            #from IPython import embed
+            # embed()
+
             if hasattr(prim, 'height'):
+
+                matrix = np.dot(matrix, tf.translation_matrix(
+                    [0, 0, -prim.height / 2.0]))
                 prim.height *= scale
+
             if hasattr(prim, 'radius'):
                 prim.radius *= scale
+
+            matrix = np.dot(matrix, tf.scale_matrix(1.0 / scale))
 
         # apply the new transform to the old
         new_transform = np.dot(
@@ -308,7 +323,8 @@ class Cylinder(_Primitive):
 
         Returns
         ----------
-        tensor: (3,3) float, 3D inertia tensor
+        tensor: (3, 3) float
+          3D inertia tensor
         """
 
         tensor = inertia.cylinder_inertia(
@@ -409,10 +425,14 @@ class Capsule(_Primitive):
 
         Parameters
         ----------
-        radius: float, radius of cylinder
-        height: float, height of cylinder
-        transform: (4,4) float, transformation matrix
-        sections: int, number of facets in circle
+        radius : float
+          Radius of cylinder
+        height : float
+          Height of cylinder
+        transform : (4, 4) float
+          Transformation matrix
+        sections : int
+          Number of facets in circle
         """
         super(Capsule, self).__init__(*args, **kwargs)
 
@@ -451,13 +471,15 @@ class Capsule(_Primitive):
 
         Returns
         --------
-        axis: (3,) float, vector along the cylinder axis
+        axis : (3,) float
+          Vector along the cylinder axis
         """
-        axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
+        axis = np.dot(self.primitive.transform,
+                      [0, 0, 1, 0])[:3]
         return axis
 
     def _create_mesh(self):
-        log.debug('creating mesh for Capsule primitive')
+        log.debug('creating mesh for `Capsule` primitive')
 
         mesh = creation.capsule(radius=self.primitive.radius,
                                 height=self.primitive.height)
@@ -565,11 +587,12 @@ class Sphere(_Primitive):
 
         Returns
         ----------
-        tensor: (3,3) float, 3D inertia tensor
+        tensor: (3, 3) float
+          3D inertia tensor.
         """
-        tensor = inertia.sphere_inertia(mass=self.volume,
-                                        radius=self.primitive.radius)
-        return tensor
+        return inertia.sphere_inertia(
+            mass=self.volume,
+            radius=self.primitive.radius)
 
     def _create_mesh(self):
         log.debug('creating mesh for Sphere primitive')
@@ -739,7 +762,7 @@ class Extrusion(_Primitive):
         ----------
         polygon : shapely.geometry.Polygon
           Polygon to extrude
-        transform : (4,4) float
+        transform : (4, 4) float
           Transform to apply after extrusion
         height : float
           Height to extrude polygon by
