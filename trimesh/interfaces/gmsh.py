@@ -147,7 +147,7 @@ def to_volume(mesh,
     import gmsh
 
     # checks mesher selection
-    if mesher_id not in [1, 4, 7, 10]:
+    if mesher_id not in [1, 3, 4, 7, 9, 10]:
         raise ValueError('unavilable mesher selected!')
     else:
         mesher_id = int(mesher_id)
