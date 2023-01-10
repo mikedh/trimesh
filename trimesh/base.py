@@ -110,7 +110,7 @@ class Trimesh(Geometry3D):
         # self._cache stores information about the mesh which CAN be
         # regenerated from self._data, but may be slow to calculate.
         # In order to maintain consistency
-        # the cache is cleared when self._data.crc() changes
+        # the cache is cleared when self._data.__hash__() changes
         self._cache = caching.Cache(
             id_function=self._data.__hash__,
             force_immutable=True)
@@ -2477,9 +2477,21 @@ class Trimesh(Geometry3D):
             vertices=open3d.utility.Vector3dVector(self.vertices),
             triangles=open3d.utility.Vector3iVector(self.faces))
 
+    def simplify_quadratic_decimation(self, *args, **kwargs):
+        """
+        DERECATED MARCH 2024 REPLACE WITH:
+        `mesh.simplify_quadric_decimation`
+        """
+        warnings.warn(
+            '`simplify_quadratic_decimation` is deprecated ' +
+            'as it was a typo and will be removed in March 2024: ' +
+            'replace with `simplify_quadric_decimation`',
+            DeprecationWarning)
+        return self.simplify_quadric_decimation(*args, **kwargs)
+
     def simplify_quadric_decimation(self, face_count):
         """
-        A thin wrapper around the open3d implementation of this:
+        A thin wrapper around the `open3d` implementation of this:
         `open3d.geometry.TriangleMesh.simplify_quadric_decimation`
 
         Parameters
