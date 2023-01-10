@@ -2477,7 +2477,7 @@ class Trimesh(Geometry3D):
             vertices=open3d.utility.Vector3dVector(self.vertices),
             triangles=open3d.utility.Vector3iVector(self.faces))
 
-    def simplify_quadratic_decimation(self, face_count):
+    def simplify_quadric_decimation(self, face_count):
         """
         A thin wrapper around the open3d implementation of this:
         `open3d.geometry.TriangleMesh.simplify_quadric_decimation`
