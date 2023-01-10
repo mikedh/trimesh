@@ -174,12 +174,14 @@ class _Primitive(Trimesh):
                 prim.height *= scale
             if hasattr(prim, 'radius'):
                 prim.radius *= scale
+            if hasattr(prim, 'extents'):
+                prim.extents *= scale
 
+            current[:3, 3] *= scale
             # apply new matrix, rescale, translate, current
             updated = util.multi_dot([
                 matrix,
                 tf.scale_matrix(1.0 / scale),
-                tf.translation_matrix(current[:3, 3] * -scale),
                 current])
 
         else:
@@ -210,9 +212,7 @@ class _PrimitiveAttributes(object):
         self._data.update(defaults)
         self._mutable = True
         for key, default in defaults.items():
-            if key == 'transform':
-                pass  # continue
-            elif key in kwargs:
+            if key in kwargs:
                 self._data[key] = util.convert_like(
                     kwargs[key], default)
 

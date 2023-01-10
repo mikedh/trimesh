@@ -75,12 +75,18 @@ class PrimitiveTest(g.unittest.TestCase):
         assert g.np.allclose(m.extents, 1.0)
         assert g.np.allclose(p.extents, m.extents, atol=1e-3)
 
+        p = g.trimesh.primitives.Box()
+        p.apply_translation([0.5, 0.5, 0.5])
+        p.apply_scale(5.0)
+        assert g.np.allclose(p.bounds, [[0, 0, 0], [5, 5, 5]])
+
         # now try with more complicated generated data
         prims = [g.trimesh.primitives.Sphere(radius=1.0),
                  g.trimesh.primitives.Sphere(radius=112.007),
                  g.trimesh.primitives.Cylinder(radius=1.0,
                                                height=10.0),
-
+                 g.trimesh.primitives.Box(),
+                 g.trimesh.primitives.Box(extents=[12, 32, 31]),
                  g.trimesh.primitives.Cylinder(radius=1.1212,
                                                height=0.001),
                  g.trimesh.primitives.Capsule(radius=1.0,
