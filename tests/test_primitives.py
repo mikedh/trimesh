@@ -80,6 +80,14 @@ class PrimitiveTest(g.unittest.TestCase):
         p.apply_scale(5.0)
         assert g.np.allclose(p.bounds, [[0, 0, 0], [5, 5, 5]])
 
+        try:
+            raised = False
+            p.apply_scale([2, 3, 4])
+        except BaseException:
+            raised = True
+        if not raised:
+            raise ValueError('primitives should raise on non-uniform scaling')
+
         # now try with more complicated generated data
         prims = [g.trimesh.primitives.Sphere(radius=1.0),
                  g.trimesh.primitives.Sphere(radius=112.007),
