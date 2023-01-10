@@ -148,7 +148,10 @@ class _Primitive(Trimesh):
     def apply_transform(self, matrix):
         """
         Apply a transform to the current primitive by
-        setting `self.primitive.transform`
+        applying a new transform on top of existing
+        `self.primitive.transform`. If the matrix
+        contains scaling it will change parameters
+        like `radius` or `height` automatically.
 
         Parameters
         ------------
@@ -164,10 +167,10 @@ class _Primitive(Trimesh):
             return
 
         prim = self.primitive
-        current = prim.transform
+        # copy the current transform
+        current = prim.transform.copy()
         # see if matrix has scaling from the matrix
         scale, factor, origin = tf.scale_from_matrix(matrix)
-
         # the objects we handle re-scaling for
         # note that `Extrusion` is NOT supported
         kinds = (Box, Cylinder, Capsule, Sphere)
@@ -206,26 +209,38 @@ class _PrimitiveAttributes(object):
     """
 
     def __init__(self, parent, defaults, kwargs):
+        """
+        Hold the attributes for a Primitive.
+
+        Parameters
+        ------------
+        parent : _Primitive
+          Parent object reference.
+        defaults : dict
+          The default values for this primitive type.
+        kwargs : dict
+          User-passed values, i.e. {'radius': 10.0}
+        """
+        # store actual data in parent object
         self._data = parent._data
+        # default values define the keys
         self._defaults = defaults
+        # store a reference to the parent ubject
         self._parent = parent
+        # start with a copy of all default objects
         self._data.update(defaults)
-        self._mutable = True
+        # store whether this data is mutable after creation
+        self._mutable = kwargs.get('mutable', True)
+        # assign the keys passed by the user only if
+        # they are a property of this primitive
         for key, default in defaults.items():
-            if key in kwargs:
-                self._data[key] = util.convert_like(
-                    kwargs[key], default)
-
-        # special case `transform` as it may
-        # have scaling which we need to apply
-        # after other things like radius and height
-        # if 'transform' in kwargs:
-        #    self._apply_transform(kwargs['transform'])
-
-        # if configured as immutable apply setting
-        # after initial values are set
-        if not kwargs.get('mutable', True):
-            self._mutable = False
+            value = kwargs.get(key, None)
+            if value is not None:
+                # convert passed data into type of defaults
+                self._data[key] = util.convert_like(value, default)
+        # make sure stored values are immutable after setting
+        if not self._mutable:
+            self._data.mutable = False
 
     @property
     def __doc__(self):

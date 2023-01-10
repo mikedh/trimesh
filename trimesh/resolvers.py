@@ -189,6 +189,14 @@ class ZipResolver(Resolver):
             self.namespace = None
 
     def keys(self):
+        """
+        Get the available keys in the current archive.
+
+        Returns
+        -----------
+        keys : iterable
+          Keys in the current archive.
+        """
         if self.namespace is not None:
             namespace = self.namespace
             length = len(namespace)
@@ -202,6 +210,14 @@ class ZipResolver(Resolver):
 
     def write(self, key, value):
         """
+        Store a value in the current archive.
+
+        Parameters
+        -----------
+        key : hashable
+          Key to store data under.
+        value : str, bytes, file-like
+          Value to store.
         """
         if self.archive is None:
             self.archive = {}
