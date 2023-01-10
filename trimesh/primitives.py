@@ -238,6 +238,7 @@ class _PrimitiveAttributes(object):
             if value is not None:
                 # convert passed data into type of defaults
                 self._data[key] = util.convert_like(value, default)
+
         # make sure stored values are immutable after setting
         if not self._mutable:
             self._data.mutable = False
@@ -269,7 +270,6 @@ class _PrimitiveAttributes(object):
         elif key == 'center':
             # this whole __getattr__ is a little hacky
             return self._data['transform'][:3, 3]
-
         elif key in self._defaults:
             return util.convert_like(self._data[key],
                                      self._defaults[key])
@@ -277,7 +277,6 @@ class _PrimitiveAttributes(object):
             "primitive object has no attribute '{}' ".format(key))
 
     def __setattr__(self, key, value):
-
         if key.startswith('_'):
             return super(_PrimitiveAttributes,
                          self).__setattr__(key, value)
@@ -539,10 +538,18 @@ class Sphere(_Primitive):
         defaults = {'radius': 1.0,
                     'transform': np.eye(4),
                     'subdivisions': 3}
+
+        # center is a helper method for "transform"
+        # since a sphere is rotationally symmetric
+        center = kwargs.get('center', None)
+        if center is not None:
+            translate = np.eye(4)
+            translate[:3, 3] = center
+            kwargs['transform'] = translate
+
+        # create the attributes object
         self.primitive = _PrimitiveAttributes(
             self, defaults, kwargs)
-        if 'center' in kwargs:
-            self.primitive.center = kwargs['center']
 
     @property
     def center(self):
