@@ -167,8 +167,11 @@ class _Primitive(Trimesh):
         current = prim.transform
         # see if matrix has scaling from the matrix
         scale, factor, origin = tf.scale_from_matrix(matrix)
-        if abs(scale - 1.0) > 1e-8:
 
+        # the objects we handle re-scaling for
+        # note that `Extrusion` is NOT supported
+        kinds = (Box, Cylinder, Capsule, Sphere)
+        if isinstance(self, kinds) and abs(scale - 1.0) > 1e-8:
             # scale the primitive attributes
             if hasattr(prim, 'height'):
                 prim.height *= scale
@@ -176,21 +179,18 @@ class _Primitive(Trimesh):
                 prim.radius *= scale
             if hasattr(prim, 'extents'):
                 prim.extents *= scale
-
+            # scale the translation of the current matrix
             current[:3, 3] *= scale
             # apply new matrix, rescale, translate, current
             updated = util.multi_dot([
                 matrix,
                 tf.scale_matrix(1.0 / scale),
                 current])
-
         else:
             # without scaling just multiply
             updated = np.dot(matrix, current)
-
         # make sure matrix is a rigid transform
         assert tf.is_rigid(updated)
-
         # apply the new matrix
         self.primitive.transform = updated
 
