@@ -17,11 +17,11 @@ class Visuals(ABC):
         pass
 
     @abc.abstractmethod
-    def update_vertices(self):
+    def update_vertices(self, mask):
         pass
 
     @abc.abstractmethod
-    def update_faces(self):
+    def update_faces(self, mask):
         pass
 
     @abc.abstractmethod

@@ -179,7 +179,8 @@ if __name__ == '__main__':
             repo='ros-industrial/universal_robot',
             commit='8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe'))
 
-    P.print()
+    # show all profiler lines
+    P.print(show_all=True)
 
     # print a formatted report of what we loaded
     print('\n'.join(f'# {k}\n{v}\n' for k, v in report.items()))

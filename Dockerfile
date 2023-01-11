@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bullseye AS base
+FROM python:3.11-slim-bullseye AS base
 LABEL maintainer="mikedh@kerfed.com"
 
 # Install the llvmpipe software renderer

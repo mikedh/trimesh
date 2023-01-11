@@ -8,7 +8,6 @@ Useful because you can move boxes and spheres around
 and then use trimesh operations on them at any point.
 """
 import numpy as np
-import copy
 import abc
 
 from . import util
@@ -21,6 +20,10 @@ from . import transformations as tf
 
 from .base import Trimesh
 from .constants import log, tol
+
+# immutable identity matrix for checks
+_IDENTITY = np.eye(4)
+_IDENTITY.flags.writeable = False
 
 
 class _Primitive(Trimesh):
@@ -37,9 +40,13 @@ class _Primitive(Trimesh):
         super(_Primitive, self).__init__(*args, **kwargs)
         self._data.clear()
         self._validate = False
+        # make sure any cached numpy arrays have
+        # set `array.flags.writable = False`
+        self._cache.force_immutable = True
 
     def __repr__(self):
-        return '<trimesh.primitives.{}>'.format(type(self).__name__)
+        return '<trimesh.primitives.{}>'.format(
+            type(self).__name__)
 
     @property
     def faces(self):
@@ -51,7 +58,7 @@ class _Primitive(Trimesh):
 
     @faces.setter
     def faces(self, values):
-        log.warning('Primitive faces are immutable! Not setting!')
+        log.warning('primitive faces are immutable: not setting!')
 
     @property
     def vertices(self):
@@ -65,7 +72,7 @@ class _Primitive(Trimesh):
     @vertices.setter
     def vertices(self, values):
         if values is not None:
-            log.warning('Primitive vertices are immutable! Not setting!')
+            log.warning('primitive vertices are immutable: not setting!')
 
     @property
     def face_normals(self):
@@ -115,7 +122,12 @@ class _Primitive(Trimesh):
         copied : object
           Copy of current primitive
         """
-        return copy.deepcopy(self)
+        # get the constructor arguments
+        kwargs.update(self.to_dict())
+        # remove the type indicator, i.e. `Cylinder`
+        kwargs.pop('kind')
+        # create a new object with kwargs
+        return type(self)(**kwargs)
 
     def to_mesh(self):
         """
@@ -136,23 +148,55 @@ class _Primitive(Trimesh):
     def apply_transform(self, matrix):
         """
         Apply a transform to the current primitive by
-        setting self.transform
+        applying a new transform on top of existing
+        `self.primitive.transform`. If the matrix
+        contains scaling it will change parameters
+        like `radius` or `height` automatically.
 
         Parameters
         ------------
-        matrix: (4,4) float
+        matrix: (4, 4) float
           Homogeneous transformation
         """
         matrix = np.asanyarray(
             matrix, order='C', dtype=np.float64)
         if matrix.shape != (4, 4):
-            raise ValueError('Transformation matrix must be (4,4)!')
-        if util.allclose(matrix, np.eye(4), 1e-8):
-            log.debug('apply_transform received identity matrix')
+            raise ValueError('matrix must be `(4, 4)`!')
+        if util.allclose(matrix, _IDENTITY, 1e-8):
+            # identity matrix is a no-op
             return
 
-        new_transform = np.dot(matrix, self.primitive.transform)
-        self.primitive.transform = new_transform
+        prim = self.primitive
+        # copy the current transform
+        current = prim.transform.copy()
+        # see if matrix has scaling from the matrix
+        scale, factor, origin = tf.scale_from_matrix(matrix)
+        # the objects we handle re-scaling for
+        # note that `Extrusion` is NOT supported
+        kinds = (Box, Cylinder, Capsule, Sphere)
+        if isinstance(self, kinds) and abs(scale - 1.0) > 1e-8:
+            # scale the primitive attributes
+            if hasattr(prim, 'height'):
+                prim.height *= scale
+            if hasattr(prim, 'radius'):
+                prim.radius *= scale
+            if hasattr(prim, 'extents'):
+                prim.extents *= scale
+            # scale the translation of the current matrix
+            current[:3, 3] *= scale
+            # apply new matrix, rescale, translate, current
+            updated = util.multi_dot([
+                matrix,
+                tf.scale_matrix(1.0 / scale),
+                current])
+        else:
+            # without scaling just multiply
+            updated = np.dot(matrix, current)
+        # make sure matrix is a rigid transform
+        assert tf.is_rigid(updated)
+        # apply the new matrix
+        self.primitive.transform = updated
+
         return self
 
     def _create_mesh(self):
@@ -165,19 +209,39 @@ class _PrimitiveAttributes(object):
     """
 
     def __init__(self, parent, defaults, kwargs):
+        """
+        Hold the attributes for a Primitive.
+
+        Parameters
+        ------------
+        parent : _Primitive
+          Parent object reference.
+        defaults : dict
+          The default values for this primitive type.
+        kwargs : dict
+          User-passed values, i.e. {'radius': 10.0}
+        """
+        # store actual data in parent object
         self._data = parent._data
+        # default values define the keys
         self._defaults = defaults
+        # store a reference to the parent ubject
         self._parent = parent
+        # start with a copy of all default objects
         self._data.update(defaults)
-        self._mutable = True
-        for key, value in kwargs.items():
-            if key in defaults:
-                self._data[key] = util.convert_like(
-                    value, defaults[key])
-        # if configured as immutable apply setting after
-        # instantiation values are set
-        if 'mutable' in kwargs:
-            self._mutable = bool(kwargs['mutable'])
+        # store whether this data is mutable after creation
+        self._mutable = kwargs.get('mutable', True)
+        # assign the keys passed by the user only if
+        # they are a property of this primitive
+        for key, default in defaults.items():
+            value = kwargs.get(key, None)
+            if value is not None:
+                # convert passed data into type of defaults
+                self._data[key] = util.convert_like(value, default)
+
+        # make sure stored values are immutable after setting
+        if not self._mutable:
+            self._data.mutable = False
 
     @property
     def __doc__(self):
@@ -206,7 +270,6 @@ class _PrimitiveAttributes(object):
         elif key == 'center':
             # this whole __getattr__ is a little hacky
             return self._data['transform'][:3, 3]
-
         elif key in self._defaults:
             return util.convert_like(self._data[key],
                                      self._defaults[key])
@@ -214,7 +277,6 @@ class _PrimitiveAttributes(object):
             "primitive object has no attribute '{}' ".format(key))
 
     def __setattr__(self, key, value):
-
         if key.startswith('_'):
             return super(_PrimitiveAttributes,
                          self).__setattr__(key, value)
@@ -290,7 +352,8 @@ class Cylinder(_Primitive):
 
         Returns
         ----------
-        tensor: (3,3) float, 3D inertia tensor
+        tensor: (3, 3) float
+          3D inertia tensor
         """
 
         tensor = inertia.cylinder_inertia(
@@ -391,10 +454,14 @@ class Capsule(_Primitive):
 
         Parameters
         ----------
-        radius: float, radius of cylinder
-        height: float, height of cylinder
-        transform: (4,4) float, transformation matrix
-        sections: int, number of facets in circle
+        radius : float
+          Radius of cylinder
+        height : float
+          Height of cylinder
+        transform : (4, 4) float
+          Transformation matrix
+        sections : int
+          Number of facets in circle
         """
         super(Capsule, self).__init__(*args, **kwargs)
 
@@ -433,13 +500,15 @@ class Capsule(_Primitive):
 
         Returns
         --------
-        axis: (3,) float, vector along the cylinder axis
+        axis : (3,) float
+          Vector along the cylinder axis
         """
-        axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
+        axis = np.dot(self.primitive.transform,
+                      [0, 0, 1, 0])[:3]
         return axis
 
     def _create_mesh(self):
-        log.debug('creating mesh for Capsule primitive')
+        log.debug('creating mesh for `Capsule` primitive')
 
         mesh = creation.capsule(radius=self.primitive.radius,
                                 height=self.primitive.height)
@@ -469,10 +538,18 @@ class Sphere(_Primitive):
         defaults = {'radius': 1.0,
                     'transform': np.eye(4),
                     'subdivisions': 3}
+
+        # center is a helper method for "transform"
+        # since a sphere is rotationally symmetric
+        center = kwargs.get('center', None)
+        if center is not None:
+            translate = np.eye(4)
+            translate[:3, 3] = center
+            kwargs['transform'] = translate
+
+        # create the attributes object
         self.primitive = _PrimitiveAttributes(
             self, defaults, kwargs)
-        if 'center' in kwargs:
-            self.primitive.center = kwargs['center']
 
     @property
     def center(self):
@@ -547,11 +624,12 @@ class Sphere(_Primitive):
 
         Returns
         ----------
-        tensor: (3,3) float, 3D inertia tensor
+        tensor: (3, 3) float
+          3D inertia tensor.
         """
-        tensor = inertia.sphere_inertia(mass=self.volume,
-                                        radius=self.primitive.radius)
-        return tensor
+        return inertia.sphere_inertia(
+            mass=self.volume,
+            radius=self.primitive.radius)
 
     def _create_mesh(self):
         log.debug('creating mesh for Sphere primitive')
@@ -721,7 +799,7 @@ class Extrusion(_Primitive):
         ----------
         polygon : shapely.geometry.Polygon
           Polygon to extrude
-        transform : (4,4) float
+        transform : (4, 4) float
           Transform to apply after extrusion
         height : float
           Height to extrude polygon by

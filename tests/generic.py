@@ -31,6 +31,7 @@ from trimesh.constants import tol, tol_path
 from collections import deque
 from copy import deepcopy
 
+tf = trimesh.transformations
 
 if sys.version_info >= (3, 1):
     # Python 3

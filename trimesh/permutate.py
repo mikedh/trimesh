@@ -29,8 +29,8 @@ def transform(mesh, translation_scale=1000.0):
       and rigidly transformed in space.
     """
     # rotate and translate randomly
-    matrix = transformations.random_rotation_matrix()
-    matrix[:3, 3] = (np.random.random(3) - 0.5) * translation_scale
+    matrix = transformations.random_rotation_matrix(
+        translate=translation_scale)
 
     # randomly re-order triangles
     triangles = np.random.permutation(mesh.triangles).reshape((-1, 3))
