@@ -101,9 +101,14 @@ class PrimitiveTest(g.unittest.TestCase):
                                               height=7.0)]
 
         for original in prims:
-            perm = [original, original.copy(), original.copy()]
+            perm = [original,
+                    original.copy(),
+                    original.copy(),
+                    original.copy()]
             # try with a simple translation
             perm[1].primitive.transform = g.tf.translation_matrix([0, 0, 7])
+            perm[2].apply_transform(
+                g.tf.rotation_matrix(g.np.pi/4, [0, 0, 1]))
             # try with a gnarly rotation
             perm[2].primitive.transform = g.tf.random_rotation_matrix(
                 translate=1000)

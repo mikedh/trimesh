@@ -170,7 +170,8 @@ class _Primitive(Trimesh):
         # copy the current transform
         current = prim.transform.copy()
         # see if matrix has scaling from the matrix
-        scale, factor, origin = tf.scale_from_matrix(matrix)
+        scale = np.linalg.det(matrix[:3, :3]) ** (1 / 3)
+
         # the objects we handle re-scaling for
         # note that `Extrusion` is NOT supported
         kinds = (Box, Cylinder, Capsule, Sphere)
@@ -192,6 +193,7 @@ class _Primitive(Trimesh):
         else:
             # without scaling just multiply
             updated = np.dot(matrix, current)
+
         # make sure matrix is a rigid transform
         assert tf.is_rigid(updated)
         # apply the new matrix
