@@ -156,6 +156,11 @@ def radial_symmetry(mesh):
 
     # shortcuts to avoid typing and hitting cache
     scalar = mesh.principal_inertia_components
+
+    # exit early if intertia components are all zero
+    if scalar.ptp() < 1e-8:
+        return None, None, None
+
     vector = mesh.principal_inertia_vectors
     # the sorted order of the principal components
     order = scalar.argsort()
