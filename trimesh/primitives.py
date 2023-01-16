@@ -195,7 +195,9 @@ class _Primitive(Trimesh):
             updated = np.dot(matrix, current)
 
         # make sure matrix is a rigid transform
-        assert tf.is_rigid(updated)
+        if not tf.is_rigid(updated):
+            raise ValueError("Couldn't produce rigid transform!")
+
         # apply the new matrix
         self.primitive.transform = updated
 
