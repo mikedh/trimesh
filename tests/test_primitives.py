@@ -110,7 +110,7 @@ class PrimitiveTest(g.unittest.TestCase):
             perm[2].apply_transform(
                 g.tf.rotation_matrix(g.np.pi / 4, [0, 0, 1]))
             # try with a gnarly rotation
-            perm[2].primitive.transform = g.tf.random_rotation_matrix(
+            perm[3].primitive.transform = g.tf.random_rotation_matrix(
                 translate=1000)
 
             fields = set(dir(original.primitive))
