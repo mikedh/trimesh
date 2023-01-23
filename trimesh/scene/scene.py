@@ -1157,16 +1157,25 @@ class Scene(Geometry3D):
             if in_notebook():
                 viewer = 'notebook'
 
+            try:
+                from ..viewer.windowed import SceneViewer
+                return SceneViewer(self, **kwargs)
+            except ImportError:
+                from ..viewer.shader import SceneViewer
+                return SceneViewer(self, **kwargs)
+
         if viewer == 'gl':
             # this imports pyglet, and will raise an ImportError
             # if pyglet is not available
-            from ..viewer import SceneViewer
+            from ..viewer.windowed import SceneViewer
             return SceneViewer(self, **kwargs)
         elif viewer == 'notebook':
-            from ..viewer import scene_to_notebook
-            return scene_to_notebook(self, **kwargs)
+            from ..viewer import SceneViewer
+        elif viewer == 'pyglet2':
+            from ..viewer.shader import SceneViewer
+            return SceneViewer(self, **kwargs)
         else:
-            raise ValueError('viewer must be "gl", "notebook", or None')
+            raise ValueError(' "gl", "notebook", or None')
 
     def __add__(self, other):
         """
