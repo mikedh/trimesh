@@ -4,3 +4,6 @@ requires = [
     "setuptools >= 40.8",
     "wheel",
 ]
+
+[tool.flake8]
+max_line_length = "90"
