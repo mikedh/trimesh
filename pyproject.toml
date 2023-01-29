@@ -6,4 +6,4 @@ requires = [
 ]
 
 [tool.flake8]
-max_line_length = "90"
+max_line_length = 90
