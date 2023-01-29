@@ -43,7 +43,8 @@ def load_3MF(file_obj,
                       if '3d/3dmodel.model' in k.lower()))
 
     # read root attributes only from XML first
-    event, root = next(etree.iterparse(model, tag=('{*}model'), events=('start',)))
+    event, root = next(etree.iterparse(
+        model, tag=('{*}model'), events=('start',)))
     # collect unit information from the tree
     if 'unit' in root.attrib:
         metadata = {'units': root.attrib['unit']}
@@ -308,7 +309,8 @@ def export_3MF(mesh,
                                     # vertex nodes are writed directly to the file
                                     # so make sure lxml's buffer is flushed
                                     xf.flush()
-                                    for i in range(0, len(m.vertices), batch_size):
+                                    for i in range(
+                                            0, len(m.vertices), batch_size):
                                         batch = m.vertices[i: i + batch_size]
                                         fragment = (
                                             '<vertex x="{}" y="{}" z="{}" />'
@@ -321,7 +323,8 @@ def export_3MF(mesh,
                                         )
                                 with xf.element("triangles"):
                                     xf.flush()
-                                    for i in range(0, len(m.faces), batch_size):
+                                    for i in range(
+                                            0, len(m.faces), batch_size):
                                         batch = m.faces[i: i + batch_size]
                                         fragment = (
                                             '<triangle v1="{}" v2="{}" v3="{}" />'
@@ -427,7 +430,11 @@ def export_3MF(mesh,
             ]
             with xf.element("Types", nsmap=nsmap):
                 for ext, ctype in types:
-                    xf.write(etree.Element("Default", Extension=ext, ContentType=ctype))
+                    xf.write(
+                        etree.Element(
+                            "Default",
+                            Extension=ext,
+                            ContentType=ctype))
 
     return file_obj.getvalue()
 

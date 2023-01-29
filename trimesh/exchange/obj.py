@@ -62,7 +62,8 @@ def load_obj(file_obj,
     # same logic even if they jump directly in to data lines
     text = '\n{}\n'.format(text.strip().replace('\r\n', '\n'))
 
-    # remove backslash continuation characters and merge them into the same line
+    # remove backslash continuation characters and merge them into the same
+    # line
     text = text.replace('\\\n', '')
 
     # Load Materials
@@ -848,7 +849,8 @@ def export_obj(mesh,
                 row_delim='\nv ',
                 digits=digits)])
         # only include vertex normals if they're already stored
-        if include_normals and current._cache.cache.get('vertex_normals') is not None:
+        if include_normals and current._cache.cache.get(
+                'vertex_normals') is not None:
 
             try:
                 converted = util.array_to_string(

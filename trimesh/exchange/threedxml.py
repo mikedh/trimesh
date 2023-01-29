@@ -79,7 +79,8 @@ def load_3DXML(file_obj, *args, **kwargs):
                 '{*}MaterialDomainInstance'):
             instance = MaterialDomainInstance.find('{*}IsInstanceOf')
             # colors[b.attrib['id']] = colors[instance.text]
-            for aggregate in MaterialDomainInstance.findall('{*}IsAggregatedBy'):
+            for aggregate in MaterialDomainInstance.findall(
+                    '{*}IsAggregatedBy'):
                 colors[aggregate.text] = colors[instance.text]
 
     # references which hold the 3DXML scene structure as a dict

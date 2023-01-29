@@ -412,7 +412,8 @@ class Trimesh(Geometry3D):
         vertices : (n, 3) float
           Points in cartesian space referenced by self.faces
         """
-        return self._data.get('vertices', np.empty(shape=(0, 3), dtype=np.float64))
+        return self._data.get('vertices', np.empty(
+            shape=(0, 3), dtype=np.float64))
 
     @vertices.setter
     def vertices(self, values):

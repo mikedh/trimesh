@@ -147,9 +147,11 @@ def add_attributes_to_dtype(dtype, attributes):
         if data.ndim == 1:
             dtype.append((name, data.dtype))
         else:
-            attribute_dtype = data.dtype if len(data.dtype) == 0 else data.dtype[0]
+            attribute_dtype = data.dtype if len(
+                data.dtype) == 0 else data.dtype[0]
             dtype.append(('{}_count'.format(name), 'u1'))
-            dtype.append((name, numpy_type_to_ply_type(attribute_dtype), data.shape[1]))
+            dtype.append(
+                (name, numpy_type_to_ply_type(attribute_dtype), data.shape[1]))
     return dtype
 
 
@@ -199,7 +201,8 @@ def add_attributes_to_data_array(data_array, attributes):
     """
     for name, data in attributes.items():
         if data.ndim > 1:
-            data_array['{}_count'.format(name)] = data.shape[1] * np.ones(data.shape[0])
+            data_array['{}_count'.format(
+                name)] = data.shape[1] * np.ones(data.shape[0])
         data_array[name] = data
     return data_array
 
@@ -662,7 +665,8 @@ def load_element_different(properties, data):
             length = 1
             if '$LIST' in dt:
                 dt = dt.split('($LIST,)')[-1]
-                # the first entry in a list-property is the number of elements in the list
+                # the first entry in a list-property is the number of elements
+                # in the list
                 length = int(row[start])
                 # skip the first entry (the length), when reading the data
                 start += 1
@@ -762,7 +766,8 @@ def ply_ascii(elements, file_obj):
             col_count_equal = False
 
         # number of list properties in this element
-        list_count = sum(1 for dt in values['properties'].values() if '$LIST' in dt)
+        list_count = sum(
+            1 for dt in values['properties'].values() if '$LIST' in dt)
         if col_count_equal and list_count <= 1:
             # all rows have the same length and we only have at most one list
             # property where all entries have the same length. this means we can

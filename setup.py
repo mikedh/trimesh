@@ -70,8 +70,8 @@ requirements_test = set(['pytest',       # run all unit tests
                          'coveralls',    # report coverage stats
                          'autopep8',     # check and autoformat
                          'flake8',           # static code analysis
-                         'flake8-pyproject', # use new config format
-                         'flake8-no-implicit-concat', # concat rules
+                         'flake8-pyproject',  # use new config format
+                         'flake8-no-implicit-concat',  # concat rules
                          'ezdxf'])       # use as a validator for exports
 
 

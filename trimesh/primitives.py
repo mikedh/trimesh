@@ -309,7 +309,8 @@ class _PrimitiveAttributes(object):
 
 class Cylinder(_Primitive):
 
-    def __init__(self, radius=1.0, height=1.0, transform=None, sections=32, **kwargs):
+    def __init__(self, radius=1.0, height=1.0,
+                 transform=None, sections=32, **kwargs):
         """
         Create a Cylinder Primitive, a subclass of Trimesh.
 
@@ -568,7 +569,8 @@ class Sphere(_Primitive):
         # since a sphere is rotationally symmetric
         if center is not None:
             if transform is not None:
-                raise ValueError('only one of `center` and `transform` may be passed!')
+                raise ValueError(
+                    'only one of `center` and `transform` may be passed!')
             translate = np.eye(4)
             translate[:3, 3] = center
             constructor['transform'] = translate
