@@ -37,15 +37,21 @@ if __name__ == '__main__':
     binvox_path = os.path.join(dir_models, '%s.binvox' % base_name)
     chair_voxels = trimesh.load(binvox_path)
 
-    chair_voxels = v.VoxelGrid(chair_voxels.encoding.dense, chair_voxels.transform)
+    chair_voxels = v.VoxelGrid(
+        chair_voxels.encoding.dense,
+        chair_voxels.transform)
 
     print('white: voxelized chair (binvox, exact)')
-    show(chair_mesh, voxelize_mesh(chair_mesh, exact=True), colors=(1, 1, 1, 0.3))
+    show(
+        chair_mesh, voxelize_mesh(
+            chair_mesh, exact=True), colors=(
+            1, 1, 1, 0.3))
 
     print('red: binvox-loaded chair')
     show(chair_mesh, chair_voxels, colors=(1, 0, 0, 0.3))
 
-    voxelized_chair_mesh = chair_mesh.voxelized(np.max(chair_mesh.extents) / 32)
+    voxelized_chair_mesh = chair_mesh.voxelized(
+        np.max(chair_mesh.extents) / 32)
     print('green: voxelized chair (default).')
     show(chair_mesh, voxelized_chair_mesh, colors=(0, 1, 0, 0.3))
 
@@ -84,7 +90,8 @@ if __name__ == '__main__':
     print('red: binvox (default). Poor performance on thin structures')
     show(chair_mesh, voxelized, colors=(1, 0, 0, 0.3))
 
-    voxelized = chair_mesh.voxelized(pitch=0.02, method='binvox', wireframe=True)
+    voxelized = chair_mesh.voxelized(
+        pitch=0.02, method='binvox', wireframe=True)
     print('green: binvox (wireframe). Still doesn\'t capture all thin structures')
     show(chair_mesh, voxelized, colors=(0, 1, 0, 0.3))
 
@@ -101,7 +108,8 @@ if __name__ == '__main__':
     print('red: binvox (exact downsampled) surface')
     show(chair_mesh, voxelized, colors=(1, 0, 0, 0.3))
 
-    chair_voxels = chair_mesh.voxelized(pitch=0.02, method='binvox', exact=True)
+    chair_voxels = chair_mesh.voxelized(
+        pitch=0.02, method='binvox', exact=True)
 
     voxelized = chair_voxels.copy().fill(method='base')
     print('blue: binvox (exact) filled (base). Gets a bit overly excited')

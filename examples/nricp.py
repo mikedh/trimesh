@@ -128,9 +128,16 @@ if __name__ == '__main__':
                 t = value - t1
 
                 pv_mesh.points = (1 - t) * records[t1] + t * records[t2]
-                for i, pos in enumerate(pv_mesh.points[landmarks_vertex_indices[:, 0]]):
-                    p.add_mesh(pv.Sphere(target.scale / 200, pos), name=str(i), color='r')
-                pv_mesh['scalars'] = (1 - t) * distances[t1] + t * distances[t2]
+                for i, pos in enumerate(
+                        pv_mesh.points[landmarks_vertex_indices[:, 0]]):
+                    p.add_mesh(
+                        pv.Sphere(
+                            target.scale / 200,
+                            pos),
+                        name=str(i),
+                        color='r')
+                pv_mesh['scalars'] = (
+                    1 - t) * distances[t1] + t * distances[t2]
             p.add_slider_widget(cb, rng=(0, len(records)), value=0,
                                 color='black', event_type='always')
 
