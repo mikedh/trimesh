@@ -349,7 +349,9 @@ def _unsorted_gatherer(indices, sorted_gather_fn):
     ordered_indices = indices[order]
 
     def f(data, dtype=None):
-        result = np.empty(len(order), dtype=dtype or getattr(data, 'dtype', None))
+        result = np.empty(
+            len(order), dtype=dtype or getattr(
+                data, 'dtype', None))
         result[order] = tuple(sorted_gather_fn(data, ordered_indices))
         return result
 

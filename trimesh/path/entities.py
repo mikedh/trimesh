@@ -699,7 +699,10 @@ class Arc(Entity):
             # if we have a closed arc (a circle), we can return the actual bounds
             # this only works in two dimensions, otherwise this would return the
             # AABB of an sphere
-            info = self.center(vertices, return_normal=False, return_angle=False)
+            info = self.center(
+                vertices,
+                return_normal=False,
+                return_angle=False)
             bounds = np.array([info['center'] - info['radius'],
                                info['center'] + info['radius']],
                               dtype=np.float64)

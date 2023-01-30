@@ -14,7 +14,8 @@ from . import util
 GL_POINTS, GL_LINES, GL_TRIANGLES = (0, 1, 4)
 
 
-def convert_to_vertexlist(geometry, **kwargs):
+def convert_to_vertexlist(geometry, group=None,
+                          batch=None, pyglet2=False, **kwargs):
     """
     Try to convert various geometry objects to the constructor
     args for a pyglet indexed vertex list.
@@ -31,7 +32,8 @@ def convert_to_vertexlist(geometry, **kwargs):
       constructor.
     """
     if util.is_instance_named(geometry, 'Trimesh'):
-        return mesh_to_vertexlist(geometry, **kwargs)
+        return mesh_to_vertexlist(
+            geometry, group=group, batch=batch, pyglet2=pyglet2, **kwargs)
     elif util.is_instance_named(geometry, 'Path'):
         # works for Path3D and Path2D
         # both of which inherit from Path
@@ -55,8 +57,10 @@ def convert_to_vertexlist(geometry, **kwargs):
 
 def mesh_to_vertexlist(mesh,
                        group=None,
+                       batch=None,
                        smooth=True,
-                       smooth_threshold=60000):
+                       smooth_threshold=60000,
+                       pyglet2=False):
     """
     Convert a Trimesh object to arguments for an
     indexed vertex list constructor.
@@ -134,6 +138,15 @@ def mesh_to_vertexlist(mesh,
         colors = np.tile(mesh.visual.face_colors,
                          (1, 3)).reshape((-1, 4))
         color_gl = colors_to_gl(colors, vertex_count)
+
+    if pyglet2:
+        return {'count': vertex_count,
+                'mode': GL_TRIANGLES,
+                'batch': batch,
+                'group': group,
+                'indices': faces,
+                'colors': ('b', color_gl[1]),
+                'vertices': ('f', vertices)}
 
     # create the ordered tuple for pyglet, use like:
     # `batch.add_indexed(*args)`

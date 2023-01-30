@@ -266,7 +266,8 @@ def vertex_face_indices(vertex_count,
         flat = faces.flatten()
         for v in range(vertex_count):
             # assign the data in order
-            sort[starts[v]:starts[v] + counts[v]] = (np.where(flat == v)[0] // 3)[::-1]
+            sort[starts[v]:starts[v] + counts[v]
+                 ] = (np.where(flat == v)[0] // 3)[::-1]
         padded[padded == 0] = sort
     return padded
 

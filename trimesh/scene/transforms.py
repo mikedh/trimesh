@@ -600,7 +600,10 @@ class EnforcedForest(object):
         self._hash = None
 
         # delete all children's references and parent reference
-        children = [child for (child, parent) in self.parents.items() if parent == u]
+        children = [
+            child for (
+                child,
+                parent) in self.parents.items() if parent == u]
         for c in children:
             del self.parents[c]
         if u in self.parents:

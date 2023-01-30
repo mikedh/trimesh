@@ -1,23 +1,23 @@
 """
-windowed.py
+shader.py
 ---------------
 
-Provides a pyglet- based windowed viewer to preview
+Provides a pyglet windowed viewer to preview
 Trimesh, Scene, PointCloud, and Path objects.
 
 Works on all major platforms: Windows, Linux, and OSX.
 """
+from pyglet.graphics.shader import Shader, ShaderProgram
 import collections
 import numpy as np
 
 import pyglet
 
-# pyglet 2.0 is close to a re-write moving from fixed-function
-# to shaders and we will likely support it by forking an entirely
-# new viewer `trimesh.viewer.shaders` and then basically keeping
-# `windowed` around for backwards-compatibility with no changes
+# pyglet 2.0 is close to a re-write moving
+# from fixed-function to shaders
 if int(pyglet.version.split('.')[0]) < 2:
-    raise ImportError('`trimesh.viewer.shader` requires `pip install "pyglet>=2"`')
+    raise ImportError(
+        '`trimesh.viewer.shader` requires `pip install "pyglet>=2"`')
 
 from .trackball import Trackball
 
@@ -27,32 +27,31 @@ from .. import rendering
 from ..visual import to_rgba
 from ..transformations import translation_matrix
 
-pyglet.options['shadow_window'] = False
-
 import pyglet.gl as gl  # NOQA
 
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
 
-vertex_source = """#version 300 es
-in vec4 VertexPosition, VertexColor;      
+vertex_source = """#version 150
+in vec4 VertexPosition, VertexColor;
+
 uniform float RadianAngle;
-out vec4     TriangleColor;    
+out vec4     TriangleColor;
 mat2 rotation = mat2(0.0, 0.0, 0.0, 0.0);
 void main() {
 gl_Position = mat4(rotation)*VertexPosition;
 TriangleColor = VertexColor;
 }"""
 
-fragment_source = """#version 300 es
+fragment_source = """#version 150
 precision mediump float;
 in vec4   TriangleColor;
-out vec4 FragColor;    
-void main() {          
+out vec4 FragColor;
+void main() {
 FragColor = TriangleColor;
 };
 """
-from pyglet.graphics.shader import Shader, ShaderProgram
+
 
 class SceneViewer(pyglet.window.Window):
 
@@ -139,7 +138,6 @@ class SceneViewer(pyglet.window.Window):
         frag_shader = Shader(fragment_source, 'fragment')
         self._program = ShaderProgram(vert_shader, frag_shader)
 
-        
         self._smooth = smooth
 
         self._profile = bool(profile)
@@ -223,7 +221,7 @@ class SceneViewer(pyglet.window.Window):
         self._update_vertex_list()
 
         # call after geometry is added
-        self.init_gl()
+
         self.set_size(*resolution)
         if flags is not None:
             self.reset_view(flags=flags)
@@ -279,27 +277,20 @@ class SceneViewer(pyglet.window.Window):
         """
         try:
             # convert geometry to constructor args
-            args = rendering.convert_to_vertexlist(geometry, **kwargs)
+            args = rendering.convert_to_vertexlist(
+                geometry, batch=self.batch, pyglet2=True, **kwargs)
         except BaseException:
             util.log.warning(
                 'failed to add geometry `{}`'.format(name),
                 exc_info=True)
             return
 
-
-    
-        vertex_list = self._program.vertex_list(
-            4, GL_TRIANGLES, batch, group,
-            position=('f', vertex_positions),
-            tex_coords=('f', tex.tex_coords))
-    
-        
         # create the indexed vertex list
-        self.vertex_list[name] = self.batch.add_indexed(*args)
+        self.vertex_list[name] = self._program.vertex_list(**args)
         # save the hash of the geometry
         self.vertex_list_hash[name] = geometry_hash(geometry)
         # save the rendering mode from the constructor args
-        self.vertex_list_mode[name] = args[1]
+        # self.vertex_list_mode[name] = args[1]
 
         # get the visual if the element has it
         visual = getattr(geometry, 'visual', None)
@@ -671,10 +662,8 @@ class SceneViewer(pyglet.window.Window):
         elif (buttons == pyglet.window.mouse.RIGHT):
             self.trimesh_view['ball'].set_state(Trackball.STATE_ZOOM)
 
-
         self.trimesh_view['ball'].down(np.array([x, y]))
         self.scene.camera_transform[...] = self.trimesh_view['ball'].pose
-                                          
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """
@@ -899,55 +888,3 @@ def geometry_hash(geometry):
         h += str(hash(geometry.visual))
 
     return h
-
-
-def render_scene(scene,
-                 resolution=None,
-                 visible=True,
-                 **kwargs):
-    """
-    Render a preview of a scene to a PNG. Note that
-    whether this works or not highly variable based on
-    platform and graphics driver.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Geometry to be rendered
-    resolution : (2,) int or None
-      Resolution in pixels or set from scene.camera
-    visible : bool
-      Show a window during rendering. Note that MANY
-      platforms refuse to render with hidden windows
-      and will likely return a blank image; this is a
-      platform issue and cannot be fixed in Python.
-    kwargs : **
-      Passed to SceneViewer
-
-    Returns
-    ---------
-    render : bytes
-      Image in PNG format
-    """
-    window = SceneViewer(
-        scene, start_loop=False, visible=visible,
-        resolution=resolution, **kwargs)
-
-    from ..util import BytesIO
-
-    # need to run loop twice to display anything
-    for save in [False, False, True]:
-        pyglet.clock.tick()
-        window.switch_to()
-        window.dispatch_events()
-        window.dispatch_event('on_draw')
-        window.flip()
-        if save:
-            # save the color buffer data to memory
-            file_obj = BytesIO()
-            window.save_image(file_obj)
-            file_obj.seek(0)
-            render = file_obj.read()
-    window.close()
-
-    return render
