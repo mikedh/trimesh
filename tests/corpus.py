@@ -69,8 +69,10 @@ def on_repo(repo, commit):
                 resolver=resolver)
             report[saveas] = str(m)
 
-            # if our source was a GLTF we should be able to roundtrip without dropping
-            if name.lower().split('.')[-1] in ('gltf', 'glb') and len(m.geometry) > 0:
+            # if our source was a GLTF we should be able to roundtrip without
+            # dropping
+            if name.lower().split('.')[-1] in ('gltf',
+                                               'glb') and len(m.geometry) > 0:
                 # try round-tripping the file
                 e = trimesh.load(file_obj=wrap_as_stream(m.export(file_type='glb')),
                                  file_type='glb', process=False)
@@ -89,7 +91,8 @@ def on_repo(repo, commit):
                         # try our fancy equal
                         assert equal(a.baseColorFactor, b.baseColorFactor)
                         try:
-                            assert equal(a.baseColorTexture, b.baseColorTexture)
+                            assert equal(
+                                a.baseColorTexture, b.baseColorTexture)
                         except BaseException:
                             from IPython import embed
                             embed()

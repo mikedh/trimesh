@@ -212,14 +212,16 @@ class RegistrationTest(g.unittest.TestCase):
 
         T = g.trimesh.registration.procrustes(source_markers_vertices,
                                               target_markers_vertices)[0]
-        source.vertices = g.trimesh.transformations.transform_points(source.vertices, T)
+        source.vertices = g.trimesh.transformations.transform_points(
+            source.vertices, T)
 
         # Just for the sake of using barycentric coordinates...
         use_barycentric_coordinates = True
         if use_barycentric_coordinates:
             source_markers_vertices = source.vertices[landmarks_vertex_indices[:, 0]]
             source_markers_tids = \
-                g.trimesh.proximity.closest_point(source, source_markers_vertices)[2]
+                g.trimesh.proximity.closest_point(
+                    source, source_markers_vertices)[2]
             source_markers_barys = \
                 g.trimesh.triangles.points_to_barycentric(
                     source.triangles[source_markers_tids], source_markers_vertices)
@@ -276,13 +278,17 @@ class RegistrationTest(g.unittest.TestCase):
             return_records=True, distance_threshold=0.05)
 
         d_amberg_no_ldm = \
-            g.trimesh.proximity.closest_point(target, records_amberg_no_ldm[-1])[1]
+            g.trimesh.proximity.closest_point(
+                target, records_amberg_no_ldm[-1])[1]
         d_amberg_ldm = \
-            g.trimesh.proximity.closest_point(target, records_amberg_ldm[-1])[1]
+            g.trimesh.proximity.closest_point(
+                target, records_amberg_ldm[-1])[1]
         d_sumner_no_ldm = \
-            g.trimesh.proximity.closest_point(target, records_sumner_no_ldm[-1])[1]
+            g.trimesh.proximity.closest_point(
+                target, records_sumner_no_ldm[-1])[1]
         d_sumner_ldm = \
-            g.trimesh.proximity.closest_point(target, records_sumner_ldm[-1])[1]
+            g.trimesh.proximity.closest_point(
+                target, records_sumner_ldm[-1])[1]
 
         # Meshes should remain untouched
         assert g.np.allclose(source.vertices, source_copy.vertices)

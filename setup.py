@@ -36,7 +36,6 @@ requirements_easy = set([
     'scipy',     # provide convex hulls, fast graph ops, etc
     'networkx',  # provide slow graph ops with a nice API
     'lxml',      # handle XML better and faster than built- in XML
-    'pyglet<2',  # render preview windows nicely : note pyglet 2.0 is basically a re-write
     'shapely',   # handle 2D polygons robustly
     'rtree',     # create N-dimension trees for broad-phase queries
     'svg.path',  # handle SVG format path strings
@@ -62,6 +61,7 @@ requirements_all = requirements_easy.union([
     'meshio',        # load a number of additional mesh formats; Python 3.5+
     'scikit-image',  # marching cubes and other nice stuff
     'xatlas',        # texture unwrapping
+    'pyglet<2',  # render preview windows nicely : note pyglet 2.0 is basically a re-write
 ])
 # requirements for running unit tests
 requirements_test = set(['pytest',       # run all unit tests
@@ -79,18 +79,19 @@ requirements_test = set(['pytest',       # run all unit tests
 # version lock those packages here so install succeeds
 current = (sys.version_info.major, sys.version_info.minor)
 # packages that no longer support old Python
-# setuptools-scm is required by sympy-mpmath chain
-# and will hopefully be removed in future versions
 lock = [((3, 4), 'lxml', '4.3.5'),
         ((3, 4), 'shapely', '1.6.4'),
         ((3, 4), 'pyglet', '1.4.10'),
         ((3, 5), 'sympy', None),
         ((3, 0), 'pyglet<2', None),
+        ((3, 0), 'flake8-no-implicit-concat', None),
         ((3, 6), 'svg.path', '4.1')]
 for max_python, name, version in lock:
     if current <= max_python:
         # remove version-free requirements
         requirements_easy.discard(name)
+        requirements_test.discard(name)
+
         # if version is None drop that package
         if version is not None:
             # add working version locked requirements

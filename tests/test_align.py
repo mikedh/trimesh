@@ -96,7 +96,8 @@ class AlignTests(g.unittest.TestCase):
         T = align([0, 0, -1], [-1e-4, 1e-4, 1])
         assert g.np.isclose(g.np.linalg.det(T), 1.0)
 
-        vector_1 = g.np.array([7.12106798e-07, -7.43194705e-08, 1.00000000e+00])
+        vector_1 = g.np.array(
+            [7.12106798e-07, -7.43194705e-08, 1.00000000e+00])
         vector_2 = g.np.array([0, 0, -1])
         T, angle = align(vector_1, vector_2, return_angle=True)
         assert g.np.isclose(g.np.linalg.det(T), 1.0)

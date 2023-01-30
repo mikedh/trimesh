@@ -24,7 +24,8 @@ class VisualTest(g.unittest.TestCase):
         m = g.get_mesh('torus.STL')
 
         vertex_colors = g.np.random.randint(0, 255, size=(len(m.vertices), 3))
-        m.visual = trimesh.visual.ColorVisuals(mesh=m, vertex_colors=vertex_colors)
+        m.visual = trimesh.visual.ColorVisuals(
+            mesh=m, vertex_colors=vertex_colors)
 
         face_index = g.np.random.choice(len(m.faces), len(m.triangles) // 2)
         idx = m.faces[g.np.unique(face_index)].flatten()

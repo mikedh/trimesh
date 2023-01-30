@@ -157,7 +157,8 @@ class SliceTest(g.unittest.TestCase):
         mesh = g.trimesh.creation.box()
 
         # Cut corner off of box and make sure the bounds and number of faces is correct
-        # Tests new triangles, but not new quads or triangles contained entirely
+        # Tests new triangles, but not new quads or triangles contained
+        # entirely
         plane_origin = mesh.bounds[1] - 0.05
         plane_normal = mesh.bounds[1]
 
@@ -361,7 +362,8 @@ class SliceTest(g.unittest.TestCase):
         mesh = g.trimesh.creation.box()
 
         # Cut corner off of box and make sure the bounds and number of faces is correct
-        # Tests new triangles, but not new quads or triangles contained entirely
+        # Tests new triangles, but not new quads or triangles contained
+        # entirely
         plane_origin = mesh.bounds[1] - 0.05
         plane_normal = mesh.bounds[1]
 
@@ -371,7 +373,9 @@ class SliceTest(g.unittest.TestCase):
                                          cap=True)
 
         assert len(sliced_capped.faces) == 8
-        assert g.np.isclose(sliced_capped.bounds[0], mesh.bounds[1] - 0.15).all()
+        assert g.np.isclose(
+            sliced_capped.bounds[0],
+            mesh.bounds[1] - 0.15).all()
         assert g.np.isclose(sliced_capped.bounds[1], mesh.bounds[1]).all()
         assert sliced_capped.is_watertight
 

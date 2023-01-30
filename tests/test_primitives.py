@@ -149,7 +149,8 @@ class PrimitiveTest(g.unittest.TestCase):
                                             ori_height * scale)
 
                     # should be the same size
-                    assert g.np.allclose(p.extents, m.extents, atol=1e-3 * scale)
+                    assert g.np.allclose(
+                        p.extents, m.extents, atol=1e-3 * scale)
                     # should be in the same place
                     assert g.np.allclose(p.bounds, m.bounds, atol=1e-3 * scale)
 
@@ -285,7 +286,8 @@ class PrimitiveTest(g.unittest.TestCase):
                                      primitive.transform[:3, 3])
 
     def test_sphere_center(self):
-        s = g.trimesh.primitives.Sphere(center=[0, 0, 100], radius=10.0, subdivisions=5)
+        s = g.trimesh.primitives.Sphere(
+            center=[0, 0, 100], radius=10.0, subdivisions=5)
         assert g.np.allclose(s.center, [0, 0, 100])
 
         s.center = [1, 1, 1]
