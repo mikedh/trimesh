@@ -242,7 +242,6 @@ class _PrimitiveAttributes(object):
             if value is not None:
                 # convert passed data into type of defaults
                 self._data[key] = util.convert_like(value, default)
-
         # make sure stored values are immutable after setting
         if not self._mutable:
             self._data.mutable = False
@@ -310,7 +309,8 @@ class _PrimitiveAttributes(object):
 
 class Cylinder(_Primitive):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, radius=1.0, height=1.0,
+                 transform=None, sections=32, **kwargs):
         """
         Create a Cylinder Primitive, a subclass of Trimesh.
 
@@ -325,15 +325,19 @@ class Cylinder(_Primitive):
         sections : int
           Number of facets in circle
         """
-        super(Cylinder, self).__init__(*args, **kwargs)
+        super(Cylinder, self).__init__(**kwargs)
 
         defaults = {'height': 10.0,
                     'radius': 1.0,
                     'transform': np.eye(4),
                     'sections': 32}
-        self.primitive = _PrimitiveAttributes(self,
-                                              defaults,
-                                              kwargs)
+        self.primitive = _PrimitiveAttributes(
+            self,
+            defaults,
+            {'height': height,
+             'radius': radius,
+             'transform': transform,
+             'sections': sections})
 
     @caching.cache_decorator
     def volume(self):
@@ -452,7 +456,12 @@ class Cylinder(_Primitive):
 
 class Capsule(_Primitive):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,
+                 radius=1.0,
+                 height=10.0,
+                 transform=None,
+                 sections=32,
+                 **kwargs):
         """
         Create a Capsule Primitive, a subclass of Trimesh.
 
@@ -467,15 +476,19 @@ class Capsule(_Primitive):
         sections : int
           Number of facets in circle
         """
-        super(Capsule, self).__init__(*args, **kwargs)
+        super(Capsule, self).__init__(**kwargs)
 
         defaults = {'height': 1.0,
                     'radius': 1.0,
                     'transform': np.eye(4),
                     'sections': 32}
-        self.primitive = _PrimitiveAttributes(self,
-                                              defaults,
-                                              kwargs)
+        self.primitive = _PrimitiveAttributes(
+            self,
+            defaults,
+            {'height': height,
+             'radius': radius,
+             'transform': transform,
+             'sections': sections})
 
     @property
     def transform(self):
@@ -525,7 +538,12 @@ class Capsule(_Primitive):
 
 class Sphere(_Primitive):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,
+                 radius=1.0,
+                 center=None,
+                 transform=None,
+                 subdivisions=3,
+                 **kwargs):
         """
         Create a Sphere Primitive, a subclass of Trimesh.
 
@@ -533,27 +551,35 @@ class Sphere(_Primitive):
         ----------
         radius : float
           Radius of sphere
-        center : (3,) float
-          Center of sphere
+        center : None or (3,) float
+          Center of sphere.
+        transform : None or (4, 4) float
+          Full homogenous transform. Pass `center` OR `transform.
         subdivisions : int
           Number of subdivisions for icosphere.
         """
-        super(Sphere, self).__init__(*args, **kwargs)
+        super(Sphere, self).__init__(**kwargs)
         defaults = {'radius': 1.0,
                     'transform': np.eye(4),
                     'subdivisions': 3}
 
+        constructor = {'radius': float(radius),
+                       'subdivisions': int(subdivisions)}
         # center is a helper method for "transform"
         # since a sphere is rotationally symmetric
-        center = kwargs.get('center', None)
         if center is not None:
+            if transform is not None:
+                raise ValueError(
+                    'only one of `center` and `transform` may be passed!')
             translate = np.eye(4)
             translate[:3, 3] = center
-            kwargs['transform'] = translate
+            constructor['transform'] = translate
+        elif transform is not None:
+            constructor['transform'] = transform
 
         # create the attributes object
         self.primitive = _PrimitiveAttributes(
-            self, defaults, kwargs)
+            self, defaults, constructor)
 
     @property
     def center(self):
@@ -648,7 +674,10 @@ class Sphere(_Primitive):
 
 class Box(_Primitive):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,
+                 extents=None,
+                 transform=None,
+                 **kwargs):
         """
         Create a Box Primitive as a subclass of Trimesh
 
@@ -659,11 +688,14 @@ class Box(_Primitive):
         transform : (4, 4) float
           Homogeneous transformation matrix for box center
         """
-        super(Box, self).__init__(*args, **kwargs)
+        super(Box, self).__init__(**kwargs)
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
         self.primitive = _PrimitiveAttributes(
-            self, defaults, kwargs)
+            self,
+            defaults,
+            {'extents': extents,
+             'transform': transform})
 
     def to_dict(self):
         """
@@ -793,8 +825,11 @@ class Box(_Primitive):
 
 
 class Extrusion(_Primitive):
-
-    def __init__(self, triangle_args=None, *args, **kwargs):
+    def __init__(self,
+                 polygon=None,
+                 transform=None,
+                 height=1.0,
+                 **kwargs):
         """
         Create an Extrusion primitive, which
         is a subclass of Trimesh.
@@ -807,20 +842,18 @@ class Extrusion(_Primitive):
           Transform to apply after extrusion
         height : float
           Height to extrude polygon by
-        triangle_args : str
-          Arguments to pass to triangle
         """
         # do the import here, fail early if Shapely isn't installed
         from shapely.geometry import Point
-        super(Extrusion, self).__init__(*args, **kwargs)
-        # save arguments for triangulation
-        self.triangle_args = triangle_args
+        super(Extrusion, self).__init__(**kwargs)
         # set default values
         defaults = {'polygon': Point([0, 0]).buffer(1.0),
                     'transform': np.eye(4),
                     'height': 1.0}
         self.primitive = _PrimitiveAttributes(
-            self, defaults, kwargs)
+            self, defaults, {'transform': transform,
+                             'polygon': polygon,
+                             'height': height})
 
     @caching.cache_decorator
     def area(self):
@@ -992,8 +1025,7 @@ class Extrusion(_Primitive):
         mesh = creation.extrude_polygon(
             polygon=self.primitive.polygon,
             height=self.primitive.height,
-            transform=self.primitive.transform,
-            triangle_args=self.triangle_args)
+            transform=self.primitive.transform)
 
         # check volume here in unit tests
         if tol.strict and mesh.volume < 0.0:

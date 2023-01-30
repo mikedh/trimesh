@@ -16,9 +16,9 @@ python -m venv ~/myenv
 echo "source ~/myenv/bin/activate" >> ~/.bashrc
 ```
 
-With a virtual environment so pip doesn't dump files everywhere you can install some stuff. The `flake8-no-implicit-concat` adds a rule which disallows strings on different lines with no comma being concatenated as this is pretty much always a bug.
+With a virtual environment so pip doesn't dump files everywhere you can install some stuff. I usually start with:
 ```
-pip install autopep8 flake8 flake8-no-implicit-concat codespell pyinstrument ipython
+pip install codespell ipython
 ```
 
 If you're planning on editing trimesh you might want to fork it via the Github interface, then install it via an editable pip install:
@@ -28,7 +28,7 @@ git clone git@github.com:mikedh/trimesh.git
 
 # do an editable install so you can experiment
 cd trimesh
-pip install -e .
+pip install -e .[easy, test]
 ```
 
 

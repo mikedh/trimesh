@@ -26,7 +26,8 @@ class VerticesTest(g.unittest.TestCase):
                 low=0, high=len(m.vertices), size=100)
             for v in rand_vertices:
                 v_faces = g.np.where(m.faces == v)[0][::-1]
-                assert (g.np.all(v_faces == m.vertex_faces[v][m.vertex_faces[v] >= 0]))
+                assert (
+                    g.np.all(v_faces == m.vertex_faces[v][m.vertex_faces[v] >= 0]))
 
             # make mesh degenerate
             m.faces[0] = [0, 0, 0]

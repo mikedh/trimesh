@@ -22,7 +22,8 @@ class IntegralMeanCurvatureTest(g.unittest.TestCase):
         radius = 1.2
         for aspect_ratio in [0.0, 0.5, 1.0, 4.0, 100]:
             L = aspect_ratio * radius
-            m = g.trimesh.creation.capsule(height=L, radius=radius, count=[64, 64])
+            m = g.trimesh.creation.capsule(
+                height=L, radius=radius, count=[64, 64])
             IMC = m.integral_mean_curvature
             ref = g.np.pi * (L + 4 * radius)
             assert g.np.isclose(IMC, ref, rtol=tol)

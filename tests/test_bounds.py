@@ -253,7 +253,8 @@ class BoundsTest(g.unittest.TestCase):
             for i, b in enumerate(bounds):
                 assert i in set(tree.intersection(b.ravel()))
             # construct tree with per-row bounds
-            tree = g.trimesh.util.bounds_tree(bounds.reshape((-1, dimension * 2)))
+            tree = g.trimesh.util.bounds_tree(
+                bounds.reshape((-1, dimension * 2)))
             for i, b in enumerate(bounds):
                 assert i in set(tree.intersection(b.ravel()))
 

@@ -165,7 +165,8 @@ class SubDivideTest(g.unittest.TestCase):
         def _get_boundary_vertices(mesh):
             boundary_groups = g.trimesh.grouping.group_rows(
                 mesh.edges_sorted, require_count=1)
-            return mesh.vertices[g.np.unique(mesh.edges_sorted[boundary_groups])]
+            return mesh.vertices[g.np.unique(
+                mesh.edges_sorted[boundary_groups])]
 
         box = g.trimesh.creation.box()
         bottom_mask = g.np.zeros(len(box.faces), dtype=bool)

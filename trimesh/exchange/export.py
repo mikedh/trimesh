@@ -223,6 +223,10 @@ def export_scene(scene,
     if len(scene.geometry) == 0:
         raise ValueError("Can't export empty scenes!")
 
+    if util.is_pathlib(file_obj):
+        # handle `pathlib` objects by converting to string
+        file_obj = str(file_obj.absolute())
+
     # if we weren't passed a file type extract from file_obj
     if file_type is None:
         if util.is_string(file_obj):

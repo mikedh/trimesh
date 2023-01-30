@@ -41,7 +41,8 @@ class MFTest(g.unittest.TestCase):
         assert all(len(v.vertices) == 5 for v in s.geometry.values())
 
     def test_names(self):
-        # check if two different objects with the same name are correctly processed
+        # check if two different objects with the same name are correctly
+        # processed
         s = g.get_mesh('cube_and_sphere_same_name.3mf')
         assert len(s.geometry) == 2
 
