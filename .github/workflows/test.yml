@@ -14,10 +14,10 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: "3.11"
     - name: Install Formatting
       run: |
-        pip install `python setup.py --list-test`
+        pip install .[test]
     - name: Check Formatting
       run: |
         flake8 tests
