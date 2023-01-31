@@ -7,3 +7,115 @@ requires = [
 
 [tool.flake8]
 max_line_length = 90
+
+[project]
+name = "trimesh"
+version = "3.18.2"
+authors = [{name = "Michael Dawson-Haggerty",
+            email = "mikedh@kerfed.com"}]
+license = {text = "MIT"}
+description = "Import, export, process, analyze and view triangular meshes."
+keywords = ["graphics", "mesh", "geometry", "3D"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering",
+]
+urls = {Homepage = "https://github.com/mikedh/trimesh"}
+dependencies = ["numpy"]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.optional-dependencies]
+test = [
+    "autopep8",
+    "pyinstrument",
+    "pytest",
+    "flake8-pyproject",
+    "flake8-no-implicit-concat",
+    "flake8",
+    "coveralls",
+    "pytest-cov",
+    "ezdxf",
+]
+easy = [
+    "networkx",
+    "shapely",
+    "rtree",
+    "mapbox-earcut",
+    "jsonschema",
+    "pillow",
+    "sympy",
+    "scipy",
+    "colorlog",
+    "pycollada",
+    "msgpack",
+    "lxml",
+    "svg.path",
+    "setuptools",
+    "xxhash",
+    "requests",
+    "chardet",
+]
+all = [
+    "shapely",
+    "pillow",
+    "scipy",
+    "meshio",
+    "xxhash",
+    "requests",
+    "mapbox-earcut",
+    "networkx",
+    "scikit-image",
+    "pyglet<2",
+    "rtree",
+    "jsonschema",
+    "colorlog",
+    "sympy",
+    "pycollada",
+    "msgpack",
+    "python-fcl",
+    "psutil",
+    "lxml",
+    "svg.path",
+    "xatlas",
+    "setuptools",
+    "chardet",
+    "glooey",
+]
+
+[tool.setuptools]
+packages = [
+    "trimesh",
+    "trimesh.ray",
+    "trimesh.path",
+    "trimesh.path.exchange",
+    "trimesh.scene",
+    "trimesh.voxel",
+    "trimesh.visual",
+    "trimesh.viewer",
+    "trimesh.exchange",
+    "trimesh.resources",
+    "trimesh.interfaces",
+]
+include-package-data = false
+
+[tool.setuptools.package-data]
+trimesh = [
+    "resources/templates/*",
+    "resources/*.json",
+    "resources/schema/*",
+    "resources/schema/primitive/*.json",
+    "resources/*.zip",
+]
