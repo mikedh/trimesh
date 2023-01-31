@@ -79,14 +79,14 @@ requirements_test = set(['pytest',       # run all unit tests
 # version lock those packages here so install succeeds
 current = (sys.version_info.major, sys.version_info.minor)
 # packages that no longer support old Python
-lock = [((3, 4), 'lxml', '4.3.5'),
-        ((3, 4), 'shapely', '1.6.4'),
-        ((3, 4), 'pyglet', '1.4.10'),
-        ((3, 5), 'sympy', None),
-        ((3, 0), 'pyglet<2', None),
-        ((3, 0), 'autopep8', None),
-        ((3, 0), 'flake8-pyproject', None),
-        ((3, 0), 'flake8-no-implicit-concat', None),
+lock = [((3, 6), 'lxml', '4.3.5'),
+        ((3, 6), 'shapely', '1.6.4'),
+        ((3, 6), 'pyglet', '1.4.10'),
+        ((3, 6), 'sympy', None),
+        ((3, 6), 'pyglet<2', None),
+        ((3, 6), 'autopep8', None),
+        ((3, 6), 'flake8-pyproject', None),
+        ((3, 6), 'flake8-no-implicit-concat', None),
         ((3, 6), 'svg.path', '4.1')]
 for max_python, name, version in lock:
     if current <= max_python:
