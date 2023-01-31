@@ -79,9 +79,9 @@ requirements_test = set(['pytest',       # run all unit tests
 # version lock those packages here so install succeeds
 current = (sys.version_info.major, sys.version_info.minor)
 # packages that no longer support old Python
-lock = [((3, 5), 'lxml', '4.3.5'),
-        ((3, 5), 'shapely', '1.6.4'),
-        ((3, 5), 'pyglet', '1.4.10'),
+lock = [((3, 4), 'lxml', '4.3.5'),
+        ((3, 4), 'shapely', '1.6.4'),
+        ((3, 4), 'pyglet', '1.4.10'),
         ((3, 5), 'sympy', None),
         ((3, 6), 'pyglet<2', None),
         ((3, 6), 'autopep8', None),
