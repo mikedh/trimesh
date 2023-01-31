@@ -176,7 +176,8 @@ class NearestTest(g.unittest.TestCase):
 
         # should be well outside the box and not coplanar with a face
         # so the signed distance should be negative
-        distance = mesh.nearest.signed_distance([mesh.bounds[0] + [100, 100, 100]])
+        distance = mesh.nearest.signed_distance(
+            [mesh.bounds[0] + [100, 100, 100]])
 
         assert distance[0] < 0.0
 

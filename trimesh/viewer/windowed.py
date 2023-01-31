@@ -17,7 +17,8 @@ import pyglet
 # new viewer `trimesh.viewer.shaders` and then basically keeping
 # `windowed` around for backwards-compatibility with no changes
 if int(pyglet.version.split('.')[0]) >= 2:
-    raise ImportError('`trimesh.viewer.windowed` requires `pip install "pyglet<2"`')
+    raise ImportError(
+        '`trimesh.viewer.windowed` requires `pip install "pyglet<2"`')
 
 from .trackball import Trackball
 

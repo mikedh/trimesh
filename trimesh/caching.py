@@ -471,7 +471,8 @@ class Cache(object):
         # dumpy cache if ID function has changed
         self.verify()
         # make numpy arrays read-only if asked to
-        if self.force_immutable and hasattr(value, 'flags') and len(value.shape) > 0:
+        if self.force_immutable and hasattr(
+                value, 'flags') and len(value.shape) > 0:
             value.flags.writeable = False
         # assign data to dict
         self.cache[key] = value
