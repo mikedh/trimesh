@@ -11,8 +11,7 @@ max_line_length = 90
 [project]
 name = "trimesh"
 version = "3.18.2"
-authors = [{name = "Michael Dawson-Haggerty",
-            email = "mikedh@kerfed.com"}]
+authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {text = "MIT"}
 description = "Import, export, process, analyze and view triangular meshes."
 keywords = ["graphics", "mesh", "geometry", "3D"]
