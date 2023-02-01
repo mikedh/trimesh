@@ -9,6 +9,8 @@ import numpy as np
 
 from ..constants import log
 
+from scipy.spatial import Rectangle
+
 # floating point zero
 _TOL_ZERO = 1e-12
 
@@ -32,7 +34,8 @@ class RectangleBin:
         self.occupied = False
 
         # bounds: (minx, miny, maxx, maxy)
-        self.bounds = np.asanyarray(bounds, dtype=np.float64).ravel()
+        self.rectangle = Rectangle(
+            *np.array(bounds, dtype=np.float64).reshape((2, -1)))
 
     @property
     def extents(self):
@@ -44,9 +47,8 @@ class RectangleBin:
         extents : (2,) float
           Edge lengths of bounding box
         """
-        bounds = self.bounds
-        half = len(bounds) // 2
-        return bounds[half:] - bounds[:half]
+        rect = self.rectangle
+        return rect.maxes - rect.mins
 
     def insert(self, rectangle):
         """
@@ -73,11 +75,12 @@ class RectangleBin:
         if self.occupied:
             return None
 
+        current = self.rectangle
+        extents = current.maxes - current.mins
+
         # compare the bin size to the insertion candidate size
-        bounds = self.bounds
-        half = len(bounds) // 2
         # manually compute extents here to avoid function call
-        size_test = (bounds[half:] - bounds[:half]) - rectangle
+        size_test = extents - rectangle
 
         # this means the inserted rectangle is too big for the cell
         if (size_test < -_TOL_ZERO).any():
@@ -91,7 +94,7 @@ class RectangleBin:
         # this means the inserted rectangle fits perfectly
         # since we already checked to see if it was negative, no abs is needed
         if (size_test < _TOL_ZERO).all():
-            return self.bounds[:half]
+            return self.rectangle.mins
 
         # since the rectangle fits but the empty space is too big,
         # we need to create some children to insert into
