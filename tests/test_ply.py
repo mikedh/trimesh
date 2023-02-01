@@ -214,6 +214,12 @@ class PlyTest(g.unittest.TestCase):
         # correct number of vertices and has texture loaded
         g.check_fuze(m)
 
+    def test_metadata(self):
+        mesh = g.get_mesh('metadata.ply')
+
+        assert (g.np.array([[12], [90]]) == mesh.metadata[
+            '_ply_raw']['face']['data']['face_type']).all()
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
