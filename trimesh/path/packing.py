@@ -19,30 +19,20 @@ class RectangleBin:
     http://www.blackpawn.com/texts/lightmaps/
     """
 
-    def __init__(self, bounds=None, size=None):
+    def __init__(self, bounds):
         """
         Create a rectangular bin.
 
         Parameters
         ------------
-        bounds : (4,) float or None
+        bounds : (dimension * 2,) float or None
           (minx, miny, maxx, maxy)
-        size : (2,) float or None
-          Alternative method to set bounds
-          (X size, Y size)
         """
         self.child = [None, None]
         self.occupied = False
 
         # bounds: (minx, miny, maxx, maxy)
-        if bounds is not None:
-            self.bounds = np.asanyarray(
-                bounds, dtype=np.float64)
-        elif size is not None:
-            self.bounds = np.append(
-                [0.0, 0.0], size).astype(np.float64)
-        else:
-            raise ValueError('need to pass size or bounds!')
+        self.bounds = np.asanyarray(bounds, dtype=np.float64).ravel()
 
     @property
     def extents(self):
@@ -55,7 +45,8 @@ class RectangleBin:
           Edge lengths of bounding box
         """
         bounds = self.bounds
-        return bounds[2:] - bounds[:2]
+        half = len(bounds) // 2
+        return bounds[half:] - bounds[:half]
 
     def insert(self, rectangle):
         """
@@ -84,11 +75,12 @@ class RectangleBin:
 
         # compare the bin size to the insertion candidate size
         bounds = self.bounds
+        half = len(bounds) // 2
         # manually compute extents here to avoid function call
-        size_test = (bounds[2:] - bounds[:2]) - rectangle
+        size_test = (bounds[half:] - bounds[:half]) - rectangle
 
         # this means the inserted rectangle is too big for the cell
-        if any(size_test < -_TOL_ZERO):
+        if (size_test < -_TOL_ZERO).any():
             return None
 
         # since the cell is big enough for the current rectangle, either it
@@ -98,14 +90,16 @@ class RectangleBin:
 
         # this means the inserted rectangle fits perfectly
         # since we already checked to see if it was negative, no abs is needed
-        if all(size_test < _TOL_ZERO):
-            return self.bounds[:2]
+        if (size_test < _TOL_ZERO).all():
+            return self.bounds[:half]
 
         # since the rectangle fits but the empty space is too big,
         # we need to create some children to insert into
         # first, we decide which way to split
         vertical = size_test[0] > size_test[1]
+
         length = rectangle[int(not vertical)]
+
         child_bounds = self.split(length, vertical)
 
         # create the child objects
@@ -114,7 +108,7 @@ class RectangleBin:
 
         return self.child[0].insert(rectangle)
 
-    def split(self, length, vertical=True):
+    def split(self, length, axis=0):
         """
         Returns two bounding boxes representing the current
         bounds split into two smaller boxes.
@@ -134,7 +128,7 @@ class RectangleBin:
         """
         # also know as [minx, miny, maxx, maxy]
         (left, bottom, right, top) = self.bounds
-        if vertical:
+        if axis:
             return [[left, bottom, left + length, top],
                     [left + length, bottom, right, top]]
         else:
@@ -190,7 +184,7 @@ def rectangles_single(rectangles, sheet_size=None, shuffle=False):
         box_order[:max_idx] = np.random.permutation(box_order[:max_idx])
 
     # start the tree
-    sheet = RectangleBin(size=sheet_size)
+    sheet = RectangleBin(bounds=[[0.0, 0.0], sheet_size])
     for index in box_order:
         insert_location = sheet.insert(rectangles[index])
         if insert_location is not None:
