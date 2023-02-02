@@ -711,12 +711,13 @@ def _from_mesh(mesh,
     Returns
     ----------
     qres : Dict
-      Dictionnary containing :
+      Dictionary containing :
        - nearest points (m, 3) with key 'nearest'
        - distances to nearest point (m,) with key 'distances'
        - support triangle indices of the nearest points (m,) with key 'tids'
        - [optional] normals at nearest points (m,3) with key 'normals'
-       - [optional] barycentric coordinates in support triangles (m,3) with key 'barycentric_coordinates'
+       - [optional] barycentric coordinates in support triangles (m,3) with key
+         'barycentric_coordinates'
        - [optional] interpolated normals (m,3) with key 'interpolated_normals'
     """
     input_points = np.asanyarray(input_points)
@@ -778,7 +779,7 @@ def _from_points(target_points,
     Returns
     ----------
     qres : Dict
-      Dictionnary containing :
+      Dictionary containing :
        - nearest points (m, 3) with key 'nearest'
        - distances to nearest point (m,) with key 'distances'
        - vertex indices of the nearest points (m,) with key 'vertex_indices'
