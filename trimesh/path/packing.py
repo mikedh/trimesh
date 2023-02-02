@@ -17,7 +17,10 @@ _TOL_ZERO = 1e-12
 
 class RectangleBin:
     """
-    2D BSP tree node.
+    An N-dimensional BSP tree node for packing
+    hyper-rectangles using scipy.spatial.Rectangle
+
+    Mostly useful for packing 2D textures and 3D boxes
     http://www.blackpawn.com/texts/lightmaps/
     """
 
@@ -27,15 +30,22 @@ class RectangleBin:
 
         Parameters
         ------------
-        bounds : (dimension * 2,) float or None
-          (minx, miny, maxx, maxy)
+        bounds : (dimension * 2,) float or scipy.spatial.Rectangle
+          Bounds array are mins, maxes: [minx, miny, maxx, maxy]
         """
+        # this is a *binary* tree so regardless of the dimensionality
+        # of the rectangles each node has exactly two children
         self.child = [None, None]
+        # is this node occupied.
         self.occupied = False
 
-        # bounds: (minx, miny, maxx, maxy)
-        self.rectangle = Rectangle(
-            *np.array(bounds, dtype=np.float64).reshape((2, -1)))
+        # accept either `Rectangle` objects or bounds.
+        if isinstance(bounds, Rectangle):
+            self.rectangle = bounds
+        else:
+            # assume bounds are a list
+            self.rectangle = Rectangle(
+                *np.array(bounds, dtype=np.float64).reshape((2, -1)))
 
     @property
     def extents(self):
@@ -50,13 +60,13 @@ class RectangleBin:
         rect = self.rectangle
         return rect.maxes - rect.mins
 
-    def insert(self, rectangle):
+    def insert(self, size):
         """
         Insert a rectangle into the bin.
 
         Parameters
         -------------
-        rectangle : (2,) float
+        size : (dimension,) float
           Size of rectangle to insert
 
         Returns
@@ -67,7 +77,7 @@ class RectangleBin:
         for child in self.child:
             if child is not None:
                 # try inserting into child cells
-                attempt = child.insert(rectangle)
+                attempt = child.insert(size=size)
                 if attempt is not None:
                     return attempt
 
@@ -80,7 +90,7 @@ class RectangleBin:
 
         # compare the bin size to the insertion candidate size
         # manually compute extents here to avoid function call
-        size_test = extents - rectangle
+        size_test = extents - size
 
         # this means the inserted rectangle is too big for the cell
         if (size_test < -_TOL_ZERO).any():
@@ -92,51 +102,25 @@ class RectangleBin:
         self.occupied = True
 
         # this means the inserted rectangle fits perfectly
-        # since we already checked to see if it was negative, no abs is needed
+        # since we already checked to see if it was negative
+        # no abs is needed
         if (size_test < _TOL_ZERO).all():
+            # print('got it!')
             return self.rectangle.mins
 
-        # since the rectangle fits but the empty space is too big,
-        # we need to create some children to insert into
-        # first, we decide which way to split
-        vertical = size_test[0] > size_test[1]
+        # pick the split axis
+        axis = size_test.argmax()
+        # split hyper-rectangle along axis
+        # note that split is *absolute* distance not offset
+        # so we have to add the current min to the size
+        split = current.split(
+            d=axis, split=current.mins[axis] + size[axis])
 
-        length = rectangle[int(not vertical)]
+        # assign two children
+        self.child[:] = RectangleBin(split[0]), RectangleBin(split[1])
 
-        child_bounds = self.split(length, vertical)
-
-        # create the child objects
-        self.child[0] = RectangleBin(bounds=child_bounds[0])
-        self.child[1] = RectangleBin(bounds=child_bounds[1])
-
-        return self.child[0].insert(rectangle)
-
-    def split(self, length, axis=0):
-        """
-        Returns two bounding boxes representing the current
-        bounds split into two smaller boxes.
-
-        Parameters
-        -------------
-        length : float
-          Length to split
-        vertical: bool
-          Split the box vertically rather than horizontally
-
-        Returns
-        -------------
-        box : (2, 4) float
-          Two bounding boxes with min-max:
-            [minx, miny, maxx, maxy]
-        """
-        # also know as [minx, miny, maxx, maxy]
-        (left, bottom, right, top) = self.bounds
-        if axis:
-            return [[left, bottom, left + length, top],
-                    [left + length, bottom, right, top]]
-        else:
-            return [[left, bottom, right, bottom + length],
-                    [left, bottom + length, right, top]]
+        # insert the requested box
+        return self.child[0].insert(size)
 
 
 def rectangles_single(rectangles, sheet_size=None, shuffle=False):
@@ -168,8 +152,9 @@ def rectangles_single(rectangles, sheet_size=None, shuffle=False):
       Bounding box size of packed result
     """
     rectangles = np.asanyarray(rectangles, dtype=np.float64)
+    dimension = rectangles.shape[1]
 
-    offset = np.zeros((len(rectangles), 2))
+    offset = np.zeros((len(rectangles), dimension))
     inserted = np.zeros(len(rectangles), dtype=bool)
     box_order = np.argsort(np.sum(rectangles**2, axis=1))[::-1]
     area = 0.0
@@ -177,8 +162,8 @@ def rectangles_single(rectangles, sheet_size=None, shuffle=False):
 
     # if no sheet size specified, make a large one
     if sheet_size is None:
-        sheet_size = [rectangles[:, 0].sum(),
-                      rectangles[:, 1].max() * 2]
+        sheet_size = np.ones(dimension) * rectangles.sum(
+            axis=0).max() * 1.1
 
     if shuffle:
         # maximum index to shuffle
@@ -187,7 +172,7 @@ def rectangles_single(rectangles, sheet_size=None, shuffle=False):
         box_order[:max_idx] = np.random.permutation(box_order[:max_idx])
 
     # start the tree
-    sheet = RectangleBin(bounds=[[0.0, 0.0], sheet_size])
+    sheet = RectangleBin(bounds=[np.zeros(len(sheet_size)), sheet_size])
     for index in box_order:
         insert_location = sheet.insert(rectangles[index])
         if insert_location is not None:
