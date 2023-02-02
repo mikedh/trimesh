@@ -17,10 +17,10 @@ _TOL_ZERO = 1e-12
 
 class RectangleBin:
     """
-    An N-dimensional BSP tree node for packing
-    hyper-rectangles using scipy.spatial.Rectangle
+    An N-dimensional binary space partition tree for packing
+    hyper-rectangles using `scipy.spatial.Rectangle`.
 
-    Mostly useful for packing 2D textures and 3D boxes
+    Mostly useful for packing 2D textures and 3D boxes:
     http://www.blackpawn.com/texts/lightmaps/
     """
 
@@ -54,11 +54,24 @@ class RectangleBin:
 
         Returns
         ----------
-        extents : (2,) float
+        extents : (dimension,) float
           Edge lengths of bounding box
         """
         rect = self.rectangle
         return rect.maxes - rect.mins
+
+    @property
+    def bounds(self):
+        """
+        Bounding box location.
+
+        Returns
+        ----------
+        bounds : (dimension, 2) float
+          Position of rectangular bin in space.
+        """
+        rect = self.rectangle
+        return np.array([rect.mins, ret.maxes], dtype=np.float64)
 
     def insert(self, size):
         """
@@ -74,6 +87,7 @@ class RectangleBin:
         inserted : None or (2,) float
           Position of insertion in the tree
         """
+
         for child in self.child:
             if child is not None:
                 # try inserting into child cells
