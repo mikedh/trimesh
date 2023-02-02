@@ -91,7 +91,7 @@ if __name__ == '__main__':
         [10000, wi, ws, wl, wn],
     ]
 
-    # Amberg et. al 2007
+    # Amberg et al. 2007
     records_amberg = nricp_amberg(
         source, target, source_landmarks=source_landmarks,
         distance_threshold=0.05,
@@ -105,20 +105,21 @@ if __name__ == '__main__':
         distance_threshold=0.05,
         target_positions=target_markers_vertices,
         steps=steps_sumner, return_records=True)
+
     # Show the result
     try:
         import pyvista as pv
-        for records, name in [(records_amberg, 'Amberg et. al 2007'),
+        for records, name in [(records_amberg, 'Amberg et al. 2007'),
                               (records_sumner, 'Sumner and Popovic 2004')]:
             distances = [closest_point(target, r)[1] for r in records]
             p = pv.Plotter()
             p.background_color = 'w'
             pv_mesh = pv.wrap(source)
-            pv_mesh['scalars'] = distances[0]
+            pv_mesh['distance'] = distances[0]
             p.add_text(name, color=(0, 0, 0))
             p.add_mesh(
                 pv_mesh, color=(0.6, 0.6, 0.9), cmap='rainbow',
-                clim=(0, target.scale / 100), scalars='scalars',
+                clim=(0, target.scale / 100), scalars='distance',
                 scalar_bar_args={'color': (0, 0, 0)})
             p.add_mesh(pv.wrap(target), style='wireframe')
 
@@ -136,10 +137,11 @@ if __name__ == '__main__':
                             pos),
                         name=str(i),
                         color='r')
-                pv_mesh['scalars'] = (
+                pv_mesh['distance'] = (
                     1 - t) * distances[t1] + t * distances[t2]
             p.add_slider_widget(cb, rng=(0, len(records)), value=0,
-                                color='black', event_type='always')
+                                color='black', event_type='always',
+                                title='step')
 
             for pos in target_markers_vertices:
                 p.add_mesh(pv.Sphere(target.scale / 200, pos), color='g')
