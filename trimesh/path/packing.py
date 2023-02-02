@@ -101,7 +101,6 @@ class RectangleBin:
 
         current = self.rectangle
         extents = current.maxes - current.mins
-
         # compare the bin size to the insertion candidate size
         # manually compute extents here to avoid function call
         size_test = extents - size
@@ -119,10 +118,9 @@ class RectangleBin:
         # since we already checked to see if it was negative
         # no abs is needed
         if (size_test < _TOL_ZERO).all():
-            # print('got it!')
             return self.rectangle.mins
 
-        # pick the split axis
+        # pick the axis to split along
         axis = size_test.argmax()
         # split hyper-rectangle along axis
         # note that split is *absolute* distance not offset
@@ -133,7 +131,7 @@ class RectangleBin:
         # assign two children
         self.child[:] = RectangleBin(split[0]), RectangleBin(split[1])
 
-        # insert the requested box
+        # insert the requested item into the first child
         return self.child[0].insert(size)
 
 
