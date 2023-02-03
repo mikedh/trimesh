@@ -240,8 +240,8 @@ class InertiaTest(g.unittest.TestCase):
             assert g.np.allclose(MI_gt, MI)
 
     def test_frame_inertia_box(self):
-        # set up a rectangular cuboid, vertices in this order:
-        # Two edges have the lengths 1,2 and 3
+        # set up a rectangular cuboid, vertices as visible below.
+        # The edges have the lengths 1,2 and 3
         #           ^ x0, x2
         #    y2 ^  /    b
         #       | 1-----------2
@@ -289,7 +289,7 @@ class InertiaTest(g.unittest.TestCase):
 
         def parallel_axis_theorem(inertia, mass, a1, a2, a3):
             """
-            ApplY parallel axis theorem
+            Apply parallel axis theorem
 
             Parameters
             ------------
@@ -306,12 +306,12 @@ class InertiaTest(g.unittest.TestCase):
 
             """
             # copy from wikipedia
-            return inertia + mass * g.np.array([[a2**2 + a3**2, -a1*a2, -a1*a3],
-                                                [-a1*a2, a1**2 + a3**2, -a2*a3],
-                                                [-a1*a3, -a2*a3, a1**2 + a2**2]])
+            return inertia + mass * g.np.array([[a2**2 + a3**2, -a1*a2       , -a1*a3],
+                                                [-a1*a2       , a1**2 + a3**2, -a2*a3],
+                                                [-a1*a3       , -a2*a3       , a1**2 + a2**2]])
 
         # CHECK FRAME 0
-        # manual analytical calculations of inertia tensor
+        # analytical calculations of inertia tensor by hand
         inertia0 = 1/12 * mass * g.np.diag([h**2 + b**2, h**2 + d**2, b**2 + d**2])
         a1 = -d/2
         a2 = -b/2
@@ -322,6 +322,7 @@ class InertiaTest(g.unittest.TestCase):
         assert g.np.allclose(g.trimesh.inertia.frame_inertia(tm_cube, t0), inertia0)
 
         # CHECK FRAME 1
+        # analytical calculations of inertia tensor by hand
         inertia1 = 1/12 * mass * g.np.diag([h**2 + d**2, h**2 + b**2, b**2 + d**2])
         a1 = -b/2
         a2 = d/2
@@ -333,6 +334,7 @@ class InertiaTest(g.unittest.TestCase):
         assert g.np.allclose(g.trimesh.inertia.frame_inertia(tm_cube, t1), inertia1)
 
         # CHECK FRAME 2
+        # analytical calculations of inertia tensor by hand
         inertia2 = 1/12 * mass * g.np.diag([h**2 + b**2, b**2 + d**2, h**2 + d**2])
         a1 = -d/2
         a2 = h/2
