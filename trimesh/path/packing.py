@@ -2,14 +2,12 @@
 packing.py
 ------------
 
-Pack multiple 2D regions onto larger 2D regions.
+Pack rectangular regions onto larger rectangular regions.
 """
 import time
 import numpy as np
 
 from ..constants import log
-
-from scipy.spatial import Rectangle
 
 # floating point zero
 _TOL_ZERO = 1e-12
@@ -39,13 +37,8 @@ class RectangleBin:
         # is this node occupied.
         self.occupied = False
 
-        # accept either `Rectangle` objects or bounds.
-        if isinstance(bounds, Rectangle):
-            self.rectangle = bounds
-        else:
-            # assume bounds are a list
-            self.rectangle = Rectangle(
-                *np.array(bounds, dtype=np.float64).reshape((2, -1)))
+        # assume bounds are a list
+        self.bounds = np.array(bounds, dtype=np.float64)
 
     @property
     def extents(self):
@@ -57,21 +50,8 @@ class RectangleBin:
         extents : (dimension,) float
           Edge lengths of bounding box
         """
-        rect = self.rectangle
-        return rect.maxes - rect.mins
-
-    @property
-    def bounds(self):
-        """
-        Bounding box location.
-
-        Returns
-        ----------
-        bounds : (dimension, 2) float
-          Position of rectangular bin in space.
-        """
-        rect = self.rectangle
-        return np.array([rect.mins, ret.maxes], dtype=np.float64)
+        bounds = self.bounds
+        return bounds[1] - bounds[0]
 
     def insert(self, size):
         """
@@ -87,7 +67,6 @@ class RectangleBin:
         inserted : None or (2,) float
           Position of insertion in the tree
         """
-
         for child in self.child:
             if child is not None:
                 # try inserting into child cells
@@ -99,8 +78,8 @@ class RectangleBin:
         if self.occupied:
             return None
 
-        current = self.rectangle
-        extents = current.maxes - current.mins
+        bounds = self.bounds
+        extents = bounds[1] - bounds[0]
         # compare the bin size to the insertion candidate size
         # manually compute extents here to avoid function call
         size_test = extents - size
@@ -118,18 +97,18 @@ class RectangleBin:
         # since we already checked to see if it was negative
         # no abs is needed
         if (size_test < _TOL_ZERO).all():
-            return self.rectangle.mins
+            return bounds[0]
 
         # pick the axis to split along
         axis = size_test.argmax()
         # split hyper-rectangle along axis
         # note that split is *absolute* distance not offset
         # so we have to add the current min to the size
-        split = current.split(
-            d=axis, split=current.mins[axis] + size[axis])
+        splits = np.tile(bounds, (2, 1))
+        splits[1:3, axis] = bounds[0][axis] + size[axis]
 
         # assign two children
-        self.child[:] = RectangleBin(split[0]), RectangleBin(split[1])
+        self.child[:] = RectangleBin(splits[:2]), RectangleBin(splits[2:])
 
         # insert the requested item into the first child
         return self.child[0].insert(size)
@@ -191,7 +170,8 @@ def rectangles_single(rectangles, sheet_size=None, shuffle=False):
             area += np.prod(rectangles[index])
             offset[index] += insert_location
             inserted[index] = True
-    consumed_box = np.max((offset + rectangles)[inserted], axis=0)
+    consumed_box = np.ones(dimension) * (offset + rectangles)[inserted].max()
+
     density = area / np.product(consumed_box)
 
     return density, offset[inserted], inserted, consumed_box
