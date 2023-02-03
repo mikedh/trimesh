@@ -184,7 +184,9 @@ def main():
         try:
             exec(script, globals())
         except BaseException as E:
-            print('failed {}!\n\nscript was:\n{}\n\n'.format(file_name, script))
+            print(
+                'failed {}!\n\nscript was:\n{}\n\n'.format(
+                    file_name, script))
             raise E
 
 

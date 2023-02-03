@@ -171,7 +171,8 @@ class CollisionManager(object):
         Initialize a mesh-mesh collision manager.
         """
         if fcl is None:
-            raise ValueError('No FCL Available! Please install the python-fcl library')
+            raise ValueError(
+                'No FCL Available! Please install the python-fcl library')
         # {name: {geom:, obj}}
         self._objs = {}
         # {id(bvh) : str, name}
@@ -507,7 +508,9 @@ class CollisionManager(object):
         o = fcl.CollisionObject(geom, t)
 
         # Collide with manager's objects
-        ddata = fcl.DistanceData(fcl.DistanceRequest(enable_signed_distance=True))
+        ddata = fcl.DistanceData(
+            fcl.DistanceRequest(
+                enable_signed_distance=True))
         if return_data:
             ddata = fcl.DistanceData(
                 fcl.DistanceRequest(
@@ -565,7 +568,9 @@ class CollisionManager(object):
         data : DistanceData
           Extra data about the distance query
         """
-        ddata = fcl.DistanceData(fcl.DistanceRequest(enable_signed_distance=True))
+        ddata = fcl.DistanceData(
+            fcl.DistanceRequest(
+                enable_signed_distance=True))
         if return_data:
             ddata = fcl.DistanceData(
                 fcl.DistanceRequest(
@@ -623,7 +628,9 @@ class CollisionManager(object):
         data : DistanceData
           Extra data about the distance query
         """
-        ddata = fcl.DistanceData(fcl.DistanceRequest(enable_signed_distance=True))
+        ddata = fcl.DistanceData(
+            fcl.DistanceRequest(
+                enable_signed_distance=True))
         if return_data:
             ddata = fcl.DistanceData(
                 fcl.DistanceRequest(

@@ -412,7 +412,8 @@ class Trimesh(Geometry3D):
         vertices : (n, 3) float
           Points in cartesian space referenced by self.faces
         """
-        return self._data.get('vertices', np.empty(shape=(0, 3), dtype=np.float64))
+        return self._data.get('vertices', np.empty(
+            shape=(0, 3), dtype=np.float64))
 
     @vertices.setter
     def vertices(self, values):
@@ -2474,8 +2475,10 @@ class Trimesh(Geometry3D):
         import open3d
         # create from numpy arrays
         return open3d.geometry.TriangleMesh(
-            vertices=open3d.utility.Vector3dVector(self.vertices),
-            triangles=open3d.utility.Vector3iVector(self.faces))
+            vertices=open3d.utility.Vector3dVector(
+                self.vertices.copy()),
+            triangles=open3d.utility.Vector3iVector(
+                self.faces.copy()))
 
     def simplify_quadratic_decimation(self, *args, **kwargs):
         """

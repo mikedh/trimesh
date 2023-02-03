@@ -13,7 +13,8 @@ if __name__ == '__main__':
 
     # get edges we want to highlight by finding edges
     # that have sharp angles between adjacent faces
-    edges = mesh.face_adjacency_edges[mesh.face_adjacency_angles > np.radians(30)]
+    edges = mesh.face_adjacency_edges[mesh.face_adjacency_angles > np.radians(
+        30)]
     # get a Path3D object for the edges we want to highlight
     path = trimesh.path.Path3D(**trimesh.path.exchange.misc.edges_to_path(
         edges, mesh.vertices.copy()))

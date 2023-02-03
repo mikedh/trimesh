@@ -8,7 +8,7 @@ class PlyTest(g.unittest.TestCase):
 
     def test_ply_dtype(self):
         # make sure all ply dtype strings are valid dtypes
-        dtypes = g.trimesh.exchange.ply.dtypes
+        dtypes = g.trimesh.exchange.ply._dtypes
         for d in dtypes.values():
             # will raise if dtype string not valid
             g.np.dtype(d)
@@ -183,13 +183,16 @@ class PlyTest(g.unittest.TestCase):
         # test texture coordinate loading for Blender exported ply files
         mesh_names = []
 
-        # test texture coordinate loading for simple triangulated Blender-export
+        # test texture coordinate loading for simple triangulated
+        # Blender-export
         mesh_names.append('cube_blender_uv.ply')
 
-        # same mesh but re-exported from meshlab as binary ply (and with changed header)
+        # same mesh but re-exported from meshlab as binary ply (and with
+        # changed header)
         mesh_names.append('cube_blender_uv_meshlab.ply')
 
-        # test texture coordinate loading for mesh with mixed quads and triangles
+        # test texture coordinate loading for mesh with mixed quads and
+        # triangles
         mesh_names.append('suzanne.ply')
 
         for mesh_name in mesh_names:
@@ -210,6 +213,12 @@ class PlyTest(g.unittest.TestCase):
         # run the checks to make sure fuze has the
         # correct number of vertices and has texture loaded
         g.check_fuze(m)
+
+    def test_metadata(self):
+        mesh = g.get_mesh('metadata.ply')
+
+        assert (g.np.array([[12], [90]]) == mesh.metadata[
+            '_ply_raw']['face']['data']['face_type']).all()
 
 
 if __name__ == '__main__':

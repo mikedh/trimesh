@@ -145,7 +145,9 @@ def revolve(linestring,
 
     if tol.strict:
         # make sure we didn't screw up stacking operation
-        assert np.allclose(stacked.reshape((-1, single.shape[0], 3)) - single, 0)
+        assert np.allclose(
+            stacked.reshape(
+                (-1, single.shape[0], 3)) - single, 0)
 
     # offset stacked and wrap vertices
     faces = (stacked + offset) % len(vertices)
@@ -1248,7 +1250,8 @@ def truncated_prisms(tris, origin=None, normal=None):
     vs = np.column_stack((transformed, transformed)).reshape((-1, 3, 3))
     # set the Z value of the second triangle to zero
     vs[1::2, :, 2] = 0
-    # reshape triangles to a flat array of points and transform back to original frame
+    # reshape triangles to a flat array of points and transform back to
+    # original frame
     vertices = tf.transform_points(
         vs.reshape((-1, 3)), matrix=np.linalg.inv(transform))
 
@@ -1262,13 +1265,15 @@ def truncated_prisms(tris, origin=None, normal=None):
                   [5, 4, 1],
                   [3, 5, 2]])
     # find the projection of each triangle with the normal vector
-    cross = np.dot([0, 0, 1], triangles.cross(transformed.reshape((-1, 3, 3))).T)
+    cross = np.dot([0, 0, 1], triangles.cross(
+        transformed.reshape((-1, 3, 3))).T)
     # stack faces into one prism per triangle
     f_seq = np.tile(f, (len(transformed), 1)).reshape((-1, len(f), 3))
     # if the normal of the triangle was positive flip the winding
     f_seq[cross > 0] = np.fliplr(f)
     # offset stacked faces to create correct indices
-    faces = (f_seq + (np.arange(len(f_seq)) * 6).reshape((-1, 1, 1))).reshape((-1, 3))
+    faces = (f_seq + (np.arange(len(f_seq)) *
+             6).reshape((-1, 1, 1))).reshape((-1, 3))
 
     # create a mesh from the data
     mesh = Trimesh(vertices=vertices, faces=faces, process=False)

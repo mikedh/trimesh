@@ -18,7 +18,8 @@ class OFFTests(g.unittest.TestCase):
         assert m.faces.shape == (12, 3)
 
         with open(g.os.path.join(g.dir_models, file_name)) as f:
-            lines = [line.split('#', 1)[0].strip() for line in str.splitlines(f.read())]
+            lines = [line.split('#', 1)[0].strip()
+                     for line in str.splitlines(f.read())]
         lines = [line.split() for line in lines if
                  'OFF' not in line and len(line) > 0]
         vertices = g.np.array(lines[1:9], dtype=g.np.float64)
@@ -32,7 +33,8 @@ class OFFTests(g.unittest.TestCase):
         assert m.faces.shape == (12, 3)
 
         with open(g.os.path.join(g.dir_models, file_name)) as f:
-            lines = [line.split('#', 1)[0].strip() for line in str.splitlines(f.read())]
+            lines = [line.split('#', 1)[0].strip()
+                     for line in str.splitlines(f.read())]
         lines = [line.split() for line in lines if
                  'OFF' not in line and len(line) > 0]
 

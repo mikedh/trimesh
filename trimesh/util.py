@@ -1168,7 +1168,8 @@ def structured_array_to_string(array,
 
     # abort for unstructured arrays
     if array.dtype.names is None:
-        raise ValueError('array is not structured, use array_to_string instead')
+        raise ValueError(
+            'array is not structured, use array_to_string instead')
 
     # do not allow a value to be repeated in a value format
     if value_format.count('{') > 1:

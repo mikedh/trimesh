@@ -249,7 +249,8 @@ class PointsTest(g.unittest.TestCase):
         # create 100 unique points
         p = g.np.arange(300).reshape((100, 3))
         # should return the original 100 points
-        culled, mask = g.trimesh.points.remove_close(g.np.vstack((p, p)), radius=0.1)
+        culled, mask = g.trimesh.points.remove_close(
+            g.np.vstack((p, p)), radius=0.1)
         assert culled.shape == (100, 3)
         assert mask.shape == (200,)
 
@@ -273,14 +274,16 @@ class PointsTest(g.unittest.TestCase):
         cloud_2 = g.trimesh.points.PointCloud(points_2, colors=colors_2)
 
         cloud_sum = cloud_1 + cloud_2
-        assert g.np.allclose(cloud_sum.colors[len(cloud_1.vertices):], cloud_2.colors)
+        assert g.np.allclose(
+            cloud_sum.colors[len(cloud_1.vertices):], cloud_2.colors)
 
         # Next test: Only first cloud has colors
         cloud_1 = g.trimesh.points.PointCloud(points_1, colors=colors_1)
         cloud_2 = g.trimesh.points.PointCloud(points_2)
 
         cloud_sum = cloud_1 + cloud_2
-        assert g.np.allclose(cloud_sum.colors[:len(cloud_1.vertices)], cloud_1.colors)
+        assert g.np.allclose(
+            cloud_sum.colors[:len(cloud_1.vertices)], cloud_1.colors)
 
     def test_radial_sort(self):
         theta = g.np.linspace(0.0, g.np.pi * 2.0, 1000)

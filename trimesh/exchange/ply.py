@@ -15,7 +15,7 @@ from ..geometry import triangulate_quads
 from ..constants import log
 
 # from ply specification, and additional dtypes found in the wild
-dtypes = {
+_dtypes = {
     'char': 'i1',
     'uchar': 'u1',
     'short': 'i2',
@@ -37,7 +37,7 @@ dtypes = {
     'double': 'f8'}
 
 # Inverse of the above dict, collisions on numpy type were removed
-inverse_dtypes = {
+_inverse_dtypes = {
     'i1': 'char',
     'u1': 'uchar',
     'i2': 'short',
@@ -51,19 +51,19 @@ inverse_dtypes = {
     'f8': 'double'}
 
 
-def numpy_type_to_ply_type(numpy_type):
+def _numpy_type_to_ply_type(_numpy_type):
     """
     Returns the closest ply equivalent of a numpy type
 
     Parameters
     ---------
-    numpy_type : a numpy datatype
+    _numpy_type : a numpy datatype
 
     Returns
     ---------
     ply_type : string
     """
-    return inverse_dtypes[numpy_type.str[1:]]
+    return _inverse_dtypes[_numpy_type.str[1:]]
 
 
 def load_ply(file_obj,
@@ -96,13 +96,13 @@ def load_ply(file_obj,
     """
 
     # OrderedDict which is populated from the header
-    elements, is_ascii, image_name = parse_header(file_obj)
+    elements, is_ascii, image_name = _parse_header(file_obj)
 
     # functions will fill in elements from file_obj
     if is_ascii:
-        ply_ascii(elements, file_obj)
+        _ply_ascii(elements, file_obj)
     else:
-        ply_binary(elements, file_obj)
+        _ply_binary(elements, file_obj)
 
     # try to load the referenced image
     image = None
@@ -119,7 +119,7 @@ def load_ply(file_obj,
         log.warning('unable to load image!', exc_info=True)
 
     # translate loaded PLY elements to kwargs
-    kwargs = elements_to_kwargs(
+    kwargs = _elements_to_kwargs(
         image=image,
         elements=elements,
         fix_texture=fix_texture,
@@ -128,7 +128,7 @@ def load_ply(file_obj,
     return kwargs
 
 
-def add_attributes_to_dtype(dtype, attributes):
+def _add_attributes_to_dtype(dtype, attributes):
     """
     Parses attribute datatype to populate a numpy dtype list
 
@@ -147,13 +147,15 @@ def add_attributes_to_dtype(dtype, attributes):
         if data.ndim == 1:
             dtype.append((name, data.dtype))
         else:
-            attribute_dtype = data.dtype if len(data.dtype) == 0 else data.dtype[0]
+            attribute_dtype = data.dtype if len(
+                data.dtype) == 0 else data.dtype[0]
             dtype.append(('{}_count'.format(name), 'u1'))
-            dtype.append((name, numpy_type_to_ply_type(attribute_dtype), data.shape[1]))
+            dtype.append(
+                (name, _numpy_type_to_ply_type(attribute_dtype), data.shape[1]))
     return dtype
 
 
-def add_attributes_to_header(header, attributes):
+def _add_attributes_to_header(header, attributes):
     """
     Parses attributes in to ply header entries
 
@@ -173,15 +175,15 @@ def add_attributes_to_header(header, attributes):
         if data.ndim == 1:
             header.append(
                 'property {} {}\n'.format(
-                    numpy_type_to_ply_type(data.dtype), name))
+                    _numpy_type_to_ply_type(data.dtype), name))
         else:
             header.append(
                 'property list uchar {} {}\n'.format(
-                    numpy_type_to_ply_type(data.dtype), name))
+                    _numpy_type_to_ply_type(data.dtype), name))
     return header
 
 
-def add_attributes_to_data_array(data_array, attributes):
+def _add_attributes_to_data_array(data_array, attributes):
     """
     Parses attribute data in to a custom array, assumes datatype has been defined
     appropriately
@@ -199,12 +201,13 @@ def add_attributes_to_data_array(data_array, attributes):
     """
     for name, data in attributes.items():
         if data.ndim > 1:
-            data_array['{}_count'.format(name)] = data.shape[1] * np.ones(data.shape[0])
+            data_array['{}_count'.format(
+                name)] = data.shape[1] * np.ones(data.shape[0])
         data_array[name] = data
     return data_array
 
 
-def assert_attributes_valid(attributes):
+def _assert_attributes_valid(attributes):
     """
     Asserts that a set of attributes is valid for PLY export.
 
@@ -260,9 +263,9 @@ def export_ply(mesh,
     # if we want to include mesh attributes in the export
     if include_attributes:
         if hasattr(mesh, 'vertex_attributes'):
-            assert_attributes_valid(mesh.vertex_attributes)
+            _assert_attributes_valid(mesh.vertex_attributes)
         if hasattr(mesh, 'face_attributes'):
-            assert_attributes_valid(mesh.face_attributes)
+            _assert_attributes_valid(mesh.face_attributes)
 
     # custom numpy dtypes for exporting
     dtype_face = [('count', '<u1'),
@@ -295,8 +298,8 @@ def export_ply(mesh,
             dtype_vertex.append(dtype_color)
 
         if include_attributes and hasattr(mesh, 'vertex_attributes'):
-            add_attributes_to_header(header, mesh.vertex_attributes)
-            add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
+            _add_attributes_to_header(header, mesh.vertex_attributes)
+            _add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
 
         # create and populate the custom dtype for vertices
         vertex = np.zeros(num_vertices,
@@ -308,7 +311,7 @@ def export_ply(mesh,
             vertex['rgba'] = mesh.visual.vertex_colors
 
         if include_attributes and hasattr(mesh, 'vertex_attributes'):
-            add_attributes_to_data_array(vertex, mesh.vertex_attributes)
+            _add_attributes_to_data_array(vertex, mesh.vertex_attributes)
     else:
         num_vertices = 0
 
@@ -322,8 +325,8 @@ def export_ply(mesh,
             dtype_face.append(dtype_color)
 
         if include_attributes and hasattr(mesh, 'face_attributes'):
-            add_attributes_to_header(header, mesh.face_attributes)
-            add_attributes_to_dtype(dtype_face, mesh.face_attributes)
+            _add_attributes_to_header(header, mesh.face_attributes)
+            _add_attributes_to_dtype(dtype_face, mesh.face_attributes)
 
         # put mesh face data into custom dtype to export
         faces = np.zeros(len(mesh.faces), dtype=dtype_face)
@@ -334,7 +337,7 @@ def export_ply(mesh,
         header_params['face_count'] = len(mesh.faces)
 
         if include_attributes and hasattr(mesh, 'face_attributes'):
-            add_attributes_to_data_array(faces, mesh.face_attributes)
+            _add_attributes_to_data_array(faces, mesh.face_attributes)
 
     header.append(templates['outro'])
     export = Template(''.join(header)).substitute(
@@ -359,7 +362,7 @@ def export_ply(mesh,
     return export
 
 
-def parse_header(file_obj):
+def _parse_header(file_obj):
     """
     Read the ASCII header of a PLY file, and leave the file object
     at the position of the start of data but past the header.
@@ -418,7 +421,7 @@ def parse_header(file_obj):
             if len(line) == 3:
                 dtype, field = line[1:]
                 elements[name]['properties'][
-                    str(field)] = endian + dtypes[dtype]
+                    str(field)] = endian + _dtypes[dtype]
             # is the property a painful list, like:
             # `property list uchar int vertex_indices`
             elif 'list' in line[1]:
@@ -426,10 +429,10 @@ def parse_header(file_obj):
                 elements[name]['properties'][
                     str(field)] = (
                     endian +
-                    dtypes[dtype_count] +
+                    _dtypes[dtype_count] +
                     ', ($LIST,)' +
                     endian +
-                    dtypes[dtype])
+                    _dtypes[dtype])
         # referenced as a file name
         elif 'texturefile' in raw.lower():
             # textures come listed like:
@@ -441,10 +444,10 @@ def parse_header(file_obj):
     return elements, is_ascii, image_name
 
 
-def elements_to_kwargs(elements,
-                       fix_texture,
-                       image,
-                       prefer_color=None):
+def _elements_to_kwargs(elements,
+                        fix_texture,
+                        image,
+                        prefer_color=None):
     """
     Given an elements data structure, extract the keyword
     arguments that a Trimesh object constructor will expect.
@@ -610,14 +613,14 @@ def elements_to_kwargs(elements,
 
     # if both vertex and face color are defined pick the one
     if 'face' in elements:
-        kwargs['face_colors'] = element_colors(elements['face'])
+        kwargs['face_colors'] = _element_colors(elements['face'])
     if 'vertex' in elements:
-        kwargs['vertex_colors'] = element_colors(elements['vertex'])
+        kwargs['vertex_colors'] = _element_colors(elements['vertex'])
 
     return kwargs
 
 
-def element_colors(element):
+def _element_colors(element):
     """
     Given an element, try to extract RGBA color from
     properties and return them as an (n,3|4) array.
@@ -642,7 +645,7 @@ def element_colors(element):
     return None
 
 
-def load_element_different(properties, data):
+def _load_element_different(properties, data):
     """
     Load elements which include lists of different lengths
     based on the element's property-definitions.
@@ -662,7 +665,8 @@ def load_element_different(properties, data):
             length = 1
             if '$LIST' in dt:
                 dt = dt.split('($LIST,)')[-1]
-                # the first entry in a list-property is the number of elements in the list
+                # the first entry in a list-property is the number of elements
+                # in the list
                 length = int(row[start])
                 # skip the first entry (the length), when reading the data
                 start += 1
@@ -682,7 +686,7 @@ def load_element_different(properties, data):
     return squeeze
 
 
-def load_element_single(properties, data):
+def _load_element_single(properties, data):
     """
     Load element data with lists of a single length
     based on the element's property-definitions.
@@ -715,7 +719,8 @@ def load_element_single(properties, data):
             length = int(first[current])
             columns[name] = data[
                 :, current + 1:current + 1 + length].astype(dtype)
-            current += length
+            # offset by length of array plus one for each uint index
+            current += length + 1
         else:
             columns[name] = data[:, current:current + 1].astype(dt)
             current += 1
@@ -723,7 +728,7 @@ def load_element_single(properties, data):
     return columns
 
 
-def ply_ascii(elements, file_obj):
+def _ply_ascii(elements, file_obj):
     """
     Load data from an ASCII PLY file into an existing elements data structure.
 
@@ -762,24 +767,25 @@ def ply_ascii(elements, file_obj):
             col_count_equal = False
 
         # number of list properties in this element
-        list_count = sum(1 for dt in values['properties'].values() if '$LIST' in dt)
+        list_count = sum(
+            1 for dt in values['properties'].values() if '$LIST' in dt)
         if col_count_equal and list_count <= 1:
             # all rows have the same length and we only have at most one list
             # property where all entries have the same length. this means we can
             # use the quick numpy-based loading.
-            element_data = load_element_single(
+            element_data = _load_element_single(
                 values['properties'], data)
         else:
             # there are lists of differing lengths. we need to fall back to loading
             # the data by iterating all rows and checking for list-lengths. this is
             # slower than the variant above.
-            element_data = load_element_different(
+            element_data = _load_element_different(
                 values['properties'], data)
 
         elements[key]['data'] = element_data
 
 
-def ply_binary(elements, file_obj):
+def _ply_binary(elements, file_obj):
     """
     Load the data from a binary PLY file into the elements data structure.
 
@@ -863,7 +869,7 @@ def ply_binary(elements, file_obj):
                 elements[key]['data'] = None
         return elements
 
-    def elements_size(elements):
+    def _elements_size(elements):
         """
         Given an elements data structure populated from the header,
         calculate how long the file should be if it is intact.
@@ -884,7 +890,7 @@ def ply_binary(elements, file_obj):
     size_file = util.distance_to_end(file_obj)
     # how many bytes should the data structure described by
     # the header take up
-    size_elements = elements_size(elements)
+    size_elements = _elements_size(elements)
 
     # if the number of bytes is not the same the file is probably corrupt
     if size_file != size_elements:

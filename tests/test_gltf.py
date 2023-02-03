@@ -178,7 +178,8 @@ class GLTFTest(g.unittest.TestCase):
 
         # make sure export keeps alpha modes
         # should be the same
-        assert len([geom for geom in rs.geometry if geom.startswith('Test')]) == 5
+        assert len(
+            [geom for geom in rs.geometry if geom.startswith('Test')]) == 5
         assert rs.geometry['TestCutoffDefaultMesh'].visual.material.alphaMode == 'MASK'
         assert rs.geometry['TestCutoff25Mesh'].visual.material.alphaMode == 'MASK'
         assert rs.geometry['TestCutoff25Mesh'].visual.material.alphaCutoff == 0.25
@@ -353,11 +354,13 @@ class GLTFTest(g.unittest.TestCase):
     def test_optional_camera(self):
         gltf_cameras_key = 'cameras'
 
-        # if there's no camera in the scene, then it shouldn't be added to the gltf
+        # if there's no camera in the scene, then it shouldn't be added to the
+        # gltf
         box = g.trimesh.creation.box([1, 1, 1])
         scene = g.trimesh.Scene(box)
         export = scene.export(file_type='gltf')
-        assert gltf_cameras_key not in g.json.loads(export['model.gltf'].decode('utf8'))
+        assert gltf_cameras_key not in g.json.loads(
+            export['model.gltf'].decode('utf8'))
 
         # `scene.camera` creates a camera if it does not exist.
         # once in the scene, it should be added to the gltf.
@@ -365,7 +368,8 @@ class GLTFTest(g.unittest.TestCase):
         scene = g.trimesh.Scene(box)
         scene.set_camera()
         export = scene.export(file_type='gltf')
-        assert gltf_cameras_key in g.json.loads(export['model.gltf'].decode('utf8'))
+        assert gltf_cameras_key in g.json.loads(
+            export['model.gltf'].decode('utf8'))
 
     def test_gltf_pole(self):
         scene = g.get_mesh('simple_pole.glb')
@@ -710,7 +714,8 @@ class GLTFTest(g.unittest.TestCase):
     def test_export_postprocess(self):
         scene = g.trimesh.Scene()
         sphere = g.trimesh.primitives.Sphere()
-        sphere.visual.material = g.trimesh.visual.material.PBRMaterial(name='unlit_test')
+        sphere.visual.material = g.trimesh.visual.material.PBRMaterial(
+            name='unlit_test')
         scene.add_geometry(sphere)
 
         def add_unlit(gltf_tree):
@@ -722,10 +727,12 @@ class GLTFTest(g.unittest.TestCase):
             gltf_tree["extensionsUsed"] = ["KHR_materials_unlit"]
 
         gltf_1 = g.trimesh.exchange.gltf.export_gltf(scene)
-        gltf_2 = g.trimesh.exchange.gltf.export_gltf(scene, tree_postprocessor=add_unlit)
+        gltf_2 = g.trimesh.exchange.gltf.export_gltf(
+            scene, tree_postprocessor=add_unlit)
 
         def extract_materials(gltf_files):
-            return g.json.loads(gltf_files['model.gltf'].decode('utf8'))['materials']
+            return g.json.loads(gltf_files['model.gltf'].decode('utf8'))[
+                'materials']
 
         assert "extensions" not in extract_materials(gltf_1)[-1]
         assert "extensions" in extract_materials(gltf_2)[-1]
@@ -812,7 +819,8 @@ class GLTFTest(g.unittest.TestCase):
                 # and crash on reload if we've done anything screwey
                 # unitize normals will unitize any normals to comply with
                 # the validator although there are probably reasons you'd
-                # want to roundtrip non-unit normals for things, stuff, and activities
+                # want to roundtrip non-unit normals for things, stuff, and
+                # activities
                 export = geom.export(file_type='glb', unitize_normals=True)
                 validate_glb(export, name=fn)
 

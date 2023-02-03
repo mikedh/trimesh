@@ -920,7 +920,8 @@ def _build_accessor(array):
     if len(shape) == 2:
         vec_length = shape[1]
         if vec_length > 4:
-            raise ValueError("The GLTF spec does not support vectors larger than 4")
+            raise ValueError(
+                "The GLTF spec does not support vectors larger than 4")
         if vec_length > 1:
             data_type = "VEC%d" % vec_length
         else:
@@ -1408,9 +1409,11 @@ def _read_buffers(header,
                         if mode == _GL_STRIP:
                             # this is triangle strips
                             flat = access[p['indices']].reshape(-1)
-                            kwargs['faces'] = util.triangle_strips_to_faces([flat])
+                            kwargs['faces'] = util.triangle_strips_to_faces([
+                                                                            flat])
                         else:
-                            kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
+                            kwargs["faces"] = access[p["indices"]
+                                                     ].reshape((-1, 3))
                     else:
                         # indices are apparently optional and we are supposed to
                         # do the same thing as webGL drawArrays?
@@ -1446,7 +1449,8 @@ def _read_buffers(header,
                                     # just pass to mesh as vertex color
                                     kwargs['vertex_colors'] = colors
                                 else:
-                                    # we ALSO have texture so save as vertex attribute
+                                    # we ALSO have texture so save as vertex
+                                    # attribute
                                     visuals.vertex_attributes['color'] = colors
                         except BaseException:
                             # survive failed colors

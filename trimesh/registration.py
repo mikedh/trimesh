@@ -393,7 +393,8 @@ def _normalize_by_source(source_mesh, target_geometry, target_positions):
     centroid, scale = source_mesh.centroid, source_mesh.scale
     source_mesh.vertices = (source_mesh.vertices - centroid[None, :]) / scale
     # Dont forget to also transform the target positions
-    target_geometry.vertices = (target_geometry.vertices - centroid[None, :]) / scale
+    target_geometry.vertices = (
+        target_geometry.vertices - centroid[None, :]) / scale
     if target_positions is not None:
         target_positions = (target_positions - centroid[None, :]) / scale
     return target_geometry, target_positions, centroid, scale
@@ -410,7 +411,8 @@ def _denormalize_by_source(
     # [-1, 1]^3 to its original transform
     # and transform target geometry accordingly
     source_mesh.vertices = scale * source_mesh.vertices + centroid[None, :]
-    target_geometry.vertices = scale * target_geometry.vertices + centroid[None, :]
+    target_geometry.vertices = scale * \
+        target_geometry.vertices + centroid[None, :]
     if target_positions is not None:
         target_positions = scale * target_positions + centroid[None, :]
     if isinstance(result, list):
@@ -498,7 +500,8 @@ def nricp_amberg(source_mesh,
         iteration.
     """
 
-    def _solve_system(M_kron_G, D, vertices_weight, nearest, ws, nE, nV, Dl, Ul, wl):
+    def _solve_system(M_kron_G, D, vertices_weight,
+                      nearest, ws, nE, nV, Dl, Ul, wl):
         # Solve for Eq. 12
         U = nearest * vertices_weight[:, None]
         use_landmarks = Dl is not None and Ul is not None
@@ -534,7 +537,9 @@ def nricp_amberg(source_mesh,
         nV = len(vertex_3d_data)
         rows = np.repeat(np.arange(nV), 4)
         cols = np.arange(4 * nV)
-        data = np.concatenate((vertex_3d_data, np.ones((nV, 1))), axis=-1).flatten()
+        data = np.concatenate(
+            (vertex_3d_data, np.ones(
+                (nV, 1))), axis=-1).flatten()
         return sparse.csr_matrix((data, (rows, cols)), shape=(nV, 4 * nV))
 
     def _create_X(nV):
@@ -626,7 +631,8 @@ def nricp_amberg(source_mesh,
         cpt_iter = 0
 
         # Current step iterations loop
-        while last_error - error > eps and (max_iter is None or cpt_iter < max_iter):
+        while last_error - \
+                error > eps and (max_iter is None or cpt_iter < max_iter):
 
             qres = _from_mesh(
                 target_geometry,
@@ -656,7 +662,8 @@ def nricp_amberg(source_mesh,
                               ws, nE, nV, Dl, Ul, wl)
             transformed_vertices = D * X
             last_error = error
-            error_vec = np.linalg.norm(qres['nearest'] - transformed_vertices, axis=-1)
+            error_vec = np.linalg.norm(
+                qres['nearest'] - transformed_vertices, axis=-1)
             error = (error_vec * vertices_weight).mean()
             if return_records:
                 records.append(transformed_vertices)
@@ -720,7 +727,8 @@ def _from_mesh(mesh,
     qres = {}
     from .proximity import closest_point
     from .triangles import points_to_barycentric
-    qres['nearest'], qres['distances'], qres['tids'] = closest_point(mesh, input_points)
+    qres['nearest'], qres['distances'], qres['tids'] = closest_point(
+        mesh, input_points)
 
     if return_normals:
         qres['normals'] = mesh.face_normals[qres['tids']]
@@ -877,7 +885,8 @@ def nricp_sumner(source_mesh,
         minus_inv_sum = -Vinv.sum(axis=1)
         Vinv_flat = Vinv.reshape(nV, 9)
         data = np.concatenate((minus_inv_sum, Vinv_flat), axis=-1).flatten()
-        return sparse.coo_matrix((data, (rows, cols)), shape=(3 * nV, size), dtype=float)
+        return sparse.coo_matrix((data, (rows, cols)),
+                                 shape=(3 * nV, size), dtype=float)
 
     def _build_tetrahedrons(mesh):
         # UUtility function for constructing the frames
@@ -930,7 +939,8 @@ def nricp_sumner(source_mesh,
 
             AEl = sparse.coo_matrix((data, (rows, cols)), shape=(nL, nVT))
             marker_vids = \
-                source_landmarks_vids[source_landmarks_barys > np.finfo(np.float16).eps]
+                source_landmarks_vids[source_landmarks_barys > np.finfo(
+                    np.float16).eps]
             non_markers_mask = np.ones(len(source_mesh.vertices), dtype=bool)
             non_markers_mask[marker_vids] = False
         else:
@@ -946,7 +956,9 @@ def nricp_sumner(source_mesh,
 
     def _construct_correspondence_cost(points, non_markers_mask, size):
         # Utility function for constructing the correspondence cost
-        AEc = sparse.identity(size, dtype=float, format="csc")[:len(non_markers_mask)]
+        AEc = sparse.identity(
+            size, dtype=float, format="csc")[
+            :len(non_markers_mask)]
         AEc = AEc[non_markers_mask]
         Bc = points[non_markers_mask]
         return AEc, Bc

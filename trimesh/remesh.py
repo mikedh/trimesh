@@ -282,8 +282,13 @@ def subdivide_loop(vertices,
         edges.sort(axis=1)
         unique, inverse = grouping.unique_rows(edges)
 
-        # set interior edges if there are two edges and boundary if there is one.
-        edge_inter = np.sort(grouping.group_rows(edges, require_count=2), axis=1)
+        # set interior edges if there are two edges and boundary if there is
+        # one.
+        edge_inter = np.sort(
+            grouping.group_rows(
+                edges,
+                require_count=2),
+            axis=1)
         edge_bound = grouping.group_rows(edges, require_count=1)
         # make sure that one edge is shared by only one or two faces.
         if not len(edge_inter) * 2 + len(edge_bound) == len(edges):
@@ -342,7 +347,8 @@ def subdivide_loop(vertices,
         opposite_face1 = edges_face[unique]
         opposite_face2 = edges_face[edge_pair[unique]]
 
-        # set odd vertices to the middle of each edge (default as boundary case).
+        # set odd vertices to the middle of each edge (default as boundary
+        # case).
         odd = vertices[edges[unique]].mean(axis=1)
         # modify the odd vertices for the interior case
         e = edges[unique[edge_inter_mask]]
@@ -357,14 +363,19 @@ def subdivide_loop(vertices,
 
         # simplified from:
         # # 3 / 8 * (e_v0 + e_v1) + 1 / 8 * (e_v2 + e_v3)
-        odd[edge_inter_mask] = 0.375 * e_v0 + 0.375 * e_v1 + e_v2 / 8.0 + e_v3 / 8.0
+        odd[edge_inter_mask] = 0.375 * e_v0 + \
+            0.375 * e_v1 + e_v2 / 8.0 + e_v3 / 8.0
 
         # find vertex neighbors of each vertex
-        neighbors = graph.neighbors(edges=edges[unique], max_index=len(vertices))
-        # convert list type of array into a fixed-shaped numpy array (set -1 to empties)
+        neighbors = graph.neighbors(
+            edges=edges[unique],
+            max_index=len(vertices))
+        # convert list type of array into a fixed-shaped numpy array (set -1 to
+        # empties)
         neighbors = np.array(list(zip_longest(*neighbors, fillvalue=-1))).T
         # if the neighbor has -1 index, its point is (0, 0, 0), so that
-        # it is not included in the summation of neighbors when calculating the even
+        # it is not included in the summation of neighbors when calculating the
+        # even
         vertices_ = np.vstack([vertices, [0.0, 0.0, 0.0]])
         # number of neighbors
         k = (neighbors + 1).astype(bool).sum(axis=1)
@@ -383,7 +394,8 @@ def subdivide_loop(vertices,
             # boundary vertices from boundary edges
             vrt_bound_mask = np.zeros(len(vertices), dtype=bool)
             vrt_bound_mask[np.unique(edges[unique][~edge_inter_mask])] = True
-            # one boundary vertex has two neighbor boundary vertices (set others as -1)
+            # one boundary vertex has two neighbor boundary vertices (set
+            # others as -1)
             boundary_neighbors = neighbors[vrt_bound_mask]
             boundary_neighbors[~vrt_bound_mask[neighbors[vrt_bound_mask]]] = -1
 

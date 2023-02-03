@@ -34,7 +34,8 @@ class TextureTest(g.unittest.TestCase):
             # get the location of the model file
             file_path = g.get_path(file_name)
             with open(file_path, 'r') as f:
-                # get the raw ordered vertices from the file with basic string ops
+                # get the raw ordered vertices from the file with basic string
+                # ops
                 v_raw = g.np.array(
                     [line[2:].split() for line in f if line.startswith('v ')],
                     dtype=g.np.float64)

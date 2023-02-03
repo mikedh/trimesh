@@ -156,11 +156,15 @@ def load_dxf(file_obj, **kwargs):
 
             blob_block = blob[block_start:block_end]
             blob_block_raw = blob_raw[block_start:block_end]
-            block_infl = np.nonzero((blob_block == ['0', 'BLOCK']).all(axis=1))[0]
+            block_infl = np.nonzero(
+                (blob_block == [
+                    '0', 'BLOCK']).all(
+                    axis=1))[0]
 
             # collect blocks by name
             blocks = {}
-            for index in np.array_split(np.arange(len(blob_block)), block_infl):
+            for index in np.array_split(
+                    np.arange(len(blob_block)), block_infl):
                 try:
                     v, e, name = convert_entities(
                         blob_block[index],
