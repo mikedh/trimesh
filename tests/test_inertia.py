@@ -284,7 +284,7 @@ class InertiaTest(g.unittest.TestCase):
 
         # set density of 1 and calculate mass
         tm_cube.density = 1
-        mass = tm_cube.density*h*b*d
+        mass = tm_cube.density * h * b * d
         assert tm_cube.mass == mass
 
         def parallel_axis_theorem(inertia, mass, a1, a2, a3):
@@ -306,44 +306,55 @@ class InertiaTest(g.unittest.TestCase):
 
             """
             # copy from wikipedia
-            return inertia + mass * g.np.array([[a2**2 + a3**2, -a1*a2       , -a1*a3],
-                                                [-a1*a2       , a1**2 + a3**2, -a2*a3],
-                                                [-a1*a3       , -a2*a3       , a1**2 + a2**2]])
+            return inertia + mass * g.np.array([[a2**2 + a3**2, -a1*a2, -a1*a3],
+                                                [-a1*a2, a1**2 + a3**2, -a2*a3],
+                                                [-a1*a3, -a2*a3, a1**2 + a2**2]])
 
         # CHECK FRAME 0
         # analytical calculations of inertia tensor by hand
-        inertia0 = 1/12 * mass * g.np.diag([h**2 + b**2, h**2 + d**2, b**2 + d**2])
-        a1 = -d/2
-        a2 = -b/2
-        a3 = -h/2
-        inertia0 = parallel_axis_theorem(inertia0,mass,a1,a2,a3)
+        inertia0 = 0.083333333333 * mass * g.np.diag([h**2 + b**2,
+                                                      h**2 + d**2,
+                                                      b**2 + d**2])
+        a1 = - 0.5 * d
+        a2 = - 0.5 * b
+        a3 = - 0.5 * h
+        inertia0 = parallel_axis_theorem(inertia0, mass, a1, a2, a3)
         # transformation from mesh base frame to frame 0
         t0 = g.np.eye(4)
-        assert g.np.allclose(g.trimesh.inertia.frame_inertia(tm_cube, t0), inertia0)
+        assert g.np.allclose(
+            g.trimesh.inertia.frame_inertia(tm_cube, t0), inertia0)
 
         # CHECK FRAME 1
         # analytical calculations of inertia tensor by hand
-        inertia1 = 1/12 * mass * g.np.diag([h**2 + d**2, h**2 + b**2, b**2 + d**2])
-        a1 = -b/2
-        a2 = d/2
-        a3 = -h/2
-        inertia1 = parallel_axis_theorem(inertia1,mass,a1,a2,a3)
+        inertia1 = 0.083333333333 * mass * g.np.diag([h**2 + d**2,
+                                                      h**2 + b**2,
+                                                      b**2 + d**2])
+        a1 = - 0.5 * b
+        a2 = 0.5 * d
+        a3 = - 0.5 * h
+        inertia1 = parallel_axis_theorem(inertia1, mass, a1, a2, a3)
         # transformation from mesh base frame to frame 1
         # rotation of 90 deg around z-Axis
-        t1 = g.trimesh.transformations.rotation_matrix(g.np.pi/2, [0, 0, 1], [0, 0, 0])
-        assert g.np.allclose(g.trimesh.inertia.frame_inertia(tm_cube, t1), inertia1)
+        t1 = g.trimesh.transformations.rotation_matrix(
+            g.np.pi * 0.5, [0, 0, 1], [0, 0, 0])
+        assert g.np.allclose(
+            g.trimesh.inertia.frame_inertia(tm_cube, t1), inertia1)
 
         # CHECK FRAME 2
         # analytical calculations of inertia tensor by hand
-        inertia2 = 1/12 * mass * g.np.diag([h**2 + b**2, b**2 + d**2, h**2 + d**2])
-        a1 = -d/2
-        a2 = h/2
-        a3 = -b/2
-        inertia2 = parallel_axis_theorem(inertia2,mass,a1,a2,a3)
+        inertia2 = 0.083333333333 * mass * g.np.diag([h**2 + b**2,
+                                                      b**2 + d**2,
+                                                      h**2 + d**2])
+        a1 = - 0.5 * d
+        a2 = 0.5 * h
+        a3 = - 0.5 * b
+        inertia2 = parallel_axis_theorem(inertia2, mass, a1, a2, a3)
         # transformation from mesh base frame to frame 2
         # rotation of -90 deg around x-Axis
-        t2 = g.trimesh.transformations.rotation_matrix(-g.np.pi/2, [1, 0, 0], [0, 0, 0])
-        assert g.np.allclose(g.trimesh.inertia.frame_inertia(tm_cube, t2), inertia2)
+        t2 = g.trimesh.transformations.rotation_matrix(
+            -g.np.pi * 0.5, [1, 0, 0], [0, 0, 0])
+        assert g.np.allclose(
+            g.trimesh.inertia.frame_inertia(tm_cube, t2), inertia2)
 
 
 class MassTests(g.unittest.TestCase):
