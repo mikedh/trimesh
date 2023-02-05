@@ -16,9 +16,13 @@ _TOL_ZERO = 1e-12
 class RectangleBin:
     """
     An N-dimensional binary space partition tree for packing
-    hyper-rectangles using `scipy.spatial.Rectangle`.
+    hyper-rectangles. Split logic is pure `numpy` but behaves
+    similarly to `scipy.spatial.Rectangle`.
 
-    Mostly useful for packing 2D textures and 3D boxes:
+    Mostly useful for packing 2D textures and 3D boxes and
+    has not been tested outside of 2 and 3 dimensions.
+
+    Original article about using this for packing textures:
     http://www.blackpawn.com/texts/lightmaps/
     """
 
@@ -28,15 +32,14 @@ class RectangleBin:
 
         Parameters
         ------------
-        bounds : (dimension * 2,) float or scipy.spatial.Rectangle
-          Bounds array are mins, maxes: [minx, miny, maxx, maxy]
+        bounds : (2, dimension *) float
+          Bounds array are `[mins, maxes]`
         """
         # this is a *binary* tree so regardless of the dimensionality
         # of the rectangles each node has exactly two children
         self.child = [None, None]
         # is this node occupied.
         self.occupied = False
-
         # assume bounds are a list
         self.bounds = np.array(bounds, dtype=np.float64)
 
@@ -60,13 +63,15 @@ class RectangleBin:
         Parameters
         -------------
         size : (dimension,) float
-          Size of rectangle to insert
+          Size of rectangle to insert/
 
         Returns
         ----------
-        inserted : None or (2,) float
-          Position of insertion in the tree
+        inserted : (2,) float or None
+          Position of insertion in the tree or None
+          if the insertion was unsucessful.
         """
+
         for child in self.child:
             if child is not None:
                 # try inserting into child cells
@@ -78,6 +83,7 @@ class RectangleBin:
         if self.occupied:
             return None
 
+        # shortcut for our bounds
         bounds = self.bounds
         extents = bounds[1] - bounds[0]
         # compare the bin size to the insertion candidate size
@@ -97,7 +103,7 @@ class RectangleBin:
         # since we already checked to see if it was negative
         # no abs is needed
         if (size_test < _TOL_ZERO).all():
-            return bounds[0]
+            return bounds
 
         # pick the axis to split along
         axis = size_test.argmax()
@@ -114,7 +120,34 @@ class RectangleBin:
         return self.child[0].insert(size)
 
 
-def rectangles_single(rectangles, sheet_size=None, shuffle=False):
+def split(bounds, length, axis=0):
+    """
+    Split a hyper-rectangle along an axis.
+
+    Parameters
+    -------------
+    bounds : (2, dimension) float
+      Minimum and maximum position of an N-dimensional
+      axis aligned bounding box.
+    length : float
+      Length from the minimum along `axis` to split
+      the passed `bounds`.
+    axis : int
+      Which axis of the hyper-rectangle to split along.
+
+    Returns
+    ------------
+    split : (2, 2, dimension) float
+      Two new axis aligned bounding boxes.
+    """
+
+    splits = np.tile(bounds, (2, 1))
+    splits[1:3, axis] = bounds[0][axis] + length
+
+    return splits.reshape((2, 2, -1))
+
+
+def rectangles_single(rect, size=None, shuffle=False):
     """
     Execute a single insertion order of smaller rectangles onto
     a larger rectangle using a binary space partition tree.
@@ -142,39 +175,104 @@ def rectangles_single(rectangles, sheet_size=None, shuffle=False):
     consumed_box : (2,) float
       Bounding box size of packed result
     """
-    rectangles = np.asanyarray(rectangles, dtype=np.float64)
-    dimension = rectangles.shape[1]
 
-    offset = np.zeros((len(rectangles), dimension))
-    inserted = np.zeros(len(rectangles), dtype=bool)
-    box_order = np.argsort(np.sum(rectangles**2, axis=1))[::-1]
-    area = 0.0
-    density = 0.0
+    rect = np.asanyarray(rect, dtype=np.float64)
+    dim = rect.shape[1]
 
-    # if no sheet size specified, make a large one
-    if sheet_size is None:
-        sheet_size = np.ones(dimension) * rectangles.sum(
-            axis=0).max() * 1.1
+    offset = np.zeros((len(rect), 2, dim))
+    consume = np.zeros(len(rect), dtype=bool)
+
+    # start by ordering them by maximum length
+    order = np.argsort(rect.max(axis=1))[::-1]
 
     if shuffle:
         # maximum index to shuffle
-        max_idx = int(np.random.random() * len(rectangles)) - 1
+        max_idx = int(np.random.random() * len(rect)) - 1
         # reorder with permutations
-        box_order[:max_idx] = np.random.permutation(box_order[:max_idx])
+        order[:max_idx] = np.random.permutation(order[:max_idx])
 
-    # start the tree
-    sheet = RectangleBin(bounds=[np.zeros(len(sheet_size)), sheet_size])
-    for index in box_order:
-        insert_location = sheet.insert(rectangles[index])
-        if insert_location is not None:
-            area += np.prod(rectangles[index])
-            offset[index] += insert_location
-            inserted[index] = True
-    consumed_box = np.ones(dimension) * (offset + rectangles)[inserted].max()
+    if size is None:
+        # if no bounds are passed start it with the maximum size
+        # along an axis which will almost certainly require re-rooting
+        root_bounds = [[0, 0, 0], rect.max(axis=0)]
+    else:
+        # restrict the bounds to passed size and disallow re-rooting
+        root_bounds = [[0, 0, 0], size]
 
-    density = area / np.product(consumed_box)
+    # the current root node to insert each rectangle
+    root = RectangleBin(bounds=root_bounds)
 
-    return density, offset[inserted], inserted, consumed_box
+    for index in order:
+        # the current rectangle to be inserted
+        rectangle = rect[index]
+        # try to insert the hyper-rectangle into children
+        inserted = root.insert(rectangle)
+
+        if inserted is None and size is None:
+            # we failed to insert into children
+            # so we need to create a new parent
+            # get the size of the current root node
+            bounds = root.bounds
+            extents = bounds.ptp(axis=0)
+            stack = np.array([extents, rectangle])
+
+            # we are going to combine two hyper-rect
+            # so we have `dim` choices on ways to split
+            # choose the split that minimizes the new hyper-volume
+            # the new AABB is going to be the `max` of the lengths
+            # on every dim except one which will be the `sum`
+            choices = np.tile(stack.max(axis=0), (len(extents), 1))
+            np.fill_diagonal(choices, stack.sum(axis=0))
+            # choose the new AABB by which one minimizes hyper-volume
+            choice_idx = np.product(choices, axis=1).argmin()
+            # we now know the full extent of the AABB
+            new_max = bounds[0] + choices[choice_idx]
+
+            # offset the new bounding box corner
+            new_min = bounds[0].copy()
+            new_min[choice_idx] += extents[choice_idx]
+
+            # original bounds may be stretched
+            new_ori_max = np.vstack((bounds[1], new_max)).max(axis=0)
+            new_ori_max[choice_idx] = bounds[1][choice_idx]
+
+            assert (new_ori_max >= bounds[1]).all()
+
+            # the bounds containing the original sheet
+            bounds_ori = np.array([bounds[0], new_ori_max])
+            # the bounds containing the location to insert
+            # the new rectangle
+            bounds_ins = np.array([new_min, new_max])
+
+            # generate the new root node
+            new_root = RectangleBin([bounds[0], new_max])
+            # this node has children so it is occupied
+            new_root.occupied = True
+            # create a bin for both bounds
+            new_root.child[0] = RectangleBin(bounds_ori)
+            new_root.child[1] = RectangleBin(bounds_ins)
+
+            # insert the original sheet into the new tree
+            root_offset = new_root.child[0].insert(bounds.ptp(axis=0))
+            # we sized the cells so original tree would fit
+            assert root_offset is not None
+
+            # insert the child that didn't fit before into the other child
+            child = new_root.child[1].insert(rectangle)
+            # since we re-sized the cells to fit insertion should always work
+            assert child is not None
+
+            offset[index] = child
+            consume[index] = True
+
+            # subsume the existing tree into a new root
+            root = new_root
+
+        else:
+            offset[index] = inserted
+            consume[index] = True
+
+    return offset, consume
 
 
 def paths(paths, **kwargs):
@@ -286,8 +384,8 @@ def polygons(polygons,
     (density,
      offset,
      inserted,
-     sheet) = rectangles(
-         rectangles=rect,
+     sheet) = rect(
+         rect=rect,
          sheet_size=sheet_size,
          spacing=spacing,
          density_escape=density_escape,
@@ -309,8 +407,8 @@ def polygons(polygons,
     return indexes[inserted], packed
 
 
-def rectangles(rectangles,
-               sheet_size=None,
+def rectangles(rect,
+               size=None,
                density_escape=0.9,
                spacing=0.0,
                iterations=50,
@@ -320,14 +418,14 @@ def rectangles(rectangles,
 
     Parameters
     ------------
-    rectangles : (n, 2) float
-      Size of rectangles to be packed
+    rect : (n, 2) float
+      Size of rect to be packed
     sheet_size : None or (2,) float
       Size of sheet to pack onto
     density_escape : float
       Exit early if density is above this threshold
     spacing : float
-      Distance to allow between rectangles
+      Distance to allow between rect
     iterations : int
       Number of iterations to run
     quanta : None or float
@@ -338,24 +436,24 @@ def rectangles(rectangles,
     density : float
       Area filled over total sheet area
     offset :  (m,2) float
-      Offsets to move rectangles to their packed location
+      Offsets to move rect to their packed location
     inserted : (n,) bool
-      Which of the original rectangles were packed
+      Which of the original rect were packed
     consumed_box : (2,) float
       Bounding box size of packed result
     """
-    rectangles = np.array(rectangles)
+    rect = np.array(rect)
 
     # best density percentage in 0.0 - 1.0
     best_density = 0.0
-    # how many rectangles were inserted
+    # how many rect were inserted
     best_insert = 0
 
     for i in range(iterations):
         # run a single insertion order
         # don't shuffle the first run, shuffle subsequent runs
-        packed = rectangles_single(
-            rectangles,
+        packed = rect_single(
+            rect,
             sheet_size=sheet_size,
             shuffle=(i != 0))
         density = packed[0]
@@ -407,8 +505,8 @@ def images(images, power_resize=False):
     (density,
      offset,
      insert,
-     sheet) = rectangles(rectangles=rect)
-    # really should have inserted all the rectangles
+     sheet) = rect(rect=rect)
+    # really should have inserted all the rect
     assert insert.all()
 
     # offsets should be integer multiple of pizels

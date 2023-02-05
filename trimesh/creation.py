@@ -570,7 +570,7 @@ def _polygon_to_kwargs(polygon):
     return result
 
 
-def box(extents=None, transform=None, **kwargs):
+def box(extents=None, transform=None, bounds=None, **kwargs):
     """
     Return a cuboid.
 
@@ -580,6 +580,8 @@ def box(extents=None, transform=None, **kwargs):
       Edge lengths
     transform: (4, 4) float
       Transformation matrix
+    bounds : None or (2, 3) float
+      Corners of AABB, overrides extents and transform.
     **kwargs:
         passed to Trimesh to create box
 
@@ -593,15 +595,23 @@ def box(extents=None, transform=None, **kwargs):
                          1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1],
                         order='C',
                         dtype=np.float64).reshape((-1, 3))
-    vertices -= 0.5
 
     # resize cube based on passed extents
-    if extents is not None:
+    if bounds is not None:
+        bounds = np.array(bounds, dtype=np.float64)
+        if transform is not None or extents is not None:
+            raise ValueError('`bounds` overrides `extents`/`transform`!')
+        extents = bounds.ptp(axis=0)
+        vertices *= extents
+        vertices += bounds[0]
+    elif extents is not None:
         extents = np.asanyarray(extents, dtype=np.float64)
         if extents.shape != (3,):
             raise ValueError('Extents must be (3,)!')
+        vertices -= 0.5
         vertices *= extents
     else:
+        vertices -= 0.5
         extents = np.asarray((1.0, 1.0, 1.0), dtype=np.float64)
 
     # hardcoded face indices
