@@ -306,9 +306,10 @@ class InertiaTest(g.unittest.TestCase):
 
             """
             # copy from wikipedia
-            return inertia + mass * g.np.array([[a2**2 + a3**2, -a1*a2, -a1*a3],
-                                                [-a1*a2, a1**2 + a3**2, -a2*a3],
-                                                [-a1*a3, -a2*a3, a1**2 + a2**2]])
+            return inertia + mass * g.np.array([[a2**2 + a3**2, -a1 * a2, -a1 * a3],
+                                                [-a1 * a2, a1**2 +
+                                                    a3**2, -a2 * a3],
+                                                [-a1 * a3, -a2 * a3, a1**2 + a2**2]])
 
         # CHECK FRAME 0
         # analytical calculations of inertia tensor by hand
