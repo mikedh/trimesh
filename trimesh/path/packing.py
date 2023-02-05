@@ -157,7 +157,7 @@ def rectangles_single(rect, size=None, shuffle=False):
     rectangles : (n, 2) float
       An array of (width, height) pairs
       representing the rectangles to be packed.
-    sheet_size : (2,) float
+    size : (2,) float
       Width, height of rectangular sheet
     shuffle : bool
       Whether or not to shuffle the insert order of the
@@ -194,10 +194,10 @@ def rectangles_single(rect, size=None, shuffle=False):
     if size is None:
         # if no bounds are passed start it with the maximum size
         # along an axis which will almost certainly require re-rooting
-        root_bounds = [[0, 0, 0], rect.max(axis=0)]
+        root_bounds = [[0.0] * dim, rect.max(axis=0)]
     else:
         # restrict the bounds to passed size and disallow re-rooting
-        root_bounds = [[0, 0, 0], size]
+        root_bounds = [[0.0] * dim, size]
 
     # the current root node to insert each rectangle
     root = RectangleBin(bounds=root_bounds)
@@ -316,7 +316,7 @@ def paths(paths, **kwargs):
 
 
 def polygons(polygons,
-             sheet_size=None,
+             size=None,
              iterations=50,
              density_escape=.95,
              spacing=0.094,
@@ -330,7 +330,7 @@ def polygons(polygons,
     ------------
     polygons : (n,) shapely.geometry.Polygon
       Source geometry
-    sheet_size : (2,) float
+    size : (2,) float
       Size of rectangular sheet
     iterations : int
       Number of times to run the loop
@@ -378,18 +378,14 @@ def polygons(polygons,
 
     # store timing
     tic = time.time()
-    density = 0.0
 
     # run packing for a number of iterations
-    (density,
-     offset,
-     inserted,
-     sheet) = rect(
-         rect=rect,
-         sheet_size=sheet_size,
-         spacing=spacing,
-         density_escape=density_escape,
-         iterations=iterations, **kwargs)
+    bounds, inserted = rectangles(
+        rect=rect,
+        size=size,
+        spacing=spacing,
+        density_escape=density_escape,
+        iterations=iterations, **kwargs)
 
     toc = time.time()
     log.debug('packing finished %i iterations in %f seconds',
@@ -401,8 +397,9 @@ def polygons(polygons,
 
     # transformations to packed positions
     packed = obb[inserted]
+
     # apply the offset and inter- polygon spacing
-    packed.reshape(-1, 9)[:, [2, 5]] += offset + spacing
+    packed.reshape(-1, 9)[:, [2, 5]] += bounds[:, 0, :] + spacing
 
     return indexes[inserted], packed
 
@@ -420,7 +417,7 @@ def rectangles(rect,
     ------------
     rect : (n, 2) float
       Size of rect to be packed
-    sheet_size : None or (2,) float
+    size : None or (2,) float
       Size of sheet to pack onto
     density_escape : float
       Exit early if density is above this threshold
@@ -444,36 +441,40 @@ def rectangles(rect,
     """
     rect = np.array(rect)
 
+    dim = rect.shape[1]
+
+    # hyper-volume: area in 2D, volume in 3D, party in 4D
+    area = np.product(rect, axis=1)
     # best density percentage in 0.0 - 1.0
     best_density = 0.0
     # how many rect were inserted
-    best_insert = 0
+    best_count = 0
 
     for i in range(iterations):
         # run a single insertion order
         # don't shuffle the first run, shuffle subsequent runs
-        packed = rect_single(
-            rect,
-            sheet_size=sheet_size,
-            shuffle=(i != 0))
-        density = packed[0]
-        insert = packed[2].sum()
+        bounds, insert = rectangles_single(
+            rect=rect, size=size, shuffle=(i != 0))
+
+        count = insert.sum()
+        extents = bounds[insert].reshape((-1, dim)).ptp(axis=0)
 
         if quanta is not None:
             # compute the density using an upsized quanta
-            box = np.ceil(packed[3] / quanta) * quanta
-            # scale the density result
-            density *= (np.product(packed[3]) / np.product(box))
+            extents = np.ceil(extents / quanta) * quanta
+
+        # calculate the packing density
+        density = area[insert].sum() / np.product(extents)
 
         # compare this packing density against our best
-        if density > best_density or insert > best_insert:
+        if density > best_density or count > best_count:
             best_density = density
-            best_insert = insert
+            best_count = count
             # save the result
-            result = packed
+            result = (bounds, insert)
             # exit early if everything is inserted and
             # we have exceeded our target density
-            if density > density_escape and packed[2].all():
+            if density > density_escape and insert.all():
                 break
 
     return result
