@@ -212,3 +212,48 @@ def radial_symmetry(mesh):
         return 'radial', axis, section
 
     return None, None, None
+
+
+def frame_inertia(mesh, transform):
+    """
+    Inertia tensor of a mesh around with respect to frame transform
+
+    Parameters
+    ------------
+    mesh: Trimesh mesh
+      Input mesh
+    transform : (4, 4) float
+      Transformation matrix
+
+    Returns
+    -----------
+    rotated_inertia : (3,3) float
+      Inertia tensor
+    """
+
+    transform = np.asanyarray(transform, dtype=np.float64)
+
+    if transform.shape == (4, 4):
+        translation = transform[:3, 3]
+        rotation = transform[:3, :3]
+    else:
+        raise ValueError('transform must be (4, 4)!')
+
+    # the property moment_inertia is the inertia tensor for a rotation
+    # around the center of mass with axis aligned to the mesh base axis
+    center_aligned_inertia = mesh.moment_inertia
+    a = translation - mesh.center_mass
+
+    # First the changed origin of the new transform is taken into account
+    # To calculate the inertia tensor, the parallel axis theorem is used
+    M = np.array([[a[1]**2 + a[2]**2, -a[0] * a[1], -a[0] * a[2]],
+                  [-a[0] * a[1], a[0]**2 + a[2]**2, -a[1] * a[2]],
+                  [-a[0] * a[2], -a[1] * a[2], a[0]**2 + a[1]**2]])
+    aligned_inertia = center_aligned_inertia + mesh.mass * M
+
+    # The inertia tensor is still aligned with the mesh base frame axis,
+    # so the inertia tensor also needs to be rotated.
+    rotated_inertia = util.multi_dot([rotation.T,
+                                      aligned_inertia,
+                                      rotation])
+    return rotated_inertia
