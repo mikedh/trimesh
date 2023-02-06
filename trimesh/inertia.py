@@ -99,12 +99,17 @@ def principal_axis(inertia):
     return components, vectors
 
 
-def transform_inertia(transform, inertia_tensor):
+def transform_inertia(transform, inertia_tensor, translate=False):
     """
-    Transform an inertia tensor to a new frame.
+    Transform an inertia tensor to a new frame. Note that trimesh
+    generally returns `mesh.moment_inertia` is *axis aligned* and
+    at `mesh.center_mass`. So to transform to a new frame,
+    translation should be ignored and only rotation applied.
 
-    More details in OCW PDF:
-    MIT16_07F09_Lec26.pdf
+    If translate is enabled the parallel axis theorom is applied.
+
+    More details in the MIT OpenCourseWare PDF:
+   ` MIT16_07F09_Lec26.pdf`
 
     Parameters
     ------------
