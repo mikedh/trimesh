@@ -30,15 +30,15 @@ class MinimalTest(unittest.TestCase):
     def test_path_exc(self):
         # this should require *no deps*
         from trimesh.path import packing
-        (density,
-         offset,
-         inserted,
-         box) = packing.rectangles_single(
+        bounds, inserted = packing.rectangles_single(
             [[1, 1], [2, 2]],
-            sheet_size=[2, 4])
+            size=[2, 4])
         assert inserted.all()
-        assert np.allclose(box, [2, 3])
-        assert offset.shape == (2, 2)
+
+        extents = bounds.reshape((-1, 2)).ptp(axis=0)
+        assert np.allclose(extents, [2, 3])
+        assert bounds.shape == (2, 2, 2)
+        density = 5.0 / np.product(extents)
         assert density > .833
 
     def test_load(self):
