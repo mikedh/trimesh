@@ -492,8 +492,10 @@ def images(images, power_resize=False):
     ------------
     images : (n,) PIL.Image
       Images to be packed
-    deduplicate : bool
-      If True deduplicate images before packing
+    power_resize : bool
+      Should the result image be upsized to the nearest
+      power of two? Not every GPU supports materials that
+      aren't a power of two size.
 
     Returns
     -----------

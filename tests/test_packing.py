@@ -31,19 +31,62 @@ def bounds_no_overlap(bounds, epsilon=1e-8):
                {i} for i, current in enumerate(bounds))
 
 
-class PackingTest(g.unittest.TestCase):
+def _solid_image(color, size):
+    """
+    Return a PIL image that is all one color.
 
-    def setUp(self):
-        from shapely.geometry import Polygon
-        self.nestable = [Polygon(i) for i in g.data['nestable']]
+    Parameters
+    ------------
+    color : (4,) uint8
+      RGBA color
+    size : (2,) int
+      Size of solid color image
+
+    Returns
+    -----------
+    solid : PIL.Image
+      Image with requested color and size.
+    """
+    from PIL import Image
+    # convert to RGB uint8
+    color = g.np.array(color, dtype=g.np.uint8)[:3]
+
+    # create a one pixel RGB image
+    image = Image.fromarray(
+        g.np.tile(color, (g.np.product(size), 1)).reshape(
+            (size[0], size[1], 3)))
+    assert image.size == tuple(size[::-1])
+
+    return image
+
+
+class PackingTest(g.unittest.TestCase):
 
     def test_obb(self):
         from trimesh.path import packing
-        inserted, transforms = packing.polygons(self.nestable)
+        nestable = [g.Polygon(i) for i in g.data['nestable']]
+        inserted, transforms = packing.polygons(nestable)
+
+    def test_image(self):
+        from trimesh.path import packing
+
+        images = [_solid_image([255, 0, 0, 255], [10, 10]),
+                  _solid_image([0, 255, 0, 255], [120, 12]),
+                  _solid_image([0, 0, 255, 255], [144, 500])]
+
+        p, offset = packing.images(images, power_resize=False)
+        # result should not be a power-of-two size
+        assert not g.np.allclose(g.np.log2(p.size) % 1.0, 0.0)
+        assert g.np.isfinite(offset).all()
+
+        p, offset = packing.images(images, power_resize=True)
+        assert g.np.allclose(g.np.log2(p.size) % 1.0, 0.0)
+        assert g.np.isfinite(offset).all()
 
     def test_paths(self):
         from trimesh.path import packing
-        paths = [g.trimesh.load_path(i) for i in self.nestable]
+        nestable = [g.Polygon(i) for i in g.data['nestable']]
+        paths = [g.trimesh.load_path(i) for i in nestable]
 
         r, inserted = packing.paths(paths)
 
