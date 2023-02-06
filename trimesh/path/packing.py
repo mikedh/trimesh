@@ -37,7 +37,7 @@ class RectangleBin:
         """
         # this is a *binary* tree so regardless of the dimensionality
         # of the rectangles each node has exactly two children
-        self.child = [None, None]
+        self.child = []
         # is this node occupied.
         self.occupied = False
         # assume bounds are a list
@@ -73,11 +73,10 @@ class RectangleBin:
         """
 
         for child in self.child:
-            if child is not None:
-                # try inserting into child cells
-                attempt = child.insert(size=size)
-                if attempt is not None:
-                    return attempt
+            # try inserting into child cells
+            attempt = child.insert(size=size)
+            if attempt is not None:
+                return attempt
 
         # can't insert into occupied cells
         if self.occupied:
@@ -257,6 +256,10 @@ def rectangles_single(rect, size=None, shuffle=False):
             # we sized the cells so original tree would fit
             assert root_offset is not None
 
+            # existing inserts need to be moved
+            if not util.allclose(root_offset[0], 0.0):
+                offset[consume] += root_offset[0]
+
             # insert the child that didn't fit before into the other child
             child = new_root.child[1].insert(rectangle)
             # since we re-sized the cells to fit insertion should always work
@@ -268,7 +271,8 @@ def rectangles_single(rect, size=None, shuffle=False):
             # subsume the existing tree into a new root
             root = new_root
 
-        else:
+        elif inserted is not None:
+            # we sucessfully inserted
             offset[index] = inserted
             consume[index] = True
 
