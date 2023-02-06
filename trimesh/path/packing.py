@@ -503,17 +503,15 @@ def images(images, power_resize=False):
     # use the number of pixels as the rectangle size
     rect = np.array([i.size for i in images])
 
-    (density,
-     offset,
-     insert,
-     sheet) = rect(rect=rect)
+    bounds, insert = rectangles(rect=rect)
     # really should have inserted all the rect
     assert insert.all()
 
     # offsets should be integer multiple of pizels
-    offset = offset.round().astype(int)
+    offset = bounds[:, 0].round().astype(int)
 
-    size = sheet.round().astype(int)
+    extents = bounds.reshape((-1, 2)).ptp(axis=0)
+    size = extents.round().astype(int)
     if power_resize:
         # round up all dimensions to powers of 2
         size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
