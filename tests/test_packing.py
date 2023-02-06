@@ -4,9 +4,9 @@ except BaseException:
     import generic as g
 
 
-def assert_no_overlap(bounds, epsilon=1e-8):
+def bounds_no_overlap(bounds, epsilon=1e-8):
     """
-    Assert that a list of axis-aligned bounding boxes
+    Check that a list of axis-aligned bounding boxes
     contains no overlaps using `rtree`.
 
     Parameters
@@ -17,16 +17,17 @@ def assert_no_overlap(bounds, epsilon=1e-8):
       Amount to shrink AABB to avoid spurious floating
       point hits.
 
-    Raises
+    Returns
     --------------
-    AssertionError
-      If any of `bounds` hit each other.
+    not_overlap : bool
+      True if no bound intersects any other bound.
     """
     # pad AABB by epsilon for deterministic intersections
-    padded = g.np.array(bounds) + g.np.reshape([epsilon, -epsilon], (1, 2, 1))
+    padded = g.np.array(bounds) + g.np.reshape([epsilon, -epsilon],
+                                               (1, 2, 1))
     tree = g.trimesh.util.bounds_tree(padded)
     # every returned AABB should not overlap with any other AABB
-    assert all(set(tree.intersection(current.ravel())) ==
+    return all(set(tree.intersection(current.ravel())) ==
                {i} for i, current in enumerate(bounds))
 
 
@@ -71,7 +72,14 @@ class PackingTest(g.unittest.TestCase):
         bounds, consume = packing.rectangles_single(e)
         assert consume.all()
         # assert all bounds are well constructed
-        assert_no_overlap(bounds)
+        assert bounds_no_overlap(bounds)
+
+        # try packing these 3D boxes
+        bounds, consume = packing.rectangles_single(e, size=[14, 14, 1])
+
+        assert not consume.all()
+        # assert all bounds are well constructed
+        assert bounds_no_overlap(bounds[consume])
 
 
 if __name__ == '__main__':

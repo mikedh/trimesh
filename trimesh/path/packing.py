@@ -248,8 +248,8 @@ def rectangles_single(rect, size=None, shuffle=False):
             # this node has children so it is occupied
             new_root.occupied = True
             # create a bin for both bounds
-            new_root.child[0] = RectangleBin(bounds_ori)
-            new_root.child[1] = RectangleBin(bounds_ins)
+            new_root.child = [RectangleBin(bounds_ori),
+                              RectangleBin(bounds_ins)]
 
             # insert the original sheet into the new tree
             root_offset = new_root.child[0].insert(bounds.ptp(axis=0))
@@ -257,7 +257,7 @@ def rectangles_single(rect, size=None, shuffle=False):
             assert root_offset is not None
 
             # existing inserts need to be moved
-            if not util.allclose(root_offset[0], 0.0):
+            if not np.allclose(root_offset[0], 0.0):
                 offset[consume] += root_offset[0]
 
             # insert the child that didn't fit before into the other child
