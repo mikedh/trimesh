@@ -38,13 +38,15 @@ if sys.version_info >= (3, 1):
     from http.server import SimpleHTTPRequestHandler
     import socketserver
 
-    from pyinstrument import Profiler
-
 else:
     # Python 2
     from SimpleHTTPServer import SimpleHTTPRequestHandler
     import SocketServer as socketserver
 
+
+try:
+    from pyinstrument import Profiler
+except BaseException:
     # make a dummy profiler
     class Profiler(object):
         def __enter__(*args, **kwargs):
@@ -52,6 +54,9 @@ else:
 
         def __exit__(*args, **kwargs):
             pass
+
+        def print(*args, **kwargs):
+            print('no `pyinstrument`')
 
 
 # should we require all soft dependencies

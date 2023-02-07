@@ -306,10 +306,11 @@ class InertiaTest(g.unittest.TestCase):
 
             """
             # copy from wikipedia
-            return inertia + mass * g.np.array([[a2**2 + a3**2, -a1 * a2, -a1 * a3],
-                                                [-a1 * a2, a1**2 +
-                                                    a3**2, -a2 * a3],
-                                                [-a1 * a3, -a2 * a3, a1**2 + a2**2]])
+            return inertia + mass * g.np.array(
+                [[a2**2 + a3**2, -a1 * a2, -a1 * a3],
+                 [-a1 * a2, a1**2 +
+                  a3**2, -a2 * a3],
+                 [-a1 * a3, -a2 * a3, a1**2 + a2**2]])
 
         # CHECK FRAME 0
         # analytical calculations of inertia tensor by hand
@@ -322,8 +323,7 @@ class InertiaTest(g.unittest.TestCase):
         inertia0 = parallel_axis_theorem(inertia0, mass, a1, a2, a3)
         # transformation from mesh base frame to frame 0
         t0 = g.np.eye(4)
-        assert g.np.allclose(
-            g.trimesh.inertia.frame_inertia(tm_cube, t0), inertia0)
+        assert g.np.allclose(tm_cube.moment_inertia_frame(t0), inertia0)
 
         # CHECK FRAME 1
         # analytical calculations of inertia tensor by hand
@@ -338,8 +338,7 @@ class InertiaTest(g.unittest.TestCase):
         # rotation of 90 deg around z-Axis
         t1 = g.trimesh.transformations.rotation_matrix(
             g.np.pi * 0.5, [0, 0, 1], [0, 0, 0])
-        assert g.np.allclose(
-            g.trimesh.inertia.frame_inertia(tm_cube, t1), inertia1)
+        assert g.np.allclose(tm_cube.moment_inertia_frame(t1), inertia1)
 
         # CHECK FRAME 2
         # analytical calculations of inertia tensor by hand
@@ -354,8 +353,43 @@ class InertiaTest(g.unittest.TestCase):
         # rotation of -90 deg around x-Axis
         t2 = g.trimesh.transformations.rotation_matrix(
             -g.np.pi * 0.5, [1, 0, 0], [0, 0, 0])
-        assert g.np.allclose(
-            g.trimesh.inertia.frame_inertia(tm_cube, t2), inertia2)
+        assert g.np.allclose(tm_cube.moment_inertia_frame(t2), inertia2)
+
+    def test_scene(self):
+        # check our transforming of inertia matrices using the
+        # parallel axis theorum by checking the inertia of a scene
+        # with multiple instances transformed all over the scene
+        # in two ways: by dumping it into a single mesh and then
+        # running the heavily validated surface integral method,
+        # and also running our "transform every matrix" logic
+        # contained in `trimesh.inertia.scene_inertia`
+
+        # scene with instancing
+        s = g.get_mesh('cycloidal.3DXML')
+        s._cache.clear()
+
+        with g.Profiler() as P:
+            ms = s.dump(concatenate=True)
+            total_dump = ms.moment_inertia
+        P.print()
+
+        # that produced the moment of inertia around the center of mass
+        # of the scene, so for the `moment_inertia_frame` calculation
+        # compare against that
+        transform = g.tf.translation_matrix(ms.center_mass)
+        s._cache.clear()
+
+        with g.Profiler() as P:
+            total_scene = g.trimesh.inertia.scene_inertia(
+                s, transform=transform)
+        P.print()
+
+        # compare the two calculation methods by percent
+        diff = g.np.abs((total_dump - total_scene) / total_dump)
+        assert diff.shape == (3, 3)
+
+        # the two methods should return essentially identical results
+        assert g.np.abs(diff).max() < 1e-3
 
 
 class MassTests(g.unittest.TestCase):
