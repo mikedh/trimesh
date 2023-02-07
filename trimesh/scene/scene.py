@@ -158,7 +158,7 @@ class Scene(Geometry3D):
             return
 
         if not hasattr(geometry, 'vertices'):
-            util.log.warning('unknown type ({}) added to scene!'.format(
+            util.log.debug('unknown type ({}) added to scene!'.format(
                 type(geometry).__name__))
             return
 

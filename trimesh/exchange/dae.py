@@ -291,8 +291,8 @@ def _parse_material(effect, resolver):
             baseColorTexture = _load_texture(
                 effect.diffuse.sampler.surface.image.path, resolver)
         except BaseException:
-            log.warning('unable to load base texture',
-                        exc_info=True)
+            log.debug('unable to load base texture',
+                      exc_info=True)
     elif effect.diffuse is not None:
         baseColorFactor = effect.diffuse
 
