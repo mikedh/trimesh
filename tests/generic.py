@@ -55,8 +55,8 @@ except BaseException:
         def __exit__(*args, **kwargs):
             pass
 
-        def print(*args, **kwargs):
-            print('no `pyinstrument`')
+        def output_text(*args, **kwargs):
+            return 'no `pyinstrument`'
 
 
 # should we require all soft dependencies

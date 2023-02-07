@@ -371,7 +371,7 @@ class InertiaTest(g.unittest.TestCase):
         with g.Profiler() as P:
             ms = s.dump(concatenate=True)
             total_dump = ms.moment_inertia
-        P.print()
+        print(P.output_text())
 
         # that produced the moment of inertia around the center of mass
         # of the scene, so for the `moment_inertia_frame` calculation
@@ -382,7 +382,7 @@ class InertiaTest(g.unittest.TestCase):
         with g.Profiler() as P:
             total_scene = g.trimesh.inertia.scene_inertia(
                 s, transform=transform)
-        P.print()
+        print(P.output_text())
 
         # compare the two calculation methods by percent
         diff = g.np.abs((total_dump - total_scene) / total_dump)
