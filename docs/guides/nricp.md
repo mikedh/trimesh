@@ -103,7 +103,7 @@ Then we either start the next iteration or return the result.
 The number of iterations is determined by the length of the `steps` argument. `steps` should be an iterable of five floats iterables  `[[wc_1, wi_1, ws_1, wl_1, wn_1], ..., [wc_n, wi_n, ws_n, wl_n, wn_n]]`. The floats should correspond to $w_C, w_I, w_S, w_L$ and $w_N$. The extra weight $w_N$ is related to outlier robustness. 
 
 ### Robustness to outliers
-The target geometry can be noisy or incomplete which can lead to bad closest points $\mathbf{c}$. To remedy this issue, the linear equations related to $E_C$ are also weighted by *closest point validity weights*. First, if the distance to the closest point greater than the user specified treshold `distance_treshold`, the corresponding linear equations are multiplied by 0 (*i.e.* removed). Second, one may need the normals at the source mesh vertices and the normals at target geoemtry closest points to coincide. We use the dot product to the power $w_N$ to determine if normals are well aligned and use it to weight the linear equations. Eventually, the *closest point validity weights* are :
+The target geometry can be noisy or incomplete which can lead to bad closest points $\mathbf{c}$. To remedy this issue, the linear equations related to $E_C$ are also weighted by *closest point validity weights*. First, if the distance to the closest point greater than the user specified threshold `distance_threshold`, the corresponding linear equations are multiplied by 0 (*i.e.* removed). Second, one may need the normals at the source mesh vertices and the normals at target geoemtry closest points to coincide. We use the dot product to the power $w_N$ to determine if normals are well aligned and use it to weight the linear equations. Eventually, the *closest point validity weights* are :
 
 $$
 \boldsymbol{\alpha}=\left[
@@ -115,7 +115,7 @@ $$
 $$
 
 
-With $d_{max}$ being the treshold given with the argument `distance_treshold`, and $\mathbf{n}_v$ and $\mathbf{n}_c$ the normals mentionned above.
+With $d_{max}$ being the threshold given with the argument `distance_threshold`, and $\mathbf{n}_v$ and $\mathbf{n}_c$ the normals mentionned above.
 
 ### Summary
 
@@ -185,14 +185,14 @@ $$
 
 Where $\mathbf{A}$ is the sparse matrix that links the current vertex positions to the ideal deformed vertex positions subject to the smoothness and landmarks constraints. The system $\mathbf{A}^\text{T}\mathbf{A} = \mathbf{A}^\text{T}\mathbf{b}$ is solved for $\mathbf{X}$ and deformed vertices are computed : $\tilde{\mathbf{v}}_i = \mathbf{w}_i^\text{T}\mathbf{X}_i$. Unlike, `nricp_sumner`, the vertices are not replaced by the deformed vertices yet the deformed vertices are used to find new correspondences $\mathbf{c}$ on the target geometry. 
 
-The algorithm contains one outer loop and one inner loop. The outer loop is similar to `nricp_sumner` *i.e.* an iteration over a set of weights sets. The inner loop is performed until convergence of $\mathbf{X}$ or until a max iterations treshold  $N$ is reached.
+The algorithm contains one outer loop and one inner loop. The outer loop is similar to `nricp_sumner` *i.e.* an iteration over a set of weights sets. The inner loop is performed until convergence of $\mathbf{X}$ or until a max iterations threshold  $N$ is reached.
 
 ### Number of iterations 
 As with `nricp_sumner`, the `steps` arguments dictates the number of outer loop iterations performed. `steps` should be in the form `[[ws_1, wl_1, wn_1, max_iter_1], ..., [ws_n, wl_n, wn_n, max_iter_n]]`. The values should correspond to $w_S, w_L$ and $w_N$. The extra weight $w_N$ is related to outlier robustness. The last number is an integer specifying $N_i$, the number of maximum iterations in the inner loop.
 
 
 ### Robustness to outliers
-The [same implementation](#robustness-to-outliers) than `nricp_sumner` is used, with maximum distance treshold and normal weigthing.
+The [same implementation](#robustness-to-outliers) than `nricp_sumner` is used, with maximum distance threshold and normal weighting.
 
 ### Summary
 
@@ -209,10 +209,10 @@ The [same implementation](#robustness-to-outliers) than `nricp_sumner` is used, 
 > In contrast to `nricp_sumner`, the matrix $\mathbf{A}_C$ is built only once at initilization.
 
 ## Comparison of the two methods
-The main difference between `nricp_sumner` and `nricp_amberg` is the kind of transformations that is optimized. `nricp_sumner` involves frames with an extra vertex representing the orientation of the triangles, and solves implicitly for transformations that act on these frames. In `nricp_amberg`, per-vertex transformations are explicitly solved for which allows to construct the correspondence cost matrix $\mathbf{A}_C$ only once. As a result, `nricp_sumner` tend to output smoother results with less high frequencies. The users are advised to try both algorithms with different parameter sets, especially different `steps` arguments, and find which suits better their problem.  `nricp_amberg` appears to be easier to tune, though.
+The main difference between `nricp_sumner` and `nricp_amberg` is the kind of transformations that is optimized. `nricp_sumner` involves frames with an extra vertex representing the orientation of the triangles, and solves implicitly for transformations that act on these frames. In `nricp_amberg`, per-vertex transformations are explicitly solved for which allows to construct the correspondence cost matrix $\mathbf{A}_C$ only once. As a result, `nricp_sumner` tends to output smoother results with less high frequencies. The users are advised to try both algorithms with different parameter sets, especially different `steps` arguments, and find which suits better their problem.  `nricp_amberg` appears to be easier to tune, though.
 
 ## Examples
-An example of each methods can be found in `examples/nricp.py`.
+An example of each method can be found in `examples/nricp.py`.
 
 ## Acknowledgments
 - Some implementation details of `nricp_sumner` are borrowed, adapted and optimized from the [Deformation-Transfer-for-Triangle-Meshes github repository](https://github.com/mickare/Deformation-Transfer-for-Triangle-Meshes) from the user mickare.
