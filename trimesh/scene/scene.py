@@ -390,6 +390,37 @@ class Scene(Geometry3D):
         return centroid
 
     @caching.cache_decorator
+    def center_mass(self):
+        """
+        What is the summed volume of every geometry which
+        has volume
+
+        Returns
+        ------------
+        volume : float
+          Summed area of every instanced geometry
+        """
+        # get the center of mass and volume for each geometry
+        center_mass = {k: m.center_mass for k, m in self.geometry.items()
+                       if hasattr(m, 'center_mass')}
+        mass = {k: m.mass for k, m in self.geometry.items()
+                if hasattr(m, 'mass')}
+
+        # get the geometry name and transform for each instance
+        graph = self.graph
+        instance = [graph[n] for n in graph.nodes_geometry]
+
+        # get the transformed center of mass for each instance
+        transformed = np.array([np.dot(mat, np.append(center_mass[g], 1))[:3]
+                                for mat, g in instance
+                                if g in center_mass], dtype=np.float64)
+        # weight the center of mass locations by volume
+        weights = np.array([mass[g] for _, g in instance], dtype=np.float64)
+        weights /= weights.sum()
+
+        return (transformed * weights.reshape((-1, 1))).sum(axis=0)
+
+    @caching.cache_decorator
     def area(self):
         """
         What is the summed area of every geometry which
@@ -405,6 +436,24 @@ class Scene(Geometry3D):
                  if hasattr(g, 'area')}
         # sum the area including instancing
         return sum((areas.get(self.graph[n][1], 0.0) for n in
+                    self.graph.nodes_geometry), 0.0)
+
+    @caching.cache_decorator
+    def volume(self):
+        """
+        What is the summed volume of every geometry which
+        has volume
+
+        Returns
+        ------------
+        volume : float
+          Summed area of every instanced geometry
+        """
+        # get the area of every geometry that has a volume attribute
+        volume = {n: g.volume for n, g in self.geometry.items()
+                  if hasattr(g, 'area')}
+        # sum the area including instancing
+        return sum((volume.get(self.graph[n][1], 0.0) for n in
                     self.graph.nodes_geometry), 0.0)
 
     @caching.cache_decorator

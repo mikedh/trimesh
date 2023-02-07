@@ -7,6 +7,7 @@ Pack rectangular regions onto larger rectangular regions.
 import time
 import numpy as np
 
+from ..util import allclose
 from ..constants import log
 
 # floating point zero
@@ -56,7 +57,7 @@ class RectangleBin:
         bounds = self.bounds
         return bounds[1] - bounds[0]
 
-    def insert(self, size):
+    def insert(self, size, rotate=True):
         """
         Insert a rectangle into the bin.
 
@@ -74,7 +75,7 @@ class RectangleBin:
 
         for child in self.child:
             # try inserting into child cells
-            attempt = child.insert(size=size)
+            attempt = child.insert(size=size, rotate=rotate)
             if attempt is not None:
                 return attempt
 
@@ -85,13 +86,25 @@ class RectangleBin:
         # shortcut for our bounds
         bounds = self.bounds
         extents = bounds[1] - bounds[0]
-        # compare the bin size to the insertion candidate size
-        # manually compute extents here to avoid function call
-        size_test = extents - size
 
-        # this means the inserted rectangle is too big for the cell
-        if (size_test < -_TOL_ZERO).any():
-            return None
+        if rotate:
+            # we are allowed to rotate the rectangle
+            fits = False
+            for roll in range(len(size)):
+                size_test = extents - _roll(size, roll)
+                fits = (size_test > -_TOL_ZERO).all()
+                if fits or not rotate:
+                    size = _roll(size, roll)
+                    break
+            if not fits:
+                return None
+        else:
+            # compare the bin size to the insertion candidate size
+            # manually compute extents here to avoid function call
+            size_test = extents - size
+            roll = 0
+            if (size_test < -_TOL_ZERO).any():
+                return None
 
         # since the cell is big enough for the current rectangle, either it
         # is going to be inserted here, or the cell is going to be split
@@ -102,7 +115,7 @@ class RectangleBin:
         # since we already checked to see if it was negative
         # no abs is needed
         if (size_test < _TOL_ZERO).all():
-            return bounds
+            return (bounds, roll)
 
         # pick the axis to split along
         axis = size_test.argmax()
@@ -116,37 +129,39 @@ class RectangleBin:
         self.child[:] = RectangleBin(splits[:2]), RectangleBin(splits[2:])
 
         # insert the requested item into the first child
-        return self.child[0].insert(size)
+        return self.child[0].insert(size, rotate=rotate)
 
 
-def split(bounds, length, axis=0):
+def _roll(a, count):
     """
-    Split a hyper-rectangle along an axis.
+    A speedup for `numpy.roll` that only works
+    on flat arrays and is fast on 2D and 3D and
+    reverts to `numpy.roll` for other cases.
 
     Parameters
-    -------------
-    bounds : (2, dimension) float
-      Minimum and maximum position of an N-dimensional
-      axis aligned bounding box.
-    length : float
-      Length from the minimum along `axis` to split
-      the passed `bounds`.
-    axis : int
-      Which axis of the hyper-rectangle to split along.
+    -----------
+    a : (n,) any
+      Array to roll
+    count : int
+      Number of places to shift array
 
     Returns
-    ------------
-    split : (2, 2, dimension) float
-      Two new axis aligned bounding boxes.
+    ---------
+    rolled : (n,) any
+      Input array shifted by requested amount
+
     """
+    # a lookup table for roll in 2 and 3 dimensions
+    lookup = [[[0, 1], [1, 0]], [[0, 1, 2], [2, 0, 1], [1, 2, 0]]]
+    try:
+        # roll the array using advanced indexing and a lookup table
+        return a[lookup[len(a) - 2][count]]
+    except IndexError:
+        # failing that return the results using concat
+        return np.concatenate([a[-count:], a[:-count]])
 
-    splits = np.tile(bounds, (2, 1))
-    splits[1:3, axis] = bounds[0][axis] + length
 
-    return splits.reshape((2, 2, -1))
-
-
-def rectangles_single(rect, size=None, shuffle=False):
+def rectangles_single(rect, size=None, shuffle=False, rotate=True):
     """
     Execute a single insertion order of smaller rectangles onto
     a larger rectangle using a binary space partition tree.
@@ -180,6 +195,7 @@ def rectangles_single(rect, size=None, shuffle=False):
 
     offset = np.zeros((len(rect), 2, dim))
     consume = np.zeros(len(rect), dtype=bool)
+    rolled = np.zeros(len(rect), dtype=int)
 
     # start by ordering them by maximum length
     order = np.argsort(rect.max(axis=1))[::-1]
@@ -193,7 +209,7 @@ def rectangles_single(rect, size=None, shuffle=False):
     if size is None:
         # if no bounds are passed start it with the maximum size
         # along an axis which will almost certainly require re-rooting
-        root_bounds = [[0.0] * dim, rect.max(axis=0)]
+        root_bounds = [[0.0] * dim, rect[rect.ptp(axis=1).argmax()]]
     else:
         # restrict the bounds to passed size and disallow re-rooting
         root_bounds = [[0.0] * dim, size]
@@ -205,7 +221,7 @@ def rectangles_single(rect, size=None, shuffle=False):
         # the current rectangle to be inserted
         rectangle = rect[index]
         # try to insert the hyper-rectangle into children
-        inserted = root.insert(rectangle)
+        inserted = root.insert(rectangle, rotate=rotate)
 
         if inserted is None and size is None:
             # we failed to insert into children
@@ -213,27 +229,41 @@ def rectangles_single(rect, size=None, shuffle=False):
             # get the size of the current root node
             bounds = root.bounds
             extents = bounds.ptp(axis=0)
-            stack = np.array([extents, rectangle])
 
-            # we are going to combine two hyper-rect
-            # so we have `dim` choices on ways to split
-            # choose the split that minimizes the new hyper-volume
-            # the new AABB is going to be the `max` of the lengths
-            # on every dim except one which will be the `sum`
-            choices = np.tile(stack.max(axis=0), (len(extents), 1))
-            np.fill_diagonal(choices, stack.sum(axis=0))
-            # choose the new AABB by which one minimizes hyper-volume
-            choice_idx = np.product(choices, axis=1).argmin()
+            best = np.inf
+            for roll in range(len(extents)):
+
+                stack = np.array([extents, _roll(rectangle, roll)])
+
+                # we are going to combine two hyper-rect
+                # so we have `dim` choices on ways to split
+                # choose the split that minimizes the new hyper-volume
+                # the new AABB is going to be the `max` of the lengths
+                # on every dim except one which will be the `sum`
+                dim = len(extents)
+                ch = np.tile(stack.max(axis=0), (len(extents), 1))
+                np.fill_diagonal(ch, stack.sum(axis=0))
+
+                # choose the new AABB by which one minimizes hyper-volume
+                choice_prod = np.product(ch, axis=1)
+                if choice_prod.min() < best:
+                    choices = ch
+                    choices_idx = choice_prod.argmin()
+                    choices_roll = roll
+                    best = choice_prod[choices_idx]
+                if not rotate:
+                    break
+
             # we now know the full extent of the AABB
-            new_max = bounds[0] + choices[choice_idx]
+            new_max = bounds[0] + choices[choices_idx]
 
             # offset the new bounding box corner
             new_min = bounds[0].copy()
-            new_min[choice_idx] += extents[choice_idx]
+            new_min[choices_idx] += extents[choices_idx]
 
             # original bounds may be stretched
             new_ori_max = np.vstack((bounds[1], new_max)).max(axis=0)
-            new_ori_max[choice_idx] = bounds[1][choice_idx]
+            new_ori_max[choices_idx] = bounds[1][choices_idx]
 
             assert (new_ori_max >= bounds[1]).all()
 
@@ -252,20 +282,22 @@ def rectangles_single(rect, size=None, shuffle=False):
                               RectangleBin(bounds_ins)]
 
             # insert the original sheet into the new tree
-            root_offset = new_root.child[0].insert(bounds.ptp(axis=0))
+            root_offset = new_root.child[0].insert(
+                bounds.ptp(axis=0), rotate=rotate)
             # we sized the cells so original tree would fit
             assert root_offset is not None
 
             # existing inserts need to be moved
-            if not np.allclose(root_offset[0], 0.0):
-                offset[consume] += root_offset[0]
+            if not allclose(root_offset[0][0], 0.0):
+                offset[consume] += root_offset[0][0]
 
             # insert the child that didn't fit before into the other child
-            child = new_root.child[1].insert(rectangle)
+            child = new_root.child[1].insert(rectangle, rotate=rotate)
             # since we re-sized the cells to fit insertion should always work
             assert child is not None
 
-            offset[index] = child
+            offset[index] = child[0]
+            rolled[index] = child[1]
             consume[index] = True
 
             # subsume the existing tree into a new root
@@ -273,7 +305,9 @@ def rectangles_single(rect, size=None, shuffle=False):
 
         elif inserted is not None:
             # we sucessfully inserted
-            offset[index] = inserted
+            offset[index] = inserted[0]
+            rolled[index] = inserted[1]
+
             consume[index] = True
 
     return offset, consume
@@ -413,6 +447,7 @@ def rectangles(rect,
                density_escape=0.9,
                spacing=0.0,
                iterations=50,
+               rotate=True,
                quanta=None):
     """
     Run multiple iterations of rectangle packing.
@@ -509,7 +544,7 @@ def images(images, power_resize=False):
     # use the number of pixels as the rectangle size
     rect = np.array([i.size for i in images])
 
-    bounds, insert = rectangles(rect=rect)
+    bounds, insert = rectangles(rect=rect, rotate=False)
     # really should have inserted all the rect
     assert insert.all()
 

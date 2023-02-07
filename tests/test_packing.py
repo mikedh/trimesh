@@ -88,7 +88,9 @@ class PackingTest(g.unittest.TestCase):
         nestable = [g.Polygon(i) for i in g.data['nestable']]
         paths = [g.trimesh.load_path(i) for i in nestable]
 
-        r, inserted = packing.paths(paths)
+        with g.Profiler() as P:
+            r, inserted = packing.paths(paths)
+        print(P.output_text())
 
         # number of paths inserted
         count = len(g.np.unique(inserted))

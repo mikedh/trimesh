@@ -47,7 +47,7 @@ else:
 try:
     from pyinstrument import Profiler
 except BaseException:
-    # make a dummy profiler
+    # make a dummy profiler which does nothing
     class Profiler(object):
         def __enter__(*args, **kwargs):
             pass

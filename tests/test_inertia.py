@@ -373,6 +373,12 @@ class InertiaTest(g.unittest.TestCase):
             total_dump = ms.moment_inertia
         print(P.output_text())
 
+        # while we're at it check to make sure our composed
+        # center mass, volume, and area calcs are all working
+        assert g.np.allclose(s.center_mass, ms.center_mass)
+        assert g.np.allclose(s.volume, ms.volume)
+        assert g.np.allclose(s.area, ms.area)
+
         # that produced the moment of inertia around the center of mass
         # of the scene, so for the `moment_inertia_frame` calculation
         # compare against that
