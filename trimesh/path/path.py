@@ -446,7 +446,7 @@ class Path(parent.Geometry):
     @caching.cache_decorator
     def vertex_graph(self):
         """
-        Return a networkx.Graph object for the entity connectiviy
+        Return a networkx.Graph object for the entity connectivity
 
         graph : networkx.Graph
           Holds vertex indexes

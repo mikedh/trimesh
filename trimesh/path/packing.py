@@ -70,7 +70,7 @@ class RectangleBin:
         ----------
         inserted : (2,) float or None
           Position of insertion in the tree or None
-          if the insertion was unsucessful.
+          if the insertion was unsuccessful.
         """
 
         for child in self.child:
@@ -304,7 +304,7 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
             root = new_root
 
         elif inserted is not None:
-            # we sucessfully inserted
+            # we successfully inserted
             offset[index] = inserted[0]
             rolled[index] = inserted[1]
 

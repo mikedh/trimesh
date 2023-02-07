@@ -672,7 +672,7 @@ class Trimesh(Geometry3D):
 
     def moment_inertia_frame(self, transform):
         """
-        Get the moment of inertia of this mesh with repect to
+        Get the moment of inertia of this mesh with respect to
         an arbitrary frame, versus with respect to the center
         of mass as returned by `mesh.moment_inertia`.
 
@@ -685,7 +685,7 @@ class Trimesh(Geometry3D):
         Parameters
         ------------
         transform : (4, 4) float
-          Homogenous transformation matrix.
+          Homogeneous transformation matrix.
 
         Returns
         -------------
@@ -694,11 +694,16 @@ class Trimesh(Geometry3D):
         """
         # we'll need the inertia tensor and the center of mass
         props = self.mass_properties
+        # calculated moment of inertia is at the center of mass
+        # so we want to offset our requested translation by that
+        # center of mass
+        offset = np.eye(4)
+        offset[:3, 3] = -props['center_mass']
+
         # apply the parallel axis theorum to get the new inertia
         return inertia.transform_inertia(
             inertia_tensor=props['inertia'],
-            transform=transform,
-            center_mass=props['center_mass'],
+            transform=np.dot(offset, transform),
             mass=props['mass'],
             parallel_axis=True)
 

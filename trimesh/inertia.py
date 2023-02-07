@@ -102,8 +102,7 @@ def principal_axis(inertia):
 def transform_inertia(transform,
                       inertia_tensor,
                       parallel_axis=False,
-                      mass=None,
-                      center_mass=None):
+                      mass=None):
     """
     Transform an inertia tensor to a new frame.
 
@@ -134,8 +133,6 @@ def transform_inertia(transform,
       center of mass you DON'T want this enabled as you *only*
       want to apply the rotation. Use this to get moment of
       inertia at an arbitrary frame that isn't the center of mass.
-    center_mass : None or (3,) float
-      If parallel axis theorum is used this is required.
 
     Returns
     ------------
@@ -157,13 +154,11 @@ def transform_inertia(transform,
 
     if parallel_axis:
         if transform.shape == (3, 3):
-            translate = np.zeros(3, dtype=np.float64)
+            # shorthand for "translation"
+            a = np.zeros(3, dtype=np.float64)
         else:
-            translate = transform[:3, 3]
-
-        # the property moment_inertia is the inertia tensor for a rotation
-        # around the center of mass with axis aligned to the mesh base axis
-        a = translate - center_mass
+            # get the translation
+            a = transform[:3, 3]
         # First the changed origin of the new transform is taken into
         # account. To calculate the inertia tensor
         # the parallel axis theorem is used
@@ -201,7 +196,7 @@ def radial_symmetry(mesh):
     # shortcuts to avoid typing and hitting cache
     scalar = mesh.principal_inertia_components
 
-    # exit early if intertia components are all zero
+    # exit early if inertia components are all zero
     if scalar.ptp() < 1e-8:
         return None, None, None
 
@@ -267,7 +262,7 @@ def scene_inertia(scene, transform=None):
     scene : trimesh.Scene
       Scene with geometry.
     transform : None or (4, 4) float
-      Homogenous transform to compute inertia at.
+      Homogeneous transform to compute inertia at.
     """
 
     if transform is None:

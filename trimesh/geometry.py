@@ -188,7 +188,7 @@ def triangulate_quads(quads, dtype=np.int64):
     tri = np.array([i for i in quads if len(i) == 3])
     quad = np.array([i for i in quads if len(i) == 4])
     # triangulate arbitrary polygons as triangle fans
-    # this isn't guarenteed to be sane if the polygons
+    # this isn't guaranteed to be sane if the polygons
     # aren't convex but that would require a real maniac
     poly = [[[f[0], f[i + 1], f[i + 2]]
              for i in range(len(f) - 2)]
