@@ -291,6 +291,9 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
             if not allclose(root_offset[0][0], 0.0):
                 offset[consume] += root_offset[0][0]
 
+            if choices_roll != 0:
+                rolled[consume] = rolled[consume] + choices_roll
+
             # insert the child that didn't fit before into the other child
             child = new_root.child[1].insert(rectangle, rotate=rotate)
             # since we re-sized the cells to fit insertion should always work
