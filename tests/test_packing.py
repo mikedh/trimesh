@@ -31,6 +31,26 @@ def bounds_no_overlap(bounds, epsilon=1e-8):
                {i} for i, current in enumerate(bounds))
 
 
+def transforms_match(bounds, extents, transforms):
+    """
+    Check to see if transforms match.
+    """
+    assert len(bounds) == len(extents)
+    assert len(bounds) == len(transforms)
+    box = g.trimesh.creation.box
+
+    for b, t, e in zip(bounds, transforms, extents):
+        # create a box with the placed bounds
+        a = box(bounds=b)
+        # create a box using the roll transform
+        b = box(extents=e, transform=t)
+
+        # they should be identical
+        if not g.np.allclose(a.bounds, b.bounds):
+            return False
+    return True
+
+
 def _solid_image(color, size):
     """
     Return a PIL image that is all one color.
@@ -114,17 +134,106 @@ class PackingTest(g.unittest.TestCase):
                         [0.99955503, 0.99911677, 0.1875]])
 
         # try packing these 3D boxes
-        bounds, rolled, consume = packing.rectangles_single(e)
+        bounds, consume = packing.rectangles_single(e)
         assert consume.all()
         # assert all bounds are well constructed
         assert bounds_no_overlap(bounds)
 
         # try packing these 3D boxes
-        bounds, rolled, consume = packing.rectangles_single(e, size=[14, 14, 1])
-
+        bounds, consume = packing.rectangles_single(e, size=[14, 14, 1])
         assert not consume.all()
         # assert all bounds are well constructed
-        assert bounds_no_overlap(bounds[consume])
+        assert bounds_no_overlap(bounds)
+
+    def test_transform(self):
+        from trimesh.path import packing
+        # try in 3D with random OBB and orientation
+        ori = g.np.array([[14., 14., 0.125],
+                          [13.84376457, 13.84376457, 0.25],
+                          [14., 14., 0.125],
+                          [12.00000057, 12.00000057, 0.25],
+                          [14., 14., 0.125],
+                          [12.83700787, 12.83700787, 0.375],
+                          [12.83700787, 12.83700787, 0.125],
+                          [14., 14., 0.625],
+                          [1.9999977, 1.9999509, 0.25],
+                          [0.87481696, 0.87463294, 0.05],
+                          [0.99955503, 0.99911677, 0.1875]])
+
+        density = []
+        with g.Profiler() as P:
+            for i in range(10):
+                # roll the extents by a random amount and offset
+                extents = []
+                for i in ori:
+                    extents.append(
+                        g.np.roll(i, int(g.np.random.random() * 10)) +
+                        g.np.random.random(3))
+                extents = g.np.array(extents)
+
+                bounds, consume = packing.rectangles(extents)
+                # should have inserted everything because we didn't specify
+                # a maximum `size` to packing
+                assert consume.all()
+                assert len(bounds) == consume.sum()
+                assert bounds_no_overlap(bounds)
+
+                # generate the transforms for the packing
+                transforms = packing.roll_transform(
+                    bounds=bounds, extents=extents)
+
+                assert transforms_match(bounds=bounds,
+                                        extents=extents[consume],
+                                        transforms=transforms)
+
+                viz = packing.visualize(bounds=bounds, extents=extents)
+                density.append(viz.volume / viz.bounding_box.volume)
+
+                bounds, consume = packing.rectangles(
+                    extents, size=[16, 16, 10])
+                # should have inserted everything because we didn't specify
+                # a maximum `size` to packing
+                assert bounds_no_overlap(bounds)
+
+                # generate the transforms for the packing
+                transforms = packing.roll_transform(
+                    bounds=bounds, extents=extents[consume])
+                assert transforms_match(bounds=bounds,
+                                        extents=extents[consume],
+                                        transforms=transforms)
+                viz = packing.visualize(
+                    bounds=bounds, extents=extents[consume])
+                density.append(viz.volume / viz.bounding_box.volume)
+
+                bounds, consume = packing.rectangles(
+                    extents, size=[16, 16, 10], rotate=False)
+                # should have inserted everything because we didn't specify
+                # a maximum `size` to packing
+                assert bounds_no_overlap(bounds)
+                # generate the transforms for the packing
+                transforms = packing.roll_transform(
+                    bounds=bounds, extents=extents[consume])
+                assert transforms_match(bounds=bounds,
+                                        extents=extents[consume],
+                                        transforms=transforms)
+                viz = packing.visualize(
+                    bounds=bounds, extents=extents[consume])
+                density.append(viz.volume / viz.bounding_box.volume)
+
+                bounds, consume = packing.rectangles(extents, rotate=False)
+                # should have inserted everything because we didn't specify
+                # a maximum `size` to packing
+                assert bounds_no_overlap(bounds)
+                # generate the transforms for the packing
+                transforms = packing.roll_transform(
+                    bounds=bounds, extents=extents[consume])
+                assert transforms_match(bounds=bounds,
+                                        extents=extents[consume],
+                                        transforms=transforms)
+                viz = packing.visualize(
+                    bounds=bounds, extents=extents[consume])
+                density.append(viz.volume / viz.bounding_box.volume)
+        print(P.output_text())
 
 
 if __name__ == '__main__':

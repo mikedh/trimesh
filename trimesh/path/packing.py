@@ -4,13 +4,12 @@ packing.py
 
 Pack rectangular regions onto larger rectangular regions.
 """
-from .. import transformations as tf
-from ..creation import box
 import time
 import numpy as np
 
 from ..util import allclose
-from ..constants import log
+from ..constants import log, tol
+from .. import transformations as tf
 
 # floating point zero
 _TOL_ZERO = 1e-12
@@ -59,7 +58,7 @@ class RectangleBin:
         bounds = self.bounds
         return bounds[1] - bounds[0]
 
-    def insert(self, size, rotate=True, preroll=0):
+    def insert(self, size, rotate=True):
         """
         Insert a rectangle into the bin.
 
@@ -77,9 +76,7 @@ class RectangleBin:
 
         for child in self.child:
             # try inserting into child cells
-            attempt = child.insert(size=size,
-                                   rotate=rotate,
-                                   preroll=preroll)
+            attempt = child.insert(size=size, rotate=rotate)
             if attempt is not None:
                 return attempt
 
@@ -88,19 +85,18 @@ class RectangleBin:
             return None
 
         # shortcut for our bounds
-        bounds = self.bounds
+        bounds = self.bounds.copy()
         extents = bounds[1] - bounds[0]
 
         if rotate:
             # we are allowed to rotate the rectangle
-            fits = False
-            size_ori = size.copy()
             for roll in range(len(size)):
                 size_test = extents - _roll(size, roll)
                 fits = (size_test > -_TOL_ZERO).all()
-                if fits or not rotate:
+                if fits:
                     size = _roll(size, roll)
                     break
+            # we tried rotating and none of the directions fit
             if not fits:
                 return None
         else:
@@ -109,9 +105,6 @@ class RectangleBin:
             size_test = extents - size
             if (size_test < -_TOL_ZERO).any():
                 return None
-            roll = 0
-            size_ori = size
-            preroll = 0
 
         # since the cell is big enough for the current rectangle, either it
         # is going to be inserted here, or the cell is going to be split
@@ -122,7 +115,10 @@ class RectangleBin:
         # since we already checked to see if it was negative
         # no abs is needed
         if (size_test < _TOL_ZERO).all():
-            return (bounds, roll + preroll)
+            if bounds.ptp(axis=0).max() < 1e-3:
+                from IPython import embed
+                embed()
+            return bounds
 
         # pick the axis to split along
         axis = size_test.argmax()
@@ -136,9 +132,7 @@ class RectangleBin:
         self.child[:] = RectangleBin(splits[:2]), RectangleBin(splits[2:])
 
         # insert the requested item into the first child
-        return self.child[0].insert(size_ori,
-                                    rotate=rotate,
-                                    preroll=preroll)
+        return self.child[0].insert(size, rotate=rotate)
 
 
 def _roll(a, count):
@@ -205,7 +199,6 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
 
     offset = np.zeros((len(rect), 2, dim))
     consume = np.zeros(len(rect), dtype=bool)
-    rolled = np.zeros(len(rect), dtype=int)
 
     # start by ordering them by maximum length
     order = np.argsort(rect.max(axis=1))[::-1]
@@ -257,7 +250,6 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
                 if choice_prod.min() < best:
                     choices = ch
                     choices_idx = choice_prod.argmin()
-                    best_roll = roll
                     best = choice_prod[choices_idx]
                 if not rotate:
                     break
@@ -299,29 +291,22 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
             if not allclose(root_offset[0][0], 0.0):
                 offset[consume] += root_offset[0][0]
 
-            if best_roll != 0:
-                rolled[consume] = rolled[consume] + best_roll
-
             # insert the child that didn't fit before into the other child
             child = new_root.child[1].insert(rectangle, rotate=rotate)
             # since we re-sized the cells to fit insertion should always work
             assert child is not None
 
-            offset[index] = child[0]
-            rolled[index] = child[1] + best_roll
+            offset[index] = child
             consume[index] = True
-
             # subsume the existing tree into a new root
             root = new_root
 
         elif inserted is not None:
             # we successfully inserted
-            offset[index] = inserted[0]
-            rolled[index] = inserted[1]
-
+            offset[index] = inserted
             consume[index] = True
 
-    return offset, rolled, consume
+    return offset[consume], consume
 
 
 def paths(paths, **kwargs):
@@ -429,7 +414,7 @@ def polygons(polygons,
     tic = time.time()
 
     # run packing for a number of iterations
-    bounds, rolled, inserted = rectangles(
+    bounds, inserted = rectangles(
         rect=rect,
         size=size,
         spacing=spacing,
@@ -459,7 +444,7 @@ def rectangles(rect,
                density_escape=0.9,
                spacing=0.0,
                iterations=50,
-               rotate=True,
+               rotate=False,
                quanta=None):
     """
     Run multiple iterations of rectangle packing.
@@ -504,11 +489,11 @@ def rectangles(rect,
     for i in range(iterations):
         # run a single insertion order
         # don't shuffle the first run, shuffle subsequent runs
-        bounds, rolled, insert = rectangles_single(
+        bounds, insert = rectangles_single(
             rect=rect, size=size, shuffle=(i != 0))
 
         count = insert.sum()
-        extents = bounds[insert].reshape((-1, dim)).ptp(axis=0)
+        extents = bounds.reshape((-1, dim)).ptp(axis=0)
 
         if quanta is not None:
             # compute the density using an upsized quanta
@@ -522,7 +507,7 @@ def rectangles(rect,
             best_density = density
             best_count = count
             # save the result
-            result = (bounds, rolled, insert)
+            result = (bounds, insert)
             # exit early if everything is inserted and
             # we have exceeded our target density
             if density > density_escape and insert.all():
@@ -556,7 +541,7 @@ def images(images, power_resize=False):
     # use the number of pixels as the rectangle size
     rect = np.array([i.size for i in images])
 
-    bounds, _, insert = rectangles(rect=rect, rotate=False)
+    bounds, insert = rectangles(rect=rect, rotate=False)
     # really should have inserted all the rect
     assert insert.all()
 
@@ -578,81 +563,89 @@ def images(images, power_resize=False):
     return result, offset
 
 
-def visualize(extents, transforms):
+def visualize(extents, bounds, meshes=None):
     """
     Visualize a 3D box packing.
     """
     from ..creation import box
     from ..visual import random_color
     from ..scene import Scene
-    meshes = []
-    for e, matrix in zip(extents, transforms):
-        m = box(extents=e, transform=matrix)
+
+    transforms = roll_transform(bounds=bounds, extents=extents)
+    if meshes is None:
+        meshes = [box(extents=e) for e in extents]
+    collect = []
+    for ori, matrix in zip(meshes, transforms):
+        m = ori.copy()
+        m.apply_transform(matrix)
         m.visual.face_colors = random_color()
-        meshes.append(m)
-
-    scene = Scene(meshes)
-
-    print(f'density: {s.volume / s.bounding_box.volume}')
+        collect.append(m)
+    return Scene(collect)
 
 
-def roll_transform(bounds, roll, extents=None):
+def roll_transform(bounds, extents):
     """
     Packing returns rotations in integer "roll," which needs
     to be converted into a homogenous rotation matrix
-    
+
     Parameters
     --------------
     bounds : (n, 2, dimension) float
       Axis aligned bounding boxes of packed position
-    roll : (n,) int
-      How many times was each array "rolled" to fit.
-    validate_extents : None or (n, dimension) float
-      If passed original pre-rolled extents will be used
-      to validate `roll` against `bounds`.
-    
+    extents : None or (n, dimension) float
+      Original pre-rolled extents will be used
+      to determine rotation to move to `bounds`
+
     Returns
     ----------
     transforms : (n, dimension + 1, dimension + 1) float
       Homogenous transformation to move cuboid at the origin
       into the position determined by `bounds`.
     """
+    if len(bounds) != len(extents):
+        raise ValueError('`bounds` must match `extents`')
+    if len(extents) == 0:
+        return []
 
+    # store the resulting transformation matrices
+    result = np.tile(np.eye(4), (len(bounds), 1, 1))
 
-    # first check to make sure roll is actually on the same planet
-    diff = []
-    for e, r, b in zip(extents, roll, bounds):
-        # the original extents rolled as requested
-        ori = np.roll(e, r)
-        # our returned bounds
-        pos = b.ptp(axis=0)
-        diff.append(ori - pos)
+    # a lookup table for rotations for rolling cubiods
+    lookup = np.array(
+        [np.eye(4),
+         [[-0., -0., -1., -0.],
+          [-1., -0., -0., -0.],
+          [0., 1., 0., 0.],
+          [0., 0., 0., 1.]],
+         [[-0., -1., -0., -0.],
+          [0., 0., 1., 0.],
+          [-1., -0., -0., -0.],
+          [0., 0., 0., 1.]]])
 
-    diff = np.array(diff)
-    ok = diff.ptp(axis=1) < 1e-3
-    if not ok.all():
-        print(diff[ok])
-        from IPython import embed
-        embed()
+    # find the size of the AABB of the passed bounds
+    passed = bounds.ptp(axis=1)
 
+    # rectangular rotation involves rolling
+    for roll in range(extents.shape[1]):
+        # find all the passed bounding boxes represented by
+        # rolling the original extents by this amount
+        rolled = np.roll(extents, roll, axis=1)
+        # check
+        ok = (passed - rolled).ptp(axis=1) < _TOL_ZERO
+        if not ok.any():
+            continue
 
-    half = extents / 2.0
+        # the base rotation for this
+        mat = lookup[roll]
+        # the lower corner of the AABB plus the rolled extent
+        offset = np.tile(np.eye(4), (ok.sum(), 1, 1))
+        offset[:, :3, 3] = bounds[:, 0][ok] + rolled[ok] / 2.0
+        result[ok] = [np.dot(o, mat) for o in offset]
 
-    simple = bounds - 
+    if tol.strict:
+        # make sure bounds match inputs
+        from ..creation import box
+        assert all(allclose(box(extents=e).apply_transform(m).bounds, b)
+                   for b, e, m in zip(bounds, extents, result))
 
-        
-    lookup = [np.eye(4)]
-    lookup.extend([tf.rotation_matrix(np.pi / 2, _roll(np.array([0, 1, 0]), i))
-                   for i in range(2)])
-    lookup = np.array(lookup)
-
-    matrix = lookup[roll]
-
-    translate = np.eye(4)
-    matrix[:, :3, 3] = bounds[:, 0] + bounds.ptp(axis=1) / 2.0
-
-    check = np.array([box(extents=e).apply_transform(m).bounds
-                      for e, m in zip(extents, matrix)])
-
-    from IPython import embed
-    embed()
+    return result
