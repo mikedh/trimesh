@@ -20,6 +20,11 @@ except BaseException as E:
     optimize = exceptions.ExceptionModule(E)
 
 
+# a 90 degree rotation
+_flip = transformations.planar_matrix(theta=np.pi / 2)
+_flip.flags.writeable = False
+
+
 def oriented_bounds_2D(points, qhull_options='QbB'):
     """
     Find an oriented bounding box for an array of 2D points.
@@ -39,8 +44,6 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
        Size of extents once input points are transformed
        by transform
     """
-    # make sure input is a numpy array
-    points = np.asanyarray(points, dtype=np.float64)
     # create a convex hull object of our points
     # 'QbB' is a qhull option which has it scale the input to unit
     # box to avoid precision issues with very large/small meshes
@@ -54,8 +57,11 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
 
     # unit vector direction of the edges of the hull polygon
     # filter out zero- magnitude edges via check_valid
-    edge_vectors, _ = util.unitize(np.diff(hull_edges, axis=1).reshape((-1, 2)),
-                                   check_valid=True)
+    edge_vectors = hull_edges[:, 1] - hull_edges[:, 0]
+    edge_norm = np.sqrt(np.dot(edge_vectors ** 2, [1, 1]))
+    edge_nonzero = edge_norm > 1e-10
+    edge_vectors = edge_vectors[edge_nonzero] / \
+        edge_norm[edge_nonzero].reshape((-1, 1))
 
     # create a set of perpendicular vectors
     perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
@@ -64,8 +70,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # this does create a potentially gigantic n^2 array in memory,
     # and there is the 'rotating calipers' algorithm which avoids this
     # however, we have reduced n with a convex hull and numpy dot products
-    # are extremely fast so in practice this usually ends up being pretty
-    # reasonable
+    # are extremely fast so in practice this usually ends up being fine
     x = np.dot(edge_vectors, hull_points.T)
     y = np.dot(perp_vectors, hull_points.T)
 
@@ -88,19 +93,16 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # points to have a bounding box centered at the origin
     offset = -bounds[area_min][:2] - (rectangle * .5)
     theta = np.arctan2(*edge_vectors[area_min][::-1])
-    transform = transformations.planar_matrix(offset,
-                                              theta)
+    transform = transformations.planar_matrix(offset, theta)
 
     # we would like to consistently return an OBB with
     # the largest dimension along the X axis rather than
     # the long axis being arbitrarily X or Y.
-    if np.less(*rectangle):
-        # a 90 degree rotation
-        flip = transformations.planar_matrix(theta=np.pi / 2)
+    if rectangle[0] > rectangle[1]:
         # apply the rotation
-        transform = np.dot(flip, transform)
+        transform = np.dot(_flip, transform)
         # switch X and Y in the OBB extents
-        rectangle = np.roll(rectangle, 1)
+        rectangle = rectangle[::-1]
 
     return transform, rectangle
 
