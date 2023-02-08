@@ -253,7 +253,7 @@ def radial_symmetry(mesh):
     return None, None, None
 
 
-def scene_inertia(scene, transform=None):
+def scene_inertia(scene, transform):
     """
     Calculate the inertia of a scene about a specific frame.
 
@@ -264,10 +264,6 @@ def scene_inertia(scene, transform=None):
     transform : None or (4, 4) float
       Homogeneous transform to compute inertia at.
     """
-
-    if transform is None:
-        transform = np.eye(4)
-
     # shortcuts for tight loop
     graph = scene.graph
     geoms = scene.geometry

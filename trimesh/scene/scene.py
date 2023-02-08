@@ -8,6 +8,7 @@ from . import lighting
 from .. import util
 from .. import units
 from .. import convex
+from .. import inertia
 from .. import caching
 from .. import grouping
 from .. import transformations
@@ -419,6 +420,37 @@ class Scene(Geometry3D):
             [mass[g] for _, g in instance], dtype=np.float64)
         weights /= weights.sum()
         return (transformed * weights.reshape((-1, 1))).sum(axis=0)
+
+    @caching.cache_decorator
+    def moment_inertia(self):
+        """
+        Return the moment of inertia of the current scene with
+        respect to the center of mass of the current scene.
+
+        Returns
+        ------------
+        inertia : (3, 3) float
+          Inertia with respect to cartesian axis at `scene.center_mass`
+        """
+        return inertia.scene_inertia(
+            scene=self,
+            transform=transformations.translation_matrix(self.center_mass))
+
+    def moment_inertia_frame(self, transform):
+        """
+        Return the moment of inertia of the current scene relative
+        to a transform from the base frame.
+
+        Parameters
+        transform : (4, 4) float
+          Homogenous transformation matrix.
+
+        Returns
+        -------------
+        inertia : (3, 3) float
+          Inertia tensor at requested frame.
+        """
+        return inertia.scene_inertia(scene=self, transform=transform)
 
     @caching.cache_decorator
     def area(self):

@@ -376,6 +376,8 @@ class InertiaTest(g.unittest.TestCase):
         # while we're at it check to make sure our composed
         # center mass, volume, and area calcs are all working
         assert g.np.allclose(s.center_mass, ms.center_mass)
+        # dumped inertia should be the same as transformed inertia
+        assert g.np.allclose(s.moment_inertia, ms.moment_inertia)
         assert g.np.allclose(s.volume, ms.volume)
         assert g.np.allclose(s.area, ms.area)
 

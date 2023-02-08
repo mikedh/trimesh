@@ -114,13 +114,13 @@ class PackingTest(g.unittest.TestCase):
                         [0.99955503, 0.99911677, 0.1875]])
 
         # try packing these 3D boxes
-        bounds, consume = packing.rectangles_single(e)
+        bounds, rolled, consume = packing.rectangles_single(e)
         assert consume.all()
         # assert all bounds are well constructed
         assert bounds_no_overlap(bounds)
 
         # try packing these 3D boxes
-        bounds, consume = packing.rectangles_single(e, size=[14, 14, 1])
+        bounds, rolled, consume = packing.rectangles_single(e, size=[14, 14, 1])
 
         assert not consume.all()
         # assert all bounds are well constructed
