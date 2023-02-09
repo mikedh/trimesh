@@ -7,3 +7,10 @@ requires = [
 
 [tool.flake8]
 max_line_length = 90
+
+[tool.ruff]
+# Enable flake8-bugbear (`B`) rules.
+# enable no-implicit-string-concatenation rules
+select = ["E", "F", "B"]
+ignore = ["B905"]
+line-length = 90

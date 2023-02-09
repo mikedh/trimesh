@@ -1941,7 +1941,7 @@ def compress(info, **kwargs):
     return compressed
 
 
-def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
+def split_extension(file_name, special=None):
     """
     Find the file extension of a file name, including support for
     special case multipart file extensions (like .tar.gz)
@@ -1962,6 +1962,8 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
     """
     file_name = str(file_name)
 
+    if special is None:
+        special = ['tar.bz2', 'tar.gz'] 
     if file_name.endswith(tuple(special)):
         for end in special:
             if file_name.endswith(end):
