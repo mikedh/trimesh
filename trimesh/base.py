@@ -655,15 +655,57 @@ class Trimesh(Geometry3D):
     def moment_inertia(self):
         """
         Return the moment of inertia matrix of the current mesh.
-        If mesh isn't watertight this is garbage.
+        If mesh isn't watertight this is garbage. The returned
+        moment of inertia is *axis aligned* at the mesh's center
+        of mass `mesh.center_mass`. If you want the moment at any
+        other frame including the origin call:
+        `mesh.moment_inertia_frame`
 
         Returns
         ---------
         inertia : (3, 3) float
-          Moment of inertia of the current mesh
+          Moment of inertia of the current mesh at the center of
+          mass and aligned with the cartesian axis.
         """
         inertia = self.mass_properties['inertia']
         return inertia
+
+    def moment_inertia_frame(self, transform):
+        """
+        Get the moment of inertia of this mesh with respect to
+        an arbitrary frame, versus with respect to the center
+        of mass as returned by `mesh.moment_inertia`.
+
+        For example if `transform` is an identity matrix `np.eye(4)`
+        this will give the moment at the origin.
+
+        Uses the parallel axis theorum to move the center mass
+        tensor to this arbitrary frame.
+
+        Parameters
+        ------------
+        transform : (4, 4) float
+          Homogeneous transformation matrix.
+
+        Returns
+        -------------
+        inertia : (3, 3)
+          Moment of inertia in the requested frame.
+        """
+        # we'll need the inertia tensor and the center of mass
+        props = self.mass_properties
+        # calculated moment of inertia is at the center of mass
+        # so we want to offset our requested translation by that
+        # center of mass
+        offset = np.eye(4)
+        offset[:3, 3] = -props['center_mass']
+
+        # apply the parallel axis theorum to get the new inertia
+        return inertia.transform_inertia(
+            inertia_tensor=props['inertia'],
+            transform=np.dot(offset, transform),
+            mass=props['mass'],
+            parallel_axis=True)
 
     @caching.cache_decorator
     def principal_inertia_components(self):
@@ -2437,7 +2479,6 @@ class Trimesh(Geometry3D):
             'euler_number'})
         # set the cache ID with the current hash value
         self._cache.id_set()
-        log.debug('mesh transformed by matrix')
         return self
 
     def voxelized(self, pitch, method='subdivide', **kwargs):

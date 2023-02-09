@@ -8,6 +8,7 @@ from . import lighting
 from .. import util
 from .. import units
 from .. import convex
+from .. import inertia
 from .. import caching
 from .. import grouping
 from .. import transformations
@@ -158,7 +159,7 @@ class Scene(Geometry3D):
             return
 
         if not hasattr(geometry, 'vertices'):
-            util.log.warning('unknown type ({}) added to scene!'.format(
+            util.log.debug('unknown type ({}) added to scene!'.format(
                 type(geometry).__name__))
             return
 
@@ -390,6 +391,68 @@ class Scene(Geometry3D):
         return centroid
 
     @caching.cache_decorator
+    def center_mass(self):
+        """
+        Find the center of mass for every instance in the scene.
+
+        Returns
+        ------------
+        center_mass : (3,) float
+          The center of mass of the scene
+        """
+        # get the center of mass and volume for each geometry
+        center_mass = {k: m.center_mass for k, m in self.geometry.items()
+                       if hasattr(m, 'center_mass')}
+        mass = {k: m.mass for k, m in self.geometry.items()
+                if hasattr(m, 'mass')}
+
+        # get the geometry name and transform for each instance
+        graph = self.graph
+        instance = [graph[n] for n in graph.nodes_geometry]
+
+        # get the transformed center of mass for each instance
+        transformed = np.array(
+            [np.dot(mat, np.append(center_mass[g], 1))[:3]
+             for mat, g in instance
+             if g in center_mass], dtype=np.float64)
+        # weight the center of mass locations by volume
+        weights = np.array(
+            [mass[g] for _, g in instance], dtype=np.float64)
+        weights /= weights.sum()
+        return (transformed * weights.reshape((-1, 1))).sum(axis=0)
+
+    @caching.cache_decorator
+    def moment_inertia(self):
+        """
+        Return the moment of inertia of the current scene with
+        respect to the center of mass of the current scene.
+
+        Returns
+        ------------
+        inertia : (3, 3) float
+          Inertia with respect to cartesian axis at `scene.center_mass`
+        """
+        return inertia.scene_inertia(
+            scene=self,
+            transform=transformations.translation_matrix(self.center_mass))
+
+    def moment_inertia_frame(self, transform):
+        """
+        Return the moment of inertia of the current scene relative
+        to a transform from the base frame.
+
+        Parameters
+        transform : (4, 4) float
+          Homogenous transformation matrix.
+
+        Returns
+        -------------
+        inertia : (3, 3) float
+          Inertia tensor at requested frame.
+        """
+        return inertia.scene_inertia(scene=self, transform=transform)
+
+    @caching.cache_decorator
     def area(self):
         """
         What is the summed area of every geometry which
@@ -405,6 +468,24 @@ class Scene(Geometry3D):
                  if hasattr(g, 'area')}
         # sum the area including instancing
         return sum((areas.get(self.graph[n][1], 0.0) for n in
+                    self.graph.nodes_geometry), 0.0)
+
+    @caching.cache_decorator
+    def volume(self):
+        """
+        What is the summed volume of every geometry which
+        has volume
+
+        Returns
+        ------------
+        volume : float
+          Summed area of every instanced geometry
+        """
+        # get the area of every geometry that has a volume attribute
+        volume = {n: g.volume for n, g in self.geometry.items()
+                  if hasattr(g, 'area')}
+        # sum the area including instancing
+        return sum((volume.get(self.graph[n][1], 0.0) for n in
                     self.graph.nodes_geometry), 0.0)
 
     @caching.cache_decorator

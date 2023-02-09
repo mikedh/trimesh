@@ -14,6 +14,25 @@ class CreationTest(g.unittest.TestCase):
             engines.append('earcut')
         self.engines = engines
 
+    def test_box(self):
+        box = g.trimesh.creation.box
+
+        # should create a unit cube with origin centroid
+        m = box()
+        assert g.np.allclose(m.bounds,
+                             [[-0.5] * 3,
+                              [0.5] * 3])
+
+        # check creation by passing extents
+        extents = g.np.array([1.2, 1.9, 10.3])
+        m = box(extents=extents)
+        assert g.np.allclose(m.extents, extents)
+        assert g.np.allclose(m.bounds, [-extents / 2.0, extents / 2.0])
+
+        bounds = g.np.array([[10.0, 11.9, 1.3], [100, 121, 53.002]])
+        m = box(bounds=bounds)
+        assert g.np.allclose(m.bounds, bounds)
+
     def test_cone(self):
         c = g.trimesh.creation.cone(radius=0.5, height=1.0)
         assert c.is_volume

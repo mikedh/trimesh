@@ -203,7 +203,6 @@ class TextureVisuals(Visuals):
         Apply a mask to remove or duplicate face properties,
         not applicable to texture visuals.
         """
-        pass
 
     def concatenate(self, others):
         """

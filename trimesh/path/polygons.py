@@ -199,7 +199,15 @@ def polygon_obb(polygon):
         points = polygon
     else:
         raise ValueError('polygon or points must be provided')
-    return bounds.oriented_bounds_2D(points)
+
+    transform, extents = bounds.oriented_bounds_2D(points)
+
+    if tol.strict:
+        moved = transform_points(points=points, matrix=transform)
+        assert np.allclose(-extents / 2.0, moved.min(axis=0))
+        assert np.allclose(extents / 2.0, moved.max(axis=0))
+
+    return transform, extents
 
 
 def transform_polygon(polygon, matrix):
@@ -234,6 +242,37 @@ def transform_polygon(polygon, matrix):
     # create a new polygon with the result
     result = Polygon(shell=shell, holes=holes)
     return result
+
+
+def polygon_bounds(polygon, matrix=None):
+    """
+    Get the transformed axis aligned bounding box of a
+    shapely Polygon object.
+
+    Parameters
+    ------------
+    polygon : shapely.geometry.Polygon
+      Polygon pre-transform
+    matrix : (3, 3) float or None.
+      Homogenous transform moving polygon in space
+
+    Returns
+    ------------
+    bounds : (2, 2) float
+      Axis aligned bounding box of transformed polygon.
+    """
+    if matrix is not None:
+        assert matrix.shape == (3, 3)
+        points = transform_points(
+            points=np.array(polygon.exterior.coords),
+            matrix=matrix)
+    else:
+        points = np.array(polygon.exterior.coords)
+
+    bounds = np.array([points.min(axis=0),
+                       points.max(axis=0)])
+    assert bounds.shape == (2, 2)
+    return bounds
 
 
 def plot(polygon, show=True, axes=None, **kwargs):

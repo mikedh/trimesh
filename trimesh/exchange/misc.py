@@ -129,7 +129,6 @@ def load_meshio(file_obj, file_type=None, **kwargs):
             break
         except BaseException:
             util.log.debug('failed to load', exc_info=True)
-            pass
     if mesh is None:
         raise ValueError('Failed to load file!')
 
