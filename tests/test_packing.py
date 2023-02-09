@@ -91,23 +91,47 @@ class PackingTest(g.unittest.TestCase):
 
     def test_paths(self):
         from trimesh.path import packing
-        nestable = [g.Polygon(i) for i in g.data['nestable']]
-        paths = [g.trimesh.load_path(i) for i in nestable]
+        from trimesh.path.polygons import polygon_bounds
+
+        polygons = g.np.array(
+            [g.Polygon(i) for i in g.data['nestable']])
+
+        # calculate a packing of the polygons
+        matrix, consume = packing.polygons(polygons)
+
+        check_bound = g.np.array(
+            [polygon_bounds(p, matrix=m)
+             for p, m in zip(polygons[consume], matrix)])
+        assert not packing.bounds_overlap(check_bound)
+
+        paths = [g.trimesh.load_path(i) for i in polygons]
 
         with g.Profiler() as P:
-            r, inserted = packing.paths(paths)
+            r, consume = packing.paths(paths)
         print(P.output_text())
-
         # number of paths inserted
-        count = len(g.np.unique(inserted))
+        count = consume.sum()
         # should have inserted all our paths
         assert count == len(paths)
         # splitting should result in the right number of paths
         split = r.split()
         assert count == len(split)
-
         # none of the polygon bounding boxes should overlap
         assert not packing.bounds_overlap([i.bounds for i in split])
+
+        with g.Profiler() as P:
+            r, consume = packing.paths(paths, size=[24, 12], spacing=0.5)
+        print(P.output_text())
+        # number of paths inserted
+        count = consume.sum()
+        # splitting should result in the right number of paths
+        split = r.split()
+        assert count == len(split)
+        # none of the polygon bounding boxes should overlap
+        assert not packing.bounds_overlap([i.bounds for i in split])
+
+        # should have adhered to the requested size and spacing
+        assert (r.extents <= [24, 12]).all()
 
     def test_3D(self):
         from trimesh.path import packing

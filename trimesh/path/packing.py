@@ -4,7 +4,6 @@ packing.py
 
 Pack rectangular regions onto larger rectangular regions.
 """
-import time
 import numpy as np
 
 from ..util import allclose, bounds_tree
@@ -160,16 +159,15 @@ def _roll(a, count):
         return np.concatenate([a[-count:], a[:-count]])
 
 
-def rectangles_single(rect, size=None, shuffle=False, rotate=True):
+def rectangles_single(extents, size=None, shuffle=False, rotate=True):
     """
     Execute a single insertion order of smaller rectangles onto
     a larger rectangle using a binary space partition tree.
 
     Parameters
     ----------
-    rectangles : (n, dim) float
-      An array of (width, height) pairs
-      representing the rectangles to be packed.
+    extents : (n, dimension) float
+      The size of the hyper-rectangles to pack.
     size : None or (dim,) float
       Maximum size of container to pack onto. If not passed it
       will re-root the tree when large items are inserted.
@@ -190,14 +188,13 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
       Which of the original rectangles were packed
     """
 
-    rect = np.asanyarray(rect, dtype=np.float64)
-    dim = rect.shape[1]
-
-    offset = np.zeros((len(rect), 2, dim))
-    consume = np.zeros(len(rect), dtype=bool)
-
+    extents = np.asanyarray(extents, dtype=np.float64)
+    dimension = extents.shape[1]
+    # the return arrays
+    offset = np.zeros((len(extents), 2, dimension))
+    consume = np.zeros(len(extents), dtype=bool)
     # start by ordering them by maximum length
-    order = np.argsort(rect.max(axis=1))[::-1]
+    order = np.argsort(extents.max(axis=1))[::-1]
 
     if shuffle:
         # reorder with permutations
@@ -207,17 +204,18 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
         # if no bounds are passed start it with the size of a large
         # rectangle exactly which will require re-rooting for
         # subsequent insertions
-        root_bounds = [[0.0] * dim, rect[rect.ptp(axis=1).argmax()]]
+        root_bounds = [[0.0] * dimension,
+                       extents[extents.ptp(axis=1).argmax()]]
     else:
         # restrict the bounds to passed size and disallow re-rooting
-        root_bounds = [[0.0] * dim, size]
+        root_bounds = [[0.0] * dimension, size]
 
     # the current root node to insert each rectangle
     root = RectangleBin(bounds=root_bounds)
 
     for index in order:
         # the current rectangle to be inserted
-        rectangle = rect[index]
+        rectangle = extents[index]
         # try to insert the hyper-rectangle into children
         inserted = root.insert(rectangle, rotate=rotate)
 
@@ -226,19 +224,19 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
             # so we need to create a new parent
             # get the size of the current root node
             bounds = root.bounds
-            extents = bounds.ptp(axis=0)
+            # current extents
+            current = bounds.ptp(axis=0)
 
             # pick the direction which has the least hyper-volume.
             best = np.inf
-            for roll in range(len(extents)):
-                stack = np.array([extents, _roll(rectangle, roll)])
+            for roll in range(len(current)):
+                stack = np.array([current, _roll(rectangle, roll)])
                 # we are going to combine two hyper-rect
                 # so we have `dim` choices on ways to split
                 # choose the split that minimizes the new hyper-volume
                 # the new AABB is going to be the `max` of the lengths
                 # on every dim except one which will be the `sum`
-                dim = len(extents)
-                ch = np.tile(stack.max(axis=0), (len(extents), 1))
+                ch = np.tile(stack.max(axis=0), (len(current), 1))
                 np.fill_diagonal(ch, stack.sum(axis=0))
 
                 # choose the new AABB by which one minimizes hyper-volume
@@ -255,7 +253,7 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
 
             # offset the new bounding box corner
             new_min = bounds[0].copy()
-            new_min[choices_idx] += extents[choices_idx]
+            new_min[choices_idx] += current[choices_idx]
 
             # original bounds may be stretched
             new_ori_max = np.vstack((bounds[1], new_max)).max(axis=0)
@@ -327,35 +325,33 @@ def paths(paths, **kwargs):
     """
     from .util import concatenate
 
-    # default quantity to 1
-    quantity = [i.metadata.get('quantity', 1)
-                for i in paths]
-
     # pack using exterior polygon which will have the
     # oriented bounding box calculated before packing
-    packable = [i.polygons_closed[i.root[0]] for i in paths]
+    packable = []
+    original = []
+    for index, path in enumerate(paths):
+        quantity = path.metadata.get('quantity', 1)
+        original.extend([index] * quantity)
+        packable.extend([path.polygons_closed[path.root[0]]] * quantity)
 
     # pack the polygons using rectangular bin packing
-    inserted, transforms = polygons(polygons=packable,
-                                    quantity=quantity,
-                                    **kwargs)
+    transforms, consume = polygons(
+        polygons=packable, **kwargs)
 
-    multi = []
-    for i, T in zip(inserted, transforms):
-        multi.append(paths[i].copy())
-        multi[-1].apply_transform(T)
+    positioned = []
+    for index, matrix in zip(np.nonzero(consume)[0], transforms):
+        current = paths[original[index]].copy()
+        current.apply_transform(matrix)
+        positioned.append(current)
+
     # append all packed paths into a single Path object
-    packed = concatenate(multi)
+    packed = concatenate(positioned)
 
-    return packed, inserted
+    return packed, consume
 
 
 def polygons(polygons,
              size=None,
-             iterations=50,
-             density_escape=.95,
-             spacing=0.094,
-             quantity=None,
              **kwargs):
     """
     Pack polygons into a rectangle by taking each Polygon's OBB
@@ -367,14 +363,8 @@ def polygons(polygons,
       Source geometry
     size : (2,) float
       Size of rectangular sheet
-    iterations : int
-      Number of times to run the loop
-    density_escape : float
-      When to exit early (0.0 - 1.0)
-    spacing : float
-      How big a gap to leave between polygons
-    quantity : (n,) int, or None
-      Quantity of each Polygon
+    **kwargs : dict
+      Passed through to `packing.rectangles`.
 
     Returns
     -------------
@@ -385,69 +375,45 @@ def polygons(polygons,
       packed frame.
     """
 
-    from .polygons import polygons_obb
-
-    if quantity is None:
-        quantity = np.ones(len(polygons), dtype=np.int64)
-    else:
-        quantity = np.asanyarray(quantity, dtype=np.int64)
-    if len(quantity) != len(polygons):
-        raise ValueError('quantity must match polygons')
+    from .polygons import polygons_obb, polygon_bounds
 
     # find the oriented bounding box of the polygons
-    obb, rect = polygons_obb(polygons)
+    obb, extents = polygons_obb(polygons)
 
+    spacing = kwargs.get('spacing', 0.0)
     # pad all sides of the rectangle
-    rect += 2.0 * spacing
+    extents += 2.0 * spacing
     # move the OBB transform so the polygon is centered
     # in the padded rectangle
-    for i, r in enumerate(rect):
-        obb[i][:2, 2] += r * .5
-
-    # for polygons occurring multiple times
-    indexes = np.hstack([np.ones(q, dtype=np.int64) * i
-                         for i, q in enumerate(quantity)])
-    # stack using advanced indexing
-    obb = obb[indexes]
-    rect = rect[indexes]
-
-    # store timing
-    tic = time.time()
 
     # run packing for a number of iterations
-    bounds, inserted = rectangles(
-        rect=rect,
+    bounds, consume = rectangles(
+        extents=extents,
         size=size,
-        spacing=spacing,
-        rotate=False,
-        density_escape=density_escape,
-        iterations=iterations, **kwargs)
+        **kwargs)
 
-    toc = time.time()
-    log.debug('packing finished %i iterations in %f seconds',
-              i + 1,
-              toc - tic)
+    assert not bounds_overlap(bounds)
     log.debug('%i/%i parts were packed successfully',
-              np.sum(inserted),
-              quantity.sum())
+              consume.sum(), len(polygons))
 
     # transformations to packed positions
-    packed = obb[inserted]
+    roll = roll_transform(bounds=bounds, extents=extents[consume])
+    # add the spacing offset
+    roll[:, :2, 2] += spacing
 
-    roll = roll_transform(bounds=bounds, extents=rect[inserted])
+    transforms = np.array([np.dot(b, a) for a, b in
+                           zip(obb[consume], roll)])
 
-    # from IPython import embed
-    # embed()
+    if tol.strict:
+        check_bound = np.array(
+            [polygon_bounds(polygons[index], matrix=m)
+             for index, m in zip(np.nonzero(consume)[0], transforms)])
+        assert not bounds_overlap(check_bound)
 
-    # apply the offset and inter- polygon spacing
-    # packed.reshape(-1, 9)[:, [2, 5]] += bounds[:, 0, :] + spacing
-
-    packed = np.array([np.dot(b, a) for a, b in zip(obb[inserted], roll)])
-
-    return indexes[inserted], packed
+    return transforms, consume
 
 
-def rectangles(rect,
+def rectangles(extents,
                size=None,
                density_escape=0.9,
                spacing=0.0,
@@ -459,9 +425,9 @@ def rectangles(rect,
 
     Parameters
     ------------
-    rect : (n, 2) float
-      Size of rect to be packed
-    size : None or (2,) float
+    extents : (n, dimension) float
+      Size of hyper-rectangle to be packed
+    size : None or (dimension,) float
       Size of sheet to pack onto
     density_escape : float
       Exit early if density is above this threshold
@@ -469,26 +435,24 @@ def rectangles(rect,
       Distance to allow between rect
     iterations : int
       Number of iterations to run
+    rotate : bool
+      Allow right angle rotations or not.
     quanta : None or float
-
+      Discrete "snap" interval.
 
     Returns
     ---------
-    density : float
-      Area filled over total sheet area
-    offset :  (m,2) float
-      Offsets to move rect to their packed location
+    bounds :  (m, 2, dimension) float
+      Axis aligned bounding boxes of inserted hyper-rectangle.
     inserted : (n,) bool
-      Which of the original rect were packed
-    consumed_box : (2,) float
-      Bounding box size of packed result
+      Which of the original rect were packed.
     """
-    rect = np.array(rect)
 
-    dim = rect.shape[1]
+    extents = np.array(extents)
+    dim = extents.shape[1]
 
     # hyper-volume: area in 2D, volume in 3D, party in 4D
-    area = np.product(rect, axis=1)
+    area = np.product(extents, axis=1)
     # best density percentage in 0.0 - 1.0
     best_density = 0.0
     # how many rect were inserted
@@ -498,17 +462,17 @@ def rectangles(rect,
         # run a single insertion order
         # don't shuffle the first run, shuffle subsequent runs
         bounds, insert = rectangles_single(
-            rect=rect, size=size, shuffle=(i != 0))
+            extents=extents, size=size, shuffle=(i != 0))
 
         count = insert.sum()
-        extents = bounds.reshape((-1, dim)).ptp(axis=0)
+        extents_all = bounds.reshape((-1, dim)).ptp(axis=0)
 
         if quanta is not None:
             # compute the density using an upsized quanta
-            extents = np.ceil(extents / quanta) * quanta
+            extents = np.ceil(extents_all / quanta) * quanta
 
         # calculate the packing density
-        density = area[insert].sum() / np.product(extents)
+        density = area[insert].sum() / np.product(extents_all)
 
         # compare this packing density against our best
         if density > best_density or count > best_count:
@@ -547,9 +511,8 @@ def images(images, power_resize=False):
     from PIL import Image
 
     # use the number of pixels as the rectangle size
-    rect = np.array([i.size for i in images])
-
-    bounds, insert = rectangles(rect=rect, rotate=False)
+    bounds, insert = rectangles(
+        extents=[i.size for i in images], rotate=False)
     # really should have inserted all the rect
     assert insert.all()
 
@@ -593,16 +556,18 @@ def visualize(extents, bounds, meshes=None):
 
 def roll_transform(bounds, extents):
     """
-    Packing returns rotations in integer "roll," which needs
-    to be converted into a homogenous rotation matrix
+    Packing returns rotations with integer "roll" which
+    needs to be converted into a homogenous rotation matrix.
+
+    Currently supports `dimension=2` and `dimension=3`.
 
     Parameters
     --------------
     bounds : (n, 2, dimension) float
       Axis aligned bounding boxes of packed position
-    extents : None or (n, dimension) float
+    extents : (n, dimension) float
       Original pre-rolled extents will be used
-      to determine rotation to move to `bounds`
+      to determine rotation to move to `bounds`.
 
     Returns
     ----------
@@ -624,8 +589,8 @@ def roll_transform(bounds, extents):
     result = np.tile(np.eye(dimension + 1), (len(bounds), 1, 1))
 
     # a lookup table for rotations for rolling cuboiods
-    # as `lookup[dimension][roll]`
-    # only implemented for 2D and 3D
+    # as `lookup[dimension - 2][roll]`
+    # implemented for 2D and 3D
     lookup = [np.array([np.eye(3),
                         np.array([[0., -1., 0.],
                                   [1., 0., 0.],
@@ -645,7 +610,8 @@ def roll_transform(bounds, extents):
         # find all the passed bounding boxes represented by
         # rolling the original extents by this amount
         rolled = np.roll(extents, roll, axis=1)
-        # check
+        # check to see if the rolled original extents
+        # match the requested bounding box
         ok = (passed - rolled).ptp(axis=1) < _TOL_ZERO
         if not ok.any():
             continue
@@ -670,6 +636,8 @@ def roll_transform(bounds, extents):
                 allclose(rectangle(
                     bounds=[-e / 2, e / 2]).apply_transform(m).bounds, b)
                 for b, e, m in zip(bounds, extents, result))
+        else:
+            raise ValueError('unsupported dimension')
 
     return result
 
