@@ -846,7 +846,7 @@ def projected(mesh,
     return polygon
 
 
-def second_moments(polygon, centered=True):
+def second_moments(polygon, centered=False):
     """
     Calculate the second moments of area of a polygon
     from the boundary.
@@ -867,7 +867,7 @@ def second_moments(polygon, centered=True):
       Principal second moments of inertia: `[Imax, Imin]`
       Only returned if centered=True
     alpha : float
-      Angle by which the input polygon needs to be rotated, so the 
+      Angle by which the polygon needs to be rotated, so the 
       principal axis align with the x- and y-Axis. 
       Only returned if centered=True
     transform : (3,3) float
