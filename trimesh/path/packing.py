@@ -114,9 +114,6 @@ class RectangleBin:
         # since we already checked to see if it was negative
         # no abs is needed
         if (size_test < _TOL_ZERO).all():
-            if bounds.ptp(axis=0).max() < 1e-3:
-                from IPython import embed
-                embed()
             return bounds
 
         # pick the axis to split along
@@ -443,7 +440,7 @@ def rectangles(rect,
                density_escape=0.9,
                spacing=0.0,
                iterations=50,
-               rotate=False,
+               rotate=True,
                quanta=None):
     """
     Run multiple iterations of rectangle packing.
