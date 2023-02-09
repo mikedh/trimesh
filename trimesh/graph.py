@@ -957,7 +957,7 @@ def multigraph_paths(G, source, cutoff=None):
     # completed paths
     traversals = []
 
-    for i in range(cutoff):
+    for _ in range(cutoff):
         # paths are stored as (node, instance) so
         # get the node of the last place visited
         current_node = current[-1][0]

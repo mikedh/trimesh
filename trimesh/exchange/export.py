@@ -64,7 +64,7 @@ def export_mesh(mesh,
     # make sure file type is lower case
     file_type = str(file_type).lower()
 
-    if not (file_type in _mesh_exporters):
+    if file_type not in _mesh_exporters:
         raise ValueError('%s exporter not available!', file_type)
 
     if isinstance(mesh, (list, tuple, set, np.ndarray)):

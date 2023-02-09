@@ -1963,7 +1963,7 @@ def split_extension(file_name, special=None):
     file_name = str(file_name)
 
     if special is None:
-        special = ['tar.bz2', 'tar.gz'] 
+        special = ['tar.bz2', 'tar.gz']
     if file_name.endswith(tuple(special)):
         for end in special:
             if file_name.endswith(end):

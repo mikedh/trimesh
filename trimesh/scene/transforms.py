@@ -478,7 +478,7 @@ class SceneGraph(object):
 
         # remove the geometry reference from the node without deleting nodes
         # this lets us keep our cached paths, and will not screw up children
-        for node, attrib in self.transforms.node_data.items():
+        for attrib in self.transforms.node_data.values():
             if 'geometry' in attrib and attrib['geometry'] in geometries:
                 attrib.pop('geometry')
 

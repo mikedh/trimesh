@@ -424,7 +424,7 @@ def stitch(mesh, faces=None, insert_vertices=False):
 
     # now we do a normal check against an adjacent face
     # to see if each region needs to be flipped
-    for i, p, t in zip(range(len(fan)), points, fan):
+    for i, t in zip(range(len(fan)), fan):
         # get the edges from the original mesh
         # for the first `n` new triangles
         e = t[:10, 1:].copy()

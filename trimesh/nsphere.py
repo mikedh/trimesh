@@ -163,7 +163,7 @@ def fit_nsphere(points, prior=None):
                                          guess,
                                          xtol=1e-8)
 
-    if not (return_code in [1, 2, 3, 4]):
+    if return_code not in [1, 2, 3, 4]:
         raise ValueError('Least square fit failed!')
 
     radii = util.row_norm(points - center_result)

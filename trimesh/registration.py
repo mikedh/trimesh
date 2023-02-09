@@ -358,7 +358,7 @@ def icp(a,
     old_cost = np.inf
 
     # avoid looping forever by capping iterations
-    for n_iteration in range(max_iterations):
+    for _ in range(max_iterations):
         # Closest point in b to each point in a
         if is_mesh:
             closest, distance, faces = b.nearest.on_surface(a)
@@ -619,7 +619,7 @@ def nricp_amberg(source_mesh,
         records = [transformed_vertices]
 
     # Main loop
-    for i, (ws, wl, wn, max_iter) in enumerate(steps):
+    for ws, wl, wn, max_iter in steps:
 
         # If normals are estimated from points and if there are less
         # than 3 points per query, avoid normal estimation

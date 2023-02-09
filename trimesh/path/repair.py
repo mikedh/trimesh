@@ -103,7 +103,7 @@ def fill_gaps(path, distance=.025):
 
     # add line segments in as line entities
     entities = []
-    for i, seg in enumerate(final_seg):
+    for i in range(len((final_seg))):
         entities.append(
             line_class(
                 points=np.arange(2) + (i * 2) + len(path.vertices)))

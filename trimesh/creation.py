@@ -695,7 +695,7 @@ def icosphere(subdivisions=3, radius=1.0, color=None):
     for _ in range(subdivisions):
         ico = ico.subdivide()
         vectors = ico.vertices
-        scalar = np.sqrt(np.dot(vectors ** 2, [1,1,1]))
+        scalar = np.sqrt(np.dot(vectors ** 2, [1, 1, 1]))
         unit = vectors / scalar.reshape((-1, 1))
         ico.vertices += unit * (radius - scalar).reshape((-1, 1))
     ico._validate = True

@@ -334,7 +334,7 @@ def strip_array(data):
     ndims = len(shape)
     padding = []
     slices = []
-    for dim, size in enumerate(shape):
+    for dim in range(len(shape)):
         axis = tuple(range(dim)) + tuple(range(dim + 1, ndims))
         filled = np.any(data, axis=axis)
         indices, = np.nonzero(filled)
