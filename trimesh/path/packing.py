@@ -9,7 +9,6 @@ import numpy as np
 
 from ..util import allclose
 from ..constants import log, tol
-from .. import transformations as tf
 
 # floating point zero
 _TOL_ZERO = 1e-12

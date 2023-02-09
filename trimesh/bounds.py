@@ -98,7 +98,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # we would like to consistently return an OBB with
     # the largest dimension along the X axis rather than
     # the long axis being arbitrarily X or Y.
-    if rectangle[0] > rectangle[1]:
+    if rectangle[1] > rectangle[0]:
         # apply the rotation
         transform = np.dot(_flip, transform)
         # switch X and Y in the OBB extents
