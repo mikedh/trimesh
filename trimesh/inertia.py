@@ -99,24 +99,45 @@ def principal_axis(inertia):
     return components, vectors
 
 
-def transform_inertia(transform, inertia_tensor):
+def transform_inertia(transform,
+                      inertia_tensor,
+                      parallel_axis=False,
+                      mass=None):
     """
     Transform an inertia tensor to a new frame.
 
-    More details in OCW PDF:
-    MIT16_07F09_Lec26.pdf
+    Note that in trimesh `mesh.moment_inertia` is *axis aligned*
+    and at `mesh.center_mass`.
+
+    So to transform to a new frame and get the moment of inertia at
+    the center of mass the translation should be ignored and only
+    rotation applied.
+
+    If parallel axis is enabled it will compute the inertia
+    about a new location.
+
+    More details in the MIT OpenCourseWare PDF:
+   ` MIT16_07F09_Lec26.pdf`
+
 
     Parameters
     ------------
     transform : (3, 3) or (4, 4) float
       Transformation matrix
     inertia_tensor : (3, 3) float
-      Inertia tensor
+      Inertia tensor.
+    parallel_axis : bool
+      Apply the parallel axis theorum or not.
+      If the passed inertia tensor is at the center of mass
+      and you want the new post-transform tensor also at the
+      center of mass you DON'T want this enabled as you *only*
+      want to apply the rotation. Use this to get moment of
+      inertia at an arbitrary frame that isn't the center of mass.
 
     Returns
     ------------
     transformed : (3, 3) float
-      Inertia tensor in new frame
+      Inertia tensor in new frame.
     """
     # check inputs and extract rotation
     transform = np.asanyarray(transform, dtype=np.float64)
@@ -131,10 +152,28 @@ def transform_inertia(transform, inertia_tensor):
     if inertia_tensor.shape != (3, 3):
         raise ValueError('inertia_tensor must be (3, 3)!')
 
-    transformed = util.multi_dot([rotation,
-                                  inertia_tensor,
-                                  rotation.T])
-    return transformed
+    if parallel_axis:
+        if transform.shape == (3, 3):
+            # shorthand for "translation"
+            a = np.zeros(3, dtype=np.float64)
+        else:
+            # get the translation
+            a = transform[:3, 3]
+        # First the changed origin of the new transform is taken into
+        # account. To calculate the inertia tensor
+        # the parallel axis theorem is used
+        M = np.array([[a[1]**2 + a[2]**2, -a[0] * a[1], -a[0] * a[2]],
+                      [-a[0] * a[1], a[0]**2 + a[2]**2, -a[1] * a[2]],
+                      [-a[0] * a[2], -a[1] * a[2], a[0]**2 + a[1]**2]])
+        aligned_inertia = inertia_tensor + mass * M
+
+        return util.multi_dot([rotation.T,
+                               aligned_inertia,
+                               rotation])
+
+    return util.multi_dot([rotation,
+                           inertia_tensor,
+                           rotation.T])
 
 
 def radial_symmetry(mesh):
@@ -157,7 +196,7 @@ def radial_symmetry(mesh):
     # shortcuts to avoid typing and hitting cache
     scalar = mesh.principal_inertia_components
 
-    # exit early if intertia components are all zero
+    # exit early if inertia components are all zero
     if scalar.ptp() < 1e-8:
         return None, None, None
 
@@ -212,3 +251,29 @@ def radial_symmetry(mesh):
         return 'radial', axis, section
 
     return None, None, None
+
+
+def scene_inertia(scene, transform):
+    """
+    Calculate the inertia of a scene about a specific frame.
+
+    Parameters
+    ------------
+    scene : trimesh.Scene
+      Scene with geometry.
+    transform : None or (4, 4) float
+      Homogeneous transform to compute inertia at.
+    """
+    # shortcuts for tight loop
+    graph = scene.graph
+    geoms = scene.geometry
+
+    # get the matrix ang geometry name for
+    nodes = [graph[n] for n in graph.nodes_geometry]
+    # get the moment of inertia with the mesh moved to a location
+    moments = np.array([geoms[g].moment_inertia_frame(
+        np.dot(np.linalg.inv(mat), transform)) for mat, g in nodes
+        if hasattr(geoms[g], 'moment_inertia_frame')],
+        dtype=np.float64)
+
+    return moments.sum(axis=0)

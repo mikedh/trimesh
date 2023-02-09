@@ -11,6 +11,12 @@ from sympy.parsing.sympy_parser import parse_expr as sympy_parse
 from .constants import log
 from . import util
 
+import warnings
+warnings.warn(
+    '`trimesh.integrate` is deprecated and will ' +
+    'be removed in March 2024, you might take a ' +
+    'look at `quadpy` which is far more complete')
+
 
 def symbolic_barycentric(function):
     """

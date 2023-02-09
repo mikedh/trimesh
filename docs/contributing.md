@@ -9,16 +9,18 @@ Pull requests are always super welcome! Trimesh is a relatively small open sourc
 Here's how I set up a new environment and write functions. It's not necessary to do it this way but it does make some things easier! If you don't have a "virtual environment" solution there's plenty of ways to do this (poetry, pipenv, conda, etc.) but I just use the `venv` module built into the standard library:
 ```
 # create the venv
-python -m venv ~/myenv
+python -m venv ~/venv
 
 # on linux this will use this venv
 # every time you open a new terminal
-echo "source ~/myenv/bin/activate" >> ~/.bashrc
+echo "source ~/venv/bin/activate" >> ~/.bashrc
 ```
-
-With a virtual environment so pip doesn't dump files everywhere you can install some stuff. I usually start with:
+Then when you open a new terminal you can verify it got the right environment with `which`:
 ```
-pip install codespell ipython
+mikedh@orion:trimesh$ which python
+/home/mikedh/venv/bin/python
+mikedh@orion:trimesh$ which pip
+/home/mikedh/venv/bin/pip
 ```
 
 If you're planning on editing trimesh you might want to fork it via the Github interface, then install it via an editable pip install:
@@ -28,7 +30,7 @@ git clone git@github.com:mikedh/trimesh.git
 
 # do an editable install so you can experiment
 cd trimesh
-pip install -e .[easy, test]
+pip install -e .[easy,test]
 ```
 
 

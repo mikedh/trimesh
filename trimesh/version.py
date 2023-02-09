@@ -1,4 +1,4 @@
-__version__ = '3.18.2'
+__version__ = '3.19.2'
 
 if __name__ == '__main__':
     # print version if run directly i.e. in a CI script

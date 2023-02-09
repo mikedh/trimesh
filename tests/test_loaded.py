@@ -22,13 +22,6 @@ class LoaderTest(g.unittest.TestCase):
         model = g.get_mesh('empty.stl')
         assert model.is_empty
 
-    def test_ply_dtype(self):
-        # make sure all ply dtype strings are valid dtypes
-        dtypes = g.trimesh.exchange.ply.dtypes
-        for d in dtypes.values():
-            # will raise if dtype string not valid
-            g.np.dtype(d)
-
     def test_meshio(self):
         try:
             import meshio  # NOQA

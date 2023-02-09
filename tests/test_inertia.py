@@ -239,6 +239,166 @@ class InertiaTest(g.unittest.TestCase):
 
             assert g.np.allclose(MI_gt, MI)
 
+    def test_frame_inertia_box(self):
+        # set up a rectangular cuboid, vertices as visible below.
+        # The edges have the lengths 1,2 and 3
+        #           ^ x0, x2
+        #    y2 ^  /    b
+        #       | 1-----------2
+        #       |/|          /|
+        #       0-+---------3-+----> y0, x1, z2
+        #      /| |         | |
+        #     / | |         | |
+        # y1 v  | |         | |h
+        #       | |         | |
+        #       | |         | |
+        #       | 5---------+-6
+        #       |/          |/ d
+        #       4-----------7
+        #       |
+        #       v z0, z1
+
+        h = 3
+        b = 2
+        d = 1
+        # definition in frame 0
+        vertices = g.np.float32([[0, 0, 0],
+                                 [d, 0, 0],
+                                 [d, b, 0],
+                                 [0, b, 0],
+                                 [0, 0, h],
+                                 [d, 0, h],
+                                 [d, b, h],
+                                 [0, b, h]])
+
+        # 6 quad faces for the cube
+        quads = g.np.int32([[3, 2, 1, 0],
+                            [0, 1, 5, 4],
+                            [1, 2, 6, 5],
+                            [2, 3, 7, 6],
+                            [3, 0, 4, 7],
+                            [4, 5, 6, 7]])
+
+        # create a trimesh cube from vertices and faces
+        tm_cube = g.trimesh.Trimesh(vertices, quads)
+
+        # set density of 1 and calculate mass
+        tm_cube.density = 1
+        mass = tm_cube.density * h * b * d
+        assert tm_cube.mass == mass
+
+        def parallel_axis_theorem(inertia, mass, a1, a2, a3):
+            """
+            Apply parallel axis theorem
+
+            Parameters
+            ------------
+            inertia: (3,3) float
+              inertia tensor around centre of mass
+            mass : float
+            a1, a2, a3: float
+              difference between desired rotation center and center of mass in x,y,z
+
+            Returns
+            -----------
+            rotated_inertia : (3,3) float
+            Inertia tensor
+
+            """
+            # copy from wikipedia
+            return inertia + mass * g.np.array(
+                [[a2**2 + a3**2, -a1 * a2, -a1 * a3],
+                 [-a1 * a2, a1**2 +
+                  a3**2, -a2 * a3],
+                 [-a1 * a3, -a2 * a3, a1**2 + a2**2]])
+
+        # CHECK FRAME 0
+        # analytical calculations of inertia tensor by hand
+        inertia0 = 0.083333333333 * mass * g.np.diag([h**2 + b**2,
+                                                      h**2 + d**2,
+                                                      b**2 + d**2])
+        a1 = - 0.5 * d
+        a2 = - 0.5 * b
+        a3 = - 0.5 * h
+        inertia0 = parallel_axis_theorem(inertia0, mass, a1, a2, a3)
+        # transformation from mesh base frame to frame 0
+        t0 = g.np.eye(4)
+        assert g.np.allclose(tm_cube.moment_inertia_frame(t0), inertia0)
+
+        # CHECK FRAME 1
+        # analytical calculations of inertia tensor by hand
+        inertia1 = 0.083333333333 * mass * g.np.diag([h**2 + d**2,
+                                                      h**2 + b**2,
+                                                      b**2 + d**2])
+        a1 = - 0.5 * b
+        a2 = 0.5 * d
+        a3 = - 0.5 * h
+        inertia1 = parallel_axis_theorem(inertia1, mass, a1, a2, a3)
+        # transformation from mesh base frame to frame 1
+        # rotation of 90 deg around z-Axis
+        t1 = g.trimesh.transformations.rotation_matrix(
+            g.np.pi * 0.5, [0, 0, 1], [0, 0, 0])
+        assert g.np.allclose(tm_cube.moment_inertia_frame(t1), inertia1)
+
+        # CHECK FRAME 2
+        # analytical calculations of inertia tensor by hand
+        inertia2 = 0.083333333333 * mass * g.np.diag([h**2 + b**2,
+                                                      b**2 + d**2,
+                                                      h**2 + d**2])
+        a1 = - 0.5 * d
+        a2 = 0.5 * h
+        a3 = - 0.5 * b
+        inertia2 = parallel_axis_theorem(inertia2, mass, a1, a2, a3)
+        # transformation from mesh base frame to frame 2
+        # rotation of -90 deg around x-Axis
+        t2 = g.trimesh.transformations.rotation_matrix(
+            -g.np.pi * 0.5, [1, 0, 0], [0, 0, 0])
+        assert g.np.allclose(tm_cube.moment_inertia_frame(t2), inertia2)
+
+    def test_scene(self):
+        # check our transforming of inertia matrices using the
+        # parallel axis theorum by checking the inertia of a scene
+        # with multiple instances transformed all over the scene
+        # in two ways: by dumping it into a single mesh and then
+        # running the heavily validated surface integral method,
+        # and also running our "transform every matrix" logic
+        # contained in `trimesh.inertia.scene_inertia`
+
+        # scene with instancing
+        s = g.get_mesh('cycloidal.3DXML')
+        s._cache.clear()
+
+        with g.Profiler() as P:
+            ms = s.dump(concatenate=True)
+            total_dump = ms.moment_inertia
+        print(P.output_text())
+
+        # while we're at it check to make sure our composed
+        # center mass, volume, and area calcs are all working
+        assert g.np.allclose(s.center_mass, ms.center_mass)
+        # dumped inertia should be the same as transformed inertia
+        assert g.np.allclose(s.moment_inertia, ms.moment_inertia)
+        assert g.np.allclose(s.volume, ms.volume)
+        assert g.np.allclose(s.area, ms.area)
+
+        # that produced the moment of inertia around the center of mass
+        # of the scene, so for the `moment_inertia_frame` calculation
+        # compare against that
+        transform = g.tf.translation_matrix(ms.center_mass)
+        s._cache.clear()
+
+        with g.Profiler() as P:
+            total_scene = g.trimesh.inertia.scene_inertia(
+                s, transform=transform)
+        print(P.output_text())
+
+        # compare the two calculation methods by percent
+        diff = g.np.abs((total_dump - total_scene) / total_dump)
+        assert diff.shape == (3, 3)
+
+        # the two methods should return essentially identical results
+        assert g.np.abs(diff).max() < 1e-3
+
 
 class MassTests(g.unittest.TestCase):
 

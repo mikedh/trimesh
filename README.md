@@ -29,7 +29,7 @@ Further information is available in the [advanced installation documentation](ht
 ## Quick Start
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](https://trimsh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimsh.org/examples/section.html) or possibly the [integration of a function over a mesh example](https://github.com/mikedh/trimesh/blob/main/examples/integrate.ipynb).
+[ipython notebook version](https://trimsh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimsh.org/examples/section.html).
 
 ```python
 import numpy as np
@@ -149,9 +149,8 @@ print(mesh.bounding_box_oriented.volume,
 * Volume mesh generation (TETgen) using Gmsh SDK
 * Smooth watertight meshes using laplacian smoothing algorithms (Classic, Taubin, Humphrey)
 * Subdivide faces of a mesh
-* Minimum volume oriented bounding boxes for meshes
-* Minimum volume bounding spheres
-* Symbolic integration of functions over triangles
+* Approximate minimum volume oriented bounding boxes for meshes
+* Approximate minimum volume bounding spheres
 * Calculate nearest point on mesh surface and signed distance
 * Determine if a point lies inside or outside of a well constructed mesh using signed distance
 * Primitive objects (Box, Cylinder, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)

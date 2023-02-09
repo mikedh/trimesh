@@ -648,7 +648,7 @@ def nricp_amberg(source_mesh,
 
             if wn > 0 and 'normals' in qres:
                 target_normals = qres['normals']
-                if use_vertex_normals and qres['interpolated_normals'] is not None:
+                if use_vertex_normals and 'interpolated_normals' in qres:
                     target_normals = qres['interpolated_normals']
                 # Normal weighting = multiplying weights by cosines^wn
                 source_normals = DN * X
@@ -710,9 +710,15 @@ def _from_mesh(mesh,
         Dict to accept other key word arguments (not used)
     Returns
     ----------
-    qres : NearestQueryResult
-        NearestQueryResult object containing the nearest points (m, 3) and their
-        attributes
+    qres : Dict
+      Dictionary containing :
+       - nearest points (m, 3) with key 'nearest'
+       - distances to nearest point (m,) with key 'distances'
+       - support triangle indices of the nearest points (m,) with key 'tids'
+       - [optional] normals at nearest points (m,3) with key 'normals'
+       - [optional] barycentric coordinates in support triangles (m,3) with key
+         'barycentric_coordinates'
+       - [optional] interpolated normals (m,3) with key 'interpolated_normals'
     """
     input_points = np.asanyarray(input_points)
     neighbors_count = min(neighbors_count, len(mesh.vertices))
@@ -772,14 +778,18 @@ def _from_points(target_points,
 
     Returns
     ----------
-    qres : NearestQueryResult
-      NearestQueryResult object containing the nearest points (m, 3) and their attributes
+    qres : Dict
+      Dictionary containing :
+       - nearest points (m, 3) with key 'nearest'
+       - distances to nearest point (m,) with key 'distances'
+       - vertex indices of the nearest points (m,) with key 'vertex_indices'
+       - [optional] normals at nearest points (m,3) with key 'normals'
     """
     # Empty result
     target_points = np.asanyarray(target_points)
     input_points = np.asanyarray(input_points)
     neighbors_count = min(neighbors_count, len(target_points))
-    qres = {'has_normals': return_normals}
+    qres = {}
     if kdtree is None:
         kdtree = cKDTree(target_points)
 
@@ -1047,9 +1057,9 @@ def nricp_sumner(source_mesh,
                 len(source_vtet))
             vertices_weight = np.ones(nV)
             vertices_weight[qres['distances'] > distance_threshold] = 0
-            if wn > 0 or qres['has_normals']:
+            if wn > 0 or 'normals' in qres:
                 target_normals = qres['normals']
-                if use_vertex_normals and qres['interpolated_normals'] is not None:
+                if use_vertex_normals and 'interpolated_normals' in qres:
                     target_normals = qres['interpolated_normals']
                 # Normal weighting : multiplying weights by cosines^wn
                 source_normals = _compute_vertex_normals(transformed_vertices,

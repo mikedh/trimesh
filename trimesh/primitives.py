@@ -554,7 +554,7 @@ class Sphere(_Primitive):
         center : None or (3,) float
           Center of sphere.
         transform : None or (4, 4) float
-          Full homogenous transform. Pass `center` OR `transform.
+          Full homogeneous transform. Pass `center` OR `transform.
         subdivisions : int
           Number of subdivisions for icosphere.
         """
