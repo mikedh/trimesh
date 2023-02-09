@@ -48,6 +48,7 @@ tests: ## Run unit tests inside docker images.
 	DOCKER_BUILDKIT=1 \
 	docker build \
 		--target tests \
+		--progress=plain \
 		--build-arg "CODECOV_TOKEN=$(CODECOV_TOKEN)" \
 		.
 
