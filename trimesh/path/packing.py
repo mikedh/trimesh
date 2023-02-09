@@ -7,7 +7,7 @@ Pack rectangular regions onto larger rectangular regions.
 import time
 import numpy as np
 
-from ..util import allclose
+from ..util import allclose, bounds_tree
 from ..constants import log, tol
 
 # floating point zero
@@ -302,6 +302,10 @@ def rectangles_single(rect, size=None, shuffle=False, rotate=True):
             offset[index] = inserted
             consume[index] = True
 
+    if tol.strict:
+        # in tests make sure we've never returned overlapping bounds
+        assert not bounds_overlap(offset[consume])
+
     return offset[consume], consume
 
 
@@ -327,7 +331,8 @@ def paths(paths, **kwargs):
     quantity = [i.metadata.get('quantity', 1)
                 for i in paths]
 
-    # pack using exterior polygon (will OBB)
+    # pack using exterior polygon which will have the
+    # oriented bounding box calculated before packing
     packable = [i.polygons_closed[i.root[0]] for i in paths]
 
     # pack the polygons using rectangular bin packing
@@ -429,8 +434,15 @@ def polygons(polygons,
     # transformations to packed positions
     packed = obb[inserted]
 
+    roll = roll_transform(bounds=bounds, extents=rect[inserted])
+
+    # from IPython import embed
+    # embed()
+
     # apply the offset and inter- polygon spacing
-    packed.reshape(-1, 9)[:, [2, 5]] += bounds[:, 0, :] + spacing
+    # packed.reshape(-1, 9)[:, [2, 5]] += bounds[:, 0, :] + spacing
+
+    packed = np.array([np.dot(b, a) for a, b in zip(obb[inserted], roll)])
 
     return indexes[inserted], packed
 
@@ -603,23 +615,30 @@ def roll_transform(bounds, extents):
     if len(extents) == 0:
         return []
 
-    # store the resulting transformation matrices
-    result = np.tile(np.eye(4), (len(bounds), 1, 1))
-
-    # a lookup table for rotations for rolling cubiods
-    lookup = np.array(
-        [np.eye(4),
-         [[-0., -0., -1., -0.],
-          [-1., -0., -0., -0.],
-          [0., 1., 0., 0.],
-          [0., 0., 0., 1.]],
-         [[-0., -1., -0., -0.],
-          [0., 0., 1., 0.],
-          [-1., -0., -0., -0.],
-          [0., 0., 0., 1.]]])
-
     # find the size of the AABB of the passed bounds
     passed = bounds.ptp(axis=1)
+    # zeroth index is 2D, `1` is 3D
+    dimension = passed.shape[1]
+
+    # store the resulting transformation matrices
+    result = np.tile(np.eye(dimension + 1), (len(bounds), 1, 1))
+
+    # a lookup table for rotations for rolling cuboiods
+    # as `lookup[dimension][roll]`
+    # only implemented for 2D and 3D
+    lookup = [np.array([np.eye(3),
+                        np.array([[0., -1., 0.],
+                                  [1., 0., 0.],
+                                  [0., 0., 1.]])]),
+              np.array([np.eye(4),
+                        [[-0., -0., -1., -0.],
+                         [-1., -0., -0., -0.],
+                         [0., 1., 0., 0.],
+                         [0., 0., 0., 1.]],
+                        [[-0., -1., -0., -0.],
+                         [0., 0., 1., 0.],
+                         [-1., -0., -0., -0.],
+                         [0., 0., 0., 1.]]])]
 
     # rectangular rotation involves rolling
     for roll in range(extents.shape[1]):
@@ -632,16 +651,51 @@ def roll_transform(bounds, extents):
             continue
 
         # the base rotation for this
-        mat = lookup[roll]
+        mat = lookup[dimension - 2][roll]
         # the lower corner of the AABB plus the rolled extent
-        offset = np.tile(np.eye(4), (ok.sum(), 1, 1))
-        offset[:, :3, 3] = bounds[:, 0][ok] + rolled[ok] / 2.0
+        offset = np.tile(np.eye(dimension + 1), (ok.sum(), 1, 1))
+        offset[:, :dimension, dimension] = bounds[:, 0][ok] + rolled[ok] / 2.0
         result[ok] = [np.dot(o, mat) for o in offset]
 
     if tol.strict:
-        # make sure bounds match inputs
-        from ..creation import box
-        assert all(allclose(box(extents=e).apply_transform(m).bounds, b)
-                   for b, e, m in zip(bounds, extents, result))
+        if dimension == 3:
+            # make sure bounds match inputs
+            from ..creation import box
+            assert all(allclose(box(extents=e).apply_transform(m).bounds, b)
+                       for b, e, m in zip(bounds, extents, result))
+        elif dimension == 2:
+            # in 2D check with a rectangle
+            from .creation import rectangle
+            assert all(
+                allclose(rectangle(
+                    bounds=[-e / 2, e / 2]).apply_transform(m).bounds, b)
+                for b, e, m in zip(bounds, extents, result))
 
     return result
+
+
+def bounds_overlap(bounds, epsilon=1e-8):
+    """
+    Check to see if multiple axis-aligned bounding boxes
+    contains overlaps using `rtree`.
+
+    Parameters
+    ------------
+    bounds : (n, 2, dimension) float
+      Axis aligned bounding boxes
+    epsilon : float
+      Amount to shrink AABB to avoid spurious floating
+      point hits.
+
+    Returns
+    --------------
+    overlap : bool
+      True if any bound intersects any other bound.
+    """
+    # pad AABB by epsilon for deterministic intersections
+    padded = np.array(bounds) + np.reshape(
+        [epsilon, -epsilon], (1, 2, 1))
+    tree = bounds_tree(padded)
+    # every returned AABB should not overlap with any other AABB
+    return any(set(tree.intersection(current.ravel())) !=
+               {i} for i, current in enumerate(bounds))

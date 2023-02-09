@@ -2479,7 +2479,6 @@ class Trimesh(Geometry3D):
             'euler_number'})
         # set the cache ID with the current hash value
         self._cache.id_set()
-        log.debug('mesh transformed by matrix')
         return self
 
     def voxelized(self, pitch, method='subdivide', **kwargs):

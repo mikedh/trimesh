@@ -4,36 +4,23 @@ except BaseException:
     import generic as g
 
 
-def bounds_no_overlap(bounds, epsilon=1e-8):
-    """
-    Check that a list of axis-aligned bounding boxes
-    contains no overlaps using `rtree`.
-
-    Parameters
-    ------------
-    bounds : (n, 2, dimension) float
-      Axis aligned bounding boxes
-    epsilon : float
-      Amount to shrink AABB to avoid spurious floating
-      point hits.
-
-    Returns
-    --------------
-    not_overlap : bool
-      True if no bound intersects any other bound.
-    """
-    # pad AABB by epsilon for deterministic intersections
-    padded = g.np.array(bounds) + g.np.reshape([epsilon, -epsilon],
-                                               (1, 2, 1))
-    tree = g.trimesh.util.bounds_tree(padded)
-    # every returned AABB should not overlap with any other AABB
-    return all(set(tree.intersection(current.ravel())) ==
-               {i} for i, current in enumerate(bounds))
-
-
 def transforms_match(bounds, extents, transforms):
     """
-    Check to see if transforms match.
+    Check to see if transforms match for 3D AABB's.
+
+    Parameters
+    -------------
+    bounds : (n, 2, 3) float
+      Axis aligned bounding boxes.
+    extents : (n, 3) float
+      Original pre-transform extents
+    transforms : (n, 4, 4) float
+      Transform to move `extents` to `bounds`
+
+    Returns
+    -----------
+    match : bool
+      Transforms match or not.
     """
     assert len(bounds) == len(extents)
     assert len(bounds) == len(transforms)
@@ -44,7 +31,6 @@ def transforms_match(bounds, extents, transforms):
         a = box(bounds=b)
         # create a box using the roll transform
         b = box(extents=e, transform=t)
-
         # they should be identical
         if not g.np.allclose(a.bounds, b.bounds):
             return False
@@ -117,7 +103,11 @@ class PackingTest(g.unittest.TestCase):
         # should have inserted all our paths
         assert count == len(paths)
         # splitting should result in the right number of paths
-        assert count == len(r.split())
+        split = r.split()
+        assert count == len(split)
+
+        # none of the polygon bounding boxes should overlap
+        assert not packing.bounds_overlap([i.bounds for i in split])
 
     def test_3D(self):
         from trimesh.path import packing
@@ -136,14 +126,10 @@ class PackingTest(g.unittest.TestCase):
         # try packing these 3D boxes
         bounds, consume = packing.rectangles_single(e)
         assert consume.all()
-        # assert all bounds are well constructed
-        assert bounds_no_overlap(bounds)
 
         # try packing these 3D boxes
         bounds, consume = packing.rectangles_single(e, size=[14, 14, 1])
         assert not consume.all()
-        # assert all bounds are well constructed
-        assert bounds_no_overlap(bounds)
 
     def test_transform(self):
         from trimesh.path import packing
@@ -176,7 +162,6 @@ class PackingTest(g.unittest.TestCase):
                 # a maximum `size` to packing
                 assert consume.all()
                 assert len(bounds) == consume.sum()
-                assert bounds_no_overlap(bounds)
 
                 # generate the transforms for the packing
                 transforms = packing.roll_transform(
@@ -191,9 +176,6 @@ class PackingTest(g.unittest.TestCase):
 
                 bounds, consume = packing.rectangles(
                     extents, size=[16, 16, 10])
-                # should have inserted everything because we didn't specify
-                # a maximum `size` to packing
-                assert bounds_no_overlap(bounds)
 
                 # generate the transforms for the packing
                 transforms = packing.roll_transform(
@@ -207,9 +189,7 @@ class PackingTest(g.unittest.TestCase):
 
                 bounds, consume = packing.rectangles(
                     extents, size=[16, 16, 10], rotate=False)
-                # should have inserted everything because we didn't specify
-                # a maximum `size` to packing
-                assert bounds_no_overlap(bounds)
+
                 # generate the transforms for the packing
                 transforms = packing.roll_transform(
                     bounds=bounds, extents=extents[consume])
@@ -221,9 +201,6 @@ class PackingTest(g.unittest.TestCase):
                 density.append(viz.volume / viz.bounding_box.volume)
 
                 bounds, consume = packing.rectangles(extents, rotate=False)
-                # should have inserted everything because we didn't specify
-                # a maximum `size` to packing
-                assert bounds_no_overlap(bounds)
                 # generate the transforms for the packing
                 transforms = packing.roll_transform(
                     bounds=bounds, extents=extents[consume])
