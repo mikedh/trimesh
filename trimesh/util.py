@@ -1566,7 +1566,11 @@ def submesh(mesh,
         normals.append(mesh.face_normals[index])
         faces.append(mask[current])
         vertices.append(original_vertices[unique])
-        visuals.append(mesh.visual.face_subset(index))
+
+        try:
+            visuals.append(mesh.visual.face_subset(index))
+        except BaseException:
+            visuals = None
 
     if len(vertices) == 0:
         return np.array([])
@@ -1590,6 +1594,9 @@ def submesh(mesh,
             visual=visual,
             process=False)
         return appended
+
+    if visuals is None:
+        visuals = [None] * len(vertices)
 
     # generate a list of Trimesh objects
     result = [trimesh_type(

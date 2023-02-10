@@ -77,3 +77,8 @@ Trimesh has a lot of soft-required upstream packages. We try to make sure they'r
 |`scikit-image`| Used in voxel ops | | `all`|
 |`mapbox-earcut`| Triangulate 2D polygons | `triangle` which has an unusual license | `all`|
 |`psutil`| Get current memory usage, useful for checking to see if we're going to run out of memory instantiating a giant array | | `all`|
+|`ruff`| A static code analyzer that replaces `flake8`. | `flake8` | `test`|
+|`autopep8`| A code formatter which fixes whitespace issues automatically. | | `test`|
+|`pytest`| A test runner. | | `test`|
+|`pytest-cov`| A plugin to calculate test coverage. | | `test`|
+|`pyinstrument`| A sampling based profiler for performance tweaking. | | `test`|

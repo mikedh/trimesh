@@ -120,7 +120,7 @@ class RectangleBin:
         # split hyper-rectangle along axis
         # note that split is *absolute* distance not offset
         # so we have to add the current min to the size
-        splits = np.tile(bounds, (2, 1))
+        splits = np.vstack((bounds, bounds))
         splits[1:3, axis] = bounds[0][axis] + size[axis]
 
         # assign two children
@@ -169,23 +169,25 @@ def rectangles_single(extents, size=None, shuffle=False, rotate=True):
     extents : (n, dimension) float
       The size of the hyper-rectangles to pack.
     size : None or (dim,) float
-      Maximum size of container to pack onto. If not passed it
-      will re-root the tree when large items are inserted.
+      Maximum size of container to pack onto.
+      If not passed it will re-root the tree when items
+      larger than any available node are inserted.
     shuffle : bool
       Whether or not to shuffle the insert order of the
       smaller rectangles, as the final packing density depends
       on insertion order.
     rotate : bool
-      If True, allow rotation.
+      If True, allow integer-roll rotation.
 
     Returns
     ---------
-    bounds : (n, 2, dim) float
+    bounds : (m, 2, dim) float
       Axis aligned resulting bounds in space
     transforms : (m, dim + 1, dim + 1) float
       Homogenous transformation including rotation.
-    inserted : (n,) bool
-      Which of the original rectangles were packed
+    consume : (n,) bool
+      Which of the original rectangles were packed,
+      i.e. `consume.sum() == m`
     """
 
     extents = np.asanyarray(extents, dtype=np.float64)
@@ -319,9 +321,13 @@ def paths(paths, **kwargs):
     Returns
     ------------
     packed : trimesh.path.Path2D
-      Object containing input geometry
-    inserted : (m,) int
-      Indexes of paths inserted into result
+      All paths packed into a single path object.
+    transforms : (m, 3, 3) float
+      Homogenous transforms to move paths from their
+      original position to the new one.
+    consume : (n,) bool
+      Which of the original paths were inserted,
+      i.e. `consume.sum() == m`
     """
     from .util import concatenate
 
@@ -347,12 +353,10 @@ def paths(paths, **kwargs):
     # append all packed paths into a single Path object
     packed = concatenate(positioned)
 
-    return packed, consume
+    return packed, transforms, consume
 
 
-def polygons(polygons,
-             size=None,
-             **kwargs):
+def polygons(polygons, **kwargs):
     """
     Pack polygons into a rectangle by taking each Polygon's OBB
     and then packing that as a rectangle.
@@ -361,18 +365,17 @@ def polygons(polygons,
     ------------
     polygons : (n,) shapely.geometry.Polygon
       Source geometry
-    size : (2,) float
-      Size of rectangular sheet
     **kwargs : dict
       Passed through to `packing.rectangles`.
 
     Returns
     -------------
-    overall_inserted : (m,) int
-      Indexes of inserted polygons
-    packed : (m, 3, 3) float
+    transforms : (m, 3, 3) float
       Homogeonous transforms from original frame to
       packed frame.
+    consume : (n,) bool
+      Which of the original polygons was packed,
+      i.e. `consume.sum() == m`
     """
 
     from .polygons import polygons_obb, polygon_bounds
@@ -380,31 +383,22 @@ def polygons(polygons,
     # find the oriented bounding box of the polygons
     obb, extents = polygons_obb(polygons)
 
-    spacing = kwargs.get('spacing', 0.0)
-    # pad all sides of the rectangle
-    extents += 2.0 * spacing
-    # move the OBB transform so the polygon is centered
-    # in the padded rectangle
-
     # run packing for a number of iterations
-    bounds, consume = rectangles(
-        extents=extents,
-        size=size,
-        **kwargs)
+    bounds, consume = rectangles(extents=extents, **kwargs)
 
-    assert not bounds_overlap(bounds)
     log.debug('%i/%i parts were packed successfully',
               consume.sum(), len(polygons))
 
     # transformations to packed positions
     roll = roll_transform(bounds=bounds, extents=extents[consume])
-    # add the spacing offset
-    roll[:, :2, 2] += spacing
 
     transforms = np.array([np.dot(b, a) for a, b in
                            zip(obb[consume], roll)])
 
     if tol.strict:
+        # original bounds should not overlap
+        assert not bounds_overlap(bounds)
+        # confirm transfor
         check_bound = np.array(
             [polygon_bounds(polygons[index], matrix=m)
              for index, m in zip(np.nonzero(consume)[0], transforms)])
@@ -415,22 +409,24 @@ def polygons(polygons,
 
 def rectangles(extents,
                size=None,
-               density_escape=0.9,
+               density_escape=0.99,
                spacing=0.0,
                iterations=50,
                rotate=True,
                quanta=None):
     """
-    Run multiple iterations of rectangle packing.
+    Run multiple iterations of rectangle packing, this is the
+    core function for all rectangular packing.
 
     Parameters
     ------------
     extents : (n, dimension) float
       Size of hyper-rectangle to be packed
     size : None or (dimension,) float
-      Size of sheet to pack onto
+      Size of sheet to pack onto. If not passed tree will be allowed
+      to create new volume-minimizing parent nodes.
     density_escape : float
-      Exit early if density is above this threshold
+      Exit early if rectangular density is above this threshold.
     spacing : float
       Distance to allow between rect
     iterations : int
@@ -450,6 +446,8 @@ def rectangles(extents,
 
     extents = np.array(extents)
     dim = extents.shape[1]
+
+    extents += spacing * 2.0
 
     # hyper-volume: area in 2D, volume in 3D, party in 4D
     area = np.product(extents, axis=1)
@@ -479,11 +477,17 @@ def rectangles(extents,
             best_density = density
             best_count = count
             # save the result
-            result = (bounds, insert)
+            result = [bounds, insert]
             # exit early if everything is inserted and
             # we have exceeded our target density
             if density > density_escape and insert.all():
                 break
+
+    if spacing > 1e-12:
+        # shrink the bounds by spacing
+        result[0] += [[[spacing], [-spacing]]]
+
+    log.debug('packed with density {:0.5f}'.format(best_density))
 
     return result
 
@@ -532,6 +536,50 @@ def images(images, power_resize=False):
         result.paste(img, tuple(off))
 
     return result, offset
+
+
+def meshes(meshes, **kwargs):
+    """
+    Pack 3D meshes into a rectangular volume using box packing.
+
+    Parameters
+    ------------
+    meshes : (n,) trimesh.Trimesh
+      Input geometry to pack
+    **kwargs : dict
+      Passed to `packing.rectangles`
+
+    Returns
+    ------------
+    placed : (m,) trimesh.Trimesh
+      Meshes moved into the rectangular volume.
+    transforms : (m, 4, 4) float
+      Homogenous transform moving mesh from original
+      position to being packed in a rectangular volume.
+    consume : (n,) bool
+      Which of the original meshes were inserted,
+      i.e. `consume.sum() == m`
+    """
+    # pack meshes relative to their oriented bounding boxes
+    obbs = [i.bounding_box_oriented for i in meshes]
+    obb_extent = np.array([i.primitive.extents for i in obbs])
+    obb_transform = np.array([o.primitive.transform for o in obbs])
+
+    # run packing
+    bounds, consume = rectangles(obb_extent, **kwargs)
+
+    # generate the transforms from an origin centered AABB
+    # to the final placed and rotated AABB
+    transforms = [
+        np.dot(r, np.linalg.inv(o)) for
+        o, r in zip(obb_transform[consume],
+                    roll_transform(bounds=bounds,
+                                   extents=obb_extent[consume]))]
+
+    placed = [meshes[index].copy().apply_transform(T)
+              for index, T in zip(np.nonzero(consume)[0], transforms)]
+
+    return placed, transforms, consume
 
 
 def visualize(extents, bounds, meshes=None):
