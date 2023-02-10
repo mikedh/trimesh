@@ -690,7 +690,7 @@ def icosphere(subdivisions=3, radius=1.0, color=None):
       Meshed sphere
     """
 
-    ico = icosahedron(process=False, validate=False)
+    ico = icosahedron()
     ico._validate = False
     for _ in range(subdivisions):
         ico = ico.subdivide()
