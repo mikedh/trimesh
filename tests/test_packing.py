@@ -107,10 +107,11 @@ class PackingTest(g.unittest.TestCase):
         paths = [g.trimesh.load_path(i) for i in polygons]
 
         with g.Profiler() as P:
-            r, consume = packing.paths(paths)
+            r, tf, consume = packing.paths(paths)
         print(P.output_text())
         # number of paths inserted
         count = consume.sum()
+        assert tf.shape == (count, 3, 3)
         # should have inserted all our paths
         assert count == len(paths)
         # splitting should result in the right number of paths
@@ -120,10 +121,11 @@ class PackingTest(g.unittest.TestCase):
         assert not packing.bounds_overlap([i.bounds for i in split])
 
         with g.Profiler() as P:
-            r, consume = packing.paths(paths, size=[24, 12], spacing=0.5)
+            r, tf, consume = packing.paths(paths, size=[24, 12], spacing=0.5)
         print(P.output_text())
         # number of paths inserted
         count = consume.sum()
+        assert tf.shape == (count, 3, 3)
         # splitting should result in the right number of paths
         split = r.split()
         assert count == len(split)
@@ -235,6 +237,24 @@ class PackingTest(g.unittest.TestCase):
                     bounds=bounds, extents=extents[consume])
                 density.append(viz.volume / viz.bounding_box.volume)
         print(P.output_text())
+
+    def test_meshes(self):
+        from trimesh.path import packing
+        # create some random rotation boxes
+        meshes = [g.trimesh.creation.box(
+            extents=g.np.random.random(3),
+            transform=g.tf.random_rotation_matrix())
+            for _ in range(20)]
+        packed, transforms, consume = packing.meshes(
+            meshes, spacing=0.01)
+        scene = g.trimesh.Scene(packed)
+
+        assert len(consume) == len(meshes)
+        assert len(packed) == consume.sum()
+        assert transforms.shape == (consume.sum(), 4, 4)
+
+        density = scene.volume / scene.bounding_box.volume
+        assert density > 0.5
 
 
 if __name__ == '__main__':

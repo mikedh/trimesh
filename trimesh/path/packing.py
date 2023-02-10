@@ -443,10 +443,10 @@ def rectangles(extents,
     inserted : (n,) bool
       Which of the original rect were packed.
     """
-
-    extents = np.array(extents)
+    # copy extents and make sure they are floats
+    extents = np.array(extents, dtype=np.float64)
     dim = extents.shape[1]
-
+    # add on any requested spacing
     extents += spacing * 2.0
 
     # hyper-volume: area in 2D, volume in 3D, party in 4D
@@ -513,7 +513,6 @@ def images(images, power_resize=False):
        Offsets for original image to pack
     """
     from PIL import Image
-
     # use the number of pixels as the rectangle size
     bounds, insert = rectangles(
         extents=[i.size for i in images], rotate=False)
@@ -570,36 +569,49 @@ def meshes(meshes, **kwargs):
 
     # generate the transforms from an origin centered AABB
     # to the final placed and rotated AABB
-    transforms = [
+    transforms = np.array([
         np.dot(r, np.linalg.inv(o)) for
         o, r in zip(obb_transform[consume],
                     roll_transform(bounds=bounds,
-                                   extents=obb_extent[consume]))]
+                                   extents=obb_extent[consume]))],
+        dtype=np.float64)
 
+    # copy the meshes and move into position
     placed = [meshes[index].copy().apply_transform(T)
               for index, T in zip(np.nonzero(consume)[0], transforms)]
 
     return placed, transforms, consume
 
 
-def visualize(extents, bounds, meshes=None):
+def visualize(extents, bounds):
     """
     Visualize a 3D box packing.
+
+    Parameters
+    ------------
+    extents : (n, 3) float
+      AABB size before packing.
+    bounds : (n, 2, 3) float
+      AABB location after packing.
+
+    Returns
+    ------------
+    scene : trimesh.Scene
+      Scene with boxes at requested locations.
     """
+    from ..scene import Scene
     from ..creation import box
     from ..visual import random_color
-    from ..scene import Scene
 
+    # use a roll transform to verify extents
     transforms = roll_transform(bounds=bounds, extents=extents)
-    if meshes is None:
-        meshes = [box(extents=e) for e in extents]
-    collect = []
-    for ori, matrix in zip(meshes, transforms):
-        m = ori.copy()
+    meshes = [box(extents=e) for e in extents]
+
+    for m, matrix, check in zip(meshes, transforms, bounds):
         m.apply_transform(matrix)
+        assert np.allclose(m.bounds, check)
         m.visual.face_colors = random_color()
-        collect.append(m)
-    return Scene(collect)
+    return Scene(meshes)
 
 
 def roll_transform(bounds, extents):
