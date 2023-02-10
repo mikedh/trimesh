@@ -75,6 +75,7 @@ requirements_test = set(['pytest',       # run all unit tests
 # Python 2.7 and 3.4 support has been dropped from packages
 # version lock those packages here so install succeeds
 current = (sys.version_info.major, sys.version_info.minor)
+
 # packages that no longer support old Python
 lock = [((3, 4), 'lxml', '4.3.5'),
         ((3, 4), 'shapely', '1.6.4'),
@@ -82,8 +83,7 @@ lock = [((3, 4), 'lxml', '4.3.5'),
         ((3, 5), 'sympy', None),
         ((3, 6), 'pyglet<2', None),
         ((3, 6), 'autopep8', None),
-        ((3, 6), 'flake8-pyproject', None),
-        ((3, 6), 'flake8-no-implicit-concat', None),
+        ((3, 6), 'ruff', None),
         ((3, 6), 'svg.path', '4.1')]
 for max_python, name, version in lock:
     if current <= max_python:
