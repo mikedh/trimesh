@@ -1376,7 +1376,7 @@ def _read_buffers(header,
             if isinstance(m.get('extras'), dict):
                 metadata.update(m['extras'])
 
-            for j, p in enumerate(m["primitives"]):
+            for p in m["primitives"]:
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
                 kwargs = {"metadata": {}, "process": False}

@@ -426,7 +426,7 @@ class Cache(object):
         self.cache.update(items)
 
         if self.force_immutable:
-            for k, v in self.cache.items():
+            for v in self.cache.values():
                 if hasattr(v, 'flags') and len(v.shape) > 0:
                     v.flags.writeable = False
         self.id_set()
@@ -608,8 +608,8 @@ class DataStore(Mapping):
         # make sure passed value is a bool
         is_mutable = bool(value)
         # apply the flag to any data stored
-        for n, i in self.data.items():
-            i.mutable = value
+        for v in self.data.values():
+            v.mutable = value
         # save the mutable setting
         self._mutable = is_mutable
 

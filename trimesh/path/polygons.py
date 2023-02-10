@@ -612,7 +612,7 @@ def sample(polygon, count, factor=1.5, max_iter=10):
         return hit[0][:count]
 
     # if we have to do iterations loop here slowly
-    for i in range(max_iter):
+    for _ in range(max_iter):
         # generate points inside polygons AABB
         points = np.random.random((per_loop, 2))
         points = (points * extents) + bounds[0]

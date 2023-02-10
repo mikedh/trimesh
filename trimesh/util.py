@@ -1566,7 +1566,11 @@ def submesh(mesh,
         normals.append(mesh.face_normals[index])
         faces.append(mask[current])
         vertices.append(original_vertices[unique])
-        visuals.append(mesh.visual.face_subset(index))
+
+        try:
+            visuals.append(mesh.visual.face_subset(index))
+        except BaseException:
+            visuals = None
 
     if len(vertices) == 0:
         return np.array([])
@@ -1590,6 +1594,9 @@ def submesh(mesh,
             visual=visual,
             process=False)
         return appended
+
+    if visuals is None:
+        visuals = [None] * len(vertices)
 
     # generate a list of Trimesh objects
     result = [trimesh_type(
@@ -1941,7 +1948,7 @@ def compress(info, **kwargs):
     return compressed
 
 
-def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
+def split_extension(file_name, special=None):
     """
     Find the file extension of a file name, including support for
     special case multipart file extensions (like .tar.gz)
@@ -1962,6 +1969,8 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
     """
     file_name = str(file_name)
 
+    if special is None:
+        special = ['tar.bz2', 'tar.gz']
     if file_name.endswith(tuple(special)):
         for end in special:
             if file_name.endswith(end):

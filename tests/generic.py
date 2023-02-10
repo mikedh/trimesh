@@ -43,20 +43,29 @@ else:
     from SimpleHTTPServer import SimpleHTTPRequestHandler
     import SocketServer as socketserver
 
+# make a dummy profiler which does nothing
+
+
+class DummyProfiler(object):
+    def __enter__(self, *args, **kwargs):
+        return self
+
+    def __exit__(*args, **kwargs):
+        pass
+
+    def output_text(*args, **kwargs):
+        return 'no `pyinstrument`'
+
+
+# make sure dummy profiler works
+with DummyProfiler() as _P:
+    pass
+assert len(_P.output_text()) > 0
 
 try:
     from pyinstrument import Profiler
 except BaseException:
-    # make a dummy profiler which does nothing
-    class Profiler(object):
-        def __enter__(self, *args, **kwargs):
-            return self
-
-        def __exit__(*args, **kwargs):
-            pass
-
-        def output_text(*args, **kwargs):
-            return 'no `pyinstrument`'
+    Profiler = DummyProfiler
 
 
 # should we require all soft dependencies

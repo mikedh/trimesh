@@ -5,5 +5,7 @@ requires = [
     "wheel",
 ]
 
-[tool.flake8]
-max_line_length = 90
+[tool.ruff]
+select = ["E", "F"] # TODO : pass bugbear "B"]
+ignore = ["B905"]
+line-length = 90

@@ -75,7 +75,7 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
         """
         matrices = []
         current = e
-        for i in range(max_depth):
+        for _ in range(max_depth):
             if 'transform' in current.attrib:
                 matrices.extend(transform_to_matrices(
                     current.attrib['transform']))

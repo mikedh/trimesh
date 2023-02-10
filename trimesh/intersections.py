@@ -596,7 +596,8 @@ def slice_faces_plane(vertices,
         # Add new vertices to existing vertices, triangulate quads, and add the
         # resulting triangles to the new faces
         new_vertices = np.append(new_vertices, new_quad_vertices, axis=0)
-        new_tri_faces_from_quads = geometry.triangulate_quads(new_quad_faces)
+        new_tri_faces_from_quads = geometry.triangulate_quads(
+            new_quad_faces)
         new_faces = np.append(new_faces, new_tri_faces_from_quads, axis=0)
 
     # Handle the case where a new triangle is formed by the intersection
@@ -649,6 +650,7 @@ def slice_mesh_plane(mesh,
                      face_index=None,
                      cap=False,
                      cached_dots=None,
+                     engine=None,
                      **kwargs):
     """
     Slice a mesh with a plane returning a new mesh that is the
@@ -671,6 +673,8 @@ def slice_mesh_plane(mesh,
     cached_dots : (n, 3) float
       If an external function has stored dot
       products pass them here to avoid recomputing
+    engine : None or str
+      Triangulation engine passed to `triangulate_polygon`
     kwargs : dict
       Passed to the newly created sliced mesh
 
@@ -685,9 +689,9 @@ def slice_mesh_plane(mesh,
 
     # avoid circular import
     from .base import Trimesh
-    from .creation import triangulate_polygon
     from .path import polygons
     from scipy.spatial import cKDTree
+    from .creation import triangulate_polygon
 
     # check input plane
     plane_normal = np.asanyarray(
@@ -760,7 +764,7 @@ def slice_mesh_plane(mesh,
             faces = [f]
             for p in polygons.edges_to_polygons(
                     edges[unique_edge], vertices_2D[:, :2]):
-                vn, fn = triangulate_polygon(p)
+                vn, fn = triangulate_polygon(p, engine=engine)
                 # collect the original index for the new vertices
                 vn3 = tf.transform_points(util.stack_3D(vn), to_3D)
                 distance, vid = tree.query(vn3)

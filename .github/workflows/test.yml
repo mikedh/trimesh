@@ -20,11 +20,11 @@ jobs:
         pip install `python setup.py --list-test`
     - name: Check Formatting
       run: |
-        flake8 tests
-        flake8 trimesh
+        ruff tests
+        ruff trimesh
         echo ${{github.ref}}
-        flake8 examples
-        flake8 setup.py
+        ruff examples
+        ruff setup.py
         autopep8 --recursive --aggressive --diff --exit-code trimesh/
         autopep8 --recursive --aggressive --diff --exit-code examples/
         autopep8 --recursive --aggressive --diff --exit-code tests/

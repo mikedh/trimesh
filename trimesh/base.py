@@ -2209,14 +2209,14 @@ class Trimesh(Geometry3D):
 
         # turn the line segments into Path2D objects
         paths = [None] * len(lines)
-        for i, faces, segments, T in zip(range(len(lines)),
-                                         faces,
-                                         lines,
-                                         transforms):
+        for i, f, segments, T in zip(range(len(lines)),
+                                     faces,
+                                     lines,
+                                     transforms):
             if len(segments) > 0:
                 paths[i] = load_path(
                     segments,
-                    metadata={'to_3D': T, 'face_index': faces})
+                    metadata={'to_3D': T, 'face_index': f})
         return paths
 
     def slice_plane(self,

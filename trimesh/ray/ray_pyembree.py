@@ -177,7 +177,7 @@ class RayMeshIntersector(object):
         # use a for loop rather than a while to ensure this exits
         # if a ray is offset from a triangle and then is reported
         # hitting itself this could get stuck on that one triangle
-        for query_depth in range(max_hits):
+        for _ in range(max_hits):
             # run the pyembree query
             # if you set output=1 it will calculate distance along
             # ray, which is bizzarely slower than our calculation

@@ -69,7 +69,7 @@ def load_3MF(file_obj,
     # iterate the XML object and build elements with an LXML iterator
     # loaded elements are cleared to avoid ballooning memory
     model.seek(0)
-    for event, obj in etree.iterparse(model, tag=('{*}object', '{*}build')):
+    for _, obj in etree.iterparse(model, tag=('{*}object', '{*}build')):
         # parse objects
         if 'object' in obj.tag:
             # id is mandatory
@@ -145,7 +145,7 @@ def load_3MF(file_obj,
     # components are instances which need to be linked to base
     # frame by a build_item
     for start, group in components.items():
-        for i, (gid, tf) in enumerate(group):
+        for gid, tf in group:
             g.add_edge(start, gid, matrix=tf)
 
     # turn the graph into kwargs for a scene graph

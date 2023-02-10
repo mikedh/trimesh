@@ -171,7 +171,6 @@ def revolve(linestring,
 def extrude_polygon(polygon,
                     height,
                     transform=None,
-                    triangle_args=None,
                     **kwargs):
     """
     Extrude a 2D shapely polygon into a 3D mesh
@@ -184,8 +183,8 @@ def extrude_polygon(polygon,
       Distance to extrude polygon along Z
     triangle_args : str or None
       Passed to triangle
-    **kwargs:
-        passed to Trimesh
+    **kwargs : dict
+      Passed to `triangulate_polygon`
 
     Returns
     ----------
@@ -193,8 +192,7 @@ def extrude_polygon(polygon,
       Resulting extrusion as watertight body
     """
     # create a triangulation from the polygon
-    vertices, faces = triangulate_polygon(
-        polygon, triangle_args=triangle_args, **kwargs)
+    vertices, faces = triangulate_polygon(polygon, **kwargs)
     # extrude that triangulation along Z
     mesh = extrude_triangulation(vertices=vertices,
                                  faces=faces,
@@ -222,7 +220,8 @@ def sweep_polygon(polygon,
     angles :  (n,) float
       Optional rotation angle relative to prior vertex
       at each vertex
-
+    **kwargs : dict
+      Passed to `triangulate_polygon`.
     Returns
     -------
     mesh : trimesh.Trimesh
@@ -429,7 +428,7 @@ def triangulate_polygon(polygon,
     Parameters
     ---------
     polygon : Shapely.geometry.Polygon
-        Polygon object to be triangulated
+        Polygon object to be triangulated.
     triangle_args : str or None
         Passed to triangle.triangulate i.e: 'p', 'pq30'
     engine : None or str
@@ -689,17 +688,15 @@ def icosphere(subdivisions=3, radius=1.0, color=None):
     ico : trimesh.Trimesh
       Meshed sphere
     """
-    def refine_spherical():
-        vectors = ico.vertices
-        scalar = (vectors ** 2).sum(axis=1)**.5
-        unit = vectors / scalar.reshape((-1, 1))
-        offset = radius - scalar
-        ico.vertices += unit * offset.reshape((-1, 1))
+
     ico = icosahedron()
     ico._validate = False
-    for j in range(subdivisions):
+    for _ in range(subdivisions):
         ico = ico.subdivide()
-        refine_spherical()
+        vectors = ico.vertices
+        scalar = np.sqrt(np.dot(vectors ** 2, [1, 1, 1]))
+        unit = vectors / scalar.reshape((-1, 1))
+        ico.vertices += unit * (radius - scalar).reshape((-1, 1))
     ico._validate = True
     if color is not None:
         ico.visual.face_colors = color
@@ -709,7 +706,7 @@ def icosphere(subdivisions=3, radius=1.0, color=None):
 
 
 def uv_sphere(radius=1.0,
-              count=[32, 32],
+              count=None,
               theta=None,
               phi=None):
     """
@@ -733,10 +730,12 @@ def uv_sphere(radius=1.0,
     mesh : trimesh.Trimesh
        Mesh of UV sphere with specified parameters
     """
-
-    count = np.array(count, dtype=np.int64)
-    count += np.mod(count, 2)
-    count[1] *= 2
+    if count is None:
+        count = np.array([32, 64], dtype=np.int64)
+    else:
+        count = np.array(count, dtype=np.int64)
+        count += np.mod(count, 2)
+        count[1] *= 2
 
     # generate vertices on a sphere using spherical coordinates
     if theta is None:
@@ -786,7 +785,7 @@ def uv_sphere(radius=1.0,
 
 def capsule(height=1.0,
             radius=1.0,
-            count=[32, 32]):
+            count=None):
     """
     Create a mesh of a capsule, or a cylinder with hemispheric ends.
 
@@ -807,10 +806,12 @@ def capsule(height=1.0,
         - one hemisphere is centered at the origin
         - other hemisphere is centered along the Z axis at height
     """
-    height = float(height)
-    radius = float(radius)
-    count = np.array(count, dtype=np.int64)
-    count += np.mod(count, 2)
+    if count is None:
+        count = np.array([32, 64], dtype=np.int64)
+    else:
+        count = np.array(count, dtype=np.int64)
+        count += np.mod(count, 2)
+        count[1] *= 2
 
     # create a theta where there is a double band around the equator
     # so that we can offset the top and bottom of a sphere to

@@ -266,7 +266,7 @@ def load_3DXML(file_obj, *args, **kwargs):
     geom_names = {}
     # loop through every simple path and generate transforms tree
     # note that we are flattening the transform tree here
-    for path_index, path in enumerate(paths):
+    for path in paths:
         name = ''
         if 'name' in references[path[-3]]:
             name = references[path[-3]]['name']
