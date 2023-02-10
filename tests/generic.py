@@ -49,8 +49,8 @@ try:
 except BaseException:
     # make a dummy profiler which does nothing
     class Profiler(object):
-        def __enter__(*args, **kwargs):
-            pass
+        def __enter__(self, *args, **kwargs):
+            return self
 
         def __exit__(*args, **kwargs):
             pass
