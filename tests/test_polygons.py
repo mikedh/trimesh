@@ -159,11 +159,11 @@ class PolygonTests(g.unittest.TestCase):
             shell_1 = rectangle(bh)
             shell_1 += shell_1.min(axis=0)
             shell_2 = - shell_1
-            shell = g.np.concatenate((shell_1[2:,:], 
-                                        shell_1[:2,:],
-                                        shell_2[2:,:],
-                                        shell_2[:2,:]
-                                        ),axis=0)
+            shell = g.np.concatenate((shell_1[2:, :],
+                                      shell_1[:2, :],
+                                      shell_2[2:, :],
+                                      shell_2[:2, :]
+                                      ), axis=0)
             return Polygon(shell=shell)
 
         def truth(bh, bhi=None):
@@ -199,26 +199,28 @@ class PolygonTests(g.unittest.TestCase):
         for bh in heights:
             # check the second moment of a rectangle
             # as polygon is already centered, centered doesn't have any effect
-            O_moments, O_principal_moments, O_alpha, O_transform = second_moments(poly(bh), centered=True)
+            O_moments, O_principal_moments, O_alpha, O_transform = second_moments(
+                poly(bh), centered=True)
             # check against wikipedia
             t = truth(bh)
-            # for a centered rectangle, the principal axis are alread aligned with the frame axis
+            # for a centered rectangle, the principal axis are alread aligned
+            # with the frame axis
             assert g.np.allclose(O_moments, t)
             assert g.np.any(g.np.isclose(O_moments, O_principal_moments[0]))
-            assert g.np.isclose(O_moments[2],0) # Ixy = 0
-            assert g.np.isclose(O_alpha,0)
+            assert g.np.isclose(O_moments[2], 0)  # Ixy = 0
+            assert g.np.isclose(O_alpha, 0)
             assert g.np.allclose(O_transform, g.np.eye(3))
 
-
             # now check a rectangle with the corner, so Ixy != 0
-            
+
             # First we test with centering. The results should be same as
             # with the initally centered rectangles
-            C_moments, C_principal_moments, C_alpha, C_transform = second_moments(poly_corner(bh), centered=True)
+            C_moments, C_principal_moments, C_alpha, C_transform = second_moments(
+                poly_corner(bh), centered=True)
             assert g.np.allclose(O_moments, C_moments)
             assert g.np.allclose(O_principal_moments, C_principal_moments)
             assert g.np.isclose(O_alpha, C_alpha)
-            assert g.np.allclose(O_transform[:,:2], C_transform[:,:2])
+            assert g.np.allclose(O_transform[:, :2], C_transform[:, :2])
 
             # Now without centering
             moments = second_moments(poly_corner(bh), centered=False)
@@ -227,14 +229,16 @@ class PolygonTests(g.unittest.TestCase):
 
             # Now we will get the transform for a double rectangle. Then we will apply
             # the transform and test if Ixy == 0, alpha == 0 etc.
-            C_moments, C_principal_moments, C_alpha, C_transform = second_moments(poly_doublecorner(bh), centered=True)
+            C_moments, C_principal_moments, C_alpha, C_transform = second_moments(
+                poly_doublecorner(bh), centered=True)
             # apply the outputted transform to the polygon
             T_polygon = transform_polygon(poly_doublecorner(bh), C_transform)
             # call the function on the transformed polygon
-            T_moments, T_principal_moments, T_alpha, T_transform = second_moments(T_polygon, centered=True)
+            T_moments, T_principal_moments, T_alpha, T_transform = second_moments(
+                T_polygon, centered=True)
             assert g.np.any(g.np.isclose(T_moments, C_principal_moments[0]))
-            assert g.np.allclose(C_principal_moments,T_principal_moments)
-            assert g.np.isclose(T_alpha,0, atol=1e-7)
+            assert g.np.allclose(C_principal_moments, T_principal_moments)
+            assert g.np.isclose(T_alpha, 0, atol=1e-7)
             assert g.np.allclose(T_transform, g.np.eye(3))
 
             # check polygons with interior

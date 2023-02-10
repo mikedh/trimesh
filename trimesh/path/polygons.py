@@ -867,8 +867,8 @@ def second_moments(polygon, centered=False):
       Principal second moments of inertia: `[Imax, Imin]`
       Only returned if centered=True
     alpha : float
-      Angle by which the polygon needs to be rotated, so the 
-      principal axis align with the x- and y-Axis. 
+      Angle by which the polygon needs to be rotated, so the
+      principal axis align with the x- and y-Axis.
       Only returned if centered=True
     transform : (3,3) float
       Transformation matrix which rotates the polygon by alpha.
@@ -876,9 +876,9 @@ def second_moments(polygon, centered=False):
     """
 
     transform = np.eye(3)
-    if centered == True:
+    if centered:
         # calculate centroid and move polygon
-        transform[:2,2] = - np.array(polygon.centroid.coords)
+        transform[:2, 2] = - np.array(polygon.centroid.coords)
         polygon = transform_polygon(polygon, transform)
 
     # start with the exterior
@@ -888,9 +888,10 @@ def second_moments(polygon, centered=False):
     x2, y2 = coords.T
     # do vectorized operations
     v = x1 * y2 - x2 * y1
-    Ixx = 0.083333333333 * np.sum( v * (y1 * y1 + y1 * y2 + y2 * y2) )
-    Iyy = 0.083333333333 * np.sum( v * (x1 * x1 + x1 * x2 + x2 * x2) )
-    Ixy = 0.041666666666 * np.sum( v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1) )
+    Ixx = 0.083333333333 * np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2))
+    Iyy = 0.083333333333 * np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2))
+    Ixy = 0.041666666666 * \
+        np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1))
 
     for interior in polygon.interiors:
         coords = np.array(interior.coords)
@@ -899,37 +900,38 @@ def second_moments(polygon, centered=False):
         x2, y2 = coords.T
         # do vectorized operations
         v = x1 * y2 - x2 * y1
-        Ixx -= 0.083333333333 * np.sum( v * (y1 * y1 + y1 * y2 + y2 * y2) )
-        Iyy -= 0.083333333333 * np.sum( v * (x1 * x1 + x1 * x2 + x2 * x2) )
-        Ixy -= 0.041666666666 * np.sum( v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1) )
-    
+        Ixx -= 0.083333333333 * np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2))
+        Iyy -= 0.083333333333 * np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2))
+        Ixy -= 0.041666666666 * \
+            np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1))
+
     moments = [Ixx, Iyy, Ixy]
 
-    if centered is not True:
+    if not centered:
         return moments
+
+    # get the principal moments
+    root = np.sqrt(((Iyy - Ixx) / 2)**2 + Ixy**2)
+    Imax = (Ixx + Iyy) / 2 + root
+    Imin = (Ixx + Iyy) / 2 - root
+    principal_moments = [Imax, Imin]
+
+    # do the principal axis transform
+    if np.isclose(Ixy, 0, atol=1e-12):
+        alpha = 0
+    elif np.isclose(Ixx, Iyy):
+        # prevent division by 0
+        alpha = 0.25 * np.pi
     else:
-        # get the principal moments
-        root = np.sqrt(((Iyy-Ixx)/2)**2 + Ixy**2)
-        Imax = (Ixx+Iyy)/2 + root
-        Imin = (Ixx+Iyy)/2 - root
-        principal_moments = [Imax, Imin]
+        alpha = 0.5 * np.arctan(2 * Ixy / (Ixx - Iyy))
 
-        # do the principal axis transform
-        if np.isclose(Ixy, 0, atol=1e-12): # for small shapes Ixy can get very small, but not 0
-            alpha = 0
-        elif np.isclose(Ixx, Iyy):
-            # prevent division by 0
-            alpha = 0.25 * np.pi
-        else:
-            alpha = 0.5 * np.arctan(2*Ixy/(Ixx - Iyy))
+    # construct transformation matrix
+    cos_alpha = np.cos(alpha)
+    sin_alpha = np.sin(alpha)
 
-        # construct transformation matrix
-        cos_alpha = np.cos(alpha)
-        sin_alpha = np.sin(alpha)
+    transform[0, 0] = cos_alpha
+    transform[1, 1] = cos_alpha
+    transform[0, 1] = - sin_alpha
+    transform[1, 0] = sin_alpha
 
-        transform[0,0] = cos_alpha
-        transform[1,1] = cos_alpha
-        transform[0,1] = - sin_alpha
-        transform[1,0] = sin_alpha
-
-        return moments, principal_moments, alpha, transform
+    return moments, principal_moments, alpha, transform
