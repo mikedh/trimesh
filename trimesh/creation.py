@@ -171,7 +171,6 @@ def revolve(linestring,
 def extrude_polygon(polygon,
                     height,
                     transform=None,
-                    triangle_args=None,
                     **kwargs):
     """
     Extrude a 2D shapely polygon into a 3D mesh
@@ -184,8 +183,8 @@ def extrude_polygon(polygon,
       Distance to extrude polygon along Z
     triangle_args : str or None
       Passed to triangle
-    **kwargs:
-        passed to Trimesh
+    **kwargs : dict
+      Passed to `triangulate_polygon`
 
     Returns
     ----------
@@ -193,8 +192,7 @@ def extrude_polygon(polygon,
       Resulting extrusion as watertight body
     """
     # create a triangulation from the polygon
-    vertices, faces = triangulate_polygon(
-        polygon, triangle_args=triangle_args, **kwargs)
+    vertices, faces = triangulate_polygon(polygon, **kwargs)
     # extrude that triangulation along Z
     mesh = extrude_triangulation(vertices=vertices,
                                  faces=faces,
@@ -222,7 +220,8 @@ def sweep_polygon(polygon,
     angles :  (n,) float
       Optional rotation angle relative to prior vertex
       at each vertex
-
+    **kwargs : dict
+      Passed to `triangulate_polygon`.
     Returns
     -------
     mesh : trimesh.Trimesh
@@ -429,7 +428,7 @@ def triangulate_polygon(polygon,
     Parameters
     ---------
     polygon : Shapely.geometry.Polygon
-        Polygon object to be triangulated
+        Polygon object to be triangulated.
     triangle_args : str or None
         Passed to triangle.triangulate i.e: 'p', 'pq30'
     engine : None or str

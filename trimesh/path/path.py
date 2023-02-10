@@ -1240,7 +1240,7 @@ class Path2D(Path):
         Parameters
         -------------
         **kwargs : dict
-          Passed to trimesh.creation.triangulate_polygon
+          Passed to `trimesh.creation.triangulate_polygon`
 
         Returns
         -------------
