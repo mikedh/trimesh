@@ -620,7 +620,7 @@ def empty_material(color=None):
     try:
         from PIL import Image
     except BaseException as E:
-        return exceptions.ExceptionModule(E)
+        return exceptions.ExceptionWrapper(E)
 
     if color is None or np.shape(color) not in ((3,), (4,)):
         color = np.array([255, 255, 255], dtype=np.uint8)

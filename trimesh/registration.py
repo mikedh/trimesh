@@ -24,8 +24,8 @@ except BaseException as E:
     # wrapping just ImportError fails in some cases
     # will raise the error when someone tries to use KDtree
     from . import exceptions
-    cKDTree = exceptions.closure(E)
-    sparse = exceptions.closure(E)
+    cKDTree = exceptions.ExceptionWrapper(E)
+    sparse = exceptions.ExceptionWrapper(E)
 
 
 def mesh_other(mesh,

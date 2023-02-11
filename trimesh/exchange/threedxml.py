@@ -11,14 +11,6 @@ import collections
 
 from .. import util
 
-try:
-    import networkx as nx
-except BaseException as E:
-    # create a dummy module which will raise the ImportError
-    # or other exception only when someone tries to use networkx
-    from ..exceptions import ExceptionModule
-    nx = ExceptionModule(E)
-
 
 def load_3DXML(file_obj, *args, **kwargs):
     """
@@ -326,7 +318,11 @@ def print_element(element):
 
 
 try:
+    # soft dependencies
     from lxml import etree
+    import networkx as nx
     _threedxml_loaders = {'3dxml': load_3DXML}
-except ImportError:
-    _threedxml_loaders = {}
+except BaseException as E:
+    # set loader to exception wrapper
+    from ..exceptions import ExceptionWrapper
+    _threedxml_loaders = {'3dxml': ExceptionWrapper(E)}

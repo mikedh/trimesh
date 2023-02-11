@@ -11,14 +11,6 @@ from .. import graph
 
 from ..constants import log
 
-try:
-    import networkx as nx
-except BaseException as E:
-    # create a dummy module which will raise the ImportError
-    # or other exception only when someone tries to use networkx
-    from ..exceptions import ExceptionModule
-    nx = ExceptionModule(E)
-
 
 def load_3MF(file_obj,
              postprocess=True,
@@ -465,6 +457,10 @@ def _attrib_to_transform(attrib):
 # do import here to keep lxml a soft dependency
 try:
     from lxml import etree
+    import networkx as nx
     _three_loaders = {'3mf': load_3MF}
-except ImportError:
-    _three_loaders = {}
+    _3mf_exporters = {'3mf': export_3MF}
+except BaseException as E:
+    from ..exceptions import ExceptionWrapper
+    _three_loaders = {'3mf': ExceptionWrapper(E)}
+    _3mf_exporters = {'3mf': ExceptionWrapper(E)}

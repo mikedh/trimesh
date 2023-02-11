@@ -19,8 +19,8 @@ try:
 except BaseException as E:
     # raise the exception when someone tries to use it
     from . import exceptions
-    leastsq = exceptions.closure(E)
-    spatial = exceptions.ExceptionModule(E)
+    leastsq = exceptions.ExceptionWrapper(E)
+    spatial = exceptions.ExceptionWrapper(E)
 
 try:
     import psutil

@@ -966,9 +966,9 @@ def load_draco(file_obj, **kwargs):
 
 _ply_loaders = {'ply': load_ply}
 _ply_exporters = {'ply': export_ply}
+
 draco_encoder = util.which('draco_encoder')
 draco_decoder = util.which('draco_decoder')
-
 if draco_decoder is not None:
     _ply_loaders['drc'] = load_draco
 if draco_encoder is not None:

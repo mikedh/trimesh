@@ -20,8 +20,8 @@ from . import triangles
 try:
     from scipy import spatial
 except ImportError as E:
-    from .exceptions import ExceptionModule
-    spatial = ExceptionModule(E)
+    from .exceptions import ExceptionWrapper
+    spatial = ExceptionWrapper(E)
 
 
 def convex_hull(obj, qhull_options='QbB Pp Qt'):

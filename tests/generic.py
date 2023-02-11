@@ -86,7 +86,7 @@ except ImportError as E:
 try:
     import jsonschema
 except BaseException as E:
-    jsonschema = trimesh.exceptions.ExceptionModule(E)
+    jsonschema = trimesh.exceptions.ExceptionWrapper(E)
 
 # make sure functions know they should run additional
 # potentially slow validation checks and raise exceptions

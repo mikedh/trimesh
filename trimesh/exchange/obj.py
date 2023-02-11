@@ -10,8 +10,8 @@ try:
 except BaseException as E:
     # if someone tries to use Image re-raise
     # the import error so they can debug easily
-    from ..exceptions import ExceptionModule
-    Image = ExceptionModule(E)
+    from ..exceptions import ExceptionWrapper
+    Image = ExceptionWrapper(E)
 
 from .. import util
 from ..visual.color import to_float

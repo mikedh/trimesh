@@ -16,8 +16,8 @@ try:
 except BaseException as E:
     # raise the exception when someone tries to use it
     from . import exceptions
-    spatial = exceptions.ExceptionModule(E)
-    optimize = exceptions.ExceptionModule(E)
+    spatial = exceptions.ExceptionWrapper(E)
+    optimize = exceptions.ExceptionWrapper(E)
 
 
 # a 90 degree rotation

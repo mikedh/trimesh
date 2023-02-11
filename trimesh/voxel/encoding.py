@@ -10,8 +10,8 @@ from .. import caching
 try:
     from scipy import sparse as sp
 except BaseException as E:
-    from ..exceptions import ExceptionModule
-    sp = ExceptionModule(E)
+    from ..exceptions import ExceptionWrapper
+    sp = ExceptionWrapper(E)
 
 
 def _empty_stripped(shape):

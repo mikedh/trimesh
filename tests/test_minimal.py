@@ -21,6 +21,9 @@ _mwd = os.path.abspath(
 
 
 def get_mesh(file_name, **kwargs):
+    """
+    Load a mesh from our models directory.
+    """
     return trimesh.load(os.path.join(_mwd, file_name),
                         **kwargs)
 
@@ -90,6 +93,27 @@ class MinimalTest(unittest.TestCase):
         assert len(scene.geometry) == 1
         glb = scene.export(file_type='glb')
         assert len(glb) > 0
+
+    def test_load_wrap(self):
+        # check to see if we give a useful message
+        # when we *do not* have `lxml` installed
+        try:
+            import lxml  # noqa
+            return
+        except BaseException:
+            pass
+
+        # we have no 3DXML
+        exc = None
+        try:
+            get_mesh('cycloidal.3dxml')
+        except BaseException as E:
+            exc = str(E)
+
+        # should have raised
+        assert exc is not None
+        # error message should have been useful
+        assert 'lxml' in exc
 
 
 if __name__ == '__main__':

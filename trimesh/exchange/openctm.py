@@ -46,9 +46,9 @@ try:
     if _ctm_lib_name is None or len(_ctm_lib_name) == 0:
         raise ImportError('libopenctm library not found!')
 except BaseException as E:
-    from ..exceptions import closure
+    from ..exceptions import ExceptionWrapper
     _ctm_lib_name = None
-    _ctm_loader = closure(E)
+    _ctm_loader = ExceptionWrapper(E)
 
 
 def load_ctm(file_obj, file_type=None, **kwargs):

@@ -25,14 +25,14 @@ try:
 except BaseException as E:
     # will re-raise the import exception when
     # someone tries to call `parse_path`
-    parse_path = exceptions.closure(E)
+    parse_path = exceptions.ExceptionWrapper(E)
 
 try:
     from lxml import etree
 except BaseException as E:
     # will re-raise the import exception when
     # someone actually tries to use the module
-    etree = exceptions.ExceptionModule(E)
+    etree = exceptions.ExceptionWrapper(E)
 
 # store any additional properties using a trimesh namespace
 _ns_name = 'trimesh'

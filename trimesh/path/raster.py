@@ -14,7 +14,7 @@ try:
 except BaseException as E:
     from .. import exceptions
     # re-raise the useful exception when called
-    _handle = exceptions.ExceptionModule(E)
+    _handle = exceptions.ExceptionWrapper(E)
     Image = _handle
     ImageDraw = _handle
     ImageChops = _handle

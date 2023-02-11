@@ -22,15 +22,15 @@ try:
     from scipy.sparse import csgraph, coo_matrix
 except BaseException as E:
     # re-raise exception when used
-    csgraph = exceptions.ExceptionModule(E)
-    coo_matrix = exceptions.closure(E)
+    csgraph = exceptions.ExceptionWrapper(E)
+    coo_matrix = exceptions.ExceptionWrapper(E)
 
 try:
     import networkx as nx
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    nx = exceptions.ExceptionModule(E)
+    nx = exceptions.ExceptionWrapper(E)
 
 
 def face_adjacency(faces=None,

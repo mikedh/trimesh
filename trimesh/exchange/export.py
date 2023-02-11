@@ -7,15 +7,15 @@ from ..constants import log
 from .. import util
 from .. import resolvers
 
-from .threemf import export_3MF
 from .urdf import export_urdf  # NOQA
 from .gltf import export_glb, export_gltf
 from .obj import export_obj
 from .off import _off_exporters
 from .stl import export_stl, export_stl_ascii
-from .ply import export_ply, _ply_exporters
+from .ply import _ply_exporters
 from .dae import _collada_exporters
 from .xyz import _xyz_exporters
+from .threemf import _3mf_exporters
 
 
 def export_mesh(mesh,
@@ -245,6 +245,9 @@ def export_scene(scene,
     elif file_type == 'dict':
         data = scene_to_dict(scene, *kwargs)
     elif file_type == 'obj':
+        # if we are exporting by name automatically create a
+        # resolver which lets the exporter write assets like
+        # the materials and textures next to the exported mesh
         if resolver is None and util.is_string(file_obj):
             resolver = resolvers.FilePathResolver(file_obj)
         data = export_obj(scene, resolver=resolver, **kwargs)
@@ -254,11 +257,12 @@ def export_scene(scene,
         from trimesh.path.exchange import svg_io
         data = svg_io.export_svg(scene, **kwargs)
     elif file_type == 'ply':
-        data = export_ply(scene.dump(concatenate=True), **kwargs)
+        data = _mesh_exporters['ply'](
+            scene.dump(concatenate=True), **kwargs)
     elif file_type == 'stl':
         data = export_stl(scene.dump(concatenate=True), **kwargs)
     elif file_type == '3mf':
-        data = export_3MF(scene, **kwargs)
+        data = _mesh_exporters['3mf'](scene, **kwargs)
     else:
         raise ValueError(
             'unsupported export format: {}'.format(file_type))
@@ -296,35 +300,16 @@ def export_scene(scene,
     return data
 
 
-def export_json(mesh):
-    blob = export_dict(mesh, encoding='base64')
-    export = json.dumps(blob)
-    return export
-
-
-def export_msgpack(mesh):
-    import msgpack
-    blob = export_dict(mesh, encoding='binary')
-    export = msgpack.dumps(blob)
-    return export
-
-
 _mesh_exporters = {
     'stl': export_stl,
     'dict': export_dict,
-    'json': export_json,
     'glb': export_glb,
     'obj': export_obj,
     'gltf': export_gltf,
     'dict64': export_dict64,
-    'msgpack': export_msgpack,
     'stl_ascii': export_stl_ascii}
-
-# requires a newer `zipfile` module
-if sys.version_info >= (3, 6):
-    _mesh_exporters['3mf'] = export_3MF
-
 _mesh_exporters.update(_ply_exporters)
 _mesh_exporters.update(_off_exporters)
 _mesh_exporters.update(_collada_exporters)
 _mesh_exporters.update(_xyz_exporters)
+_mesh_exporters.update(_3mf_exporters)
