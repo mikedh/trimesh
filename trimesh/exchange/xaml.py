@@ -159,5 +159,6 @@ def load_XAML(file_obj, *args, **kwargs):
 try:
     from lxml import etree
     _xaml_loaders = {'xaml': load_XAML}
-except ImportError:
+except ImportError as error:
+    print(error)
     _xaml_loaders = {}

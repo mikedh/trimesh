@@ -466,5 +466,6 @@ def _attrib_to_transform(attrib):
 try:
     from lxml import etree
     _three_loaders = {'3mf': load_3MF}
-except ImportError:
+except ImportError as error:
+    print(error)
     _three_loaders = {}

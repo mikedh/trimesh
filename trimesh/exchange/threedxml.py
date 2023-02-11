@@ -328,5 +328,6 @@ def print_element(element):
 try:
     from lxml import etree
     _threedxml_loaders = {'3dxml': load_3DXML}
-except ImportError:
+except ImportError as error:
+    print(error)
     _threedxml_loaders = {}
