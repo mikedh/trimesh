@@ -113,7 +113,7 @@ class MinimalTest(unittest.TestCase):
         # should have raised
         assert exc is not None
         # error message should have been useful
-        assert 'lxml' in exc
+        assert 'lxml' in str(exc)
 
 
 if __name__ == '__main__':
