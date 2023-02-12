@@ -22,7 +22,7 @@ from . import transformations
 
 def point_plane_distance(points,
                          plane_normal,
-                         plane_origin=[0.0, 0.0, 0.0]):
+                         plane_origin=None):
     """
     The minimum perpendicular distance of a point to a plane.
 
@@ -41,7 +41,10 @@ def point_plane_distance(points,
       Distance from point to plane
     """
     points = np.asanyarray(points, dtype=np.float64)
-    w = points - plane_origin
+    if plane_origin is None:
+        w = points
+    else:
+        w = points - plane_origin
     distances = np.dot(plane_normal, w.T) / np.linalg.norm(plane_normal)
     return distances
 
@@ -155,8 +158,8 @@ def radial_sort(points,
 
 
 def project_to_plane(points,
-                     plane_normal=[0, 0, 1],
-                     plane_origin=[0, 0, 0],
+                     plane_normal,
+                     plane_origin,
                      transform=None,
                      return_transform=False,
                      return_planar=True):

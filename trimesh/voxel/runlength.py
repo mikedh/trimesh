@@ -387,10 +387,10 @@ def sorted_rle_gather_1d(rle_data, ordered_indices):
             try:
                 value = next(data_iter)
                 start += next(data_iter)
-            except StopIteration:
+            except StopIteration as E:
                 raise IndexError(
                     'Index %d out of range of raw_values length %d'
-                    % (index, start))
+                    % (index, start)) from E
         try:
             while index < start:
                 yield value
@@ -530,10 +530,10 @@ def sorted_brle_gather_1d(brle_data, ordered_indices):
             try:
                 value = not value
                 start += next(data_iter)
-            except StopIteration:
+            except StopIteration as E:
                 raise IndexError(
                     'Index %d out of range of raw_values length %d'
-                    % (index, start))
+                    % (index, start)) from E
         try:
             while index < start:
                 yield value
@@ -654,18 +654,19 @@ def rle_strip(rle_data):
     """
     rle_data = np.reshape(rle_data, (-1, 2))
     start = 0
-    for i, (val, count) in enumerate(rle_data):
+    for val, count in rle_data:
         if val and count > 0:
             break
         else:
             start += count
-
     end = 0
-    for j, (val, count) in enumerate(rle_data[::-1]):
+    for val, count in rle_data[::-1]:
         if val and count > 0:
             break
         else:
             end += count
+
+    i, j = len(rle_data), len(rle_data[::-1])
     rle_data = rle_data[i:None if j == 0 else -j].reshape((-1,))
     return rle_data, (start, end)
 
@@ -686,7 +687,7 @@ def brle_strip(brle_data):
     """
     start = 0
     val = True
-    for i, count in enumerate(brle_data):
+    for count in brle_data:
         val = not val
         if val and count > 0:
             break
@@ -694,12 +695,13 @@ def brle_strip(brle_data):
             start += count
     end = 0
     val = bool(len(brle_data) % 2)
-    for j, count in enumerate(brle_data[::-1]):
+    for count in brle_data[::-1]:
         val = not val
         if val and count > 0:
             break
         else:
             end += count
+    i, j = len(brle_data), len(brle_data[::-1])
     brle_data = brle_data[i:None if j == 0 else -j]
     brle_data = np.concatenate([[0], brle_data])
     return brle_data, (start, end)

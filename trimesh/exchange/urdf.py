@@ -10,7 +10,7 @@ from ..version import __version__
 def export_urdf(mesh,
                 directory,
                 scale=1.0,
-                color=[0.75, 0.75, 0.75],
+                color=None,
                 **kwargs):
     """
     Convert a Trimesh object into a URDF package for physics
@@ -110,11 +110,12 @@ def export_urdf(mesh,
                                                           scale,
                                                           scale))
         material = et.SubElement(visual, 'material', name='')
-        et.SubElement(material,
-                      'color',
-                      rgba="{:.2E} {:.2E} {:.2E} 1".format(color[0],
-                                                           color[1],
-                                                           color[2]))
+        if color is not None:
+            et.SubElement(material,
+                          'color',
+                          rgba="{:.2E} {:.2E} {:.2E} 1".format(color[0],
+                                                               color[1],
+                                                               color[2]))
 
         # Collision Information
         collision = et.SubElement(link, 'collision')
