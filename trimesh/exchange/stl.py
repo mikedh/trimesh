@@ -80,7 +80,7 @@ def load_stl_binary(file_obj):
     try:
         header = np.frombuffer(
             header_data, dtype=_stl_dtype_header)
-    except BaseException as E:
+    except BaseException:
         raise HeaderError('Binary header incorrect type')
 
     try:

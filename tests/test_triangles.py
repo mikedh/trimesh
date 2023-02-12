@@ -56,9 +56,11 @@ class TrianglesTest(g.unittest.TestCase):
         ptsOnCircle = g.np.transpose(
             [g.np.cos(alphas), g.np.sin(alphas), g.np.zeros(nPtsOnCircle)]) * radius
 
-        def norm(v): return g.np.sqrt(g.np.einsum('...i,...i', v, v))
+        def norm(v):
+            return g.np.sqrt(g.np.einsum('...i,...i', v, v))
 
-        def distToLine(o, v, p): return norm((o - p) - g.np.dot(o - p, v) * v)
+        def distToLine(o, v, p):
+            return norm((o - p) - g.np.dot(o - p, v) * v)
 
         def distPointToEdge(U, V, P):  # edge [U, V], point P
             UtoV = V - U

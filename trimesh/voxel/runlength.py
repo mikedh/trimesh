@@ -387,7 +387,7 @@ def sorted_rle_gather_1d(rle_data, ordered_indices):
             try:
                 value = next(data_iter)
                 start += next(data_iter)
-            except StopIteration as E:
+            except StopIteration:
                 raise IndexError(
                     'Index %d out of range of raw_values length %d'
                     % (index, start))
@@ -530,7 +530,7 @@ def sorted_brle_gather_1d(brle_data, ordered_indices):
             try:
                 value = not value
                 start += next(data_iter)
-            except StopIteration as E:
+            except StopIteration:
                 raise IndexError(
                     'Index %d out of range of raw_values length %d'
                     % (index, start))
