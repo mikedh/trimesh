@@ -110,10 +110,13 @@ class MinimalTest(unittest.TestCase):
         except BaseException as E:
             exc = str(E)
 
+        print(exc)  # noqa
+
         # should have raised
         assert exc is not None
+
         # error message should have been useful
-        assert 'lxml' in str(exc)
+        assert 'lxml' in exc
 
 
 if __name__ == '__main__':
