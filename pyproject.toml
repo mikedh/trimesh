@@ -7,7 +7,7 @@ requires = [
 
 [tool.ruff]
 select = ["E", "F",
-          "T201", # disallow print statements
+          "T201", "B" # disallow print statements
 	  ] # TODO : pass bugbear "B"]
 ignore = ["B905"]
 line-length = 90
