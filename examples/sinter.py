@@ -56,13 +56,17 @@ def collect_meshes(count=None):
 if __name__ == '__main__':
 
     # get some sample data
-    meshes = collect_meshes(count=100)
+    meshes = collect_meshes(count=10)
 
     print('loaded {} meshes'.format(len(meshes)))
 
     # place the meshes into the volume
-    placed, transforms, consume = packing.meshes(
-        meshes, size=[7, 7, 7], spacing=0.05)
+    from pyinstrument import Profiler
+
+    with Profiler() as P:
+        placed, transforms, consume = packing.meshes(
+            meshes, spacing=0.05)
+    P.print()
 
     # none of the placed meshes should have overlapping AABB
     assert not packing.bounds_overlap([i.bounds for i in placed])

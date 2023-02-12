@@ -11,12 +11,12 @@ from . import transformations
 
 try:
     # scipy is a soft dependency
-    from scipy import spatial
+    from scipy.spatial import ConvexHull
     from scipy import optimize
 except BaseException as E:
     # raise the exception when someone tries to use it
     from . import exceptions
-    spatial = exceptions.ExceptionWrapper(E)
+    ConvexHull = exceptions.ExceptionWrapper(E)
     optimize = exceptions.ExceptionWrapper(E)
 
 
@@ -47,7 +47,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # create a convex hull object of our points
     # 'QbB' is a qhull option which has it scale the input to unit
     # box to avoid precision issues with very large/small meshes
-    convex = spatial.ConvexHull(
+    convex = ConvexHull(
         points, qhull_options=qhull_options)
 
     # (n,2,3) line segments
@@ -107,6 +107,36 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     return transform, rectangle
 
 
+def _oriented_bounds_2d_area(points):
+    """
+    A simplified method that returns just the area of the
+    2D oriented bounding box.
+    """
+    convex = ConvexHull(points)
+    # (n,2,3) line segments
+    hull_edges = convex.points[convex.simplices]
+    # (n,2) points on the convex hull
+    hull_points = convex.points[convex.vertices]
+    # unit vector direction of the edges of the hull polygon
+    # filter out zero- magnitude edges via check_valid
+    edge_vectors = hull_edges[:, 1] - hull_edges[:, 0]
+    edge_norm = np.sqrt(np.dot(edge_vectors ** 2, [1, 1]))
+    edge_nonzero = edge_norm > 1e-10
+    edge_vectors = edge_vectors[edge_nonzero] / \
+        edge_norm[edge_nonzero].reshape((-1, 1))
+    # create a set of perpendicular vectors
+    perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
+    # find the projection of every hull point on every edge vector
+    # this does create a potentially gigantic n^2 array in memory,
+    # and there is the 'rotating calipers' algorithm which avoids this
+    # however, we have reduced n with a convex hull and numpy dot products
+    # are extremely fast so in practice this usually ends up being fine
+    x = np.dot(edge_vectors, hull_points.T)
+    y = np.dot(perp_vectors, hull_points.T)
+    return ((x.max(axis=1) - x.min(axis=1)) *
+            (y.max(axis=1) - y.min(axis=1))).min()
+
+
 def oriented_bounds(obj,
                     angle_digits=1,
                     ordered=True,
@@ -154,7 +184,7 @@ def oriented_bounds(obj,
         if util.is_shape(points, (-1, 2)):
             return oriented_bounds_2D(points)
         elif util.is_shape(points, (-1, 3)):
-            hull_obj = spatial.ConvexHull(points)
+            hull_obj = ConvexHull(points)
             vertices = hull_obj.points[hull_obj.vertices]
             hull_normals, valid = triangles.normals(
                 hull_obj.points[hull_obj.simplices])
@@ -185,20 +215,24 @@ def oriented_bounds(obj,
         # if explicit normal was passed use it and skip the grouping
         matrices = [geometry.align_vectors(normal, [0, 0, 1])]
 
+    min_2D = None
+    min_volume = np.inf
+    vert_ones = np.column_stack((vertices, np.ones(len(vertices)))).T
     for to_2D in matrices:
-        # apply the transform here
-        projected = np.dot(to_2D, np.column_stack(
-            (vertices, np.ones(len(vertices)))).T).T[:, :3]
-
-        height = projected[:, 2].ptp()
-        rotation_2D, box = oriented_bounds_2D(projected[:, :2])
-        volume = np.product(box) * height
+        projected = np.dot(to_2D, vert_ones).T[:, :3]
+        volume = _oriented_bounds_2d_area(
+            projected[:, :2]) * projected[:, 2].ptp()
         if volume < min_volume:
             min_volume = volume
-            min_extents = np.append(box, height)
-            min_2D = to_2D.copy()
-            rotation_2D[:2, 2] = 0.0
-            rotation_Z = transformations.planar_matrix_to_3D(rotation_2D)
+            min_2D = to_2D
+
+    # apply the transform here
+    projected = np.dot(min_2D, vert_ones).T[:, :3]
+    height = projected[:, 2].ptp()
+    rotation_2D, box = oriented_bounds_2D(projected[:, :2])
+    min_extents = np.append(box, height)
+    rotation_2D[:2, 2] = 0.0
+    rotation_Z = transformations.planar_matrix_to_3D(rotation_2D)
 
     # combine the 2D OBB transformation with the 2D projection transform
     to_origin = np.dot(rotation_Z, min_2D)
