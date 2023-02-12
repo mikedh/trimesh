@@ -78,10 +78,10 @@ def load_stl_binary(file_obj):
         raise HeaderError('Binary STL shorter than a fixed header!')
 
     try:
-        header = np.frombuffer(header_data,
-                               dtype=_stl_dtype_header)
-    except BaseException:
-        raise HeaderError('Binary header incorrect type')
+        header = np.frombuffer(
+            header_data, dtype=_stl_dtype_header)
+    except BaseException as E:
+        raise HeaderError('Binary header incorrect type') from E
 
     try:
         # save the header block as a string

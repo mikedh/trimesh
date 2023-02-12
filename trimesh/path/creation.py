@@ -11,7 +11,7 @@ from .. import transformations
 def circle_pattern(pattern_radius,
                    circle_radius,
                    count,
-                   center=[0.0, 0.0],
+                   center=None,
                    angle=None,
                    **kwargs):
     """
@@ -44,6 +44,9 @@ def circle_pattern(pattern_radius,
         angles = np.linspace(0.0, angle, count)
     else:
         raise ValueError('angle must be float or int!')
+
+    if center is None:
+        center = [0.0, 0.0]
 
     # centers of circles
     centers = np.column_stack((

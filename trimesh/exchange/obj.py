@@ -932,7 +932,7 @@ def export_obj(mesh,
         mtl_data = {}
         # now loop through: keys are garbage hash
         # values are (data, name)
-        for data, name in materials.values():
+        for data, _ in materials.values():
             for file_name, file_data in data.items():
                 if file_name.lower().endswith('.mtl'):
                     # collect mtl lines into single file

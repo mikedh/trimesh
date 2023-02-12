@@ -261,7 +261,9 @@ def export_3MF(mesh,
     }
 
     # model ids
-    def model_id(x, models=[]):
+    models = []
+
+    def model_id(x):
         if x not in models:
             models.append(x)
         return str(models.index(x) + 1)
