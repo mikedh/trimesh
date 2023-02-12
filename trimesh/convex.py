@@ -24,7 +24,7 @@ except ImportError as E:
     spatial = ExceptionWrapper(E)
 
 
-def convex_hull(obj, qhull_options='QbB Pp Qt'):
+def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
     """
     Get a new Trimesh object representing the convex hull of the
     current mesh attempting to return a watertight mesh with correct
@@ -55,8 +55,7 @@ def convex_hull(obj, qhull_options='QbB Pp Qt'):
         if not util.is_shape(points, (-1, 3)):
             raise ValueError('Object must be Trimesh or (n,3) points!')
 
-    hull = spatial.ConvexHull(points,
-                              qhull_options=qhull_options)
+    hull = spatial.ConvexHull(points, qhull_options=qhull_options)
 
     # hull object doesn't remove unreferenced vertices
     # create a mask to re- index faces for only referenced vertices
@@ -65,9 +64,15 @@ def convex_hull(obj, qhull_options='QbB Pp Qt'):
     mask[vid] = np.arange(len(vid))
     # remove unreferenced vertices here
     faces = mask[hull.simplices].copy()
-
     # rescale vertices back to original size
     vertices = hull.points[vid].copy()
+
+    if not repair:
+        # create the Trimesh object for the convex hull
+        return Trimesh(vertices=vertices,
+                       faces=faces,
+                       process=True,
+                       validate=False)
 
     # qhull returns faces with random winding
     # calculate the returned normal of each face
@@ -95,8 +100,7 @@ def convex_hull(obj, qhull_options='QbB Pp Qt'):
     # a vector from the centroid to a point on each face
     test_vector = triangles_center - centroid
     # check the projection against face normals
-    backwards = util.diagonal_dot(normals,
-                                  test_vector) < 0.0
+    backwards = util.diagonal_dot(normals, test_vector) < 0.0
 
     # flip the winding outward facing
     faces[backwards] = np.fliplr(faces[backwards])

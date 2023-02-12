@@ -76,7 +76,7 @@ def minimum_nsphere(obj):
     fit_C = (fit_C * points_scale) + points_origin
 
     if fit_E < 1e-6:
-        log.debug('Points were on an n-sphere, returning fit')
+        # points were on an n-sphere so just return fit
         return fit_C, fit_R
 
     # calculate a furthest site voronoi diagram

@@ -6,7 +6,6 @@ from . import convex
 from . import nsphere
 from . import geometry
 from . import grouping
-from . import triangles
 from . import transformations
 
 try:
@@ -107,36 +106,6 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     return transform, rectangle
 
 
-def _oriented_bounds_2d_area(points):
-    """
-    A simplified method that returns just the area of the
-    2D oriented bounding box.
-    """
-    convex = ConvexHull(points)
-    # (n,2,3) line segments
-    hull_edges = convex.points[convex.simplices]
-    # (n,2) points on the convex hull
-    hull_points = convex.points[convex.vertices]
-    # unit vector direction of the edges of the hull polygon
-    # filter out zero- magnitude edges via check_valid
-    edge_vectors = hull_edges[:, 1] - hull_edges[:, 0]
-    edge_norm = np.sqrt(np.dot(edge_vectors ** 2, [1, 1]))
-    edge_nonzero = edge_norm > 1e-10
-    edge_vectors = edge_vectors[edge_nonzero] / \
-        edge_norm[edge_nonzero].reshape((-1, 1))
-    # create a set of perpendicular vectors
-    perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
-    # find the projection of every hull point on every edge vector
-    # this does create a potentially gigantic n^2 array in memory,
-    # and there is the 'rotating calipers' algorithm which avoids this
-    # however, we have reduced n with a convex hull and numpy dot products
-    # are extremely fast so in practice this usually ends up being fine
-    x = np.dot(edge_vectors, hull_points.T)
-    y = np.dot(perp_vectors, hull_points.T)
-    return ((x.max(axis=1) - x.min(axis=1)) *
-            (y.max(axis=1) - y.min(axis=1))).min()
-
-
 def oriented_bounds(obj,
                     angle_digits=1,
                     ordered=True,
@@ -176,26 +145,22 @@ def oriented_bounds(obj,
         # normals pointing in arbitrary directions (straight from qhull)
         # using this avoids having to compute the expensive corrected normals
         # that mesh.convex_hull uses since normal directions don't matter here
-        vertices = obj.convex_hull.vertices
-        hull_normals = obj.convex_hull.face_normals
+        hull = obj.convex_hull
     elif util.is_sequence(obj):
         # we've been passed a list of points
         points = np.asanyarray(obj)
         if util.is_shape(points, (-1, 2)):
             return oriented_bounds_2D(points)
         elif util.is_shape(points, (-1, 3)):
-            hull_obj = ConvexHull(points)
-            vertices = hull_obj.points[hull_obj.vertices]
-            hull_normals, valid = triangles.normals(
-                hull_obj.points[hull_obj.simplices])
+            hull = convex.convex_hull(points, repair=False)
         else:
             raise ValueError('Points are not (n,3) or (n,2)!')
     else:
         raise ValueError(
             'Oriented bounds must be passed a mesh or a set of points!')
 
-    min_volume = np.inf
-    tic = now()
+    vertices = hull.vertices
+    hull_normals = hull.face_normals
 
     # matrices which will rotate each hull normal to [0,0,1]
     if normal is None:
@@ -211,17 +176,67 @@ def oriented_bounds(obj,
             spherical_coords, digits=angle_digits)[0]
         matrices = [np.linalg.inv(transformations.spherical_matrix(*s))
                     for s in spherical_coords[spherical_unique]]
+        normals = util.spherical_to_vector(spherical_coords[spherical_unique])
     else:
         # if explicit normal was passed use it and skip the grouping
         matrices = [geometry.align_vectors(normal, [0, 0, 1])]
+        normals = [normal]
 
     min_2D = None
     min_volume = np.inf
+    tic = now()
     vert_ones = np.column_stack((vertices, np.ones(len(vertices)))).T
-    for to_2D in matrices:
+
+    # we now need to loop through all the possible candidate
+    # directions for aligning our oriented bounding box.
+    for normal, to_2D in zip(normals, matrices):
+
+        # we could compute the hull in 2D for every direction
+        # but since we know we're dealing with a convex blob
+        # we can do back-face culling and then take the boundary
+        # start by picking the normal direction with fewer edges
+        dot = np.dot(hull_normals, normal)
+        side = np.array([dot > -1e-8, dot < 1e-8])
+        count = side.sum(axis=1)
+        if (count == 0).any():
+            side = side[count.argmax()]
+        else:
+            side = side[count.argmin()]
+
+        # this line is a heavy lift as it is finding the pairs of
+        # adjacent faces where *exactly one* out of two of the faces
+        # is visible.
+        adj_split = np.dot(side[hull.face_adjacency], [1, 1]) == 1
+        # the shared edge is the 2D boundary
+        edges = hull.face_adjacency_edges[adj_split]
+
+        # project the 3D convex hull vertices onto the plane
         projected = np.dot(to_2D, vert_ones).T[:, :3]
-        volume = _oriented_bounds_2d_area(
-            projected[:, :2]) * projected[:, 2].ptp()
+        # get the line segments of edges in 2D
+        edge_vert = projected[:, :2][edges]
+        # now get them as unit vectors
+        edge_vectors = edge_vert[:, 1, :] - edge_vert[:, 0, :]
+        edge_norm = np.sqrt(np.dot(edge_vectors ** 2, [1, 1]))
+        edge_nonzero = edge_norm > 1e-10
+        edge_vectors = edge_vectors[edge_nonzero] / \
+            edge_norm[edge_nonzero].reshape((-1, 1))
+        # create a set of perpendicular vectors
+        perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
+
+        # find the projection of every hull point on every edge vector
+        # this does create a potentially gigantic n^2 array in memory
+        # and there is the 'rotating calipers' algorithm which avoids this
+        # however, we have reduced n with a convex hull and numpy dot products
+        # are extremely fast so in practice this usually ends up being fine
+        x = np.dot(edge_vectors, edge_vert[:, 0, :2].T)
+        y = np.dot(perp_vectors, edge_vert[:, 0, :2].T)
+        area = ((x.max(axis=1) - x.min(axis=1)) *
+                (y.max(axis=1) - y.min(axis=1))).min()
+
+        # the volume is 2D area plus the projected height
+        volume = area * projected[:, 2].ptp()
+
+        # store this transform if it's better than one we've seen
         if volume < min_volume:
             min_volume = volume
             min_2D = to_2D
