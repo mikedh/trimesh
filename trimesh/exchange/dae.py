@@ -434,5 +434,5 @@ else:
     from ..exceptions import ExceptionWrapper
     _exc = ExceptionWrapper(
         ImportError('missing `pip install pycollada`'))
-    _collada_loaders.update({'dae': exc, 'zae': exc})
-    _collada_exporters['dae'] = exc
+    _collada_loaders.update({'dae': _exc, 'zae': _exc})
+    _collada_exporters['dae'] = _exc

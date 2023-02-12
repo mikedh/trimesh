@@ -528,7 +528,7 @@ class Binvoxer(object):
         verbosity = subprocess.check_output(self._args)
         # if requested print ourselves
         if self.verbose:
-            print(verbosity)
+            util.log.debug(verbosity)
 
         return out_path
 

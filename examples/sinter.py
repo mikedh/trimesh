@@ -9,6 +9,9 @@ import numpy as np
 
 from trimesh.path import packing
 
+from pyinstrument import Profiler
+
+
 # path with our sample models
 models = os.path.abspath(os.path.join(
     os.path.expanduser(os.path.dirname(__file__)), '..', 'models'))
@@ -56,13 +59,11 @@ def collect_meshes(count=None):
 if __name__ == '__main__':
 
     # get some sample data
-    meshes = collect_meshes(count=10)
+    meshes = collect_meshes(count=100)
 
     print('loaded {} meshes'.format(len(meshes)))
 
     # place the meshes into the volume
-    from pyinstrument import Profiler
-
     with Profiler() as P:
         placed, transforms, consume = packing.meshes(
             meshes, spacing=0.05)

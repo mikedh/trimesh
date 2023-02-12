@@ -6,6 +6,8 @@ requires = [
 ]
 
 [tool.ruff]
-select = ["E", "F"] # TODO : pass bugbear "B"]
+select = ["E", "F",
+          "T201", # disallow print statements
+	  ] # TODO : pass bugbear "B"]
 ignore = ["B905"]
 line-length = 90

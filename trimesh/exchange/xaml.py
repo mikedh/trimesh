@@ -150,7 +150,6 @@ def load_XAML(file_obj, *args, **kwargs):
 
 try:
     from lxml import etree
-    import networkx as nx
     _xaml_loaders = {'xaml': load_XAML}
 except BaseException as E:
     # create a dummy module which will raise the ImportError
