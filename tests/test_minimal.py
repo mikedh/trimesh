@@ -106,11 +106,9 @@ class MinimalTest(unittest.TestCase):
         # we have no 3DXML
         exc = None
         try:
-            get_mesh('cycloidal.3dxml')
+            get_mesh('cycloidal.3DXML')
         except BaseException as E:
             exc = str(E)
-
-        print(exc)  # noqa
 
         # should have raised
         assert exc is not None
