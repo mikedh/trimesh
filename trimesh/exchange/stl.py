@@ -81,7 +81,7 @@ def load_stl_binary(file_obj):
         header = np.frombuffer(
             header_data, dtype=_stl_dtype_header)
     except BaseException as E:
-        raise HeaderError('Binary header incorrect type') from E
+        raise HeaderError('Binary header incorrect type')
 
     try:
         # save the header block as a string
