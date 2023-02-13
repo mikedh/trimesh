@@ -279,12 +279,17 @@ def get_meshes(count=np.inf,
     count : int
       Approximate number of meshes you want
     raise_error : bool
-      If True raise a ValueError if a mesh
-      that should be loadable returns a non- Trimesh object.
+      Raise exceptions in `trimesh.load` or just continue.
+    split : bool
+      Split multibody meshes into single body meshes.
+    min_volume : None or float
+      Only return meshes above a volume threshold
+    only_watertight : bool
+      Only return watertight meshes
 
-    Returns
+    Yields
     ----------
-    meshes : list
+    mesh : trimesh.Trimesh
       Trimesh objects from models folder
     """
     # use deterministic file name order
@@ -312,7 +317,13 @@ def get_meshes(count=np.inf,
     for file_name in file_names:
         extension = trimesh.util.split_extension(file_name).lower()
         if extension in trimesh.available_formats():
-            loaded = trimesh.load(os.path.join(dir_models, file_name))
+            try:
+                loaded = trimesh.load(
+                    os.path.join(dir_models, file_name))
+            except BaseException as E:
+                if raise_error:
+                    raise E
+                continue
 
             batched = []
             if isinstance(loaded, trimesh.Scene):
@@ -320,8 +331,6 @@ def get_meshes(count=np.inf,
                                if isinstance(m, trimesh.Trimesh))
             elif isinstance(loaded, trimesh.Trimesh):
                 batched.append(loaded)
-            elif raise_error:
-                raise ValueError(loaded.__class__.__name__)
 
             for mesh in batched:
                 # only return our limit
@@ -330,7 +339,8 @@ def get_meshes(count=np.inf,
                 # previous checks should ensure only trimesh
                 assert isinstance(mesh, trimesh.Trimesh)
                 if split:
-                    for submesh in mesh.split(only_watertight=only_watertight):
+                    for submesh in mesh.split(
+                            only_watertight=only_watertight):
                         checked = check(submesh)
                         if checked is not None:
                             yield checked
