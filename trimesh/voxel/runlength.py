@@ -654,19 +654,18 @@ def rle_strip(rle_data):
     """
     rle_data = np.reshape(rle_data, (-1, 2))
     start = 0
-    for val, count in rle_data:
+    for i, (val, count) in enumerate(rle_data):
         if val and count > 0:
             break
         else:
             start += count
+
     end = 0
-    for val, count in rle_data[::-1]:
+    for j, (val, count) in enumerate(rle_data[::-1]):
         if val and count > 0:
             break
         else:
             end += count
-
-    i, j = len(rle_data), len(rle_data[::-1])
     rle_data = rle_data[i:None if j == 0 else -j].reshape((-1,))
     return rle_data, (start, end)
 
@@ -687,7 +686,7 @@ def brle_strip(brle_data):
     """
     start = 0
     val = True
-    for count in brle_data:
+    for i, count in enumerate(brle_data):
         val = not val
         if val and count > 0:
             break
@@ -695,13 +694,12 @@ def brle_strip(brle_data):
             start += count
     end = 0
     val = bool(len(brle_data) % 2)
-    for count in brle_data[::-1]:
+    for j, count in enumerate(brle_data[::-1]):
         val = not val
         if val and count > 0:
             break
         else:
             end += count
-    i, j = len(brle_data), len(brle_data[::-1])
     brle_data = brle_data[i:None if j == 0 else -j]
     brle_data = np.concatenate([[0], brle_data])
     return brle_data, (start, end)
