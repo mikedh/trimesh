@@ -9,9 +9,12 @@ import io
 class ExportTest(g.unittest.TestCase):
 
     def test_export(self):
-        export_types = list(
-            g.trimesh.exchange.export._mesh_exporters.keys())
 
+        from trimesh.exceptions import ExceptionWrapper
+
+        export_types = set(k for k, v in
+                           g.trimesh.exchange.export._mesh_exporters.items()
+                           if not isinstance(v, ExceptionWrapper))
         meshes = list(g.get_meshes(8))
         # make sure we've got something with texture
         meshes.append(g.get_mesh('fuze.obj'))
