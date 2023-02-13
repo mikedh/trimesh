@@ -268,6 +268,8 @@ def serve_meshes():
 
 def get_meshes(count=np.inf,
                raise_error=False,
+               split=False,
+               min_volume=None,
                only_watertight=True):
     """
     Get meshes to test with.
@@ -288,29 +290,57 @@ def get_meshes(count=np.inf,
     # use deterministic file name order
     file_names = sorted(os.listdir(dir_models))
 
-    meshes = []
+    # count items we've returned as an array so
+    # we don't have to make it a global
+    returned = [0]
+
+    def check(item):
+        # only return our limit
+        if returned[0] >= count:
+            return None
+
+        # run our return argument checks on an item
+        if only_watertight and not item.is_watertight:
+            return None
+
+        if min_volume is not None and item.volume < min_volume:
+            return None
+
+        returned[0] += 1
+        return item
+
     for file_name in file_names:
         extension = trimesh.util.split_extension(file_name).lower()
         if extension in trimesh.available_formats():
-            loaded = trimesh.util.make_sequence(get_mesh(file_name))
-            for m in loaded:
-                # is the loaded mesh a Geometry object or a subclass:
-                # Trimesh, PointCloud, Scene
-                type_ok = isinstance(m, trimesh.parent.Geometry)
-                if raise_error and not type_ok:
-                    raise ValueError('%s returned a non- Trimesh object!',
-                                     file_name)
-                if not isinstance(m, trimesh.Trimesh) or (
-                        only_watertight and not m.is_watertight):
-                    continue
-                meshes.append(m)
-                yield m
+            loaded = trimesh.load(os.path.join(dir_models, file_name))
+
+            batched = []
+            if isinstance(loaded, trimesh.Scene):
+                batched.extend(m for m in loaded.geometry.values()
+                               if isinstance(m, trimesh.Trimesh))
+            elif isinstance(loaded, trimesh.Trimesh):
+                batched.append(loaded)
+            elif raise_error:
+                raise ValueError(loaded.__class__.__name__)
+
+            for mesh in batched:
+                # only return our limit
+                if returned[0] >= count:
+                    return
+                # previous checks should ensure only trimesh
+                assert isinstance(mesh, trimesh.Trimesh)
+                if split:
+                    for submesh in mesh.split(only_watertight=only_watertight):
+                        checked = check(submesh)
+                        if checked is not None:
+                            yield checked
+                else:
+                    checked = check(mesh)
+                    if checked is not None:
+                        yield checked
         else:
             log.warning('%s has no loader, not running test on!',
                         file_name)
-
-        if len(meshes) >= count:
-            break
 
 
 def get_2D(count=None):

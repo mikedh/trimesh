@@ -258,6 +258,34 @@ class BoundsTest(g.unittest.TestCase):
             for i, b in enumerate(bounds):
                 assert i in set(tree.intersection(b.ravel()))
 
+    def test_obb_corpus(self):
+        # get some sample watertight meshes with nonzero volume
+        min_volume = 0.1
+        meshes = list(g.get_meshes(split=True,
+                                   min_volume=min_volume,
+                                   only_watertight=True))
+        g.log.debug('loaded {} meshes'.format(len(meshes)))
+
+        # our models corpus should have 300+ models
+        assert len(meshes) > 300
+        assert all(m.volume > min_volume for m in meshes)
+
+        # compute the OBB for every mesh profiling
+        with g.Profiler() as P:
+            obb = [m.bounding_box_oriented for m in meshes]
+        print(P.output_text())
+
+        # now loop through mesh-obb pairs and validate
+        for m, o in zip(meshes, obb):
+            # move the mesh into the OBB frame
+            check = m.copy().apply_transform(
+                g.np.linalg.inv(o.primitive.transform))
+            # check the mesh bounds against the claimed OBB bounds
+            half = o.primitive.extents / 2.0
+            check_extents = g.np.array([-half, half])
+            # check that the OBB does countain the mesh
+            assert g.np.allclose(check.bounds, check_extents, rtol=1e-4)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

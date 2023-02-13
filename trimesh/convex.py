@@ -18,10 +18,10 @@ from . import triangles
 
 
 try:
-    from scipy import spatial
+    from scipy.spatial import ConvexHull
 except ImportError as E:
     from .exceptions import ExceptionWrapper
-    spatial = ExceptionWrapper(E)
+    ConvexHull = ExceptionWrapper(E)
 
 
 def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
@@ -55,7 +55,7 @@ def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
         if not util.is_shape(points, (-1, 3)):
             raise ValueError('Object must be Trimesh or (n,3) points!')
 
-    hull = spatial.ConvexHull(points, qhull_options=qhull_options)
+    hull = ConvexHull(points, qhull_options=qhull_options)
 
     # hull object doesn't remove unreferenced vertices
     # create a mask to re- index faces for only referenced vertices
@@ -229,8 +229,7 @@ def hull_points(obj, qhull_options='QbB Pp'):
     initial = np.asanyarray(obj, dtype=np.float64)
     if len(initial.shape) != 2:
         raise ValueError('points must be (n, dimension)!')
-
-    hull = spatial.ConvexHull(initial, qhull_options=qhull_options)
+    hull = ConvexHull(initial, qhull_options=qhull_options)
     points = hull.points[hull.vertices]
 
     return points

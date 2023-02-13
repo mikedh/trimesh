@@ -55,6 +55,7 @@ def minimum_nsphere(obj):
     radius : float
       Radius of fitted n-sphere
     """
+
     # reduce the input points or mesh to the vertices of the convex hull
     # since we are computing the furthest site voronoi diagram this reduces
     # the input complexity substantially and returns the same value

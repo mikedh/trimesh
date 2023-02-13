@@ -327,24 +327,24 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
         else:
             volume (float)
         """
-        to_2D = transformations.spherical_matrix(*spherical,
-                                                 axes='rxyz')
-        projected = transformations.transform_points(hull,
-                                                     matrix=to_2D)
+        to_2D = transformations.spherical_matrix(
+            *spherical, axes='rxyz')
+        projected = transformations.transform_points(
+            hull, matrix=to_2D)
         height = projected[:, 2].ptp()
 
         try:
             center_2D, radius = nsphere.minimum_nsphere(projected[:, :2])
-        except BaseException:
-            # in degenerate cases return as infinite volume
+        except ValueError:
             return np.inf
 
         volume = np.pi * height * (radius ** 2)
         if return_data:
-            center_3D = np.append(center_2D, projected[
-                                  :, 2].min() + (height * .5))
-            transform = np.dot(np.linalg.inv(to_2D),
-                               transformations.translation_matrix(center_3D))
+            center_3D = np.append(
+                center_2D, projected[:, 2].min() + (height * .5))
+            transform = np.dot(
+                np.linalg.inv(to_2D),
+                transformations.translation_matrix(center_3D))
             return transform, radius, height
         return volume
 
@@ -419,7 +419,9 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
     log.debug('Performed search in %f and minimize in %f', *np.diff(tic))
 
     # actually chunk the information about the cylinder
-    transform, radius, height = volume_from_angles(r['x'], return_data=True)
+    transform, radius, height = volume_from_angles(
+        r['x'], return_data=True)
+
     result = {'transform': transform,
               'radius': radius,
               'height': height}
