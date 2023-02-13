@@ -187,7 +187,6 @@ def oriented_bounds(obj,
     tic = now()
     min_2D = None
     min_volume = np.inf
-    vert_ones = np.column_stack((vertices, np.ones(len(vertices)))).T
 
     # we now need to loop through all the possible candidate
     # directions for aligning our oriented bounding box.
@@ -204,7 +203,7 @@ def oriented_bounds(obj,
         edges = hull_edge[np.bitwise_xor(*side[hull_adj])]
 
         # project the 3D convex hull vertices onto the plane
-        projected = np.dot(to_2D, vert_ones).T[:, :3]
+        projected = np.dot(to_2D[:3, :3], vertices.T).T[:, :3]
         # get the line segments of edges in 2D
         edge_vert = projected[:, :2][edges]
         # now get them as unit vectors
@@ -236,6 +235,7 @@ def oriented_bounds(obj,
 
     # we know the minimum volume transform which should be the expensive
     # part so now we need to do the bookkeeping to find the box
+    vert_ones = np.column_stack((vertices, np.ones(len(vertices)))).T
     projected = np.dot(min_2D, vert_ones).T[:, :3]
     height = projected[:, 2].ptp()
     rotation_2D, box = oriented_bounds_2D(projected[:, :2])

@@ -461,7 +461,14 @@ try:
     from lxml import etree
     import networkx as nx
     _three_loaders = {'3mf': load_3MF}
-    _3mf_exporters = {'3mf': export_3MF}
+    if sys.version_info < (3, 6):
+        # Python only added 'w' mode to `zipfile` in Python 3.6
+        # and it is not worth the effort to work around
+        from ..exceptions import ExceptionWrapper
+        _3mf_exporters = {'3mf': ExceptionWrapper(
+            NotImplementedError("3MF export requires Python >= 3.6"))}
+    else:
+        _3mf_exporters = {'3mf': export_3MF}
 except BaseException as E:
     from ..exceptions import ExceptionWrapper
     _three_loaders = {'3mf': ExceptionWrapper(E)}
