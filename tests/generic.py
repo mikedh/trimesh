@@ -333,6 +333,7 @@ def get_meshes(count=np.inf,
                 batched.append(loaded)
 
             for mesh in batched:
+                mesh.metadata['file_name'] = file_name
                 # only return our limit
                 if returned[0] >= count:
                     return
