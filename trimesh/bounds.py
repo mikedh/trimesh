@@ -160,6 +160,8 @@ def oriented_bounds(obj,
             'Oriented bounds must be passed a mesh or a set of points!')
 
     vertices = hull.vertices
+    hull_adj = hull.face_adjacency.T
+    hull_edge = hull.face_adjacency_edges
     hull_normals = hull.face_normals
 
     # matrices which will rotate each hull normal to [0,0,1]
@@ -174,7 +176,7 @@ def oriented_bounds(obj,
         # inside the loop by converting to angles ahead of time
         spherical_unique = grouping.unique_rows(
             spherical_coords, digits=angle_digits)[0]
-        matrices = [np.linalg.inv(transformations.spherical_matrix(*s))
+        matrices = [transformations.spherical_matrix(*s).T
                     for s in spherical_coords[spherical_unique]]
         normals = util.spherical_to_vector(spherical_coords[spherical_unique])
     else:
@@ -182,33 +184,24 @@ def oriented_bounds(obj,
         matrices = [geometry.align_vectors(normal, [0, 0, 1])]
         normals = [normal]
 
+    tic = now()
     min_2D = None
     min_volume = np.inf
-    tic = now()
     vert_ones = np.column_stack((vertices, np.ones(len(vertices)))).T
 
     # we now need to loop through all the possible candidate
     # directions for aligning our oriented bounding box.
     for normal, to_2D in zip(normals, matrices):
-
         # we could compute the hull in 2D for every direction
         # but since we know we're dealing with a convex blob
         # we can do back-face culling and then take the boundary
         # start by picking the normal direction with fewer edges
-        dot = np.dot(hull_normals, normal)
-        side = np.array([dot > -1e-8, dot < 1e-8])
-        count = side.sum(axis=1)
-        if (count == 0).any():
-            side = side[count.argmax()]
-        else:
-            side = side[count.argmin()]
+        side = np.dot(hull_normals, normal) > -1e-10
 
         # this line is a heavy lift as it is finding the pairs of
         # adjacent faces where *exactly one* out of two of the faces
-        # is visible.
-        adj_split = np.dot(side[hull.face_adjacency], [1, 1]) == 1
-        # the shared edge is the 2D boundary
-        edges = hull.face_adjacency_edges[adj_split]
+        # is visible (xor) and then using the index to get the edge
+        edges = hull_edge[np.bitwise_xor(*side[hull_adj])]
 
         # project the 3D convex hull vertices onto the plane
         projected = np.dot(to_2D, vert_ones).T[:, :3]
@@ -241,7 +234,8 @@ def oriented_bounds(obj,
             min_volume = volume
             min_2D = to_2D
 
-    # apply the transform here
+    # we know the minimum volume transform which should be the expensive
+    # part so now we need to do the bookkeeping to find the box
     projected = np.dot(min_2D, vert_ones).T[:, :3]
     height = projected[:, 2].ptp()
     rotation_2D, box = oriented_bounds_2D(projected[:, :2])
@@ -252,10 +246,8 @@ def oriented_bounds(obj,
     # combine the 2D OBB transformation with the 2D projection transform
     to_origin = np.dot(rotation_Z, min_2D)
 
-    # transform points using our matrix to find the translation for the
-    # transform
-    transformed = transformations.transform_points(vertices,
-                                                   to_origin)
+    # transform points using our matrix to find the translation
+    transformed = transformations.transform_points(vertices, to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0) * .5)
     to_origin[:3, 3] = -box_center
 
