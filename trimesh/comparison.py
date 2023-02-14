@@ -125,10 +125,12 @@ def identifier_simple(mesh):
     # TODO : compare with "cross product of 2 orthogonal metrics"
     # for a more principled way to detect mirrored meshes
     if len(mesh.faces) > 50:
-        count = face_ordering(mesh).sum()
-        sign = float(count) / len(mesh.faces)
-        if abs(count) > 10 and abs(sign) > 0.02:
-            identifier[6] = sign
+        # get the area-weighted ratio this should go from -1.0 to 1.0
+        ratio = (face_ordering(mesh) *
+                 mesh.area_faces).sum() / mesh_area
+        if abs(ratio) > 0.02:
+            identifier[6] = ratio
+
     return identifier
 
 

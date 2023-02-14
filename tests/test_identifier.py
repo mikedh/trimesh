@@ -71,6 +71,17 @@ class IdentifierTest(g.unittest.TestCase):
         assert (scenes[0].geometry['disc_cam_B'].identifier_hash !=
                 scenes[0].geometry['disc_cam_A'].identifier_hash)
 
+    def test_reflection(self):
+        # identifier should detect mirroring
+        a = g.get_mesh('featuretype.STL')
+        b = a.copy()
+        b.vertices[:, 2] *= -1.0
+        b.invert()
+        assert g.np.isclose(a.volume, b.volume)
+
+        # hash should differ
+        assert a.identifier_hash != b.identifier_hash
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
