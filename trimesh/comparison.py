@@ -15,13 +15,13 @@ from .constants import tol
 # how many significant figures to use for each
 # field of the identifier based on hand-tuning
 id_sigfig = np.array(
-    [5,  # area
+    [4,  # area
      10,  # euler number
      5,  # area/volume ratio
      2,  # convex/mesh area ratio
      2,  # convex area/volume ratio
      3,  # max radius squared / area
-     1])  # signed triangle count for mirrored
+     1])  # sign of triangle count for mirrored
 
 
 def identifier_simple(mesh):
@@ -83,17 +83,18 @@ def identifier_simple(mesh):
                 # cylinder height
                 h = np.dot(vertices, mesh.symmetry_axis).ptp()
                 # section radius summed per row then overall max
-                R2 = np.dot((np.dot(vertices, mesh.symmetry_section.T)
-                             ** 2), [1, 1]).max()
-                # area of a cylinder primitive
-                area = (2 * np.pi * (R2**.5) * h) + (2 * np.pi * R2)
-                # replace area in this case with area ratio
-                identifier[0] = mesh_area / area
+                R2V = np.dot((np.dot(vertices, mesh.symmetry_section.T)
+                              ** 2), [1, 1])
+                R2 = R2V[R2V > R2V.max() * 0.999].mean()
+                # replace area in this case with cylinder area
+                identifier[0] = (2 * np.pi * np.sqrt(R2)
+                                 * h) + (2 * np.pi * R2)
             elif mesh.symmetry == 'spherical':
                 # handle a spherically symmetric mesh
-                R2 = np.dot((vertices ** 2), [1, 1, 1]).max()
-                area = 4 * np.pi * R2
-                identifier[0] = mesh_area / area
+                # section radius summed per row then overall max
+                R2V = np.dot((vertices ** 2), [1, 1, 1])
+                R2 = R2V[R2V > R2V.max() * 0.999].mean()
+                identifier[0] = 4 * np.pi * R2
         else:
             # if we don't have a watertight mesh add information about the
             # convex hull which is slow to compute and unreliable
@@ -122,15 +123,20 @@ def identifier_simple(mesh):
     # area, volume, etc: use a count of relative edge
     # lengths to differentiate identical but mirrored meshes
     # this doesn't work well on meshes with a small number of faces
-    # TODO : compare with "cross product of 2 orthogonal metrics"
-    # for a more principled way to detect mirrored meshes
     if len(mesh.faces) > 50:
-        # get the area-weighted ratio this should go from -1.0 to 1.0
-        ratio = (face_ordering(mesh) *
-                 mesh.area_faces).sum() / mesh_area
-        if abs(ratio) > 0.02:
-            identifier[6] = ratio
-
+        # are the faces different sizes? if not this answer will be garbage
+        variance = mesh.area_faces.std() / (mesh.area / len(mesh.faces))
+        if variance > 0.25:
+            # the length of each edge in faces
+            norms = mesh.edges_unique_length[
+                mesh.edges_unique_inverse].reshape((-1, 3))
+            # stack edge length and get the relative difference
+            stack = np.diff(np.column_stack((norms, norms[:, 0])), axis=1)
+            pick_idx = np.abs(stack).argmin(axis=1)
+            # get the edge length diff
+            pick = stack.reshape(-1)[pick_idx + (np.arange(len(pick_idx)) * 3)]
+            # reduce to the bare minimum that tests stable
+            identifier[6] = np.sign(pick.sum())
     return identifier
 
 
@@ -159,53 +165,3 @@ def identifier_hash(identifier):
         multiplier += np.abs(multiplier.min())
     data = (as_int * (10 ** multiplier)).astype(np.int64)
     return sha256(data.tobytes()).hexdigest()
-
-
-def face_ordering(mesh):
-    """
-    Return the size-order of every face in the input mesh.
-
-    Triangles can be considered by the length order:
-      [small edge, medium edge, large edge] (SML)
-      [small edge, large edge,  medium edge] (SLM)
-
-    This function returns [-1, 0, 1], depending on whether
-    the triangle is SML or SLM, and 0 if M == L.
-
-    The reason this is useful as it as a rare property that is
-    invariant to translation and rotation but changes when a
-    mesh is reflected or inverted. It is NOT invariant to
-    different tesselations of the same surface.
-
-    Parameters
-    -------------
-    mesh : trimesh.Trimesh
-      Source geometry to calculate ordering on
-
-    Returns
-    --------------
-    order : (len(mesh.faces), ) int
-      Is each face SML (-1), SLM (+1), or M==L (0)
-    """
-
-    # the length of each edge in faces
-    norms = mesh.edges_unique_length[
-        mesh.edges_unique_inverse].reshape((-1, 3))
-
-    # the per- row index of the shortest edge
-    small = norms.argmin(axis=1)
-
-    # the ordered index for the medium and large edge norm
-    # arranged to reference flattened norms for indexing
-    MLidx = np.column_stack((small + 1, small + 2)) % 3
-    MLidx += (np.arange(len(small)) * 3).reshape((-1, 1))
-
-    # subtract the two largest edge lengths from each other
-    diff = np.subtract(*norms.reshape(-1)[MLidx.T])
-
-    # mark by sign but keep zero values zero
-    order = np.zeros(len(norms), dtype=np.int64)
-    order[diff < -tol.merge] = -1
-    order[diff > tol.merge] = 1
-
-    return order
