@@ -737,6 +737,6 @@ def pack(materials, uvs, deduplicate=True):
         [new_uv.append(transform_uvs(uvs[i], scale, xy_off)) for i in idxs]
 
     # stack UV coordinates into single (n, 2) array
-    stacked = np.vstack(new_uv)
+    stacked = np.vstack([new_uv[n] for n in np.argsort([x for i in mat_idx for x in i])])
 
     return SimpleMaterial(image=final), stacked
