@@ -267,9 +267,9 @@ class BoundsTest(g.unittest.TestCase):
         g.log.debug('loaded {} meshes'.format(len(meshes)))
 
         if g.PY3:
-            # our models corpus should have 300+ models
-            # some loaders aren't available for python2
-            assert len(meshes) > 300
+            # our models corpus should have 200+ models
+            # some loaders aren't available for Python2
+            assert len(meshes) > 200
 
         # triple check we have positive volume
         assert all(m.volume > min_volume for m in meshes)

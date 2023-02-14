@@ -124,11 +124,14 @@ def identifier_simple(mesh):
     # lengths to differentiate identical but mirrored meshes
     # this doesn't work well on meshes with a small number of faces
     if len(mesh.faces) > 50:
-        # are the faces different sizes? if not this answer will be garbage
-        variance = mesh.area_faces.std() / (mesh.area / len(mesh.faces))
+        # does this mesh have edges that differ substantially in length?
+        # if not this method for detecting reflection will not work
+        # and the result will definitly be garbage
+        edges_length = mesh.edges_unique_length
+        variance = edges_length.std() / edges_length.mean()
         if variance > 0.25:
             # the length of each edge in faces
-            norms = mesh.edges_unique_length[
+            norms = edges_length[
                 mesh.edges_unique_inverse].reshape((-1, 3))
             # stack edge length and get the relative difference
             stack = np.diff(np.column_stack((norms, norms[:, 0])), axis=1)

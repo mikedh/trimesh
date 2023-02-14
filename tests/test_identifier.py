@@ -83,6 +83,7 @@ class IdentifierTest(g.unittest.TestCase):
         # hash should differ
         assert a.identifier_hash != b.identifier_hash
 
+        # a mesh which is quite sensitive to mirroring
         a = g.get_mesh('mirror.ply')
         b = a.copy()
         b.vertices[:, 2] *= -1.0
