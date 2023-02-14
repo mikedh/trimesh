@@ -813,7 +813,7 @@ class SceneViewer(pyglet.window.Window):
 
         if self._profile:
             profiler.stop()
-            print(profiler.output_text(unicode=True, color=True))
+            util.log.debug(profiler.output_text(unicode=True, color=True))
 
     def flip(self):
         super(SceneViewer, self).flip()

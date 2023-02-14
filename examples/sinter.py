@@ -9,6 +9,9 @@ import numpy as np
 
 from trimesh.path import packing
 
+from pyinstrument import Profiler
+
+
 # path with our sample models
 models = os.path.abspath(os.path.join(
     os.path.expanduser(os.path.dirname(__file__)), '..', 'models'))
@@ -61,8 +64,10 @@ if __name__ == '__main__':
     print('loaded {} meshes'.format(len(meshes)))
 
     # place the meshes into the volume
-    placed, transforms, consume = packing.meshes(
-        meshes, size=[7, 7, 7], spacing=0.05)
+    with Profiler() as P:
+        placed, transforms, consume = packing.meshes(
+            meshes, spacing=0.05)
+    P.print()
 
     # none of the placed meshes should have overlapping AABB
     assert not packing.bounds_overlap([i.bounds for i in placed])

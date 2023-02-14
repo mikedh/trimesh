@@ -197,7 +197,7 @@ def radial_symmetry(mesh):
     scalar = mesh.principal_inertia_components
 
     # exit early if inertia components are all zero
-    if scalar.ptp() < 1e-8:
+    if scalar.ptp() < 1e-4:
         return None, None, None
 
     vector = mesh.principal_inertia_vectors

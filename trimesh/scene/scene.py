@@ -31,7 +31,7 @@ class Scene(Geometry3D):
     def __init__(self,
                  geometry=None,
                  base_frame='world',
-                 metadata={},
+                 metadata=None,
                  graph=None,
                  camera=None,
                  lights=None,
@@ -70,7 +70,8 @@ class Scene(Geometry3D):
 
         # hold metadata about the scene
         self.metadata = {}
-        self.metadata.update(metadata)
+        if isinstance(metadata, dict):
+            self.metadata.update(metadata)
 
         if graph is not None:
             # if we've been passed a graph override the default
@@ -1314,7 +1315,7 @@ def split_scene(geometry, **kwargs):
     return scene
 
 
-def append_scenes(iterable, common=['world'], base_frame='world'):
+def append_scenes(iterable, common=None, base_frame='world'):
     """
     Concatenate multiple scene objects into one scene.
 
@@ -1334,6 +1335,9 @@ def append_scenes(iterable, common=['world'], base_frame='world'):
     """
     if isinstance(iterable, Scene):
         return iterable
+
+    if common is None:
+        common = [base_frame]
 
     # save geometry in dict
     geometry = {}

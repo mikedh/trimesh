@@ -20,14 +20,14 @@ try:
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    from ..exceptions import ExceptionModule
-    nx = ExceptionModule(E)
+    from ..exceptions import ExceptionWrapper
+    nx = ExceptionWrapper(E)
 try:
     from rtree import Rtree
 except BaseException as E:
     # create a dummy module which will raise the ImportError
-    from ..exceptions import closure
-    Rtree = closure(E)
+    from ..exceptions import ExceptionWrapper
+    Rtree = ExceptionWrapper(E)
 
 
 def enclosure_tree(polygons):

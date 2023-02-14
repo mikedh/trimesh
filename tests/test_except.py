@@ -7,11 +7,11 @@ except BaseException:
 class ExceptionsTest(g.unittest.TestCase):
 
     def test_module(self):
-        # create an ExceptionModule
+        # create an ExceptionWrapper
         try:
             raise ValueError('nah')
         except BaseException as E:
-            em = g.trimesh.exceptions.ExceptionModule(E)
+            em = g.trimesh.exceptions.ExceptionWrapper(E)
 
         # checking isinstance should always return false
         # and NOT raise the error

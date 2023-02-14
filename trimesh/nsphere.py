@@ -19,8 +19,8 @@ try:
 except BaseException as E:
     # raise the exception when someone tries to use it
     from . import exceptions
-    leastsq = exceptions.closure(E)
-    spatial = exceptions.ExceptionModule(E)
+    leastsq = exceptions.ExceptionWrapper(E)
+    spatial = exceptions.ExceptionWrapper(E)
 
 try:
     import psutil
@@ -55,6 +55,7 @@ def minimum_nsphere(obj):
     radius : float
       Radius of fitted n-sphere
     """
+
     # reduce the input points or mesh to the vertices of the convex hull
     # since we are computing the furthest site voronoi diagram this reduces
     # the input complexity substantially and returns the same value
@@ -76,7 +77,7 @@ def minimum_nsphere(obj):
     fit_C = (fit_C * points_scale) + points_origin
 
     if fit_E < 1e-6:
-        log.debug('Points were on an n-sphere, returning fit')
+        # points were on an n-sphere so just return fit
         return fit_C, fit_R
 
     # calculate a furthest site voronoi diagram

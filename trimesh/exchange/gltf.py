@@ -1644,7 +1644,7 @@ def _read_buffers(header,
                 # append root node
                 graph.append(kwargs.copy())
                 # put primitives as children
-                for i, geom_name in enumerate(geometries):
+                for geom_name in geometries:
                     # save the name of the geometry
                     kwargs["geometry"] = geom_name
                     # no transformations

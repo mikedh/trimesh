@@ -20,14 +20,14 @@ try:
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    from .exceptions import ExceptionModule
-    nx = ExceptionModule(E)
+    from .exceptions import ExceptionWrapper
+    nx = ExceptionWrapper(E)
 
 try:
     from .path.exchange.misc import faces_to_path
 except BaseException as E:
-    from .exceptions import closure
-    faces_to_path = closure(E)
+    from .exceptions import ExceptionWrapper
+    faces_to_path = ExceptionWrapper(E)
 
 
 def fix_winding(mesh):

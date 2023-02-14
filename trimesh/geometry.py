@@ -8,7 +8,7 @@ try:
 except BaseException as E:
     from . import exceptions
     # raise E again if anyone tries to use sparse
-    scipy = exceptions.ExceptionModule(E)
+    scipy = exceptions.ExceptionWrapper(E)
 
 
 def plane_transform(origin, normal):

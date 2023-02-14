@@ -11,14 +11,6 @@ from .. import graph
 
 from ..constants import log
 
-try:
-    import networkx as nx
-except BaseException as E:
-    # create a dummy module which will raise the ImportError
-    # or other exception only when someone tries to use networkx
-    from ..exceptions import ExceptionModule
-    nx = ExceptionModule(E)
-
 
 def load_3MF(file_obj,
              postprocess=True,
@@ -269,7 +261,9 @@ def export_3MF(mesh,
     }
 
     # model ids
-    def model_id(x, models=[]):
+    models = []
+
+    def model_id(x):
         if x not in models:
             models.append(x)
         return str(models.index(x) + 1)
@@ -465,6 +459,17 @@ def _attrib_to_transform(attrib):
 # do import here to keep lxml a soft dependency
 try:
     from lxml import etree
+    import networkx as nx
     _three_loaders = {'3mf': load_3MF}
-except ImportError:
-    _three_loaders = {}
+    if sys.version_info < (3, 6):
+        # Python only added 'w' mode to `zipfile` in Python 3.6
+        # and it is not worth the effort to work around
+        from ..exceptions import ExceptionWrapper
+        _3mf_exporters = {'3mf': ExceptionWrapper(
+            NotImplementedError("3MF export requires Python >= 3.6"))}
+    else:
+        _3mf_exporters = {'3mf': export_3MF}
+except BaseException as E:
+    from ..exceptions import ExceptionWrapper
+    _three_loaders = {'3mf': ExceptionWrapper(E)}
+    _3mf_exporters = {'3mf': ExceptionWrapper(E)}

@@ -24,8 +24,8 @@ except BaseException as E:
     # wrapping just ImportError fails in some cases
     # will raise the error when someone tries to use KDtree
     from . import exceptions
-    cKDTree = exceptions.closure(E)
-    sparse = exceptions.closure(E)
+    cKDTree = exceptions.ExceptionWrapper(E)
+    sparse = exceptions.ExceptionWrapper(E)
 
 
 def mesh_other(mesh,
@@ -303,7 +303,7 @@ def procrustes(a,
 
 def icp(a,
         b,
-        initial=np.identity(4),
+        initial=None,
         threshold=1e-5,
         max_iterations=20,
         **kwargs):
@@ -342,6 +342,9 @@ def icp(a,
     a = np.asanyarray(a, dtype=np.float64)
     if not util.is_shape(a, (-1, 3)):
         raise ValueError('points must be (n,3)!')
+
+    if initial is None:
+        initial = np.eye(4)
 
     is_mesh = util.is_instance_named(b, 'Trimesh')
     if not is_mesh:

@@ -10,6 +10,7 @@ from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
 from ..util import log, now
+from ..exceptions import ExceptionWrapper
 
 from . import misc
 from .xyz import _xyz_loaders
@@ -31,8 +32,7 @@ try:
     from ..path.exchange.load import load_path, path_formats
 except BaseException as E:
     # save a traceback to see why path didn't import
-    from ..exceptions import closure
-    load_path = closure(E)
+    load_path = ExceptionWrapper(E)
     # no path formats available
 
     def path_formats():
@@ -49,7 +49,9 @@ def mesh_formats():
       Extensions of available mesh loaders,
       i.e. 'stl', 'ply', etc.
     """
-    return set(mesh_loaders.keys())
+    # filter out exceptionmodule loaders
+    return set(k for k, v in mesh_loaders.items()
+               if not isinstance(v, ExceptionWrapper))
 
 
 def available_formats():
@@ -66,6 +68,7 @@ def available_formats():
     loaders = mesh_formats()
     loaders.update(path_formats())
     loaders.update(compressed_loaders.keys())
+
     return loaders
 
 

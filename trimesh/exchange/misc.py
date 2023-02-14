@@ -3,33 +3,6 @@ import json
 from .. import util
 
 
-def load_msgpack(blob, **kwargs):
-    """
-    Load a dict packed with msgpack into kwargs for
-    a Trimesh constructor
-
-    Parameters
-    ----------
-    blob : bytes
-      msgpack packed dict containing
-      keys 'vertices' and 'faces'
-
-    Returns
-    ----------
-    loaded : dict
-     Keyword args for Trimesh constructor, aka
-     mesh=trimesh.Trimesh(**loaded)
-    """
-
-    import msgpack
-    if hasattr(blob, 'read'):
-        data = msgpack.load(blob)
-    else:
-        data = msgpack.loads(blob)
-    loaded = load_dict(data)
-    return loaded
-
-
 def load_dict(data, **kwargs):
     """
     Load multiple input types into kwargs for a Trimesh constructor.
@@ -41,7 +14,8 @@ def load_dict(data, **kwargs):
 
     Parameters
     ----------
-    data: accepts multiple forms
+    data : dict
+    accepts multiple forms
           -dict: has keys for vertices and faces as (n,3) numpy arrays
           -dict: has keys for vertices/faces (n,3) arrays encoded as dicts/base64
                  with trimesh.util.array_to_encoded/trimesh.util.encoded_to_array
@@ -150,8 +124,7 @@ def load_meshio(file_obj, file_type=None, **kwargs):
 
 _misc_loaders = {'dict': load_dict,
                  'dict64': load_dict,
-                 'json': load_dict,
-                 'msgpack': load_msgpack}
+                 'json': load_dict}
 
 try:
     import meshio
@@ -161,4 +134,4 @@ try:
         meshio.extension_to_filetypes.keys()}
     _misc_loaders.update(_meshio_loaders)
 except BaseException:
-    _meshio_loaders = dict()
+    _meshio_loaders = {}

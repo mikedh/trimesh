@@ -154,6 +154,14 @@ class PrimitiveTest(g.unittest.TestCase):
                     # should be in the same place
                     assert g.np.allclose(p.bounds, m.bounds, atol=1e-3 * scale)
 
+    def test_mesh_schema(self):
+        # this schema should define every primitive.
+        schema = g.trimesh.resources.get_schema(
+            'primitive/trimesh.schema.json')
+        # make sure a mesh passes the schema
+        m = g.trimesh.creation.box()
+        g.jsonschema.validate(m.to_dict(), schema)
+
     def test_primitives(self):
 
         kind = set([i.__class__.__name__

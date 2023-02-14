@@ -10,8 +10,8 @@ try:
 except BaseException as E:
     # if someone tries to use Image re-raise
     # the import error so they can debug easily
-    from ..exceptions import ExceptionModule
-    Image = ExceptionModule(E)
+    from ..exceptions import ExceptionWrapper
+    Image = ExceptionWrapper(E)
 
 from .. import util
 from ..visual.color import to_float
@@ -748,6 +748,9 @@ def _preprocess_faces(text):
         elif chunk.startswith('usemtl'):
             current_mtl, chunk = chunk.split('\n', 1)
             current_mtl = current_mtl[6:].strip()
+        # Discard the g tag line in the list of faces
+        elif chunk.startswith('g '):
+            _, chunk = chunk.split('\n', 1)
         if 'f ' in chunk:
             face_tuples.append((current_mtl, current_obj, chunk))
     return face_tuples
@@ -932,7 +935,7 @@ def export_obj(mesh,
         mtl_data = {}
         # now loop through: keys are garbage hash
         # values are (data, name)
-        for data, name in materials.values():
+        for data, _ in materials.values():
             for file_name, file_data in data.items():
                 if file_name.lower().endswith('.mtl'):
                     # collect mtl lines into single file

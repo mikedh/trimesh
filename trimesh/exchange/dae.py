@@ -425,6 +425,14 @@ def load_zae(file_obj, resolver=None, **kwargs):
 _collada_loaders = {}
 _collada_exporters = {}
 if util.has_module('collada'):
+
     _collada_loaders['dae'] = load_collada
     _collada_loaders['zae'] = load_zae
     _collada_exporters['dae'] = export_collada
+else:
+    # store an exception to raise later
+    from ..exceptions import ExceptionWrapper
+    _exc = ExceptionWrapper(
+        ImportError('missing `pip install pycollada`'))
+    _collada_loaders.update({'dae': _exc, 'zae': _exc})
+    _collada_exporters['dae'] = _exc

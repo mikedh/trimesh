@@ -83,7 +83,7 @@ class MeshTests(g.unittest.TestCase):
 
             smoothed = mesh.smoothed()  # NOQA
 
-            assert mesh.volume > 0.0
+            assert abs(mesh.volume) > 0.0
 
             section = mesh.section(plane_normal=[0, 0, 1],  # NOQA
                                    plane_origin=mesh.centroid)

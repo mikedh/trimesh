@@ -9,11 +9,11 @@ from .. import util
 
 
 try:
-    from scipy import ndimage as _m
+    from scipy import ndimage
 except BaseException as E:
     # scipy is a soft dependency
-    from ..exceptions import ExceptionModule
-    _m = ExceptionModule(E)
+    from ..exceptions import ExceptionWrapper
+    ndimage = ExceptionWrapper(E)
 
 
 def _dense(encoding, rank=None):
@@ -113,7 +113,7 @@ def fill_holes(encoding, **kwargs):
     A new filled in encoding object.
     """
     return enc.DenseEncoding(
-        _m.binary_fill_holes(_dense(encoding, rank=3), **kwargs))
+        ndimage.binary_fill_holes(_dense(encoding, rank=3), **kwargs))
 
 
 fillers = util.FunctionRegistry(
@@ -153,7 +153,7 @@ def binary_dilation(encoding, **kwargs):
     https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.ndimage.morphology.binary_dilation.html#scipy.ndimage.morphology.binary_dilation
     """
     return enc.DenseEncoding(
-        _m.binary_dilation(_dense(encoding, rank=3), **kwargs))
+        ndimage.binary_dilation(_dense(encoding, rank=3), **kwargs))
 
 
 def binary_closing(encoding, **kwargs):
@@ -163,7 +163,7 @@ def binary_closing(encoding, **kwargs):
     https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.ndimage.morphology.binary_closing.html#scipy.ndimage.morphology.binary_closing
     """
     return enc.DenseEncoding(
-        _m.binary_closing(_dense(encoding, rank=3), **kwargs))
+        ndimage.binary_closing(_dense(encoding, rank=3), **kwargs))
 
 
 def surface(encoding, structure=None):
@@ -186,6 +186,6 @@ def surface(encoding, structure=None):
     # padding/unpadding resolves issues with occupied voxels on the boundary
     dense = np.pad(dense, np.ones((3, 2), dtype=int), mode='constant')
     empty = np.logical_not(dense)
-    dilated = _m.binary_dilation(empty, structure=structure)
+    dilated = ndimage.binary_dilation(empty, structure=structure)
     surface = np.logical_and(dense, dilated)[1:-1, 1:-1, 1:-1]
     return enc.DenseEncoding(surface)

@@ -86,7 +86,7 @@ except ImportError as E:
 try:
     import jsonschema
 except BaseException as E:
-    jsonschema = trimesh.exceptions.ExceptionModule(E)
+    jsonschema = trimesh.exceptions.ExceptionWrapper(E)
 
 # make sure functions know they should run additional
 # potentially slow validation checks and raise exceptions
@@ -268,6 +268,8 @@ def serve_meshes():
 
 def get_meshes(count=np.inf,
                raise_error=False,
+               split=False,
+               min_volume=None,
                only_watertight=True):
     """
     Get meshes to test with.
@@ -277,40 +279,79 @@ def get_meshes(count=np.inf,
     count : int
       Approximate number of meshes you want
     raise_error : bool
-      If True raise a ValueError if a mesh
-      that should be loadable returns a non- Trimesh object.
+      Raise exceptions in `trimesh.load` or just continue.
+    split : bool
+      Split multibody meshes into single body meshes.
+    min_volume : None or float
+      Only return meshes above a volume threshold
+    only_watertight : bool
+      Only return watertight meshes
 
-    Returns
+    Yields
     ----------
-    meshes : list
+    mesh : trimesh.Trimesh
       Trimesh objects from models folder
     """
     # use deterministic file name order
     file_names = sorted(os.listdir(dir_models))
 
-    meshes = []
+    # count items we've returned as an array so
+    # we don't have to make it a global
+    returned = [0]
+
+    def check(item):
+        # only return our limit
+        if returned[0] >= count:
+            return None
+
+        # run our return argument checks on an item
+        if only_watertight and not item.is_watertight:
+            return None
+
+        if min_volume is not None and item.volume < min_volume:
+            return None
+
+        returned[0] += 1
+        return item
+
     for file_name in file_names:
         extension = trimesh.util.split_extension(file_name).lower()
         if extension in trimesh.available_formats():
-            loaded = trimesh.util.make_sequence(get_mesh(file_name))
-            for m in loaded:
-                # is the loaded mesh a Geometry object or a subclass:
-                # Trimesh, PointCloud, Scene
-                type_ok = isinstance(m, trimesh.parent.Geometry)
-                if raise_error and not type_ok:
-                    raise ValueError('%s returned a non- Trimesh object!',
-                                     file_name)
-                if not isinstance(m, trimesh.Trimesh) or (
-                        only_watertight and not m.is_watertight):
-                    continue
-                meshes.append(m)
-                yield m
+            try:
+                loaded = trimesh.load(
+                    os.path.join(dir_models, file_name))
+            except BaseException as E:
+                if raise_error:
+                    raise E
+                continue
+
+            batched = []
+            if isinstance(loaded, trimesh.Scene):
+                batched.extend(m for m in loaded.geometry.values()
+                               if isinstance(m, trimesh.Trimesh))
+            elif isinstance(loaded, trimesh.Trimesh):
+                batched.append(loaded)
+
+            for mesh in batched:
+                mesh.metadata['file_name'] = file_name
+                # only return our limit
+                if returned[0] >= count:
+                    return
+                # previous checks should ensure only trimesh
+                assert isinstance(mesh, trimesh.Trimesh)
+                if split:
+                    for submesh in mesh.split(
+                            only_watertight=only_watertight):
+                        checked = check(submesh)
+                        if checked is not None:
+                            yield checked
+                else:
+                    checked = check(mesh)
+                    if checked is not None:
+                        yield checked
         else:
             log.warning('%s has no loader, not running test on!',
                         file_name)
-
-        if len(meshes) >= count:
-            break
 
 
 def get_2D(count=None):

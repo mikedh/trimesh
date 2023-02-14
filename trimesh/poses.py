@@ -13,8 +13,8 @@ try:
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    from .exceptions import ExceptionModule
-    nx = ExceptionModule(E)
+    from .exceptions import ExceptionWrapper
+    nx = ExceptionWrapper(E)
 
 
 def compute_stable_poses(mesh,

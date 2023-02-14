@@ -358,10 +358,6 @@ class Text(Entity):
             # otherwise raise rror
             raise ValueError('align must be (2,) str')
 
-        if any(i not in ['left', 'right', 'center']
-               for i in align):
-            print('nah')
-
         self.align = align
 
         # make sure text is a string

@@ -44,8 +44,8 @@ try:
     from . import path
 except BaseException as E:
     # raise a useful error if path hasn't loaded
-    from .exceptions import ExceptionModule
-    path = ExceptionModule(E)
+    from .exceptions import ExceptionWrapper
+    path = ExceptionWrapper(E)
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad

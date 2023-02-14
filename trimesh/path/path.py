@@ -44,23 +44,23 @@ from .exchange.export import export_path
 try:
     from . import repair
 except BaseException as E:
-    repair = exceptions.ExceptionModule(E)
+    repair = exceptions.ExceptionWrapper(E)
 try:
     from . import polygons
 except BaseException as E:
-    polygons = exceptions.ExceptionModule(E)
+    polygons = exceptions.ExceptionWrapper(E)
 try:
     from scipy.spatial import cKDTree
 except BaseException as E:
-    cKDTree = exceptions.closure(E)
+    cKDTree = exceptions.ExceptionWrapper(E)
 try:
     from shapely.geometry import Polygon
 except BaseException as E:
-    Polygon = exceptions.closure(E)
+    Polygon = exceptions.ExceptionWrapper(E)
 try:
     import networkx as nx
 except BaseException as E:
-    nx = exceptions.ExceptionModule(E)
+    nx = exceptions.ExceptionWrapper(E)
 
 
 class Path(parent.Geometry):

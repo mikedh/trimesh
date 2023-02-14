@@ -16,8 +16,8 @@ from .triangles import points_to_barycentric
 try:
     from scipy.spatial import cKDTree
 except BaseException as E:
-    from .exceptions import closure
-    cKDTree = closure(E)
+    from .exceptions import ExceptionWrapper
+    cKDTree = ExceptionWrapper(E)
 
 
 def nearby_faces(mesh, points):

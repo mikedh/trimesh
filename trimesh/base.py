@@ -331,7 +331,6 @@ class Trimesh(Geometry3D):
         if np.shape(cached) == np.shape(faces):
             return cached
 
-        log.debug('generating face normals')
         # use cached triangle cross products to generate normals
         # this will always return the correct shape but some values
         # will be zero or an arbitrary vector if the inputs had
@@ -2820,7 +2819,8 @@ class Trimesh(Geometry3D):
         result : dict
           Matches schema and Trimesh constructor.
         """
-        return {'vertices': self.vertices.tolist(),
+        return {'kind': 'trimesh',
+                'vertices': self.vertices.tolist(),
                 'faces': self.faces.tolist()}
 
     def convex_decomposition(self, maxhulls=20, **kwargs):

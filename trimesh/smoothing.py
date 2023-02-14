@@ -259,7 +259,7 @@ def filter_mut_dif_laplacian(mesh,
     return mesh
 
 
-def laplacian_calculation(mesh, equal_weight=True, pinned_vertices=[]):
+def laplacian_calculation(mesh, equal_weight=True, pinned_vertices=None):
     """
     Calculate a sparse matrix for laplacian operations.
     Parameters
@@ -279,8 +279,9 @@ def laplacian_calculation(mesh, equal_weight=True, pinned_vertices=[]):
 
     # if a node is pinned, it will average his coordinates by himself
     # in practice it will not move
-    for i in pinned_vertices:
-        neighbors[i] = [i]
+    if pinned_vertices is not None:
+        for i in pinned_vertices:
+            neighbors[i] = [i]
 
     # avoid hitting crc checks in loops
     vertices = mesh.vertices.view(np.ndarray)

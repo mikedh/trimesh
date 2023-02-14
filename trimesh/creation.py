@@ -27,13 +27,13 @@ try:
 except BaseException as E:
     # re-raise the exception when someone tries
     # to use the module that they don't have
-    Polygon = exceptions.closure(E)
-    load_wkb = exceptions.closure(E)
+    Polygon = exceptions.ExceptionWrapper(E)
+    load_wkb = exceptions.ExceptionWrapper(E)
 
 try:
     from mapbox_earcut import triangulate_float64 as _tri_earcut
 except BaseException as E:
-    _tri_earcut = exceptions.closure(E)
+    _tri_earcut = exceptions.ExceptionWrapper(E)
 
 
 def revolve(linestring,

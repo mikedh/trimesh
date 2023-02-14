@@ -12,14 +12,6 @@ from .. import util
 from .. import visual
 from .. import transformations as tf
 
-try:
-    import networkx as nx
-except BaseException as E:
-    # create a dummy module which will raise the ImportError
-    # or other exception only when someone tries to use networkx
-    from ..exceptions import ExceptionModule
-    nx = ExceptionModule(E)
-
 
 def load_XAML(file_obj, *args, **kwargs):
     """
@@ -159,5 +151,8 @@ def load_XAML(file_obj, *args, **kwargs):
 try:
     from lxml import etree
     _xaml_loaders = {'xaml': load_XAML}
-except ImportError:
-    _xaml_loaders = {}
+except BaseException as E:
+    # create a dummy module which will raise the ImportError
+    # or other exception only when someone tries to use networkx
+    from ..exceptions import ExceptionWrapper
+    _xaml_loaders = {'xaml': ExceptionWrapper(E)}

@@ -26,13 +26,12 @@ def minify(path):
     if path.startswith('http'):
         data = requests.get(path).content.decode(
             'ascii', errors='ignore')
-        print('downloaded', path, len(data))
+        print('downloaded', path, len(data))  # noqa
     else:
         with open(path, 'rb') as f:
-            # some of these assholes use unicode spaces -_-
-            data = f.read().decode('ascii',
-                                   errors='ignore')
-    # don't re- minify
+            # some upstream JS uses unicode spaces -_-
+            data = f.read().decode('ascii', errors='ignore')
+    # don't re-minify
     if '.min.' in path:
         return data
 
@@ -43,26 +42,25 @@ def minify(path):
 
 
 if __name__ == '__main__':
-    # we're going to embed every non- CDN'd file
+    # we're going to embed every non-CDN'd file
     h = html.parse('viewer.html')
     collection = []
 
     # find all scripts in the document
     for s in h.findall('//script'):
         if 'src' in s.attrib:
-
             if 'http' in s.attrib['src']:
                 # pass # download CDN files and embed
                 continue  # leave any remote files alone
 
             # get a blob of file
             path = s.attrib['src'].strip()
-            print('minifying:', path)
+            print('minifying:', path)  # noqa
             mini = minify(path)
 
             # replace test data in our file
             if path == 'load_base64.js':
-                print('replacing test data with "$B64GLTF"')
+                print('replacing test data with "$B64GLTF"')  # noqa
                 start = mini.find('base64_data')
                 end = mini.find(';', start)
                 # replace test data with a string we can replace

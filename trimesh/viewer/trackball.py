@@ -38,8 +38,7 @@ class Trackball(object):
     STATE_ROLL = 2
     STATE_ZOOM = 3
 
-    def __init__(self, pose, size, scale,
-                 target=np.array([0.0, 0.0, 0.0])):
+    def __init__(self, pose, size, scale, target=None):
         """Initialize a trackball with an initial camera-to-world pose
         and the given parameters.
 
@@ -66,8 +65,12 @@ class Trackball(object):
         self._pose = pose
         self._n_pose = pose
 
-        self._target = target
-        self._n_target = target
+        if target is None:
+            self._target = np.array([0.0, 0.0, 0.0])
+            self._n_target = np.array([0.0, 0.0, 0.0])
+        else:
+            self._target = target
+            self._n_target = target
 
         self._state = Trackball.STATE_ROTATE
 

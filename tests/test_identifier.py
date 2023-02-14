@@ -6,40 +6,38 @@ except BaseException:
 
 class IdentifierTest(g.unittest.TestCase):
 
-    def test_identifier(self):
-        count = 25
-        meshes = g.np.append(list(g.get_meshes(10)),
-                             g.get_mesh('fixed_top.ply'))
+    def test_identifier(self, count=25):
+
+        meshes = g.np.append(list(g.get_meshes(
+            only_watertight=True, split=True, min_volume=0.001)),
+            g.get_mesh('fixed_top.ply'))
         for mesh in meshes:
-            if not mesh.is_volume:
+            if not mesh.is_volume or mesh.body_count != 1:
                 g.log.warning('Mesh %s is not watertight!',
                               mesh.metadata['file_name'])
                 continue
 
             g.log.info('Trying hash at %d random transforms', count)
-            hash_val = g.deque()
-            idf = g.deque()
-            for i in range(count):
+            hashed = []
+            identifier = []
+            for _ in range(count):
                 permutated = mesh.permutate.transform()
-                hash_val.append(permutated.identifier_hash)
-                idf.append(permutated.identifier)
+                hashed.append(permutated.identifier_hash)
+                identifier.append(permutated.identifier)
 
-            result = g.np.array(hash_val)
+            result = g.np.array(hashed)
             ok = (result[0] == result[1:]).all()
 
             if not ok:
-                debug = []
-                for a in idf:
-                    as_int, exp = g.trimesh.util.sigfig_int(
-                        a, g.trimesh.comparison.id_sigfig)
-                    debug.append(as_int * (10**exp))
-                g.log.error('Hashes on %s differ after transform! diffs:\n %s\n',
+                debug = [g.trimesh.util.sigfig_int(
+                    i, g.trimesh.comparison.id_sigfig)
+                    for i in identifier]
+                g.log.error('Hashes on %s differ after transform:\n %s\n',
                             mesh.metadata['file_name'],
                             str(g.np.array(debug, dtype=g.np.int64)))
-
                 raise ValueError('values differ after transform!')
 
-            if hash_val[-1] == permutated.permutate.noise(
+            if hashed[-1] == permutated.permutate.noise(
                     mesh.scale / 100.0).identifier_hash:
                 raise ValueError('Hashes on %s didn\'t change after noise!',
                                  mesh.metadata['file_name'])
@@ -55,12 +53,15 @@ class IdentifierTest(g.unittest.TestCase):
         for s in scenes:
             for geom_name, mesh in s.geometry.items():
                 meshes = []
+                if not mesh.is_volume:
+                    continue
+
                 for node in s.graph.nodes_geometry:
                     T, geo = s.graph[node]
                     if geom_name != geo:
                         continue
 
-                    m = s.geometry[geo].copy()
+                    m = mesh.copy()
                     m.apply_transform(T)
                     meshes.append(m)
                 if not all(meshes[0].identifier_hash == i.identifier_hash
@@ -68,8 +69,28 @@ class IdentifierTest(g.unittest.TestCase):
                     raise ValueError(
                         '{} differs after transform!'.format(geom_name))
 
+        # check an example for a mirrored part
         assert (scenes[0].geometry['disc_cam_B'].identifier_hash !=
                 scenes[0].geometry['disc_cam_A'].identifier_hash)
+
+    def test_reflection(self):
+        # identifier should detect mirroring
+        a = g.get_mesh('featuretype.STL')
+        b = a.copy()
+        b.vertices[:, 2] *= -1.0
+        b.invert()
+        assert g.np.isclose(a.volume, b.volume)
+        # hash should differ
+        assert a.identifier_hash != b.identifier_hash
+
+        # a mesh which is quite sensitive to mirroring
+        a = g.get_mesh('mirror.ply')
+        b = a.copy()
+        b.vertices[:, 2] *= -1.0
+        b.invert()
+        assert g.np.isclose(a.volume, b.volume)
+        # hash should differ
+        assert a.identifier_hash != b.identifier_hash
 
 
 if __name__ == '__main__':

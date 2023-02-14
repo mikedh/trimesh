@@ -6,18 +6,17 @@ from . import convex
 from . import nsphere
 from . import geometry
 from . import grouping
-from . import triangles
 from . import transformations
 
 try:
     # scipy is a soft dependency
-    from scipy import spatial
+    from scipy.spatial import ConvexHull
     from scipy import optimize
 except BaseException as E:
     # raise the exception when someone tries to use it
     from . import exceptions
-    spatial = exceptions.ExceptionModule(E)
-    optimize = exceptions.ExceptionModule(E)
+    ConvexHull = exceptions.ExceptionWrapper(E)
+    optimize = exceptions.ExceptionWrapper(E)
 
 
 # a 90 degree rotation
@@ -47,7 +46,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # create a convex hull object of our points
     # 'QbB' is a qhull option which has it scale the input to unit
     # box to avoid precision issues with very large/small meshes
-    convex = spatial.ConvexHull(
+    convex = ConvexHull(
         points, qhull_options=qhull_options)
 
     # (n,2,3) line segments
@@ -146,26 +145,24 @@ def oriented_bounds(obj,
         # normals pointing in arbitrary directions (straight from qhull)
         # using this avoids having to compute the expensive corrected normals
         # that mesh.convex_hull uses since normal directions don't matter here
-        vertices = obj.convex_hull.vertices
-        hull_normals = obj.convex_hull.face_normals
+        hull = obj.convex_hull
     elif util.is_sequence(obj):
         # we've been passed a list of points
         points = np.asanyarray(obj)
         if util.is_shape(points, (-1, 2)):
             return oriented_bounds_2D(points)
         elif util.is_shape(points, (-1, 3)):
-            hull_obj = spatial.ConvexHull(points)
-            vertices = hull_obj.points[hull_obj.vertices]
-            hull_normals, valid = triangles.normals(
-                hull_obj.points[hull_obj.simplices])
+            hull = convex.convex_hull(points, repair=False)
         else:
             raise ValueError('Points are not (n,3) or (n,2)!')
     else:
         raise ValueError(
             'Oriented bounds must be passed a mesh or a set of points!')
 
-    min_volume = np.inf
-    tic = now()
+    vertices = hull.vertices
+    hull_adj = hull.face_adjacency.T
+    hull_edge = hull.face_adjacency_edges
+    hull_normals = hull.face_normals
 
     # matrices which will rotate each hull normal to [0,0,1]
     if normal is None:
@@ -179,34 +176,78 @@ def oriented_bounds(obj,
         # inside the loop by converting to angles ahead of time
         spherical_unique = grouping.unique_rows(
             spherical_coords, digits=angle_digits)[0]
-        matrices = [np.linalg.inv(transformations.spherical_matrix(*s))
+        matrices = [transformations.spherical_matrix(*s).T
                     for s in spherical_coords[spherical_unique]]
+        normals = util.spherical_to_vector(spherical_coords[spherical_unique])
     else:
         # if explicit normal was passed use it and skip the grouping
         matrices = [geometry.align_vectors(normal, [0, 0, 1])]
+        normals = [normal]
 
-    for to_2D in matrices:
-        # apply the transform here
-        projected = np.dot(to_2D, np.column_stack(
-            (vertices, np.ones(len(vertices)))).T).T[:, :3]
+    tic = now()
+    min_2D = None
+    min_volume = np.inf
 
-        height = projected[:, 2].ptp()
-        rotation_2D, box = oriented_bounds_2D(projected[:, :2])
-        volume = np.product(box) * height
+    # we now need to loop through all the possible candidate
+    # directions for aligning our oriented bounding box.
+    for normal, to_2D in zip(normals, matrices):
+        # we could compute the hull in 2D for every direction
+        # but since we know we're dealing with a convex blob
+        # we can do back-face culling and then take the boundary
+        # start by picking the normal direction with fewer edges
+        side = np.dot(hull_normals, normal) > -1e-10
+
+        # this line is a heavy lift as it is finding the pairs of
+        # adjacent faces where *exactly one* out of two of the faces
+        # is visible (xor) and then using the index to get the edge
+        edges = hull_edge[np.bitwise_xor(*side[hull_adj])]
+
+        # project the 3D convex hull vertices onto the plane
+        projected = np.dot(to_2D[:3, :3], vertices.T).T[:, :3]
+        # get the line segments of edges in 2D
+        edge_vert = projected[:, :2][edges]
+        # now get them as unit vectors
+        edge_vectors = edge_vert[:, 1, :] - edge_vert[:, 0, :]
+        edge_norm = np.sqrt(np.dot(edge_vectors ** 2, [1, 1]))
+        edge_nonzero = edge_norm > 1e-10
+        edge_vectors = edge_vectors[edge_nonzero] / \
+            edge_norm[edge_nonzero].reshape((-1, 1))
+        # create a set of perpendicular vectors
+        perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
+
+        # find the projection of every hull point on every edge vector
+        # this does create a potentially gigantic n^2 array in memory
+        # and there is the 'rotating calipers' algorithm which avoids this
+        # however, we have reduced n with a convex hull and numpy dot products
+        # are extremely fast so in practice this usually ends up being fine
+        x = np.dot(edge_vectors, edge_vert[:, 0, :2].T)
+        y = np.dot(perp_vectors, edge_vert[:, 0, :2].T)
+        area = ((x.max(axis=1) - x.min(axis=1)) *
+                (y.max(axis=1) - y.min(axis=1))).min()
+
+        # the volume is 2D area plus the projected height
+        volume = area * projected[:, 2].ptp()
+
+        # store this transform if it's better than one we've seen
         if volume < min_volume:
             min_volume = volume
-            min_extents = np.append(box, height)
-            min_2D = to_2D.copy()
-            rotation_2D[:2, 2] = 0.0
-            rotation_Z = transformations.planar_matrix_to_3D(rotation_2D)
+            min_2D = to_2D
+
+    # we know the minimum volume transform which should be the expensive
+    # part so now we need to do the bookkeeping to find the box
+    vert_ones = np.column_stack((vertices, np.ones(len(vertices)))).T
+    projected = np.dot(min_2D, vert_ones).T[:, :3]
+    height = projected[:, 2].ptp()
+    rotation_2D, box = oriented_bounds_2D(projected[:, :2])
+    min_extents = np.append(box, height)
+    rotation_2D[:2, 2] = 0.0
+    rotation_Z = transformations.planar_matrix_to_3D(rotation_2D)
 
     # combine the 2D OBB transformation with the 2D projection transform
     to_origin = np.dot(rotation_Z, min_2D)
 
-    # transform points using our matrix to find the translation for the
-    # transform
-    transformed = transformations.transform_points(vertices,
-                                                   to_origin)
+    # transform points using our matrix to find the translation
+    transformed = transformations.transform_points(vertices, to_origin)
     box_center = (transformed.min(axis=0) + transformed.ptp(axis=0) * .5)
     to_origin[:3, 3] = -box_center
 
@@ -286,24 +327,24 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
         else:
             volume (float)
         """
-        to_2D = transformations.spherical_matrix(*spherical,
-                                                 axes='rxyz')
-        projected = transformations.transform_points(hull,
-                                                     matrix=to_2D)
+        to_2D = transformations.spherical_matrix(
+            *spherical, axes='rxyz')
+        projected = transformations.transform_points(
+            hull, matrix=to_2D)
         height = projected[:, 2].ptp()
 
         try:
             center_2D, radius = nsphere.minimum_nsphere(projected[:, :2])
-        except BaseException:
-            # in degenerate cases return as infinite volume
+        except ValueError:
             return np.inf
 
         volume = np.pi * height * (radius ** 2)
         if return_data:
-            center_3D = np.append(center_2D, projected[
-                                  :, 2].min() + (height * .5))
-            transform = np.dot(np.linalg.inv(to_2D),
-                               transformations.translation_matrix(center_3D))
+            center_3D = np.append(
+                center_2D, projected[:, 2].min() + (height * .5))
+            transform = np.dot(
+                np.linalg.inv(to_2D),
+                transformations.translation_matrix(center_3D))
             return transform, radius, height
         return volume
 
@@ -378,7 +419,9 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
     log.debug('Performed search in %f and minimize in %f', *np.diff(tic))
 
     # actually chunk the information about the cylinder
-    transform, radius, height = volume_from_angles(r['x'], return_data=True)
+    transform, radius, height = volume_from_angles(
+        r['x'], return_data=True)
+
     result = {'transform': transform,
               'radius': radius,
               'height': height}

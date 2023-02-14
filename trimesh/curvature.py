@@ -12,7 +12,7 @@ try:
     from scipy.sparse import coo_matrix
 except ImportError as E:
     from . import exceptions
-    coo_matrix = exceptions.closure(E)
+    coo_matrix = exceptions.ExceptionWrapper(E)
 
 
 def face_angles_sparse(mesh):

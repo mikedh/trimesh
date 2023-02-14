@@ -6,7 +6,7 @@ try:
     has_embree = True
 except BaseException as E:
     from .. import exceptions
-    ray_pyembree = exceptions.ExceptionModule(E)
+    ray_pyembree = exceptions.ExceptionWrapper(E)
     has_embree = False
 
 # add to __all__ as per pep8

@@ -174,7 +174,7 @@ def local_voxelize(mesh,
 @log_time
 def voxelize_ray(mesh,
                  pitch,
-                 per_cell=[2, 2]):
+                 per_cell=None):
     """
     Voxelize a mesh using ray queries.
 
@@ -191,8 +191,12 @@ def voxelize_ray(mesh,
     -------------
     VoxelGrid instance representing the voxelized mesh.
     """
-    # how many rays per cell
-    per_cell = np.array(per_cell).astype(np.int64).reshape(2)
+    if per_cell is None:
+        # how many rays per cell
+        per_cell = np.array([2, 2], dtype=np.int64)
+    else:
+        per_cell = np.array(per_cell, dtype=np.int64).reshape(2)
+
     # edge length of cube voxels
     pitch = float(pitch)
 
