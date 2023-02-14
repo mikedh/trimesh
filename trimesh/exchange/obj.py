@@ -748,6 +748,9 @@ def _preprocess_faces(text):
         elif chunk.startswith('usemtl'):
             current_mtl, chunk = chunk.split('\n', 1)
             current_mtl = current_mtl[6:].strip()
+        # Discard the g tag line in the list of faces
+        elif chunk.startswith('g '):
+            _, chunk = chunk.split('\n', 1)
         if 'f ' in chunk:
             face_tuples.append((current_mtl, current_obj, chunk))
     return face_tuples
