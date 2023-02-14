@@ -80,7 +80,14 @@ class IdentifierTest(g.unittest.TestCase):
         b.vertices[:, 2] *= -1.0
         b.invert()
         assert g.np.isclose(a.volume, b.volume)
+        # hash should differ
+        assert a.identifier_hash != b.identifier_hash
 
+        a = g.get_mesh('mirror.ply')
+        b = a.copy()
+        b.vertices[:, 2] *= -1.0
+        b.invert()
+        assert g.np.isclose(a.volume, b.volume)
         # hash should differ
         assert a.identifier_hash != b.identifier_hash
 
