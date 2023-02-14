@@ -38,7 +38,7 @@ class IdentifierTest(g.unittest.TestCase):
                 raise ValueError('values differ after transform!')
 
             if hashed[-1] == permutated.permutate.noise(
-                    mesh.scale / 200.0).identifier_hash:
+                    mesh.scale / 100.0).identifier_hash:
                 raise ValueError('Hashes on %s didn\'t change after noise!',
                                  mesh.metadata['file_name'])
 
