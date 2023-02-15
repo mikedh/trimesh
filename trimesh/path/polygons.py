@@ -885,39 +885,92 @@ def projected(mesh,
     return polygon
 
 
-def second_moment(coords):
+def second_moments(polygon, centered=False):
     """
-    Calculate the second moment of area of a polygon
+    Calculate the second moments of area of a polygon
     from the boundary.
 
     Parameters
     ------------
     coords : (n, 2) float or Polygon
       Closed polygon.
+    centered: bool
+      If true, get second moments for a frame with origin at the centroid
+      and perform a principal axis transformation
 
     Returns
     ----------
     moments : (3,) float
-      The values of `[Ix, Iy, Ixy]`
+      The values of `[Ixx, Iyy, Ixy]`
+    principal_moments : (2,) float
+      Principal second moments of inertia: `[Imax, Imin]`
+      Only returned if centered=True
+    alpha : float
+      Angle by which the polygon needs to be rotated, so the
+      principal axis align with the x- and y-Axis.
+      Only returned if centered=True
+    transform : (3,3) float
+      Transformation matrix which rotates the polygon by alpha.
+      Only returned if centered=True
     """
-    if hasattr(coords, 'exterior'):
-        # if we have been passed a shapely.geometry.Polygon
-        exterior = second_moment(np.array(coords.exterior.coords))
-        interiors = np.sum([second_moment(np.array(i.coords))
-                            for i in coords.interiors],
-                           axis=0)
-        return exterior - interiors
 
-    coords = np.asanyarray(coords, dtype=np.float64)
+    transform = np.eye(3)
+    if centered:
+        # calculate centroid and move polygon
+        transform[:2, 2] = - np.array(polygon.centroid.coords)
+        polygon = transform_polygon(polygon, transform)
+
+    # start with the exterior
+    coords = np.array(polygon.exterior.coords)
     # shorthand the coordinates
     x1, y1 = np.vstack((coords[-1], coords[:-1])).T
     x2, y2 = coords.T
     # do vectorized operations
     v = x1 * y2 - x2 * y1
-    Ix = v * (y1 * y1 + y1 * y2 + y2 * y2)
-    Iy = v * (x1 * x1 + x1 * x2 + x2 * x2)
-    Ixy = v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1)
-    # divide by constants and return
-    return np.array([Ix.sum() / 12.0,
-                     Iy.sum() / 12.0,
-                     Ixy.sum() / 24.0], dtype=np.float64)
+    Ixx = 0.083333333333 * np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2))
+    Iyy = 0.083333333333 * np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2))
+    Ixy = 0.041666666666 * \
+        np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1))
+
+    for interior in polygon.interiors:
+        coords = np.array(interior.coords)
+        # shorthand the coordinates
+        x1, y1 = np.vstack((coords[-1], coords[:-1])).T
+        x2, y2 = coords.T
+        # do vectorized operations
+        v = x1 * y2 - x2 * y1
+        Ixx -= 0.083333333333 * np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2))
+        Iyy -= 0.083333333333 * np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2))
+        Ixy -= 0.041666666666 * \
+            np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1))
+
+    moments = [Ixx, Iyy, Ixy]
+
+    if not centered:
+        return moments
+
+    # get the principal moments
+    root = np.sqrt(((Iyy - Ixx) / 2)**2 + Ixy**2)
+    Imax = (Ixx + Iyy) / 2 + root
+    Imin = (Ixx + Iyy) / 2 - root
+    principal_moments = [Imax, Imin]
+
+    # do the principal axis transform
+    if np.isclose(Ixy, 0, atol=1e-12):
+        alpha = 0
+    elif np.isclose(Ixx, Iyy):
+        # prevent division by 0
+        alpha = 0.25 * np.pi
+    else:
+        alpha = 0.5 * np.arctan(2 * Ixy / (Ixx - Iyy))
+
+    # construct transformation matrix
+    cos_alpha = np.cos(alpha)
+    sin_alpha = np.sin(alpha)
+
+    transform[0, 0] = cos_alpha
+    transform[1, 1] = cos_alpha
+    transform[0, 1] = - sin_alpha
+    transform[1, 0] = sin_alpha
+
+    return moments, principal_moments, alpha, transform
