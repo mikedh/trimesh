@@ -108,7 +108,7 @@ class VisualTest(g.unittest.TestCase):
         m.visual.face_colors = test
         assert bool((m.visual.vertex_colors == test).all())
         assert m.visual.kind == 'face'
-        m.visual.vertex_colors[0] = [0,0,0,0]
+        m.visual.vertex_colors[0] = [0, 0, 0, 0]
         assert m.visual.kind == 'vertex'
 
         test = (g.random(4) * 255).astype(g.np.uint8)
