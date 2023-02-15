@@ -35,7 +35,7 @@ class MeshTests(g.unittest.TestCase):
         assert g.np.isclose(m.volume, pre_vol)
 
         # add some unreferenced vertices
-        m.vertices = g.np.vstack((m.vertices, g.np.random.random((100, 3))))
+        m.vertices = g.np.vstack((m.vertices, g.random((100, 3))))
         assert len(m.vertices) == pre_len + 100
         assert g.np.isclose(m.volume, pre_vol)
 

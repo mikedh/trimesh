@@ -12,8 +12,8 @@ class GeomTests(g.unittest.TestCase):
     def test_triangulate(self):
         from trimesh.geometry import triangulate_quads as tq
         # create some triangles and quads
-        tri = (g.np.random.random((100, 3)) * 100).astype(g.np.int64)
-        quad = (g.np.random.random((100, 4)) * 100).astype(g.np.int64)
+        tri = (g.random((100, 3)) * 100).astype(g.np.int64)
+        quad = (g.random((100, 4)) * 100).astype(g.np.int64)
 
         # should just exit early for triangles
         assert g.np.allclose(tri, tq(tri.tolist()))

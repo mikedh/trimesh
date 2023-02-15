@@ -48,7 +48,7 @@ class UtilTests(unittest.TestCase):
     def test_bounds_tree(self):
         for attempt in range(3):
             for dimension in [2, 3]:
-                t = g.np.random.random((1000, 3, dimension))
+                t = g.random((1000, 3, dimension))
                 bounds = g.np.column_stack((t.min(axis=1), t.max(axis=1)))
                 tree = g.trimesh.util.bounds_tree(bounds)
                 self.assertTrue(0 in tree.intersection(bounds[0]))
@@ -57,7 +57,7 @@ class UtilTests(unittest.TestCase):
         # shortcut to the function
         f = g.trimesh.util.stack_3D
         # start with some random points
-        p = g.np.random.random((100, 2))
+        p = g.random((100, 2))
         stack = f(p)
         # shape should be 3D
         assert stack.shape == (100, 3)
@@ -234,7 +234,7 @@ class IOWrapTests(unittest.TestCase):
         util = g.trimesh.util
 
         # check wrap_as_stream
-        test_b = g.np.random.random(1).tobytes()
+        test_b = g.random(1).tobytes()
         test_s = 'this is a test yo'
         res_b = util.wrap_as_stream(test_b).read()
         res_s = util.wrap_as_stream(test_s).read()

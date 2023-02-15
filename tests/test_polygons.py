@@ -90,7 +90,7 @@ class PolygonTests(g.unittest.TestCase):
         m = g.trimesh.creation.icosphere(subdivisions=4)
 
         p = [g.trimesh.path.polygons.projected(m, normal=n)
-             for n in g.np.random.random((100, 3))]
+             for n in g.random((100, 3))]
 
         # sphere projection should never have interiors
         assert all(len(i.interiors) == 0 for i in p)

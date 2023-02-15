@@ -65,11 +65,11 @@ class TransformTest(g.unittest.TestCase):
 
     def test_around(self):
         # check transform_around on 2D points
-        points = g.np.random.random((100, 2))
+        points = g.random((100, 2))
         for i, p in enumerate(points):
-            offset = g.np.random.random(2)
+            offset = g.random(2)
             matrix = g.trimesh.transformations.planar_matrix(
-                theta=g.np.random.random() + .1,
+                theta=g.random() + .1,
                 offset=offset,
                 point=p)
 
@@ -82,7 +82,7 @@ class TransformTest(g.unittest.TestCase):
             assert compare.all(axis=1).sum() == 1
 
         # check transform_around on 3D points
-        points = g.np.random.random((100, 3))
+        points = g.random((100, 3))
         for i, p in enumerate(points):
             matrix = g.trimesh.transformations.random_rotation_matrix()
             matrix = g.trimesh.transformations.transform_around(matrix, p)
@@ -106,9 +106,9 @@ class TransformTest(g.unittest.TestCase):
                                       [0, 0, 0, 1]),
                              [1, -1, 0, 1])
 
-        angle = (g.np.random.random() - 0.5) * (2 * g.np.pi)
-        direc = g.np.random.random(3) - 0.5
-        point = g.np.random.random(3) - 0.5
+        angle = (g.random() - 0.5) * (2 * g.np.pi)
+        direc = g.random(3) - 0.5
+        point = g.random(3) - 0.5
         R0 = rotation_matrix(angle, direc, point)
         R1 = rotation_matrix(angle - 2 * g.np.pi, direc, point)
         assert g.trimesh.transformations.is_same_transform(R0, R1)

@@ -69,7 +69,7 @@ class BoundsTest(g.unittest.TestCase):
         """
         for dimension in [3, 2]:
             for i in range(25):
-                points = g.np.random.random((10, dimension))
+                points = g.random((10, dimension))
                 to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
 
                 assert g.trimesh.util.is_shape(to_origin,
@@ -93,7 +93,7 @@ class BoundsTest(g.unittest.TestCase):
     def test_2D(self):
         for theta in g.np.linspace(0, g.np.pi * 2, 2000):
             # create some random rectangular-ish 2D points
-            points = g.np.random.random((10, 2)) * [5, 1]
+            points = g.random((10, 2)) * [5, 1]
 
             # save the basic AABB of the points before rotation
             rectangle_pre = points.ptp(axis=0)
@@ -207,7 +207,7 @@ class BoundsTest(g.unittest.TestCase):
             # transform box randomly in rotation and translation
             mat = g.trimesh.transformations.random_rotation_matrix()
             # translate in box -100 : +100
-            mat[:3, 3] = (g.np.random.random(3) - .5) * 200
+            mat[:3, 3] = (g.random(3) - .5) * 200
 
             # source mesh to check
             b = g.trimesh.creation.box(extents=extents,

@@ -27,7 +27,7 @@ class NSphereTest(g.unittest.TestCase):
         # check minimum n-sphere for points in 2, 3, 4 dimensions
         for d in [2, 3, 4]:
             for i in range(5):
-                points = g.np.random.random((100, d))
+                points = g.random((100, d))
                 C, R = g.trimesh.nsphere.minimum_nsphere(points)
                 R_check = ((points - C)**2).sum(axis=1).max() ** .5
                 assert len(C) == d
@@ -38,7 +38,7 @@ class NSphereTest(g.unittest.TestCase):
         # make sure created spheres are uv sphere
         m = g.trimesh.creation.uv_sphere()
         # move the mesh around for funsies
-        m.apply_translation(g.np.random.random(3))
+        m.apply_translation(g.random(3))
         m.apply_transform(
             g.trimesh.transformations.random_rotation_matrix())
         # all vertices should be on nsphere

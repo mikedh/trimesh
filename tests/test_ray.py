@@ -33,7 +33,7 @@ class RayTests(g.unittest.TestCase):
             sphere = g.get_mesh('unit_sphere.STL',
                                 use_embree=use_embree)
 
-            ray_origins = g.np.random.random(dimension)
+            ray_origins = g.random(dimension)
             ray_directions = g.np.tile([0, 0, 1], (dimension[0], 1))
             ray_origins[:, 2] = -5
 
@@ -66,7 +66,7 @@ class RayTests(g.unittest.TestCase):
             sphere = g.get_mesh('unit_sphere.STL',
                                 use_embree=use_embree)
             # should never hit the sphere
-            ray_origins = g.np.random.random(dimension)
+            ray_origins = g.random(dimension)
             ray_directions = g.np.tile([0, 1, 0], (dimension[0], 1))
             ray_origins[:, 2] = -5
 
@@ -94,7 +94,7 @@ class RayTests(g.unittest.TestCase):
             assert not test_out.any()
 
             points_way_out = (
-                g.np.random.random(
+                g.random(
                     (30, 3)) * 100) + 1.0 + mesh.bounds[1]
             test_way_out = mesh.ray.contains_points(points_way_out)
             assert not test_way_out.any()

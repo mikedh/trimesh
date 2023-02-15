@@ -26,7 +26,7 @@ class CacheTest(g.unittest.TestCase):
 
             # generate test data and perform numpy operations
             a = g.trimesh.caching.tracked_array(
-                g.np.random.random(TEST_DIM))
+                g.random(TEST_DIM))
             modified = [hash(a)]
             a[0][0] = 10
             modified.append(hash(a))
@@ -95,7 +95,7 @@ class CacheTest(g.unittest.TestCase):
         g.trimesh.caching.hash_fast = original
 
     def test_contiguous(self):
-        a = g.np.random.random((100, 3))
+        a = g.random((100, 3))
         t = g.trimesh.caching.tracked_array(a)
 
         original = g.trimesh.caching.hash_fast
@@ -120,7 +120,7 @@ class CacheTest(g.unittest.TestCase):
         """
         d = g.trimesh.caching.DataStore()
 
-        d['hi'] = g.np.random.random(100)
+        d['hi'] = g.random(100)
         hash_initial = hash(d)
         # mutate internal data
         d['hi'][0] += 1

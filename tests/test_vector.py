@@ -11,7 +11,7 @@ class SphericalTests(g.unittest.TestCase):
         Convert vectors to spherical coordinates
         """
         # random unit vectors
-        v = g.trimesh.unitize(g.np.random.random((1000, 3)) - .5)
+        v = g.trimesh.unitize(g.random((1000, 3)) - .5)
         # (n, 2) angles in radians
         spherical = g.trimesh.util.vector_to_spherical(v)
         # back to unit vectors
@@ -26,7 +26,7 @@ class HemisphereTests(g.unittest.TestCase):
         for dimension in [2, 3]:
             # random unit vectors
             v = g.trimesh.unitize(
-                g.np.random.random((10000, dimension)) - .5)
+                g.random((10000, dimension)) - .5)
 
             # add some on- axis points
             v[:dimension] = g.np.eye(dimension)

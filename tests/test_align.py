@@ -20,8 +20,8 @@ class AlignTests(g.unittest.TestCase):
         # start with some edge cases and make sure the transform works
         target = g.np.array([0, 0, -1], dtype=g.np.float64)
         vectors = g.np.vstack((
-            g.trimesh.unitize(g.np.random.random((1000, 3)) - .5),
-            g.np.random.random((1000, 3)) - .5,
+            g.trimesh.unitize(g.random((1000, 3)) - .5),
+            g.random((1000, 3)) - .5,
             [-target, target],
             g.trimesh.util.generate_basis(target),
             [[7.12106798e-07, -7.43194705e-08, 1.00000000e+00],

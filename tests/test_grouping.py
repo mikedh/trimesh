@@ -195,7 +195,7 @@ class GroupTests(g.unittest.TestCase):
     def test_cluster(self):
         # create some random points stacked with some zeros to cluster
         points = g.np.vstack(((
-            g.np.random.random((10000, 3)) * 5).astype(g.np.int64),
+            g.random((10000, 3)) * 5).astype(g.np.int64),
             g.np.zeros((100, 3))))
         # should be at least one cluster
         assert len(g.trimesh.grouping.clusters(points, .01)) > 0
@@ -304,7 +304,7 @@ class GroupTests(g.unittest.TestCase):
 
     def test_unique_ordered_rows(self):
         # check the ordering of unique_rows
-        v = g.np.random.random((100000, 3))
+        v = g.random((100000, 3))
         v = g.np.vstack((v, v, v, v))
 
         # index, inverse
