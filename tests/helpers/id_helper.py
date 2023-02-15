@@ -72,8 +72,9 @@ def permutations(mesh,
         identifiers.append(identifier)
 
         if (time.time() - start) > cutoff:
-            print('bailing for time:{} count:{}'.format(time.time() - start,
-                                                        i))
+            print('bailing for time:{} count:{}'.format(
+                time.time() - start,
+                i))
             return np.array(identifiers)
 
     return np.array(identifiers)

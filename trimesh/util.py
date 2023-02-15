@@ -2360,7 +2360,7 @@ def to_ascii(text):
     return str(text)
 
 
-def is_ccw(points):
+def is_ccw(points, return_all=False):
     """
     Check if connected 2D points are counterclockwise.
 
@@ -2368,25 +2368,38 @@ def is_ccw(points):
     -----------
     points : (n, 2) float
       Connected points on a plane
+    return_all : bool
+      Return polygon area and centroid or just counter-clockwise.
 
     Returns
     ----------
     ccw : bool
       True if points are counter-clockwise
+    area : float
+      Only returned if `return_centroid`
+    centroid : (2,) float
+      Centroid of the polygon.
     """
-    points = np.asanyarray(points, dtype=np.float64)
+    points = np.array(points, dtype=np.float64)
 
-    if (len(points.shape) != 2 or points.shape[1] != 2):
-        raise ValueError('CCW is only defined for 2D')
-    xd = np.diff(points[:, 0])
-    # sum along axis=1 with a dot product
-    yd = np.dot(np.column_stack((
-        points[:, 1],
-        points[:, 1])).reshape(-1)[1:-1].reshape((-1, 2)), [1, 1])
-    area = np.sum(xd * yd) * .5
-    ccw = area < 0
+    if len(points.shape) != 2 or points.shape[1] != 2:
+        raise ValueError('only defined for `(n, 2)` points')
 
-    return ccw
+    # the "shoelace formula"
+    product = np.subtract(*(points[:-1, [1, 0]] * points[1:]).T)
+    # the area of the polygon
+    area = product.sum() / 2.0
+    # check the sign of the area
+    ccw = area < 0.0
+
+    if not return_all:
+        return ccw
+
+    # the centroid of the polygon uses the same formula
+    centroid = ((points[:-1] + points[1:]) *
+                product.reshape((-1, 1))).sum(axis=0) / (6.0 * area)
+
+    return ccw, area, centroid
 
 
 def unique_name(start, contains):
