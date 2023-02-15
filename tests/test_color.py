@@ -108,16 +108,15 @@ class VisualTest(g.unittest.TestCase):
         m.visual.face_colors = test
         assert bool((m.visual.vertex_colors == test).all())
         assert m.visual.kind == 'face'
-        m.visual.vertex_colors[0] = (
-            g.random(4) * 255).astype(g.np.uint8)
+        m.visual.vertex_colors[0] = [0,0,0,0]
         assert m.visual.kind == 'vertex'
 
         test = (g.random(4) * 255).astype(g.np.uint8)
         m.visual.vertex_colors = test
         assert bool((m.visual.face_colors == test).all())
         assert m.visual.kind == 'vertex'
-        m.visual.face_colors[0] = (
-            g.random(4) * 255).astype(g.np.uint8)
+        m.visual.face_colors[:2] = (
+            g.random((2, 4)) * 255).astype(g.np.uint8)
         assert m.visual.kind == 'face'
 
     def test_smooth(self):
