@@ -238,13 +238,15 @@ class PackingTest(g.unittest.TestCase):
                 density.append(viz.volume / viz.bounding_box.volume)
         print(P.output_text())
 
-    def test_meshes(self):
+    def test_meshes(self, count=20):
         from trimesh.path import packing
         # create some random rotation boxes
         meshes = [g.trimesh.creation.box(
-            extents=g.random(3),
-            transform=g.tf.random_rotation_matrix())
-            for _ in range(20)]
+            extents=extents,
+            transform=transform)
+            for transform, extents in zip(
+            g.random_transforms(count),
+            (g.random((count, 3)) + 1) * 10)]
         packed, transforms, consume = packing.meshes(
             meshes, spacing=0.01)
         scene = g.trimesh.Scene(packed)
