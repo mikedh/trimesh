@@ -7,7 +7,6 @@ except BaseException:
 class IdentifierTest(g.unittest.TestCase):
 
     def test_identifier(self, count=25):
-
         meshes = g.np.append(list(g.get_meshes(
             only_watertight=True, split=True, min_volume=0.001)),
             g.get_mesh('fixed_top.ply'))
@@ -20,8 +19,8 @@ class IdentifierTest(g.unittest.TestCase):
             g.log.info('Trying hash at %d random transforms', count)
             hashed = []
             identifier = []
-            for _ in range(count):
-                permutated = mesh.permutate.transform()
+            for transform in g.random_transforms(count):
+                permutated = mesh.copy().apply_transform(transform)
                 hashed.append(permutated.identifier_hash)
                 identifier.append(permutated.identifier)
 
@@ -37,10 +36,13 @@ class IdentifierTest(g.unittest.TestCase):
                             str(g.np.array(debug, dtype=g.np.int64)))
                 raise ValueError('values differ after transform!')
 
-            if hashed[-1] == permutated.permutate.noise(
-                    mesh.scale / 100.0).identifier_hash:
-                raise ValueError('Hashes on %s didn\'t change after noise!',
-                                 mesh.metadata['file_name'])
+            # stretch the mesh by a small amount
+            stretched = mesh.copy().apply_scale(
+                [0.99974507, 0.9995662, 1.0029832])
+            if hashed[-1] == stretched.identifier_hash:
+                raise ValueError(
+                    'Hashes on %s didn\'t change after stretching',
+                    mesh.metadata['file_name'])
 
     def test_scene_id(self):
         """

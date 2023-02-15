@@ -15,7 +15,7 @@ from .constants import tol
 # how many significant figures to use for each
 # field of the identifier based on hand-tuning
 id_sigfig = np.array(
-    [4,  # area
+    [4,   # area
      10,  # euler number
      5,  # area/volume ratio
      2,  # convex/mesh area ratio

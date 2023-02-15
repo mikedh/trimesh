@@ -180,6 +180,24 @@ def random(*args, **kwargs):
     return state.random_sample(*args, **kwargs)
 
 
+def random_transforms(count, translate=1000):
+    """
+    Deterministic generation of random transforms so unit
+    tests have limited levels of flake.
+    """
+    quaternion = random((count, 3))
+    translate = (random((count, 3)) - 0.5) * float(translate)
+
+    for quat, trans in zip(quaternion, translate):
+        matrix = tf.random_rotation_matrix(rand=quat)
+        matrix[:3, 3] = trans
+        yield matrix
+
+# random should be deterministic
+assert np.allclose(random(10), random(10))
+assert np.allclose(list(random_transforms(10)),
+                   list(random_transforms(10)))
+
 def _load_data():
     """
     Load the JSON files from our truth directory.
