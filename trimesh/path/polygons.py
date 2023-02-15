@@ -927,10 +927,9 @@ def second_moments(polygon, centered=False):
     x2, y2 = coords.T
     # do vectorized operations
     v = x1 * y2 - x2 * y1
-    Ixx = 0.083333333333 * np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2))
-    Iyy = 0.083333333333 * np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2))
-    Ixy = 0.041666666666 * \
-        np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1))
+    Ixx = np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2)) / 12.0
+    Iyy = np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2)) / 12.0
+    Ixy = np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1)) / 24.0
 
     for interior in polygon.interiors:
         coords = np.array(interior.coords)
@@ -939,10 +938,10 @@ def second_moments(polygon, centered=False):
         x2, y2 = coords.T
         # do vectorized operations
         v = x1 * y2 - x2 * y1
-        Ixx -= 0.083333333333 * np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2))
-        Iyy -= 0.083333333333 * np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2))
-        Ixy -= 0.041666666666 * \
-            np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1))
+        Ixx -= np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2)) / 12.0
+        Iyy -= np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2)) / 12.0
+        Ixy -= np.sum(v * (x1 * y2 + 2 * x1 * y1 +
+                      2 * x2 * y2 + x2 * y1)) / 24.0
 
     moments = [Ixx, Iyy, Ixy]
 
@@ -950,19 +949,19 @@ def second_moments(polygon, centered=False):
         return moments
 
     # get the principal moments
-    root = np.sqrt(((Iyy - Ixx) / 2)**2 + Ixy**2)
-    Imax = (Ixx + Iyy) / 2 + root
-    Imin = (Ixx + Iyy) / 2 - root
+    root = np.sqrt(((Iyy - Ixx) / 2.0)**2 + Ixy**2)
+    Imax = (Ixx + Iyy) / 2.0 + root
+    Imin = (Ixx + Iyy) / 2.0 - root
     principal_moments = [Imax, Imin]
 
     # do the principal axis transform
-    if np.isclose(Ixy, 0, atol=1e-12):
+    if np.isclose(Ixy, 0.0, atol=1e-12):
         alpha = 0
     elif np.isclose(Ixx, Iyy):
         # prevent division by 0
         alpha = 0.25 * np.pi
     else:
-        alpha = 0.5 * np.arctan(2 * Ixy / (Ixx - Iyy))
+        alpha = 0.5 * np.arctan(2.0 * Ixy / (Ixx - Iyy))
 
     # construct transformation matrix
     cos_alpha = np.cos(alpha)
