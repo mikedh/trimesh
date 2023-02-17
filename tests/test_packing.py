@@ -107,7 +107,7 @@ class PackingTest(g.unittest.TestCase):
         paths = [g.trimesh.load_path(i) for i in polygons]
 
         with g.Profiler() as P:
-            r, tf, consume = packing.paths(paths)
+            r, tf, consume = packing.paths(paths, spacing=0.02)
         print(P.output_text())
         # number of paths inserted
         count = consume.sum()

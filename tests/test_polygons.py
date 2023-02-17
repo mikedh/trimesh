@@ -252,6 +252,23 @@ class PolygonTests(g.unittest.TestCase):
                 t = truth(bh, bhi)
                 assert g.np.allclose(c, t)
 
+    def test_native_centroid(self):
+        # check our native implementation of the shoelace algorithm
+        # against the results from shapely which we use for native
+        # checks of counter-clockwise 2D coordinate loops
+
+        # get some polygons without interiors
+        polygons = [g.Polygon(i) for i in g.data['nestable']]
+        # same data as (n, 2) float arrays
+        coords = [g.np.array(i) for i in g.data['nestable']]
+
+        for p, c in zip(polygons, coords):
+            # area will be signed with respect to counter-clockwise
+            ccw, area, centroid = g.trimesh.util.is_ccw(c, return_all=True)
+            assert g.np.allclose(
+                centroid, g.np.array(p.centroid.coords)[0])
+            assert g.np.isclose(abs(area), p.area)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

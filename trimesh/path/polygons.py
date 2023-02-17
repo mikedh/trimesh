@@ -895,8 +895,8 @@ def second_moments(polygon, centered=False):
     coords : (n, 2) float or Polygon
       Closed polygon.
     centered: bool
-      If true, get second moments for a frame with origin at the centroid
-      and perform a principal axis transformation
+      Get second moments for a frame with origin at the centroid
+      and perform a principal axis transformation.
 
     Returns
     ----------
@@ -904,14 +904,14 @@ def second_moments(polygon, centered=False):
       The values of `[Ixx, Iyy, Ixy]`
     principal_moments : (2,) float
       Principal second moments of inertia: `[Imax, Imin]`
-      Only returned if centered=True
+      Only returned if `centered`.
     alpha : float
       Angle by which the polygon needs to be rotated, so the
-      principal axis align with the x- and y-Axis.
-      Only returned if centered=True
-    transform : (3,3) float
+      principal axis align with the X and Y axis.
+      Only returned if `centered`.
+    transform : (3, 3) float
       Transformation matrix which rotates the polygon by alpha.
-      Only returned if centered=True
+      Only returned if `centered`.
     """
 
     transform = np.eye(3)
