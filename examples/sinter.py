@@ -85,6 +85,3 @@ if __name__ == '__main__':
         plane_origin=concat.bounds[0],
         plane_normal=[0, 0, 1],
         heights=np.linspace(0.0, 10.0, 100))
-
-    # show a cross section in the middle
-    sections[50].show()
