@@ -68,7 +68,7 @@ if __name__ == '__main__':
     # place the meshes into the volume
     with Profiler() as P:
         placed, transforms, consume = packing.meshes(
-            meshes, size=[size]*3, spacing=0.1)
+            meshes, size=[size] * 3, spacing=0.1)
     P.print(show_all=True)
 
     # none of the placed meshes should have overlapping AABB
