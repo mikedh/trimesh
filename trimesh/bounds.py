@@ -144,7 +144,8 @@ def oriented_bounds_coplanar(points, tol=1e-12):
     # Make extents 3D
     extents = np.append(extents_2d, 0.0)
     # convert transformation from 2D to 3D and combine
-    to_origin = np.matmul(transformations.planar_matrix_to_3D(to_origin_2d), to_2d)
+    to_origin = np.matmul(
+        transformations.planar_matrix_to_3D(to_origin_2d), to_2d)
 
     return to_origin, extents
 
@@ -188,7 +189,8 @@ def oriented_bounds(obj,
             # cache rather than recomputing. This version of the cached convex hull has
             # normals pointing in arbitrary directions (straight from qhull)
             # using this avoids having to compute the expensive corrected normals
-            # that mesh.convex_hull uses since normal directions don't matter here
+            # that mesh.convex_hull uses since normal directions don't matter
+            # here
             hull = obj.convex_hull
         elif util.is_sequence(obj):
             # we've been passed a list of points
@@ -203,7 +205,8 @@ def oriented_bounds(obj,
             raise ValueError(
                 'Oriented bounds must be passed a mesh or a set of points!')
     except QhullError:
-        # Try to recover from Qhull error if due to mesh being less than 3 dimensional
+        # Try to recover from Qhull error if due to mesh being less than 3
+        # dimensional
         if hasattr(obj, 'vertices'):
             points = obj.vertices.view(np.ndarray)
         elif util.is_sequence(obj):

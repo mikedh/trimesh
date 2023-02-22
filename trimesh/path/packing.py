@@ -184,7 +184,7 @@ def rectangles_single(extents, size=None, shuffle=False, rotate=True):
     bounds : (m, 2, dim) float
       Axis aligned resulting bounds in space
     transforms : (m, dim + 1, dim + 1) float
-      Homogenous transformation including rotation.
+      Homogeneous transformation including rotation.
     consume : (n,) bool
       Which of the original rectangles were packed,
       i.e. `consume.sum() == m`
@@ -323,7 +323,7 @@ def paths(paths, **kwargs):
     packed : trimesh.path.Path2D
       All paths packed into a single path object.
     transforms : (m, 3, 3) float
-      Homogenous transforms to move paths from their
+      Homogeneous transforms to move paths from their
       original position to the new one.
     consume : (n,) bool
       Which of the original paths were inserted,
@@ -553,7 +553,7 @@ def meshes(meshes, **kwargs):
     placed : (m,) trimesh.Trimesh
       Meshes moved into the rectangular volume.
     transforms : (m, 4, 4) float
-      Homogenous transform moving mesh from original
+      Homogeneous transform moving mesh from original
       position to being packed in a rectangular volume.
     consume : (n,) bool
       Which of the original meshes were inserted,
@@ -617,7 +617,7 @@ def visualize(extents, bounds):
 def roll_transform(bounds, extents):
     """
     Packing returns rotations with integer "roll" which
-    needs to be converted into a homogenous rotation matrix.
+    needs to be converted into a homogeneous rotation matrix.
 
     Currently supports `dimension=2` and `dimension=3`.
 
@@ -632,7 +632,7 @@ def roll_transform(bounds, extents):
     Returns
     ----------
     transforms : (n, dimension + 1, dimension + 1) float
-      Homogenous transformation to move cuboid at the origin
+      Homogeneous transformation to move cuboid at the origin
       into the position determined by `bounds`.
     """
     if len(bounds) != len(extents):

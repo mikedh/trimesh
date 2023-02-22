@@ -126,7 +126,7 @@ def identifier_simple(mesh):
     if len(mesh.faces) > 50:
         # does this mesh have edges that differ substantially in length?
         # if not this method for detecting reflection will not work
-        # and the result will definitly be garbage
+        # and the result will definitely be garbage
         edges_length = mesh.edges_unique_length
         variance = edges_length.std() / edges_length.mean()
         if variance > 0.25:
