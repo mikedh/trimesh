@@ -130,21 +130,21 @@ def oriented_bounds_coplanar(points, tol=1e-12):
     points_mean = np.mean(points, axis=0)
     points_demeaned = points - points_mean
     _, _, vh = np.linalg.svd(points_demeaned, full_matrices=False)
-    points_2d = points_demeaned @ vh.T
+    points_2d = np.matmul(points_demeaned, vh.T)
     if np.any(np.abs(points_2d[:, 2]) > tol):
         raise ValueError('Points must be coplanar')
 
     # Construct a homogeneous matrix representing the transformation above
     to_2d = np.eye(4)
     to_2d[:3, :3] = vh
-    to_2d[:3, 3] = -vh @ points_mean
+    to_2d[:3, 3] = -np.matmul(vh, points_mean)
 
     # Find the 2D bounding box using the polygon
     to_origin_2d, extents_2d = oriented_bounds_2D(points_2d[:, :2])
     # Make extents 3D
     extents = np.append(extents_2d, 0.0)
     # convert transformation from 2D to 3D and combine
-    to_origin = transformations.planar_matrix_to_3D(to_origin_2d) @ to_2d
+    to_origin = np.matmul(transformations.planar_matrix_to_3D(to_origin_2d), to_2d)
 
     return to_origin, extents
 

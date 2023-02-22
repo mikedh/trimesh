@@ -98,7 +98,7 @@ class BoundsTest(g.unittest.TestCase):
             points = g.np.zeros((5, 3))
             points[:, :2] = g.np.random.random((points.shape[0], 2))
             rot, _ = g.np.linalg.qr(g.np.random.randn(3, 3))
-            points = points @ rot
+            points = g.np.matmul(points, rot)
             to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
 
             assert g.trimesh.util.is_shape(to_origin, (4, 4))
