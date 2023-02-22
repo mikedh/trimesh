@@ -722,14 +722,17 @@ class EnforcedForest(object):
         children : dict
           Keyed {node : [child, child, ...]}
         """
+        if 'children' in self._cache:
+            return self._cache['children']
         child = collections.defaultdict(list)
         # append children to parent references
         # skip self-references to avoid a node loop
         [child[v].append(u) for u, v in
          self.parents.items() if u != v]
 
-        # return as a vanilla dict
-        return dict(child)
+        # cache and return as a vanilla dict
+        self._cache['children'] = dict(child)
+        return self._cache['children']
 
     def successors(self, node):
         """
