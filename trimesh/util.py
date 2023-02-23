@@ -2436,7 +2436,7 @@ def unique_name(start, contains, counts=None):
 
     # start checking with zero index unless found
     if counts is None:
-        increment  = 0
+        increment = 0
     else:
         increment = counts.get(start, 0)
     if start is not None and len(start) > 0:
