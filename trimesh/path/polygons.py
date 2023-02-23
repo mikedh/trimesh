@@ -892,7 +892,7 @@ def second_moments(polygon, centered=False):
 
     Parameters
     ------------
-    coords : (n, 2) float or Polygon
+    polygon : shapely.geometry.Polygon
       Closed polygon.
     centered: bool
       Get second moments for a frame with origin at the centroid
