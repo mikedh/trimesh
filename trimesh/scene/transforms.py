@@ -774,15 +774,19 @@ class EnforcedForest(object):
 
     def __hash__(self):
         """
-        Actually hash all of the data.
-
-        Previously we were relying on "dirty" flags but
-        that made the bookkeeping unreasonably critical.
+        Actually hash all of the data, but use a "dirty" mechanism
+        in functions that modify the data, which MUST
+        # all invalidate the hash by setting `self._hash = None`
 
         This was optimized a bit, and is evaluating on an
         older laptop on a scene with 77 nodes and 76 edges
         10,000 times in 0.7s which seems fast enough.
         """
+        # see if there is an available hash value
+        # if you are seeing cache bugs this is the thing
+        # to try eliminating because it is very likely that
+        # someone somewhere is modifying the data without
+        # setting `self._hash = None`
         hashed = getattr(self, '_hash', None)
         if hashed is not None:
             return hashed
