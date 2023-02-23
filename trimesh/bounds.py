@@ -213,10 +213,7 @@ def oriented_bounds(obj,
             points = np.asanyarray(obj)
         else:
             raise
-        if np.linalg.matrix_rank(points - np.mean(points, axis=0)) == 2:
-            return oriented_bounds_coplanar(points)
-        else:
-            raise
+        return oriented_bounds_coplanar(points)
 
     vertices = hull.vertices
     hull_adj = hull.face_adjacency.T
