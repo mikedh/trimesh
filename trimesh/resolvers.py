@@ -336,7 +336,7 @@ class WebResolver(Resolver):
             path = '/'.join(split)
 
         # store the base url
-        self.base_url = '{scheme}://{netloc}/{path}'.format(
+        self.base_url = '{scheme}://{netloc}/{path}/'.format(
             scheme=parsed.scheme,
             netloc=parsed.netloc,
             path=path)

@@ -1296,7 +1296,6 @@ def _read_buffers(header,
                 start = 0
             end = start + view["byteLength"]
             views[i] = buffers[view["buffer"]][start:end]
-
             assert len(views[i]) == view["byteLength"]
 
         # load data from buffers into numpy arrays
@@ -1308,6 +1307,7 @@ def _read_buffers(header,
             # what is the datatype
             dtype = np.dtype(_dtypes[a["componentType"]])
             # basically how many columns
+            # for types like (4, 4)
             per_item = _shapes[a["type"]]
             # use reported count to generate shape
             shape = np.append(count, per_item)
@@ -1336,7 +1336,7 @@ def _read_buffers(header,
                     # the total block we're looking at
                     length = count * stride
                     # we want to get the bytes for every row
-                    per_row = per_item * dtype.itemsize
+                    per_row = per_count * dtype.itemsize
                     # we have to offset the (already offset) buffer
                     # and then pull chunks per-stride
                     # do as a list comprehension as the numpy
