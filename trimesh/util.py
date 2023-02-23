@@ -2402,7 +2402,7 @@ def is_ccw(points, return_all=False):
     return ccw, area, centroid
 
 
-def unique_name(start, contains, start_increments={}):
+def unique_name(start, contains, counts=None):
     """
     Deterministically generate a unique name not
     contained in a dict, set or other grouping with
@@ -2415,9 +2415,13 @@ def unique_name(start, contains, start_increments={}):
       Initial guess for name.
     contains : dict, set, or list
       Bundle of existing names we can *not* use.
-    start_increments : dict
+    counts : None or dict
       Maps name starts encountered before to increments in
-      order to speed up finding a unique name.
+      order to speed up finding a unique name as otherwise
+      it potentially has to iterate through all of contains.
+      Should map to "how many times has this `start`
+      been attempted, i.e. `counts[start]: int`.
+      Note that this *will be mutated* in-place by this function!
 
     Returns
     ---------
@@ -2431,7 +2435,10 @@ def unique_name(start, contains, start_increments={}):
         return start
 
     # start checking with zero index unless found
-    increment = start_increments.get(start, 0)
+    if counts is None:
+        increment  = 0
+    else:
+        increment = counts.get(start, 0)
     if start is not None and len(start) > 0:
         formatter = start + '_{}'
         # split by our delimiter once
@@ -2453,7 +2460,8 @@ def unique_name(start, contains, start_increments={}):
     for i in range(increment + 1, 2 + increment + len(contains)):
         check = formatter.format(i)
         if check not in contains:
-            start_increments[start] = i
+            if counts is not None:
+                counts[start] = i
             return check
 
     # this should really never happen since we looped

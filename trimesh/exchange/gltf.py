@@ -1365,7 +1365,10 @@ def _read_buffers(header,
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
 
-    start_increments = {}
+    # keep track of how many times each name has been attempted to
+    # be inserted to avoid a potentially slow search through our
+    # dict of names
+    name_counts = {}
 
     for index, m in enumerate(header.get("meshes", [])):
 
@@ -1390,7 +1393,7 @@ def _read_buffers(header,
                 # create a unique mesh name per- primitive
                 name = m.get('name', 'GLTF')
                 # make name unique across multiple meshes
-                name = unique_name(name, meshes, start_increments)
+                name = unique_name(name, meshes, counts=name_counts)
 
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
@@ -1543,12 +1546,12 @@ def _read_buffers(header,
     # to a dict comprehension as it will be checking
     # the mutated dict in every loop
     name_index = {}
-    start_increments = {}
+    name_counts = {}
     for i, n in enumerate(nodes):
         name_index[unique_name(
             n.get('name', str(i)),
             name_index,
-            start_increments
+            counts=name_counts
         )] = i
     # invert the dict so we can look up by index
     # node index (int) : name (str)

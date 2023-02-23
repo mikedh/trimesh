@@ -26,6 +26,8 @@ import numpy as np
 
 import trimesh
 
+from uuid import uuid4
+
 from trimesh.base import Trimesh
 from trimesh.constants import tol, tol_path
 from collections import deque

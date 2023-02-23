@@ -205,6 +205,36 @@ class UtilTests(unittest.TestCase):
             names.add(unique_name('', names))
         assert len(names) == count
 
+        # Try with a larger set of names
+        # get some random strings
+        names = [g.uuid4().hex for _ in range(20)]
+        # make it a whole lotta duplicates
+        names = names * 1000
+        # add a non-int postfix to test
+        names.extend(['suppp_hi'] * 10)
+
+        assigned = set()
+        with g.Profiler() as P:
+            for name in names:
+                assigned.add(unique_name(name, assigned))
+        print(P.output_text())
+
+        assigned_new = set()
+        # tracker = UniqueName()\
+        counts = {}
+        with g.Profiler() as P:
+            for name in names:
+                assigned_new.add(unique_name(
+                    name,
+                    contains=assigned_new,
+                    counts=counts))
+        print(P.output_text())
+
+        # new scheme should match the old one
+        assert assigned_new == assigned
+        # de-duplicated set should match original length
+        assert len(assigned) == len(names)
+
 
 class ContainsTest(unittest.TestCase):
 
