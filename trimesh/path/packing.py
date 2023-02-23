@@ -71,7 +71,6 @@ class RectangleBin:
           Position of insertion in the tree or None
           if the insertion was unsuccessful.
         """
-
         for child in self.child:
             # try inserting into child cells
             attempt = child.insert(size=size, rotate=rotate)

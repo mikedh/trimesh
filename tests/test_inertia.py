@@ -112,7 +112,7 @@ class InertiaTest(g.unittest.TestCase):
                     matrix = g.trimesh.transformations.random_rotation_matrix()
                     p.primitive.transform = matrix
                 elif hasattr(p.primitive, 'center'):
-                    p.primitive.center = g.np.random.random(3)
+                    p.primitive.center = g.random(3)
 
     def test_tetrahedron(self):
         # Based on the 'numerical example' of the paper:

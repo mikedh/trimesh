@@ -136,11 +136,11 @@ class PlaneLine(g.unittest.TestCase):
         z = g.np.linspace(-1, 1, count)
 
         plane_origins = g.np.column_stack((
-            g.np.random.random((count, 2)), z))
+            g.random((count, 2)), z))
         plane_normals = g.np.tile([0, 0, -1], (count, 1))
 
         line_origins = g.np.tile([0, 0, 0], (count, 1))
-        line_directions = g.np.random.random((count, 3))
+        line_directions = g.random((count, 3))
 
         i, valid = g.trimesh.intersections.planes_lines(
             plane_origins=plane_origins,

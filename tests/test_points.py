@@ -12,7 +12,7 @@ class PointsTest(g.unittest.TestCase):
         """
         shape = (100, 3)
         # random points
-        points = g.np.random.random(shape)
+        points = g.random(shape)
         # make sure randomness never gives duplicates by offsetting
         points += g.np.arange(shape[0]).reshape((-1, 1))
 
@@ -35,7 +35,7 @@ class PointsTest(g.unittest.TestCase):
         assert hash(cloud) == initial_hash
 
         # set some random colors
-        cloud.colors = g.np.random.random((shape[0], 4))
+        cloud.colors = g.random((shape[0], 4))
         # remove the duplicates we created
         cloud.merge_vertices()
 
@@ -80,8 +80,8 @@ class PointsTest(g.unittest.TestCase):
         vertices and no faces for some unknowable reason
         """
 
-        v = g.np.random.random((1000, 3))
-        v[g.np.floor(g.np.random.random(90) * len(v)).astype(int)] = v[0]
+        v = g.random((1000, 3))
+        v[g.np.floor(g.random(90) * len(v)).astype(int)] = v[0]
 
         mesh = g.trimesh.Trimesh(v)
 
@@ -94,7 +94,7 @@ class PointsTest(g.unittest.TestCase):
             # create a random rotation
             matrix = g.trimesh.transformations.random_rotation_matrix()
             # create some random points in spacd
-            p = g.np.random.random((1000, 3))
+            p = g.random((1000, 3))
             # make them all lie on the XY plane so we know
             # the correct normal to check against
             p[:, 2] = 0
@@ -116,7 +116,7 @@ class PointsTest(g.unittest.TestCase):
             matrices = [g.trimesh.transformations.random_rotation_matrix()
                         for _ in range(nb_points_sets)]
             # create some random points in spacd
-            p = g.np.random.random((nb_points_sets, 1000, 3))
+            p = g.random((nb_points_sets, 1000, 3))
             # make them all lie on the XY plane so we know
             # the correct normal to check against
             p[..., 2] = 0
@@ -171,7 +171,7 @@ class PointsTest(g.unittest.TestCase):
         for dimension in [2, 3]:
             for count in [2, 10, 100]:
                 for i in range(10):
-                    points = g.np.random.random((count, dimension))
+                    points = g.random((count, dimension))
 
                     # find a path that visits every point quickly
                     idx, dist = g.trimesh.points.tsp(points, start=0)
@@ -225,7 +225,7 @@ class PointsTest(g.unittest.TestCase):
         # initial color CRC
         initial = hash(p.visual)
         # set to random colors
-        p.colors = g.np.random.random(
+        p.colors = g.random(
             (len(p.vertices), 4))
         # visual CRC should have changed
         assert hash(p.visual) != initial
@@ -255,8 +255,8 @@ class PointsTest(g.unittest.TestCase):
         assert mask.shape == (200,)
 
     def test_add_operator(self):
-        points_1 = g.np.random.random((10, 3))
-        points_2 = g.np.random.random((20, 3))
+        points_1 = g.random((10, 3))
+        points_2 = g.random((20, 3))
         colors_1 = [[123, 123, 123, 255]] * len(points_1)
         colors_2 = [[255, 0, 123, 255]] * len(points_2)
 

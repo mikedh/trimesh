@@ -36,7 +36,7 @@ class NearestTest(g.unittest.TestCase):
     def test_helper(self):
         # just make sure the plumbing returns something
         for mesh in g.get_meshes(2):
-            points = (g.np.random.random((100, 3)) - .5) * 100
+            points = (g.random((100, 3)) - .5) * 100
 
             a = mesh.nearest.on_surface(points)
             assert a is not None
@@ -210,7 +210,7 @@ class NearestTest(g.unittest.TestCase):
 
     def test_candidates(self):
         mesh = g.trimesh.creation.random_soup(2000)
-        points = g.np.random.random((2000, 3))
+        points = g.random((2000, 3))
         g.trimesh.proximity.nearby_faces(
             mesh=mesh, points=points)
 

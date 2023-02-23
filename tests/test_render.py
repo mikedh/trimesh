@@ -50,13 +50,13 @@ class RenderTest(g.unittest.TestCase):
         assert len(args) == 6
         assert len(args_auto) == len(args)
 
-        P22 = g.np.random.random((100, 2))
+        P22 = g.random((100, 2))
         args = rendering.points_to_vertexlist(P22)
         args_auto = rendering.convert_to_vertexlist(P22)
         assert len(args) == 6
         assert len(args_auto) == len(args)
 
-        P31 = g.np.random.random((100, 3))
+        P31 = g.random((100, 3))
         args = rendering.points_to_vertexlist(P31)
         args_auto = rendering.convert_to_vertexlist(P31)
         assert len(args) == 6

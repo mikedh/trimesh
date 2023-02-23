@@ -17,7 +17,7 @@ _stl_dtype = np.dtype([('normals', '<f4', (3)),
                        ('attributes', '<u2')])
 # define a numpy datatype for the header of a binary STL file
 _stl_dtype_header = np.dtype([('header', np.void, 80),
-                              ('face_count', '<i4')])
+                              ('face_count', '<u4')])
 
 
 def load_stl(file_obj, **kwargs):

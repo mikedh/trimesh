@@ -19,7 +19,7 @@ class MargeTest(g.unittest.TestCase):
 
         # stack a bunch of unreferenced vertices
         m.vertices = g.np.vstack((
-            m.vertices, g.np.random.random((10000, 3))))
+            m.vertices, g.random((10000, 3))))
         assert m.euler_number == 2
         assert m.vertices.shape == (10008, 3)
         assert m.referenced_vertices.sum() == 8

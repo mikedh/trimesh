@@ -695,7 +695,7 @@ class GLTFTest(g.unittest.TestCase):
         # test concatenation with texture
         m = g.get_mesh('fuze.obj')
 
-        colors = (g.np.random.random(
+        colors = (g.random(
             (len(m.vertices), 4)) * 255).astype(g.np.uint8)
 
         # set the color vertex attribute

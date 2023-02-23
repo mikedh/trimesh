@@ -36,7 +36,7 @@ class STLTests(g.unittest.TestCase):
 
         len_vertices = len(m.vertices)
         # assign some random vertex attributes
-        random = g.np.random.random(len(m.vertices))
+        random = g.random(len(m.vertices))
         m.vertex_attributes['random'] = random
         m.vertex_attributes['nah'] = 20
 

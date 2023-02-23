@@ -26,6 +26,8 @@ import numpy as np
 
 import trimesh
 
+from uuid import uuid4
+
 from trimesh.base import Trimesh
 from trimesh.constants import tol, tol_path
 from collections import deque
@@ -172,12 +174,46 @@ io_wrap = trimesh.util.wrap_as_stream
 
 def random(*args, **kwargs):
     """
-    A random function always seeded from the same value.
+    A random function always seeded from the same value so tests
+    can use random data but they execute mostly deterministically
+    in a large test matrix.
 
-    Replaces: np.random.random(*args, **kwargs)
+    Drop-in replacement for `np.random.random(*args, **kwargs)`
     """
     state = np.random.RandomState(seed=1)
     return state.random_sample(*args, **kwargs)
+
+
+def random_transforms(count, translate=1000):
+    """
+    Deterministic generation of random transforms so unit
+    tests have limited levels of flake.
+
+    Parameters
+    -------------
+    count : int
+      Number of repeatable but random-ish transforms to generate
+    translate : float
+      The scale of translation to apply.
+
+    Yields
+    ------------
+    transform : (4, 4) float
+      Homogenous transformation matrix
+    """
+    quaternion = random((count, 3))
+    translate = (random((count, 3)) - 0.5) * float(translate)
+
+    for quat, trans in zip(quaternion, translate):
+        matrix = tf.random_rotation_matrix(rand=quat)
+        matrix[:3, 3] = trans
+        yield matrix
+
+
+# random should be deterministic
+assert np.allclose(random(10), random(10))
+assert np.allclose(list(random_transforms(10)),
+                   list(random_transforms(10)))
 
 
 def _load_data():

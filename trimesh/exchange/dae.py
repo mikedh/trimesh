@@ -7,7 +7,11 @@ import numpy as np
 from .. import util
 from .. import visual
 
+from ..util import unique_name
 from ..constants import log
+
+_EYE = np.eye(4)
+_EYE.flags.writeable = False
 
 
 def load_collada(file_obj,
@@ -60,13 +64,16 @@ def load_collada(file_obj,
 
     # name : kwargs
     meshes = {}
+    # increments to enable `unique_name` to avoid n^2 behavior
+    meshes_count = {}
     # list of dict
     graph = []
     for node in c.scene.nodes:
         _parse_node(node=node,
-                    parent_matrix=np.eye(4),
+                    parent_matrix=_EYE,
                     material_map=material_map,
                     meshes=meshes,
+                    meshes_count=meshes_count,
                     graph=graph,
                     resolver=resolver)
 
@@ -164,6 +171,7 @@ def _parse_node(node,
                 parent_matrix,
                 material_map,
                 meshes,
+                meshes_count,
                 graph,
                 resolver=None):
     """
@@ -231,17 +239,19 @@ def _parse_node(node,
                     vis = visual.texture.TextureVisuals(
                         uv=uv, material=material)
 
-                primid = u'{}.{}'.format(geometry.id, i)
-                meshes[primid] = {
+                geom_name = unique_name(geometry.id,
+                                        contains=meshes,
+                                        counts=meshes_count)
+                meshes[geom_name] = {
                     'vertices': vertices,
                     'faces': faces,
                     'vertex_normals': normals,
                     'vertex_colors': colors,
                     'visual': vis}
 
-                graph.append({'frame_to': primid,
+                graph.append({'frame_to': geom_name,
                               'matrix': parent_matrix,
-                              'geometry': primid})
+                              'geometry': geom_name})
 
     # recurse down tree for nodes with children
     elif isinstance(node, collada.scene.Node):
@@ -255,6 +265,7 @@ def _parse_node(node,
                     parent_matrix=matrix,
                     material_map=material_map,
                     meshes=meshes,
+                    meshes_count=meshes_count,
                     graph=graph,
                     resolver=resolver)
 

@@ -1296,7 +1296,6 @@ def _read_buffers(header,
                 start = 0
             end = start + view["byteLength"]
             views[i] = buffers[view["buffer"]][start:end]
-
             assert len(views[i]) == view["byteLength"]
 
         # load data from buffers into numpy arrays
@@ -1308,6 +1307,7 @@ def _read_buffers(header,
             # what is the datatype
             dtype = np.dtype(_dtypes[a["componentType"]])
             # basically how many columns
+            # for types like (4, 4)
             per_item = _shapes[a["type"]]
             # use reported count to generate shape
             shape = np.append(count, per_item)
@@ -1336,7 +1336,7 @@ def _read_buffers(header,
                     # the total block we're looking at
                     length = count * stride
                     # we want to get the bytes for every row
-                    per_row = per_item * dtype.itemsize
+                    per_row = per_count * dtype.itemsize
                     # we have to offset the (already offset) buffer
                     # and then pull chunks per-stride
                     # do as a list comprehension as the numpy
@@ -1365,7 +1365,10 @@ def _read_buffers(header,
     # load data from accessors into Trimesh objects
     meshes = collections.OrderedDict()
 
-    names_original = collections.defaultdict(list)
+    # keep track of how many times each name has been attempted to
+    # be inserted to avoid a potentially slow search through our
+    # dict of names
+    name_counts = {}
 
     for index, m in enumerate(header.get("meshes", [])):
 
@@ -1389,9 +1392,8 @@ def _read_buffers(header,
                 attr = p['attributes']
                 # create a unique mesh name per- primitive
                 name = m.get('name', 'GLTF')
-                names_original[index].append(name)
                 # make name unique across multiple meshes
-                name = unique_name(name, meshes)
+                name = unique_name(name, meshes, counts=name_counts)
 
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
@@ -1463,7 +1465,6 @@ def _read_buffers(header,
                     # each primitive gets it's own Trimesh object
                     if len(m["primitives"]) > 1:
                         kwargs['metadata']['from_gltf_primitive'] = True
-                        name = unique_name(name, meshes)
                     else:
                         kwargs['metadata']['from_gltf_primitive'] = False
 
@@ -1545,9 +1546,13 @@ def _read_buffers(header,
     # to a dict comprehension as it will be checking
     # the mutated dict in every loop
     name_index = {}
+    name_counts = {}
     for i, n in enumerate(nodes):
         name_index[unique_name(
-            n.get('name', str(i)), name_index)] = i
+            n.get('name', str(i)),
+            name_index,
+            counts=name_counts
+        )] = i
     # invert the dict so we can look up by index
     # node index (int) : name (str)
     names = {v: k for k, v in name_index.items()}

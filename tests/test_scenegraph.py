@@ -7,7 +7,7 @@ from trimesh.scene.transforms import EnforcedForest
 
 
 def random_chr():
-    return chr(ord('a') + int(round(g.np.random.random() * 25)))
+    return chr(ord('a') + int(round(g.random() * 25)))
 
 
 class GraphTests(g.unittest.TestCase):
@@ -82,7 +82,7 @@ class GraphTests(g.unittest.TestCase):
         assert g.np.allclose(f(), g.np.eye(4))
 
         # a passed matrix should return immediately
-        fix = g.np.random.random((4, 4))
+        fix = g.random((4, 4))
         assert g.np.allclose(f(matrix=fix), fix)
 
         quat = g.trimesh.unitize([1, 2, 3, 1])
@@ -205,13 +205,13 @@ class GraphTests(g.unittest.TestCase):
             n=1000, seed=0, create_using=g.nx.DiGraph)
         for e in tree.edges:
             data = {}
-            if g.np.random.random() > .5:
+            if g.random() > .5:
                 # if a matrix is omitted but an edge exists it is
                 # the same as passing an identity matrix
                 data['matrix'] = tf.random_rotation_matrix()
-            if g.np.random.random() > .4:
+            if g.random() > .4:
                 # a geometry is not required for a node
-                data['geometry'] = str(int(g.np.random.random() * 1e8))
+                data['geometry'] = str(int(g.random() * 1e8))
             edgelist[e] = data
 
         # now apply the random data to an EnforcedForest
