@@ -885,7 +885,7 @@ def projected(mesh,
     return polygon
 
 
-def second_moments(polygon, centered=False):
+def second_moments(polygon, return_centered=False):
     """
     Calculate the second moments of area of a polygon
     from the boundary.
@@ -894,7 +894,7 @@ def second_moments(polygon, centered=False):
     ------------
     polygon : shapely.geometry.Polygon
       Closed polygon.
-    centered: bool
+    return_centered : bool
       Get second moments for a frame with origin at the centroid
       and perform a principal axis transformation.
 
@@ -915,7 +915,7 @@ def second_moments(polygon, centered=False):
     """
 
     transform = np.eye(3)
-    if centered:
+    if return_centered:
         # calculate centroid and move polygon
         transform[:2, 2] = - np.array(polygon.centroid.coords)
         polygon = transform_polygon(polygon, transform)
@@ -945,7 +945,7 @@ def second_moments(polygon, centered=False):
 
     moments = [Ixx, Iyy, Ixy]
 
-    if not centered:
+    if not return_centered:
         return moments
 
     # get the principal moments
