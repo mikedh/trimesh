@@ -17,10 +17,10 @@ from . import caching
 # URL parsing for remote resources via WebResolver
 try:
     # Python 3
-    from urllib.parse import urlparse, urljoin
+    from urllib.parse import urlparse
 except ImportError:
     # Python 2
-    from urlparse import urlparse, urljoin
+    from urlparse import urlparse
 
 
 class Resolver(util.ABC):
@@ -328,18 +328,23 @@ class WebResolver(Resolver):
 
         # if the last item in the url path is a filename
         # move up a "directory" for the base path
-        if len(split) > 0 and '.' in split[-1]:
+        if len(split) == 0:
+            path = ''
+        elif '.' in split[-1]:
             # clip off last item
             path = '/'.join(split[:-1])
         else:
             # recombine into string ignoring any double slashes
             path = '/'.join(split)
+        self.base_url = '/'.join(i for i in [
+            parsed.scheme + ':/',
+            parsed.netloc.strip('/'),
+            path.strip('/')] if len(i) > 0) + '/'
 
-        # store the base url
-        self.base_url = '{scheme}://{netloc}/{path}/'.format(
-            scheme=parsed.scheme,
-            netloc=parsed.netloc,
-            path=path)
+        # our string handling should have never inserted double slashes
+        assert '//' not in self.base_url[len(parsed.scheme) + 3:]
+        # we should always have ended with a single slash
+        assert self.base_url.endswith('/')
 
     def get(self, name):
         """
@@ -356,15 +361,17 @@ class WebResolver(Resolver):
         # remove leading and trailing whitespace
         name = name.strip()
         # fetch the data from the remote url
-        response = requests.get(urljoin(
-            self.base_url, name))
+
+        # base url has been carefully formatted
+        url = self.base_url + name
+
+        response = requests.get(url)
 
         if response.status_code != 200:
             # try to strip off filesystem crap
             if name.startswith('./'):
                 name = name[2:]
-            response = requests.get(urljoin(
-                self.base_url, name))
+            response = requests.get(self.base_url + name)
 
         if response.status_code == '404':
             raise ValueError(response.content)
@@ -387,8 +394,7 @@ class WebResolver(Resolver):
           With sub-url: `https://example.com/{namespace}`
         """
         # join the base url and the namespace
-        return WebResolver(url=urljoin(
-            self.base_url, namespace))
+        return WebResolver(url=self.base_url + namespace)
 
     def write(self, key, value):
         raise NotImplementedError("can't write to remote")
