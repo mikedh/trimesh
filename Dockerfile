@@ -2,9 +2,9 @@ FROM python:3.11-slim-bullseye AS base
 LABEL maintainer="mikedh@kerfed.com"
 
 # Install binary APT dependencies.
-COPY --chmod=755 docker/trimesh-install /usr/local/bin/
+COPY --chmod=755 docker/trimesh-setup /usr/local/bin/
 # Install `embree`, Intel's fast ray checking engine
-RUN trimesh-install --install base --install embree
+RUN trimesh-setup --install base --install embree
 
 COPY docker/embree.bash /tmp/
 RUN bash /tmp/embree.bash
@@ -21,7 +21,7 @@ ENV PATH="/home/user/.local/bin:$PATH"
 FROM base AS build
 
 # install build-essentials
-RUN trimesh-install --build=true
+RUN trimesh-setup --build=true
 
 # copy in essential files
 COPY --chown=user:user trimesh/ /home/user/trimesh
@@ -85,7 +85,7 @@ FROM output AS build_docs
 
 USER root
 # install APT packages for docs
-RUN trimesh-install --install docs
+RUN trimesh-setup --install docs
 USER user
 
 COPY --chown=user:user README.md .
