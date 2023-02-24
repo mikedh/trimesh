@@ -142,7 +142,9 @@ if __name__ == '__main__':
     if args.install is not None:
         picked = []
         for k in args.install:
-            picked.extend(packages[k])
+            if k in apt_packages:
+                picked.extend(apt_packages[k])
         picked = set(picked)
-        print('Installing: {}'.format(list(picked)))
-        apt(picked)
+        if len(picked) > 0:
+            print('Installing: {}'.format(list(picked)))
+            apt(picked)
