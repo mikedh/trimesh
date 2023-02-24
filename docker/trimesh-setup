@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""
+Python standard library only utilities to help install an
+environment for `trimesh` usually in a Docker image.
+"""
+import argparse
+import subprocess
+
+
+def apt(packages):
+    """
+    Install a list of debian packages using suprocess to call apt-get.
+
+    Parameters
+    ------------
+    packages : iterable
+      List, set, or other with package names.
+    """
+    # start with updating the sources
+    print(subprocess.check_output(
+        'apt-get update -qq'.split()))
+
+    # the install command
+    install = 'apt-get install -qq --no-install-recommends'.split()
+    install.extend(set(packages))
+    print('running: `{}`'.format(' '.join(install)))
+
+    # call the install
+    print(subprocess.check_output(install))
+
+    # delete any temporary files
+    print(subprocess.check_output(
+        'rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*'.split()))
+
+
+def argsort(items):
+    """
+    A standard-library implementation of `numpy.argsort`, a way
+    to get a list sorted by index instead of by the sorted values.
+
+    Parameters
+    --------------
+    item : (n,) any
+      Items that are sortable.
+
+    Returns
+    --------------
+    index : int
+      Index such `items[index] == min(items)`
+    """
+    return [i for (v, i) in sorted(
+        (v, i) for (i, v) in enumerate(items))]
+
+
+def fetch(url):
+    """
+    A simple standard-library only "fetch remote URL" function.
+
+    Parameters
+    ------------
+    url : str
+      Location of remote resource
+
+    Returns
+    -------------
+    data : bytes
+      Retrieved data in memory.
+    """
+    from urllib2 import urlopen
+    return urlopen(url).read()
+
+
+def copy_to_user_path(file_path, prefix='~'):
+    """
+    Copy an executable file onto `PATH`.
+
+
+    """
+
+    source = os.path.abspath(
+        os.path.expanduser(file_path))
+    if not os.path.isfile(source):
+        raise ValueError('not a file: {}'.format(file_path))
+    # get the file name
+    file_name = os.path.split(source)[-1]
+    # load the data from the requested file
+    with open(source, 'rb') as f:
+        file_data = f.read()
+    if len(file_data) == 0:
+        raise ValueError('empty file: {}'.format(file_path))
+
+    # get all locations in PATH
+    candidates = [os.path.abspath(os.path.expanduser(i))
+                  for i in os.environ['PATH'].split(':')]
+
+    # if prefix is not None
+    if prefix is not None:
+        # expand shortcut for user's home directory
+        prefix = os.abspath(os.path.expanduser(prefix))
+        # cull non-prefixed path entries
+        candidates = [c for c in candidates if c.startswith(prefix)]
+
+    # try writing to the shortest paths first
+    for index in argsort([len(c) for c in candidates]):
+        path = os.path.join(candidates[index], file_name)
+
+
+if __name__ == '__main__':
+
+    # the metapackages we're defining
+    packages = {'base': ['wget', 'curl', 'xz-utils', 'git'],
+                'llvmpipe': ['libgl1-mesa-glx',
+                             'libgl1-mesa-dri',
+                             'xvfb',
+                             'xauth',
+                             'ca-certificates',
+                             'freeglut3-dev'],
+                'build': ['build-essential', 'g++', 'make'],
+                'docs': ['make', 'pandoc']}
+
+    parser = argparse.ArgumentParser(
+        description='Install Debian packages for trimesh')
+    parser.add_argument(
+        '--install',
+        type=str,
+        action='append',
+        help='Install metapackages: {}'.format(list(packages.keys())))
+    args = parser.parse_args()
+
+    print(args)
+
+    if args.install is not None:
+        picked = []
+        for k in args.install:
+            picked.extend(packages[k])
+        picked = set(picked)
+        print('Installing: {}'.format(list(picked)))
+        apt(picked)

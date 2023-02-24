@@ -1,16 +1,11 @@
 FROM python:3.11-slim-bullseye AS base
 LABEL maintainer="mikedh@kerfed.com"
 
-# Install the llvmpipe software renderer
-# and X11 for software offscreen rendering,
-# roughly 500mb of stuff.
-ARG INCLUDE_X=false
-
 # Install binary APT dependencies.
-COPY --chmod=755 docker/apt-trimesh /usr/local/bin/
-RUN apt-trimesh --base=true --x11=${INCLUDE_X}
-
+COPY --chmod=755 docker/trimesh-install /usr/local/bin/
 # Install `embree`, Intel's fast ray checking engine
+RUN trimesh-install --install base --install embree
+
 COPY docker/embree.bash /tmp/
 RUN bash /tmp/embree.bash
 
@@ -26,7 +21,7 @@ ENV PATH="/home/user/.local/bin:$PATH"
 FROM base AS build
 
 # install build-essentials
-RUN apt-trimesh --build=true
+RUN trimesh-install --build=true
 
 # copy in essential files
 COPY --chown=user:user trimesh/ /home/user/trimesh
@@ -90,7 +85,7 @@ FROM output AS build_docs
 
 USER root
 # install APT packages for docs
-RUN apt-trimesh --docs=true
+RUN trimesh-install --install docs
 USER user
 
 COPY --chown=user:user README.md .
@@ -105,3 +100,8 @@ RUN make
 ### Copy just the docs so we can output them
 FROM scratch as docs
 COPY --from=build_docs /home/user/docs/_build/html/ ./
+
+### Make sure the output stage is the last stage so a simple
+# "docker build ." still outputs an expected image
+FROM output as final
+
