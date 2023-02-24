@@ -3,6 +3,7 @@
 Python standard library only utilities to help install an
 environment for `trimesh` usually in a Docker image.
 """
+import os
 import argparse
 import subprocess
 
@@ -76,16 +77,15 @@ def copy_to_user_path(file_path, prefix='~'):
 
 
     """
-
+    # get the full path of the requested file
     source = os.path.abspath(
         os.path.expanduser(file_path))
-    if not os.path.isfile(source):
-        raise ValueError('not a file: {}'.format(file_path))
     # get the file name
     file_name = os.path.split(source)[-1]
     # load the data from the requested file
     with open(source, 'rb') as f:
         file_data = f.read()
+    # check for empty files
     if len(file_data) == 0:
         raise ValueError('empty file: {}'.format(file_path))
 
@@ -93,7 +93,7 @@ def copy_to_user_path(file_path, prefix='~'):
     candidates = [os.path.abspath(os.path.expanduser(i))
                   for i in os.environ['PATH'].split(':')]
 
-    # if prefix is not None
+    # cull candidates that don't start with our prefix
     if prefix is not None:
         # expand shortcut for user's home directory
         prefix = os.abspath(os.path.expanduser(prefix))
@@ -103,6 +103,16 @@ def copy_to_user_path(file_path, prefix='~'):
     # try writing to the shortest paths first
     for index in argsort([len(c) for c in candidates]):
         path = os.path.join(candidates[index], file_name)
+        try:
+            with open(path, 'wb') as f:
+                f.write(file_data)
+            print('wrote `{}`'.format(path))
+            return
+        except BaseException:
+            pass
+
+    # none of our candidates worked
+    raise ValueError('unable to write to file')
 
 
 if __name__ == '__main__':
