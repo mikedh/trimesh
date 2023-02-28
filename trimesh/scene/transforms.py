@@ -74,6 +74,9 @@ class SceneGraph(object):
           Distance to translate
         geometry : hashable
           Geometry object name, e.g. 'mesh_0'
+        extensions: dictionary
+          Optional extension-specific data.
+          (exports to glTF node 'extensions').
         extras: dictionary
           Optional metadata attached to the new frame
           (exports to glTF node 'extras').
@@ -84,7 +87,7 @@ class SceneGraph(object):
 
         # pass through
         attr = {k: v for k, v in kwargs.items()
-                if k in {'geometry', 'extras'}}
+                if k in {'geometry', 'extensions', 'extras'}}
         # convert various kwargs to a single matrix
         attr['matrix'] = kwargs_to_matrix(**kwargs)
 
@@ -286,6 +289,8 @@ class SceneGraph(object):
         has_camera = scene.has_camera
         children = graph.children
 
+        extensions_used = set()
+
         # then iterate through to collect data
         for info in result:
             # name of the scene node
@@ -307,15 +312,23 @@ class SceneGraph(object):
 
             if node != base_frame:
                 parent = graph.parents[node]
+                node_edge = edge_data[(parent, node)]
 
                 # get the matrix from this edge
-                matrix = edge_data[(parent, node)]['matrix']
+                matrix = node_edge['matrix']
                 # only include if it's not an identify matrix
                 if not util.allclose(matrix, _identity):
                     info['matrix'] = matrix.T.reshape(-1).tolist()
 
+                # if extensionss were stored on this edge
+                extensions = node_edge.get('extensions')
+                if extensions:
+                    info['extensions'] = extensions
+                    extensions_used = extensions_used.union(
+                        set(extensions.keys()))
+
                 # if an extra was stored on this edge
-                extras = edge_data[(parent, node)].get('extras')
+                extras = node_edge.get('extras')
                 if extras:
                     # convert any numpy arrays to lists
                     extras.update(
@@ -323,7 +336,10 @@ class SceneGraph(object):
                          if hasattr(v, 'tolist')})
                     info['extras'] = extras
 
-        return {'nodes': result}
+        gltf = {'nodes': result}
+        if len(extensions_used) > 0:
+            gltf['extensionsUsed'] = list(extensions_used)
+        return gltf
 
     def to_edgelist(self):
         """

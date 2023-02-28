@@ -592,6 +592,7 @@ class GLTFTest(g.unittest.TestCase):
                        geom_name="Geom Sphere2",
                        parent_node_name="Sphere1",
                        transform=tf2,
+                       extensions={'my_ext': {'ext_data': 1.23}},
                        extras={'field': 'extra_data2'})
 
         # Test extras appear in the exported model nodes
@@ -617,6 +618,7 @@ class GLTFTest(g.unittest.TestCase):
         edge = r.graph.transforms.edge_data[("Sphere1", "Sphere2")]
         assert g.np.allclose(edge['matrix'], tf2)
         assert edge['extras']['field'] == 'extra_data2'
+        assert edge['extensions']['my_ext']['ext_data'] == 1.23
 
         # all geometry should be the same
         assert set(r.geometry.keys()) == set(s.geometry.keys())

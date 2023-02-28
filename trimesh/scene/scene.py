@@ -107,6 +107,7 @@ class Scene(Geometry3D):
                      geom_name=None,
                      parent_node_name=None,
                      transform=None,
+                     extensions=None,
                      extras=None):
         """
         Add a geometry to the scene.
@@ -123,6 +124,7 @@ class Scene(Geometry3D):
         geom_name: Name of the added geometry.
         parent_node_name: Name of the parent node in the graph.
         transform: Transform that applies to the added node.
+        extensions: Optional extension-specific data.
         extras: Optional metadata for the node.
 
         Returns
@@ -143,10 +145,11 @@ class Scene(Geometry3D):
                 geom_name=geom_name,
                 parent_node_name=parent_node_name,
                 transform=transform,
+                extensions=extensions,
                 extras=extras) for value in geometry]
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
-            return {k: self.add_geometry(v, geom_name=k, extras=extras)
+            return {k: self.add_geometry(v, geom_name=k, extensions=extensions, extras=extras)
                     for k, v in geometry.items()}
 
         elif isinstance(geometry, Scene):
@@ -201,6 +204,7 @@ class Scene(Geometry3D):
                           matrix=transform,
                           geometry=name,
                           geometry_flags={'visible': True},
+                          extensions=extensions,
                           extras=extras)
 
         return node_name

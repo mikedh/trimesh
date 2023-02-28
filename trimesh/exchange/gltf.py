@@ -1638,6 +1638,9 @@ def _read_buffers(header,
                 kwargs["matrix"],
                 np.diag(np.concatenate((child['scale'], [1.0]))))
 
+        if "extensions" in child:
+            kwargs["extensions"] = child["extensions"]
+
         if "extras" in child:
             kwargs["extras"] = child["extras"]
 
