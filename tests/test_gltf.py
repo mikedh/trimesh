@@ -585,12 +585,14 @@ class GLTFTest(g.unittest.TestCase):
             sphere1,
             node_name="Sphere1",
             geom_name="Geom Sphere1",
-            transform=tf1)
+            transform=tf1,
+            extras={'field': 'extra_data1'})
         s.add_geometry(sphere2,
                        node_name="Sphere2",
                        geom_name="Geom Sphere2",
                        parent_node_name="Sphere1",
-                       transform=tf2)
+                       transform=tf2,
+                       extras={'field': 'extra_data2'})
 
         # Test extras appear in the exported model nodes
         files = s.export(None, "gltf")
@@ -606,8 +608,15 @@ class GLTFTest(g.unittest.TestCase):
         files = r.export(None, "gltf")
         gltf_data = files["model.gltf"]
         assert 'test_value' in gltf_data.decode('utf8')
+        assert 'extra_data1' in gltf_data.decode('utf8')
+
         edge = r.graph.transforms.edge_data[("world", "Sphere1")]
         assert g.np.allclose(edge['matrix'], tf1)
+        assert edge['extras']['field'] == 'extra_data1'
+
+        edge = r.graph.transforms.edge_data[("Sphere1", "Sphere2")]
+        assert g.np.allclose(edge['matrix'], tf2)
+        assert edge['extras']['field'] == 'extra_data2'
 
         # all geometry should be the same
         assert set(r.geometry.keys()) == set(s.geometry.keys())
