@@ -107,49 +107,6 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     return transform, rectangle
 
 
-def oriented_bounds_coplanar(points, tol=1e-12):
-    """
-    Find an oriented bounding box for an array of coplanar 3D points.
-
-    Parameters
-    ----------
-    points : (n, 3) float
-      Points in 3D that occupy a 2D subspace.
-    tol : float
-      Tolerance for deviation from coplanar.
-
-    Returns
-    ----------
-    to_origin : (4, 4) float
-      Transformation matrix which will move the center of the
-      bounding box of the input mesh to the origin.
-    extents : (3,) float
-      The extents of the mesh once transformed with to_origin
-    """
-    # Shift points about the origin and rotate into the xy plane
-    points_mean = np.mean(points, axis=0)
-    points_demeaned = points - points_mean
-    _, _, vh = np.linalg.svd(points_demeaned, full_matrices=False)
-    points_2d = np.matmul(points_demeaned, vh.T)
-    if np.any(np.abs(points_2d[:, 2]) > tol):
-        raise ValueError('Points must be coplanar')
-
-    # Construct a homogeneous matrix representing the transformation above
-    to_2d = np.eye(4)
-    to_2d[:3, :3] = vh
-    to_2d[:3, 3] = -np.matmul(vh, points_mean)
-
-    # Find the 2D bounding box using the polygon
-    to_origin_2d, extents_2d = oriented_bounds_2D(points_2d[:, :2])
-    # Make extents 3D
-    extents = np.append(extents_2d, 0.0)
-    # convert transformation from 2D to 3D and combine
-    to_origin = np.matmul(
-        transformations.planar_matrix_to_3D(to_origin_2d), to_2d)
-
-    return to_origin, extents
-
-
 def oriented_bounds(obj,
                     angle_digits=1,
                     ordered=True,
@@ -179,6 +136,48 @@ def oriented_bounds(obj,
     extents: (3,) float
       The extents of the mesh once transformed with to_origin
     """
+
+    def oriented_bounds_coplanar(points, tol=1e-12):
+        """
+        Find an oriented bounding box for an array of coplanar 3D points.
+
+        Parameters
+        ----------
+        points : (n, 3) float
+          Points in 3D that occupy a 2D subspace.
+        tol : float
+          Tolerance for deviation from coplanar.
+
+        Returns
+        ----------
+        to_origin : (4, 4) float
+          Transformation matrix which will move the center of the
+          bounding box of the input mesh to the origin.
+        extents : (3,) float
+          The extents of the mesh once transformed with to_origin
+        """
+        # Shift points about the origin and rotate into the xy plane
+        points_mean = np.mean(points, axis=0)
+        points_demeaned = points - points_mean
+        _, _, vh = np.linalg.svd(points_demeaned, full_matrices=False)
+        points_2d = np.matmul(points_demeaned, vh.T)
+        if np.any(np.abs(points_2d[:, 2]) > tol):
+            raise ValueError('Points must be coplanar')
+
+        # Construct a homogeneous matrix representing the transformation above
+        to_2d = np.eye(4)
+        to_2d[:3, :3] = vh
+        to_2d[:3, 3] = -np.matmul(vh, points_mean)
+
+        # Find the 2D bounding box using the polygon
+        to_origin_2d, extents_2d = oriented_bounds_2D(points_2d[:, :2])
+        # Make extents 3D
+        extents = np.append(extents_2d, 0.0)
+        # convert transformation from 2D to 3D and combine
+        to_origin = np.matmul(
+            transformations.planar_matrix_to_3D(to_origin_2d), to_2d)
+
+        return to_origin, extents
 
     try:
         # extract a set of convex hull vertices and normals from the input
