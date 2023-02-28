@@ -48,7 +48,7 @@ class UtilTests(unittest.TestCase):
     def test_bounds_tree(self):
         for attempt in range(3):
             for dimension in [2, 3]:
-                t = g.np.random.random((1000, 3, dimension))
+                t = g.random((1000, 3, dimension))
                 bounds = g.np.column_stack((t.min(axis=1), t.max(axis=1)))
                 tree = g.trimesh.util.bounds_tree(bounds)
                 self.assertTrue(0 in tree.intersection(bounds[0]))
@@ -57,7 +57,7 @@ class UtilTests(unittest.TestCase):
         # shortcut to the function
         f = g.trimesh.util.stack_3D
         # start with some random points
-        p = g.np.random.random((100, 2))
+        p = g.random((100, 2))
         stack = f(p)
         # shape should be 3D
         assert stack.shape == (100, 3)
@@ -205,6 +205,36 @@ class UtilTests(unittest.TestCase):
             names.add(unique_name('', names))
         assert len(names) == count
 
+        # Try with a larger set of names
+        # get some random strings
+        names = [g.uuid4().hex for _ in range(20)]
+        # make it a whole lotta duplicates
+        names = names * 1000
+        # add a non-int postfix to test
+        names.extend(['suppp_hi'] * 10)
+
+        assigned = set()
+        with g.Profiler() as P:
+            for name in names:
+                assigned.add(unique_name(name, assigned))
+        print(P.output_text())
+
+        assigned_new = set()
+        # tracker = UniqueName()\
+        counts = {}
+        with g.Profiler() as P:
+            for name in names:
+                assigned_new.add(unique_name(
+                    name,
+                    contains=assigned_new,
+                    counts=counts))
+        print(P.output_text())
+
+        # new scheme should match the old one
+        assert assigned_new == assigned
+        # de-duplicated set should match original length
+        assert len(assigned) == len(names)
+
 
 class ContainsTest(unittest.TestCase):
 
@@ -234,7 +264,7 @@ class IOWrapTests(unittest.TestCase):
         util = g.trimesh.util
 
         # check wrap_as_stream
-        test_b = g.np.random.random(1).tobytes()
+        test_b = g.random(1).tobytes()
         test_s = 'this is a test yo'
         res_b = util.wrap_as_stream(test_b).read()
         res_s = util.wrap_as_stream(test_s).read()

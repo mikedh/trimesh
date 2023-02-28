@@ -32,7 +32,7 @@ class IntegralMeanCurvatureTest(g.unittest.TestCase):
         # how close do we need to be - relative tolerance
         tol = 1e-3
         n_tests = 4
-        extents = 1 - g.np.random.random((n_tests, 3))
+        extents = 1 - g.random((n_tests, 3))
         for extent in extents:
             m = g.trimesh.creation.box(extents=extent)
             IMC = m.integral_mean_curvature

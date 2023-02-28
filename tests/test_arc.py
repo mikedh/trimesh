@@ -34,11 +34,11 @@ class ArcTests(g.unittest.TestCase):
         min_angle = g.np.radians(2)
         count = 1000
 
-        center_3D = (g.np.random.random((count, 3)) - .5) * 50
+        center_3D = (g.random((count, 3)) - .5) * 50
         center_2D = center_3D[:, 0:2]
-        radii = g.np.clip(g.np.random.random(count) * 100, min_angle, g.np.inf)
+        radii = g.np.clip(g.random(count) * 100, min_angle, g.np.inf)
 
-        angles = g.np.random.random((count, 2)) * \
+        angles = g.random((count, 2)) * \
             (g.np.pi - min_angle) + min_angle
         angles = g.np.column_stack((g.np.zeros(count),
                                     g.np.cumsum(angles, axis=1)))

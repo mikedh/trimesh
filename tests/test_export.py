@@ -264,7 +264,7 @@ class ExportTest(g.unittest.TestCase):
         RET_COUNT = 5
 
         # a path that doesn't exist
-        nonexists = '/banana{}'.format(g.np.random.random())
+        nonexists = '/banana{}'.format(g.random())
         assert not g.os.path.exists(nonexists)
 
         # loadable OBJ model

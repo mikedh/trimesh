@@ -29,16 +29,27 @@ class ResolverTest(g.unittest.TestCase):
 
     def test_web_namespace(self):
         base = 'https://example.com'
-        ns = 'stuff'
+        name = 'stuff'
+        target = 'hi.gltf'
+
         # check with a trailing slash
         a = g.trimesh.resolvers.WebResolver(base + '/')
-        b = a.namespaced(ns)
+        b = g.trimesh.resolvers.WebResolver(base + '//')
+        c = g.trimesh.resolvers.WebResolver(base)
+        d = a.namespaced(name)
+
+        # base URL's should always be the same with one trailing slash
+        assert a.base_url == b.base_url
+        assert b.base_url == c.base_url
+        assert c.base_url == base + '/'
+        # check namespaced
+        assert d.base_url == base + '/' + name + '/'
 
         # should have correct slashes
-        truth = base + '/' + ns
-        assert b.base_url == truth
-        # should not have altered original
-        assert a.base_url == base + '/'
+        truth = '/'.join([base, name, target])
+
+        assert a.base_url + name + '/' + target == truth
+        assert d.base_url + target == truth
 
     def test_items(self):
         # check __getitem__ and __setitem__

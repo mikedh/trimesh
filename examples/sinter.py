@@ -17,7 +17,7 @@ models = os.path.abspath(os.path.join(
     os.path.expanduser(os.path.dirname(__file__)), '..', 'models'))
 
 
-def collect_meshes(count=None):
+def collect_meshes(count=None, max_size=20.0):
     """
     Collect single body watertight meshes from our
     models folder.
@@ -41,7 +41,8 @@ def collect_meshes(count=None):
             pass
         for ori in scene.geometry.values():
             if (not isinstance(ori, trimesh.Trimesh) or
-                    not ori.is_watertight or ori.volume < 0.001):
+                    not ori.is_watertight or ori.volume < 0.001 or
+                    ori.extents.max() > max_size):
                 continue
 
             # split into single body meshes
@@ -58,16 +59,17 @@ def collect_meshes(count=None):
 
 if __name__ == '__main__':
 
+    size = 10.0
     # get some sample data
-    meshes = collect_meshes(count=100)
+    meshes = collect_meshes(max_size=size)
 
     print('loaded {} meshes'.format(len(meshes)))
 
     # place the meshes into the volume
     with Profiler() as P:
         placed, transforms, consume = packing.meshes(
-            meshes, spacing=0.05)
-    P.print()
+            meshes, size=[size] * 3, spacing=0.1)
+    P.print(show_all=True)
 
     # none of the placed meshes should have overlapping AABB
     assert not packing.bounds_overlap([i.bounds for i in placed])
@@ -83,6 +85,3 @@ if __name__ == '__main__':
         plane_origin=concat.bounds[0],
         plane_normal=[0, 0, 1],
         heights=np.linspace(0.0, 10.0, 100))
-
-    # show a cross section in the middle
-    sections[50].show()

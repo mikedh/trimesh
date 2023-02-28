@@ -143,21 +143,21 @@ class MutateTests(g.unittest.TestCase):
 
         # ray.intersects_id
         centre = mesh.vertices.mean(axis=0)
-        origins = g.np.random.random((100, 3)) * 1000
+        origins = g.random((100, 3)) * 1000
         directions = g.np.copy(origins)
         directions[:50, :] -= centre
         directions[50:, :] += centre
         mesh.ray.intersects_id(origins, directions)
 
         # nearest.vertex
-        points = g.np.random.random((500, 3)) * 100
+        points = g.random((500, 3)) * 100
         mesh.nearest.vertex(points)
 
         # section
         section_count = 20
-        origins = g.np.random.random((section_count, 3)) * 100
-        normals = g.np.random.random((section_count, 3)) * 100
-        heights = g.np.random.random((10,)) * 100
+        origins = g.random((section_count, 3)) * 100
+        normals = g.random((section_count, 3)) * 100
+        heights = g.random((10,)) * 100
         for o, n in zip(origins, normals):
             # try slicing at random origin and at center mass
             mesh.slice_plane(o, n)

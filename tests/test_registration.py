@@ -13,11 +13,11 @@ class RegistrationTest(g.unittest.TestCase):
         opt = g.itertools.combinations([True, False] * 6, 6)
         for reflection, translation, scale, a_flip, a_scale, weight in opt:
             # create random points in space
-            points_a = (g.np.random.random((1000, 3)) - .5) * 1000
+            points_a = (g.random((1000, 3)) - .5) * 1000
             # create a random transform
             matrix = g.trimesh.transformations.random_rotation_matrix()
             # add a translation component to transform
-            matrix[:3, 3] = g.np.random.random(3) * 100
+            matrix[:3, 3] = g.random(3) * 100
             # apply a flip (reflection) to test data
             if a_flip:
                 matrix = g.np.dot(
@@ -34,7 +34,7 @@ class RegistrationTest(g.unittest.TestCase):
 
             # weight points or not
             if weight:
-                weights = (g.np.random.random(len(points_a)) + 9) / 10
+                weights = (g.random(len(points_a)) + 9) / 10
             else:
                 weights = None
 
@@ -114,7 +114,7 @@ class RegistrationTest(g.unittest.TestCase):
     def test_icp_points(self):
         # see if ICP alignment works with point clouds
         # create random points in space
-        points_a = (g.np.random.random((1000, 3)) - .5) * 1000
+        points_a = (g.random((1000, 3)) - .5) * 1000
         # create a random transform
         # matrix = g.trimesh.transformations.random_rotation_matrix()
         # create a small transform
@@ -150,7 +150,7 @@ class RegistrationTest(g.unittest.TestCase):
         mesh = mesh.permutate.noise(noise)
         # randomly rotation with translation
         transform = g.trimesh.transformations.random_rotation_matrix()
-        transform[:3, 3] = (g.np.random.random(3) - .5) * 1000
+        transform[:3, 3] = (g.random(3) - .5) * 1000
 
         mesh.apply_transform(transform)
 

@@ -2360,7 +2360,7 @@ def to_ascii(text):
     return str(text)
 
 
-def is_ccw(points):
+def is_ccw(points, return_all=False):
     """
     Check if connected 2D points are counterclockwise.
 
@@ -2368,28 +2368,41 @@ def is_ccw(points):
     -----------
     points : (n, 2) float
       Connected points on a plane
+    return_all : bool
+      Return polygon area and centroid or just counter-clockwise.
 
     Returns
     ----------
     ccw : bool
       True if points are counter-clockwise
+    area : float
+      Only returned if `return_centroid`
+    centroid : (2,) float
+      Centroid of the polygon.
     """
-    points = np.asanyarray(points, dtype=np.float64)
+    points = np.array(points, dtype=np.float64)
 
-    if (len(points.shape) != 2 or points.shape[1] != 2):
-        raise ValueError('CCW is only defined for 2D')
-    xd = np.diff(points[:, 0])
-    # sum along axis=1 with a dot product
-    yd = np.dot(np.column_stack((
-        points[:, 1],
-        points[:, 1])).reshape(-1)[1:-1].reshape((-1, 2)), [1, 1])
-    area = np.sum(xd * yd) * .5
-    ccw = area < 0
+    if len(points.shape) != 2 or points.shape[1] != 2:
+        raise ValueError('only defined for `(n, 2)` points')
 
-    return ccw
+    # the "shoelace formula"
+    product = np.subtract(*(points[:-1, [1, 0]] * points[1:]).T)
+    # the area of the polygon
+    area = product.sum() / 2.0
+    # check the sign of the area
+    ccw = area < 0.0
+
+    if not return_all:
+        return ccw
+
+    # the centroid of the polygon uses the same formula
+    centroid = ((points[:-1] + points[1:]) *
+                product.reshape((-1, 1))).sum(axis=0) / (6.0 * area)
+
+    return ccw, area, centroid
 
 
-def unique_name(start, contains):
+def unique_name(start, contains, counts=None):
     """
     Deterministically generate a unique name not
     contained in a dict, set or other grouping with
@@ -2402,6 +2415,13 @@ def unique_name(start, contains):
       Initial guess for name.
     contains : dict, set, or list
       Bundle of existing names we can *not* use.
+    counts : None or dict
+      Maps name starts encountered before to increments in
+      order to speed up finding a unique name as otherwise
+      it potentially has to iterate through all of contains.
+      Should map to "how many times has this `start`
+      been attempted, i.e. `counts[start]: int`.
+      Note that this *will be mutated* in-place by this function!
 
     Returns
     ---------
@@ -2414,13 +2434,16 @@ def unique_name(start, contains):
             start not in contains):
         return start
 
-    # start checking with zero index
-    increment = 0
+    # start checking with zero index unless found
+    if counts is None:
+        increment = 0
+    else:
+        increment = counts.get(start, 0)
     if start is not None and len(start) > 0:
         formatter = start + '_{}'
         # split by our delimiter once
         split = start.rsplit('_', 1)
-        if len(split) == 2:
+        if len(split) == 2 and increment == 0:
             try:
                 # start incrementing from the existing
                 # trailing value
@@ -2437,6 +2460,8 @@ def unique_name(start, contains):
     for i in range(increment + 1, 2 + increment + len(contains)):
         check = formatter.format(i)
         if check not in contains:
+            if counts is not None:
+                counts[start] = i
             return check
 
     # this should really never happen since we looped

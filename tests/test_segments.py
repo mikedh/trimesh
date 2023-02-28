@@ -12,7 +12,7 @@ class SegmentsTest(g.unittest.TestCase):
         # check 2D and 3D
         for dimension in [2, 3]:
             # a bunch of random line segments
-            s = g.np.random.random((100, 2, dimension))
+            s = g.random((100, 2, dimension))
             # convert segment to point on line closest to origin
             # as well as a vector and two distances along vector
             param = segments.segments_to_parameters(s)

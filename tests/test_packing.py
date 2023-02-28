@@ -107,7 +107,7 @@ class PackingTest(g.unittest.TestCase):
         paths = [g.trimesh.load_path(i) for i in polygons]
 
         with g.Profiler() as P:
-            r, tf, consume = packing.paths(paths)
+            r, tf, consume = packing.paths(paths, spacing=0.02)
         print(P.output_text())
         # number of paths inserted
         count = consume.sum()
@@ -179,8 +179,8 @@ class PackingTest(g.unittest.TestCase):
                 extents = []
                 for i in ori:
                     extents.append(
-                        g.np.roll(i, int(g.np.random.random() * 10)) +
-                        g.np.random.random(3))
+                        g.np.roll(i, int(g.random() * 10)) +
+                        g.random(3))
                 extents = g.np.array(extents)
 
                 bounds, consume = packing.rectangles(extents)
@@ -238,13 +238,15 @@ class PackingTest(g.unittest.TestCase):
                 density.append(viz.volume / viz.bounding_box.volume)
         print(P.output_text())
 
-    def test_meshes(self):
+    def test_meshes(self, count=20):
         from trimesh.path import packing
         # create some random rotation boxes
         meshes = [g.trimesh.creation.box(
-            extents=g.np.random.random(3),
-            transform=g.tf.random_rotation_matrix())
-            for _ in range(20)]
+            extents=extents,
+            transform=transform)
+            for transform, extents in zip(
+            g.random_transforms(count),
+            (g.random((count, 3)) + 1) * 10)]
         packed, transforms, consume = packing.meshes(
             meshes, spacing=0.01)
         scene = g.trimesh.Scene(packed)
