@@ -1639,7 +1639,7 @@ def _read_buffers(header,
                 np.diag(np.concatenate((child['scale'], [1.0]))))
 
         if "extras" in child:
-            kwargs["metadata"] = child["extras"]
+            kwargs["extras"] = child["extras"]
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]
