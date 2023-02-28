@@ -1,13 +1,54 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = [
-    "setuptools >= 40.8",
-    "wheel",
-]
+requires = ["setuptools >= 40.8", "wheel"]
 
 [tool.ruff]
 select = ["E", "F"] # the default rules
-         # "T201",   # disallow print statements
-	 # "B"]      # pass bugbear
+# "T201",   # disallow print statements
+# "B"]      # pass bugbear
 ignore = ["B905"] # `zip()` without an explicit `strict=`
 line-length = 90
+
+[tool.trimesh-setup.apt]
+# for running with `trimesh-setup` usually in a Docker image
+# here are named groups of `apt-get install` Debian packages
+base = ["wget", "curl", "xz-utils", "git"]
+build = ["build-essential", "g++", "make"]
+docs = ["make", "pandoc"]
+llvmpipe = [
+  "libgl1-mesa-glx",
+  "libgl1-mesa-dri",
+  "xvfb",
+  "xauth",
+  "ca-certificates",
+  "freeglut3-dev"
+]
+tests = ["blender", "openscad"]
+
+# libraries and tools that need to be downloaded are under `fetch`
+[tool.trimesh-setup.fetch.embree2]
+url = "https://github.com/embree/embree/releases/download/v2.17.7/embree-2.17.7.x86_64.linux.tar.gz"
+sha256 = "2c4bdacd8f3c3480991b99e85b8f584975ac181373a75f3e9675bf7efae501fe"
+target = "/usr/local"
+# the `bin` subdirectory is not required
+extract_skip = [ "bin/*", "doc/*", ]
+# skip the first component of the path in the archive
+# same behavior as in the `tar` command line interface
+strip_components = 1
+
+[tool.trimesh-setup.fetch.embree3]
+url = 'https://github.com/embree/embree/releases/download/v3.12.1/embree-3.12.1.x86_64.linux.tar.gz'
+sha256 = '5e218dd4e95c035c04aa893f7b1169ade11ecc57580e0027eae2ec84cdc9baff'
+target = "/usr/local"
+extract_skip = [ "bin",]
+strip_components = 1
+
+
+[tool.trimesh-setup.fetch.embree4]
+url = 'https://github.com/embree/embree/releases/download/v4.0.0/embree-4.0.0.x86_64.linux.tar.gz'
+sha256 = '524842e2f141dca0db584c33a0821176373e7058f3ec2201bfb19d9e9a1b80b9'
+target = "/usr/local"
+extract_skip = [ "bin",]
+strip_components = 1
+
+

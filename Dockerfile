@@ -62,11 +62,11 @@ COPY --chown=user:user setup.py .
 COPY --chown=user:user docker/gltfvalidator.bash .
 COPY --chown=user:user ./.git ./.git/
 
-# install the khronos GLTF validator
-RUN bash gltfvalidator.bash
+USER root
+RUN trimesh-setup --install=test,gltfvalidator
 
 # install things like pytest
-RUN pip install `python setup.py --list-test`
+RUN pip install .[test]
 
 # run tests
 RUN pytest --cov=trimesh \

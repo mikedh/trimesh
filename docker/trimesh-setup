@@ -1,11 +1,25 @@
 #!/usr/bin/env python3
 """
-Python standard library only utilities to help install an
-environment for `trimesh` usually in a Docker image.
+A Python 3.11 standard library only utility to help install an
+environment for `trimesh` in a Debian Docker image.
+
+It probably isn't useful for most people unless you are running
+this exact configuration.
 """
 import os
+import sys
+import tarfile
+import logging
 import argparse
 import subprocess
+from io import BytesIO
+from fnmatch import fnmatch
+
+log = logging.getLogger('trimesh')
+log.setLevel(logging.DEBUG)
+log.addHandler(logging.StreamHandler(sys.stdout))
+
+_cwd = os.path.abspath(os.path.expanduser(os.path.dirname(__file__)))
 
 
 def apt(packages):
@@ -23,6 +37,7 @@ def apt(packages):
 
     # the install command
     install = 'apt-get install -qq --no-install-recommends'.split()
+    # de-duplicate package list
     install.extend(set(packages))
     print('running: `{}`'.format(' '.join(install)))
 
@@ -53,7 +68,7 @@ def argsort(items):
         (v, i) for (i, v) in enumerate(items))]
 
 
-def fetch(url):
+def fetch(url, sha256):
     """
     A simple standard-library only "fetch remote URL" function.
 
@@ -67,15 +82,31 @@ def fetch(url):
     data : bytes
       Retrieved data in memory.
     """
-    from urllib2 import urlopen
-    return urlopen(url).read()
+    import hashlib
+    from urllib.request import urlopen
+
+    data = urlopen(url).read()
+    hashed = hashlib.sha256(data).hexdigest()
+    if hashed != sha256:
+        raise ValueError('sha256 hash does not match!')
+
+    return data
 
 
-def copy_to_user_path(file_path, prefix='~'):
+def copy_to_path(file_path, prefix='~', chmod=True):
     """
-    Copy an executable file onto `PATH`.
+    Copy an executable file onto `PATH`, typically one of
+    the options in the current user's home directory.
 
-
+    Parameters
+    --------------
+    file_path : str
+      Location of of file to copy into PATH.
+    prefix : str
+      The path prefix it is acceptable to copy into,
+      typically `~` for `/home/{current_user}`.
+    chmod : bool
+      Mark copied file as executable using `chmod`.
     """
     # get the full path of the requested file
     source = os.path.abspath(
@@ -115,36 +146,117 @@ def copy_to_user_path(file_path, prefix='~'):
     raise ValueError('unable to write to file')
 
 
+def handle_fetch(url,
+                 sha256,
+                 target,
+                 chmod=True,
+                 extract_skip=None,
+                 extract_only=None,
+                 strip_components=0):
+    """
+    A macro to fetch a remote resource (usually an executable) and
+    move it somewhere on the file system.
+
+    Parameters
+    ------------
+    url : str
+      A string with a remote resource.
+    sha256 : str
+      A hex string for the hash of the remote resource.
+    target : str
+      Target location on the local file system.
+    chmod : bool
+      Change single-file as executable.
+    extract_skip : None or iterable
+      Skip a certain member of the archive.
+    extract_only : None or str
+      Extract *only* a single file from the archive,
+      overrides `extract_skip`.
+    strip_components : int
+      Strip off this many components from the file path
+      in the archive, i.e. at `1`, `a/b/c` is extracted to `target/b/c`
+    """
+    # get the raw bytes
+    log.debug(f'fetching: `{url}`')
+    raw = fetch(url=url, sha256=sha256)
+
+    if len(raw) == 0:
+        raise ValueError(f'{url} is empty!')
+
+    # if we have an archive that tar supports
+    if url.endswith(('.tar.gz', '.tar.xz', 'tar.bz2')):
+        # mode needs to know what type of compression
+        mode = f'r:{url.split(".")[-1]}'
+        # get the archive
+        tar = tarfile.open(fileobj=BytesIO(raw), mode=mode)
+
+        if extract_only is not None:
+            raise NotImplementedError()
+
+        if extract_skip is None:
+            extract_skip = []
+
+        for member in tar.getmembers():
+            # final name after stripping components
+            name = '/'.join(member.name.split('/')[strip_components:])
+
+            # if any of the skip patterns match continue
+            if any(fnmatch(name, p) for p in extract_skip):
+                log.debug(f'skipping: `{name}`')
+                continue
+
+            if extract_only is None:
+                path = os.path.join(target, name)
+                log.debug(f'extracting: `{path}`')
+                tar.extract(member=member, path=path)
+            else:
+                name = name.split('/')[-1]
+                if name == extract_only:
+                    path = os.path.join(target, name)
+                    log.debug(f'extracting `{path}`')
+                    tar.extract(member=member, path=path)
+                    return
+
+    from IPython import embed
+    embed()
+
+
+def load_pyproject():
+    import tomllib
+    with open(os.path.join(_cwd, '..', 'pyproject.toml'), 'rb') as f:
+        return tomllib.load(f)
+
+
 if __name__ == '__main__':
-
-    # the metapackages we're defining
-    packages = {'base': ['wget', 'curl', 'xz-utils', 'git'],
-                'llvmpipe': ['libgl1-mesa-glx',
-                             'libgl1-mesa-dri',
-                             'xvfb',
-                             'xauth',
-                             'ca-certificates',
-                             'freeglut3-dev'],
-                'build': ['build-essential', 'g++', 'make'],
-                'docs': ['make', 'pandoc']}
-
     parser = argparse.ArgumentParser(
-        description='Install Debian packages for trimesh')
+        description='Install system packages for trimesh.')
     parser.add_argument(
         '--install',
         type=str,
         action='append',
-        help='Install metapackages: {}'.format(list(packages.keys())))
+        help='Install system packages')
     args = parser.parse_args()
 
-    print(args)
+    # collect `apt-get install`-able package
+    apt_select = []
+    handlers = {'fetch': lambda x: handle_fetch(**x),
+                'apt': lambda x: apt_select.extend(x)}
 
-    if args.install is not None:
-        picked = []
-        for k in args.install:
-            if k in apt_packages:
-                picked.extend(apt_packages[k])
-        picked = set(picked)
-        if len(picked) > 0:
-            print('Installing: {}'.format(list(picked)))
-            apt(picked)
+    config = load_pyproject().get('tool', {}).get('trimesh-setup', {})
+
+    # allow comma delimeters and de-duplicate
+    if args.install is None:
+        select = set()
+    else:
+        select = set(' '.join(args.install).replace(',', ' ').split())
+
+    log.debug(f'selected: `{select}`')
+
+    for key in select:
+        for handle_name, handler in handlers.items():
+            if key in config[handle_name]:
+                handler(config[handle_name][key])
+
+    if len(apt_select) > 0:
+        log.info('Installing: {}'.format(apt_select))
+        # apt(apt_select)
