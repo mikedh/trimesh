@@ -82,6 +82,10 @@ autopep8 --recursive --verbose --in-place --aggressive trimesh
 flake8 trimesh
 ```
 
+## Docstrings
+
+Trimesh uses the [Sphinx Numpy-style](https://www.sphinx-doc.org/en/master/usage/extensions/example_numpy.html#example-numpy) docstrings which get parsed into the API reference page. 
+
 ## General Tips
 
 Python can be fast but only when you use it as little as possible. In general, if you ever have a block which loops through faces and vertices it will be basically unusable with even moderately sized meshes. All operations on face or vertex arrays should be vectorized numpy operations unless absolutely unavoidable. Profiling helps figure out what is slow, but some general advice:

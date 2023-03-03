@@ -194,12 +194,14 @@ def radial_symmetry(mesh):
     """
 
     # shortcuts to avoid typing and hitting cache
-    scalar = mesh.principal_inertia_components
+    scalar = mesh.principal_inertia_components.copy()
 
     # exit early if inertia components are all zero
-    if scalar.ptp() < 1e-4:
+    if scalar.ptp() < 1e-12:
         return None, None, None
 
+    # normalize the PCI so we can compare them
+    scalar /= np.linalg.norm(scalar)
     vector = mesh.principal_inertia_vectors
     # the sorted order of the principal components
     order = scalar.argsort()
