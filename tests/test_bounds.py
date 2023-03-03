@@ -81,14 +81,41 @@ class BoundsTest(g.unittest.TestCase):
                 transformed_bounds = [transformed.min(axis=0),
                                       transformed.max(axis=0)]
 
-                for i in transformed_bounds:
+                for j in transformed_bounds:
                     # assert that the points once our obb to_origin transform is applied
                     # has a bounding box centered on the origin
-                    assert g.np.allclose(g.np.abs(i), extents / 2.0)
+                    assert g.np.allclose(g.np.abs(j), extents / 2.0)
 
                 extents_tf = g.np.diff(
                     transformed_bounds, axis=0).reshape(dimension)
                 assert g.np.allclose(extents_tf, extents)
+
+    def test_obb_coplanar_points(self):
+        """
+        Test OBB functions with coplanar points as input
+        """
+        for i in range(5):
+            points = g.np.zeros((5, 3))
+            points[:, :2] = g.np.random.random((points.shape[0], 2))
+            rot, _ = g.np.linalg.qr(g.np.random.randn(3, 3))
+            points = g.np.matmul(points, rot)
+            to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
+
+            assert g.trimesh.util.is_shape(to_origin, (4, 4))
+            assert g.trimesh.util.is_shape(extents, (3,))
+
+            transformed = g.trimesh.transform_points(points, to_origin)
+
+            transformed_bounds = [transformed.min(axis=0),
+                                  transformed.max(axis=0)]
+
+            for j in transformed_bounds:
+                # assert that the points once our obb to_origin transform is applied
+                # has a bounding box centered on the origin
+                assert g.np.allclose(g.np.abs(j), extents / 2.0)
+
+            extents_tf = g.np.diff(transformed_bounds, axis=0).reshape(3)
+            assert g.np.allclose(extents_tf, extents)
 
     def test_2D(self):
         for theta in g.np.linspace(0, g.np.pi * 2, 2000):

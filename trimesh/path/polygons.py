@@ -254,7 +254,7 @@ def polygon_bounds(polygon, matrix=None):
     polygon : shapely.geometry.Polygon
       Polygon pre-transform
     matrix : (3, 3) float or None.
-      Homogenous transform moving polygon in space
+      Homogeneous transform moving polygon in space
 
     Returns
     ------------
