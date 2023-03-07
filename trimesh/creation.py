@@ -918,7 +918,7 @@ def cylinder(radius,
 
     if height is None:
         raise ValueError('either `height` or `segment` must be passed!')
-
+    
     half = abs(float(height)) / 2.0
     # create a profile to revolve
     linestring = [[0, -half],

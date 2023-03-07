@@ -6,8 +6,14 @@ requires = [
 ]
 
 [tool.ruff]
-select = ["E", "F"] # the default rules
-         # "T201",   # disallow print statements
-	 # "B"]      # pass bugbear
+select = ["E", "F", # the default rules
+          "T201",   # disallow print statements
+	  "B",      # pass bugbear
+          "I001",   # isort
+          "D"]      # pydocstyle
 ignore = ["B905"] # `zip()` without an explicit `strict=`
 line-length = 90
+
+
+[tool.ruff.pydocstyle]
+convention = "numpy"

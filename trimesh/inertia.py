@@ -197,11 +197,11 @@ def radial_symmetry(mesh):
     scalar = mesh.principal_inertia_components.copy()
 
     # exit early if inertia components are all zero
-    if scalar.ptp() < 1e-12:
+    if util.allclose(scalar, 0.0):
         return None, None, None
 
     # normalize the PCI so we can compare them
-    scalar /= np.linalg.norm(scalar)
+    scalar = scalar / np.linalg.norm(scalar)
     vector = mesh.principal_inertia_vectors
     # the sorted order of the principal components
     order = scalar.argsort()
@@ -214,9 +214,8 @@ def radial_symmetry(mesh):
     # if tol is 1e-3, that means that 2 components are identical if they
     # are within .1% of the maximum PCI.
     diff = np.abs(np.diff(scalar[order]))
-    diff /= np.abs(scalar).max()
     # diffs that are within tol of zero
-    diff_zero = (diff / 1e-3).astype(int) == 0
+    diff_zero = diff < 1e-5
 
     if diff_zero.all():
         # this is the case where all 3 PCI are identical
@@ -242,8 +241,8 @@ def radial_symmetry(mesh):
 
         # since two vectors are the same, we know the middle
         # one is one of those two
-        section_index = order[np.array([[0, 1],
-                                        [1, -1]])[diff_zero]].flatten()
+        section_index = order[
+            np.array([[0, 1], [1, -1]])[diff_zero]].flatten()
         section = vector[section_index]
 
         # we know the rotation axis is the sole unique value

@@ -275,7 +275,7 @@ def polygon_bounds(polygon, matrix=None):
     return bounds
 
 
-def plot(polygon, show=True, axes=None, **kwargs):
+def plot(polygon=None, show=True, axes=None, **kwargs):
     """
     Plot a shapely polygon using matplotlib.
 
@@ -303,7 +303,7 @@ def plot(polygon, show=True, axes=None, **kwargs):
         [plot_single(i) for i in polygon.geoms]
     elif hasattr(polygon, '__iter__'):
         [plot_single(i) for i in polygon]
-    else:
+    elif polygon is not None:
         plot_single(polygon)
 
     if show:
@@ -731,6 +731,7 @@ def projected(mesh,
               rpad=1e-5,
               apad=None,
               tol_dot=0.01,
+              debug=False,
               max_regions=200):
     """
     Project a mesh onto a plane and then extract the polygon
@@ -821,7 +822,7 @@ def projected(mesh,
 
     # a sequence of face indexes that are connected
     face_groups = graph.connected_components(
-        adjacency, nodes=np.nonzero(side)[0])
+        adjacency, min_len=2, nodes=np.nonzero(side)[0])
 
     # if something is goofy we may end up with thousands of
     # regions that do nothing except hang for an hour then segfault
@@ -847,6 +848,15 @@ def projected(mesh,
         polygons.extend(edges_to_polygons(
             edges=edge[group], vertices=vertices_2D))
 
+    if debug:
+        vis = mesh.copy()
+        vis.visual.face_colors = [100, 100, 100, 255]
+        for f in face_groups:
+            vis.visual.face_colors = [255,0,0,255]
+        vis.show()
+        for p in polygons:
+            plot(p)
+        
     padding = 0.0
     if apad is not None:
         # set padding by absolute value
