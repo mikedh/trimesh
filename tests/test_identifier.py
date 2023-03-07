@@ -28,12 +28,9 @@ class IdentifierTest(g.unittest.TestCase):
             ok = (result[0] == result[1:]).all()
 
             if not ok:
-                debug = [g.trimesh.util.sigfig_int(
-                    i, g.trimesh.comparison.id_sigfig)
-                    for i in identifier]
+                ptp = g.np.ptp(identifier, axis=0)
                 g.log.error('Hashes on %s differ after transform:\n %s\n',
-                            mesh.metadata['file_name'],
-                            str(g.np.array(debug, dtype=g.np.int64)))
+                            mesh.metadata['file_name'], str(ptp))
                 raise ValueError('values differ after transform!')
 
             # stretch the mesh by a small amount
