@@ -91,6 +91,34 @@ class IdentifierTest(g.unittest.TestCase):
         # hash should differ
         assert a.identifier_hash != b.identifier_hash
 
+    def test_duplicates(self):
+        def clean_name(name):
+            return name.split('_', 1)[0].split('#', 1)[0]
+
+        # a scene with instances
+        s = g.get_mesh('cycloidal.3DXML')
+        # a flat scene dump
+        d = g.trimesh.Scene(s.dump())
+
+        # should have the same number of geometry nodes
+        assert len(s.graph.nodes_geometry) == len(d.graph.nodes_geometry)
+
+        # uses the identifier to calculate
+        a = s.duplicate_nodes
+        b = d.duplicate_nodes
+
+        # should be the same in both forms
+        assert len(a) == len(b)
+        for aa, bb in zip(a, b):
+            # groups should be the same length
+            assert len(aa) == len(bb)
+            # dumped names should correspond
+            sa = set([clean_name(i) for i in aa])
+            sb = set([clean_name(i) for i in bb])
+            # cleaned name should be the same
+            assert len(sa) == 1
+            assert sa == sb
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
