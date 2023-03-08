@@ -18,10 +18,14 @@ from . import triangles
 
 
 try:
-    from scipy.spatial import ConvexHull, QhullError
+    from scipy.spatial import ConvexHull
 except ImportError as E:
     from .exceptions import ExceptionWrapper
     ConvexHull = ExceptionWrapper(E)
+
+try:
+    from scipy.spatial import QhullError
+except BaseException:
     QhullError = BaseException
 
 

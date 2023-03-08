@@ -10,7 +10,7 @@ from . import transformations
 
 try:
     # scipy is a soft dependency
-    from scipy.spatial import ConvexHull, QhullError
+    from scipy.spatial import ConvexHull
     from scipy import optimize
 except BaseException as E:
     # raise the exception when someone tries to use it
@@ -18,6 +18,10 @@ except BaseException as E:
     ConvexHull = exceptions.ExceptionWrapper(E)
     optimize = exceptions.ExceptionWrapper(E)
 
+try:
+    from scipy.spatial import QhullError
+except BaseException:
+    QhullError = BaseException
 
 # a 90 degree rotation
 _flip = transformations.planar_matrix(theta=np.pi / 2)
