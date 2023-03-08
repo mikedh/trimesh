@@ -2113,17 +2113,17 @@ def transform_points(points,
 
     Parameters
     ----------
-    points : (n, D) float
-      Points where D is 2 or 3
+    points : (n, dim) float
+      Points where `dim` is 2 or 3.
     matrix : (3, 3) or (4, 4) float
-      Homogeneous rotation matrix
+      Homogeneous rotation matrix.
     translate : bool
-      Apply translation from matrix or not
+      Apply translation from matrix or not.
 
     Returns
     ----------
-    transformed : (n, d) float
-      Transformed points
+    transformed : (n, dim) float
+      Transformed points.
     """
     points = np.asanyarray(points, dtype=np.float64)
     if len(points) == 0:
@@ -2134,16 +2134,55 @@ def transform_points(points,
     # shorthand the shape
     count, dim = points.shape
 
-    # check to see if we've been passed an identity matrix
+    # quickly check to see if we've been passed an identity matrix
     if np.abs(matrix - _IDENTITY[:dim + 1, :dim + 1]).max() < 1e-8:
         return np.ascontiguousarray(points.copy())
 
     if translate:
+        # apply translation and rotation
         stack = np.column_stack((points, np.ones(count)))
+        return np.dot(matrix, stack.T).T[:, :dim]
     else:
-        stack = np.column_stack((points, np.zeros(count)))
+        # only apply the rotation
+        return np.dot(matrix[:dim, :dim], points.T)
 
-    return np.dot(matrix, stack.T).T[:, :dim]
+
+def fix_rigid(matrix, max_deviance=1e-5):
+    """
+    If a homogenous transformation matrix is *almost* a rigid
+    transform but many matrix-multiplies have accumulated some
+    floating point error try to restore the matrix using SVD.
+
+    Parameters
+    -----------
+    matrix : (4, 4) or (3, 3) float
+      Homogenous transformation matrix.
+    max_deviance : float
+      Do not alter the matrix if it is not rigid by more
+      than this amount.
+
+    Returns
+    ----------
+    repaired : (4, 4) or (3, 3) float
+      Repaired homogenous transformation matrix
+    """
+    dim = matrix.shape[0] - 1
+    check = np.abs(np.dot(matrix[:dim, :dim], matrix[:dim, :dim].T)
+                   - _IDENTITY[:dim, :dim]).max()
+    # if the matrix differs by more than float-zero and less
+    # than the threshold try to repair the matrix with SVD
+    if check > 1e-13 and check < max_deviance:
+        # reconstruct the rotation from the SVD
+        U, _, V = np.linalg.svd(matrix[:dim, :dim])
+        repaired = np.eye(dim + 1)
+        repaired[:dim, :dim] = np.dot(U, V)
+        # copy in the translation
+        repaired[:dim, dim] = matrix[:dim, dim]
+        # should be within tolerance of the original matrix
+        assert np.allclose(repaired, matrix, atol=max_deviance)
+        return repaired
+
+    return matrix
 
 
 def is_rigid(matrix, epsilon=1e-8):
@@ -2174,7 +2213,7 @@ def is_rigid(matrix, epsilon=1e-8):
 
     # check dot product of rotation against transpose
     check = np.dot(matrix[:3, :3],
-                   matrix[:3, :3].T) - np.eye(3)
+                   matrix[:3, :3].T) - _IDENTITY[:3, :3]
 
     return check.ptp() < epsilon
 

@@ -5,8 +5,10 @@ from copy import deepcopy
 
 from .. import util
 from .. import caching
-from .. import transformations
 
+from ..transformations import (rotation_matrix,
+                               quaternion_matrix,
+                               fix_rigid)
 from ..caching import hash_fast
 
 # we compare to identity a lot
@@ -23,7 +25,7 @@ class SceneGraph(object):
     nodes.
     """
 
-    def __init__(self, base_frame='world'):
+    def __init__(self, base_frame='world', repair_rigid=1e-5):
         """
         Create a scene graph, holding homogeneous transformation
         matrices and instance information about geometry.
@@ -32,11 +34,20 @@ class SceneGraph(object):
         -----------
         base_frame : any
           The root node transforms will be positioned from.
+        repair_rigid : None or float
+          If a float will attempt to repair rotation matrices
+          where `M @ M.T` differs from an identity matrix by
+          more than floating point zero but less than this value.
+          This can happen in a deep tree with a lot of matrix
+          multiplies.
         """
         # a graph structure, subclass of networkx DiGraph
         self.transforms = EnforcedForest()
         # hashable, the base or root frame
         self.base_frame = base_frame
+        # if passed as a float try to repair rigid transforms
+        # that have accumulated floating point error
+        self.repair_rigid = repair_rigid
         # cache transformation matrices keyed with tuples
         self._cache = caching.Cache(self.__hash__)
 
@@ -169,8 +180,14 @@ class SceneGraph(object):
             else:
                 # multiply matrices into single transform
                 matrix = util.multi_dot(matrices)
+
+        # if instructed to repair rigid transforms do it here
+        if self.repair_rigid is not None:
+            matrix = fix_rigid(matrix, max_deviance=self.repair_rigid)
+
         # matrix being edited in-place leads to subtle bugs
         matrix.flags['WRITEABLE'] = False
+
         # store the result
         self._cache[key] = (matrix, geometry)
 
@@ -823,9 +840,9 @@ def kwargs_to_matrix(
         # a matrix takes immediate precedence over other options
         return np.array(matrix, dtype=np.float64)
     elif quaternion is not None:
-        matrix = transformations.quaternion_matrix(quaternion)
+        matrix = quaternion_matrix(quaternion)
     elif axis is not None and angle is not None:
-        matrix = transformations.rotation_matrix(angle, axis)
+        matrix = rotation_matrix(angle, axis)
     else:
         matrix = np.eye(4)
 

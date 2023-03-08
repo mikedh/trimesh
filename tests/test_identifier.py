@@ -116,6 +116,15 @@ class IdentifierTest(g.unittest.TestCase):
                      for group in b])
         assert a_set == b_set
 
+        ptp = []
+        for group in b:
+            current = []
+            for node in group:
+                _, geom = d.graph[node]
+                current.append(d.geometry[geom].identifier)
+            ptp.append(g.np.ptp(current, axis=0))
+            assert (ptp[-1] < 0.01).all()
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
