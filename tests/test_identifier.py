@@ -110,11 +110,10 @@ class IdentifierTest(g.unittest.TestCase):
         # should be the same in both forms
         assert len(a) == len(b)
 
-        a_set = set([tuple(sorted([clean_name(i) for i in g]))
-                     for g in a])
-        b_set = set([tuple(sorted([clean_name(i) for i in g]))
-                     for g in b])
-
+        a_set = set([tuple(sorted([clean_name(i) for i in group]))
+                     for group in a])
+        b_set = set([tuple(sorted([clean_name(i) for i in group]))
+                     for group in b])
         assert a_set == b_set
 
 
