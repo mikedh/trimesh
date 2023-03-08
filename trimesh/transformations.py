@@ -2142,9 +2142,9 @@ def transform_points(points,
         # apply translation and rotation
         stack = np.column_stack((points, np.ones(count)))
         return np.dot(matrix, stack.T).T[:, :dim]
-    else:
-        # only apply the rotation
-        return np.dot(matrix[:dim, :dim], points.T)
+
+    # only apply the rotation
+    return np.dot(matrix[:dim, :dim], points.T).T
 
 
 def fix_rigid(matrix, max_deviance=1e-5):
