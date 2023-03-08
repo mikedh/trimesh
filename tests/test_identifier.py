@@ -28,12 +28,9 @@ class IdentifierTest(g.unittest.TestCase):
             ok = (result[0] == result[1:]).all()
 
             if not ok:
-                debug = [g.trimesh.util.sigfig_int(
-                    i, g.trimesh.comparison.id_sigfig)
-                    for i in identifier]
+                ptp = g.np.ptp(identifier, axis=0)
                 g.log.error('Hashes on %s differ after transform:\n %s\n',
-                            mesh.metadata['file_name'],
-                            str(g.np.array(debug, dtype=g.np.int64)))
+                            mesh.metadata['file_name'], str(ptp))
                 raise ValueError('values differ after transform!')
 
             # stretch the mesh by a small amount
@@ -93,6 +90,40 @@ class IdentifierTest(g.unittest.TestCase):
         assert g.np.isclose(a.volume, b.volume)
         # hash should differ
         assert a.identifier_hash != b.identifier_hash
+
+    def test_duplicates(self):
+        def clean_name(name):
+            return name.split('_', 1)[0].split('#', 1)[0]
+
+        # a scene with instances
+        s = g.get_mesh('cycloidal.3DXML')
+        # a flat scene dump
+        d = g.trimesh.Scene(s.dump())
+
+        # should have the same number of geometry nodes
+        assert len(s.graph.nodes_geometry) == len(d.graph.nodes_geometry)
+
+        # uses the identifier to calculate
+        a = s.duplicate_nodes
+        b = d.duplicate_nodes
+
+        # should be the same in both forms
+        assert len(a) == len(b)
+
+        a_set = set([tuple(sorted([clean_name(i) for i in group]))
+                     for group in a])
+        b_set = set([tuple(sorted([clean_name(i) for i in group]))
+                     for group in b])
+        assert a_set == b_set
+
+        ptp = []
+        for group in b:
+            current = []
+            for node in group:
+                _, geom = d.graph[node]
+                current.append(d.geometry[geom].identifier)
+            ptp.append(g.np.ptp(current, axis=0))
+            assert (ptp[-1] < 0.01).all()
 
 
 if __name__ == '__main__':

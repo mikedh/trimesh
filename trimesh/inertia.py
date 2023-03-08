@@ -194,12 +194,14 @@ def radial_symmetry(mesh):
     """
 
     # shortcuts to avoid typing and hitting cache
-    scalar = mesh.principal_inertia_components
+    scalar = mesh.principal_inertia_components.copy()
 
     # exit early if inertia components are all zero
-    if scalar.ptp() < 1e-4:
+    if (scalar < 1e-12).any():
         return None, None, None
 
+    # normalize the PCI so we can compare them
+    scalar = scalar / np.linalg.norm(scalar)
     vector = mesh.principal_inertia_vectors
     # the sorted order of the principal components
     order = scalar.argsort()
@@ -207,14 +209,9 @@ def radial_symmetry(mesh):
     # we are checking if a geometry has radial symmetry
     # if 2 of the PCI are equal, it is a revolved 2D profile
     # if 3 of the PCI (all of them) are equal it is a sphere
-    # thus we take the diff of the sorted PCI, scale it as a ratio
-    # of the largest PCI, and then scale to the tolerance we care about
-    # if tol is 1e-3, that means that 2 components are identical if they
-    # are within .1% of the maximum PCI.
     diff = np.abs(np.diff(scalar[order]))
-    diff /= np.abs(scalar).max()
     # diffs that are within tol of zero
-    diff_zero = (diff / 1e-3).astype(int) == 0
+    diff_zero = diff < 1e-4
 
     if diff_zero.all():
         # this is the case where all 3 PCI are identical
@@ -240,8 +237,8 @@ def radial_symmetry(mesh):
 
         # since two vectors are the same, we know the middle
         # one is one of those two
-        section_index = order[np.array([[0, 1],
-                                        [1, -1]])[diff_zero]].flatten()
+        section_index = order[
+            np.array([[0, 1], [1, -1]])[diff_zero]].flatten()
         section = vector[section_index]
 
         # we know the rotation axis is the sole unique value

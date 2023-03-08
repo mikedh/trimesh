@@ -444,7 +444,7 @@ class Scene(Geometry3D):
 
         Parameters
         transform : (4, 4) float
-          Homogenous transformation matrix.
+          Homogeneous transformation matrix.
 
         Returns
         -------------

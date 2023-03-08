@@ -18,6 +18,10 @@ except BaseException as E:
     ConvexHull = exceptions.ExceptionWrapper(E)
     optimize = exceptions.ExceptionWrapper(E)
 
+try:
+    from scipy.spatial import QhullError
+except BaseException:
+    QhullError = BaseException
 
 # a 90 degree rotation
 _flip = transformations.planar_matrix(theta=np.pi / 2)
@@ -109,7 +113,8 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
 def oriented_bounds(obj,
                     angle_digits=1,
                     ordered=True,
-                    normal=None):
+                    normal=None,
+                    coplanar_tol=1e-12):
     """
     Find the oriented bounding box for a Trimesh
 
@@ -125,7 +130,11 @@ def oriented_bounds(obj,
     ordered : bool
       Return a consistent order for bounds
     normal : None or (3,) float
-      Override search for normal on 3D meshes
+      Override search for normal on 3D meshes.
+    coplanar_tol : float
+      If a convex hull fails and we are checking to see if the
+      points are coplanar this is the maximum deviation from
+      a plane where the points will be considered coplanar.
 
     Returns
     ----------
@@ -136,28 +145,79 @@ def oriented_bounds(obj,
       The extents of the mesh once transformed with to_origin
     """
 
-    # extract a set of convex hull vertices and normals from the input
-    # we bother to do this to avoid recomputing the full convex hull if
-    # possible
-    if hasattr(obj, 'convex_hull'):
-        # if we have been passed a mesh, use its existing convex hull to pull from
-        # cache rather than recomputing. This version of the cached convex hull has
-        # normals pointing in arbitrary directions (straight from qhull)
-        # using this avoids having to compute the expensive corrected normals
-        # that mesh.convex_hull uses since normal directions don't matter here
-        hull = obj.convex_hull
-    elif util.is_sequence(obj):
-        # we've been passed a list of points
-        points = np.asanyarray(obj)
-        if util.is_shape(points, (-1, 2)):
-            return oriented_bounds_2D(points)
-        elif util.is_shape(points, (-1, 3)):
-            hull = convex.convex_hull(points, repair=False)
+    def oriented_bounds_coplanar(points):
+        """
+        Find an oriented bounding box for an array of coplanar 3D points.
+
+        Parameters
+        ----------
+        points : (n, 3) float
+          Points in 3D that occupy a 2D subspace.
+
+        Returns
+        ----------
+        to_origin : (4, 4) float
+          Transformation matrix which will move the center of the
+          bounding box of the input mesh to the origin.
+        extents : (3,) float
+          The extents of the mesh once transformed with to_origin
+        """
+        # Shift points about the origin and rotate into the xy plane
+        points_mean = np.mean(points, axis=0)
+        points_demeaned = points - points_mean
+        _, _, vh = np.linalg.svd(points_demeaned, full_matrices=False)
+        points_2d = np.matmul(points_demeaned, vh.T)
+        if np.any(np.abs(points_2d[:, 2]) > coplanar_tol):
+            raise ValueError('Points must be coplanar')
+
+        # Construct a homogeneous matrix representing the transformation above
+        to_2d = np.eye(4)
+        to_2d[:3, :3] = vh
+        to_2d[:3, 3] = -np.matmul(vh, points_mean)
+
+        # Find the 2D bounding box using the polygon
+        to_origin_2d, extents_2d = oriented_bounds_2D(points_2d[:, :2])
+        # Make extents 3D
+        extents = np.append(extents_2d, 0.0)
+        # convert transformation from 2D to 3D and combine
+        to_origin = np.matmul(
+            transformations.planar_matrix_to_3D(to_origin_2d), to_2d)
+        return to_origin, extents
+
+    try:
+        # extract a set of convex hull vertices and normals from the input
+        # we bother to do this to avoid recomputing the full convex hull if
+        # possible
+        if hasattr(obj, 'convex_hull'):
+            # if we have been passed a mesh, use its existing convex hull to pull from
+            # cache rather than recomputing. This version of the cached convex hull has
+            # normals pointing in arbitrary directions (straight from qhull)
+            # using this avoids having to compute the expensive corrected normals
+            # that mesh.convex_hull uses since normal directions don't matter
+            # here
+            hull = obj.convex_hull
+        elif util.is_sequence(obj):
+            # we've been passed a list of points
+            points = np.asanyarray(obj)
+            if util.is_shape(points, (-1, 2)):
+                return oriented_bounds_2D(points)
+            elif util.is_shape(points, (-1, 3)):
+                hull = convex.convex_hull(points, repair=False)
+            else:
+                raise ValueError('Points are not (n,3) or (n,2)!')
         else:
-            raise ValueError('Points are not (n,3) or (n,2)!')
-    else:
-        raise ValueError(
-            'Oriented bounds must be passed a mesh or a set of points!')
+            raise ValueError(
+                'Oriented bounds must be passed a mesh or a set of points!')
+    except QhullError:
+        # Try to recover from Qhull error if due to mesh being less than 3
+        # dimensional
+        if hasattr(obj, 'vertices'):
+            points = obj.vertices.view(np.ndarray)
+        elif util.is_sequence(obj):
+            points = np.asanyarray(obj)
+        else:
+            raise
+        return oriented_bounds_coplanar(points)
 
     vertices = hull.vertices
     hull_adj = hull.face_adjacency.T

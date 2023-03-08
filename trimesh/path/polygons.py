@@ -254,7 +254,7 @@ def polygon_bounds(polygon, matrix=None):
     polygon : shapely.geometry.Polygon
       Polygon pre-transform
     matrix : (3, 3) float or None.
-      Homogenous transform moving polygon in space
+      Homogeneous transform moving polygon in space
 
     Returns
     ------------
@@ -275,7 +275,7 @@ def polygon_bounds(polygon, matrix=None):
     return bounds
 
 
-def plot(polygon, show=True, axes=None, **kwargs):
+def plot(polygon=None, show=True, axes=None, **kwargs):
     """
     Plot a shapely polygon using matplotlib.
 
@@ -303,7 +303,7 @@ def plot(polygon, show=True, axes=None, **kwargs):
         [plot_single(i) for i in polygon.geoms]
     elif hasattr(polygon, '__iter__'):
         [plot_single(i) for i in polygon]
-    else:
+    elif polygon is not None:
         plot_single(polygon)
 
     if show:
