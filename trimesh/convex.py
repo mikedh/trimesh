@@ -63,9 +63,10 @@ def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
     try:
         hull = ConvexHull(points, qhull_options=qhull_options)
     except QhullError:
-        util.log.warning(
-            'Failed to compute convex hull! trying `Qj`',
+        util.log.debug(
+            'Failed to compute convex hull: retrying with `Qj`',
             exc_info=True)
+        # try with "joggle" enabled
         hull = ConvexHull(points, qhull_options='Qj')
 
     # hull object doesn't remove unreferenced vertices

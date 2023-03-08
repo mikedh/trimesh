@@ -113,7 +113,8 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
 def oriented_bounds(obj,
                     angle_digits=1,
                     ordered=True,
-                    normal=None):
+                    normal=None,
+                    coplanar_tol=1e-12):
     """
     Find the oriented bounding box for a Trimesh
 
@@ -129,7 +130,11 @@ def oriented_bounds(obj,
     ordered : bool
       Return a consistent order for bounds
     normal : None or (3,) float
-      Override search for normal on 3D meshes
+      Override search for normal on 3D meshes.
+    coplanar_tol : float
+      If a convex hull fails and we are checking to see if the
+      points are coplanar this is the maximum deviation from
+      a plane where the points will be considered coplanar.
 
     Returns
     ----------
@@ -140,7 +145,7 @@ def oriented_bounds(obj,
       The extents of the mesh once transformed with to_origin
     """
 
-    def oriented_bounds_coplanar(points, tol=1e-12):
+    def oriented_bounds_coplanar(points):
         """
         Find an oriented bounding box for an array of coplanar 3D points.
 
@@ -148,8 +153,6 @@ def oriented_bounds(obj,
         ----------
         points : (n, 3) float
           Points in 3D that occupy a 2D subspace.
-        tol : float
-          Tolerance for deviation from coplanar.
 
         Returns
         ----------
@@ -164,7 +167,7 @@ def oriented_bounds(obj,
         points_demeaned = points - points_mean
         _, _, vh = np.linalg.svd(points_demeaned, full_matrices=False)
         points_2d = np.matmul(points_demeaned, vh.T)
-        if np.any(np.abs(points_2d[:, 2]) > tol):
+        if np.any(np.abs(points_2d[:, 2]) > coplanar_tol):
             raise ValueError('Points must be coplanar')
 
         # Construct a homogeneous matrix representing the transformation above
@@ -179,7 +182,6 @@ def oriented_bounds(obj,
         # convert transformation from 2D to 3D and combine
         to_origin = np.matmul(
             transformations.planar_matrix_to_3D(to_origin_2d), to_2d)
-
         return to_origin, extents
 
     try:
