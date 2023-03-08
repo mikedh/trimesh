@@ -731,7 +731,6 @@ def projected(mesh,
               rpad=1e-5,
               apad=None,
               tol_dot=0.01,
-              debug=False,
               max_regions=200):
     """
     Project a mesh onto a plane and then extract the polygon
@@ -822,7 +821,7 @@ def projected(mesh,
 
     # a sequence of face indexes that are connected
     face_groups = graph.connected_components(
-        adjacency, min_len=2, nodes=np.nonzero(side)[0])
+        adjacency, nodes=np.nonzero(side)[0])
 
     # if something is goofy we may end up with thousands of
     # regions that do nothing except hang for an hour then segfault
