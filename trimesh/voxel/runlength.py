@@ -666,6 +666,7 @@ def rle_strip(rle_data):
             break
         else:
             end += count
+
     rle_data = rle_data[i:None if j == 0 else -j].reshape((-1,))
     return rle_data, (start, end)
 

@@ -52,10 +52,11 @@ def area(triangles=None, crosses=None, sum=False):
     """
     if crosses is None:
         crosses = cross(triangles)
-    area = (np.sum(crosses**2, axis=1)**.5) * .5
+    areas = np.sqrt((crosses ** 2).sum(axis=1)) / 2.0
     if sum:
-        return np.sum(area)
-    return area
+        return areas.sum()
+    return areas
+
 
 
 def normals(triangles=None, crosses=None):

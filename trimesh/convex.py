@@ -18,10 +18,11 @@ from . import triangles
 
 
 try:
-    from scipy.spatial import ConvexHull
+    from scipy.spatial import ConvexHull, QhullError
 except ImportError as E:
     from .exceptions import ExceptionWrapper
     ConvexHull = ExceptionWrapper(E)
+    QhullError = BaseException
 
 
 def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
@@ -55,7 +56,13 @@ def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
         if not util.is_shape(points, (-1, 3)):
             raise ValueError('Object must be Trimesh or (n,3) points!')
 
-    hull = ConvexHull(points, qhull_options=qhull_options)
+    try:
+        hull = ConvexHull(points, qhull_options=qhull_options)
+    except QhullError:
+        util.log.warning(
+            'Failed to compute convex hull! trying `Qj`',
+            exc_info=True)
+        hull = ConvexHull(points, qhull_options='Qj')
 
     # hull object doesn't remove unreferenced vertices
     # create a mask to re- index faces for only referenced vertices

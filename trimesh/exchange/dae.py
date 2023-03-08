@@ -194,7 +194,7 @@ def _parse_node(node,
                 local_material_map[symbol] = _parse_material(m, resolver)
 
         # Iterate over primitives of geometry
-        for i, primitive in enumerate(geometry.primitives):
+        for primitive in geometry.primitives:
             if isinstance(primitive, collada.polylist.Polylist):
                 primitive = primitive.triangleset()
             if isinstance(primitive, collada.triangleset.TriangleSet):

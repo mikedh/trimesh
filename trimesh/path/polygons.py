@@ -254,7 +254,7 @@ def polygon_bounds(polygon, matrix=None):
     polygon : shapely.geometry.Polygon
       Polygon pre-transform
     matrix : (3, 3) float or None.
-      Homogenous transform moving polygon in space
+      Homogeneous transform moving polygon in space
 
     Returns
     ------------
@@ -848,15 +848,6 @@ def projected(mesh,
         polygons.extend(edges_to_polygons(
             edges=edge[group], vertices=vertices_2D))
 
-    if debug:
-        vis = mesh.copy()
-        vis.visual.face_colors = [100, 100, 100, 255]
-        for f in face_groups:
-            vis.visual.face_colors = [255,0,0,255]
-        vis.show()
-        for p in polygons:
-            plot(p)
-        
     padding = 0.0
     if apad is not None:
         # set padding by absolute value

@@ -70,31 +70,6 @@ def identifier_simple(mesh):
             # 1.0 for cubes, different values for other things
             identifier[2] = (((mesh_area / 6.0) ** (1.0 / 2.0)) /
                              (mesh.volume ** (1.0 / 3.0)))
-            # save vertices for radius calculation
-            vertices = mesh.vertices - mesh.center_mass
-            # we are going to special case radially symmetric meshes
-            # to replace their surface area with ratio of their
-            # surface area to a primitive sphere or cylinder surface area
-            # this is because tessellated curved surfaces are really rough
-            # to reliably hash as they are very sensitive to floating point
-            # and tessellation error. By making area proportionate to a fit
-            # primitive area we are able to reliably hash at more sigfigs
-            if mesh.symmetry == 'radial':
-                # cylinder height
-                h = np.dot(vertices, mesh.symmetry_axis).ptp()
-                # section radius summed per row then overall max
-                R2V = np.dot((np.dot(vertices, mesh.symmetry_section.T)
-                              ** 2), [1, 1])
-                R2 = R2V[R2V > R2V.max() * 0.999].mean()
-                # replace area in this case with cylinder area
-                identifier[0] = (2 * np.pi * np.sqrt(R2)
-                                 * h) + (2 * np.pi * R2)
-            elif mesh.symmetry == 'spherical':
-                # handle a spherically symmetric mesh
-                # section radius summed per row then overall max
-                R2V = np.dot((vertices ** 2), [1, 1, 1])
-                R2 = R2V[R2V > R2V.max() * 0.999].mean()
-                identifier[0] = 4 * np.pi * R2
         else:
             # if we don't have a watertight mesh add information about the
             # convex hull which is slow to compute and unreliable
@@ -124,9 +99,9 @@ def identifier_simple(mesh):
     # lengths to differentiate identical but mirrored meshes
     # this doesn't work well on meshes with a small number of faces
     if len(mesh.faces) > 50:
-        # does this mesh have edges that differ substantially in length?
+        # does this mesh have edges that differ substantially in length
         # if not this method for detecting reflection will not work
-        # and the result will definitly be garbage
+        # and the result will definitely be garbage
         edges_length = mesh.edges_unique_length
         variance = edges_length.std() / edges_length.mean()
         if variance > 0.25:
