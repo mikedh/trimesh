@@ -74,10 +74,7 @@ class SceneGraph(object):
           Distance to translate
         geometry : hashable
           Geometry object name, e.g. 'mesh_0'
-        extensions: dictionary
-          Optional extension-specific data.
-          (exports to glTF node 'extensions').
-        extras: dictionary
+        metadata: dictionary
           Optional metadata attached to the new frame
           (exports to glTF node 'extras').
         """
@@ -87,7 +84,7 @@ class SceneGraph(object):
 
         # pass through
         attr = {k: v for k, v in kwargs.items()
-                if k in {'geometry', 'extensions', 'extras'}}
+                if k in {'geometry', 'metadata'}}
         # convert various kwargs to a single matrix
         attr['matrix'] = kwargs_to_matrix(**kwargs)
 
@@ -320,16 +317,18 @@ class SceneGraph(object):
                 if not util.allclose(matrix, _identity):
                     info['matrix'] = matrix.T.reshape(-1).tolist()
 
-                # if extensionss were stored on this edge
-                extensions = node_edge.get('extensions')
-                if extensions:
-                    info['extensions'] = extensions
-                    extensions_used = extensions_used.union(
-                        set(extensions.keys()))
-
                 # if an extra was stored on this edge
-                extras = node_edge.get('extras')
+                extras = node_edge.get('metadata')
                 if extras:
+                    extras = extras.copy()
+
+                    # if extensionss were stored on this edge
+                    extensions = extras.pop('gltf_extensions', None)
+                    if isinstance(extensions, dict):
+                        info['extensions'] = extensions
+                        extensions_used = extensions_used.union(
+                            set(extensions.keys()))
+
                     # convert any numpy arrays to lists
                     extras.update(
                         {k: v.tolist() for k, v in extras.items()
