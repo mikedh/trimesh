@@ -635,6 +635,10 @@ def _create_gltf_structure(scene,
             # fail here if data isn't json compatible
             # only export the extras if there is something there
             tree['scenes'][0]['extras'] = _jsonify(scene.metadata)
+            extensions = tree['scenes'][0]['extras'].pop(
+                'gltf_extensions', None)
+            if isinstance(extensions, dict):
+                tree['scenes'][0]['extensions'] = extensions
         except BaseException:
             log.debug(
                 'failed to export scene metadata!', exc_info=True)
@@ -684,6 +688,22 @@ def _create_gltf_structure(scene,
     nodes = scene.graph.to_gltf(
         scene=scene, mesh_index=mesh_index)
     tree.update(nodes)
+
+    extensions_used = set()
+    # Add any scene extensions used
+    if 'extensions' in tree['scenes'][0]:
+        extensions_used = extensions_used.union(
+            set(tree['scenes'][0]['extensions'].keys()))
+    # Add any mesh extensions used
+    for mesh in tree['meshes']:
+        if 'extensions' in mesh:
+            extensions_used = extensions_used.union(
+                set(mesh['extensions'].keys()))
+    # Add any extensions already in the tree (e.g. node extensions)
+    if 'extensionsUsed' in tree:
+        extensions_used = extensions_used.union(set(tree['extensionsUsed']))
+    if len(extensions_used) > 0:
+        tree['extensionsUsed'] = list(extensions_used)
 
     if buffer_postprocessor is not None:
         buffer_postprocessor(buffer_items, tree)
@@ -768,6 +788,11 @@ def _append_mesh(mesh,
     try:
         # skip jsonify any metadata, skipping internal keys
         current['extras'] = _jsonify(mesh.metadata)
+
+        # extract extensions if any
+        extensions = current['extras'].pop('gltf_extensions', None)
+        if isinstance(extensions, dict):
+            current['extensions'] = extensions
 
         if mesh.units not in [None, 'm', 'meters', 'meter']:
             current["extras"]["units"] = str(mesh.units)
@@ -1378,6 +1403,9 @@ def _read_buffers(header,
             # try to load all mesh metadata
             if isinstance(m.get('extras'), dict):
                 metadata.update(m['extras'])
+            # put any mesh extensions in a field of the metadata
+            if 'extensions' in m:
+                metadata['gltf_extensions'] = m['extensions']
 
             for p in m["primitives"]:
                 # if we don't have a triangular mesh continue
@@ -1638,8 +1666,15 @@ def _read_buffers(header,
                 kwargs["matrix"],
                 np.diag(np.concatenate((child['scale'], [1.0]))))
 
-        if "extras" in child:
+        # treat node metadata similarly to mesh metadata
+        if isinstance(child.get("extras"), dict):
             kwargs["metadata"] = child["extras"]
+
+        # put any node extensions in a field of the metadata
+        if "extensions" in child:
+            if "metadata" not in kwargs:
+                kwargs["metadata"] = {}
+            kwargs["metadata"]["gltf_extensions"] = child["extensions"]
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]
@@ -1681,6 +1716,15 @@ def _read_buffers(header,
         # use a try except to avoid nested key checks
         result['metadata'] = header['scenes'][
             header['scene']]['extras']
+    except BaseException:
+        pass
+    try:
+        # load any scene extensions into a field of scene.metadata
+        # use a try except to avoid nested key checks
+        if "metadata" not in result:
+            result["metadata"] = {}
+        result['metadata']['gltf_extensions'] = header['scenes'][
+            header['scene']]['extensions']
     except BaseException:
         pass
 
