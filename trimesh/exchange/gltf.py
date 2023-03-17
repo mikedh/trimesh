@@ -635,7 +635,8 @@ def _create_gltf_structure(scene,
             # fail here if data isn't json compatible
             # only export the extras if there is something there
             tree['scenes'][0]['extras'] = _jsonify(scene.metadata)
-            extensions = tree['scenes'][0]['extras'].pop('gltf_extensions', None)
+            extensions = tree['scenes'][0]['extras'].pop(
+                'gltf_extensions', None)
             if isinstance(extensions, dict):
                 tree['scenes'][0]['extensions'] = extensions
         except BaseException:
@@ -696,7 +697,8 @@ def _create_gltf_structure(scene,
     # Add any mesh extensions used
     for mesh in tree['meshes']:
         if 'extensions' in mesh:
-            extensions_used = extensions_used.union(set(mesh['extensions'].keys()))
+            extensions_used = extensions_used.union(
+                set(mesh['extensions'].keys()))
     # Add any extensions already in the tree (e.g. node extensions)
     if 'extensionsUsed' in tree:
         extensions_used = extensions_used.union(set(tree['extensionsUsed']))
