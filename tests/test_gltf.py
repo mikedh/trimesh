@@ -595,7 +595,9 @@ class GLTFTest(g.unittest.TestCase):
             transform=tf1,
             metadata={'field': 'extra_data1'})
         node_extensions = {'mesh_ext': {'ext_data': 1.23}}
-        sphere2_metadata = {'field': 'extra_data2', 'gltf_extensions': node_extensions}
+        sphere2_metadata = {
+            'field': 'extra_data2',
+            'gltf_extensions': node_extensions}
         s.add_geometry(sphere2,
                        node_name="Sphere2",
                        geom_name="Geom Sphere2",
