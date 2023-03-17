@@ -738,13 +738,12 @@ def pack(materials, uvs, deduplicate=True):
         # [new_uv.append((uvs[i] * scale) + uv_off) for i in idxs]
         # TODO : figure out why this is broken sometimes...
 
-        def transform_uvs(uv, scale, xy_off):
-            xy = np.stack([uv[:, 0], 1 - uv[:, 1]], axis=-1)
+        for i in idxs:
+            uv = uvs[i]
+            xy = np.stack([uv[:, 0], 1 - uv[:, 1]], axis=-1) % 1.0
             xy = (xy * scale) + xy_off
-            return np.stack([xy[:, 0], 1 - xy[:, 1]], axis=-1)
-        [new_uv.append(transform_uvs(uvs[i], scale, xy_off))
-         for i in idxs]
 
+            new_uv.append(np.stack([xy[:, 0], 1 - xy[:, 1]], axis=-1))
     # stack UV coordinates into single (n, 2) array
     stacked = np.vstack(
         [new_uv[n]
@@ -757,13 +756,18 @@ def pack(materials, uvs, deduplicate=True):
         check = []
         for uv, mat in zip(uvs, materials):
             img = material_to_img(mat)
-            pixel_coords = (uv * img.size).round().astype(int)
-            check.append(np.array(img)[pixel_coords])
+            size = np.array(img.size) - 1
+            pixel_coords = ((uv % 1.0) * size).round().astype(int)
+            check.append(np.array(img)[
+                pixel_coords[:, 1],
+                pixel_coords[:, 0]])
         check = np.vstack(check)
 
         # get the pixel color from the packed image
-        pixel_coords_result = (stacked * final.size).round().astype(int)
-        check_pack = np.array(final)[pixel_coords_result]
+        size = np.array(final.size) - 1
+        pixel_coords_result = (stacked * size).round().astype(int)
+        check_pack = np.array(final)[pixel_coords_result[:, 1],
+                                     pixel_coords_result[:, 0]]
 
         # they should be identical
         assert np.all(check == check_pack)
