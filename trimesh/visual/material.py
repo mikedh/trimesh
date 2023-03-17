@@ -13,6 +13,8 @@ from .. import util
 from .. import grouping
 from .. import exceptions
 
+from ..constants import tol
+
 # epsilon for comparing floating point
 _eps = 1e-5
 
@@ -681,6 +683,25 @@ def pack(materials, uvs, deduplicate=True):
     from ..path import packing
     import collections
 
+    def material_to_img(mat):
+        """
+        Logic for extracting a simple image from each material.
+        """
+        # extract an image for each material
+        if isinstance(mat, PBRMaterial):
+            if mat.baseColorTexture is not None:
+                img = mat.baseColorTexture
+            elif mat.baseColorFactor is not None:
+                img = Image.fromarray(
+                    mat.baseColorFactor[:3].reshape((1, 1, 3)))
+            else:
+                img = Image.new(mode='RGB', size=(1, 1))
+        elif hasattr(mat, 'image'):
+            img = mat.image
+        else:
+            raise ValueError('no image to pack!')
+        return img
+
     if deduplicate:
         # start by collecting a list of indexes for each material hash
         unique_idx = collections.defaultdict(list)
@@ -698,19 +719,7 @@ def pack(materials, uvs, deduplicate=True):
     for idx in mat_idx:
         # get the first material from the group
         m = materials[idx[0]]
-        # extract an image for each material
-        if isinstance(m, PBRMaterial):
-            if m.baseColorTexture is not None:
-                img = m.baseColorTexture
-            elif m.baseColorFactor is not None:
-                img = Image.fromarray(m.baseColorFactor[:3].reshape((1, 1, 3)))
-            else:
-                img = Image.new(mode='RGB', size=(1, 1))
-        elif hasattr(m, 'image'):
-            img = m.image
-        else:
-            raise ValueError('no image to pack!')
-        images.append(img)
+        images.append(material_to_img(m))
 
     # pack the multiple images into a single large image
     final, offsets = packing.images(images, power_resize=True)
@@ -733,10 +742,30 @@ def pack(materials, uvs, deduplicate=True):
             xy = np.stack([uv[:, 0], 1 - uv[:, 1]], axis=-1)
             xy = (xy * scale) + xy_off
             return np.stack([xy[:, 0], 1 - xy[:, 1]], axis=-1)
-
-        [new_uv.append(transform_uvs(uvs[i], scale, xy_off)) for i in idxs]
+        [new_uv.append(transform_uvs(uvs[i], scale, xy_off))
+         for i in idxs]
 
     # stack UV coordinates into single (n, 2) array
-    stacked = np.vstack([new_uv[n] for n in np.argsort([x for i in mat_idx for x in i])])
+    stacked = np.vstack(
+        [new_uv[n]
+         for n in np.argsort([x for i in mat_idx for x in i])])
+
+    # check to make sure the packed result image matches
+    # the original input image exactly in unit tests
+    if tol.strict:
+        # get the pixel color from the original image
+        check = []
+        for uv, mat in zip(uvs, materials):
+            img = material_to_img(mat)
+            pixel_coords = (uv * img.size).round().astype(int)
+            check.append(np.array(img)[pixel_coords])
+        check = np.vstack(check)
+
+        # get the pixel color from the packed image
+        pixel_coords_result = (stacked * final.size).round().astype(int)
+        check_pack = np.array(final)[pixel_coords_result]
+
+        # they should be identical
+        assert np.all(check == check_pack)
 
     return SimpleMaterial(image=final), stacked
