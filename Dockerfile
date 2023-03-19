@@ -3,11 +3,10 @@ LABEL maintainer="mikedh@kerfed.com"
 
 # Install helper script to PATH.
 COPY --chmod=755 docker/trimesh-setup /usr/local/bin/
-# Install `embree`, Intel's fast ray checking engine
-RUN trimesh-setup --install base --install embree2
 
-COPY docker/embree.bash /tmp/
-RUN bash /tmp/embree.bash
+# Install base `apt` packages required for everything
+# Install `embree`, Intel's fast ray checking engine
+RUN trimesh-setup --install base,embree2
 
 # Create a local non-root user.
 RUN useradd -m -s /bin/bash user
@@ -20,7 +19,7 @@ ENV PATH="/home/user/.local/bin:$PATH"
 ## install things that need building
 FROM base AS build
 
-# install build-essentials
+# install build essentials for compiling stuff
 RUN trimesh-setup --install build
 
 # copy in essential files
@@ -42,7 +41,7 @@ FROM base AS output
 USER user
 WORKDIR /home/user
 
-# just copy over the results of the pip installs
+# just copy over the results of the compiled packages
 COPY --chown=user:user --from=build /home/user/.local /home/user/.local
 
 # Set environment variables for software rendering.
