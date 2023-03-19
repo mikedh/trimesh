@@ -146,15 +146,17 @@ class PointsTest(g.unittest.TestCase):
         Test K-means clustering
         """
         clustered = []
-        for i in range(cluster_count):
-            # use repeatable random- ish coordinates
-            clustered.append(
-                g.random((points_per_cluster, 3)) * (1e-3) + (i * 10.0))
+
+        # get random-ish points in a -0.5:+0.5 interval
+        points = g.random((points_per_cluster * cluster_count, 3)) - 0.5
+        for index, group in enumerate(g.np.array_split(points, cluster_count)):
+            # move the cluster along the XYZ vector
+            clustered.append((group / 1000) + (index * 100))
         clustered = g.np.vstack(clustered)
 
         # run k- means clustering on our nicely separated data
-        centroids, klabel = g.trimesh.points.k_means(points=clustered,
-                                                     k=cluster_count)
+        centroids, klabel = g.trimesh.points.k_means(
+            points=clustered, k=cluster_count)
 
         # reshape to make sure all groups have the same index
         variance = klabel.reshape(

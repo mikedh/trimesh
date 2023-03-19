@@ -1,18 +1,12 @@
 FROM python:3.11-slim-bullseye AS base
 LABEL maintainer="mikedh@kerfed.com"
 
-# Install the llvmpipe software renderer
-# and X11 for software offscreen rendering,
-# roughly 500mb of stuff.
-ARG INCLUDE_X=false
+# Install helper script to PATH.
+COPY --chmod=755 docker/trimesh-setup /usr/local/bin/
 
-# Install binary APT dependencies.
-COPY --chmod=755 docker/apt-trimesh /usr/local/bin/
-RUN apt-trimesh --base=true --x11=${INCLUDE_X}
-
+# Install base `apt` packages required for everything
 # Install `embree`, Intel's fast ray checking engine
-COPY docker/embree.bash /tmp/
-RUN bash /tmp/embree.bash
+RUN trimesh-setup --install base,embree2
 
 # Create a local non-root user.
 RUN useradd -m -s /bin/bash user
@@ -25,8 +19,8 @@ ENV PATH="/home/user/.local/bin:$PATH"
 ## install things that need building
 FROM base AS build
 
-# install build-essentials
-RUN apt-trimesh --build=true
+# install build essentials for compiling stuff
+RUN trimesh-setup --install build
 
 # copy in essential files
 COPY --chown=user:user trimesh/ /home/user/trimesh
@@ -47,7 +41,7 @@ FROM base AS output
 USER user
 WORKDIR /home/user
 
-# just copy over the results of the pip installs
+# just copy over the results of the compiled packages
 COPY --chown=user:user --from=build /home/user/.local /home/user/.local
 
 # Set environment variables for software rendering.
@@ -67,11 +61,11 @@ COPY --chown=user:user setup.py .
 COPY --chown=user:user docker/gltfvalidator.bash .
 COPY --chown=user:user ./.git ./.git/
 
-# install the khronos GLTF validator
-RUN bash gltfvalidator.bash
+USER root
+RUN trimesh-setup --install=test,gltfvalidator
 
 # install things like pytest
-RUN pip install `python setup.py --list-test`
+RUN pip install .[test]
 
 # run tests
 RUN pytest --cov=trimesh \
@@ -90,7 +84,7 @@ FROM output AS build_docs
 
 USER root
 # install APT packages for docs
-RUN apt-trimesh --docs=true
+RUN trimesh-setup --install docs
 USER user
 
 COPY --chown=user:user README.md .
@@ -105,3 +99,8 @@ RUN make
 ### Copy just the docs so we can output them
 FROM scratch as docs
 COPY --from=build_docs /home/user/docs/_build/html/ ./
+
+### Make sure the output stage is the last stage so a simple
+# "docker build ." still outputs an expected image
+FROM output as final
+

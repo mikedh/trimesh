@@ -711,7 +711,7 @@ def slice_mesh_plane(mesh,
     # start with copy of original mesh, faces, and vertices
     vertices = mesh.vertices.copy()
     faces = mesh.faces.copy()
-
+    
     if 'process' not in kwargs:
         kwargs['process'] = False
 

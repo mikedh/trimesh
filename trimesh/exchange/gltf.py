@@ -1394,9 +1394,7 @@ def _read_buffers(header,
     # be inserted to avoid a potentially slow search through our
     # dict of names
     name_counts = {}
-
     for index, m in enumerate(header.get("meshes", [])):
-
         try:
             # GLTF spec indicates implicit units are meters
             metadata = {'units': 'meters'}
@@ -1439,8 +1437,8 @@ def _read_buffers(header,
                         if mode == _GL_STRIP:
                             # this is triangle strips
                             flat = access[p['indices']].reshape(-1)
-                            kwargs['faces'] = util.triangle_strips_to_faces([
-                                                                            flat])
+                            kwargs['faces'] = util.triangle_strips_to_faces(
+                                [flat])
                         else:
                             kwargs["faces"] = access[p["indices"]
                                                      ].reshape((-1, 3))

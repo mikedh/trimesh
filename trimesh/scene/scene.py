@@ -119,11 +119,16 @@ class Scene(Geometry3D):
         ----------
         geometry : Trimesh, Path2D, Path3D PointCloud or list
           Geometry to initially add to the scene
-        node_name: Name of the added node.
-        geom_name: Name of the added geometry.
-        parent_node_name: Name of the parent node in the graph.
-        transform: Transform that applies to the added node.
-        metadata: Optional metadata for the node.
+        node_name : None or str
+          Name of the added node.
+        geom_name : None or str
+          Name of the added geometry.
+        parent_node_name : None or str
+          Name of the parent node in the graph.
+        transform : None or (4, 4) float
+          Transform that applies to the added node.
+        metadata : None or dict
+          Optional metadata for the node.
 
         Returns
         ----------
