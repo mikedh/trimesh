@@ -6,11 +6,9 @@ import numpy as np
 
 from copy import deepcopy
 
-from pyembree import __version__ as _ver
+from pyembree import __version__ as _wrapper_version
 from pyembree import rtcore_scene
 from pyembree.mesh_construction import TriangleMesh
-
-from pkg_resources import parse_version
 
 from .ray_util import contains_points
 
@@ -27,7 +25,7 @@ _ray_offset_factor = 1e-4
 _ray_offset_floor = 1e-8
 
 # see if we're using a newer version of the pyembree wrapper
-_embree_new = parse_version(_ver) >= parse_version('0.1.4')
+_embree_new = tuple([int(i) for i in _wrapper_version.split('.')]) >= (0, 1, 4)
 # both old and new versions require exact but different type
 _embree_dtype = [np.float64, np.float32][int(_embree_new)]
 
