@@ -59,18 +59,15 @@ FROM output AS tests
 COPY --chown=user:user tests ./tests/
 COPY --chown=user:user models ./models/
 COPY --chown=user:user setup.py .
-COPY --chown=user:user pyproject.toml .
-COPY --chown=user:user trimesh ./trimesh/
-COPY --chown=user:user docker/gltfvalidator.bash .
 COPY --chown=user:user ./.git ./.git/
 
 USER root
 RUN trimesh-setup --install=test,gltfvalidator
+USER user
 
 # install things like pytest
-RUN pip install .[test]
+RUN pip install `python setup.py --list-test`
 
-# run tests
 RUN pytest --cov=trimesh \
     -p no:alldep \
     -p no:cacheprovider tests
