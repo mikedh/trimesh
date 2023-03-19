@@ -15,7 +15,7 @@ import subprocess
 from io import BytesIO
 from fnmatch import fnmatch
 
-# actually define system packages for our docker image
+# define system packages for our debian docker image
 # someday possibly add this to the `pyproject.toml` config
 # but for now store them locally in the installer script
 config_toml = """
@@ -33,7 +33,7 @@ llvmpipe = [
   "ca-certificates",
   "freeglut3-dev"
 ]
-tests = ["blender", "openscad"]
+test = ["blender", "openscad"]
 
 # libraries and tools that need to be downloaded are under `fetch`
 [tool.trimesh-setup.fetch.embree2]
@@ -45,12 +45,13 @@ extract_skip = [ "bin/*", "doc/*", ]
 # skip the first component of the path in the archive
 # same behavior as in the `tar` command line interface
 strip_components = 1
+chmod = 755
 
 [tool.trimesh-setup.fetch.embree3]
 url = 'https://github.com/embree/embree/releases/download/v3.12.1/embree-3.12.1.x86_64.linux.tar.gz'
 sha256 = '5e218dd4e95c035c04aa893f7b1169ade11ecc57580e0027eae2ec84cdc9baff'
 target = "/usr/local"
-extract_skip = [ "bin",]
+extract_skip = [ "bin/*", "doc/*", ]
 strip_components = 1
 
 
@@ -58,7 +59,7 @@ strip_components = 1
 url = 'https://github.com/embree/embree/releases/download/v4.0.0/embree-4.0.0.x86_64.linux.tar.gz'
 sha256 = '524842e2f141dca0db584c33a0821176373e7058f3ec2201bfb19d9e9a1b80b9'
 target = "/usr/local"
-extract_skip = [ "bin",]
+extract_skip = [ "bin/*", "doc/*", ]
 strip_components = 1
 """
 
@@ -79,22 +80,24 @@ def apt(packages):
     packages : iterable
       List, set, or other with package names.
     """
+    if len(packages) == 0:
+        return
+
     # start with updating the sources
-    print(subprocess.check_output(
-        'apt-get update -qq'.split()))
+    log.debug(subprocess.check_output(
+        'apt-get update -qq'.split()).decode('utf-8'))
 
     # the install command
     install = 'apt-get install -qq --no-install-recommends'.split()
     # de-duplicate package list
     install.extend(set(packages))
-    print('running: `{}`'.format(' '.join(install)))
 
-    # call the install
-    print(subprocess.check_output(install))
+    # call the install command
+    log.debug(subprocess.check_output(install).decode('utf-8'))
 
     # delete any temporary files
-    print(subprocess.check_output(
-        'rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*'.split()))
+    subprocess.check_output(
+        'rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*'.split())
 
 
 def argsort(items):
@@ -123,12 +126,15 @@ def fetch(url, sha256):
     Parameters
     ------------
     url : str
-      Location of remote resource
+      Location of remote resource.
+    sha256: str
+      The SHA256 hash of the resource once retrieved,
+      wil raise a `ValueError` if the hash doesn't match.
 
     Returns
     -------------
     data : bytes
-      Retrieved data in memory.
+      Retrieved data in memory with correct hash.
     """
     import hashlib
     from urllib.request import urlopen
@@ -194,10 +200,34 @@ def copy_to_path(file_path, prefix='~', chmod=True):
     raise ValueError('unable to write to file')
 
 
+def extract(tar, member, path, chmod):
+    """
+    Extract a single member from a tarfile to a path.
+    """
+    if os.path.isdir(path):
+        return
+    data = tar.extractfile(member=member)
+    if not hasattr(data, 'read'):
+        return
+    data = data.read()
+    if len(data) == 0:
+        return
+
+    # make sure root path exists
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    with open(path, 'wb') as f:
+        f.write(data)
+
+    if chmod is not None:
+        # python os.chmod takes an octal value
+        os.chmod(path, int(str(chmod), base=8))
+
+
 def handle_fetch(url,
                  sha256,
                  target,
-                 chmod=True,
+                 chmod=None,
                  extract_skip=None,
                  extract_only=None,
                  strip_components=0):
@@ -213,8 +243,8 @@ def handle_fetch(url,
       A hex string for the hash of the remote resource.
     target : str
       Target location on the local file system.
-    chmod : bool
-      Change single-file as executable.
+    chmod : None or int.
+      Change permissions for extracted files.
     extract_skip : None or iterable
       Skip a certain member of the archive.
     extract_only : None or str
@@ -256,24 +286,21 @@ def handle_fetch(url,
             if extract_only is None:
                 path = os.path.join(target, name)
                 log.debug(f'extracting: `{path}`')
-                tar.extract(member=member, path=path)
+                extract(tar=tar, member=member, path=path, chmod=chmod)
             else:
                 name = name.split('/')[-1]
                 if name == extract_only:
                     path = os.path.join(target, name)
                     log.debug(f'extracting `{path}`')
-                    tar.extract(member=member, path=path)
+                    extract(tar=tar, member=member, path=path, chmod=chmod)
                     return
-
-    from IPython import embed
-    embed()
 
 
 def load_config():
     """
     """
-    import tomllib
-    return tomllib.loads(config_toml).get('tool', {}).get('trimesh-setup', {})
+    from tomllib import loads
+    return loads(config_toml).get('tool', {}).get('trimesh-setup', {})
 
 
 if __name__ == '__main__':
@@ -304,13 +331,12 @@ if __name__ == '__main__':
     else:
         select = set(' '.join(args.install).replace(',', ' ').split())
 
-    log.debug(f'selected: `{select}`')
+    log.debug(f'installing metapackages: {select}')
 
     for key in select:
         for handle_name, handler in handlers.items():
             if key in config[handle_name]:
                 handler(config[handle_name][key])
 
-    if len(apt_select) > 0:
-        log.info('Installing: {}'.format(apt_select))
-        # apt(apt_select)
+    # run the apt-get install
+    apt(apt_select)

@@ -13,6 +13,7 @@ RUN useradd -m -s /bin/bash user
 
 # Required for Python to be able to find libembree.
 ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+
 # So scripts installed from pip are in $PATH
 ENV PATH="/home/user/.local/bin:$PATH"
 
@@ -58,6 +59,8 @@ FROM output AS tests
 COPY --chown=user:user tests ./tests/
 COPY --chown=user:user models ./models/
 COPY --chown=user:user setup.py .
+COPY --chown=user:user pyproject.toml .
+COPY --chown=user:user trimesh ./trimesh/
 COPY --chown=user:user docker/gltfvalidator.bash .
 COPY --chown=user:user ./.git ./.git/
 
