@@ -147,6 +147,37 @@ class TextureTest(g.unittest.TestCase):
         assert g.np.allclose(c.visual.material.image.size,
                              a.visual.material.image.size)
 
+    def test_concatentate_multi(self):
+        colors = [[255, 0, 0, 255],
+                  [0, 255, 0, 255],
+                  [0, 0, 255, 255],
+                  [100,100,100, 255]]
+        funcs = [g.trimesh.creation.box,
+                 g.trimesh.creation.icosphere,
+                 g.trimesh.creation.capsule]
+        
+        meshes = []
+        for i, color in enumerate(colors):
+            for j, f in enumerate(funcs):
+                m = f()
+                m.visual.face_colors = color
+                # convert color visual to texture
+                m.visual = m.visual.to_texture()
+                m.apply_translation([i*2.2, j * 2.2, 0.0])
+                meshes.append(m)
+
+
+        c = g.trimesh.util.concatenate(meshes)
+        assert isinstance(c.visual, g.trimesh.visual.TextureVisuals)
+        
+        
+                
+        g.trimesh.Scene(meshes).show()
+
+        
+        from IPython import embed
+        embed()
+        
     def test_to_tex(self):
         m = g.trimesh.creation.box()
         color = [255, 0, 0, 255]

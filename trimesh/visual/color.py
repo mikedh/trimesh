@@ -448,6 +448,16 @@ class ColorVisuals(Visuals):
         return color
 
     def to_texture(self):
+        """
+        Convert the current ColorVisuals object to a texture
+        with a `SimpleMaterial` defined.
+
+        Returns
+        ------------
+        visual : trimesh.visual.TextureVisuals
+          Copy of the current visuals as a texture.
+        """
+
         from .material import from_color
         from .texture import TextureVisuals
         mat, uv = from_color(vertex_colors=self.vertex_colors)
