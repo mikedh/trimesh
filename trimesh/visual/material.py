@@ -789,5 +789,5 @@ def pack(materials, uvs, deduplicate=True):
         compare = color.uv_to_color(
             uv=stacked, image=final)
         assert (compare == check).all()
-        
+
     return SimpleMaterial(image=final), stacked
