@@ -527,8 +527,8 @@ def images(images, power_resize=False):
         # round up all dimensions to powers of 2
         size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
 
-    # create the image
-    result = Image.new('RGB', tuple(size))
+    # create the image in the mode of the first image
+    result = Image.new(images[0].mode, tuple(size))
     # paste each image into the result
     for img, off in zip(images, offset):
         result.paste(img, tuple(off))

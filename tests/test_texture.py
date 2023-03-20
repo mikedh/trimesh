@@ -151,11 +151,15 @@ class TextureTest(g.unittest.TestCase):
         colors = [[255, 0, 0, 255],
                   [0, 255, 0, 255],
                   [0, 0, 255, 255],
-                  [100,100,100, 255]]
+                  [100, 100, 100, 255]]
         funcs = [g.trimesh.creation.box,
                  g.trimesh.creation.icosphere,
                  g.trimesh.creation.capsule]
-        
+
+        fuze = g.get_mesh('fuze.obj')
+        fuze.apply_scale(1.0 / fuze.extents.max())
+        fuze.apply_translation([-2, 0, 0] - fuze.bounds[0])
+
         meshes = []
         for i, color in enumerate(colors):
             for j, f in enumerate(funcs):
@@ -163,21 +167,24 @@ class TextureTest(g.unittest.TestCase):
                 m.visual.face_colors = color
                 # convert color visual to texture
                 m.visual = m.visual.to_texture()
-                m.apply_translation([i*2.2, j * 2.2, 0.0])
+                m.apply_translation([i * 2.2, j * 2.2, 0.0])
                 meshes.append(m)
-
 
         c = g.trimesh.util.concatenate(meshes)
         assert isinstance(c.visual, g.trimesh.visual.TextureVisuals)
-        
-        
-                
-        g.trimesh.Scene(meshes).show()
+        assert (g.np.array(c.visual.material.image.size) >= 2).all()
 
-        
-        from IPython import embed
-        embed()
-        
+        # convert texture back to color
+        roundtrip = c.visual.to_color()
+        assert roundtrip.kind == 'vertex'
+        vertex_c = roundtrip.vertex_colors
+        # get the unique colors
+        unique = vertex_c[g.trimesh.grouping.unique_rows(vertex_c)[0]]
+
+        # roundtripped colors should be a superset of original colors
+        assert set(tuple(c) for c in unique).issuperset(
+            set(tuple(c) for c in colors))
+
     def test_to_tex(self):
         m = g.trimesh.creation.box()
         color = [255, 0, 0, 255]

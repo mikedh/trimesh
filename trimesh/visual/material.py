@@ -562,7 +562,7 @@ Specifies whether the material is double sided.
 
         Returns
         -------------
-        colors 
+        colors
         """
         colors = color.uv_to_color(
             uv=uv, image=self.baseColorTexture)
@@ -603,6 +603,7 @@ Specifies whether the material is double sided.
         return hash(bytes().join(
             np.asanyarray(v).tobytes()
             for v in self._data.values() if v is not None))
+
 
 def empty_material(color=None):
     """
@@ -668,29 +669,23 @@ def from_color(vertex_colors):
     colors = np.zeros((size ** 2, ctype), dtype=vertex_colors.dtype)
     colors[:len(unique)] = vertex_colors[unique]
 
-    image = Image.fromarray(colors.reshape((size, size, ctype)))
+    # PIL has reversed x-y coordinates
+    image = Image.fromarray(colors.reshape((size, size, ctype))[::-1])
 
-    
     pos = np.arange(len(unique))
-    midpix = (1.0 / (size * 2.0))
-    coords = np.column_stack((np.floor(pos / size),
-                             pos % size))
-    #coords  = (coords - midpix) % 1.0
+    # create tiled coordinates for the color pixels
+    coords = np.column_stack((pos % size, np.floor(pos / size)))
 
-    
+    # normalize the index coords into 0.0 - 1.0
+    # and offset them to be centered on the pixel
+    coords = (coords / size) + (1.0 / (size * 2.0))
     uvs = coords[inverse]
 
     if tol.strict:
-        check_size = np.array(image.size) - 1
-        check_coor = np.round(uvs * check_size).astype(int)
-        check = np.array(image)[check_coor[:, 0],
-                                check_coor[:, 1]]
+        # check the packed colors against the image
+        check = color.uv_to_color(image=image, uv=uvs)
+        assert np.all(check == vertex_colors)
 
-        
-        #assert np.all(check == vertex_colors) 
-        from IPython import embed
-        embed()
-        
     return SimpleMaterial(image=image), uvs
 
 
@@ -732,12 +727,13 @@ def pack(materials, uvs, deduplicate=True):
                 img = Image.fromarray(
                     mat.baseColorFactor[:3].reshape((1, 1, 3)))
             else:
-                img = Image.new(mode='RGB', size=(1, 1))
+                img = Image.new(mode='RGBA', size=(1, 1))
         elif hasattr(mat, 'image'):
             img = mat.image
         else:
             raise ValueError('no image to pack!')
-        return img
+        # make sure we're always returning in RGBA mode
+        return img.convert('RGBA')
 
     if deduplicate:
         # start by collecting a list of indexes for each material hash
@@ -750,13 +746,8 @@ def pack(materials, uvs, deduplicate=True):
         # otherwise just use all the indexes
         mat_idx = np.arange(len(materials)).reshape((-1, 1))
 
-    # store the images to combine later
-    images = []
-    # first collect the images from the materials
-    for idx in mat_idx:
-        # get the first material from the group
-        m = materials[idx[0]]
-        images.append(material_to_img(m))
+    # collect the images from the materials
+    images = [material_to_img(materials[idx[0]]) for idx in mat_idx]
 
     # pack the multiple images into a single large image
     final, offsets = packing.images(images, power_resize=True)
@@ -770,23 +761,18 @@ def pack(materials, uvs, deduplicate=True):
         # how big was the original image
         scale = img.size / final_size
         # what is the offset in fractions of final image
-    
         xy_off = off / final_size
         # scale and translate each of the new UV coordinates
-    
-        for i in idxs:
-            uv = uvs[i]
-            # stack into 0.0 - 1.0 range
-            xy = np.stack([uv[:, 0], 1 - uv[:, 1]], axis=-1) % 1.0
-            # apply scale and offset into new combined image
-            xy = (xy * scale) + xy_off
 
-            new_uv.append(np.stack([xy[:, 0], 1 - xy[:, 1]], axis=-1))
+        for i in idxs:
+            # stack into 0.0 - 1.0 range
+            # apply scale and offset into new combined image
+            xy = (uvs[i] * scale) + xy_off
+            new_uv.append(xy)
 
     # stack UV coordinates into single (n, 2) array
-    stacked = np.vstack(
-        [new_uv[n]
-         for n in np.argsort([x for i in mat_idx for x in i])])
+    stacked = np.vstack([new_uv[n] for n in np.argsort(
+        [x for i in mat_idx for x in i])])
 
     # check to make sure the packed result image matches
     # the original input image exactly in unit tests
@@ -794,30 +780,14 @@ def pack(materials, uvs, deduplicate=True):
         # get the pixel color from the original image
         check = []
         for uv, mat in zip(uvs, materials):
-            img = material_to_img(mat)
-            size = np.array(img.size) - 1
-            pixel_coords = ((uv % 1.0) * size).round().astype(int)
-
-            check.append(np.array(img.convert('RGB'))[
-                pixel_coords[:, 1],
-                pixel_coords[:, 0]])
-
+            # get the color at the image
+            check.append(color.uv_to_color(
+                image=material_to_img(mat),
+                uv=uv))
         check = np.vstack(check)
-        
-            
         # get the pixel color from the packed image
-        size = np.array(final.size) - 1
-        pixel_coords_result = (stacked * size).round().astype(int)
-        check_pack = np.array(final.convert('RGB'))[
-            pixel_coords_result[:, 1],
-            pixel_coords_result[:, 0]]
-
-        if not np.all(check == check_pack):
-            from IPython import embed
-            embed()
+        compare = color.uv_to_color(
+            uv=stacked, image=final)
+        assert (compare == check).all()
         
-        # the colors at the original coordinate from the original image
-        # should be identical to the final UV in the final image.
-        #assert np.all(check == check_pack)
-
     return SimpleMaterial(image=final), stacked
