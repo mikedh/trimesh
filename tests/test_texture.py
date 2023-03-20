@@ -197,7 +197,7 @@ class TextureTest(g.unittest.TestCase):
 
     def test_uv_none(self):
         # setting UV coordinates to None should work
-        m = trimesh.load('models/fuze.obj')
+        m = g.get_mesh('fuze.obj')
         m.visual.uv = None
         assert m.visual.uv is None
 

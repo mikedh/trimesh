@@ -8,7 +8,9 @@ this exact configuration.
 """
 import os
 import sys
+import shutil
 import tarfile
+import tempfile
 import logging
 import argparse
 import subprocess
@@ -61,6 +63,13 @@ sha256 = '524842e2f141dca0db584c33a0821176373e7058f3ec2201bfb19d9e9a1b80b9'
 target = "/usr/local"
 extract_skip = [ "bin/*", "doc/*", ]
 strip_components = 1
+
+[tool.trimesh-setup.fetch.gltfvalidator]
+url = 'https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.8/gltf_validator-2.0.0-dev.3.8-linux64.tar.xz'
+sha256 = '374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a'
+target = "$PATH"
+chmod = 755
+extract_only = "gltf_validator"
 """
 
 
@@ -147,7 +156,7 @@ def fetch(url, sha256):
     return data
 
 
-def copy_to_path(file_path, prefix='~', chmod=True):
+def copy_to_path(file_path, prefix='~'):
     """
     Copy an executable file onto `PATH`, typically one of
     the options in the current user's home directory.
@@ -159,15 +168,15 @@ def copy_to_path(file_path, prefix='~', chmod=True):
     prefix : str
       The path prefix it is acceptable to copy into,
       typically `~` for `/home/{current_user}`.
-    chmod : bool
-      Mark copied file as executable using `chmod`.
     """
     # get the full path of the requested file
     source = os.path.abspath(
         os.path.expanduser(file_path))
+
     # get the file name
     file_name = os.path.split(source)[-1]
-    # load the data from the requested file
+
+    # make sure the source file is readable and not empty
     with open(source, 'rb') as f:
         file_data = f.read()
     # check for empty files
@@ -181,7 +190,7 @@ def copy_to_path(file_path, prefix='~', chmod=True):
     # cull candidates that don't start with our prefix
     if prefix is not None:
         # expand shortcut for user's home directory
-        prefix = os.abspath(os.path.expanduser(prefix))
+        prefix = os.path.abspath(os.path.expanduser(prefix))
         # cull non-prefixed path entries
         candidates = [c for c in candidates if c.startswith(prefix)]
 
@@ -189,8 +198,7 @@ def copy_to_path(file_path, prefix='~', chmod=True):
     for index in argsort([len(c) for c in candidates]):
         path = os.path.join(candidates[index], file_name)
         try:
-            with open(path, 'wb') as f:
-                f.write(file_data)
+            shutil.copy(source, path)
             print('wrote `{}`'.format(path))
             return
         except BaseException:
@@ -268,9 +276,6 @@ def handle_fetch(url,
         # get the archive
         tar = tarfile.open(fileobj=BytesIO(raw), mode=mode)
 
-        if extract_only is not None:
-            raise NotImplementedError()
-
         if extract_skip is None:
             extract_skip = []
 
@@ -290,6 +295,15 @@ def handle_fetch(url,
             else:
                 name = name.split('/')[-1]
                 if name == extract_only:
+                    if target.lower() == '$path':
+                        with tempfile.TemporaryDirectory() as D:
+                            path = os.path.join(D, name)
+                            log.debug(f'extracting `{path}`')
+                            extract(
+                                tar=tar, member=member, path=path, chmod=chmod)
+                            copy_to_path(path)
+                            return
+
                     path = os.path.join(target, name)
                     log.debug(f'extracting `{path}`')
                     extract(tar=tar, member=member, path=path, chmod=chmod)

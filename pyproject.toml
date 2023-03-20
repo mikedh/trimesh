@@ -14,3 +14,10 @@ line-length = 90
 
 [tool.ruff.pydocstyle]
 convention = "numpy"
+
+[tool.trimesh-setup.fetch.gltfvalidator]
+url = 'https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.8/gltf_validator-2.0.0-dev.3.8-linux64.tar.xz'
+sha256 = '374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a'
+target = "$PATH"
+chmod = 755
+extract_only = "gltf_validator"
