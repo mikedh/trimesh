@@ -763,12 +763,9 @@ def pack(materials, uvs, deduplicate=True):
         # what is the offset in fractions of final image
         xy_off = off / final_size
         # scale and translate each of the new UV coordinates
-
-        for i in idxs:
-            # stack into 0.0 - 1.0 range
-            # apply scale and offset into new combined image
-            xy = (uvs[i] * scale) + xy_off
-            new_uv.append(xy)
+        # also make sure they are in 0.0-1.0 using modulus (i.e. wrap)
+        new_uv.extend([(((uvs[i] % 1.0) * scale) + xy_off)
+                       for i in idxs])
 
     # stack UV coordinates into single (n, 2) array
     stacked = np.vstack([new_uv[n] for n in np.argsort(
@@ -788,6 +785,7 @@ def pack(materials, uvs, deduplicate=True):
         # get the pixel color from the packed image
         compare = color.uv_to_color(
             uv=stacked, image=final)
+
         assert (compare == check).all()
 
     return SimpleMaterial(image=final), stacked

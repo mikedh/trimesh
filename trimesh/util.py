@@ -1484,10 +1484,13 @@ def concatenate(a, b=None):
         # concatenate visuals
         visual = meshes[0].visual.concatenate(
             [m.visual for m in meshes[1:]])
-    except BaseException:
+    except BaseException as E:
+        if _STRICT:
+            raise E
         log.debug(
             'failed to combine visuals', exc_info=True)
         visual = None
+
     # create the mesh object
     return trimesh_type(vertices=vertices,
                         faces=faces,
@@ -1569,7 +1572,9 @@ def submesh(mesh,
 
         try:
             visuals.append(mesh.visual.face_subset(index))
-        except BaseException:
+        except BaseException as E:
+            if _STRICT:
+                raise E
             visuals = None
 
     if len(vertices) == 0:
