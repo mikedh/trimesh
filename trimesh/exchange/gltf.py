@@ -827,7 +827,7 @@ def _append_mesh(mesh,
 
     if hasattr(mesh.visual, 'material'):
         # append the material and then set from returned index
-        current["primitives"][0]["material"] = _append_material(
+        current_material = _append_material(
             mat=mesh.visual.material,
             tree=tree,
             buffer_items=buffer_items,
@@ -850,8 +850,9 @@ def _append_mesh(mesh,
                                         "byteOffset": 0},
                                   data=uv.astype(float32))
             # add the reference for UV coordinates
-            current["primitives"][0]["attributes"][
-                "TEXCOORD_0"] = acc_uv
+            current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
+            # only reference the material if we had UV coordinates
+            current["primitives"][0]["material"] = current_material
 
     if (include_normals or
         (include_normals is None and

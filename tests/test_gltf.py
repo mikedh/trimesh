@@ -54,9 +54,10 @@ def validate_glb(data, name=None):
                 g.log.error('failed on: %s', name)
             raise ValueError(content)
 
-        if any(decode['issues'][i] > 0 for i in
-               ['numWarnings', 'numInfos', 'numHints']):
-            g.log.debug(content)
+        # print all warnings: extremely verbose
+        # if any(decode['issues'][i] > 0 for i in
+        #        ['numWarnings', 'numInfos', 'numHints']):
+        #     g.log.debug(content)
 
 
 class GLTFTest(g.unittest.TestCase):

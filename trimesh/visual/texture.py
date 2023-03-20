@@ -219,8 +219,6 @@ class TextureVisuals(Visuals):
         concatenated : TextureVisuals
           Concatenated visual objects
         """
-        util.log.warning(
-            'concatenating texture: may result in visual artifacts')
         from .objects import concatenate
         return concatenate(self, others)
 
