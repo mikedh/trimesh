@@ -64,7 +64,7 @@ target = "/usr/local"
 extract_skip = [ "bin/*", "doc/*", ]
 strip_components = 1
 
-[tool.trimesh-setup.fetch.gltfvalidator]
+[tool.trimesh-setup.fetch.gltf_validator]
 url = 'https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.8/gltf_validator-2.0.0-dev.3.8-linux64.tar.xz'
 sha256 = '374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a'
 target = "$PATH"
@@ -191,8 +191,10 @@ def copy_to_path(file_path, prefix='~'):
     if prefix is not None:
         # expand shortcut for user's home directory
         prefix = os.path.abspath(os.path.expanduser(prefix))
-        # cull non-prefixed path entries
-        candidates = [c for c in candidates if c.startswith(prefix)]
+        # if we are the root user don't cull the available copy locations
+        if not prefix.endswith('root'):
+            # cull non-prefixed path entries
+            candidates = [c for c in candidates if c.startswith(prefix)]
 
     # try writing to the shortest paths first
     for index in argsort([len(c) for c in candidates]):
