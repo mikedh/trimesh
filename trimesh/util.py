@@ -1573,8 +1573,6 @@ def submesh(mesh,
         try:
             visuals.append(mesh.visual.face_subset(index))
         except BaseException as E:
-            if _STRICT:
-                raise E
             visuals = None
 
     if len(vertices) == 0:
