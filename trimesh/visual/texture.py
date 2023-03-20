@@ -105,8 +105,8 @@ class TextureVisuals(Visuals):
 
         Returns
         ------------
-        uv : (n, 2) float
-          Pixel position per- vertex
+        uv : (n, 2) float or None
+          Pixel position per-vertex.
         """
         return self.vertex_attributes.get('uv', None)
 
@@ -117,11 +117,11 @@ class TextureVisuals(Visuals):
 
         Parameters
         --------------
-        values : (n, 2) float
+        values : (n, 2) float or None
           Pixel locations on a texture per- vertex
         """
         if values is None:
-            self.vertex_attributes['uv'] = None
+            self.vertex_attributes.pop('uv')
         else:
             self.vertex_attributes['uv'] = np.asanyarray(
                 values, dtype=np.float64)

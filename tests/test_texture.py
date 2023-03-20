@@ -195,6 +195,16 @@ class TextureTest(g.unittest.TestCase):
         m.visual = m.visual.to_color()
         assert g.np.allclose(m.visual.main_color, color)
 
+    def test_uv_none(self):
+        # setting UV coordinates to None should work
+        m = trimesh.load('models/fuze.obj')
+        m.visual.uv = None
+        assert m.visual.uv is None
+
+        # should still be None on a copy
+        c = m.copy()
+        assert c.visual.uv is None
+
     def test_pbr_export(self):
         # try loading a textured box
         m = next(iter(g.get_mesh('BoxTextured.glb').geometry.values()))
