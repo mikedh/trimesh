@@ -1484,11 +1484,8 @@ def concatenate(a, b=None):
         # concatenate visuals
         visual = meshes[0].visual.concatenate(
             [m.visual for m in meshes[1:]])
-    except BaseException as E:
-        if _STRICT:
-            raise E
-        log.debug(
-            'failed to combine visuals', exc_info=True)
+    except BaseException:
+        log.debug('failed to combine visuals', exc_info=True)
         visual = None
 
     # create the mesh object
