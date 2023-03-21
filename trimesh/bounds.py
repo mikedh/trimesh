@@ -256,7 +256,9 @@ def oriented_bounds(obj,
         # we can do back-face culling and then take the boundary
         # start by picking the normal direction with fewer edges
         side = np.dot(hull_normals, normal) > -1e-10
-
+        # for coplanar points this could be empty
+        if not side.any():
+            continue
         # this line is a heavy lift as it is finding the pairs of
         # adjacent faces where *exactly one* out of two of the faces
         # is visible (xor) and then using the index to get the edge
