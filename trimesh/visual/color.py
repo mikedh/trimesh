@@ -31,7 +31,9 @@ from .base import Visuals
 
 from .. import util
 from .. import caching
-from .. import grouping
+
+from ..grouping import unique_rows
+from ..constants import tol
 
 
 class ColorVisuals(Visuals):
@@ -439,7 +441,7 @@ class ColorVisuals(Visuals):
             raise ValueError('color kind incorrect!')
 
         # find the unique colors
-        unique, inverse = grouping.unique_rows(colors)
+        unique, inverse = unique_rows(colors)
         # the most commonly occurring color, or mode
         # this will be an index of inverse, not colors
         mode_index = np.bincount(inverse).argmax()
@@ -457,10 +459,8 @@ class ColorVisuals(Visuals):
         visual : trimesh.visual.TextureVisuals
           Copy of the current visuals as a texture.
         """
-
-        from .material import from_color
         from .texture import TextureVisuals
-        mat, uv = from_color(vertex_colors=self.vertex_colors)
+        mat, uv = color_to_uv(vertex_colors=self.vertex_colors)
         return TextureVisuals(material=mat, uv=uv)
 
     def concatenate(self, other, *args):
@@ -769,7 +769,7 @@ def colors_to_materials(colors, count=None):
     elif util.is_shape(rgba, (-1, 4)):
         # we were passed multiple colors
         # find the unique colors in the list to save as materials
-        unique, index = grouping.unique_rows(rgba)
+        unique, index = unique_rows(rgba)
         diffuse = rgba[unique]
     else:
         raise ValueError('Colors not convertible!')
@@ -883,20 +883,16 @@ def uv_to_color(uv, image):
         return None
 
     # UV coordinates should be (n, 2) float
-    uv = np.asanyarray(uv, dtype=np.float64)
+    uv = np.asanyarray(uv, dtype=np.float64) % 1.0
 
     # get texture image pixel positions of UV coordinates
     x = (uv[:, 0] * (image.width - 1))
     y = ((1 - uv[:, 1]) * (image.height - 1))
 
-    # convert to int and wrap to image
-    # size in the manner of GL_REPEAT
-    x = x.round().astype(np.int64) % image.width
-    y = y.round().astype(np.int64) % image.height
-
     # access colors from pixel locations
     # make sure image is RGBA before getting values
-    colors = np.asanyarray(image.convert('RGBA'))[y, x]
+    colors = np.asanyarray(image.convert('RGBA'))[
+        y.round().astype(np.int64), x.round().astype(np.int64)]
 
     # conversion to RGBA should have corrected shape
     assert colors.ndim == 2 and colors.shape[1] == 4
@@ -918,7 +914,7 @@ def uv_to_interpolated_color(uv, image):
     Returns
     ----------
     colors : (n, 4) float
-      RGBA color at each of the UV coordinates
+      RGBA color at each of the UV coordinates.
     """
     if image is None or uv is None:
         return None
@@ -962,6 +958,63 @@ def uv_to_interpolated_color(uv, image):
     assert colors.ndim == 2 and colors.shape[1] == 4
 
     return colors
+
+
+def color_to_uv(vertex_colors):
+    """
+    Pack vertex colors into UV coordinates and a simple image material
+
+    Parameters
+    ------------
+    vertex_colors : (n, 4) float
+      Array of vertex colors.
+
+    Returns
+    ------------
+    material : SimpleMaterial
+      Material containing color information.
+    uv : (n, 2) float
+      Normalized UV coordinates
+    """
+    from .material import SimpleMaterial, empty_material
+
+    # deduplicate the vertex colors
+    unique, inverse = unique_rows(vertex_colors)
+
+    # if there is only one color return a
+    if len(unique) == 1:
+        # return a simple single-pixel material
+        material = empty_material(color=vertex_colors[unique[0]])
+        uvs = np.zeros((len(vertex_colors), 2)) + 0.5
+        return material, uvs
+
+    from PIL import Image
+
+    # return a square image of (size, size)
+    size = int(np.ceil(np.sqrt(len(unique))))
+    ctype = vertex_colors.shape[1]
+
+    colors = np.zeros((size ** 2, ctype), dtype=vertex_colors.dtype)
+    colors[:len(unique)] = vertex_colors[unique]
+
+    # PIL has reversed x-y coordinates
+    image = Image.fromarray(colors.reshape((size, size, ctype))[::-1])
+
+    pos = np.arange(len(unique))
+    # create tiled coordinates for the color pixels
+    coords = np.column_stack((pos % size, np.floor(pos / size)))
+
+    # normalize the index coords into 0.0 - 1.0
+    # and offset them to be centered on the pixel
+    coords = (coords / size) + (1.0 / (size * 2.0))
+    uvs = coords[inverse]
+
+    if tol.strict:
+        # check the packed colors against the image
+        check = uv_to_color(image=image, uv=uvs)
+        assert np.all(check == vertex_colors)
+
+    return SimpleMaterial(image=image), uvs
 
 
 # set an arbitrary grey as the default color

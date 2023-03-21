@@ -7,9 +7,9 @@ ColorVisuals and TextureVisuals.
 """
 import numpy as np
 
-from .material import from_color, pack
+from .material import pack
 from .texture import TextureVisuals
-from .color import ColorVisuals
+from .color import ColorVisuals, color_to_uv
 
 
 def create_visual(**kwargs):
@@ -72,7 +72,7 @@ def concatenate(visuals, *args):
 
             else:
                 # create a material and UV coordinates from vertex colors
-                color_mat, color_uv = from_color(
+                color_mat, color_uv = color_to_uv(
                     vertex_colors=v.vertex_colors)
                 mats.append(color_mat)
                 uvs.append(color_uv)

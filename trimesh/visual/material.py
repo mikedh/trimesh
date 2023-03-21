@@ -10,7 +10,6 @@ import numpy as np
 
 from . import color
 from .. import util
-from .. import grouping
 from .. import exceptions
 
 from ..constants import tol
@@ -626,68 +625,12 @@ def empty_material(color=None):
         return exceptions.ExceptionWrapper(E)
 
     final = np.array([255, 255, 255, 255], dtype=np.uint8)
-
     if np.shape(color) in ((3,), (4,)):
         final[:len(color)] = color
 
     # create a one pixel RGB image
     image = Image.fromarray(final.reshape((1, 1, 4)).astype(np.uint8))
     return SimpleMaterial(image=image)
-
-
-def from_color(vertex_colors):
-    """
-    Convert vertex colors into UV coordinates and materials.
-
-    TODO : pack colors
-
-    Parameters
-    ------------
-    vertex_colors : (n, 3) float
-      Array of vertex colors
-
-    Returns
-    ------------
-    material : SimpleMaterial
-      Material containing color information
-    uvs : (n, 2) float
-      UV coordinates
-    """
-    unique, inverse = grouping.unique_rows(vertex_colors)
-
-    if len(unique) == 1:
-        # return a simple single-pixel material
-        material = empty_material(color=vertex_colors[unique[0]])
-        uvs = np.zeros((len(vertex_colors), 2)) + 0.5
-        return material, uvs
-
-    from PIL import Image
-
-    # return a square image of (size, size)
-    size = int(np.ceil(np.sqrt(len(unique))))
-    ctype = vertex_colors.shape[1]
-
-    colors = np.zeros((size ** 2, ctype), dtype=vertex_colors.dtype)
-    colors[:len(unique)] = vertex_colors[unique]
-
-    # PIL has reversed x-y coordinates
-    image = Image.fromarray(colors.reshape((size, size, ctype))[::-1])
-
-    pos = np.arange(len(unique))
-    # create tiled coordinates for the color pixels
-    coords = np.column_stack((pos % size, np.floor(pos / size)))
-
-    # normalize the index coords into 0.0 - 1.0
-    # and offset them to be centered on the pixel
-    coords = (coords / size) + (1.0 / (size * 2.0))
-    uvs = coords[inverse]
-
-    if tol.strict:
-        # check the packed colors against the image
-        check = color.uv_to_color(image=image, uv=uvs)
-        assert np.all(check == vertex_colors)
-
-    return SimpleMaterial(image=image), uvs
 
 
 def pack(materials, uvs, deduplicate=True):
@@ -759,7 +702,7 @@ def pack(materials, uvs, deduplicate=True):
     assert len(uvs) == len(materials)
 
     # collect the images from the materials
-    images = [material_to_img(materials[i[0]]) for i in mat_idx]
+    images = [material_to_img(materials[g[0]]) for g in mat_idx]
 
     # pack the multiple images into a single large image
     final, offsets = packing.images(images, power_resize=True)
@@ -797,8 +740,9 @@ def pack(materials, uvs, deduplicate=True):
         # get the pixel color from the packed image
         compare = color.uv_to_color(
             uv=stacked, image=final)
-
-        assert compare.shape == check_flat.shape
-        # assert (compare == check).all()
+        # should be exactly identical
+        # note this is only true for simple colors
+        # interpolation on complicated stuff can break this
+        assert (compare == check_flat).all()
 
     return SimpleMaterial(image=final), stacked
