@@ -686,9 +686,12 @@ class DataStore(Mapping):
         hash : str
           hash of data in hexadecimal
         """
+        # only hash values that aren't None
+        # or if they are arrays require length greater than zero
         return hash_fast(np.array(
             [hash(v) for v in self.data.values()
-             if v is not None and len(v) > 0],
+             if v is not None and
+             (not hasattr(v, '__len__') or len(v) > 0)],
             dtype=np.int64).tobytes())
 
     def crc(self):
