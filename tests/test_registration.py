@@ -10,14 +10,15 @@ class RegistrationTest(g.unittest.TestCase):
 
         # every combination of possible boolean options
         # a_flip and a_scale are apply-to-test-data
-        opt = g.itertools.combinations([True, False] * 6, 6)
+        opt = list(g.itertools.combinations([True, False] * 6, 6))
+        # generate deterministic but random-ish transforms
+        matrices = iter(g.random_transforms(count=len(opt)))
+
         for reflection, translation, scale, a_flip, a_scale, weight in opt:
             # create random points in space
             points_a = (g.random((1000, 3)) - .5) * 1000
-            # create a random transform
-            matrix = g.trimesh.transformations.random_rotation_matrix()
-            # add a translation component to transform
-            matrix[:3, 3] = g.random(3) * 100
+            # get a random transform from the iterator
+            matrix = next(matrices)
             # apply a flip (reflection) to test data
             if a_flip:
                 matrix = g.np.dot(
