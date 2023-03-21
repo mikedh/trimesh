@@ -107,7 +107,7 @@ class Scene(Geometry3D):
                      geom_name=None,
                      parent_node_name=None,
                      transform=None,
-                     extras=None):
+                     metadata=None):
         """
         Add a geometry to the scene.
 
@@ -119,11 +119,16 @@ class Scene(Geometry3D):
         ----------
         geometry : Trimesh, Path2D, Path3D PointCloud or list
           Geometry to initially add to the scene
-        node_name: Name of the added node.
-        geom_name: Name of the added geometry.
-        parent_node_name: Name of the parent node in the graph.
-        transform: Transform that applies to the added node.
-        extras: Optional metadata for the node.
+        node_name : None or str
+          Name of the added node.
+        geom_name : None or str
+          Name of the added geometry.
+        parent_node_name : None or str
+          Name of the parent node in the graph.
+        transform : None or (4, 4) float
+          Transform that applies to the added node.
+        metadata : None or dict
+          Optional metadata for the node.
 
         Returns
         ----------
@@ -143,11 +148,13 @@ class Scene(Geometry3D):
                 geom_name=geom_name,
                 parent_node_name=parent_node_name,
                 transform=transform,
-                extras=extras) for value in geometry]
+                metadata=metadata) for value in geometry]
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
-            return {k: self.add_geometry(v, geom_name=k, extras=extras)
-                    for k, v in geometry.items()}
+            return {k: self.add_geometry(
+                    geometry=v,
+                    geom_name=k,
+                    metadata=metadata) for k, v in geometry.items()}
 
         elif isinstance(geometry, Scene):
             # concatenate current scene with passed scene
@@ -201,7 +208,7 @@ class Scene(Geometry3D):
                           matrix=transform,
                           geometry=name,
                           geometry_flags={'visible': True},
-                          extras=extras)
+                          metadata=metadata)
 
         return node_name
 
@@ -1111,8 +1118,8 @@ class Scene(Geometry3D):
                             parent_node_name=p,
                             transform=result.graph.transforms.edge_data[(
                                 p, n)].get('matrix', None),
-                            extras=result.graph.transforms.edge_data[(
-                                p, n)].get('extras', None))
+                            metadata=result.graph.transforms.edge_data[(
+                                p, n)].get('metadata', None))
                     result.delete_geometry(geom_name)
 
             # Convert all 2D paths to 3D paths

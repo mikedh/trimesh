@@ -54,9 +54,10 @@ def validate_glb(data, name=None):
                 g.log.error('failed on: %s', name)
             raise ValueError(content)
 
-        if any(decode['issues'][i] > 0 for i in
-               ['numWarnings', 'numInfos', 'numHints']):
-            g.log.debug(content)
+        # print all warnings: extremely verbose
+        # if any(decode['issues'][i] > 0 for i in
+        #        ['numWarnings', 'numInfos', 'numHints']):
+        #     g.log.debug(content)
 
 
 class GLTFTest(g.unittest.TestCase):
@@ -547,8 +548,12 @@ class GLTFTest(g.unittest.TestCase):
         # if GLTF extras are defined, make sure they survive a round trip
         s = g.get_mesh('cycloidal.3DXML')
 
+        scene_extensions = {'mesh_ext': {'ext_data': 1.23}}
         # some dummy data
-        dummy = {'who': 'likes cheese', 'potatoes': 25}
+        dummy = {
+            'who': 'likes cheese',
+            'potatoes': 25,
+            'gtlf_extensions': scene_extensions}
 
         # export as GLB with extras passed to the exporter then re-load
         s.metadata = dummy
@@ -564,13 +569,16 @@ class GLTFTest(g.unittest.TestCase):
 
     def test_extras_nodes(self):
 
+        mesh_extensions = {'mesh_ext': {'ext_data': 1.23}}
         test_metadata = {
             'test_str': 'test_value',
             'test_int': 1,
             'test_float': 0.123456789,
             'test_bool': True,
             'test_array': [1, 2, 3],
-            'test_dict': {'a': 1, 'b': 2}}
+            'test_dict': {'a': 1, 'b': 2},
+            'gltf_extensions': mesh_extensions
+        }
 
         sphere1 = g.trimesh.primitives.Sphere(radius=1.0)
         sphere1.metadata.update(test_metadata)
@@ -585,12 +593,18 @@ class GLTFTest(g.unittest.TestCase):
             sphere1,
             node_name="Sphere1",
             geom_name="Geom Sphere1",
-            transform=tf1)
+            transform=tf1,
+            metadata={'field': 'extra_data1'})
+        node_extensions = {'mesh_ext': {'ext_data': 1.23}}
+        sphere2_metadata = {
+            'field': 'extra_data2',
+            'gltf_extensions': node_extensions}
         s.add_geometry(sphere2,
                        node_name="Sphere2",
                        geom_name="Geom Sphere2",
                        parent_node_name="Sphere1",
-                       transform=tf2)
+                       transform=tf2,
+                       metadata=sphere2_metadata)
 
         # Test extras appear in the exported model nodes
         files = s.export(None, "gltf")
@@ -605,9 +619,27 @@ class GLTFTest(g.unittest.TestCase):
             file_type='glb')
         files = r.export(None, "gltf")
         gltf_data = files["model.gltf"]
+        # Check that the mesh and node metadata/extras survived
         assert 'test_value' in gltf_data.decode('utf8')
+        assert 'extra_data1' in gltf_data.decode('utf8')
+        # Check that the extensions were removed from the metadata;
+        # they should be saved as 'extensions' in the gltf file
+        assert 'gltf_extensions' not in gltf_data.decode('utf8')
+
+        # Check that the node transforms and metadata/extras survived
         edge = r.graph.transforms.edge_data[("world", "Sphere1")]
         assert g.np.allclose(edge['matrix'], tf1)
+        assert edge['metadata']['field'] == 'extra_data1'
+
+        edge = r.graph.transforms.edge_data[("Sphere1", "Sphere2")]
+        assert g.np.allclose(edge['matrix'], tf2)
+        assert edge['metadata']['field'] == 'extra_data2'
+        # Check that the node's extensions survived
+        assert edge['metadata']['gltf_extensions'] == node_extensions
+
+        # Check that the mesh extensions survived
+        for mesh in r.geometry.values():
+            mesh.metadata['gltf_extensions'] == mesh_extensions
 
         # all geometry should be the same
         assert set(r.geometry.keys()) == set(s.geometry.keys())

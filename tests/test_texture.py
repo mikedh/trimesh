@@ -147,6 +147,44 @@ class TextureTest(g.unittest.TestCase):
         assert g.np.allclose(c.visual.material.image.size,
                              a.visual.material.image.size)
 
+    def test_concatentate_multi(self):
+        colors = [[255, 0, 0, 255],
+                  [0, 255, 0, 255],
+                  [0, 0, 255, 255],
+                  [100, 100, 100, 255]]
+        funcs = [g.trimesh.creation.box,
+                 g.trimesh.creation.icosphere,
+                 g.trimesh.creation.capsule]
+
+        fuze = g.get_mesh('fuze.obj')
+        fuze.apply_scale(1.0 / fuze.extents.max())
+        fuze.apply_translation([-2, 0, 0] - fuze.bounds[0])
+
+        meshes = []
+        for i, color in enumerate(colors):
+            for j, f in enumerate(funcs):
+                m = f()
+                m.visual.face_colors = color
+                # convert color visual to texture
+                m.visual = m.visual.to_texture()
+                m.apply_translation([i * 2.2, j * 2.2, 0.0])
+                meshes.append(m)
+
+        c = g.trimesh.util.concatenate(meshes)
+        assert isinstance(c.visual, g.trimesh.visual.TextureVisuals)
+        assert (g.np.array(c.visual.material.image.size) >= 2).all()
+
+        # convert texture back to color
+        roundtrip = c.visual.to_color()
+        assert roundtrip.kind == 'vertex'
+        vertex_c = roundtrip.vertex_colors
+        # get the unique colors
+        unique = vertex_c[g.trimesh.grouping.unique_rows(vertex_c)[0]]
+
+        # roundtripped colors should be a superset of original colors
+        assert set(tuple(c) for c in unique).issuperset(
+            set(tuple(c) for c in colors))
+
     def test_to_tex(self):
         m = g.trimesh.creation.box()
         color = [255, 0, 0, 255]
@@ -156,6 +194,16 @@ class TextureTest(g.unittest.TestCase):
         # convert back to color
         m.visual = m.visual.to_color()
         assert g.np.allclose(m.visual.main_color, color)
+
+    def test_uv_none(self):
+        # setting UV coordinates to None should work
+        m = g.get_mesh('fuze.obj')
+        m.visual.uv = None
+        assert m.visual.uv is None
+
+        # should still be None on a copy
+        c = m.copy()
+        assert c.visual.uv is None
 
     def test_pbr_export(self):
         # try loading a textured box

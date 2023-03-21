@@ -131,24 +131,24 @@ def load_obj(file_obj,
         # maxsplit=1 means that it can stop working
         # after it finds the first newline
         # passed as arg as it's not a kwarg in python2
-        face_lines = [i.split('\n', 1)[0]
+        face_lines = [i.split('\n', 1)[0].strip()
                       for i in chunk.split('f ')[1:]]
 
-        # then we are going to replace all slashes with spaces
-        joined = ' '.join(face_lines).replace('/', ' ')
-
-        # the fastest way to get to a numpy array
-        # processes the whole string at once into a 1D array
-        array = np.fromstring(joined, sep=' ', dtype=np.int64)
-        # also wavefront is 1-indexed (vs 0-indexed) so offset
-        # only applies to positive indices
-        array[array > 0] -= 1
-
-        # get the number of raw 2D columns in a sample line
-        columns = len(face_lines[0].strip().replace('/', ' ').split())
+        # check every face for mixed tri-quad-ngon
+        columns = len(face_lines[0].replace('/', ' ').split())
+        flat_array = all(columns == len(f.replace('/', ' ').split())
+                         for f in face_lines)
 
         # make sure we have the right number of values for vectorized
-        if len(array) == (columns * len(face_lines)):
+        if flat_array:
+            # the fastest way to get to a numpy array
+            # processes the whole string at once into a 1D array
+            array = np.fromstring(' '.join(face_lines).replace('/', ' '),
+                                  sep=' ', dtype=np.int64)
+            # also wavefront is 1-indexed (vs 0-indexed) so offset
+            # only applies to positive indices
+            array[array > 0] -= 1
+
             # everything is a nice 2D array
             faces, faces_tex, faces_norm = _parse_faces_vectorized(
                 array=array,

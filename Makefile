@@ -36,6 +36,7 @@ help: ## Print usage help
 build: ## Build the docker images
 	DOCKER_BUILDKIT=1 \
 	docker build \
+		--progress=plain \
 		--target output \
 		--tag $(TAG_LATEST) \
 		--tag $(TAG_VERSION) \

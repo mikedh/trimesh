@@ -64,10 +64,10 @@ def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
         hull = ConvexHull(points, qhull_options=qhull_options)
     except QhullError:
         util.log.debug(
-            'Failed to compute convex hull: retrying with `Qj`',
+            'Failed to compute convex hull: retrying with `QJ`',
             exc_info=True)
         # try with "joggle" enabled
-        hull = ConvexHull(points, qhull_options='Qj')
+        hull = ConvexHull(points, qhull_options='QJ')
 
     # hull object doesn't remove unreferenced vertices
     # create a mask to re- index faces for only referenced vertices

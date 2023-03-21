@@ -520,18 +520,19 @@ def images(images, power_resize=False):
 
     # offsets should be integer multiple of pizels
     offset = bounds[:, 0].round().astype(int)
-
     extents = bounds.reshape((-1, 2)).ptp(axis=0)
     size = extents.round().astype(int)
     if power_resize:
         # round up all dimensions to powers of 2
         size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
 
-    # create the image
-    result = Image.new('RGB', tuple(size))
+    # create the image in the mode of the first image
+    result = Image.new(images[0].mode, tuple(size))
     # paste each image into the result
     for img, off in zip(images, offset):
-        result.paste(img, tuple(off))
+        # box is upper left corner
+        corner = (off[0], size[1] - img.size[1] - off[1])
+        result.paste(img, box=corner)
 
     return result, offset
 

@@ -40,7 +40,6 @@ requirements_easy = set([
     'rtree',     # create N-dimension trees for broad-phase queries
     'svg.path',  # handle SVG format path strings
     'sympy',     # do analytical math
-    'msgpack',   # serialize into msgpack
     'pillow',    # load images
     'requests',  # do network requests
     'xxhash',    # hash ndarrays faster than built-in MD5/CRC

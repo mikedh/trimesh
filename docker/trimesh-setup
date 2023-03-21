@@ -1,0 +1,365 @@
+#!/usr/bin/env python3
+"""
+A Python 3.11 standard library only utility to help install an
+environment for `trimesh` in a Debian Docker image.
+
+It probably isn't useful for most people unless you are running
+this exact configuration.
+"""
+import os
+import sys
+import shutil
+import tarfile
+import tempfile
+import logging
+import argparse
+import subprocess
+from io import BytesIO
+from fnmatch import fnmatch
+
+# define system packages for our debian docker image
+# someday possibly add this to the `pyproject.toml` config
+# but for now store them locally in the installer script
+config_toml = """
+[tool.trimesh-setup.apt]
+# for running with `trimesh-setup` usually in a Docker image
+# here are named groups of `apt-get install` Debian packages
+base = ["wget", "curl", "xz-utils", "git"]
+build = ["build-essential", "g++", "make"]
+docs = ["make", "pandoc"]
+llvmpipe = [
+  "libgl1-mesa-glx",
+  "libgl1-mesa-dri",
+  "xvfb",
+  "xauth",
+  "ca-certificates",
+  "freeglut3-dev"
+]
+test = ["blender", "openscad"]
+
+# libraries and tools that need to be downloaded are under `fetch`
+[tool.trimesh-setup.fetch.embree2]
+url = "https://github.com/embree/embree/releases/download/v2.17.7/embree-2.17.7.x86_64.linux.tar.gz"
+sha256 = "2c4bdacd8f3c3480991b99e85b8f584975ac181373a75f3e9675bf7efae501fe"
+target = "/usr/local"
+# the `bin` subdirectory is not required
+extract_skip = [ "bin/*", "doc/*", ]
+# skip the first component of the path in the archive
+# same behavior as in the `tar` command line interface
+strip_components = 1
+chmod = 755
+
+[tool.trimesh-setup.fetch.embree3]
+url = 'https://github.com/embree/embree/releases/download/v3.12.1/embree-3.12.1.x86_64.linux.tar.gz'
+sha256 = '5e218dd4e95c035c04aa893f7b1169ade11ecc57580e0027eae2ec84cdc9baff'
+target = "/usr/local"
+extract_skip = [ "bin/*", "doc/*", ]
+strip_components = 1
+
+
+[tool.trimesh-setup.fetch.embree4]
+url = 'https://github.com/embree/embree/releases/download/v4.0.0/embree-4.0.0.x86_64.linux.tar.gz'
+sha256 = '524842e2f141dca0db584c33a0821176373e7058f3ec2201bfb19d9e9a1b80b9'
+target = "/usr/local"
+extract_skip = [ "bin/*", "doc/*", ]
+strip_components = 1
+
+[tool.trimesh-setup.fetch.gltf_validator]
+url = 'https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.8/gltf_validator-2.0.0-dev.3.8-linux64.tar.xz'
+sha256 = '374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a'
+target = "$PATH"
+chmod = 755
+extract_only = "gltf_validator"
+
+[tool.trimesh-setup.fetch.pandoc]
+url = 'https://github.com/jgm/pandoc/releases/download/3.1.1/pandoc-3.1.1-linux-amd64.tar.gz'
+sha256 = '52b25f0115517e32047a06d821e63729108027bd06d9605fe8eac0fa83e0bf81'
+target = "$PATH"
+chmod = 755
+extract_only = "pandoc"
+"""
+
+
+log = logging.getLogger('trimesh')
+log.setLevel(logging.DEBUG)
+log.addHandler(logging.StreamHandler(sys.stdout))
+
+_cwd = os.path.abspath(os.path.expanduser(os.path.dirname(__file__)))
+
+
+def apt(packages):
+    """
+    Install a list of debian packages using suprocess to call apt-get.
+
+    Parameters
+    ------------
+    packages : iterable
+      List, set, or other with package names.
+    """
+    if len(packages) == 0:
+        return
+
+    # start with updating the sources
+    log.debug(subprocess.check_output(
+        'apt-get update -qq'.split()).decode('utf-8'))
+
+    # the install command
+    install = 'apt-get install -qq --no-install-recommends'.split()
+    # de-duplicate package list
+    install.extend(set(packages))
+
+    # call the install command
+    log.debug(subprocess.check_output(install).decode('utf-8'))
+
+    # delete any temporary files
+    subprocess.check_output(
+        'rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*'.split())
+
+
+def argsort(items):
+    """
+    A standard-library implementation of `numpy.argsort`, a way
+    to get a list sorted by index instead of by the sorted values.
+
+    Parameters
+    --------------
+    item : (n,) any
+      Items that are sortable.
+
+    Returns
+    --------------
+    index : int
+      Index such `items[index] == min(items)`
+    """
+    return [i for (v, i) in sorted(
+        (v, i) for (i, v) in enumerate(items))]
+
+
+def fetch(url, sha256):
+    """
+    A simple standard-library only "fetch remote URL" function.
+
+    Parameters
+    ------------
+    url : str
+      Location of remote resource.
+    sha256: str
+      The SHA256 hash of the resource once retrieved,
+      wil raise a `ValueError` if the hash doesn't match.
+
+    Returns
+    -------------
+    data : bytes
+      Retrieved data in memory with correct hash.
+    """
+    import hashlib
+    from urllib.request import urlopen
+
+    data = urlopen(url).read()
+    hashed = hashlib.sha256(data).hexdigest()
+    if hashed != sha256:
+        raise ValueError('sha256 hash does not match!')
+
+    return data
+
+
+def copy_to_path(file_path, prefix='~'):
+    """
+    Copy an executable file onto `PATH`, typically one of
+    the options in the current user's home directory.
+
+    Parameters
+    --------------
+    file_path : str
+      Location of of file to copy into PATH.
+    prefix : str
+      The path prefix it is acceptable to copy into,
+      typically `~` for `/home/{current_user}`.
+    """
+    # get the full path of the requested file
+    source = os.path.abspath(
+        os.path.expanduser(file_path))
+
+    # get the file name
+    file_name = os.path.split(source)[-1]
+
+    # make sure the source file is readable and not empty
+    with open(source, 'rb') as f:
+        file_data = f.read()
+    # check for empty files
+    if len(file_data) == 0:
+        raise ValueError('empty file: {}'.format(file_path))
+
+    # get all locations in PATH
+    candidates = [os.path.abspath(os.path.expanduser(i))
+                  for i in os.environ['PATH'].split(':')]
+
+    # cull candidates that don't start with our prefix
+    if prefix is not None:
+        # expand shortcut for user's home directory
+        prefix = os.path.abspath(os.path.expanduser(prefix))
+        # if we are the root user don't cull the available copy locations
+        if not prefix.endswith('root'):
+            # cull non-prefixed path entries
+            candidates = [c for c in candidates if c.startswith(prefix)]
+
+    # try writing to the shortest paths first
+    for index in argsort([len(c) for c in candidates]):
+        path = os.path.join(candidates[index], file_name)
+        try:
+            shutil.copy(source, path)
+            print('wrote `{}`'.format(path))
+            return
+        except BaseException:
+            pass
+
+    # none of our candidates worked
+    raise ValueError('unable to write to file')
+
+
+def extract(tar, member, path, chmod):
+    """
+    Extract a single member from a tarfile to a path.
+    """
+    if os.path.isdir(path):
+        return
+    data = tar.extractfile(member=member)
+    if not hasattr(data, 'read'):
+        return
+    data = data.read()
+    if len(data) == 0:
+        return
+
+    # make sure root path exists
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    with open(path, 'wb') as f:
+        f.write(data)
+
+    if chmod is not None:
+        # python os.chmod takes an octal value
+        os.chmod(path, int(str(chmod), base=8))
+
+
+def handle_fetch(url,
+                 sha256,
+                 target,
+                 chmod=None,
+                 extract_skip=None,
+                 extract_only=None,
+                 strip_components=0):
+    """
+    A macro to fetch a remote resource (usually an executable) and
+    move it somewhere on the file system.
+
+    Parameters
+    ------------
+    url : str
+      A string with a remote resource.
+    sha256 : str
+      A hex string for the hash of the remote resource.
+    target : str
+      Target location on the local file system.
+    chmod : None or int.
+      Change permissions for extracted files.
+    extract_skip : None or iterable
+      Skip a certain member of the archive.
+    extract_only : None or str
+      Extract *only* a single file from the archive,
+      overrides `extract_skip`.
+    strip_components : int
+      Strip off this many components from the file path
+      in the archive, i.e. at `1`, `a/b/c` is extracted to `target/b/c`
+    """
+    # get the raw bytes
+    log.debug(f'fetching: `{url}`')
+    raw = fetch(url=url, sha256=sha256)
+
+    if len(raw) == 0:
+        raise ValueError(f'{url} is empty!')
+
+    # if we have an archive that tar supports
+    if url.endswith(('.tar.gz', '.tar.xz', 'tar.bz2')):
+        # mode needs to know what type of compression
+        mode = f'r:{url.split(".")[-1]}'
+        # get the archive
+        tar = tarfile.open(fileobj=BytesIO(raw), mode=mode)
+
+        if extract_skip is None:
+            extract_skip = []
+
+        for member in tar.getmembers():
+            # final name after stripping components
+            name = '/'.join(member.name.split('/')[strip_components:])
+
+            # if any of the skip patterns match continue
+            if any(fnmatch(name, p) for p in extract_skip):
+                log.debug(f'skipping: `{name}`')
+                continue
+
+            if extract_only is None:
+                path = os.path.join(target, name)
+                log.debug(f'extracting: `{path}`')
+                extract(tar=tar, member=member, path=path, chmod=chmod)
+            else:
+                name = name.split('/')[-1]
+                if name == extract_only:
+                    if target.lower() == '$path':
+                        with tempfile.TemporaryDirectory() as D:
+                            path = os.path.join(D, name)
+                            log.debug(f'extracting `{path}`')
+                            extract(
+                                tar=tar, member=member, path=path, chmod=chmod)
+                            copy_to_path(path)
+                            return
+
+                    path = os.path.join(target, name)
+                    log.debug(f'extracting `{path}`')
+                    extract(tar=tar, member=member, path=path, chmod=chmod)
+                    return
+
+
+def load_config():
+    """
+    """
+    from tomllib import loads
+    return loads(config_toml).get('tool', {}).get('trimesh-setup', {})
+
+
+if __name__ == '__main__':
+
+    config = load_config()
+
+    options = set()
+    for v in config.values():
+        options.update(v.keys())
+
+    parser = argparse.ArgumentParser(
+        description='Install system packages for trimesh.')
+    parser.add_argument(
+        '--install',
+        type=str,
+        action='append',
+        help=f'Install packages: {options}')
+    args = parser.parse_args()
+
+    # collect `apt-get install`-able package
+    apt_select = []
+    handlers = {'fetch': lambda x: handle_fetch(**x),
+                'apt': lambda x: apt_select.extend(x)}
+
+    # allow comma delimeters and de-duplicate
+    if args.install is None:
+        select = set()
+    else:
+        select = set(' '.join(args.install).replace(',', ' ').split())
+
+    log.debug(f'installing metapackages: {select}')
+
+    for key in select:
+        for handle_name, handler in handlers.items():
+            if key in config[handle_name]:
+                handler(config[handle_name][key])
+
+    # run the apt-get install
+    apt(apt_select)
