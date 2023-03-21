@@ -70,6 +70,13 @@ sha256 = '374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a'
 target = "$PATH"
 chmod = 755
 extract_only = "gltf_validator"
+
+[tool.trimesh-setup.fetch.pandoc]
+url = 'https://github.com/jgm/pandoc/releases/download/3.1.1/pandoc-3.1.1-linux-amd64.tar.gz'
+sha256 = '52b25f0115517e32047a06d821e63729108027bd06d9605fe8eac0fa83e0bf81'
+target = "$PATH"
+chmod = 755
+extract_only = "pandoc"
 """
 
 
