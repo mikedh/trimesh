@@ -217,8 +217,8 @@ class DXFTest(g.unittest.TestCase):
         export.encode('ascii')
 
     def test_insert_block(self):
-        a = g.get_mesh('2D/insert.DXF')
-        b = g.get_mesh('2D/insert_r14.DXF')
+        a = g.get_mesh('2D/insert.dxf')
+        b = g.get_mesh('2D/insert_r14.dxf')
 
         assert len(a.polygons_full) == 2
         assert len(b.polygons_full) == 2
