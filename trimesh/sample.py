@@ -100,7 +100,6 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
         else:
             colors = mesh.visual.face_colors[face_index]
 
-            
         return samples, face_index, colors
 
     return samples, face_index
