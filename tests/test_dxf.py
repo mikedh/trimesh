@@ -216,6 +216,16 @@ class DXFTest(g.unittest.TestCase):
         # if any unicode survived the export this will fail
         export.encode('ascii')
 
+    def test_insert_block(self):
+        a = g.get_mesh('2D/insert.DXF')
+        b = g.get_mesh('2D/insert_r14.DXF')
+
+        assert len(a.polygons_full) == 2
+        assert len(b.polygons_full) == 2
+
+        assert g.np.isclose(a.area, 54075.0, atol=1)
+        assert g.np.isclose(b.area, 54075.0, atol=1)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
