@@ -52,6 +52,7 @@ def simulated_brick(face_count, extents, noise, max_iter=10):
 if __name__ == '__main__':
     # print log messages to terminal
     trimesh.util.attach_to_log()
+    log = trimesh.util.log
 
     # the size of our boxes
     extents = [6, 12, 2]
@@ -70,13 +71,13 @@ if __name__ == '__main__':
     truth_to_scan, cost = truth.register(scan)
 
     log.debug("centroid distance pre-registration:",
-          np.linalg.norm(truth.centroid - scan.centroid))
+              np.linalg.norm(truth.centroid - scan.centroid))
 
     # apply the registration transform
     truth.apply_transform(truth_to_scan)
 
     log.debug("centroid distance post-registration:",
-          np.linalg.norm(truth.centroid - scan.centroid))
+              np.linalg.norm(truth.centroid - scan.centroid))
 
     # find the distance from the truth mesh to each scan vertex
     distance = truth.nearest.on_surface(scan.vertices)[1]

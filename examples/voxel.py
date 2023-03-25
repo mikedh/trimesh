@@ -66,17 +66,19 @@ if __name__ == '__main__':
     values = chair_voxels.encoding.dense.copy()
     values[:values.shape[0] // 2] = 0
     stripped = v.VoxelGrid(values, chair_voxels.transform.copy()).strip()
-    log.debug('yellow: stripped halved voxel grid. Transform is updated appropriately')
+    log.debug(
+        'yellow: stripped halved voxel grid. Transform is updated appropriately')
     show(chair_mesh, stripped, colors=(1, 1, 0, 0.3))
 
     transform = np.eye(4)
     transform[:3] += np.random.normal(size=(3, 4)) * 0.2
     transformed_chair_mesh = chair_mesh.copy().apply_transform(transform)
     log.debug('original transform volume: %s'
-          % str(chair_voxels.element_volume))
+              % str(chair_voxels.element_volume))
 
     chair_voxels.apply_transform(transform)
-    log.debug('warped transform volume:   %s' % str(chair_voxels.element_volume))
+    log.debug('warped transform volume:   %s' %
+              str(chair_voxels.element_volume))
     log.debug('blue: transformed voxels')
     log.debug('Transformation is lazy, and each voxel is no longer a cube.')
     show(transformed_chair_mesh, chair_voxels, colors=(0, 0, 1, 0.3))
@@ -95,7 +97,8 @@ if __name__ == '__main__':
 
     voxelized = chair_mesh.voxelized(
         pitch=0.02, method='binvox', wireframe=True)
-    log.debug('green: binvox (wireframe). Still doesn\'t capture all thin structures')
+    log.debug(
+        'green: binvox (wireframe). Still doesn\'t capture all thin structures')
     show(chair_mesh, voxelized, colors=(0, 1, 0, 0.3))
 
     voxelized = chair_mesh.voxelized(pitch=0.02, method='binvox', exact=True)

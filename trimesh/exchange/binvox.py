@@ -351,7 +351,7 @@ class Binvoxer(object):
             z_buffer_carving=True,
             z_buffer_voting=True,
             dilated_carving=False,
-            exact=False,
+            exact=True,
             bounding_box=None,
             remove_internal=False,
             center=False,
@@ -361,7 +361,7 @@ class Binvoxer(object):
             fit=False,
             block_id=None,
             use_material_block_id=False,
-            use_offscreen_pbuffer=True,
+            use_offscreen_pbuffer=False,
             downsample_factor=None,
             downsample_threshold=None,
             verbose=False,
@@ -526,6 +526,7 @@ class Binvoxer(object):
         # generalizes to python2 and python3
         # will capture terminal output into variable rather than printing
         verbosity = subprocess.check_output(self._args)
+
         # if requested print ourselves
         if self.verbose:
             util.log.debug(verbosity)

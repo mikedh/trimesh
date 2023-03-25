@@ -58,6 +58,8 @@ def collect_meshes(count=None, max_size=20.0):
 
 
 if __name__ == '__main__':
+    trimesh.util.attach_to_log()
+    log = trimesh.util.log
 
     size = 10.0
     # get some sample data

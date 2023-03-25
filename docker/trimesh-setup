@@ -77,6 +77,12 @@ sha256 = '52b25f0115517e32047a06d821e63729108027bd06d9605fe8eac0fa83e0bf81'
 target = "$PATH"
 chmod = 755
 extract_only = "pandoc"
+
+[tool.trimesh-setup.fetch.binvox]
+url = 'https://trimesh.s3-us-west-1.amazonaws.com/binvox'
+sha256 = 'cc05b3ceec0b3f7061f629448c3764e87f035ec34bba46ec4dcc21e089dd40c5'
+target = "$PATH"
+chmod = 755
 """
 
 
@@ -209,7 +215,7 @@ def copy_to_path(file_path, prefix='~'):
         try:
             shutil.copy(source, path)
             print('wrote `{}`'.format(path))
-            return
+            return path
         except BaseException:
             pass
 
@@ -317,7 +323,25 @@ def handle_fetch(url,
                     log.debug(f'extracting `{path}`')
                     extract(tar=tar, member=member, path=path, chmod=chmod)
                     return
+    else:
+        # a single file
+        name = url.split('/')[-1].strip()
+        if target.lower() == '$path':
+            with tempfile.TemporaryDirectory() as D:
+                temp_path = os.path.join(D, name)
+                with open(temp_path, 'wb') as f:
+                    f.write(raw)
+                # move the file somewhere on the path
+                path = copy_to_path(temp_path)
+        else:
+            path = target
+            with open(path, 'wb') as f:
+                f.write(raw)
 
+        # apply chmod if requested
+        if chmod is not None:
+            # python os.chmod takes an octal value
+            os.chmod(path, int(str(chmod), base=8))
 
 def load_config():
     """

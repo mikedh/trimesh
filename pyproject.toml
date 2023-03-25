@@ -9,7 +9,7 @@ select = ["E", "F", # the default rules
           #"I001",   # isort
           #"D"]      # pydocstyle
 ignore = ["B905", # `zip()` without an explicit `strict=`
-          "B904"] # `raise ... from err` is silly
+          "B904"] # `raise ... from err` seems a bit silly
 line-length = 90
 
 [tool.ruff.pydocstyle]

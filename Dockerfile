@@ -64,7 +64,7 @@ COPY --chown=user:user setup.py .
 COPY --chown=user:user ./.git ./.git/
 
 USER root
-RUN trimesh-setup --install=test,gltf_validator,llvmpipe
+RUN trimesh-setup --install=test,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest

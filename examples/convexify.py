@@ -15,6 +15,7 @@ if __name__ == '__main__':
 
     # attach to trimesh logs
     trimesh.util.attach_to_log()
+    log = trimesh.util.log
 
     # load the mesh from filename
     # file objects are also supported

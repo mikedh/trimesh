@@ -17,6 +17,8 @@ def vis():
 
 
 if __name__ == '__main__':
+    trimesh.util.attach_to_log()
+    log = trimesh.util.log
 
     resolution = 256
     fov = 60.0
