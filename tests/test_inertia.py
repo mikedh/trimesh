@@ -98,7 +98,7 @@ class InertiaTest(g.unittest.TestCase):
                       g.trimesh.primitives.Box(),
                       g.trimesh.primitives.Sphere(radius=1.23)]
         for p in primitives:
-            for i in range(100):
+            for _i in range(100):
                 # check to make sure the analytic inertia tensors are relatively
                 # close to the meshed inertia tensor (order of magnitude and
                 # sign)
@@ -371,7 +371,7 @@ class InertiaTest(g.unittest.TestCase):
         with g.Profiler() as P:
             ms = s.dump(concatenate=True)
             total_dump = ms.moment_inertia
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # while we're at it check to make sure our composed
         # center mass, volume, and area calcs are all working
@@ -390,7 +390,7 @@ class InertiaTest(g.unittest.TestCase):
         with g.Profiler() as P:
             total_scene = g.trimesh.inertia.scene_inertia(
                 s, transform=transform)
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # compare the two calculation methods by percent
         diff = g.np.abs((total_dump - total_scene) / total_dump)
@@ -419,7 +419,7 @@ class MassTests(g.unittest.TestCase):
                 density=truth['density'],
                 skip_inertia=False)
 
-            for key, value in calc.items():
+            for key, _value in calc.items():
                 if key not in truth:
                     continue
                 if not g.np.allclose(calc[key], truth[key], atol=1e-2):

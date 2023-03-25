@@ -63,7 +63,7 @@ class PermutateTest(g.unittest.TestCase):
             mesh.vertices /= mesh.extents
             original = mesh.copy()
 
-            for i in range(5):
+            for _i in range(5):
                 mesh = original.copy()
                 noise = g.trimesh.permutate.noise(mesh,
                                                   magnitude=mesh.scale / 50.0)
@@ -85,7 +85,7 @@ class PermutateTest(g.unittest.TestCase):
     def test_tesselation(self):
         for mesh in g.get_meshes(5):
             tess = g.trimesh.permutate.tessellation(mesh)
-            # print(tess.area-mesh.area)
+            # g.log.debug(tess.area-mesh.area)
             assert abs(tess.area - mesh.area) < g.tol.merge
             volume_check = abs(tess.volume - mesh.volume) / mesh.scale
             assert volume_check < g.tol.merge

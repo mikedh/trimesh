@@ -103,7 +103,7 @@ class RayTests(g.unittest.TestCase):
             assert test_centroid.all()
 
     def test_on_vertex(self):
-        for use_embree in [True, False]:
+        for _use_embree in [True, False]:
             m = g.trimesh.primitives.Box(use_embree=False)
 
             origins = g.np.zeros_like(m.vertices)
@@ -123,7 +123,7 @@ class RayTests(g.unittest.TestCase):
             assert (hit_count == 1).all()
 
     def test_on_edge(self):
-        for use_embree in [True, False]:
+        for _use_embree in [True, False]:
             m = g.get_mesh('7_8ths_cube.stl')
 
             points = [[4.5, 0, -23], [4.5, 0, -2], [0, 0, -1e-6], [0, 0, -1]]

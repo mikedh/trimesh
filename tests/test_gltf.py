@@ -639,7 +639,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # Check that the mesh extensions survived
         for mesh in r.geometry.values():
-            mesh.metadata['gltf_extensions'] == mesh_extensions
+            assert mesh.metadata['gltf_extensions'] == mesh_extensions
 
         # all geometry should be the same
         assert set(r.geometry.keys()) == set(s.geometry.keys())
@@ -695,7 +695,7 @@ class GLTFTest(g.unittest.TestCase):
         bounds = s.dump(concatenate=True).bounds
 
         # icosahedrons have two primitives each
-        print(len(s.geometry), len(s.graph.nodes_geometry))
+        g.log.debug(len(s.geometry), len(s.graph.nodes_geometry))
         assert len(s.graph.nodes_geometry) == 9
         assert len(s.geometry) == 7
         assert g.np.allclose(s.bounds, bounds, atol=1e-3)
@@ -830,7 +830,7 @@ class GLTFTest(g.unittest.TestCase):
                     if isinstance(geom, g.trimesh.path.path.Path):
                         geom = g.trimesh.Scene(geom)
                 except BaseException as E:
-                    print(E)
+                    g.log.debug(E)
                     continue
                 # voxels don't have an export to gltf mode
                 if isinstance(geom, g.trimesh.voxel.VoxelGrid):

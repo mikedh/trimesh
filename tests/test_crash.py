@@ -43,7 +43,7 @@ class FileTests(g.unittest.TestCase):
             # should crash
             g.trimesh.load(f.name)
             # shouldn't make it to here
-            assert False
+            raise AssertionError()
         except ValueError:
             # should be raised
             pass
@@ -53,7 +53,7 @@ class FileTests(g.unittest.TestCase):
             # should crash
             g.trimesh.load_mesh(f.name)
             # shouldn't make it to here
-            assert False
+            raise AssertionError()
         except ValueError:
             # should be raised
             pass
@@ -72,7 +72,7 @@ class FileTests(g.unittest.TestCase):
             # should crash
             g.trimesh.load(f.name)
             # shouldn't make it to here
-            assert False
+            raise AssertionError()
         except ValueError:
             # should be raised
             pass
@@ -82,7 +82,7 @@ class FileTests(g.unittest.TestCase):
             # should crash
             g.trimesh.load_mesh(f.name)
             # shouldn't make it to here
-            assert False
+            raise AssertionError()
         except KeyError:
             # should be raised
             pass
@@ -101,7 +101,7 @@ class FileTests(g.unittest.TestCase):
             # should crash
             g.trimesh.load(f.name)
             # shouldn't make it to here
-            assert False
+            raise AssertionError()
         except IndexError:
             # should be raised
             pass
@@ -111,7 +111,7 @@ class FileTests(g.unittest.TestCase):
             # should crash
             g.trimesh.load_path(f.name)
             # shouldn't make it to here
-            assert False
+            raise AssertionError()
         except IndexError:
             # should be raised
             pass

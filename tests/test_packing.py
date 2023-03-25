@@ -108,7 +108,7 @@ class PackingTest(g.unittest.TestCase):
 
         with g.Profiler() as P:
             r, tf, consume = packing.paths(paths, spacing=0.02)
-        print(P.output_text())
+        g.log.debug(P.output_text())
         # number of paths inserted
         count = consume.sum()
         assert tf.shape == (count, 3, 3)
@@ -122,7 +122,7 @@ class PackingTest(g.unittest.TestCase):
 
         with g.Profiler() as P:
             r, tf, consume = packing.paths(paths, size=[24, 12], spacing=0.5)
-        print(P.output_text())
+        g.log.debug(P.output_text())
         # number of paths inserted
         count = consume.sum()
         assert tf.shape == (count, 3, 3)
@@ -236,7 +236,7 @@ class PackingTest(g.unittest.TestCase):
                 viz = packing.visualize(
                     bounds=bounds, extents=extents[consume])
                 density.append(viz.volume / viz.bounding_box.volume)
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
     def test_meshes(self, count=20):
         from trimesh.path import packing

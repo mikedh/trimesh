@@ -54,7 +54,6 @@ class MinimalTest(unittest.TestCase):
             if ext not in kinds:
                 continue
 
-            print(file_name)
             m = get_mesh(file_name)
             if isinstance(m, trimesh.Trimesh):
                 assert len(m.face_adjacency.shape) == 2

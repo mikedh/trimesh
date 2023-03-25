@@ -43,4 +43,4 @@ if __name__ == '__main__':
                 f.close()
 
         except BaseException as E:
-            print("unable to save image", str(E))
+            log.debug("unable to save image", str(E))

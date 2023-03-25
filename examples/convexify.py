@@ -34,9 +34,9 @@ if __name__ == '__main__':
     # combine all components into one mesh
     convex_combined = np.sum(meshes_convex)
 
-    print('Showing original mesh')
+    log.debug('Showing original mesh')
     mesh.show()
 
     # open a viewer window for convexified mesh
-    print('Showing convexified mesh')
+    log.debug('Showing convexified mesh')
     convex_combined.show()

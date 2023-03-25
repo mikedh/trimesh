@@ -99,7 +99,7 @@ class CameraTests(g.unittest.TestCase):
                         [1, 1],
                         [-1, 1]])
 
-        for i in range(10):
+        for _i in range(10):
             # set the extents to be random but positive
             extents = g.random() * 10
             points = g.trimesh.util.stack_3D(ori.copy() * extents)

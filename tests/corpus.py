@@ -6,7 +6,7 @@ Test loaders against large corpuses of test data from github:
 will download more than a gigabyte to your home directory!
 """
 import trimesh
-from trimesh.util import wrap_as_stream
+from trimesh.util import wrap_as_stream, log
 import numpy as np
 
 from pyinstrument import Profiler
@@ -46,7 +46,7 @@ def on_repo(repo, commit):
              if i.lower().split('.')[-1] in available]
 
     report = {}
-    for i, path in enumerate(paths):
+    for _i, path in enumerate(paths):
         namespace, name = path.rsplit('/', 1)
         # get a subresolver that has a root at
         # the file we are trying to load
@@ -100,13 +100,13 @@ def on_repo(repo, commit):
         except NotImplementedError as E:
             # this is what unsupported formats
             # like GLTF 1.0 should raise
-            print(E)
+            log.debug(E)
             report[saveas] = str(E)
         except BaseException as E:
             raised = True
             # we got an error on a file that should have passed
             if not should_raise:
-                print(path, E)
+                log.debug(path, E)
                 raise E
             report[saveas] = str(E)
 
@@ -137,7 +137,7 @@ def equal(a, b):
     if a is None:
         return b is None
 
-    if type(a) != type(b):
+    if not isinstance(a, type(b)):
         return False
 
     if isinstance(a, np.ndarray):
@@ -183,7 +183,7 @@ if __name__ == '__main__':
             commit='8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe'))
 
     # show all profiler lines
-    P.print(show_all=True)
+    P.log.debug(show_all=True)
 
     # print a formatted report of what we loaded
-    print('\n'.join(f'# {k}\n{v}\n' for k, v in report.items()))
+    log.debug('\n'.join(f'# {k}\n{v}\n' for k, v in report.items()))

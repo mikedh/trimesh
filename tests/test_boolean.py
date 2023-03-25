@@ -64,7 +64,7 @@ class BooleanTest(g.unittest.TestCase):
         engines = [
             ('blender', g.trimesh.interfaces.blender.exists),
             ('scad', g.trimesh.interfaces.scad.exists)]
-        for engine, exists in engines:
+        for _engine, exists in engines:
             if not exists:
                 continue
             a = g.trimesh.primitives.Sphere(center=[0, 0, 0])

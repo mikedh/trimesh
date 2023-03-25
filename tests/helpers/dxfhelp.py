@@ -90,7 +90,10 @@ def read_files(path):
 
 
 if __name__ == '__main__':
+
     import sys
+    import trimesh
+    trimesh.util.attach_to_log()
 
     # dump files to JSON template
     if 'dump' in sys.argv:
@@ -101,5 +104,5 @@ if __name__ == '__main__':
         t = get_json()
         write_files(t)
     else:
-        print("run with 'read_json' to dump JSON to files")
-        print("Or 'dump_json' to dump files to JSON")
+        trimesh.util.log.debug("run with 'read_json' to dump JSON to files")
+        trimesh.util.log.debug("Or 'dump_json' to dump files to JSON")

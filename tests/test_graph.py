@@ -266,7 +266,7 @@ def check_engines(edges, nodes):
     try:
         assert all(i == results[0] for i in results[1:])
     except BaseException as E:
-        print(results)
+        g.log.debug(results)
         raise E
 
 

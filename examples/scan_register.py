@@ -32,7 +32,7 @@ def simulated_brick(face_count, extents, noise, max_iter=10):
     mesh.vertices[0] += mesh.vertex_normals[0] + (noise * 2)
 
     # subdivide until we have more faces than we want
-    for i in range(max_iter):
+    for _i in range(max_iter):
         if len(mesh.vertices) > face_count:
             break
         mesh = mesh.subdivide()
@@ -69,13 +69,13 @@ if __name__ == '__main__':
     # seeded by the principal components of inertia
     truth_to_scan, cost = truth.register(scan)
 
-    print("centroid distance pre-registration:",
+    log.debug("centroid distance pre-registration:",
           np.linalg.norm(truth.centroid - scan.centroid))
 
     # apply the registration transform
     truth.apply_transform(truth_to_scan)
 
-    print("centroid distance post-registration:",
+    log.debug("centroid distance post-registration:",
           np.linalg.norm(truth.centroid - scan.centroid))
 
     # find the distance from the truth mesh to each scan vertex
@@ -87,9 +87,9 @@ if __name__ == '__main__':
     scan.visual.vertex_colors = trimesh.visual.interpolate(distance)
 
     # print some quick statistics about the mesh
-    print('distance max:', distance.max())
-    print('distance mean:', distance.mean())
-    print('distance STD:', distance.std())
+    log.debug('distance max:', distance.max())
+    log.debug('distance mean:', distance.mean())
+    log.debug('distance STD:', distance.std())
 
     # export result with vertex colors for meshlab
     scan.export('scan_new.ply')

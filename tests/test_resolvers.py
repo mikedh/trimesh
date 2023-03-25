@@ -72,7 +72,7 @@ class ResolverTest(g.unittest.TestCase):
         # try namespacing
         ns = resolver.namespaced('stuff')
         assert ns['nah'] == b'sup'
-        print(ns.keys())
+        g.log.debug(ns.keys())
         assert set(ns.keys()) == set(['nah'])
 
 

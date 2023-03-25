@@ -40,7 +40,7 @@ if __name__ == '__main__':
     closest = np.min(dists)
     farthest = np.max(dists)
     z = np.linspace(closest, farthest, resolution)
-    print('z range: %f, %f' % (closest, farthest))
+    log.debug('z range: %f, %f' % (closest, farthest))
 
     vox = mesh.voxelized(1. / resolution, method='binvox')
 

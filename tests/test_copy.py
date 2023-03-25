@@ -26,7 +26,7 @@ class CopyTests(g.unittest.TestCase):
             # if you cache c-objects then deepcopy the mesh
             # it randomly segfaults
             copy_count = 200
-            for i in range(copy_count):
+            for _i in range(copy_count):
                 copied = mesh.copy(include_cache=False)
                 assert len(copied._cache) == 0
                 assert len(mesh._cache) > 0

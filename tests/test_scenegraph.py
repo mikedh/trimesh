@@ -14,11 +14,11 @@ class GraphTests(g.unittest.TestCase):
 
     def test_forest(self):
         graph = EnforcedForest()
-        for i in range(5000):
+        for _i in range(5000):
             graph.add_edge(random_chr(), random_chr())
 
     def test_cache(self):
-        for i in range(10):
+        for _i in range(10):
             scene = g.trimesh.Scene()
             scene.add_geometry(g.trimesh.creation.box())
 
@@ -233,13 +233,13 @@ class GraphTests(g.unittest.TestCase):
         with g.Profiler() as P:
             ours = [forest.shortest_path(*q) for q in queries]
         # print this way to avoid a python2 syntax error
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # check truth from networkx with an undirected graph
         undir = tree.to_undirected()
         with g.Profiler() as P:
             truth = [g.nx.shortest_path(undir, *q) for q in queries]
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # now compare our shortest path with networkx
         for a, b, q in zip(truth, ours, queries):
@@ -257,7 +257,7 @@ class GraphTests(g.unittest.TestCase):
             matgeom = [sg.get(
                 frame_from=q[0],
                 frame_to=q[1]) for q in queries]
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # all of the matrices should be rigid transforms
         assert all(tf.is_rigid(mat) for mat, _ in matgeom)

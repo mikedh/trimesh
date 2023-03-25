@@ -148,7 +148,7 @@ class CreationTest(g.unittest.TestCase):
             [g.np.cos(angle), -g.np.sin(angle)],
             [g.np.sin(angle), g.np.cos(angle)]])
         perim = []
-        for i in range(n_comps):
+        for _i in range(n_comps):
             perim.append(vec)
             vec = g.np.dot(rotmat, vec)
         poly = g.Polygon(perim)

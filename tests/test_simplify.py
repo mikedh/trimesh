@@ -20,7 +20,7 @@ class SimplifyTest(g.unittest.TestCase):
         # make sure the simplify call didn't alter our original mesh
         assert path.__hash__() == hash_pre
 
-        for garbage in range(2):
+        for _garbage in range(2):
             # the simplified version shouldn't have lost area
             assert g.np.allclose(path.area,
                                  simplified.area,
@@ -30,7 +30,7 @@ class SimplifyTest(g.unittest.TestCase):
             new_count = sum(int(type(i).__name__ == 'Arc')
                             for i in simplified.entities)
             if new_count != arc_count:
-                print(new_count, arc_count)
+                g.log.debug(new_count, arc_count)
 
             if arc_count > 1:
                 g.log.info('originally were {} arcs, simplify found {}'.format(
@@ -93,9 +93,9 @@ class SimplifyTest(g.unittest.TestCase):
         direction = g.trimesh.unitize([1, g.np.random.rand()])
         points = direction * dists.reshape((-1, 1))
         merged = g.trimesh.path.simplify.merge_colinear(points, scale=1000)
-        print('direction:', direction)
-        print('points:', points.shape)
-        print('merged:', merged.shape)
+        g.log.debug('direction:', direction)
+        g.log.debug('points:', points.shape)
+        g.log.debug('merged:', merged.shape)
         assert merged.shape[0] == 2
 
 

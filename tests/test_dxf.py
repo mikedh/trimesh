@@ -122,7 +122,7 @@ class DXFTest(g.unittest.TestCase):
                 version = f.split('.')[-2]
                 # we should only get ValueErrors on binary DXF
                 assert version[-1] == 'b'
-                print(E, f)
+                g.log.debug(E, f)
 
         # group drawings which have the same geometry
         # but exported in different revisions of the DXF format
@@ -132,7 +132,7 @@ class DXFTest(g.unittest.TestCase):
             groups[k.split('.')[0]].append(k)
 
         # loop through each group of the same drawing
-        for k, group in groups.items():
+        for group in groups.values():
             # get the total length of every entity
             L = [paths[i].length for i in group]
             L = g.np.array(L, dtype=g.np.float64)

@@ -122,7 +122,7 @@ class TrianglesTest(g.unittest.TestCase):
             [[[0, 0, 0], [1, 0, 0], [1, 0, 0]]], dtype=g.np.float64)
         angles = g.trimesh.triangles.angles(tris)
         # degenerate angles should be zero, not NaN
-        print(angles)
+        g.log.debug(angles)
         assert g.np.allclose(angles, 0.0)
 
         # an equilateral triangle

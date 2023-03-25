@@ -46,7 +46,7 @@ class CollisionTest(g.unittest.TestCase):
             assert g.np.allclose(c.normal, g.np.array([-1.0, 0.0, 0.0]))
 
         if 'cube1' not in names:
-            print('\n\n', m._objs.keys(), names)
+            g.log.debug('\n\n', m._objs.keys(), names)
         assert 'cube1' in names
 
         ret, names, data = m.in_collision_single(cube,
