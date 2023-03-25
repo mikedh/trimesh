@@ -203,15 +203,19 @@ class GraphTests(g.unittest.TestCase):
         edgelist = {}
         tree = g.nx.random_tree(
             n=1000, seed=0, create_using=g.nx.DiGraph)
-        for e in tree.edges:
+        edges = list(tree.edges)
+
+        r_choices = g.random((len(edges), 2))
+        r_matrices = g.random_transforms(len(edges))
+        for e, r_choice, r_mat in zip(edges, r_choices, r_matrices):
             data = {}
-            if g.random() > .5:
+            if r_choice[0] > .5:
                 # if a matrix is omitted but an edge exists it is
                 # the same as passing an identity matrix
-                data['matrix'] = tf.random_rotation_matrix()
-            if g.random() > .4:
+                data['matrix'] = r_mat
+            if r_choice[1] > .4:
                 # a geometry is not required for a node
-                data['geometry'] = str(int(g.random() * 1e8))
+                data['geometry'] = str(int(r_choice[1] * 1e8))
             edgelist[e] = data
 
         # now apply the random data to an EnforcedForest
