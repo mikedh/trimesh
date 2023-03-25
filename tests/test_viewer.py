@@ -7,13 +7,14 @@ except BaseException:
 class ViewerTest(g.unittest.TestCase):
 
     def test_viewer(self):
-        try:
-            from pyglet import gl
-            # set a GL config that fixes a depth buffer issue in xvfb
-            # this should raise an exception if pyglet can't get a library
-            window_conf = gl.Config(double_buffer=True, depth_size=24)
-        except BaseException:
+        # if the runner has not asked to include rendering exit
+        if not g.include_rendering:
             return
+
+        from pyglet import gl
+        # set a GL config that fixes a depth buffer issue in xvfb
+        # this should raise an exception if pyglet can't get a library
+        window_conf = gl.Config(double_buffer=True, depth_size=24)
 
         # make a sphere
         mesh = g.trimesh.creation.icosphere()

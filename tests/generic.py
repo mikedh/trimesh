@@ -72,7 +72,10 @@ except BaseException:
 
 # should we require all soft dependencies
 # this is set in the docker images to catch missing packages
-all_dep = 'alldep' in ''.join(sys.argv)
+argv = ''.join(sys.argv)
+all_dep = 'ALL_DEPENDENCIES' in argv
+include_rendering = 'INCLUDE_RENDERING' in argv
+
 
 if all_dep:
     # make sure pyembree is importable

@@ -72,7 +72,8 @@ RUN pip install `python setup.py --list-test`
 
 # run pytest wrapped with xvfb for simple viewer tests
 RUN xvfb-run pytest --cov=trimesh \
-    -p no:alldep \
+    -p no:ALL_DEPENDENCIES \
+    -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
 
 # set codecov token as a build arg to upload
