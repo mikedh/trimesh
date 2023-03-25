@@ -6,6 +6,7 @@ from ..arc import to_threepoint
 from ..entities import Line, Arc, BSpline, Text
 
 from ... import resources
+from ...util import multi_dict
 from ...constants import log
 from ...constants import tol_path as tol
 
@@ -147,8 +148,9 @@ def load_dxf(file_obj, **kwargs):
     entity_end = endsec[np.searchsorted(endsec, entity_start)]
 
     blocks = None
+    check_entity = blob[entity_start:entity_end][:, 1]
     # only load blocks if an entity references them via an INSERT
-    if (blob[entity_start:entity_end] == ['0', 'INSERT']).all(axis=1).any():
+    if 'INSERT' in check_entity or 'BLOCK' in check_entity:
         try:
             # which part of the raw file contains blocks
             block_start = np.nonzero(blob[:, 1] == 'BLOCKS')[0][0]
@@ -175,7 +177,7 @@ def load_dxf(file_obj, **kwargs):
                 except BaseException:
                     pass
         except BaseException:
-            pass
+            log.error('failed to parse blocks!', exc_info=True)
 
     # actually load referenced entities
     vertices, entities = convert_entities(
@@ -191,8 +193,7 @@ def load_dxf(file_obj, **kwargs):
     return result
 
 
-def convert_entities(
-        blob, blob_raw=None, blocks=None, return_name=False):
+def convert_entities(blob, blob_raw=None, blocks=None, return_name=False):
     """
     Convert a chunk of entities into trimesh entities.
 
@@ -210,6 +211,7 @@ def convert_entities(
     Returns
     ----------
     """
+
     if blob_raw is None:
         blob_raw = blob
 
@@ -219,7 +221,7 @@ def convert_entities(
         """
         # which keys should we extract from the entity data
         # DXF group code : our metadata key
-        get = {'8': 'layer'}
+        get = {'8': 'layer', '2': 'name'}
         # replace group codes with names and only
         # take info from the entity dict if it is in cand
         renamed = {get[k]: util.make_sequence(v)[0] for k,
@@ -414,6 +416,7 @@ def convert_entities(
         """
         if blocks is None:
             return
+
         # name of block to insert
         name = e['2']
         # if we haven't loaded the block skip
@@ -444,11 +447,12 @@ def convert_entities(
     # find the start points of entities
     # DXF object to trimesh object converters
     loaders = {'LINE': (dict, convert_line),
-               'LWPOLYLINE': (util.multi_dict, convert_polyline),
+               'LWPOLYLINE': (multi_dict, convert_polyline),
                'ARC': (dict, convert_arc),
                'CIRCLE': (dict, convert_circle),
-               'SPLINE': (util.multi_dict, convert_bspline),
-               'INSERT': (dict, convert_insert)}
+               'SPLINE': (multi_dict, convert_bspline),
+               'INSERT': (dict, convert_insert),
+               'BLOCK': (dict, convert_insert)}
 
     # store loaded vertices
     vertices = []
@@ -472,6 +476,17 @@ def convert_entities(
         chunk = blob[index]
         # the string representing entity type
         entity_type = chunk[0][1]
+
+        # if we are referencing a block or insert by name make
+        # sure the name key is in the original case vs upper-case
+        if entity_type in ('BLOCK', 'INSERT'):
+            try:
+                index_name = next(
+                    i for i, v in enumerate(chunk)
+                    if v[0] == '2')
+                chunk[index_name][1] = blob_raw[index][index_name][1]
+            except StopIteration:
+                pass
 
         # special case old- style polyline entities
         if entity_type == 'POLYLINE':

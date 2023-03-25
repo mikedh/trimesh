@@ -236,10 +236,12 @@ class VisualTest(g.unittest.TestCase):
 
         img = PIL.Image.fromarray(texture)
         colors = g.trimesh.visual.uv_to_interpolated_color(uv, img)
+
+        # exact interpolated values before being converted to uint8
         colors_expected = [[7.75, 24.8, 128 + 7.75, 255],
                            [12.4, 15.5, 128 + 12.4, 255]]
 
-        g.np.testing.assert_allclose(colors, colors_expected, rtol=0, atol=0.1)
+        assert g.np.allclose(colors, colors_expected, rtol=0, atol=1)
 
     def test_iterset(self):
         m = g.trimesh.creation.box()

@@ -876,7 +876,7 @@ def uv_to_color(uv, image):
 
     Returns
     ----------
-    colors : (n, 4) float
+    colors : (n, 4) uint4
       RGBA color at each of the UV coordinates
     """
     if image is None or uv is None:
@@ -896,6 +896,7 @@ def uv_to_color(uv, image):
 
     # conversion to RGBA should have corrected shape
     assert colors.ndim == 2 and colors.shape[1] == 4
+    assert colors.dtype == np.uint8
 
     return colors
 
@@ -913,7 +914,7 @@ def uv_to_interpolated_color(uv, image):
 
     Returns
     ----------
-    colors : (n, 4) float
+    colors : (n, 4) uint8
       RGBA color at each of the UV coordinates.
     """
     if image is None or uv is None:
@@ -952,10 +953,13 @@ def uv_to_interpolated_color(uv, image):
     a10 = np.repeat(a10[:, None], 4, axis=1)
     a11 = np.repeat(a11[:, None], 4, axis=1)
 
-    colors = a00 * colors00 + a01 * colors01 + a10 * colors10 + a11 * colors11
+    # interpolated colors as floating point then convert back to uint8
+    colors = (a00 * colors00 + a01 * colors01 +
+              a10 * colors10 + a11 * colors11).round().astype(np.uint8)
 
     # conversion to RGBA should have corrected shape
     assert colors.ndim == 2 and colors.shape[1] == 4
+    assert colors.dtype == np.uint8
 
     return colors
 

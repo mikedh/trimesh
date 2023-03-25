@@ -65,7 +65,7 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
     tri_origins = tri_origins[face_index]
     tri_vectors = tri_vectors[face_index]
 
-    if sample_color:
+    if sample_color and hasattr(mesh.visual, 'uv'):
         uv_origins = mesh.visual.uv[mesh.faces[:, 0]]
         uv_vectors = mesh.visual.uv[mesh.faces[:, 1:]].copy()
         uv_origins_tile = np.tile(uv_origins, (1, 2)).reshape((-1, 2, 2))
@@ -92,10 +92,13 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
     samples = sample_vector + tri_origins
 
     if sample_color:
-        sample_uv_vector = (uv_vectors * random_lengths).sum(axis=1)
-        uv_samples = sample_uv_vector + uv_origins
-        texture = mesh.visual.material.image
-        colors = uv_to_interpolated_color(uv_samples, texture)
+        if hasattr(mesh.visual, 'uv'):
+            sample_uv_vector = (uv_vectors * random_lengths).sum(axis=1)
+            uv_samples = sample_uv_vector + uv_origins
+            texture = mesh.visual.material.image
+            colors = uv_to_interpolated_color(uv_samples, texture)
+        else:
+            colors = mesh.visual.face_colors[face_index]
 
         return samples, face_index, colors
 
