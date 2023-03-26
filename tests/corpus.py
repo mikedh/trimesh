@@ -183,7 +183,7 @@ if __name__ == '__main__':
             commit='8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe'))
 
     # show all profiler lines
-    P.log.debug(show_all=True)
+    log.info(P.output_text(show_all=True))
 
     # print a formatted report of what we loaded
     log.debug('\n'.join(f'# {k}\n{v}\n' for k, v in report.items()))

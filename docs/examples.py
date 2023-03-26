@@ -7,10 +7,13 @@ of `../examples/*.ipynb`
 """
 
 import os
+import sys
 import json
 import logging
 
 log = logging.getLogger('trimesh')
+log.addHandler(logging.StreamHandler(sys.stdout))
+log.setLevel(logging.DEBUG)
 
 # current working directory
 pwd = os.path.abspath(os.path.expanduser(
@@ -61,10 +64,8 @@ if __name__ == '__main__':
         path = os.path.join(source, fn)
         with open(path, 'r') as f:
             raw = json.load(f)
-        log.debug('\n\n', fn)
         doc = extract_docstring(raw)
-        log.debug(doc)
-
+        log.info('`{}`: "{}"\n'.format(fn, doc))
         link = f'examples.{fn.split(".")[0]}.html'
 
         markdown.append(f'### [{fn}]({link})')
