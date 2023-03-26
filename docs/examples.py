@@ -8,6 +8,9 @@ of `../examples/*.ipynb`
 
 import os
 import json
+import logging
+
+log = logging.getLogger('trimesh')
 
 # current working directory
 pwd = os.path.abspath(os.path.expanduser(
@@ -58,10 +61,9 @@ if __name__ == '__main__':
         path = os.path.join(source, fn)
         with open(path, 'r') as f:
             raw = json.load(f)
-
-        print('\n\n', fn)
+        log.debug('\n\n', fn)
         doc = extract_docstring(raw)
-        print(doc)
+        log.debug(doc)
 
         link = f'examples.{fn.split(".")[0]}.html'
 

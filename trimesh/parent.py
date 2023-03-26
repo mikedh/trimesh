@@ -55,7 +55,7 @@ class Geometry(ABC):
             '`geometry.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `geometry.__hash__()` or `hash(geometry)`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.__hash__()
 
     def hash(self):
@@ -73,7 +73,7 @@ class Geometry(ABC):
             '`geometry.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `geometry.__hash__()` or `hash(geometry)`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.__hash__()
 
     def md5(self):
@@ -91,7 +91,7 @@ class Geometry(ABC):
             '`geometry.md5()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `geometry.__hash__()` or `hash(geometry)`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.__hash__()
 
     def __hash__(self):

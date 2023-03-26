@@ -207,7 +207,7 @@ class TrackedArray(np.ndarray):
             '`array.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `array.__hash__()` or `hash(array)`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.__hash__()
 
     def crc(self):
@@ -215,7 +215,7 @@ class TrackedArray(np.ndarray):
             '`array.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `array.__hash__()` or `hash(array)`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.__hash__()
 
     def md5(self):
@@ -223,7 +223,7 @@ class TrackedArray(np.ndarray):
             '`array.md5()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `array.__hash__()` or `hash(array)`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.__hash__()
 
     def __hash__(self):
@@ -707,7 +707,7 @@ class DataStore(Mapping):
             '`array.crc()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `array.__hash__()` or `hash(array)`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.__hash__()
 
     def fast_hash(self):
@@ -723,7 +723,7 @@ class DataStore(Mapping):
             '`array.fast_hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `array.__hash__()` or `hash(array)`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.__hash__()
 
     def hash(self):
@@ -731,6 +731,6 @@ class DataStore(Mapping):
             '`array.hash()` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `array.__hash__()` or `hash(array)`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
 
         return self.__hash__()

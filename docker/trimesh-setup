@@ -80,7 +80,7 @@ extract_only = "pandoc"
 
 [tool.trimesh-setup.fetch.binvox]
 url = 'https://trimesh.s3-us-west-1.amazonaws.com/binvox'
-sha256 = 'cc05b3ceec0b3f7061f629448c3764e87f035ec34bba46ec4dcc21e089dd40c5'
+sha256 = '82ee314a75986f67f1d2b5b3ccdfb3661fe57a6b428aa0e0f798fdb3e1734fe0'
 target = "$PATH"
 chmod = 755
 """
@@ -164,6 +164,7 @@ def fetch(url, sha256):
     data = urlopen(url).read()
     hashed = hashlib.sha256(data).hexdigest()
     if hashed != sha256:
+        log.error(f'`{hashed}` != `{sha256}`')
         raise ValueError('sha256 hash does not match!')
 
     return data

@@ -2529,7 +2529,7 @@ class Trimesh(Geometry3D):
             '`simplify_quadratic_decimation` is deprecated ' +
             'as it was a typo and will be removed in March 2024: ' +
             'replace with `simplify_quadric_decimation`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.simplify_quadric_decimation(*args, **kwargs)
 
     def simplify_quadric_decimation(self, face_count):
@@ -2781,7 +2781,7 @@ class Trimesh(Geometry3D):
             '`geom.identifier_md5` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `geom.identifier_hash`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.identifier_hash
 
     def export(self, file_obj=None, file_type=None, **kwargs):
