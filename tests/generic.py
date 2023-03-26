@@ -72,16 +72,19 @@ except BaseException:
 
 # should we require all soft dependencies
 # this is set in the docker images to catch missing packages
-all_dep = 'alldep' in ''.join(sys.argv)
+argv = ''.join(sys.argv)
+# if we're supposed to have everything
+all_dependencies = 'ALL_DEPENDENCIES' in argv
+# if we're testing rendering scenes
+include_rendering = 'INCLUDE_RENDERING' in argv
 
-if all_dep:
-    # make sure pyembree is importable
-    from pyembree import rtcore_scene
+if all_dependencies and not trimesh.ray.has_embree:
+    raise ValueError('missing embree!')
 
 try:
     import sympy as sp
 except ImportError as E:
-    if all_dep:
+    if all_dependencies:
         raise E
     sp = None
 
@@ -101,7 +104,7 @@ try:
     from mapbox_earcut import triangulate_float64
     has_earcut = True
 except BaseException as E:
-    if all_dep:
+    if all_dependencies:
         raise E
     else:
         has_earcut = False
@@ -110,14 +113,14 @@ try:
     from shapely.geometry import Point, Polygon, LineString
     has_path = True
 except ImportError as E:
-    if all_dep:
+    if all_dependencies:
         raise E
     has_path = False
 
 try:
     from scipy import spatial, sparse
 except BaseException as E:
-    if all_dep:
+    if all_dependencies:
         raise E
 
 try:
@@ -127,6 +130,8 @@ except BaseException as E:
 
 # find_executable for binvox
 has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
+if all_dependencies and not has_binvox:
+    raise ValueError('missing binvox')
 
 # Python version as a tuple, i.e. [3, 6]
 PY_VER = (sys.version_info.major,

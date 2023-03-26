@@ -1476,7 +1476,7 @@ class Path2D(Path):
             '`geom.identifier_md5` is deprecated and will ' +
             'be removed in October 2023: replace ' +
             'with `geom.identifier_hash`',
-            DeprecationWarning)
+            category=DeprecationWarning, stacklevel=2)
         return self.identifier_hash
 
     @property

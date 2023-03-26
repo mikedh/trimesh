@@ -6,6 +6,7 @@ import trimesh
 if __name__ == '__main__':
     # print logged messages
     trimesh.util.attach_to_log()
+    log = trimesh.util.log
 
     # load a mesh
     mesh = trimesh.load('../models/featuretype.STL')
@@ -43,4 +44,4 @@ if __name__ == '__main__':
                 f.close()
 
         except BaseException as E:
-            print("unable to save image", str(E))
+            log.debug("unable to save image", str(E))

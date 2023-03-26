@@ -20,7 +20,7 @@ if __name__ == '__main__':
                            window_conf=window_conf)
 
     # the PNG is just bytes data
-    print('rendered bytes:', len(png))
+    trimesh.util.log.info('rendered bytes:', len(png))
 
     # write the render to a volume we should have docker mounted
     with open('/output/output.png', 'wb') as f:

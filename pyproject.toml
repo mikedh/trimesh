@@ -3,13 +3,13 @@ build-backend = "setuptools.build_meta"
 requires = ["setuptools >= 40.8", "wheel"]
 
 [tool.ruff]
-select = ["E", "F"] # the default rules
-          # "T201",   # disallow print statements
-	  # "B"]      # pass bugbear
+select = ["E", "F", # the default rules
+          "T201",   # disallow print statements
+	   "B"]      # pass bugbear
           #"I001",   # isort
           #"D"]      # pydocstyle
 ignore = ["B905", # `zip()` without an explicit `strict=`
-          "B904"] # `raise ... from err` is silly
+          "B904"] # `raise ... from err` seems a bit silly
 line-length = 90
 
 [tool.ruff.pydocstyle]

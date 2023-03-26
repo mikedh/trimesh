@@ -14,7 +14,7 @@ class UnitsTest(g.unittest.TestCase):
         try:
             c = g.trimesh.units.unit_conversion('inches',  # NOQA
                                                 fake_units)
-            assert False
+            raise AssertionError()
         except BaseException:
             pass
 

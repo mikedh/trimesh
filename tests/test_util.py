@@ -35,7 +35,7 @@ class VectorTests(unittest.TestCase):
     def test_align(self):
         log.info('Testing vector alignment')
         target = np.array([0, 0, 1])
-        for i in range(100):
+        for _i in range(100):
             vector = trimesh.unitize(np.random.random(3) - .5)
             T = trimesh.geometry.align_vectors(vector, target)
             result = np.dot(T, np.append(vector, 1))[0:3]
@@ -46,7 +46,7 @@ class VectorTests(unittest.TestCase):
 class UtilTests(unittest.TestCase):
 
     def test_bounds_tree(self):
-        for attempt in range(3):
+        for _attempt in range(3):
             for dimension in [2, 3]:
                 t = g.random((1000, 3, dimension))
                 bounds = g.np.column_stack((t.min(axis=1), t.max(axis=1)))
@@ -70,7 +70,7 @@ class UtilTests(unittest.TestCase):
         try:
             # try with 4D points
             f(g.np.ones((100, 4)))
-            assert False
+            raise AssertionError()
         except ValueError:
             # this is what should happen
             pass
@@ -147,7 +147,7 @@ class UtilTests(unittest.TestCase):
         hB = b.__hash__()
 
         # make sure we're not mutating original mesh
-        for i in range(4):
+        for _i in range(4):
             c = a + b
             assert g.np.isclose(c.volume,
                                 a.volume + b.volume)
@@ -156,7 +156,7 @@ class UtilTests(unittest.TestCase):
 
         count = 5
         meshes = []
-        for i in range(count):
+        for _i in range(count):
             m = a.copy()
             m.apply_translation([a.scale, 0, 0])
             meshes.append(m)
@@ -172,7 +172,7 @@ class UtilTests(unittest.TestCase):
 
         g.trimesh.util.random.seed(0)
         unique_ids_0 = []
-        for i in range(num_ids):
+        for _i in range(num_ids):
             s = g.trimesh.util.unique_id()
             unique_ids_0.append(s)
 
@@ -196,12 +196,12 @@ class UtilTests(unittest.TestCase):
 
         count = 10
         names = set()
-        for i in range(count):
+        for _i in range(count):
             names.add(unique_name('hi', names))
         assert len(names) == count
 
         names = set()
-        for i in range(count):
+        for _i in range(count):
             names.add(unique_name('', names))
         assert len(names) == count
 
@@ -217,7 +217,7 @@ class UtilTests(unittest.TestCase):
         with g.Profiler() as P:
             for name in names:
                 assigned.add(unique_name(name, assigned))
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         assigned_new = set()
         # tracker = UniqueName()\
@@ -228,7 +228,7 @@ class UtilTests(unittest.TestCase):
                     name,
                     contains=assigned_new,
                     counts=counts))
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # new scheme should match the old one
         assert assigned_new == assigned

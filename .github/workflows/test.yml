@@ -20,15 +20,7 @@ jobs:
         pip install `python setup.py --list-test`
     - name: Check Formatting
       run: |
-        ruff tests
-        ruff trimesh
-        echo ${{github.ref}}
-        ruff examples
-        ruff setup.py
-        autopep8 --recursive --aggressive --diff --exit-code trimesh/
-        autopep8 --recursive --aggressive --diff --exit-code examples/
-        autopep8 --recursive --aggressive --diff --exit-code tests/
-
+        ruff .
   tests:
     name: Run Unit Tests
     runs-on: ${{ matrix.os }}

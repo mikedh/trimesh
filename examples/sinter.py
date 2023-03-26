@@ -58,18 +58,20 @@ def collect_meshes(count=None, max_size=20.0):
 
 
 if __name__ == '__main__':
+    trimesh.util.attach_to_log()
+    log = trimesh.util.log
 
     size = 10.0
     # get some sample data
     meshes = collect_meshes(max_size=size)
 
-    print('loaded {} meshes'.format(len(meshes)))
+    log.debug('loaded {} meshes'.format(len(meshes)))
 
     # place the meshes into the volume
     with Profiler() as P:
         placed, transforms, consume = packing.meshes(
             meshes, size=[size] * 3, spacing=0.1)
-    P.print(show_all=True)
+    P.log.debug(show_all=True)
 
     # none of the placed meshes should have overlapping AABB
     assert not packing.bounds_overlap([i.bounds for i in placed])

@@ -90,7 +90,7 @@ class PointsTest(g.unittest.TestCase):
 
     def test_plane(self):
         # make sure plane fitting works for 2D points in space
-        for i in range(10):
+        for _i in range(10):
             # create a random rotation
             matrix = g.trimesh.transformations.random_rotation_matrix()
             # create some random points in spacd
@@ -111,7 +111,7 @@ class PointsTest(g.unittest.TestCase):
             assert g.np.allclose(truth, N) or g.np.allclose(truth, -N)
         # make sure plane fit works with multiple point sets at once
         nb_points_sets = 20
-        for i in range(10):
+        for _i in range(10):
             # create a random rotation
             matrices = [g.trimesh.transformations.random_rotation_matrix()
                         for _ in range(nb_points_sets)]
@@ -172,7 +172,7 @@ class PointsTest(g.unittest.TestCase):
         """
         for dimension in [2, 3]:
             for count in [2, 10, 100]:
-                for i in range(10):
+                for _i in range(10):
                     points = g.random((count, dimension))
 
                     # find a path that visits every point quickly
@@ -245,7 +245,9 @@ class PointsTest(g.unittest.TestCase):
         # test exporting a pointcloud to a GLTF
         # TODO : WE SHOULD IMPLEMENT THE IMPORTER TOO
         r = p.export(file_type='gltf')
-        len(g.json.loads(r['model.gltf'].decode('utf-8'))['meshes']) == 1
+        assert len(
+            g.json.loads(
+                r['model.gltf'].decode('utf-8'))['meshes']) == 1
 
     def test_remove_close(self):
         # create 100 unique points

@@ -18,6 +18,28 @@ from trimesh.proximity import closest_point
 from trimesh.triangles import points_to_barycentric
 
 
+def slider_closure(records, pv_mesh):
+    """
+    Return a function used for a PyVista slider widget.
+    """
+    def cb(value):
+        t1 = min(int(value), len(records) - 1)
+        t2 = min(t1 + 1, len(records) - 1)
+        t = value - t1
+        pv_mesh.points = (1 - t) * records[t1] + t * records[t2]
+        for i, pos in enumerate(
+                pv_mesh.points[landmarks_vertex_indices[:, 0]]):
+            p.add_mesh(
+                pv.Sphere(
+                    target.scale / 200,
+                    pos),
+                name=str(i),
+                color='r')
+            pv_mesh['distance'] = (
+                1 - t) * distances[t1] + t * distances[t2]
+    return cb
+
+
 if __name__ == '__main__':
 
     # attach to trimesh logs
@@ -123,25 +145,12 @@ if __name__ == '__main__':
                 scalar_bar_args={'color': (0, 0, 0)})
             p.add_mesh(pv.wrap(target), style='wireframe')
 
-            def cb(value):
-                t1 = min(int(value), len(records) - 1)
-                t2 = min(t1 + 1, len(records) - 1)
-                t = value - t1
-
-                pv_mesh.points = (1 - t) * records[t1] + t * records[t2]
-                for i, pos in enumerate(
-                        pv_mesh.points[landmarks_vertex_indices[:, 0]]):
-                    p.add_mesh(
-                        pv.Sphere(
-                            target.scale / 200,
-                            pos),
-                        name=str(i),
-                        color='r')
-                pv_mesh['distance'] = (
-                    1 - t) * distances[t1] + t * distances[t2]
-            p.add_slider_widget(cb, rng=(0, len(records)), value=0,
-                                color='black', event_type='always',
-                                title='step')
+            p.add_slider_widget(
+                slider_closure(records=records, pv_mesh=pv_mesh),
+                rng=(0, len(records)), value=0,
+                color='black',
+                event_type='always',
+                title='step')
 
             for pos in target_markers_vertices:
                 p.add_mesh(pv.Sphere(target.scale / 200, pos), color='g')

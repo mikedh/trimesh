@@ -2,12 +2,15 @@ import os
 import sys
 import json
 import inspect
+import logging
 import subprocess
 import numpy as np
 
 # current working directory
 cwd = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
+
+log = logging.getLogger('notebook')
 
 
 def load_notebook(file_obj):
@@ -36,12 +39,7 @@ def load_notebook(file_obj):
 
 def exclude_calls(
         lines,
-        exclude=['%matplotlib',
-                 '%pylab',
-                 'show',
-                 'plt',
-                 'save_image',
-                 '?']):
+        exclude=None):
     """
     Exclude certain calls based on substrings, replacing
     them with pass statements.
@@ -58,6 +56,13 @@ def exclude_calls(
     joined : str
       Lines combined with newline
     """
+    if exclude is None:
+        exclude = ['%matplotlib',
+                   '%pylab',
+                   'show',
+                   'plt',
+                   'save_image',
+                   '?']
     result = []
     for line in lines:
         # skip lines that only have whitespace or comments
@@ -161,7 +166,7 @@ def main():
         file_name = sys.argv[sys.argv.index("exec") + 1].strip()
         # we want to skip some of these examples in CI
         if 'ci' in sys.argv and os.path.basename(file_name) in ci_blacklist:
-            print('{} in CI blacklist: skipping!'.format(file_name))
+            log.debug('{} in CI blacklist: skipping!'.format(file_name))
             return
 
         # skip files that don't exist
@@ -180,11 +185,11 @@ def main():
             # skip other types of files
             return
 
-        print('running {}'.format(file_name))
+        log.debug('running {}'.format(file_name))
         try:
             exec(script, globals())
         except BaseException as E:
-            print(
+            log.debug(
                 'failed {}!\n\nscript was:\n{}\n\n'.format(
                     file_name, script))
             raise E

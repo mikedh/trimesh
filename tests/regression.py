@@ -45,7 +45,7 @@ def typical_application():
         assert len(ident) > 0
 
 
-def establish_baseline(counts=[390, 3820, 1710]):
+def establish_baseline(counts=None):
     """
     Try to establish a baseline of how fast a computer is so
     we can normalize our tests to be meaningful even on garbage CI VM's.
@@ -66,7 +66,8 @@ def establish_baseline(counts=[390, 3820, 1710]):
     times : dict
       Minimum times for each test
     """
-
+    if counts is None:
+        counts = [390, 3820, 1710]
     setup = 'import numpy as np'
 
     # test a dot product with itself
@@ -123,4 +124,4 @@ if __name__ == '__main__':
     typical_application()
 
     profiler.stop()
-    print(profiler.output_text(unicode=True, color=True))
+    g.log.debug(profiler.output_text(unicode=True, color=True))

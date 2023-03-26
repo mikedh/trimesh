@@ -59,17 +59,21 @@ FROM output AS tests
 COPY --chown=user:user tests ./tests/
 COPY --chown=user:user models ./models/
 COPY --chown=user:user setup.py .
+
+# codecov looks at the git history
 COPY --chown=user:user ./.git ./.git/
 
 USER root
-RUN trimesh-setup --install=test,gltf_validator
+RUN trimesh-setup --install=test,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
 RUN pip install `python setup.py --list-test`
 
-RUN pytest --cov=trimesh \
-    -p no:alldep \
+# run pytest wrapped with xvfb for simple viewer tests
+RUN xvfb-run pytest --cov=trimesh \
+    -p no:ALL_DEPENDENCIES \
+    -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
 
 # set codecov token as a build arg to upload

@@ -145,7 +145,7 @@ class RegistrationTest(g.unittest.TestCase):
         mesh = g.trimesh.creation.box(extents=extents)
 
         # subdivide until we have more faces than we want
-        for i in range(3):
+        for _i in range(3):
             mesh = mesh.subdivide()
         # apply tessellation and random noise
         mesh = mesh.permutate.noise(noise)
@@ -272,7 +272,7 @@ class RegistrationTest(g.unittest.TestCase):
         try:
             g.trimesh.registration.nricp_amberg(source, target)
         except KeyError:
-            assert False  # related to #1724
+            raise AssertionError()  # related to #1724
 
         # Sumner and Popovic 2004
         records_sumner_no_ldm = g.trimesh.registration.nricp_sumner(
@@ -285,7 +285,7 @@ class RegistrationTest(g.unittest.TestCase):
         try:
             g.trimesh.registration.nricp_sumner(source, target)
         except KeyError:
-            assert False  # related to #1724
+            raise AssertionError()  # related to #1724
 
         d_amberg_no_ldm = \
             g.trimesh.proximity.closest_point(

@@ -233,8 +233,11 @@ def voxelize_ray(mesh,
 
 
 @log_time
-def voxelize_binvox(
-        mesh, pitch=None, dimension=None, bounds=None, **binvoxer_kwargs):
+def voxelize_binvox(mesh,
+                    pitch=None,
+                    dimension=None,
+                    bounds=None,
+                    **binvoxer_kwargs):
     """
     Voxelize via binvox tool.
 

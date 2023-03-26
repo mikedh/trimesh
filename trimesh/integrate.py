@@ -15,7 +15,9 @@ import warnings
 warnings.warn(
     '`trimesh.integrate` is deprecated and will ' +
     'be removed in March 2024, you might take a ' +
-    'look at `quadpy` which is far more complete')
+    'look at `quadpy` which is far more complete',
+    category=DeprecationWarning,
+    stacklevel=2)
 
 
 def symbolic_barycentric(function):

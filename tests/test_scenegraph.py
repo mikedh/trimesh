@@ -14,11 +14,11 @@ class GraphTests(g.unittest.TestCase):
 
     def test_forest(self):
         graph = EnforcedForest()
-        for i in range(5000):
+        for _i in range(5000):
             graph.add_edge(random_chr(), random_chr())
 
     def test_cache(self):
-        for i in range(10):
+        for _i in range(10):
             scene = g.trimesh.Scene()
             scene.add_geometry(g.trimesh.creation.box())
 
@@ -203,15 +203,19 @@ class GraphTests(g.unittest.TestCase):
         edgelist = {}
         tree = g.nx.random_tree(
             n=1000, seed=0, create_using=g.nx.DiGraph)
-        for e in tree.edges:
+        edges = list(tree.edges)
+
+        r_choices = g.random((len(edges), 2))
+        r_matrices = g.random_transforms(len(edges))
+        for e, r_choice, r_mat in zip(edges, r_choices, r_matrices):
             data = {}
-            if g.random() > .5:
+            if r_choice[0] > .5:
                 # if a matrix is omitted but an edge exists it is
                 # the same as passing an identity matrix
-                data['matrix'] = tf.random_rotation_matrix()
-            if g.random() > .4:
+                data['matrix'] = r_mat
+            if r_choice[1] > .4:
                 # a geometry is not required for a node
-                data['geometry'] = str(int(g.random() * 1e8))
+                data['geometry'] = str(int(r_choice[1] * 1e8))
             edgelist[e] = data
 
         # now apply the random data to an EnforcedForest
@@ -229,13 +233,13 @@ class GraphTests(g.unittest.TestCase):
         with g.Profiler() as P:
             ours = [forest.shortest_path(*q) for q in queries]
         # print this way to avoid a python2 syntax error
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # check truth from networkx with an undirected graph
         undir = tree.to_undirected()
         with g.Profiler() as P:
             truth = [g.nx.shortest_path(undir, *q) for q in queries]
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # now compare our shortest path with networkx
         for a, b, q in zip(truth, ours, queries):
@@ -253,7 +257,7 @@ class GraphTests(g.unittest.TestCase):
             matgeom = [sg.get(
                 frame_from=q[0],
                 frame_to=q[1]) for q in queries]
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # all of the matrices should be rigid transforms
         assert all(tf.is_rigid(mat) for mat, _ in matgeom)

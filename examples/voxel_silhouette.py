@@ -17,6 +17,8 @@ def vis():
 
 
 if __name__ == '__main__':
+    trimesh.util.attach_to_log()
+    log = trimesh.util.log
 
     resolution = 256
     fov = 60.0
@@ -40,7 +42,7 @@ if __name__ == '__main__':
     closest = np.min(dists)
     farthest = np.max(dists)
     z = np.linspace(closest, farthest, resolution)
-    print('z range: %f, %f' % (closest, farthest))
+    log.debug('z range: %f, %f' % (closest, farthest))
 
     vox = mesh.voxelized(1. / resolution, method='binvox')
 

@@ -68,7 +68,7 @@ class BoundsTest(g.unittest.TestCase):
         Test OBB functions with raw points as input
         """
         for dimension in [3, 2]:
-            for i in range(25):
+            for _i in range(25):
                 points = g.random((10, dimension))
                 to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
 
@@ -94,7 +94,7 @@ class BoundsTest(g.unittest.TestCase):
         """
         Test OBB functions with coplanar points as input
         """
-        for i in range(5):
+        for _i in range(5):
             points = g.np.zeros((5, 3))
             points[:, :2] = g.random((points.shape[0], 2))
             rot, _ = g.np.linalg.qr(g.random((3, 3)))
@@ -185,7 +185,7 @@ class BoundsTest(g.unittest.TestCase):
         """
         Check exact cylinders with the bounding cylinder function.
         """
-        for i in range(20):
+        for _i in range(20):
             # create a random cylinder
             c = g.trimesh.creation.cylinder(
                 radius=1.0, height=10).permutate.transform()
@@ -230,7 +230,7 @@ class BoundsTest(g.unittest.TestCase):
         extents = [10, 2, 3.5]
         extents_ordered = g.np.sort(extents)
 
-        for i in range(100):
+        for _i in range(100):
             # transform box randomly in rotation and translation
             mat = g.trimesh.transformations.random_rotation_matrix()
             # translate in box -100 : +100
@@ -304,7 +304,7 @@ class BoundsTest(g.unittest.TestCase):
         # compute the OBB for every mesh profiling
         with g.Profiler() as P:
             obb = [m.bounding_box_oriented for m in meshes]
-        print(P.output_text())
+        g.log.debug(P.output_text())
 
         # now loop through mesh-obb pairs and validate
         for m, o in zip(meshes, obb):

@@ -10,8 +10,9 @@ which is supposed to be pretty invariant to translation and tessellation
 changes. We use this to generate the arbitrary sigfig thresholds.
 """
 
-import numpy as np
 import trimesh
+import numpy as np
+
 
 import time
 import json
@@ -20,6 +21,7 @@ import os
 import collections
 import logging
 
+log = trimesh.util.log
 TOL_ZERO = 1e-12
 
 
@@ -51,12 +53,12 @@ def permutations(mesh,
 
     # do subdivisions
     divided = [mesh.copy()]
-    for j in range(subdivisions - 1):
+    for _j in range(subdivisions - 1):
         divided.append(divided[-1].copy().subdivide())
 
-    for i, displacement in enumerate(np.linspace(0.0,
-                                                 displacement_max / mesh.scale,
-                                                 count)):
+    for i, _displacement in enumerate(np.linspace(0.0,
+                                                  displacement_max / mesh.scale,
+                                                  count)):
         # get one of the subdivided meshes
         current = np.random.choice(divided).copy()
 
@@ -72,7 +74,7 @@ def permutations(mesh,
         identifiers.append(identifier)
 
         if (time.time() - start) > cutoff:
-            print('bailing for time:{} count:{}'.format(
+            log.debug('bailing for time:{} count:{}'.format(
                 time.time() - start,
                 i))
             return np.array(identifiers)
@@ -108,7 +110,7 @@ def get_meshes(path='../../../models', cutoff=None):
         if cutoff is not None and len(bodies) > cutoff:
             return np.array(bodies)
 
-    for i in range(100):
+    for _i in range(100):
         cylinder = trimesh.creation.cylinder(
             radius=np.random.random() * 100,
             height=np.random.random() * 1000,
@@ -124,7 +126,7 @@ def get_meshes(path='../../../models', cutoff=None):
                           720).astype(int))
         bodies.append(cylinder)
         bodies.append(capsule)
-    for i in range(10):
+    for _i in range(10):
         bodies.append(trimesh.creation.random_soup(
             int(np.clip(np.random.random() * 1000,
                         20,
@@ -152,7 +154,7 @@ if __name__ == '__main__':
 
     meshes = get_meshes()
 
-    print('loaded meshes!')
+    log.debug('loaded meshes!')
 
     # we want the whole thing to last less than
     hours = 5
@@ -180,13 +182,13 @@ if __name__ == '__main__':
         result.append({'mean': mean.tolist(),
                        'percent': percent.tolist()})
 
-        print('\n\n{}/{}'.format(i, len(meshes) - 1))
-        print('mean', mean)
-        print('percent', percent)
-        print('oom', mean / percent)
-        print('curun', running[-1])
-        print('minrun', np.min(running, axis=0))
-        print('meanrun', np.mean(running, axis=0))
+        log.debug('\n\n{}/{}'.format(i, len(meshes) - 1))
+        log.debug('mean', mean)
+        log.debug('percent', percent)
+        log.debug('oom', mean / percent)
+        log.debug('curun', running[-1])
+        log.debug('minrun', np.min(running, axis=0))
+        log.debug('meanrun', np.mean(running, axis=0))
 
         # every loop dump everything
         # thrash- ey for sure but intermediate results are great
