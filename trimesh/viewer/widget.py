@@ -128,7 +128,6 @@ class SceneWidget(glooey.Widget):
     def __init__(self, scene, **kwargs):
         super().__init__()
         self.scene = scene
-        self.scene.camera_transform.setflags(write=True)
         self._scene_group = None
 
         # key is node_name
@@ -177,7 +176,7 @@ class SceneWidget(glooey.Widget):
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
                 target=self.scene.centroid)}
-        self.scene.camera_transform[...] = self.view['ball'].pose
+        self.scene.camera_transform = self.view['ball'].pose
 
     def do_claim(self):
         return 0, 0
