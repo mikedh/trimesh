@@ -1,5 +1,5 @@
 """
-Glooey widget example. Only runs with python>=3.6 (because of Glooey).
+Glooey widget example. Only runs with python>=3.6 and pyglet<=1.5.27 (because of Glooey).
 """
 
 import io
