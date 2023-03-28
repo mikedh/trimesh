@@ -128,6 +128,7 @@ class SceneWidget(glooey.Widget):
     def __init__(self, scene, **kwargs):
         super().__init__()
         self.scene = scene
+        self.scene.camera_transform.setflags(write=True)
         self._scene_group = None
 
         # key is node_name
