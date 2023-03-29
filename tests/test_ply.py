@@ -199,6 +199,22 @@ class PlyTest(g.unittest.TestCase):
             m = g.get_mesh(mesh_name)
             assert hasattr(m, 'visual') and hasattr(m.visual, 'uv')
             assert m.visual.uv.shape[0] == m.vertices.shape[0]
+    
+    def test_uv_export(self):
+        m = g.get_mesh("fuze.ply")
+        assert hasattr(m, 'visual') and hasattr(m.visual, 'uv')
+        assert m.visual.uv.shape[0] == m.vertices.shape[0]
+
+        # create empty file to export to
+        f = g.tempfile.NamedTemporaryFile(suffix='.ply', delete=False)
+        f.close()
+
+        # export should contain the uv data
+        m.export(f.name)
+        m2 = g.trimesh.load(f.name)
+
+        assert hasattr(m2, 'visual') and hasattr(m2.visual, 'uv')
+        assert g.np.allclose(m.visual.uv, m2.visual.uv)
 
     def test_fix_texture(self):
         # test loading of face indices when uv-coordinates are also contained
