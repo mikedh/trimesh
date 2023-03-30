@@ -263,6 +263,10 @@ def export_ply(mesh,
     # if we want to include mesh attributes in the export
     if include_attributes:
         if hasattr(mesh, 'vertex_attributes'):
+            # make sure to export texture coordinates as well
+            if hasattr(mesh, "visual") and hasattr(mesh.visual, "uv"):
+                mesh.vertex_attributes["s"] = mesh.visual.uv[:, 0]
+                mesh.vertex_attributes["t"] = mesh.visual.uv[:, 1]
             _assert_attributes_valid(mesh.vertex_attributes)
         if hasattr(mesh, 'face_attributes'):
             _assert_attributes_valid(mesh.face_attributes)

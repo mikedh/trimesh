@@ -887,13 +887,21 @@ def _append_mesh(mesh,
         # prefixed with an underscore
         if not key.startswith("_"):
             key = "_" + key
+
+        # GLTF has no floating point type larger than 32 bits so clip
+        # any float64 or larger to float32
+        if attrib.dtype.kind == 'f' and attrib.dtype.itemsize > 4:
+            data = attrib.astype(np.float32)
+        else:
+            data = attrib
+
         # store custom vertex attributes
         current["primitives"][0][
             "attributes"][key] = _data_append(
                 acc=tree['accessors'],
                 buff=buffer_items,
-                blob=_build_accessor(attrib),
-                data=attrib)
+                blob=_build_accessor(data),
+                data=data)
 
     tree["meshes"].append(current)
 
@@ -959,7 +967,7 @@ def _build_accessor(array):
         data_type = "MAT%d" % shape[2]
 
     # get the array data type as a str stripping off endian
-    lookup = array.dtype.str[-2:]
+    lookup = array.dtype.str.lstrip('<>')
 
     if lookup == 'u4':
         # spec: UNSIGNED_INT is only allowed when the accessor
