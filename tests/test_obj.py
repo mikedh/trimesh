@@ -430,6 +430,14 @@ class OBJTest(g.unittest.TestCase):
         m = g.get_mesh('face_in_group_name.obj')
         assert len(m.vertices) == 1
 
+    def test_face_parsing_in_group_names_with_object_tag(self):
+        # Checks that an obj with a g tag in the middle of a file,
+        # containinig a face like name (an 'f ' followed by three
+        # space separated text chunks, ex: f 1 2 3), does load properly
+        m = g.get_mesh('face_in_group_name_mid_file.obj')
+        assert len(m.vertices) == 5
+        assert len(m.faces) == 2
+
 
 def simple_load(text):
     # we're going to load faces in a basic text way
