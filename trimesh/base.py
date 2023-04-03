@@ -2410,7 +2410,6 @@ class Trimesh(Geometry3D):
         # exit early if we've been passed an identity matrix
         # np.allclose is surprisingly slow so do this test
         elif util.allclose(matrix, np.eye(4), 1e-8):
-            log.debug('apply_transform passed identity matrix')
             return self
 
         # new vertex positions
