@@ -125,7 +125,9 @@ class Trackball(object):
             motion between this point and the one marked by down().
         """
         point = np.array(point, dtype=np.float32)
-        dx, dy = point - self._pdown
+        # get the "down" point defaulting to current point making
+        # this a no-op if the "down" event didn't trigger for some reason
+        dx, dy = point - getattr(self, '_pdown', point)
         mindim = 0.3 * np.min(self._size)
 
         target = self._target

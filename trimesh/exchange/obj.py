@@ -132,7 +132,7 @@ def load_obj(file_obj,
         # after it finds the first newline
         # passed as arg as it's not a kwarg in python2
         face_lines = [i.split('\n', 1)[0].strip()
-                      for i in chunk.split('f ')[1:]]
+                      for i in re.split('^f', chunk, flags=re.MULTILINE)[1:]]
 
         # check every face for mixed tri-quad-ngon
         columns = len(face_lines[0].replace('/', ' ').split())
