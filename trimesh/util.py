@@ -1466,8 +1466,9 @@ def concatenate(a, b=None):
         return []
 
     # extract the trimesh type to avoid a circular import
-    # and assert that both inputs are Trimesh objects
+    # and assert that all inputs are Trimesh objects
     trimesh_type = type_named(meshes[0], 'Trimesh')
+    assert all(isinstance(mesh, trimesh_type) for mesh in meshes)
 
     # append faces and vertices of meshes
     vertices, faces = append_faces(
