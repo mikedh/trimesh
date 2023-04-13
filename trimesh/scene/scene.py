@@ -843,6 +843,16 @@ class Scene(Geometry3D):
             transform, geometry_name = self.graph[node_name]
             # get a copy of the geometry
             current = self.geometry[geometry_name].copy()
+
+            if concatenate:
+                try:
+                    util.type_named(current, 'Trimesh')
+                except ValueError:
+                    util.log.warning(
+                        'Skipping non-mesh geometry in concatenation'
+                    )
+                    continue
+
             # move the geometry vertices into the requested frame
             current.apply_transform(transform)
             current.metadata['name'] = geometry_name
