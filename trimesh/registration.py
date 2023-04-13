@@ -71,7 +71,7 @@ def mesh_other(mesh,
         """
         Return a combination of mesh vertices and surface samples
         with vertices chosen by likelihood to be important
-        to registation.
+        to registration.
         """
         if len(m.vertices) < (count / 2):
             return np.vstack((
