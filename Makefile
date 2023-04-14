@@ -27,13 +27,13 @@ TAG_VERSION=$(IMAGE):$(VERSION)
 # This will output the help for each task
 # See: https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 .PHONY: help
-help: ## Print usage help
+help: ## Print usage help.
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 .DEFAULT_GOAL := help
 
 # build the output stage image using buildkit
 .PHONY: build
-build: ## Build the docker images
+build: ## Build the trimesh docker images.
 	DOCKER_BUILDKIT=1 \
 	docker build \
 		--progress=plain \
@@ -56,7 +56,7 @@ tests: ## Run unit tests inside docker images.
 # build the docs inside our image and eject the contents
 # into `./html` directory
 .PHONY: docs
-docs: ## Build trimesh's sphinx docs
+docs: ## Build trimesh's sphinx docs and eject them into `./html`.
 	DOCKER_BUILDKIT=1 \
 	docker build \
 		--target docs \

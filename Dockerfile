@@ -86,9 +86,8 @@ RUN curl -Os https://uploader.codecov.io/latest/linux/codecov && \
 FROM tests AS typing
 
 RUN pip install pytest-monkeytype
-RUN xvfb-run pytest \
+RUN pytest \
     -p no:ALL_DEPENDENCIES \
-    -p no:INCLUDE_RENDERING \
     --monkeytype-output=./monkeytype.sqlite3
 
 FROM scratch as typing_out

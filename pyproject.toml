@@ -5,11 +5,18 @@ requires = ["setuptools >= 40.8", "wheel"]
 [tool.ruff]
 select = ["E", "F", # the default rules
           "T201",   # disallow print statements
-	   "B"]      # pass bugbear
+	   "B",     # pass bugbear
+	   "D"]
 ignore = ["B905", # `zip()` without an explicit `strict=`
           "B904", # `raise ... from err` seems a bit silly
-	  "B018"] # useless expression ideally ignore only on `tests`
+	  "B018", # useless expression ideally ignore only on `tests`
+	  "D102", # missing docstring
+	  "D103", # missing docstring
+	  "D200"] # one line docstring
 line-length = 90
+
+[tool.ruff.pydocstyle]
+convention = "numpy"
 
 [tool.autopep8]
 max_line_length = 90
