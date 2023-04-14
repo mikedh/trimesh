@@ -189,7 +189,7 @@ You can check out the [Github network](https://github.com/mikedh/trimesh/network
 - [urdfpy](https://github.com/mmatl/urdfpy) Load URDF robot descriptions in Python.
 - [moderngl-window](https://github.com/moderngl/moderngl-window) A helper to create GL contexts and load meshes.
 - [vedo](https://github.com/marcomusy/vedo) Visualize meshes interactively (see example [gallery](https://github.com/marcomusy/vedo/tree/master/examples/other/trimesh/)).
-- [fsleyes](https://users.fmrib.ox.ac.uk/~paulmc/fsleyes/userdoc/latest/quick_start.html) View MRI images and brain data.
+- [FSLeyes](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FSLeyes) View MRI images and brain data.
 
 ## Which Mesh Format Should I Use?
 
