@@ -82,6 +82,19 @@ RUN curl -Os https://uploader.codecov.io/latest/linux/codecov && \
     	 chmod +x codecov && \
         ./codecov -t ${CODECOV_TOKEN} 
 
+
+FROM tests AS typing
+
+RUN pip install pytest-monkeytype
+RUN xvfb-run pytest \
+    -p no:ALL_DEPENDENCIES \
+    -p no:INCLUDE_RENDERING \
+    --monkeytype-output=./monkeytype.sqlite3
+
+FROM scratch as typing_out
+COPY --from=typing monkeytype.sqlite3 .
+
+
 ################################
 ### Build Sphinx Docs
 FROM output AS build_docs

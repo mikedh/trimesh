@@ -63,6 +63,15 @@ docs: ## Build trimesh's sphinx docs
 		--progress=plain \
 		--output html \
 		.
+.PHONY: typing
+typing: ## Run pytest under `monkeypatch` to generate type information.
+	DOCKER_BUILDKIT=1 \
+	docker build \
+		--target typing_out \
+		--progress=plain \
+		--output monkeytype.sqlite3 \
+		.
+
 
 .PHONY: bash
 bash: build ## Start a bash terminal in the image.
