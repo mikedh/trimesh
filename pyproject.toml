@@ -10,9 +10,10 @@ select = ["E", "F", # the default rules
 ignore = ["B905", # `zip()` without an explicit `strict=`
           "B904", # `raise ... from err` seems a bit silly
 	  "B018", # useless expression ideally ignore only on `tests`
-	  "D102", # missing docstring
-	  "D103", # missing docstring
-	  "D200"] # one line docstring
+	  "D100", "D101", "D102", "D103", "D104", "D105",
+	  "D200", # one line docstring
+	  "D205",
+	  "D401"]
 line-length = 90
 
 [tool.ruff.pydocstyle]
