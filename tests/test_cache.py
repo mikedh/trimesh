@@ -225,7 +225,7 @@ class CacheTest(g.unittest.TestCase):
                 hash_pre = hash(m)
 
                 try:
-                    eval(f'm.{method}(*A)')
+                    eval('m.{method}(*A)'.format(method=method))
                 except BaseException as J:
                     failures.append(str(J))
 
