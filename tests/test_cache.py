@@ -86,6 +86,10 @@ class CacheTest(g.unittest.TestCase):
             # in place floor division :|
             a //= 2
             modified.append(hash(a))
+            # in-place sort
+            a.sort()
+            modified.append(hash(a))
+
             # these operations altered data and
             # the hash SHOULD have changed
             modified = g.np.array(modified, dtype=g.np.int64)
