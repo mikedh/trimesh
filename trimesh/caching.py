@@ -272,6 +272,31 @@ class TrackedArray(np.ndarray):
         return super(self.__class__, self).__isub__(
             *args, **kwargs)
 
+    def fill(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).fill(
+            *args, **kwargs)
+
+    def partition(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).partition(
+            *args, **kwargs)
+
+    def put(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).put(
+            *args, **kwargs)
+
+    def byteswap(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).byteswap(
+            *args, **kwargs)
+
+    def itemset(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).itemset(
+            *args, **kwargs)
+
     def __imul__(self, *args, **kwargs):
         self._dirty_hash = True
         return super(self.__class__, self).__imul__(

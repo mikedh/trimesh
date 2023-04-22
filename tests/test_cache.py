@@ -186,6 +186,66 @@ class CacheTest(g.unittest.TestCase):
         # for some reason return a different type?
         assert isinstance(a.max(), type(o.max()))
 
+    def test_method_combinations(self):
+        # run combinatorial guesses of arguments on every method
+        # of the subclassed `ndarray` and see if we can get trackedarray
+        # to return incorrect hashes. Hopefully this catches new methods
+
+        import itertools
+        import numpy as np
+        from trimesh.caching import tracked_array
+
+        dim = (100, 3)
+
+        # generate a bunch of arguments for every function of an `ndarray` so
+        # we can see if the functions mutate
+        flat = [2.3, 1, 10, 4.2, [3, -1], {'shape': 10}, np.int64, np.float64,
+                np.random.random(dim), np.random.random(dim[::1]), 'shape']
+
+        # start with no arguments
+        attempts = [tuple()]
+        # add a single argument from our guesses
+        attempts.extend([(A,) for A in flat])
+        # add 2 and 3 length combinations of our guesses
+        attempts.extend([tuple(G) for G in itertools.combinations(flat, 2)])
+        attempts.extend([tuple(G) for G in itertools.combinations(flat, 3)])
+        attempts.extend([A[::-1] for A in attempts])
+
+        # methods which mutate arrays
+        mutate = []
+        # collect functions which mutate arrays but don't change our hash
+        broken = []
+        for method in list(dir(np.random.random(dim))):
+            failures = []
+
+            for A in attempts:
+                m = np.random.random((100, 3))
+                true_pre = m.tobytes()
+                m = tracked_array(m)
+                hash_pre = hash(m)
+
+                try:
+                    eval(f'm.{method}(*A)')
+                except BaseException as J:
+                    failures.append(str(J))
+
+                hash_post = hash(m)
+                true_post = m.tobytes()
+
+                # if tobytes disagrees with our hashing logic
+                # it indicates we have cached incorrectly
+                if (hash_pre == hash_post) != (true_pre == true_post):
+                    broken.append((method, A))
+
+                if true_pre != true_post:
+                    mutate.append(method)
+
+        if len(broken) > 0:
+            method_busted = set([method for method, _ in broken])
+            raise ValueError(
+                '`TrackedArray` incorrectly hashing methods: {}'.format(
+                    method_busted))
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
