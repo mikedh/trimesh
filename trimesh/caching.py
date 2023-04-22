@@ -342,6 +342,11 @@ class TrackedArray(np.ndarray):
         super(self.__class__, self).__setslice__(
             *args, **kwargs)
 
+    def sort(self, *args, **kwargs):
+        self._dirty_hash = True
+        super(self.__class__, self).sort(
+            *args, **kwargs)
+
 
 class Cache(object):
     """
