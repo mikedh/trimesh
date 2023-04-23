@@ -302,6 +302,11 @@ class TrackedArray(np.ndarray):
         return super(self.__class__, self).sort(
             *args, **kwargs)
 
+    def setflags(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).setflags(
+            *args, **kwargs)
+
     def __imul__(self, *args, **kwargs):
         self._dirty_hash = True
         return super(self.__class__, self).__imul__(
