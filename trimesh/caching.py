@@ -297,6 +297,11 @@ class TrackedArray(np.ndarray):
         return super(self.__class__, self).itemset(
             *args, **kwargs)
 
+    def sort(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).sort(
+            *args, **kwargs)
+
     def __imul__(self, *args, **kwargs):
         self._dirty_hash = True
         return super(self.__class__, self).__imul__(
@@ -359,17 +364,12 @@ class TrackedArray(np.ndarray):
 
     def __setitem__(self, *args, **kwargs):
         self._dirty_hash = True
-        super(self.__class__, self).__setitem__(
+        return super(self.__class__, self).__setitem__(
             *args, **kwargs)
 
     def __setslice__(self, *args, **kwargs):
         self._dirty_hash = True
-        super(self.__class__, self).__setslice__(
-            *args, **kwargs)
-
-    def sort(self, *args, **kwargs):
-        self._dirty_hash = True
-        super(self.__class__, self).sort(
+        return super(self.__class__, self).__setslice__(
             *args, **kwargs)
 
 
