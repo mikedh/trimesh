@@ -200,11 +200,12 @@ class CacheTest(g.unittest.TestCase):
         from trimesh.caching import tracked_array
 
         dim = (100, 3)
+        rng = np.random.RandomState(0)
 
         # generate a bunch of arguments for every function of an `ndarray` so
         # we can see if the functions mutate
         flat = [2.3, 1, 10, 4.2, [3, -1], {'shape': 10}, np.int64, np.float64,
-                np.random.random(dim), np.random.random(dim[::1]), 'shape',
+                rng.random(dim), rng.random(dim[::1]), 'shape',
                 True, False]
 
         # start with no arguments
@@ -220,11 +221,11 @@ class CacheTest(g.unittest.TestCase):
         mutate = []
         # collect functions which mutate arrays but don't change our hash
         broken = []
-        for method in list(dir(tracked_array(np.random.random(dim)))):
+        for method in list(dir(tracked_array(rng.random(dim)))):
             failures = []
 
             for A in attempts:
-                m = np.random.random(dim)
+                m = rng.random(dim)
                 true_pre = m.tobytes()
                 m = tracked_array(m)
                 hash_pre = hash(m)
