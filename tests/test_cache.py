@@ -220,11 +220,11 @@ class CacheTest(g.unittest.TestCase):
         mutate = []
         # collect functions which mutate arrays but don't change our hash
         broken = []
-        for method in list(dir(np.random.random(dim))):
+        for method in list(dir(tracked_array(np.random.random(dim)))):
             failures = []
 
             for A in attempts:
-                m = np.random.random((100, 3))
+                m = np.random.random(dim)
                 true_pre = m.tobytes()
                 m = tracked_array(m)
                 hash_pre = hash(m)
