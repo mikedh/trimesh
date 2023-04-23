@@ -204,7 +204,8 @@ class CacheTest(g.unittest.TestCase):
         # generate a bunch of arguments for every function of an `ndarray` so
         # we can see if the functions mutate
         flat = [2.3, 1, 10, 4.2, [3, -1], {'shape': 10}, np.int64, np.float64,
-                np.random.random(dim), np.random.random(dim[::1]), 'shape']
+                np.random.random(dim), np.random.random(dim[::1]), 'shape',
+                True, False]
 
         # start with no arguments
         attempts = [tuple()]
