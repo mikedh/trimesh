@@ -2149,14 +2149,14 @@ def transform_points(points,
 
 def fix_rigid(matrix, max_deviance=1e-5):
     """
-    If a homogenous transformation matrix is *almost* a rigid
+    If a homogeneous transformation matrix is *almost* a rigid
     transform but many matrix-multiplies have accumulated some
     floating point error try to restore the matrix using SVD.
 
     Parameters
     -----------
     matrix : (4, 4) or (3, 3) float
-      Homogenous transformation matrix.
+      Homogeneous transformation matrix.
     max_deviance : float
       Do not alter the matrix if it is not rigid by more
       than this amount.
@@ -2164,7 +2164,7 @@ def fix_rigid(matrix, max_deviance=1e-5):
     Returns
     ----------
     repaired : (4, 4) or (3, 3) float
-      Repaired homogenous transformation matrix
+      Repaired homogeneous transformation matrix
     """
     dim = matrix.shape[0] - 1
     check = np.abs(np.dot(matrix[:dim, :dim], matrix[:dim, :dim].T)
