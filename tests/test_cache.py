@@ -221,12 +221,13 @@ class CacheTest(g.unittest.TestCase):
         attempts = [tuple()]
         # add a single argument from our guesses
         attempts.extend([(A,) for A in flat])
-        # add 2 and 3 length combinations of our guesses
+        # add 2 and 3 length permutations of our guesses
         attempts.extend([tuple(G) for G in itertools.permutations(flat, 2)])
-        attempts.extend([tuple(G) for G in itertools.permutations(flat, 3)])
 
-        # methods which mutate arrays
-        mutate = []
+        # adding 3-length permuations makes this test 10x slower but if you
+        # are suspicious of a method caching you could uncomment this out:
+        # attempts.extend([tuple(G) for G in itertools.permutations(flat, 3)])
+
         # collect functions which mutate arrays but don't change our hash
         broken = []
 
@@ -251,9 +252,6 @@ class CacheTest(g.unittest.TestCase):
                 # it indicates we have cached incorrectly
                 if (hash_pre == hash_post) != (true_pre == true_post):
                     broken.append((method, A))
-
-                if true_pre != true_post:
-                    mutate.append(method)
 
         if len(broken) > 0:
             method_busted = set([method for method, _ in broken])
