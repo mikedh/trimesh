@@ -240,14 +240,8 @@ class TrackedArray(np.ndarray):
             # we have a valid hash without recomputing.
             return self._hashed
 
-        if self.flags['C_CONTIGUOUS']:
-            hashed = hash_fast(self)
-        else:
-            # the case where we have sliced our nice
-            # contiguous array into a non- contiguous block
-            # for example (note slice *after* track operation):
-            # t = tracked_array(np.random.random(10))[::-1]
-            hashed = hash_fast(np.ascontiguousarray(self))
+        # run a hashing function on the C-order bytes copy
+        hashed = hash_fast(self.tobytes(order='C'))
 
         # assign the value and set the flag
         self._hashed = hashed

@@ -200,32 +200,41 @@ class CacheTest(g.unittest.TestCase):
         from trimesh.caching import tracked_array
 
         dim = (100, 3)
-        rng = np.random.RandomState(0)
 
         # generate a bunch of arguments for every function of an `ndarray` so
         # we can see if the functions mutate
-        flat = [2.3, 1, 10, 4.2, [3, -1], {'shape': 10}, np.int64, np.float64,
-                rng.random(dim), rng.random(dim[::1]), 'shape',
-                True, False]
+        flat = [2.3,
+                1,
+                10,
+                4.2,
+                [3, -1],
+                {'shape': 10},
+                np.int64,
+                np.float64,
+                True, True,
+                False, False,
+                g.random(dim),
+                g.random(dim[::1]),
+                'shape']
 
         # start with no arguments
         attempts = [tuple()]
         # add a single argument from our guesses
         attempts.extend([(A,) for A in flat])
         # add 2 and 3 length combinations of our guesses
-        attempts.extend([tuple(G) for G in itertools.combinations(flat, 2)])
-        attempts.extend([tuple(G) for G in itertools.combinations(flat, 3)])
-        attempts.extend([A[::-1] for A in attempts])
+        attempts.extend([tuple(G) for G in itertools.permutations(flat, 2)])
+        attempts.extend([tuple(G) for G in itertools.permutations(flat, 3)])
 
         # methods which mutate arrays
         mutate = []
         # collect functions which mutate arrays but don't change our hash
         broken = []
-        for method in list(dir(tracked_array(rng.random(dim)))):
-            failures = []
 
+        for method in list(dir(tracked_array(g.random(dim)))):
+            failures = []
+            g.log.debug('hash check: `{}`'.format(method))
             for A in attempts:
-                m = rng.random(dim)
+                m = g.random((100, 3))
                 true_pre = m.tobytes()
                 m = tracked_array(m)
                 hash_pre = hash(m)
