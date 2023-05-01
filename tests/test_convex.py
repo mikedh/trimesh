@@ -18,7 +18,10 @@ class ConvexTest(g.unittest.TestCase):
                   (True, g.trimesh.creation.box()),
                   (True, g.trimesh.creation.cylinder(
                       radius=1, height=10)),
-                  (True, g.trimesh.creation.capsule())]
+                  (True, g.trimesh.creation.capsule()),
+                  (False, g.trimesh.creation.box(extents=(1,1,1)).union( \
+                      g.trimesh.creation.box(extents=(1,1,1), \
+                      transform=g.trimesh.transformations.translation_matrix((10,0,0)))))]
 
         for is_convex, mesh in meshes:
             assert mesh.is_watertight
