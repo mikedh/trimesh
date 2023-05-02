@@ -197,6 +197,10 @@ def is_convex(mesh):
     if not mesh.is_watertight:
         return False
 
+    # meshes with multiple bodies are not convex
+    if mesh.body_count != 1:
+        return False
+
     # don't consider zero- area faces
     nonzero = mesh.area_faces > tol.zero
     # adjacencies with two nonzero faces
