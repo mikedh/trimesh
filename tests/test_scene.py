@@ -449,6 +449,13 @@ class SceneTests(g.unittest.TestCase):
         # scene bounds should exactly match mesh bounds
         assert g.np.allclose(m.bounds, dump.bounds)
 
+    def test_concatenate_mixed(self):
+        scene = g.trimesh.Scene([g.trimesh.creation.icosphere(),
+                                 g.trimesh.path.creation.rectangle([[0, 0], [1, 1]])])
+
+        dump = scene.dump(concatenate=True)
+        assert isinstance(dump, g.trimesh.Trimesh)
+
     def test_append_scenes(self):
         scene_0 = g.trimesh.Scene(base_frame='not_world')
         scene_1 = g.trimesh.Scene(base_frame='not_world')

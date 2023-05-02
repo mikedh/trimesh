@@ -95,6 +95,8 @@ class CreationTest(g.unittest.TestCase):
             assert sphere.is_convex
             assert sphere.is_watertight
             assert sphere.is_winding_consistent
+
+            assert sphere.body_count == 1
             assert sphere.metadata['shape'] == 'sphere'
 
             # all vertices should have radius of exactly 1.0
