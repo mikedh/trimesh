@@ -437,6 +437,12 @@ class OBJTest(g.unittest.TestCase):
         m = g.get_mesh('face_in_group_name_mid_file.obj')
         assert len(m.vertices) == 5
         assert len(m.faces) == 2
+        
+    def test_chunk_parsing_with_no_faces_but_with_f_in_chunk(self):
+        # Checks that a chunk with no faces but with 'f ' in it loads properly
+        m = g.get_mesh('obj_with_no_face_in_chunk.obj')
+        assert len(m.vertices) == 3
+        assert len(m.faces) == 1
 
 
 def simple_load(text):
