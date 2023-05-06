@@ -163,6 +163,11 @@ def revolve(linestring,
         # if revolved curve starts and ends with zero radius
         # it should really be a valid volume, unless the sign
         # reversed on the input linestring
+
+        if not mesh.is_volume:
+            from IPython import embed
+            embed()
+
         assert mesh.is_volume
         assert mesh.body_count == 1
 
@@ -747,7 +752,8 @@ def uv_sphere(radius=1.0, count=None, transform=None):
 
 def capsule(height=1.0,
             radius=1.0,
-            count=None):
+            count=None,
+            transform=None):
     """
     Create a mesh of a capsule, or a cylinder with hemispheric ends.
 
@@ -772,31 +778,26 @@ def capsule(height=1.0,
         count = np.array([32, 64], dtype=np.int64)
     else:
         count = np.array(count, dtype=np.int64)
-        count += np.mod(count, 2)
-        count[1] *= 2
+    count += np.mod(count, 2)
 
-    # create a theta where there is a double band around the equator
-    # so that we can offset the top and bottom of a sphere to
-    # get a nicely meshed capsule
-    theta = np.linspace(0, np.pi, count[0])
-    center = np.clip(np.arctan(tol.merge / radius),
-                     tol.merge, np.inf)
-    offset = np.array([-center, center]) + (np.pi / 2)
-    theta = np.insert(theta,
-                      int(len(theta) / 2),
-                      offset)
+    height = abs(float(height))
+    radius = abs(float(radius))
 
-    capsule = uv_sphere(radius=radius,
-                        count=count,
-                        theta=theta)
+    # create a half circle
+    theta = np.linspace(-np.pi / 2.0, np.pi / 2.0, count[0])
+    linestring = np.column_stack((np.cos(theta), np.sin(theta))) * radius
 
-    top = capsule.vertices[:, 2] > tol.zero
-    capsule.vertices[top] += [0, 0, height]
-    capsule.metadata.update({'shape': 'capsule',
+    # offset the top and bottom by half the height
+    half = len(linestring) // 2
+    linestring[:half][:, 1] -= height / 2.0
+    linestring[half:][:, 1] += height / 2.0
+
+    return revolve(linestring,
+                   sections=count[1],
+                   transform=transform,
+                   metadata={'shape': 'capsule',
                              'height': height,
                              'radius': radius})
-
-    return capsule
 
 
 def cone(radius,

@@ -465,6 +465,49 @@ class SceneTests(g.unittest.TestCase):
 
         assert scene_sum.graph.base_frame == 'not_world'
 
+    def test_scene_concat(self):
+        # check that primitives get upgraded to meshes
+        a = g.trimesh.Scene([g.trimesh.primitives.Sphere(center=[5,5,5]),
+                           g.trimesh.primitives.Box()])
+        c = a.dump(concatenate=True)
+        assert isinstance(c, g.trimesh.Trimesh)
+        assert g.np.allclose(c.bounds, a.bounds)
+
+        c = a.dump(concatenate=False)
+        assert len(c) == len(a.geometry)
+
+        # scene 2D
+        scene_2D = g.trimesh.Scene(g.get_mesh('2D/250_cycloidal.DXF').split())
+        concat = scene_2D.dump(concatenate=True)
+        assert isinstance(concat, g.trimesh.path.Path2D)
+
+
+        dump = scene_2D.dump(concatenate=False)
+        assert len(dump) == len(scene_2D.geometry)
+        assert all(isinstance(i, g.trimesh.path.Path2D) for i in dump)
+
+        # all Path3D objects
+        scene_3D = g.trimesh.Scene(
+            [i.to_3D() for i in
+             g.get_mesh('2D/250_cycloidal.DXF').split()])
+
+        dump= scene_3D.dump(concatenate=False)
+        assert len(dump) >= 5
+        assert all(isinstance(i, g.trimesh.path.Path3D) for i in dump)
+
+        concat = scene_3D.dump(concatenate=True)
+        assert isinstance(concat, g.trimesh.path.Path3D)
+
+        mixed = list(scene_2D.geometry.values())
+        mixed.extend(scene_3D.geometry.values())
+        scene_mixed = g.trimesh.Scene(mixed)
+
+        dump = scene_mixed.dump(concatenate=False)
+        assert len(dump) == len(mixed)
+
+        concat = scene_mixed.dump(concatenate=True)
+        assert isinstance(concat, g.trimesh.path.Path3D)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
