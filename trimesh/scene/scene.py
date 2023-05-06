@@ -851,10 +851,10 @@ class Scene(Geometry3D):
                 check = util.isclose(transform, util._IDENTITY, atol=1e-8)
                 check[:2, :3] = True
                 if not check.all():
-                    # transform moves in 3D
+                    # transform moves in 3D so we put this on the Z=0 plane
                     current = current.to_3D()
                 else:
-                    # transform moves in 2D
+                    # transform moves in 2D so clip off the last row and column
                     transform = transform[:3, :3]
 
             # move the geometry vertices into the requested frame

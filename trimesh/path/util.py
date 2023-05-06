@@ -20,6 +20,11 @@ def concatenate(paths):
     if len(paths) == 1:
         return paths[0].copy()
 
+    # upgrade to 3D if we have mixed 2D and 3D paths
+    dimensions = set(i.vertices.shape[1] for i in paths)
+    if len(dimensions) > 1:
+        paths = [i.to_3D() if hasattr(i, 'to_3D') else i for i in paths]
+
     # length of vertex arrays
     vert_len = np.array([len(i.vertices) for i in paths])
     # how much to offset each paths vertex indices by

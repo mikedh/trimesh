@@ -42,6 +42,7 @@ def export_mesh(mesh,
     # if we opened a file object in this function
     # we will want to close it when we're done
     was_opened = False
+    file_name = None
 
     if util.is_pathlib(file_obj):
         # handle `pathlib` objects by converting to string
@@ -53,6 +54,7 @@ def export_mesh(mesh,
             file_type = (str(file_obj).split('.')[-1]).lower()
         if file_type in _mesh_exporters:
             was_opened = True
+            file_name = file_obj
             # get full path of file before opening
             file_path = os.path.abspath(os.path.expanduser(file_obj))
             file_obj = open(file_path, 'wb')
@@ -80,12 +82,29 @@ def export_mesh(mesh,
     # OBJ files save assets everywhere
     if file_type == 'obj':
         kwargs['resolver'] = resolver
+
+    # run the exporter
     export = _mesh_exporters[file_type](mesh, **kwargs)
+
+    # if the export is multiple files (i.e. GLTF)
+    if isinstance(export, dict):
+        # if we have a filename rename the default GLTF
+        if file_name is not None and 'model.gltf' in export:
+            export[file_name] = export.pop('model.gltf')
+
+        # write the files if a resolver has been passed
+        if resolver is not None:
+            for name, data in export.items():
+                resolver.write(name=name, data=data)
+
+        return export
 
     if hasattr(file_obj, 'write'):
         result = util.write_encoded(file_obj, export)
     else:
         result = export
+
+    # if we opened anything close it here
     if was_opened:
         file_obj.close()
 

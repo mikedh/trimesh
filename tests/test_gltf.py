@@ -906,6 +906,21 @@ class GLTFTest(g.unittest.TestCase):
         # will run a kdtree check
         g.texture_equal(s, m)
 
+    def test_gltf_by_name(self):
+        m = g.trimesh.creation.icosphere()
+
+        with g.TemporaryDirectory() as d:
+            # export the GLTF file by name
+            file_path = g.os.path.join(d, 'hi.gltf')
+            # export the file by path
+            m.export(file_path)
+            # reload the gltf from the file path
+            r = g.trimesh.load(file_path)
+
+            assert isinstance(r, g.trimesh.Scene)
+            assert len(r.geometry) == 1
+            assert g.np.isclose(next(iter(r.geometry.values())).volume, m.volume)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

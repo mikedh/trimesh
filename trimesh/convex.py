@@ -194,11 +194,8 @@ def is_convex(mesh):
       Was passed mesh convex or not
     """
     # non-watertight meshes are not convex
-    if not mesh.is_watertight:
-        return False
-
     # meshes with multiple bodies are not convex
-    if mesh.body_count != 1:
+    if not mesh.is_watertight or mesh.body_count != 1:
         return False
 
     # don't consider zero- area faces
@@ -219,7 +216,6 @@ def is_convex(mesh):
     # if projections of vertex onto plane of adjacent
     # face is negative, it means the face pair is locally
     # convex, and if that is true for all faces the mesh is convex
-
     convex = bool(mesh.face_adjacency_projections[adj_ok].max() < threshold)
 
     return convex
