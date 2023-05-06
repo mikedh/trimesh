@@ -75,7 +75,9 @@ def export_gltf(scene,
                 include_normals=None,
                 merge_buffers=False,
                 unitize_normals=False,
-                tree_postprocessor=None):
+                tree_postprocessor=None,
+                embed_buffer=False,
+                return_json_string=False):
     """
     Export a scene object as a GLTF directory.
 
@@ -94,6 +96,10 @@ def export_gltf(scene,
       If passed will use to write each file.
     tree_postprocesser : None or callable
       Run this on the header tree before exiting.
+    embed_buffer : bool
+      Embed the buffer into the uri.
+    return_json_string : bool
+      return a JSON string if True, a dict if False.
 
     Returns
     ----------
@@ -118,13 +124,18 @@ def export_gltf(scene,
     # store files as {name : data}
     files = {}
 
+    embed_buffer_format = "data:application/octet-stream;base64,{}"
     if merge_buffers:
         views = _build_views(buffer_items)
-        buffer_name = "gltf_buffer.bin"
         buffer_data = bytes().join(buffer_items.values())
+        if embed_buffer:
+            buffer_name = embed_buffer_format.format(
+                    base64.b64encode(buffer_data).decode())
+        else:
+            buffer_name = "gltf_buffer.bin"
+            files[buffer_name] = buffer_data
         buffers = [{"uri": buffer_name,
                     "byteLength": len(buffer_data)}]
-        files[buffer_name] = buffer_data
     else:
         # make one buffer per buffer_items
         buffers = [None] * len(buffer_items)
@@ -135,10 +146,14 @@ def export_gltf(scene,
             views[i] = {"buffer": i,
                         "byteOffset": 0,
                         "byteLength": len(item)}
-            buffer_name = "gltf_buffer_{}.bin".format(i)
+            if embed_buffer:
+                buffer_name = embed_buffer_format.format(
+                        base64.b64encode(item).decode())
+            else:
+                buffer_name = "gltf_buffer_{}.bin".format(i)
+                files[buffer_name] = item
             buffers[i] = {"uri": buffer_name,
                           "byteLength": len(item)}
-            files[buffer_name] = item
 
     if len(buffers) > 0:
         tree["buffers"] = buffers
@@ -150,7 +165,10 @@ def export_gltf(scene,
     if tol.strict:
         validate(tree)
 
-    return files
+    if return_json_string:
+        return files["model.gltf"]
+    else:
+        return files
 
 
 def export_glb(
