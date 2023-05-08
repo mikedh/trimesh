@@ -87,6 +87,12 @@ class CreationTest(g.unittest.TestCase):
         assert len(mesh.split(only_watertight=True)) == 0
         assert len(mesh.split(only_watertight=False)) == count
 
+    def test_capsule(self):
+        mesh = g.trimesh.creation.capsule(radius=1.0, height=2.0)
+        assert mesh.is_volume
+        assert mesh.body_count == 1
+        assert g.np.allclose(mesh.extents, [2, 2, 4], atol=0.05)
+
     def test_spheres(self):
         # test generation of UV spheres and icospheres
         for sphere in [g.trimesh.creation.uv_sphere(),
@@ -95,6 +101,8 @@ class CreationTest(g.unittest.TestCase):
             assert sphere.is_convex
             assert sphere.is_watertight
             assert sphere.is_winding_consistent
+
+            assert sphere.body_count == 1
             assert sphere.metadata['shape'] == 'sphere'
 
             # all vertices should have radius of exactly 1.0

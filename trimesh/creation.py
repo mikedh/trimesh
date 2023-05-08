@@ -163,7 +163,13 @@ def revolve(linestring,
         # if revolved curve starts and ends with zero radius
         # it should really be a valid volume, unless the sign
         # reversed on the input linestring
+
+        if not mesh.is_volume:
+            from IPython import embed
+            embed()
+
         assert mesh.is_volume
+        assert mesh.body_count == 1
 
     return mesh
 
@@ -705,10 +711,7 @@ def icosphere(subdivisions=3, radius=1.0, color=None):
     return ico
 
 
-def uv_sphere(radius=1.0,
-              count=None,
-              theta=None,
-              phi=None):
+def uv_sphere(radius=1.0, count=None, transform=None):
     """
     Create a UV sphere (latitude + longitude) centered at the
     origin. Roughly one order of magnitude faster than an
@@ -720,16 +723,14 @@ def uv_sphere(radius=1.0,
       Radius of sphere
     count : (2,) int
       Number of latitude and longitude lines
-    theta : (n,) float
-      Optional theta angles in radians
-    phi :   (n,) float
-      Optional phi angles in radians
 
     Returns
     ----------
     mesh : trimesh.Trimesh
        Mesh of UV sphere with specified parameters
     """
+
+    # set the resolution of the uv sphere
     if count is None:
         count = np.array([32, 64], dtype=np.int64)
     else:
@@ -737,55 +738,22 @@ def uv_sphere(radius=1.0,
         count += np.mod(count, 2)
         count[1] *= 2
 
-    # generate vertices on a sphere using spherical coordinates
-    if theta is None:
-        theta = np.linspace(0, np.pi, count[0])
-    if phi is None:
-        phi = np.linspace(0, np.pi * 2, count[1])[:-1]
-    spherical = np.dstack((np.tile(phi, (len(theta), 1)).T,
-                           np.tile(theta, (len(phi), 1)))).reshape((-1, 2))
-    vertices = util.spherical_to_vector(spherical) * radius
+    # generate the 2D curve for the UV sphere
+    theta = np.linspace(0.0, np.pi, num=count[0])
+    linestring = np.column_stack((np.sin(theta), -np.cos(theta))) * radius
 
-    # generate faces by creating a bunch of pie wedges
-    c = len(theta)
-    # a quad face as two triangles
-    pairs = np.array([[c, 0, 1],
-                      [c + 1, c, 1]])
-
-    # increment both triangles in each quad face by the same offset
-    incrementor = np.tile(np.arange(c - 1), (2, 1)).T.reshape((-1, 1))
-    # create the faces for a single pie wedge of the sphere
-    strip = np.tile(pairs, (c - 1, 1))
-    strip += incrementor
-    # the first and last faces will be degenerate since the first
-    # and last vertex are identical in the two rows
-    strip = strip[1:-1]
-
-    # tile pie wedges into a sphere
-    faces = np.vstack([strip + (i * c) for i in range(len(phi))])
-
-    # poles are repeated in every strip, so a mask to merge them
-    mask = np.arange(len(vertices))
-    # the top pole are all the same vertex
-    mask[0::c] = 0
-    # the bottom pole are all the same vertex
-    mask[c - 1::c] = c - 1
-
-    # faces masked to remove the duplicated pole vertices
-    # and mod to wrap to fill in the last pie wedge
-    faces = mask[np.mod(faces, len(vertices))]
-
-    # we save a lot of time by not processing again
-    # since we did some bookkeeping mesh is watertight
-    mesh = Trimesh(vertices=vertices, faces=faces, process=False,
+    # revolve the curve to create a volume
+    return revolve(linestring=linestring,
+                   sections=count[1],
+                   transform=transform,
                    metadata={'shape': 'sphere',
                              'radius': radius})
-    return mesh
 
 
 def capsule(height=1.0,
             radius=1.0,
-            count=None):
+            count=None,
+            transform=None):
     """
     Create a mesh of a capsule, or a cylinder with hemispheric ends.
 
@@ -810,31 +778,26 @@ def capsule(height=1.0,
         count = np.array([32, 64], dtype=np.int64)
     else:
         count = np.array(count, dtype=np.int64)
-        count += np.mod(count, 2)
-        count[1] *= 2
+    count += np.mod(count, 2)
 
-    # create a theta where there is a double band around the equator
-    # so that we can offset the top and bottom of a sphere to
-    # get a nicely meshed capsule
-    theta = np.linspace(0, np.pi, count[0])
-    center = np.clip(np.arctan(tol.merge / radius),
-                     tol.merge, np.inf)
-    offset = np.array([-center, center]) + (np.pi / 2)
-    theta = np.insert(theta,
-                      int(len(theta) / 2),
-                      offset)
+    height = abs(float(height))
+    radius = abs(float(radius))
 
-    capsule = uv_sphere(radius=radius,
-                        count=count,
-                        theta=theta)
+    # create a half circle
+    theta = np.linspace(-np.pi / 2.0, np.pi / 2.0, count[0])
+    linestring = np.column_stack((np.cos(theta), np.sin(theta))) * radius
 
-    top = capsule.vertices[:, 2] > tol.zero
-    capsule.vertices[top] += [0, 0, height]
-    capsule.metadata.update({'shape': 'capsule',
+    # offset the top and bottom by half the height
+    half = len(linestring) // 2
+    linestring[:half][:, 1] -= height / 2.0
+    linestring[half:][:, 1] += height / 2.0
+
+    return revolve(linestring,
+                   sections=count[1],
+                   transform=transform,
+                   metadata={'shape': 'capsule',
                              'height': height,
                              'radius': radius})
-
-    return capsule
 
 
 def cone(radius,

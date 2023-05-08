@@ -834,15 +834,29 @@ class Scene(Geometry3D):
 
         Returns
         ----------
-        dumped : (n,) Trimesh or Trimesh
-          Trimesh objects transformed to their
-          location the scene.graph
+        dumped : (n,) Trimesh, Path2D, Path3D, PointCloud
+          Depending on what the scene contains. If `concatenate`
+          then some geometry may be dropped if it doesn't match.
         """
+
         result = []
         for node_name in self.graph.nodes_geometry:
             transform, geometry_name = self.graph[node_name]
             # get a copy of the geometry
             current = self.geometry[geometry_name].copy()
+
+            # if the geometry is 2D see if we have to upgrade to 3D
+            if hasattr(current, 'to_3D'):
+                # check to see if the scene is transforming the path out of plane
+                check = util.isclose(transform, util._IDENTITY, atol=1e-8)
+                check[:2, :3] = True
+                if not check.all():
+                    # transform moves in 3D so we put this on the Z=0 plane
+                    current = current.to_3D()
+                else:
+                    # transform moves in 2D so clip off the last row and column
+                    transform = transform[:3, :3]
+
             # move the geometry vertices into the requested frame
             current.apply_transform(transform)
             current.metadata['name'] = geometry_name
@@ -852,6 +866,7 @@ class Scene(Geometry3D):
             result.append(current)
 
         if concatenate:
+            # if scene has mixed geometry this may drop some of it
             return util.concatenate(result)
 
         return np.array(result)

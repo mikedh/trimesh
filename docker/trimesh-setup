@@ -8,6 +8,7 @@ this exact configuration.
 """
 import os
 import sys
+import json
 import shutil
 import tarfile
 import tempfile
@@ -20,69 +21,91 @@ from fnmatch import fnmatch
 # define system packages for our debian docker image
 # someday possibly add this to the `pyproject.toml` config
 # but for now store them locally in the installer script
-config_toml = """
-[tool.trimesh-setup.apt]
-# for running with `trimesh-setup` usually in a Docker image
-# here are named groups of `apt-get install` Debian packages
-base = ["wget", "curl", "xz-utils", "git"]
-build = ["build-essential", "g++", "make"]
-docs = ["make", "pandoc"]
-llvmpipe = [
-  "libgl1-mesa-glx",
-  "libgl1-mesa-dri",
-  "xvfb",
-  "xauth",
-  "ca-certificates",
-  "freeglut3-dev"
-]
-test = ["blender", "openscad"]
-
-# libraries and tools that need to be downloaded are under `fetch`
-[tool.trimesh-setup.fetch.embree2]
-url = "https://github.com/embree/embree/releases/download/v2.17.7/embree-2.17.7.x86_64.linux.tar.gz"
-sha256 = "2c4bdacd8f3c3480991b99e85b8f584975ac181373a75f3e9675bf7efae501fe"
-target = "/usr/local"
-# the `bin` subdirectory is not required
-extract_skip = [ "bin/*", "doc/*", ]
-# skip the first component of the path in the archive
-# same behavior as in the `tar` command line interface
-strip_components = 1
-chmod = 755
-
-[tool.trimesh-setup.fetch.embree3]
-url = 'https://github.com/embree/embree/releases/download/v3.12.1/embree-3.12.1.x86_64.linux.tar.gz'
-sha256 = '5e218dd4e95c035c04aa893f7b1169ade11ecc57580e0027eae2ec84cdc9baff'
-target = "/usr/local"
-extract_skip = [ "bin/*", "doc/*", ]
-strip_components = 1
-
-
-[tool.trimesh-setup.fetch.embree4]
-url = 'https://github.com/embree/embree/releases/download/v4.0.0/embree-4.0.0.x86_64.linux.tar.gz'
-sha256 = '524842e2f141dca0db584c33a0821176373e7058f3ec2201bfb19d9e9a1b80b9'
-target = "/usr/local"
-extract_skip = [ "bin/*", "doc/*", ]
-strip_components = 1
-
-[tool.trimesh-setup.fetch.gltf_validator]
-url = 'https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.8/gltf_validator-2.0.0-dev.3.8-linux64.tar.xz'
-sha256 = '374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a'
-target = "$PATH"
-chmod = 755
-extract_only = "gltf_validator"
-
-[tool.trimesh-setup.fetch.pandoc]
-url = 'https://github.com/jgm/pandoc/releases/download/3.1.1/pandoc-3.1.1-linux-amd64.tar.gz'
-sha256 = '52b25f0115517e32047a06d821e63729108027bd06d9605fe8eac0fa83e0bf81'
-target = "$PATH"
-chmod = 755
-extract_only = "pandoc"
-
-[tool.trimesh-setup.fetch.binvox]
-url = 'https://trimesh.s3-us-west-1.amazonaws.com/binvox'
-sha256 = '82ee314a75986f67f1d2b5b3ccdfb3661fe57a6b428aa0e0f798fdb3e1734fe0'
-target = "$PATH"
-chmod = 755
+config_json = """
+{
+  "apt": {
+    "base": [
+      "wget",
+      "curl",
+      "xz-utils",
+      "git"
+    ],
+    "build": [
+      "build-essential",
+      "g++",
+      "make"
+    ],
+    "docs": [
+      "make",
+      "pandoc"
+    ],
+    "llvmpipe": [
+      "libgl1-mesa-glx",
+      "libgl1-mesa-dri",
+      "xvfb",
+      "xauth",
+      "ca-certificates",
+      "freeglut3-dev"
+    ],
+    "test": [
+      "blender",
+      "openscad"
+    ]
+  },
+  "fetch": {
+    "embree2": {
+      "url": "https://github.com/embree/embree/releases/download/v2.17.7/embree-2.17.7.x86_64.linux.tar.gz",
+      "sha256": "2c4bdacd8f3c3480991b99e85b8f584975ac181373a75f3e9675bf7efae501fe",
+      "target": "/usr/local",
+      "extract_skip": [
+        "bin/*",
+        "doc/*"
+      ],
+      "strip_components": 1,
+      "chmod": 755
+    },
+    "embree3": {
+      "url": "https://github.com/embree/embree/releases/download/v3.12.1/embree-3.12.1.x86_64.linux.tar.gz",
+      "sha256": "5e218dd4e95c035c04aa893f7b1169ade11ecc57580e0027eae2ec84cdc9baff",
+      "target": "/usr/local",
+      "extract_skip": [
+        "bin/*",
+        "doc/*"
+      ],
+      "strip_components": 1
+    },
+    "embree4": {
+      "url": "https://github.com/embree/embree/releases/download/v4.0.0/embree-4.0.0.x86_64.linux.tar.gz",
+      "sha256": "524842e2f141dca0db584c33a0821176373e7058f3ec2201bfb19d9e9a1b80b9",
+      "target": "/usr/local",
+      "extract_skip": [
+        "bin/*",
+        "doc/*"
+      ],
+      "strip_components": 1
+    },
+    "gltf_validator": {
+      "url": "https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.8/gltf_validator-2.0.0-dev.3.8-linux64.tar.xz",
+      "sha256": "374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a",
+      "target": "$PATH",
+      "chmod": 755,
+      "extract_only": "gltf_validator"
+    },
+    "pandoc": {
+      "url": "https://github.com/jgm/pandoc/releases/download/3.1.1/pandoc-3.1.1-linux-amd64.tar.gz",
+      "sha256": "52b25f0115517e32047a06d821e63729108027bd06d9605fe8eac0fa83e0bf81",
+      "target": "$PATH",
+      "chmod": 755,
+      "extract_only": "pandoc"
+    },
+    "binvox": {
+      "url": "https://trimesh.s3-us-west-1.amazonaws.com/binvox",
+      "sha256": "82ee314a75986f67f1d2b5b3ccdfb3661fe57a6b428aa0e0f798fdb3e1734fe0",
+      "target": "$PATH",
+      "chmod": 755
+    }
+  }
+}
 """
 
 
@@ -344,11 +367,11 @@ def handle_fetch(url,
             # python os.chmod takes an octal value
             os.chmod(path, int(str(chmod), base=8))
 
+
 def load_config():
     """
     """
-    from tomllib import loads
-    return loads(config_toml).get('tool', {}).get('trimesh-setup', {})
+    return json.loads(config_json)
 
 
 if __name__ == '__main__':
@@ -365,7 +388,7 @@ if __name__ == '__main__':
         '--install',
         type=str,
         action='append',
-        help=f'Install packages: {options}')
+        help=f'Install metapackages: {options}')
     args = parser.parse_args()
 
     # collect `apt-get install`-able package
@@ -375,11 +398,12 @@ if __name__ == '__main__':
 
     # allow comma delimeters and de-duplicate
     if args.install is None:
-        select = set()
+        parser.print_help()
+        exit()
     else:
         select = set(' '.join(args.install).replace(',', ' ').split())
 
-    log.debug(f'installing metapackages: {select}')
+    log.debug(f'installing metapackages: `{", ".join(select)}`')
 
     for key in select:
         for handle_name, handler in handlers.items():

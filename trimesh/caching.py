@@ -240,14 +240,8 @@ class TrackedArray(np.ndarray):
             # we have a valid hash without recomputing.
             return self._hashed
 
-        if self.flags['C_CONTIGUOUS']:
-            hashed = hash_fast(self)
-        else:
-            # the case where we have sliced our nice
-            # contiguous array into a non- contiguous block
-            # for example (note slice *after* track operation):
-            # t = tracked_array(np.random.random(10))[::-1]
-            hashed = hash_fast(np.ascontiguousarray(self))
+        # run a hashing function on the C-order bytes copy
+        hashed = hash_fast(self.tobytes(order='C'))
 
         # assign the value and set the flag
         self._hashed = hashed
@@ -270,6 +264,41 @@ class TrackedArray(np.ndarray):
     def __isub__(self, *args, **kwargs):
         self._dirty_hash = True
         return super(self.__class__, self).__isub__(
+            *args, **kwargs)
+
+    def fill(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).fill(
+            *args, **kwargs)
+
+    def partition(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).partition(
+            *args, **kwargs)
+
+    def put(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).put(
+            *args, **kwargs)
+
+    def byteswap(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).byteswap(
+            *args, **kwargs)
+
+    def itemset(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).itemset(
+            *args, **kwargs)
+
+    def sort(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).sort(
+            *args, **kwargs)
+
+    def setflags(self, *args, **kwargs):
+        self._dirty_hash = True
+        return super(self.__class__, self).setflags(
             *args, **kwargs)
 
     def __imul__(self, *args, **kwargs):
@@ -334,12 +363,12 @@ class TrackedArray(np.ndarray):
 
     def __setitem__(self, *args, **kwargs):
         self._dirty_hash = True
-        super(self.__class__, self).__setitem__(
+        return super(self.__class__, self).__setitem__(
             *args, **kwargs)
 
     def __setslice__(self, *args, **kwargs):
         self._dirty_hash = True
-        super(self.__class__, self).__setslice__(
+        return super(self.__class__, self).__setslice__(
             *args, **kwargs)
 
 

@@ -751,7 +751,9 @@ def _preprocess_faces(text):
         # Discard the g tag line in the list of faces
         elif chunk.startswith('g '):
             _, chunk = chunk.split('\n', 1)
-        if 'f ' in chunk:
+        # If we have an f at the beginning of a line
+        # then add it to the list of faces chunks
+        if chunk.startswith('f ') or '\nf' in chunk:
             face_tuples.append((current_mtl, current_obj, chunk))
     return face_tuples
 

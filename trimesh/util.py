@@ -70,6 +70,9 @@ TOL_MERGE = 1e-8
 # enable additional potentially slow checks
 _STRICT = False
 
+_IDENTITY = np.eye(4, dtype=np.float64)
+_IDENTITY.flags['WRITEABLE'] = False
+
 
 def has_module(name):
     """
@@ -1408,9 +1411,7 @@ def type_bases(obj, depth=4):
         bases = np.hstack(bases)
     except IndexError:
         bases = []
-    # we do the hasattr as None/NoneType can be in the list of bases
-    bases = [i for i in bases if hasattr(i, '__name__')]
-    return np.array(bases)
+    return [i for i in bases if hasattr(i, '__name__')]
 
 
 def type_named(obj, name):
@@ -1420,12 +1421,15 @@ def type_named(obj, name):
 
     Parameters
     ------------
-    obj: object to look for class of
-    name : str, name of class
+    obj : any
+      Object to look for class of
+    name : str
+      Nnme of class
 
     Returns
     ----------
-    named class, or None
+    class : Optional[Callable]
+      Camed class, or None
     """
     # if obj is a member of the named class, return True
     name = str(name)
@@ -1454,36 +1458,56 @@ def concatenate(a, b=None):
     result : trimesh.Trimesh
       Concatenated mesh
     """
-    if b is None:
-        b = []
-    # stack meshes into flat list
-    meshes = np.append(a, b)
 
-    # if there is only one mesh just return the first
-    if len(meshes) == 1:
-        return meshes[0].copy()
-    elif len(meshes) == 0:
+    # get a flat list of meshes
+    flat = []
+    if a is not None:
+        if is_sequence(a):
+            flat.extend(a)
+        else:
+            flat.append(a)
+    if b is not None:
+        if is_sequence(b):
+            flat.extend(b)
+        else:
+            flat.append(b)
+
+    if len(flat) == 1:
+        # if there is only one mesh just return the first
+        return flat[0].copy()
+    elif len(flat) == 0:
+        # if there are no meshes return an empty list
+        return []
+
+    is_mesh = [f for f in flat if is_instance_named(f, 'Trimesh')]
+    is_path = [f for f in flat if is_instance_named(f, 'Path')]
+
+    if len(is_path) > len(is_mesh):
+        from .path.util import concatenate as concatenate_path
+        return concatenate_path(is_path)
+
+    if len(is_mesh) == 0:
         return []
 
     # extract the trimesh type to avoid a circular import
-    # and assert that both inputs are Trimesh objects
-    trimesh_type = type_named(meshes[0], 'Trimesh')
+    # and assert that all inputs are Trimesh objects
+    trimesh_type = type_named(is_mesh[0], 'Trimesh')
 
     # append faces and vertices of meshes
     vertices, faces = append_faces(
-        [m.vertices.copy() for m in meshes],
-        [m.faces.copy() for m in meshes])
+        [m.vertices.copy() for m in is_mesh],
+        [m.faces.copy() for m in is_mesh])
 
     # only save face normals if already calculated
     face_normals = None
-    if all('face_normals' in m._cache for m in meshes):
+    if all('face_normals' in m._cache for m in is_mesh):
         face_normals = np.vstack(
-            [m.face_normals for m in meshes])
+            [m.face_normals for m in is_mesh])
 
     try:
         # concatenate visuals
-        visual = meshes[0].visual.concatenate(
-            [m.visual for m in meshes[1:]])
+        visual = is_mesh[0].visual.concatenate(
+            [m.visual for m in is_mesh[1:]])
     except BaseException:
         log.debug('failed to combine visuals', exc_info=True)
         visual = None

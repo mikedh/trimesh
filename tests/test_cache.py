@@ -86,6 +86,10 @@ class CacheTest(g.unittest.TestCase):
             # in place floor division :|
             a //= 2
             modified.append(hash(a))
+            # in-place sort
+            a.sort()
+            modified.append(hash(a))
+
             # these operations altered data and
             # the hash SHOULD have changed
             modified = g.np.array(modified, dtype=g.np.int64)
@@ -181,6 +185,79 @@ class CacheTest(g.unittest.TestCase):
         # this should be a scalar and subclasses
         # for some reason return a different type?
         assert isinstance(a.max(), type(o.max()))
+
+    def test_method_combinations(self):
+        # run combinatorial guesses of arguments on every method
+        # of the subclassed `ndarray` and see if we can get trackedarray
+        # to return incorrect hashes. Hopefully this catches new methods
+
+        # only run this test on python 3+ as they changed tobytes
+        if not g.PY3:
+            return
+
+        import itertools
+        import numpy as np
+        from trimesh.caching import tracked_array
+
+        dim = (100, 3)
+
+        # generate a bunch of arguments for every function of an `ndarray` so
+        # we can see if the functions mutate
+        flat = [2.3,
+                1,
+                10,
+                4.2,
+                [3, -1],
+                {'shape': 10},
+                np.int64,
+                np.float64,
+                True, True,
+                False, False,
+                g.random(dim),
+                g.random(dim[::1]),
+                'shape']
+
+        # start with no arguments
+        attempts = [tuple()]
+        # add a single argument from our guesses
+        attempts.extend([(A,) for A in flat])
+        # add 2 and 3 length permutations of our guesses
+        attempts.extend([tuple(G) for G in itertools.permutations(flat, 2)])
+
+        # adding 3-length permuations makes this test 10x slower but if you
+        # are suspicious of a method caching you could uncomment this out:
+        # attempts.extend([tuple(G) for G in itertools.permutations(flat, 3)])
+
+        # collect functions which mutate arrays but don't change our hash
+        broken = []
+
+        for method in list(dir(tracked_array(g.random(dim)))):
+            failures = []
+            g.log.debug('hash check: `{}`'.format(method))
+            for A in attempts:
+                m = g.random((100, 3))
+                true_pre = m.tobytes()
+                m = tracked_array(m)
+                hash_pre = hash(m)
+
+                try:
+                    eval('m.{method}(*A)'.format(method=method))
+                except BaseException as J:
+                    failures.append(str(J))
+
+                hash_post = hash(m)
+                true_post = m.tobytes()
+
+                # if tobytes disagrees with our hashing logic
+                # it indicates we have cached incorrectly
+                if (hash_pre == hash_post) != (true_pre == true_post):
+                    broken.append((method, A))
+
+        if len(broken) > 0:
+            method_busted = set([method for method, _ in broken])
+            raise ValueError(
+                '`TrackedArray` incorrectly hashing methods: {}'.format(
+                    method_busted))
 
 
 if __name__ == '__main__':
