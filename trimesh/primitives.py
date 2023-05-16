@@ -558,11 +558,12 @@ class Sphere(_Primitive):
         subdivisions : int
           Number of subdivisions for icosphere.
         """
+
         super(Sphere, self).__init__(**kwargs)
+
         defaults = {'radius': 1.0,
                     'transform': np.eye(4),
                     'subdivisions': 3}
-
         constructor = {'radius': float(radius),
                        'subdivisions': int(subdivisions)}
         # center is a helper method for "transform"

@@ -76,7 +76,7 @@ def export_gltf(scene,
                 merge_buffers=False,
                 unitize_normals=False,
                 tree_postprocessor=None,
-                embed_buffer=False):
+                embed_buffers=False):
     """
     Export a scene object as a GLTF directory.
 
@@ -95,8 +95,8 @@ def export_gltf(scene,
       If passed will use to write each file.
     tree_postprocesser : None or callable
       Run this on the header tree before exiting.
-    embed_buffer : bool
-      Embed the buffer into the uri.
+    embed_buffers : bool
+      Embed the buffer into JSON file as a base64 string in the URI
 
     Returns
     ----------
@@ -121,13 +121,13 @@ def export_gltf(scene,
     # store files as {name : data}
     files = {}
 
-    embed_buffer_format = "data:application/octet-stream;base64,{}"
+    base64_buffer_format = "data:application/octet-stream;base64,{}"
     if merge_buffers:
         views = _build_views(buffer_items)
         buffer_data = bytes().join(buffer_items.values())
-        if embed_buffer:
-            buffer_name = embed_buffer_format.format(
-                    base64.b64encode(buffer_data).decode())
+        if embed_buffers:
+            buffer_name = base64_buffer_format.format(
+                base64.b64encode(buffer_data).decode())
         else:
             buffer_name = "gltf_buffer.bin"
             files[buffer_name] = buffer_data
@@ -143,9 +143,9 @@ def export_gltf(scene,
             views[i] = {"buffer": i,
                         "byteOffset": 0,
                         "byteLength": len(item)}
-            if embed_buffer:
-                buffer_name = embed_buffer_format.format(
-                        base64.b64encode(item).decode())
+            if embed_buffers:
+                buffer_name = base64_buffer_format.format(
+                    base64.b64encode(item).decode())
             else:
                 buffer_name = "gltf_buffer_{}.bin".format(i)
                 files[buffer_name] = item
