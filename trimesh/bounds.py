@@ -338,7 +338,7 @@ def oriented_bounds(obj,
     return to_origin, min_extents
 
 
-def minimum_cylinder(obj, sample_count=6, angle_tol=.001):
+def minimum_cylinder(obj, sample_count=6, angle_tol=0.001):
     """
     Find the approximate minimum volume cylinder which contains
     a mesh or a a list of points.
