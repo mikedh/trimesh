@@ -45,10 +45,17 @@ class PrimitiveTest(g.unittest.TestCase):
                                                            radius=10.0,
                                                            subdivisions=5))
         self.primitives.append(g.trimesh.primitives.Box())
-        self.primitives.append(
-            g.trimesh.primitives.Box(
-                center=[102.20, 0, 102.0],
-                extents=[29, 100, 1000]))
+
+        try:
+            self.primitives.append(
+                g.trimesh.primitives.Box(
+                    center=[102.20, 0, 102.0],
+                    extents=[29, 100, 1000]))
+            raise ValueError('Box shouldnt have accepted `center`!')
+        except TypeError:
+            # this should have raised a TypeError as `center` is not a kwarg
+            pass
+
         self.primitives.append(g.trimesh.primitives.Box(
             extents=[10, 20, 30],
             transform=g.trimesh.transformations.random_rotation_matrix()))

@@ -36,10 +36,14 @@ class _Primitive(Trimesh):
     __copy__ = None
     __deepcopy__ = None
 
-    def __init__(self, *args, **kwargs):
-        super(_Primitive, self).__init__(*args, **kwargs)
+    def __init__(self):
+        # run the Trimesh constructor with no arguments
+        super(_Primitive, self).__init__()
+
+        # remove any data
         self._data.clear()
         self._validate = False
+        
         # make sure any cached numpy arrays have
         # set `array.flags.writable = False`
         self._cache.force_immutable = True
@@ -129,9 +133,14 @@ class _Primitive(Trimesh):
         # create a new object with kwargs
         return type(self)(**kwargs)
 
-    def to_mesh(self):
+    def to_mesh(self, **kwargs):
         """
         Return a copy of the Primitive object as a Trimesh.
+
+        Parameters
+        -----------
+        kwargs : dict
+          Passed to the Trimesh object constructor.
 
         Returns
         ------------
@@ -142,7 +151,8 @@ class _Primitive(Trimesh):
             vertices=self.vertices.copy(),
             faces=self.faces.copy(),
             face_normals=self.face_normals.copy(),
-            process=False)
+            process=kwargs.pop('process', False),
+            **kwargs)
         return result
 
     def apply_transform(self, matrix):
@@ -309,8 +319,11 @@ class _PrimitiveAttributes(object):
 
 class Cylinder(_Primitive):
 
-    def __init__(self, radius=1.0, height=1.0,
-                 transform=None, sections=32, **kwargs):
+    def __init__(self,
+                 radius=1.0,
+                 height=1.0,
+                 transform=None,
+                 sections=32):
         """
         Create a Cylinder Primitive, a subclass of Trimesh.
 
@@ -325,7 +338,7 @@ class Cylinder(_Primitive):
         sections : int
           Number of facets in circle
         """
-        super(Cylinder, self).__init__(**kwargs)
+        super(Cylinder, self).__init__()
 
         defaults = {'height': 10.0,
                     'radius': 1.0,
@@ -460,8 +473,7 @@ class Capsule(_Primitive):
                  radius=1.0,
                  height=10.0,
                  transform=None,
-                 sections=32,
-                 **kwargs):
+                 sections=32):
         """
         Create a Capsule Primitive, a subclass of Trimesh.
 
@@ -476,7 +488,7 @@ class Capsule(_Primitive):
         sections : int
           Number of facets in circle
         """
-        super(Capsule, self).__init__(**kwargs)
+        super(Capsule, self).__init__()
 
         defaults = {'height': 1.0,
                     'radius': 1.0,
@@ -542,8 +554,7 @@ class Sphere(_Primitive):
                  radius=1.0,
                  center=None,
                  transform=None,
-                 subdivisions=3,
-                 **kwargs):
+                 subdivisions=3):
         """
         Create a Sphere Primitive, a subclass of Trimesh.
 
@@ -559,7 +570,7 @@ class Sphere(_Primitive):
           Number of subdivisions for icosphere.
         """
 
-        super(Sphere, self).__init__(**kwargs)
+        super(Sphere, self).__init__()
 
         defaults = {'radius': 1.0,
                     'transform': np.eye(4),
@@ -664,11 +675,12 @@ class Sphere(_Primitive):
 
     def _create_mesh(self):
         log.debug('creating mesh for Sphere primitive')
-        unit = creation.icosphere(subdivisions=self.primitive.subdivisions)
-        unit.vertices *= self.primitive.radius
-        unit.vertices += self.primitive.center
+        unit = creation.icosphere(
+            subdivisions=self.primitive.subdivisions,
+            radius=self.primitive.radius)
 
-        self._cache['vertices'] = unit.vertices
+        # apply the center offset here
+        self._cache['vertices'] = unit.vertices + self.primitive.center
         self._cache['faces'] = unit.faces
         self._cache['face_normals'] = unit.face_normals
 
@@ -677,8 +689,7 @@ class Box(_Primitive):
 
     def __init__(self,
                  extents=None,
-                 transform=None,
-                 **kwargs):
+                 transform=None):
         """
         Create a Box Primitive as a subclass of Trimesh
 
@@ -689,7 +700,7 @@ class Box(_Primitive):
         transform : (4, 4) float
           Homogeneous transformation matrix for box center
         """
-        super(Box, self).__init__(**kwargs)
+        super(Box, self).__init__()
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
         self.primitive = _PrimitiveAttributes(
@@ -829,8 +840,7 @@ class Extrusion(_Primitive):
     def __init__(self,
                  polygon=None,
                  transform=None,
-                 height=1.0,
-                 **kwargs):
+                 height=1.0):
         """
         Create an Extrusion primitive, which
         is a subclass of Trimesh.
@@ -846,11 +856,14 @@ class Extrusion(_Primitive):
         """
         # do the import here, fail early if Shapely isn't installed
         from shapely.geometry import Point
-        super(Extrusion, self).__init__(**kwargs)
+
+        # run the Trimesh init
+        super(Extrusion, self).__init__()
         # set default values
         defaults = {'polygon': Point([0, 0]).buffer(1.0),
                     'transform': np.eye(4),
                     'height': 1.0}
+
         self.primitive = _PrimitiveAttributes(
             self, defaults, {'transform': transform,
                              'polygon': polygon,
