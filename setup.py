@@ -69,7 +69,8 @@ requirements_test = set(['pytest',       # run all unit tests
                          'coveralls',    # report coverage stats
                          'autopep8',     # check and autoformat
                          'ruff',         # static code analysis
-                         'ezdxf'])       # use as a validator for exports
+                         'pymeshlab',    # used as a validator for exports
+                         'ezdxf'])       # used as a validator for exports
 
 # Python 2.7 and 3.4 support has been dropped from packages
 # version lock those packages here so install succeeds

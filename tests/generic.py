@@ -587,10 +587,10 @@ data = _load_data()
 
 # find executables to run with subprocess
 # formats supported by meshlab for export tests
-if any(trimesh.util.which(i) is None
-       for i in ['xfvb-run', 'meshlabserver']):
-    meshlab_formats = []
-else:
+try:
+    import pymeshlab
     meshlab_formats = ['3ds', 'ply', 'stl', 'obj', 'qobj', 'off', 'ptx', 'vmi',
-                       'bre', 'dae', 'ctm', 'pts', 'apts', 'xyz', 'gts', 'pdb',
+                       'bre', 'dae', 'ctm', 'pts', 'apts', 'gts', 'pdb',
                        'tri', 'asc', 'x3d', 'x3dv', 'wrl']
+except BaseException:
+    meshlab_formats = []
