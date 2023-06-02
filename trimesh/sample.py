@@ -12,7 +12,7 @@ from . import transformations
 from .visual import uv_to_interpolated_color
 
 
-def sample_surface(mesh, count, face_weight=None, sample_color=False):
+def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None):
     """
     Sample the surface of a mesh, returning the specified
     number of points
@@ -48,11 +48,14 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
         # of each face of the mesh
         face_weight = mesh.area_faces
 
+    if seed is None :
+        seed = 42
     # cumulative sum of weights (len(mesh.faces))
     weight_cum = np.cumsum(face_weight)
 
     # last value of cumulative sum is total summed weight/area
-    face_pick = np.random.random(count) * weight_cum[-1]
+    rng = np.random.default_rng(seed)
+    face_pick = rng.random(count) * weight_cum[-1]
     # get the index of the selected faces
     face_index = np.searchsorted(weight_cum, face_pick)
 
@@ -74,7 +77,8 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
         uv_vectors = uv_vectors[face_index]
 
     # randomly generate two 0-1 scalar components to multiply edge vectors by
-    random_lengths = np.random.random((len(tri_vectors), 2, 1))
+    rnge = np.random.default_rng(seed)
+    random_lengths = rnge.random((len(tri_vectors), 2, 1))
 
     # points will be distributed on a quadrilateral if we use 2 0-1 samples
     # if the two scalar components sum less than 1.0 the point will be
