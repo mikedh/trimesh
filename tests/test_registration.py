@@ -158,6 +158,12 @@ class RegistrationTest(g.unittest.TestCase):
 
         assert distance.mean() < noise
 
+    def test_mesh_no_reflection(self):
+        # see if ICP alignment works with meshes
+        m = g.trimesh.creation.box()
+        matrix, cost = g.trimesh.registration.mesh_other(
+            m, m, scale=False, reflection=False)
+        assert(cost < 0.01)
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
