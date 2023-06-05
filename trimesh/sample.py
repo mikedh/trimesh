@@ -32,6 +32,8 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
     sample_color : bool
       Option to calculate the color of the sampled points.
       Default is False.
+    seed : None or int
+      Provides deterministic values
     Returns
     ---------
     samples : (count, 3) float
@@ -48,7 +50,7 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
         # of each face of the mesh
         face_weight = mesh.area_faces
 
-    # seed used for generating random values
+    # seed used to provide deterministic values
     if seed is None :
         seed = np.random.randint(1)
     # cumulative sum of weights (len(mesh.faces))
@@ -163,7 +165,7 @@ def volume_rectangular(extents,
     return samples
 
 
-def sample_surface_even(mesh, count, radius=None):
+def sample_surface_even(mesh, count, radius=None, seed=None):
     """
     Sample the surface of a mesh, returning samples which are
     VERY approximately evenly spaced. This is accomplished by
@@ -181,6 +183,8 @@ def sample_surface_even(mesh, count, radius=None):
       Number of points to return
     radius : None or float
       Removes samples below this radius
+    seed : None or int
+      Provides deterministic values 
 
     Returns
     ---------
@@ -196,7 +200,7 @@ def sample_surface_even(mesh, count, radius=None):
         radius = np.sqrt(mesh.area / (3 * count))
 
     # get points on the surface
-    points, index = sample_surface(mesh, count * 3)
+    points, index = sample_surface(mesh, count * 3, seed)
 
     # remove the points closer than radius
     points, mask = remove_close(points, radius)
