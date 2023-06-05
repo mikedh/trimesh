@@ -23,10 +23,8 @@ _ray_offset_factor = 1e-4
 # we want to clip our offset to a sane distance
 _ray_offset_floor = 1e-8
 
-# see if we're using a newer version of the embreex wrapper
-_embree_new = tuple([int(i) for i in _wrapper_version.split('.')]) >= (0, 1, 4)
 # both old and new versions require exact but different type
-_embree_dtype = [np.float64, np.float32][int(_embree_new)]
+_embree_dtype = np.float32
 
 
 class RayMeshIntersector(object):
