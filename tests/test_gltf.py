@@ -921,6 +921,32 @@ class GLTFTest(g.unittest.TestCase):
             assert len(r.geometry) == 1
             assert g.np.isclose(next(iter(r.geometry.values())).volume, m.volume)
 
+    def test_embed_buffer(self):
+
+        scene = g.trimesh.Scene({
+            'thing': g.trimesh.primitives.Sphere(),
+            'other': g.trimesh.creation.capsule()})
+
+        with g.trimesh.util.TemporaryDirectory() as D:
+            path = g.os.path.join(D, 'hi.gltf')
+            scene.export(path)
+
+            # should export with separate buffers
+            assert len(g.os.listdir(D)) > 1
+
+            reloaded = g.trimesh.load(path)
+            assert set(reloaded.geometry.keys()) == set(scene.geometry.keys())
+
+        with g.trimesh.util.TemporaryDirectory() as D:
+            path = g.os.path.join(D, 'hi.gltf')
+            scene.export(path, embed_buffers=True)
+
+            # should export with embeded bufferes
+            assert len(g.os.listdir(D)) == 1
+
+            reloaded = g.trimesh.load(path)
+            assert set(reloaded.geometry.keys()) == set(scene.geometry.keys())
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
