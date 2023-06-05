@@ -48,8 +48,9 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
         # of each face of the mesh
         face_weight = mesh.area_faces
 
+    # seed used for generating random values
     if seed is None :
-        seed = 42
+        seed = np.random.randint(1)
     # cumulative sum of weights (len(mesh.faces))
     weight_cum = np.cumsum(face_weight)
 

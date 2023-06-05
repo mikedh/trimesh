@@ -75,13 +75,13 @@ class SampleTest(g.unittest.TestCase):
     def test_deterministic_sample(self):
         m = g.get_mesh('featuretype.STL')
 
-        samples = m.sample(1000)
-
         # Deterministic execution
         even_first, index_first = g.trimesh.sample.sample_surface_even(m, 1000)
         even_last, index_last = g.trimesh.sample.sample_surface_even(m, 1000)
         
         assert (even_first == even_last).all()
+        assert (index_first == index_last).all()
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
