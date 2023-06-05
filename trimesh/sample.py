@@ -19,7 +19,7 @@ else:
     def default_rng(seed):
         rng = np.random.RandomState(seed)
         # provide the same interface as the new default_rng
-        rng.random = rng.__call__
+        rng.random = rng
         return rng
 
 

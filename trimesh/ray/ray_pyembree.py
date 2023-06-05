@@ -6,7 +6,6 @@ import numpy as np
 
 from copy import deepcopy
 
-from embreex import __version__ as _wrapper_version
 from embreex import rtcore_scene
 from embreex.mesh_construction import TriangleMesh
 
