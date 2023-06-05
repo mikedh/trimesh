@@ -25,9 +25,9 @@ except BaseException as E:
 def mesh_other(mesh,
                other,
                samples=500,
-               scale=False,
                icp_first=10,
-               icp_final=50):
+               icp_final=50,
+               **kwargs):
     """
     Align a mesh with another mesh or a PointCloud using
     the principal axes of inertia as a starting point which
@@ -41,14 +41,14 @@ def mesh_other(mesh,
       Mesh or points in space
     samples : int
       Number of samples from mesh surface to align
-    scale : bool
-      Allow scaling in transform
     icp_first : int
       How many ICP iterations for the 9 possible
       combinations of sign flippage
     icp_final : int
       How many ICP iterations for the closest
       candidate from the wider search
+    **kwargs : Passed through to icp, which passes through to procrustes
+
 
     Returns
     -----------
@@ -145,7 +145,7 @@ def mesh_other(mesh,
                                  b=search,
                                  initial=a_to_b,
                                  max_iterations=int(icp_first),
-                                 scale=scale)
+                                 **kwargs)
 
         # save transform and costs from ICP
         transforms[i] = matrix
@@ -156,7 +156,7 @@ def mesh_other(mesh,
                              b=search,
                              initial=transforms[np.argmin(costs)],
                              max_iterations=int(icp_final),
-                             scale=scale)
+                             **kwargs)
 
     # convert to per- point distance average
     cost /= len(points)
