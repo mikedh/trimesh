@@ -31,7 +31,7 @@ if os.path.exists('README.md'):
 requirements_default = set(['numpy'])
 
 # "easy" requirements should install without compiling
-# anything on Windows, Linux, and Mac, for Python 2.7-3.4+
+# anything on Windows, Linux, and Mac, for Python 3.6+
 requirements_easy = set([
     'scipy',     # provide convex hulls, fast graph ops, etc
     'networkx',  # provide slow graph ops with a nice API
@@ -60,6 +60,7 @@ requirements_all = requirements_easy.union([
     'meshio',        # load a number of additional mesh formats; Python 3.5+
     'scikit-image',  # marching cubes and other nice stuff
     'xatlas',        # texture unwrapping
+    'embreex',   # Intel's Embree ray check engine with wheels
     'pyglet<2',  # render preview windows nicely : note pyglet 2.0 is basically a re-write
 ])
 # requirements for running unit tests

@@ -53,37 +53,6 @@ config_json = """
     ]
   },
   "fetch": {
-    "embree2": {
-      "url": "https://github.com/embree/embree/releases/download/v2.17.7/embree-2.17.7.x86_64.linux.tar.gz",
-      "sha256": "2c4bdacd8f3c3480991b99e85b8f584975ac181373a75f3e9675bf7efae501fe",
-      "target": "/usr/local",
-      "extract_skip": [
-        "bin/*",
-        "doc/*"
-      ],
-      "strip_components": 1,
-      "chmod": 755
-    },
-    "embree3": {
-      "url": "https://github.com/embree/embree/releases/download/v3.12.1/embree-3.12.1.x86_64.linux.tar.gz",
-      "sha256": "5e218dd4e95c035c04aa893f7b1169ade11ecc57580e0027eae2ec84cdc9baff",
-      "target": "/usr/local",
-      "extract_skip": [
-        "bin/*",
-        "doc/*"
-      ],
-      "strip_components": 1
-    },
-    "embree4": {
-      "url": "https://github.com/embree/embree/releases/download/v4.0.0/embree-4.0.0.x86_64.linux.tar.gz",
-      "sha256": "524842e2f141dca0db584c33a0821176373e7058f3ec2201bfb19d9e9a1b80b9",
-      "target": "/usr/local",
-      "extract_skip": [
-        "bin/*",
-        "doc/*"
-      ],
-      "strip_components": 1
-    },
     "gltf_validator": {
       "url": "https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.8/gltf_validator-2.0.0-dev.3.8-linux64.tar.xz",
       "sha256": "374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a",
