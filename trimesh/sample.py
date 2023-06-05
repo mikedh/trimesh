@@ -15,8 +15,12 @@ if hasattr(np.random, 'default_rng'):
     # newer versions of Numpy
     default_rng = np.random.default_rng
 else:
-    # Python 2 numpy
-    default_rng = np.random.RandomState
+    # Python 2 Numpy
+    def default_rng(seed):
+        rng = np.random.RandomState(seed)
+        # provide the same interface as the new default_rng
+        rng.random = rng.__call__
+        return rng
 
 
 def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None):
