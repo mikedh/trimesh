@@ -6,8 +6,6 @@ import numpy as np
 
 from copy import deepcopy
 
-from embreex import rtcore_scene
-from embreex.mesh_construction import TriangleMesh
 
 from .ray_util import contains_points
 
@@ -22,8 +20,27 @@ from ..constants import log_time
 _ray_offset_factor = 1e-4
 # we want to clip our offset to a sane distance
 _ray_offset_floor = 1e-8
-# pass embree floats as 32 bit
-_embree_dtype = np.float32
+
+
+try:
+    # try the preferred wrapper which installs from wheels
+    from embreex import rtcore_scene
+    from embreex.mesh_construction import TriangleMesh
+    # pass embree floats as 32 bit
+    _embree_dtype = np.float32
+except BaseException as E:
+    try:
+        # this will be deprecated at some point hopefully soon
+        from pyembree import rtcore_scene
+        from pyembree.mesh_construction import TriangleMesh
+        from pyembree import __version__
+        # see if we're using a newer version of the pyembree wrapper
+        _embree_new = tuple([int(i) for i in __version__.split('.')]) >= (0, 1, 4)
+        # both old and new versions require exact but different type
+        _embree_dtype = [np.float64, np.float32][int(_embree_new)]
+    except BaseException:
+        # raise the embreex error for better log message
+        raise E
 
 
 class RayMeshIntersector(object):
