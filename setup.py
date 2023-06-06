@@ -27,11 +27,10 @@ if os.path.exists('README.md'):
         long_description = f.read()
 
 # minimal requirements for installing trimesh
-# note that `pip` requires setuptools itself
 requirements_default = set(['numpy'])
 
 # "easy" requirements should install without compiling
-# anything on Windows, Linux, and Mac, for Python 3.6+
+# anything on Windows, Linux, and Mac, for Python >= 3.6
 requirements_easy = set([
     'scipy',     # provide convex hulls, fast graph ops, etc
     'networkx',  # provide slow graph ops with a nice API
@@ -41,6 +40,7 @@ requirements_easy = set([
     'svg.path',  # handle SVG format path strings
     'sympy',     # do analytical math
     'pillow',    # load images
+    'embreex',   # Intel's Embree ray check engine with wheels
     'requests',  # do network requests
     'xxhash',    # hash ndarrays faster than built-in MD5/CRC
     'setuptools',  # do setuptools stuff
@@ -60,7 +60,6 @@ requirements_all = requirements_easy.union([
     'meshio',        # load a number of additional mesh formats; Python 3.5+
     'scikit-image',  # marching cubes and other nice stuff
     'xatlas',        # texture unwrapping
-    'embreex',   # Intel's Embree ray check engine with wheels
     'pyglet<2',  # render preview windows nicely : note pyglet 2.0 is basically a re-write
 ])
 # requirements for running unit tests

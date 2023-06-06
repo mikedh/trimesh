@@ -103,8 +103,8 @@ class RayTests(g.unittest.TestCase):
             assert test_centroid.all()
 
     def test_on_vertex(self):
-        for _use_embree in [True, False]:
-            m = g.trimesh.primitives.Box(use_embree=False)
+        for use_embree in [False]:
+            m = g.trimesh.creation.box(use_embree=use_embree)
 
             origins = g.np.zeros_like(m.vertices)
             vectors = m.vertices.copy()
@@ -123,8 +123,8 @@ class RayTests(g.unittest.TestCase):
             assert (hit_count == 1).all()
 
     def test_on_edge(self):
-        for _use_embree in [True, False]:
-            m = g.get_mesh('7_8ths_cube.stl')
+        for use_embree in [True, False]:
+            m = g.get_mesh('7_8ths_cube.stl', use_embree=use_embree)
 
             points = [[4.5, 0, -23], [4.5, 0, -2], [0, 0, -1e-6], [0, 0, -1]]
             truth = [False, True, True, True]
@@ -156,8 +156,8 @@ class RayTests(g.unittest.TestCase):
 
         for use_embree in [True, False]:
             # Generate a 1 x 1 x 1 cube using the trimesh box primitive
-            cube_mesh = g.trimesh.primitives.Box(extents=[2, 2, 2],
-                                                 use_embree=use_embree)
+            cube_mesh = g.trimesh.creation.box(extents=[2, 2, 2],
+                                               use_embree=use_embree)
 
             # Perform 256 * 256 raycasts, one for each pixel on the image
             # plane. We only want the 'first' hit.

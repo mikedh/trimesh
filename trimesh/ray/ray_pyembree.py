@@ -22,8 +22,7 @@ from ..constants import log_time
 _ray_offset_factor = 1e-4
 # we want to clip our offset to a sane distance
 _ray_offset_floor = 1e-8
-
-# both old and new versions require exact but different type
+# pass embree floats as 32 bit
 _embree_dtype = np.float32
 
 
