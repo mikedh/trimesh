@@ -78,6 +78,20 @@ class BooleanTest(g.unittest.TestCase):
             assert g.np.isclose(r.volume,
                                 8.617306056726884)
 
+    def test_empty(self):
+        engines = [
+            ('blender', g.trimesh.interfaces.blender.exists),
+            ('scad', g.trimesh.interfaces.scad.exists)]
+        for engine, exists in engines:
+            if not exists:
+                continue
+
+            a = g.trimesh.primitives.Sphere(center=[0, 0, 0])
+            b = g.trimesh.primitives.Sphere(center=[5, 0, 0])
+
+            i = a.intersection(b, engine=engine)
+
+            assert i.is_empty
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

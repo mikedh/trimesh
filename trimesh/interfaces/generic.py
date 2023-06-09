@@ -4,7 +4,7 @@ import subprocess
 
 from string import Template
 from tempfile import NamedTemporaryFile
-from subprocess import check_call
+from subprocess import check_output, CalledProcessError
 
 from .. import exchange
 from ..util import log
@@ -87,10 +87,16 @@ class MeshScript:
 
             if self.debug:
                 log.info('executing: {}'.format(' '.join(command_run)))
-            check_call(command_run,
-                       stdout=stdout,
-                       stderr=subprocess.STDOUT,
-                       startupinfo=startupinfo)
+
+            try:
+                check_output(command_run,
+                    stderr=subprocess.STDOUT,
+                    startupinfo=startupinfo)
+            except CalledProcessError as e:
+                # Log output if debug is enabled
+                if self.debug:
+                    log.info(e.output.decode())
+                raise e
 
         # bring the binaries result back as a set of Trimesh kwargs
         mesh_results = exchange.load.load_mesh(
