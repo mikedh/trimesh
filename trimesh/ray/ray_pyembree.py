@@ -1,14 +1,11 @@
 """
-Ray queries using the pyembree package with the
+Ray queries using the embreex package with the
 API wrapped to match our native raytracer.
 """
 import numpy as np
 
 from copy import deepcopy
 
-from pyembree import __version__ as _wrapper_version
-from pyembree import rtcore_scene
-from pyembree.mesh_construction import TriangleMesh
 
 from .ray_util import contains_points
 
@@ -24,10 +21,26 @@ _ray_offset_factor = 1e-4
 # we want to clip our offset to a sane distance
 _ray_offset_floor = 1e-8
 
-# see if we're using a newer version of the pyembree wrapper
-_embree_new = tuple([int(i) for i in _wrapper_version.split('.')]) >= (0, 1, 4)
-# both old and new versions require exact but different type
-_embree_dtype = [np.float64, np.float32][int(_embree_new)]
+
+try:
+    # try the preferred wrapper which installs from wheels
+    from embreex import rtcore_scene
+    from embreex.mesh_construction import TriangleMesh
+    # pass embree floats as 32 bit
+    _embree_dtype = np.float32
+except BaseException as E:
+    try:
+        # this will be deprecated at some point hopefully soon
+        from pyembree import rtcore_scene
+        from pyembree.mesh_construction import TriangleMesh
+        from pyembree import __version__
+        # see if we're using a newer version of the pyembree wrapper
+        _embree_new = tuple([int(i) for i in __version__.split('.')]) >= (0, 1, 4)
+        # both old and new versions require exact but different type
+        _embree_dtype = [np.float64, np.float32][int(_embree_new)]
+    except BaseException:
+        # raise the embreex error for better log message
+        raise E
 
 
 class RayMeshIntersector(object):
@@ -68,7 +81,7 @@ class RayMeshIntersector(object):
     @caching.cache_decorator
     def _scene(self):
         """
-        A cached version of the pyembree scene.
+        A cached version of the embreex scene.
         """
         return _EmbreeWrap(vertices=self.mesh.vertices,
                            faces=self.mesh.faces,
@@ -176,7 +189,7 @@ class RayMeshIntersector(object):
         # if a ray is offset from a triangle and then is reported
         # hitting itself this could get stuck on that one triangle
         for _ in range(max_hits):
-            # run the pyembree query
+            # run the embreex query
             # if you set output=1 it will calculate distance along
             # ray, which is bizzarely slower than our calculation
 
@@ -319,7 +332,7 @@ class RayMeshIntersector(object):
 
 class _EmbreeWrap(object):
     """
-    A light wrapper for PyEmbree scene objects which
+    A light wrapper for Embreex scene objects which
     allows queries to be scaled to help with precision
     issues, as well as selecting the correct dtypes.
     """

@@ -11,6 +11,15 @@ from . import util
 from . import transformations
 from .visual import uv_to_interpolated_color
 
+if hasattr(np.random, 'default_rng'):
+    # newer versions of Numpy
+    default_rng = np.random.default_rng
+else:
+    # Python 2 Numpy
+    class default_rng(np.random.RandomState):
+        def random(self, *args, **kwargs):
+            return self.random_sample(*args, **kwargs)
+
 
 def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None):
     """
@@ -33,7 +42,9 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
       Option to calculate the color of the sampled points.
       Default is False.
     seed : None or int
-      Provides deterministic values
+      If passed as an integer will provide deterministic results
+      otherwise pulls the seed from operating system entropy.
+
     Returns
     ---------
     samples : (count, 3) float
@@ -56,9 +67,11 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
     # cumulative sum of weights (len(mesh.faces))
     weight_cum = np.cumsum(face_weight)
 
+    # seed the random number generator as requested
+    random = default_rng(seed).random
+
     # last value of cumulative sum is total summed weight/area
-    rng = np.random.default_rng(seed)
-    face_pick = rng.random(count) * weight_cum[-1]
+    face_pick = random(count) * weight_cum[-1]
     # get the index of the selected faces
     face_index = np.searchsorted(weight_cum, face_pick)
 
@@ -79,9 +92,8 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
         uv_origins = uv_origins[face_index]
         uv_vectors = uv_vectors[face_index]
 
-    # randomly generate two 0-1 scalar components to multiply edge vectors by
-    rnge = np.random.default_rng(seed)
-    random_lengths = rnge.random((len(tri_vectors), 2, 1))
+    # randomly generate two 0-1 scalar components to multiply edge vectors b
+    random_lengths = random((len(tri_vectors), 2, 1))
 
     # points will be distributed on a quadrilateral if we use 2 0-1 samples
     # if the two scalar components sum less than 1.0 the point will be
@@ -184,7 +196,7 @@ def sample_surface_even(mesh, count, radius=None, seed=None):
     radius : None or float
       Removes samples below this radius
     seed : None or int
-      Provides deterministic values 
+      Provides deterministic values
 
     Returns
     ---------

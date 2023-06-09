@@ -84,6 +84,7 @@ class SampleTest(g.unittest.TestCase):
         assert (even_first == even_last).all()
         assert (index_first == index_last).all()
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
