@@ -89,7 +89,7 @@ class MeshScript:
                 log.info('executing: {}'.format(' '.join(command_run)))
 
             try:
-                check_output(command_run,
+                output = check_output(command_run,
                     stderr=subprocess.STDOUT,
                     startupinfo=startupinfo)
             except CalledProcessError as e:
@@ -97,6 +97,9 @@ class MeshScript:
                 if self.debug:
                     log.info(e.output.decode())
                 raise e
+
+            if self.debug:
+                log.info(output.decode())
 
         # bring the binaries result back as a set of Trimesh kwargs
         mesh_results = exchange.load.load_mesh(
