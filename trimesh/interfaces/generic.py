@@ -73,33 +73,26 @@ class MeshScript:
         command_run = Template(command).substitute(
             self.replacement).split()
         # run the binary
-        # avoid resourcewarnings with null
-        with open(os.devnull, 'w') as devnull:
-            startupinfo = None
-            if platform.system() == 'Windows':
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            if self.debug:
-                # in debug mode print the output
-                stdout = None
-            else:
-                stdout = devnull
+        startupinfo = None
+        if platform.system() == 'Windows':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-            if self.debug:
-                log.info('executing: {}'.format(' '.join(command_run)))
+        if self.debug:
+            log.info('executing: {}'.format(' '.join(command_run)))
 
-            try:
-                output = check_output(command_run,
-                    stderr=subprocess.STDOUT,
-                    startupinfo=startupinfo)
-            except CalledProcessError as e:
-                # Log output if debug is enabled
-                if self.debug:
-                    log.info(e.output.decode())
-                raise e
-
+        try:
+            output = check_output(command_run,
+                stderr=subprocess.STDOUT,
+                startupinfo=startupinfo)
+        except CalledProcessError as e:
+            # Log output if debug is enabled
             if self.debug:
-                log.info(output.decode())
+                log.info(e.output.decode())
+            raise e
+
+        if self.debug:
+            log.info(output.decode())
 
         # bring the binaries result back as a set of Trimesh kwargs
         mesh_results = exchange.load.load_mesh(
