@@ -58,7 +58,7 @@ def interface_scad(meshes, script, debug=False, **kwargs):
             from .. import Trimesh
             return Trimesh()
         else:
-            raise e
+            raise
 
     return result
 

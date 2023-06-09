@@ -89,7 +89,7 @@ class MeshScript:
             # Log output if debug is enabled
             if self.debug:
                 log.info(e.output.decode())
-            raise e
+            raise
 
         if self.debug:
             log.info(output.decode())
