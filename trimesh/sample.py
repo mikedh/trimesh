@@ -52,7 +52,7 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
 
     # seed used to provide deterministic values
     if seed is None :
-        seed = np.random.randint(1)
+        seed = np.random.randint(100)
     # cumulative sum of weights (len(mesh.faces))
     weight_cum = np.cumsum(face_weight)
 
@@ -200,7 +200,8 @@ def sample_surface_even(mesh, count, radius=None, seed=None):
         radius = np.sqrt(mesh.area / (3 * count))
 
     # get points on the surface
-    points, index = sample_surface(mesh, count * 3, seed)
+    points, index = sample_surface(
+        mesh=mesh, count=count * 3, seed=seed)
 
     # remove the points closer than radius
     points, mask = remove_close(points, radius)
