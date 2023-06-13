@@ -84,6 +84,7 @@ lock = [((3, 4), 'lxml', '4.3.5'),
         ((3, 6), 'pyglet<2', None),
         ((3, 6), 'autopep8', None),
         ((3, 6), 'ruff', None),
+        ((3, 7), 'pymeshlab', None),
         ((3, 6), 'svg.path', '4.1')]
 for max_python, name, version in lock:
     if current <= max_python:
