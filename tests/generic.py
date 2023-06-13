@@ -485,7 +485,8 @@ def scene_equal(a, b):
         # and have the same volume
         assert np.isclose(
             m.volume, b.geometry[k].volume, rtol=0.001)
-
+    # the axis aligned bounding box should be the same
+    assert np.allclose(a.bounds, b.bounds)
 
 def texture_equal(a, b):
     """
