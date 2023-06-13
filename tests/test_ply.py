@@ -237,6 +237,12 @@ class PlyTest(g.unittest.TestCase):
         assert (g.np.array([[12], [90]]) == mesh.metadata[
             '_ply_raw']['face']['data']['face_type']).all()
 
+    def test_point_uv(self):
+        # points with UV coordinates
+        # TODO shouldn't they be saved as a vertex attribute or something
+        s = g.get_mesh('point_uv.ply.zip')
+        p = next(iter(s.geometry.values()))
+        assert p.vertices.shape == (1000, 3)
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
