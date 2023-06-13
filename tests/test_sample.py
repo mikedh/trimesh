@@ -72,6 +72,21 @@ class SampleTest(g.unittest.TestCase):
         samples = obb.sample_volume(100)
         assert samples.shape == (100, 3)
 
+    def test_deterministic_sample(self):
+        m = g.get_mesh('featuretype.STL')
+
+        # Without seed passed should return non-deterministic results
+        even_first, index_first = g.trimesh.sample.sample_surface(m, 10000)
+        even_last, index_last = g.trimesh.sample.sample_surface(m, 10000)
+        assert not (even_first == even_last).all()
+        assert not (index_first == index_last).all()
+
+        # With seed passed should return identical results
+        even_first, index_first = g.trimesh.sample.sample_surface(m, 10000, seed=10)
+        even_last, index_last = g.trimesh.sample.sample_surface(m, 10000, seed=10)
+        assert (even_first == even_last).all()
+        assert (index_first == index_last).all()
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

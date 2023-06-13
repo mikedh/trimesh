@@ -5,8 +5,7 @@ LABEL maintainer="mikedh@kerfed.com"
 COPY --chmod=755 docker/trimesh-setup /usr/local/bin/
 
 # Install base `apt` packages required for everything
-# Install `embree`, Intel's fast ray checking engine
-RUN trimesh-setup --install base,embree2
+RUN trimesh-setup --install base
 
 # Create a local non-root user.
 RUN useradd -m -s /bin/bash user
@@ -32,7 +31,6 @@ USER user
 
 # install trimesh into .local
 RUN pip install /home/user[all]
-RUN pip install https://github.com/scopatz/pyembree/releases/download/0.1.6/pyembree-0.1.6.tar.gz
 
 ####################################
 ### Build output image most things should run on
