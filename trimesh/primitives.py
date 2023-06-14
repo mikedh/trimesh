@@ -37,13 +37,13 @@ class _Primitive(Trimesh):
     __deepcopy__ = None
 
     def __init__(self):
-        # run the Trimesh constructor with no arguments
+        # run the Trimesh constructor with any passed in arguments
         super(_Primitive, self).__init__()
 
         # remove any data
         self._data.clear()
         self._validate = False
-        
+
         # make sure any cached numpy arrays have
         # set `array.flags.writable = False`
         self._cache.force_immutable = True
@@ -222,7 +222,7 @@ class _PrimitiveAttributes(object):
     Hold the mutable data which defines a primitive.
     """
 
-    def __init__(self, parent, defaults, kwargs):
+    def __init__(self, parent, defaults, kwargs, mutable=True):
         """
         Hold the attributes for a Primitive.
 
@@ -244,7 +244,7 @@ class _PrimitiveAttributes(object):
         # start with a copy of all default objects
         self._data.update(defaults)
         # store whether this data is mutable after creation
-        self._mutable = kwargs.get('mutable', True)
+        self._mutable = mutable
         # assign the keys passed by the user only if
         # they are a property of this primitive
         for key, default in defaults.items():
@@ -323,7 +323,8 @@ class Cylinder(_Primitive):
                  radius=1.0,
                  height=1.0,
                  transform=None,
-                 sections=32):
+                 sections=32,
+                 mutable=True):
         """
         Create a Cylinder Primitive, a subclass of Trimesh.
 
@@ -336,7 +337,9 @@ class Cylinder(_Primitive):
         transform : (4, 4) float
           Homogeneous transformation matrix
         sections : int
-          Number of facets in circle
+          Number of facets in circle.
+        mutable : bool
+          Are extents and transform mutable after creation.
         """
         super(Cylinder, self).__init__()
 
@@ -346,11 +349,12 @@ class Cylinder(_Primitive):
                     'sections': 32}
         self.primitive = _PrimitiveAttributes(
             self,
-            defaults,
-            {'height': height,
-             'radius': radius,
-             'transform': transform,
-             'sections': sections})
+            defaults=defaults,
+            kwargs={'height': height,
+                    'radius': radius,
+                    'transform': transform,
+                    'sections': sections},
+            mutable=mutable)
 
     @caching.cache_decorator
     def volume(self):
@@ -473,7 +477,8 @@ class Capsule(_Primitive):
                  radius=1.0,
                  height=10.0,
                  transform=None,
-                 sections=32):
+                 sections=32,
+                 mutable=True):
         """
         Create a Capsule Primitive, a subclass of Trimesh.
 
@@ -487,6 +492,8 @@ class Capsule(_Primitive):
           Transformation matrix
         sections : int
           Number of facets in circle
+        mutable : bool
+          Are extents and transform mutable after creation.
         """
         super(Capsule, self).__init__()
 
@@ -496,11 +503,12 @@ class Capsule(_Primitive):
                     'sections': 32}
         self.primitive = _PrimitiveAttributes(
             self,
-            defaults,
-            {'height': height,
-             'radius': radius,
-             'transform': transform,
-             'sections': sections})
+            defaults=defaults,
+            kwargs={'height': height,
+                    'radius': radius,
+                    'transform': transform,
+                    'sections': sections},
+            mutable=mutable)
 
     @property
     def transform(self):
@@ -554,7 +562,8 @@ class Sphere(_Primitive):
                  radius=1.0,
                  center=None,
                  transform=None,
-                 subdivisions=3):
+                 subdivisions=3,
+                 mutable=True):
         """
         Create a Sphere Primitive, a subclass of Trimesh.
 
@@ -568,6 +577,8 @@ class Sphere(_Primitive):
           Full homogeneous transform. Pass `center` OR `transform.
         subdivisions : int
           Number of subdivisions for icosphere.
+        mutable : bool
+          Are extents and transform mutable after creation.
         """
 
         super(Sphere, self).__init__()
@@ -591,7 +602,7 @@ class Sphere(_Primitive):
 
         # create the attributes object
         self.primitive = _PrimitiveAttributes(
-            self, defaults, constructor)
+            self, defaults=defaults, kwargs=constructor, mutable=mutable)
 
     @property
     def center(self):
@@ -686,10 +697,10 @@ class Sphere(_Primitive):
 
 
 class Box(_Primitive):
-
     def __init__(self,
                  extents=None,
-                 transform=None):
+                 transform=None,
+                 mutable=True):
         """
         Create a Box Primitive as a subclass of Trimesh
 
@@ -699,15 +710,18 @@ class Box(_Primitive):
           Length of each side of the 3D box
         transform : (4, 4) float
           Homogeneous transformation matrix for box center
+        mutable : bool
+          Are extents and transform mutable after creation.
         """
         super(Box, self).__init__()
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
         self.primitive = _PrimitiveAttributes(
             self,
-            defaults,
-            {'extents': extents,
-             'transform': transform})
+            defaults=defaults,
+            kwargs={'extents': extents,
+                    'transform': transform},
+            mutable=mutable)
 
     def to_dict(self):
         """
@@ -815,6 +829,7 @@ class Box(_Primitive):
         box = creation.box(extents=self.primitive.extents,
                            transform=self.primitive.transform)
 
+        self._cache.cache.update(box._cache.cache)
         self._cache['vertices'] = box.vertices
         self._cache['faces'] = box.faces
         self._cache['face_normals'] = box.face_normals
@@ -840,7 +855,8 @@ class Extrusion(_Primitive):
     def __init__(self,
                  polygon=None,
                  transform=None,
-                 height=1.0):
+                 height=1.0,
+                 mutable=True):
         """
         Create an Extrusion primitive, which
         is a subclass of Trimesh.
@@ -853,6 +869,8 @@ class Extrusion(_Primitive):
           Transform to apply after extrusion
         height : float
           Height to extrude polygon by
+        mutable : bool
+          Are extents and transform mutable after creation.
         """
         # do the import here, fail early if Shapely isn't installed
         from shapely.geometry import Point
@@ -865,9 +883,12 @@ class Extrusion(_Primitive):
                     'height': 1.0}
 
         self.primitive = _PrimitiveAttributes(
-            self, defaults, {'transform': transform,
-                             'polygon': polygon,
-                             'height': height})
+            self,
+            defaults=defaults,
+            kwargs={'transform': transform,
+                    'polygon': polygon,
+                    'height': height},
+            mutable=mutable)
 
     @caching.cache_decorator
     def area(self):
