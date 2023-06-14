@@ -111,7 +111,7 @@ class CreationTest(g.unittest.TestCase):
             assert g.np.allclose(radii, 1.0)
 
         # test additional arguments
-        red_sphere = g.trimesh.creation.icosphere(color=(1., 0, 0))
+        red_sphere = g.trimesh.creation.icosphere(face_colors=(1., 0, 0))
         expected = g.np.full((len(red_sphere.faces), 4), (255, 0, 0, 255))
         g.np.testing.assert_allclose(red_sphere.visual.face_colors, expected)
 
