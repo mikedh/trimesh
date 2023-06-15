@@ -69,7 +69,8 @@ requirements_test = set(['pytest',       # run all unit tests
                          'coveralls',    # report coverage stats
                          'autopep8',     # check and autoformat
                          'ruff',         # static code analysis
-                         'ezdxf'])       # use as a validator for exports
+                         'pymeshlab',    # used as a validator for exports
+                         'ezdxf'])       # used as a validator for exports
 
 # Python 2.7 and 3.4 support has been dropped from packages
 # version lock those packages here so install succeeds
@@ -83,6 +84,7 @@ lock = [((3, 4), 'lxml', '4.3.5'),
         ((3, 6), 'pyglet<2', None),
         ((3, 6), 'autopep8', None),
         ((3, 6), 'ruff', None),
+        ((3, 7), 'pymeshlab', None),
         ((3, 5), 'embreex', None),
         ((3, 6), 'svg.path', '4.1')]
 for max_python, name, version in lock:

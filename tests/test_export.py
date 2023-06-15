@@ -158,22 +158,10 @@ class ExportTest(g.unittest.TestCase):
                     option['file_obj'] = temp.name
                     mesh.export(**option)
 
-                    # will raise CalledProcessError if meshlab
-                    # can't successfully import the file
-                    try:
-                        # have meshlab take the export and convert it into
-                        # an OFF file, which is basically the simplest format
-                        # that uses by- reference vertices
-                        # meshlabserver requires X so wrap it with XVFB
-                        cmd = 'xvfb-run -a -s "-screen 0 800x600x24" meshlabserver '
-                        cmd += '-i {} -o {}'.format(temp.name, temp_off.name)
-                        g.subprocess.check_call(cmd, shell=True)
-                    except g.subprocess.CalledProcessError as E:
-                        # log the options that produced the failure
-                        g.log.error('failed to export {}'.format(
-                            option))
-                        # raise the error again
-                        raise E
+                    # -_-
+                    ms = g.pymeshlab.MeshSet()
+                    ms.load_new_mesh(temp.name)
+                    ms.save_current_mesh(temp_off.name)
 
                     # load meshlabs export back into trimesh
                     r = g.trimesh.load(temp_off.name)

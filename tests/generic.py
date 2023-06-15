@@ -485,7 +485,8 @@ def scene_equal(a, b):
         # and have the same volume
         assert np.isclose(
             m.volume, b.geometry[k].volume, rtol=0.001)
-
+    # the axis aligned bounding box should be the same
+    assert np.allclose(a.bounds, b.bounds)
 
 def texture_equal(a, b):
     """
@@ -587,10 +588,10 @@ data = _load_data()
 
 # find executables to run with subprocess
 # formats supported by meshlab for export tests
-if any(trimesh.util.which(i) is None
-       for i in ['xfvb-run', 'meshlabserver']):
-    meshlab_formats = []
-else:
+try:
+    import pymeshlab
     meshlab_formats = ['3ds', 'ply', 'stl', 'obj', 'qobj', 'off', 'ptx', 'vmi',
-                       'bre', 'dae', 'ctm', 'pts', 'apts', 'xyz', 'gts', 'pdb',
+                       'bre', 'dae', 'ctm', 'pts', 'apts', 'gts', 'pdb',
                        'tri', 'asc', 'x3d', 'x3dv', 'wrl']
+except BaseException:
+    meshlab_formats = []

@@ -153,7 +153,8 @@ def revolve(linestring,
     faces = (stacked + offset) % len(vertices)
 
     # create the mesh from our vertices and faces
-    mesh = Trimesh(vertices=vertices, faces=faces,
+    mesh = Trimesh(vertices=vertices,
+                   faces=faces,
                    **kwargs)
 
     # strict checks run only in unit tests
@@ -163,11 +164,6 @@ def revolve(linestring,
         # if revolved curve starts and ends with zero radius
         # it should really be a valid volume, unless the sign
         # reversed on the input linestring
-
-        if not mesh.is_volume:
-            from IPython import embed
-            embed()
-
         assert mesh.is_volume
         assert mesh.body_count == 1
 
@@ -649,9 +645,14 @@ def box(extents=None, transform=None, bounds=None, **kwargs):
     return box
 
 
-def icosahedron():
+def icosahedron(**kwargs):
     """
-    Create an icosahedron, a 20 faced polyhedron.
+    Create an icosahedron, one of the platonic solids which is has 20 faces.
+
+    Parameters
+    ------------
+    kwargs : dict
+      Passed through to `Trimesh` constructor.
 
     Returns
     -------------
@@ -668,13 +669,14 @@ def icosahedron():
     # scale vertices so each vertex radius is 1.0
     vertices = np.reshape(vertices, (-1, 3)) / np.sqrt(2.0 + t)
     faces = np.reshape(faces, (-1, 3))
-    mesh = Trimesh(vertices=vertices,
+
+    return Trimesh(vertices=vertices,
                    faces=faces,
-                   process=False)
-    return mesh
+                   process=kwargs.pop('process', False),
+                   **kwargs)
 
 
-def icosphere(subdivisions=3, radius=1.0, color=None):
+def icosphere(subdivisions=3, radius=1.0, **kwargs):
     """
     Create an isophere centered at the origin.
 
@@ -686,8 +688,8 @@ def icosphere(subdivisions=3, radius=1.0, color=None):
       4 ** subdivisions, so you probably want to keep this under ~5
     radius : float
       Desired radius of sphere
-    color: (3,) float or uint8
-      Desired color of sphere
+    kwargs : dict
+      Passed through to `Trimesh` constructor.
 
     Returns
     ---------
@@ -703,15 +705,16 @@ def icosphere(subdivisions=3, radius=1.0, color=None):
         scalar = np.sqrt(np.dot(vectors ** 2, [1, 1, 1]))
         unit = vectors / scalar.reshape((-1, 1))
         ico.vertices += unit * (radius - scalar).reshape((-1, 1))
-    ico._validate = True
-    if color is not None:
-        ico.visual.face_colors = color
-    ico.metadata.update({'shape': 'sphere',
-                         'radius': radius})
-    return ico
+
+    return Trimesh(vertices=ico.vertices,
+                   faces=ico.faces,
+                   metadata={'shape': 'sphere',
+                             'radius': radius},
+                   process=kwargs.pop('process', False),
+                   **kwargs)
 
 
-def uv_sphere(radius=1.0, count=None, transform=None):
+def uv_sphere(radius=1.0, count=None, transform=None, **kwargs):
     """
     Create a UV sphere (latitude + longitude) centered at the
     origin. Roughly one order of magnitude faster than an
@@ -723,7 +726,8 @@ def uv_sphere(radius=1.0, count=None, transform=None):
       Radius of sphere
     count : (2,) int
       Number of latitude and longitude lines
-
+    kwargs : dict
+      Passed thgrough
     Returns
     ----------
     mesh : trimesh.Trimesh
@@ -747,7 +751,8 @@ def uv_sphere(radius=1.0, count=None, transform=None):
                    sections=count[1],
                    transform=transform,
                    metadata={'shape': 'sphere',
-                             'radius': radius})
+                             'radius': radius},
+                   **kwargs)
 
 
 def capsule(height=1.0,
