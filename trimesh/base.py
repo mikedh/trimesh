@@ -2066,7 +2066,7 @@ class Trimesh(Geometry3D):
             faces=new_faces,
             process=False)
         return result
-        
+
     def subdivide_plane(self, plane_normal, plane_origin):
         """
         Subdivide a mesh at a given plane, splitting all
@@ -2085,13 +2085,12 @@ class Trimesh(Geometry3D):
             faces=self.faces,
             plane_normal=plane_normal,
             plane_origin=plane_origin)
-            
+
         result = Trimesh(
             vertices=new_vertices,
             faces=new_faces,
             process=False)
         return result
-            
 
     @log_time
     def smoothed(self, **kwargs):

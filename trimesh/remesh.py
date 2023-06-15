@@ -441,13 +441,13 @@ def subdivide_loop(vertices,
 
 
 def subdivide_plane(
-                    vertices,
-                    faces,
-                    plane_normal,
-                    plane_origin,
-                    face_index=None,
-                    cached_dots=None
-                    ):
+    vertices,
+    faces,
+    plane_normal,
+    plane_origin,
+    face_index=None,
+    cached_dots=None
+):
     """
     Split all edges of a mesh (given as a set of faces and vertices) that intersect a plane,
     returning a new mesh (again as a set of faces and vertices) that has the same shape as the input mesh,
@@ -478,7 +478,7 @@ def subdivide_plane(
         Faces of sliced mesh
     """
 
-    #region Initialize Data
+    # region Initialize Data
     if len(vertices) == 0:
         return vertices, faces
 
@@ -497,9 +497,9 @@ def subdivide_plane(
         # shape is the same as faces (n,3)
         dots = np.dot(vertices - plane_origin, plane_normal)
 
-    #endregion
+    # endregion
 
-    #region Cluster faces
+    # region Cluster faces
     # Find vertex orientations w.r.t. faces for all triangles:
     #  -1 -> vertex "above" plane (positive normal direction)
     #   0 -> vertex on plane
@@ -509,7 +509,7 @@ def subdivide_plane(
     signs[dots > tol.merge] = -1
     signs = signs[faces]
 
-    # Find all triangles that intersect this plane BY EDGE. 
+    # Find all triangles that intersect this plane BY EDGE.
     # Vertices ON the plane are ignored.
     # beside <- indices of all triangles intersecting the plane
     # onedge <- indices of all triangles with an intersecting edge
@@ -522,12 +522,12 @@ def subdivide_plane(
 
     beside = np.abs(signs_sum) == signs_asum
     onedge = np.logical_not(beside)
-    #endregion
+    # endregion
 
     triangles = vertices[faces]
     cut_triangles = triangles[onedge]
 
-    #region Calculate intersections
+    # region Calculate intersections
     # Extract the intersections of each triangle's edges with the plane
     o = cut_triangles  # origins
     d = np.roll(o, -1, axis=1) - o  # directions
@@ -537,16 +537,16 @@ def subdivide_plane(
     dist = np.divide(num, denom)
     # intersection points for each segment
     int_points = np.einsum('ij,ijk->ijk', dist, d) + o
-    #endregion
+    # endregion
 
-    #region Initialize result arrays
+    # region Initialize result arrays
     # Copy non-cut faces
     new_faces = faces[beside]
     # Initialize the array of new vertices with the current vertices
     new_vertices = vertices
-    #endregion
+    # endregion
 
-    #region Calculate masks for different type of cut faces
+    # region Calculate masks for different type of cut faces
     # Positive Tri, Negative Quad
     cut_n_mask = onedge & (signs_sum == 1)
     # Positive Quad, Negative Tri
@@ -558,9 +558,9 @@ def subdivide_plane(
     cut_signs_p = signs[cut_p_mask]
     cut_faces_n = faces[cut_n_mask]
     cut_signs_n = signs[cut_n_mask]
-    #endregion
+    # endregion
 
-    #region Handle faces that split into a quad and a tri
+    # region Handle faces that split into a quad and a tri
     def split_face(cut_signs, int_points_f, cut_faces, sign):
         nonlocal new_vertices, new_faces
         num_faces = len(cut_signs)
@@ -576,20 +576,20 @@ def subdivide_plane(
                 np.stack(((int_inds + 1) % 3, (int_inds + 2) % 3), axis=1)]
 
             tri_int_verts = cut_faces[
-                face_range, 
+                face_range,
                 int_inds
-                ].reshape(num_faces, 1)
+            ].reshape(num_faces, 1)
 
             # Fill out new quad faces with the intersection points as vertices
             vert_offset = len(new_vertices)
 
-            # Extract correct intersection points from int_points and order 
+            # Extract correct intersection points from int_points and order
             # them in the same way as they were added to faces
             new_face_vertices = int_points_f[
                 np.stack((face_range, face_range), axis=1),
                 np.stack((((int_inds + 2) % 3).T, int_inds.T), axis=1),
                 :
-                    ].reshape(2 * num_faces, 3)
+            ].reshape(2 * num_faces, 3)
 
             # triangulate quads, and add the
             # resulting triangles to the new faces
@@ -611,25 +611,25 @@ def subdivide_plane(
 
             new_vertices = np.row_stack((new_vertices, new_face_vertices))
             new_faces = np.row_stack((
-                new_faces, 
+                new_faces,
                 new_tri_faces_from_quads, new_tri_faces
-                ))
+            ))
 
     p_int_points = int_points[cut_p_mask[onedge], :, :]
     n_int_points = int_points[cut_n_mask[onedge], :, :]
 
-    split_face(cut_signs_p, p_int_points, cut_faces_p,  1)
+    split_face(cut_signs_p, p_int_points, cut_faces_p, 1)
     split_face(cut_signs_n, n_int_points, cut_faces_n, -1)
-    #endregion
+    # endregion
 
-    #region Handle split faces with one vertex on the plane and one on each side
+    # region Handle split faces with one vertex on the plane and one on each side
     num_split_faces = cut_split_faces_mask.sum()
 
     if num_split_faces > 0:
         # index faces and signs of split faces
         cut_split_faces = faces[cut_split_faces_mask]
         cut_split_signs = signs[cut_split_faces_mask]
-        
+
         # find intesection points
         cut_int_points = int_points[cut_split_faces_mask[onedge], :, :]
 
@@ -650,7 +650,12 @@ def subdivide_plane(
         vert_offset = len(new_vertices)
 
         # Indices of the new intersection vertices
-        new_split_vert_int = np.arange(vert_offset, vert_offset + num_split_faces)[:, None]
+        new_split_vert_int = np.arange(
+            vert_offset,
+            vert_offset +
+            num_split_faces)[
+            :,
+            None]
 
         # Fill out new triangles with the intersection point as vertices
         new_split_pfaces = np.append(split_pint_verts, new_split_vert_int, axis=1)
@@ -663,16 +668,17 @@ def subdivide_plane(
         new_vertices = np.row_stack((new_vertices, new_split_vertices))
         new_faces = np.row_stack((new_faces, new_split_pfaces, new_split_nfaces))
 
-    #endregion
+    # endregion
 
-    #region Cleanup
+    # region Cleanup
     # find the unique indices in the new faces
     # using an integer-only unique function
 
     # merge close vertices
-    _, vert_idx, vert_lut = np.unique(np.fix(new_vertices / tol.merge) * tol.merge, axis=0, return_index=True, return_inverse=True)
+    _, vert_idx, vert_lut = np.unique(np.fix(
+        new_vertices / tol.merge) * tol.merge, axis=0, return_index=True, return_inverse=True)
     final_vert = new_vertices[vert_idx]
     final_face = vert_lut[new_faces]
-    #endregion
+    # endregion
 
     return final_vert, final_face
