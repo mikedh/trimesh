@@ -279,17 +279,24 @@ class SubDivideTest(g.unittest.TestCase):
         meshes = [g.trimesh.creation.box(),
                   g.trimesh.creation.icosphere()]
 
+        normals = [(1,0,0), (0,1,0), (0,0,1), (1,1,1)]
+        origins = [(0,0,0), (0,0.5,0), (0.7,0,0), (1,0,0)]
+        
         for i,m in enumerate(meshes):
-            s = m.subdivide_plane((1,0,0), (0,0,0))
-            # shouldn't have subdivided in-place
-            assert len(s.faces) > len(m.faces)
-            # area should be the same
-            assert g.np.isclose(m.area, s.area)
-            # volume should be the same
-            assert g.np.isclose(m.volume, s.volume)
-            # should be watertight
-            assert s.is_watertight == m.is_watertight
-            assert s.is_winding_consistent == m.is_winding_consistent
+            for origin in origins:
+                for normal in normals:
+                
+                    #print("Mesh:", i, " Origin:", origin, " Normal:", normal)
+                    s = m.subdivide_plane(normal, origin)
+        
+                    # shouldn't have subdivided in-place
+                    assert s.faces is not m.faces
+                    # area should be the same
+                    assert g.np.isclose(m.area, s.area)
+                    # volume should be the same
+                    assert g.np.isclose(m.volume, s.volume)
+                    assert s.is_watertight == m.is_watertight
+                    assert s.is_winding_consistent == m.is_winding_consistent
 
 
 
