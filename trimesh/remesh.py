@@ -9,6 +9,7 @@ import numpy as np
 from . import util
 from . import grouping
 from . import graph
+from . import geometry
 
 from .geometry import faces_to_edges
 from .constants import tol
@@ -437,3 +438,270 @@ def subdivide_loop(vertices,
         assert (faces[:, 1:] != faces[:, :1]).all()
 
     return vertices, faces
+
+
+def subdivide_plane(
+                    vertices,
+                    faces,
+                    plane_normal,
+                    plane_origin,
+                    face_index=None,
+                    cached_dots=None
+                    ):
+    """
+    Split all edges of a mesh (given as a set of faces and vertices) that intersect a plane,
+    returning a new mesh (again as a set of faces and vertices) that has the same shape as the input mesh,
+    but no edges intersecting the plane, only vertices.
+
+    Parameters
+    ---------
+    vertices : (n, 3) float
+        Vertices of source mesh to slice
+    faces : (n, 3) int
+        Faces of source mesh to slice
+    plane_normal : (3,) float
+        Normal vector of plane to intersect with mesh
+    plane_origin :  (3,) float
+        Point on plane to intersect with mesh
+    face_index : ((m,) int)
+        Indexes of faces to slice. When no mask is provided, the
+        default is to slice all faces.
+    cached_dots : (n, 3) float
+        If an external function has stored dot
+        products pass them here to avoid recomputing
+
+    Returns
+    ----------
+    new_vertices : (n, 3) float
+        Vertices of sliced mesh
+    new_faces : (n, 3) int
+        Faces of sliced mesh
+    """
+
+    #region Initialize Data
+    if len(vertices) == 0:
+        return vertices, faces
+
+    plane_origin = np.asarray(plane_origin, dtype=np.float64)
+    plane_normal = np.asarray(plane_normal, dtype=np.float64)
+
+    # Construct a mask for the faces to slice.
+    if face_index is not None:
+        faces = faces[face_index]
+
+    if cached_dots is not None:
+        dots = cached_dots
+    else:
+        # dot product of each vertex with the plane normal indexed by face
+        # so for each face the dot product of each vertex is a row
+        # shape is the same as faces (n,3)
+        dots = np.dot(vertices - plane_origin, plane_normal)
+
+    #endregion
+
+    #region Cluster faces
+    # Find vertex orientations w.r.t. faces for all triangles:
+    #  -1 -> vertex "above" plane (positive normal direction)
+    #   0 -> vertex on plane
+    #   1 -> vertex "below" plane (negative normal direction)
+    signs = np.zeros(len(vertices), dtype=np.int8)
+    signs[dots < -tol.merge] = 1
+    signs[dots > tol.merge] = -1
+    signs = signs[faces]
+
+    # Find all triangles that intersect this plane BY EDGE. Vertices ON the plane are ignored.
+    # beside <- indices of all triangles intersecting the plane
+    # onedge <- indices of all triangles with an intersecting edge
+    signs_sum = signs.sum(axis=1, dtype=np.int8)
+    signs_asum = np.abs(signs).sum(axis=1, dtype=np.int8)
+
+    # Cases:
+    # beside:   (1, 1, 1), (-1, -1, -1), (0, 0, 0), (0, 0, 1), (0, 0, -1)
+    # onedge:   (-1, 1, 1), (1, -1, -1), (-1, 0, 1)
+
+    beside = np.abs(signs_sum) == signs_asum
+    onedge = np.logical_not(beside)
+    #endregion
+
+    triangles = vertices[faces]
+    cut_triangles = triangles[onedge]
+
+    #region Calculate intersections
+    # Extract the intersections of each triangle's edges with the plane
+    o = cut_triangles  # origins
+    d = np.roll(o, -1, axis=1) - o  # directions
+    num = (plane_origin - o).dot(plane_normal)  # compute num/denom
+    denom = np.dot(d, plane_normal)
+    denom[denom == 0.0] = 1e-12  # prevent division by zero
+    dist = np.divide(num, denom)
+    # intersection points for each segment
+    int_points = np.einsum('ij,ijk->ijk', dist, d) + o
+    #endregion
+
+    #region Initialize result arrays
+    # Copy non-cut faces
+    new_faces = faces[beside]
+    # Initialize the array of new vertices with the current vertices
+    new_vertices = vertices
+    #endregion
+
+    #region Calculate masks for different type of cut faces
+    # Mask faces with one vertex on the edge and one on each side
+    cut_split_faces_mask = onedge & (signs_sum == 0) & (signs_asum == 2)
+    # Positive Tri, Negative Quad
+    cut_nquad_mask = cut_ptri_mask = onedge & (signs_sum == 1)
+    # Positive Quad, Negative Tri
+    cut_ntri_mask = cut_pquad_mask = onedge & (signs_sum == -1)
+
+    cut_faces_ntri = cut_faces_pquad = faces[cut_pquad_mask]
+    cut_signs_ntri = cut_signs_pquad = signs[cut_pquad_mask]
+    cut_faces_nquad = cut_faces_ptri = faces[cut_ptri_mask]
+    cut_signs_nquad = cut_signs_ptri = signs[cut_ptri_mask]
+    #endregion
+
+    #region Handle the base part of cut faces (quads)
+    # Quads are formed for all cut faces except the split ones
+    def make_quads(cut_signs, int_points_quad, cut_faces, sign):
+        nonlocal new_vertices, new_faces
+
+        num_quads = len(cut_signs)
+        if num_quads > 0:
+            # Extract the vertex on the outside of the plane, then get the vertices
+            # (in CCW order of the inside vertices)
+            quad_int_inds = np.where(cut_signs == sign)[1]
+            quad_range = np.arange(num_quads)
+
+            quad_int_verts = cut_faces[
+                np.stack((quad_range, quad_range), axis=1),
+                np.stack(((quad_int_inds + 1) % 3, (quad_int_inds + 2) % 3), axis=1)]
+
+            # Fill out new quad faces with the intersection points as vertices
+            vert_offset = len(new_vertices)
+
+            new_quad_faces = np.append(
+                quad_int_verts,
+                np.arange(vert_offset,
+                          vert_offset +
+                          2 * num_quads).reshape(num_quads, 2), axis=1)
+
+            # Extract correct intersection points from int_points and order them in
+            # the same way as they were added to faces
+            new_quad_vertices = int_points_quad[
+                                    np.stack((quad_range, quad_range), axis=1),
+                                    np.stack((((quad_int_inds + 2) % 3).T, quad_int_inds.T), axis=1),
+                                    :
+                                ].reshape(2 * num_quads, 3)
+
+            # Add new vertices to existing vertices, triangulate quads, and add the
+            # resulting triangles to the new faces
+            new_vertices = np.row_stack((new_vertices, new_quad_vertices))
+            new_tri_faces_from_quads = geometry.triangulate_quads(new_quad_faces)
+            new_faces = np.row_stack((new_faces, new_tri_faces_from_quads))
+
+    pquad_int_points = int_points[cut_pquad_mask[onedge], :, :]
+    nquad_int_points = int_points[cut_nquad_mask[onedge], :, :]
+
+    make_quads(cut_signs_pquad, pquad_int_points, cut_faces_pquad, 1)
+    make_quads(cut_signs_nquad, nquad_int_points, cut_faces_nquad, -1)
+    #endregion
+
+    #region Handle the tip part of cut faces (tris)
+    # Handle the case where a new triangle is formed by the intersection
+    # First, extract the intersection points belonging to a new triangle
+
+    def make_tris(cut_signs, int_points_tri, cut_faces, sign):
+        nonlocal new_vertices, new_faces
+
+        num_tris = len(cut_signs)
+        if num_tris > 0:
+            # Extract the single vertex for each triangle inside the plane and get the
+            # inside vertices (CCW order)
+            tri_int_inds = np.where(cut_signs == sign)[1]
+
+            tri_range = np.arange(num_tris)
+
+            tri_int_verts = cut_faces[tri_range, tri_int_inds].reshape(num_tris, 1)
+
+            # Fill out new triangles with the intersection points as vertices
+            new_tri_faces = np.append(
+                tri_int_verts,
+                np.arange(len(new_vertices),
+                          len(new_vertices) +
+                          2 * num_tris).reshape(num_tris, 2),
+                axis=1)
+
+            # Extract correct intersection points and order them in the same way as
+            # the vertices were added to the faces
+            new_tri_vertices = int_points_tri[
+                np.stack((tri_range, tri_range), axis=1),
+                np.stack((tri_int_inds.T, ((tri_int_inds + 2) % 3).T),
+                         axis=1),
+                :].reshape(2 * num_tris, 3)
+
+            # Append new vertices and new faces
+            new_vertices = np.append(new_vertices, new_tri_vertices, axis=0)
+            new_faces = np.append(new_faces, new_tri_faces, axis=0)
+
+    ptri_int_points = int_points[cut_ptri_mask[onedge], :, :]
+    ntri_int_points = int_points[cut_ntri_mask[onedge], :, :]
+
+    make_tris(cut_signs_ptri, ptri_int_points, cut_faces_ptri, -1)
+    make_tris(cut_signs_ntri, ntri_int_points, cut_faces_ntri, 1)
+    #endregion
+
+    #region Handle split faces with one vertex on the plane and one on each side
+    num_split_faces = cut_split_faces_mask.sum()
+
+    if num_split_faces > 0:
+        cut_split_faces = faces[cut_split_faces_mask]
+        cut_split_signs = signs[cut_split_faces_mask]
+        cut_int_points = int_points[cut_split_faces_mask[onedge], :, :]
+
+        # find indices of the vertex on the plane
+        split_int_inds = np.where(cut_split_signs == 0)[1]
+
+        split_range = np.arange(num_split_faces)
+
+        # Find the indices of the vertices left and right from the plane
+        split_pint_verts = cut_split_faces[
+            np.stack((split_range, split_range), axis=1),
+            np.stack((split_int_inds, (split_int_inds + 1) % 3), axis=1)]
+
+        split_nint_verts = cut_split_faces[
+            np.stack((split_range, split_range), axis=1),
+            np.stack(((split_int_inds + 2) % 3, split_int_inds), axis=1)]
+
+        vert_offset = len(new_vertices)
+
+        # Indices of the new intersection vertices
+        new_split_vert_int = np.arange(vert_offset, vert_offset + num_split_faces)[:, None]
+
+        # Fill out new triangles with the intersection point as vertices
+        new_split_pfaces = np.append(split_pint_verts, new_split_vert_int, axis=1)
+        new_split_nfaces = np.append(split_nint_verts, new_split_vert_int, axis=1)
+
+        # Extract correct intersection points from int_points
+        #split_vertex_pairs = np.stack((((split_int_inds + 1) % 3).T, ((split_int_inds + 2) % 3).T), axis=1)
+        split_vertex = (split_int_inds + 1) % 3
+        new_split_vertices = cut_int_points[np.arange(num_split_faces), split_vertex] #_pairs[:, 1]]
+
+        new_vertices = np.row_stack((new_vertices, new_split_vertices))
+        new_faces = np.row_stack((new_faces, new_split_pfaces, new_split_nfaces))
+
+    #endregion
+
+    #region Cleanup
+    # find the unique indices in the new faces
+    # using an integer-only unique function
+    unique, inverse = grouping.unique_bincount(new_faces.reshape(-1), minlength=len(new_vertices), return_inverse=True)
+
+    # use the unique indexes for our final vertex and faces
+    final_vert = new_vertices[unique]
+    final_face = inverse.reshape((-1, 3))
+   
+    # merge double used vertices
+    final_vert, vert_lut = np.unique(final_vert, axis=0, return_inverse=True)
+    final_face = vert_lut[final_face]
+    #endregion
+
+    return final_vert, final_face

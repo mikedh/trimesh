@@ -2066,6 +2066,32 @@ class Trimesh(Geometry3D):
             faces=new_faces,
             process=False)
         return result
+        
+    def subdivide_plane(self, plane_normal, plane_origin):
+        """
+        Subdivide a mesh at a given plane, splitting all
+        intersected edges. The new mesh will have no edges
+        that intersect the plane, only vertices.
+
+        Parameters
+        ------------
+        plane_normal: (3) vector for plane normal
+          Normal vector of section plane
+        plane_origin : (3, ) float
+          Point on the cross section plane
+        """
+        new_vertices, new_faces = remesh.subdivide_plane(
+            vertices=self.vertices,
+            faces=self.faces,
+            plane_normal=plane_normal,
+            plane_origin=plane_origin)
+            
+        result = Trimesh(
+            vertices=new_vertices,
+            faces=new_faces,
+            process=False)
+        return result
+            
 
     @log_time
     def smoothed(self, **kwargs):
