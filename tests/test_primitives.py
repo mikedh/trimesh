@@ -311,6 +311,21 @@ class PrimitiveTest(g.unittest.TestCase):
         s.center[:2] = [0, 3]
         assert g.np.allclose(s.center, [0, 3, 1])
 
+    def test_box_bounds_constructor(self):
+        # check to see that we can construct a box using AABB
+        bounds = [[0.2, 0.3, 0.4], [10, 11, 12.2]]
+        prim = g.trimesh.primitives.Box(bounds=bounds)
+
+        # bounds should match requesta
+        assert g.np.allclose(prim.bounds, bounds)
+
+        try:
+            # should raise a ValueError
+            g.trimesh.primitives.Box(extents=bounds[0], bounds=bounds)
+            raise AssertionError("box shouldn't have accepted both bounds and extents!")
+        except ValueError:
+            pass
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

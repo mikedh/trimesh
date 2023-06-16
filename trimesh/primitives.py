@@ -700,22 +700,41 @@ class Box(_Primitive):
     def __init__(self,
                  extents=None,
                  transform=None,
+                 bounds=None,
                  mutable=True):
         """
         Create a Box Primitive as a subclass of Trimesh
 
         Parameters
         ----------
-        extents : (3,) float
-          Length of each side of the 3D box
-        transform : (4, 4) float
-          Homogeneous transformation matrix for box center
+        extents : Optional[ndarray] (3,) float
+          Length of each side of the 3D box.
+        transform : Optional[ndarray] (4, 4) float
+          Homogeneous transformation matrix for box center.
+        bounds : Optional[ndarray] (2, 3) float
+          Axis aligned bounding box, if passed extents and
+          transform will be derived from this.
         mutable : bool
           Are extents and transform mutable after creation.
         """
         super(Box, self).__init__()
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
+
+        if bounds is not None:
+            # validate the multiple forms of input available here
+            if extents is not None or transform is not None:
+                raise ValueError(
+                    'if `bounds` is passed `extents` and `transform` must not be!')
+            bounds = np.array(bounds, dtype=np.float64)
+            if bounds.shape != (2, 3):
+                raise ValueError('`bounds` must be (2, 3) float')
+            # create extents from AABB
+            extents = bounds.ptp(axis=0)
+            # translate to the center of the box
+            transform = np.eye(4)
+            transform[:3, 3] = bounds[0] + extents / 2.0
+
         self.primitive = _PrimitiveAttributes(
             self,
             defaults=defaults,

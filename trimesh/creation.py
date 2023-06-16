@@ -599,9 +599,12 @@ def box(extents=None, transform=None, bounds=None, **kwargs):
 
     # resize cube based on passed extents
     if bounds is not None:
-        bounds = np.array(bounds, dtype=np.float64)
+
         if transform is not None or extents is not None:
             raise ValueError('`bounds` overrides `extents`/`transform`!')
+        bounds = np.array(bounds, dtype=np.float64)
+        if bounds.shape != (2, 3):
+            raise ValueError('`bounds` must be (2, 3) float!')
         extents = bounds.ptp(axis=0)
         vertices *= extents
         vertices += bounds[0]
