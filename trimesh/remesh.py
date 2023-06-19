@@ -615,7 +615,7 @@ def subdivide_plane(
                 faces,
                 new_tri_faces_from_quads, new_tri_faces
             ))
-            return verts, faces
+        return verts, faces
 
     p_int_points = int_points[cut_p_mask[onedge], :, :]
     n_int_points = int_points[cut_n_mask[onedge], :, :]
