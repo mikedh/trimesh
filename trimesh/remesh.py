@@ -449,8 +449,9 @@ def subdivide_plane(
     cached_dots=None
 ):
     """
-    Split all edges of a mesh (given as a set of faces and vertices) that intersect a plane,
-    returning a new mesh (again as a set of faces and vertices) that has the same shape as the input mesh,
+    Split all edges of a mesh (given as a set of faces and vertices)
+    that intersect a plane, returning a new mesh (again as a set of faces and
+    vertices) that has the same shape as the input mesh,
     but no edges intersecting the plane, only vertices.
 
     Parameters
@@ -561,8 +562,8 @@ def subdivide_plane(
     # endregion
 
     # region Handle faces that split into a quad and a tri
-    def split_face(cut_signs, int_points_f, cut_faces, sign):
-        nonlocal new_vertices, new_faces
+    def split_face(verts, faces, cut_signs, int_points_f, cut_faces, sign):
+        #nonlocal new_vertices, new_faces
         num_faces = len(cut_signs)
 
         if num_faces > 0:
@@ -609,17 +610,29 @@ def subdivide_plane(
                           vert_offset + 2 * num_faces).reshape(num_faces, 2),
                 axis=1)[:, [0, 2, 1]]
 
-            new_vertices = np.row_stack((new_vertices, new_face_vertices))
-            new_faces = np.row_stack((
-                new_faces,
+            verts = np.row_stack((verts, new_face_vertices))
+            faces = np.row_stack((
+                faces,
                 new_tri_faces_from_quads, new_tri_faces
             ))
+            return verts, faces
 
     p_int_points = int_points[cut_p_mask[onedge], :, :]
     n_int_points = int_points[cut_n_mask[onedge], :, :]
 
-    split_face(cut_signs_p, p_int_points, cut_faces_p, 1)
-    split_face(cut_signs_n, n_int_points, cut_faces_n, -1)
+    new_vertices, new_faces = split_face(
+        new_vertices,
+        new_faces,
+        cut_signs_p,
+        p_int_points,
+        cut_faces_p, 
+        1)
+    new_vertices, new_faces = split_face(
+        new_vertices,
+        new_faces,
+        cut_signs_n,
+        n_int_points,
+        cut_faces_n, -1)
     # endregion
 
     # region Handle split faces with one vertex on the plane and one on each side
@@ -676,7 +689,8 @@ def subdivide_plane(
 
     # merge close vertices
     _, vert_idx, vert_lut = np.unique(np.fix(
-        new_vertices / tol.merge) * tol.merge, axis=0, return_index=True, return_inverse=True)
+        new_vertices / tol.merge) * tol.merge,
+        axis=0, return_index=True, return_inverse=True)
     final_vert = new_vertices[vert_idx]
     final_face = vert_lut[new_faces]
     # endregion
