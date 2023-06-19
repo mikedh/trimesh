@@ -1,5 +1,6 @@
 import os
 import platform
+from subprocess import CalledProcessError
 
 from ..util import which
 from .generic import MeshScript
@@ -46,8 +47,19 @@ def interface_scad(meshes, script, debug=False, **kwargs):
         raise ValueError('No SCAD available!')
     # OFF is a simple text format that references vertices by-index
     # making it slightly preferable to STL for this kind of exchange duty
-    with MeshScript(meshes=meshes, script=script, debug=debug, exchange='off') as scad:
-        result = scad.run(_scad_executable + ' $SCRIPT -o $MESH_POST')
+    try:
+        with MeshScript(meshes=meshes, script=script, 
+            debug=debug, exchange='off') as scad:
+            result = scad.run(_scad_executable + ' $SCRIPT -o $MESH_POST')
+    except CalledProcessError as e:
+        # Check if scad is complaining about an empty top level geometry.
+        # If so, just return an empty Trimesh object.
+        if "Current top level object is empty." in e.output.decode().split("\n"):
+            from .. import Trimesh
+            return Trimesh()
+        else:
+            raise
+
     return result
 
 
