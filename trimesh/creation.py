@@ -709,6 +709,12 @@ def icosphere(subdivisions=3, radius=1.0, **kwargs):
         unit = vectors / scalar.reshape((-1, 1))
         ico.vertices += unit * (radius - scalar).reshape((-1, 1))
 
+    if "color" in kwargs:  # NOTE: for backward compatibiliy.
+        # Previously we could specify facet_color by "color" keyward
+        # but this was disabled by the following commit:
+        # 147b1774da51c735d5fa4daa02260ea146b5dfd7
+        kwargs["face_colors"] = kwargs.pop("color")
+
     return Trimesh(vertices=ico.vertices,
                    faces=ico.faces,
                    metadata={'shape': 'sphere',
