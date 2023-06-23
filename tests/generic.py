@@ -64,10 +64,11 @@ with DummyProfiler() as _P:
     pass
 assert len(_P.output_text()) > 0
 
-try:
-    from pyinstrument import Profiler
-except BaseException:
-    Profiler = DummyProfiler
+# try:
+#    from pyinstrument import Profiler
+# except BaseException:
+# see if this is the segfaulter
+Profiler = DummyProfiler
 
 
 # should we require all soft dependencies
