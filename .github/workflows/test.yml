@@ -28,9 +28,6 @@ jobs:
       matrix:
         python-version: ["3.11"]
         os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            python-version: 2.7
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
