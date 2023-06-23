@@ -242,6 +242,7 @@ class CacheTest(g.unittest.TestCase):
             failures = []
             g.log.debug('hash check: `{}`'.format(method))
             for A in attempts:
+                g.log.debug('{}({})'.format(method, ', '.join(str(i) for i in A)))
                 m = g.random((100, 3))
                 true_pre = m.tobytes()
                 m = tracked_array(m)
