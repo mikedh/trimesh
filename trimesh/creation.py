@@ -18,6 +18,8 @@ from . import exceptions
 from . import transformations as tf
 
 import numpy as np
+
+import warnings
 import collections
 
 try:
@@ -709,10 +711,12 @@ def icosphere(subdivisions=3, radius=1.0, **kwargs):
         unit = vectors / scalar.reshape((-1, 1))
         ico.vertices += unit * (radius - scalar).reshape((-1, 1))
 
-    if "color" in kwargs:  # NOTE: for backward compatibiliy.
-        # Previously we could specify facet_color by "color" keyward
-        # but this was disabled by the following commit:
-        # 147b1774da51c735d5fa4daa02260ea146b5dfd7
+    if "color" in kwargs:
+        warnings.warn(
+            '`icosphere(color=...)` is deprecated and will ' +
+            'be removed in June 2024: replace with Trimesh constructor ' +
+            'kewyword argument `icosphere(face_colors=...)`',
+            category=DeprecationWarning, stacklevel=2)
         kwargs["face_colors"] = kwargs.pop("color")
 
     return Trimesh(vertices=ico.vertices,
