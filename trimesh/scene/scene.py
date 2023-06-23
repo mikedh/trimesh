@@ -1,6 +1,7 @@
 import numpy as np
 import collections
 import uuid
+import inspect
 
 from . import cameras
 from . import lighting
@@ -1269,6 +1270,8 @@ class Scene(Geometry3D):
         elif viewer == 'notebook':
             from ..viewer import scene_to_notebook
             return scene_to_notebook(self, **kwargs)
+        elif inspect.isclass(viewer):
+            return viewer(self,**kwargs)
         else:
             raise ValueError('viewer must be "gl", "notebook", or None')
 
