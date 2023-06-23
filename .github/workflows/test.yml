@@ -41,8 +41,9 @@ jobs:
     - name: Install Trimesh
       run: pip install .[easy,test]
     - name: Run Pytest
-      run: pytest
-
+      run: |
+        python tests/test_cache.py
+        pytest
   docker:
     name: Run Tests In Docker
     runs-on: ubuntu-latest
