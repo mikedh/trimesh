@@ -64,11 +64,11 @@ with DummyProfiler() as _P:
     pass
 assert len(_P.output_text()) > 0
 
-# try:
-#    from pyinstrument import Profiler
-# except BaseException:
-# see if this is the segfaulter
-Profiler = DummyProfiler
+
+try:
+    from pyinstrument import Profiler
+except BaseException:
+    Profiler = DummyProfiler
 
 
 # should we require all soft dependencies
@@ -488,6 +488,7 @@ def scene_equal(a, b):
             m.volume, b.geometry[k].volume, rtol=0.001)
     # the axis aligned bounding box should be the same
     assert np.allclose(a.bounds, b.bounds)
+
 
 def texture_equal(a, b):
     """

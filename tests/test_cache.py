@@ -228,10 +228,17 @@ class CacheTest(g.unittest.TestCase):
         # are suspicious of a method caching you could uncomment this out:
         # attempts.extend([tuple(G) for G in itertools.permutations(flat, 3)])
 
+        # currently segfaulting when called with `(2.3, 1)`
+        skip = set(['__array_ufunc__'])
+
         # collect functions which mutate arrays but don't change our hash
         broken = []
 
         for method in list(dir(tracked_array(g.random(dim)))):
+
+            if method in skip:
+                continue
+
             failures = []
             g.log.debug('hash check: `{}`'.format(method))
             for A in attempts:
