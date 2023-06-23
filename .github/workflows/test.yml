@@ -43,7 +43,7 @@ jobs:
     - name: Run Pytest
       run: |
         python tests/test_cache.py
-        python -c "import numpy; a = np.random.random((100, 3)); a.astype()"
+        python -c "import numpy; a = numpy.random.random((100, 3)); a.astype()"
         pytest
   docker:
     name: Run Tests In Docker
