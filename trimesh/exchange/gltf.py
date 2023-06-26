@@ -22,6 +22,7 @@ from ..util import unique_name
 from ..caching import hash_fast
 from ..constants import log, tol
 
+from .gltf_draco_decoder import decode_primitive_draco
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -1441,6 +1442,9 @@ def _read_buffers(header,
                 name = m.get('name', 'GLTF')
                 # make name unique across multiple meshes
                 name = unique_name(name, meshes, counts=name_counts)
+
+                if "extensions" in p and "KHR_draco_mesh_compression" in p["extensions"]:
+                    access = decode_primitive_draco(header, views, p, access)
 
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
