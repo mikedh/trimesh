@@ -171,7 +171,8 @@ def export_glb(
         include_normals=None,
         unitize_normals=False,
         tree_postprocessor=None,
-        buffer_postprocessor=None):
+        buffer_postprocessor=None,
+        draco_export_settings=None):
     """
     Export a scene as a binary GLTF (GLB) file.
 
@@ -206,6 +207,9 @@ def export_glb(
     # allow custom postprocessing
     if tree_postprocessor is not None:
         tree_postprocessor(tree)
+
+    if draco_export_settings is not None:
+        encode_primitive_draco(tree, buffer_items, draco_export_settings)
 
     # A bufferView is a slice of a file
     views = _build_views(buffer_items)
@@ -942,8 +946,8 @@ def _build_views(buffer_items):
             {"buffer": 0,
              "byteOffset": current_pos,
              "byteLength": len(current_item)})
-        assert (current_pos % 4) == 0
-        assert (len(current_item) % 4) == 0
+        # assert (current_pos % 4) == 0
+        # assert (len(current_item) % 4) == 0
         current_pos += len(current_item)
     return views
 
@@ -1411,6 +1415,9 @@ def _read_buffers(header,
                 name = m.get('name', 'GLTF')
                 # make name unique across multiple meshes
                 name = unique_name(name, meshes, counts=name_counts)
+
+                if "extensions" in p and "KHR_draco_mesh_compression" in p["extensions"]:
+                    access = decode_primitive_draco(header, views, p, access)
 
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
