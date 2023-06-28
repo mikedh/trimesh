@@ -370,6 +370,7 @@ def weighted_vertex_normals(vertex_count,
                                     np.argsort(faces, axis=1).ravel()]
         # create a sparse matrix
         matrix = index_sparse(vertex_count, faces).astype(np.float64)
+        # assign the corner angles to the sparse matrix data
         matrix.data = corner_angles
         
 
@@ -378,18 +379,16 @@ def weighted_vertex_normals(vertex_count,
         
         # assign the corner angles to the sparse matrix data
         
-        #
+        # why does this work...
         shouldnt = util.unitize(matrix.dot(face_normals))
         check = util.unitize(summed_loop())
         ours = util.unitize(nond.dot(face_normals))
-
         
         if not np.allclose(check, ours):
             from IPython import embed
             embed()
-
             
-        return nond.dot(face_normals)
+        return matrix.dot(face_normals)
 
     def summed_loop():
         summed = np.zeros((vertex_count, 3), np.float64)
