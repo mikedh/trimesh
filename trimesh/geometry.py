@@ -369,8 +369,8 @@ def weighted_vertex_normals(vertex_count,
         corner_angles = face_angles[np.repeat(np.arange(len(faces)), 3),
                                     np.argsort(faces, axis=1).ravel()]
         # create a sparse matrix
-        matrix = index_sparse(vertex_count, faces).astype(np.float64)
-        # assign the corner angles to the sparse matrix data
+        matrix = index_sparse(vertex_count, faces)
+        # assign the corner angles to the sparse matrix data        
         matrix.data = corner_angles
         
 
