@@ -18,6 +18,8 @@ from . import exceptions
 from . import transformations as tf
 
 import numpy as np
+
+import warnings
 import collections
 
 try:
@@ -599,9 +601,12 @@ def box(extents=None, transform=None, bounds=None, **kwargs):
 
     # resize cube based on passed extents
     if bounds is not None:
-        bounds = np.array(bounds, dtype=np.float64)
+
         if transform is not None or extents is not None:
             raise ValueError('`bounds` overrides `extents`/`transform`!')
+        bounds = np.array(bounds, dtype=np.float64)
+        if bounds.shape != (2, 3):
+            raise ValueError('`bounds` must be (2, 3) float!')
         extents = bounds.ptp(axis=0)
         vertices *= extents
         vertices += bounds[0]
@@ -705,6 +710,14 @@ def icosphere(subdivisions=3, radius=1.0, **kwargs):
         scalar = np.sqrt(np.dot(vectors ** 2, [1, 1, 1]))
         unit = vectors / scalar.reshape((-1, 1))
         ico.vertices += unit * (radius - scalar).reshape((-1, 1))
+
+    if "color" in kwargs:
+        warnings.warn(
+            '`icosphere(color=...)` is deprecated and will ' +
+            'be removed in June 2024: replace with Trimesh constructor ' +
+            'kewyword argument `icosphere(face_colors=...)`',
+            category=DeprecationWarning, stacklevel=2)
+        kwargs["face_colors"] = kwargs.pop("color")
 
     return Trimesh(vertices=ico.vertices,
                    faces=ico.faces,

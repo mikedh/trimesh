@@ -1245,8 +1245,8 @@ class Scene(Geometry3D):
 
         Parameters
         -----------
-        viewer: str
-          What kind of viewer to open, including
+        viewer : Union[str, callable, None]
+          What kind of viewer to use, such as
           'gl' to open a pyglet window, 'notebook'
           for a jupyter notebook or None
         kwargs : dict
@@ -1257,9 +1257,10 @@ class Scene(Geometry3D):
         if viewer is None:
             # check to see if we are in a notebook or not
             from ..viewer import in_notebook
-            viewer = 'gl'
             if in_notebook():
                 viewer = 'notebook'
+            else:
+                viewer = 'gl'
 
         if viewer == 'gl':
             # this imports pyglet, and will raise an ImportError
@@ -1269,8 +1270,12 @@ class Scene(Geometry3D):
         elif viewer == 'notebook':
             from ..viewer import scene_to_notebook
             return scene_to_notebook(self, **kwargs)
+        elif callable(viewer):
+            # if a callable method like a custom class
+            # constructor was passed run using that
+            return viewer(self, **kwargs)
         else:
-            raise ValueError('viewer must be "gl", "notebook", or None')
+            raise ValueError('viewer must be "gl", "notebook", callable, or None')
 
     def __add__(self, other):
         """
