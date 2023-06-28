@@ -5,7 +5,11 @@ from .generic import MeshScript
 from ..constants import log
 from ..util import which
 
-_search_path = os.environ['PATH']
+_search_path = str.join(
+    ":",
+    [os.path.expanduser(os.path.expandvars(p)) for p in os.environ["PATH"].split(":")],
+)
+
 if platform.system() == 'Windows':
     # split existing path by delimiter
     _search_path = [i for i in _search_path.split(';') if len(i) > 0]
