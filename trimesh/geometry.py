@@ -370,10 +370,26 @@ def weighted_vertex_normals(vertex_count,
                                     np.argsort(faces, axis=1).ravel()]
         # create a sparse matrix
         matrix = index_sparse(vertex_count, faces).astype(np.float64)
-        # assign the corner angles to the sparse matrix data
         matrix.data = corner_angles
+        
 
-        return matrix.dot(face_normals)
+        
+        nond = index_sparse(vertex_count, faces, data=corner_angles)
+        
+        # assign the corner angles to the sparse matrix data
+        
+        #
+        shouldnt = util.unitize(matrix.dot(face_normals))
+        check = util.unitize(summed_loop())
+        ours = util.unitize(nond.dot(face_normals))
+
+        
+        if not np.allclose(check, ours):
+            from IPython import embed
+            embed()
+
+            
+        return nond.dot(face_normals)
 
     def summed_loop():
         summed = np.zeros((vertex_count, 3), np.float64)
@@ -408,7 +424,7 @@ def weighted_vertex_normals(vertex_count,
     return util.unitize(summed_loop())
 
 
-def index_sparse(columns, indices, data=None):
+def index_sparse(columns, indices, data=None, dtype=None):
     """
     Return a sparse matrix for which vertices are contained in which faces.
     A data vector can be passed which is then used instead of booleans
@@ -434,7 +450,7 @@ def index_sparse(columns, indices, data=None):
 
     In [3]: mesh.faces.shape
     Out[3]: (20, 3)
-
+co
     In [4]: mesh.vertices.shape
     Out[4]: (12, 3)
 
@@ -461,6 +477,7 @@ def index_sparse(columns, indices, data=None):
     indices = np.asanyarray(indices)
     columns = int(columns)
 
+    # flattened list
     row = indices.reshape(-1)
     col = np.tile(np.arange(len(indices)).reshape(
         (-1, 1)), (1, indices.shape[1])).reshape(-1)
@@ -468,7 +485,12 @@ def index_sparse(columns, indices, data=None):
     shape = (columns, len(indices))
     if data is None:
         data = np.ones(len(col), dtype=bool)
+    elif len(data) != len(col):
+        raise ValueError('data incorrect length')
 
+    if dtype is not None:
+        data = data.astype(dtype)
+    
     # assemble into sparse matrix
     matrix = scipy.sparse.coo_matrix((data, (row, col)),
                                      shape=shape,

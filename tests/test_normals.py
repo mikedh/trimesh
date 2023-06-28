@@ -37,7 +37,8 @@ class NormalsTest(g.unittest.TestCase):
 
         def compare_trimesh_to_groundtruth(
                 mesh,
-                truth, atol=g.trimesh.tol.merge):
+                truth,
+                atol=g.trimesh.tol.merge):
             # force fallback to loop normal summing by passing None
             # as the sparse matrix
             normals = g.trimesh.geometry.weighted_vertex_normals(
@@ -45,7 +46,7 @@ class NormalsTest(g.unittest.TestCase):
                 faces=mesh.faces,
                 face_normals=mesh.face_normals,
                 face_angles=mesh.face_angles)
-            assert g.np.allclose(normals - truth, 0.0, atol=atol)
+            assert g.np.allclose(normals, truth, atol=atol)
 
             # make sure the automatic sparse matrix generation works
             normals = g.trimesh.geometry.weighted_vertex_normals(
