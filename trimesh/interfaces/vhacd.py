@@ -15,7 +15,9 @@ if platform.system() == 'Windows':
     _search_path = ';'.join(_search_path)
     log.debug('searching for vhacd in: %s', _search_path)
 else:
-    _search_path = ":".join([os.path.expanduser(os.path.expandvars(p)) for p in _search_path.split(":")])
+    _search_path = ":".join(
+        [os.path.expanduser(os.path.expandvars(p)) for p in _search_path.split(":")]
+    )
 
 _vhacd_executable = None
 for _name in ['vhacd', 'testVHACD', 'TestVHACD']:
