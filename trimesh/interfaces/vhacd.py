@@ -5,8 +5,7 @@ from .generic import MeshScript
 from ..constants import log
 from ..util import which
 
-_search_path = ":".join([os.path.expanduser(os.path.expandvars(p)) for p in os.environ["PATH"].split(":")])
-
+_search_path = os.environ["PATH"]
 
 if platform.system() == 'Windows':
     # split existing path by delimiter
@@ -15,6 +14,8 @@ if platform.system() == 'Windows':
     _search_path.append(r'C:\Program Files (x86)')
     _search_path = ';'.join(_search_path)
     log.debug('searching for vhacd in: %s', _search_path)
+else:
+    _search_path = ":".join([os.path.expanduser(os.path.expandvars(p)) for p in _search_path.split(":")])
 
 _vhacd_executable = None
 for _name in ['vhacd', 'testVHACD', 'TestVHACD']:
