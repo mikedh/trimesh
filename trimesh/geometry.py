@@ -366,28 +366,7 @@ def weighted_vertex_normals(vertex_count,
         # figure out the summed normal at each vertex
         # allow cached sparse matrix to be passed
         # fill the matrix with vertex-corner angles as weights
-        corner_angles = face_angles[np.repeat(np.arange(len(faces)), 3),
-                                    np.argsort(faces, axis=1).ravel()]
-        # create a sparse matrix
-        matrix = index_sparse(vertex_count, faces)
-        # assign the corner angles to the sparse matrix data        
-        matrix.data = corner_angles
-        
-
-        
-        nond = index_sparse(vertex_count, faces, data=corner_angles)
-        
-        # assign the corner angles to the sparse matrix data
-        
-        # why does this work...
-        shouldnt = util.unitize(matrix.dot(face_normals))
-        check = util.unitize(summed_loop())
-        ours = util.unitize(nond.dot(face_normals))
-        
-        if not np.allclose(check, ours):
-            from IPython import embed
-            embed()
-            
+        matrix = index_sparse(vertex_count, faces, data=face_angles.ravel())
         return matrix.dot(face_normals)
 
     def summed_loop():
@@ -489,7 +468,7 @@ co
 
     if dtype is not None:
         data = data.astype(dtype)
-    
+
     # assemble into sparse matrix
     matrix = scipy.sparse.coo_matrix((data, (row, col)),
                                      shape=shape,
