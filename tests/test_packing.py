@@ -59,7 +59,7 @@ def _solid_image(color, size):
 
     # create a one pixel RGB image
     image = Image.fromarray(
-        g.np.tile(color, (g.np.product(size), 1)).reshape(
+        g.np.tile(color, (g.np.prod(size), 1)).reshape(
             (size[0], size[1], 3)))
     assert image.size == tuple(size[::-1])
 

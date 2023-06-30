@@ -181,8 +181,8 @@ def sparse_to_matrix(sparse):
         raise ValueError('sparse must be (n,3)!')
 
     shape = sparse.max(axis=0) + 1
-    matrix = np.zeros(np.product(shape), dtype=bool)
-    multiplier = np.array([np.product(shape[1:]), shape[2], 1])
+    matrix = np.zeros(np.prod(shape), dtype=bool)
+    multiplier = np.array([np.prod(shape[1:]), shape[2], 1])
 
     index = (sparse * multiplier).sum(axis=1)
     matrix[index] = True

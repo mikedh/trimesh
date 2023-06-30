@@ -51,11 +51,11 @@ def arc_center(points, return_normal=True, return_angle=True):
     # half the total length of the edges
     half = edges.sum() / 2.0
     # check the denominator for the radius calculation
-    denom = half * np.product(half - edges)
+    denom = half * np.prod(half - edges)
     if denom < tol.merge:
         raise ValueError('arc is colinear!')
     # find the radius and scale back after the operation
-    radius = scale * ((np.product(edges) / 4.0) / np.sqrt(denom))
+    radius = scale * ((np.prod(edges) / 4.0) / np.sqrt(denom))
 
     # use a barycentric approach to get the center
     ba2 = (abc2[[1, 2, 0, 0, 2, 1, 0, 1, 2]] *

@@ -241,7 +241,7 @@ def rectangles_single(extents, size=None, shuffle=False, rotate=True):
                 np.fill_diagonal(ch, stack.sum(axis=0))
 
                 # choose the new AABB by which one minimizes hyper-volume
-                choice_prod = np.product(ch, axis=1)
+                choice_prod = np.prod(ch, axis=1)
                 if choice_prod.min() < best:
                     choices = ch
                     choices_idx = choice_prod.argmin()
@@ -449,7 +449,7 @@ def rectangles(extents,
     extents += spacing * 2.0
 
     # hyper-volume: area in 2D, volume in 3D, party in 4D
-    area = np.product(extents, axis=1)
+    area = np.prod(extents, axis=1)
     # best density percentage in 0.0 - 1.0
     best_density = 0.0
     # how many rect were inserted
@@ -469,7 +469,7 @@ def rectangles(extents,
             extents = np.ceil(extents_all / quanta) * quanta
 
         # calculate the packing density
-        density = area[insert].sum() / np.product(extents_all)
+        density = area[insert].sum() / np.prod(extents_all)
 
         # compare this packing density against our best
         if density > best_density or count > best_count:

@@ -21,8 +21,8 @@ except BaseException as E:
 
 
 def rasterize(path,
-              pitch,
-              origin,
+              pitch=None,
+              origin=None,
               resolution=None,
               fill=True,
               width=None):
@@ -50,6 +50,12 @@ def rasterize(path,
       Rasterized version of input as `mode 1` image
     """
 
+    if pitch is None:
+        pitch = path.extents.max() / 2048
+
+    if origin is None:
+        origin = path.bounds[0] - (pitch * 2.0)
+    
     # check inputs
     pitch = np.asanyarray(pitch, dtype=np.float64)
     origin = np.asanyarray(origin, dtype=np.float64)

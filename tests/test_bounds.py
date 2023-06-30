@@ -145,7 +145,7 @@ class BoundsTest(g.unittest.TestCase):
             # check to make sure result is actually returning an OBB
             assert g.np.allclose(origin, 0.0)
             # make sure OBB has less or same area as naive AABB
-            assert g.np.product(rectangle) <= g.np.product(rectangle_pre)
+            assert g.np.prod(rectangle) <= g.np.prod(rectangle_pre)
 
     def test_cylinder(self):
         """
@@ -249,7 +249,7 @@ class BoundsTest(g.unittest.TestCase):
 
             # make sure mesh isn't reversing windings
             assert g.np.isclose(obb.to_mesh().volume,
-                                g.np.product(extents))
+                                g.np.prod(extents))
 
             # make sure OBB has the same bounds as the source mesh
             # since it is a box the AABB of the OBB should be

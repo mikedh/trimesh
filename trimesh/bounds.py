@@ -86,7 +86,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # calculate the extents and area for each edge vector pair
     extents = np.diff(bounds.reshape((-1, 2, 2)),
                       axis=1).reshape((-1, 2))
-    area = np.product(extents, axis=1)
+    area = np.prod(extents, axis=1)
     area_min = area.argmin()
 
     # (2,) float of smallest rectangle size

@@ -41,7 +41,7 @@ class MinimalTest(unittest.TestCase):
         extents = bounds.reshape((-1, 2)).ptp(axis=0)
         assert np.allclose(extents, [2, 3])
         assert bounds.shape == (2, 2, 2)
-        density = 5.0 / np.product(extents)
+        density = 5.0 / np.prod(extents)
         assert density > .833
 
     def test_load(self):

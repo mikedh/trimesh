@@ -840,7 +840,7 @@ class Box(_Primitive):
         volume : float
           Volume of box.
         """
-        volume = float(np.product(self.primitive.extents))
+        volume = float(np.prod(self.primitive.extents))
         return volume
 
     def _create_mesh(self):

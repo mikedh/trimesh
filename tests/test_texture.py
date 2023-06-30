@@ -173,7 +173,7 @@ class TextureTest(g.unittest.TestCase):
         c = g.trimesh.util.concatenate(meshes)
         assert isinstance(c.visual, g.trimesh.visual.TextureVisuals)
         assert len(c.faces) == sum(len(i.faces) for i in meshes)
-        assert g.np.product(c.visual.material.image.size) >= 4
+        assert g.np.prod(c.visual.material.image.size) >= 4
 
         # convert texture back to color
         roundtrip = c.visual.to_color()

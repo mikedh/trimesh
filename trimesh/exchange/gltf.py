@@ -535,7 +535,7 @@ def _data_append(acc, buff, blob, data):
 
     if kind == 'SCALAR':
         # is probably (n, 1)
-        blob['count'] = int(np.product(data.shape))
+        blob['count'] = int(np.prod(data.shape))
         blob['max'] = np.array(
             [data.max()], dtype=dtype).tolist()
         blob['min'] = np.array(
@@ -1359,7 +1359,7 @@ def _read_buffers(header,
             shape = np.append(count, per_item)
             # number of items when flattened
             # i.e. a (4, 4) MAT4 has 16
-            per_count = np.abs(np.product(per_item))
+            per_count = np.abs(np.prod(per_item))
             if 'bufferView' in a:
                 # data was stored in a buffer view so get raw bytes
 
