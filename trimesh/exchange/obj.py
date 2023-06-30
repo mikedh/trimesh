@@ -592,7 +592,7 @@ def _parse_vertices(text):
         # what should our shape be
         shape = (len(value), per_row[k])
         # check shape of flat data
-        if len(array) == np.product(shape):
+        if len(array) == np.prod(shape):
             # we have a nice 2D array
             result[k] = array.reshape(shape)
         else:

@@ -92,8 +92,8 @@ class SceneTests(g.unittest.TestCase):
 
                     # make sure the extents are similar before and after
                     assert g.np.allclose(
-                        g.np.product(s.extents),
-                        g.np.product(r.extents))
+                        g.np.prod(s.extents),
+                        g.np.prod(r.extents))
 
                 # move the scene to origin
                 s.rezero()

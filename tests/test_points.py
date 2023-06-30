@@ -49,7 +49,7 @@ class PointsTest(g.unittest.TestCase):
 
         # AABB volume should be same as points
         assert g.np.isclose(cloud.bounding_box.volume,
-                            g.np.product(points.ptp(axis=0)))
+                            g.np.prod(points.ptp(axis=0)))
 
         # will populate all bounding primitives
         assert cloud.bounding_primitive.volume > 0.0

@@ -125,7 +125,7 @@ def load_stl_binary(file_obj):
 
     # all of our vertices will be loaded in order
     # so faces are just sequential indices reshaped.
-    faces = np.arange(header['face_count'] * 3).reshape((-1, 3))
+    faces = np.arange(header['face_count'][0] * 3).reshape((-1, 3))
 
     # there are two bytes per triangle saved for anything
     # which is sometimes used for face color

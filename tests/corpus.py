@@ -155,7 +155,7 @@ def equal(a, b):
         # are similar and JPEG produces diffs that are like 25%
         # different but something is better than nothing I suppose
         aa, bb = np.array(a), np.array(b)
-        percent = np.abs(aa - bb).sum() / (np.product(aa.shape) * 256)
+        percent = np.abs(aa - bb).sum() / (np.prod(aa.shape) * 256)
         return percent < 0.5
 
     # try built-in eq method

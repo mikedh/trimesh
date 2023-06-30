@@ -1018,8 +1018,8 @@ class Path2D(Path):
         return matrix
 
     def rasterize(self,
-                  pitch,
-                  origin,
+                  pitch=None,
+                  origin=None,
                   resolution=None,
                   fill=True,
                   width=None,

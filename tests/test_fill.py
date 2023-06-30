@@ -16,7 +16,7 @@ class FillTest(g.unittest.TestCase):
         # topology should be good now
         assert len(a.paths) == 1
         # it is a rectangle
-        assert g.np.isclose(a.area, g.np.product(a.extents))
+        assert g.np.isclose(a.area, g.np.prod(a.extents))
 
         # a path with a bowtie and a .05 gap
         b = g.get_mesh('2D/broken_pair.dxf')
@@ -28,7 +28,7 @@ class FillTest(g.unittest.TestCase):
         b.fill_gaps(.06)
         assert len(b.paths) == 1
         # it is a rectangle
-        assert g.np.isclose(b.area, g.np.product(b.extents))
+        assert g.np.isclose(b.area, g.np.prod(b.extents))
 
 
 if __name__ == '__main__':
