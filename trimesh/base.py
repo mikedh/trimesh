@@ -228,21 +228,24 @@ class Trimesh(Geometry3D):
 
         # avoid clearing the cache during operations
         with self._cache:
-            self.remove_infinite_values()
-            self.merge_vertices(merge_tex=merge_tex,
-                                merge_norm=merge_norm)
             # if we're cleaning remove duplicate
             # and degenerate faces
             if validate:
-                self.remove_duplicate_faces()
-                self.remove_degenerate_faces()
+                mask = self.duplicate_faces()
+                mask &= self.nondegenerate_faces()
                 self.fix_normals()
-        # since none of our process operations moved vertices or faces
-        # we can keep face and vertex normals in the cache without recomputing
-        # if faces or vertices have been removed, normals are validated before
-        # being returned so there is no danger of inconsistent dimensions
-        self._cache.clear(exclude={'face_normals',
-                                   'vertex_normals'})
+                self.update_faces(mask)
+
+            # since none of our process operations moved vertices or faces
+            # we can keep face and vertex normals in the cache without recomputing
+            # if faces or vertices have been removed, normals are validated before
+            # being returned so there is no danger of inconsistent dimensions
+            self.remove_infinite_values()
+            self.merge_vertices(merge_tex=merge_tex,
+                                merge_norm=merge_norm)
+            self._cache.clear(exclude={'face_normals',
+                                       'vertex_normals'})
+
         self.metadata['processed'] = True
         return self
 
@@ -1274,14 +1277,15 @@ class Trimesh(Geometry3D):
             vertex_mask = np.isfinite(self.vertices).all(axis=1)
             self.update_vertices(vertex_mask)
 
-    def remove_duplicate_faces(self):
+    def duplicate_faces(self):
         """
         On the current mesh remove any faces which are duplicates.
 
         Alters `self.faces` to remove duplicate faces
         """
-        unique, inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
-        self.update_faces(unique)
+        mask = np.zeros(len(self.faces), dtype=bool)
+        mask[grouping.unique_rows(np.sort(self.faces, axis=1))[0]] = True
+        return mask
 
     def rezero(self):
         """
@@ -1650,7 +1654,7 @@ class Trimesh(Geometry3D):
         tree = cKDTree(self.vertices.view(np.ndarray))
         return tree
 
-    def remove_degenerate_faces(self, height=tol.merge):
+    def nondegenerate_faces(self, height=tol.merge):
         """
         Remove degenerate faces (faces without 3 unique vertex indices)
         from the current mesh.
@@ -1671,14 +1675,10 @@ class Trimesh(Geometry3D):
         nondegenerate : (len(self.faces), ) bool
           Mask used to remove faces
         """
-        nondegenerate = triangles.nondegenerate(
+        return triangles.nondegenerate(
             self.triangles,
             areas=self.area_faces,
-
             height=height)
-        self.update_faces(nondegenerate)
-
-        return nondegenerate
 
     @caching.cache_decorator
     def facets(self):

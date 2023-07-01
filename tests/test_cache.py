@@ -228,8 +228,8 @@ class CacheTest(g.unittest.TestCase):
         # are suspicious of a method caching you could uncomment this out:
         # attempts.extend([tuple(G) for G in itertools.permutations(flat, 3)])
 
-        skip = set(['__array_ufunc__', # currently segfaulting when called with `(2.3, 1)`
-                    'astype', 
+        skip = set(['__array_ufunc__',  # segfaulting when called with `(2.3, 1)`
+                    'astype',
                     ])
 
         # collect functions which mutate arrays but don't change our hash
@@ -265,6 +265,25 @@ class CacheTest(g.unittest.TestCase):
             raise ValueError(
                 '`TrackedArray` incorrectly hashing methods: {}'.format(
                     method_busted))
+
+    def test_validate(self):
+        # create a mesh with two duplicate triangles
+        # and one degenerate triangle
+        m = g.trimesh.Trimesh(
+            vertices=[[0, 0, 0],
+                      [1, 0, 0],
+                      [0, 1, 0],
+                      [1, 0, 0],
+                      [0, 1, 0],
+                      [1, 1, 0]],
+            faces=[[3, 4, 4], [0, 1, 2], [0, 1, 2]],
+            validate=False)
+
+        # should not have removed any triangles
+        assert m.triangles.shape == (3, 3, 3)
+        # should remove every triangle except one
+        m.process(validate=True)
+        assert m.triangles.shape == (1, 3, 3)
 
 
 if __name__ == '__main__':
