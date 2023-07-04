@@ -759,7 +759,7 @@ def _preprocess_faces(text):
 
 
 def export_obj(mesh,
-               include_normals=True,
+               include_normals=None,
                include_color=True,
                include_texture=True,
                return_texture=False,
@@ -776,8 +776,9 @@ def export_obj(mesh,
     -----------
     mesh : trimesh.Trimesh
       Mesh to be exported
-    include_normals : bool
-      Include vertex normals in export
+    include_normals : Optional[bool]
+      Include vertex normals in export. If None
+      will only be included if vertex normals are in cache.
     include_color : bool
       Include vertex color in export
     include_texture : bool
@@ -853,10 +854,13 @@ def export_obj(mesh,
                 col_delim=' ',
                 row_delim='\nv ',
                 digits=digits)])
-        # only include vertex normals if they're already stored
-        if include_normals and current._cache.cache.get(
-                'vertex_normals') is not None:
 
+        # if include_normals is None then
+        # only include if they're already stored
+        if include_normals is None:
+            include_normals = 'vertex_normals' in current._cache.cache
+
+        if include_normals:
             try:
                 converted = util.array_to_string(
                     current.vertex_normals,
