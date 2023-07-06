@@ -584,7 +584,6 @@ def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
 
     # convert uint color to 0.0-1.0 float color
     color = color.astype(float32) / np.iinfo(color.dtype).max
-
     material = {
         "pbrMetallicRoughness": {
             "baseColorFactor": color.tolist(),
