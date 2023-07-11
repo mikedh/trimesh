@@ -650,7 +650,7 @@ def _create_gltf_structure(scene,
             extensions = tree['scenes'][0]['extras'].pop(
                 'gltf_extensions', None)
             if isinstance(extensions, dict):
-                tree['scenes'][0]['extensions'] = extensions
+                tree['extensions'] = extensions
         except BaseException:
             log.debug(
                 'failed to export scene metadata!', exc_info=True)
@@ -703,9 +703,9 @@ def _create_gltf_structure(scene,
 
     extensions_used = set()
     # Add any scene extensions used
-    if 'extensions' in tree['scenes'][0]:
+    if 'extensions' in tree:
         extensions_used = extensions_used.union(
-            set(tree['scenes'][0]['extensions'].keys()))
+            set(tree['extensions'].keys()))
     # Add any mesh extensions used
     for mesh in tree['meshes']:
         if 'extensions' in mesh:
@@ -1742,8 +1742,7 @@ def _read_buffers(header,
         # use a try except to avoid nested key checks
         if "metadata" not in result:
             result["metadata"] = {}
-        result['metadata']['gltf_extensions'] = header['scenes'][
-            header['scene']]['extensions']
+        result['metadata']['gltf_extensions'] = header['extensions']
     except BaseException:
         pass
 
