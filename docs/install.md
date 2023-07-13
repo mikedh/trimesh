@@ -70,6 +70,7 @@ Trimesh has a lot of soft-required upstream packages. We try to make sure they'r
 |`jsonschema`| Validating our exports for formats like GLTF. | | `easy`|
 |`pycollada`| Parse `dae` files. | | `easy`|
 |`pyglet`| OpenGL bindings for our simple debug viewer. | | `easy`|
+|`pydracogltf`| A wrapper of draco gltf io. | | `easy`|
 |`xatlas`| Unwrap meshes to generate UV coordinates quickly and well. | | `all`|
 |`python-fcl`| Do collision queries between meshes | | `all`|
 |`glooey`| Provide a viewer with widgets. | | `all`|
