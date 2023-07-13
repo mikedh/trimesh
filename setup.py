@@ -48,7 +48,8 @@ requirements_easy = set([
     'pycollada',   # parse collada/dae/zae files
     'chardet',     # figure out if someone used UTF-16
     'mapbox-earcut',  # fast 2D triangulations of polygons
-    'colorlog'])   # log in pretty colors
+    'colorlog',   # log in pretty colors
+    'pydracogltf']) # draco gltf io
 
 # "all" requirements only need to be installable
 # through some mechanism on Linux with Python 3.5+

@@ -209,7 +209,11 @@ def export_glb(
         tree_postprocessor(tree)
 
     if draco_export_settings is not None:
-        encode_primitive_draco(tree, buffer_items, draco_export_settings)
+        try:
+            from pydracogltf import encode_primitive_draco
+            encode_primitive_draco(tree, buffer_items, draco_export_settings)
+        except ImportError:
+            log.error("pydracogltf import failed")
 
     # A bufferView is a slice of a file
     views = _build_views(buffer_items)
@@ -1416,7 +1420,11 @@ def _read_buffers(header,
                 name = unique_name(name, meshes, counts=name_counts)
 
                 if "extensions" in p and "KHR_draco_mesh_compression" in p["extensions"]:
-                    access = decode_primitive_draco(header, views, p, access)
+                    try:
+                        from pydracogltf import decode_primitive_draco
+                        access = decode_primitive_draco(header, views, p, access)
+                    except ImportError:
+                        log.error("pydracogltf import failed")
 
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
