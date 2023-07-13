@@ -26,7 +26,7 @@ def load_off(file_obj, **kwargs):
         util.decode_text(text)).strip()
 
     # split the first key
-    _, header, raw = re.split('(COFF|OFF)', text, 1)
+    _, header, raw = re.split('(COFF|OFF)', text, maxsplit=1)
     if header.upper() not in ['OFF', 'COFF']:
         raise NameError(
             'Not an OFF file! Header was: `{}`'.format(header))

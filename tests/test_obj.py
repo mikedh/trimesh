@@ -437,12 +437,32 @@ class OBJTest(g.unittest.TestCase):
         m = g.get_mesh('face_in_group_name_mid_file.obj')
         assert len(m.vertices) == 5
         assert len(m.faces) == 2
-        
+
     def test_chunk_parsing_with_no_faces_but_with_f_in_chunk(self):
         # Checks that a chunk with no faces but with 'f ' in it loads properly
         m = g.get_mesh('obj_with_no_face_in_chunk.obj')
         assert len(m.vertices) == 3
         assert len(m.faces) == 1
+
+    def test_export_normals(self):
+        m = g.trimesh.creation.box()
+        assert 'vertex_normals' not in m._cache.cache
+
+        e = m.export(file_type='obj', include_normals=None)
+        assert 'vn ' not in e
+        e = m.export(file_type='obj', include_normals=True)
+        # should have included normals
+        assert 'vn ' in e
+        # should have forced generation of normals
+        assert 'vertex_normals' in m._cache.cache
+
+        # now that they're in cache include_normals=None should get them
+        e = m.export(file_type='obj', include_normals=None)
+        assert 'vn ' in e
+
+        # or skip them if explicitly asked
+        e = m.export(file_type='obj', include_normals=False)
+        assert 'vn ' not in e
 
 
 def simple_load(text):

@@ -228,21 +228,24 @@ class Trimesh(Geometry3D):
 
         # avoid clearing the cache during operations
         with self._cache:
-            self.remove_infinite_values()
-            self.merge_vertices(merge_tex=merge_tex,
-                                merge_norm=merge_norm)
             # if we're cleaning remove duplicate
             # and degenerate faces
             if validate:
-                self.remove_duplicate_faces()
-                self.remove_degenerate_faces()
+                # get a mask with only unique and non-degenerate faces
+                mask = self.unique_faces() & self.nondegenerate_faces()
                 self.fix_normals()
-        # since none of our process operations moved vertices or faces
-        # we can keep face and vertex normals in the cache without recomputing
-        # if faces or vertices have been removed, normals are validated before
-        # being returned so there is no danger of inconsistent dimensions
-        self._cache.clear(exclude={'face_normals',
-                                   'vertex_normals'})
+                self.update_faces(mask)
+
+            # since none of our process operations moved vertices or faces
+            # we can keep face and vertex normals in the cache without recomputing
+            # if faces or vertices have been removed, normals are validated before
+            # being returned so there is no danger of inconsistent dimensions
+            self.remove_infinite_values()
+            self.merge_vertices(merge_tex=merge_tex,
+                                merge_norm=merge_norm)
+            self._cache.clear(exclude={'face_normals',
+                                       'vertex_normals'})
+
         self.metadata['processed'] = True
         return self
 
@@ -1274,14 +1277,30 @@ class Trimesh(Geometry3D):
             vertex_mask = np.isfinite(self.vertices).all(axis=1)
             self.update_vertices(vertex_mask)
 
+    def unique_faces(self):
+        """
+        On the current mesh find which faces are unique.
+
+        Returns
+        --------
+        unique : (len(faces),) bool
+          A mask where the first occurance of a unique face is true.
+        """
+        mask = np.zeros(len(self.faces), dtype=bool)
+        mask[grouping.unique_rows(np.sort(self.faces, axis=1))[0]] = True
+        return mask
+
     def remove_duplicate_faces(self):
         """
-        On the current mesh remove any faces which are duplicates.
-
-        Alters `self.faces` to remove duplicate faces
+        DERECATED MARCH 2024 REPLACE WITH:
+        `mesh.update_faces(mesh.unique_faces())`
         """
-        unique, inverse = grouping.unique_rows(np.sort(self.faces, axis=1))
-        self.update_faces(unique)
+        warnings.warn(
+            '`remove_duplicate_faces` is deprecated ' +
+            'and will be removed in March 2024: ' +
+            'replace with `mesh.update_faces(mesh.unique_faces())`',
+            category=DeprecationWarning, stacklevel=2)
+        self.update_faces(self.unique_faces())
 
     def rezero(self):
         """
@@ -1652,6 +1671,18 @@ class Trimesh(Geometry3D):
 
     def remove_degenerate_faces(self, height=tol.merge):
         """
+        DERECATED MARCH 2024 REPLACE WITH:
+        `self.update_faces(self.nondegenerate_faces(height=height))`
+        """
+        warnings.warn(
+            '`remove_degenerate_faces` is deprecated ' +
+            'and will be removed in March 2024 replace with ' +
+            '`self.update_faces(self.nondegenerate_faces(height=height))`',
+            category=DeprecationWarning, stacklevel=2)
+        self.update_faces(self.nondegenerate_faces(height=height))
+
+    def nondegenerate_faces(self, height=tol.merge):
+        """
         Remove degenerate faces (faces without 3 unique vertex indices)
         from the current mesh.
 
@@ -1671,14 +1702,10 @@ class Trimesh(Geometry3D):
         nondegenerate : (len(self.faces), ) bool
           Mask used to remove faces
         """
-        nondegenerate = triangles.nondegenerate(
+        return triangles.nondegenerate(
             self.triangles,
             areas=self.area_faces,
-
             height=height)
-        self.update_faces(nondegenerate)
-
-        return nondegenerate
 
     @caching.cache_decorator
     def facets(self):

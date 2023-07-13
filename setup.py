@@ -67,7 +67,7 @@ requirements_test = set(['pytest',       # run all unit tests
                          'pytest-cov',   # coverage plugin
                          'pyinstrument',  # profile code
                          'coveralls',    # report coverage stats
-                         'autopep8',     # check and autoformat
+                         'autopep8<2',     # check and autoformat
                          'ruff',         # static code analysis
                          'pymeshlab',    # used as a validator for exports
                          'ezdxf'])       # used as a validator for exports
