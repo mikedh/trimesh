@@ -231,8 +231,8 @@ class Trimesh(Geometry3D):
             # if we're cleaning remove duplicate
             # and degenerate faces
             if validate:
-                mask = self.duplicate_faces()
-                mask &= self.nondegenerate_faces()
+                # get a mask with only unique and non-degenerate faces
+                mask = self.unique_faces() & self.nondegenerate_faces()
                 self.fix_normals()
                 self.update_faces(mask)
 
@@ -1277,15 +1277,30 @@ class Trimesh(Geometry3D):
             vertex_mask = np.isfinite(self.vertices).all(axis=1)
             self.update_vertices(vertex_mask)
 
-    def duplicate_faces(self):
+    def unique_faces(self):
         """
-        On the current mesh remove any faces which are duplicates.
+        On the current mesh find which faces are unique.
 
-        Alters `self.faces` to remove duplicate faces
+        Returns
+        --------
+        unique : (len(faces),) bool
+          A mask where the first occurance of a unique face is true.
         """
         mask = np.zeros(len(self.faces), dtype=bool)
         mask[grouping.unique_rows(np.sort(self.faces, axis=1))[0]] = True
         return mask
+
+    def remove_duplicate_faces(self):
+        """
+        DERECATED MARCH 2024 REPLACE WITH:
+        `mesh.update_faces(mesh.unique_faces())`
+        """
+        warnings.warn(
+            '`remove_duplicate_faces` is deprecated ' +
+            'and will be removed in March 2024: ' +
+            'replace with `mesh.update_faces(mesh.unique_faces())`',
+            category=DeprecationWarning, stacklevel=2)
+        self.update_faces(self.unique_faces())
 
     def rezero(self):
         """
@@ -1653,6 +1668,18 @@ class Trimesh(Geometry3D):
         from scipy.spatial import cKDTree
         tree = cKDTree(self.vertices.view(np.ndarray))
         return tree
+
+    def remove_degenerate_faces(self, height=tol.merge):
+        """
+        DERECATED MARCH 2024 REPLACE WITH:
+        `self.update_faces(self.nondegenerate_faces(height=height))`
+        """
+        warnings.warn(
+            '`remove_degenerate_faces` is deprecated ' +
+            'and will be removed in March 2024 replace with ' +
+            '`self.update_faces(self.nondegenerate_faces(height=height))`',
+            category=DeprecationWarning, stacklevel=2)
+        self.update_faces(self.nondegenerate_faces(height=height))
 
     def nondegenerate_faces(self, height=tol.merge):
         """

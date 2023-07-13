@@ -174,7 +174,7 @@ class _Primitive(Trimesh):
             raise ValueError('matrix must be `(4, 4)`!')
         if util.allclose(matrix, _IDENTITY, 1e-8):
             # identity matrix is a no-op
-            return
+            return self
 
         prim = self.primitive
         # copy the current transform

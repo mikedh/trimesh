@@ -274,6 +274,13 @@ class PrimitiveTest(g.unittest.TestCase):
             # check to see if outline function works
             assert g.np.allclose(box.as_outline().extents, start)
 
+    def test_transform_return(self):
+        # make sure primitives return `self`
+        Box = g.trimesh.primitives.Box
+
+        assert isinstance(Box().apply_transform(g.np.eye(4)), Box)
+        assert isinstance(Box().apply_transform(g.transforms[0]), Box)
+
     def test_cyl_buffer(self):
         # test our inflation of cylinder primitives
         c = g.trimesh.primitives.Cylinder(
