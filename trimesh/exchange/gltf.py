@@ -187,6 +187,14 @@ def export_glb(
     tree_postprocessor : func
       Custom function to (in-place) post-process the tree
       before exporting.
+    draco_export_settings: dict
+      example:
+       {"gltf_draco_mesh_compression_level": 6,
+        "gltf_draco_position_quantization": 14,
+        "gltf_draco_normal_quantization": 10,
+        "gltf_draco_texcoord_quantization": 12,
+        "gltf_draco_color_quantization": 10,
+        "gltf_draco_generic_quantization": 12}
 
     Returns
     ----------
