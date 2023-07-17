@@ -1179,33 +1179,97 @@ def specular_to_pbr(
         diffuseFactor=None,
         **kwargs):
     """
-    TODO : implement specular to PBR as done in Javascript here:
-    https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64
-
     Convert the KHR_materials_pbrSpecularGlossiness to a
     metallicRoughness visual.
 
     Parameters
     -----------
-    ...
+    specularFactor: list[float]
+        Specular color values. Ignored if specularGlossinessTexture is present. Defaults to [1.0, 1.0, 1.0].
+    glossinessFactor: float
+        glossiness factor in range [0,1]. Ignored if specularGlossinessTexture is present. Defaults to 1.0.
+    specularGlossinessTexture: np.ndarray
+        Texture with 4 color channels. With [0,1,2] representing specular RGB and 3 glossiness.
+    diffuseTexture: np.ndarray
+        Texture with 4 color channels. With [0,1,2] representing diffuse RGB and 3 opacity.
+    diffuseFactor: float
+        Diffuse RGBA color. Ignored if diffuseTexture is present. Defaults to [1.0, 1.0, 1.0, 1.0].
 
     Returns
     ----------
     kwargs : dict
-      Constructor args for a PBRMaterial object.
-
-    if specularFactor is None:
-        oneMinus = 1
-    else:
-        oneMinus = 1 - max(specularFactor)
-    dielectricSpecular = np.array([0.04, 0.04, 0.04])
+      Constructor args for a PBRMaterial object. 
+      Containing:
+        - either baseColorTexture or baseColorFactor
+        - either metallicRoughnessTexture or metallicFactor and roughnessFactor
     """
+    # based on: https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64
+
+
+    dielectric_specular = np.array([0.04, 0.04, 0.04], dtype=np.float32)
+    epsilon = 1e-6
+
+    def solve_metallic(diffuse, specular, one_minus_specular_strength):
+        if specular < dielectric_specular[0]:
+            return 0.0
+        
+        a = dielectric_specular[0]
+        b = diffuse * one_minus_specular_strength / (1.0 - dielectric_specular[0]) + specular - 2.0 * dielectric_specular[0]
+        c = dielectric_specular[0] - specular
+        D = b * b - 4.0 * a * c
+        return np.clip((-b + np.sqrt(D)) / (2.0 * a), 0.0, 1.0)
+    
+    def get_perceived_brightness(rgb):
+        return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
+
+    if diffuseTexture is not None:
+        diffuse = diffuseTexture
+    else:
+        diffuse = diffuseFactor if diffuseFactor is not None else [1, 1, 1, 1]
+        diffuse = np.array(diffuse, dtype=np.float32)
+
+    if specularGlossinessTexture is not None:
+        specular = specularGlossinessTexture[..., :3]
+        glossiness = specularGlossinessTexture[..., 3] if specularGlossinessTexture.shape[-1] == 4 else 1.0
+        one_minus_specular_strength = 1.0 - np.max(specular, dim=-1)
+    else:
+        specular = specularFactor if specularFactor is not None else [1.0, 1.0, 1.0]
+        specular = np.array(specular, dtype=np.float32)
+        glossiness = glossinessFactor if glossinessFactor is not None else 1.0
+        glossiness = np.array(glossiness, dtype=np.float32)
+        one_minus_specular_strength = 1.0 - max(specular[:3])
+
+    metallic = solve_metallic(get_perceived_brightness(diffuse), get_perceived_brightness(specular), one_minus_specular_strength)
+    if not isinstance(metallic, np.ndarray):
+        metallic = np.array(metallic, dtype=np.float32)
+    
+    diffuse_rgb = diffuse[..., :3]
+    opacity = diffuse[..., -1] if diffuse.shape[-1] == 4 else None
+    base_color_from_diffuse = diffuse_rgb * (one_minus_specular_strength / (1.0 - dielectric_specular[0]) / np.clip((1.0 - metallic), epsilon, None))
+    base_color_from_specular = (specular - dielectric_specular * (1.0 - metallic)) * (1.0 / np.clip(metallic, epsilon, None))
+    mm = metallic * metallic
+    base_color = mm * base_color_from_specular + (1.0 - mm) * base_color_from_diffuse
+    base_color = np.clip(base_color, 0.0, 1.0)
+
+    if opacity is not None:
+        base_color = np.concatenate([base_color, opacity[..., None]], axis=-1)
 
     result = {}
-    if isinstance(diffuseTexture, dict):
-        result['baseColorTexture'] = diffuseTexture
+    if len(base_color.shape) > 1:
+        result['baseColorTexture'] = base_color
     if diffuseFactor is not None:
-        result['baseColorFactor'] = diffuseFactor
+        result['baseColorFactor'] = base_color.tolist()
+
+    if len(metallic.shape) > 1 or len(glossiness.shape) > 1:
+        if len(glossiness.shape) == 1:
+            glossiness = np.tile(glossiness, (metallic.shape[0], metallic.shape[1], 1))
+        if len(metallic.shape) == 1:
+            metallic = np.tile(metallic, (glossiness.shape[0], glossiness.shape[1], 1))
+        
+        result['metallicRoughnessTexture'] = np.concatenate([metallic, 1.0 - glossiness], axis=-1)
+    else:
+        result['metallicFactor'] = metallic.tolist()
+        result['roughnessFactor'] = (1.0 - glossiness).tolist()
 
     return result
 
