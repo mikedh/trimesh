@@ -7,7 +7,7 @@ from ..constants import log
 import os
 import platform
 
-_search_path = os.environ['PATH']
+_search_path = os.environ.get('PATH', '')
 if platform.system() == 'Windows':
     # try to find Blender install on Windows
     # split existing path by delimiter
