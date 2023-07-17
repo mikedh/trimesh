@@ -7,7 +7,7 @@ from .generic import MeshScript
 from ..constants import log
 
 # start the search with the user's PATH
-_search_path = os.environ['PATH']
+_search_path = os.environ.get('PATH', '')
 # add additional search locations on windows
 if platform.system() == 'Windows':
     # split existing path by delimiter
