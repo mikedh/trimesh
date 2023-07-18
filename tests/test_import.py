@@ -6,6 +6,7 @@ Make sure trimesh is importing right.
 """
 import unittest
 
+
 class ImportTests(unittest.TestCase):
 
     def test_path(self):
@@ -21,6 +22,10 @@ class ImportTests(unittest.TestCase):
         # not sure if this is necessary but put back removed values
         for key, value in path.items():
             os.environ[key] = value
+
+        # do a very basic operation
+        assert trimesh.creation.icosphere().is_volume
+
 
 if __name__ == '__main__':
     unittest.main()
