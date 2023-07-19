@@ -5,7 +5,7 @@ from .generic import MeshScript
 from ..constants import log
 from ..util import which
 
-_search_path = os.environ["PATH"]
+_search_path = os.environ.get("PATH", "")
 
 if platform.system() == 'Windows':
     # split existing path by delimiter

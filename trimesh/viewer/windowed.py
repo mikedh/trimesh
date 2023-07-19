@@ -391,9 +391,6 @@ class SceneViewer(pyglet.window.Window):
         Enable depth test in OpenGL using distances
         from `scene.camera`.
         """
-        # set the culling depth from our camera object
-        gl.glDepthRange(camera.z_near, camera.z_far)
-
         gl.glClearDepth(1.0)
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glDepthFunc(gl.GL_LEQUAL)
