@@ -1297,7 +1297,7 @@ def specular_to_pbr(
             elif specularGlossinessTexture.shape[-1] == 4:
                 # first 3 channels are specular, last channel is glossiness
                 specularTexture = specularGlossinessTexture[..., :3]
-                glossinessTexture = specularGlossinessTexture[..., 3] if specularGlossinessTexture.shape[-1] == 4 else 1.0
+                glossinessTexture = specularGlossinessTexture[..., 3:]
             
             if specularTexture is not None:
                 # convert into [0,1] range. Does this require conversion of sRGB values?
@@ -1322,7 +1322,14 @@ def specular_to_pbr(
             one_minus_specular_strength = 1.0 - max(specular[:3])
 
         return specular, glossiness, one_minus_specular_strength
-
+    
+    if diffuseTexture is not None and specularGlossinessTexture is not None:
+        # reshape to the size of the largest texture
+        max_shape = [max(diffuseTexture.size[i], specularGlossinessTexture.size[i]) for i in range(2)]
+        if diffuseTexture.size[0] != max_shape[0] or diffuseTexture.size[1] != max_shape[1]:
+            diffuseTexture = diffuseTexture.resize(max_shape)
+        if specularGlossinessTexture.size[0] != max_shape[0] or specularGlossinessTexture.size[1] != max_shape[1]:
+            specularGlossinessTexture = specularGlossinessTexture.resize(max_shape)
 
     diffuse = get_diffuse(diffuseFactor, diffuseTexture)
     specular, glossiness, one_minus_specular_strength = get_specular_glossiness(specularFactor, glossinessFactor, specularGlossinessTexture)
