@@ -11,7 +11,6 @@ import base64
 import collections
 
 import numpy as np
-import PIL
 
 from .. import util
 from .. import visual
@@ -1206,6 +1205,17 @@ def specular_to_pbr(
     """
     # based on: https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64
 
+    
+    try:
+        import PIL.Image
+    except ImportError:
+        log.debug('unable to convert material without pillow!')
+        result = {}
+        if isinstance(diffuseTexture, dict):
+            result['baseColorTexture'] = diffuseTexture
+        if diffuseFactor is not None:
+            result['baseColorFactor'] = diffuseFactor
+        return result
 
     dielectric_specular = np.array([0.04, 0.04, 0.04], dtype=np.float32)
     epsilon = 1e-6
