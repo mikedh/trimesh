@@ -1262,6 +1262,8 @@ def specular_to_pbr(
 
         if diffuseTexture is not None:
             diffuse = np.array(diffuseTexture) / 255.0
+            if len(diffuse.shape) == 2:
+                diffuse = diffuse[...,None]
             if diffuse.shape[-1] == 1:
                 diffuse = diffuse * diffuseFactor
             elif diffuse.shape[-1] == 2:
