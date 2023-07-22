@@ -429,7 +429,7 @@ class PBRMaterial(Material):
     @property
     def doubleSided(self):
         """
-Specifies whether the material is double sided.
+        Specifies whether the material is double sided.
 
         Returns
         -----------
@@ -515,6 +515,66 @@ Specifies whether the material is double sided.
             self._data['baseColorFactor'] = color.to_rgba(value)
 
     @property
+    def normalTexture(self):
+        """
+        The normal map texture.
+
+        Returns
+        ----------
+        image : PIL.Image
+          Normal texture.
+        """
+        return self._data.get('normalTexture')
+    
+    @normalTexture.setter
+    def normalTexture(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('normalTexture', None)
+        else:
+            self._data['normalTexture'] = value
+
+    @property
+    def emissiveTexture(self):
+        """
+        The emissive texture.
+
+        Returns
+        ----------
+        image : PIL.Image
+          Emissive texture.
+        """
+        return self._data.get('emissiveTexture')
+    
+    @emissiveTexture.setter
+    def emissiveTexture(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('emissiveTexture', None)
+        else:
+            self._data['emissiveTexture'] = value
+
+    @property
+    def occlusionTexture(self):
+        """
+        The occlusion texture.
+
+        Returns
+        ----------
+        image : PIL.Image
+          Occlusion texture.
+        """
+        return self._data.get('occlusionTexture')
+    
+    @occlusionTexture.setter
+    def occlusionTexture(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('occlusionTexture', None)
+        else:
+            self._data['occlusionTexture'] = value
+
+    @property
     def baseColorTexture(self):
         """
         The base color texture image.
@@ -534,6 +594,38 @@ Specifies whether the material is double sided.
         else:
             # non-None values must be RGBA color
             self._data['baseColorTexture'] = value
+
+    @property
+    def metallicRoughnessTexture(self):
+        """
+        The metallic-roughness texture.
+
+        Returns
+        ----------
+        image : PIL.Image
+          Metallic-roughness texture.
+        """
+        return self._data.get('metallicRoughnessTexture')
+    
+    @metallicRoughnessTexture.setter
+    def metallicRoughnessTexture(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('metallicRoughnessTexture', None)
+        else:
+            self._data['metallicRoughnessTexture'] = value
+
+    @property
+    def name(self):
+        return self._data.get('name')
+    
+    @name.setter
+    def name(self, value):
+        if value is None:
+            # passing none effectively removes value
+            self._data.pop('name', None)
+        else:
+            self._data['name'] = value
 
     def copy(self):
         # doing a straight deepcopy fails due to PIL images
