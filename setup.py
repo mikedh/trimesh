@@ -49,7 +49,7 @@ requirements_easy = set([
     'chardet',     # figure out if someone used UTF-16
     'mapbox-earcut',  # fast 2D triangulations of polygons
     'colorlog',   # log in pretty colors
-    'pydracogltf>=0.0.3']) # draco gltf io
+    'pydracogltf>=0.0.4']) # draco gltf io
 
 # "all" requirements only need to be installable
 # through some mechanism on Linux with Python 3.5+
