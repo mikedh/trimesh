@@ -176,6 +176,12 @@ def load_3DXML(file_obj, *args, **kwargs):
                             np.fromstring(face.attrib['triangles'],
                                           sep=' ', dtype=np.int64).reshape((-1, 3)))
 
+                    if 'fans' in face.attrib:
+                        fans = [np.fromstring(i, sep=' ', dtype=np.int64)
+                                  for i in face.attrib['fans'].split(',')]
+                        # convert fans to (m, 3) int triangles
+                        triangles.extend(util.triangle_fans_to_faces(fans))
+
                     rep_faces.extend(triangles)
 
                     # store the material information as (m, 3) uint8 FACE COLORS
