@@ -10,6 +10,7 @@ import json
 import collections
 
 from .. import util
+from ..visual.texture import TextureVisuals
 
 
 def load_3DXML(file_obj, *args, **kwargs):
@@ -49,6 +50,7 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # load the materials library from the materials elements
     colors = {}
+    images = {}
     # but only if it exists
     material_key = 'CATMaterialRef.3dxml'
     if material_key in as_etree:
@@ -62,9 +64,17 @@ def load_3DXML(file_obj, *args, **kwargs):
             diffuse = rend.find("{*}Attr[@Name='DiffuseColor']")
             # specular = rend.find("{*}Attr[@Name='SpecularColor']")
             # emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
-            rgb = (np.array(json.loads(
-                diffuse.attrib['Value'])) * 255).astype(np.uint8)
-            colors[material_id] = rgb
+            if diffuse is not None:
+                rgb = (np.array(json.loads(
+                    diffuse.attrib['Value'])) * 255).astype(np.uint8)
+                colors[material_id] = rgb
+            texture = rend.find("{*}Attr[@Name='TextureImage']")
+            if texture is not None:
+                tex_file, tex_id = texture.attrib['Value'].split(':')[-1].split('#')
+                rep_image = as_etree[tex_file].find("{*}CATRepImage/{*}CATRepresentationImage[@id='%s']"%tex_id)
+                if rep_image is not None:
+                    image_file = rep_image.get('associatedFile', '').split(':')[-1]
+                    images[material_id] = Image.open(archive[image_file])
 
         # copy indexes for instances of colors
         for MaterialDomainInstance in material_tree.iter(
@@ -73,7 +83,8 @@ def load_3DXML(file_obj, *args, **kwargs):
             # colors[b.attrib['id']] = colors[instance.text]
             for aggregate in MaterialDomainInstance.findall(
                     '{*}IsAggregatedBy'):
-                colors[aggregate.text] = colors[instance.text]
+                colors[aggregate.text] = colors.get(instance.text)
+                images[aggregate.text] = images.get(instance.text)
 
     # references which hold the 3DXML scene structure as a dict
     # element id : {key : value}
@@ -92,8 +103,7 @@ def load_3DXML(file_obj, *args, **kwargs):
         for ViewProp in view.iter('{*}DefaultViewProperty'):
             color = ViewProp.find('{*}GraphicProperties/' +
                                   '{*}SurfaceAttributes/{*}Color')
-            if (color is None or
-                    'RGBAColorType' not in color.attrib.values()):
+            if color is None:
                 continue
             rgba = getRGBA(color)
             for occurrence in ViewProp.findall('{*}OccurenceId/{*}id'):
@@ -121,6 +131,8 @@ def load_3DXML(file_obj, *args, **kwargs):
         mesh_colors = []
         mesh_normals = []
         mesh_vertices = []
+        mesh_uv = []
+        mesh_image = None
 
         if part_file not in as_etree and part_file in archive:
             # the data is stored in some binary format
@@ -150,6 +162,17 @@ def load_3DXML(file_obj, *args, **kwargs):
                 sep=' ',
                 dtype=np.float64).reshape((-1, 3)))
 
+            uv = Rep.find('{*}VertexBuffer/{*}TextureCoordinates')
+            if uv is not None: # texture coordinates are available
+                rep_uv = np.fromstring(
+                    uv.text.replace(',', ' '),
+                    sep=' ',
+                    dtype=np.float64)
+                if '1D' == uv.get('dimension'):
+                    mesh_uv.append(np.stack([rep_uv, np.zeros(len(rep_uv))], axis=1))
+                else:  # 2D
+                    mesh_uv.append(rep_uv.reshape(-1, 2))
+
             material = Rep.find('{*}SurfaceAttributes/' +
                                 '{*}MaterialApplication/' +
                                 '{*}MaterialId')
@@ -158,6 +181,8 @@ def load_3DXML(file_obj, *args, **kwargs):
             else:
                 (material_file, material_id) = material.attrib['id'].split(
                     'urn:3DXML:')[-1].split('#')
+                mesh_image = images.get(material_id) # texture for this Rep, if any
+
             for faces in Rep.iter('{*}Faces'):
                 triangles = [] # mesh triangles for this Faces element
                 for face in faces.iter('{*}Face'):
@@ -201,7 +226,12 @@ def load_3DXML(file_obj, *args, **kwargs):
          mesh['faces']) = util.append_faces(mesh_vertices,
                                             mesh_faces)
         mesh['vertex_normals'] = np.vstack(mesh_normals)
-        mesh['face_colors'] = np.vstack(mesh_colors)
+        if mesh_uv and mesh_image:
+            mesh['visual'] = TextureVisuals(
+                    uv=np.vstack(mesh_uv),
+                    image=mesh_image)
+        else:
+            mesh['face_colors'] = np.vstack(mesh_colors)
 
         # as far as I can tell, all 3DXML files are exported as
         # implicit millimeters (it isn't specified in the file)
