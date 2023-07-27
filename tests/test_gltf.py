@@ -420,6 +420,25 @@ class GLTFTest(g.unittest.TestCase):
         # make basic assertions
         g.scene_equal(scene, reloaded)
 
+    def test_material_primary_colors(self):
+        primary_color_material = g.trimesh.visual.material.PBRMaterial()
+        primary_color_material.baseColorFactor = (255, 0, 0, 255)
+        sphere = g.trimesh.primitives.Sphere()
+        sphere.visual.material = primary_color_material
+        scene = g.trimesh.Scene([sphere])
+        def to_integer(args):
+            args['materials'][0]['pbrMetallicRoughness']['baseColorFactor'] = [1, 0, 0, 1]
+
+        export = scene.export(file_type='glb', tree_postprocessor=to_integer)
+        validate_glb(export)
+        reloaded = g.trimesh.load(
+            file_obj=g.trimesh.util.wrap_as_stream(export),
+            file_type='glb')
+        assert len(reloaded.geometry) == 1
+        # get meshes back
+        sphere_b = list(reloaded.geometry.values())[0]
+        assert (sphere_b.visual.material.baseColorFactor == (255, 0, 0, 255)).all()
+
     def test_material_hash(self):
 
         # load mesh twice independently
