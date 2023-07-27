@@ -308,7 +308,8 @@ class GLTFTest(g.unittest.TestCase):
         color = g.np.array(mat.baseColorTexture)[:, :, :3]
         assert color.shape[0] == 84 and color.shape[1] == 71
 
-        # reference values generated with: https://kcoley.github.io/glTF/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/
+        # reference values generated with:
+        # https://kcoley.github.io/glTF/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/
         assert g.np.allclose(color[0, 0], [253, 234, 208], atol=1)
         assert g.np.allclose(color[30, 30], [253, 235, 211], atol=1)
         assert g.np.allclose(color[60, 10], [255, 238, 214], atol=1)
@@ -316,7 +317,9 @@ class GLTFTest(g.unittest.TestCase):
         assert color.dtype == g.np.uint8
         assert g.np.allclose(color, [255, 255, 255, 255])
 
-        metallic_roughness = g.np.array(mat.metallicRoughnessTexture, dtype=g.np.float32) / 255.0
+        metallic_roughness = g.np.array(
+            mat.metallicRoughnessTexture,
+            dtype=g.np.float32) / 255.0
         assert metallic_roughness.shape[0] == 84 and metallic_roughness.shape[1] == 71
 
         metallic = metallic_roughness[:, :, 0]
@@ -426,6 +429,7 @@ class GLTFTest(g.unittest.TestCase):
         sphere = g.trimesh.primitives.Sphere()
         sphere.visual.material = primary_color_material
         scene = g.trimesh.Scene([sphere])
+
         def to_integer(args):
             args['materials'][0]['pbrMetallicRoughness']['baseColorFactor'] = [1, 0, 0, 1]
 

@@ -5,6 +5,7 @@ except BaseException:
 
 import numpy as np
 
+
 class DXMLTest(g.unittest.TestCase):
 
     def test_abaqus_texture(self):
@@ -21,8 +22,7 @@ class DXMLTest(g.unittest.TestCase):
     def test_abaqus_blocks(self):
         # an assembly with two Faces elements of different color
         s = g.get_mesh('blocks.3dxml')
-        assert abs(s.volume - 18000) < 1
-
+        assert g.np.isclose(s.volume, 18000, atol = 1.0)
         v = s.geometry['Abaqus_Geometry'].visual
         assert v.kind == 'face'
         assert len(np.unique(v.face_colors, axis=0)) == 2
