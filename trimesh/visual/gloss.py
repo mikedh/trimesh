@@ -51,7 +51,7 @@ def specular_to_pbr(
     # https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64
 
     if isinstance(Image, ExceptionWrapper):
-        log.debug('unable to convert material without pillow!')
+        log.debug('unable to convert specular-glossy material without pillow!')
         result = {}
         if isinstance(diffuseTexture, dict):
             result['baseColorTexture'] = diffuseTexture
@@ -90,7 +90,7 @@ def specular_to_pbr(
             return img
         if img.dtype == np.float32 or img.dtype == np.float64:
             img = (np.clip(img, 0.0, 1.0) * 255.0).astype(np.uint8)
-        return Image.fromarray(img)
+        return fromarray(img)
 
     def get_float(val):
         if isinstance(val, float):
