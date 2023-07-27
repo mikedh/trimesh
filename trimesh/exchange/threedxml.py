@@ -6,6 +6,16 @@ Load 3DXML files, a scene format from Dassault products like Solidworks, Abaqus,
 """
 import numpy as np
 
+try:
+    # `pip install pillow`
+    # optional: used for textured meshes
+    from PIL import Image
+except BaseException as E:
+    # if someone tries to use Image re-raise
+    # the import error so they can debug easily
+    from ..exceptions import ExceptionWrapper
+    Image = ExceptionWrapper(E)
+
 import json
 import collections
 
@@ -71,7 +81,8 @@ def load_3DXML(file_obj, *args, **kwargs):
             texture = rend.find("{*}Attr[@Name='TextureImage']")
             if texture is not None:
                 tex_file, tex_id = texture.attrib['Value'].split(':')[-1].split('#')
-                rep_image = as_etree[tex_file].find("{*}CATRepImage/{*}CATRepresentationImage[@id='%s']"%tex_id)
+                rep_image = as_etree[tex_file].find(
+                        "{*}CATRepImage/{*}CATRepresentationImage[@id='%s']"%tex_id)
                 if rep_image is not None:
                     image_file = rep_image.get('associatedFile', '').split(':')[-1]
                     images[material_id] = Image.open(archive[image_file])
