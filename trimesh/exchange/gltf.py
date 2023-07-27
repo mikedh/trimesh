@@ -1283,7 +1283,10 @@ def _parse_materials(header, views, resolver=None):
             pbr = {}
             for k, v in loopable.items():
                 if not isinstance(v, dict):
-                    pbr[k] = v
+                    if isinstance(v, list) or isinstance(v, tuple):
+                        pbr[k] = [float(n) for n in v]
+                    else:
+                        pbr[k] = v
                 elif "index" in v:
                     # get the index of image for texture
                     try:
