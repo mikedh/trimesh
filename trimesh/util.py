@@ -2060,6 +2060,29 @@ def triangle_strips_to_faces(strips):
     return tri
 
 
+def triangle_fans_to_faces(fans):
+    """
+    Convert fans of m + 2 vertex indices in fan format to m triangles
+
+    Parameters
+    ----------
+    fans: (n,) list of (m + 2,) int
+      Vertex indices
+
+    Returns
+    -------
+    faces: (m, 3) int
+      Vertex indices representing triangles
+    """
+
+    faces = [np.transpose([
+                fan[0]*np.ones(len(fan) - 2, dtype=int),
+                fan[1:-1],
+                fan[2:]
+            ]) for fan in fans]
+    return np.concatenate(faces, axis=1)
+
+
 def vstack_empty(tup):
     """
     A thin wrapper for numpy.vstack that ignores empty lists.
