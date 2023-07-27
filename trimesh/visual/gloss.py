@@ -50,7 +50,7 @@ def specular_to_pbr(
     # based on:
     # https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64
 
-    if not isinstance(Image, ExceptionWrapper):
+    if isinstance(Image, ExceptionWrapper):
         log.debug('unable to convert material without pillow!')
         result = {}
         if isinstance(diffuseTexture, dict):
