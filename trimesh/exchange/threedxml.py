@@ -2,14 +2,25 @@
 threedxml.py
 -------------
 
-Load 3DXML files, a scene format from Solidworks.
+Load 3DXML files, a scene format from Dassault products like Solidworks, Abaqus, Catia
 """
 import numpy as np
+
+try:
+    # `pip install pillow`
+    # optional: used for textured meshes
+    from PIL import Image
+except BaseException as E:
+    # if someone tries to use Image re-raise
+    # the import error so they can debug easily
+    from ..exceptions import ExceptionWrapper
+    Image = ExceptionWrapper(E)
 
 import json
 import collections
 
 from .. import util
+from ..visual.texture import TextureVisuals
 
 
 def load_3DXML(file_obj, *args, **kwargs):
@@ -49,6 +60,7 @@ def load_3DXML(file_obj, *args, **kwargs):
 
     # load the materials library from the materials elements
     colors = {}
+    images = {}
     # but only if it exists
     material_key = 'CATMaterialRef.3dxml'
     if material_key in as_etree:
@@ -62,9 +74,18 @@ def load_3DXML(file_obj, *args, **kwargs):
             diffuse = rend.find("{*}Attr[@Name='DiffuseColor']")
             # specular = rend.find("{*}Attr[@Name='SpecularColor']")
             # emissive = rend.find("{*}Attr[@Name='EmissiveColor']")
-            rgb = (np.array(json.loads(
-                diffuse.attrib['Value'])) * 255).astype(np.uint8)
-            colors[material_id] = rgb
+            if diffuse is not None:
+                rgb = (np.array(json.loads(
+                    diffuse.attrib['Value'])) * 255).astype(np.uint8)
+                colors[material_id] = rgb
+            texture = rend.find("{*}Attr[@Name='TextureImage']")
+            if texture is not None:
+                tex_file, tex_id = texture.attrib['Value'].split(':')[-1].split('#')
+                rep_image = as_etree[tex_file].find(
+                    "{*}CATRepImage/{*}CATRepresentationImage[@id='%s']" % tex_id)
+                if rep_image is not None:
+                    image_file = rep_image.get('associatedFile', '').split(':')[-1]
+                    images[material_id] = Image.open(archive[image_file])
 
         # copy indexes for instances of colors
         for MaterialDomainInstance in material_tree.iter(
@@ -73,11 +94,33 @@ def load_3DXML(file_obj, *args, **kwargs):
             # colors[b.attrib['id']] = colors[instance.text]
             for aggregate in MaterialDomainInstance.findall(
                     '{*}IsAggregatedBy'):
-                colors[aggregate.text] = colors[instance.text]
+                colors[aggregate.text] = colors.get(instance.text)
+                images[aggregate.text] = images.get(instance.text)
 
     # references which hold the 3DXML scene structure as a dict
     # element id : {key : value}
     references = collections.defaultdict(dict)
+
+    def get_rgba(color):
+        """
+        Return (4,) uint8 color array defined by Color element attributes.
+
+        Parameters
+        -----------
+        color : lxml.Element
+          Element containing RGBA colors.
+
+        Returns
+        -----------
+        as_int : (4,) np.uint8
+          Colors as uint8 RGBA.
+        """
+        assert "RGBAColorType" in color.attrib.values()
+        # colors will be float 0.0 - 1.0
+        rgba = np.array([color.get(channel, 1.0) for channel in
+                         ('red', 'green', 'blue', 'alpha')], dtype=np.float64)
+        # convert to int colors
+        return (rgba * 255).astype(np.uint8)
 
     # the 3DXML can specify different visual properties for occurrences
     view = tree.find('{*}DefaultView')
@@ -85,16 +128,9 @@ def load_3DXML(file_obj, *args, **kwargs):
         for ViewProp in view.iter('{*}DefaultViewProperty'):
             color = ViewProp.find('{*}GraphicProperties/' +
                                   '{*}SurfaceAttributes/{*}Color')
-            if (color is None or
-                    'RGBAColorType' not in color.attrib.values()):
+            if color is None:
                 continue
-            rgba = np.array([color.attrib[i]
-                             for i in ['red',
-                                       'green',
-                                       'blue',
-                                       'alpha']],
-                            dtype=np.float64)
-            rgba = (rgba * 255).astype(np.uint8)
+            rgba = get_rgba(color)
             for occurrence in ViewProp.findall('{*}OccurenceId/{*}id'):
                 reference_id = occurrence.text.split('#')[-1]
                 references[reference_id]['color'] = rgba
@@ -108,51 +144,34 @@ def load_3DXML(file_obj, *args, **kwargs):
         part_id = ReferenceRep.attrib['id']
         # which part file in the archive contains the geometry we care about
         part_file = ReferenceRep.attrib['associatedFile'].split(':')[-1]
+        # the format of the geometry file
+        part_format = ReferenceRep.attrib['format']
+        if part_format not in ('TESSELLATED', ):
+            util.log.warning('ReferenceRep %r unsupported format %r' % (
+                part_file, part_format))
+            continue
 
         # load actual geometry
         mesh_faces = []
         mesh_colors = []
         mesh_normals = []
         mesh_vertices = []
+        mesh_uv = []
+        mesh_image = None
 
         if part_file not in as_etree and part_file in archive:
             # the data is stored in some binary format
-            util.log.warning('unable to load binary Rep')
+            util.log.warning('unable to load Rep %r' % part_file)
             # data = archive[part_file]
             continue
 
         # the geometry is stored in a Rep
         for Rep in as_etree[part_file].iter('{*}Rep'):
-            faces = Rep.find('{*}Faces/{*}Face')
+            rep_faces = []  # faces sharing the same list of vertices
             vertices = Rep.find('{*}VertexBuffer/{*}Positions')
-
-            if faces is None or vertices is None:
+            if vertices is None:
                 continue
 
-            # these are vertex normals
-            normals = Rep.find('{*}VertexBuffer/{*}Normals')
-            material = Rep.find('{*}SurfaceAttributes/' +
-                                '{*}MaterialApplication/' +
-                                '{*}MaterialId')
-
-            (material_file, material_id) = material.attrib['id'].split(
-                'urn:3DXML:')[-1].split('#')
-
-            if 'strips' in faces.attrib:
-                # triangle strips, sequence of arbitrary length lists
-                # np.fromstring is substantially faster than np.array(i.split())
-                # inside the list comprehension
-                strips = [np.fromstring(i, sep=' ', dtype=np.int64)
-                          for i in faces.attrib['strips'].split(',')]
-
-                # convert strips to (m, 3) int
-                mesh_faces.append(util.triangle_strips_to_faces(strips))
-            if 'triangles' in faces.attrib:
-                # both triangles and strips are allowed to be defined so
-                # make this an if-if instaid of an if-elif
-                mesh_faces.append(
-                    np.fromstring(faces.attrib['triangles'],
-                                  sep=' ', dtype=np.int64).reshape((-1, 3)))
             # they mix delimiters like we couldn't figure it out from the
             # shape :(
             # load vertices into (n, 3) float64
@@ -162,14 +181,67 @@ def load_3DXML(file_obj, *args, **kwargs):
                 dtype=np.float64).reshape((-1, 3)))
 
             # load vertex normals into (n, 3) float64
+            normals = Rep.find('{*}VertexBuffer/{*}Normals')
             mesh_normals.append(np.fromstring(
                 normals.text.replace(',', ' '),
                 sep=' ',
                 dtype=np.float64).reshape((-1, 3)))
 
-            # store the material information as (m, 3) uint8 FACE COLORS
-            mesh_colors.append(np.tile(colors[material_id],
-                                       (len(mesh_faces[-1]), 1)))
+            uv = Rep.find('{*}VertexBuffer/{*}TextureCoordinates')
+            if uv is not None:  # texture coordinates are available
+                rep_uv = np.fromstring(
+                    uv.text.replace(',', ' '),
+                    sep=' ',
+                    dtype=np.float64)
+                if '1D' == uv.get('dimension'):
+                    mesh_uv.append(np.stack([rep_uv, np.zeros(len(rep_uv))], axis=1))
+                else:  # 2D
+                    mesh_uv.append(rep_uv.reshape(-1, 2))
+
+            material = Rep.find('{*}SurfaceAttributes/' +
+                                '{*}MaterialApplication/' +
+                                '{*}MaterialId')
+            if material is None:
+                material_id = None
+            else:
+                (material_file, material_id) = material.attrib['id'].split(
+                    'urn:3DXML:')[-1].split('#')
+                mesh_image = images.get(material_id)  # texture for this Rep, if any
+
+            for faces in Rep.iter('{*}Faces'):
+                triangles = []  # mesh triangles for this Faces element
+                for face in faces.iter('{*}Face'):
+                    # Each Face may have optional strips, triangles or fans attributes
+                    if 'strips' in face.attrib:
+                        # triangle strips, sequence of arbitrary length lists
+                        # np.fromstring is substantially faster than np.array(i.split())
+                        # inside the list comprehension
+                        strips = [np.fromstring(i, sep=' ', dtype=np.int64)
+                                  for i in face.attrib['strips'].split(',')]
+                        # convert strips to (m, 3) int triangles
+                        triangles.extend(util.triangle_strips_to_faces(strips))
+
+                    if 'triangles' in face.attrib:
+                        triangles.extend(
+                            np.fromstring(face.attrib['triangles'],
+                                          sep=' ', dtype=np.int64).reshape((-1, 3)))
+
+                    if 'fans' in face.attrib:
+                        fans = [np.fromstring(i, sep=' ', dtype=np.int64)
+                                for i in face.attrib['fans'].split(',')]
+                        # convert fans to (m, 3) int triangles
+                        triangles.extend(util.triangle_fans_to_faces(fans))
+
+                    rep_faces.extend(triangles)
+
+                    # store the material information as (m, 3) uint8 FACE COLORS
+                    faceColor = colors.get(material_id, [128, 128, 128])
+                    # each Face may have its own color
+                    colorElement = face.find('{*}SurfaceAttributes/{*}Color')
+                    if colorElement is not None:
+                        faceColor = get_rgba(colorElement)[:3]
+                    mesh_colors.append(np.tile(faceColor, (len(triangles), 1)))
+            mesh_faces.append(rep_faces)
 
         # save each mesh as the kwargs for a trimesh.Trimesh constructor
         # aka, a Trimesh object can be created with trimesh.Trimesh(**mesh)
@@ -179,7 +251,12 @@ def load_3DXML(file_obj, *args, **kwargs):
          mesh['faces']) = util.append_faces(mesh_vertices,
                                             mesh_faces)
         mesh['vertex_normals'] = np.vstack(mesh_normals)
-        mesh['face_colors'] = np.vstack(mesh_colors)
+        if mesh_uv and mesh_image:
+            mesh['visual'] = TextureVisuals(
+                uv=np.vstack(mesh_uv),
+                image=mesh_image)
+        else:
+            mesh['face_colors'] = np.vstack(mesh_colors)
 
         # as far as I can tell, all 3DXML files are exported as
         # implicit millimeters (it isn't specified in the file)

@@ -16,11 +16,9 @@ jobs:
       with:
         python-version: "3.11"
     - name: Install Formatting
-      run: |
-        pip install `python setup.py --list-test`
+      run: pip install ruff
     - name: Check Formatting
-      run: |
-        ruff .
+      run: ruff .
   tests:
     name: Run Unit Tests
     runs-on: ${{ matrix.os }}

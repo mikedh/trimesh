@@ -244,6 +244,7 @@ class PlyTest(g.unittest.TestCase):
         p = next(iter(s.geometry.values()))
         assert p.vertices.shape == (1000, 3)
 
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()

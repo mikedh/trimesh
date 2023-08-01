@@ -22,6 +22,7 @@ from ..util import unique_name
 from ..caching import hash_fast
 from ..constants import log, tol
 
+from ..visual.gloss import specular_to_pbr
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -1171,45 +1172,6 @@ def _append_point(points, name, tree, buffer_items):
     tree["meshes"].append(current)
 
 
-def specular_to_pbr(
-        specularFactor=None,
-        glossinessFactor=None,
-        specularGlossinessTexture=None,
-        diffuseTexture=None,
-        diffuseFactor=None,
-        **kwargs):
-    """
-    TODO : implement specular to PBR as done in Javascript here:
-    https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64
-
-    Convert the KHR_materials_pbrSpecularGlossiness to a
-    metallicRoughness visual.
-
-    Parameters
-    -----------
-    ...
-
-    Returns
-    ----------
-    kwargs : dict
-      Constructor args for a PBRMaterial object.
-
-    if specularFactor is None:
-        oneMinus = 1
-    else:
-        oneMinus = 1 - max(specularFactor)
-    dielectricSpecular = np.array([0.04, 0.04, 0.04])
-    """
-
-    result = {}
-    if isinstance(diffuseTexture, dict):
-        result['baseColorTexture'] = diffuseTexture
-    if diffuseFactor is not None:
-        result['baseColorFactor'] = diffuseFactor
-
-    return result
-
-
 def _parse_textures(header, views, resolver=None):
     try:
         import PIL.Image
@@ -1261,6 +1223,25 @@ def _parse_materials(header, views, resolver=None):
     materials : list
       List of trimesh.visual.texture.Material objects
     """
+    def parse_values_and_textures(input_dict):
+        result = {}
+        for k, v in input_dict.items():
+            if isinstance(v, (list, tuple)):
+                # colors are always float 0.0 - 1.0 in GLTF
+                result[k] = np.array(v, dtype=np.float64)
+            elif not isinstance(v, dict):
+                result[k] = v
+            elif "index" in v:
+                # get the index of image for texture
+                try:
+                    idx = header["textures"][v["index"]]["source"]
+                    # store the actual image as the value
+                    result[k] = images[idx]
+                except BaseException:
+                    log.debug('unable to store texture',
+                              exc_info=True)
+        return result
+
     images = _parse_textures(header, views, resolver)
 
     # store materials which reference images
@@ -1277,22 +1258,11 @@ def _parse_materials(header, views, resolver=None):
             ext = mat.get('extensions', {}).get(
                 'KHR_materials_pbrSpecularGlossiness', None)
             if isinstance(ext, dict):
-                loopable.update(specular_to_pbr(**ext))
+                ext_params = parse_values_and_textures(ext)
+                loopable.update(specular_to_pbr(**ext_params))
 
             # save flattened keys we can use for kwargs
-            pbr = {}
-            for k, v in loopable.items():
-                if not isinstance(v, dict):
-                    pbr[k] = v
-                elif "index" in v:
-                    # get the index of image for texture
-                    try:
-                        idx = header["textures"][v["index"]]["source"]
-                        # store the actual image as the value
-                        pbr[k] = images[idx]
-                    except BaseException:
-                        log.debug('unable to store texture',
-                                  exc_info=True)
+            pbr = parse_values_and_textures(loopable)
             # create a PBR material object for the GLTF material
             materials.append(visual.material.PBRMaterial(**pbr))
 

@@ -467,8 +467,8 @@ class SceneTests(g.unittest.TestCase):
 
     def test_scene_concat(self):
         # check that primitives get upgraded to meshes
-        a = g.trimesh.Scene([g.trimesh.primitives.Sphere(center=[5,5,5]),
-                           g.trimesh.primitives.Box()])
+        a = g.trimesh.Scene([g.trimesh.primitives.Sphere(center=[5, 5, 5]),
+                             g.trimesh.primitives.Box()])
         c = a.dump(concatenate=True)
         assert isinstance(c, g.trimesh.Trimesh)
         assert g.np.allclose(c.bounds, a.bounds)
@@ -481,7 +481,6 @@ class SceneTests(g.unittest.TestCase):
         concat = scene_2D.dump(concatenate=True)
         assert isinstance(concat, g.trimesh.path.Path2D)
 
-
         dump = scene_2D.dump(concatenate=False)
         assert len(dump) == len(scene_2D.geometry)
         assert all(isinstance(i, g.trimesh.path.Path2D) for i in dump)
@@ -491,7 +490,7 @@ class SceneTests(g.unittest.TestCase):
             [i.to_3D() for i in
              g.get_mesh('2D/250_cycloidal.DXF').split()])
 
-        dump= scene_3D.dump(concatenate=False)
+        dump = scene_3D.dump(concatenate=False)
         assert len(dump) >= 5
         assert all(isinstance(i, g.trimesh.path.Path3D) for i in dump)
 

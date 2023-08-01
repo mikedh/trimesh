@@ -300,6 +300,42 @@ class GLTFTest(g.unittest.TestCase):
     def test_specular_glossiness(self):
         s = g.get_mesh('pyramid.zip')
         assert len(s.geometry) > 0
+        assert 'GLTF' in s.geometry
+
+        mat = s.geometry['GLTF'].visual.material
+        assert isinstance(mat, g.trimesh.visual.material.PBRMaterial)
+
+        color = g.np.array(mat.baseColorTexture)[:, :, :3]
+        assert color.shape[0] == 84 and color.shape[1] == 71
+
+        # reference values generated with:
+        # https://kcoley.github.io/glTF/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/
+        assert g.np.allclose(color[0, 0], [253, 234, 208], atol=1)
+        assert g.np.allclose(color[30, 30], [253, 235, 211], atol=1)
+        assert g.np.allclose(color[60, 10], [255, 238, 214], atol=1)
+        color = mat.baseColorFactor
+        assert color.dtype == g.np.uint8
+        assert g.np.allclose(color, [255, 255, 255, 255])
+
+        metallic_roughness = g.np.array(
+            mat.metallicRoughnessTexture,
+            dtype=g.np.float32) / 255.0
+        assert metallic_roughness.shape[0] == 84 and metallic_roughness.shape[1] == 71
+
+        metallic = metallic_roughness[:, :, 0]
+        roughness = metallic_roughness[:, :, 1]
+
+        assert g.np.allclose(metallic[0, 0], 0.514, atol=0.01)
+        assert g.np.allclose(metallic[30, 30], 0.49, atol=0.01)
+        assert g.np.allclose(metallic[60, 10], 0.42, atol=0.01)
+
+        assert g.np.allclose(roughness[0, 0], 0.898, atol=0.01)
+        assert g.np.allclose(roughness[30, 30], 0.898, atol=0.01)
+        assert g.np.allclose(roughness[60, 10], 0.898, atol=0.01)
+
+        assert mat.metallicFactor == 1.0
+        assert mat.roughnessFactor == 1.0
+        assert all(mat.emissiveFactor == [0.0, 0.0, 0.0])
 
     def test_write_dir(self):
         # try loading from a file name
@@ -386,6 +422,26 @@ class GLTFTest(g.unittest.TestCase):
             file_type='glb')
         # make basic assertions
         g.scene_equal(scene, reloaded)
+
+    def test_material_primary_colors(self):
+        primary_color_material = g.trimesh.visual.material.PBRMaterial()
+        primary_color_material.baseColorFactor = (255, 0, 0, 255)
+        sphere = g.trimesh.primitives.Sphere()
+        sphere.visual.material = primary_color_material
+        scene = g.trimesh.Scene([sphere])
+
+        def to_integer(args):
+            args['materials'][0]['pbrMetallicRoughness']['baseColorFactor'] = [1, 0, 0, 1]
+
+        export = scene.export(file_type='glb', tree_postprocessor=to_integer)
+        validate_glb(export)
+        reloaded = g.trimesh.load(
+            file_obj=g.trimesh.util.wrap_as_stream(export),
+            file_type='glb')
+        assert len(reloaded.geometry) == 1
+        # get meshes back
+        sphere_b = list(reloaded.geometry.values())[0]
+        assert (sphere_b.visual.material.baseColorFactor == (255, 0, 0, 255)).all()
 
     def test_material_hash(self):
 
