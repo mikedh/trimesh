@@ -122,7 +122,7 @@ def specular_to_pbr(
             else:
                 log.warning(
                     '`diffuseFactor` and `diffuseTexture` have incompatible shapes: ' +
-                    f'{diffuseFactor.shape} and {diffuse.shape}')
+                    '{0} and {1}'.format(diffuseFactor.shape, diffuse.shape))
         else:
             diffuse = diffuseFactor if diffuseFactor is not None else [1, 1, 1, 1]
             diffuse = np.array(diffuse, dtype=np.float32)
