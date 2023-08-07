@@ -481,6 +481,11 @@ def _elements_to_kwargs(elements,
         vertices = np.column_stack(
             [elements['vertex']['data'][i]
              for i in 'xyz'])
+        if elements['vertex']['data']['nx'] is not None:
+            vertex_normals = np.column_stack(
+            [elements['vertex']['data'][j]
+             for j in ('nx', 'ny', 'nz')])
+            kwargs['vertex_normals'] = vertex_normals
         if not util.is_shape(vertices, (-1, 3)):
             raise ValueError('Vertices were not (n,3)!')
     else:
