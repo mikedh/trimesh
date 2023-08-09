@@ -184,7 +184,11 @@ class _Primitive(Trimesh):
         # remove the type indicator, i.e. `Cylinder`
         kwargs.pop('kind')
         # create a new object with kwargs
-        return type(self)(**kwargs)
+        primitive_copy = type(self)(**kwargs)
+        # copy metadata
+        primitive_copy.metadata = self.metadata.copy()
+
+        return primitive_copy
 
     def to_mesh(self, **kwargs):
         """
