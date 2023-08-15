@@ -170,7 +170,7 @@ def any_coplanar(triangles):
 
 def mass_properties(triangles,
                     crosses=None,
-                    density=1.0,
+                    density=None,
                     center_mass=None,
                     skip_inertia=False):
     """
@@ -203,6 +203,8 @@ def mass_properties(triangles,
 
     if crosses is None:
         crosses = cross(triangles)
+    if density is None:
+        density = 1.0
 
     # these are the subexpressions of the integral
     # this is equvilant but 7x faster than triangles.sum(axis=1)
@@ -245,14 +247,14 @@ def mass_properties(triangles,
 
     if center_mass is None:
         if np.abs(volume) < tol.zero:
-            center_mass = np.zeros(3)
+            # if there is no volume set center of mass to the origin
+            center_mass = np.zeros(3, dtype=np.float64)
         else:
+            # otherwise get it from the integration
             center_mass = integrated[1:4] / volume
 
-    mass = density * volume
-
     result = {'density': density,
-              'mass': mass,
+              'mass': density * volume,
               'volume': volume,
               'center_mass': center_mass}
 
