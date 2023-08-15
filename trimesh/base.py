@@ -2452,10 +2452,11 @@ class Trimesh(Geometry3D):
         has_rotation = not util.allclose(
             matrix[:3, :3], np.eye(3), atol=1e-6)
 
-        # overridden center of mass
-        if self._center_mass is not None:
-            self._center_mass = transformations.transform_points(
-                np.array([self._center_mass, ]),
+        # transform overridden center of mass
+        if 'center_mass' in self.data:
+            center_mass = self.data['center_mass']
+            self.center_mass = transformations.transform_points(
+                np.array([center_mass,]),
                 matrix)[0]
 
         # preserve face normals if we have them stored
