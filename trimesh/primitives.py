@@ -110,59 +110,6 @@ class _Primitive(Trimesh):
         """
         return self.primitive.transform
 
-    @property
-    def center_mass(self):
-        """
-        The point in space which is the center of mass/volume.
-
-        Returns
-        -----------
-        center_mass : (3, ) float
-           Volumetric center of mass of the primitive
-        """
-        center_mass = self.mass_properties["center_mass"]
-        return center_mass
-
-    @center_mass.setter
-    def center_mass(self, cm):
-        """
-        Set the point in space which is the center of mass/volume.
-
-        Parameters
-        -----------
-        center_mass : (3, ) float
-           Volumetric center of mass of the primitive
-        """
-        self._data["center_mass"] = cm
-        self._cache.delete("mass_properties")
-
-    @property
-    def density(self):
-        """
-        The density of the primitive.
-
-        Returns
-        -----------
-        density : float
-          The density of the primitive.
-        """
-        density = self.mass_properties["density"]
-        return density
-
-    @density.setter
-    def density(self, value):
-        """
-        Set the density of the primitive.
-
-        Parameters
-        -------------
-        density : float
-          Specify the density of the primitive to be
-          used in inertia calculations.
-        """
-        self._data["density"] = float(value)
-        self._cache.delete("mass_properties")
-
     @abc.abstractmethod
     def to_dict(self):
         """
