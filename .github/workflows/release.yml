@@ -45,10 +45,6 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install Brew On Mac
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install --cask openscad
     - name: Test a minimal install
       run: |
         pip install .
