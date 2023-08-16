@@ -170,10 +170,6 @@ class Trimesh(Geometry3D):
             raise ValueError(
                 'metadata should be a dict or None, got %s' % str(metadata))
 
-        # Set the default center of mass and density
-        self._density = 1.0
-        self._center_mass = None
-
         # store per-face and per-vertex attributes which will
         # be updated when an update_faces call is made
         self.face_attributes = {}
@@ -581,48 +577,55 @@ class Trimesh(Geometry3D):
         """
         The point in space which is the center of mass/volume.
 
-        If the current mesh is not watertight this is meaningless
-        garbage unless it was explicitly set.
-
         Returns
         -----------
         center_mass : (3, ) float
-           Volumetric center of mass of the mesh
+           Volumetric center of mass of the mesh.
         """
-        center_mass = self.mass_properties['center_mass']
-        return center_mass
+        return self.mass_properties["center_mass"]
 
     @center_mass.setter
-    def center_mass(self, cm):
-        self._center_mass = cm
-        self._cache.delete('mass_properties')
+    def center_mass(self, value):
+        """
+        Override the point in space which is the center of mass and volume.
+
+        Parameters
+        -----------
+        center_mass : (3, ) float
+           Volumetric center of mass of the mesh.
+        """
+        value = np.array(value, dtype=np.float64)
+        if value.shape != (3,):
+            raise ValueError('shape must be (3,) float!')
+        self._data["center_mass"] = value
+        self._cache.delete("mass_properties")
 
     @property
     def density(self):
         """
-        The density of the mesh.
+        The density of the mesh used in inertia calculations.
 
         Returns
         -----------
         density : float
-          The density of the mesh.
+          The density of the primitive.
         """
-        density = self.mass_properties['density']
+        density = self.mass_properties["density"]
         return density
 
     @density.setter
     def density(self, value):
         """
-        Set the density of the mesh.
+        Set the density of the primitive.
 
         Parameters
         -------------
         density : float
-          Specify the density of the mesh to be
+          Specify the density of the primitive to be
           used in inertia calculations.
         """
-        self._density = float(value)
-        self._cache.delete('mass_properties')
+        self._data["density"] = float(value)
+        self._cache.delete("mass_properties")
 
     @property
     def volume(self):
@@ -2449,10 +2452,11 @@ class Trimesh(Geometry3D):
         has_rotation = not util.allclose(
             matrix[:3, :3], np.eye(3), atol=1e-6)
 
-        # overridden center of mass
-        if self._center_mass is not None:
-            self._center_mass = transformations.transform_points(
-                np.array([self._center_mass, ]),
+        # transform overridden center of mass
+        if 'center_mass' in self._data:
+            center_mass = self._data['center_mass']
+            self.center_mass = transformations.transform_points(
+                np.array([center_mass,]),
                 matrix)[0]
 
         # preserve face normals if we have them stored
@@ -2694,11 +2698,15 @@ class Trimesh(Geometry3D):
                          coordinate system
           'center_mass' : Center of mass location, in global coordinate system
         """
+        # if the density or center of mass was overridden they will be put into data
+        density = self._data.data.get('density', [None])[0]
+        center_mass = self._data.data.get('center_mass', None)
+
         mass = triangles.mass_properties(
             triangles=self.triangles,
             crosses=self.triangles_cross,
-            density=self._density,
-            center_mass=self._center_mass,
+            density=density,
+            center_mass=center_mass,
             skip_inertia=False)
         return mass
 
@@ -3073,10 +3081,6 @@ class Trimesh(Geometry3D):
         copied.visual = self.visual.copy()
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
-        # get center_mass and density
-        if self._center_mass is not None:
-            copied.center_mass = self.center_mass
-        copied._density = self._density
 
         # make sure cache ID is set initially
         copied._cache.verify()

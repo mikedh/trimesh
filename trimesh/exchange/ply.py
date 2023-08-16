@@ -487,7 +487,15 @@ def _elements_to_kwargs(elements,
         # return empty geometry if there are no vertices
         kwargs['geometry'] = {}
         return kwargs
-
+        
+    try:
+        vertex_normals = np.column_stack([elements['vertex']['data'][j]
+                for j in ('nx', 'ny', 'nz')])
+        if len(vertex_normals) == len(vertices):
+            kwargs['vertex_normals'] = vertex_normals
+    except BaseException:
+        pass
+        
     if 'face' in elements and elements['face']['length']:
         face_data = elements['face']['data']
     else:

@@ -37,7 +37,7 @@ class _Primitive(Trimesh):
     __deepcopy__ = None
 
     def __init__(self):
-        # run the Trimesh constructor with any passed in arguments
+        # run the Trimesh constructor with no arguments
         super(_Primitive, self).__init__()
 
         # remove any data
@@ -131,7 +131,15 @@ class _Primitive(Trimesh):
         # remove the type indicator, i.e. `Cylinder`
         kwargs.pop('kind')
         # create a new object with kwargs
-        return type(self)(**kwargs)
+        primitive_copy = type(self)(**kwargs)
+        # copy metadata
+        primitive_copy.metadata = self.metadata.copy()
+
+        for k, v in self._data.data.items():
+            if k not in primitive_copy._data:
+                primitive_copy._data[k] = v
+
+        return primitive_copy
 
     def to_mesh(self, **kwargs):
         """
