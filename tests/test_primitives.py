@@ -335,18 +335,21 @@ class PrimitiveTest(g.unittest.TestCase):
 
     def test_copy(self):
         start = [20, 10, 100]
-        box = g.trimesh.primitives.Box(extents=start)
-        box.density = 0.3
-        box.center_mass = g.np.array([0.1, -0.6, 11.3])
-        box.metadata["foo"] = "bar"
+        # check that copy preserves overridden density and center-mass
+        # for both Primitive objects and regular Trimesh objects.
+        meshes = [
+            g.trimesh.primitives.Box(extents=start),
+            g.trimesh.creation.box(extents=start)]
 
-        box_copy = box.copy()
+        for box in meshes:
+            box.density = 0.3
+            box.center_mass = g.np.array([0.1, -0.6, 11.3])
+            box.metadata["foo"] = "bar"
+            box_copy = box.copy()
+            assert box.density == box_copy.density
+            assert g.np.allclose(box.center_mass, box_copy.center_mass)
+            assert box.metadata['foo'] == box_copy.metadata['foo']
 
-        assert box.density == box_copy.density
-
-        assert g.np.allclose(box.center_mass, box_copy.center_mass)
-
-        assert box.metadata == box_copy.metadata
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

@@ -580,7 +580,7 @@ class Trimesh(Geometry3D):
         Returns
         -----------
         center_mass : (3, ) float
-           Volumetric center of mass of the primitive
+           Volumetric center of mass of the mesh.
         """
         return self.mass_properties["center_mass"]
 
@@ -592,7 +592,7 @@ class Trimesh(Geometry3D):
         Parameters
         -----------
         center_mass : (3, ) float
-           Volumetric center of mass of the primitive
+           Volumetric center of mass of the mesh.
         """
         value = np.array(value, dtype=np.float64)
         if value.shape != (3,):
