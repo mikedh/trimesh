@@ -4,9 +4,6 @@ LABEL maintainer="mikedh@kerfed.com"
 # Install helper script to PATH.
 COPY --chmod=755 docker/trimesh-setup /usr/local/bin/
 
-# Install base `apt` packages required for everything
-RUN trimesh-setup --install base
-
 # Create a local non-root user.
 RUN useradd -m -s /bin/bash user
 
