@@ -27,7 +27,11 @@ COPY --chown=user:user setup.py /home/user/
 USER user
 
 # install trimesh into .local
-RUN pip install /home/user[all]
+# then delete any included tests
+# also remove Cython after all the building is complete
+RUN pip install /home/user[all] && \
+    find /home/user/.local -type d -name tests -prune -exec rm -rf {} \; && \
+    pip uninstall -y cython
 
 ####################################
 ### Build output image most things should run on

@@ -38,7 +38,6 @@ requirements_easy = set([
     'shapely',   # handle 2D polygons robustly
     'rtree',     # create N-dimension trees for broad-phase queries
     'svg.path',  # handle SVG format path strings
-    'sympy',     # do analytical math
     'pillow',    # load images
     'embreex',   # Intel's Embree ray check engine with wheels
     'requests',  # do network requests
@@ -56,8 +55,6 @@ requirements_easy = set([
 requirements_all = requirements_easy.union([
     'python-fcl',    # do fast 3D collision queries
     'psutil',        # figure out how much memory we have
-    'glooey',        # make GUI applications with 3D stuff
-    'meshio',        # load a number of additional mesh formats; Python 3.5+
     'scikit-image',  # marching cubes and other nice stuff
     'xatlas',        # texture unwrapping
     'pyglet<2',  # render preview windows nicely : note pyglet 2.0 is basically a re-write
