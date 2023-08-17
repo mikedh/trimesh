@@ -24,12 +24,6 @@ from fnmatch import fnmatch
 config_json = """
 {
   "apt": {
-    "base": [
-      "wget",
-      "curl",
-      "xz-utils",
-      "git"
-    ],
     "build": [
       "build-essential",
       "g++",
