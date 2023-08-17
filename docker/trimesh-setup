@@ -44,7 +44,7 @@ config_json = """
     "test": [
       "blender",
       "openscad",
-      "curl",
+      "curl"
     ]
   },
   "fetch": {
