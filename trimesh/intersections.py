@@ -464,7 +464,7 @@ def slice_faces_plane(vertices,
         Vertices of sliced mesh
     new_faces : (n, 3) int
         Faces of sliced mesh
-    new_uv : (n, 3) int or None
+    new_uv : (n, 2) int or None
         UV coordinates of sliced mesh
     """
 
