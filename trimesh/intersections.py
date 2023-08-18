@@ -741,7 +741,7 @@ def slice_mesh_plane(mesh,
 
     # We copy the UV coordinates if available
     has_uv = (hasattr(mesh.visual, 'uv') and np.shape(
-        mesh.visual.uv) == (len(mesh.vertices), 2))
+        mesh.visual.uv) == (len(mesh.vertices), 2)) and not cap
     uv = mesh.visual.uv.copy() if has_uv else None
 
     if 'process' not in kwargs:
