@@ -576,6 +576,8 @@ def slice_faces_plane(vertices,
 
     # Initialize the array of new vertices with the current vertices
     new_vertices = vertices
+    new_quad_vertices = np.zeros((0, 3))
+    new_tri_vertices = np.zeros((0, 3))
 
     # Handle the case where a new quad is formed by the intersection
     # First, extract the intersection points belonging to a new quad
