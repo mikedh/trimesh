@@ -4,11 +4,8 @@ LABEL maintainer="mikedh@kerfed.com"
 # Install helper script to PATH.
 COPY --chmod=755 docker/trimesh-setup /usr/local/bin/
 
-# Create a local non-root user.
-RUN useradd -m \ # -m creates a home directory
-    -u 499 \ # set UID to that of a system user 100-499
-    -s /bin/bash \ # set default shell to bash
-    user # make the username `user`
+# Create a non-root user with `uid=499`.
+RUN useradd -m -u 499 -s /bin/bash user
 
 # Required for Python to be able to find libembree.
 ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
