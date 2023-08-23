@@ -85,8 +85,6 @@ if all_dependencies and not trimesh.ray.has_embree:
 try:
     import sympy as sp
 except ImportError as E:
-    if all_dependencies:
-        raise E
     sp = None
 
 try:

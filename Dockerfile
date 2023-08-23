@@ -27,8 +27,8 @@ COPY --chown=user:user setup.py /home/user/
 USER user
 
 # install trimesh into .local
-# then delete any included tests
-# also remove Cython after all the building is complete
+# then delete any included test directories
+# and remove Cython after all the building is complete
 RUN pip install /home/user[all] && \
     find /home/user/.local -type d -name tests -prune -exec rm -rf {} \; && \
     pip uninstall -y cython
@@ -67,7 +67,7 @@ RUN trimesh-setup --install=test,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
-RUN pip install `python setup.py --list-test`
+RUN pip install .[all,easy,recommends,tests]
 
 # run pytest wrapped with xvfb for simple viewer tests
 RUN xvfb-run pytest --cov=trimesh \
