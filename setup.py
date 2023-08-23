@@ -244,6 +244,6 @@ setup(
         "test": list(requirements_test),
         "easy": list(requirements_easy),
         "all": list(requirements_all),
-        "recommends": list(requirments_recommends),
+        "recommends": list(requirements_recommends),
     },
 )
