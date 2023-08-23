@@ -69,7 +69,7 @@ RUN trimesh-setup --install=test,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
-RUN pip install -e .[all,easy,recommends,tests]
+RUN pip install -e .[all,easy,recommends,test]
 
 # run pytest wrapped with xvfb for simple viewer tests
 RUN xvfb-run pytest --cov=trimesh \
