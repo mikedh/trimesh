@@ -1,6 +1,98 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools >= 40.8", "wheel"]
+requires = ["setuptools >= 60", "wheel"]
+
+[project]
+name = "trimesh"
+version = "3.23.3"
+authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
+license = {text = "MIT"}
+description = "Import, export, process, analyze and view triangular meshes."
+keywords = ["graphics", "mesh", "geometry", "3D"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering",
+]
+urls = {Homepage = "https://github.com/mikedh/trimesh"}
+dependencies = ["numpy"]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.optional-dependencies]
+test = [
+    "pytest-cov",
+    "coveralls",
+    "pytest",
+    "pymeshlab",
+    "pyinstrument",
+    "ruff",
+    "ezdxf",
+    "autopep8<2",
+]
+easy = [
+    "colorlog",
+    "mapbox-earcut",
+    "chardet",
+    "lxml",
+    "jsonschema",
+    "networkx",
+    "svg.path",
+    "pycollada",
+    "setuptools",
+    "shapely",
+    "xxhash",
+    "rtree",
+    "requests",
+    "scipy",
+    "embreex",
+    "pillow",
+]
+all = [
+    "colorlog",
+    "mapbox-earcut",
+    "lxml",
+    "networkx",
+    "svg.path",
+    "pycollada",
+    "shapely",
+    "xatlas",
+    "python-fcl",
+    "scipy",
+    "embreex",
+    "chardet",
+    "pyglet<2",
+    "jsonschema",
+    "setuptools",
+    "xxhash",
+    "scikit-image",
+    "rtree",
+    "psutil",
+    "requests",
+    "pillow",
+]
+recommends = ["glooey", "sympy", "meshio"]
+
+[tool.setuptools.packages.find]
+include = ["trimesh"]
+
+[tool.setuptools.package-data]
+trimesh = [
+    "resources/templates/*",
+    "resources/*.json",
+    "resources/schema/*",
+    "resources/schema/primitive/*.json",
+    "resources/*.zip",
+]
+
 
 [tool.ruff]
 # See https://github.com/charliermarsh/ruff#rules for error code definitions.
@@ -21,6 +113,7 @@ ignore = [
   "N802", # Function name should be lowercase
   "N806", # Variable in function should be lowercase
   "E501", # Line too long ({width} > {limit} characters)
+  "B904", # raise ... from err
   "B905", # zip() without an explicit strict= parameter
 ]
 line-length = 90
