@@ -6,8 +6,9 @@ Create some simulated 3D scan data and register
 it to a "truth" mesh.
 """
 
-import trimesh
 import numpy as np
+
+import trimesh
 
 
 def simulated_brick(face_count, extents, noise, max_iter=10):

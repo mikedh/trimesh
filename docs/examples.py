@@ -6,10 +6,10 @@ Generate `examples.md` from the contents
 of `../examples/*.ipynb`
 """
 
-import os
-import sys
 import json
 import logging
+import os
+import sys
 
 log = logging.getLogger('trimesh')
 log.addHandler(logging.StreamHandler(sys.stdout))
@@ -62,10 +62,10 @@ if __name__ == '__main__':
         if not fn.lower().endswith('.ipynb'):
             continue
         path = os.path.join(source, fn)
-        with open(path, 'r') as f:
+        with open(path) as f:
             raw = json.load(f)
         doc = extract_docstring(raw)
-        log.info('`{}`: "{}"\n'.format(fn, doc))
+        log.info(f'`{fn}`: "{doc}"\n')
         link = f'examples.{fn.split(".")[0]}.html'
 
         markdown.append(f'### [{fn}]({link})')

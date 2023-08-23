@@ -16,8 +16,8 @@ except BaseException as E:
     from ..exceptions import ExceptionWrapper
     Image = ExceptionWrapper(E)
 
-import json
 import collections
+import json
 
 from .. import util
 from ..visual.texture import TextureVisuals
@@ -136,7 +136,7 @@ def load_3DXML(file_obj, *args, **kwargs):
                 references[reference_id]['color'] = rgba
 
     # geometries will hold meshes
-    geometries = dict()
+    geometries = {}
 
     # get geometry
     for ReferenceRep in tree.iter(tag='{*}ReferenceRep'):
@@ -147,7 +147,7 @@ def load_3DXML(file_obj, *args, **kwargs):
         # the format of the geometry file
         part_format = ReferenceRep.attrib['format']
         if part_format not in ('TESSELLATED', ):
-            util.log.warning('ReferenceRep %r unsupported format %r' % (
+            util.log.warning('ReferenceRep {!r} unsupported format {!r}'.format(
                 part_file, part_format))
             continue
 
@@ -246,7 +246,7 @@ def load_3DXML(file_obj, *args, **kwargs):
         # save each mesh as the kwargs for a trimesh.Trimesh constructor
         # aka, a Trimesh object can be created with trimesh.Trimesh(**mesh)
         # this avoids needing trimesh- specific imports in this IO function
-        mesh = dict()
+        mesh = {}
         (mesh['vertices'],
          mesh['faces']) = util.append_faces(mesh_vertices,
                                             mesh_faces)
@@ -395,8 +395,8 @@ def print_element(element):
 
 try:
     # soft dependencies
-    from lxml import etree
     import networkx as nx
+    from lxml import etree
     _threedxml_loaders = {'3dxml': load_3DXML}
 except BaseException as E:
     # set loader to exception wrapper

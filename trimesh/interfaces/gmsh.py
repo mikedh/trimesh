@@ -32,9 +32,10 @@ def load_gmsh(file_name, gmsh_args=None):
       Surface mesh of input geometry
     """
     # use STL as an intermediate format
-    from ..exchange.stl import load_stl
     # do import here to avoid very occasional segfaults
     import gmsh
+
+    from ..exchange.stl import load_stl
 
     # start with default args for the meshing step
     # Mesh.Algorithm=2 MeshAdapt/Delaunay, there are others but they may include quads

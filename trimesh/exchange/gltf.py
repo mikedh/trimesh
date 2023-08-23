@@ -6,22 +6,16 @@ Provides GLTF 2.0 exports of trimesh.Trimesh objects
 as GL_TRIANGLES, and trimesh.Path2D/Path3D as GL_LINES
 """
 
-import json
 import base64
 import collections
+import json
 
 import numpy as np
 
-from .. import util
-from .. import visual
-from .. import rendering
-from .. import resources
-from .. import transformations
-
-from ..util import unique_name
+from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
-
+from ..util import unique_name
 from ..visual.gloss import specular_to_pbr
 
 # magic numbers which have meaning in GLTF
@@ -125,7 +119,7 @@ def export_gltf(scene,
     base64_buffer_format = "data:application/octet-stream;base64,{}"
     if merge_buffers:
         views = _build_views(buffer_items)
-        buffer_data = bytes().join(buffer_items.values())
+        buffer_data = b"".join(buffer_items.values())
         if embed_buffers:
             buffer_name = base64_buffer_format.format(
                 base64.b64encode(buffer_data).decode())
@@ -148,7 +142,7 @@ def export_gltf(scene,
                 buffer_name = base64_buffer_format.format(
                     base64.b64encode(item).decode())
             else:
-                buffer_name = "gltf_buffer_{}.bin".format(i)
+                buffer_name = f"gltf_buffer_{i}.bin"
                 files[buffer_name] = item
             buffers[i] = {"uri": buffer_name,
                           "byteLength": len(item)}
@@ -211,7 +205,7 @@ def export_glb(
     views = _build_views(buffer_items)
 
     # combine bytes into a single blob
-    buffer_data = bytes().join(buffer_items.values())
+    buffer_data = b"".join(buffer_items.values())
 
     # add the information about the buffer data
     if len(buffer_data) > 0:
@@ -247,7 +241,7 @@ def export_glb(
         np.array([len(buffer_data), 0x004E4942],
                  dtype="<u4").tobytes())
 
-    exported = bytes().join([header,
+    exported = b"".join([header,
                              content,
                              bin_header,
                              buffer_data])
@@ -308,8 +302,7 @@ def load_gltf(file_obj=None,
 
     if major < 2:
         raise NotImplementedError(
-            'only GLTF 2 is supported not `{}`'.format(
-                version))
+            f'only GLTF 2 is supported not `{version}`')
 
     # use the URI and resolver to get data from file names
     buffers = [_uri_to_bytes(uri=b['uri'], resolver=resolver)
@@ -367,8 +360,7 @@ def load_glb(file_obj,
     # and second value is version: should be 2 for GLTF 2.0
     if head[1] != 2:
         raise NotImplementedError(
-            'only GLTF 2 is supported not `{}`'.format(
-                head[1]))
+            f'only GLTF 2 is supported not `{head[1]}`')
 
     # overall file length
     # first chunk length
@@ -1028,7 +1020,7 @@ def _byte_pad(data, bound=4):
         # bytes(count) only works on Python 3
         pad = (' ' * count).encode('utf-8')
         # combine the padding and data
-        result = bytes().join([data, pad])
+        result = b"".join([data, pad])
         # we should always divide evenly
         if tol.strict and (len(result) % bound) != 0:
             raise ValueError(
@@ -1193,8 +1185,7 @@ def _parse_textures(header, views, resolver=None):
                 # will get bytes from filesystem or base64 URI
                 blob = _uri_to_bytes(uri=img['uri'], resolver=resolver)
             else:
-                log.debug('unable to load image from: {}'.format(
-                    img.keys()))
+                log.debug(f'unable to load image from: {img.keys()}')
                 continue
             # i.e. 'image/jpeg'
             # mime = img['mimeType']
@@ -1226,7 +1217,7 @@ def _parse_materials(header, views, resolver=None):
     def parse_values_and_textures(input_dict):
         result = {}
         for k, v in input_dict.items():
-            if isinstance(v, (list, tuple)):
+            if isinstance(v, list | tuple):
                 # colors are always float 0.0 - 1.0 in GLTF
                 result[k] = np.array(v, dtype=np.float64)
             elif not isinstance(v, dict):
@@ -1511,7 +1502,7 @@ def _read_buffers(header,
     if merge_primitives:
         # if we are only returning one Trimesh object
         # replace `mesh_prim` with updated values
-        mesh_prim_replace = dict()
+        mesh_prim_replace = {}
         # these are the names of meshes we need to remove
         mesh_pop = set()
         for mesh_index, names in mesh_prim.items():
@@ -1681,8 +1672,7 @@ def _read_buffers(header,
                     kwargs['frame_from'] = names[b]
                     # if we have more than one primitive assign a new UUID
                     # frame name for the primitives after the first one
-                    frame_to = '{}_{}'.format(
-                        names[b], util.unique_id(length=6))
+                    frame_to = f'{names[b]}_{util.unique_id(length=6)}'
                     kwargs['frame_to'] = frame_to
                     # append the edge with the mesh frame
                     graph.append(kwargs.copy())
@@ -1784,7 +1774,7 @@ def _append_image(img, tree, buffer_items):
     # append buffer index and the GLTF-acceptable mimetype
     tree['images'].append({
         'bufferView': index,
-        'mimeType': 'image/{}'.format(save_as.lower())})
+        'mimeType': f'image/{save_as.lower()}'})
 
     # index is length minus one
     return len(tree['images']) - 1
@@ -1952,9 +1942,9 @@ def get_schema():
       A copy of the GLTF 2.0 schema without external references.
     """
     # replace references
-    from ..schemas import resolve
     # get zip resolver to access referenced assets
     from ..resolvers import ZipResolver
+    from ..schemas import resolve
 
     # get a blob of a zip file including the GLTF 2.0 schema
     blob = resources.get(

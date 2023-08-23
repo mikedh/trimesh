@@ -77,7 +77,7 @@ class GroupTests(g.unittest.TestCase):
         a[2] = False
         result = blocks(a, min_len=1, only_nonzero=True)
         assert len(result) == 2
-        assert set(result[0]) == set([1])
+        assert set(result[0]) == {1}
         assert all(a[i].all() for i in result)
 
     def test_block_wrap(self):
@@ -175,7 +175,7 @@ class GroupTests(g.unittest.TestCase):
                   'only_nonzero': True}
         r = blocks(**kwargs)
         assert len(r) == 1
-        assert set(r[0]) == set([0, 4])
+        assert set(r[0]) == {0, 4}
         check_roll_wrap(**kwargs)
 
     def test_runs(self):
@@ -338,8 +338,8 @@ def check_roll_wrap(**kwargs):
             g.np.roll(data, -i), **kwargs)
         # get result as a set of tuples with the rolling index
         # removed through a modulus, so we can compare equality
-        check = set([tuple(((j + i) % len(data)).tolist())
-                     for j in block])
+        check = {tuple(((j + i) % len(data)).tolist())
+                     for j in block}
         if current is None:
             current = check
         # all values should be the same

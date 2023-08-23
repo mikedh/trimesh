@@ -1,7 +1,9 @@
 import os
-import trimesh
+
 import numpy as np
 from PIL import Image
+
+import trimesh
 
 
 def vis():
@@ -42,7 +44,7 @@ if __name__ == '__main__':
     closest = np.min(dists)
     farthest = np.max(dists)
     z = np.linspace(closest, farthest, resolution)
-    log.debug('z range: %f, %f' % (closest, farthest))
+    log.debug(f'z range: {closest:f}, {farthest:f}')
 
     vox = mesh.voxelized(1. / resolution, method='binvox')
 

@@ -1,9 +1,9 @@
 import os
 import platform
 
-from .generic import MeshScript
 from ..constants import log
 from ..util import which
+from .generic import MeshScript
 
 _search_path = os.environ.get("PATH", "")
 
@@ -49,8 +49,7 @@ def convex_decomposition(mesh, debug=False, **kwargs):
 
     # pass through extra arguments from the input dictionary
     for key, value in kwargs.items():
-        argstring += ' --{} {}'.format(str(key),
-                                       str(value))
+        argstring += f' --{str(key)} {str(value)}'
 
     with MeshScript(meshes=[mesh],
                     script='',

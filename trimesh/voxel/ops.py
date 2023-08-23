@@ -114,6 +114,7 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
       the marching cubes algorithm in skimage
     """
     from skimage import measure
+
     from ..base import Trimesh
 
     matrix = np.asanyarray(matrix, dtype=bool)

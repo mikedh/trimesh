@@ -6,20 +6,14 @@ Convert meshes to a simple voxel data structure and back again.
 """
 import numpy as np
 
-from . import ops
-from . import transforms
-from . import morphology
-
-from .encoding import Encoding, DenseEncoding
-from .. import util
-from .. import caching
 from .. import bounds as bounds_module
+from .. import caching, util
 from .. import transformations as tr
-
-from ..parent import Geometry
 from ..constants import log
-
 from ..exchange.binvox import export_binvox
+from ..parent import Geometry
+from . import morphology, ops, transforms
+from .encoding import DenseEncoding, Encoding
 
 
 class VoxelGrid(Geometry):
@@ -40,7 +34,7 @@ class VoxelGrid(Geometry):
         self._cache = caching.Cache(
             id_function=self._data.__hash__)
 
-        self.metadata = dict()
+        self.metadata = {}
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)

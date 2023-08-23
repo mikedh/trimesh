@@ -4,13 +4,12 @@ xaml.py
 
 Load 3D XAMl files, an export option from Solidworks.
 """
-import numpy as np
-
 import collections
 
-from .. import util
-from .. import visual
+import numpy as np
+
 from .. import transformations as tf
+from .. import util, visual
 
 
 def load_XAML(file_obj, *args, **kwargs):
@@ -139,7 +138,7 @@ def load_XAML(file_obj, *args, **kwargs):
             normals.append(c_normals)
 
     # compile the results into clean numpy arrays
-    result = dict()
+    result = {}
     result['vertices'], result['faces'] = util.append_faces(vertices,
                                                             faces)
     result['face_colors'] = np.vstack(colors)

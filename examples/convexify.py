@@ -8,8 +8,9 @@ of each body, then combine them back into one mesh.
 Useful for generating collision models of an object.
 """
 
-import trimesh
 import numpy as np
+
+import trimesh
 
 if __name__ == '__main__':
 

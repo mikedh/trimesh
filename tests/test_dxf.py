@@ -32,7 +32,7 @@ class DXFTest(g.unittest.TestCase):
             # try using ezdxf as a simple validator
             # it raises exceptions aggressively
             if ezdxf is not None:
-                with open(temp_name, 'r') as f:
+                with open(temp_name) as f:
                     ezdxf.read(f)
 
             # export to a string

@@ -5,41 +5,42 @@ github.com/mikedh/trimesh
 Library for importing, exporting and doing simple operations on triangular meshes.
 """
 
-from . import ray
-from . import util
-from . import units
-from . import poses
-from . import graph
-from . import sample
-from . import repair
-from . import convex
-from . import remesh
-from . import caching
-from . import inertia
-from . import boolean
-from . import grouping
-from . import geometry
-from . import permutate
-from . import proximity
-from . import triangles
-from . import curvature
-from . import smoothing  # noqa
-from . import comparison
-from . import registration
-from . import decomposition
-from . import intersections
-from . import transformations
-
-from .visual import create_visual, TextureVisuals
-from .exchange.export import export_mesh
-from .constants import log, log_time, tol
-
-from .scene import Scene
-from .parent import Geometry3D
-
 import copy
 import warnings
+
 import numpy as np
+
+from . import (
+    boolean,
+    caching,
+    comparison,
+    convex,
+    curvature,
+    decomposition,
+    geometry,
+    graph,
+    grouping,
+    inertia,
+    intersections,
+    permutate,
+    poses,
+    proximity,
+    ray,
+    registration,
+    remesh,
+    repair,
+    sample,
+    smoothing,  # noqa
+    transformations,
+    triangles,
+    units,
+    util,
+)
+from .constants import log, log_time, tol
+from .exchange.export import export_mesh
+from .parent import Geometry3D
+from .scene import Scene
+from .visual import TextureVisuals, create_visual
 
 
 class Trimesh(Geometry3D):
@@ -162,7 +163,7 @@ class Trimesh(Geometry3D):
         self.nearest = proximity.ProximityQuery(self)
 
         # store metadata about the mesh in a dictionary
-        self.metadata = dict()
+        self.metadata = {}
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
@@ -2641,8 +2642,8 @@ class Trimesh(Geometry3D):
         projected : trimesh.path.Path2D
           Outline of source mesh
         """
-        from .path import Path2D
         from .exchange.load import load_path
+        from .path import Path2D
         from .path.polygons import projected
 
         projection = projected(

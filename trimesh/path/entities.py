@@ -5,14 +5,14 @@ entities.py
 Basic geometric primitives which only store references to
 vertex indices rather than vertices themselves.
 """
-import numpy as np
-
 from copy import deepcopy
-from .arc import discretize_arc, arc_center
-from .curve import discretize_bezier, discretize_bspline
+
+import numpy as np
 
 from .. import util
 from ..util import ABC
+from .arc import arc_center, discretize_arc
+from .curve import discretize_bezier, discretize_bspline
 
 
 class Entity(ABC):

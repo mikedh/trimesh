@@ -4,9 +4,10 @@ except BaseException:
     import generic as g
 
 from io import BytesIO
+
+from trimesh import voxel as v
 from trimesh.exchange import binvox
 from trimesh.voxel import runlength as rl
-from trimesh import voxel as v
 
 
 class BinvoxTest(g.unittest.TestCase):

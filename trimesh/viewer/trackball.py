@@ -30,7 +30,7 @@ import numpy as np
 from .. import transformations
 
 
-class Trackball(object):
+class Trackball:
     """A trackball class for creating camera transforms from mouse movements.
     """
     STATE_ROTATE = 0

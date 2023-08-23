@@ -1,12 +1,10 @@
 import numpy as np
 
-from .. import util
-from .. import caching
-
+from .. import caching, util
 from .. import transformations as tr
 
 
-class Transform(object):
+class Transform:
     """
     Class for caching metadata associated with 4x4 transformations.
 

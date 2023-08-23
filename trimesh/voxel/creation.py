@@ -1,11 +1,8 @@
 import numpy as np
 
-from ..constants import log_time
-from .. import remesh
-from .. import grouping
-from .. import util
+from .. import grouping, remesh, util
 from .. import transformations as tr
-
+from ..constants import log_time
 from . import base
 from . import encoding as enc
 

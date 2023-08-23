@@ -1,12 +1,10 @@
 """Basic morphology operations that create new encodings."""
 import numpy as np
 
+from .. import util
+from ..constants import log_time
 from . import encoding as enc
 from . import ops
-
-from ..constants import log_time
-from .. import util
-
 
 try:
     from scipy import ndimage

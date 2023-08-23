@@ -3,6 +3,7 @@ try:
 except BaseException:
     import generic as g
 from trimesh.voxel import runlength as rl
+
 np = g.np
 
 

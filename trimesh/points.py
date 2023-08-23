@@ -8,16 +8,11 @@ import copy
 
 import numpy as np
 
-from .parent import Geometry3D
-from .geometry import plane_transform
+from . import caching, grouping, transformations, util
 from .constants import tol
+from .geometry import plane_transform
+from .parent import Geometry3D
 from .visual.color import VertexColor
-
-
-from . import util
-from . import caching
-from . import grouping
-from . import transformations
 
 
 def point_plane_distance(points,
@@ -394,8 +389,7 @@ def plot_points(points, show=True):
     elif points.shape[1] == 2:
         plt.scatter(*points.T)
     else:
-        raise ValueError('points not 2D/3D: {}'.format(
-            points.shape))
+        raise ValueError(f'points not 2D/3D: {points.shape}')
 
     if show:
         plt.show()

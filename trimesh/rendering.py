@@ -271,7 +271,7 @@ def colors_to_gl(colors, count):
 
     if dtype is not None and util.is_shape(colors, (count, (3, 4))):
         # save the shape and dtype for opengl color string
-        colors_type = 'c{}{}/static'.format(colors.shape[1], dtype)
+        colors_type = f'c{colors.shape[1]}{dtype}/static'
         # reshape the 2D array into a 1D one and then convert to a python list
         gl_colors = colors.reshape(-1).tolist()
     elif dtype is not None and colors.shape in [(3,), (4,)]:
@@ -279,7 +279,7 @@ def colors_to_gl(colors, count):
         gl_colors = (np.ones((count, colors.size),
                              dtype=colors.dtype) * colors).reshape(-1).tolist()
         # we know we're tiling
-        colors_type = 'c{}{}/static'.format(colors.size, dtype)
+        colors_type = f'c{colors.size}{dtype}/static'
     else:
         # case where colors are wrong shape
         # use black as the default color

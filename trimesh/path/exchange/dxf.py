@@ -1,19 +1,14 @@
-import numpy as np
-
 from collections import defaultdict
 
-from ..arc import to_threepoint
-from ..entities import Line, Arc, BSpline, Text
+import numpy as np
 
-from ... import resources
-from ...util import multi_dict
+from ... import grouping, resources, util
+from ... import transformations as tf
 from ...constants import log
 from ...constants import tol_path as tol
-
-from ... import util
-from ... import grouping
-from ... import transformations as tf
-
+from ...util import multi_dict
+from ..arc import to_threepoint
+from ..entities import Arc, BSpline, Line, Text
 
 # unit codes
 _DXF_UNITS = {1: 'inches',
@@ -560,7 +555,7 @@ def convert_entities(blob, blob_raw=None, blocks=None, return_name=False):
             unsupported[entity_type] += 1
     if len(unsupported) > 0:
         log.debug('skipping dxf entities: {}'.format(
-            ', '.join('{}: {}'.format(k, v) for k, v
+            ', '.join(f'{k}: {v}' for k, v
                       in unsupported.items())))
     # stack vertices into single array
     vertices = util.vstack_empty(vertices).astype(np.float64)
@@ -632,7 +627,7 @@ def export_dxf(path, only_layers=None):
             group = group[:, :2]
             three = three[:, :2]
         # join into result string
-        packed = '\n'.join('{:d}\n{:.12g}'.format(g, v)
+        packed = '\n'.join(f'{g:d}\n{v:.12g}'
                            for g, v in zip(group.reshape(-1),
                                            three.reshape(-1)))
 
@@ -743,7 +738,7 @@ def export_dxf(path, only_layers=None):
 
         normal = [0.0, 0.0, 1.0]
         n_code = [210, 220, 230]
-        n_str = '\n'.join('{:d}\n{:.12g}'.format(i, j)
+        n_str = '\n'.join(f'{i:d}\n{j:.12g}'
                           for i, j in zip(n_code, normal))
 
         subs = entity_info(spline)
@@ -815,9 +810,9 @@ def export_dxf(path, only_layers=None):
     entities_str = '\n'.join(collected)
 
     # add in the extents of the document as explicit XYZ lines
-    hsub = {'EXTMIN_{}'.format(k): v for k, v in zip(
+    hsub = {f'EXTMIN_{k}': v for k, v in zip(
         'XYZ', np.append(path.bounds[0], 0.0))}
-    hsub.update({'EXTMAX_{}'.format(k): v for k, v in zip(
+    hsub.update({f'EXTMAX_{k}': v for k, v in zip(
         'XYZ', np.append(path.bounds[1], 0.0))})
     # apply a units flag defaulting to `1`
     hsub['LUNITS'] = _UNITS_TO_DXF.get(path.units, 1)

@@ -1,5 +1,5 @@
-import os
 import json
+import os
 
 from ..util import decode_text, wrap_as_stream
 
@@ -76,8 +76,8 @@ def get_schema(name):
     schema : dict
       Loaded and resolved schema.
     """
-    from ..schemas import resolve
     from ..resolvers import FilePathResolver
+    from ..schemas import resolve
     # get a resolver for our base path
     resolver = FilePathResolver(
         os.path.join(_pwd, 'schema', name))

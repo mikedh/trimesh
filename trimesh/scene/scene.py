@@ -1,22 +1,13 @@
-import numpy as np
 import collections
 import uuid
 
-from . import cameras
-from . import lighting
+import numpy as np
 
-from .. import util
-from .. import units
-from .. import convex
-from .. import inertia
-from .. import caching
-from .. import grouping
-from .. import transformations
-
-from ..util import unique_name
+from .. import caching, convex, grouping, inertia, transformations, units, util
 from ..exchange import export
 from ..parent import Geometry3D
-
+from ..util import unique_name
+from . import cameras, lighting
 from .transforms import SceneGraph
 
 
@@ -167,8 +158,7 @@ class Scene(Geometry3D):
             return
 
         if not hasattr(geometry, 'vertices'):
-            util.log.debug('unknown type ({}) added to scene!'.format(
-                type(geometry).__name__))
+            util.log.debug(f'unknown type ({type(geometry).__name__}) added to scene!')
             return
 
         # get or create a name to reference the geometry by
@@ -897,8 +887,8 @@ class Scene(Geometry3D):
         graph = SceneGraph(base_frame=node)
         graph.from_edgelist(edges)
 
-        geometry_names = set([e[2]['geometry'] for e in edges
-                              if 'geometry' in e[2]])
+        geometry_names = {e[2]['geometry'] for e in edges
+                              if 'geometry' in e[2]}
         geometry = {k: self.geometry[k] for k in geometry_names}
         result = Scene(geometry=geometry, graph=graph)
         return result
@@ -1102,7 +1092,7 @@ class Scene(Geometry3D):
         """
         # convert 2D geometries to 3D for 3D scaling factors
         scale_is_3D = isinstance(
-            scale, (list, tuple, np.ndarray)) and len(scale) == 3
+            scale, list | tuple | np.ndarray) and len(scale) == 3
 
         if scale_is_3D and np.all(np.asarray(scale) == scale[0]):
             # scale is uniform
@@ -1415,8 +1405,7 @@ def append_scenes(iterable, common=None, base_frame='world'):
             s = s.scene()
         # if we don't have a scene raise an exception
         if not isinstance(s, Scene):
-            raise ValueError('{} is not a scene!'.format(
-                type(s).__name__))
+            raise ValueError(f'{type(s).__name__} is not a scene!')
 
         # remap geometries if they have been consumed
         map_geom = {}

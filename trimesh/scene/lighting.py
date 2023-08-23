@@ -10,9 +10,7 @@ https://github.com/mmatl/pyrender
 
 import numpy as np
 
-from .. import util
-from .. import visual
-from .. import transformations
+from .. import transformations, util, visual
 
 # default light color
 _DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
@@ -48,7 +46,7 @@ class Light(util.ABC):
 
         if name is None:
             # if name is not passed, make it something unique
-            self.name = 'light_{}'.format(util.unique_id(6).upper())
+            self.name = f'light_{util.unique_id(6).upper()}'
         else:
             # otherwise assign it
             self.name = name
@@ -129,7 +127,7 @@ class DirectionalLight(Light):
                  color=None,
                  intensity=None,
                  radius=None):
-        super(DirectionalLight, self).__init__(
+        super().__init__(
             name=name,
             color=color,
             intensity=intensity,
@@ -168,7 +166,7 @@ class PointLight(Light):
                  color=None,
                  intensity=None,
                  radius=None):
-        super(PointLight, self).__init__(
+        super().__init__(
             name=name,
             color=color,
             intensity=intensity,
@@ -220,7 +218,7 @@ class SpotLight(Light):
                  radius=None,
                  innerConeAngle=0.0,
                  outerConeAngle=np.pi / 4.0):
-        super(SpotLight, self).__init__(
+        super().__init__(
             name=name,
             color=color,
             intensity=intensity,

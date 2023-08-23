@@ -829,11 +829,11 @@ class GLTFTest(g.unittest.TestCase):
         # Model with primitives
         s = g.get_mesh('CesiumMilkTruck.glb')
         # check to see if names are somewhat sane
-        assert set(s.geometry.keys()) == set([
+        assert set(s.geometry.keys()) == {
             'Cesium_Milk_Truck',
             'Cesium_Milk_Truck_1',
             'Cesium_Milk_Truck_2',
-            'Wheels'])
+            'Wheels'}
         # Assert that primitive geometries are marked as such
         assert s.geometry['Cesium_Milk_Truck'].metadata[
             'from_gltf_primitive']
@@ -850,8 +850,8 @@ class GLTFTest(g.unittest.TestCase):
         m = g.get_mesh('CesiumMilkTruck.glb',
                        merge_primitives=True)
         # names should be non-insane
-        assert set(m.geometry.keys()) == set([
-            'Cesium_Milk_Truck', 'Wheels'])
+        assert set(m.geometry.keys()) == {
+            'Cesium_Milk_Truck', 'Wheels'}
         assert not s.geometry['Wheels'].metadata[
             'from_gltf_primitive']
         assert s.geometry['Cesium_Milk_Truck'].metadata[
@@ -902,7 +902,7 @@ class GLTFTest(g.unittest.TestCase):
                 if hasattr(geom, 'geometry') and len(geom.geometry) == 0:
                     continue
 
-                g.log.info('Testing: {}'.format(fn))
+                g.log.info(f'Testing: {fn}')
                 # check a roundtrip which will validate on export
                 # and crash on reload if we've done anything screwey
                 # unitize normals will unitize any normals to comply with

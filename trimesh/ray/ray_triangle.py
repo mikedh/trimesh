@@ -3,19 +3,13 @@ A basic slow implementation of ray- triangle queries.
 """
 import numpy as np
 
-
+from .. import caching, grouping, intersections, util
+from .. import triangles as triangles_mod
+from ..constants import tol
 from .ray_util import contains_points
 
-from ..constants import tol
 
-from .. import util
-from .. import caching
-from .. import grouping
-from .. import intersections
-from .. import triangles as triangles_mod
-
-
-class RayMeshIntersector(object):
+class RayMeshIntersector:
     """
     An object to query a mesh for ray intersections.
     Precomputes an r-tree for each triangle on the mesh.

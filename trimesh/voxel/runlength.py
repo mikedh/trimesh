@@ -41,6 +41,7 @@ handled carefully. For example, the `uint8` encoding of 300 zeros
 This module contains implementations of various RLE/BRLE operations.
 """
 import functools
+
 import numpy as np
 
 

@@ -7,13 +7,12 @@ import pathlib
 
 import glooey
 import numpy as np
-
-import pyglet
-import trimesh
-import trimesh.viewer
-import trimesh.transformations as tf
 import PIL.Image
+import pyglet
 
+import trimesh
+import trimesh.transformations as tf
+import trimesh.viewer
 
 here = pathlib.Path(__file__).resolve().parent
 

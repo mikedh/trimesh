@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-import os
 import inspect
+import os
 
 
 def abspath(rel):

@@ -3,7 +3,7 @@ import numpy as np
 from .util import log, now
 
 
-class ToleranceMesh(object):
+class ToleranceMesh:
     """
     ToleranceMesh objects hold tolerance information about meshes.
 
@@ -41,7 +41,7 @@ class ToleranceMesh(object):
         self.__dict__.update(kwargs)
 
 
-class TolerancePath(object):
+class TolerancePath:
     """
     TolerancePath objects contain tolerance information used in
     Path objects.
@@ -102,7 +102,7 @@ class TolerancePath(object):
         self.__dict__.update(kwargs)
 
 
-class ResolutionPath(object):
+class ResolutionPath:
     """
     res.seg_frac : float
       When discretizing curves, what percentage of the drawing

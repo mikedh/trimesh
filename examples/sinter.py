@@ -3,14 +3,12 @@ A demo for packing a volume with multiple meshes as you
 might for a powder volume in a sintered printing process.
 """
 import os
-import trimesh
 
 import numpy as np
-
-from trimesh.path import packing
-
 from pyinstrument import Profiler
 
+import trimesh
+from trimesh.path import packing
 
 # path with our sample models
 models = os.path.abspath(os.path.join(
@@ -65,7 +63,7 @@ if __name__ == '__main__':
     # get some sample data
     meshes = collect_meshes(max_size=size)
 
-    log.debug('loaded {} meshes'.format(len(meshes)))
+    log.debug(f'loaded {len(meshes)} meshes')
 
     # place the meshes into the volume
     with Profiler() as P:

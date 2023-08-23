@@ -9,12 +9,11 @@ For more information, see
 
 """
 
-import trimesh
 import numpy as np
-from trimesh.registration import (nricp_amberg,
-                                  nricp_sumner,
-                                  procrustes)
+
+import trimesh
 from trimesh.proximity import closest_point
+from trimesh.registration import nricp_amberg, nricp_sumner, procrustes
 from trimesh.triangles import points_to_barycentric
 
 

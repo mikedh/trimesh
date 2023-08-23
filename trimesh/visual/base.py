@@ -5,6 +5,7 @@ base.py
 The base class for `Visual` objects
 """
 import abc
+
 from ..util import ABC
 
 

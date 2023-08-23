@@ -73,7 +73,7 @@ class MeshTests(g.unittest.TestCase):
             if method.startswith('_'):
                 continue
             # a string expression to evaluate
-            expr = 'mesh.{}'.format(method)
+            expr = f'mesh.{method}'
 
             try:
                 # get the value of that expression
@@ -94,12 +94,12 @@ class MeshTests(g.unittest.TestCase):
             if method.startswith('_') or method in blacklist:
                 continue
             # a string expression to evaluate
-            expr = 'scene.{}'.format(method)
+            expr = f'scene.{method}'
             # get the value of that expression
             res = eval(expr)
             # shouldn't be None!
             if res is None:
-                raise ValueError('"{}" is None!!'.format(expr))
+                raise ValueError(f'"{expr}" is None!!')
 
 
 if __name__ == '__main__':

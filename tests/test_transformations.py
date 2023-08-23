@@ -16,9 +16,10 @@ class TransformTest(g.unittest.TestCase):
         but it depends on numpy string formatting and is very
         flaky.
         """
-        import trimesh
-        import random
         import doctest
+        import random
+
+        import trimesh
 
         # make sure formatting is the same as their docstrings
         g.np.set_printoptions(suppress=True, precision=5)
@@ -31,7 +32,7 @@ class TransformTest(g.unittest.TestCase):
         results = doctest.testmod(trimesh.transformations,
                                   verbose=False,
                                   raise_on_error=True)
-        g.log.info('transformations {}'.format(str(results)))
+        g.log.info(f'transformations {str(results)}')
 
     def test_downstream(self):
         """

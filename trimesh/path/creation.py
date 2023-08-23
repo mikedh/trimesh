@@ -1,11 +1,9 @@
 import numpy as np
 
-from . import arc
-from .entities import Line, Arc
+from .. import transformations, util
 from ..geometry import plane_transform
-
-from .. import util
-from .. import transformations
+from . import arc
+from .entities import Arc, Line
 
 
 def circle_pattern(pattern_radius,

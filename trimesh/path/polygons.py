@@ -1,17 +1,11 @@
 import numpy as np
-
 from shapely import ops
 from shapely.geometry import Polygon
 
-from .. import bounds
-from .. import graph
-from .. import geometry
-from .. import grouping
-
+from .. import bounds, geometry, graph, grouping
 from ..constants import log
 from ..constants import tol_path as tol
 from ..transformations import transform_points
-
 from .simplify import fit_circle_check
 from .traversal import resample_path
 

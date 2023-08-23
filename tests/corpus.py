@@ -5,12 +5,11 @@ corpus.py
 Test loaders against large corpuses of test data from github:
 will download more than a gigabyte to your home directory!
 """
-import trimesh
-from trimesh.util import wrap_as_stream, log
 import numpy as np
-
 from pyinstrument import Profiler
 
+import trimesh
+from trimesh.util import log, wrap_as_stream
 
 # get a set with available extension
 available = trimesh.available_formats()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # transformations.py
 
 # Modified for inclusion in the `trimesh` library
@@ -196,10 +195,10 @@ True
 True
 
 """
-from __future__ import division, print_function
 
 
 import math
+
 import numpy as np
 
 __version__ = '2017.02.17'
@@ -1590,7 +1589,7 @@ def random_rotation_matrix(rand=None, num=1, translate=False):
     return matrix
 
 
-class Arcball(object):
+class Arcball:
     """Virtual Trackball Control.
 
     >>> ball = Arcball()
@@ -1761,7 +1760,7 @@ _AXES2TUPLE = {
     'rzxy': (1, 1, 0, 1), 'ryxy': (1, 1, 1, 1), 'ryxz': (2, 0, 0, 1),
     'rzxz': (2, 0, 1, 1), 'rxyz': (2, 1, 0, 1), 'rzyz': (2, 1, 1, 1)}
 
-_TUPLE2AXES = dict((v, k) for k, v in _AXES2TUPLE.items())
+_TUPLE2AXES = {v: k for k, v in _AXES2TUPLE.items()}
 
 
 def vector_norm(data, axis=None, out=None):

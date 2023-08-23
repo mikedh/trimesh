@@ -1,10 +1,9 @@
 import os
 import platform
 import subprocess
-
 from string import Template
+from subprocess import CalledProcessError, check_output
 from tempfile import NamedTemporaryFile
-from subprocess import check_output, CalledProcessError
 
 from .. import exchange
 from ..util import log
@@ -33,14 +32,12 @@ class MeshScript:
         digit_count = len(str(len(self.meshes)))
         self.mesh_pre = [
             NamedTemporaryFile(
-                suffix='.{}'.format(
-                    self.exchange),
-                prefix='{}_'.format(str(i).zfill(digit_count)),
+                suffix=f'.{self.exchange}',
+                prefix=f'{str(i).zfill(digit_count)}_',
                 mode='wb',
                 delete=False) for i in range(len(self.meshes))]
         self.mesh_post = NamedTemporaryFile(
-            suffix='.{}'.format(
-                self.exchange),
+            suffix=f'.{self.exchange}',
             mode='rb',
             delete=False)
         self.script_out = NamedTemporaryFile(
@@ -102,8 +99,7 @@ class MeshScript:
 
     def __exit__(self, *args, **kwargs):
         if self.debug:
-            log.info('MeshScript.debug: not deleting {}'.format(
-                self.script_out.name))
+            log.info(f'MeshScript.debug: not deleting {self.script_out.name}')
             return
         # delete all the temporary files by name
         # they are closed but their names are still available

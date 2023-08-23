@@ -5,22 +5,16 @@ creation.py
 Create meshes from primitives, or with operations.
 """
 
-from .base import Trimesh
-from .constants import log, tol
-from .geometry import (faces_to_edges,
-                       align_vectors,
-                       plane_transform)
-
-from . import util
-from . import grouping
-from . import triangles
-from . import exceptions
-from . import transformations as tf
+import collections
+import warnings
 
 import numpy as np
 
-import warnings
-import collections
+from . import exceptions, grouping, triangles, util
+from . import transformations as tf
+from .base import Trimesh
+from .constants import log, tol
+from .geometry import align_vectors, faces_to_edges, plane_transform
 
 try:
     # shapely is a soft dependency
@@ -632,7 +626,7 @@ def box(extents=None, transform=None, bounds=None, **kwargs):
                                  dtype=np.float64).reshape(-1, 3)
 
     if 'metadata' not in kwargs:
-        kwargs['metadata'] = dict()
+        kwargs['metadata'] = {}
     kwargs['metadata'].update(
         {'shape': 'box',
          'extents': extents})
@@ -850,7 +844,7 @@ def cone(radius,
                   [0, height]]
     # revolve the profile to create a cone
     if 'metadata' not in kwargs:
-        kwargs['metadata'] = dict()
+        kwargs['metadata'] = {}
     kwargs['metadata'].update(
         {'shape': 'cone',
          'radius': radius,
@@ -907,7 +901,7 @@ def cylinder(radius,
                   [radius, half],
                   [0, half]]
     if 'metadata' not in kwargs:
-        kwargs['metadata'] = dict()
+        kwargs['metadata'] = {}
     kwargs['metadata'].update(
         {'shape': 'cylinder',
          'height': height,
@@ -977,7 +971,7 @@ def annulus(r_min,
                   [r_min, -half]]
 
     if 'metadata' not in kwargs:
-        kwargs['metadata'] = dict()
+        kwargs['metadata'] = {}
     kwargs['metadata'].update(
         {'shape': 'annulus',
          'r_min': r_min,

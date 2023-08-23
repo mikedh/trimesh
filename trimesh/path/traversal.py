@@ -1,11 +1,9 @@
 import copy
+
 import numpy as np
 
+from .. import constants, grouping, util
 from .util import is_ccw
-
-from .. import util
-from .. import grouping
-from .. import constants
 
 try:
     import networkx as nx

@@ -13,8 +13,7 @@ from pyglet import gl
 
 from .. import rendering
 from .trackball import Trackball
-from .windowed import geometry_hash
-from .windowed import SceneViewer
+from .windowed import SceneViewer, geometry_hash
 
 
 class SceneGroup(pyglet.graphics.Group):
@@ -144,7 +143,7 @@ class SceneWidget(glooey.Widget):
         self._background = kwargs.pop('background', None)
         self._smooth = kwargs.pop('smooth', True)
         if kwargs:
-            raise TypeError('unexpected kwargs: {}'.format(kwargs))
+            raise TypeError(f'unexpected kwargs: {kwargs}')
 
     @property
     def scene_group(self):

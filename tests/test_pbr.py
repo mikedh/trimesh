@@ -1,7 +1,8 @@
 import unittest
 
-import trimesh
 import numpy as np
+
+import trimesh
 
 
 class PBRTest(unittest.TestCase):

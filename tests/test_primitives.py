@@ -171,8 +171,8 @@ class PrimitiveTest(g.unittest.TestCase):
 
     def test_primitives(self):
 
-        kind = set([i.__class__.__name__
-                    for i in self.primitives])
+        kind = {i.__class__.__name__
+                    for i in self.primitives}
         # make sure our test data has every primitive
         kinds = {'Box', 'Capsule', 'Cylinder', 'Sphere'}
         if has_triangle:

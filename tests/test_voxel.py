@@ -282,7 +282,7 @@ class VoxelGridTest(g.unittest.TestCase):
         `is_filled` are tested for consistency.
         """
         def array_as_set(array2d):
-            return set(tuple(x) for x in array2d)
+            return {tuple(x) for x in array2d}
 
         # all points are filled
         assert g.np.all(v0.is_filled(v1.points))

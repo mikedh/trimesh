@@ -134,17 +134,14 @@ class Geometry(ABC):
         elements = []
         if hasattr(self, 'vertices'):
             # for Trimesh and PointCloud
-            elements.append('vertices.shape={}'.format(
-                self.vertices.shape))
+            elements.append(f'vertices.shape={self.vertices.shape}')
         if hasattr(self, 'faces'):
             # for Trimesh
-            elements.append('faces.shape={}'.format(
-                self.faces.shape))
+            elements.append(f'faces.shape={self.faces.shape}')
         if hasattr(self, 'geometry') and isinstance(
                 self.geometry, dict):
             # for Scene
-            elements.append('len(geometry)={}'.format(
-                len(self.geometry)))
+            elements.append(f'len(geometry)={len(self.geometry)}')
         if 'Voxel' in type(self).__name__:
             # for VoxelGrid objects
             elements.append(str(self.shape)[1:-1])
@@ -252,7 +249,7 @@ class Geometry3D(Geometry):
           representing the minimum volume oriented
           bounding box of the mesh
         """
-        from . import primitives, bounds
+        from . import bounds, primitives
         to_origin, extents = bounds.oriented_bounds(self)
         obb = primitives.Box(transform=np.linalg.inv(to_origin),
                              extents=extents,
@@ -275,7 +272,7 @@ class Geometry3D(Geometry):
         minball : trimesh.primitives.Sphere
           Sphere primitive containing current mesh
         """
-        from . import primitives, nsphere
+        from . import nsphere, primitives
         center, radius = nsphere.minimum_nsphere(self)
         minball = primitives.Sphere(center=center,
                                     radius=radius,
@@ -292,7 +289,7 @@ class Geometry3D(Geometry):
         mincyl : trimesh.primitives.Cylinder
           Cylinder primitive containing current mesh
         """
-        from . import primitives, bounds
+        from . import bounds, primitives
         kwargs = bounds.minimum_cylinder(self)
         mincyl = primitives.Cylinder(mutable=False, **kwargs)
         return mincyl

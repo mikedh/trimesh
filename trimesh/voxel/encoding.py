@@ -1,11 +1,11 @@
 """OO interfaces to encodings for ND arrays which caching."""
+import abc
+
 import numpy as np
 
-import abc
-from ..util import ABC, log
-
-from . import runlength
 from .. import caching
+from ..util import ABC, log
+from . import runlength
 
 try:
     from scipy import sparse as sp
@@ -201,7 +201,7 @@ class DenseEncoding(Encoding):
             if not isinstance(data, np.ndarray):
                 raise ValueError('DenseEncoding data must be a numpy array')
             data = caching.tracked_array(data)
-        super(DenseEncoding, self).__init__(data=data)
+        super().__init__(data=data)
 
     @property
     def dtype(self):
@@ -292,7 +292,7 @@ class SparseEncoding(Encoding):
             + 1 is used.
         """
         data = caching.DataStore()
-        super(SparseEncoding, self).__init__(data)
+        super().__init__(data)
         data['indices'] = indices
         data['values'] = values
         indices = data['indices']
@@ -301,8 +301,7 @@ class SparseEncoding(Encoding):
                 'indices must be 2D, got shaped %s' % str(indices.shape))
         if data['values'].shape != (indices.shape[0],):
             raise ValueError(
-                'values and indices shapes inconsistent: %s and %s'
-                % (data['values'], data['indices']))
+                'values and indices shapes inconsistent: {} and {}'.format(data['values'], data['indices']))
         if shape is None:
             self._shape = tuple(data['indices'].max(axis=0) + 1)
         else:
@@ -446,7 +445,7 @@ class RunLengthEncoding(Encoding):
         dtype: dtype of encoded data. Each second value of data is cast will be
             cast to this dtype if provided.
         """
-        super(RunLengthEncoding, self).__init__(
+        super().__init__(
             data=caching.tracked_array(data))
         if dtype is None:
             dtype = self._data.dtype
@@ -595,7 +594,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
         ------------
         data: binary run length encoded data.
         """
-        super(BinaryRunLengthEncoding, self).__init__(data=data, dtype=bool)
+        super().__init__(data=data, dtype=bool)
 
     @caching.cache_decorator
     def is_empty(self):
@@ -783,7 +782,7 @@ class ShapedEncoding(LazyIndexMap):
                 encoding = encoding.flat
         else:
             raise ValueError('encoding must be an Encoding')
-        super(ShapedEncoding, self).__init__(data=encoding)
+        super().__init__(data=encoding)
         self._shape = tuple(shape)
         nn = self._shape.count(-1)
         size = np.prod(self._shape)
@@ -844,7 +843,7 @@ class TransposedEncoding(LazyIndexMap):
             raise ValueError(
                 'base_encoding has %d ndims - cannot transpose with perm %s'
                 % (base_encoding.ndims, str(perm)))
-        super(TransposedEncoding, self).__init__(base_encoding)
+        super().__init__(base_encoding)
         perm = np.array(perm, dtype=np.int64)
         if not all(i in perm for i in range(base_encoding.ndims)):
             raise ValueError('perm %s is not a valid permutation' % str(perm))
@@ -921,7 +920,7 @@ class FlippedEncoding(LazyIndexMap):
         if len(set(self._axes)) != len(self._axes):
             raise ValueError(
                 "Axes cannot contain duplicates, got %s" % str(self._axes))
-        super(FlippedEncoding, self).__init__(encoding)
+        super().__init__(encoding)
         if not all(0 <= a < self._data.ndims for a in axes):
             raise ValueError(
                 'Invalid axes %s for %d-d encoding'

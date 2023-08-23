@@ -3,12 +3,26 @@ build-backend = "setuptools.build_meta"
 requires = ["setuptools >= 40.8", "wheel"]
 
 [tool.ruff]
-select = ["E", "F", # the default rules
-          "T201",   # disallow print statements
-	   "B"]      # pass bugbear
-ignore = ["B905", # `zip()` without an explicit `strict=`
-          "B904", # `raise ... from err` seems a bit silly
-	  "B018"] # useless expression ideally ignore only on `tests`
+# See https://github.com/charliermarsh/ruff#rules for error code definitions.
+select = [
+    # "ANN", # annotations
+    "B", # bugbear
+    "C", # comprehensions
+    "E", # style errors
+    "F", # flakes
+    "I", # import sorting
+    "RUF100", # meta
+    "U", # upgrade
+    "W", # style warnings
+    "YTT", # sys.version
+]
+ignore = [
+  "C901", # Comprehension is too complex (11 > 10)
+  "N802", # Function name should be lowercase
+  "N806", # Variable in function should be lowercase
+  "E501", # Line too long ({width} > {limit} characters)
+  "B905", # zip() without an explicit strict= parameter
+]
 line-length = 90
 
 [tool.autopep8]

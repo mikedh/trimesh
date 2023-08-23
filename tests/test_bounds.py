@@ -291,7 +291,7 @@ class BoundsTest(g.unittest.TestCase):
         meshes = list(g.get_meshes(split=True,
                                    min_volume=min_volume,
                                    only_watertight=True))
-        g.log.debug('loaded {} meshes'.format(len(meshes)))
+        g.log.debug(f'loaded {len(meshes)} meshes')
 
         if g.PY3:
             # our models corpus should have 200+ models

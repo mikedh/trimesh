@@ -367,8 +367,8 @@ class SceneTests(g.unittest.TestCase):
                              r.extents)
 
         # duplicate node groups should be twice as long
-        set_ori = set([len(i) * 2 for i in s.duplicate_nodes])
-        set_dbl = set([len(i) for i in r.duplicate_nodes])
+        set_ori = {len(i) * 2 for i in s.duplicate_nodes}
+        set_dbl = {len(i) for i in r.duplicate_nodes}
 
         assert set_ori == set_dbl
 

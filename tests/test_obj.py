@@ -115,7 +115,7 @@ class OBJTest(g.unittest.TestCase):
         # load a simple OBJ file without merging vertices
         m = g.trimesh.load(file_name, process=False)
         # use trivial loading to compare with fancy performant one
-        with open(file_name, 'r') as f:
+        with open(file_name) as f:
             f, v, vt = simple_load(f.read())
         # trimesh loader should return the same face order
         assert g.np.allclose(f, m.faces)
@@ -132,7 +132,7 @@ class OBJTest(g.unittest.TestCase):
             process=False,
             maintain_order=True)
         # use trivial loading to compare with fancy performant one
-        with open(file_name, 'r') as f:
+        with open(file_name) as f:
             f, v, vt = simple_load(f.read())
         # trimesh loader should return the same face order
         assert g.np.allclose(f, m.faces)
@@ -361,8 +361,8 @@ class OBJTest(g.unittest.TestCase):
 
         mtl = r['mystuff.mtl'].decode('utf-8')
         assert mtl.count('newmtl') == 1
-        assert 'newmtl {}'.format(dummy) in mtl
-        assert '{}.jpeg'.format(dummy) in r
+        assert f'newmtl {dummy}' in mtl
+        assert f'{dummy}.jpeg' in r
 
     def test_compound_scene_export(self):
 

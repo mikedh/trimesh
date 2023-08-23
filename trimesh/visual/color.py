@@ -22,18 +22,15 @@ Goals
    and setting or altering a value should automatically change the mode.
 """
 
+import colorsys
+import copy
+
 import numpy as np
 
-import copy
-import colorsys
-
-from .base import Visuals
-
-from .. import util
-from .. import caching
-
-from ..grouping import unique_rows
+from .. import caching, util
 from ..constants import tol
+from ..grouping import unique_rows
+from .base import Visuals
 
 
 class ColorVisuals(Visuals):

@@ -7,9 +7,8 @@ Query mesh- point proximity.
 import numpy as np
 
 from . import util
-
+from .constants import log_time, tol
 from .grouping import group_min
-from .constants import tol, log_time
 from .triangles import closest_point as _corresponding
 from .triangles import points_to_barycentric
 
@@ -302,7 +301,7 @@ class NearestQueryResult:
         return self.normals is not None or self.interpolated_normals is not None
 
 
-class ProximityQuery(object):
+class ProximityQuery:
     """
     Proximity queries for the current mesh.
     """

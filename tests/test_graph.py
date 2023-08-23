@@ -260,7 +260,7 @@ def check_engines(edges, nodes):
             diff = g.np.setdiff1d(g.np.hstack(c), nodes)
             assert len(diff) == 0
         # store the result as a set of tuples so we can compare
-        results.append(set([tuple(sorted(i)) for i in c]))
+        results.append({tuple(sorted(i)) for i in c})
 
     # make sure different engines are returning the same thing
     try:

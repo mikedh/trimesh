@@ -5,12 +5,11 @@ notebook.py
 Render trimesh.Scene objects in HTML
 and jupyter notebooks using three.js
 """
-import os
 import base64
+import os
 
 # for our template
-from .. import util
-from .. import resources
+from .. import resources, util
 
 
 def scene_to_html(scene):

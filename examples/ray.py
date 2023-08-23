@@ -7,8 +7,9 @@ requires numpy, but if you install `pyembree` you get the
 same API with a roughly 50x speedup.
 """
 
-import trimesh
 import numpy as np
+
+import trimesh
 
 if __name__ == '__main__':
 

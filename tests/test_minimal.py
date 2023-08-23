@@ -7,10 +7,11 @@ Test things that should work with a *minimal* trimesh install.
 
 """
 import os
-
 import unittest
-import trimesh
+
 import numpy as np
+
+import trimesh
 
 # the path of the current directory
 _pwd = os.path.dirname(
