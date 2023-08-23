@@ -4,7 +4,7 @@ requires = ["setuptools >= 60", "wheel"]
 
 [project]
 name = "trimesh"
-version = "3.23.3"
+version = "4.0.0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {text = "MIT"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -56,30 +56,9 @@ easy = [
     "embreex",
     "pillow",
 ]
-all = [
-    "colorlog",
-    "mapbox-earcut",
-    "lxml",
-    "networkx",
-    "svg.path",
-    "pycollada",
-    "shapely",
-    "xatlas",
-    "python-fcl",
-    "scipy",
-    "embreex",
-    "chardet",
-    "pyglet<2",
-    "jsonschema",
-    "setuptools",
-    "xxhash",
-    "scikit-image",
-    "rtree",
-    "psutil",
-    "requests",
-    "pillow",
-]
-recommends = ["glooey", "sympy", "meshio"]
+
+recommend = [
+"glooey", "sympy", "meshio", "pyglet<2", "psutil", "xatlas", "scikit-image", "python-fcl"]
 
 [tool.setuptools.packages.find]
 include = ["trimesh"]
