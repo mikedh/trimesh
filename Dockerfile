@@ -20,8 +20,8 @@ FROM base AS build
 RUN trimesh-setup --install build
 
 # copy in essential files
-COPY --chown=user:user trimesh/ /home/user/trimesh
-COPY --chown=user:user setup.py /home/user/
+COPY --chown=499 trimesh/ /home/user/trimesh
+COPY --chown=499 setup.py /home/user/
 
 # switch to non-root user
 USER user
@@ -42,7 +42,7 @@ USER user
 WORKDIR /home/user
 
 # just copy over the results of the compiled packages
-COPY --chown=user:user --from=build /home/user/.local /home/user/.local
+COPY --chown=499 --from=build /home/user/.local /home/user/.local
 
 # Set environment variables for software rendering.
 ENV XVFB_WHD="1920x1080x24"\
@@ -55,19 +55,21 @@ ENV XVFB_WHD="1920x1080x24"\
 FROM output AS tests
 
 # copy in tests and supporting files
-COPY --chown=user:user tests ./tests/
-COPY --chown=user:user models ./models/
-COPY --chown=user:user setup.py .
+COPY --chown=499 tests ./tests/
+COPY --chown=499 trimesh ./trimesh/
+COPY --chown=499 models ./models/
+COPY --chown=499 setup.py .
+COPY --chown=499 pyproject.toml .
 
 # codecov looks at the git history
-COPY --chown=user:user ./.git ./.git/
+COPY --chown=499 ./.git ./.git/
 
 USER root
 RUN trimesh-setup --install=test,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
-RUN pip install .[all,easy,recommends,tests]
+RUN pip install -e .[all,easy,recommends,tests]
 
 # run pytest wrapped with xvfb for simple viewer tests
 RUN xvfb-run pytest --cov=trimesh \
@@ -90,11 +92,11 @@ USER root
 RUN trimesh-setup --install docs
 USER user
 
-COPY --chown=user:user README.md .
-COPY --chown=user:user docs ./docs/
-COPY --chown=user:user examples ./examples/
-COPY --chown=user:user models ./models/
-COPY --chown=user:user trimesh ./trimesh/
+COPY --chown=499 README.md .
+COPY --chown=499 docs ./docs/
+COPY --chown=499 examples ./examples/
+COPY --chown=499 models ./models/
+COPY --chown=499 trimesh ./trimesh/
 
 WORKDIR /home/user/docs
 RUN make
