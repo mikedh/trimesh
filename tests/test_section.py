@@ -291,6 +291,32 @@ class SliceTest(g.unittest.TestCase):
 
         assert len(sliced.faces) > 0
 
+    def test_textured_mesh(self):
+        # Create a plane mesh with UV == xy
+        plane = g.trimesh.Trimesh(
+            vertices=g.np.array([[0., 0., 0.], [1., 0., 0.], [1., 1., 0.], [0., 1., 0.]]),
+            faces=g.np.array([[0, 1, 2], [2, 3, 0]]))
+        plane.visual = g.trimesh.visual.TextureVisuals(
+            uv=plane.vertices[:, :2], material=g.trimesh.visual.material.empty_material())
+
+        # We cut the plane and check that the new UV match the new vertices
+        origin = g.np.array([0.5, 0.5, 0.])
+        normal = g.trimesh.unitize([2, 1, 2])
+        sliced = plane.slice_plane(plane_origin=origin, plane_normal=normal)
+        assert g.np.isclose(sliced.vertices[:, :2], sliced.visual.uv).all()
+
+        # Test scenario when plane does not cut
+        origin = g.np.array([-1., -1., 0.])
+        normal = g.trimesh.unitize([1, 1, 2])
+        sliced = plane.slice_plane(plane_origin=origin, plane_normal=normal)
+        assert g.np.isclose(sliced.vertices[:, :2], sliced.visual.uv).all()
+
+        # Test cut with no new vertices
+        origin = g.np.array([0.5, 0.5, 0.])
+        normal = g.trimesh.unitize([2, -2, 1])
+        sliced = plane.slice_plane(plane_origin=origin, plane_normal=normal)
+        assert g.np.isclose(sliced.vertices[:, :2], sliced.visual.uv).all()
+
     def test_cap_coplanar(self):
         # check to see if we handle capping with
         # existing coplanar faces correctly

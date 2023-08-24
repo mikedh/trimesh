@@ -13,6 +13,7 @@ from . import triangles as tm
 from . import transformations as tf
 
 from .constants import tol
+from .triangles import points_to_barycentric
 
 
 def mesh_plane(mesh,
@@ -430,6 +431,7 @@ def slice_faces_plane(vertices,
                       faces,
                       plane_normal,
                       plane_origin,
+                      uv=None,
                       face_index=None,
                       cached_dots=None):
     """
@@ -447,6 +449,8 @@ def slice_faces_plane(vertices,
         Normal vector of plane to intersect with mesh
     plane_origin :  (3,) float
         Point on plane to intersect with mesh
+    uv : (n, 2) float, optional
+        UV coordinates of source mesh to slice
     face_index : ((m,) int)
         Indexes of faces to slice. When no mask is provided, the
         default is to slice all faces.
@@ -460,10 +464,14 @@ def slice_faces_plane(vertices,
         Vertices of sliced mesh
     new_faces : (n, 3) int
         Faces of sliced mesh
+    new_uv : (n, 2) int or None
+        UV coordinates of sliced mesh
     """
 
     if len(vertices) == 0:
-        return vertices, faces
+        return vertices, faces, uv
+
+    have_uv = uv is not None
 
     # Construct a mask for the faces to slice.
     if face_index is not None:
@@ -539,7 +547,8 @@ def slice_faces_plane(vertices,
         if len(new_faces) == 0:
             # if no new faces at all return empty arrays
             empty = (np.zeros((0, 3), dtype=np.float64),
-                     np.zeros((0, 3), dtype=np.int64))
+                     np.zeros((0, 3), dtype=np.int64),
+                     np.zeros((0, 2), dtype=np.float64) if have_uv else None)
             return empty
 
         # find the unique indices in the new faces
@@ -551,8 +560,9 @@ def slice_faces_plane(vertices,
         # use the unique indices for our final vertices and faces
         final_vert = vertices[unique]
         final_face = inverse.reshape((-1, 3))
+        final_uv = uv[unique] if have_uv else None
 
-        return final_vert, final_face
+        return final_vert, final_face, final_uv
 
     # Extract the intersections of each triangle's edges with the plane
     o = cut_triangles                               # origins
@@ -566,6 +576,8 @@ def slice_faces_plane(vertices,
 
     # Initialize the array of new vertices with the current vertices
     new_vertices = vertices
+    new_quad_vertices = np.zeros((0, 3))
+    new_tri_vertices = np.zeros((0, 3))
 
     # Handle the case where a new quad is formed by the intersection
     # First, extract the intersection points belonging to a new quad
@@ -641,7 +653,23 @@ def slice_faces_plane(vertices,
     final_vert = new_vertices[unique]
     final_face = inverse.reshape((-1, 3))
 
-    return final_vert, final_face
+    final_uv = None
+    if have_uv:
+        # Generate barycentric coordinates for intersection vertices
+        quad_barycentrics = points_to_barycentric(
+            np.repeat(vertices[cut_faces_quad], 2, axis=0),
+            new_quad_vertices)
+        tri_barycentrics = points_to_barycentric(
+            np.repeat(vertices[cut_faces_tri], 2, axis=0),
+            new_tri_vertices)
+        all_barycentrics = np.concatenate([quad_barycentrics, tri_barycentrics])
+
+        # Interpolate UVs
+        cut_uv = np.concatenate([uv[cut_faces_quad], uv[cut_faces_tri]])
+        new_uv = np.einsum('ijk,ij->ik', np.repeat(cut_uv, 2, axis=0), all_barycentrics)
+        final_uv = np.concatenate([uv, new_uv])[unique]
+
+    return final_vert, final_face, final_uv
 
 
 def slice_mesh_plane(mesh,
@@ -689,6 +717,7 @@ def slice_mesh_plane(mesh,
 
     # avoid circular import
     from .base import Trimesh
+    from .visual import TextureVisuals
     from .path import polygons
     from scipy.spatial import cKDTree
     from .creation import triangulate_polygon
@@ -712,6 +741,11 @@ def slice_mesh_plane(mesh,
     vertices = mesh.vertices.copy()
     faces = mesh.faces.copy()
 
+    # We copy the UV coordinates if available
+    has_uv = (hasattr(mesh.visual, 'uv') and np.shape(
+        mesh.visual.uv) == (len(mesh.vertices), 2)) and not cap
+    uv = mesh.visual.uv.copy() if has_uv else None
+
     if 'process' not in kwargs:
         kwargs['process'] = False
 
@@ -719,9 +753,10 @@ def slice_mesh_plane(mesh,
     for origin, normal in zip(plane_origin.reshape((-1, 3)),
                               plane_normal.reshape((-1, 3))):
         # save the new vertices and faces
-        vertices, faces = slice_faces_plane(
+        vertices, faces, uv = slice_faces_plane(
             vertices=vertices,
             faces=faces,
+            uv=uv,
             plane_normal=normal,
             plane_origin=origin,
             face_index=face_index)
@@ -774,5 +809,8 @@ def slice_mesh_plane(mesh,
                 faces.append(vid[fn])
             faces = np.vstack(faces)
 
+    visual = TextureVisuals(
+        uv=uv, material=mesh.visual.material.copy()) if has_uv else None
+
     # return the sliced mesh
-    return Trimesh(vertices=vertices, faces=faces, **kwargs)
+    return Trimesh(vertices=vertices, faces=faces, visual=visual, **kwargs)
