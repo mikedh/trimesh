@@ -29,7 +29,7 @@ USER user
 # install trimesh into .local
 # then delete any included test directories
 # and remove Cython after all the building is complete
-RUN pip install /home/user[easy] && \
+RUN pip install --user /home/user[easy] && \
     find /home/user/.local -type d -name tests -prune -exec rm -rf {} \; && \
     pip uninstall -y cython
 

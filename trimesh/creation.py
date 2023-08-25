@@ -76,11 +76,11 @@ def revolve(linestring,
 
     if angle is None:
         # default to closing the revolution
-        angle = np.pi * 2
+        angle = np.pi * 2.0
         closed = True
     else:
         # check passed angle value
-        closed = angle >= ((np.pi * 2) - 1e-8)
+        closed = util.isclose(angle, np.pi * 2, atol=1e-10)
 
     if sections is None:
         # default to 32 sections for a full revolution
@@ -160,6 +160,7 @@ def revolve(linestring,
         # if revolved curve starts and ends with zero radius
         # it should really be a valid volume, unless the sign
         # reversed on the input linestring
+        assert closed
         assert mesh.is_volume
         assert mesh.body_count == 1
 
