@@ -108,13 +108,14 @@ class MinimalTest(unittest.TestCase):
         try:
             get_mesh('cycloidal.3DXML')
         except BaseException as E:
-            exc = str(E)
+            exc = str(E).lower()
 
         # should have raised
         assert exc is not None
 
         # error message should have been useful
-        assert 'lxml' in exc
+        if 'lxml' not in exc:
+            raise ValueError(exc)
 
 
 if __name__ == '__main__':
