@@ -114,7 +114,8 @@ class MinimalTest(unittest.TestCase):
         assert exc is not None
 
         # error message should have been useful
-        if 'lxml' not in exc:
+        # containing which module the user was missing
+        if not any(m in exc for m in ('lxml', 'networkx')):
             raise ValueError(exc)
 
 
