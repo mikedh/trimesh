@@ -33,18 +33,28 @@ file = "README.md"
 content-type = "text/markdown"
 
 [tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["trimesh"]
+packages = [
+    "trimesh",
+    "trimesh.ray",
+    "trimesh.path",
+    "trimesh.path.exchange",
+    "trimesh.scene",
+    "trimesh.voxel",
+    "trimesh.visual",
+    "trimesh.viewer",
+    "trimesh.exchange",
+    "trimesh.resources",
+    "trimesh.interfaces",
+]
+include-package-data = false
 
 [tool.setuptools.package-data]
-"trimesh.resources" = [
-    "templates/*",
-    "*.json",
-    "schema/*",
-    "schema/primitive/*.json",
-    "*.zip",
+trimesh = [
+    "resources/templates/*",
+    "resources/*.json",
+    "resources/schema/*",
+    "resources/schema/primitive/*.json",
+    "resources/*.zip",
 ]
 
 [project.optional-dependencies]
