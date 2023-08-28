@@ -391,6 +391,9 @@ def ray_bounds(ray_origins,
     axis_dir = np.array([ray_directions[i][a]
                          for i, a in enumerate(axis)]).reshape((-1, 1))
 
+    # prevent division by zero
+    axis_dir[axis_dir == 0] = tol.zero
+
     # parametric equation of a line
     # point = direction*t + origin
     # p = dt + o
