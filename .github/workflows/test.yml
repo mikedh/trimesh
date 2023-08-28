@@ -24,14 +24,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.6", "3.11"]
+        python-version: ["3.7", "3.11"]
         os: [ubuntu-latest, windows-latest, macos-latest]
-        exclude:
-          - os: ubuntu-latest
-            python-version: 3.6
-        include:
-          - os: ubuntu-20.04
-            python-version: 3.6
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}

@@ -1,10 +1,10 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools >= 59.6", "wheel"]
+requires = ["setuptools >= 61.0", "wheel"]
 
 [project]
 name = "trimesh"
-requires-python = ">=3.6"
+requires-python = ">=3.7"
 version = "4.0.0.rc0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {text = "MIT"}
