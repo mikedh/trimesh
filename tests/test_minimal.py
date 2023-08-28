@@ -108,13 +108,15 @@ class MinimalTest(unittest.TestCase):
         try:
             get_mesh('cycloidal.3DXML')
         except BaseException as E:
-            exc = str(E)
+            exc = str(E).lower()
 
         # should have raised
         assert exc is not None
 
         # error message should have been useful
-        assert 'lxml' in exc
+        # containing which module the user was missing
+        if not any(m in exc for m in ('lxml', 'networkx')):
+            raise ValueError(exc)
 
 
 if __name__ == '__main__':

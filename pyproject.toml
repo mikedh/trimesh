@@ -4,7 +4,8 @@ requires = ["setuptools >= 60", "wheel"]
 
 [project]
 name = "trimesh"
-version = "4.0.0"
+requires-python = ">=3.7"
+version = "4.0.0.rc0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {text = "MIT"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -17,8 +18,12 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Natural Language :: English",
     "Topic :: Scientific/Engineering",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling"
 ]
 urls = {Homepage = "https://github.com/mikedh/trimesh"}
 dependencies = ["numpy"]
@@ -26,6 +31,31 @@ dependencies = ["numpy"]
 [project.readme]
 file = "README.md"
 content-type = "text/markdown"
+
+[tool.setuptools]
+packages = [
+    "trimesh",
+    "trimesh.ray",
+    "trimesh.path",
+    "trimesh.path.exchange",
+    "trimesh.scene",
+    "trimesh.voxel",
+    "trimesh.visual",
+    "trimesh.viewer",
+    "trimesh.exchange",
+    "trimesh.resources",
+    "trimesh.interfaces",
+]
+include-package-data = false
+
+[tool.setuptools.package-data]
+trimesh = [
+    "resources/templates/*",
+    "resources/*.json",
+    "resources/schema/*",
+    "resources/schema/primitive/*.json",
+    "resources/*.zip",
+]
 
 [project.optional-dependencies]
 test = [
@@ -58,18 +88,14 @@ easy = [
 ]
 
 recommend = [
-"glooey", "sympy", "meshio", "pyglet<2", "psutil", "xatlas", "scikit-image", "python-fcl"]
-
-[tool.setuptools.packages.find]
-include = ["trimesh"]
-
-[tool.setuptools.package-data]
-trimesh = [
-    "resources/templates/*",
-    "resources/*.json",
-    "resources/schema/*",
-    "resources/schema/primitive/*.json",
-    "resources/*.zip",
+    "glooey",
+    "sympy",
+    "meshio",
+    "pyglet<2",
+    "psutil",
+    "xatlas",
+    "scikit-image",
+    "python-fcl"
 ]
 
 
