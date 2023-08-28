@@ -126,7 +126,7 @@ class CreationTest(g.unittest.TestCase):
         assert isinstance(meshes, list)
         # all meshes should be viewable type
         for mesh in meshes:
-            assert isinstance(mesh, g.trimesh.Trimesh | g.trimesh.path.Path3D)
+            assert isinstance(mesh, (g.trimesh.Trimesh, g.trimesh.path.Path3D))
 
     def test_axis(self):
         # specify the size of the origin radius

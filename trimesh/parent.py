@@ -5,7 +5,6 @@ parent.py
 The base class for Trimesh, PointCloud, and Scene objects
 """
 import abc
-import warnings
 
 import numpy as np
 
@@ -39,60 +38,6 @@ class Geometry(ABC):
     @abc.abstractmethod
     def is_empty(self):
         pass
-
-    def crc(self):
-        """
-        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
-
-        Get a hash of the current geometry.
-
-        Returns
-        ---------
-        hash : int
-          Hash of current graph and geometry.
-        """
-        warnings.warn(
-            '`geometry.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def hash(self):
-        """
-        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
-
-        Get a hash of the current geometry.
-
-        Returns
-        ---------
-        hash : int
-          Hash of current graph and geometry.
-        """
-        warnings.warn(
-            '`geometry.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def md5(self):
-        """
-        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
-
-        Get a hash of the current geometry.
-
-        Returns
-        ---------
-        hash : int
-          Hash of current graph and geometry.
-        """
-        warnings.warn(
-            '`geometry.md5()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
 
     def __hash__(self):
         """
