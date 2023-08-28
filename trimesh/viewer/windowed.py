@@ -170,27 +170,27 @@ class SceneViewer(pyglet.window.Window):
                                  depth_size=24,
                                  double_buffer=True)
                 super().__init__(config=conf,
-                                                  visible=visible,
-                                                  resizable=True,
-                                                  width=resolution[0],
-                                                  height=resolution[1],
-                                                  caption=caption)
+                                 visible=visible,
+                                 resizable=True,
+                                 width=resolution[0],
+                                 height=resolution[1],
+                                 caption=caption)
             except pyglet.window.NoSuchConfigException:
                 conf = gl.Config(double_buffer=True)
                 super().__init__(config=conf,
-                                                  resizable=True,
-                                                  visible=visible,
-                                                  width=resolution[0],
-                                                  height=resolution[1],
-                                                  caption=caption)
+                                 resizable=True,
+                                 visible=visible,
+                                 width=resolution[0],
+                                 height=resolution[1],
+                                 caption=caption)
         else:
             # window config was manually passed
             super().__init__(config=window_conf,
-                                              resizable=True,
-                                              visible=visible,
-                                              width=resolution[0],
-                                              height=resolution[1],
-                                              caption=caption)
+                             resizable=True,
+                             visible=visible,
+                             width=resolution[0],
+                             height=resolution[1],
+                             caption=caption)
 
         # add scene geometry to viewer geometry
         self._update_vertex_list()
@@ -284,7 +284,7 @@ class SceneViewer(pyglet.window.Window):
         graph = self.scene.graph
         # which parts of the graph still have geometry
         geom_keep = {graph[node][1] for
-                         node in graph.nodes_geometry}
+                     node in graph.nodes_geometry}
         # which geometries no longer need to be kept
         geom_delete = [geom for geom in self.vertex_list
                        if geom not in geom_keep]

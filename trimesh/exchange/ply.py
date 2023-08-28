@@ -482,7 +482,7 @@ def _elements_to_kwargs(elements,
 
     try:
         vertex_normals = np.column_stack([elements['vertex']['data'][j]
-                for j in ('nx', 'ny', 'nz')])
+                                          for j in ('nx', 'ny', 'nz')])
         if len(vertex_normals) == len(vertices):
             kwargs['vertex_normals'] = vertex_normals
     except BaseException:

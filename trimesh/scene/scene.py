@@ -888,7 +888,7 @@ class Scene(Geometry3D):
         graph.from_edgelist(edges)
 
         geometry_names = {e[2]['geometry'] for e in edges
-                              if 'geometry' in e[2]}
+                          if 'geometry' in e[2]}
         geometry = {k: self.geometry[k] for k in geometry_names}
         result = Scene(geometry=geometry, graph=graph)
         return result
@@ -1092,7 +1092,7 @@ class Scene(Geometry3D):
         """
         # convert 2D geometries to 3D for 3D scaling factors
         scale_is_3D = isinstance(
-            scale, list | tuple | np.ndarray) and len(scale) == 3
+            scale, (list, tuple, np.ndarray)) and len(scale) == 3
 
         if scale_is_3D and np.all(np.asarray(scale) == scale[0]):
             # scale is uniform

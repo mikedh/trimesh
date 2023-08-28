@@ -100,6 +100,7 @@ recommend = [
 
 
 [tool.ruff]
+target-version = "py37"
 # See https://github.com/charliermarsh/ruff#rules for error code definitions.
 select = [
     # "ANN", # annotations

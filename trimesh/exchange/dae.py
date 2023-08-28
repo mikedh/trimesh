@@ -99,7 +99,7 @@ def export_collada(mesh, **kwargs):
     import collada
 
     meshes = mesh
-    if not isinstance(mesh, list | tuple | set | np.ndarray):
+    if not isinstance(mesh, (list, tuple, set, np.ndarray)):
         meshes = [mesh]
 
     c = collada.Collada()

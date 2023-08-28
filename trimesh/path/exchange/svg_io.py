@@ -602,9 +602,9 @@ def _format_attrib(attrib):
     """
     bag = {k: _encode(v) for k, v in attrib.items()}
     return '\n'.join(f'{_ns_name}:{k}="{v}"'
-        for k, v in bag.items()
-        if len(k) > 0 and v is not None
-        and len(v) > 0)
+                     for k, v in bag.items()
+                     if len(k) > 0 and v is not None
+                     and len(v) > 0)
 
 
 def _encode(stuff):
@@ -654,7 +654,7 @@ def _deep_same(original, other):
     # ndarrays will be converted to lists
     # but otherwise types should be identical
     if isinstance(original, np.ndarray):
-        assert isinstance(other, list | np.ndarray)
+        assert isinstance(other, (list, np.ndarray))
     elif util.is_string(original):
         # handle python 2+3 unicode vs str
         assert util.is_string(other)
@@ -662,11 +662,11 @@ def _deep_same(original, other):
         # otherwise they should be the same type
         assert isinstance(original, type(other))
 
-    if isinstance(original, str | bytes):
+    if isinstance(original, (str, bytes)):
         # string and bytes should just be identical
         assert original == other
         return
-    elif isinstance(original, float | int | np.ndarray):
+    elif isinstance(original, (float, int, np.ndarray)):
         # for numeric classes use numpy magic comparison
         # which includes an epsilon for floating point
         assert np.allclose(original, other)

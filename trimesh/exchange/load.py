@@ -48,7 +48,7 @@ def mesh_formats():
     """
     # filter out exceptionmodule loaders
     return {k for k, v in mesh_loaders.items()
-               if not isinstance(v, ExceptionWrapper)}
+            if not isinstance(v, ExceptionWrapper)}
 
 
 def available_formats():
@@ -224,7 +224,8 @@ def load_mesh(file_obj,
         if len(loaded) == 1:
             loaded = loaded[0]
         # show the repr for loaded, loader used, and time
-        log.debug(f'loaded {str(loaded)} using `{loader.__name__}` in {now() - tic:0.4f}s')
+        log.debug(
+            f'loaded {str(loaded)} using `{loader.__name__}` in {now() - tic:0.4f}s')
     finally:
         # if we failed to load close file
         if opened:
@@ -290,7 +291,7 @@ def load_compressed(file_obj,
         else:
             # all types contained in ZIP archive
             contains = {util.split_extension(n).lower()
-                           for n in files.keys()}
+                        for n in files.keys()}
             # if there are no mesh formats available
             if contains.isdisjoint(mesh_formats()):
                 available = path_formats()

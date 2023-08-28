@@ -80,8 +80,8 @@ class MeshScript:
 
         try:
             output = check_output(command_run,
-                stderr=subprocess.STDOUT,
-                startupinfo=startupinfo)
+                                  stderr=subprocess.STDOUT,
+                                  startupinfo=startupinfo)
         except CalledProcessError as e:
             # Log output if debug is enabled
             if self.debug:

@@ -430,7 +430,7 @@ class Binvoxer:
                 'Maximum dimension using exact is 1024, got %d' % dimension)
         if file_type not in Binvoxer.SUPPORTED_OUTPUT_TYPES:
             raise ValueError(
-                'file_type {} not in set of supported output types {}'.format(file_type, str(Binvoxer.SUPPORTED_OUTPUT_TYPES)))
+                f'file_type {file_type} not in set of supported output types {str(Binvoxer.SUPPORTED_OUTPUT_TYPES)}')
         args = [encoder, '-d', str(dimension), '-t', file_type]
         if exact:
             args.append('-e')
@@ -515,7 +515,7 @@ class Binvoxer:
         ext = ext[1:].lower()
         if ext not in Binvoxer.SUPPORTED_INPUT_TYPES:
             raise ValueError(
-                'file_type {} not in set of supported input types {}'.format(ext, str(Binvoxer.SUPPORTED_INPUT_TYPES)))
+                f'file_type {ext} not in set of supported input types {str(Binvoxer.SUPPORTED_INPUT_TYPES)}')
         out_path = f'{head}.{self._file_type}'
         if os.path.isfile(out_path) and not overwrite:
             raise OSError('Attempted to voxelize object at existing path')

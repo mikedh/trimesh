@@ -242,9 +242,9 @@ def export_glb(
                  dtype="<u4").tobytes())
 
     exported = b"".join([header,
-                             content,
-                             bin_header,
-                             buffer_data])
+                         content,
+                         bin_header,
+                         buffer_data])
 
     if tol.strict:
         validate(tree)
@@ -1217,7 +1217,7 @@ def _parse_materials(header, views, resolver=None):
     def parse_values_and_textures(input_dict):
         result = {}
         for k, v in input_dict.items():
-            if isinstance(v, list | tuple):
+            if isinstance(v, (list, tuple)):
                 # colors are always float 0.0 - 1.0 in GLTF
                 result[k] = np.array(v, dtype=np.float64)
             elif not isinstance(v, dict):

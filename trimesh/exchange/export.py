@@ -67,7 +67,7 @@ def export_mesh(mesh,
     if file_type not in _mesh_exporters:
         raise ValueError('%s exporter not available!', file_type)
 
-    if isinstance(mesh, list | tuple | set | np.ndarray):
+    if isinstance(mesh, (list, tuple, set, np.ndarray)):
         faces = 0
         for m in mesh:
             faces += len(m.faces)

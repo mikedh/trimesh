@@ -257,7 +257,7 @@ class ZipResolver(Resolver):
         # get the stored data
         obj = archive[name]
         # if the dict is storing data as bytes just return
-        if isinstance(obj, bytes | str):
+        if isinstance(obj, (bytes, str)):
             return obj
         # otherwise get it as a file object
         # read file object from beginning
