@@ -5,7 +5,6 @@ except BaseException:
 
 
 class TransformTest(g.unittest.TestCase):
-
     def test_doctest(self):
         """
         Run doctests on transformations, which checks docstrings
@@ -29,10 +28,13 @@ class TransformTest(g.unittest.TestCase):
 
         # search for interactive sessions in docstrings and verify they work
         # they are super unreliable and depend on janky string formatting
-        results = doctest.testmod(trimesh.transformations,
-                                  verbose=False,
-                                  raise_on_error=True)
-        g.log.info(f'transformations {str(results)}')
+        results = doctest.testmod(
+            trimesh.transformations, verbose=False, raise_on_error=False
+        )
+
+        if results.failed > 0:
+            raise ValueError(str(results))
+        g.log.debug(str(results))
 
     def test_downstream(self):
         """
@@ -70,9 +72,8 @@ class TransformTest(g.unittest.TestCase):
         for i, p in enumerate(points):
             offset = g.random(2)
             matrix = g.trimesh.transformations.planar_matrix(
-                theta=g.random() + .1,
-                offset=offset,
-                point=p)
+                theta=g.random() + 0.1, offset=offset, point=p
+            )
 
             # apply the matrix
             check = g.trimesh.transform_points(points, matrix)
@@ -103,9 +104,7 @@ class TransformTest(g.unittest.TestCase):
         rotation_matrix = g.trimesh.transformations.rotation_matrix
 
         R = rotation_matrix(g.np.pi / 2, [0, 0, 1], [1, 0, 0])
-        assert g.np.allclose(g.np.dot(R,
-                                      [0, 0, 0, 1]),
-                             [1, -1, 0, 1])
+        assert g.np.allclose(g.np.dot(R, [0, 0, 0, 1]), [1, -1, 0, 1])
 
         angle = (g.random() - 0.5) * (2 * g.np.pi)
         direc = g.random(3) - 0.5
@@ -121,23 +120,16 @@ class TransformTest(g.unittest.TestCase):
         I = g.np.identity(4, g.np.float64)  # NOQA
         assert g.np.allclose(I, rotation_matrix(g.np.pi * 2, direc))
 
-        assert g.np.allclose(
-            2,
-            g.np.trace(rotation_matrix(g.np.pi / 2,
-                                       direc, point)))
+        assert g.np.allclose(2, g.np.trace(rotation_matrix(g.np.pi / 2, direc, point)))
 
         # test symbolic
         if g.sp is not None:
-            angle = g.sp.Symbol('angle')
+            angle = g.sp.Symbol("angle")
             Rs = rotation_matrix(angle, [0, 0, 1], [1, 0, 0])
 
-            R = g.np.array(Rs.subs(
-                angle,
-                g.np.pi / 2.0).evalf()).astype(g.np.float64)
+            R = g.np.array(Rs.subs(angle, g.np.pi / 2.0).evalf()).astype(g.np.float64)
 
-            assert g.np.allclose(
-                g.np.dot(R, [0, 0, 0, 1]),
-                [1, -1, 0, 1])
+            assert g.np.allclose(g.np.dot(R, [0, 0, 0, 1]), [1, -1, 0, 1])
 
     def test_tiny(self):
         """
@@ -145,15 +137,13 @@ class TransformTest(g.unittest.TestCase):
         very small triangles.
         """
         for validate in [False, True]:
-            m = g.get_mesh('ADIS16480.STL', validate=validate)
-            m.apply_scale(.001)
+            m = g.get_mesh("ADIS16480.STL", validate=validate)
+            m.apply_scale(0.001)
             m._cache.clear()
-            g.np.nonzero(g.np.linalg.norm(
-                m.face_normals,
-                axis=1) < 1e-3)
+            g.np.nonzero(g.np.linalg.norm(m.face_normals, axis=1) < 1e-3)
             m.apply_transform(
-                g.trimesh.transformations.rotation_matrix(
-                    g.np.pi / 4, [0, 0, 1]))
+                g.trimesh.transformations.rotation_matrix(g.np.pi / 4, [0, 0, 1])
+            )
 
     def test_quat(self):
         """
@@ -184,11 +174,11 @@ class TransformTest(g.unittest.TestCase):
         # all random matrices should be rigid transforms
         assert all(is_rigid(T) for T in random_matrix(num=100))
         # random quaternions should all be unit vector
-        assert g.np.allclose(g.np.linalg.norm(random_quat(num=100),
-                                              axis=1),
-                             1.0, atol=1e-6)
+        assert g.np.allclose(
+            g.np.linalg.norm(random_quat(num=100), axis=1), 1.0, atol=1e-6
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()
