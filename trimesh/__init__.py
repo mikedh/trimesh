@@ -7,8 +7,6 @@ meshes with an emphasis on watertight meshes. The goal of the library is to
 provide a fully featured Trimesh object which allows for easy manipulation
 and analysis, in the style of the Polygon object in the Shapely library.
 """
-
-# current version
 # avoid a circular import in trimesh.base
 from . import bounds, collision, nsphere, primitives, smoothing, voxel
 
@@ -36,9 +34,7 @@ except BaseException as E:
     from .exceptions import ExceptionWrapper
     path = ExceptionWrapper(E)
 
-# explicitly list imports in __all__
-# as otherwise flake8 gets mad
-__all__ = [__version__,
+__all__ = ["__version__",
            'Trimesh',
            'PointCloud',
            'Scene',
