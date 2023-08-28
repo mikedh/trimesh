@@ -1,6 +1,6 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools >= 60", "wheel"]
+requires = ["setuptools >= 59.6", "wheel"]
 
 [project]
 name = "trimesh"
