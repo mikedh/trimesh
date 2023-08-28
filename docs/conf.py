@@ -2,6 +2,9 @@
 import inspect
 import os
 
+# get version from trimesh without installing
+import trimesh
+
 
 def abspath(rel):
     """
@@ -51,10 +54,6 @@ author = "Michael Dawson-Haggerty"
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-
-# get version from trimesh without installing
-import trimesh
-
 # The full version, including alpha/beta/rc tags.
 release = trimesh.__version__
 
