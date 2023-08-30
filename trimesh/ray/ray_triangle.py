@@ -391,14 +391,13 @@ def ray_bounds(ray_origins,
     axis_dir = np.array([ray_directions[i][a]
                          for i, a in enumerate(axis)]).reshape((-1, 1))
 
-    # prevent division by zero
-    axis_dir[axis_dir == 0] = tol.zero
-
     # parametric equation of a line
     # point = direction*t + origin
     # p = dt + o
     # t = (p-o)/d
     t = (axis_bound - axis_ori) / axis_dir
+    # prevent np.inf by division by zero
+    t[axis_dir == 0.0] = 0
 
     # prevent the bounding box from including triangles
     # behind the ray origin
