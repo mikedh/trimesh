@@ -14,7 +14,10 @@ def boolean(meshes, operation="difference", debug=False, **kwargs):
     Run an operation on a set of meshes
     """
     # Convert to manifold meshes
-    manifolds = [Manifold.from_mesh(Mesh(vert_properties=np.asarray(mesh.vertices, dtype="float32"), tri_verts=np.asarray(mesh.faces, dtype="int32"))) for mesh in meshes]
+    manifolds = [Manifold.from_mesh(
+        Mesh(vert_properties=np.asarray(mesh.vertices, dtype="float32"), 
+             tri_verts=np.asarray(mesh.faces, dtype="int32"))) 
+        for mesh in meshes]
     
     # Perform operations
     if operation == "difference":
