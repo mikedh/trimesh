@@ -39,7 +39,6 @@ def boolean(meshes, operation="difference", debug=False, **kwargs):
         raise ValueError(f"Invalid boolean operation: '{operation}'")
 
     # Convert back to trimesh meshes
-
     from .. import Trimesh
     result_mesh = result_manifold.to_mesh()
     out_mesh = Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
