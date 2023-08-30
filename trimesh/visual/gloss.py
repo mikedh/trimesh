@@ -83,7 +83,7 @@ def specular_to_pbr(
         return metallic
 
     def get_perceived_brightness(rgb):
-        return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+        return np.sqrt(np.dot(rgb[..., :3]**2, [0.299, 0.587, 0.114]))
 
     def toPIL(img):
         if isinstance(img, Image):
