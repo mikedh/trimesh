@@ -94,4 +94,5 @@ def boolean_automatic(meshes, operation, **kwargs):
 _engines = {None: boolean_automatic,
             'auto': boolean_automatic,
             'scad': interfaces.scad.boolean,
-            'blender': interfaces.blender.boolean}
+            'blender': interfaces.blender.boolean,
+            'manifold': interfaces.manifold.boolean}

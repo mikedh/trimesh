@@ -18,7 +18,8 @@ class BooleanTest(g.unittest.TestCase):
         a, b = self.a, self.b
 
         engines = [('blender', g.trimesh.interfaces.blender.exists),
-                   ('scad', g.trimesh.interfaces.scad.exists)]
+                   ('scad', g.trimesh.interfaces.scad.exists),
+                   ('manifold', g.trimesh.interfaces.manifold.exists)]
 
         for engine, exists in engines:
             # if we have all_dep set it means we should fail if
@@ -61,9 +62,9 @@ class BooleanTest(g.unittest.TestCase):
         """
         Make sure boolean operations work on multiple meshes.
         """
-        engines = [
-            ('blender', g.trimesh.interfaces.blender.exists),
-            ('scad', g.trimesh.interfaces.scad.exists)]
+        engines = [('blender', g.trimesh.interfaces.blender.exists),
+                   ('scad', g.trimesh.interfaces.scad.exists),
+                   ('manifold', g.trimesh.interfaces.manifold.exists)]
         for _engine, exists in engines:
             if not exists:
                 continue
@@ -79,9 +80,9 @@ class BooleanTest(g.unittest.TestCase):
                                 8.617306056726884)
 
     def test_empty(self):
-        engines = [
-            ('blender', g.trimesh.interfaces.blender.exists),
-            ('scad', g.trimesh.interfaces.scad.exists)]
+        engines = [('blender', g.trimesh.interfaces.blender.exists),
+                   ('scad', g.trimesh.interfaces.scad.exists),
+                   ('manifold', g.trimesh.interfaces.manifold.exists)]
         for engine, exists in engines:
             if not exists:
                 continue
