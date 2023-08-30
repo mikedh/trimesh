@@ -15,10 +15,13 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.11"
-    - name: Install Formatting
-      run: pip install ruff
-    - name: Check Formatting
+    - name: Install
+      run: pip install ruff black
+    - name: Run Ruff
       run: ruff .
+#    - name: Run Black
+#      run: black --check .
+
   tests:
     name: Run Unit Tests
     runs-on: ${{ matrix.os }}
