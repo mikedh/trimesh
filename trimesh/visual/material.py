@@ -832,6 +832,19 @@ def pack(materials, uvs, deduplicate=True):
                     [0, 0, 0], (1, 1, 3)).astype(np.uint8))
         # make sure we're always returning in RGBA mode
         return img.convert('RGB')
+    
+    def pad_image(src, padding=1):
+        if isinstance(padding, int):
+            padding = (padding, padding)
+        # uses replication padding
+        x, y = np.meshgrid(np.arange(src.shape[0] + 2*padding[0]), np.arange(src.shape[1] + 2*padding[1]))
+        x -= padding[0]
+        y -= padding[1]
+        x = np.clip(x, 0, src.shape[0] - 1)
+        y = np.clip(y, 0, src.shape[1] - 1)
+
+        result = src[y, x]
+        return result
 
     if deduplicate:
         # start by collecting a list of indexes for each material hash
@@ -847,10 +860,13 @@ def pack(materials, uvs, deduplicate=True):
     assert set(np.concatenate(mat_idx).ravel()) == set(range(len(uvs)))
     assert len(uvs) == len(materials)
 
+    padding = 1
+
     use_pbr = any(isinstance(m, PBRMaterial) for m in materials)
 
     # collect the images from the materials
     images = [get_base_color_texture(materials[g[0]]) for g in mat_idx]
+    images = [Image.fromarray(pad_image(np.array(img), padding)) for img in images]
 
     # pack the multiple images into a single large image
     final, offsets = packing.images(images, power_resize=True)
@@ -860,7 +876,7 @@ def pack(materials, uvs, deduplicate=True):
 
         # ensure that we use the same image size as for the base color, otherwise the UV coordinates might be wrong
         metallic_roughness = [metallic_roughness[img_idx].resize(images[img_idx].size) for img_idx in range(len(images))]
-
+        metallic_roughness = [Image.fromarray(pad_image(np.array(img), padding)) for img in metallic_roughness]
         final_metallic_roughness, offsets_metallic_roughness = packing.images(metallic_roughness, power_resize=True)
 
         # we only need the first two channels
@@ -873,6 +889,7 @@ def pack(materials, uvs, deduplicate=True):
         else:
             # ensure that we use the same image size as for the base color, otherwise the UV coordinates might be wrong
             emissive = [emissive[img_idx].resize(images[img_idx].size) for img_idx in range(len(images))]
+            emissive = [Image.fromarray(pad_image(np.array(img), padding)) for img in emissive]
             final_emissive, offsets_emissive = packing.images(emissive, power_resize=True)
 
 
@@ -882,9 +899,9 @@ def pack(materials, uvs, deduplicate=True):
     new_uv = {}
     for group, img, off in zip(mat_idx, images, offsets):
         # how big was the original image
-        scale = img.size / final_size
+        scale = (np.array(img.size) - 2 * padding) / final_size
         # what is the offset in fractions of final image
-        xy_off = off / final_size
+        xy_off = (off + padding) / final_size
         # scale and translate each of the new UV coordinates
         # also make sure they are in 0.0-1.0 using modulus (i.e. wrap)
         group_uvs = {}
