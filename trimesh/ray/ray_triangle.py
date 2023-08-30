@@ -395,9 +395,9 @@ def ray_bounds(ray_origins,
     # point = direction*t + origin
     # p = dt + o
     # t = (p-o)/d
-    t = (axis_bound - axis_ori) / axis_dir
-    # prevent np.inf by division by zero
-    t[axis_dir == 0.0] = 0
+    nonzero = (axis_dir != 0.0).reshape(-1)
+    t = np.zeros_like(axis_bound)
+    t[nonzero] = (axis_bound[nonzero] - axis_ori[nonzero]) / axis_dir[nonzero]
 
     # prevent the bounding box from including triangles
     # behind the ray origin
