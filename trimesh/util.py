@@ -1503,6 +1503,10 @@ def concatenate(a, b=None):
     if all('face_normals' in m._cache for m in is_mesh):
         face_normals = np.vstack(
             [m.face_normals for m in is_mesh])
+        
+    # always save vertex normals
+    vertex_normals = vstack_empty(
+        [m.vertex_normals.copy() for m in is_mesh])
 
     try:
         # concatenate visuals
@@ -1516,6 +1520,7 @@ def concatenate(a, b=None):
     return trimesh_type(vertices=vertices,
                         faces=faces,
                         face_normals=face_normals,
+                        vertex_normals=vertex_normals,
                         visual=visual,
                         process=False)
 
