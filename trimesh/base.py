@@ -302,7 +302,7 @@ class Trimesh(Geometry3D):
             indices=self.faces)
         return sparse
 
-    @property
+    @cache_decorator
     def face_normals(self):
         """
         Return the unit normal vector for each face.
@@ -374,27 +374,10 @@ class Trimesh(Geometry3D):
         # face normals need to correspond to faces
         if len(values) == 0 or values.shape != self.faces.shape:
             log.debug('face_normals incorrect shape, ignoring!')
-            return
-        # check if any values are larger than tol.merge
-        # don't set the normals if they are all zero
-        ptp = values.ptp()
-        if not np.isfinite(ptp):
-            log.debug('face_normals contain NaN, ignoring!')
-            return
-        if ptp < tol.merge:
-            log.debug('face_normals all zero, ignoring!')
-            return
+            raise ValueError('face_normals must be (len(mesh.faces), 3)!')
 
-        # make sure the first few normals match the first few triangles
-        check, valid = triangles.normals(
-            self.vertices.view(np.ndarray)[self.faces[:20]])
-        compare = np.zeros((len(valid), 3))
-        compare[valid] = check
-        if not np.allclose(compare, values[:20]):
-            log.debug("face_normals didn't match triangles, ignoring!")
-            return
-        # otherwise store face normals
-        self._cache['face_normals'] = values
+        # these were explicitly set so put them in data
+        self._data['face_normals'] = values
 
     @property
     def vertices(self):
@@ -462,11 +445,14 @@ class Trimesh(Geometry3D):
         values : (len(self.vertices), 3) float
           Unit normal vectors for each vertex
         """
-        if values is not None:
-            values = np.asanyarray(values,
-                                   order='C',
-                                   dtype=np.float64)
-            if values.shape == self.vertices.shape:
+        if values is None:
+            self._data.data.pop('vertex_normals', None)
+            self._cache.cache.pop('vertex_normals', None)
+            
+        values = np.asanyarray(values,
+                               order='C',
+                               dtype=np.float64)
+        if values.shape == self.vertices.shape:
                 # check to see if they assigned all zeros
                 if values.ptp() < tol.merge:
                     log.debug('vertex_normals are all zero!')

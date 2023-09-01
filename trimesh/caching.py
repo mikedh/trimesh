@@ -124,25 +124,33 @@ def cache_decorator(function):
         Only execute the function if its value isn't stored
         in cache already.
         """
-        self = args[0]
+        cache = args[0]._cache
+        data = args[0]._data
+        
         # use function name as key in cache
         name = function.__name__
+
+        # if the name is a data value
+        if name in data:
+            return data[name]
+
         # do the dump logic ourselves to avoid
         # verifying cache twice per call
-        self._cache.verify()
+        cache.verify()
         # access cache dict to avoid automatic validation
         # since we already called cache.verify manually
-        if name in self._cache.cache:
+        if name in cache.cache:
             # already stored so return value
-            return self._cache.cache[name]
+            return cache.cache[name]
+    
         # value not in cache so execute the function
         value = function(*args, **kwargs)
         # store the value
-        if self._cache.force_immutable and hasattr(
+        if cache.force_immutable and hasattr(
                 value, 'flags') and len(value.shape) > 0:
             value.flags.writeable = False
 
-        self._cache.cache[name] = value
+        cache.cache[name] = value
 
         return value
 
