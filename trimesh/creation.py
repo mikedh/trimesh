@@ -1305,9 +1305,11 @@ def torus(major_radius,
       Mesh of a torus
     """
     # Calculate vertex coordinates
-    theta = np.linspace(0, 2 * np.pi, major_sections, endpoint=False).repeat(minor_sections)
-    phi = np.tile(np.linspace(0, 2 * np.pi, minor_sections, endpoint=False), major_sections)
-    
+    theta = np.linspace(0, 2 * np.pi, major_sections,
+                        endpoint=False).repeat(minor_sections)
+    phi = np.tile(np.linspace(0, 2 * np.pi, minor_sections,
+                              endpoint=False), major_sections)
+
     x = (major_radius + minor_radius * np.cos(phi)) * np.cos(theta)
     y = (major_radius + minor_radius * np.cos(phi)) * np.sin(theta)
     z = minor_radius * np.sin(phi)
@@ -1322,7 +1324,8 @@ def torus(major_radius,
 
     a = (i_grid * minor_sections + j_grid).ravel()
     b = (((i_grid + 1) % major_sections) * minor_sections + j_grid).ravel()
-    c = (((i_grid + 1) % major_sections) * minor_sections + (j_grid + 1) % minor_sections).ravel()
+    c = (((i_grid + 1) % major_sections) * minor_sections + (j_grid + 1)
+         % minor_sections).ravel()
     d = (i_grid * minor_sections + (j_grid + 1) % minor_sections).ravel()
 
     faces = np.column_stack((a, b, c, a, c, d)).reshape(-1, 3)
