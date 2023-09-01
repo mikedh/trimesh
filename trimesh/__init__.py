@@ -49,7 +49,7 @@ except BaseException as E:
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
-__all__ = [__version__,
+__all__ = ['__version__',
            'Trimesh',
            'PointCloud',
            'Scene',
