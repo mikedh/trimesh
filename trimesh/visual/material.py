@@ -886,7 +886,7 @@ def pack(materials, uvs, deduplicate=True):
                 pad_image(
                     np.array(img),
                     padding)) for img in metallic_roughness]
-        final_metallic_roughness, offsets_metallic_roughness = packing.images(
+        final_metallic_roughness, _ = packing.images(
             metallic_roughness, power_resize=True)
 
         # we only need the first two channels
@@ -910,7 +910,7 @@ def pack(materials, uvs, deduplicate=True):
                         np.array(img),
                         padding),
                     mode="RGB") for img in emissive]
-            final_emissive, offsets_emissive = packing.images(emissive, power_resize=True)
+            final_emissive, _ = packing.images(emissive, power_resize=True)
 
     # the size of the final texture image
     final_size = np.array(final.size, dtype=np.float64)
@@ -930,12 +930,10 @@ def pack(materials, uvs, deduplicate=True):
             # the case of uv==1.0
             half_pixel_width = 1.0 / (2 * img.size[0])
             half_pixel_height = 1.0 / (2 * img.size[1])
-            wrap_mask_u = (g_uvs[:,
-                                 0] <= -half_pixel_width) | (g_uvs[:,
-                                                                   0] >= (1.0 + half_pixel_width))
-            wrap_mask_v = (g_uvs[:,
-                                 1] <= -half_pixel_height) | (g_uvs[:,
-                                                                    1] >= (1.0 + half_pixel_height))
+            wrap_mask_u = ((g_uvs[:, 0] <= -half_pixel_width) |
+                           (g_uvs[:, 0] >= (1.0 + half_pixel_width)))
+            wrap_mask_v = ((g_uvs[:, 1] <= -half_pixel_height) |
+                           (g_uvs[:, 1] >= (1.0 + half_pixel_height)))
             wrap_mask = np.stack([wrap_mask_u, wrap_mask_v], axis=-1)
 
             g_uvs[wrap_mask] = g_uvs[wrap_mask] % 1.0
@@ -966,7 +964,12 @@ def pack(materials, uvs, deduplicate=True):
         assert (compare == check_flat).all()
 
     if use_pbr:
-        return PBRMaterial(baseColorTexture=final, metallicRoughnessTexture=final_metallic_roughness,
-                           emissiveTexture=final_emissive), stacked
+        return (
+            PBRMaterial(
+                baseColorTexture=final, 
+                metallicRoughnessTexture=final_metallic_roughness,
+                emissiveTexture=final_emissive
+            ), 
+            stacked)
     else:
         return SimpleMaterial(image=final), stacked
