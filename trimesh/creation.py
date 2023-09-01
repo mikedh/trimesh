@@ -1287,7 +1287,7 @@ def torus(major_radius,
     major_radius: (float)
       Radius from the center of the torus to the center of the tube.
     minor_radius: (float)
-      Radius of the tube. 
+      Radius of the tube.
     major_sections: int
       Number of sections around major radius result should have
       If not specified default is 32 per revolution
@@ -1298,41 +1298,41 @@ def torus(major_radius,
       Transformation matrix
     **kwargs:
       passed to Trimesh to create torus
-    
+
     Returns
     ------------
     geometry : trimesh.Trimesh
       Mesh of a torus
     """
-    vertices = []
-    faces = []
+    # Calculate vertex coordinates
+    theta = np.linspace(0, 2 * np.pi, major_sections, endpoint=False).repeat(minor_sections)
+    phi = np.tile(np.linspace(0, 2 * np.pi, minor_sections, endpoint=False), major_sections)
     
-    for i in range(major_sections):
-        theta = 2 * np.pi * i / major_sections
-        for j in range(minor_sections):
-            phi = 2 * np.pi * j / minor_sections
+    x = (major_radius + minor_radius * np.cos(phi)) * np.cos(theta)
+    y = (major_radius + minor_radius * np.cos(phi)) * np.sin(theta)
+    z = minor_radius * np.sin(phi)
 
-            x = (major_radius + minor_radius * np.cos(phi)) * np.cos(theta)
-            y = (major_radius + minor_radius * np.cos(phi)) * np.sin(theta)
-            z = minor_radius * np.sin(phi)
+    vertices = np.stack((x, y, z), axis=-1).reshape(-1, 3)
 
-            vertices.append([x, y, z])
+    # Calculate faces
+    i_range = np.arange(minor_sections)
+    j_range = np.arange(major_sections)
 
-            # Create faces
-            a = i * minor_sections + j
-            b = ((i + 1) % major_sections) * minor_sections + j
-            c = ((i + 1) % major_sections) * minor_sections + (j + 1) % minor_sections
-            d = i * minor_sections + (j + 1) % minor_sections
+    i_grid, j_grid = np.meshgrid(i_range, j_range, indexing='ij')
 
-            faces.append([a, b, c])
-            faces.append([a, c, d])
+    a = (i_grid * minor_sections + j_grid).ravel()
+    b = (((i_grid + 1) % major_sections) * minor_sections + j_grid).ravel()
+    c = (((i_grid + 1) % major_sections) * minor_sections + (j_grid + 1) % minor_sections).ravel()
+    d = (i_grid * minor_sections + (j_grid + 1) % minor_sections).ravel()
+
+    faces = np.column_stack((a, b, c, a, c, d)).reshape(-1, 3)
 
     torus = Trimesh(vertices=vertices,
                     faces=faces,
                     process=False,
                     **kwargs)
-    
+
     if transform is not None:
         torus.apply_transform(transform)
-    
+
     return torus
