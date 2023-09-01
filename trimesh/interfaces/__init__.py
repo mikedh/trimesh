@@ -1,10 +1,8 @@
 # flake8: noqa
 
 from . import gmsh
-from . import scad
 from . import blender
 from . import vhacd
-from . import manifold
 
 # add to __all__ as per pep8
-__all__ = [scad, blender, vhacd, manifold]
+__all__ = [blender, vhacd]
