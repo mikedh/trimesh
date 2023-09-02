@@ -324,6 +324,19 @@ def check_triangulation(v, f, true_area):
     assert g.np.isclose(area, true_area)
 
 
+def test_torus():
+    torus = g.trimesh.creation.torus
+
+    major_radius = 1.0
+    minor_radius = 0.2
+    m = torus(major_radius=major_radius, minor_radius=minor_radius)
+    
+    extents = g.np.array([2 * major_radius + 2 * minor_radius,
+                          2 * major_radius + 2 * minor_radius,
+                          2 * minor_radius])
+    assert g.np.allclose(m.extents, extents)
+    assert g.np.allclose(m.bounds, [-extents / 2.0, extents / 2.0])
+
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
     g.unittest.main()
