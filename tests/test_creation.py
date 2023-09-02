@@ -330,7 +330,7 @@ def test_torus():
     major_radius = 1.0
     minor_radius = 0.2
     m = torus(major_radius=major_radius, minor_radius=minor_radius)
-    
+
     extents = g.np.array([2 * major_radius + 2 * minor_radius,
                           2 * major_radius + 2 * minor_radius,
                           2 * minor_radius])

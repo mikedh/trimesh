@@ -1304,7 +1304,7 @@ def torus(major_radius,
         + [major_radius, 0]
 
     if 'metadata' not in kwargs:
-        kwargs['metadata'] = dict()
+        kwargs['metadata'] = {}
     kwargs['metadata'].update(
         {'shape': 'torus',
          'major_radius': major_radius,
