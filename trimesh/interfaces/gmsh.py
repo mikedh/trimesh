@@ -67,6 +67,10 @@ def load_gmsh(file_name, gmsh_args=None):
         gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh.model.add('Surface_Mesh_Generation')
+    # loop through our numbered args which do things, stuff
+    for arg in args:
+        gmsh.option.setNumber(*arg)
+    
     gmsh.open(file_name)
 
     # create a temporary file for the results
@@ -78,9 +82,6 @@ def load_gmsh(file_name, gmsh_args=None):
     if any(file_name.lower().endswith(e)
            for e in ['.brep', '.stp', '.step', '.igs', '.iges']):
         gmsh.model.geo.synchronize()
-        # loop through our numbered args which do things, stuff
-        for arg in args:
-            gmsh.option.setNumber(*arg)
         # generate the mesh
         gmsh.model.mesh.generate(2)
         # write to the temporary file
