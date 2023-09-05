@@ -21,9 +21,9 @@ _IDENTITY = np.eye(4)
 _IDENTITY.flags.writeable = False
 
 
-class _Primitive(Trimesh):
+class Primitive(Trimesh):
     """
-    Geometric _Primitives which are a subclass of Trimesh.
+    Geometric Primitives which are a subclass of Trimesh.
     Mesh is generated lazily when vertices or faces are requested.
     """
 
@@ -219,7 +219,7 @@ class _Primitive(Trimesh):
         raise ValueError('Primitive doesn\'t define mesh creation!')
 
 
-class _PrimitiveAttributes:
+class PrimitiveAttributes:
     """
     Hold the mutable data which defines a primitive.
     """
@@ -230,7 +230,7 @@ class _PrimitiveAttributes:
 
         Parameters
         ------------
-        parent : _Primitive
+        parent : Primitive
           Parent object reference.
         defaults : dict
           The default values for this primitive type.
@@ -318,7 +318,7 @@ class _PrimitiveAttributes:
         return result
 
 
-class Cylinder(_Primitive):
+class Cylinder(Primitive):
 
     def __init__(self,
                  radius=1.0,
@@ -348,7 +348,7 @@ class Cylinder(_Primitive):
                     'radius': 1.0,
                     'transform': np.eye(4),
                     'sections': 32}
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
             kwargs={'height': height,
@@ -472,7 +472,7 @@ class Cylinder(_Primitive):
         self._cache['face_normals'] = mesh.face_normals
 
 
-class Capsule(_Primitive):
+class Capsule(Primitive):
 
     def __init__(self,
                  radius=1.0,
@@ -502,7 +502,7 @@ class Capsule(_Primitive):
                     'radius': 1.0,
                     'transform': np.eye(4),
                     'sections': 32}
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
             kwargs={'height': height,
@@ -557,7 +557,7 @@ class Capsule(_Primitive):
         self._cache['face_normals'] = mesh.face_normals
 
 
-class Sphere(_Primitive):
+class Sphere(Primitive):
 
     def __init__(self,
                  radius=1.0,
@@ -602,7 +602,7 @@ class Sphere(_Primitive):
             constructor['transform'] = transform
 
         # create the attributes object
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self, defaults=defaults, kwargs=constructor, mutable=mutable)
 
     @property
@@ -697,7 +697,7 @@ class Sphere(_Primitive):
         self._cache['face_normals'] = unit.face_normals
 
 
-class Box(_Primitive):
+class Box(Primitive):
     def __init__(self,
                  extents=None,
                  transform=None,
@@ -736,7 +736,7 @@ class Box(_Primitive):
             transform = np.eye(4)
             transform[:3, 3] = bounds[0] + extents / 2.0
 
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
             kwargs={'extents': extents,
@@ -871,7 +871,7 @@ class Box(_Primitive):
             transform=self.primitive.transform)
 
 
-class Extrusion(_Primitive):
+class Extrusion(Primitive):
     def __init__(self,
                  polygon=None,
                  transform=None,
@@ -902,7 +902,7 @@ class Extrusion(_Primitive):
                     'transform': np.eye(4),
                     'height': 1.0}
 
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
             kwargs={'transform': transform,

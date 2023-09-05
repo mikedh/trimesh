@@ -71,7 +71,7 @@ def load_gmsh(file_name, gmsh_args=None):
     # loop through our numbered args which do things, stuff
     for arg in args:
         gmsh.option.setNumber(*arg)
-    
+
     gmsh.open(file_name)
 
     # create a temporary file for the results
