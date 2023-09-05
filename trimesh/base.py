@@ -55,6 +55,7 @@ from .visual import ColorVisuals, TextureVisuals, create_visual
 
 from numpy.typing import NDArray
 
+
 class Trimesh(Geometry3D):
     def __init__(
         self,
@@ -1497,7 +1498,9 @@ class Trimesh(Geometry3D):
         radii : (len(self.face_adjacency), ) float
           Approximate radius formed by triangle pair
         """
-        radii, self._cache["face_adjacency_span"] = graph.face_adjacency_radius(mesh=self)
+        radii, self._cache["face_adjacency_span"] = graph.face_adjacency_radius(
+            mesh=self
+        )
         return radii
 
     @caching.cache_decorator
@@ -2570,7 +2573,7 @@ class Trimesh(Geometry3D):
         )
         return self.simplify_quadric_decimation(*args, **kwargs)
 
-    def simplify_quadric_decimation(self, face_count: int):
+    def simplify_quadric_decimation(self, face_count: int) -> "Trimesh":
         """
         A thin wrapper around the `open3d` implementation of this:
         `open3d.geometry.TriangleMesh.simplify_quadric_decimation`
@@ -2588,7 +2591,9 @@ class Trimesh(Geometry3D):
         simple = self.as_open3d.simplify_quadric_decimation(int(face_count))
         return Trimesh(vertices=simple.vertices, faces=simple.triangles)
 
-    def outline(self, face_ids: Optional[NDArray[int64]]=None, **kwargs):
+    def outline(
+        self, face_ids: Optional[NDArray[int64]] = None, **kwargs
+    ) -> "trimesh.path.Path3D":
         """
         Given a list of face indexes find the outline of those
         faces and return it as a Path3D.
@@ -2616,7 +2621,7 @@ class Trimesh(Geometry3D):
 
         return Path3D(**faces_to_path(self, face_ids, **kwargs))
 
-    def projected(self, normal, **kwargs):
+    def projected(self, normal, **kwargs) -> "trimesh.path.Path2D":
         """
         Project a mesh onto a plane and then extract the
         polygon that outlines the mesh projection on that
@@ -2669,7 +2674,7 @@ class Trimesh(Geometry3D):
         return area
 
     @caching.cache_decorator
-    def area_faces(self) -> ndarray:
+    def area_faces(self) -> NDArray[float64]:
         """
         The area of each face in the mesh.
 
@@ -2682,7 +2687,7 @@ class Trimesh(Geometry3D):
         return area_faces
 
     @caching.cache_decorator
-    def mass_properties(self) -> MassProperties:
+    def mass_properties(self) -> Dict:
         """
         Returns the mass properties of the current mesh.
 
@@ -2760,9 +2765,7 @@ class Trimesh(Geometry3D):
         scene = self.scene()
         return scene.show(**kwargs)
 
-    def submesh(
-        self, faces_sequence: List[NDArray[int64]], **kwargs
-    ) -> Union["Trimesh", List["Trimesh"]:
+    def submesh(self, faces_sequence: List[NDArray[int64]], **kwargs):
         """
         Return a subset of the mesh.
 
@@ -2784,7 +2787,7 @@ class Trimesh(Geometry3D):
         return util.submesh(mesh=self, faces_sequence=faces_sequence, **kwargs)
 
     @caching.cache_decorator
-    def identifier(self) -> ndarray:
+    def identifier(self) -> NDArray[float64]:
         """
         Return a float vector which is unique to the mesh
         and is robust to rotation and translation.
@@ -2811,7 +2814,7 @@ class Trimesh(Geometry3D):
 
     def export(
         self,
-        file_obj: Optional[Union[str, BufferedRandom]] = None,
+        file_obj=None,
         file_type: Optional[str] = None,
         **kwargs,
     ) -> Union[
