@@ -75,6 +75,7 @@ class Trimesh(Geometry3D):
         use_embree: bool = True,
         initial_cache: Optional[Dict[str, ndarray]] = None,
         visual: Optional[Union[ColorVisuals, TextureVisuals]] = None,
+        **kwargs,
     ) -> None:
         """
         A Trimesh object contains a triangular 3D mesh.
