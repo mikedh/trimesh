@@ -36,7 +36,7 @@ class Geometry(ABC):
         pass
 
     @abc.abstractmethod
-    def is_empty(self):
+    def is_empty(self) -> bool:
         pass
 
     def __hash__(self):
