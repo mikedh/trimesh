@@ -7,19 +7,13 @@ Library for importing, exporting and doing simple operations on triangular meshe
 
 import copy
 import warnings
-from io import BufferedRandom
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import scipy.spatial._ckdtree
-from networkx.classes.graph import Graph
 from numpy import float64, int64, ndarray
-from numpy.typing import ArrayLike
-from rtree.index import Index
-from scipy.sparse._coo import coo_matrix
+from numpy.typing import NDArray
 
 from trimesh.caching import TrackedArray
-from trimesh.path.path import Path3D
 
 from . import (
     boolean,
@@ -52,8 +46,6 @@ from .exchange.export import export_mesh
 from .parent import Geometry3D
 from .scene import Scene
 from .visual import ColorVisuals, TextureVisuals, create_visual
-
-from numpy.typing import NDArray
 
 
 class Trimesh(Geometry3D):
@@ -792,7 +784,7 @@ class Trimesh(Geometry3D):
         return symmetry
 
     @property
-    def symmetry_axis(self) -> ndarray:
+    def symmetry_axis(self) -> NDArray[float64]:
         """
         If a mesh has rotational symmetry, return the axis.
 
@@ -805,7 +797,7 @@ class Trimesh(Geometry3D):
             return self._cache["symmetry_axis"]
 
     @property
-    def symmetry_section(self) -> ndarray:
+    def symmetry_section(self) -> NDArray[float64]:
         """
         If a mesh has rotational symmetry return the two
         vectors which make up a section coordinate frame.
@@ -836,7 +828,7 @@ class Trimesh(Geometry3D):
         return triangles
 
     @caching.cache_decorator
-    def triangles_tree(self) -> Index:
+    def triangles_tree(self) -> "rtree.Index":
         """
         An R-tree containing each face of the mesh.
 
@@ -849,7 +841,7 @@ class Trimesh(Geometry3D):
         return tree
 
     @caching.cache_decorator
-    def triangles_center(self) -> ndarray:
+    def triangles_center(self) -> NDArray[float64]:
         """
         The center of each triangle (barycentric [1/3, 1/3, 1/3])
 
@@ -862,7 +854,7 @@ class Trimesh(Geometry3D):
         return triangles_center
 
     @caching.cache_decorator
-    def triangles_cross(self) -> ndarray:
+    def triangles_cross(self) -> NDArray[float64]:
         """
         The cross product of two edges of each triangle.
 
@@ -875,7 +867,7 @@ class Trimesh(Geometry3D):
         return crosses
 
     @caching.cache_decorator
-    def edges(self) -> ndarray:
+    def edges(self) -> NDArray[int64]:
         """
         Edges of the mesh (derived from faces).
 
@@ -891,7 +883,7 @@ class Trimesh(Geometry3D):
         return edges
 
     @caching.cache_decorator
-    def edges_face(self):
+    def edges_face(self) -> NDArray[int64]:
         """
         Which face does each edge belong to.
 
@@ -904,7 +896,7 @@ class Trimesh(Geometry3D):
         return self._cache["edges_face"]
 
     @caching.cache_decorator
-    def edges_unique(self) -> ndarray:
+    def edges_unique(self) -> NDArray[int64]:
         """
         The unique edges of the mesh.
 
@@ -922,7 +914,7 @@ class Trimesh(Geometry3D):
         return edges_unique
 
     @caching.cache_decorator
-    def edges_unique_length(self) -> TrackedArray:
+    def edges_unique_length(self) -> NDArray[float64]:
         """
         How long is each unique edge.
 
@@ -936,7 +928,7 @@ class Trimesh(Geometry3D):
         return length
 
     @caching.cache_decorator
-    def edges_unique_inverse(self):
+    def edges_unique_inverse(self) -> NDArray[int64]:
         """
         Return the inverse required to reproduce
         self.edges_sorted from self.edges_unique.
@@ -953,7 +945,7 @@ class Trimesh(Geometry3D):
         return self._cache["edges_unique_inverse"]
 
     @caching.cache_decorator
-    def edges_sorted(self) -> ndarray:
+    def edges_sorted(self) -> NDArray[int64]:
         """
         Edges sorted along axis 1
 
@@ -966,7 +958,7 @@ class Trimesh(Geometry3D):
         return edges_sorted
 
     @caching.cache_decorator
-    def edges_sorted_tree(self) -> scipy.spatial._ckdtree.cKDTree:
+    def edges_sorted_tree(self) -> "scipy.spatial.cKDTree":
         """
         A KDTree for mapping edges back to edge index.
 
@@ -981,7 +973,7 @@ class Trimesh(Geometry3D):
         return cKDTree(self.edges_sorted)
 
     @caching.cache_decorator
-    def edges_sparse(self) -> coo_matrix:
+    def edges_sparse(self) -> "scipy.sparse.coo_matrix":
         """
         Edges in sparse bool COO graph format where connected
         vertices are True.
@@ -1014,7 +1006,7 @@ class Trimesh(Geometry3D):
         return count
 
     @caching.cache_decorator
-    def faces_unique_edges(self) -> ndarray:
+    def faces_unique_edges(self) -> NDArray[int64]:
         """
         For each face return which indexes in mesh.unique_edges constructs
         that face.
@@ -1065,7 +1057,7 @@ class Trimesh(Geometry3D):
         return euler
 
     @caching.cache_decorator
-    def referenced_vertices(self) -> ndarray:
+    def referenced_vertices(self) -> NDArray[bool]:
         """
         Which vertices in the current mesh are referenced by a face.
 
@@ -1079,7 +1071,7 @@ class Trimesh(Geometry3D):
         return referenced
 
     @property
-    def units(self):
+    def units(self) -> Optional[str]:
         """
         Definition of units for the mesh.
 
@@ -1094,11 +1086,11 @@ class Trimesh(Geometry3D):
             return None
 
     @units.setter
-    def units(self, value):
+    def units(self, value: str) -> None:
         value = str(value).lower()
         self.metadata["units"] = value
 
-    def convert_units(self, desired, guess=False):
+    def convert_units(self, desired: str, guess: bool=False) -> "Trimesh":
         """
         Convert the units of the mesh into a specified unit.
 
@@ -1153,7 +1145,7 @@ class Trimesh(Geometry3D):
 
     def update_vertices(
         self,
-        mask: NDArray,
+        mask: NDArray[bool],
         inverse: Optional[NDArray] = None,
     ) -> None:
         """
@@ -1223,7 +1215,7 @@ class Trimesh(Geometry3D):
             except BaseException:
                 pass
 
-    def update_faces(self, mask: NDArray) -> None:
+    def update_faces(self, mask: NDArray[bool]) -> None:
         """
         In many cases, we will want to remove specific faces.
         However, there is additional bookkeeping to do this cleanly.
@@ -1292,7 +1284,7 @@ class Trimesh(Geometry3D):
             vertex_mask = np.isfinite(self.vertices).all(axis=1)
             self.update_vertices(vertex_mask)
 
-    def unique_faces(self):
+    def unique_faces(self) -> NDArray[bool]:
         """
         On the current mesh find which faces are unique.
 
@@ -1327,8 +1319,7 @@ class Trimesh(Geometry3D):
         """
         self.apply_translation(self.bounds[0] * -1.0)
 
-    @log_time
-    def split(self, **kwargs):
+    def split(self, **kwargs) -> List["Trimesh"]:
         """
         Returns a list of Trimesh objects, based on face connectivity.
         Splits into individual components, sometimes referred to as 'bodies'
@@ -1414,7 +1405,7 @@ class Trimesh(Geometry3D):
         return self._cache["face_adjacency_edges"]
 
     @caching.cache_decorator
-    def face_adjacency_edges_tree(self) -> scipy.spatial._ckdtree.cKDTree:
+    def face_adjacency_edges_tree(self) -> "scipy.spatial.cKDTree":
         """
         A KDTree for mapping edges back face adjacency index.
 
@@ -1535,7 +1526,7 @@ class Trimesh(Geometry3D):
         return (self.face_adjacency_angles * edges_length).sum() * 0.5
 
     @caching.cache_decorator
-    def vertex_adjacency_graph(self) -> Graph:
+    def vertex_adjacency_graph(self) -> "networkx.Graph":
         """
         Returns a networkx graph representing the vertices and their connections
         in the mesh.
@@ -1671,7 +1662,7 @@ class Trimesh(Geometry3D):
         return is_convex
 
     @caching.cache_decorator
-    def kdtree(self) -> scipy.spatial._ckdtree.cKDTree:
+    def kdtree(self) -> "scipy.spatial.cKDTree":
         """
         Return a scipy.spatial.cKDTree of the vertices of the mesh.
         Not cached as this lead to observed memory issues and segfaults.
@@ -1817,7 +1808,7 @@ class Trimesh(Geometry3D):
         return edges_boundary
 
     @caching.cache_decorator
-    def facets_on_hull(self) -> ndarray:
+    def facets_on_hull(self) -> NDArray[bool]:
         """
         Find which facets of the mesh are on the convex hull.
 
@@ -1849,8 +1840,7 @@ class Trimesh(Geometry3D):
 
         return on_hull
 
-    @log_time
-    def fix_normals(self, multibody=None):
+    def fix_normals(self, multibody: Optional[bool]=None):
         """
         Find and fix problems with self.face_normals and self.faces
         winding direction.
@@ -2170,7 +2160,7 @@ class Trimesh(Geometry3D):
 
     def section(
         self, plane_normal: List[int], plane_origin: List[int], **kwargs
-    ) -> Path3D:
+    ) -> "trimesh.path.Path3D":
         """
         Returns a 3D cross section of the current mesh and a plane
         defined by origin and normal.
@@ -3042,7 +3032,7 @@ class Trimesh(Geometry3D):
         return degree
 
     @caching.cache_decorator
-    def face_adjacency_tree(self) -> Index:
+    def face_adjacency_tree(self) -> "rtree.Index":
         """
         An R-tree of face adjacencies.
 
