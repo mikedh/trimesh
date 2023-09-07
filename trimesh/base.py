@@ -269,6 +269,30 @@ class Trimesh(Geometry3D):
         return self
 
     @property
+    def mutable(self) -> bool:
+        """
+        Is the current mesh allowed to be altered in-place?
+
+        Returns
+        -------------
+        mutable
+          If data is allowed to be set for the mesh.
+        """
+        return self._data.mutable
+
+    @mutable.setter
+    def mutable(self, value: bool):
+        """
+        Set the mutability of the current mesh.
+
+        Parameters
+        ----------
+        value
+          Change whether the current mesh is allowed to be altered in-place.
+        """
+        self._data.mutable = value
+
+    @property
     def faces(self) -> NDArray[int64]:
         """
         The faces of the mesh.
@@ -2901,7 +2925,8 @@ class Trimesh(Geometry3D):
         result = decomposition.convex_decomposition(self, maxhulls=maxhulls, **kwargs)
         return result
 
-    def union(self, other: "Trimesh", engine: Optional[str] = None, **kwargs
+    def union(
+        self, other: "Trimesh", engine: Optional[str] = None, **kwargs
     ) -> "Trimesh":
         """
         Boolean union between this mesh and n other meshes
@@ -2937,9 +2962,7 @@ class Trimesh(Geometry3D):
         difference : trimesh.Trimesh
           Difference between self and other Trimesh objects
         """
-        result = boolean.difference(
-            meshes=[self, other], engine=engine, **kwargs
-        )
+        result = boolean.difference(meshes=[self, other], engine=engine, **kwargs)
         return result
 
     def intersection(
