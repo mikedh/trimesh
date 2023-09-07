@@ -11,9 +11,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from numpy import float64, int64, ndarray
-from numpy.typing import NDArray
-
-from trimesh.caching import TrackedArray
 
 from . import (
     boolean,
@@ -41,6 +38,7 @@ from . import (
     units,
     util,
 )
+from .typed import NDArray, ArrayLike
 from .constants import log, log_time, tol
 from .exceptions import ExceptionWrapper
 from .exchange.export import export_mesh
@@ -2965,7 +2963,7 @@ class Trimesh(Geometry3D):
         )
         return result
 
-    def contains(self, points: TrackedArray) -> NDArray[bool]:
+    def contains(self, points: ArrayLike[float64]) -> NDArray[bool]:
         """
         Given an array of points determine whether or not they
         are inside the mesh. This raises an error if called on a
