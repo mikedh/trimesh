@@ -1764,6 +1764,8 @@ def _append_image(img, tree, buffer_items):
         # for everything else just use PNG
         save_as = 'png'
 
+    from IPython import embed
+    embed()
     # get the image data into a bytes object
     with util.BytesIO() as f:
         img.save(f, format=save_as)
@@ -1778,7 +1780,6 @@ def _append_image(img, tree, buffer_items):
 
     # index is length minus one
     return len(tree['images']) - 1
-
 
 def _append_material(mat, tree, buffer_items, mat_hashes):
     """

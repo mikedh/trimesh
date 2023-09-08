@@ -38,12 +38,12 @@ from . import (
     units,
     util,
 )
-from .typed import NDArray, ArrayLike
 from .constants import log, log_time, tol
 from .exceptions import ExceptionWrapper
 from .exchange.export import export_mesh
 from .parent import Geometry3D
 from .scene import Scene
+from .typed import ArrayLike, NDArray
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
 try:
