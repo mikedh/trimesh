@@ -9,18 +9,22 @@ from ..transformations import transform_points
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
+from ..typed import NDArray, float64
+
 try:
     import networkx as nx
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
     from ..exceptions import ExceptionWrapper
+
     nx = ExceptionWrapper(E)
 try:
     from rtree import Rtree
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     from ..exceptions import ExceptionWrapper
+
     Rtree = ExceptionWrapper(E)
 
 
@@ -65,7 +69,7 @@ def enclosure_tree(polygons):
         # we first query for bounding box intersections from the R-tree
         for j in tree.intersection(polygon.bounds):
             # if we are checking a polygon against itself continue
-            if (i == j):
+            if i == j:
                 continue
             # do a more accurate polygon in polygon test
             # for the enclosure tree information
@@ -93,8 +97,7 @@ def enclosure_tree(polygons):
         # find edges of subgraph for each root and children
         for root in roots:
             children = indexes[degrees == degree[root] + 1]
-            edges.extend(contains.subgraph(
-                np.append(children, root)).edges())
+            edges.extend(contains.subgraph(np.append(children, root)).edges())
         # stack edges into new directed graph
         contains = nx.from_edgelist(edges, nx.DiGraph())
         # if roots have no children add them anyway
@@ -126,12 +129,12 @@ def edges_to_polygons(edges, vertices):
     # create closed polygon objects
     polygons = []
     # loop through a sequence of ordered traversals
-    for dfs in graph.traversals(edges, mode='dfs'):
+    for dfs in graph.traversals(edges, mode="dfs"):
         try:
             # try to recover polygons before they are more complicated
             repaired = repair_invalid(Polygon(vertices[dfs]))
             # if it returned a multipolygon extend into a flat list
-            if hasattr(repaired, 'geoms'):
+            if hasattr(repaired, "geoms"):
                 polygons.extend(repaired.geoms)
             else:
                 polygons.append(repaired)
@@ -151,8 +154,7 @@ def edges_to_polygons(edges, vertices):
         interior = list(tree[root].keys())
         shell = polygons[root].exterior.coords
         holes = [polygons[i].exterior.coords for i in interior]
-        complete.append(Polygon(shell=shell,
-                                holes=holes))
+        complete.append(Polygon(shell=shell, holes=holes))
     return complete
 
 
@@ -187,12 +189,12 @@ def polygon_obb(polygon):
     extents : (2,) float
       Extents of transformed polygon
     """
-    if hasattr(polygon, 'exterior'):
+    if hasattr(polygon, "exterior"):
         points = np.asanyarray(polygon.exterior.coords)
     elif isinstance(polygon, np.ndarray):
         points = polygon
     else:
-        raise ValueError('polygon or points must be provided')
+        raise ValueError("polygon or points must be provided")
 
     transform, extents = bounds.oriented_bounds_2D(points)
 
@@ -222,17 +224,15 @@ def transform_polygon(polygon, matrix):
     """
     matrix = np.asanyarray(matrix, dtype=np.float64)
 
-    if hasattr(polygon, 'geoms'):
-        result = [transform_polygon(p, t)
-                  for p, t in zip(polygon, matrix)]
+    if hasattr(polygon, "geoms"):
+        result = [transform_polygon(p, t) for p, t in zip(polygon, matrix)]
         return result
     # transform the outer shell
-    shell = transform_points(np.array(polygon.exterior.coords),
-                             matrix)[:, :2]
+    shell = transform_points(np.array(polygon.exterior.coords), matrix)[:, :2]
     # transform the interiors
-    holes = [transform_points(np.array(i.coords),
-                              matrix)[:, :2]
-             for i in polygon.interiors]
+    holes = [
+        transform_points(np.array(i.coords), matrix)[:, :2] for i in polygon.interiors
+    ]
     # create a new polygon with the result
     result = Polygon(shell=shell, holes=holes)
     return result
@@ -258,13 +258,12 @@ def polygon_bounds(polygon, matrix=None):
     if matrix is not None:
         assert matrix.shape == (3, 3)
         points = transform_points(
-            points=np.array(polygon.exterior.coords),
-            matrix=matrix)
+            points=np.array(polygon.exterior.coords), matrix=matrix
+        )
     else:
         points = np.array(polygon.exterior.coords)
 
-    bounds = np.array([points.min(axis=0),
-                       points.max(axis=0)])
+    bounds = np.array([points.min(axis=0), points.max(axis=0)])
     assert bounds.shape == (2, 2)
     return bounds
 
@@ -288,14 +287,15 @@ def plot(polygon=None, show=True, axes=None, **kwargs):
         axes.plot(*single.exterior.xy, **kwargs)
         for interior in single.interiors:
             axes.plot(*interior.xy, **kwargs)
+
     # make aspect ratio non-stupid
     if axes is None:
         axes = plt.axes()
-    axes.set_aspect('equal', 'datalim')
+    axes.set_aspect("equal", "datalim")
 
-    if polygon.__class__.__name__ == 'MultiPolygon':
+    if polygon.__class__.__name__ == "MultiPolygon":
         [plot_single(i) for i in polygon.geoms]
-    elif hasattr(polygon, '__iter__'):
+    elif hasattr(polygon, "__iter__"):
         [plot_single(i) for i in polygon]
     elif polygon is not None:
         plot_single(polygon)
@@ -308,7 +308,7 @@ def plot(polygon=None, show=True, axes=None, **kwargs):
 
 def resample_boundaries(polygon, resolution, clip=None):
     """
-    Return a version of a polygon with boundaries resampled
+    Return a version of a polygon with boundaries re-sampled
     to a specified resolution.
 
     Parameters
@@ -326,19 +326,20 @@ def resample_boundaries(polygon, resolution, clip=None):
     kwargs : dict
      Keyword args for a Polygon constructor `Polygon(**kwargs)`
     """
+
     def resample_boundary(boundary):
         # add a polygon.exterior or polygon.interior to
         # the deque after resampling based on our resolution
         count = boundary.length / resolution
         count = int(np.clip(count, *clip))
         return resample_path(boundary.coords, count=count)
+
     if clip is None:
         clip = [8, 200]
     # create a sequence of [(n,2)] points
-    kwargs = {'shell': resample_boundary(polygon.exterior),
-              'holes': []}
+    kwargs = {"shell": resample_boundary(polygon.exterior), "holes": []}
     for interior in polygon.interiors:
-        kwargs['holes'].append(resample_boundary(interior))
+        kwargs["holes"].append(resample_boundary(interior))
 
     return kwargs
 
@@ -358,16 +359,13 @@ def stack_boundaries(boundaries):
     stacked : (n, 2) float
       Stacked vertices
     """
-    if len(boundaries['holes']) == 0:
-        return boundaries['shell']
-    result = np.vstack((boundaries['shell'],
-                        np.vstack(boundaries['holes'])))
+    if len(boundaries["holes"]) == 0:
+        return boundaries["shell"]
+    result = np.vstack((boundaries["shell"], np.vstack(boundaries["holes"])))
     return result
 
 
-def medial_axis(polygon,
-                resolution=None,
-                clip=None):
+def medial_axis(polygon, resolution=None, clip=None):
     """
     Given a shapely polygon, find the approximate medial axis
     using a voronoi diagram of evenly spaced points on the
@@ -395,17 +393,15 @@ def medial_axis(polygon,
         # what is the approximate scale of the polygon
         scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
         # a (center, radius, error) tuple
-        fit = fit_circle_check(
-            polygon.exterior.coords, scale=scale)
+        fit = fit_circle_check(polygon.exterior.coords, scale=scale)
         # is this polygon in fact a circle
         if fit is not None:
             # return an edge that has the center as the midpoint
-            epsilon = np.clip(
-                fit['radius'] / 500, 1e-5, np.inf)
+            epsilon = np.clip(fit["radius"] / 500, 1e-5, np.inf)
             vertices = np.array(
-                [fit['center'] + [0, epsilon],
-                 fit['center'] - [0, epsilon]],
-                dtype=np.float64)
+                [fit["center"] + [0, epsilon], fit["center"] - [0, epsilon]],
+                dtype=np.float64,
+            )
             # return a single edge to avoid consumers needing to special case
             edges = np.array([[0, 1]], dtype=np.int64)
             return edges, vertices
@@ -414,13 +410,10 @@ def medial_axis(polygon,
     from shapely import vectorized
 
     if resolution is None:
-        resolution = np.reshape(
-            polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
+        resolution = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
 
     # get evenly spaced points on the polygons boundaries
-    samples = resample_boundaries(polygon=polygon,
-                                  resolution=resolution,
-                                  clip=clip)
+    samples = resample_boundaries(polygon=polygon, resolution=resolution, clip=clip)
     # stack the boundary into a (m,2) float array
     samples = stack_boundaries(samples)
     # create the voronoi diagram on 2D points
@@ -446,15 +439,14 @@ def medial_axis(polygon,
 
     if tol.strict:
         # make sure we didn't screw up indexes
-        assert (vertices[edges_final] -
-                voronoi.vertices[edges]).ptp() < 1e-5
+        assert (vertices[edges_final] - voronoi.vertices[edges]).ptp() < 1e-5
 
     return edges_final, vertices
 
 
-def polygon_hash(polygon):
+def identifier(polygon: Polygon) -> NDArray[float64]:
     """
-    Return a vector containing values representitive of
+    Return a vector containing values representative of
     a particular polygon.
 
     Parameters
@@ -464,18 +456,19 @@ def polygon_hash(polygon):
 
     Returns
     ---------
-    hashed: (6), float
-      Representitive values representing input polygon
+    hashed : (10),
+      Some values that should be unique for this polygon.
     """
-    result = np.array(
-        [len(polygon.interiors),
-         polygon.convex_hull.area,
-         polygon.convex_hull.length,
-         polygon.area,
-         polygon.length,
-         polygon.exterior.length],
-        dtype=np.float64)
-    return result
+    result = [
+        len(polygon.interiors),
+        polygon.convex_hull.area,
+        polygon.convex_hull.length,
+        polygon.area,
+        polygon.length,
+        polygon.exterior.length,
+    ]
+    result.extend(polygon.bounds)
+    return np.array(result, dtype=np.float64)
 
 
 def random_polygon(segments=8, radius=1.0):
@@ -494,14 +487,12 @@ def random_polygon(segments=8, radius=1.0):
     polygon : shapely.geometry.Polygon
       Geometry object with random exterior and no interiors.
     """
-    angles = np.sort(np.cumsum(np.random.random(
-        segments) * np.pi * 2) % (np.pi * 2))
+    angles = np.sort(np.cumsum(np.random.random(segments) * np.pi * 2) % (np.pi * 2))
     radii = np.random.random(segments) * radius
-    points = np.column_stack(
-        (np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
+    points = np.column_stack((np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
     points = np.vstack((points, points[0]))
     polygon = Polygon(points).buffer(0.0)
-    if hasattr(polygon, 'geoms'):
+    if hasattr(polygon, "geoms"):
         return polygon.geoms[0]
     return polygon
 
@@ -521,7 +512,7 @@ def polygon_scale(polygon):
       Length of AABB diagonal
     """
     extents = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0)
-    scale = (extents ** 2).sum() ** .5
+    scale = (extents**2).sum() ** 0.5
 
     return scale
 
@@ -535,7 +526,7 @@ def paths_to_polygons(paths, scale=None):
     -----------
     paths : (n,) sequence
       Of (m, 2) float closed paths
-    scale: float
+    scale : float
       Approximate scale of drawing for precision
 
     Returns
@@ -557,7 +548,7 @@ def paths_to_polygons(paths, scale=None):
             # raised if a polygon is unrecoverable
             continue
         except BaseException:
-            log.error('unrecoverable polygon', exc_info=True)
+            log.error("unrecoverable polygon", exc_info=True)
     polygons = np.array(polygons)
     return polygons
 
@@ -625,7 +616,7 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     return hit
 
 
-def repair_invalid(polygon, scale=None, rtol=.5):
+def repair_invalid(polygon, scale=None, rtol=0.5):
     """
     Given a shapely.geometry.Polygon, attempt to return a
     valid version of the polygon through buffering tricks.
@@ -649,25 +640,22 @@ def repair_invalid(polygon, scale=None, rtol=.5):
     ValueError
       If polygon can't be repaired
     """
-    if hasattr(polygon, 'is_valid') and polygon.is_valid:
+    if hasattr(polygon, "is_valid") and polygon.is_valid:
         return polygon
 
     # basic repair involves buffering the polygon outwards
     # this will fix a subset of problems.
     basic = polygon.buffer(tol.zero)
     # if it returned multiple polygons check the largest
-    if hasattr(basic, 'geoms'):
+    if hasattr(basic, "geoms"):
         basic = basic.geoms[np.argmax([i.area for i in basic.geoms])]
 
     # check perimeter of result against original perimeter
-    if basic.is_valid and np.isclose(basic.length,
-                                     polygon.length,
-                                     rtol=rtol):
+    if basic.is_valid and np.isclose(basic.length, polygon.length, rtol=rtol):
         return basic
 
     if scale is None:
-        distance = 0.002 * np.reshape(
-            polygon.bounds, (2, 2)).ptp(axis=0).mean()
+        distance = 0.002 * np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).mean()
     else:
         distance = 0.002 * scale
 
@@ -681,9 +669,7 @@ def repair_invalid(polygon, scale=None, rtol=.5):
             # reconstruct a single polygon from the interior ring
             recon = Polygon(shell=rings[0]).buffer(distance)
             # check perimeter of result against original perimeter
-            if recon.is_valid and np.isclose(recon.length,
-                                             polygon.length,
-                                             rtol=rtol):
+            if recon.is_valid and np.isclose(recon.length, polygon.length, rtol=rtol):
                 return recon
 
         # try de-deuplicating the outside ring
@@ -691,41 +677,40 @@ def repair_invalid(polygon, scale=None, rtol=.5):
         # remove any segments shorter than tol.merge
         # this is a little risky as if it was discretized more
         # finely than 1-e8 it may remove detail
-        unique = np.append(True, (np.diff(points, axis=0)**2).sum(
-            axis=1)**.5 > 1e-8)
+        unique = np.append(
+            True, (np.diff(points, axis=0) ** 2).sum(axis=1) ** 0.5 > 1e-8
+        )
         # make a new polygon with result
         dedupe = Polygon(shell=points[unique])
         # check result
-        if dedupe.is_valid and np.isclose(dedupe.length,
-                                          polygon.length,
-                                          rtol=rtol):
+        if dedupe.is_valid and np.isclose(dedupe.length, polygon.length, rtol=rtol):
             return dedupe
 
     # buffer and unbuffer the whole polygon
     buffered = polygon.buffer(distance).buffer(-distance)
     # if it returned multiple polygons check the largest
-    if hasattr(buffered, 'geoms'):
+    if hasattr(buffered, "geoms"):
         areas = np.array([b.area for b in buffered.geoms])
         return buffered.geoms[areas.argmax()]
 
     # check perimeter of result against original perimeter
-    if buffered.is_valid and np.isclose(buffered.length,
-                                        polygon.length,
-                                        rtol=rtol):
-        log.debug('Recovered invalid polygon through double buffering')
+    if buffered.is_valid and np.isclose(buffered.length, polygon.length, rtol=rtol):
+        log.debug("Recovered invalid polygon through double buffering")
         return buffered
 
-    raise ValueError('unable to recover polygon!')
+    raise ValueError("unable to recover polygon!")
 
 
-def projected(mesh,
-              normal,
-              origin=None,
-              ignore_sign=True,
-              rpad=1e-5,
-              apad=None,
-              tol_dot=0.01,
-              max_regions=200):
+def projected(
+    mesh,
+    normal,
+    origin=None,
+    ignore_sign=True,
+    rpad=1e-5,
+    apad=None,
+    tol_dot=0.01,
+    max_regions=200,
+):
     """
     Project a mesh onto a plane and then extract the polygon
     that outlines the mesh projection on that plane.
@@ -814,22 +799,19 @@ def projected(mesh,
     adjacency = mesh.face_adjacency[adjacency_check]
 
     # a sequence of face indexes that are connected
-    face_groups = graph.connected_components(
-        adjacency, nodes=np.nonzero(side)[0])
+    face_groups = graph.connected_components(adjacency, nodes=np.nonzero(side)[0])
 
     # if something is goofy we may end up with thousands of
     # regions that do nothing except hang for an hour then segfault
     if len(face_groups) > max_regions:
-        raise ValueError('too many disconnected groups!')
+        raise ValueError("too many disconnected groups!")
 
     # reshape edges into shape length of faces for indexing
     edges = mesh.edges_sorted.reshape((-1, 6))
     # transform from the mesh frame in 3D to the XY plane
-    to_2D = geometry.plane_transform(
-        origin=origin, normal=normal)
+    to_2D = geometry.plane_transform(origin=origin, normal=normal)
     # transform mesh vertices to 2D and clip the zero Z
-    vertices_2D = transform_points(
-        mesh.vertices, to_2D)[:, :2]
+    vertices_2D = transform_points(mesh.vertices, to_2D)[:, :2]
 
     polygons = []
     for faces in face_groups:
@@ -838,8 +820,7 @@ def projected(mesh,
         # edges that occur only once are on the boundary
         group = grouping.group_rows(edge, require_count=1)
         # turn each region into polygons
-        polygons.extend(edges_to_polygons(
-            edges=edge[group], vertices=vertices_2D))
+        polygons.extend(edges_to_polygons(edges=edge[group], vertices=vertices_2D))
 
     padding = 0.0
     if apad is not None:
@@ -855,7 +836,7 @@ def projected(mesh,
     # regions and the union will take forever to fail
     # so exit here early
     if len(polygons) > max_regions:
-        raise ValueError('too many disconnected groups!')
+        raise ValueError("too many disconnected groups!")
 
     # if there is only one region we don't need to run a union
     elif len(polygons) == 1:
@@ -873,9 +854,9 @@ def projected(mesh,
         #              join_style=2,
         #              mitre_limit=1.5)
         #     for p in polygons]).buffer(-padding)
-        polygon = ops.unary_union(
-            [p.buffer(padding)
-             for p in polygons]).buffer(-padding)
+        polygon = ops.unary_union([p.buffer(padding) for p in polygons]).buffer(
+            -padding
+        )
     return polygon
 
 
@@ -911,7 +892,7 @@ def second_moments(polygon, return_centered=False):
     transform = np.eye(3)
     if return_centered:
         # calculate centroid and move polygon
-        transform[:2, 2] = - np.array(polygon.centroid.coords)
+        transform[:2, 2] = -np.array(polygon.centroid.coords)
         polygon = transform_polygon(polygon, transform)
 
     # start with the exterior
@@ -934,8 +915,7 @@ def second_moments(polygon, return_centered=False):
         v = x1 * y2 - x2 * y1
         Ixx -= np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2)) / 12.0
         Iyy -= np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2)) / 12.0
-        Ixy -= np.sum(v * (x1 * y2 + 2 * x1 * y1 +
-                      2 * x2 * y2 + x2 * y1)) / 24.0
+        Ixy -= np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1)) / 24.0
 
     moments = [Ixx, Iyy, Ixy]
 
@@ -943,7 +923,7 @@ def second_moments(polygon, return_centered=False):
         return moments
 
     # get the principal moments
-    root = np.sqrt(((Iyy - Ixx) / 2.0)**2 + Ixy**2)
+    root = np.sqrt(((Iyy - Ixx) / 2.0) ** 2 + Ixy**2)
     Imax = (Ixx + Iyy) / 2.0 + root
     Imin = (Ixx + Iyy) / 2.0 - root
     principal_moments = [Imax, Imin]
@@ -963,7 +943,7 @@ def second_moments(polygon, return_centered=False):
 
     transform[0, 0] = cos_alpha
     transform[1, 1] = cos_alpha
-    transform[0, 1] = - sin_alpha
+    transform[0, 1] = -sin_alpha
     transform[1, 0] = sin_alpha
 
     return moments, principal_moments, alpha, transform

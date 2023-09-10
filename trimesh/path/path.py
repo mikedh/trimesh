@@ -1438,7 +1438,7 @@ class Path2D(Path):
         identifier : (5,) float
           Unique identifier
         """
-        hasher = polygons.polygon_hash
+        hasher = polygons.identifier
         target = self.polygons_full
         if len(target) == 1:
             return hasher(self.polygons_full[0])
