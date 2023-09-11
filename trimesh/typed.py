@@ -26,7 +26,7 @@ IntLike = Union[
     np.uint64,
 ]
 
-FloatLike = Union[float, np.float16, np.float32, float64, np.float128, np.float_]
+FloatLike = Union[float, np.float16, np.float32, float64, np.float_]
 BoolLike = Union[bool, np.bool_]
 
 ArrayLike = Sequence
