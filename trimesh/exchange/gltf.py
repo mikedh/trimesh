@@ -1764,8 +1764,6 @@ def _append_image(img, tree, buffer_items):
         # for everything else just use PNG
         save_as = 'png'
 
-    from IPython import embed
-    embed()
     # get the image data into a bytes object
     with util.BytesIO() as f:
         img.save(f, format=save_as)
