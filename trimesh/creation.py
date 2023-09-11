@@ -85,6 +85,7 @@ def revolve(linestring,
     if sections is None:
         # default to 32 sections for a full revolution
         sections = int(angle / (np.pi * 2) * 32)
+
     # change to face count
     sections += 1
     # create equally spaced angles
@@ -107,8 +108,11 @@ def revolve(linestring,
 
     if closed:
         # should be a duplicate set of vertices
-        assert np.allclose(vertices[:per],
-                           vertices[-per:])
+        if tol.strict:
+            assert util.allclose(vertices[:per],
+                                 vertices[-per:],
+                                 atol=1e-8)
+            
         # chop off duplicate vertices
         vertices = vertices[:-per]
 
@@ -130,7 +134,7 @@ def revolve(linestring,
     # remove any zero-area triangle
     # this covers many cases without having to think too much
     single = single[triangles.area(vertices[single]) > tol.merge]
-
+    
     # how much to offset each slice
     # note arange multiplied by vertex stride
     # but tiled by the number of faces we actually have
@@ -147,6 +151,11 @@ def revolve(linestring,
 
     # offset stacked and wrap vertices
     faces = (stacked + offset) % len(vertices)
+
+    
+    
+    #if 'process' not in kwargs:
+    #    kwargs['process'] = False
 
     # create the mesh from our vertices and faces
     mesh = Trimesh(vertices=vertices,

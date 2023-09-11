@@ -369,7 +369,7 @@ class Cache:
         # for stored numpy arrays set `flags.writable = False`
         self.force_immutable = bool(force_immutable)
         # call the id function for initial value
-        self.id_current = self._id_function()
+        self.id_current = None
         # a counter for locks
         self._lock = 0
         # actual store for data
