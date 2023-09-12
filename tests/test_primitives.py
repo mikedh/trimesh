@@ -137,7 +137,7 @@ class PrimitiveTest(g.unittest.TestCase):
                     m = p.to_mesh()
 
                     # make sure we have the types we think we do
-                    assert isinstance(p, g.trimesh.primitives._Primitive)
+                    assert isinstance(p, g.trimesh.primitives.Primitive)
                     assert isinstance(m, g.trimesh.Trimesh)
 
                     assert g.np.allclose(p.extents, m.extents)
