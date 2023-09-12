@@ -61,12 +61,13 @@ trimesh = [
 test = [
     "pytest-cov",
     "coveralls",
+    "mypy",
+    "ezdxf",
     "pytest",
     "pymeshlab",
     "pyinstrument",
     "ruff",
-    "ezdxf",
-    "autopep8<2",
+    "black",
 ]
 easy = [
     "colorlog",
