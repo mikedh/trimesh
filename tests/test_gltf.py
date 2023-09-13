@@ -1003,6 +1003,22 @@ class GLTFTest(g.unittest.TestCase):
             reloaded = g.trimesh.load(path)
             assert set(reloaded.geometry.keys()) == set(scene.geometry.keys())
 
+    def test_webp(self):
+        # load textured file
+        mesh = g.get_mesh('fuze.ply')
+        assert hasattr(mesh.visual, 'uv')
+
+        for extension in ["glb"]:
+            export = mesh.export(file_type=extension, extension_webp=True)
+            validate_glb(export)
+
+            # roundtrip
+            reloaded = g.trimesh.load(
+                g.trimesh.util.wrap_as_stream(export),
+                file_type=extension)
+
+            g.scene_equal(g.trimesh.Scene(mesh), reloaded)
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
