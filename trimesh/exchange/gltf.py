@@ -728,8 +728,16 @@ def _create_gltf_structure(scene,
     # Add any extensions already in the tree (e.g. node extensions)
     if 'extensionsUsed' in tree:
         extensions_used = extensions_used.union(set(tree['extensionsUsed']))
+    # Add WebP if used
+    if extension_webp:
+        extensions_used.add("EXT_texture_webp")
     if len(extensions_used) > 0:
         tree['extensionsUsed'] = list(extensions_used)
+
+    # Also add WebP to required (no fallback currently implemented)
+    # 'extensionsRequired' aren't currently used so this doesn't overwrite
+    if extension_webp:
+        tree['extensionsRequired'] = ["EXT_texture_webp"]
 
     if buffer_postprocessor is not None:
         buffer_postprocessor(buffer_items, tree)
