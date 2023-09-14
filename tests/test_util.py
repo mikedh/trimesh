@@ -1,7 +1,9 @@
-import trimesh
-import unittest
 import logging
+import unittest
+
 import numpy as np
+
+import trimesh
 
 try:
     from . import generic as g
@@ -272,7 +274,7 @@ class IOWrapTests(unittest.TestCase):
         assert res_s == test_s
 
         # check __enter__ and __exit__
-        hi = 'hi'.encode('utf-8')
+        hi = b'hi'
         with util.BytesIO(hi) as f:
             assert f.read() == hi
 

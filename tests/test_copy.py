@@ -16,10 +16,10 @@ class CopyTests(g.unittest.TestCase):
             start = hash(mesh)
 
             # make sure some stuff is populated
-            mesh.kdtree
-            mesh.triangles_tree
-            mesh.face_adjacency_angles
-            mesh.facets
+            _ = mesh.kdtree
+            _ = mesh.triangles_tree
+            _ = mesh.face_adjacency_angles
+            _ = mesh.facets
             assert 'triangles_tree' in mesh._cache
             assert len(mesh._cache) > 0
 

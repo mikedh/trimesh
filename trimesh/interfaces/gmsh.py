@@ -32,9 +32,10 @@ def load_gmsh(file_name, gmsh_args=None):
       Surface mesh of input geometry
     """
     # use STL as an intermediate format
-    from ..exchange.stl import load_stl
     # do import here to avoid very occasional segfaults
     import gmsh
+
+    from ..exchange.stl import load_stl
 
     # start with default args for the meshing step
     # Mesh.Algorithm=2 MeshAdapt/Delaunay, there are others but they may include quads
@@ -67,6 +68,10 @@ def load_gmsh(file_name, gmsh_args=None):
         gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh.model.add('Surface_Mesh_Generation')
+    # loop through our numbered args which do things, stuff
+    for arg in args:
+        gmsh.option.setNumber(*arg)
+
     gmsh.open(file_name)
 
     # create a temporary file for the results
@@ -78,9 +83,6 @@ def load_gmsh(file_name, gmsh_args=None):
     if any(file_name.lower().endswith(e)
            for e in ['.brep', '.stp', '.step', '.igs', '.iges']):
         gmsh.model.geo.synchronize()
-        # loop through our numbered args which do things, stuff
-        for arg in args:
-            gmsh.option.setNumber(*arg)
         # generate the mesh
         gmsh.model.mesh.generate(2)
         # write to the temporary file

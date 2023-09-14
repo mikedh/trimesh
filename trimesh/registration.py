@@ -7,19 +7,15 @@ Functions for registering (aligning) point clouds with meshes.
 
 import numpy as np
 
-
-from . import util
-from . import bounds
-from . import transformations
-
-from .points import PointCloud, plane_fit
+from . import bounds, transformations, util
 from .geometry import weighted_vertex_normals
-from .triangles import normals, angles, cross
+from .points import PointCloud, plane_fit
 from .transformations import transform_points
+from .triangles import angles, cross, normals
 
 try:
-    from scipy.spatial import cKDTree
     import scipy.sparse as sparse
+    from scipy.spatial import cKDTree
 except BaseException as E:
     # wrapping just ImportError fails in some cases
     # will raise the error when someone tries to use KDtree

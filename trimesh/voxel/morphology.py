@@ -1,18 +1,17 @@
 """Basic morphology operations that create new encodings."""
 import numpy as np
 
+from .. import util
+from ..constants import log_time
 from . import encoding as enc
 from . import ops
-
-from ..constants import log_time
-from .. import util
-
 
 try:
     from scipy import ndimage
 except BaseException as E:
     # scipy is a soft dependency
     from ..exceptions import ExceptionWrapper
+
     ndimage = ExceptionWrapper(E)
 
 
@@ -23,7 +22,8 @@ def _dense(encoding, rank=None):
         dense = encoding.dense
     else:
         raise ValueError(
-            'encoding must be np.ndarray or Encoding, got %s' % str(encoding))
+            "encoding must be np.ndarray or Encoding, got %s" % str(encoding)
+        )
     if rank:
         _assert_rank(dense, rank)
     return dense
@@ -36,7 +36,8 @@ def _sparse_indices(encoding, rank=None):
         sparse_indices = encoding.sparse_indices
     else:
         raise ValueError(
-            'encoding must be np.ndarray or Encoding, got %s' % str(encoding))
+            "encoding must be np.ndarray or Encoding, got %s" % str(encoding)
+        )
 
     _assert_sparse_rank(sparse_indices, 3)
     return sparse_indices
@@ -44,19 +45,19 @@ def _sparse_indices(encoding, rank=None):
 
 def _assert_rank(value, rank):
     if len(value.shape) != rank:
-        raise ValueError(
-            'Expected rank %d, got shape %s' % (rank, str(value.shape)))
+        raise ValueError("Expected rank %d, got shape %s" % (rank, str(value.shape)))
 
 
 def _assert_sparse_rank(value, rank=None):
     if len(value.shape) != 2:
         raise ValueError(
-            'sparse_indices must be rank 2, got shape %s' % str(value.shape))
+            "sparse_indices must be rank 2, got shape %s" % str(value.shape)
+        )
     if rank is not None:
         if value.shape[-1] != rank:
             raise ValueError(
-                'sparse_indices.shape[1] must be %d, got %d'
-                % (rank, value.shape[-1]))
+                "sparse_indices.shape[1] must be %d, got %d" % (rank, value.shape[-1])
+            )
 
 
 @log_time
@@ -72,8 +73,7 @@ def fill_base(encoding):
     --------------
     A new filled encoding object.
     """
-    return enc.SparseBinaryEncoding(
-        ops.fill_base(_sparse_indices(encoding, rank=3)))
+    return enc.SparseBinaryEncoding(ops.fill_base(_sparse_indices(encoding, rank=3)))
 
 
 @log_time
@@ -113,7 +113,8 @@ def fill_holes(encoding, **kwargs):
     A new filled in encoding object.
     """
     return enc.DenseEncoding(
-        ndimage.binary_fill_holes(_dense(encoding, rank=3), **kwargs))
+        ndimage.binary_fill_holes(_dense(encoding, rank=3), **kwargs)
+    )
 
 
 fillers = util.FunctionRegistry(
@@ -123,7 +124,7 @@ fillers = util.FunctionRegistry(
 )
 
 
-def fill(encoding, method='base', **kwargs):
+def fill(encoding, method="base", **kwargs):
     """
     Fill the given encoding using the specified implementation.
 
@@ -153,7 +154,8 @@ def binary_dilation(encoding, **kwargs):
     https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.ndimage.morphology.binary_dilation.html#scipy.ndimage.morphology.binary_dilation
     """
     return enc.DenseEncoding(
-        ndimage.binary_dilation(_dense(encoding, rank=3), **kwargs))
+        ndimage.binary_dilation(_dense(encoding, rank=3), **kwargs)
+    )
 
 
 def binary_closing(encoding, **kwargs):
@@ -162,8 +164,7 @@ def binary_closing(encoding, **kwargs):
 
     https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.ndimage.morphology.binary_closing.html#scipy.ndimage.morphology.binary_closing
     """
-    return enc.DenseEncoding(
-        ndimage.binary_closing(_dense(encoding, rank=3), **kwargs))
+    return enc.DenseEncoding(ndimage.binary_closing(_dense(encoding, rank=3), **kwargs))
 
 
 def surface(encoding, structure=None):
@@ -184,7 +185,7 @@ def surface(encoding, structure=None):
     """
     dense = _dense(encoding, rank=3)
     # padding/unpadding resolves issues with occupied voxels on the boundary
-    dense = np.pad(dense, np.ones((3, 2), dtype=int), mode='constant')
+    dense = np.pad(dense, np.ones((3, 2), dtype=int), mode="constant")
     empty = np.logical_not(dense)
     dilated = ndimage.binary_dilation(empty, structure=structure)
     surface = np.logical_and(dense, dilated)[1:-1, 1:-1, 1:-1]

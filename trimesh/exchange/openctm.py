@@ -28,11 +28,12 @@
 #     distribution.
 # ------------------------------------------------------------------------------
 
-import os
 import ctypes
 import ctypes.util
+import os
 
 import numpy as np
+
 _ctm_loaders = {}
 
 try:
@@ -129,7 +130,7 @@ def load_ctm(file_obj, file_type=None, **kwargs):
 
     err = ctmGetError(ctm)
     if err != CTM_NONE:
-        raise IOError("Error loading file: " + str(ctmErrorString(err)))
+        raise OSError("Error loading file: " + str(ctmErrorString(err)))
 
     # get vertices
     vertex_count = ctmGetInteger(ctm, CTM_VERTEX_COUNT)

@@ -20,8 +20,7 @@ class CacheTest(g.unittest.TestCase):
                    g.trimesh.caching.sha256]
 
         for option in options:
-            g.log.info('testing hash function: {}'.format(
-                option.__name__))
+            g.log.info(f'testing hash function: {option.__name__}')
             g.trimesh.caching.hash_fast = option
 
             # generate test data and perform numpy operations
@@ -108,8 +107,7 @@ class CacheTest(g.unittest.TestCase):
                    g.trimesh.caching.sha256]
 
         for option in options:
-            g.log.info('testing hash function: {}'.format(
-                option.__name__))
+            g.log.info(f'testing hash function: {option.__name__}')
             g.trimesh.caching.hash_fast = option
             # hashing will fail on non- contiguous arrays
             # make sure our utility function has handled this
@@ -196,7 +194,9 @@ class CacheTest(g.unittest.TestCase):
             return
 
         import itertools
+
         import numpy as np
+
         from trimesh.caching import tracked_array
 
         dim = (100, 3)
@@ -218,7 +218,7 @@ class CacheTest(g.unittest.TestCase):
                 'shape']
 
         # start with no arguments
-        attempts = [tuple()]
+        attempts = [()]
         # add a single argument from our guesses
         attempts.extend([(A,) for A in flat])
         # add 2 and 3 length permutations of our guesses
@@ -228,9 +228,9 @@ class CacheTest(g.unittest.TestCase):
         # are suspicious of a method caching you could uncomment this out:
         # attempts.extend([tuple(G) for G in itertools.permutations(flat, 3)])
 
-        skip = set(['__array_ufunc__',  # segfaulting when called with `(2.3, 1)`
+        skip = {'__array_ufunc__',  # segfaulting when called with `(2.3, 1)`
                     'astype',
-                    ])
+                    }
 
         # collect functions which mutate arrays but don't change our hash
         broken = []
@@ -241,14 +241,14 @@ class CacheTest(g.unittest.TestCase):
                 continue
 
             failures = []
-            g.log.debug('hash check: `{}`'.format(method))
+            g.log.debug(f'hash check: `{method}`')
             for A in attempts:
                 m = g.random((100, 3))
                 true_pre = m.tobytes()
                 m = tracked_array(m)
                 hash_pre = hash(m)
                 try:
-                    eval('m.{method}(*A)'.format(method=method))
+                    eval(f'm.{method}(*A)')
                 except BaseException as J:
                     failures.append(str(J))
 
@@ -261,10 +261,9 @@ class CacheTest(g.unittest.TestCase):
                     broken.append((method, A))
 
         if len(broken) > 0:
-            method_busted = set([method for method, _ in broken])
+            method_busted = {method for method, _ in broken}
             raise ValueError(
-                '`TrackedArray` incorrectly hashing methods: {}'.format(
-                    method_busted))
+                f'`TrackedArray` incorrectly hashing methods: {method_busted}')
 
     def test_validate(self):
         # create a mesh with two duplicate triangles

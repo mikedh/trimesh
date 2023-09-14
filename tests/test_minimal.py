@@ -7,10 +7,11 @@ Test things that should work with a *minimal* trimesh install.
 
 """
 import os
-
 import unittest
-import trimesh
+
 import numpy as np
+
+import trimesh
 
 # the path of the current directory
 _pwd = os.path.dirname(
@@ -107,13 +108,15 @@ class MinimalTest(unittest.TestCase):
         try:
             get_mesh('cycloidal.3DXML')
         except BaseException as E:
-            exc = str(E)
+            exc = str(E).lower()
 
         # should have raised
         assert exc is not None
 
         # error message should have been useful
-        assert 'lxml' in exc
+        # containing which module the user was missing
+        if not any(m in exc for m in ('lxml', 'networkx')):
+            raise ValueError(exc)
 
 
 if __name__ == '__main__':

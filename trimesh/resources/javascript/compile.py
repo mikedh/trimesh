@@ -8,9 +8,9 @@ The idea is you develop on viewer.html, then call this file to
 generate the template used in the trimesh viewer.
 """
 import os
+
 import jsmin
 import requests
-
 from lxml import html
 
 
@@ -26,7 +26,7 @@ def minify(path):
     if path.startswith('http'):
         data = requests.get(path).content.decode(
             'ascii', errors='ignore')
-        print('downloaded', path, len(data))  # noqa
+        print('downloaded', path, len(data))
     else:
         with open(path, 'rb') as f:
             # some upstream JS uses unicode spaces -_-
@@ -55,12 +55,12 @@ if __name__ == '__main__':
 
             # get a blob of file
             path = s.attrib['src'].strip()
-            print('minifying:', path)  # noqa
+            print('minifying:', path)
             mini = minify(path)
 
             # replace test data in our file
             if path == 'load_base64.js':
-                print('replacing test data with "$B64GLTF"')  # noqa
+                print('replacing test data with "$B64GLTF"')
                 start = mini.find('base64_data')
                 end = mini.find(';', start)
                 # replace test data with a string we can replace

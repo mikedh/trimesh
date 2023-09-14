@@ -282,7 +282,7 @@ class VoxelGridTest(g.unittest.TestCase):
         `is_filled` are tested for consistency.
         """
         def array_as_set(array2d):
-            return set(tuple(x) for x in array2d)
+            return {tuple(x) for x in array2d}
 
         # all points are filled
         assert g.np.all(v0.is_filled(v1.points))
@@ -383,6 +383,29 @@ class VoxelGridTest(g.unittest.TestCase):
             method='binvox',
             exact=True)
         assert octant.shape == (dim, dim, dim)
+
+    def test_transform_cache(self):
+        encoding = [
+            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+            [[0, 1, 1], [0, 1, 0], [1, 1, 0]],
+            [[0, 0, 0], [0, 1, 0], [0, 0, 0]]]
+        vg = g.trimesh.voxel.VoxelGrid(g.np.asarray(encoding))
+
+        scale = g.np.asarray([12, 23, 24])
+        s_matrix = g.np.eye(4)
+        s_matrix[:3, :3] *= scale
+
+        # original scale should be identity
+        assert g.np.allclose(vg.scale, 1.0)
+
+        # save the hash
+        hash_ori = hash(vg._data)
+        # modify the voxelgrid
+        vg.apply_transform(s_matrix)
+
+        # hash should have changed
+        assert hash_ori != hash(vg._data)
+        assert g.np.allclose(vg.scale, scale)
 
 
 if __name__ == '__main__':

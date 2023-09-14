@@ -7,9 +7,7 @@ circles, spheres, hyperspheres, etc.
 """
 import numpy as np
 
-from . import util
-from . import convex
-
+from . import convex, util
 from .constants import log, tol
 
 try:

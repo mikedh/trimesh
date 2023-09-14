@@ -1,10 +1,9 @@
 import numpy as np
 
 from .. import util
-
 from ..constants import log
-from ..constants import tol_path as tol
 from ..constants import res_path as res
+from ..constants import tol_path as tol
 
 # floating point zero
 _TOL_ZERO = 1e-12
@@ -158,7 +157,7 @@ def discretize_arc(points,
 
     # the number of facets, based on the angle criteria
     count_a = angle / res.seg_angle
-    count_l = ((R * angle)) / (res.seg_frac * scale)
+    count_l = (R * angle) / (res.seg_frac * scale)
 
     # figure out the number of line segments
     count = np.max([count_a, count_l])

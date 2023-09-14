@@ -21,17 +21,17 @@ In [25]: %timeit xxh3_64_intdigest(d)
 """
 import os
 import time
-import warnings
+from functools import wraps
+
 import numpy as np
 
-from functools import wraps
 from .constants import log
 from .util import is_sequence
 
 try:
     from collections.abc import Mapping
 except BaseException:
-    from collections import Mapping
+    from collections.abc import Mapping
 
 
 # sha256 is always available
@@ -202,30 +202,6 @@ class TrackedArray(np.ndarray):
     def mutable(self, value):
         self.flags.writeable = value
 
-    def hash(self):
-        warnings.warn(
-            '`array.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def crc(self):
-        warnings.warn(
-            '`array.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def md5(self):
-        warnings.warn(
-            '`array.md5()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
     def __hash__(self):
         """
         Return a fast hash of the contents of the array.
@@ -372,7 +348,7 @@ class TrackedArray(np.ndarray):
             *args, **kwargs)
 
 
-class Cache(object):
+class Cache:
     """
     Class to cache values which will be stored until the
     result of an ID function changes.
@@ -393,7 +369,7 @@ class Cache(object):
         # for stored numpy arrays set `flags.writable = False`
         self.force_immutable = bool(force_immutable)
         # call the id function for initial value
-        self.id_current = self._id_function()
+        self.id_current = None
         # a counter for locks
         self._lock = 0
         # actual store for data
@@ -524,7 +500,7 @@ class Cache(object):
         self.id_current = self._id_function()
 
 
-class DiskCache(object):
+class DiskCache:
     """
     Store results of expensive operations on disk
     with an option to expire the results. This is used
@@ -580,7 +556,7 @@ class DiskCache(object):
                 with open(path, 'rb') as f:
                     return f.read()
 
-        log.debug('not in cache fetching: `{}`'.format(key))
+        log.debug(f'not in cache fetching: `{key}`')
         # since we made it here our data isn't cached
         # run the expensive function to fetch the file
         raw = fetch()
@@ -722,44 +698,3 @@ class DataStore(Mapping):
              if v is not None and
              (not hasattr(v, '__len__') or len(v) > 0)],
             dtype=np.int64).tobytes())
-
-    def crc(self):
-        """
-        Get a CRC reflecting everything in the DataStore.
-
-        Returns
-        ----------
-        crc : int
-          CRC of data
-        """
-        warnings.warn(
-            '`array.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def fast_hash(self):
-        """
-        Get a CRC32 or xxhash.xxh64 reflecting the DataStore.
-
-        Returns
-        ------------
-        hashed : int
-          Checksum of data
-        """
-        warnings.warn(
-            '`array.fast_hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def hash(self):
-        warnings.warn(
-            '`array.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-
-        return self.__hash__()

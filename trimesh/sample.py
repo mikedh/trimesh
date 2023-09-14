@@ -7,8 +7,7 @@ Randomly sample surface and volume of meshes.
 
 import numpy as np
 
-from . import util
-from . import transformations
+from . import transformations, util
 from .visual import uv_to_interpolated_color
 
 if hasattr(np.random, 'default_rng'):
@@ -219,8 +218,7 @@ def sample_surface_even(mesh, count, radius=None, seed=None):
         return points[:count], index[mask][:count]
 
     # warn if we didn't get all the samples we expect
-    util.log.warning('only got {}/{} samples!'.format(
-        len(points), count))
+    util.log.warning(f'only got {len(points)}/{count} samples!')
 
     return points, index[mask]
 

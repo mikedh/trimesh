@@ -5,38 +5,29 @@ path.py
 A module designed to work with vector paths such as
 those stored in a DXF or SVG file.
 """
-import numpy as np
-
+import collections
 import copy
 import warnings
-import collections
-
 from hashlib import sha256
 
-from ..points import plane_fit
-from ..geometry import plane_transform
-from ..visual import to_rgba
+import numpy as np
+
+from .. import bounds, caching, exceptions, grouping, parent, units, util
+from .. import transformations as tf
 from ..constants import log
 from ..constants import tol_path as tol
-
-from .util import concatenate
-
-from .. import parent
-from .. import util
-from .. import units
-from .. import bounds
-from .. import caching
-from .. import grouping
-from .. import exceptions
-from .. import transformations as tf
-
-from . import raster
-from . import simplify
-from . import creation  # NOQA
-from . import segments  # NOQA
-from . import traversal
-
+from ..geometry import plane_transform
+from ..points import plane_fit
+from ..visual import to_rgba
+from . import (
+    creation,  # NOQA
+    raster,
+    segments,  # NOQA
+    simplify,
+    traversal,
+)
 from .exchange.export import export_path
+from .util import concatenate
 
 # now import things which require non-minimal install of Trimesh
 # create a dummy module which will raise the ImportError
@@ -102,7 +93,7 @@ class Path(parent.Geometry):
         # assign each color to each entity
         self.colors = colors
         # collect metadata into new dictionary
-        self.metadata = dict()
+        self.metadata = {}
         if metadata.__class__.__name__ == 'dict':
             self.metadata.update(metadata)
 
@@ -777,7 +768,7 @@ class Path(parent.Geometry):
                 metadata[key] = copy.deepcopy(self.metadata[key])
             except RuntimeError:
                 # multiple threads
-                log.warning('key {} changed during copy'.format(key))
+                log.warning(f'key {key} changed during copy')
 
         # copy the core data
         copied = type(self)(entities=copy.deepcopy(self.entities),
@@ -892,8 +883,7 @@ class Path3D(Path):
                     N = normal
                 else:
                     log.debug(
-                        "passed normal not used: {}".format(
-                            normal.shape))
+                        f"passed normal not used: {normal.shape}")
             # create a transform from fit plane to XY
             to_2D = plane_transform(origin=C,
                                     normal=N)
@@ -1448,7 +1438,7 @@ class Path2D(Path):
         identifier : (5,) float
           Unique identifier
         """
-        hasher = polygons.polygon_hash
+        hasher = polygons.identifier
         target = self.polygons_full
         if len(target) == 1:
             return hasher(self.polygons_full[0])

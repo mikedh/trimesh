@@ -7,9 +7,8 @@ Randomly deform meshes in different ways.
 
 import numpy as np
 
-from . import transformations
+from . import transformations, util
 from . import triangles as triangles_module
-from . import util
 
 
 def transform(mesh, translation_scale=1000.0):

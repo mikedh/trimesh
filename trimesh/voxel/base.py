@@ -6,61 +6,45 @@ Convert meshes to a simple voxel data structure and back again.
 """
 import numpy as np
 
-from . import ops
-from . import transforms
-from . import morphology
-
-from .encoding import Encoding, DenseEncoding
-from .. import util
-from .. import caching
 from .. import bounds as bounds_module
+from .. import caching, util
 from .. import transformations as tr
-
-from ..parent import Geometry
 from ..constants import log
-
 from ..exchange.binvox import export_binvox
+from ..parent import Geometry
+from ..typed import NDArray, float64
+from . import morphology, ops, transforms
+from .encoding import DenseEncoding, Encoding
 
 
 class VoxelGrid(Geometry):
-    """
-    Store 3D voxels.
-    """
-
     def __init__(self, encoding, transform=None, metadata=None):
+        """
+        Store 3D voxels.
+
+        Parameters
+        --------------
+        encoding
+          A numpy array of voxels, or an encoding object
+        """
         if transform is None:
             transform = np.eye(4)
         if isinstance(encoding, np.ndarray):
             encoding = DenseEncoding(encoding.astype(bool))
         if encoding.dtype != bool:
-            raise ValueError('encoding must have dtype bool')
+            raise ValueError("encoding must have dtype bool")
         self._data = caching.DataStore()
-        self.encoding = encoding
-        self._data['transform'] = transforms.Transform(transform)
-        self._cache = caching.Cache(
-            id_function=self._data.__hash__)
+        self._cache = caching.Cache(id_function=self._data.__hash__)
+        self._transform = transforms.Transform(transform, datastore=self._data)
 
-        self.metadata = dict()
+        self.encoding = encoding
+        self.metadata = {}
+
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
         elif metadata is not None:
-            raise ValueError(
-                'metadata should be a dict or None, got %s' % str(metadata))
-
-    def crc(self):
-        util.log.warning(
-            '`geometry.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`')
-        return self.__hash__()
-
-    def hash(self):
-        util.log.warning(
-            '`geometry.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`')
-        return self.__hash__()
+            raise ValueError(f"metadata should be a dict or None, not {type(metadata)}")
 
     def __hash__(self):
         """
@@ -80,29 +64,24 @@ class VoxelGrid(Geometry):
 
         See `trimesh.voxel.encoding` for implementations.
         """
-        return self._data['encoding']
+        return self._data["encoding"]
 
     @encoding.setter
     def encoding(self, encoding):
         if isinstance(encoding, np.ndarray):
             encoding = DenseEncoding(encoding)
         elif not isinstance(encoding, Encoding):
-            raise ValueError(
-                'encoding must be an Encoding, got %s' % str(encoding))
+            raise ValueError("encoding must be an Encoding, got %s" % str(encoding))
         if len(encoding.shape) != 3:
             raise ValueError(
-                'encoding must be rank 3, got shape %s' % str(encoding.shape))
+                "encoding must be rank 3, got shape %s" % str(encoding.shape)
+            )
         if encoding.dtype != bool:
-            raise ValueError(
-                'encoding must be binary, got %s' % encoding.dtype)
-        self._data['encoding'] = encoding
+            raise ValueError("encoding must be binary, got %s" % encoding.dtype)
+        self._data["encoding"] = encoding
 
     @property
-    def _transform(self):
-        return self._data['transform']
-
-    @property
-    def transform(self):
+    def transform(self) -> NDArray[float64]:
         """4x4 homogeneous transformation matrix."""
         return self._transform.matrix
 
@@ -177,8 +156,8 @@ class VoxelGrid(Geometry):
         indices = self.sparse_indices
         # get all 8 corners of the AABB
         corners = bounds_module.corners(
-            [indices.min(axis=0) - 0.5,
-             indices.max(axis=0) + 0.5])
+            [indices.min(axis=0) - 0.5, indices.max(axis=0) + 0.5]
+        )
         # transform these corners to a new frame
         corners = self._transform.transform_points(corners)
         # get the AABB of corners in-frame
@@ -226,13 +205,14 @@ class VoxelGrid(Geometry):
         indices = self.points_to_indices(point)
         in_range = np.logical_and(
             np.all(indices < np.array(self.shape), axis=-1),
-            np.all(indices >= 0, axis=-1))
+            np.all(indices >= 0, axis=-1),
+        )
 
         is_filled = np.zeros_like(in_range)
         is_filled[in_range] = self.encoding.gather_nd(indices[in_range])
         return is_filled
 
-    def fill(self, method='holes', **kwargs):
+    def fill(self, method="holes", **kwargs):
         """
         Mutates self by filling in the encoding according
         to `morphology.fill`.
@@ -251,8 +231,7 @@ class VoxelGrid(Geometry):
         self : VoxelGrid
           After replacing encoding with a filled version.
         """
-        self.encoding = morphology.fill(
-            self.encoding, method=method, **kwargs)
+        self.encoding = morphology.fill(self.encoding, method=method, **kwargs)
         return self
 
     def hollow(self):
@@ -325,8 +304,7 @@ class VoxelGrid(Geometry):
         points : (self.filled, 3) float
           Points in space.
         """
-        return self._transform.transform_points(
-            self.sparse_indices.astype(float))
+        return self._transform.transform_points(self.sparse_indices.astype(float))
 
     @property
     def sparse_indices(self):
@@ -359,14 +337,13 @@ class VoxelGrid(Geometry):
                     # encoding.as_mask?
                     colors = colors[encoding.dense]
                 else:
-                    log.warning('colors incorrect shape!')
+                    log.warning("colors incorrect shape!")
                     colors = None
             elif colors.shape not in ((3,), (4,)):
-                log.warning('colors incorrect shape!')
+                log.warning("colors incorrect shape!")
                 colors = None
 
-        mesh = ops.multibox(
-            centers=self.sparse_indices.astype(float), colors=colors)
+        mesh = ops.multibox(centers=self.sparse_indices.astype(float), colors=colors)
 
         mesh = mesh.apply_transform(self.transform)
         return mesh
@@ -394,13 +371,10 @@ class VoxelGrid(Geometry):
         Convert the current set of voxels into a trimesh for visualization
         and show that via its built- in preview method.
         """
-        return self.as_boxes(kwargs.pop(
-            'colors', None)).show(*args, **kwargs)
+        return self.as_boxes(kwargs.pop("colors", None)).show(*args, **kwargs)
 
     def copy(self):
-        return VoxelGrid(
-            self.encoding.copy(),
-            self._transform.matrix.copy())
+        return VoxelGrid(self.encoding.copy(), self._transform.matrix.copy())
 
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
@@ -421,14 +395,14 @@ class VoxelGrid(Geometry):
         if isinstance(file_obj, str) and file_type is None:
             file_type = util.split_extension(file_obj).lower()
 
-        if file_type != 'binvox':
-            raise ValueError('only binvox exports supported!')
+        if file_type != "binvox":
+            raise ValueError("only binvox exports supported!")
 
         exported = export_binvox(self, **kwargs)
-        if hasattr(file_obj, 'write'):
+        if hasattr(file_obj, "write"):
             file_obj.write(exported)
         elif isinstance(file_obj, str):
-            with open(file_obj, 'wb') as f:
+            with open(file_obj, "wb") as f:
                 f.write(exported)
         return exported
 
@@ -451,14 +425,11 @@ class VoxelGrid(Geometry):
         shape = tuple(shape)
         bounds = self.bounds.copy()
         extents = self.extents
-        points = util.grid_linspace(
-            bounds, shape).reshape(shape + (3,))
+        points = util.grid_linspace(bounds, shape).reshape(shape + (3,))
         dense = self.is_filled(points)
         scale = extents / np.asanyarray(shape)
         translate = bounds[0]
-        return VoxelGrid(
-            dense,
-            transform=tr.scale_and_translate(scale, translate))
+        return VoxelGrid(dense, transform=tr.scale_and_translate(scale, translate))
 
     def __add__(self, other):
         raise NotImplementedError("TODO : implement voxel concatenation")

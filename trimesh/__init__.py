@@ -7,37 +7,24 @@ meshes with an emphasis on watertight meshes. The goal of the library is to
 provide a fully featured Trimesh object which allows for easy manipulation
 and analysis, in the style of the Polygon object in the Shapely library.
 """
-
-# current version
-from .version import __version__
+# avoid a circular import in trimesh.base
+from . import bounds, collision, nsphere, primitives, smoothing, voxel
 
 # geometry objects
 from .base import Trimesh
-from .points import PointCloud
-from .scene.scene import Scene
-
-# utility functions
-from .util import unitize
-from .transformations import transform_points
 
 # general numeric tolerances
 from .constants import tol
 
 # loader functions
-from .exchange.load import (
-    load,
-    load_mesh,
-    load_path,
-    load_remote,
-    available_formats)
+from .exchange.load import available_formats, load, load_mesh, load_path, load_remote
+from .points import PointCloud
+from .scene.scene import Scene
+from .transformations import transform_points
 
-# avoid a circular import in trimesh.base
-from . import voxel
-from . import bounds
-from . import nsphere
-from . import collision
-from . import smoothing
-from . import primitives
+# utility functions
+from .util import unitize
+from .version import __version__
 
 try:
     # handle vector paths
@@ -47,9 +34,7 @@ except BaseException as E:
     from .exceptions import ExceptionWrapper
     path = ExceptionWrapper(E)
 
-# explicitly list imports in __all__
-# as otherwise flake8 gets mad
-__all__ = [__version__,
+__all__ = ["__version__",
            'Trimesh',
            'PointCloud',
            'Scene',

@@ -8,18 +8,16 @@ edge list form, and abstract the backend graph library being used.
 Currently uses networkx or scipy.sparse.csgraph backend.
 """
 
-import numpy as np
 import collections
 
-from . import util
-from . import grouping
-from . import exceptions
+import numpy as np
 
+from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
 
 try:
-    from scipy.sparse import csgraph, coo_matrix
+    from scipy.sparse import coo_matrix, csgraph
 except BaseException as E:
     # re-raise exception when used
     csgraph = exceptions.ExceptionWrapper(E)
@@ -918,8 +916,8 @@ def graph_to_svg(graph):
     svg: string, pictoral layout in SVG format
     """
 
-    import tempfile
     import subprocess
+    import tempfile
     with tempfile.NamedTemporaryFile() as dot_file:
         nx.drawing.nx_agraph.write_dot(graph, dot_file.name)
         svg = subprocess.check_output(['dot', dot_file.name, '-Tsvg'])

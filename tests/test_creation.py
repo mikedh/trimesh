@@ -126,8 +126,7 @@ class CreationTest(g.unittest.TestCase):
         assert isinstance(meshes, list)
         # all meshes should be viewable type
         for mesh in meshes:
-            assert isinstance(mesh, (g.trimesh.Trimesh,
-                                     g.trimesh.path.Path3D))
+            assert isinstance(mesh, (g.trimesh.Trimesh, g.trimesh.path.Path3D))
 
     def test_axis(self):
         # specify the size of the origin radius
@@ -290,8 +289,7 @@ class CreationTest(g.unittest.TestCase):
                     g.log.error(
                         'failed to benchmark triangle', exc_info=True)
         g.log.info(
-            'benchmarked triangulation on {} polygons: {}'.format(
-                len(bench), str(times)))
+            f'benchmarked triangulation on {len(bench)} polygons: {str(times)}')
 
     def test_triangulate_plumbing(self):
         """
@@ -325,6 +323,19 @@ def check_triangulation(v, f, true_area):
     area = g.trimesh.triangles.area(tri).sum()
     assert g.np.isclose(area, true_area)
 
+
+def test_torus():
+    torus = g.trimesh.creation.torus
+
+    major_radius = 1.0
+    minor_radius = 0.2
+    m = torus(major_radius=major_radius, minor_radius=minor_radius)
+
+    extents = g.np.array([2 * major_radius + 2 * minor_radius,
+                          2 * major_radius + 2 * minor_radius,
+                          2 * minor_radius])
+    assert g.np.allclose(m.extents, extents)
+    assert g.np.allclose(m.bounds, [-extents / 2.0, extents / 2.0])
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()

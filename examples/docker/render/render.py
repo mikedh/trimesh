@@ -1,6 +1,6 @@
-import trimesh
 from pyglet import gl
 
+import trimesh
 
 if __name__ == '__main__':
     # print logged messages

@@ -1,14 +1,12 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-import os
-import numpy as np
 import inspect
-import trimesh
+import os
 
-from trimesh.exchange.binvox import voxelize_mesh
+import numpy as np
+
+import trimesh
 from trimesh import voxel as v
+from trimesh.exchange.binvox import voxelize_mesh
 
 log = trimesh.util.log
 

@@ -1,22 +1,18 @@
-import numpy as np
 import collections
-
 from copy import deepcopy
 
-from .. import util
-from .. import caching
+import numpy as np
 
-from ..transformations import (rotation_matrix,
-                               quaternion_matrix,
-                               fix_rigid)
+from .. import caching, util
 from ..caching import hash_fast
+from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
 
 # we compare to identity a lot
 _identity = np.eye(4)
 _identity.flags['WRITEABLE'] = False
 
 
-class SceneGraph(object):
+class SceneGraph:
     """
     Hold data about positions and instances of geometry
     in a scene. This includes a forest (i.e. multi-root tree)
@@ -172,7 +168,7 @@ class SceneGraph(object):
                         np.linalg.inv(backward['matrix']))
             # filter out any identity matrices
             matrices = [m for m in matrices if
-                        np.abs((m - _identity)).max() > 1e-8]
+                        np.abs(m - _identity).max() > 1e-8]
             if len(matrices) == 0:
                 matrix = _identity
             elif len(matrices) == 1:
@@ -425,8 +421,8 @@ class SceneGraph(object):
         kwargs : dict
           Passed to `networkx.draw_networkx`
         """
-        import networkx
         import matplotlib.pyplot as plt
+        import networkx
         # default kwargs will only be set if not
         # passed explicitly to the show command
         defaults = {'with_labels': True}
@@ -536,7 +532,7 @@ class SceneGraph(object):
         self._cache.clear()
 
 
-class EnforcedForest(object):
+class EnforcedForest:
     """
     A simple forest graph data structure: every node
     is allowed to have exactly one parent. This makes
@@ -708,7 +704,7 @@ class EnforcedForest(object):
                 common = set(backward).intersection(
                     forward).difference({None})
                 if len(common) == 0:
-                    raise ValueError('No path from {}->{}!'.format(u, v))
+                    raise ValueError(f'No path from {u}->{v}!')
                 elif len(common) > 1:
                     # get the first occurring common element in "forward"
                     link = next(f for f in forward if f in common)
@@ -785,7 +781,7 @@ class EnforcedForest(object):
         children = self.children
         # if node doesn't exist return early
         if node not in children:
-            return set([node])
+            return {node}
 
         # children we need to collect
         queue = [node]

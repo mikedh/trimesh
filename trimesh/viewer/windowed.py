@@ -8,8 +8,8 @@ Trimesh, Scene, PointCloud, and Path objects.
 Works on all major platforms: Windows, Linux, and OSX.
 """
 import collections
-import numpy as np
 
+import numpy as np
 import pyglet
 
 # pyglet 2.0 is close to a re-write moving from fixed-function
@@ -20,13 +20,10 @@ if int(pyglet.version.split('.')[0]) >= 2:
     raise ImportError(
         '`trimesh.viewer.windowed` requires `pip install "pyglet<2"`')
 
-from .trackball import Trackball
-
-from .. import util
-from .. import rendering
-
-from ..visual import to_rgba
+from .. import rendering, util
 from ..transformations import translation_matrix
+from ..visual import to_rgba
+from .trackball import Trackball
 
 pyglet.options['shadow_window'] = False
 
@@ -172,28 +169,28 @@ class SceneViewer(pyglet.window.Window):
                                  samples=4,
                                  depth_size=24,
                                  double_buffer=True)
-                super(SceneViewer, self).__init__(config=conf,
-                                                  visible=visible,
-                                                  resizable=True,
-                                                  width=resolution[0],
-                                                  height=resolution[1],
-                                                  caption=caption)
+                super().__init__(config=conf,
+                                 visible=visible,
+                                 resizable=True,
+                                 width=resolution[0],
+                                 height=resolution[1],
+                                 caption=caption)
             except pyglet.window.NoSuchConfigException:
                 conf = gl.Config(double_buffer=True)
-                super(SceneViewer, self).__init__(config=conf,
-                                                  resizable=True,
-                                                  visible=visible,
-                                                  width=resolution[0],
-                                                  height=resolution[1],
-                                                  caption=caption)
+                super().__init__(config=conf,
+                                 resizable=True,
+                                 visible=visible,
+                                 width=resolution[0],
+                                 height=resolution[1],
+                                 caption=caption)
         else:
             # window config was manually passed
-            super(SceneViewer, self).__init__(config=window_conf,
-                                              resizable=True,
-                                              visible=visible,
-                                              width=resolution[0],
-                                              height=resolution[1],
-                                              caption=caption)
+            super().__init__(config=window_conf,
+                             resizable=True,
+                             visible=visible,
+                             width=resolution[0],
+                             height=resolution[1],
+                             caption=caption)
 
         # add scene geometry to viewer geometry
         self._update_vertex_list()
@@ -257,7 +254,7 @@ class SceneViewer(pyglet.window.Window):
             # convert geometry to constructor args
             args = rendering.convert_to_vertexlist(geometry, **kwargs)
         except BaseException:
-            util.log.warning('failed to add geometry `{}`'.format(name),
+            util.log.warning(f'failed to add geometry `{name}`',
                              exc_info=True)
             return
 
@@ -286,8 +283,8 @@ class SceneViewer(pyglet.window.Window):
         # shorthand to scene graph
         graph = self.scene.graph
         # which parts of the graph still have geometry
-        geom_keep = set([graph[node][1] for
-                         node in graph.nodes_geometry])
+        geom_keep = {graph[node][1] for
+                     node in graph.nodes_geometry}
         # which geometries no longer need to be kept
         geom_delete = [geom for geom in self.vertex_list
                        if geom not in geom_keep]
@@ -450,7 +447,7 @@ class SceneViewer(pyglet.window.Window):
         # opengl only supports 7 lights?
         for i, light in enumerate(scene.lights[:7]):
             # the index of which light we have
-            lightN = eval('gl.GL_LIGHT{}'.format(i))
+            lightN = eval(f'gl.GL_LIGHT{i}')
 
             # get the transform for the light by name
             matrix = scene.graph.get(light.name)[0]
@@ -813,7 +810,7 @@ class SceneViewer(pyglet.window.Window):
             util.log.debug(profiler.output_text(unicode=True, color=True))
 
     def flip(self):
-        super(SceneViewer, self).flip()
+        super().flip()
         if self._record:
             # will save a PNG-encoded bytes
             img = self.save_image(util.BytesIO())

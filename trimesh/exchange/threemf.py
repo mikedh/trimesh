@@ -1,14 +1,11 @@
+import collections
 import io
-import sys
 import uuid
 import zipfile
 
-import collections
 import numpy as np
 
-from .. import util
-from .. import graph
-
+from .. import graph, util
 from ..constants import log
 
 
@@ -161,7 +158,7 @@ def load_3MF(file_obj,
         last = path[-1][0]
         # if someone included an undefined component, skip it
         if last not in id_name:
-            log.debug('id {} included but not defined!'.format(last))
+            log.debug(f'id {last} included but not defined!')
             continue
         # frame names unique
         name = id_name[last] + util.unique_id()
@@ -232,11 +229,6 @@ def export_3MF(mesh,
       Represents geometry as a 3MF file.
     """
 
-    if sys.version_info < (3, 6):
-        # Python only added 'w' mode to `zipfile` in Python 3.6
-        # and it is not worth the effort to work around
-        raise NotImplementedError(
-            "3MF export requires Python >= 3.6")
     from ..scene.scene import Scene
 
     if not isinstance(mesh, Scene):
@@ -274,8 +266,7 @@ def export_3MF(mesh,
     # specify the parameters for the zip container
     zip_kwargs = {'compression': compression}
     # compresslevel was added in Python 3.7
-    if sys.version_info >= (3, 7):
-        zip_kwargs['compresslevel'] = compresslevel
+    zip_kwargs['compresslevel'] = compresslevel
 
     with zipfile.ZipFile(file_obj, mode='w', **zip_kwargs) as z:
         # 3dmodel.model
@@ -458,17 +449,10 @@ def _attrib_to_transform(attrib):
 
 # do import here to keep lxml a soft dependency
 try:
-    from lxml import etree
     import networkx as nx
+    from lxml import etree
     _three_loaders = {'3mf': load_3MF}
-    if sys.version_info < (3, 6):
-        # Python only added 'w' mode to `zipfile` in Python 3.6
-        # and it is not worth the effort to work around
-        from ..exceptions import ExceptionWrapper
-        _3mf_exporters = {'3mf': ExceptionWrapper(
-            NotImplementedError("3MF export requires Python >= 3.6"))}
-    else:
-        _3mf_exporters = {'3mf': export_3MF}
+    _3mf_exporters = {'3mf': export_3MF}
 except BaseException as E:
     from ..exceptions import ExceptionWrapper
     _three_loaders = {'3mf': ExceptionWrapper(E)}

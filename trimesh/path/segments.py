@@ -7,12 +7,7 @@ Deal with (n, 2, 3) line segments.
 
 import numpy as np
 
-from .. import util
-from .. import grouping
-from .. import geometry
-from .. import interval
-from .. import transformations
-
+from .. import geometry, grouping, interval, transformations, util
 from ..constants import tol
 
 

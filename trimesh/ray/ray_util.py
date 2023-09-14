@@ -1,8 +1,6 @@
 import numpy as np
 
-from .. import util
-from .. import bounds
-from .. import constants
+from .. import bounds, constants, util
 
 
 @constants.log_time

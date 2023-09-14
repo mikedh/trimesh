@@ -1,23 +1,16 @@
-import json
 import base64
 import collections
+import json
+from copy import deepcopy
 
 import numpy as np
 
-from copy import deepcopy
-
-from ..arc import arc_center
-from ..entities import Line, Arc, Bezier
-
+from ... import exceptions, grouping, resources, util
 from ...constants import log, tol
-
-from ... import util
-from ... import grouping
-from ... import resources
-from ... import exceptions
-
+from ...transformations import planar_matrix, transform_points
 from ...util import jsonify
-from ...transformations import transform_points, planar_matrix
+from ..arc import arc_center
+from ..entities import Arc, Bezier, Line
 
 try:
     # pip install svg.path
@@ -37,7 +30,7 @@ except BaseException as E:
 # store any additional properties using a trimesh namespace
 _ns_name = 'trimesh'
 _ns_url = 'https://github.com/mikedh/trimesh'
-_ns = '{{{}}}'.format(_ns_url)
+_ns = f'{{{_ns_url}}}'
 
 _IDENTITY = np.eye(3)
 _IDENTITY.flags['WRITEABLE'] = False
@@ -209,7 +202,7 @@ def transform_to_matrices(transform):
             mat[:2, :2] *= values
             matrices.append(mat)
         else:
-            log.debug('unknown SVG transform: {}'.format(key))
+            log.debug(f'unknown SVG transform: {key}')
 
     return matrices
 
@@ -268,7 +261,7 @@ def _svg_path_convert(paths, force=None):
                                    svg_cubic.end])
         return Bezier(np.arange(4) + counts[name]), points
 
-    class MultiLine(object):
+    class MultiLine:
         # An object to hold one or multiple Line entities.
         def __init__(self, lines):
             if tol.strict:
@@ -434,7 +427,7 @@ def _entities_to_str(entities,
     points = vertices.copy()
 
     # generate a format string with the requested digits
-    temp_digits = '0.{}f'.format(int(digits))
+    temp_digits = f'0.{int(digits)}f'
     # generate a format string for circles as two arc segments
     temp_circle = ('M {x:DI},{y:DI}a{r:DI},{r:DI},0,1,0,{d:DI},' +
                    '0a{r:DI},{r:DI},0,1,0,-{d:DI},0Z').replace('DI', temp_digits)
@@ -573,9 +566,7 @@ def export_svg(drawing,
     elements = []
     for meta, path_string in pairs:
         # create a simple path element
-        elements.append('<path d="{d}" {attr}/>'.format(
-            d=path_string,
-            attr=_format_attrib(meta)))
+        elements.append(f'<path d="{path_string}" {_format_attrib(meta)}/>')
 
     # format as XML
     if 'stroke_width' in kwargs:
@@ -610,11 +601,10 @@ def _format_attrib(attrib):
       Bag of keys and values.
     """
     bag = {k: _encode(v) for k, v in attrib.items()}
-    return '\n'.join('{ns}:{key}="{value}"'.format(
-        ns=_ns_name, key=k, value=v)
-        for k, v in bag.items()
-        if len(k) > 0 and v is not None
-        and len(v) > 0)
+    return '\n'.join(f'{_ns_name}:{k}="{v}"'
+                     for k, v in bag.items()
+                     if len(k) > 0 and v is not None
+                     and len(v) > 0)
 
 
 def _encode(stuff):

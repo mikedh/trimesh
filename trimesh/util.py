@@ -10,26 +10,21 @@ or imported inside of a function
 """
 
 import abc
-import sys
+import base64
+import collections
 import copy
 import json
-import uuid
-import base64
+import logging
 import random
 import shutil
-import logging
-import zipfile
+import sys
 import tempfile
-import collections
+import uuid
+import zipfile
 
 import numpy as np
 
-if sys.version_info >= (3, 4):
-    # for newer version of python
-    ABC = abc.ABC
-else:
-    # an abstract base class that works on older versions
-    ABC = abc.ABCMeta('ABC', (), {})
+ABC = abc.ABC
 
 # a flag we can check elsewhere for Python 3
 PY3 = sys.version_info.major >= 3
@@ -39,12 +34,13 @@ if PY3:
     basestring = str
     # Python 3
     from io import BytesIO, StringIO
-    from shutil import which  # noqa
-    from time import perf_counter as now  # noqa
+    from shutil import which
+    from time import perf_counter as now
 else:
     # Python 2
-    from StringIO import StringIO
     from distutils.spawn import find_executable as which  # noqa
+
+    from StringIO import StringIO
     # monkey patch StringIO so `with` statements work
     StringIO.__enter__ = lambda a: a
     StringIO.__exit__ = lambda a, b, c, d: a.close()
@@ -55,7 +51,7 @@ else:
 try:
     from collections.abc import Mapping
 except ImportError:
-    from collections import Mapping
+    from collections.abc import Mapping
 
 # create a default logger
 log = logging.getLogger('trimesh')
@@ -1254,7 +1250,7 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
     elif encoding == 'binary':
         encoded['binary'] = array.tobytes(order='C')
     else:
-        raise ValueError('encoding {} is not available!'.format(encoding))
+        raise ValueError(f'encoding {encoding} is not available!')
     return encoded
 
 
@@ -1829,7 +1825,7 @@ def wrap_as_stream(item):
         return StringIO(item)
     elif isinstance(item, bytes):
         return BytesIO(item)
-    raise ValueError('{} is not wrappable!'.format(type(item).__name__))
+    raise ValueError(f'{type(item).__name__} is not wrappable!')
 
 
 def sigfig_round(values, sigfig=1):
@@ -2076,10 +2072,10 @@ def triangle_fans_to_faces(fans):
     """
 
     faces = [np.transpose([
-                fan[0]*np.ones(len(fan) - 2, dtype=int),
-                fan[1:-1],
-                fan[2:]
-            ]) for fan in fans]
+        fan[0] * np.ones(len(fan) - 2, dtype=int),
+        fan[1:-1],
+        fan[2:]
+    ]) for fan in fans]
     return np.concatenate(faces, axis=1)
 
 
@@ -2318,7 +2314,7 @@ class FunctionRegistry(Mapping):
         return self[key](*args, **kwargs)
 
 
-class TemporaryDirectory(object):
+class TemporaryDirectory:
     """
     Same basic usage as tempfile.TemporaryDirectory
     but functional in Python 2.7+.

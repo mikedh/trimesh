@@ -12,9 +12,9 @@ class ExportTest(g.unittest.TestCase):
 
         from trimesh.exceptions import ExceptionWrapper
 
-        export_types = set(k for k, v in
+        export_types = {k for k, v in
                            g.trimesh.exchange.export._mesh_exporters.items()
-                           if not isinstance(v, ExceptionWrapper))
+                           if not isinstance(v, ExceptionWrapper)}
 
         meshes = list(g.get_meshes(8))
         # make sure we've got something with texture
@@ -252,7 +252,7 @@ class ExportTest(g.unittest.TestCase):
         RET_COUNT = 5
 
         # a path that doesn't exist
-        nonexists = '/banana{}'.format(g.random())
+        nonexists = f'/banana{g.random()}'
         assert not g.os.path.exists(nonexists)
 
         # loadable OBJ model

@@ -2,14 +2,10 @@ import copy
 
 import numpy as np
 
-from .base import Visuals
+from .. import caching, grouping, util
 from . import color
-
-from .. import util
-from .. import caching
-from .. import grouping
-
-from .material import SimpleMaterial, PBRMaterial, empty_material  # NOQA
+from .base import Visuals
+from .material import PBRMaterial, SimpleMaterial, empty_material  # NOQA
 
 
 class TextureVisuals(Visuals):
@@ -192,7 +188,7 @@ class TextureVisuals(Visuals):
                 updates[key] = value[mask]
             except BaseException:
                 # usual reason is an incorrect size or index
-                util.log.warning('failed to update visual: `{}`'.format(key))
+                util.log.warning(f'failed to update visual: `{key}`')
         # clear all values from the vertex attributes
         self.vertex_attributes.clear()
         # apply the updated values

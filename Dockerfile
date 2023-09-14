@@ -21,7 +21,7 @@ RUN trimesh-setup --install build
 
 # copy in essential files
 COPY --chown=499 trimesh/ /home/user/trimesh
-COPY --chown=499 setup.py /home/user/
+COPY --chown=499 pyproject.toml /home/user/
 
 # switch to non-root user
 USER user
@@ -29,7 +29,7 @@ USER user
 # install trimesh into .local
 # then delete any included test directories
 # and remove Cython after all the building is complete
-RUN pip install /home/user[all] && \
+RUN pip install --user /home/user[easy] && \
     find /home/user/.local -type d -name tests -prune -exec rm -rf {} \; && \
     pip uninstall -y cython
 
@@ -58,7 +58,6 @@ FROM output AS tests
 COPY --chown=499 tests ./tests/
 COPY --chown=499 trimesh ./trimesh/
 COPY --chown=499 models ./models/
-COPY --chown=499 setup.py .
 COPY --chown=499 pyproject.toml .
 
 # codecov looks at the git history
@@ -69,7 +68,7 @@ RUN trimesh-setup --install=test,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
-RUN pip install -e .[all,easy,recommends,test]
+RUN pip install -e .[all,easy,recommend,test]
 
 # run pytest wrapped with xvfb for simple viewer tests
 RUN xvfb-run pytest --cov=trimesh \

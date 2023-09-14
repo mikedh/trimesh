@@ -7,8 +7,8 @@ from ..constants import log
 def fill_orthographic(dense):
     shape = dense.shape
     indices = np.stack(
-        np.meshgrid(*(np.arange(s) for s in shape), indexing='ij'),
-        axis=-1)
+        np.meshgrid(*(np.arange(s) for s in shape), indexing="ij"), axis=-1
+    )
     empty = np.logical_not(dense)
 
     def fill_axis(axis):
@@ -46,15 +46,12 @@ def fill_base(sparse_indices):
     # validate inputs
     sparse_indices = np.asanyarray(sparse_indices, dtype=np.int64)
     if not util.is_shape(sparse_indices, (-1, 3)):
-        raise ValueError('incorrect shape')
+        raise ValueError("incorrect shape")
 
     # create grid and mark inner voxels
     max_value = sparse_indices.max() + 3
 
-    grid = np.zeros((max_value,
-                     max_value,
-                     max_value),
-                    bool)
+    grid = np.zeros((max_value, max_value, max_value), bool)
     voxels_sparse = np.add(sparse_indices, 1)
 
     grid[tuple(voxels_sparse.T)] = 1
@@ -72,7 +69,7 @@ def fill_base(sparse_indices):
             if c < 4:
                 continue
             for s in range(0, c - c % 4, 4):
-                grid[i, j, idx[s]:idx[s + 3]] = 1
+                grid[i, j, idx[s] : idx[s + 3]] = 1
         if not check_dir2:
             continue
 
@@ -86,7 +83,7 @@ def fill_base(sparse_indices):
             if c < 4:
                 continue
             for s in range(0, c - c % 4, 4):
-                grid[i, idx[s]:idx[s + 3], k] = 1
+                grid[i, idx[s] : idx[s + 3], k] = 1
 
     # generate new voxels
     filled = np.column_stack(np.where(grid))
@@ -114,6 +111,7 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
       the marching cubes algorithm in skimage
     """
     from skimage import measure
+
     from ..base import Trimesh
 
     matrix = np.asanyarray(matrix, dtype=bool)
@@ -122,13 +120,12 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
     # Add in padding so marching cubes can function properly with
     # voxels on edge of AABB
     pad_width = 1
-    rev_matrix = np.pad(rev_matrix,
-                        pad_width=(pad_width),
-                        mode='constant',
-                        constant_values=(1))
+    rev_matrix = np.pad(
+        rev_matrix, pad_width=(pad_width), mode="constant", constant_values=(1)
+    )
 
     # pick between old and new API
-    if hasattr(measure, 'marching_cubes_lewiner'):
+    if hasattr(measure, "marching_cubes_lewiner"):
         func = measure.marching_cubes_lewiner
     else:
         func = measure.marching_cubes
@@ -137,15 +134,15 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
     pitch = np.asanyarray(pitch)
     if pitch.size == 1:
         pitch = (pitch,) * 3
-    meshed = func(volume=rev_matrix,
-                  level=.5,  # it is a boolean voxel grid
-                  spacing=pitch)
+    meshed = func(
+        volume=rev_matrix, level=0.5, spacing=pitch  # it is a boolean voxel grid
+    )
 
     # allow results from either marching cubes function in skimage
     # binaries available for python 3.3 and 3.4 appear to use the classic
     # method
     if len(meshed) == 2:
-        log.warning('using old marching cubes, may not be watertight!')
+        log.warning("using old marching cubes, may not be watertight!")
         vertices, faces = meshed
         normals = None
     elif len(meshed) == 4:
@@ -154,9 +151,7 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
     # Return to the origin, add in the pad_width
     vertices = np.subtract(vertices, pad_width * pitch)
     # create the mesh
-    mesh = Trimesh(vertices=vertices,
-                   faces=faces,
-                   vertex_normals=normals)
+    mesh = Trimesh(vertices=vertices, faces=faces, vertex_normals=normals)
     return mesh
 
 
@@ -178,7 +173,7 @@ def sparse_to_matrix(sparse):
 
     sparse = np.asanyarray(sparse, dtype=np.int64)
     if not util.is_shape(sparse, (-1, 3)):
-        raise ValueError('sparse must be (n,3)!')
+        raise ValueError("sparse must be (n,3)!")
 
     shape = sparse.max(axis=0) + 1
     matrix = np.zeros(np.prod(shape), dtype=bool)
@@ -249,24 +244,21 @@ def multibox(centers, pitch=1.0, colors=None):
     from ..base import Trimesh
 
     # get centers as numpy array
-    centers = np.asanyarray(
-        centers, dtype=np.float64)
+    centers = np.asanyarray(centers, dtype=np.float64)
 
     # get a basic box
     b = primitives.Box()
     # apply the pitch
     b.apply_scale(float(pitch))
     # tile into one box vertex per center
-    v = np.tile(
-        centers,
-        (1, len(b.vertices))).reshape((-1, 3))
+    v = np.tile(centers, (1, len(b.vertices))).reshape((-1, 3))
     # offset to centers
     v += np.tile(b.vertices, (len(centers), 1))
 
     f = np.tile(b.faces, (len(centers), 1))
     f += np.tile(
-        np.arange(len(centers)) * len(b.vertices),
-        (len(b.faces), 1)).T.reshape((-1, 1))
+        np.arange(len(centers)) * len(b.vertices), (len(b.faces), 1)
+    ).T.reshape((-1, 1))
 
     face_colors = None
     if colors is not None:
@@ -276,9 +268,7 @@ def multibox(centers, pitch=1.0, colors=None):
         if colors.ndim == 2 and len(colors) == len(centers):
             face_colors = colors.repeat(12, axis=0)
 
-    mesh = Trimesh(vertices=v,
-                   faces=f,
-                   face_colors=face_colors)
+    mesh = Trimesh(vertices=v, faces=f, face_colors=face_colors)
 
     return mesh
 
@@ -305,20 +295,13 @@ def boolean_sparse(a, b, operation=np.logical_and):
     import sparse
 
     # find the bounding box of both arrays
-    extrema = np.array([a.min(axis=0),
-                        a.max(axis=0),
-                        b.min(axis=0),
-                        b.max(axis=0)])
+    extrema = np.array([a.min(axis=0), a.max(axis=0), b.min(axis=0), b.max(axis=0)])
     origin = extrema.min(axis=0) - 1
     size = tuple(extrema.ptp(axis=0) + 2)
 
     # put nearby voxel arrays into same shape sparse array
-    sp_a = sparse.COO((a - origin).T,
-                      data=np.ones(len(a), dtype=bool),
-                      shape=size)
-    sp_b = sparse.COO((b - origin).T,
-                      data=np.ones(len(b), dtype=bool),
-                      shape=size)
+    sp_a = sparse.COO((a - origin).T, data=np.ones(len(a), dtype=bool), shape=size)
+    sp_b = sparse.COO((b - origin).T, data=np.ones(len(b), dtype=bool), shape=size)
 
     # apply the logical operation
     # get a sparse matrix out
@@ -337,7 +320,7 @@ def strip_array(data):
     for dim in range(len(shape)):
         axis = tuple(range(dim)) + tuple(range(dim + 1, ndims))
         filled = np.any(data, axis=axis)
-        indices, = np.nonzero(filled)
+        (indices,) = np.nonzero(filled)
         pad_left = indices[0]
         pad_right = indices[-1]
         padding.append([pad_left, pad_right])
@@ -361,7 +344,7 @@ def indices_to_points(indices, pitch=None, origin=None):
     """
     indices = np.asanyarray(indices)
     if indices.shape[1:] != (3,):
-        raise ValueError('shape of indices must be (q, 3)')
+        raise ValueError("shape of indices must be (q, 3)")
 
     points = np.array(indices, dtype=np.float64)
     if pitch is not None:
@@ -369,7 +352,7 @@ def indices_to_points(indices, pitch=None, origin=None):
     if origin is not None:
         origin = np.asanyarray(origin)
         if origin.shape != (3,):
-            raise ValueError('shape of origin must be (3,)')
+            raise ValueError("shape of origin must be (3,)")
         points += origin
 
     return points
@@ -390,9 +373,7 @@ def matrix_to_points(matrix, pitch=None, origin=None):
     points: (q, 3) list of points
     """
     indices = np.column_stack(np.nonzero(matrix))
-    points = indices_to_points(indices=indices,
-                               pitch=pitch,
-                               origin=origin)
+    points = indices_to_points(indices=indices, pitch=pitch, origin=origin)
     return points
 
 
@@ -416,12 +397,12 @@ def points_to_indices(points, pitch=None, origin=None):
     """
     points = np.array(points, dtype=np.float64)
     if points.shape != (points.shape[0], 3):
-        raise ValueError('shape of points must be (q, 3)')
+        raise ValueError("shape of points must be (q, 3)")
 
     if origin is not None:
         origin = np.asanyarray(origin)
         if origin.shape != (3,):
-            raise ValueError('shape of origin must be (3,)')
+            raise ValueError("shape of origin must be (3,)")
         points -= origin
     if pitch is not None:
         points /= pitch

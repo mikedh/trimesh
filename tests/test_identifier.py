@@ -66,7 +66,7 @@ class IdentifierTest(g.unittest.TestCase):
                 if not all(meshes[0].identifier_hash == i.identifier_hash
                            for i in meshes):
                     raise ValueError(
-                        '{} differs after transform!'.format(geom_name))
+                        f'{geom_name} differs after transform!')
 
         # check an example for a mirrored part
         assert (scenes[0].geometry['disc_cam_B'].identifier_hash !=
@@ -110,10 +110,10 @@ class IdentifierTest(g.unittest.TestCase):
         # should be the same in both forms
         assert len(a) == len(b)
 
-        a_set = set([tuple(sorted([clean_name(i) for i in group]))
-                     for group in a])
-        b_set = set([tuple(sorted([clean_name(i) for i in group]))
-                     for group in b])
+        a_set = {tuple(sorted([clean_name(i) for i in group]))
+                     for group in a}
+        b_set = {tuple(sorted([clean_name(i) for i in group]))
+                     for group in b}
         assert a_set == b_set
 
         ptp = []
