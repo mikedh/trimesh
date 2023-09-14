@@ -12,6 +12,7 @@ from .. import transformations as tr
 from ..constants import log
 from ..exchange.binvox import export_binvox
 from ..parent import Geometry
+from ..typed import NDArray, float64
 from . import morphology, ops, transforms
 from .encoding import DenseEncoding, Encoding
 

@@ -1,6 +1,6 @@
-import numpy as np
-
 from typing import Optional
+
+import numpy as np
 
 from .. import caching, util
 from .. import transformations as tr
