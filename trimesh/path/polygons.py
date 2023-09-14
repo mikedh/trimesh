@@ -6,7 +6,7 @@ from .. import bounds, geometry, graph, grouping
 from ..constants import log
 from ..constants import tol_path as tol
 from ..transformations import transform_points
-from ..typed import NDArray, float64
+from ..typed import NDArray, Optional, float64
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -27,7 +27,7 @@ except BaseException as E:
     Rtree = ExceptionWrapper(E)
 
 
-def enclosure_tree(polygons):
+def enclosure_tree(polygons: list[Polygon]):
     """
     Given a list of shapely polygons with only exteriors,
     find which curves represent the exterior shell or root curve
@@ -157,7 +157,7 @@ def edges_to_polygons(edges, vertices):
     return complete
 
 
-def polygons_obb(polygons):
+def polygons_obb(polygons: list[Polygon]):
     """
     Find the OBBs for a list of shapely.geometry.Polygons
     """
@@ -168,7 +168,7 @@ def polygons_obb(polygons):
     return np.array(transforms), np.array(rectangles)
 
 
-def polygon_obb(polygon):
+def polygon_obb(polygon: Polygon):
     """
     Find the oriented bounding box of a Shapely polygon.
 
@@ -256,9 +256,7 @@ def polygon_bounds(polygon, matrix=None):
     """
     if matrix is not None:
         assert matrix.shape == (3, 3)
-        points = transform_points(
-            points=np.array(polygon.exterior.coords), matrix=matrix
-        )
+        points = transform_points(points=np.array(polygon.exterior.coords), matrix=matrix)
     else:
         points = np.array(polygon.exterior.coords)
 
@@ -305,7 +303,7 @@ def plot(polygon=None, show=True, axes=None, **kwargs):
     return axes
 
 
-def resample_boundaries(polygon, resolution, clip=None):
+def resample_boundaries(polygon: Polygon, resolution: float, clip=None):
     """
     Return a version of a polygon with boundaries re-sampled
     to a specified resolution.
@@ -364,7 +362,7 @@ def stack_boundaries(boundaries):
     return result
 
 
-def medial_axis(polygon, resolution=None, clip=None):
+def medial_axis(polygon: Polygon, resolution: Optional[float] = None, clip=None):
     """
     Given a shapely polygon, find the approximate medial axis
     using a voronoi diagram of evenly spaced points on the
@@ -412,10 +410,7 @@ def medial_axis(polygon, resolution=None, clip=None):
         resolution = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
 
     # get evenly spaced points on the polygons boundaries
-    samples = resample_boundaries(
-        polygon=polygon,
-        resolution=resolution,
-        clip=clip)
+    samples = resample_boundaries(polygon=polygon, resolution=resolution, clip=clip)
     # stack the boundary into a (m,2) float array
     samples = stack_boundaries(samples)
     # create the voronoi diagram on 2D points
@@ -493,14 +488,10 @@ def random_polygon(segments=8, radius=1.0):
     polygon : shapely.geometry.Polygon
       Geometry object with random exterior and no interiors.
     """
-    angles = np.sort(
-        np.cumsum(
-            np.random.random(segments) * np.pi * 2) %
-        (np.pi * 2))
+    angles = np.sort(np.cumsum(np.random.random(segments) * np.pi * 2) % (np.pi * 2))
     radii = np.random.random(segments) * radius
 
-    points = np.column_stack(
-        (np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
+    points = np.column_stack((np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
     points = np.vstack((points, points[0]))
     polygon = Polygon(points).buffer(0.0)
     if hasattr(polygon, "geoms"):
@@ -666,8 +657,7 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
         return basic
 
     if scale is None:
-        distance = 0.002 * \
-            np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).mean()
+        distance = 0.002 * np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).mean()
     else:
         distance = 0.002 * scale
 
@@ -681,8 +671,7 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
             # reconstruct a single polygon from the interior ring
             recon = Polygon(shell=rings[0]).buffer(distance)
             # check perimeter of result against original perimeter
-            if recon.is_valid and np.isclose(
-                    recon.length, polygon.length, rtol=rtol):
+            if recon.is_valid and np.isclose(recon.length, polygon.length, rtol=rtol):
                 return recon
 
         # try de-deuplicating the outside ring
@@ -690,14 +679,11 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
         # remove any segments shorter than tol.merge
         # this is a little risky as if it was discretized more
         # finely than 1-e8 it may remove detail
-        unique = np.append(
-            True, (np.diff(points, axis=0) ** 2).sum(axis=1) ** 0.5 > 1e-8
-        )
+        unique = np.append(True, (np.diff(points, axis=0) ** 2).sum(axis=1) ** 0.5 > 1e-8)
         # make a new polygon with result
         dedupe = Polygon(shell=points[unique])
         # check result
-        if dedupe.is_valid and np.isclose(
-                dedupe.length, polygon.length, rtol=rtol):
+        if dedupe.is_valid and np.isclose(dedupe.length, polygon.length, rtol=rtol):
             return dedupe
 
     # buffer and unbuffer the whole polygon
@@ -708,8 +694,7 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
         return buffered.geoms[areas.argmax()]
 
     # check perimeter of result against original perimeter
-    if buffered.is_valid and np.isclose(
-            buffered.length, polygon.length, rtol=rtol):
+    if buffered.is_valid and np.isclose(buffered.length, polygon.length, rtol=rtol):
         log.debug("Recovered invalid polygon through double buffering")
         return buffered
 
@@ -814,8 +799,7 @@ def projected(
     adjacency = mesh.face_adjacency[adjacency_check]
 
     # a sequence of face indexes that are connected
-    face_groups = graph.connected_components(
-        adjacency, nodes=np.nonzero(side)[0])
+    face_groups = graph.connected_components(adjacency, nodes=np.nonzero(side)[0])
 
     # if something is goofy we may end up with thousands of
     # regions that do nothing except hang for an hour then segfault
@@ -836,10 +820,7 @@ def projected(
         # edges that occur only once are on the boundary
         group = grouping.group_rows(edge, require_count=1)
         # turn each region into polygons
-        polygons.extend(
-            edges_to_polygons(
-                edges=edge[group],
-                vertices=vertices_2D))
+        polygons.extend(edges_to_polygons(edges=edge[group], vertices=vertices_2D))
 
     padding = 0.0
     if apad is not None:
@@ -873,13 +854,11 @@ def projected(
         #              join_style=2,
         #              mitre_limit=1.5)
         #     for p in polygons]).buffer(-padding)
-        polygon = ops.unary_union([p.buffer(padding) for p in polygons]).buffer(
-            -padding
-        )
+        polygon = ops.unary_union([p.buffer(padding) for p in polygons]).buffer(-padding)
     return polygon
 
 
-def second_moments(polygon, return_centered=False):
+def second_moments(polygon: Polygon, return_centered=False):
     """
     Calculate the second moments of area of a polygon
     from the boundary.
@@ -934,8 +913,7 @@ def second_moments(polygon, return_centered=False):
         v = x1 * y2 - x2 * y1
         Ixx -= np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2)) / 12.0
         Iyy -= np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2)) / 12.0
-        Ixy -= np.sum(v * (x1 * y2 + 2 * x1 * y1 +
-                      2 * x2 * y2 + x2 * y1)) / 24.0
+        Ixy -= np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1)) / 24.0
 
     moments = [Ixx, Iyy, Ixy]
 

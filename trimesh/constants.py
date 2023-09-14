@@ -1,8 +1,11 @@
+from dataclasses import dataclass
+
 import numpy as np
 
 from .util import log, now
 
 
+@dataclass
 class ToleranceMesh:
     """
     ToleranceMesh objects hold tolerance information about meshes.
@@ -24,23 +27,24 @@ class ToleranceMesh:
       If True, run additional in- process checks (slower)
     """
 
-    def __init__(self, **kwargs):
-        # set our zero for floating point comparison to 100x
-        # the resolution of float64 which works out to 1e-13
-        self.zero = np.finfo(np.float64).resolution * 100
-        # vertices closer than this should be merged
-        self.merge = 1e-8
-        # peak to valley flatness to be considered planar
-        self.planar = 1e-5
-        # coplanar threshold: ratio of (radius / span) ** 2
-        self.facet_threshold = 5000
-        # run additional checks and asserts
-        self.strict = False
+    # set our zero for floating point comparison to 100x
+    # the resolution of float64 which works out to 1e-13
+    zero: float = np.finfo(np.float64).resolution * 100
 
-        # add any passed kwargs
-        self.__dict__.update(kwargs)
+    # vertices closer than this should be merged
+    merge: float = 1e-8
+
+    # peak to valley flatness to be considered planar
+    planar: float = 1e-5
+
+    # coplanar threshold: ratio of (radius / span) ** 2
+    facet_threshold: int = 5000
+
+    # should additional slow checks be run inside functions
+    strict: bool = False
 
 
+@dataclass
 class TolerancePath:
     """
     TolerancePath objects contain tolerance information used in
@@ -82,26 +86,23 @@ class TolerancePath:
        acceptable.
     """
 
-    def __init__(self, **kwargs):
-        # default values
-        self.zero = 1e-12
-        self.merge = 1e-5
-        self.planar = 1e-5
-        self.buffer = .05
-        self.seg_frac = .125
-        self.seg_angle = np.radians(50)
-        self.seg_angle_min = np.radians(1)
-        self.seg_angle_frac = .5
-        self.aspect_frac = .1
-        self.radius_frac = .02
-        self.radius_min = 1e-4
-        self.radius_max = 50
-        self.tangent = np.radians(20)
-        # run additional checks and asserts
-        self.strict = False
-        self.__dict__.update(kwargs)
+    zero: float = 1e-12
+    merge: float = 1e-5
+    planar: float = 1e-5
+    seg_frac: float = 0.125
+    seg_angle: float = np.radians(50)
+    seg_angle_min: float = np.radians(1)
+    seg_angle_frac: float = 0.5
+    aspect_frac: float = 0.1
+    radius_frac: float = 0.02
+    radius_min: float = 1e-4
+    radius_max: float = 50.0
+    tangent: float = np.radians(20)
+
+    strict: bool = False
 
 
+@dataclass
 class ResolutionPath:
     """
     res.seg_frac : float
@@ -119,12 +120,11 @@ class ResolutionPath:
       Format string to use when exporting floating point vertices
     """
 
-    def __init__(self, **kwargs):
-        self.seg_frac = .05
-        self.seg_angle = .08
-        self.max_sections = 500
-        self.min_sections = 20
-        self.export = '0.10f'
+    seg_frac: float = 0.05
+    seg_angle: float = 0.08
+    max_sections: float = 500
+    min_sections: float = 20
+    export: str = "0.10f"
 
 
 # instantiate mesh tolerances with defaults
@@ -141,14 +141,14 @@ def log_time(method):
     and then emit a log.debug message with the method name
     and how long it took to execute.
     """
+
     def timed(*args, **kwargs):
         tic = now()
         result = method(*args, **kwargs)
-        log.debug('%s executed in %.4f seconds.',
-                  method.__name__,
-                  now() - tic)
+        log.debug("%s executed in %.4f seconds.", method.__name__, now() - tic)
 
         return result
+
     timed.__name__ = method.__name__
     timed.__doc__ = method.__doc__
     return timed

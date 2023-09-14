@@ -1,4 +1,4 @@
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 
@@ -32,4 +32,4 @@ BoolLike = Union[bool, np.bool_]
 ArrayLike = Sequence
 
 
-__all__ = ["NDArray", "ArrayLike"]
+__all__ = ["NDArray", "ArrayLike", "Optional", "FloatLike", "IntLike", "BoolLike"]
