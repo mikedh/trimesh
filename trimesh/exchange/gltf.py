@@ -94,7 +94,7 @@ def export_gltf(scene,
     embed_buffers : bool
       Embed the buffer into JSON file as a base64 string in the URI
     extension_webp : bool
-      Export textures to WebP (using glTF's EXT_texture_webp extension).
+      Export textures as webP (using glTF's EXT_texture_webp extension).
 
     Returns
     ----------
@@ -186,7 +186,7 @@ def export_glb(
       Custom function to (in-place) post-process the tree
       before exporting.
     extension_webp : bool
-      Export textures to WebP (using glTF's EXT_texture_webp extension).
+      Export textures as webP using EXT_texture_webp extension.
 
     Returns
     ----------
@@ -621,7 +621,7 @@ def _create_gltf_structure(scene,
     unitize_normals : bool
       Unitize all exported normals so as to pass GLTF validation
     extension_webp : bool
-      Export textures to WebP (using glTF's EXT_texture_webp extension).
+      Export textures as webP using EXT_texture_webp extension.
 
     Returns
     ---------------
@@ -777,7 +777,7 @@ def _append_mesh(mesh,
     mat_hashes : dict
       Which materials have already been added
     extension_webp : bool
-      Export textures to WebP (using glTF's EXT_texture_webp extension).
+      Export textures as webP (using glTF's EXT_texture_webp extension).
     """
     # return early from empty meshes to avoid crashing later
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
@@ -1258,8 +1258,9 @@ def _parse_materials(header, views, resolver=None):
                         if "EXT_texture_webp" in texture["extensions"]:
                             idx = texture["extensions"]["EXT_texture_webp"]["source"]
                         else:
-                            raise ValueError("unsupported texture extension"
-                                             "in {texture['extensions']}!")
+                            broken = list(texture['extensions'].keys())
+                            log.debug(
+                                f"unsupported texture extension `{broken}`")
                     else:
                         # fallback (or primary, if extensions are not present)
                         idx = texture["source"]
@@ -1784,7 +1785,7 @@ def _append_image(img, tree, buffer_items, extension_webp):
     buffer_items : (n,) bytes
       Binary blobs containing data
     extension_webp : bool
-      Export textures to WebP (using glTF's EXT_texture_webp extension).
+      Export textures as webP (using glTF's EXT_texture_webp extension).
 
     Returns
     -----------
@@ -1821,6 +1822,7 @@ def _append_image(img, tree, buffer_items, extension_webp):
     # index is length minus one
     return len(tree['images']) - 1
 
+
 def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
     """
     Add passed PBRMaterial as GLTF 2.0 specification JSON
@@ -1841,7 +1843,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
       Which materials have already been added
       Stored as { hashed : material index }
     extension_webp : bool
-      Export textures to WebP (using glTF's EXT_texture_webp extension).
+      Export textures as webP using EXT_texture_webp extension.
 
     Returns
     -------------
@@ -1920,7 +1922,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
             # add a reference to the base color texture
             result[key] = {'index': len(tree['textures'])}
 
-            # add an object for the texture (possibly according to the WebP extension)
+            # add an object for the texture according to the WebP extension
             if extension_webp:
                 tree['textures'].append({'extensions': {'EXT_texture_webp':
                                                         {'source': index}}})

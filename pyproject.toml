@@ -128,9 +128,7 @@ ignore = [
 ]
 line-length = 90
 
-[tool.autopep8]
-max_line_length = 90
-in-place = true
-recursive = true
-aggressive = 3
-verbose = true
+
+[tool.black]
+line-length = 90
+target-version = ['py37']
