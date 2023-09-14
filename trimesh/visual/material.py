@@ -725,7 +725,8 @@ def empty_material(color=None):
     return SimpleMaterial(image=image)
 
 
-def pack(materials, uvs, deduplicate=True, padding=1, max_tex_size_individual=8192, max_tex_size_fused=8192):
+def pack(materials, uvs, deduplicate=True, padding=1, 
+         max_tex_size_individual=8192, max_tex_size_fused=8192):
     """
     Pack multiple materials with texture into a single material.
 
@@ -786,23 +787,23 @@ def pack(materials, uvs, deduplicate=True, padding=1, max_tex_size_individual=81
                 assert c.shape == (4,)
                 assert c.dtype == np.uint8
                 img = Image.fromarray(c.reshape((1, 1, -1)))
+
+            if mat.alphaMode != "BLEND":
+                # we can't handle alpha blending well, but we can bake alpha cutoff
+                mode = img.mode
+                img = np.array(img)
+                if mat.alphaMode == "MASK":
+                    img[...,3] = np.where(img[...,3] > mat.alphaCutoff*255, 255, 0)
+                elif mat.alphaMode == "OPAQUE" or mat.alphaMode is None:
+                    if "A" in mode:
+                        img[...,3] = 255
+                img = Image.fromarray(img, mode)
         elif getattr(mat, 'image', None) is not None:
             img = mat.image
         elif np.shape(getattr(mat, 'diffuse', [])) == (4,):
             # return a one pixel image
             img = Image.fromarray(np.reshape(
                 color.to_rgba(mat.diffuse), (1, 1, 4)).astype(np.uint8))
-
-        if mat.alphaMode != "BLEND":
-            # we can't handle alpha blending well, but we can bake alpha cutoff
-            mode = img.mode
-            img = np.array(img)
-            if mat.alphaMode == "MASK":
-                img[...,3] = np.where(img[...,3] > mat.alphaCutoff*255, 255, 0)
-            elif mat.alphaMode == "OPAQUE" or mat.alphaMode is None:
-                if "A" in mode:
-                    img[...,3] = 255
-            img = Image.fromarray(img, mode)
 
         if img is None:
             # return a one pixel image
@@ -826,18 +827,23 @@ def pack(materials, uvs, deduplicate=True, padding=1, max_tex_size_individual=81
                 
                 if len(img.shape) == 2 or img.shape[-1] == 1:
                     img = img.reshape(*img.shape[:2], 1)
-                    img = np.concatenate([img, np.ones_like(img[..., :1])*255, np.zeros_like(img[..., :1])], axis=-1)
+                    img = np.concatenate([img, 
+                                          np.ones_like(img[..., :1])*255, 
+                                          np.zeros_like(img[..., :1])], 
+                                          axis=-1)
                 elif img.shape[-1] == 2:
                     img = np.concatenate([img, np.zeros_like(img[..., :1])], axis=-1)
 
                 if mat.metallicFactor is not None:
-                    img[..., 0] = np.round(img[..., 0].astype(np.float64) * mat.metallicFactor).astype(np.uint8)
+                    img[..., 0] = np.round(img[..., 0].astype(np.float64) * 
+                                           mat.metallicFactor).astype(np.uint8)
                 if mat.roughnessFactor is not None:
-                    img[..., 1] = np.round(img[..., 1].astype(np.float64) * mat.roughnessFactor).astype(np.uint8)
+                    img[..., 1] = np.round(img[..., 1].astype(np.float64) * 
+                                           mat.roughnessFactor).astype(np.uint8)
                 img = Image.fromarray(img, mode='RGB')                
             else:
-                metallic = mat.metallicFactor if mat.metallicFactor is not None else 0.0
-                roughness = mat.roughnessFactor if mat.roughnessFactor is not None else 1.0
+                metallic = 0.0 if mat.metallicFactor is None else mat.metallicFactor
+                roughness = 1.0 if mat.roughnessFactor is None else mat.roughnessFactor
                 metallic_roughnesss = np.round(
                     np.array([metallic, roughness, 0.0], dtype=np.float64) * 255)
                 img = Image.fromarray(
@@ -933,7 +939,8 @@ def pack(materials, uvs, deduplicate=True, padding=1, max_tex_size_individual=81
         images = [get_base_color_texture(materials[g[0]]) for g in mat_idx]
         
         if use_pbr:
-            # if we have PBR materials, collect all possible textures and determine the largest size per material
+            # if we have PBR materials, collect all possible textures and 
+            # determine the largest size per material
             metallic_roughness = [get_metallic_roughness_texture(
                 materials[g[0]]) for g in mat_idx]
             emissive = [get_emissive_texture(materials[g[0]]) for g in mat_idx]
@@ -942,15 +949,18 @@ def pack(materials, uvs, deduplicate=True, padding=1, max_tex_size_individual=81
 
             unpadded_sizes = []
             for textures in zip(images, metallic_roughness, emissive, normals, occlusion):
-                textures = [tex for tex in textures if tex is not None] # remove None textures
-                max_tex_size = np.stack([np.array(tex.size) for tex in textures]).max(axis=0)
+                 # remove None textures
+                textures = [tex for tex in textures if tex is not None]
+                tex_sizes = np.stack([np.array(tex.size) for tex in textures])
+                max_tex_size = tex_sizes.max(axis=0)
                 if max_tex_size.max() > max_tex_size_individual:
                     scale = max_tex_size.max() / max_tex_size_individual
                     max_tex_size = np.round(max_tex_size / scale).astype(np.int64)
 
                 unpadded_sizes.append(max_tex_size)
 
-            # use the same size for all of them to ensure that texture atlassing is identical
+            # use the same size for all of them to ensure 
+            # that texture atlassing is identical
             images = resize_images(images, unpadded_sizes)
             metallic_roughness = resize_images(metallic_roughness, unpadded_sizes)
             emissive = resize_images(emissive, unpadded_sizes)
@@ -966,13 +976,17 @@ def pack(materials, uvs, deduplicate=True, padding=1, max_tex_size_individual=81
                     tex_size = np.round(tex_size / scale).astype(np.int64)
                 unpadded_sizes.append(tex_size)
 
-        images = [Image.fromarray(pad_image(np.array(img), padding), img.mode) for img in images]
+        images = [
+            Image.fromarray(pad_image(np.array(img), padding), img.mode) 
+            for img in images   
+        ]
 
         # pack the multiple images into a single large image
         final, offsets = pack_images(images)
 
         # if the final image is too large, reduce the maximum texture size and repeat
-        if max_tex_size_fused is not None and final.size[0] * final.size[1] > max_tex_size_fused**2:
+        if max_tex_size_fused is not None and \
+            final.size[0] * final.size[1] > max_tex_size_fused**2:
             down_scale_iterations -= 1
             max_tex_size_individual //= 2
         else:
