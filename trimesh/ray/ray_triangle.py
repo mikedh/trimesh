@@ -324,30 +324,31 @@ def ray_triangle_candidates(ray_origins,
 
     Parameters
     ------------
-    ray_origins:      (m,3) float, ray origin points
-    ray_directions:   (m,3) float, ray direction vectors
-    tree:             rtree object, contains AABB of each triangle
+    ray_origins : (m, 3) float
+      Ray origin points.
+    ray_directions : (m, 3) float
+      Ray direction vectors
+    tree : rtree object
+      Ccontains AABB of each triangle
 
     Returns
     ----------
-    ray_candidates: (n,) int, triangle indexes
-    ray_id:         (n,) int, corresponding ray index for a triangle candidate
+    ray_candidates : (n,) int
+      Triangle indexes
+    ray_id : (n,) int
+      Corresponding ray index for a triangle candidate
     """
-    ray_bounding = ray_bounds(ray_origins=ray_origins,
-                              ray_directions=ray_directions,
-                              bounds=tree.bounds)
-    ray_candidates = [[]] * len(ray_origins)
-    ray_id = [[]] * len(ray_origins)
+    bounding = ray_bounds(ray_origins=ray_origins,
+                          ray_directions=ray_directions,
+                          bounds=tree.bounds)
 
-    for i, bounds in enumerate(ray_bounding):
-        ray_candidates[i] = np.array(list(tree.intersection(bounds)),
-                                     dtype=np.int64)
-        ray_id[i] = np.ones(len(ray_candidates[i]), dtype=np.int64) * i
-
-    ray_id = np.hstack(ray_id)
-    ray_candidates = np.hstack(ray_candidates)
-
-    return ray_candidates, ray_id
+    index = []
+    candidates = []
+    for i, bounds in enumerate(bounding):
+        cand = list(tree.intersection(bounds))
+        candidates.extend(cand)
+        index.extend([i] * len(cand))
+    return np.array(candidates, dtype=np.int64), np.array(index, dtype=np.int64)
 
 
 def ray_bounds(ray_origins,

@@ -85,8 +85,7 @@ def rle_to_brle(rle, dtype=None):
     for value, count in np.reshape(rle, (-1, 2)):
         acc += count
         if value not in (0, 1):
-            raise ValueError(
-                "Invalid run length encoding for conversion to BRLE")
+            raise ValueError("Invalid run length encoding for conversion to BRLE")
         if value == curr_val:
             out[-1] += count
         else:
@@ -117,7 +116,7 @@ def brle_logical_not(brle):
     element-wise not of the input.
     """
     if brle[0] or brle[-1]:
-        return np.pad(brle, [1, 1], mode='constant')
+        return np.pad(brle, [1, 1], mode="constant")
     else:
         return brle[1:-1]
 
@@ -163,8 +162,11 @@ def split_long_brle_lengths(lengths, dtype=np.int64):
         remainders = (lengths % max_val).astype(dtype)
 
         lengths = np.concatenate(
-            [np.array([max_val, 0] * repeat + [remainder], dtype=dtype)
-             for repeat, remainder in zip(repeats, remainders)])
+            [
+                np.array([max_val, 0] * repeat + [remainder], dtype=dtype)
+                for repeat, remainder in zip(repeats, remainders)
+            ]
+        )
         lengths = lengths.reshape((np.sum(repeats) * 2 + nl,)).astype(dtype)
         return lengths
     elif lengths.dtype != dtype:
@@ -199,7 +201,7 @@ def dense_to_brle(dense_data, dtype=np.int64):
     lengths = np.diff(np.r_[starts, n])
     lengths = split_long_brle_lengths(lengths, dtype=dtype)
     if dense_data[0]:
-        lengths = np.pad(lengths, [1, 0], mode='constant')
+        lengths = np.pad(lengths, [1, 0], mode="constant")
     return lengths
 
 
@@ -229,9 +231,8 @@ def brle_to_dense(brle_data, vals=None):
         vals = np.asarray(vals)
         if vals.shape != (2,):
             raise ValueError("vals.shape must be (2,), got %s" % (vals.shape))
-    ft = np.repeat(
-        _ft[np.newaxis, :], (len(brle_data) + 1) // 2, axis=0).flatten()
-    return np.repeat(ft[:len(brle_data)], brle_data).flatten()
+    ft = np.repeat(_ft[np.newaxis, :], (len(brle_data) + 1) // 2, axis=0).flatten()
+    return np.repeat(ft[: len(brle_data)], brle_data).flatten()
 
 
 def rle_to_dense(rle_data, dtype=np.int64):
@@ -240,12 +241,13 @@ def rle_to_dense(rle_data, dtype=np.int64):
     if dtype is not None:
         values = np.asanyarray(values, dtype=dtype)
     try:
-        result = np.repeat(np.squeeze(values, axis=-1),
-                           np.squeeze(counts, axis=-1))
+        result = np.repeat(np.squeeze(values, axis=-1), np.squeeze(counts, axis=-1))
     except TypeError:
         # on windows it sometimes fails to cast data type
-        result = np.repeat(np.squeeze(values.astype(np.int64), axis=-1),
-                           np.squeeze(counts.astype(np.int64), axis=-1))
+        result = np.repeat(
+            np.squeeze(values.astype(np.int64), axis=-1),
+            np.squeeze(counts.astype(np.int64), axis=-1),
+        )
     return result
 
 
@@ -318,8 +320,7 @@ def brle_to_rle(brle, dtype=np.int64):
         brle = np.concatenate([brle, [0]])
     lengths = brle
     values = np.tile(_ft, len(brle) // 2)
-    return rle_to_rle(
-        np.stack((values, lengths), axis=1).flatten(), dtype=dtype)
+    return rle_to_rle(np.stack((values, lengths), axis=1).flatten(), dtype=dtype)
 
 
 def brle_to_brle(brle, dtype=np.int64):
@@ -350,9 +351,7 @@ def _unsorted_gatherer(indices, sorted_gather_fn):
     ordered_indices = indices[order]
 
     def f(data, dtype=None):
-        result = np.empty(
-            len(order), dtype=dtype or getattr(
-                data, 'dtype', None))
+        result = np.empty(len(order), dtype=dtype or getattr(data, "dtype", None))
         result[order] = tuple(sorted_gather_fn(data, ordered_indices))
         return result
 
@@ -390,8 +389,8 @@ def sorted_rle_gather_1d(rle_data, ordered_indices):
                 start += next(data_iter)
             except StopIteration:
                 raise IndexError(
-                    'Index %d out of range of raw_values length %d'
-                    % (index, start))
+                    "Index %d out of range of raw_values length %d" % (index, start)
+                )
         try:
             while index < start:
                 yield value
@@ -533,8 +532,8 @@ def sorted_brle_gather_1d(brle_data, ordered_indices):
                 start += next(data_iter)
             except StopIteration:
                 raise IndexError(
-                    'Index %d out of range of raw_values length %d'
-                    % (index, start))
+                    "Index %d out of range of raw_values length %d" % (index, start)
+                )
         try:
             while index < start:
                 yield value
@@ -564,7 +563,8 @@ def brle_gatherer_1d(indices):
     or rle_data.dtype if no dtype is provided.
     """
     return functools.partial(
-        _unsorted_gatherer(indices, sorted_brle_gather_1d), dtype=bool)
+        _unsorted_gatherer(indices, sorted_brle_gather_1d), dtype=bool
+    )
 
 
 def brle_gather_1d(brle_data, indices):
@@ -634,8 +634,7 @@ def rle_to_sparse(rle_data):
 
 def brle_to_sparse(brle_data, dtype=np.int64):
     ends = np.cumsum(brle_data)
-    indices = [np.arange(s, e, dtype=dtype) for s, e in
-               zip(ends[::2], ends[1::2])]
+    indices = [np.arange(s, e, dtype=dtype) for s, e in zip(ends[::2], ends[1::2])]
     return np.concatenate(indices)
 
 
@@ -672,8 +671,7 @@ def rle_strip(rle_data):
         else:
             end += count
 
-    rle_data = rle_data[
-        final_i:None if final_j == 0 else -final_j].reshape((-1,))
+    rle_data = rle_data[final_i : None if final_j == 0 else -final_j].reshape((-1,))
     return rle_data, (start, end)
 
 
@@ -712,6 +710,6 @@ def brle_strip(brle_data):
         else:
             end += count
 
-    brle_data = brle_data[final_i:None if final_j == 0 else -final_j]
+    brle_data = brle_data[final_i : None if final_j == 0 else -final_j]
     brle_data = np.concatenate([[0], brle_data])
     return brle_data, (start, end)
