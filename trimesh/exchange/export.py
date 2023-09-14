@@ -90,7 +90,7 @@ def export_mesh(mesh,
     if isinstance(export, dict):
         # if we have a filename rename the default GLTF
         if file_name is not None and 'model.gltf' in export:
-            export[file_name] = export.pop('model.gltf')
+            export[os.path.basename(file_name)] = export.pop('model.gltf')
 
         # write the files if a resolver has been passed
         if resolver is not None:
