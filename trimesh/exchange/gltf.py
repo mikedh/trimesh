@@ -1253,14 +1253,13 @@ def _parse_materials(header, views, resolver=None):
                 try:
                     texture = header["textures"][v["index"]]
 
-                    # extensions
-                    if "extensions" in texture:
-                        if "EXT_texture_webp" in texture["extensions"]:
-                            idx = texture["extensions"]["EXT_texture_webp"]["source"]
-                        else:
-                            broken = list(texture['extensions'].keys())
-                            log.debug(
-                                f"unsupported texture extension `{broken}`")
+                    # check to see if this is using a webp extension texture
+                    # should this be case sensitive?
+                    webp = texture.get(
+                        'extensions', {}).get(
+                        'EXT_texture_webp', {}).get('source')
+                    if webp is not None:
+                        idx = webp
                     else:
                         # fallback (or primary, if extensions are not present)
                         idx = texture["source"]
