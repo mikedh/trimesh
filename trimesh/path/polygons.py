@@ -412,7 +412,10 @@ def medial_axis(polygon, resolution=None, clip=None):
         resolution = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
 
     # get evenly spaced points on the polygons boundaries
-    samples = resample_boundaries(polygon=polygon, resolution=resolution, clip=clip)
+    samples = resample_boundaries(
+        polygon=polygon,
+        resolution=resolution,
+        clip=clip)
     # stack the boundary into a (m,2) float array
     samples = stack_boundaries(samples)
     # create the voronoi diagram on 2D points
@@ -455,8 +458,8 @@ def identifier(polygon: Polygon) -> NDArray[float64]:
 
     Returns
     ---------
-    hashed : (10),
-      Some values that should be unique for this polygon.
+    identifier : (8,) float
+      Values which should be unique for this polygon.
     """
     result = [
         len(polygon.interiors),
@@ -466,7 +469,11 @@ def identifier(polygon: Polygon) -> NDArray[float64]:
         polygon.length,
         polygon.exterior.length,
     ]
-    result.extend(polygon.bounds)
+    # include the principal second moments of inertia of the polygon
+    # this is invariant to rotation and translation
+    _, principal, _, _ = second_moments(polygon, return_centered=True)
+    result.extend(principal)
+
     return np.array(result, dtype=np.float64)
 
 
@@ -486,9 +493,14 @@ def random_polygon(segments=8, radius=1.0):
     polygon : shapely.geometry.Polygon
       Geometry object with random exterior and no interiors.
     """
-    angles = np.sort(np.cumsum(np.random.random(segments) * np.pi * 2) % (np.pi * 2))
+    angles = np.sort(
+        np.cumsum(
+            np.random.random(segments) * np.pi * 2) %
+        (np.pi * 2))
     radii = np.random.random(segments) * radius
-    points = np.column_stack((np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
+
+    points = np.column_stack(
+        (np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
     points = np.vstack((points, points[0]))
     polygon = Polygon(points).buffer(0.0)
     if hasattr(polygon, "geoms"):
@@ -654,7 +666,8 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
         return basic
 
     if scale is None:
-        distance = 0.002 * np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).mean()
+        distance = 0.002 * \
+            np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).mean()
     else:
         distance = 0.002 * scale
 
@@ -668,7 +681,8 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
             # reconstruct a single polygon from the interior ring
             recon = Polygon(shell=rings[0]).buffer(distance)
             # check perimeter of result against original perimeter
-            if recon.is_valid and np.isclose(recon.length, polygon.length, rtol=rtol):
+            if recon.is_valid and np.isclose(
+                    recon.length, polygon.length, rtol=rtol):
                 return recon
 
         # try de-deuplicating the outside ring
@@ -682,7 +696,8 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
         # make a new polygon with result
         dedupe = Polygon(shell=points[unique])
         # check result
-        if dedupe.is_valid and np.isclose(dedupe.length, polygon.length, rtol=rtol):
+        if dedupe.is_valid and np.isclose(
+                dedupe.length, polygon.length, rtol=rtol):
             return dedupe
 
     # buffer and unbuffer the whole polygon
@@ -693,7 +708,8 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
         return buffered.geoms[areas.argmax()]
 
     # check perimeter of result against original perimeter
-    if buffered.is_valid and np.isclose(buffered.length, polygon.length, rtol=rtol):
+    if buffered.is_valid and np.isclose(
+            buffered.length, polygon.length, rtol=rtol):
         log.debug("Recovered invalid polygon through double buffering")
         return buffered
 
@@ -798,7 +814,8 @@ def projected(
     adjacency = mesh.face_adjacency[adjacency_check]
 
     # a sequence of face indexes that are connected
-    face_groups = graph.connected_components(adjacency, nodes=np.nonzero(side)[0])
+    face_groups = graph.connected_components(
+        adjacency, nodes=np.nonzero(side)[0])
 
     # if something is goofy we may end up with thousands of
     # regions that do nothing except hang for an hour then segfault
@@ -819,7 +836,10 @@ def projected(
         # edges that occur only once are on the boundary
         group = grouping.group_rows(edge, require_count=1)
         # turn each region into polygons
-        polygons.extend(edges_to_polygons(edges=edge[group], vertices=vertices_2D))
+        polygons.extend(
+            edges_to_polygons(
+                edges=edge[group],
+                vertices=vertices_2D))
 
     padding = 0.0
     if apad is not None:
@@ -914,7 +934,8 @@ def second_moments(polygon, return_centered=False):
         v = x1 * y2 - x2 * y1
         Ixx -= np.sum(v * (y1 * y1 + y1 * y2 + y2 * y2)) / 12.0
         Iyy -= np.sum(v * (x1 * x1 + x1 * x2 + x2 * x2)) / 12.0
-        Ixy -= np.sum(v * (x1 * y2 + 2 * x1 * y1 + 2 * x2 * y2 + x2 * y1)) / 24.0
+        Ixy -= np.sum(v * (x1 * y2 + 2 * x1 * y1 +
+                      2 * x2 * y2 + x2 * y1)) / 24.0
 
     moments = [Ixx, Iyy, Ixy]
 
