@@ -71,7 +71,8 @@ def export_gltf(scene,
                 merge_buffers=False,
                 unitize_normals=False,
                 tree_postprocessor=None,
-                embed_buffers=False):
+                embed_buffers=False,
+                extension_webp=False):
     """
     Export a scene object as a GLTF directory.
 
@@ -92,6 +93,8 @@ def export_gltf(scene,
       Run this on the header tree before exiting.
     embed_buffers : bool
       Embed the buffer into JSON file as a base64 string in the URI
+    extension_webp : bool
+      Export textures to WebP (using glTF's EXT_texture_webp extension).
 
     Returns
     ----------
@@ -107,7 +110,8 @@ def export_gltf(scene,
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
         unitize_normals=unitize_normals,
-        include_normals=include_normals)
+        include_normals=include_normals,
+        extension_webp=extension_webp)
 
     # allow custom postprocessing
     if tree_postprocessor is not None:
@@ -165,7 +169,8 @@ def export_glb(
         include_normals=None,
         unitize_normals=False,
         tree_postprocessor=None,
-        buffer_postprocessor=None):
+        buffer_postprocessor=None,
+        extension_webp=False):
     """
     Export a scene as a binary GLTF (GLB) file.
 
@@ -180,6 +185,8 @@ def export_glb(
     tree_postprocessor : func
       Custom function to (in-place) post-process the tree
       before exporting.
+    extension_webp : bool
+      Export textures to WebP (using glTF's EXT_texture_webp extension).
 
     Returns
     ----------
@@ -195,7 +202,9 @@ def export_glb(
     tree, buffer_items = _create_gltf_structure(
         scene=scene,
         unitize_normals=unitize_normals,
-        include_normals=include_normals, buffer_postprocessor=buffer_postprocessor)
+        include_normals=include_normals,
+        buffer_postprocessor=buffer_postprocessor,
+        extension_webp=extension_webp)
 
     # allow custom postprocessing
     if tree_postprocessor is not None:
@@ -596,7 +605,8 @@ def _create_gltf_structure(scene,
                            include_normals=None,
                            include_metadata=True,
                            unitize_normals=None,
-                           buffer_postprocessor=None):
+                           buffer_postprocessor=None,
+                           extension_webp=False):
     """
     Generate a GLTF header.
 
@@ -610,6 +620,8 @@ def _create_gltf_structure(scene,
       Include vertex normals in output file?
     unitize_normals : bool
       Unitize all exported normals so as to pass GLTF validation
+    extension_webp : bool
+      Export textures to WebP (using glTF's EXT_texture_webp extension).
 
     Returns
     ---------------
@@ -668,7 +680,8 @@ def _create_gltf_structure(scene,
                 buffer_items=buffer_items,
                 include_normals=include_normals,
                 unitize_normals=unitize_normals,
-                mat_hashes=mat_hashes)
+                mat_hashes=mat_hashes,
+                extension_webp=extension_webp)
         elif util.is_instance_named(geometry, "Path"):
             # add Path2D and Path3D objects
             _append_path(
@@ -707,8 +720,16 @@ def _create_gltf_structure(scene,
     # Add any extensions already in the tree (e.g. node extensions)
     if 'extensionsUsed' in tree:
         extensions_used = extensions_used.union(set(tree['extensionsUsed']))
+    # Add WebP if used
+    if extension_webp:
+        extensions_used.add("EXT_texture_webp")
     if len(extensions_used) > 0:
         tree['extensionsUsed'] = list(extensions_used)
+
+    # Also add WebP to required (no fallback currently implemented)
+    # 'extensionsRequired' aren't currently used so this doesn't overwrite
+    if extension_webp:
+        tree['extensionsRequired'] = ["EXT_texture_webp"]
 
     if buffer_postprocessor is not None:
         buffer_postprocessor(buffer_items, tree)
@@ -731,7 +752,8 @@ def _append_mesh(mesh,
                  buffer_items,
                  include_normals,
                  unitize_normals,
-                 mat_hashes):
+                 mat_hashes,
+                 extension_webp):
     """
     Append a mesh to the scene structure and put the
     data into buffer_items.
@@ -754,6 +776,8 @@ def _append_mesh(mesh,
 
     mat_hashes : dict
       Which materials have already been added
+    extension_webp : bool
+      Export textures to WebP (using glTF's EXT_texture_webp extension).
     """
     # return early from empty meshes to avoid crashing later
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
@@ -836,7 +860,8 @@ def _append_mesh(mesh,
             mat=mesh.visual.material,
             tree=tree,
             buffer_items=buffer_items,
-            mat_hashes=mat_hashes)
+            mat_hashes=mat_hashes,
+            extension_webp=extension_webp)
 
         # if mesh has UV coordinates defined export them
         has_uv = (hasattr(mesh.visual, 'uv') and
@@ -1224,8 +1249,21 @@ def _parse_materials(header, views, resolver=None):
                 result[k] = v
             elif "index" in v:
                 # get the index of image for texture
+
                 try:
-                    idx = header["textures"][v["index"]]["source"]
+                    texture = header["textures"][v["index"]]
+
+                    # extensions
+                    if "extensions" in texture:
+                        if "EXT_texture_webp" in texture["extensions"]:
+                            idx = texture["extensions"]["EXT_texture_webp"]["source"]
+                        else:
+                            raise ValueError("unsupported texture extension"
+                                             "in {texture['extensions']}!")
+                    else:
+                        # fallback (or primary, if extensions are not present)
+                        idx = texture["source"]
+
                     # store the actual image as the value
                     result[k] = images[idx]
                 except BaseException:
@@ -1733,7 +1771,7 @@ def _convert_camera(camera):
     return result
 
 
-def _append_image(img, tree, buffer_items):
+def _append_image(img, tree, buffer_items, extension_webp):
     """
     Append a PIL image to a GLTF2.0 tree.
 
@@ -1745,6 +1783,8 @@ def _append_image(img, tree, buffer_items):
       GLTF 2.0 format tree
     buffer_items : (n,) bytes
       Binary blobs containing data
+    extension_webp : bool
+      Export textures to WebP (using glTF's EXT_texture_webp extension).
 
     Returns
     -----------
@@ -1756,9 +1796,11 @@ def _append_image(img, tree, buffer_items):
     if not hasattr(img, 'format'):
         return None
 
-    # don't re-encode JPEGs
-    if img.format == 'JPEG':
-        # no need to mangle JPEGs
+    if extension_webp:
+        # support WebP if extension is specified
+        save_as = 'WEBP'
+    elif img.format == 'JPEG':
+        # don't re-encode JPEGs
         save_as = 'JPEG'
     else:
         # for everything else just use PNG
@@ -1779,7 +1821,7 @@ def _append_image(img, tree, buffer_items):
     # index is length minus one
     return len(tree['images']) - 1
 
-def _append_material(mat, tree, buffer_items, mat_hashes):
+def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
     """
     Add passed PBRMaterial as GLTF 2.0 specification JSON
     serializable data:
@@ -1798,6 +1840,8 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
     mat_hashes : dict
       Which materials have already been added
       Stored as { hashed : material index }
+    extension_webp : bool
+      Export textures to WebP (using glTF's EXT_texture_webp extension).
 
     Returns
     -------------
@@ -1868,14 +1912,20 @@ def _append_material(mat, tree, buffer_items, mat_hashes):
         index = _append_image(
             img=img,
             tree=tree,
-            buffer_items=buffer_items)
+            buffer_items=buffer_items,
+            extension_webp=extension_webp)
         # if the image was added successfully it will return index
         # if it failed for any reason, it will return None
         if index is not None:
             # add a reference to the base color texture
             result[key] = {'index': len(tree['textures'])}
-            # add an object for the texture
-            tree['textures'].append({'source': index})
+
+            # add an object for the texture (possibly according to the WebP extension)
+            if extension_webp:
+                tree['textures'].append({'extensions': {'EXT_texture_webp':
+                                                        {'source': index}}})
+            else:
+                tree['textures'].append({'source': index})
 
     # for our PBRMaterial object we flatten all keys
     # however GLTF would like some of them under the
