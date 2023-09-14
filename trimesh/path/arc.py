@@ -30,6 +30,10 @@ class ArcInfo:
     # what is the angular span of this circular arc.
     span: Optional[float] = None
 
+    def __getitem__(self, item):
+        # add for backwards compatibility
+        return getattr(self, item)
+
 
 def arc_center(
     points: ArrayLike[FloatLike], return_normal: bool = True, return_angle: bool = True
