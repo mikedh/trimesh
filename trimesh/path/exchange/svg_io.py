@@ -448,7 +448,7 @@ def _entities_to_str(entities,
         vertices = points[arc.points]
         info = arc_center(
             vertices, return_normal=False, return_angle=True)
-        C, R, angle = info['center'], info['radius'], info['span']
+        C, R, angle = info.center, info.radius, info.span
         if arc.closed:
             return temp_circle.format(x=C[0] - R,
                                       y=C[1],

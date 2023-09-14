@@ -633,11 +633,11 @@ class Arc(Entity):
             # it's indicated as a closed circle
             fit = self.center(
                 vertices, return_normal=False, return_angle=False)
-            return np.pi * fit['radius'] * 4
+            return np.pi * fit.radius * 4
         # get the angular span of the circular arc
         fit = self.center(
             vertices, return_normal=False, return_angle=True)
-        return fit['span'] * fit['radius'] * 2
+        return fit.span * fit.radius * 2
 
     def discrete(self, vertices, scale=1.0):
         """
@@ -699,8 +699,8 @@ class Arc(Entity):
                 vertices,
                 return_normal=False,
                 return_angle=False)
-            bounds = np.array([info['center'] - info['radius'],
-                               info['center'] + info['radius']],
+            bounds = np.array([info.center - info.radius,
+                               info.center + info.radius],
                               dtype=np.float64)
         else:
             # since the AABB of a partial arc is hard, approximate

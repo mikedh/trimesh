@@ -696,11 +696,11 @@ def export_dxf(path, only_layers=None):
         info = arc.center(
             vertices, return_angle=True, return_normal=False)
         subs = entity_info(arc)
-        center = info['center']
+        center = info.center
         if len(center) == 2:
             center = np.append(center, 0.0)
         data = '10\n{:.12g}\n20\n{:.12g}\n30\n{:.12g}'.format(*center)
-        data += '\n40\n{:.12g}'.format(info['radius'])
+        data += f'\n40\n{info.radius:.12g}'
 
         if arc.closed:
             subs['TYPE'] = 'CIRCLE'
@@ -710,7 +710,7 @@ def export_dxf(path, only_layers=None):
             # and end angle field
             data += '\n100\nAcDbArc'
             data += '\n50\n{:.12g}\n51\n{:.12g}'.format(
-                *np.degrees(info['angles']))
+                *np.degrees(info.angles))
         subs['DATA'] = data
         result = template['arc'].format(**subs)
 
@@ -945,12 +945,12 @@ def bulge_to_arcs(lines,
     # have the same magnitude as the input data
     if tol.strict:
         from ..arc import arc_center
-        check_angle = [arc_center(i)['span']
+        check_angle = [arc_center(i).span
                        for i in three]
         assert np.allclose(np.abs(angle),
                            np.abs(check_angle))
 
-        check_radii = [arc_center(i)['radius']
+        check_radii = [arc_center(i).radius
                        for i in three]
         assert np.allclose(check_radii, np.abs(radius))
 
