@@ -6,7 +6,7 @@ from .. import bounds, geometry, graph, grouping
 from ..constants import log
 from ..constants import tol_path as tol
 from ..transformations import transform_points
-from ..typed import NDArray, Optional, float64
+from ..typed import List, NDArray, Optional, float64
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -27,7 +27,7 @@ except BaseException as E:
     Rtree = ExceptionWrapper(E)
 
 
-def enclosure_tree(polygons: list[Polygon]):
+def enclosure_tree(polygons: List[Polygon]):
     """
     Given a list of shapely polygons with only exteriors,
     find which curves represent the exterior shell or root curve
@@ -157,7 +157,7 @@ def edges_to_polygons(edges, vertices):
     return complete
 
 
-def polygons_obb(polygons: list[Polygon]):
+def polygons_obb(polygons: List[Polygon]):
     """
     Find the OBBs for a list of shapely.geometry.Polygons
     """

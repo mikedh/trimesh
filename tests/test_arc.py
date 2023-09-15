@@ -26,7 +26,7 @@ class ArcTests(g.unittest.TestCase):
             [[30156.18, 1673.64, -2914.56],
              [30152.91, 1780.09, -2885.51],
              [30148.3, 1875.81, -2857.79]])
-        assert 'center' in c
+        assert len(c.center) == 3
 
     def test_center_random(self):
         from trimesh.path.arc import arc_center
