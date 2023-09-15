@@ -69,6 +69,7 @@ test = [
     "ruff",
     "black",
 ]
+
 easy = [
     "colorlog",
     "mapbox-earcut",
@@ -99,6 +100,9 @@ recommend = [
     "python-fcl"
 ]
 
+# requires pip >= 21.2
+# https://hynek.me/articles/python-recursive-optional-dependencies/
+all = ["trimesh[easy,recommend,test]"]
 
 [tool.ruff]
 target-version = "py37"
@@ -115,6 +119,7 @@ select = [
     "W", # style warnings
     "YTT", # sys.version
 ]
+
 ignore = [
   "C901", # Comprehension is too complex (11 > 10)
   "N802", # Function name should be lowercase
