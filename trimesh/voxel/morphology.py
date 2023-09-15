@@ -50,9 +50,7 @@ def _assert_rank(value, rank):
 
 def _assert_sparse_rank(value, rank=None):
     if len(value.shape) != 2:
-        raise ValueError(
-            "sparse_indices must be rank 2, got shape %s" % str(value.shape)
-        )
+        raise ValueError("sparse_indices must be rank 2, got shape %s" % str(value.shape))
     if rank is not None:
         if value.shape[-1] != rank:
             raise ValueError(
@@ -153,9 +151,7 @@ def binary_dilation(encoding, **kwargs):
 
     https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.ndimage.morphology.binary_dilation.html#scipy.ndimage.morphology.binary_dilation
     """
-    return enc.DenseEncoding(
-        ndimage.binary_dilation(_dense(encoding, rank=3), **kwargs)
-    )
+    return enc.DenseEncoding(ndimage.binary_dilation(_dense(encoding, rank=3), **kwargs))
 
 
 def binary_closing(encoding, **kwargs):

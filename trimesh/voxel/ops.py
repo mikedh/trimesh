@@ -256,9 +256,9 @@ def multibox(centers, pitch=1.0, colors=None):
     v += np.tile(b.vertices, (len(centers), 1))
 
     f = np.tile(b.faces, (len(centers), 1))
-    f += np.tile(
-        np.arange(len(centers)) * len(b.vertices), (len(b.faces), 1)
-    ).T.reshape((-1, 1))
+    f += np.tile(np.arange(len(centers)) * len(b.vertices), (len(b.faces), 1)).T.reshape(
+        (-1, 1)
+    )
 
     face_colors = None
     if colors is not None:
