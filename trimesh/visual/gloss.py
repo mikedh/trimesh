@@ -251,7 +251,7 @@ def specular_to_pbr(
         See: https://entropymine.com/imageworsener/srgbformula/
         """
         s = np.empty_like(lin)
-        mask = lin > 0.0031308
+        mask = lin > 0.00313066844250063
         s[mask] = 1.055 * np.power(lin[mask], (1.0 / 2.4)) - 0.055
         s[~mask] = 12.92 * lin[~mask]
         return s
