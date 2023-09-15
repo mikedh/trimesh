@@ -220,6 +220,11 @@ def specular_to_pbr(
             specularGlossinessTexture = specularGlossinessTexture.resize(max_shape)
 
     def srgb2lin(s):
+        """
+        Converts sRGB color values to linear color values.
+        See: https://entropymine.com/imageworsener/srgbformula/
+        """
+
         mask = s <= 0.0404482362771082
         lin = np.empty_like(s)
         lin[mask] = s[mask] / 12.92
@@ -227,6 +232,10 @@ def specular_to_pbr(
         return lin
 
     def convert_texture_srgb2lin(texture):
+        """
+        Wrapper for srgb2lin that converts color values from sRGB to linear.
+        If texture has 2 or 4 channels, the last channel (alpha) is left unchanged.
+        """
         result = texture.copy()
         color_channels = result.shape[-1]
         # only scale the color channels, not the alpha channel
@@ -237,6 +246,10 @@ def specular_to_pbr(
 
 
     def lin2srgb(lin):
+        """
+        Converts linear color values to sRGB color values.
+        See: https://entropymine.com/imageworsener/srgbformula/
+        """
         s = np.empty_like(lin)
         mask = lin > 0.0031308
         s[mask] = 1.055 * np.power(lin[mask], (1.0 / 2.4)) - 0.055
@@ -244,6 +257,11 @@ def specular_to_pbr(
         return s
 
     def convert_texture_lin2srgb(texture):
+        """
+        Wrapper for lin2srgb that converts color values from linear to sRGB.
+        If texture has 2 or 4 channels, the last channel (alpha) is left unchanged.
+        """
+
         result = texture.copy()
         color_channels = result.shape[-1]
         # only scale the color channels, not the alpha channel
