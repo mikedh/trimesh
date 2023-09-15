@@ -431,7 +431,8 @@ class GLTFTest(g.unittest.TestCase):
         scene = g.trimesh.Scene([sphere])
 
         def to_integer(args):
-            args['materials'][0]['pbrMetallicRoughness']['baseColorFactor'] = [1, 0, 0, 1]
+            args['materials'][0]['pbrMetallicRoughness']['baseColorFactor'] = [
+                1, 0, 0, 1]
 
         export = scene.export(file_type='glb', tree_postprocessor=to_integer)
         validate_glb(export)
@@ -441,7 +442,9 @@ class GLTFTest(g.unittest.TestCase):
         assert len(reloaded.geometry) == 1
         # get meshes back
         sphere_b = list(reloaded.geometry.values())[0]
-        assert (sphere_b.visual.material.baseColorFactor == (255, 0, 0, 255)).all()
+        assert (
+            sphere_b.visual.material.baseColorFactor == (
+                255, 0, 0, 255)).all()
 
     def test_material_hash(self):
 
@@ -975,7 +978,11 @@ class GLTFTest(g.unittest.TestCase):
 
             assert isinstance(r, g.trimesh.Scene)
             assert len(r.geometry) == 1
-            assert g.np.isclose(next(iter(r.geometry.values())).volume, m.volume)
+            assert g.np.isclose(
+                next(
+                    iter(
+                        r.geometry.values())).volume,
+                m.volume)
 
     def test_embed_buffer(self):
 
@@ -1018,6 +1025,24 @@ class GLTFTest(g.unittest.TestCase):
                 file_type=extension)
 
             g.scene_equal(g.trimesh.Scene(mesh), reloaded)
+
+    def test_relative_paths(self):
+        # try with a relative path
+        with g.TemporaryDirectory() as d:
+            g.os.makedirs(g.os.path.join(d, 'fused'))
+            g.os.chdir(d)
+            g.trimesh.creation.box().export('fused/hi.gltf')
+            r = g.trimesh.load('fused/hi.gltf')
+            assert g.np.isclose(r.volume, 1.0)
+
+        with g.TemporaryDirectory() as d:
+            # now try it without chaging to that directory
+            full = g.os.path.join(d, 'hi', 'there', 'different', 'levels')
+            path = g.os.path.join(full, 'hey.gltf')
+            g.os.makedirs(full)
+            g.trimesh.creation.box().export(path)
+            r = g.trimesh.load(path)
+            assert g.np.isclose(r.volume, 1.0)
 
 
 if __name__ == '__main__':
