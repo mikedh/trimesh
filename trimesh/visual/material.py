@@ -1075,22 +1075,40 @@ def pack(materials, uvs, deduplicate=True, padding=1,
     # the original input image exactly in unit tests
     if tol.strict:
         # get the pixel color from the original image
+        material_textures = [(get_base_color_texture, final)]
+        if use_pbr:
+            material_textures.append(
+                (get_metallic_roughness_texture, final_metallic_roughness))
+            if final_emissive:
+                material_textures.append((get_emissive_texture, final_emissive))
+            if final_normals:
+                material_textures.append((get_normal_texture, final_normals))
+            if final_occlusion:
+                material_textures.append((get_occlusion_texture, final_occlusion))
+
         check = []
         for uv, mat in zip(uvs, materials):
             # get the image from the material and whether or not
             # it had to fill in with default data
-            img = get_base_color_texture(mat)
-            current = color.uv_to_color(image=img, uv=(uv % 1))
-            check.append(current)
+            material_textures_values = []
+            for texture_load_fn, _ in material_textures:
+                orig_img = texture_load_fn(mat)
+                current = color.uv_to_interpolated_color(image=orig_img, uv=uv)
+                material_textures_values.append(current)
+            check.append(material_textures_values)
 
-        check_flat = np.vstack(check)
-        # get the pixel color from the packed image
-        compare = color.uv_to_color(
-            uv=stacked, image=final)
-        # should be exactly identical
-        # note this is only true for simple colors
-        # interpolation on complicated stuff can break this
-        assert (compare == check_flat).all()
+        check_flat = []
+        for texture_idx in range(len(material_textures)):
+            check_flat.append(np.vstack([c[texture_idx] for c in check]))
+
+        for reference, (_, final_texture) in zip(check_flat, material_textures):
+            # get the pixel color from the packed image
+            compare = color.uv_to_interpolated_color(
+                uv=stacked, image=final_texture)
+            # should be exactly identical
+            # note this is only true for simple colors
+            # interpolation on complicated stuff can break this
+            assert np.allclose(reference, compare)
 
     if use_pbr:
         return (
