@@ -929,12 +929,13 @@ def export_obj(mesh,
         # add this object
         objects.append('\n'.join(export))
 
+
+    # collect files like images to write
+    mtl_data = {}
     # combine materials
     if len(materials) > 0:
         # collect text for a single mtllib file
         mtl_lib = []
-        # collect files like images to write
-        mtl_data = {}
         # now loop through: keys are garbage hash
         # values are (data, name)
         for data, _ in materials.values():

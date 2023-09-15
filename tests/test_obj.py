@@ -464,6 +464,13 @@ class OBJTest(g.unittest.TestCase):
         e = m.export(file_type='obj', include_normals=False)
         assert 'vn ' not in e
 
+    def test_export_mtl_args():
+        mesh = g.trimesh.creation.box()
+        # check for a crash with no materials defined
+        a, b = g.trimesh.exchange.obj.export_obj(mesh, return_texture=True, mtl_name='hi.mtl')
+
+
+
 
 def simple_load(text):
     # we're going to load faces in a basic text way
