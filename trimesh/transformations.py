@@ -2144,7 +2144,7 @@ def transform_points(points, matrix, translate=True):
       Transformed points.
     """
     points = np.asanyarray(points, dtype=np.float64)
-    if len(points) == 0:
+    if len(points) == 0 or matrix is None:
         return points.copy()
 
     # check the matrix against the points

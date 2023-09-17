@@ -263,8 +263,11 @@ class CacheTest(g.unittest.TestCase):
         if not g.PY3:
             return
 
-        import itertools, warnings
+        import itertools
+        import warnings
+
         import numpy as np
+
         from trimesh.caching import tracked_array
 
         dim = (100, 3)
