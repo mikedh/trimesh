@@ -21,7 +21,7 @@ example_rsts = $(foreach name, $(example_names), examples.$(name).rst)
 html: conf.py index.rst *.md README.rst trimesh.rst examples.md $(example_rsts) $(example_htmls) .deps
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 	touch "$(BUILDDIR)/html/.nojekyll"
-	echo "trimsh.org" > "$(BUILDDIR)/html/CNAME"
+	echo "trimesh.org" > "$(BUILDDIR)/html/CNAME"
 	mv "$(BUILDDIR)/html/_static/examples" "$(BUILDDIR)/html/examples" || true
 	mv "$(BUILDDIR)/html/_static/images" "$(BUILDDIR)/html/images" || true
 	cp "$(STATICDIR)/favicon.ico" "$(BUILDDIR)/html/favicon.ico" || true
