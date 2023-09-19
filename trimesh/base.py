@@ -435,6 +435,7 @@ class Trimesh(Geometry3D):
         if not np.allclose(compare, values[:20]):
             log.debug("face_normals didn't match triangles, ignoring!")
             return
+
         # otherwise store face normals
         self._cache["face_normals"] = values
 
