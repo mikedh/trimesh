@@ -34,7 +34,7 @@ class Encoding(ABC):
     and dense encodings (wrappers around np.ndarrays).
     """
 
-    def __init__(self, data):
+    def __init__(self, data=None):
         # a key-value store of numpy arrays
         self._data = caching.DataStore()
 
@@ -43,7 +43,9 @@ class Encoding(ABC):
 
         if isinstance(data, np.ndarray):
             self._data["encoding"] = data
-        else:
+        elif isinstance(data, Encoding):
+            self._data.data.update(data._data.data)
+        elif data is not None:
             raise TypeError(type(data))
 
     @abc.abstractproperty
@@ -188,8 +190,6 @@ class DenseEncoding(Encoding):
     """Simple `Encoding` implementation based on a numpy ndarray."""
 
     def __init__(self, data):
-        if not isinstance(data, np.ndarray):
-            raise ValueError("DenseEncoding data must be a numpy array")
         super().__init__(data=data)
 
     @property
@@ -277,32 +277,35 @@ class SparseEncoding(Encoding):
         """
         Parameters
         ------------
-        indices: (m, n)-sized int array of indices
-        values: (m, n)-sized dtype array of values at the specified indices
-        shape: (n,) iterable of integers. If None, the maximum value of indices
+        indices : (m, n)-sized int array of indices
+        values : (m, n)-sized dtype array of values at the specified indices
+        shape : (n,) iterable of integers. If None, the maximum value of indices
             + 1 is used.
         """
-        data = caching.DataStore()
-        super().__init__(data)
-        data["indices"] = indices
-        data["values"] = values
-        indices = data["indices"]
-        if len(indices.shape) != 2:
-            raise ValueError("indices must be 2D, got shaped %s" % str(indices.shape))
-        if data["values"].shape != (indices.shape[0],):
-            raise ValueError(
-                "values and indices shapes inconsistent: {} and {}".format(
-                    data["values"], data["indices"]
-                )
-            )
-        if shape is None:
-            self._shape = tuple(data["indices"].max(axis=0) + 1)
-        else:
-            self._shape = tuple(shape)
-            if not np.all(indices < self._shape):
-                raise ValueError("all indices must be less than shape")
+
+        # create the datastore and cache
+        super().__init__()
+
+        indices = np.asanyarray(indices, dtype=np.int64)
+        values = np.asanyarray(values)
+
         if not np.all(indices >= 0):
             raise ValueError("all indices must be non-negative")
+
+        if len(indices.shape) != 2:
+            raise ValueError("indices must be 2D, got shaped %s" % str(indices.shape))
+        if len(values) != len(indices):
+            raise ValueError("values and indices shapes inconsistent")
+        if shape is None:
+            shape = tuple(indices.max(axis=0) + 1)
+        else:
+            shape = tuple(shape)
+            if (indices > shape).any():
+                raise ValueError("all indices must be less than shape")
+
+        self._data["indices"] = indices
+        self._data["values"] = values
+        self._data["shape"] = shape
 
     @staticmethod
     def from_dense(dense_data):
@@ -321,11 +324,11 @@ class SparseEncoding(Encoding):
 
     @property
     def sparse_indices(self):
-        return self._data["encoding"]["indices"]
+        return self._data["indices"]
 
     @property
     def sparse_values(self):
-        return self._data["encoding"]["values"]
+        return self._data["values"]
 
     @property
     def dtype(self):
@@ -341,7 +344,7 @@ class SparseEncoding(Encoding):
 
     @property
     def shape(self):
-        return self._shape
+        return self._data["shape"]
 
     @property
     def size(self):
@@ -439,12 +442,12 @@ class RunLengthEncoding(Encoding):
         dtype: dtype of encoded data. Each second value of data is cast will be
             cast to this dtype if provided.
         """
-        super().__init__(data=caching.tracked_array(data))
-        if dtype is None:
-            dtype = self._data.dtype
-        if len(self._data["encoding"].shape) != 1:
+        super().__init__()
+        data = np.asanyarray(data, dtype=dtype)
+        if len(data.shape) != 1:
             raise ValueError("data must be 1D numpy array")
-        self._dtype = dtype
+
+        self._data["encoding"] = data
 
     @caching.cache_decorator
     def is_empty(self):
@@ -462,7 +465,7 @@ class RunLengthEncoding(Encoding):
 
     @property
     def dtype(self):
-        return self._dtype
+        return self._data["encoding"].dtype
 
     def __hash__(self):
         """
@@ -495,7 +498,7 @@ class RunLengthEncoding(Encoding):
     def stripped(self):
         if self.is_empty:
             return _empty_stripped(self.shape)
-        data, padding = runlength.rle_strip(self._data)
+        data, padding = runlength.rle_strip(self._data["encoding"])
         if padding == (0, 0):
             encoding = self
         else:
@@ -509,12 +512,12 @@ class RunLengthEncoding(Encoding):
 
     @caching.cache_decorator
     def size(self):
-        return runlength.rle_length(self._data)
+        return runlength.rle_length(self._data["encoding"])
 
     def _flip(self, axes):
         if axes != (0,):
             raise ValueError("encoding is 1D - cannot flip on axis %s" % str(axes))
-        return RunLengthEncoding(runlength.rle_reverse(self._data))
+        return RunLengthEncoding(runlength.rle_reverse(self._data["encoding"]))
 
     @caching.cache_decorator
     def sparse_components(self):
@@ -698,7 +701,10 @@ class LazyIndexMap(Encoding):
 
     @property
     def size(self):
-        return self._data.size
+        from IPython import embed
+
+        embed()
+        return self._data["encoding"].size
 
     @property
     def sparse_indices(self):
@@ -733,6 +739,10 @@ class FlattenedEncoding(LazyIndexMap):
     @property
     def shape(self):
         return (self.size,)
+
+    @property
+    def size(self):
+        return np.prod(self._data["shape"])
 
     @property
     def dense(self):
