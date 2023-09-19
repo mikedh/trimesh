@@ -42,22 +42,14 @@ def validate_glb(data, name=None):
             capture_output=True)
         # -o prints JSON to stdout
         content = report.stdout.decode('utf-8')
-        # log the GLTF validator report if
-        # there are any warnings or hints
-        decode = g.json.loads(content)
+        returncode = report.returncode
 
-        if (decode['issues']['numErrors'] > 0 or
-                report.returncode != 0):
-            # log the whole error report
-            g.log.error(content)
-            if name is not None:
-                g.log.error('failed on: %s', name)
-            raise ValueError(content)
+    if returncode != 0:
+        g.log.error(f'failed on: `{name}`')
+        g.log.error(f'validator: `{content}`')
+        g.log.error(f'stderr: `{report.stderr}`')
 
-        # print all warnings: extremely verbose
-        # if any(decode['issues'][i] > 0 for i in
-        #        ['numWarnings', 'numInfos', 'numHints']):
-        #     g.log.debug(content)
+        raise ValueError("gltf_validator failed")
 
 
 class GLTFTest(g.unittest.TestCase):

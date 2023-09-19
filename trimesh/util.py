@@ -1474,12 +1474,14 @@ def concatenate(a, b=None):
     # save face normals if already calculated
     face_normals = None
     if any("face_normals" in m._cache for m in is_mesh):
-        face_normals = np.vstack([m.face_normals for m in is_mesh])
+        face_normals = vstack_empty([m.face_normals for m in is_mesh])
+        assert face_normals.shape == faces.shape
 
     # save vertex normals if any mesh has them
     vertex_normals = None
     if any("vertex_normals" in m._cache for m in is_mesh):
         vertex_normals = vstack_empty([m.vertex_normals for m in is_mesh])
+        assert vertex_normals.shape == vertices.shape
 
     try:
         # concatenate visuals

@@ -118,22 +118,6 @@ class Encoding(ABC):
     def _flip(self, axes):
         return FlippedEncoding(self, axes)
 
-    def crc(self):
-        log.warning(
-            "`geometry.crc()` is deprecated and will "
-            + "be removed in October 2023: replace "
-            + "with `geometry.__hash__()` or `hash(geometry)`"
-        )
-        return self.__hash__()
-
-    def hash(self):
-        log.warning(
-            "`geometry.hash()` is deprecated and will "
-            + "be removed in October 2023: replace "
-            + "with `geometry.__hash__()` or `hash(geometry)`"
-        )
-        return self.__hash__()
-
     def __hash__(self):
         """
         Get the hash of the current transformation matrix.
