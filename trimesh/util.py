@@ -17,7 +17,6 @@ import json
 import logging
 import random
 import shutil
-import tempfile
 import time
 import uuid
 import zipfile
