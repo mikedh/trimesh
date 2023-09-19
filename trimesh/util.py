@@ -1482,7 +1482,7 @@ def concatenate(a, b=None):
     if any("vertex_normals" in m._cache for m in is_mesh):
         vertex_normals = vstack_empty([m.vertex_normals for m in is_mesh])
         assert vertex_normals.shape == vertices.shape
-
+ 
     try:
         # concatenate visuals
         visual = is_mesh[0].visual.concatenate([m.visual for m in is_mesh[1:]])
