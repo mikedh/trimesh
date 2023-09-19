@@ -594,7 +594,8 @@ class DataStore(Mapping):
         is_mutable = bool(value)
         # apply the flag to any data stored
         for v in self.data.values():
-            v.mutable = value
+            if isinstance(v, TrackedArray):
+                v.mutable = value
         # save the mutable setting
         self._mutable = is_mutable
 

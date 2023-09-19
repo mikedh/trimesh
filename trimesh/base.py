@@ -2732,9 +2732,8 @@ class Trimesh(Geometry3D):
           'center_mass' : Center of mass location, in global coordinate system
         """
         # if the density or center of mass was overridden they will be put into data
-        density = self._data.data.get("density", [None])[0]
+        density = self._data.data.get("density", None)
         center_mass = self._data.data.get("center_mass", None)
-
         mass = triangles.mass_properties(
             triangles=self.triangles,
             crosses=self.triangles_cross,
