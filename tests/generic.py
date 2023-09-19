@@ -37,7 +37,7 @@ import socketserver
 
 
 tf = trimesh.transformations
-
+TemporaryDirectory = tempfile.TemporaryDirectory
 
 # make a dummy profiler which does nothing
 class DummyProfiler(object):
@@ -563,8 +563,6 @@ def wrapload(exported, file_type, **kwargs):
         file_obj=trimesh.util.wrap_as_stream(exported), file_type=file_type, **kwargs
     )
 
-
-TemporaryDirectory = trimesh.util.TemporaryDirectory
 
 # all the JSON files with truth data
 data = _load_data()

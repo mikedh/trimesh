@@ -2286,27 +2286,6 @@ class FunctionRegistry(Mapping):
         return self[key](*args, **kwargs)
 
 
-class TemporaryDirectory:
-    """
-    Same basic usage as tempfile.TemporaryDirectory
-    but functional in Python 2.7+.
-
-    Example
-    ---------
-    ```
-    with trimesh.util.TemporaryDirectory() as path:
-       writable = os.path.join(path, 'hi.txt')
-    ```
-    """
-
-    def __enter__(self):
-        self.path = tempfile.mkdtemp()
-        return self.path
-
-    def __exit__(self, *args, **kwargs):
-        shutil.rmtree(self.path)
-
-
 def decode_text(text, initial="utf-8"):
     """
     Try to decode byte input as a string.
