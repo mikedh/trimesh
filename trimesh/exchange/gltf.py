@@ -739,10 +739,10 @@ def _append_mesh(
     name,
     tree,
     buffer_items,
-    include_normals,
-    unitize_normals,
-    mat_hashes,
-    extension_webp,
+    include_normals: bool,
+    unitize_normals: bool,
+    mat_hashes: dict,
+    extension_webp: bool,
 ):
     """
     Append a mesh to the scene structure and put the
@@ -883,8 +883,9 @@ def _append_mesh(
             )
             # add the reference for UV coordinates
             current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
+
             # only reference the material if we had UV coordinates
-        current["primitives"][0]["material"] = current_material
+            current["primitives"][0]["material"] = current_material
 
     if include_normals or (
         include_normals is None and "vertex_normals" in mesh._cache.cache

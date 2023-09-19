@@ -6,7 +6,7 @@ except BaseException:
 # Khronos' official file validator
 # can be installed with the helper script:
 # `trimesh/docker/builds/gltf_validator.bash`
-_gltf_validator = g.trimesh.util.which("gltf_validator")
+_gltf_validator = g.shutil.which("gltf_validator")
 
 
 def validate_glb(data, name=None):
@@ -33,16 +33,19 @@ def validate_glb(data, name=None):
     with g.tempfile.NamedTemporaryFile(suffix=".glb") as f:
         f.write(data)
         f.flush()
-        # run the khronos gltf-validator
-        report = g.subprocess.run([_gltf_validator, f.name, "-o"], capture_output=True)
+
+        # gltf_validator has occasional bugs being run outside
+        # of the current working directory
+        temp_dir, file_name = g.os.path.split(f.name)
+        # run khronos gltf_validator
+        report = g.subprocess.run(
+            [_gltf_validator, file_name, "-o"], cwd=temp_dir, capture_output=True
+        )
         # -o prints JSON to stdout
         content = report.stdout.decode("utf-8")
         returncode = report.returncode
 
     if returncode != 0:
-        from IPython import embed
-
-        embed()
         g.log.error(f"failed on: `{name}`")
         g.log.error(f"validator: `{content}`")
         g.log.error(f"stderr: `{report.stderr}`")
@@ -378,8 +381,12 @@ class GLTFTest(g.unittest.TestCase):
     def test_material_primary_colors(self):
         primary_color_material = g.trimesh.visual.material.PBRMaterial()
         primary_color_material.baseColorFactor = (255, 0, 0, 255)
-        sphere = g.trimesh.primitives.Sphere()
+        sphere = g.trimesh.creation.icosphere()
+        sphere.visual = g.trimesh.visual.TextureVisuals(material=primary_color_material)
         sphere.visual.material = primary_color_material
+        # material will *not* export without uv coordinates to gltf
+        # as GLTF requires TEXCOORD_0 be defined if there is a material
+        sphere.visual.uv = g.np.zeros((len(sphere.vertices), 2))
         scene = g.trimesh.Scene([sphere])
 
         def to_integer(args):
