@@ -307,7 +307,7 @@ class Trimesh(Geometry3D):
         faces : (n, 3) int64
           References for `self.vertices` for triangles.
         """
-        return self._data.get("faces", np.empty(shape=(0, 3), dtype=np.int64))
+        return self._data.get("faces", np.empty(shape=(0, 3), dtype=int64))
 
     @faces.setter
     def faces(self, values: Union[List[List[int]], NDArray[int64]]):
@@ -321,8 +321,8 @@ class Trimesh(Geometry3D):
         """
         if values is None or len(values) == 0:
             return self._data.data.pop("faces", None)
-        if not (isinstance(values, np.ndarray) and values.dtype == np.int64):
-            values = np.asanyarray(values, dtype=np.int64)
+        if not (isinstance(values, np.ndarray) and values.dtype == int64):
+            values = np.asanyarray(values, dtype=int64)
 
         # automatically triangulate quad faces
         if len(values.shape) == 2 and values.shape[1] != 3:
@@ -355,7 +355,7 @@ class Trimesh(Geometry3D):
 
         Returns
         -----------
-        normals : (len(self.faces), 3) np.float64
+        normals : (len(self.faces), 3) float64
           Normal vectors of each face
         """
         # check shape of cached normals
@@ -368,7 +368,7 @@ class Trimesh(Geometry3D):
 
         # if we have no faces exit early
         if faces is None or len(faces) == 0:
-            return np.array([], dtype=np.int64).reshape((0, 3))
+            return np.array([], dtype=int64).reshape((0, 3))
 
         # if the shape of cached normals equals the shape of faces return
         if np.shape(cached) == np.shape(faces):
@@ -389,7 +389,7 @@ class Trimesh(Geometry3D):
             return normals
 
         # make a padded list of normals for correct shape
-        padded = np.zeros((len(self.triangles), 3), dtype=np.float64)
+        padded = np.zeros((len(self.triangles), 3), dtype=float64)
         padded[valid] = normals
 
         # put calculated face normals into cache manually
@@ -411,7 +411,7 @@ class Trimesh(Geometry3D):
         if values is None:
             return
         # make sure candidate face normals are C-contiguous float
-        values = np.asanyarray(values, order="C", dtype=np.float64)
+        values = np.asanyarray(values, order="C", dtype=float64)
         # face normals need to correspond to faces
         if len(values) == 0 or values.shape != self.faces.shape:
             log.debug("face_normals incorrect shape, ignoring!")
@@ -454,7 +454,7 @@ class Trimesh(Geometry3D):
         vertices : (n, 3) float
           Points in cartesian space referenced by self.faces
         """
-        return self._data.get("vertices", np.empty(shape=(0, 3), dtype=np.float64))
+        return self._data.get("vertices", np.empty(shape=(0, 3), dtype=float64))
 
     @vertices.setter
     def vertices(self, values):
@@ -466,7 +466,9 @@ class Trimesh(Geometry3D):
         values : (n, 3) float
           Points in space
         """
-        self._data["vertices"] = np.asanyarray(values, order="C", dtype=np.float64)
+        if values is None or len(values) == 0:
+            return self._data.data.pop("vertices", None)
+        self._data["vertices"] = np.asanyarray(values, order="C", dtype=float64)
 
     @caching.cache_decorator
     def vertex_normals(self):
@@ -505,7 +507,7 @@ class Trimesh(Geometry3D):
           Unit normal vectors for each vertex
         """
         if values is not None:
-            values = np.asanyarray(values, order="C", dtype=np.float64)
+            values = np.asanyarray(values, order="C", dtype=float64)
             if values.shape == self.vertices.shape:
                 # check to see if they assigned all zeros
                 if values.ptp() < tol.merge:
@@ -635,7 +637,7 @@ class Trimesh(Geometry3D):
         center_mass : (3, ) float
            Volumetric center of mass of the mesh.
         """
-        value = np.array(value, dtype=np.float64)
+        value = np.array(value, dtype=float64)
         if value.shape != (3,):
             raise ValueError("shape must be (3,) float!")
         self._data["center_mass"] = value
@@ -1220,7 +1222,7 @@ class Trimesh(Geometry3D):
 
         # create the inverse mask if not passed
         if inverse is None:
-            inverse = np.zeros(len(self.vertices), dtype=np.int64)
+            inverse = np.zeros(len(self.vertices), dtype=int64)
             if mask.dtype.kind == "b":
                 inverse[mask] = np.arange(mask.sum())
             elif mask.dtype.kind == "i":
@@ -1784,7 +1786,7 @@ class Trimesh(Geometry3D):
         # use native python sum in tight loop as opposed to array.sum()
         # as in this case the lower function call overhead of
         # native sum provides roughly a 50% speedup
-        areas = np.array([sum(area_faces[i]) for i in self.facets], dtype=np.float64)
+        areas = np.array([sum(area_faces[i]) for i in self.facets], dtype=float64)
         return areas
 
     @caching.cache_decorator
@@ -2367,12 +2369,12 @@ class Trimesh(Geometry3D):
             export = result.export(file_type="obj")
             uv_recon = np.array(
                 [L[3:].split() for L in str.splitlines(export) if L.startswith("vt ")],
-                dtype=np.float64,
+                dtype=float64,
             )
             assert np.allclose(uv_recon, uv)
             v_recon = np.array(
                 [L[2:].split() for L in str.splitlines(export) if L.startswith("v ")],
-                dtype=np.float64,
+                dtype=float64,
             )
             assert np.allclose(v_recon, self.vertices[vmap])
 
@@ -2430,7 +2432,7 @@ class Trimesh(Geometry3D):
         referenced = np.zeros(len(self.vertices), dtype=bool)
         referenced[self.faces] = True
 
-        inverse = np.zeros(len(self.vertices), dtype=np.int64)
+        inverse = np.zeros(len(self.vertices), dtype=int64)
         inverse[referenced] = np.arange(referenced.sum())
 
         self.update_vertices(mask=referenced, inverse=inverse)
@@ -2441,7 +2443,7 @@ class Trimesh(Geometry3D):
         three unique vertex indices and no faces are adjacent.
         """
         # new faces are incrementing so every vertex is unique
-        faces = np.arange(len(self.faces) * 3, dtype=np.int64).reshape((-1, 3))
+        faces = np.arange(len(self.faces) * 3, dtype=int64).reshape((-1, 3))
 
         # use update_vertices to apply mask to
         # all properties that are per-vertex
@@ -2465,7 +2467,7 @@ class Trimesh(Geometry3D):
           Homogeneous transformation matrix
         """
         # get c-order float64 matrix
-        matrix = np.asanyarray(matrix, order="C", dtype=np.float64)
+        matrix = np.asanyarray(matrix, order="C", dtype=float64)
 
         # only support homogeneous transformations
         if matrix.shape != (4, 4):
