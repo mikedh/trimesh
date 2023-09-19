@@ -12,39 +12,33 @@ from .. import transformations as tr
 from ..constants import log
 from ..exchange.binvox import export_binvox
 from ..parent import Geometry
-from ..typed import NDArray, float64
 from . import morphology, ops, transforms
 from .encoding import DenseEncoding, Encoding
 
 
 class VoxelGrid(Geometry):
-    def __init__(self, encoding, transform=None, metadata=None):
-        """
-        Store 3D voxels.
+    """
+    Store 3D voxels.
+    """
 
-        Parameters
-        --------------
-        encoding
-          A numpy array of voxels, or an encoding object
-        """
+    def __init__(self, encoding, transform=None, metadata=None):
         if transform is None:
             transform = np.eye(4)
         if isinstance(encoding, np.ndarray):
             encoding = DenseEncoding(encoding.astype(bool))
         if encoding.dtype != bool:
             raise ValueError("encoding must have dtype bool")
-
         self._data = caching.DataStore()
-        self._cache = caching.Cache(id_function=self._data.__hash__)
-        self._transform = transforms.Transform(transform, datastore=self._data)
         self.encoding = encoding
-        self.metadata = {}
+        self._transform = transforms.Transform(transform, datastore=self._data)
+        self._cache = caching.Cache(id_function=self._data.__hash__)
 
+        self.metadata = {}
         # update the mesh metadata with passed metadata
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
         elif metadata is not None:
-            raise ValueError(f"metadata should be a dict or None, not {type(metadata)}")
+            raise ValueError("metadata should be a dict or None, got %s" % str(metadata))
 
     def __hash__(self):
         """
@@ -81,7 +75,7 @@ class VoxelGrid(Geometry):
         self._data["encoding"] = encoding
 
     @property
-    def transform(self) -> NDArray[float64]:
+    def transform(self):
         """4x4 homogeneous transformation matrix."""
         return self._transform.matrix
 
@@ -94,12 +88,6 @@ class VoxelGrid(Geometry):
     def translation(self):
         """Location of voxel at [0, 0, 0]."""
         return self._transform.translation
-
-    @property
-    def origin(self):
-        """Deprecated. Use `self.translation`."""
-        # DEPRECATED. Use translation instead
-        return self.translation
 
     @property
     def scale(self):
@@ -204,8 +192,7 @@ class VoxelGrid(Geometry):
         point = np.asanyarray(point)
         indices = self.points_to_indices(point)
         in_range = np.logical_and(
-            np.all(indices < np.array(self.shape), axis=-1),
-            np.all(indices >= 0, axis=-1),
+            np.all(indices < np.array(self.shape), axis=-1), np.all(indices >= 0, axis=-1)
         )
 
         is_filled = np.zeros_like(in_range)

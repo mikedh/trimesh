@@ -4,7 +4,7 @@ import abc
 import numpy as np
 
 from .. import caching
-from ..util import ABC, log
+from ..util import ABC
 from . import runlength
 
 try:
@@ -283,9 +283,7 @@ class SparseEncoding(Encoding):
             raise ValueError("indices must be 2D, got shaped %s" % str(indices.shape))
         if data["values"].shape != (indices.shape[0],):
             raise ValueError(
-                "values and indices shapes inconsistent: {} and {}".format(
-                    data["values"], data["indices"]
-                )
+                "values and indices shapes inconsistent: {} and {}".format(data["values"], data["indices"])
             )
         if shape is None:
             self._shape = tuple(data["indices"].max(axis=0) + 1)
@@ -453,22 +451,6 @@ class RunLengthEncoding(Encoding):
     @property
     def dtype(self):
         return self._dtype
-
-    def crc(self):
-        log.warning(
-            "`geometry.crc()` is deprecated and will "
-            + "be removed in October 2023: replace "
-            + "with `geometry.__hash__()` or `hash(geometry)`"
-        )
-        return self.__hash__()
-
-    def hash(self):
-        log.warning(
-            "`geometry.hash()` is deprecated and will "
-            + "be removed in October 2023: replace "
-            + "with `geometry.__hash__()` or `hash(geometry)`"
-        )
-        return self.__hash__()
 
     def __hash__(self):
         """

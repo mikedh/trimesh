@@ -39,11 +39,7 @@ def voxelize_subdivide(mesh, pitch, max_iter=10, edge_factor=2.0):
     # get the same mesh sudivided so every edge is shorter
     # than a factor of our pitch
     v, f, idx = remesh.subdivide_to_size(
-        mesh.vertices,
-        mesh.faces,
-        max_edge=max_edge,
-        max_iter=max_iter,
-        return_index=True,
+        mesh.vertices, mesh.faces, max_edge=max_edge, max_iter=max_iter, return_index=True
     )
 
     # convert the vertices to their voxel grid position
