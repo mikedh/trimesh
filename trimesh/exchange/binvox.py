@@ -9,6 +9,7 @@ Exporting meshes as binvox files requires the
 import collections
 import os
 import subprocess
+from tempfile import TemporaryDirectory
 
 import numpy as np
 
@@ -565,7 +566,7 @@ def voxelize_mesh(mesh,
     if binvoxer.file_type != 'binvox':
         raise ValueError(
             'Only "binvox" binvoxer `file_type` currently supported')
-    with util.TemporaryDirectory() as folder:
+    with TemporaryDirectory() as folder:
         model_path = os.path.join(folder, 'model.%s' % export_type)
         with open(model_path, 'wb') as fp:
             mesh.export(fp, file_type=export_type)

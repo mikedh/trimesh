@@ -927,7 +927,7 @@ class GLTFTest(g.unittest.TestCase):
             }
         )
 
-        with g.trimesh.util.TemporaryDirectory() as D:
+        with g.TemporaryDirectory() as D:
             path = g.os.path.join(D, "hi.gltf")
             scene.export(path)
 
@@ -937,7 +937,7 @@ class GLTFTest(g.unittest.TestCase):
             reloaded = g.trimesh.load(path)
             assert set(reloaded.geometry.keys()) == set(scene.geometry.keys())
 
-        with g.trimesh.util.TemporaryDirectory() as D:
+        with g.TemporaryDirectory() as D:
             path = g.os.path.join(D, "hi.gltf")
             scene.export(path, embed_buffers=True)
 

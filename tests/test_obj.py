@@ -180,7 +180,7 @@ class OBJTest(g.unittest.TestCase):
         m = g.get_mesh("fuze.obj")
         # export the mesh including data
         obj, data = g.trimesh.exchange.export.export_obj(m, return_texture=True)
-        with g.trimesh.util.TemporaryDirectory() as path:
+        with g.TemporaryDirectory() as path:
             # where is the OBJ file going to be saved
             obj_path = g.os.path.join(path, "test.obj")
             with open(obj_path, "w") as f:
@@ -308,7 +308,7 @@ class OBJTest(g.unittest.TestCase):
         m.visual.material.diffuse = colors[2]
         m.visual.material.glossiness = 0.52622
 
-        with g.trimesh.util.TemporaryDirectory() as d:
+        with g.TemporaryDirectory() as d:
             # exporting by filename will automatically
             # create a FilePathResolver which writes the
             # `mtl` file to the same directory
