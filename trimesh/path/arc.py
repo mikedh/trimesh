@@ -6,7 +6,7 @@ from .. import util
 from ..constants import log
 from ..constants import res_path as res
 from ..constants import tol_path as tol
-from ..typed import ArrayLike, FloatLike, NDArray, Optional, float64
+from ..typed import ArrayLike, NDArray, Optional, float64
 
 # floating point zero
 _TOL_ZERO = 1e-12
@@ -36,7 +36,7 @@ class ArcInfo:
 
 
 def arc_center(
-    points: ArrayLike[FloatLike], return_normal: bool = True, return_angle: bool = True
+    points: ArrayLike, return_normal: bool = True, return_angle: bool = True
 ) -> ArcInfo:
     """
     Given three points on a 2D or 3D arc find the center,

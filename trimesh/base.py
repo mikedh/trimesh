@@ -2987,7 +2987,7 @@ class Trimesh(Geometry3D):
         )
         return result
 
-    def contains(self, points: ArrayLike[float64]) -> NDArray[bool]:
+    def contains(self, points: ArrayLike) -> NDArray[bool]:
         """
         Given an array of points determine whether or not they
         are inside the mesh. This raises an error if called on a
