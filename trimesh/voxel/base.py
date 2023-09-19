@@ -29,17 +29,18 @@ class VoxelGrid(Geometry):
         """
         if transform is None:
             transform = np.eye(4)
+        if isinstance(encoding, np.ndarray):
+            encoding = DenseEncoding(encoding.astype(bool))
+        if encoding.dtype != bool:
+            raise ValueError("encoding must have dtype bool")
 
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.__hash__)
-
         self._transform = transforms.Transform(transform, datastore=self._data)
-
-        # use our setter
         self.encoding = encoding
+        self.metadata = {}
 
         # update the mesh metadata with passed metadata
-        self.metadata = {}
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
         elif metadata is not None:
@@ -63,23 +64,21 @@ class VoxelGrid(Geometry):
 
         See `trimesh.voxel.encoding` for implementations.
         """
-        return self._encoding
+        return self._data["encoding"]
 
     @encoding.setter
     def encoding(self, encoding):
         if isinstance(encoding, np.ndarray):
             encoding = DenseEncoding(encoding)
         elif not isinstance(encoding, Encoding):
-            raise TypeError(type(encoding))
-
+            raise ValueError("encoding must be an Encoding, got %s" % str(encoding))
         if len(encoding.shape) != 3:
-            raise ValueError(f"encoding.shape: (3,) != {encoding.shape}")
+            raise ValueError(
+                "encoding must be rank 3, got shape %s" % str(encoding.shape)
+            )
         if encoding.dtype != bool:
-            raise ValueError(f"encoding.dtype: bool != {encoding.dtype}")
-
-        self._data.data.update(encoding._data.data)
-        encoding._data = self._data
-        self._encoding = encoding
+            raise ValueError("encoding must be binary, got %s" % encoding.dtype)
+        self._data["encoding"] = encoding
 
     @property
     def transform(self) -> NDArray[float64]:
