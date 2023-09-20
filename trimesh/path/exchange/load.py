@@ -1,11 +1,10 @@
 import os
 
+from ... import util
+from ..path import Path
+from . import misc
 from .dxf import _dxf_loaders
 from .svg_io import svg_to_path
-from ..path import Path
-
-from . import misc
-from ... import util
 
 
 def load_path(file_obj, file_type=None, **kwargs):
@@ -68,8 +67,7 @@ def load_path(file_obj, file_type=None, **kwargs):
         raise ValueError('Not a supported object type!')
 
     result = load_kwargs(kwargs)
-    util.log.debug('loaded {} in {:0.4f}s'.format(
-        str(result), util.now() - tic))
+    util.log.debug(f'loaded {str(result)} in {util.now() - tic:0.4f}s')
 
     return result
 

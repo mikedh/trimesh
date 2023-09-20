@@ -1,20 +1,19 @@
-import os
 import json
+import os
+
 import numpy as np
 
+from .. import resolvers, util
 from ..constants import log
-from .. import util
-from .. import resolvers
-
-from .urdf import export_urdf  # NOQA
+from .dae import _collada_exporters
 from .gltf import export_glb, export_gltf
 from .obj import export_obj
 from .off import _off_exporters
-from .stl import export_stl, export_stl_ascii
 from .ply import _ply_exporters
-from .dae import _collada_exporters
-from .xyz import _xyz_exporters
+from .stl import export_stl, export_stl_ascii
 from .threemf import _3mf_exporters
+from .urdf import export_urdf  # NOQA
+from .xyz import _xyz_exporters
 
 
 def export_mesh(mesh,
@@ -90,7 +89,7 @@ def export_mesh(mesh,
     if isinstance(export, dict):
         # if we have a filename rename the default GLTF
         if file_name is not None and 'model.gltf' in export:
-            export[file_name] = export.pop('model.gltf')
+            export[os.path.basename(file_name)] = export.pop('model.gltf')
 
         # write the files if a resolver has been passed
         if resolver is not None:
@@ -283,7 +282,7 @@ def export_scene(scene,
         data = _mesh_exporters['3mf'](scene, **kwargs)
     else:
         raise ValueError(
-            'unsupported export format: {}'.format(file_type))
+            f'unsupported export format: {file_type}')
 
     # now write the data or return bytes of result
     if isinstance(data, dict):

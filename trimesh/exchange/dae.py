@@ -1,14 +1,12 @@
-import io
 import copy
+import io
 import uuid
 
 import numpy as np
 
-from .. import util
-from .. import visual
-
-from ..util import unique_name
+from .. import util, visual
 from ..constants import log
+from ..util import unique_name
 
 _EYE = np.eye(4)
 _EYE.flags.writeable = False
@@ -148,14 +146,14 @@ def export_collada(mesh, **kwargs):
         )
         indices = np.repeat(m.faces.flatten(), len(arrays))
 
-        matref = u'material{}'.format(i)
+        matref = f'material{i}'
         triset = geom.createTriangleSet(indices, input_list, matref)
         geom.primitives.append(triset)
         c.geometries.append(geom)
 
         matnode = collada.scene.MaterialNode(matref, mat, inputs=[])
         geomnode = collada.scene.GeometryNode(geom, [matnode])
-        node = collada.scene.Node(u'node{}'.format(i), children=[geomnode])
+        node = collada.scene.Node(f'node{i}', children=[geomnode])
         nodes.append(node)
     scene = collada.scene.Scene('scene', nodes)
     c.scenes.append(scene)

@@ -6,12 +6,9 @@ Primarily mesh-plane intersections (slicing).
 """
 import numpy as np
 
-from . import util
-from . import geometry
-from . import grouping
-from . import triangles as tm
+from . import geometry, grouping, util
 from . import transformations as tf
-
+from . import triangles as tm
 from .constants import tol
 from .triangles import points_to_barycentric
 
@@ -716,11 +713,12 @@ def slice_mesh_plane(mesh,
         return None
 
     # avoid circular import
-    from .base import Trimesh
-    from .visual import TextureVisuals
-    from .path import polygons
     from scipy.spatial import cKDTree
+
+    from .base import Trimesh
     from .creation import triangulate_polygon
+    from .path import polygons
+    from .visual import TextureVisuals
 
     # check input plane
     plane_normal = np.asanyarray(

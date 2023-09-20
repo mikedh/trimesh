@@ -7,10 +7,9 @@ Functions for dealing with triangle soups in (n, 3, 3) float form.
 import numpy as np
 
 from . import util
-
-from .util import unitize, diagonal_dot
-from .points import point_plane_distance
 from .constants import tol
+from .points import point_plane_distance
+from .util import diagonal_dot, unitize
 
 
 def cross(triangles):

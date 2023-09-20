@@ -405,7 +405,7 @@ class MassTests(g.unittest.TestCase):
     def setUp(self):
         # inertia numbers pulled from solidworks
         self.truth = g.data['mass_properties']
-        self.meshes = dict()
+        self.meshes = {}
         for data in self.truth:
             filename = data['filename']
             self.meshes[filename] = g.get_mesh(filename)

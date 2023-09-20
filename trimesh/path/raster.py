@@ -8,9 +8,7 @@ import numpy as np
 
 try:
     # keep pillow as a soft dependency
-    from PIL import (Image,
-                     ImageDraw,
-                     ImageChops)
+    from PIL import Image, ImageChops, ImageDraw
 except BaseException as E:
     from .. import exceptions
     # re-raise the useful exception when called
@@ -55,7 +53,7 @@ def rasterize(path,
 
     if origin is None:
         origin = path.bounds[0] - (pitch * 2.0)
-    
+
     # check inputs
     pitch = np.asanyarray(pitch, dtype=np.float64)
     origin = np.asanyarray(origin, dtype=np.float64)

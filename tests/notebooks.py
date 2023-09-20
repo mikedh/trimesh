@@ -1,9 +1,10 @@
-import os
-import sys
-import json
 import inspect
+import json
 import logging
+import os
 import subprocess
+import sys
+
 import numpy as np
 
 # current working directory
@@ -166,7 +167,7 @@ def main():
         file_name = sys.argv[sys.argv.index("exec") + 1].strip()
         # we want to skip some of these examples in CI
         if 'ci' in sys.argv and os.path.basename(file_name) in ci_blacklist:
-            log.debug('{} in CI blacklist: skipping!'.format(file_name))
+            log.debug(f'{file_name} in CI blacklist: skipping!')
             return
 
         # skip files that don't exist
@@ -175,23 +176,22 @@ def main():
 
         if file_name.lower().endswith('.ipynb'):
             # ipython notebooks
-            with open(file_name, 'r') as file_obj:
+            with open(file_name) as file_obj:
                 script = load_notebook(file_obj)
         elif file_name.lower().endswith('.py'):
             # regular python files
-            with open(file_name, 'r') as file_obj:
+            with open(file_name) as file_obj:
                 script = exclude_calls(file_obj.read().split('\n'))
         else:
             # skip other types of files
             return
 
-        log.debug('running {}'.format(file_name))
+        log.debug(f'running {file_name}')
         try:
             exec(script, globals())
         except BaseException as E:
             log.debug(
-                'failed {}!\n\nscript was:\n{}\n\n'.format(
-                    file_name, script))
+                f'failed {file_name}!\n\nscript was:\n{script}\n\n')
             raise E
 
 

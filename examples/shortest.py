@@ -7,9 +7,9 @@ between the two vertices while only traveling along edges
 of the mesh.
 """
 
-import trimesh
-
 import networkx as nx
+
+import trimesh
 
 if __name__ == '__main__':
 

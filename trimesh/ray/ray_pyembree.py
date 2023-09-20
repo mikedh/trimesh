@@ -2,18 +2,13 @@
 Ray queries using the embreex package with the
 API wrapped to match our native raytracer.
 """
-import numpy as np
-
 from copy import deepcopy
 
+import numpy as np
 
-from .ray_util import contains_points
-
-from .. import util
-from .. import caching
-from .. import intersections
-
+from .. import caching, intersections, util
 from ..constants import log_time
+from .ray_util import contains_points
 
 # the factor of geometry.scale to offset a ray from a triangle
 # to reliably not hit its origin triangle
@@ -31,9 +26,8 @@ try:
 except BaseException as E:
     try:
         # this will be deprecated at some point hopefully soon
-        from pyembree import rtcore_scene
+        from pyembree import __version__, rtcore_scene
         from pyembree.mesh_construction import TriangleMesh
-        from pyembree import __version__
         # see if we're using a newer version of the pyembree wrapper
         _embree_new = tuple([int(i) for i in __version__.split('.')]) >= (0, 1, 4)
         # both old and new versions require exact but different type
@@ -43,7 +37,7 @@ except BaseException as E:
         raise E
 
 
-class RayMeshIntersector(object):
+class RayMeshIntersector:
 
     def __init__(self,
                  geometry,
@@ -330,7 +324,7 @@ class RayMeshIntersector(object):
         return contains_points(self, points)
 
 
-class _EmbreeWrap(object):
+class _EmbreeWrap:
     """
     A light wrapper for Embreex scene objects which
     allows queries to be scaled to help with precision

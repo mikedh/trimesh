@@ -83,7 +83,7 @@ def specular_to_pbr(
         return metallic
 
     def get_perceived_brightness(rgb):
-        return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+        return np.sqrt(np.dot(rgb[..., :3]**2, [0.299, 0.587, 0.114]))
 
     def toPIL(img):
         if isinstance(img, Image):
@@ -122,7 +122,7 @@ def specular_to_pbr(
             else:
                 log.warning(
                     '`diffuseFactor` and `diffuseTexture` have incompatible shapes: ' +
-                    '{0} and {1}'.format(diffuseFactor.shape, diffuse.shape))
+                    f'{diffuseFactor.shape} and {diffuse.shape}')
         else:
             diffuse = diffuseFactor if diffuseFactor is not None else [1, 1, 1, 1]
             diffuse = np.array(diffuse, dtype=np.float32)

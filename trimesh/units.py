@@ -6,8 +6,8 @@ Deal with physical unit systems (i.e. inches, mm)
 Very basic conversions, and no requirement for
 sympy.physics.units or pint.
 """
-from .constants import log
 from . import resources
+from .constants import log
 
 
 def unit_conversion(current, desired):

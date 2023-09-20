@@ -1,6 +1,6 @@
-from .. import util
-
 import numpy as np
+
+from .. import util
 
 
 class HeaderError(Exception):
@@ -114,8 +114,7 @@ def load_stl_binary(file_obj):
     # so it's much better to raise an exception here.
     if len_data != len_expected:
         raise HeaderError(
-            'Binary STL has incorrect length in header: {} vs {}'.format(
-                len_data, len_expected))
+            f'Binary STL has incorrect length in header: {len_data} vs {len_expected}')
 
     blob = np.frombuffer(file_obj.read(), dtype=_stl_dtype)
 

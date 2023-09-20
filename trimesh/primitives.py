@@ -7,17 +7,12 @@ Subclasses of Trimesh objects that are parameterized as primitives.
 Useful because you can move boxes and spheres around
 and then use trimesh operations on them at any point.
 """
-import numpy as np
 import abc
 
-from . import util
-from . import sample
-from . import caching
-from . import inertia
-from . import creation
-from . import triangles
-from . import transformations as tf
+import numpy as np
 
+from . import caching, creation, inertia, sample, triangles, util
+from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 
@@ -26,9 +21,9 @@ _IDENTITY = np.eye(4)
 _IDENTITY.flags.writeable = False
 
 
-class _Primitive(Trimesh):
+class Primitive(Trimesh):
     """
-    Geometric _Primitives which are a subclass of Trimesh.
+    Geometric Primitives which are a subclass of Trimesh.
     Mesh is generated lazily when vertices or faces are requested.
     """
 
@@ -38,7 +33,7 @@ class _Primitive(Trimesh):
 
     def __init__(self):
         # run the Trimesh constructor with no arguments
-        super(_Primitive, self).__init__()
+        super().__init__()
 
         # remove any data
         self._data.clear()
@@ -49,8 +44,7 @@ class _Primitive(Trimesh):
         self._cache.force_immutable = True
 
     def __repr__(self):
-        return '<trimesh.primitives.{}>'.format(
-            type(self).__name__)
+        return f'<trimesh.primitives.{type(self).__name__}>'
 
     @property
     def faces(self):
@@ -225,7 +219,7 @@ class _Primitive(Trimesh):
         raise ValueError('Primitive doesn\'t define mesh creation!')
 
 
-class _PrimitiveAttributes(object):
+class PrimitiveAttributes:
     """
     Hold the mutable data which defines a primitive.
     """
@@ -236,7 +230,7 @@ class _PrimitiveAttributes(object):
 
         Parameters
         ------------
-        parent : _Primitive
+        parent : Primitive
           Parent object reference.
         defaults : dict
           The default values for this primitive type.
@@ -287,7 +281,7 @@ class _PrimitiveAttributes(object):
 
     def __getattr__(self, key):
         if key.startswith('_'):
-            return super(_PrimitiveAttributes, self).__getattr__(key)
+            return super().__getattr__(key)
         elif key == 'center':
             # this whole __getattr__ is a little hacky
             return self._data['transform'][:3, 3]
@@ -295,12 +289,11 @@ class _PrimitiveAttributes(object):
             return util.convert_like(self._data[key],
                                      self._defaults[key])
         raise AttributeError(
-            "primitive object has no attribute '{}' ".format(key))
+            f"primitive object has no attribute '{key}' ")
 
     def __setattr__(self, key, value):
         if key.startswith('_'):
-            return super(_PrimitiveAttributes,
-                         self).__setattr__(key, value)
+            return super().__setattr__(key, value)
         elif key == 'center':
             value = np.array(value, dtype=np.float64)
             transform = np.eye(4)
@@ -317,7 +310,7 @@ class _PrimitiveAttributes(object):
         else:
             keys = list(self._defaults.keys())
             raise ValueError(
-                'Only default attributes {} can be set!'.format(keys))
+                f'Only default attributes {keys} can be set!')
 
     def __dir__(self):
         result = sorted(dir(type(self)) +
@@ -325,7 +318,7 @@ class _PrimitiveAttributes(object):
         return result
 
 
-class Cylinder(_Primitive):
+class Cylinder(Primitive):
 
     def __init__(self,
                  radius=1.0,
@@ -349,13 +342,13 @@ class Cylinder(_Primitive):
         mutable : bool
           Are extents and transform mutable after creation.
         """
-        super(Cylinder, self).__init__()
+        super().__init__()
 
         defaults = {'height': 10.0,
                     'radius': 1.0,
                     'transform': np.eye(4),
                     'sections': 32}
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
             kwargs={'height': height,
@@ -479,7 +472,7 @@ class Cylinder(_Primitive):
         self._cache['face_normals'] = mesh.face_normals
 
 
-class Capsule(_Primitive):
+class Capsule(Primitive):
 
     def __init__(self,
                  radius=1.0,
@@ -503,13 +496,13 @@ class Capsule(_Primitive):
         mutable : bool
           Are extents and transform mutable after creation.
         """
-        super(Capsule, self).__init__()
+        super().__init__()
 
         defaults = {'height': 1.0,
                     'radius': 1.0,
                     'transform': np.eye(4),
                     'sections': 32}
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
             kwargs={'height': height,
@@ -564,7 +557,7 @@ class Capsule(_Primitive):
         self._cache['face_normals'] = mesh.face_normals
 
 
-class Sphere(_Primitive):
+class Sphere(Primitive):
 
     def __init__(self,
                  radius=1.0,
@@ -589,7 +582,7 @@ class Sphere(_Primitive):
           Are extents and transform mutable after creation.
         """
 
-        super(Sphere, self).__init__()
+        super().__init__()
 
         defaults = {'radius': 1.0,
                     'transform': np.eye(4),
@@ -609,7 +602,7 @@ class Sphere(_Primitive):
             constructor['transform'] = transform
 
         # create the attributes object
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self, defaults=defaults, kwargs=constructor, mutable=mutable)
 
     @property
@@ -704,7 +697,7 @@ class Sphere(_Primitive):
         self._cache['face_normals'] = unit.face_normals
 
 
-class Box(_Primitive):
+class Box(Primitive):
     def __init__(self,
                  extents=None,
                  transform=None,
@@ -725,7 +718,7 @@ class Box(_Primitive):
         mutable : bool
           Are extents and transform mutable after creation.
         """
-        super(Box, self).__init__()
+        super().__init__()
         defaults = {'transform': np.eye(4),
                     'extents': np.ones(3)}
 
@@ -743,7 +736,7 @@ class Box(_Primitive):
             transform = np.eye(4)
             transform[:3, 3] = bounds[0] + extents / 2.0
 
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
             kwargs={'extents': extents,
@@ -878,7 +871,7 @@ class Box(_Primitive):
             transform=self.primitive.transform)
 
 
-class Extrusion(_Primitive):
+class Extrusion(Primitive):
     def __init__(self,
                  polygon=None,
                  transform=None,
@@ -903,13 +896,13 @@ class Extrusion(_Primitive):
         from shapely.geometry import Point
 
         # run the Trimesh init
-        super(Extrusion, self).__init__()
+        super().__init__()
         # set default values
         defaults = {'polygon': Point([0, 0]).buffer(1.0),
                     'transform': np.eye(4),
                     'height': 1.0}
 
-        self.primitive = _PrimitiveAttributes(
+        self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
             kwargs={'transform': transform,

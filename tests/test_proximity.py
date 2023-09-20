@@ -61,7 +61,7 @@ class NearestTest(g.unittest.TestCase):
         assert g.np.ptp(data_points, axis=0).max() < g.tol.merge
         assert g.np.ptp(data_dist, axis=0).max() < g.tol.merge
 
-        log_msg = '\n'.join("{}: {}s".format(i, j)
+        log_msg = '\n'.join(f"{i}: {j}s"
                             for i, j in zip(
             [i.__name__ for i in funs],
             g.np.diff(tic)))

@@ -67,8 +67,8 @@ class GraphTests(g.unittest.TestCase):
         # get a scene graph
         graph = g.get_mesh('cycloidal.3DXML').graph
         # get any non-root node
-        node = next(iter((set(graph.nodes).difference(
-            [graph.base_frame]))))
+        node = next(iter(set(graph.nodes).difference(
+            [graph.base_frame])))
         # remove that node
         graph.transforms.remove_node(node)
         # should have dumped the cache and removed the node

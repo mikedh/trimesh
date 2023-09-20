@@ -11,11 +11,8 @@ Convex is defined as:
 
 import numpy as np
 
+from . import triangles, util
 from .constants import tol
-
-from . import util
-from . import triangles
-
 
 try:
     from scipy.spatial import ConvexHull

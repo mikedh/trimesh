@@ -1,6 +1,6 @@
-import numpy as np
-
 import collections
+
+import numpy as np
 
 try:
     # pip install python-fcl
@@ -9,7 +9,7 @@ except BaseException:
     fcl = None
 
 
-class ContactData(object):
+class ContactData:
     """
     Data structure for holding information about a collision contact.
     """
@@ -88,7 +88,7 @@ class ContactData(object):
         return self._inds[name]
 
 
-class DistanceData(object):
+class DistanceData:
     """
     Data structure for holding information about a distance query.
     """
@@ -161,7 +161,7 @@ class DistanceData(object):
         return self._points[name]
 
 
-class CollisionManager(object):
+class CollisionManager:
     """
     A mesh-mesh collision manager.
     """
@@ -245,7 +245,7 @@ class CollisionManager(object):
             # remove names
             self._names.pop(geom_id)
         else:
-            raise ValueError('{} not in collision manager!'.format(name))
+            raise ValueError(f'{name} not in collision manager!')
 
     def set_transform(self, name, transform):
         """
@@ -265,7 +265,7 @@ class CollisionManager(object):
             o.setTranslation(transform[:3, 3])
             self._manager.update(o)
         else:
-            raise ValueError('{} not in collision manager!'.format(name))
+            raise ValueError(f'{name} not in collision manager!')
 
     def in_collision_single(self,
                             mesh,

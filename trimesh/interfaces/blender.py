@@ -1,11 +1,9 @@
-from .. import util
-from .. import resources
-
-from .generic import MeshScript
-from ..constants import log
-
 import os
 import platform
+
+from .. import resources, util
+from ..constants import log
+from .generic import MeshScript
 
 _search_path = os.environ.get('PATH', '')
 if platform.system() == 'Windows':

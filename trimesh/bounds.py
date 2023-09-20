@@ -1,17 +1,12 @@
 import numpy as np
-from .constants import log, now
 
-from . import util
-from . import convex
-from . import nsphere
-from . import geometry
-from . import grouping
-from . import transformations
+from . import convex, geometry, grouping, nsphere, transformations, util
+from .constants import log, now
 
 try:
     # scipy is a soft dependency
-    from scipy.spatial import ConvexHull
     from scipy import optimize
+    from scipy.spatial import ConvexHull
 except BaseException as E:
     # raise the exception when someone tries to use it
     from . import exceptions

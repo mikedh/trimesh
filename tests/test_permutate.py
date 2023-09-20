@@ -23,8 +23,7 @@ class PermutateTest(g.unittest.TestCase):
                       mesh.face_adjacency) and
                     len(mesh.faces) > MIN_FACES):
                 g.log.error(
-                    'face_adjacency unchanged: {}'.format(
-                        str(test.face_adjacency)))
+                    f'face_adjacency unchanged: {str(test.face_adjacency)}')
                 raise ValueError(
                     'face adjacency of %s the same after permutation!',
                     mesh.metadata['file_name'])
@@ -33,8 +32,7 @@ class PermutateTest(g.unittest.TestCase):
                       mesh.face_adjacency_edges) and
                     len(mesh.faces) > MIN_FACES):
                 g.log.error(
-                    'face_adjacency_edges unchanged: {}'.format(
-                        str(test.face_adjacency_edges)))
+                    f'face_adjacency_edges unchanged: {str(test.face_adjacency_edges)}')
                 raise ValueError(
                     'face adjacency edges of %s the same after permutation!',
                     mesh.metadata['file_name'])

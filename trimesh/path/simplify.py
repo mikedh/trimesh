@@ -1,17 +1,13 @@
+import collections
+import copy
+
 import numpy as np
 
-import copy
-import collections
-
-from . import arc
-from . import entities
-
 from .. import util
-
-from ..nsphere import fit_nsphere
-
 from ..constants import log
 from ..constants import tol_path as tol
+from ..nsphere import fit_nsphere
+from . import arc, entities
 
 
 def fit_circle_check(points,
@@ -243,7 +239,7 @@ def resample_spline(points, smooth=.001, count=None, degree=3):
     resampled : (count, dimension) float
       Points in space
     """
-    from scipy.interpolate import splprep, splev
+    from scipy.interpolate import splev, splprep
     if count is None:
         count = len(points)
     points = np.asanyarray(points)

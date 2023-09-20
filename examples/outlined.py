@@ -5,8 +5,9 @@ outlined.py
 Show a mesh with edges highlighted using GL_LINES
 """
 
-import trimesh
 import numpy as np
+
+import trimesh
 
 if __name__ == '__main__':
     mesh = trimesh.load('../models/featuretype.STL')

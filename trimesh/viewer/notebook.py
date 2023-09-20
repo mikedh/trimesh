@@ -5,12 +5,11 @@ notebook.py
 Render trimesh.Scene objects in HTML
 and jupyter notebooks using three.js
 """
-import os
 import base64
+import os
 
 # for our template
-from .. import util
-from .. import resources
+from .. import resources, util
 
 
 def scene_to_html(scene):
@@ -33,7 +32,8 @@ def scene_to_html(scene):
     base = util.decompress(
         resources.get('templates/viewer.zip', decode=False),
         file_type='zip')['viewer.html.template'].read().decode('utf-8')
-    scene.camera
+    # make sure scene has camera populated before export
+    _ = scene.camera
     # get export as bytes
     data = scene.export(file_type='glb')
     # encode as base64 string

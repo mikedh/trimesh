@@ -23,7 +23,7 @@ class VHACDTest(g.unittest.TestCase):
 
         if len(decomposed) != 10:
             # it should return the correct number of meshes
-            raise ValueError('{} != 10'.format(len(decomposed)))
+            raise ValueError(f'{len(decomposed)} != 10')
 
         # make sure everything is convex
         # also this will fail if the type is returned incorrectly

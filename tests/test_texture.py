@@ -33,7 +33,7 @@ class TextureTest(g.unittest.TestCase):
         for file_name in ['ico4.obj', 'ico4uv.obj']:
             # get the location of the model file
             file_path = g.get_path(file_name)
-            with open(file_path, 'r') as f:
+            with open(file_path) as f:
                 # get the raw ordered vertices from the file with basic string
                 # ops
                 v_raw = g.np.array(
@@ -183,8 +183,8 @@ class TextureTest(g.unittest.TestCase):
         unique = vertex_c[g.trimesh.grouping.unique_rows(vertex_c)[0]]
 
         # roundtripped colors should be a superset of original colors
-        assert set(tuple(c) for c in unique).issuperset(
-            set(tuple(c) for c in colors))
+        assert {tuple(c) for c in unique}.issuperset(
+            {tuple(c) for c in colors})
 
     def test_to_tex(self):
         m = g.trimesh.creation.box()

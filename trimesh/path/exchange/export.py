@@ -1,8 +1,7 @@
 import os
-from ... import util
 
-from . import dxf
-from . import svg_io
+from ... import util
+from . import dxf, svg_io
 
 
 def export_path(path,

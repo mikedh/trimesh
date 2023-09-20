@@ -1,10 +1,7 @@
 import numpy as np
 
-from ... import util
-from ... import graph
-from ... import grouping
-
-from ..entities import Line, Arc
+from ... import graph, grouping, util
+from ..entities import Arc, Line
 
 
 def dict_to_path(as_dict):

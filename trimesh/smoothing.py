@@ -1,15 +1,15 @@
 import numpy as np
 
 try:
-    from scipy.sparse.linalg import spsolve
     from scipy.sparse import coo_matrix, eye
+    from scipy.sparse.linalg import spsolve
 except ImportError:
     pass
 
 from . import triangles
-from .util import unitize
 from .geometry import index_sparse
 from .triangles import mass_properties
+from .util import unitize
 
 
 def filter_laplacian(mesh,

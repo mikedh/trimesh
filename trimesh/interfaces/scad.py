@@ -2,9 +2,9 @@ import os
 import platform
 from subprocess import CalledProcessError
 
+from ..constants import log
 from ..util import which
 from .generic import MeshScript
-from ..constants import log
 
 # start the search with the user's PATH
 _search_path = os.environ.get('PATH', '')
@@ -48,8 +48,8 @@ def interface_scad(meshes, script, debug=False, **kwargs):
     # OFF is a simple text format that references vertices by-index
     # making it slightly preferable to STL for this kind of exchange duty
     try:
-        with MeshScript(meshes=meshes, script=script, 
-            debug=debug, exchange='off') as scad:
+        with MeshScript(meshes=meshes, script=script,
+                        debug=debug, exchange='off') as scad:
             result = scad.run(_scad_executable + ' $SCRIPT -o $MESH_POST')
     except CalledProcessError as e:
         # Check if scad is complaining about an empty top level geometry.

@@ -10,16 +10,15 @@ which is supposed to be pretty invariant to translation and tessellation
 changes. We use this to generate the arbitrary sigfig thresholds.
 """
 
-import trimesh
+import collections
+import json
+import logging
+import os
+import time
+
 import numpy as np
 
-
-import time
-import json
-import os
-
-import collections
-import logging
+import trimesh
 
 log = trimesh.util.log
 TOL_ZERO = 1e-12
@@ -74,9 +73,7 @@ def permutations(mesh,
         identifiers.append(identifier)
 
         if (time.time() - start) > cutoff:
-            log.debug('bailing for time:{} count:{}'.format(
-                time.time() - start,
-                i))
+            log.debug(f'bailing for time:{time.time() - start} count:{i}')
             return np.array(identifiers)
 
     return np.array(identifiers)
@@ -182,7 +179,7 @@ if __name__ == '__main__':
         result.append({'mean': mean.tolist(),
                        'percent': percent.tolist()})
 
-        log.debug('\n\n{}/{}'.format(i, len(meshes) - 1))
+        log.debug(f'\n\n{i}/{len(meshes) - 1}')
         log.debug('mean', mean)
         log.debug('percent', percent)
         log.debug('oom', mean / percent)

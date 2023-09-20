@@ -6,8 +6,9 @@ Manipulate DXF templates as plain text files rather
 than strings inside a JSON blob
 """
 
-import os
 import json
+import os
+
 import numpy as np
 
 
@@ -15,7 +16,7 @@ def get_json(file_name='../templates/dxf.json'):
     """
     Load the JSON blob into native objects
     """
-    with open(file_name, 'r') as f:
+    with open(file_name) as f:
         t = json.load(f)
     return t
 
@@ -82,7 +83,7 @@ def read_files(path):
         # skip emacs buffers
         if '~' in file_name:
             continue
-        with open(os.path.join(path, file_name), 'r') as f:
+        with open(os.path.join(path, file_name)) as f:
             template[file_name] = replace_whitespace(
                 f.read(), reformat=False, insert=True)
 
@@ -92,6 +93,7 @@ def read_files(path):
 if __name__ == '__main__':
 
     import sys
+
     import trimesh
     trimesh.util.attach_to_log()
 

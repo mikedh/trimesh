@@ -31,9 +31,11 @@ def export_urdf(mesh,
     """
 
     import lxml.etree as et
+
+    from ..resources import get
+
     # TODO: fix circular import
     from .export import export_mesh
-    from ..resources import get
 
     # Extract the save directory and the file name
     fullpath = os.path.abspath(directory)
@@ -71,8 +73,8 @@ def export_urdf(mesh,
     for i, piece in enumerate(convex_pieces):
 
         # Save each nearly convex mesh out to a file
-        piece_name = '{}_convex_piece_{}'.format(name, i)
-        piece_filename = '{}.obj'.format(piece_name)
+        piece_name = f'{name}_convex_piece_{i}'
+        piece_filename = f'{piece_name}.obj'
         piece_filepath = os.path.join(fullpath, piece_filename)
         export_mesh(piece, piece_filepath)
 
@@ -80,8 +82,8 @@ def export_urdf(mesh,
         piece.center_mass = mesh.center_mass
         piece.density = effective_density * mesh.density
 
-        link_name = 'link_{}'.format(piece_name)
-        geom_name = '{}'.format(piece_filename)
+        link_name = f'link_{piece_name}'
+        geom_name = f'{piece_filename}'
         I = [['{:.2E}'.format(y) for y in x]  # NOQA
              for x in piece.moment_inertia]
 
@@ -91,7 +93,7 @@ def export_urdf(mesh,
         # Inertial information
         inertial = et.SubElement(link, 'inertial')
         et.SubElement(inertial, 'origin', xyz="0 0 0", rpy="0 0 0")
-        et.SubElement(inertial, 'mass', value='{:.2E}'.format(piece.mass))
+        et.SubElement(inertial, 'mass', value=f'{piece.mass:.2E}')
         et.SubElement(
             inertial,
             'inertia',
@@ -106,29 +108,23 @@ def export_urdf(mesh,
         et.SubElement(visual, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(visual, 'geometry')
         et.SubElement(geometry, 'mesh', filename=geom_name,
-                      scale="{:.4E} {:.4E} {:.4E}".format(scale,
-                                                          scale,
-                                                          scale))
+                      scale=f"{scale:.4E} {scale:.4E} {scale:.4E}")
         material = et.SubElement(visual, 'material', name='')
         if color is not None:
             et.SubElement(material,
                           'color',
-                          rgba="{:.2E} {:.2E} {:.2E} 1".format(color[0],
-                                                               color[1],
-                                                               color[2]))
+                          rgba=f"{color[0]:.2E} {color[1]:.2E} {color[2]:.2E} 1")
 
         # Collision Information
         collision = et.SubElement(link, 'collision')
         et.SubElement(collision, 'origin', xyz="0 0 0", rpy="0 0 0")
         geometry = et.SubElement(collision, 'geometry')
         et.SubElement(geometry, 'mesh', filename=geom_name,
-                      scale="{:.4E} {:.4E} {:.4E}".format(scale,
-                                                          scale,
-                                                          scale))
+                      scale=f"{scale:.4E} {scale:.4E} {scale:.4E}")
 
         # Create rigid joint to previous link
         if prev_link_name is not None:
-            joint_name = '{}_joint'.format(link_name)
+            joint_name = f'{link_name}_joint'
             joint = et.SubElement(root,
                                   'joint',
                                   name=joint_name,
@@ -141,7 +137,7 @@ def export_urdf(mesh,
 
     # Write URDF file
     tree = et.ElementTree(root)
-    urdf_filename = '{}.urdf'.format(name)
+    urdf_filename = f'{name}.urdf'
     tree.write(os.path.join(fullpath, urdf_filename),
                pretty_print=True)
 
@@ -152,11 +148,10 @@ def export_urdf(mesh,
     version = et.SubElement(root, 'version')
     version.text = '1.0'
     sdf = et.SubElement(root, 'sdf', version='1.4')
-    sdf.text = '{}.urdf'.format(name)
+    sdf.text = f'{name}.urdf'
 
     author = et.SubElement(root, 'author')
-    et.SubElement(author, 'name').text = 'trimesh {}'.format(
-        __version__)
+    et.SubElement(author, 'name').text = f'trimesh {__version__}'
     et.SubElement(author, 'email').text = 'blank@blank.blank'
 
     description = et.SubElement(root, 'description')

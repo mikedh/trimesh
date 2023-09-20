@@ -7,22 +7,16 @@ Functions dealing with (n, d) points.
 import copy
 
 import numpy as np
+from numpy import float64
 
-from .parent import Geometry3D
-from .geometry import plane_transform
+from . import caching, grouping, transformations, util
 from .constants import tol
+from .geometry import plane_transform
+from .parent import Geometry3D
 from .visual.color import VertexColor
 
 
-from . import util
-from . import caching
-from . import grouping
-from . import transformations
-
-
-def point_plane_distance(points,
-                         plane_normal,
-                         plane_origin=None):
+def point_plane_distance(points, plane_normal, plane_origin=None):
     """
     The minimum perpendicular distance of a point to a plane.
 
@@ -40,7 +34,7 @@ def point_plane_distance(points,
     distances : (n,) float
       Distance from point to plane
     """
-    points = np.asanyarray(points, dtype=np.float64)
+    points = np.asanyarray(points, dtype=float64)
     if plane_origin is None:
         w = points
     else:
@@ -88,7 +82,7 @@ def plane_fit(points):
       Unit normal vector of plane
     """
     # make sure input is numpy array
-    points = np.asanyarray(points, dtype=np.float64)
+    points = np.asanyarray(points, dtype=float64)
     assert points.ndim == 2 or points.ndim == 3
     # with only one point set, np.dot is faster
     if points.ndim == 2:
@@ -104,17 +98,14 @@ def plane_fit(points):
         # points offset by the plane origin
         x = points - C[:, None, :]
         # create a (p, 3, 3) matrix
-        M = np.einsum('pnd, pnm->pdm', x, x)
+        M = np.einsum("pnd, pnm->pdm", x, x)
     # run SVD
     N = np.linalg.svd(M)[0][..., -1]
     # return the centroid(s) and normal(s)
     return C, N
 
 
-def radial_sort(points,
-                origin,
-                normal,
-                start=None):
+def radial_sort(points, origin, normal, start=None):
     """
     Sorts a set of points radially (by angle) around an
     axis specified by origin and normal vector.
@@ -146,23 +137,24 @@ def radial_sort(points,
     else:
         normal, start = util.unitize([normal, start])
         if np.abs(1 - np.abs(np.dot(normal, start))) < tol.zero:
-            raise ValueError('start must not parallel with normal')
+            raise ValueError("start must not parallel with normal")
         axis0 = np.cross(start, normal)
         axis1 = np.cross(axis0, normal)
     vectors = points - origin
     # calculate the angles of the points on the axis
-    angles = np.arctan2(np.dot(vectors, axis0),
-                        np.dot(vectors, axis1))
+    angles = np.arctan2(np.dot(vectors, axis0), np.dot(vectors, axis1))
     # return the points sorted by angle
     return points[angles.argsort()[::-1]]
 
 
-def project_to_plane(points,
-                     plane_normal,
-                     plane_origin,
-                     transform=None,
-                     return_transform=False,
-                     return_planar=True):
+def project_to_plane(
+    points,
+    plane_normal,
+    plane_origin,
+    transform=None,
+    return_transform=False,
+    return_planar=True,
+):
     """
     Project (n, 3) points onto a plane.
 
@@ -183,13 +175,13 @@ def project_to_plane(points,
     """
 
     if np.all(np.abs(plane_normal) < tol.zero):
-        raise NameError('Normal must be nonzero!')
+        raise NameError("Normal must be nonzero!")
 
     if transform is None:
         transform = plane_transform(plane_origin, plane_normal)
 
     transformed = transformations.transform_points(points, transform)
-    transformed = transformed[:, 0:(3 - int(return_planar))]
+    transformed = transformed[:, 0 : (3 - int(return_planar))]
 
     if return_transform:
         polygon_to_3D = np.linalg.inv(transform)
@@ -220,7 +212,7 @@ def remove_close(points, radius):
 
     tree = cKDTree(points)
     # get the index of every pair of points closer than our radius
-    pairs = tree.query_pairs(radius, output_type='ndarray')
+    pairs = tree.query_pairs(radius, output_type="ndarray")
 
     # how often each vertex index appears in a pair
     # this is essentially a cheaply computed "vertex degree"
@@ -272,7 +264,7 @@ def k_means(points, k, **kwargs):
     from scipy.cluster.vq import kmeans
     from scipy.spatial import cKDTree
 
-    points = np.asanyarray(points, dtype=np.float64)
+    points = np.asanyarray(points, dtype=float64)
     points_std = points.std(axis=0)
     points_std[points_std < tol.zero] = 1
     whitened = points / points_std
@@ -315,10 +307,10 @@ def tsp(points, start=0):
       The euclidean distance between points in traversal
     """
     # points should be float
-    points = np.asanyarray(points, dtype=np.float64)
+    points = np.asanyarray(points, dtype=float64)
 
     if len(points.shape) != 2:
-        raise ValueError('points must be (n, dimension)!')
+        raise ValueError("points must be (n, dimension)!")
 
     # start should be an index
     start = int(start)
@@ -331,7 +323,7 @@ def tsp(points, start=0):
     traversal = np.zeros(len(points), dtype=np.int64) - 1
     traversal[0] = start
     # list of distances
-    distances = np.zeros(len(points) - 1, dtype=np.float64)
+    distances = np.zeros(len(points) - 1, dtype=float64)
     # a mask of indexes in order
     index_mask = np.arange(len(points), dtype=np.int64)
 
@@ -348,8 +340,7 @@ def tsp(points, start=0):
         # do NlogN distance query
         # use dot instead of .sum(axis=1) or np.linalg.norm
         # as it is faster, also don't square root here
-        dist = np.dot((points[unvisited] - current) ** 2,
-                      sum_ones)
+        dist = np.dot((points[unvisited] - current) ** 2, sum_ones)
 
         # minimum distance index
         min_index = dist.argmin()
@@ -382,20 +373,19 @@ def plot_points(points, show=True):
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D  # NOQA
 
-    points = np.asanyarray(points, dtype=np.float64)
+    points = np.asanyarray(points, dtype=float64)
 
     if len(points.shape) != 2:
-        raise ValueError('Points must be (n, 2|3)!')
+        raise ValueError("Points must be (n, 2|3)!")
 
     if points.shape[1] == 3:
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111, projection="3d")
         ax.scatter(*points.T)
     elif points.shape[1] == 2:
         plt.scatter(*points.T)
     else:
-        raise ValueError('points not 2D/3D: {}'.format(
-            points.shape))
+        raise ValueError(f"points not 2D/3D: {points.shape}")
 
     if show:
         plt.show()
@@ -430,8 +420,8 @@ class PointCloud(Geometry3D):
         # load vertices
         self.vertices = vertices
 
-        if 'vertex_colors' in kwargs and colors is None:
-            colors = kwargs['vertex_colors']
+        if "vertex_colors" in kwargs and colors is None:
+            colors = kwargs["vertex_colors"]
 
         # save visual data to vertex color object
         self.visual = VertexColor(colors=colors, obj=self)
@@ -526,8 +516,7 @@ class PointCloud(Geometry3D):
         self.vertices = self.vertices[unique]
 
         # apply unique mask to colors
-        if (self.colors is not None and
-                len(self.colors) == len(inverse)):
+        if self.colors is not None and len(self.colors) == len(inverse):
             self.colors = self.colors[unique]
 
     def apply_transform(self, transform):
@@ -540,8 +529,7 @@ class PointCloud(Geometry3D):
         transform : (4, 4) float
           Homogeneous transformation to apply to PointCloud
         """
-        self.vertices = transformations.transform_points(
-            self.vertices, matrix=transform)
+        self.vertices = transformations.transform_points(self.vertices, matrix=transform)
         return self
 
     @property
@@ -554,8 +542,7 @@ class PointCloud(Geometry3D):
         bounds : (2, 3) float
           Minimum, Maximum verteex
         """
-        return np.array([self.vertices.min(axis=0),
-                         self.vertices.max(axis=0)])
+        return np.array([self.vertices.min(axis=0), self.vertices.max(axis=0)])
 
     @property
     def extents(self):
@@ -591,18 +578,21 @@ class PointCloud(Geometry3D):
         vertices : (n, 3) float
           Points in the PointCloud
         """
-        return self._data['vertices']
+        return self._data.get("vertices", np.empty(shape=(0, 3), dtype=float64))
 
     @vertices.setter
-    def vertices(self, data):
-        if data is None:
-            self._data['vertices'] = None
-        else:
-            # we want to copy data for new object
-            data = np.array(data, dtype=np.float64, copy=True)
-            if not util.is_shape(data, (-1, 3)):
-                raise ValueError('Point clouds must be (n, 3)!')
-            self._data['vertices'] = data
+    def vertices(self, values):
+        """
+        Assign vertex values to the point cloud.
+
+        Parameters
+        --------------
+        values : (n, 3) float
+          Points in space
+        """
+        if values is None or len(values) == 0:
+            return self._data.data.pop("vertices", None)
+        self._data["vertices"] = np.asanyarray(values, order="C", dtype=float64)
 
     @property
     def colors(self):
@@ -633,6 +623,7 @@ class PointCloud(Geometry3D):
         """
 
         from scipy.spatial import cKDTree
+
         tree = cKDTree(self.vertices.view(np.ndarray))
         return tree
 
@@ -647,6 +638,7 @@ class PointCloud(Geometry3D):
           A watertight mesh of the hull of the points
         """
         from . import convex
+
         return convex.convex_hull(self.vertices)
 
     def scene(self):
@@ -659,6 +651,7 @@ class PointCloud(Geometry3D):
           Scene object containing this PointCloud
         """
         from .scene.scene import Scene
+
         return Scene(self)
 
     def show(self, **kwargs):
@@ -682,10 +675,8 @@ class PointCloud(Geometry3D):
           If file name is passed this is not required
         """
         from .exchange.export import export_mesh
-        return export_mesh(self,
-                           file_obj=file_obj,
-                           file_type=file_type,
-                           **kwargs)
+
+        return export_mesh(self, file_obj=file_obj, file_type=file_type, **kwargs)
 
     def query(self, input_points, **kwargs):
         """
@@ -700,8 +691,8 @@ class PointCloud(Geometry3D):
             Result of the query.
         """
         from .proximity import query_from_points
-        return query_from_points(
-            self.vertices, input_points, self.kdtree, **kwargs)
+
+        return query_from_points(self.vertices, input_points, self.kdtree, **kwargs)
 
     def __add__(self, other):
         if len(other.colors) == len(self.colors) == 0:
@@ -709,10 +700,17 @@ class PointCloud(Geometry3D):
         else:
             # preserve colors
             # if one point cloud has no color property use black
-            other_colors = [[0, 0, 0, 255]] * \
-                len(other.vertices) if len(other.colors) == 0 else other.colors
-            self_colors = [[0, 0, 0, 255]] * \
-                len(self.vertices) if len(self.colors) == 0 else self.colors
+            other_colors = (
+                [[0, 0, 0, 255]] * len(other.vertices)
+                if len(other.colors) == 0
+                else other.colors
+            )
+            self_colors = (
+                [[0, 0, 0, 255]] * len(self.vertices)
+                if len(self.colors) == 0
+                else self.colors
+            )
             colors = np.vstack((self_colors, other_colors))
-        return PointCloud(vertices=np.vstack(
-            (self.vertices, other.vertices)), colors=colors)
+        return PointCloud(
+            vertices=np.vstack((self.vertices, other.vertices)), colors=colors
+        )
