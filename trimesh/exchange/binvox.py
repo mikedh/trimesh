@@ -6,10 +6,12 @@ https://www.patrickmin.com/binvox/binvox.html
 Exporting meshes as binvox files requires the
 `binvox` executable to be in your path.
 """
+import collections
 import os
 import subprocess
+from tempfile import TemporaryDirectory
+
 import numpy as np
-import collections
 
 from .. import util
 from ..base import Trimesh
@@ -54,7 +56,7 @@ def parse_binvox_header(fp):
         binvox = '#binvox'
         space = ' '
     if not line.startswith(binvox):
-        raise IOError('Not a binvox file')
+        raise OSError('Not a binvox file')
     shape = tuple(
         int(s) for s in fp.readline().strip().split(space)[1:])
     translate = tuple(
@@ -182,10 +184,9 @@ def voxel_from_binvox(
       Loaded voxels
     """
     # shape must be uniform else scale is ambiguous
+    from .. import transformations
     from ..voxel import encoding as enc
     from ..voxel.base import VoxelGrid
-
-    from .. import transformations
 
     if isinstance(rle_data, enc.RunLengthEncoding):
         encoding = rle_data
@@ -267,7 +268,7 @@ def export_binvox(voxel, axis_order='xzy'):
       Representation according to binvox spec
     """
     translate = voxel.translation
-    scale = voxel.scale * ((np.array(voxel.shape) - 1))
+    scale = voxel.scale * (np.array(voxel.shape) - 1)
     neg_scale, = np.where(scale < 0)
     encoding = voxel.encoding.flip(neg_scale)
     scale = np.abs(scale)
@@ -283,7 +284,7 @@ def export_binvox(voxel, axis_order='xzy'):
         rle_data, shape=voxel.shape, translate=translate, scale=scale)
 
 
-class Binvoxer(object):
+class Binvoxer:
     """
     Interface for binvox CL tool.
 
@@ -420,7 +421,7 @@ class Binvoxer(object):
             encoder = binvox_path
 
         if encoder is None:
-            raise IOError(' '.join([
+            raise OSError(' '.join([
                 'No `binvox_path` provided and no binvox executable found',
                 'on PATH, please go to https://www.patrickmin.com/binvox/ and',
                 'download the appropriate version.']))
@@ -430,8 +431,7 @@ class Binvoxer(object):
                 'Maximum dimension using exact is 1024, got %d' % dimension)
         if file_type not in Binvoxer.SUPPORTED_OUTPUT_TYPES:
             raise ValueError(
-                'file_type %s not in set of supported output types %s' %
-                (file_type, str(Binvoxer.SUPPORTED_OUTPUT_TYPES)))
+                f'file_type {file_type} not in set of supported output types {str(Binvoxer.SUPPORTED_OUTPUT_TYPES)}')
         args = [encoder, '-d', str(dimension), '-t', file_type]
         if exact:
             args.append('-e')
@@ -516,11 +516,10 @@ class Binvoxer(object):
         ext = ext[1:].lower()
         if ext not in Binvoxer.SUPPORTED_INPUT_TYPES:
             raise ValueError(
-                'file_type %s not in set of supported input types %s' %
-                (ext, str(Binvoxer.SUPPORTED_INPUT_TYPES)))
-        out_path = '%s.%s' % (head, self._file_type)
+                f'file_type {ext} not in set of supported input types {str(Binvoxer.SUPPORTED_INPUT_TYPES)}')
+        out_path = f'{head}.{self._file_type}'
         if os.path.isfile(out_path) and not overwrite:
-            raise IOError('Attempted to voxelize object at existing path')
+            raise OSError('Attempted to voxelize object at existing path')
         self._args[-1] = path
 
         # generalizes to python2 and python3
@@ -567,7 +566,7 @@ def voxelize_mesh(mesh,
     if binvoxer.file_type != 'binvox':
         raise ValueError(
             'Only "binvox" binvoxer `file_type` currently supported')
-    with util.TemporaryDirectory() as folder:
+    with TemporaryDirectory() as folder:
         model_path = os.path.join(folder, 'model.%s' % export_type)
         with open(model_path, 'wb') as fp:
             mesh.export(fp, file_type=export_type)

@@ -5,14 +5,14 @@ entities.py
 Basic geometric primitives which only store references to
 vertex indices rather than vertices themselves.
 """
-import numpy as np
-
 from copy import deepcopy
-from .arc import discretize_arc, arc_center
-from .curve import discretize_bezier, discretize_bspline
+
+import numpy as np
 
 from .. import util
 from ..util import ABC
+from .arc import arc_center, discretize_arc
+from .curve import discretize_bezier, discretize_bspline
 
 
 class Entity(ABC):
@@ -633,11 +633,11 @@ class Arc(Entity):
             # it's indicated as a closed circle
             fit = self.center(
                 vertices, return_normal=False, return_angle=False)
-            return np.pi * fit['radius'] * 4
+            return np.pi * fit.radius * 4
         # get the angular span of the circular arc
         fit = self.center(
             vertices, return_normal=False, return_angle=True)
-        return fit['span'] * fit['radius'] * 2
+        return fit.span * fit.radius * 2
 
     def discrete(self, vertices, scale=1.0):
         """
@@ -699,8 +699,8 @@ class Arc(Entity):
                 vertices,
                 return_normal=False,
                 return_angle=False)
-            bounds = np.array([info['center'] - info['radius'],
-                               info['center'] + info['radius']],
+            bounds = np.array([info.center - info.radius,
+                               info.center + info.radius],
                               dtype=np.float64)
         else:
             # since the AABB of a partial arc is hard, approximate

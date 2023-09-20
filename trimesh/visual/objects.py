@@ -7,9 +7,9 @@ ColorVisuals and TextureVisuals.
 """
 import numpy as np
 
+from .color import ColorVisuals, color_to_uv
 from .material import pack
 from .texture import TextureVisuals
-from .color import ColorVisuals, color_to_uv
 
 
 def create_visual(**kwargs):

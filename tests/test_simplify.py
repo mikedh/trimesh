@@ -33,9 +33,7 @@ class SimplifyTest(g.unittest.TestCase):
                 g.log.debug(new_count, arc_count)
 
             if arc_count > 1:
-                g.log.info('originally were {} arcs, simplify found {}'.format(
-                    arc_count,
-                    new_count))
+                g.log.info(f'originally were {arc_count} arcs, simplify found {new_count}')
                 assert new_count > 0
                 assert new_count <= arc_count
 

@@ -6,8 +6,8 @@ Pack rectangular regions onto larger rectangular regions.
 """
 import numpy as np
 
-from ..util import allclose, bounds_tree
 from ..constants import log, tol
+from ..util import allclose, bounds_tree
 
 # floating point zero
 _TOL_ZERO = 1e-12
@@ -377,7 +377,7 @@ def polygons(polygons, **kwargs):
       i.e. `consume.sum() == m`
     """
 
-    from .polygons import polygons_obb, polygon_bounds
+    from .polygons import polygon_bounds, polygons_obb
 
     # find the oriented bounding box of the polygons
     obb, extents = polygons_obb(polygons)
@@ -490,7 +490,7 @@ def rectangles(extents,
         # shrink the bounds by spacing
         result[0] += [[[spacing], [-spacing]]]
 
-    log.debug('packed with density {:0.5f}'.format(best_density))
+    log.debug(f'packed with density {best_density:0.5f}')
 
     return result
 
@@ -603,8 +603,8 @@ def visualize(extents, bounds):
     scene : trimesh.Scene
       Scene with boxes at requested locations.
     """
-    from ..scene import Scene
     from ..creation import box
+    from ..scene import Scene
     from ..visual import random_color
 
     # use a roll transform to verify extents

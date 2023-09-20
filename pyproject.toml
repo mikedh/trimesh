@@ -1,19 +1,139 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools >= 40.8", "wheel"]
+requires = ["setuptools >= 61.0", "wheel"]
+
+[project]
+name = "trimesh"
+requires-python = ">=3.7"
+version = "4.0.0.rc0"
+authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
+license = {text = "MIT"}
+description = "Import, export, process, analyze and view triangular meshes."
+keywords = ["graphics", "mesh", "geometry", "3D"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling"
+]
+urls = {Homepage = "https://github.com/mikedh/trimesh"}
+dependencies = ["numpy"]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[tool.setuptools]
+packages = [
+    "trimesh",
+    "trimesh.ray",
+    "trimesh.path",
+    "trimesh.path.exchange",
+    "trimesh.scene",
+    "trimesh.voxel",
+    "trimesh.visual",
+    "trimesh.viewer",
+    "trimesh.exchange",
+    "trimesh.resources",
+    "trimesh.interfaces",
+]
+include-package-data = false
+
+[tool.setuptools.package-data]
+trimesh = [
+    "resources/templates/*",
+    "resources/*.json",
+    "resources/schema/*",
+    "resources/schema/primitive/*.json",
+    "resources/*.zip",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest-cov",
+    "coveralls",
+    "mypy",
+    "ezdxf",
+    "pytest",
+    "pymeshlab",
+    "pyinstrument",
+    "ruff",
+    "black",
+]
+
+easy = [
+    "colorlog",
+    "mapbox-earcut",
+    "chardet",
+    "lxml",
+    "jsonschema",
+    "networkx",
+    "svg.path",
+    "pycollada",
+    "setuptools",
+    "shapely",
+    "xxhash",
+    "rtree",
+    "requests",
+    "scipy",
+    "embreex",
+    "pillow",
+]
+
+recommend = [
+    "glooey",
+    "sympy",
+    "meshio",
+    "pyglet<2",
+    "psutil",
+    "xatlas",
+    "scikit-image",
+    "python-fcl"
+]
+
+# requires pip >= 21.2
+# https://hynek.me/articles/python-recursive-optional-dependencies/
+all = ["trimesh[easy,recommend,test]"]
 
 [tool.ruff]
-select = ["E", "F", # the default rules
-          "T201",   # disallow print statements
-	   "B"]      # pass bugbear
-ignore = ["B905", # `zip()` without an explicit `strict=`
-          "B904", # `raise ... from err` seems a bit silly
-	  "B018"] # useless expression ideally ignore only on `tests`
+target-version = "py37"
+# See https://github.com/charliermarsh/ruff#rules for error code definitions.
+select = [
+    # "ANN", # annotations
+    "B", # bugbear
+    "C", # comprehensions
+    "E", # style errors
+    "F", # flakes
+    "I", # import sorting
+    "RUF100", # meta
+    "U", # upgrade
+    "W", # style warnings
+    "YTT", # sys.version
+]
+
+ignore = [
+  "C901", # Comprehension is too complex (11 > 10)
+  "N802", # Function name should be lowercase
+  "N806", # Variable in function should be lowercase
+  "E501", # Line too long ({width} > {limit} characters)
+  "B904", # raise ... from err
+  "B905", # zip() without an explicit strict= parameter
+  "ANN101", # type hint for `self`
+  "ANN002", # type hint for *args
+  "ANN003", # type hint for **kwargs
+]
 line-length = 90
 
-[tool.autopep8]
-max_line_length = 90
-in-place = true
-recursive = true
-aggressive = 3
-verbose = true
+
+[tool.black]
+line-length = 90
+target-version = ['py37']

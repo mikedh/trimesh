@@ -88,7 +88,7 @@ class VectorTests(g.unittest.TestCase):
                        d.metadata['file_name'],
                        len(split))
             for body in split:
-                body.identifier
+                _ = body.identifier
 
             if len(d.root) == 1:
                 d.apply_obb()

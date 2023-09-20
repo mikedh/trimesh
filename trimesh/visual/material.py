@@ -6,13 +6,12 @@ Store visual materials as objects.
 """
 import abc
 import copy
+
 import numpy as np
 
-from . import color
-from .. import util
-from .. import exceptions
-
+from .. import exceptions, util
 from ..constants import tol
+from . import color
 
 # epsilon for comparing floating point
 _eps = 1e-5
@@ -109,11 +108,11 @@ class SimpleMaterial(Material):
             name = self.name
 
         # create an MTL file
-        mtl = ['newmtl {}'.format(name),
+        mtl = [f'newmtl {name}',
                'Ka {:0.8f} {:0.8f} {:0.8f}'.format(*Ka),
                'Kd {:0.8f} {:0.8f} {:0.8f}'.format(*Kd),
                'Ks {:0.8f} {:0.8f} {:0.8f}'.format(*Ks),
-               'Ns {:0.8f}'.format(self.glossiness)]
+               f'Ns {self.glossiness:0.8f}']
 
         # collect the OBJ data into files
         data = {}
@@ -123,9 +122,9 @@ class SimpleMaterial(Material):
             # what is the name of the export image to save
             if image_type is None:
                 image_type = 'png'
-            image_name = '{}.{}'.format(name, image_type.lower())
+            image_name = f'{name}.{image_type.lower()}'
             # save the reference to the image
-            mtl.append('map_Kd {}'.format(image_name))
+            mtl.append(f'map_Kd {image_name}')
 
             # save the image texture as bytes in the original format
             f_obj = util.BytesIO()
@@ -133,7 +132,7 @@ class SimpleMaterial(Material):
             f_obj.seek(0)
             data[image_name] = f_obj.read()
 
-        data['{}.mtl'.format(name)] = '\n'.join(mtl).encode('utf-8')
+        data[f'{name}.mtl'] = '\n'.join(mtl).encode('utf-8')
 
         return data, name
 
@@ -692,7 +691,7 @@ class PBRMaterial(Material):
         hash : int
           Hash of image and parameters
         """
-        return hash(bytes().join(
+        return hash(b''.join(
             np.asanyarray(v).tobytes()
             for v in self._data.values() if v is not None))
 
@@ -759,9 +758,11 @@ def pack(materials, uvs, deduplicate=True, padding=1,
       Combined UV coordinates in the 0.0-1.0 range.
     """
 
-    from PIL import Image
-    from ..path import packing
     import collections
+
+    from PIL import Image
+
+    from ..path import packing
 
     def multiply_factor(img, factor, mode):
         """

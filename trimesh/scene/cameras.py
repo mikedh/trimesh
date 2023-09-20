@@ -5,7 +5,7 @@ import numpy as np
 from .. import util
 
 
-class Camera(object):
+class Camera:
 
     def __init__(
             self,
@@ -39,7 +39,7 @@ class Camera(object):
 
         if name is None:
             # if name is not passed, make it something unique
-            self.name = 'camera_{}'.format(util.unique_id(6).upper())
+            self.name = f'camera_{util.unique_id(6).upper()}'
         else:
             # otherwise assign it
             self.name = name
@@ -283,8 +283,7 @@ class Camera(object):
                        **kwargs)
 
     def __repr__(self):
-        return '<trimesh.scene.Camera> FOV: {} Resolution: {}'.format(
-            self.fov, self.resolution)
+        return f'<trimesh.scene.Camera> FOV: {self.fov} Resolution: {self.resolution}'
 
 
 def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):

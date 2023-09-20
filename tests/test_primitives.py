@@ -137,7 +137,7 @@ class PrimitiveTest(g.unittest.TestCase):
                     m = p.to_mesh()
 
                     # make sure we have the types we think we do
-                    assert isinstance(p, g.trimesh.primitives._Primitive)
+                    assert isinstance(p, g.trimesh.primitives.Primitive)
                     assert isinstance(m, g.trimesh.Trimesh)
 
                     assert g.np.allclose(p.extents, m.extents)
@@ -171,8 +171,8 @@ class PrimitiveTest(g.unittest.TestCase):
 
     def test_primitives(self):
 
-        kind = set([i.__class__.__name__
-                    for i in self.primitives])
+        kind = {i.__class__.__name__
+                    for i in self.primitives}
         # make sure our test data has every primitive
         kinds = {'Box', 'Capsule', 'Cylinder', 'Sphere'}
         if has_triangle:

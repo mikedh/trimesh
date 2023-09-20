@@ -6,26 +6,23 @@ Generate `examples.md` from the contents
 of `../examples/*.ipynb`
 """
 
-import os
-import sys
 import json
 import logging
+import os
+import sys
 
-log = logging.getLogger('trimesh')
+log = logging.getLogger("trimesh")
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.DEBUG)
 
 # current working directory
-pwd = os.path.abspath(os.path.expanduser(
-    os.path.dirname(__file__)))
+pwd = os.path.abspath(os.path.expanduser(os.path.dirname(__file__)))
 
 # where are our notebooks to render
-source = os.path.abspath(os.path.join(
-    pwd, '..', 'examples'))
+source = os.path.abspath(os.path.join(pwd, "..", "examples"))
 
 # which index file are we generating
-target = os.path.abspath(os.path.join(
-    pwd, "examples.md"))
+target = os.path.abspath(os.path.join(pwd, "examples.md"))
 
 
 def extract_docstring(loaded):
@@ -45,33 +42,35 @@ def extract_docstring(loaded):
       Cleaned up docstring.
     """
 
-    source = loaded['cells'][0]['source']
+    source = loaded["cells"][0]["source"]
 
     assert source[0].strip() == '"""'
     assert source[-1].strip() == '"""'
 
-    return ' '.join(i.strip() for i in source[1:-1])
+    return " ".join(i.strip() for i in source[1:-1])
 
 
-if __name__ == '__main__':
-
-    markdown = ['# Examples',
-                'Several examples are available as rendered IPython notebooks.', '', ]
+if __name__ == "__main__":
+    markdown = [
+        "# Examples",
+        "Several examples are available as rendered IPython notebooks.",
+        "",
+    ]
 
     for fn in os.listdir(source):
-        if not fn.lower().endswith('.ipynb'):
+        if not fn.lower().endswith(".ipynb"):
             continue
         path = os.path.join(source, fn)
-        with open(path, 'r') as f:
+        with open(path) as f:
             raw = json.load(f)
         doc = extract_docstring(raw)
-        log.info('`{}`: "{}"\n'.format(fn, doc))
+        log.info(f'`{fn}`: "{doc}"\n')
         link = f'examples.{fn.split(".")[0]}.html'
 
-        markdown.append(f'### [{fn}]({link})')
+        markdown.append(f"### [{fn}]({link})")
         markdown.append(doc)
-        markdown.append('')
+        markdown.append("")
 
-    final = '\n'.join(markdown)
-    with open(target, 'w') as f:
+    final = "\n".join(markdown)
+    with open(target, "w") as f:
         f.write(final)

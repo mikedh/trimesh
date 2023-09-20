@@ -5,18 +5,18 @@ except BaseException:
 
 
 class RepairTests(g.unittest.TestCase):
-
     def test_fill_holes(self):
-        for mesh_name in ['unit_cube.STL',
-                          'machinist.XAML',
-                          'round.stl',
-                          'sphere.ply',
-                          'teapot.stl',
-                          'soup.stl',
-                          'featuretype.STL',
-                          'angle_block.STL',
-                          'quadknot.obj']:
-
+        for mesh_name in [
+            "unit_cube.STL",
+            "machinist.XAML",
+            "round.stl",
+            "sphere.ply",
+            "teapot.stl",
+            "soup.stl",
+            "featuretype.STL",
+            "angle_block.STL",
+            "quadknot.obj",
+        ]:
             mesh = g.get_mesh(mesh_name)
             if not mesh.is_watertight:
                 # output of fill_holes should match watertight status
@@ -24,21 +24,16 @@ class RepairTests(g.unittest.TestCase):
                 assert returned == mesh.is_watertight
                 continue
 
-            hashes = [{mesh._data.__hash__(),
-                       mesh._data.__hash__(),
-                       mesh._data.fast_hash()}]
+            hashes = [{mesh._data.__hash__(), hash(mesh)}]
 
             mesh.faces = mesh.faces[1:-1]
             assert not mesh.is_watertight
             assert not mesh.is_volume
 
             # color some faces
-            g.trimesh.repair.broken_faces(
-                mesh, color=[255, 0, 0, 255])
+            g.trimesh.repair.broken_faces(mesh, color=[255, 0, 0, 255])
 
-            hashes.append({mesh._data.__hash__(),
-                           mesh._data.__hash__(),
-                           mesh._data.fast_hash()})
+            hashes.append({mesh._data.__hash__(), hash(mesh)})
 
             assert hashes[0] != hashes[1]
 
@@ -49,14 +44,11 @@ class RepairTests(g.unittest.TestCase):
             assert mesh.is_watertight
             assert mesh.is_winding_consistent
 
-            hashes.append({mesh._data.__hash__(),
-                           mesh._data.__hash__(),
-                           mesh._data.fast_hash()})
+            hashes.append({mesh._data.__hash__(), hash(mesh)})
             assert hashes[1] != hashes[2]
 
             # try broken faces on a watertight mesh
-            g.trimesh.repair.broken_faces(
-                mesh, color=[255, 255, 0, 255])
+            g.trimesh.repair.broken_faces(mesh, color=[255, 255, 0, 255])
 
     def test_fix_normals(self):
         for mesh in g.get_meshes(5):
@@ -68,16 +60,20 @@ class RepairTests(g.unittest.TestCase):
         them back.
         """
 
-        meshes = [g.get_mesh(i) for i in
-                  ['unit_cube.STL',
-                   'machinist.XAML',
-                   'round.stl',
-                   'quadknot.obj',
-                   'soup.stl']]
+        meshes = [
+            g.get_mesh(i)
+            for i in [
+                "unit_cube.STL",
+                "machinist.XAML",
+                "round.stl",
+                "quadknot.obj",
+                "soup.stl",
+            ]
+        ]
 
         for i, mesh in enumerate(meshes):
             # turn scenes into multibody meshes
-            if g.trimesh.util.is_instance_named(mesh, 'Scene'):
+            if g.trimesh.util.is_instance_named(mesh, "Scene"):
                 meta = mesh.metadata
                 meshes[i] = mesh.dump().sum()
                 meshes[i].metadata = meta
@@ -100,7 +96,7 @@ class RepairTests(g.unittest.TestCase):
             assert mesh.is_winding_consistent == winding
 
             # save timings
-            timing[mesh.metadata['file_name']] = g.time.time() - tic
+            timing[mesh.metadata["file_name"]] = g.time.time() - tic
         # print timings as a warning
         g.log.warning(g.json.dumps(timing, indent=4))
 
@@ -124,7 +120,7 @@ class RepairTests(g.unittest.TestCase):
         Try repairing a multibody geometry
         """
         # create a multibody mesh with two cubes
-        a = g.get_mesh('unit_cube.STL')
+        a = g.get_mesh("unit_cube.STL")
         b = a.copy()
         b.apply_translation([2, 0, 0])
         m = a + b
@@ -169,7 +165,6 @@ class RepairTests(g.unittest.TestCase):
         assert g.np.isclose(m.volume, a.volume * 2.0)
 
     def test_fan(self):
-
         # start by creating an icosphere and removing
         # all faces that include a single vertex to make
         # a nice hole in the mesh
@@ -193,16 +188,16 @@ class RepairTests(g.unittest.TestCase):
         # should be an (n, 3) int
         assert len(stitch.shape) == 2
         assert stitch.shape[1] == 3
-        assert stitch.dtype.kind == 'i'
+        assert stitch.dtype.kind == "i"
 
         # now check our stitch to see if it handled the hole
         repair = g.trimesh.Trimesh(
-            vertices=m.vertices.copy(),
-            faces=g.np.vstack((m.faces, stitch)))
+            vertices=m.vertices.copy(), faces=g.np.vstack((m.faces, stitch))
+        )
         assert repair.is_watertight
         assert repair.is_winding_consistent
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

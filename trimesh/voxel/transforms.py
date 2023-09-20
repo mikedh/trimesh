@@ -1,12 +1,12 @@
+from typing import Optional
+
 import numpy as np
 
-from .. import util
-from .. import caching
-
+from .. import caching, util
 from .. import transformations as tr
 
 
-class Transform(object):
+class Transform:
     """
     Class for caching metadata associated with 4x4 transformations.
 
@@ -14,41 +14,33 @@ class Transform(object):
     for the voxels, including pitch and origin.
     """
 
-    def __init__(self, matrix):
+    def __init__(self, matrix, datastore: Optional[caching.DataStore] = None):
         """
-        Initialize with a transform
+        Initialize with a transform.
 
         Parameters
         -----------
         matrix : (4, 4) float
           Homogeneous transformation matrix
+        datastore
+          If passed store the actual values in a reference to
+          another datastore.
         """
         matrix = np.asanyarray(matrix, dtype=np.float64)
-        if matrix.shape != (4, 4):
-            raise ValueError('matrix must be 4x4!')
-
-        if not np.all(matrix[3, :] == [0, 0, 0, 1]):
-            raise ValueError('matrix not a valid transformation matrix')
+        if matrix.shape != (4, 4) or not np.allclose(matrix[3, :], [0, 0, 0, 1]):
+            raise ValueError("matrix is invalid!")
 
         # store matrix as data
-        self._data = caching.tracked_array(matrix, dtype=np.float64)
+        if datastore is None:
+            self._data = caching.DataStore()
+        elif isinstance(datastore, caching.DataStore):
+            self._data = datastore
+        else:
+            raise ValueError(f"{type(datastore)} != caching.DataStore")
+
+        self._data["transform_matrix"] = matrix
         # dump cache when matrix changes
-        self._cache = caching.Cache(
-            id_function=self._data.__hash__)
-
-    def crc(self):
-        util.log.warning(
-            '`geometry.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`')
-        return self.__hash__()
-
-    def hash(self):
-        util.log.warning(
-            '`geometry.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`')
-        return self.__hash__()
+        self._cache = caching.Cache(id_function=self._data.__hash__)
 
     def __hash__(self):
         """
@@ -71,7 +63,7 @@ class Transform(object):
         translation : (3,) float
           Cartesian translation
         """
-        return self._data[:3, 3]
+        return self._data["transform_matrix"][:3, 3]
 
     @property
     def matrix(self):
@@ -83,10 +75,10 @@ class Transform(object):
         matrix : (4, 4) float
           Transformation matrix
         """
-        return self._data
+        return self._data["transform_matrix"]
 
     @matrix.setter
-    def matrix(self, data):
+    def matrix(self, values):
         """
         Set the homogeneous transformation matrix.
 
@@ -95,10 +87,10 @@ class Transform(object):
         matrix : (4, 4) float
           Transformation matrix
         """
-        data = np.asanyarray(data, dtype=np.float64)
-        if data.shape != (4, 4):
-            raise ValueError('matrix must be (4, 4)!')
-        self._data = caching.tracked_array(data, dtype=np.float64)
+        values = np.asanyarray(values, dtype=np.float64)
+        if values.shape != (4, 4):
+            raise ValueError("matrix must be (4, 4)!")
+        self._data["transform_matrix"] = values
 
     @caching.cache_decorator
     def scale(self):
@@ -114,26 +106,21 @@ class Transform(object):
         matrix = self.matrix
         # get the (3,) diagonal of the rotation component
         scale = np.diag(matrix[:3, :3])
-        if not np.allclose(
-                matrix[:3, :3],
-                scale * np.eye(3),
-                scale * 1e-6 + 1e-8):
-            raise RuntimeError('transform features a shear or rotation')
+        if not np.allclose(matrix[:3, :3], scale * np.eye(3), scale * 1e-6 + 1e-8):
+            raise RuntimeError("transform features a shear or rotation")
         return scale
 
     @caching.cache_decorator
     def pitch(self):
         scale = self.scale
-        if not util.allclose(
-                scale[0], scale[1:],
-                np.max(np.abs(scale)) * 1e-6 + 1e-8):
-            raise RuntimeError('transform features non-uniform scaling')
+        if not util.allclose(scale[0], scale[1:], np.max(np.abs(scale)) * 1e-6 + 1e-8):
+            raise RuntimeError("transform features non-uniform scaling")
         return scale
 
     @caching.cache_decorator
     def unit_volume(self):
         """Volume of a transformed unit cube."""
-        return np.linalg.det(self._data[:3, :3])
+        return np.linalg.det(self._data["transform_matrix"][:3, :3])
 
     def apply_transform(self, matrix):
         """Mutate the transform in-place and return self."""
@@ -166,16 +153,17 @@ class Transform(object):
         """
         if self.is_identity:
             return points.copy()
-        return tr.transform_points(
-            points.reshape(-1, 3), self.matrix).reshape(points.shape)
+        return tr.transform_points(points.reshape(-1, 3), self.matrix).reshape(
+            points.shape
+        )
 
     def inverse_transform_points(self, points):
         """Apply the inverse transformation to points (not in-place)."""
         if self.is_identity:
             return points
-        return tr.transform_points(
-            points.reshape(-1, 3),
-            self.inverse_matrix).reshape(points.shape)
+        return tr.transform_points(points.reshape(-1, 3), self.inverse_matrix).reshape(
+            points.shape
+        )
 
     @caching.cache_decorator
     def inverse_matrix(self):
@@ -184,7 +172,7 @@ class Transform(object):
         return inv
 
     def copy(self):
-        return Transform(self._data.copy())
+        return Transform(matrix=self.matrix)
 
     @caching.cache_decorator
     def is_identity(self):

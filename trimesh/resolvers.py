@@ -7,12 +7,11 @@ like MTL files, texture images, etc. Assets can be from ZIP
 archives, web assets, or a local file path.
 """
 
-import os
 import abc
 import itertools
+import os
 
-from . import util
-from . import caching
+from . import caching, util
 
 # URL parsing for remote resources via WebResolver
 try:
@@ -84,8 +83,7 @@ class FilePathResolver(Resolver):
         # exit if directory doesn't exist
         if not os.path.isdir(self.parent):
             raise ValueError(
-                'path `{} `not a directory!'.format(
-                    self.parent))
+                f'path `{self.parent} `not a directory!')
 
     def keys(self):
         """

@@ -5,11 +5,11 @@ comparison.py
 Provide methods for quickly hashing and comparing meshes.
 """
 
+from hashlib import sha256
+
 import numpy as np
 
 from . import util
-
-from hashlib import sha256
 from .constants import tol
 
 # how many significant figures to use for each

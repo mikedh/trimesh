@@ -1,7 +1,7 @@
 
 import numpy as np
-import trimesh
 
+import trimesh
 
 if __name__ == '__main__':
     # print logged messages

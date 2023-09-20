@@ -7,13 +7,10 @@ Fill holes and fix winding and normals of meshes.
 
 import numpy as np
 
-from . import graph
-from . import triangles
-
+from . import graph, triangles
 from .constants import log
-from .grouping import group_rows
 from .geometry import faces_to_edges
-
+from .grouping import group_rows
 
 try:
     import networkx as nx

@@ -4,11 +4,11 @@ repair.py
 
 Try to fix problems with closed regions.
 """
-from . import segments
-from .. import util
-
 import numpy as np
 from scipy.spatial import cKDTree
+
+from .. import util
+from . import segments
 
 
 def fill_gaps(path, distance=.025):
@@ -103,7 +103,7 @@ def fill_gaps(path, distance=.025):
 
     # add line segments in as line entities
     entities = []
-    for i in range(len((final_seg))):
+    for i in range(len(final_seg)):
         entities.append(
             line_class(
                 points=np.arange(2) + (i * 2) + len(path.vertices)))

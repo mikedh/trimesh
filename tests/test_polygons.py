@@ -187,10 +187,9 @@ class PolygonTests(g.unittest.TestCase):
                                h * b**3 / 3.0,
                                0.5 * b**2 * 0.5 * h**2], dtype=g.np.float64)
 
-        from trimesh.path.polygons import second_moments
-        from trimesh.path.polygons import transform_polygon
-
         from shapely.geometry import Polygon
+
+        from trimesh.path.polygons import second_moments, transform_polygon
 
         heights = g.np.array([[0.01, 0.01],
                               [1, 1],

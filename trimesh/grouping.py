@@ -8,7 +8,6 @@ Functions for grouping values and rows.
 import numpy as np
 
 from . import util
-
 from .constants import log, tol
 
 try:
@@ -557,7 +556,7 @@ def group_rows(data, require_count=None, digits=None):
         The loop and appends make this rather slow on
         large arrays but it works on irregular groups.
         """
-        observed = dict()
+        observed = {}
         hashable = hashable_rows(data, digits=digits)
         for index, key in enumerate(hashable):
             key_string = key.tobytes()

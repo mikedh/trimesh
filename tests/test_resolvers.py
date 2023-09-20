@@ -18,7 +18,7 @@ class ResolverTest(g.unittest.TestCase):
         assert len(resolver.get('rabbit.obj')) > 0
 
         # check a few file path keys
-        check = set(['ballA.off', 'featuretype.STL'])
+        check = {'ballA.off', 'featuretype.STL'}
         assert set(resolver.keys()).issuperset(check)
 
         # try a namespaced resolver
@@ -58,22 +58,22 @@ class ResolverTest(g.unittest.TestCase):
         assert len(set(resolver.keys())) == 0
         resolver['hi'] = b'what'
         # should have one item
-        assert set(resolver.keys()) == set(['hi'])
+        assert set(resolver.keys()) == {'hi'}
         # should have the right value
         assert resolver['hi'] == b'what'
         # original archive should have been modified
-        assert set(archive.keys()) == set(['hi'])
+        assert set(archive.keys()) == {'hi'}
 
         # add a subdirectory key
         resolver['stuff/nah'] = b'sup'
-        assert set(archive.keys()) == set(['hi', 'stuff/nah'])
-        assert set(resolver.keys()) == set(['hi', 'stuff/nah'])
+        assert set(archive.keys()) == {'hi', 'stuff/nah'}
+        assert set(resolver.keys()) == {'hi', 'stuff/nah'}
 
         # try namespacing
         ns = resolver.namespaced('stuff')
         assert ns['nah'] == b'sup'
         g.log.debug(ns.keys())
-        assert set(ns.keys()) == set(['nah'])
+        assert set(ns.keys()) == {'nah'}
 
 
 if __name__ == '__main__':

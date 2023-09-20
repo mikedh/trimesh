@@ -1,4 +1,5 @@
 import re
+
 import numpy as np
 
 from .. import util
@@ -29,7 +30,7 @@ def load_off(file_obj, **kwargs):
     _, header, raw = re.split('(COFF|OFF)', text, maxsplit=1)
     if header.upper() not in ['OFF', 'COFF']:
         raise NameError(
-            'Not an OFF file! Header was: `{}`'.format(header))
+            f'Not an OFF file! Header was: `{header}`')
 
     # split into lines and remove whitespace
     splits = [i.strip() for i in str.splitlines(str(raw))]

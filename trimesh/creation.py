@@ -5,22 +5,16 @@ creation.py
 Create meshes from primitives, or with operations.
 """
 
-from .base import Trimesh
-from .constants import log, tol
-from .geometry import (faces_to_edges,
-                       align_vectors,
-                       plane_transform)
-
-from . import util
-from . import grouping
-from . import triangles
-from . import exceptions
-from . import transformations as tf
+import collections
+import warnings
 
 import numpy as np
 
-import warnings
-import collections
+from . import exceptions, grouping, triangles, util
+from . import transformations as tf
+from .base import Trimesh
+from .constants import log, tol
+from .geometry import align_vectors, faces_to_edges, plane_transform
 
 try:
     # shapely is a soft dependency
@@ -91,6 +85,7 @@ def revolve(linestring,
     if sections is None:
         # default to 32 sections for a full revolution
         sections = int(angle / (np.pi * 2) * 32)
+
     # change to face count
     sections += 1
     # create equally spaced angles
@@ -113,8 +108,11 @@ def revolve(linestring,
 
     if closed:
         # should be a duplicate set of vertices
-        assert np.allclose(vertices[:per],
-                           vertices[-per:])
+        if tol.strict:
+            assert util.allclose(vertices[:per],
+                                 vertices[-per:],
+                                 atol=1e-8)
+
         # chop off duplicate vertices
         vertices = vertices[:-per]
 
@@ -153,6 +151,11 @@ def revolve(linestring,
 
     # offset stacked and wrap vertices
     faces = (stacked + offset) % len(vertices)
+
+
+
+    #if 'process' not in kwargs:
+    #    kwargs['process'] = False
 
     # create the mesh from our vertices and faces
     mesh = Trimesh(vertices=vertices,
@@ -633,7 +636,7 @@ def box(extents=None, transform=None, bounds=None, **kwargs):
                                  dtype=np.float64).reshape(-1, 3)
 
     if 'metadata' not in kwargs:
-        kwargs['metadata'] = dict()
+        kwargs['metadata'] = {}
     kwargs['metadata'].update(
         {'shape': 'box',
          'extents': extents})
@@ -851,7 +854,7 @@ def cone(radius,
                   [0, height]]
     # revolve the profile to create a cone
     if 'metadata' not in kwargs:
-        kwargs['metadata'] = dict()
+        kwargs['metadata'] = {}
     kwargs['metadata'].update(
         {'shape': 'cone',
          'radius': radius,
@@ -908,7 +911,7 @@ def cylinder(radius,
                   [radius, half],
                   [0, half]]
     if 'metadata' not in kwargs:
-        kwargs['metadata'] = dict()
+        kwargs['metadata'] = {}
     kwargs['metadata'].update(
         {'shape': 'cylinder',
          'height': height,
@@ -978,7 +981,7 @@ def annulus(r_min,
                   [r_min, -half]]
 
     if 'metadata' not in kwargs:
-        kwargs['metadata'] = dict()
+        kwargs['metadata'] = {}
     kwargs['metadata'].update(
         {'shape': 'annulus',
          'r_min': r_min,
@@ -1272,3 +1275,52 @@ def truncated_prisms(tris, origin=None, normal=None):
     mesh = Trimesh(vertices=vertices, faces=faces, process=False)
 
     return mesh
+
+
+def torus(major_radius,
+          minor_radius,
+          major_sections=32,
+          minor_sections=32,
+          transform=None,
+          **kwargs):
+    """Create a mesh of a torus around Z centered at the origin.
+
+    Parameters
+    ------------
+    major_radius: (float)
+      Radius from the center of the torus to the center of the tube.
+    minor_radius: (float)
+      Radius of the tube.
+    major_sections: int
+      Number of sections around major radius result should have
+      If not specified default is 32 per revolution
+    minor_sections: int
+      Number of sections around minor radius result should have
+      If not specified default is 32 per revolution
+    transform: (4, 4) float
+      Transformation matrix
+    **kwargs:
+      passed to Trimesh to create torus
+
+    Returns
+    ------------
+    geometry : trimesh.Trimesh
+      Mesh of a torus
+    """
+    phi = np.linspace(0, 2 * np.pi, minor_sections, endpoint=False)
+    linestring = np.column_stack((minor_radius * np.cos(phi),
+                                  minor_radius * np.sin(phi))) \
+        + [major_radius, 0]
+
+    if 'metadata' not in kwargs:
+        kwargs['metadata'] = {}
+    kwargs['metadata'].update(
+        {'shape': 'torus',
+         'major_radius': major_radius,
+         'minor_radius': minor_radius})
+
+    # generate torus through simple revolution
+    return revolve(linestring=linestring,
+                   sections=major_sections,
+                   transform=transform,
+                   **kwargs)

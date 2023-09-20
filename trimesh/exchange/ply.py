@@ -1,18 +1,13 @@
-import numpy as np
-
+import collections
+import subprocess
+import tempfile
 from string import Template
 
-import tempfile
-import subprocess
-import collections
+import numpy as np
 
-from .. import util
-from .. import visual
-from .. import grouping
-from .. import resources
-
-from ..geometry import triangulate_quads
+from .. import grouping, resources, util, visual
 from ..constants import log
+from ..geometry import triangulate_quads
 
 # from ply specification, and additional dtypes found in the wild
 _dtypes = {
@@ -149,7 +144,7 @@ def _add_attributes_to_dtype(dtype, attributes):
         else:
             attribute_dtype = data.dtype if len(
                 data.dtype) == 0 else data.dtype[0]
-            dtype.append(('{}_count'.format(name), 'u1'))
+            dtype.append((f'{name}_count', 'u1'))
             dtype.append(
                 (name, _numpy_type_to_ply_type(attribute_dtype), data.shape[1]))
     return dtype
@@ -174,12 +169,10 @@ def _add_attributes_to_header(header, attributes):
     for name, data in attributes.items():
         if data.ndim == 1:
             header.append(
-                'property {} {}\n'.format(
-                    _numpy_type_to_ply_type(data.dtype), name))
+                f'property {_numpy_type_to_ply_type(data.dtype)} {name}\n')
         else:
             header.append(
-                'property list uchar {} {}\n'.format(
-                    _numpy_type_to_ply_type(data.dtype), name))
+                f'property list uchar {_numpy_type_to_ply_type(data.dtype)} {name}\n')
     return header
 
 
@@ -201,8 +194,7 @@ def _add_attributes_to_data_array(data_array, attributes):
     """
     for name, data in attributes.items():
         if data.ndim > 1:
-            data_array['{}_count'.format(
-                name)] = data.shape[1] * np.ones(data.shape[0])
+            data_array[f'{name}_count'] = data.shape[1] * np.ones(data.shape[0])
         data_array[name] = data
     return data_array
 
@@ -487,15 +479,15 @@ def _elements_to_kwargs(elements,
         # return empty geometry if there are no vertices
         kwargs['geometry'] = {}
         return kwargs
-        
+
     try:
         vertex_normals = np.column_stack([elements['vertex']['data'][j]
-                for j in ('nx', 'ny', 'nz')])
+                                          for j in ('nx', 'ny', 'nz')])
         if len(vertex_normals) == len(vertices):
             kwargs['vertex_normals'] = vertex_normals
     except BaseException:
         pass
-        
+
     if 'face' in elements and elements['face']['length']:
         face_data = elements['face']['data']
     else:
@@ -876,7 +868,7 @@ def _ply_binary(elements, file_obj):
                 elements[key]['data'] = np.frombuffer(
                     data, dtype=dtype)
             except BaseException:
-                log.warning('PLY failed to populate: {}'.format(key))
+                log.warning(f'PLY failed to populate: {key}')
                 elements[key]['data'] = None
         return elements
 

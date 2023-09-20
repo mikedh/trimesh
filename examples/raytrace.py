@@ -7,12 +7,11 @@ rays for image reasons.
 
 Install `pyembree` for a speedup (600k+ rays per second)
 """
-from __future__ import division
 
+import numpy as np
 import PIL.Image
 
 import trimesh
-import numpy as np
 
 if __name__ == '__main__':
 

@@ -1,32 +1,29 @@
-import os
 import json
+import os
+
 import numpy as np
 
-from .. import util
-from .. import resolvers
-
+from .. import resolvers, util
 from ..base import Trimesh
+from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
 from ..util import log, now
-from ..exceptions import ExceptionWrapper
-
 from . import misc
-from .xyz import _xyz_loaders
-from .ply import _ply_loaders
-from .stl import _stl_loaders
+from .binvox import _binvox_loaders
 from .dae import _collada_loaders
+from .gltf import _gltf_loaders
+from .misc import _misc_loaders
 from .obj import _obj_loaders
 from .off import _off_loaders
-from .misc import _misc_loaders
-from .gltf import _gltf_loaders
-from .xaml import _xaml_loaders
-from .binvox import _binvox_loaders
-from .threemf import _three_loaders
 from .openctm import _ctm_loaders
+from .ply import _ply_loaders
+from .stl import _stl_loaders
 from .threedxml import _threedxml_loaders
-
+from .threemf import _three_loaders
+from .xaml import _xaml_loaders
+from .xyz import _xyz_loaders
 
 try:
     from ..path.exchange.load import load_path, path_formats
@@ -50,8 +47,8 @@ def mesh_formats():
       i.e. 'stl', 'ply', etc.
     """
     # filter out exceptionmodule loaders
-    return set(k for k, v in mesh_loaders.items()
-               if not isinstance(v, ExceptionWrapper))
+    return {k for k, v in mesh_loaders.items()
+            if not isinstance(v, ExceptionWrapper)}
 
 
 def available_formats():
@@ -227,8 +224,8 @@ def load_mesh(file_obj,
         if len(loaded) == 1:
             loaded = loaded[0]
         # show the repr for loaded, loader used, and time
-        log.debug('loaded {} using `{}` in {:0.4f}s'.format(
-            str(loaded), loader.__name__, now() - tic))
+        log.debug(
+            f'loaded {str(loaded)} using `{loader.__name__}` in {now() - tic:0.4f}s')
     finally:
         # if we failed to load close file
         if opened:
@@ -293,8 +290,8 @@ def load_compressed(file_obj,
             available = available_formats()
         else:
             # all types contained in ZIP archive
-            contains = set(util.split_extension(n).lower()
-                           for n in files.keys())
+            contains = {util.split_extension(n).lower()
+                        for n in files.keys()}
             # if there are no mesh formats available
             if contains.isdisjoint(mesh_formats()):
                 available = path_formats()
@@ -520,7 +517,7 @@ def load_kwargs(*args, **kwargs):
             # exit the loop as we found one
             break
     else:
-        raise ValueError('unable to determine type: {}'.format(kwargs.keys()))
+        raise ValueError(f'unable to determine type: {kwargs.keys()}')
 
     return handler()
 
@@ -625,9 +622,9 @@ def parse_file_args(file_obj,
                 # we've been passed a URL, warn to use explicit function
                 # and don't do network calls via magical pipeline
                 raise ValueError(
-                    'use load_remote to load URL: {}'.format(file_obj))
+                    f'use load_remote to load URL: {file_obj}')
             elif file_type is None:
-                raise ValueError('string is not a file: {}'.format(file_obj))
+                raise ValueError(f'string is not a file: {file_obj}')
 
     if file_type is None:
         file_type = file_obj.__class__.__name__

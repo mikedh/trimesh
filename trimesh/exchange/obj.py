@@ -1,7 +1,7 @@
-import numpy as np
-
 import re
-from collections import deque, defaultdict
+from collections import defaultdict, deque
+
+import numpy as np
 
 try:
     # `pip install pillow`
@@ -14,11 +14,10 @@ except BaseException as E:
     Image = ExceptionWrapper(E)
 
 from .. import util
-from ..visual.color import to_float
-from ..visual.texture import unmerge_faces, TextureVisuals
-from ..visual.material import SimpleMaterial
-
 from ..constants import log, tol
+from ..visual.color import to_float
+from ..visual.material import SimpleMaterial
+from ..visual.texture import TextureVisuals, unmerge_faces
 
 
 def load_obj(file_obj,
@@ -80,12 +79,12 @@ def load_obj(file_obj,
             # turn parsed kwargs into material objects
             materials = {k: SimpleMaterial(**v)
                          for k, v in material_kwargs.items()}
-        except (IOError, TypeError):
+        except (OSError, TypeError):
             # usually the resolver couldn't find the asset
-            log.debug('unable to load materials from: {}'.format(mtl_path))
+            log.debug(f'unable to load materials from: {mtl_path}')
         except BaseException:
             # something else happened so log a warning
-            log.debug('unable to load materials from: {}'.format(mtl_path),
+            log.debug(f'unable to load materials from: {mtl_path}',
                       exc_info=True)
 
     # extract vertices from raw text
@@ -266,8 +265,7 @@ def load_obj(file_obj,
             visual = TextureVisuals(uv=uv)
         elif material is not None:
             # case where material is specified but not available
-            log.debug('specified material ({})  not loaded!'.format(
-                material))
+            log.debug(f'specified material ({material})  not loaded!')
         # assign the visual
         mesh['visual'] = visual
         # store geometry by name
@@ -433,8 +431,7 @@ def _parse_faces_vectorized(array, columns, sample_line):
             # which is vertex/texture
             faces_tex = array[:, index + 1]
         else:
-            log.debug('face lines are weird: {}'.format(
-                sample_line))
+            log.debug(f'face lines are weird: {sample_line}')
     elif columns == 9:
         # if we have three values per vertex
         # second value is always texture
@@ -493,8 +490,7 @@ def _parse_faces_fallback(lines):
             split = collect
         else:
             log.debug(
-                'face needs more values 3>{} skipping!'.format(
-                    len(split)))
+                f'face needs more values 3>{len(split)} skipping!')
             continue
 
         # f is like: '76/558/76'
@@ -557,7 +553,7 @@ def _parse_vertices(text):
     # up to the location of out our first vertex but we
     # are going to use this check for "do we have texture"
     # determination later so search the whole stupid file
-    starts = {k: text.find('\n{} '.format(k)) for k in
+    starts = {k: text.find(f'\n{k} ') for k in
               ['v', 'vt', 'vn']}
 
     # no valid values so exit early
@@ -566,7 +562,7 @@ def _parse_vertices(text):
 
     # find the last position of each valid value
     ends = {k: text.find(
-        '\n', text.rfind('\n{} '.format(k)) + 2 + len(k))
+        '\n', text.rfind(f'\n{k} ') + 2 + len(k))
         for k, v in starts.items() if v >= 0}
 
     # take the first and last position of any vertex property
@@ -577,7 +573,7 @@ def _parse_vertices(text):
 
     # get the clean-ish data from the file as python lists
     data = {k: [i.split('\n', 1)[0]
-                for i in chunk.split('\n{} '.format(k))[1:]]
+                for i in chunk.split(f'\n{k} ')[1:]]
             for k, v in starts.items() if v >= 0}
 
     # count the number of data values per row on a sample row
@@ -909,7 +905,7 @@ def export_obj(mesh,
                     # add the uv coordinates
                     export.append('vt ' + converted)
                 # add the directive to use the exported material
-                export.appendleft('usemtl {}'.format(tex_name))
+                export.appendleft(f'usemtl {tex_name}')
             except BaseException:
                 log.debug('failed to convert UV coordinates',
                           exc_info=True)
@@ -933,12 +929,13 @@ def export_obj(mesh,
         # add this object
         objects.append('\n'.join(export))
 
+
+    # collect files like images to write
+    mtl_data = {}
     # combine materials
     if len(materials) > 0:
         # collect text for a single mtllib file
         mtl_lib = []
-        # collect files like images to write
-        mtl_data = {}
         # now loop through: keys are garbage hash
         # values are (data, name)
         for data, _ in materials.values():
@@ -950,7 +947,7 @@ def export_obj(mesh,
                     # things like images
                     mtl_data[file_name] = file_data
                 else:
-                    log.warning('not writing {}'.format(file_name))
+                    log.warning(f'not writing {file_name}')
 
         if mtl_name is None:
             # if no name passed set a default
@@ -958,18 +955,18 @@ def export_obj(mesh,
 
         # prepend a header to the MTL text if requested
         if header is not None:
-            prepend = '# {}\n\n'.format(header).encode('utf-8')
+            prepend = f'# {header}\n\n'.encode()
         else:
             prepend = b''
 
         # save the material data
         mtl_data[mtl_name] = prepend + b'\n\n'.join(mtl_lib)
         # add the reference to the MTL file
-        objects.appendleft('mtllib {}'.format(mtl_name))
+        objects.appendleft(f'mtllib {mtl_name}')
 
     if header is not None:
         # add a created-with header to the top of the file
-        objects.appendleft('# {}'.format(header))
+        objects.appendleft(f'# {header}')
     # combine elements into a single string
     text = '\n'.join(objects)
 

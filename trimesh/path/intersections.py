@@ -1,7 +1,6 @@
 import numpy as np
 
 from .. import util
-
 from ..constants import tol_path as tol
 
 

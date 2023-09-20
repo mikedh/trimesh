@@ -6,12 +6,9 @@ Deal with re- triangulation of existing meshes.
 """
 import numpy as np
 
-from . import util
-from . import grouping
-from . import graph
-
-from .geometry import faces_to_edges
+from . import graph, grouping, util
 from .constants import tol
+from .geometry import faces_to_edges
 
 
 def subdivide(vertices,
@@ -111,7 +108,7 @@ def subdivide(vertices,
         stack = np.arange(
             start, start + len(f) * 4).reshape((-1, 4))
         # reformat into a slightly silly dict for some reason
-        index_dict = {k: v for k, v in zip(nonzero, stack)}
+        index_dict = dict(zip(nonzero, stack))
 
         return new_vertices, new_faces, index_dict
 

@@ -8,8 +8,9 @@ class IntegrateTest(g.unittest.TestCase):
 
     def test_integrate(self):
         try:
-            from trimesh.integrate import symbolic_barycentric
             import sympy as sp
+
+            from trimesh.integrate import symbolic_barycentric
         except BaseException:
             g.log.warning('no sympy', exc_info=True)
             return
