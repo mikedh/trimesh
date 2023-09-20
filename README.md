@@ -7,9 +7,9 @@
 
 | :warning: WARNING          |
 |---------------------------|
-| `trimesh >= 4.0.0` on `main` makes minimum Python 3.7 and is in pre-release |
+| `trimesh >= 4.0.0` on `release-candidate` makes minimum Python 3.7 is in pre-release |
 | Testing with `pip install --pre trimesh` would be much appreciated! |
-| Projects that support Python<3.7 should update requirement to `trimesh<4` |
+| Projects that support `python<3.7` should update requirement to `trimesh<4` |
 
 
 Trimesh is a pure Python 3.7+ library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on watertight surfaces. The goal of the library is to provide a full featured and well tested Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the [Shapely library](https://github.com/Toblerity/Shapely).
