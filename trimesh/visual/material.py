@@ -724,7 +724,7 @@ def empty_material(color=None):
     return SimpleMaterial(image=image)
 
 
-def pack(materials, uvs, deduplicate=True, padding=1, 
+def pack(materials, uvs, deduplicate=True, padding=1,
          max_tex_size_individual=8192, max_tex_size_fused=8192):
     """
     Pack multiple materials with texture into a single material.
@@ -746,7 +746,7 @@ def pack(materials, uvs, deduplicate=True, padding=1,
     max_tex_size_individual : int
       Maximum size of each individual texture.
     max_tex_size_fused : int | None
-      Maximum size of the combined texture. 
+      Maximum size of the combined texture.
       Individual texture size will be reduced to fit.
       Set to None to allow infite size.
 
@@ -825,23 +825,23 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                     img = np.array(mat.metallicRoughnessTexture.convert("RGB"))
                 else:
                     img = np.array(mat.metallicRoughnessTexture)
-                
+
                 if len(img.shape) == 2 or img.shape[-1] == 1:
                     img = img.reshape(*img.shape[:2], 1)
-                    img = np.concatenate([img, 
-                                          np.ones_like(img[..., :1])*255, 
-                                          np.zeros_like(img[..., :1])], 
+                    img = np.concatenate([img,
+                                          np.ones_like(img[..., :1])*255,
+                                          np.zeros_like(img[..., :1])],
                                           axis=-1)
                 elif img.shape[-1] == 2:
                     img = np.concatenate([img, np.zeros_like(img[..., :1])], axis=-1)
 
                 if mat.metallicFactor is not None:
-                    img[..., 0] = np.round(img[..., 0].astype(np.float64) * 
+                    img[..., 0] = np.round(img[..., 0].astype(np.float64) *
                                            mat.metallicFactor).astype(np.uint8)
                 if mat.roughnessFactor is not None:
-                    img[..., 1] = np.round(img[..., 1].astype(np.float64) * 
+                    img[..., 1] = np.round(img[..., 1].astype(np.float64) *
                                            mat.roughnessFactor).astype(np.uint8)
-                img = Image.fromarray(img, mode='RGB')                
+                img = Image.fromarray(img, mode='RGB')
             else:
                 metallic = 0.0 if mat.metallicFactor is None else mat.metallicFactor
                 roughness = 1.0 if mat.roughnessFactor is None else mat.roughnessFactor
@@ -868,11 +868,11 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                     [0, 0, 0], (1, 1, 3)).astype(np.uint8))
         # make sure we're always returning in RGBA mode
         return img.convert('RGB')
-    
+
     def get_normal_texture(mat):
         # there is no default normal texture
         return getattr(mat, 'normalTexture', None)
-    
+
     def get_occlusion_texture(mat):
         occlusion_texture = getattr(mat, 'occlusionTexture', None)
         if occlusion_texture is None:
@@ -882,7 +882,7 @@ def pack(materials, uvs, deduplicate=True, padding=1,
         return occlusion_texture
 
     def pad_image(src, padding=1):
-        # uses replication padding on all 4 sides    
+        # uses replication padding on all 4 sides
 
         if isinstance(padding, int):
             padding = (padding, padding)
@@ -895,7 +895,7 @@ def pack(materials, uvs, deduplicate=True, padding=1,
 
         result = src[y, x]
         return result
-    
+
     def resize_images(images, sizes):
         resized = []
         for img, size in zip(images, sizes):
@@ -905,10 +905,10 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                 img = img.resize(size)
                 resized.append(img)
         return resized
-    
+
     def pack_images(images, power_resize=True, random_seed=42):
         # random seed needs to be identical to achieve same results
-        # TODO: we could alternatively reuse the offsets from the first packing call 
+        # TODO: we could alternatively reuse the offsets from the first packing call
         np.random.seed(random_seed)
         return packing.images(images, power_resize=power_resize)
 
@@ -938,9 +938,9 @@ def pack(materials, uvs, deduplicate=True, padding=1,
     while down_scale_iterations > 0:
         # collect the images from the materials
         images = [get_base_color_texture(materials[g[0]]) for g in mat_idx]
-        
+
         if use_pbr:
-            # if we have PBR materials, collect all possible textures and 
+            # if we have PBR materials, collect all possible textures and
             # determine the largest size per material
             metallic_roughness = [get_metallic_roughness_texture(
                 materials[g[0]]) for g in mat_idx]
@@ -960,7 +960,7 @@ def pack(materials, uvs, deduplicate=True, padding=1,
 
                 unpadded_sizes.append(max_tex_size)
 
-            # use the same size for all of them to ensure 
+            # use the same size for all of them to ensure
             # that texture atlassing is identical
             images = resize_images(images, unpadded_sizes)
             metallic_roughness = resize_images(metallic_roughness, unpadded_sizes)
@@ -978,8 +978,8 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                 unpadded_sizes.append(tex_size)
 
         images = [
-            Image.fromarray(pad_image(np.array(img), padding), img.mode) 
-            for img in images   
+            Image.fromarray(pad_image(np.array(img), padding), img.mode)
+            for img in images
         ]
 
         # pack the multiple images into a single large image
@@ -999,10 +999,10 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                 pad_image(
                     np.array(img),
                     padding), img.mode) for img in metallic_roughness]
-        # even if we only need the first two channels, store RGB, because 
+        # even if we only need the first two channels, store RGB, because
         # PIL 'LA' mode images are interpreted incorrectly in other 3D software
         final_metallic_roughness, _ = pack_images(metallic_roughness)
-        
+
         if all(np.array(x).max() == 0 for x in emissive):
             # if all emissive textures are black, don't use emissive
             emissive = None
@@ -1122,7 +1122,7 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                 doubleSided=False, # TODO how to handle this?
                 normalTexture=final_normals,
                 occlusionTexture=final_occlusion,
-            ), 
+            ),
             stacked)
     else:
         return SimpleMaterial(image=final), stacked

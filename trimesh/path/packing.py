@@ -459,8 +459,8 @@ def rectangles(extents,
         # run a single insertion order
         # don't shuffle the first run, shuffle subsequent runs
         bounds, insert = rectangles_single(
-            extents=extents, 
-            size=size, 
+            extents=extents,
+            size=size,
             shuffle=(i != 0),
             rotate=rotate
             )
