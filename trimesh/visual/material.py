@@ -724,12 +724,16 @@ def empty_material(color=None):
     return SimpleMaterial(image=image)
 
 
-def pack(materials, uvs, deduplicate=True):
+def pack(materials, uvs, deduplicate=True, padding=1, 
+         max_tex_size_individual=8192, max_tex_size_fused=8192):
     """
     Pack multiple materials with texture into a single material.
 
     UV coordinates outside of the 0.0-1.0 range will be coerced
     into this range using a "wrap" behavior (i.e. modulus).
+
+    Alpha blending and backface culling settings are not supported!
+    Returns a material with alpha values set, but alpha blending disabled.
 
     Parameters
     -----------
@@ -737,6 +741,14 @@ def pack(materials, uvs, deduplicate=True):
       List of multiple materials
     uvs : (n, m, 2) float
       Original UV coordinates
+    padding : int
+      Number of pixels to pad each image with.
+    max_tex_size_individual : int
+      Maximum size of each individual texture.
+    max_tex_size_fused : int | None
+      Maximum size of the combined texture. 
+      Individual texture size will be reduced to fit.
+      Set to None to allow infite size.
 
     Returns
     ------------
@@ -752,7 +764,17 @@ def pack(materials, uvs, deduplicate=True):
 
     from ..path import packing
 
-    def material_to_img(mat):
+    def multiply_factor(img, factor, mode):
+        """
+        Multiply an image by a factor.
+        """
+        if factor is None:
+            return img.convert(mode)
+        img = np.array(img.convert(mode))
+        img = np.round(img.astype(np.float64) * factor).astype(np.uint8)
+        return Image.fromarray(img, mode=mode)
+
+    def get_base_color_texture(mat):
         """
         Logic for extracting a simple image from each material.
         """
@@ -760,12 +782,23 @@ def pack(materials, uvs, deduplicate=True):
         img = None
         if isinstance(mat, PBRMaterial):
             if mat.baseColorTexture is not None:
-                img = mat.baseColorTexture
+                img = multiply_factor(mat.baseColorTexture, mat.baseColorFactor, "RGBA")
             elif mat.baseColorFactor is not None:
                 c = color.to_rgba(mat.baseColorFactor)
                 assert c.shape == (4,)
                 assert c.dtype == np.uint8
                 img = Image.fromarray(c.reshape((1, 1, -1)))
+
+            if mat.alphaMode != "BLEND":
+                # we can't handle alpha blending well, but we can bake alpha cutoff
+                mode = img.mode
+                img = np.array(img)
+                if mat.alphaMode == "MASK":
+                    img[...,3] = np.where(img[...,3] > mat.alphaCutoff*255, 255, 0)
+                elif mat.alphaMode == "OPAQUE" or mat.alphaMode is None:
+                    if "A" in mode:
+                        img[...,3] = 255
+                img = Image.fromarray(img, mode)
         elif getattr(mat, 'image', None) is not None:
             img = mat.image
         elif np.shape(getattr(mat, 'diffuse', [])) == (4,):
@@ -780,6 +813,105 @@ def pack(materials, uvs, deduplicate=True):
         # make sure we're always returning in RGBA mode
         return img.convert('RGBA')
 
+    def get_metallic_roughness_texture(mat):
+        """
+        Logic for extracting a simple image from each material.
+        """
+        # extract an image for each material
+        img = None
+        if isinstance(mat, PBRMaterial):
+            if mat.metallicRoughnessTexture is not None:
+                if mat.metallicRoughnessTexture.format == "BGR":
+                    img = np.array(mat.metallicRoughnessTexture.convert("RGB"))
+                else:
+                    img = np.array(mat.metallicRoughnessTexture)
+                
+                if len(img.shape) == 2 or img.shape[-1] == 1:
+                    img = img.reshape(*img.shape[:2], 1)
+                    img = np.concatenate([img, 
+                                          np.ones_like(img[..., :1])*255, 
+                                          np.zeros_like(img[..., :1])], 
+                                          axis=-1)
+                elif img.shape[-1] == 2:
+                    img = np.concatenate([img, np.zeros_like(img[..., :1])], axis=-1)
+
+                if mat.metallicFactor is not None:
+                    img[..., 0] = np.round(img[..., 0].astype(np.float64) * 
+                                           mat.metallicFactor).astype(np.uint8)
+                if mat.roughnessFactor is not None:
+                    img[..., 1] = np.round(img[..., 1].astype(np.float64) * 
+                                           mat.roughnessFactor).astype(np.uint8)
+                img = Image.fromarray(img, mode='RGB')                
+            else:
+                metallic = 0.0 if mat.metallicFactor is None else mat.metallicFactor
+                roughness = 1.0 if mat.roughnessFactor is None else mat.roughnessFactor
+                metallic_roughnesss = np.round(
+                    np.array([metallic, roughness, 0.0], dtype=np.float64) * 255)
+                img = Image.fromarray(
+                    metallic_roughnesss[None, None].astype(np.uint8), mode='RGB')
+        return img
+
+    def get_emissive_texture(mat):
+        """
+        Logic for extracting a simple image from each material.
+        """
+        # extract an image for each material
+        img = None
+        if isinstance(mat, PBRMaterial):
+            if mat.emissiveTexture is not None:
+                img = multiply_factor(mat.emissiveTexture, mat.emissiveFactor, "RGB")
+            elif mat.emissiveFactor is not None:
+                c = color.to_rgba(mat.emissiveFactor)
+                img = Image.fromarray(c.reshape((1, 1, -1)))
+            else:
+                img = Image.fromarray(np.reshape(
+                    [0, 0, 0], (1, 1, 3)).astype(np.uint8))
+        # make sure we're always returning in RGBA mode
+        return img.convert('RGB')
+    
+    def get_normal_texture(mat):
+        # there is no default normal texture
+        return getattr(mat, 'normalTexture', None)
+    
+    def get_occlusion_texture(mat):
+        occlusion_texture = getattr(mat, 'occlusionTexture', None)
+        if occlusion_texture is None:
+            occlusion_texture = Image.fromarray(np.array([[255]], dtype=np.uint8))
+        else:
+            occlusion_texture = occlusion_texture.convert('L')
+        return occlusion_texture
+
+    def pad_image(src, padding=1):
+        # uses replication padding on all 4 sides    
+
+        if isinstance(padding, int):
+            padding = (padding, padding)
+        x, y = np.meshgrid(np.arange(
+            src.shape[1] + 2 * padding[0]), np.arange(src.shape[0] + 2 * padding[1]))
+        x -= padding[0]
+        y -= padding[1]
+        x = np.clip(x, 0, src.shape[1] - 1)
+        y = np.clip(y, 0, src.shape[0] - 1)
+
+        result = src[y, x]
+        return result
+    
+    def resize_images(images, sizes):
+        resized = []
+        for img, size in zip(images, sizes):
+            if img is None:
+                resized.append(None)
+            else:
+                img = img.resize(size)
+                resized.append(img)
+        return resized
+    
+    def pack_images(images, power_resize=True, random_seed=42):
+        # random seed needs to be identical to achieve same results
+        # TODO: we could alternatively reuse the offsets from the first packing call 
+        np.random.seed(random_seed)
+        return packing.images(images, power_resize=power_resize)
+
     if deduplicate:
         # start by collecting a list of indexes for each material hash
         unique_idx = collections.defaultdict(list)
@@ -791,14 +923,124 @@ def pack(materials, uvs, deduplicate=True):
         # otherwise just use all the indexes
         mat_idx = np.arange(len(materials)).reshape((-1, 1))
 
+    if len(mat_idx) == 1:
+        # if there is only one material we can just return it
+        return materials[0], np.vstack(uvs)
+
     assert set(np.concatenate(mat_idx).ravel()) == set(range(len(uvs)))
     assert len(uvs) == len(materials)
 
-    # collect the images from the materials
-    images = [material_to_img(materials[g[0]]) for g in mat_idx]
+    use_pbr = any(isinstance(m, PBRMaterial) for m in materials)
 
-    # pack the multiple images into a single large image
-    final, offsets = packing.images(images, power_resize=True)
+    # in some cases, the fused scene results in huge trimsheets
+    # we can try to prevent this by downscaling the textures iteratively
+    down_scale_iterations = 6
+    while down_scale_iterations > 0:
+        # collect the images from the materials
+        images = [get_base_color_texture(materials[g[0]]) for g in mat_idx]
+        
+        if use_pbr:
+            # if we have PBR materials, collect all possible textures and 
+            # determine the largest size per material
+            metallic_roughness = [get_metallic_roughness_texture(
+                materials[g[0]]) for g in mat_idx]
+            emissive = [get_emissive_texture(materials[g[0]]) for g in mat_idx]
+            normals = [get_normal_texture(materials[g[0]]) for g in mat_idx]
+            occlusion = [get_occlusion_texture(materials[g[0]]) for g in mat_idx]
+
+            unpadded_sizes = []
+            for textures in zip(images, metallic_roughness, emissive, normals, occlusion):
+                 # remove None textures
+                textures = [tex for tex in textures if tex is not None]
+                tex_sizes = np.stack([np.array(tex.size) for tex in textures])
+                max_tex_size = tex_sizes.max(axis=0)
+                if max_tex_size.max() > max_tex_size_individual:
+                    scale = max_tex_size.max() / max_tex_size_individual
+                    max_tex_size = np.round(max_tex_size / scale).astype(np.int64)
+
+                unpadded_sizes.append(max_tex_size)
+
+            # use the same size for all of them to ensure 
+            # that texture atlassing is identical
+            images = resize_images(images, unpadded_sizes)
+            metallic_roughness = resize_images(metallic_roughness, unpadded_sizes)
+            emissive = resize_images(emissive, unpadded_sizes)
+            normals = resize_images(normals, unpadded_sizes)
+            occlusion = resize_images(occlusion, unpadded_sizes)
+        else:
+            # for non-pbr materials, just use the original image size
+            unpadded_sizes = []
+            for img in images:
+                tex_size = np.array(img.size)
+                if tex_size.max() > max_tex_size_individual:
+                    scale = tex_size.max() / max_tex_size_individual
+                    tex_size = np.round(tex_size / scale).astype(np.int64)
+                unpadded_sizes.append(tex_size)
+
+        images = [
+            Image.fromarray(pad_image(np.array(img), padding), img.mode) 
+            for img in images   
+        ]
+
+        # pack the multiple images into a single large image
+        final, offsets = pack_images(images)
+
+        # if the final image is too large, reduce the maximum texture size and repeat
+        if max_tex_size_fused is not None and \
+            final.size[0] * final.size[1] > max_tex_size_fused**2:
+            down_scale_iterations -= 1
+            max_tex_size_individual //= 2
+        else:
+            break
+
+    if use_pbr:
+        metallic_roughness = [
+            Image.fromarray(
+                pad_image(
+                    np.array(img),
+                    padding), img.mode) for img in metallic_roughness]
+        # even if we only need the first two channels, store RGB, because 
+        # PIL 'LA' mode images are interpreted incorrectly in other 3D software
+        final_metallic_roughness, _ = pack_images(metallic_roughness)
+        
+        if all(np.array(x).max() == 0 for x in emissive):
+            # if all emissive textures are black, don't use emissive
+            emissive = None
+            final_emissive = None
+        else:
+            emissive = [
+                Image.fromarray(
+                    pad_image(
+                        np.array(img),
+                        padding),
+                    mode=img.mode) for img in emissive]
+            final_emissive, _ = pack_images(emissive)
+
+        if all(n is not None for n in normals):
+            # only use normal texture if all materials use them
+            # how else would you handle missing normals?
+            normals = [
+                Image.fromarray(
+                    pad_image(
+                        np.array(img),
+                        padding),
+                    mode=img.mode) for img in normals]
+            final_normals, _ = pack_images(normals)
+        else:
+            final_normals = None
+
+        if any(np.array(o).min() < 255 for o in occlusion):
+            # only use occlusion texture if any material actually has an occlusion value
+            occlusion = [
+                Image.fromarray(
+                    pad_image(
+                        np.array(img),
+                        padding),
+                    mode=img.mode) for img in occlusion]
+            final_occlusion, _ = pack_images(occlusion)
+        else:
+            final_occlusion = None
+
 
     # the size of the final texture image
     final_size = np.array(final.size, dtype=np.float64)
@@ -806,13 +1048,26 @@ def pack(materials, uvs, deduplicate=True):
     new_uv = {}
     for group, img, off in zip(mat_idx, images, offsets):
         # how big was the original image
-        scale = img.size / final_size
+        scale = (np.array(img.size) - 1 - 2 * padding) / (final_size - 1)
         # what is the offset in fractions of final image
-        xy_off = off / final_size
+        xy_off = (off + padding) / (final_size - 1)
         # scale and translate each of the new UV coordinates
         # also make sure they are in 0.0-1.0 using modulus (i.e. wrap)
-        new_uv.update({g: ((uvs[g] % 1.0) * scale) + xy_off
-                       for g in group})
+        for g in group:
+            g_uvs = uvs[g].copy()
+            # only wrap pixels that are outside of 0.0-1.0.
+            # use a small leeway of half a pixel for floating point inaccuracies and
+            # the case of uv==1.0
+            half_pixel_width = 1.0 / (2 * img.size[0])
+            half_pixel_height = 1.0 / (2 * img.size[1])
+            wrap_mask_u = ((g_uvs[:, 0] <= -half_pixel_width) |
+                           (g_uvs[:, 0] >= (1.0 + half_pixel_width)))
+            wrap_mask_v = ((g_uvs[:, 1] <= -half_pixel_height) |
+                           (g_uvs[:, 1] >= (1.0 + half_pixel_height)))
+            wrap_mask = np.stack([wrap_mask_u, wrap_mask_v], axis=-1)
+
+            g_uvs[wrap_mask] = g_uvs[wrap_mask] % 1.0
+            new_uv[g] = (g_uvs * scale) + xy_off
 
     # stack the new UV coordinates in the original order
     stacked = np.vstack([new_uv[i] for i in range(len(uvs))])
@@ -821,21 +1076,53 @@ def pack(materials, uvs, deduplicate=True):
     # the original input image exactly in unit tests
     if tol.strict:
         # get the pixel color from the original image
+        material_textures = [(get_base_color_texture, final)]
+        if use_pbr:
+            material_textures.append(
+                (get_metallic_roughness_texture, final_metallic_roughness))
+            if final_emissive:
+                material_textures.append((get_emissive_texture, final_emissive))
+            if final_normals:
+                material_textures.append((get_normal_texture, final_normals))
+            if final_occlusion:
+                material_textures.append((get_occlusion_texture, final_occlusion))
+
         check = []
         for uv, mat in zip(uvs, materials):
             # get the image from the material and whether or not
-            # it had to fill in with default dataa
-            img = material_to_img(mat)
-            current = color.uv_to_color(image=img, uv=(uv % 1))
-            check.append(current)
+            # it had to fill in with default data
+            material_textures_values = []
+            for texture_load_fn, _ in material_textures:
+                orig_img = texture_load_fn(mat)
+                current = color.uv_to_interpolated_color(image=orig_img, uv=uv)
+                material_textures_values.append(current)
+            check.append(material_textures_values)
 
-        check_flat = np.vstack(check)
-        # get the pixel color from the packed image
-        compare = color.uv_to_color(
-            uv=stacked, image=final)
-        # should be exactly identical
-        # note this is only true for simple colors
-        # interpolation on complicated stuff can break this
-        assert (compare == check_flat).all()
+        check_flat = []
+        for texture_idx in range(len(material_textures)):
+            check_flat.append(np.vstack([c[texture_idx] for c in check]))
 
-    return SimpleMaterial(image=final), stacked
+        for reference, (_, final_texture) in zip(check_flat, material_textures):
+            # get the pixel color from the packed image
+            compare = color.uv_to_interpolated_color(
+                uv=stacked, image=final_texture)
+            # should be exactly identical
+            # note this is only true for simple colors
+            # interpolation on complicated stuff can break this
+            assert np.allclose(reference, compare)
+
+    if use_pbr:
+        return (
+            PBRMaterial(
+                baseColorTexture=final,
+                metallicRoughnessTexture=final_metallic_roughness,
+                emissiveTexture=final_emissive,
+                emissiveFactor=[1.0, 1.0, 1.0] if final_emissive else None,
+                alphaMode=None, # unfortunately, we can't handle alpha blending well
+                doubleSided=False, # TODO how to handle this?
+                normalTexture=final_normals,
+                occlusionTexture=final_occlusion,
+            ), 
+            stacked)
+    else:
+        return SimpleMaterial(image=final), stacked

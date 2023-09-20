@@ -880,11 +880,11 @@ def uv_to_color(uv, image):
         return None
 
     # UV coordinates should be (n, 2) float
-    uv = np.asanyarray(uv, dtype=np.float64) % 1.0
+    uv = np.asanyarray(uv, dtype=np.float64)
 
     # get texture image pixel positions of UV coordinates
-    x = (uv[:, 0] * (image.width - 1))
-    y = ((1 - uv[:, 1]) * (image.height - 1))
+    x = (uv[:, 0] * (image.width - 1)) % image.width
+    y = ((1 - uv[:, 1]) * (image.height - 1)) % image.height
 
     # access colors from pixel locations
     # make sure image is RGBA before getting values
@@ -936,8 +936,8 @@ def uv_to_interpolated_color(uv, image):
     img = np.asanyarray(image.convert('RGBA'))
 
     colors00 = img[y_floor, x_floor]
-    colors01 = img[y_ceil, x_floor]
-    colors10 = img[y_floor, x_ceil]
+    colors01 = img[y_floor, x_ceil]
+    colors10 = img[y_ceil, x_floor]
     colors11 = img[y_ceil, x_ceil]
 
     a00 = (1 - dx) * (1 - dy)

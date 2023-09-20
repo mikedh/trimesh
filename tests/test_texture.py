@@ -221,6 +221,24 @@ class TextureTest(g.unittest.TestCase):
             # make sure material survived
             assert r.visual.material.image.size == (256, 256)
 
+    def test_pbr_material_fusion(self):
+        # a scene with 5 cubes each with a different material
+        # one having only simple color values
+        # one with PBR material values
+        # one with PBR textures
+        # one with emissive textures
+        # and one with specular glossiness color values
+        m = g.get_mesh("pbr_cubes_emissive_spec_gloss.zip", force='mesh')
+
+        assert isinstance(m, g.trimesh.Trimesh)
+
+        mat_m = m.visual.material
+        assert isinstance(mat_m, g.trimesh.visual.material.PBRMaterial)
+        assert mat_m.baseColorTexture is not None
+        assert mat_m.metallicRoughnessTexture is not None
+        assert mat_m.emissiveTexture is not None
+
+
 
 if __name__ == '__main__':
     g.trimesh.util.attach_to_log()
