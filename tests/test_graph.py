@@ -5,13 +5,20 @@ except BaseException:
 
 
 class GraphTest(g.unittest.TestCase):
-
     def setUp(self):
-        self.engines = ['scipy', 'networkx']
+        self.engines = []
+        try:
+            self.engines.append("scipy")
+        except BaseException:
+            pass
+        try:
+            self.engines.append("networkx")
+        except BaseException:
+            pass
 
     def test_soup(self):
         # a soup of random triangles, with no adjacent pairs
-        soup = g.get_mesh('soup.stl')
+        soup = g.get_mesh("soup.stl")
 
         assert len(soup.face_adjacency) == 0
         assert len(soup.face_adjacency_radius) == 0
@@ -23,13 +30,13 @@ class GraphTest(g.unittest.TestCase):
 
     def test_components(self):
         # a soup of random triangles, with no adjacent pairs
-        soup = g.get_mesh('soup.stl')
+        soup = g.get_mesh("soup.stl")
         # a mesh with multiple watertight bodies
-        mult = g.get_mesh('cycloidal.ply')
+        mult = g.get_mesh("cycloidal.ply")
         # a mesh with a single watertight body
-        sing = g.get_mesh('featuretype.STL')
+        sing = g.get_mesh("featuretype.STL")
         # mesh with a single tetrahedron
-        tet = g.get_mesh('tet.ply')
+        tet = g.get_mesh("tet.ply")
 
         for engine in self.engines:
             # without requiring watertight the split should be into every face
@@ -77,7 +84,7 @@ class GraphTest(g.unittest.TestCase):
         f = g.trimesh.graph.vertex_adjacency_graph
 
         # a mesh with a single watertight body
-        sing = g.get_mesh('featuretype.STL')
+        sing = g.get_mesh("featuretype.STL")
         vert_adj_g = f(sing)
         assert len(sing.vertices) == len(vert_adj_g)
 
@@ -89,36 +96,35 @@ class GraphTest(g.unittest.TestCase):
                 g.trimesh.graph.facets(mesh=mesh, engine=engine)
                 tic.append(g.time.time())
 
-            tic_diff = g.np.diff(tic)
-            tic_min = tic_diff.min()
-            tic_diff /= tic_min
-            g.log.info('graph engine on %s (scale %f sec):\n%s',
-                       mesh.metadata['file_name'],
-                       tic_min,
-                       str(g.np.column_stack((self.engines,
-                                              tic_diff))))
+            diff = g.np.abs(g.np.diff(tic))
+            if diff.min() > 0.0:
+                diff /= diff.min()
+
+            g.log.info(
+                "graph engine on %s (scale %f sec):\n%s",
+                mesh.metadata["file_name"],
+                diff.min(),
+                str(g.np.column_stack((self.engines, diff))),
+            )
 
     def test_smoothed(self):
         # Make sure smoothing is keeping the same number
         # of faces.
 
-        for name in ['ADIS16480.STL', 'featuretype.STL']:
+        for name in ["ADIS16480.STL", "featuretype.STL"]:
             mesh = g.get_mesh(name)
             assert len(mesh.faces) == len(mesh.smoothed().faces)
 
     def test_engines(self):
         edges = g.np.arange(10).reshape((-1, 2))
         for i in range(0, 20):
-            check_engines(nodes=g.np.arange(i),
-                          edges=edges)
-        edges = g.np.column_stack((g.np.arange(1, 11),
-                                   g.np.arange(0, 10)))
+            check_engines(nodes=g.np.arange(i), edges=edges)
+        edges = g.np.column_stack((g.np.arange(1, 11), g.np.arange(0, 10)))
         for i in range(0, 20):
-            check_engines(nodes=g.np.arange(i),
-                          edges=edges)
+            check_engines(nodes=g.np.arange(i), edges=edges)
 
     def test_watertight(self):
-        m = g.get_mesh('shared.STL')  # NOQA
+        m = g.get_mesh("shared.STL")  # NOQA
         # assert m.is_watertight
         # assert m.is_winding_consistent
         # assert m.is_volume
@@ -128,15 +134,12 @@ class GraphTest(g.unittest.TestCase):
 
         # generate some simple test data
         simple_nodes = g.np.arange(20)
-        simple_edges = g.np.column_stack((simple_nodes[:-1],
-                                          simple_nodes[1:]))
-        simple_edges = g.np.vstack((
-            simple_edges,
-            [[19, 0],
-             [10, 1000],
-             [500, 501]])).astype(g.np.int64)
+        simple_edges = g.np.column_stack((simple_nodes[:-1], simple_nodes[1:]))
+        simple_edges = g.np.vstack(
+            (simple_edges, [[19, 0], [10, 1000], [500, 501]])
+        ).astype(g.np.int64)
 
-        all_edges = g.data['edges']
+        all_edges = g.data["edges"]
         all_edges.append(simple_edges)
 
         for edges in all_edges:
@@ -147,8 +150,8 @@ class GraphTest(g.unittest.TestCase):
             nodes = g.np.unique(edges)
 
             # the basic BFS/DFS traversal
-            dfs_basic = g.trimesh.graph.traversals(edges, 'dfs')
-            bfs_basic = g.trimesh.graph.traversals(edges, 'bfs')
+            dfs_basic = g.trimesh.graph.traversals(edges, "dfs")
+            bfs_basic = g.trimesh.graph.traversals(edges, "bfs")
             # check return types
             assert all(i.dtype == g.np.int64 for i in dfs_basic)
             assert all(i.dtype == g.np.int64 for i in bfs_basic)
@@ -169,15 +172,13 @@ class GraphTest(g.unittest.TestCase):
                 dfs = g.trimesh.graph.fill_traversals(traversal, edges)
                 # edges that are included in the new separated traversal
                 inc = g.trimesh.util.vstack_empty(
-                    [g.np.column_stack((i[:-1], i[1:]))
-                     for i in dfs])
+                    [g.np.column_stack((i[:-1], i[1:])) for i in dfs]
+                )
 
                 # make a set from edges included in the traversal
-                inc_set = set(g.trimesh.grouping.hashable_rows(
-                    g.np.sort(inc, axis=1)))
+                inc_set = set(g.trimesh.grouping.hashable_rows(g.np.sort(inc, axis=1)))
                 # make a set of the source edges we were supposed to include
-                edge_set = set(g.trimesh.grouping.hashable_rows(
-                    g.np.sort(edges, axis=1)))
+                edge_set = set(g.trimesh.grouping.hashable_rows(g.np.sort(edges, axis=1)))
 
                 # we should have exactly the same edges
                 # after the filled traversal as we started with
@@ -192,7 +193,7 @@ class GraphTest(g.unittest.TestCase):
 
     def test_adjacency(self):
         for add_degen in [False, True]:
-            for name in ['featuretype.STL', 'soup.stl']:
+            for name in ["featuretype.STL", "soup.stl"]:
                 m = g.get_mesh(name)
                 if add_degen:
                     # make the first face degenerate
@@ -202,15 +203,13 @@ class GraphTest(g.unittest.TestCase):
 
                 # check the various paths of calling face adjacency
                 a = g.trimesh.graph.face_adjacency(
-                    m.faces.view(g.np.ndarray).copy(),
-                    return_edges=False)
+                    m.faces.view(g.np.ndarray).copy(), return_edges=False
+                )
                 b, be = g.trimesh.graph.face_adjacency(
-                    m.faces.view(g.np.ndarray).copy(),
-                    return_edges=True)
-                c = g.trimesh.graph.face_adjacency(
-                    mesh=m, return_edges=False)
-                c, ce = g.trimesh.graph.face_adjacency(
-                    mesh=m, return_edges=True)
+                    m.faces.view(g.np.ndarray).copy(), return_edges=True
+                )
+                c = g.trimesh.graph.face_adjacency(mesh=m, return_edges=False)
+                c, ce = g.trimesh.graph.face_adjacency(mesh=m, return_edges=True)
                 # make sure they all return the expected result
                 assert g.np.allclose(a, b)
                 assert g.np.allclose(a, c)
@@ -218,9 +217,9 @@ class GraphTest(g.unittest.TestCase):
                 assert len(ce) == len(a)
 
                 # package properties to loop through
-                zips = zip(m.face_adjacency,
-                           m.face_adjacency_edges,
-                           m.face_adjacency_unshared)
+                zips = zip(
+                    m.face_adjacency, m.face_adjacency_edges, m.face_adjacency_unshared
+                )
                 for a, e, v in zips:
                     # get two adjacenct faces as a set
                     fa = set(m.faces[a[0]])
@@ -249,11 +248,10 @@ def check_engines(edges, nodes):
     returning the exact same values
     """
     results = []
-    engines = [None, 'scipy', 'networkx']
+    engines = [None, "scipy", "networkx"]
 
     for engine in engines:
-        c = g.trimesh.graph.connected_components(
-            edges, nodes=nodes, engine=engine)
+        c = g.trimesh.graph.connected_components(edges, nodes=nodes, engine=engine)
         if len(c) > 0:
             # check to see if every resulting component
             # was in the passed set of nodes
@@ -270,6 +268,6 @@ def check_engines(edges, nodes):
         raise E
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

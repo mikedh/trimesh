@@ -965,12 +965,16 @@ class GLTFTest(g.unittest.TestCase):
 
     def test_relative_paths(self):
         # try with a relative path
+        cwd = g.os.path.abspath(g.os.path.expanduser("."))
         with g.TemporaryDirectory() as d:
             g.os.makedirs(g.os.path.join(d, "fused"))
             g.os.chdir(d)
             g.trimesh.creation.box().export("fused/hi.gltf")
             r = g.trimesh.load("fused/hi.gltf")
             assert g.np.isclose(r.volume, 1.0)
+
+            # avoid a windows file-access error
+            g.os.chdir(cwd)
 
         with g.TemporaryDirectory() as d:
             # now try it without chaging to that directory
