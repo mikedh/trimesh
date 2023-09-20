@@ -63,10 +63,10 @@ jobs:
       with:
         path: ~/.trimesh-cache
         key: trimesh-cache
-    - name: Set up Python 3.10
+    - name: Set up Python 3.11
       uses: actions/setup-python@v4
       with:
-         python-version: "3.10"
+         python-version: "3.11"
     - name: Install Trimesh
       run: pip install .[easy,test]
     - name: Run Corpus Check

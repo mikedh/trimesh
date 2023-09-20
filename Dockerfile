@@ -30,8 +30,7 @@ USER user
 # then delete any included test directories
 # and remove Cython after all the building is complete
 RUN pip install --user /home/user[easy] && \
-    find /home/user/.local -type d -name tests -prune -exec rm -rf {} \; && \
-    pip uninstall -y cython
+    find /home/user/.local -type d -name tests -prune -exec rm -rf {} \;
 
 ####################################
 ### Build output image most things should run on
@@ -68,7 +67,7 @@ RUN trimesh-setup --install=test,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
-RUN pip install -e .[all,easy,recommend,test]
+RUN pip install -e .[all]
 
 # run pytest wrapped with xvfb for simple viewer tests
 RUN xvfb-run pytest --cov=trimesh \

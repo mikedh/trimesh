@@ -132,7 +132,7 @@ jobs:
       - name: Tag Version
         id: set_tag
         run: |
-          export VER=$(python trimesh/version.py)
+          export VER=$(python -c "print(eval(next(L.split('=')[1] for L in open('pyproject.toml') if 'version' in L)))")
           echo "::set-output name=tag_name::${VER}"
       - name: Create Release
         id: create_release
