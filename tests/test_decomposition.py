@@ -18,8 +18,6 @@ class DecompositionTest(g.unittest.TestCase):
             assert m.is_watertight
             assert m.is_convex
 
-        g.trimesh.Scene(meshes).show()
-
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
