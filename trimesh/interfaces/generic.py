@@ -10,14 +10,7 @@ from ..util import log
 
 
 class MeshScript:
-
-    def __init__(self,
-                 meshes,
-                 script,
-                 exchange='stl',
-                 debug=False,
-                 **kwargs):
-
+    def __init__(self, meshes, script, exchange="stl", debug=False, **kwargs):
         self.debug = debug
         self.kwargs = kwargs
         self.meshes = meshes
@@ -32,32 +25,31 @@ class MeshScript:
         digit_count = len(str(len(self.meshes)))
         self.mesh_pre = [
             NamedTemporaryFile(
-                suffix=f'.{self.exchange}',
-                prefix=f'{str(i).zfill(digit_count)}_',
-                mode='wb',
-                delete=False) for i in range(len(self.meshes))]
+                suffix=f".{self.exchange}",
+                prefix=f"{str(i).zfill(digit_count)}_",
+                mode="wb",
+                delete=False,
+            )
+            for i in range(len(self.meshes))
+        ]
         self.mesh_post = NamedTemporaryFile(
-            suffix=f'.{self.exchange}',
-            mode='rb',
-            delete=False)
-        self.script_out = NamedTemporaryFile(
-            mode='wb', delete=False)
+            suffix=f".{self.exchange}", mode="rb", delete=False
+        )
+        self.script_out = NamedTemporaryFile(mode="wb", delete=False)
 
         # export the meshes to a temporary STL container
         for mesh, file_obj in zip(self.meshes, self.mesh_pre):
             mesh.export(file_obj=file_obj.name)
 
-        self.replacement = {'MESH_' + str(i): m.name
-                            for i, m in enumerate(self.mesh_pre)}
-        self.replacement['MESH_PRE'] = str(
-            [i.name for i in self.mesh_pre])
-        self.replacement['MESH_POST'] = self.mesh_post.name
-        self.replacement['SCRIPT'] = self.script_out.name
+        self.replacement = {"MESH_" + str(i): m.name for i, m in enumerate(self.mesh_pre)}
+        self.replacement["MESH_PRE"] = str([i.name for i in self.mesh_pre])
+        self.replacement["MESH_POST"] = self.mesh_post.name
+        self.replacement["SCRIPT"] = self.script_out.name
 
         script_text = Template(self.script).substitute(self.replacement)
-        if platform.system() == 'Windows':
-            script_text = script_text.replace('\\', '\\\\')
-        self.script_out.write(script_text.encode('utf-8'))
+        if platform.system() == "Windows":
+            script_text = script_text.replace("\\", "\\\\")
+        self.script_out.write(script_text.encode("utf-8"))
 
         # close all temporary files
         self.script_out.close()
@@ -67,21 +59,20 @@ class MeshScript:
         return self
 
     def run(self, command):
-        command_run = Template(command).substitute(
-            self.replacement).split()
+        command_run = Template(command).substitute(self.replacement).split()
         # run the binary
         startupinfo = None
-        if platform.system() == 'Windows':
+        if platform.system() == "Windows":
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
         if self.debug:
-            log.info('executing: {}'.format(' '.join(command_run)))
+            log.info("executing: {}".format(" ".join(command_run)))
 
         try:
-            output = check_output(command_run,
-                                  stderr=subprocess.STDOUT,
-                                  startupinfo=startupinfo)
+            output = check_output(
+                command_run, stderr=subprocess.STDOUT, startupinfo=startupinfo
+            )
         except CalledProcessError as e:
             # Log output if debug is enabled
             if self.debug:
@@ -92,14 +83,13 @@ class MeshScript:
             log.info(output.decode())
 
         # bring the binaries result back as a set of Trimesh kwargs
-        mesh_results = exchange.load.load_mesh(
-            self.mesh_post.name, **self.kwargs)
+        mesh_results = exchange.load.load_mesh(self.mesh_post.name, **self.kwargs)
 
         return mesh_results
 
     def __exit__(self, *args, **kwargs):
         if self.debug:
-            log.info(f'MeshScript.debug: not deleting {self.script_out.name}')
+            log.info(f"MeshScript.debug: not deleting {self.script_out.name}")
             return
         # delete all the temporary files by name
         # they are closed but their names are still available

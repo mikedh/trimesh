@@ -139,9 +139,7 @@ class Trimesh(Geometry3D):
         # regenerated from self._data, but may be slow to calculate.
         # In order to maintain consistency
         # the cache is cleared when self._data.__hash__() changes
-        self._cache = caching.Cache(
-            id_function=self._data.__hash__, force_immutable=True
-        )
+        self._cache = caching.Cache(id_function=self._data.__hash__, force_immutable=True)
         self._cache.update(initial_cache)
 
         # check for None only to avoid warning messages in subclasses
@@ -194,9 +192,7 @@ class Trimesh(Geometry3D):
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
         elif metadata is not None:
-            raise ValueError(
-                "metadata should be a dict or None, got %s" % str(metadata)
-            )
+            raise ValueError("metadata should be a dict or None, got %s" % str(metadata))
 
         # store per-face and per-vertex attributes which will
         # be updated when an update_faces call is made
@@ -427,9 +423,7 @@ class Trimesh(Geometry3D):
             return
 
         # make sure the first few normals match the first few triangles
-        check, valid = triangles.normals(
-            self.vertices.view(np.ndarray)[self.faces[:20]]
-        )
+        check, valid = triangles.normals(self.vertices.view(np.ndarray)[self.faces[:20]])
         compare = np.zeros((len(valid), 3))
         compare[valid] = check
         if not np.allclose(compare, values[:20]):
@@ -607,9 +601,7 @@ class Trimesh(Geometry3D):
         # use the centroid of each triangle weighted by
         # the area of the triangle to find the overall centroid
         try:
-            centroid = np.average(
-                self.triangles_center, weights=self.area_faces, axis=0
-            )
+            centroid = np.average(self.triangles_center, weights=self.area_faces, axis=0)
         except BaseException:
             # if all triangles are zero-area weights will not work
             centroid = self.triangles_center.mean(axis=0)
@@ -1212,11 +1204,7 @@ class Trimesh(Geometry3D):
         # make sure mask is a numpy array
         mask = np.asanyarray(mask)
 
-        if (
-            (mask.dtype.name == "bool" and mask.all())
-            or len(mask) == 0
-            or self.is_empty
-        ):
+        if (mask.dtype.name == "bool" and mask.all()) or len(mask) == 0 or self.is_empty:
             # mask doesn't remove any vertices so exit early
             return
 
@@ -1534,9 +1522,7 @@ class Trimesh(Geometry3D):
         radii : (len(self.face_adjacency), ) float
           Approximate radius formed by triangle pair
         """
-        radii, self._cache["face_adjacency_span"] = graph.face_adjacency_radius(
-            mesh=self
-        )
+        radii, self._cache["face_adjacency_span"] = graph.face_adjacency_radius(mesh=self)
         return radii
 
     @caching.cache_decorator
@@ -1842,9 +1828,7 @@ class Trimesh(Geometry3D):
         edges = self.edges_sorted.reshape((-1, 6))
         # get the edges for each facet
         edges_facet = [edges[i].reshape((-1, 2)) for i in self.facets]
-        edges_boundary = [
-            i[grouping.group_rows(i, require_count=1)] for i in edges_facet
-        ]
+        edges_boundary = [i[grouping.group_rows(i, require_count=1)] for i in edges_facet]
         return edges_boundary
 
     @caching.cache_decorator
@@ -2886,46 +2870,17 @@ class Trimesh(Geometry3D):
             "faces": self.faces.tolist(),
         }
 
-    def convex_decomposition(self, maxhulls=20, **kwargs):
+    def convex_decomposition(self) -> List["Trimesh"]:
         """
-        Compute an approximate convex decomposition of a mesh.
-
-        testVHACD Parameters which can be passed as kwargs:
-
-        Name                                        Default
-        -----------------------------------------------------
-        resolution                                  100000
-        max. concavity                              0.001
-        plane down-sampling                         4
-        convex-hull down-sampling                   4
-        alpha                                       0.05
-        beta                                        0.05
-        maxhulls                                    10
-        pca                                         0
-        mode                                        0
-        max. vertices per convex-hull               64
-        min. volume to add vertices to convex-hulls 0.0001
-        convex-hull approximation                   1
-        OpenCL acceleration                         1
-        OpenCL platform ID                          0
-        OpenCL device ID                            0
-        output                                      output.wrl
-        log                                         log.txt
-
-
-        Parameters
-        ------------
-        maxhulls :  int
-          Maximum number of convex hulls to return
-        **kwargs :  testVHACD keyword arguments
+        Compute an approximate convex decomposition of a mesh
+        using `pip install pyVHACD`.
 
         Returns
         -------
-        meshes : list of trimesh.Trimesh
+        meshes
           List of convex meshes that approximate the original
         """
-        result = decomposition.convex_decomposition(self, maxhulls=maxhulls, **kwargs)
-        return result
+        return [Trimesh(**kwargs) for kwargs in decomposition.convex_decomposition(self)]
 
     def union(
         self, other: "Trimesh", engine: Optional[str] = None, **kwargs

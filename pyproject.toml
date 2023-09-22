@@ -97,7 +97,8 @@ recommend = [
     "psutil",
     "xatlas",
     "scikit-image",
-    "python-fcl"
+    "python-fcl",
+    "pyVHACD",
 ]
 
 # requires pip >= 21.2
