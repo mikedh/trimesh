@@ -19,11 +19,11 @@ _eps = 1e-5
 
 class Material(util.ABC):
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError('must be subclassed!')
+        raise NotImplementedError("must be subclassed!")
 
     @abc.abstractmethod
     def __hash__(self):
-        raise NotImplementedError('must be subclassed!')
+        raise NotImplementedError("must be subclassed!")
 
     @abc.abstractproperty
     def main_color(self):
@@ -38,9 +38,9 @@ class Material(util.ABC):
 
     @property
     def name(self):
-        if hasattr(self, '_name'):
+        if hasattr(self, "_name"):
             return self._name
-        return 'material_0'
+        return "material_0"
 
     @name.setter
     def name(self, value):
@@ -55,14 +55,15 @@ class SimpleMaterial(Material):
     Hold a single image texture.
     """
 
-    def __init__(self,
-                 image=None,
-                 diffuse=None,
-                 ambient=None,
-                 specular=None,
-                 glossiness=None,
-                 **kwargs):
-
+    def __init__(
+        self,
+        image=None,
+        diffuse=None,
+        ambient=None,
+        specular=None,
+        glossiness=None,
+        **kwargs,
+    ):
         # save image
         self.image = image
 
@@ -108,11 +109,13 @@ class SimpleMaterial(Material):
             name = self.name
 
         # create an MTL file
-        mtl = [f'newmtl {name}',
-               'Ka {:0.8f} {:0.8f} {:0.8f}'.format(*Ka),
-               'Kd {:0.8f} {:0.8f} {:0.8f}'.format(*Kd),
-               'Ks {:0.8f} {:0.8f} {:0.8f}'.format(*Ks),
-               f'Ns {self.glossiness:0.8f}']
+        mtl = [
+            f"newmtl {name}",
+            "Ka {:0.8f} {:0.8f} {:0.8f}".format(*Ka),
+            "Kd {:0.8f} {:0.8f} {:0.8f}".format(*Kd),
+            "Ks {:0.8f} {:0.8f} {:0.8f}".format(*Ks),
+            f"Ns {self.glossiness:0.8f}",
+        ]
 
         # collect the OBJ data into files
         data = {}
@@ -121,10 +124,10 @@ class SimpleMaterial(Material):
             image_type = self.image.format
             # what is the name of the export image to save
             if image_type is None:
-                image_type = 'png'
-            image_name = f'{name}.{image_type.lower()}'
+                image_type = "png"
+            image_name = f"{name}.{image_type.lower()}"
             # save the reference to the image
-            mtl.append(f'map_Kd {image_name}')
+            mtl.append(f"map_Kd {image_name}")
 
             # save the image texture as bytes in the original format
             f_obj = util.BytesIO()
@@ -132,7 +135,7 @@ class SimpleMaterial(Material):
             f_obj.seek(0)
             data[image_name] = f_obj.read()
 
-        data[f'{name}.mtl'] = '\n'.join(mtl).encode('utf-8')
+        data[f"{name}.mtl"] = "\n".join(mtl).encode("utf-8")
 
         return data, name
 
@@ -146,7 +149,7 @@ class SimpleMaterial(Material):
         hash : int
           Hash of image and parameters
         """
-        if hasattr(self.image, 'tobytes'):
+        if hasattr(self.image, "tobytes"):
             # start with hash of raw image bytes
             hashed = hash(self.image.tobytes())
         else:
@@ -155,11 +158,11 @@ class SimpleMaterial(Material):
         # we will add additional parameters with
         # an in-place xor of the additional value
         # if stored as numpy arrays add parameters
-        if hasattr(self.ambient, 'tobytes'):
+        if hasattr(self.ambient, "tobytes"):
             hashed ^= hash(self.ambient.tobytes())
-        if hasattr(self.diffuse, 'tobytes'):
+        if hasattr(self.diffuse, "tobytes"):
             hashed ^= hash(self.diffuse.tobytes())
-        if hasattr(self.specular, 'tobytes'):
+        if hasattr(self.specular, "tobytes"):
             hashed ^= hash(self.specular.tobytes())
         if isinstance(self.glossiness, float):
             hashed ^= hash(int(self.glossiness * 1000))
@@ -174,7 +177,7 @@ class SimpleMaterial(Material):
 
     @property
     def glossiness(self):
-        if hasattr(self, '_glossiness'):
+        if hasattr(self, "_glossiness"):
             return self._glossiness
         return 1.0
 
@@ -197,9 +200,11 @@ class SimpleMaterial(Material):
         # convert specular exponent to roughness
         roughness = (2 / (self.glossiness + 2)) ** (1.0 / 4.0)
 
-        return PBRMaterial(roughnessFactor=roughness,
-                           baseColorTexture=self.image,
-                           baseColorFactor=self.diffuse)
+        return PBRMaterial(
+            roughnessFactor=roughness,
+            baseColorTexture=self.image,
+            baseColorFactor=self.diffuse,
+        )
 
 
 class MultiMaterial(Material):
@@ -221,8 +226,7 @@ class MultiMaterial(Material):
         """
         TODO : IMPLEMENT
         """
-        pbr = [m for m in self.materials
-               if isinstance(m, PBRMaterial)]
+        pbr = [m for m in self.materials if isinstance(m, PBRMaterial)]
         if len(pbr) == 0:
             return PBRMaterial()
         return pbr[0]
@@ -237,8 +241,7 @@ class MultiMaterial(Material):
         hash : int
           Xor hash of the contained materials.
         """
-        hashed = int(np.bitwise_xor.reduce(
-            [hash(m) for m in self.materials]))
+        hashed = int(np.bitwise_xor.reduce([hash(m) for m in self.materials]))
 
         return hashed
 
@@ -298,22 +301,23 @@ class PBRMaterial(Material):
     Parameters with `Texture` in them must be PIL.Image objects
     """
 
-    def __init__(self,
-                 name=None,
-                 emissiveFactor=None,
-                 emissiveTexture=None,
-                 baseColorFactor=None,
-                 metallicFactor=None,
-                 roughnessFactor=None,
-                 normalTexture=None,
-                 occlusionTexture=None,
-                 baseColorTexture=None,
-                 metallicRoughnessTexture=None,
-                 doubleSided=False,
-                 alphaMode=None,
-                 alphaCutoff=None,
-                 **kwargs):
-
+    def __init__(
+        self,
+        name=None,
+        emissiveFactor=None,
+        emissiveTexture=None,
+        baseColorFactor=None,
+        metallicFactor=None,
+        roughnessFactor=None,
+        normalTexture=None,
+        occlusionTexture=None,
+        baseColorTexture=None,
+        metallicRoughnessTexture=None,
+        doubleSided=False,
+        alphaMode=None,
+        alphaCutoff=None,
+        **kwargs,
+    ):
         # store values in an internal dict
         self._data = {}
 
@@ -343,8 +347,8 @@ class PBRMaterial(Material):
 
         if len(kwargs) > 0:
             util.log.debug(
-                'unsupported material keys: {}'.format(
-                    ', '.join(kwargs.keys())))
+                "unsupported material keys: {}".format(", ".join(kwargs.keys()))
+            )
 
     @property
     def emissiveFactor(self):
@@ -359,19 +363,19 @@ class PBRMaterial(Material):
            Ech element in the array MUST be greater than
            or equal to 0 and less than or equal to 1.
         """
-        return self._data.get('emissiveFactor')
+        return self._data.get("emissiveFactor")
 
     @emissiveFactor.setter
     def emissiveFactor(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('emissiveFactor', None)
+            self._data.pop("emissiveFactor", None)
         else:
             # non-None values must be a floating point
             emissive = np.array(value, dtype=np.float64).reshape(3)
             if emissive.min() < -_eps or emissive.max() > (1 + _eps):
-                raise ValueError('all factors must be between 0.0-1.0')
-            self._data['emissiveFactor'] = emissive
+                raise ValueError("all factors must be between 0.0-1.0")
+            self._data["emissiveFactor"] = emissive
 
     @property
     def alphaMode(self):
@@ -385,19 +389,19 @@ class PBRMaterial(Material):
         alphaMode : str
           One of 'OPAQUE', 'MASK', 'BLEND'
         """
-        return self._data.get('alphaMode')
+        return self._data.get("alphaMode")
 
     @alphaMode.setter
     def alphaMode(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('alphaMode', None)
+            self._data.pop("alphaMode", None)
         else:
             # non-None values must be one of three values
             value = str(value).upper().strip()
-            if value not in ['OPAQUE', 'MASK', 'BLEND']:
-                raise ValueError('incorrect alphaMode: %s', value)
-            self._data['alphaMode'] = value
+            if value not in ["OPAQUE", "MASK", "BLEND"]:
+                raise ValueError("incorrect alphaMode: %s", value)
+            self._data["alphaMode"] = value
 
     @property
     def alphaCutoff(self):
@@ -415,15 +419,15 @@ class PBRMaterial(Material):
         alphaCutoff : float
           Value of cutoff.
         """
-        return self._data.get('alphaCutoff')
+        return self._data.get("alphaCutoff")
 
     @alphaCutoff.setter
     def alphaCutoff(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('alphaCutoff', None)
+            self._data.pop("alphaCutoff", None)
         else:
-            self._data['alphaCutoff'] = float(value)
+            self._data["alphaCutoff"] = float(value)
 
     @property
     def doubleSided(self):
@@ -435,15 +439,15 @@ class PBRMaterial(Material):
         doubleSided : bool
           Specifies whether the material is double sided.
         """
-        return self._data.get('doubleSided')
+        return self._data.get("doubleSided")
 
     @doubleSided.setter
     def doubleSided(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('doubleSided', None)
+            self._data.pop("doubleSided", None)
         else:
-            self._data['doubleSided'] = bool(value)
+            self._data["doubleSided"] = bool(value)
 
     @property
     def metallicFactor(self):
@@ -458,15 +462,15 @@ class PBRMaterial(Material):
         metallicFactor : float
           How metally is the material
         """
-        return self._data.get('metallicFactor')
+        return self._data.get("metallicFactor")
 
     @metallicFactor.setter
     def metallicFactor(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('metallicFactor', None)
+            self._data.pop("metallicFactor", None)
         else:
-            self._data['metallicFactor'] = float(value)
+            self._data["metallicFactor"] = float(value)
 
     @property
     def roughnessFactor(self):
@@ -480,15 +484,15 @@ class PBRMaterial(Material):
         roughnessFactor : float
           Roughness of material.
         """
-        return self._data.get('roughnessFactor')
+        return self._data.get("roughnessFactor")
 
     @roughnessFactor.setter
     def roughnessFactor(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('roughnessFactor', None)
+            self._data.pop("roughnessFactor", None)
         else:
-            self._data['roughnessFactor'] = float(value)
+            self._data["roughnessFactor"] = float(value)
 
     @property
     def baseColorFactor(self):
@@ -502,16 +506,16 @@ class PBRMaterial(Material):
         color : (4,) uint8
           RGBA color
         """
-        return self._data.get('baseColorFactor')
+        return self._data.get("baseColorFactor")
 
     @baseColorFactor.setter
     def baseColorFactor(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('baseColorFactor', None)
+            self._data.pop("baseColorFactor", None)
         else:
             # non-None values must be RGBA color
-            self._data['baseColorFactor'] = color.to_rgba(value)
+            self._data["baseColorFactor"] = color.to_rgba(value)
 
     @property
     def normalTexture(self):
@@ -523,15 +527,15 @@ class PBRMaterial(Material):
         image : PIL.Image
           Normal texture.
         """
-        return self._data.get('normalTexture')
+        return self._data.get("normalTexture")
 
     @normalTexture.setter
     def normalTexture(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('normalTexture', None)
+            self._data.pop("normalTexture", None)
         else:
-            self._data['normalTexture'] = value
+            self._data["normalTexture"] = value
 
     @property
     def emissiveTexture(self):
@@ -543,15 +547,15 @@ class PBRMaterial(Material):
         image : PIL.Image
           Emissive texture.
         """
-        return self._data.get('emissiveTexture')
+        return self._data.get("emissiveTexture")
 
     @emissiveTexture.setter
     def emissiveTexture(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('emissiveTexture', None)
+            self._data.pop("emissiveTexture", None)
         else:
-            self._data['emissiveTexture'] = value
+            self._data["emissiveTexture"] = value
 
     @property
     def occlusionTexture(self):
@@ -563,15 +567,15 @@ class PBRMaterial(Material):
         image : PIL.Image
           Occlusion texture.
         """
-        return self._data.get('occlusionTexture')
+        return self._data.get("occlusionTexture")
 
     @occlusionTexture.setter
     def occlusionTexture(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('occlusionTexture', None)
+            self._data.pop("occlusionTexture", None)
         else:
-            self._data['occlusionTexture'] = value
+            self._data["occlusionTexture"] = value
 
     @property
     def baseColorTexture(self):
@@ -583,16 +587,16 @@ class PBRMaterial(Material):
         image : PIL.Image
           Color texture.
         """
-        return self._data.get('baseColorTexture')
+        return self._data.get("baseColorTexture")
 
     @baseColorTexture.setter
     def baseColorTexture(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('baseColorTexture', None)
+            self._data.pop("baseColorTexture", None)
         else:
             # non-None values must be RGBA color
-            self._data['baseColorTexture'] = value
+            self._data["baseColorTexture"] = value
 
     @property
     def metallicRoughnessTexture(self):
@@ -604,27 +608,27 @@ class PBRMaterial(Material):
         image : PIL.Image
           Metallic-roughness texture.
         """
-        return self._data.get('metallicRoughnessTexture')
+        return self._data.get("metallicRoughnessTexture")
 
     @metallicRoughnessTexture.setter
     def metallicRoughnessTexture(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('metallicRoughnessTexture', None)
+            self._data.pop("metallicRoughnessTexture", None)
         else:
-            self._data['metallicRoughnessTexture'] = value
+            self._data["metallicRoughnessTexture"] = value
 
     @property
     def name(self):
-        return self._data.get('name')
+        return self._data.get("name")
 
     @name.setter
     def name(self, value):
         if value is None:
             # passing none effectively removes value
-            self._data.pop('name', None)
+            self._data.pop("name", None)
         else:
-            self._data['name'] = value
+            self._data["name"] = value
 
     def copy(self):
         # doing a straight deepcopy fails due to PIL images
@@ -633,7 +637,7 @@ class PBRMaterial(Material):
         for k, v in self._data.items():
             if v is None:
                 continue
-            if hasattr(v, 'copy'):
+            if hasattr(v, "copy"):
                 # use an objects explicit copy if available
                 kwargs[k] = v.copy()
             else:
@@ -655,8 +659,7 @@ class PBRMaterial(Material):
         -------------
         colors
         """
-        colors = color.uv_to_color(
-            uv=uv, image=self.baseColorTexture)
+        colors = color.uv_to_color(uv=uv, image=self.baseColorTexture)
         if colors is None and self.baseColorFactor is not None:
             colors = self.baseColorFactor.copy()
         return colors
@@ -672,8 +675,7 @@ class PBRMaterial(Material):
           Contains material information in a simple manner
         """
 
-        return SimpleMaterial(image=self.baseColorTexture,
-                              diffuse=self.baseColorFactor)
+        return SimpleMaterial(image=self.baseColorTexture, diffuse=self.baseColorFactor)
 
     @property
     def main_color(self):
@@ -691,9 +693,11 @@ class PBRMaterial(Material):
         hash : int
           Hash of image and parameters
         """
-        return hash(b''.join(
-            np.asanyarray(v).tobytes()
-            for v in self._data.values() if v is not None))
+        return hash(
+            b"".join(
+                np.asanyarray(v).tobytes() for v in self._data.values() if v is not None
+            )
+        )
 
 
 def empty_material(color=None):
@@ -717,15 +721,21 @@ def empty_material(color=None):
 
     final = np.array([255, 255, 255, 255], dtype=np.uint8)
     if np.shape(color) in ((3,), (4,)):
-        final[:len(color)] = color
+        final[: len(color)] = color
 
     # create a one pixel RGB image
     image = Image.fromarray(final.reshape((1, 1, 4)).astype(np.uint8))
     return SimpleMaterial(image=image)
 
 
-def pack(materials, uvs, deduplicate=True, padding=1,
-         max_tex_size_individual=8192, max_tex_size_fused=8192):
+def pack(
+    materials,
+    uvs,
+    deduplicate=True,
+    padding=1,
+    max_tex_size_individual=8192,
+    max_tex_size_fused=8192,
+):
     """
     Pack multiple materials with texture into a single material.
 
@@ -794,24 +804,26 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                 mode = img.mode
                 img = np.array(img)
                 if mat.alphaMode == "MASK":
-                    img[...,3] = np.where(img[...,3] > mat.alphaCutoff*255, 255, 0)
+                    img[..., 3] = np.where(img[..., 3] > mat.alphaCutoff * 255, 255, 0)
                 elif mat.alphaMode == "OPAQUE" or mat.alphaMode is None:
                     if "A" in mode:
-                        img[...,3] = 255
+                        img[..., 3] = 255
                 img = Image.fromarray(img, mode)
-        elif getattr(mat, 'image', None) is not None:
+        elif getattr(mat, "image", None) is not None:
             img = mat.image
-        elif np.shape(getattr(mat, 'diffuse', [])) == (4,):
+        elif np.shape(getattr(mat, "diffuse", [])) == (4,):
             # return a one pixel image
-            img = Image.fromarray(np.reshape(
-                color.to_rgba(mat.diffuse), (1, 1, 4)).astype(np.uint8))
+            img = Image.fromarray(
+                np.reshape(color.to_rgba(mat.diffuse), (1, 1, 4)).astype(np.uint8)
+            )
 
         if img is None:
             # return a one pixel image
-            img = Image.fromarray(np.reshape(
-                [100, 100, 100, 255], (1, 1, 4)).astype(np.uint8))
+            img = Image.fromarray(
+                np.reshape([100, 100, 100, 255], (1, 1, 4)).astype(np.uint8)
+            )
         # make sure we're always returning in RGBA mode
-        return img.convert('RGBA')
+        return img.convert("RGBA")
 
     def get_metallic_roughness_texture(mat):
         """
@@ -828,27 +840,35 @@ def pack(materials, uvs, deduplicate=True, padding=1,
 
                 if len(img.shape) == 2 or img.shape[-1] == 1:
                     img = img.reshape(*img.shape[:2], 1)
-                    img = np.concatenate([img,
-                                          np.ones_like(img[..., :1])*255,
-                                          np.zeros_like(img[..., :1])],
-                                          axis=-1)
+                    img = np.concatenate(
+                        [
+                            img,
+                            np.ones_like(img[..., :1]) * 255,
+                            np.zeros_like(img[..., :1]),
+                        ],
+                        axis=-1,
+                    )
                 elif img.shape[-1] == 2:
                     img = np.concatenate([img, np.zeros_like(img[..., :1])], axis=-1)
 
                 if mat.metallicFactor is not None:
-                    img[..., 0] = np.round(img[..., 0].astype(np.float64) *
-                                           mat.metallicFactor).astype(np.uint8)
+                    img[..., 0] = np.round(
+                        img[..., 0].astype(np.float64) * mat.metallicFactor
+                    ).astype(np.uint8)
                 if mat.roughnessFactor is not None:
-                    img[..., 1] = np.round(img[..., 1].astype(np.float64) *
-                                           mat.roughnessFactor).astype(np.uint8)
-                img = Image.fromarray(img, mode='RGB')
+                    img[..., 1] = np.round(
+                        img[..., 1].astype(np.float64) * mat.roughnessFactor
+                    ).astype(np.uint8)
+                img = Image.fromarray(img, mode="RGB")
             else:
                 metallic = 0.0 if mat.metallicFactor is None else mat.metallicFactor
                 roughness = 1.0 if mat.roughnessFactor is None else mat.roughnessFactor
                 metallic_roughnesss = np.round(
-                    np.array([metallic, roughness, 0.0], dtype=np.float64) * 255)
+                    np.array([metallic, roughness, 0.0], dtype=np.float64) * 255
+                )
                 img = Image.fromarray(
-                    metallic_roughnesss[None, None].astype(np.uint8), mode='RGB')
+                    metallic_roughnesss[None, None].astype(np.uint8), mode="RGB"
+                )
         return img
 
     def get_emissive_texture(mat):
@@ -864,21 +884,20 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                 c = color.to_rgba(mat.emissiveFactor)
                 img = Image.fromarray(c.reshape((1, 1, -1)))
             else:
-                img = Image.fromarray(np.reshape(
-                    [0, 0, 0], (1, 1, 3)).astype(np.uint8))
+                img = Image.fromarray(np.reshape([0, 0, 0], (1, 1, 3)).astype(np.uint8))
         # make sure we're always returning in RGBA mode
-        return img.convert('RGB')
+        return img.convert("RGB")
 
     def get_normal_texture(mat):
         # there is no default normal texture
-        return getattr(mat, 'normalTexture', None)
+        return getattr(mat, "normalTexture", None)
 
     def get_occlusion_texture(mat):
-        occlusion_texture = getattr(mat, 'occlusionTexture', None)
+        occlusion_texture = getattr(mat, "occlusionTexture", None)
         if occlusion_texture is None:
             occlusion_texture = Image.fromarray(np.array([[255]], dtype=np.uint8))
         else:
-            occlusion_texture = occlusion_texture.convert('L')
+            occlusion_texture = occlusion_texture.convert("L")
         return occlusion_texture
 
     def pad_image(src, padding=1):
@@ -886,8 +905,10 @@ def pack(materials, uvs, deduplicate=True, padding=1,
 
         if isinstance(padding, int):
             padding = (padding, padding)
-        x, y = np.meshgrid(np.arange(
-            src.shape[1] + 2 * padding[0]), np.arange(src.shape[0] + 2 * padding[1]))
+        x, y = np.meshgrid(
+            np.arange(src.shape[1] + 2 * padding[0]),
+            np.arange(src.shape[0] + 2 * padding[1]),
+        )
         x -= padding[0]
         y -= padding[1]
         x = np.clip(x, 0, src.shape[1] - 1)
@@ -910,13 +931,12 @@ def pack(materials, uvs, deduplicate=True, padding=1,
         # random seed needs to be identical to achieve same results
         # TODO: we could alternatively reuse the offsets from the first packing call
         np.random.seed(random_seed)
-        return packing.images(images, power_resize=power_resize)
+        return packing.images(images, deduplicate=True, power_resize=power_resize)
 
     if deduplicate:
         # start by collecting a list of indexes for each material hash
         unique_idx = collections.defaultdict(list)
-        [unique_idx[hash(m)].append(i)
-         for i, m in enumerate(materials)]
+        [unique_idx[hash(m)].append(i) for i, m in enumerate(materials)]
         # now we only need the indexes and don't care about the hashes
         mat_idx = list(unique_idx.values())
     else:
@@ -942,15 +962,16 @@ def pack(materials, uvs, deduplicate=True, padding=1,
         if use_pbr:
             # if we have PBR materials, collect all possible textures and
             # determine the largest size per material
-            metallic_roughness = [get_metallic_roughness_texture(
-                materials[g[0]]) for g in mat_idx]
+            metallic_roughness = [
+                get_metallic_roughness_texture(materials[g[0]]) for g in mat_idx
+            ]
             emissive = [get_emissive_texture(materials[g[0]]) for g in mat_idx]
             normals = [get_normal_texture(materials[g[0]]) for g in mat_idx]
             occlusion = [get_occlusion_texture(materials[g[0]]) for g in mat_idx]
 
             unpadded_sizes = []
             for textures in zip(images, metallic_roughness, emissive, normals, occlusion):
-                 # remove None textures
+                # remove None textures
                 textures = [tex for tex in textures if tex is not None]
                 tex_sizes = np.stack([np.array(tex.size) for tex in textures])
                 max_tex_size = tex_sizes.max(axis=0)
@@ -978,16 +999,17 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                 unpadded_sizes.append(tex_size)
 
         images = [
-            Image.fromarray(pad_image(np.array(img), padding), img.mode)
-            for img in images
+            Image.fromarray(pad_image(np.array(img), padding), img.mode) for img in images
         ]
 
         # pack the multiple images into a single large image
         final, offsets = pack_images(images)
 
         # if the final image is too large, reduce the maximum texture size and repeat
-        if max_tex_size_fused is not None and \
-            final.size[0] * final.size[1] > max_tex_size_fused**2:
+        if (
+            max_tex_size_fused is not None
+            and final.size[0] * final.size[1] > max_tex_size_fused**2
+        ):
             down_scale_iterations -= 1
             max_tex_size_individual //= 2
         else:
@@ -995,10 +1017,9 @@ def pack(materials, uvs, deduplicate=True, padding=1,
 
     if use_pbr:
         metallic_roughness = [
-            Image.fromarray(
-                pad_image(
-                    np.array(img),
-                    padding), img.mode) for img in metallic_roughness]
+            Image.fromarray(pad_image(np.array(img), padding), img.mode)
+            for img in metallic_roughness
+        ]
         # even if we only need the first two channels, store RGB, because
         # PIL 'LA' mode images are interpreted incorrectly in other 3D software
         final_metallic_roughness, _ = pack_images(metallic_roughness)
@@ -1009,22 +1030,18 @@ def pack(materials, uvs, deduplicate=True, padding=1,
             final_emissive = None
         else:
             emissive = [
-                Image.fromarray(
-                    pad_image(
-                        np.array(img),
-                        padding),
-                    mode=img.mode) for img in emissive]
+                Image.fromarray(pad_image(np.array(img), padding), mode=img.mode)
+                for img in emissive
+            ]
             final_emissive, _ = pack_images(emissive)
 
         if all(n is not None for n in normals):
             # only use normal texture if all materials use them
             # how else would you handle missing normals?
             normals = [
-                Image.fromarray(
-                    pad_image(
-                        np.array(img),
-                        padding),
-                    mode=img.mode) for img in normals]
+                Image.fromarray(pad_image(np.array(img), padding), mode=img.mode)
+                for img in normals
+            ]
             final_normals, _ = pack_images(normals)
         else:
             final_normals = None
@@ -1032,15 +1049,12 @@ def pack(materials, uvs, deduplicate=True, padding=1,
         if any(np.array(o).min() < 255 for o in occlusion):
             # only use occlusion texture if any material actually has an occlusion value
             occlusion = [
-                Image.fromarray(
-                    pad_image(
-                        np.array(img),
-                        padding),
-                    mode=img.mode) for img in occlusion]
+                Image.fromarray(pad_image(np.array(img), padding), mode=img.mode)
+                for img in occlusion
+            ]
             final_occlusion, _ = pack_images(occlusion)
         else:
             final_occlusion = None
-
 
     # the size of the final texture image
     final_size = np.array(final.size, dtype=np.float64)
@@ -1060,10 +1074,12 @@ def pack(materials, uvs, deduplicate=True, padding=1,
             # the case of uv==1.0
             half_pixel_width = 1.0 / (2 * img.size[0])
             half_pixel_height = 1.0 / (2 * img.size[1])
-            wrap_mask_u = ((g_uvs[:, 0] <= -half_pixel_width) |
-                           (g_uvs[:, 0] >= (1.0 + half_pixel_width)))
-            wrap_mask_v = ((g_uvs[:, 1] <= -half_pixel_height) |
-                           (g_uvs[:, 1] >= (1.0 + half_pixel_height)))
+            wrap_mask_u = (g_uvs[:, 0] <= -half_pixel_width) | (
+                g_uvs[:, 0] >= (1.0 + half_pixel_width)
+            )
+            wrap_mask_v = (g_uvs[:, 1] <= -half_pixel_height) | (
+                g_uvs[:, 1] >= (1.0 + half_pixel_height)
+            )
             wrap_mask = np.stack([wrap_mask_u, wrap_mask_v], axis=-1)
 
             g_uvs[wrap_mask] = g_uvs[wrap_mask] % 1.0
@@ -1079,7 +1095,8 @@ def pack(materials, uvs, deduplicate=True, padding=1,
         material_textures = [(get_base_color_texture, final)]
         if use_pbr:
             material_textures.append(
-                (get_metallic_roughness_texture, final_metallic_roughness))
+                (get_metallic_roughness_texture, final_metallic_roughness)
+            )
             if final_emissive:
                 material_textures.append((get_emissive_texture, final_emissive))
             if final_normals:
@@ -1104,8 +1121,7 @@ def pack(materials, uvs, deduplicate=True, padding=1,
 
         for reference, (_, final_texture) in zip(check_flat, material_textures):
             # get the pixel color from the packed image
-            compare = color.uv_to_interpolated_color(
-                uv=stacked, image=final_texture)
+            compare = color.uv_to_interpolated_color(uv=stacked, image=final_texture)
             # should be exactly identical
             # note this is only true for simple colors
             # interpolation on complicated stuff can break this
@@ -1118,11 +1134,12 @@ def pack(materials, uvs, deduplicate=True, padding=1,
                 metallicRoughnessTexture=final_metallic_roughness,
                 emissiveTexture=final_emissive,
                 emissiveFactor=[1.0, 1.0, 1.0] if final_emissive else None,
-                alphaMode=None, # unfortunately, we can't handle alpha blending well
-                doubleSided=False, # TODO how to handle this?
+                alphaMode=None,  # unfortunately, we can't handle alpha blending well
+                doubleSided=False,  # TODO how to handle this?
                 normalTexture=final_normals,
                 occlusionTexture=final_occlusion,
             ),
-            stacked)
+            stacked,
+        )
     else:
         return SimpleMaterial(image=final), stacked
