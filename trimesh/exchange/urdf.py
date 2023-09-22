@@ -3,7 +3,6 @@ import os
 import numpy as np
 
 from ..constants import log, tol
-from ..decomposition import convex_decomposition
 from ..version import __version__
 
 
@@ -53,9 +52,7 @@ def export_urdf(mesh,
 
     # Perform a convex decomposition
     try:
-        convex_pieces = convex_decomposition(mesh, **kwargs)
-        if not isinstance(convex_pieces, list):
-            convex_pieces = [convex_pieces]
+        convex_pieces = mesh.convex_decomposition()
     except BaseException:
         log.error('problem with convex decomposition, using hull',
                   exc_info=True)
