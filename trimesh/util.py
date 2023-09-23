@@ -69,6 +69,24 @@ def has_module(name):
     return pkgutil.find_loader(name) is not None
 
 
+try:
+    import rtree
+
+    # some versions of rtree screw up indexes on stream loading
+    # do a test here so we know if we are free to use stream loading
+    assert (
+        next(
+            rtree.index.Index(
+                [(1564, [0, 0, 0, 10, 10, 10], None)],
+                properties=rtree.index.Property(dimension=3),
+            ).intersection([1, 1, 1, 2, 2, 2])
+        )
+        == 1564
+    )
+except BaseException as E:
+    rtree = E
+
+
 def unitize(vectors, check_valid=False, threshold=None):
     """
     Unitize a vector or an array or row-vectors.
@@ -1745,9 +1763,6 @@ def bounds_tree(bounds):
     tree : Rtree
       Tree containing bounds by index
     """
-    # rtree is a soft dependency
-    import rtree
-
     # make sure we've copied bounds
     bounds = np.array(bounds, dtype=np.float64, copy=True)
     if len(bounds.shape) == 3:
@@ -1765,29 +1780,11 @@ def bounds_tree(bounds):
         raise ValueError("Bounds must be (n,dimension*2)!")
     dimension = int(dimension / 2)
 
-    # some versions of rtree screw up indexes on stream loading
-    # do a test here so we know if we are free to use stream loading
-    # or if we have to do a loop to insert things which is 5x slower
-    rtree_test = rtree.index.Index(
-        [(1564, [0, 0, 0, 10, 10, 10], None)],
-        properties=rtree.index.Property(dimension=3),
-    )
-    rtree_stream_ok = next(rtree_test.intersection([1, 1, 1, 2, 2, 2])) == 1564
-
     properties = rtree.index.Property(dimension=dimension)
-    if rtree_stream_ok:
-        # stream load was verified working on import above
-        tree = rtree.index.Index(
-            zip(np.arange(len(bounds)), bounds, [None] * len(bounds)),
-            properties=properties,
-        )
-    else:
-        # in some rtree versions stream loading goofs the index
-        log.warning("rtree stream loading broken! Try upgrading rtree!")
-        tree = rtree.index.Index(properties=properties)
-        for i, b in enumerate(bounds):
-            tree.insert(i, b)
-    return tree
+    # stream load was verified working on import above
+    return rtree.index.Index(
+        zip(np.arange(len(bounds)), bounds, [None] * len(bounds)), properties=properties
+    )
 
 
 def wrap_as_stream(item):

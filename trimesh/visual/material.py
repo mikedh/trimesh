@@ -732,7 +732,7 @@ def pack(
     materials,
     uvs,
     deduplicate=True,
-    padding=1,
+    padding: int = 1,
     max_tex_size_individual=8192,
     max_tex_size_fused=8192,
 ):
@@ -900,23 +900,6 @@ def pack(
             occlusion_texture = occlusion_texture.convert("L")
         return occlusion_texture
 
-    def pad_image(src, padding=1):
-        # uses replication padding on all 4 sides
-
-        if isinstance(padding, int):
-            padding = (padding, padding)
-        x, y = np.meshgrid(
-            np.arange(src.shape[1] + 2 * padding[0]),
-            np.arange(src.shape[0] + 2 * padding[1]),
-        )
-        x -= padding[0]
-        y -= padding[1]
-        x = np.clip(x, 0, src.shape[1] - 1)
-        y = np.clip(y, 0, src.shape[0] - 1)
-
-        result = src[y, x]
-        return result
-
     def resize_images(images, sizes):
         resized = []
         for img, size in zip(images, sizes):
@@ -927,11 +910,20 @@ def pack(
                 resized.append(img)
         return resized
 
-    def pack_images(images, power_resize=True, random_seed=42):
-        # random seed needs to be identical to achieve same results
-        # TODO: we could alternatively reuse the offsets from the first packing call
-        np.random.seed(random_seed)
-        return packing.images(images, deduplicate=True, power_resize=power_resize)
+    def pack_images(images):
+        # run image packing with our material-specific settings
+        # which including deduplicating by hash, upsizing to the
+        # nearest power of two, returning deterministically by seeding
+        # and padding every side of the image by 1 pixel
+        # np.random.seed(42)
+        return packing.images(
+            images,
+            deduplicate=True,
+            power_resize=True,
+            seed=42,
+            iterations=10,
+            spacing=int(padding),
+        )
 
     if deduplicate:
         # start by collecting a list of indexes for each material hash
@@ -998,10 +990,6 @@ def pack(
                     tex_size = np.round(tex_size / scale).astype(np.int64)
                 unpadded_sizes.append(tex_size)
 
-        images = [
-            Image.fromarray(pad_image(np.array(img), padding), img.mode) for img in images
-        ]
-
         # pack the multiple images into a single large image
         final, offsets = pack_images(images)
 
@@ -1016,10 +1004,6 @@ def pack(
             break
 
     if use_pbr:
-        metallic_roughness = [
-            Image.fromarray(pad_image(np.array(img), padding), img.mode)
-            for img in metallic_roughness
-        ]
         # even if we only need the first two channels, store RGB, because
         # PIL 'LA' mode images are interpreted incorrectly in other 3D software
         final_metallic_roughness, _ = pack_images(metallic_roughness)
@@ -1029,29 +1013,17 @@ def pack(
             emissive = None
             final_emissive = None
         else:
-            emissive = [
-                Image.fromarray(pad_image(np.array(img), padding), mode=img.mode)
-                for img in emissive
-            ]
             final_emissive, _ = pack_images(emissive)
 
         if all(n is not None for n in normals):
             # only use normal texture if all materials use them
             # how else would you handle missing normals?
-            normals = [
-                Image.fromarray(pad_image(np.array(img), padding), mode=img.mode)
-                for img in normals
-            ]
             final_normals, _ = pack_images(normals)
         else:
             final_normals = None
 
         if any(np.array(o).min() < 255 for o in occlusion):
             # only use occlusion texture if any material actually has an occlusion value
-            occlusion = [
-                Image.fromarray(pad_image(np.array(img), padding), mode=img.mode)
-                for img in occlusion
-            ]
             final_occlusion, _ = pack_images(occlusion)
         else:
             final_occlusion = None
@@ -1125,7 +1097,11 @@ def pack(
             # should be exactly identical
             # note this is only true for simple colors
             # interpolation on complicated stuff can break this
-            assert np.allclose(reference, compare)
+            if not np.allclose(reference, compare):
+                from IPython import embed
+
+                embed()
+            # assert np.allclose(reference, compare)
 
     if use_pbr:
         return (

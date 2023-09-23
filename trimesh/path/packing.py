@@ -4,6 +4,8 @@ packing.py
 
 Pack rectangular regions onto larger rectangular regions.
 """
+from typing import Optional
+
 import numpy as np
 
 from ..constants import log, tol
@@ -158,7 +160,7 @@ def _roll(a, count):
         return np.concatenate([a[-count:], a[:-count]])
 
 
-def rectangles_single(extents, size=None, shuffle=False, rotate=True):
+def rectangles_single(extents, size=None, shuffle=False, rotate=True, random=None):
     """
     Execute a single insertion order of smaller rectangles onto
     a larger rectangle using a binary space partition tree.
@@ -198,8 +200,11 @@ def rectangles_single(extents, size=None, shuffle=False, rotate=True):
     order = np.argsort(extents.max(axis=1))[::-1]
 
     if shuffle:
-        # reorder with permutations
-        order = np.random.permutation(order)
+        if random is not None:
+            order = random.permutation(order)
+        else:
+            # reorder with permutations
+            order = np.random.permutation(order)
 
     if size is None:
         # if no bounds are passed start it with the size of a large
@@ -407,10 +412,11 @@ def rectangles(
     extents,
     size=None,
     density_escape=0.99,
-    spacing=0.0,
+    spacing=None,
     iterations=50,
     rotate=True,
     quanta=None,
+    seed=None,
 ):
     """
     Run multiple iterations of rectangle packing, this is the
@@ -426,13 +432,15 @@ def rectangles(
     density_escape : float
       Exit early if rectangular density is above this threshold.
     spacing : float
-      Distance to allow between rect
+      Distance to allow between rectangles
     iterations : int
       Number of iterations to run
     rotate : bool
       Allow right angle rotations or not.
     quanta : None or float
       Discrete "snap" interval.
+    seed
+      If deterministic results are needed seed the RNG here.
 
     Returns
     ---------
@@ -444,8 +452,10 @@ def rectangles(
     # copy extents and make sure they are floats
     extents = np.array(extents, dtype=np.float64)
     dim = extents.shape[1]
-    # add on any requested spacing
-    extents += spacing * 2.0
+
+    if spacing is not None:
+        # add on any requested spacing
+        extents += spacing * 2.0
 
     # hyper-volume: area in 2D, volume in 3D, party in 4D
     area = np.prod(extents, axis=1)
@@ -454,11 +464,16 @@ def rectangles(
     # how many rect were inserted
     best_count = 0
 
+    if seed is None:
+        random = None
+    else:
+        random = np.random.default_rng(seed=seed)
+
     for i in range(iterations):
         # run a single insertion order
         # don't shuffle the first run, shuffle subsequent runs
         bounds, insert = rectangles_single(
-            extents=extents, size=size, shuffle=(i != 0), rotate=rotate
+            extents=extents, size=size, shuffle=(i != 0), rotate=rotate, random=random
         )
 
         count = insert.sum()
@@ -482,16 +497,23 @@ def rectangles(
             if density > density_escape and insert.all():
                 break
 
-    if spacing > 1e-12:
+    if spacing is not None:
         # shrink the bounds by spacing
         result[0] += [[[spacing], [-spacing]]]
 
-    log.debug(f"packed with density {best_density:0.5f}")
+    log.debug(f"{iterations} iterations packed with density {best_density:0.3f}")
 
     return result
 
 
-def images(images, power_resize: bool = False, deduplicate: bool = False):
+def images(
+    images,
+    power_resize: bool = False,
+    deduplicate: bool = False,
+    iterations: Optional[int] = 50,
+    seed: Optional[int] = None,
+    spacing: Optional[float] = None,
+):
     """
     Pack a list of images and return result and offsets.
 
@@ -504,6 +526,8 @@ def images(images, power_resize: bool = False, deduplicate: bool = False):
       power of two? Not every GPU supports materials that
       aren't a power of two size.
     deduplicate
+      Should images that have identical hashes be inserted
+      more than once?
 
     Returns
     -----------
@@ -520,20 +544,38 @@ def images(images, power_resize: bool = False, deduplicate: bool = False):
             [hash(i.tobytes()) for i in images], return_index=True, return_inverse=True
         )
         # use the number of pixels as the rectangle size
-        bounds, insert = rectangles(extents=[images[i].size for i in index], rotate=False)
+        bounds, insert = rectangles(
+            extents=[images[i].size for i in index],
+            rotate=False,
+            iterations=iterations,
+            seed=seed,
+            spacing=spacing,
+        )
         # really should have inserted all the rect
         assert insert.all()
-        # re-index back to original indexes
+        # re-index bounds back to original indexes
         bounds = bounds[inverse]
+        assert np.allclose(bounds.ptp(axis=1), [i.size for i in images])
     else:
         # use the number of pixels as the rectangle size
-        bounds, insert = rectangles(extents=[i.size for i in images], rotate=False)
+        bounds, insert = rectangles(
+            extents=[i.size for i in images],
+            rotate=False,
+            iterations=iterations,
+            seed=seed,
+            spacing=spacing,
+        )
         # really should have inserted all the rect
         assert insert.all()
 
+    if spacing is None:
+        spacing = 0
+    else:
+        spacing = int(spacing)
+
     # offsets should be integer multiple of pizels
     offset = bounds[:, 0].round().astype(int)
-    extents = bounds.reshape((-1, 2)).ptp(axis=0)
+    extents = bounds.reshape((-1, 2)).ptp(axis=0) + (spacing * 2)
     size = extents.round().astype(int)
     if power_resize:
         # round up all dimensions to powers of 2
@@ -541,8 +583,14 @@ def images(images, power_resize: bool = False, deduplicate: bool = False):
 
     # create the image in the mode of the first image
     result = Image.new(images[0].mode, tuple(size))
+
+    done = set()
     # paste each image into the result
     for img, off in zip(images, offset):
+        if tuple(off) in done:
+            continue
+        else:
+            done.add(tuple(off))
         # box is upper left corner
         corner = (off[0], size[1] - img.size[1] - off[1])
         result.paste(img, box=corner)
