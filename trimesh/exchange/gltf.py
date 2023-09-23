@@ -383,11 +383,21 @@ def load_glb(
 
     # read the binary data referred to by GLTF as 'buffers'
     buffers = []
-    for buffer_info in header["buffers"]:
-        # if they have interleaved URI data with GLB data handle it here
-        if "uri" in buffer_info:
-            buffers.append(_uri_to_bytes(uri=buffer_info["uri"], resolver=resolver))
+    start = file_obj.tell()
+
+    # header can contain base64 encoded data in the URI field
+    info = header.get("buffers", []).copy()
+
+    while (file_obj.tell() - start) < length:
+        # if we have buffer infos with URI check it here
+        try:
+            # if they have interleaved URI data with GLB data handle it here
+            uri = info.pop(0)["uri"]
+            buffers.append(_uri_to_bytes(uri=uri, resolver=resolver))
             continue
+        except (IndexError, KeyError):
+            # if there was no buffer info or URI we still need to read
+            pass
 
         # the last read put us past the JSON chunk
         # we now read the chunk header, which is 8 bytes
