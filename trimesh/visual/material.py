@@ -780,8 +780,11 @@ def pack(
         """
         if factor is None:
             return img.convert(mode)
-        img = np.array(img.convert(mode))
-        img = np.round(img.astype(np.float64) * factor).astype(np.uint8)
+        img = (
+            (np.array(img.convert(mode), dtype=np.float64) * factor)
+            .round()
+            .astype(np.uint8)
+        )
         return Image.fromarray(img, mode=mode)
 
     def get_base_color_texture(mat):
@@ -1032,11 +1035,11 @@ def pack(
     final_size = np.array(final.size, dtype=np.float64)
     # collect scaled new UV coordinates by material index
     new_uv = {}
-    for group, img, off in zip(mat_idx, images, offsets):
+    for group, img, offset in zip(mat_idx, images, offsets):
         # how big was the original image
-        scale = (np.array(img.size) - 1 - 2 * padding) / (final_size - 1)
+        scale_uv = img.size / final_size
         # what is the offset in fractions of final image
-        xy_off = (off + padding) / (final_size - 1)
+        offset_uv = offset / final.size
         # scale and translate each of the new UV coordinates
         # also make sure they are in 0.0-1.0 using modulus (i.e. wrap)
         for g in group:
@@ -1044,6 +1047,7 @@ def pack(
             # only wrap pixels that are outside of 0.0-1.0.
             # use a small leeway of half a pixel for floating point inaccuracies and
             # the case of uv==1.0
+            """"
             half_pixel_width = 1.0 / (2 * img.size[0])
             half_pixel_height = 1.0 / (2 * img.size[1])
             wrap_mask_u = (g_uvs[:, 0] <= -half_pixel_width) | (
@@ -1056,6 +1060,10 @@ def pack(
 
             g_uvs[wrap_mask] = g_uvs[wrap_mask] % 1.0
             new_uv[g] = (g_uvs * scale) + xy_off
+            """
+            moved = (uvs[g] * scale_uv) + offset_uv
+            moved[np.logical_or(moved < -0.001, moved > 1.001)] %= 1.0
+            new_uv[g] = moved
 
     # stack the new UV coordinates in the original order
     stacked = np.vstack([new_uv[i] for i in range(len(uvs))])
