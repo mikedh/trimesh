@@ -43,6 +43,7 @@ from .exceptions import ExceptionWrapper
 from .exchange.export import export_mesh
 from .parent import Geometry3D
 from .scene import Scene
+from .triangles import MassProperties
 from .typed import ArrayLike, NDArray
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
@@ -617,7 +618,7 @@ class Trimesh(Geometry3D):
         center_mass : (3, ) float
            Volumetric center of mass of the mesh.
         """
-        return self.mass_properties["center_mass"]
+        return self.mass_properties.center_mass
 
     @center_mass.setter
     def center_mass(self, value):
@@ -636,26 +637,25 @@ class Trimesh(Geometry3D):
         self._cache.delete("mass_properties")
 
     @property
-    def density(self):
+    def density(self) -> float:
         """
         The density of the mesh used in inertia calculations.
 
         Returns
         -----------
-        density : float
+        density
           The density of the primitive.
         """
-        density = self.mass_properties["density"]
-        return density
+        return self.mass_properties.density
 
     @density.setter
-    def density(self, value):
+    def density(self, value: float):
         """
         Set the density of the primitive.
 
         Parameters
         -------------
-        density : float
+        density
           Specify the density of the primitive to be
           used in inertia calculations.
         """
@@ -674,8 +674,7 @@ class Trimesh(Geometry3D):
         volume : float
           Volume of the current mesh
         """
-        volume = self.mass_properties["volume"]
-        return volume
+        return self.mass_properties.volume
 
     @property
     def mass(self) -> float64:
@@ -688,8 +687,7 @@ class Trimesh(Geometry3D):
         mass : float
           Mass of the current mesh
         """
-        mass = self.mass_properties["mass"]
-        return mass
+        return self.mass_properties.mass
 
     @property
     def moment_inertia(self) -> NDArray[float64]:
@@ -707,8 +705,7 @@ class Trimesh(Geometry3D):
           Moment of inertia of the current mesh at the center of
           mass and aligned with the cartesian axis.
         """
-        inertia = self.mass_properties["inertia"]
-        return inertia
+        return self.mass_properties.inertia
 
     def moment_inertia_frame(self, transform: NDArray[float64]) -> NDArray[float64]:
         """
@@ -2695,11 +2692,10 @@ class Trimesh(Geometry3D):
         area_faces : (n, ) float
           Area of each face
         """
-        area_faces = triangles.area(crosses=self.triangles_cross, sum=False)
-        return area_faces
+        return triangles.area(crosses=self.triangles_cross, sum=False)
 
     @caching.cache_decorator
-    def mass_properties(self) -> triangles.MassProperties:
+    def mass_properties(self) -> MassProperties:
         """
         Returns the mass properties of the current mesh.
 
@@ -3025,19 +3021,19 @@ class Trimesh(Geometry3D):
 
         Returns
         --------
-        tree: rtree.index
+        tree
           Where each edge in self.face_adjacency has a
           rectangular cell
         """
         # the (n,6) interleaved bounding box for every line segment
-        segment_bounds = np.column_stack(
-            (
-                self.vertices[self.face_adjacency_edges].min(axis=1),
-                self.vertices[self.face_adjacency_edges].max(axis=1),
+        return util.bounds_tree(
+            np.column_stack(
+                (
+                    self.vertices[self.face_adjacency_edges].min(axis=1),
+                    self.vertices[self.face_adjacency_edges].max(axis=1),
+                )
             )
         )
-        tree = util.bounds_tree(segment_bounds)
-        return tree
 
     def copy(self, include_cache: bool = False) -> "Trimesh":
         """
@@ -3089,7 +3085,7 @@ class Trimesh(Geometry3D):
         # interpret shallow copy as "keep cached data"
         return self.copy(include_cache=True)
 
-    def eval_cached(self, statement, *args):
+    def eval_cached(self, statement: str, *args):
         """
         Evaluate a statement and cache the result before returning.
 
@@ -3111,9 +3107,11 @@ class Trimesh(Geometry3D):
         r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0, 0, 1])
         """
 
-        statement = str(statement)
-        key = "eval_cached_" + statement
-        key += "_".join(str(i) for i in args)
+        # store this by the combined hash of statement and args
+        hashable = [hash(statement)]
+        hashable.extend(hash(a) for a in args)
+
+        key = f"eval_cached_{hash(tuple(hashable))}"
 
         if key in self._cache:
             return self._cache[key]

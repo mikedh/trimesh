@@ -1036,11 +1036,11 @@ def pack(
     new_uv = {}
     for group, img, offset in zip(mat_idx, images, offsets):
         # how big was the original image
-        scale = (np.array(img.size)) / (final_size)
+        uv_scale = np.array(img.size) / final_size
         # the units of offset are *pixels of the final image*
         # thus to scale them to normalized UV coordinates we
         # what is the offset in fractions of final image
-        offset / final_size
+        uv_offset = offset / final_size
         # scale and translate each of the new UV coordinates
         # also make sure they are in 0.0-1.0 using modulus (i.e. wrap)
         for g in group:
@@ -1062,7 +1062,7 @@ def pack(
             g_uvs[wrap_mask] = g_uvs[wrap_mask] % 1.0
             new_uv[g] = (g_uvs * scale) + xy_off
             """
-            moved = (uvs[g] * scale_uv) + offset_uv
+            moved = (uvs[g] * uv_scale) + uv_offset
             moved[np.logical_or(moved < -0.00001, moved > 1.00001)] %= 1.0
             new_uv[g] = moved
 
