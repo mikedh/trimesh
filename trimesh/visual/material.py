@@ -918,7 +918,6 @@ def pack(
         # which including deduplicating by hash, upsizing to the
         # nearest power of two, returning deterministically by seeding
         # and padding every side of the image by 1 pixel
-        # np.random.seed(42)
         return packing.images(
             images,
             deduplicate=True,
@@ -1037,13 +1036,15 @@ def pack(
     new_uv = {}
     for group, img, offset in zip(mat_idx, images, offsets):
         # how big was the original image
-        scale_uv = img.size / final_size
+        scale = (np.array(img.size)) / (final_size)
+        # the units of offset are *pixels of the final image*
+        # thus to scale them to normalized UV coordinates we
         # what is the offset in fractions of final image
-        offset_uv = offset / final.size
+        offset / final_size
         # scale and translate each of the new UV coordinates
         # also make sure they are in 0.0-1.0 using modulus (i.e. wrap)
         for g in group:
-            g_uvs = uvs[g].copy()
+            uvs[g].copy()
             # only wrap pixels that are outside of 0.0-1.0.
             # use a small leeway of half a pixel for floating point inaccuracies and
             # the case of uv==1.0
@@ -1062,7 +1063,7 @@ def pack(
             new_uv[g] = (g_uvs * scale) + xy_off
             """
             moved = (uvs[g] * scale_uv) + offset_uv
-            moved[np.logical_or(moved < -0.001, moved > 1.001)] %= 1.0
+            moved[np.logical_or(moved < -0.00001, moved > 1.00001)] %= 1.0
             new_uv[g] = moved
 
     # stack the new UV coordinates in the original order
@@ -1106,10 +1107,10 @@ def pack(
             # note this is only true for simple colors
             # interpolation on complicated stuff can break this
             if not np.allclose(reference, compare):
-                from IPython import embed
-
-                embed()
-            # assert np.allclose(reference, compare)
+                # from IPython import embed
+                # embed()
+                pass
+            assert np.allclose(reference, compare)
 
     if use_pbr:
         return (

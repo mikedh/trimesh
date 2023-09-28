@@ -308,10 +308,12 @@ class GLTFTest(g.unittest.TestCase):
         # test that we can load a GLTF with specular/glossiness material without textures
         s = g.get_mesh("pbr_cubes_emissive_spec_gloss.zip")
 
-        assert all(isinstance(m.visual.material, g.trimesh.visual.material.PBRMaterial)
-                   for m in s.geometry.values())
+        assert all(
+            isinstance(m.visual.material, g.trimesh.visual.material.PBRMaterial)
+            for m in s.geometry.values()
+        )
 
-        spec_gloss_mat = s.geometry['Cube.005'].visual.material
+        spec_gloss_mat = s.geometry["Cube.005"].visual.material
         # this is a special case, because color is only coming from specular.
         # the diffuse value is black
         assert g.np.allclose(spec_gloss_mat.baseColorFactor, [254, 194, 85, 255], atol=1)

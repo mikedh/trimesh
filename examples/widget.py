@@ -31,7 +31,7 @@ def create_scene():
     # plane
     geom = trimesh.creation.box((0.5, 0.5, 0.01))
     geom.apply_translation((0, 0, -0.005))
-    geom.visual.face_colors = (.6, .6, .6)
+    geom.visual.face_colors = (0.6, 0.6, 0.6)
     scene.add_geometry(geom)
 
     # axis
@@ -42,27 +42,24 @@ def create_scene():
 
     # box1
     geom = trimesh.creation.box((box_size,) * 3)
-    geom.visual.face_colors = np.random.uniform(
-        0, 1, (len(geom.faces), 3))
+    geom.visual.face_colors = np.random.uniform(0, 1, (len(geom.faces), 3))
     transform = tf.translation_matrix([0.1, 0.1, box_size / 2])
     scene.add_geometry(geom, transform=transform)
 
     # box2
     geom = trimesh.creation.box((box_size,) * 3)
-    geom.visual.face_colors = np.random.uniform(
-        0, 1, (len(geom.faces), 3))
+    geom.visual.face_colors = np.random.uniform(0, 1, (len(geom.faces), 3))
     transform = tf.translation_matrix([-0.1, 0.1, box_size / 2])
     scene.add_geometry(geom, transform=transform)
 
     # fuze
-    geom = trimesh.load(str(here / '../models/fuze.obj'))
+    geom = trimesh.load(str(here / "../models/fuze.obj"))
     transform = tf.translation_matrix([-0.1, -0.1, 0])
     scene.add_geometry(geom, transform=transform)
 
     # sphere
     geom = trimesh.creation.icosphere(radius=0.05)
-    geom.visual.face_colors = np.random.uniform(
-        0, 1, (len(geom.faces), 3))
+    geom.visual.face_colors = np.random.uniform(0, 1, (len(geom.faces), 3))
     transform = tf.translation_matrix([0.1, -0.1, box_size / 2])
     scene.add_geometry(geom, transform=transform)
 
@@ -104,7 +101,7 @@ class Application:
 
         gui.add(hbox)
 
-        pyglet.clock.schedule_interval(self.callback, 1. / 20)
+        pyglet.clock.schedule_interval(self.callback, 1.0 / 20)
         pyglet.app.run()
 
     def callback(self, dt):
@@ -121,28 +118,22 @@ class Application:
             self.scene_widget2._draw()
 
         # change image
-        image = np.random.randint(0,
-                                  255,
-                                  (self.height - 10, self.width // 3 - 10, 3),
-                                  dtype=np.uint8)
+        image = np.random.randint(
+            0, 255, (self.height - 10, self.width // 3 - 10, 3), dtype=np.uint8
+        )
         with io.BytesIO() as f:
-            PIL.Image.fromarray(image).save(f, format='JPEG')
+            PIL.Image.fromarray(image).save(f, format="JPEG")
             self.image_widget.image = pyglet.image.load(filename=None, file=f)
 
     def _create_window(self, width, height):
         try:
-            config = pyglet.gl.Config(sample_buffers=1,
-                                      samples=4,
-                                      depth_size=24,
-                                      double_buffer=True)
-            window = pyglet.window.Window(config=config,
-                                          width=width,
-                                          height=height)
+            config = pyglet.gl.Config(
+                sample_buffers=1, samples=4, depth_size=24, double_buffer=True
+            )
+            window = pyglet.window.Window(config=config, width=width, height=height)
         except pyglet.window.NoSuchConfigException:
             config = pyglet.gl.Config(double_buffer=True)
-            window = pyglet.window.Window(config=config,
-                                          width=width,
-                                          height=height)
+            window = pyglet.window.Window(config=config, width=width, height=height)
 
         @window.event
         def on_key_press(symbol, modifiers):
@@ -153,6 +144,6 @@ class Application:
         return window
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     np.random.seed(0)
     Application()

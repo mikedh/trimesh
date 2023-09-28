@@ -18,6 +18,7 @@ try:
     from scipy.spatial import ConvexHull
 except ImportError as E:
     from .exceptions import ExceptionWrapper
+
     ConvexHull = ExceptionWrapper(E)
 
 try:
@@ -26,7 +27,7 @@ except BaseException:
     QhullError = BaseException
 
 
-def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
+def convex_hull(obj, qhull_options="QbB Pp Qt", repair=True):
     """
     Get a new Trimesh object representing the convex hull of the
     current mesh attempting to return a watertight mesh with correct
@@ -55,16 +56,14 @@ def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
         # will remove subclassing
         points = np.asarray(obj, dtype=np.float64)
         if not util.is_shape(points, (-1, 3)):
-            raise ValueError('Object must be Trimesh or (n,3) points!')
+            raise ValueError("Object must be Trimesh or (n,3) points!")
 
     try:
         hull = ConvexHull(points, qhull_options=qhull_options)
     except QhullError:
-        util.log.debug(
-            'Failed to compute convex hull: retrying with `QJ`',
-            exc_info=True)
+        util.log.debug("Failed to compute convex hull: retrying with `QJ`", exc_info=True)
         # try with "joggle" enabled
-        hull = ConvexHull(points, qhull_options='QJ')
+        hull = ConvexHull(points, qhull_options="QJ")
 
     # hull object doesn't remove unreferenced vertices
     # create a mask to re- index faces for only referenced vertices
@@ -78,10 +77,7 @@ def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
 
     if not repair:
         # create the Trimesh object for the convex hull
-        return Trimesh(vertices=vertices,
-                       faces=faces,
-                       process=True,
-                       validate=False)
+        return Trimesh(vertices=vertices, faces=faces, process=True, validate=False)
 
     # qhull returns faces with random winding
     # calculate the returned normal of each face
@@ -103,9 +99,7 @@ def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
     # should have a positive dot product with the normal of that face
     # if it doesn't it is probably backwards
     # note that this sometimes gets screwed up by precision issues
-    centroid = np.average(triangles_center,
-                          weights=triangles_area,
-                          axis=0)
+    centroid = np.average(triangles_center, weights=triangles_area, axis=0)
     # a vector from the centroid to a point on each face
     test_vector = triangles_center - centroid
     # check the projection against face normals
@@ -117,18 +111,22 @@ def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
     normals[backwards] *= -1.0
 
     # save the work we did to the cache so it doesn't have to be recomputed
-    initial_cache = {'triangles_cross': crosses,
-                     'triangles_center': triangles_center,
-                     'area_faces': triangles_area,
-                     'centroid': centroid}
+    initial_cache = {
+        "triangles_cross": crosses,
+        "triangles_center": triangles_center,
+        "area_faces": triangles_area,
+        "centroid": centroid,
+    }
 
     # create the Trimesh object for the convex hull
-    convex = Trimesh(vertices=vertices,
-                     faces=faces,
-                     face_normals=normals,
-                     initial_cache=initial_cache,
-                     process=True,
-                     validate=False)
+    convex = Trimesh(
+        vertices=vertices,
+        faces=faces,
+        face_normals=normals,
+        initial_cache=initial_cache,
+        process=True,
+        validate=False,
+    )
 
     # we did the gross case above, but sometimes precision issues
     # leave some faces backwards anyway
@@ -139,8 +137,7 @@ def convex_hull(obj, qhull_options='QbB Pp Qt', repair=True):
     # sometimes the QbB option will cause precision issues
     # so try the hull again without it and
     # check for qhull_options is None to avoid infinite recursion
-    if (qhull_options is not None and
-            not convex.is_winding_consistent):
+    if qhull_options is not None and not convex.is_winding_consistent:
         return convex_hull(convex, qhull_options=None)
 
     return convex
@@ -218,7 +215,7 @@ def is_convex(mesh):
     return convex
 
 
-def hull_points(obj, qhull_options='QbB Pp'):
+def hull_points(obj, qhull_options="QbB Pp"):
     """
     Try to extract a convex set of points from multiple input formats.
 
@@ -232,12 +229,12 @@ def hull_points(obj, qhull_options='QbB Pp'):
     --------
     points: (o,d) convex set of points
     """
-    if hasattr(obj, 'convex_hull'):
+    if hasattr(obj, "convex_hull"):
         return obj.convex_hull.vertices
 
     initial = np.asanyarray(obj, dtype=np.float64)
     if len(initial.shape) != 2:
-        raise ValueError('points must be (n, dimension)!')
+        raise ValueError("points must be (n, dimension)!")
     hull = ConvexHull(initial, qhull_options=qhull_options)
     points = hull.points[hull.vertices]
 

@@ -8,24 +8,22 @@ except BaseException:
 
 
 class MeshTests(g.unittest.TestCase):
-
     def test_meshes(self):
         # make sure we can load everything we think we can
         formats = g.trimesh.available_formats()
         assert all(isinstance(i, str) for i in formats)
         assert all(len(i) > 0 for i in formats)
-        assert all(i in formats
-                   for i in ['stl', 'ply', 'off', 'obj'])
+        assert all(i in formats for i in ["stl", "ply", "off", "obj"])
 
         for mesh in g.get_meshes(raise_error=True):
             # log file name for debugging
-            file_name = mesh.metadata['file_name']
+            file_name = mesh.metadata["file_name"]
 
             # ply files can return PointCloud objects
-            if file_name.startswith('points_'):
+            if file_name.startswith("points_"):
                 continue
 
-            g.log.info('Testing %s', file_name)
+            g.log.info("Testing %s", file_name)
             start = {mesh.__hash__(), mesh.__hash__()}
             assert len(mesh.faces) > 0
             assert len(mesh.vertices) > 0
@@ -46,8 +44,8 @@ class MeshTests(g.unittest.TestCase):
             # check edges_unique
             assert len(mesh.edges) == len(mesh.edges_unique_inverse)
             assert g.np.allclose(
-                mesh.edges_sorted,
-                mesh.edges_unique[mesh.edges_unique_inverse])
+                mesh.edges_sorted, mesh.edges_unique[mesh.edges_unique_inverse]
+            )
             assert len(mesh.edges_unique) == len(mesh.edges_unique_length)
 
             # euler number should be an integer
@@ -66,8 +64,7 @@ class MeshTests(g.unittest.TestCase):
             # still shouldn't have changed anything
             assert start == {mesh.__hash__(), mesh.__hash__()}
 
-            if not (mesh.is_watertight and
-                    mesh.is_winding_consistent):
+            if not (mesh.is_watertight and mesh.is_winding_consistent):
                 continue
 
             assert len(mesh.facets) == len(mesh.facets_area)
@@ -85,22 +82,23 @@ class MeshTests(g.unittest.TestCase):
 
             assert abs(mesh.volume) > 0.0
 
-            section = mesh.section(plane_normal=[0, 0, 1],  # NOQA
-                                   plane_origin=mesh.centroid)
+            mesh.section(
+                plane_normal=[0, 0, 1], plane_origin=mesh.centroid
+            )
 
             sample = mesh.sample(1000)
             even_sample = g.trimesh.sample.sample_surface_even(mesh, 100)  # NOQA
             assert sample.shape == (1000, 3)
-            g.log.info('finished testing meshes')
+            g.log.info("finished testing meshes")
 
             # make sure vertex kdtree and triangles rtree exist
 
             t = mesh.kdtree
-            assert hasattr(t, 'query')
-            g.log.info('Creating triangles tree')
+            assert hasattr(t, "query")
+            g.log.info("Creating triangles tree")
             r = mesh.triangles_tree
-            assert hasattr(r, 'intersection')
-            g.log.info('Triangles tree ok')
+            assert hasattr(r, "intersection")
+            g.log.info("Triangles tree ok")
 
             # face angles should have same
             assert mesh.face_angles.shape == mesh.faces.shape
@@ -118,26 +116,24 @@ class MeshTests(g.unittest.TestCase):
                     continue
 
                 # nothing in the cache should be writeable
-                if cached.flags['WRITEABLE']:
-                    raise ValueError(f'{name} is writeable!')
+                if cached.flags["WRITEABLE"]:
+                    raise ValueError(f"{name} is writeable!")
 
                 # only check int, float, and bool
-                if cached.dtype.kind not in 'ibf':
+                if cached.dtype.kind not in "ibf":
                     continue
 
                 # there should never be NaN values
                 if g.np.isnan(cached).any():
-                    raise ValueError('NaN values in %s/%s',
-                                     file_name, name)
+                    raise ValueError("NaN values in %s/%s", file_name, name)
 
                 # fields allowed to have infinite values
-                if name in ['face_adjacency_radius']:
+                if name in ["face_adjacency_radius"]:
                     continue
 
                 # make sure everything is finite
                 if not g.np.isfinite(cached).all():
-                    raise ValueError('inf values in %s/%s',
-                                     file_name, name)
+                    raise ValueError("inf values in %s/%s", file_name, name)
 
             # ...still shouldn't have changed anything
             assert start == {mesh.__hash__(), mesh.__hash__()}
@@ -146,10 +142,10 @@ class MeshTests(g.unittest.TestCase):
             if len(writeable) > 0:
                 # TODO : all cached values should be read-only
                 g.log.error(
-                    'cached properties writeable: {}'.format(
-                        ', '.join(writeable)))
+                    "cached properties writeable: {}".format(", ".join(writeable))
+                )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

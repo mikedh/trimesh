@@ -32,24 +32,27 @@ try:
 except BaseException as E:
     # raise a useful error if path hasn't loaded
     from .exceptions import ExceptionWrapper
+
     path = ExceptionWrapper(E)
 
-__all__ = ["__version__",
-           'Trimesh',
-           'PointCloud',
-           'Scene',
-           'voxel',
-           'unitize',
-           'bounds',
-           'nsphere',
-           'collision',
-           'smoothing',
-           'tol',
-           'path',
-           'load',
-           'load_mesh',
-           'load_path',
-           'load_remote',
-           'primitives',
-           'transform_points',
-           'available_formats']
+__all__ = [
+    "__version__",
+    "Trimesh",
+    "PointCloud",
+    "Scene",
+    "voxel",
+    "unitize",
+    "bounds",
+    "nsphere",
+    "collision",
+    "smoothing",
+    "tol",
+    "path",
+    "load",
+    "load_mesh",
+    "load_path",
+    "load_remote",
+    "primitives",
+    "transform_points",
+    "available_formats",
+]

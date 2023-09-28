@@ -17,9 +17,8 @@ from .. import util
 from ..base import Trimesh
 
 # find the executable for binvox in PATH
-binvox_encoder = util.which('binvox')
-Binvox = collections.namedtuple(
-    'Binvox', ['rle_data', 'shape', 'translate', 'scale'])
+binvox_encoder = util.which("binvox")
+Binvox = collections.namedtuple("Binvox", ["rle_data", "shape", "translate", "scale"])
 
 
 def parse_binvox_header(fp):
@@ -49,18 +48,16 @@ def parse_binvox_header(fp):
     """
 
     line = fp.readline().strip()
-    if hasattr(line, 'decode'):
-        binvox = b'#binvox'
-        space = b' '
+    if hasattr(line, "decode"):
+        binvox = b"#binvox"
+        space = b" "
     else:
-        binvox = '#binvox'
-        space = ' '
+        binvox = "#binvox"
+        space = " "
     if not line.startswith(binvox):
-        raise OSError('Not a binvox file')
-    shape = tuple(
-        int(s) for s in fp.readline().strip().split(space)[1:])
-    translate = tuple(
-        float(s) for s in fp.readline().strip().split(space)[1:])
+        raise OSError("Not a binvox file")
+    shape = tuple(int(s) for s in fp.readline().strip().split(space)[1:])
+    translate = tuple(float(s) for s in fp.readline().strip().split(space)[1:])
     scale = float(fp.readline().strip().split(space)[1])
     fp.readline()
     return shape, translate, scale
@@ -99,12 +96,12 @@ def parse_binvox(fp, writeable=False):
     return Binvox(rle_data, shape, translate, scale)
 
 
-_binvox_header = '''#binvox 1
+_binvox_header = """#binvox 1
 dim {sx} {sy} {sz}
 translate {tx} {ty} {tz}
 scale {scale}
 data
-'''
+"""
 
 
 def binvox_header(shape, translate, scale):
@@ -123,8 +120,7 @@ def binvox_header(shape, translate, scale):
     """
     sx, sy, sz = (int(s) for s in shape)
     tx, ty, tz = translate
-    return _binvox_header.format(
-        sx=sx, sy=sy, sz=sz, tx=tx, ty=ty, tz=tz, scale=scale)
+    return _binvox_header.format(sx=sx, sy=sy, sz=sz, tx=tx, ty=ty, tz=tz, scale=scale)
 
 
 def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
@@ -147,15 +143,13 @@ def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
       Suitable for writing to binary file
     """
     if rle_data.dtype != np.uint8:
-        raise ValueError(
-            "rle_data.dtype must be np.uint8, got %s" % rle_data.dtype)
+        raise ValueError("rle_data.dtype must be np.uint8, got %s" % rle_data.dtype)
 
     header = binvox_header(shape, translate, scale).encode()
     return header + rle_data.tobytes()
 
 
-def voxel_from_binvox(
-        rle_data, shape, translate=None, scale=1.0, axis_order='xzy'):
+def voxel_from_binvox(rle_data, shape, translate=None, scale=1.0, axis_order="xzy"):
     """
     Factory for building from data associated with binvox files.
 
@@ -196,28 +190,24 @@ def voxel_from_binvox(
     # translate = np.asanyarray(translate) * scale)
     # translate = [0, 0, 0]
     transform = transformations.scale_and_translate(
-        scale=scale / (np.array(shape) - 1),
-        translate=translate)
+        scale=scale / (np.array(shape) - 1), translate=translate
+    )
 
-    if axis_order == 'xzy':
+    if axis_order == "xzy":
         perm = (0, 2, 1)
         shape = tuple(shape[p] for p in perm)
         encoding = encoding.reshape(shape).transpose(perm)
-    elif axis_order is None or axis_order == 'xyz':
+    elif axis_order is None or axis_order == "xyz":
         encoding = encoding.reshape(shape)
     else:
-        raise ValueError(
-            "Invalid axis_order '%s': must be None, 'xyz' or 'xzy'")
+        raise ValueError("Invalid axis_order '%s': must be None, 'xyz' or 'xzy'")
 
     assert encoding.shape == shape
 
     return VoxelGrid(encoding, transform)
 
 
-def load_binvox(file_obj,
-                resolver=None,
-                axis_order='xzy',
-                file_type=None):
+def load_binvox(file_obj, resolver=None, axis_order="xzy", file_type=None):
     """
     Load trimesh `VoxelGrid` instance from file.
 
@@ -236,19 +226,19 @@ def load_binvox(file_obj,
     result : trimesh.voxel.VoxelGrid
       Loaded voxel data
     """
-    if file_type is not None and file_type != 'binvox':
-        raise ValueError(
-            'file_type must be None or binvox, got %s' % file_type)
+    if file_type is not None and file_type != "binvox":
+        raise ValueError("file_type must be None or binvox, got %s" % file_type)
     data = parse_binvox(file_obj, writeable=True)
     return voxel_from_binvox(
         rle_data=data.rle_data,
         shape=data.shape,
         translate=data.translate,
         scale=data.scale,
-        axis_order=axis_order)
+        axis_order=axis_order,
+    )
 
 
-def export_binvox(voxel, axis_order='xzy'):
+def export_binvox(voxel, axis_order="xzy"):
     """
     Export `trimesh.voxel.VoxelGrid` instance to bytes
 
@@ -269,19 +259,18 @@ def export_binvox(voxel, axis_order='xzy'):
     """
     translate = voxel.translation
     scale = voxel.scale * (np.array(voxel.shape) - 1)
-    neg_scale, = np.where(scale < 0)
+    (neg_scale,) = np.where(scale < 0)
     encoding = voxel.encoding.flip(neg_scale)
     scale = np.abs(scale)
     if not util.allclose(scale[0], scale[1:], 1e-6 * scale[0] + 1e-8):
-        raise ValueError('Can only export binvox with uniform scale')
+        raise ValueError("Can only export binvox with uniform scale")
     scale = scale[0]
-    if axis_order == 'xzy':
+    if axis_order == "xzy":
         encoding = encoding.transpose((0, 2, 1))
-    elif axis_order != 'xyz':
+    elif axis_order != "xyz":
         raise ValueError('Invalid axis_order: must be one of ("xyz", "xzy")')
     rle_data = encoding.flat.run_length_data(dtype=np.uint8)
-    return binvox_bytes(
-        rle_data, shape=voxel.shape, translate=translate, scale=scale)
+    return binvox_bytes(rle_data, shape=voxel.shape, translate=translate, scale=scale)
 
 
 class Binvoxer:
@@ -324,49 +313,50 @@ class Binvoxer:
     """
 
     SUPPORTED_INPUT_TYPES = (
-        'ug',
-        'obj',
-        'off',
-        'dfx',
-        'xgl',
-        'pov',
-        'brep',
-        'ply',
-        'jot',
+        "ug",
+        "obj",
+        "off",
+        "dfx",
+        "xgl",
+        "pov",
+        "brep",
+        "ply",
+        "jot",
     )
 
     SUPPORTED_OUTPUT_TYPES = (
-        'binvox',
-        'hips',
-        'mira',
-        'vtk',
-        'raw',
-        'schematic',
-        'msh',
+        "binvox",
+        "hips",
+        "mira",
+        "vtk",
+        "raw",
+        "schematic",
+        "msh",
     )
 
     def __init__(
-            self,
-            dimension=32,
-            file_type='binvox',
-            z_buffer_carving=True,
-            z_buffer_voting=True,
-            dilated_carving=False,
-            exact=True,
-            bounding_box=None,
-            remove_internal=False,
-            center=False,
-            rotate_x=0,
-            rotate_z=0,
-            wireframe=False,
-            fit=False,
-            block_id=None,
-            use_material_block_id=False,
-            use_offscreen_pbuffer=False,
-            downsample_factor=None,
-            downsample_threshold=None,
-            verbose=False,
-            binvox_path=None):
+        self,
+        dimension=32,
+        file_type="binvox",
+        z_buffer_carving=True,
+        z_buffer_voting=True,
+        dilated_carving=False,
+        exact=True,
+        bounding_box=None,
+        remove_internal=False,
+        center=False,
+        rotate_x=0,
+        rotate_z=0,
+        wireframe=False,
+        fit=False,
+        block_id=None,
+        use_material_block_id=False,
+        use_offscreen_pbuffer=False,
+        downsample_factor=None,
+        downsample_threshold=None,
+        verbose=False,
+        binvox_path=None,
+    ):
         """
         Configure the voxelizer.
 
@@ -421,65 +411,71 @@ class Binvoxer:
             encoder = binvox_path
 
         if encoder is None:
-            raise OSError(' '.join([
-                'No `binvox_path` provided and no binvox executable found',
-                'on PATH, please go to https://www.patrickmin.com/binvox/ and',
-                'download the appropriate version.']))
+            raise OSError(
+                " ".join(
+                    [
+                        "No `binvox_path` provided and no binvox executable found",
+                        "on PATH, please go to https://www.patrickmin.com/binvox/ and",
+                        "download the appropriate version.",
+                    ]
+                )
+            )
 
         if dimension > 1024 and not exact:
-            raise ValueError(
-                'Maximum dimension using exact is 1024, got %d' % dimension)
+            raise ValueError("Maximum dimension using exact is 1024, got %d" % dimension)
         if file_type not in Binvoxer.SUPPORTED_OUTPUT_TYPES:
             raise ValueError(
-                f'file_type {file_type} not in set of supported output types {str(Binvoxer.SUPPORTED_OUTPUT_TYPES)}')
-        args = [encoder, '-d', str(dimension), '-t', file_type]
+                f"file_type {file_type} not in set of supported output types {str(Binvoxer.SUPPORTED_OUTPUT_TYPES)}"
+            )
+        args = [encoder, "-d", str(dimension), "-t", file_type]
         if exact:
-            args.append('-e')
+            args.append("-e")
         if z_buffer_carving:
             if z_buffer_voting:
                 pass
             else:
-                args.append('-c')
+                args.append("-c")
         elif z_buffer_voting:
-            args.append('-v')
+            args.append("-v")
         else:
             raise ValueError(
-                'One of `z_buffer_carving` or `z_buffer_voting` must be True')
+                "One of `z_buffer_carving` or `z_buffer_voting` must be True"
+            )
         if dilated_carving:
-            args.append('-dc')
+            args.append("-dc")
 
         # Additional parameters
         if bounding_box is not None:
             if len(bounding_box) != 6:
-                raise ValueError('bounding_box must have 6 elements')
-            args.append('-bb')
+                raise ValueError("bounding_box must have 6 elements")
+            args.append("-bb")
             args.extend(str(b) for b in bounding_box)
         if remove_internal:
-            args.append('-ri')
+            args.append("-ri")
         if center:
-            args.append('-cb')
-        args.extend(('-rotx',) * rotate_x)
-        args.extend(('-rotz',) * rotate_z)
+            args.append("-cb")
+        args.extend(("-rotx",) * rotate_x)
+        args.extend(("-rotz",) * rotate_z)
         if wireframe:
-            args.append('-aw')
+            args.append("-aw")
         if fit:
-            args.append('-fit')
+            args.append("-fit")
         if block_id is not None:
-            args.extend(('-bi', block_id))
+            args.extend(("-bi", block_id))
         if use_material_block_id:
-            args.append('-mb')
+            args.append("-mb")
         if use_offscreen_pbuffer:
-            args.append('-pb')
+            args.append("-pb")
         if downsample_factor is not None:
             times = np.log2(downsample_factor)
             if int(times) != times:
                 raise ValueError(
-                    'downsample_factor must be a power of 2, got %d'
-                    % downsample_factor)
-            args.extend(('-down',) * int(times))
+                    "downsample_factor must be a power of 2, got %d" % downsample_factor
+                )
+            args.extend(("-down",) * int(times))
         if downsample_threshold is not None:
-            args.extend(('-dmin', str(downsample_threshold)))
-        args.append('PATH')
+            args.extend(("-dmin", str(downsample_threshold)))
+        args.append("PATH")
         self._args = args
         self._file_type = file_type
 
@@ -516,10 +512,11 @@ class Binvoxer:
         ext = ext[1:].lower()
         if ext not in Binvoxer.SUPPORTED_INPUT_TYPES:
             raise ValueError(
-                f'file_type {ext} not in set of supported input types {str(Binvoxer.SUPPORTED_INPUT_TYPES)}')
-        out_path = f'{head}.{self._file_type}'
+                f"file_type {ext} not in set of supported input types {str(Binvoxer.SUPPORTED_INPUT_TYPES)}"
+            )
+        out_path = f"{head}.{self._file_type}"
         if os.path.isfile(out_path) and not overwrite:
-            raise OSError('Attempted to voxelize object at existing path')
+            raise OSError("Attempted to voxelize object at existing path")
         self._args[-1] = path
 
         # generalizes to python2 and python3
@@ -533,10 +530,7 @@ class Binvoxer:
         return out_path
 
 
-def voxelize_mesh(mesh,
-                  binvoxer=None,
-                  export_type='off',
-                  **binvoxer_kwargs):
+def voxelize_mesh(mesh, binvoxer=None, export_type="off", **binvoxer_kwargs):
     """
     Interface for voxelizing Trimesh object via the binvox tool.
 
@@ -558,22 +552,21 @@ def voxelize_mesh(mesh,
     `VoxelGrid` object resulting.
     """
     if not isinstance(mesh, Trimesh):
-        raise ValueError('mesh must be Trimesh instance, got %s' % str(mesh))
+        raise ValueError("mesh must be Trimesh instance, got %s" % str(mesh))
     if binvoxer is None:
         binvoxer = Binvoxer(**binvoxer_kwargs)
     elif len(binvoxer_kwargs) > 0:
-        raise ValueError('Cannot provide binvoxer and binvoxer_kwargs')
-    if binvoxer.file_type != 'binvox':
-        raise ValueError(
-            'Only "binvox" binvoxer `file_type` currently supported')
+        raise ValueError("Cannot provide binvoxer and binvoxer_kwargs")
+    if binvoxer.file_type != "binvox":
+        raise ValueError('Only "binvox" binvoxer `file_type` currently supported')
     with TemporaryDirectory() as folder:
-        model_path = os.path.join(folder, 'model.%s' % export_type)
-        with open(model_path, 'wb') as fp:
+        model_path = os.path.join(folder, "model.%s" % export_type)
+        with open(model_path, "wb") as fp:
             mesh.export(fp, file_type=export_type)
         out_path = binvoxer(model_path)
-        with open(out_path, 'rb') as fp:
+        with open(out_path, "rb") as fp:
             out_model = load_binvox(fp)
     return out_model
 
 
-_binvox_loaders = {'binvox': load_binvox}
+_binvox_loaders = {"binvox": load_binvox}

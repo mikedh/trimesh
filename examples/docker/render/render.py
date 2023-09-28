@@ -2,7 +2,7 @@ from pyglet import gl
 
 import trimesh
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # print logged messages
     trimesh.util.attach_to_log()
 
@@ -16,12 +16,11 @@ if __name__ == '__main__':
     # set a GL config that fixes a depth buffer issue in xvfb
     window_conf = gl.Config(double_buffer=True, depth_size=24)
     # run the actual render call
-    png = scene.save_image(resolution=[1920, 1080],
-                           window_conf=window_conf)
+    png = scene.save_image(resolution=[1920, 1080], window_conf=window_conf)
 
     # the PNG is just bytes data
-    trimesh.util.log.info('rendered bytes:', len(png))
+    trimesh.util.log.info("rendered bytes:", len(png))
 
     # write the render to a volume we should have docker mounted
-    with open('/output/output.png', 'wb') as f:
+    with open("/output/output.png", "wb") as f:
         f.write(png)

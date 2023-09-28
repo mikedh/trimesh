@@ -8,8 +8,9 @@ import abc
 
 import numpy as np
 
-from . import caching
+from . import bounds, caching
 from . import transformations as tf
+from .constants import tol
 from .util import ABC
 
 
@@ -77,21 +78,19 @@ class Geometry(ABC):
           Human readable quick look at the geometry.
         """
         elements = []
-        if hasattr(self, 'vertices'):
+        if hasattr(self, "vertices"):
             # for Trimesh and PointCloud
-            elements.append(f'vertices.shape={self.vertices.shape}')
-        if hasattr(self, 'faces'):
+            elements.append(f"vertices.shape={self.vertices.shape}")
+        if hasattr(self, "faces"):
             # for Trimesh
-            elements.append(f'faces.shape={self.faces.shape}')
-        if hasattr(self, 'geometry') and isinstance(
-                self.geometry, dict):
+            elements.append(f"faces.shape={self.faces.shape}")
+        if hasattr(self, "geometry") and isinstance(self.geometry, dict):
             # for Scene
-            elements.append(f'len(geometry)={len(self.geometry)}')
-        if 'Voxel' in type(self).__name__:
+            elements.append(f"len(geometry)={len(self.geometry)}")
+        if "Voxel" in type(self).__name__:
             # for VoxelGrid objects
             elements.append(str(self.shape)[1:-1])
-        return '<trimesh.{}({})>'.format(
-            type(self).__name__, ', '.join(elements))
+        return "<trimesh.{}({})>".format(type(self).__name__, ", ".join(elements))
 
     def apply_translation(self, translation):
         """
@@ -105,10 +104,9 @@ class Geometry(ABC):
         translation = np.asanyarray(translation, dtype=np.float64)
         if translation.shape == (2,):
             # create a planar matrix if we were passed a 2D offset
-            return self.apply_transform(
-                tf.planar_matrix(offset=translation))
+            return self.apply_transform(tf.planar_matrix(offset=translation))
         elif translation.shape != (3,):
-            raise ValueError('Translation must be (3,) or (2,)!')
+            raise ValueError("Translation must be (3,) or (2,)!")
 
         # manually create a translation matrix
         matrix = np.eye(4)
@@ -177,9 +175,7 @@ class Geometry3D(Geometry):
         # translate to center of axis aligned bounds
         transform[:3, 3] = self.bounds.mean(axis=0)
 
-        aabb = primitives.Box(transform=transform,
-                              extents=self.extents,
-                              mutable=False)
+        aabb = primitives.Box(transform=transform, extents=self.extents, mutable=False)
         return aabb
 
     @caching.cache_decorator
@@ -195,10 +191,11 @@ class Geometry3D(Geometry):
           bounding box of the mesh
         """
         from . import bounds, primitives
+
         to_origin, extents = bounds.oriented_bounds(self)
-        obb = primitives.Box(transform=np.linalg.inv(to_origin),
-                             extents=extents,
-                             mutable=False)
+        obb = primitives.Box(
+            transform=np.linalg.inv(to_origin), extents=extents, mutable=False
+        )
         return obb
 
     @caching.cache_decorator
@@ -218,10 +215,9 @@ class Geometry3D(Geometry):
           Sphere primitive containing current mesh
         """
         from . import nsphere, primitives
+
         center, radius = nsphere.minimum_nsphere(self)
-        minball = primitives.Sphere(center=center,
-                                    radius=radius,
-                                    mutable=False)
+        minball = primitives.Sphere(center=center, radius=radius, mutable=False)
         return minball
 
     @caching.cache_decorator
@@ -235,6 +231,7 @@ class Geometry3D(Geometry):
           Cylinder primitive containing current mesh
         """
         from . import bounds, primitives
+
         kwargs = bounds.minimum_cylinder(self)
         mincyl = primitives.Cylinder(mutable=False, **kwargs)
         return mincyl
@@ -253,19 +250,26 @@ class Geometry3D(Geometry):
           trimesh.primitives.Box
           trimesh.primitives.Cylinder
         """
-        options = [self.bounding_box_oriented,
-                   self.bounding_sphere,
-                   self.bounding_cylinder]
+        options = [
+            self.bounding_box_oriented,
+            self.bounding_sphere,
+            self.bounding_cylinder,
+        ]
         volume_min = np.argmin([i.volume for i in options])
         bounding_primitive = options[volume_min]
         return bounding_primitive
 
-    def apply_obb(self):
+    def apply_obb(self, **kwargs):
         """
         Apply the oriented bounding box transform to the current mesh.
 
         This will result in a mesh with an AABB centered at the
         origin and the same dimensions as the OBB.
+
+        Parameters
+        ------------
+        kwargs
+          Passed through to `bounds.oriented_bounds`
 
         Returns
         ----------
@@ -273,7 +277,13 @@ class Geometry3D(Geometry):
           Transformation matrix that was applied
           to mesh to move it into OBB frame
         """
-        matrix = self.bounding_box_oriented.primitive.transform
-        matrix = np.linalg.inv(matrix)
-        self.apply_transform(matrix)
+        if tol.strict:
+            # in strict mode make sure volume is identical
+            check = self.volume
+            matrix = bounds.oriented_bounds(self, **kwargs)
+            assert np.isclose(check, self.volume)
+        else:
+            # calculate the oriented bounding box
+            matrix = bounds.oriented_bounds(self, **kwargs)
+
         return matrix

@@ -14,14 +14,11 @@ except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
     from .exceptions import ExceptionWrapper
+
     nx = ExceptionWrapper(E)
 
 
-def compute_stable_poses(mesh,
-                         center_mass=None,
-                         sigma=0.0,
-                         n_samples=1,
-                         threshold=0.0):
+def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, threshold=0.0):
     """
     Computes stable orientations of a mesh and their quasi-static probabilities.
 
@@ -78,13 +75,9 @@ def compute_stable_poses(mesh,
     sample_coms = []
     while len(sample_coms) < n_samples:
         remaining = n_samples - len(sample_coms)
-        coms = np.random.multivariate_normal(center_mass,
-                                             sigma * np.eye(3),
-                                             remaining)
+        coms = np.random.multivariate_normal(center_mass, sigma * np.eye(3), remaining)
         for c in coms:
-            dots = np.einsum('ij,ij->i',
-                             c - cvh.triangles_center,
-                             cvh.face_normals)
+            dots = np.einsum("ij,ij->i", c - cvh.triangles_center, cvh.face_normals)
             if np.all(dots < 0):
                 sample_coms.append(c)
 
@@ -92,7 +85,6 @@ def compute_stable_poses(mesh,
 
     # For each sample, compute the stable poses
     for sample_com in sample_coms:
-
         # Create toppling digraph
         dg = _create_topple_graph(cvh, sample_com)
 
@@ -105,24 +97,24 @@ def compute_stable_poses(mesh,
                 if dg.out_degree(node) == 0:
                     continue
                 successor = next(iter(dg.successors(node)))
-                dg.nodes[successor]['prob'] += dg.nodes[node]['prob']
-                dg.nodes[node]['prob'] = 0.0
+                dg.nodes[successor]["prob"] += dg.nodes[node]["prob"]
+                dg.nodes[node]["prob"] = 0.0
                 new_nodes.append(successor)
             nodes = new_nodes
             n_iters += 1
 
         # Collect stable poses
         for node in dg.nodes():
-            if dg.nodes[node]['prob'] > 0.0:
+            if dg.nodes[node]["prob"] > 0.0:
                 normal = cvh.face_normals[node]
-                prob = dg.nodes[node]['prob']
+                prob = dg.nodes[node]["prob"]
                 key = tuple(np.around(normal, decimals=3))
                 if key in norms_to_probs:
-                    norms_to_probs[key]['prob'] += 1.0 / n_samples * prob
+                    norms_to_probs[key]["prob"] += 1.0 / n_samples * prob
                 else:
                     norms_to_probs[key] = {
-                        'prob': 1.0 / n_samples * prob,
-                        'normal': normal
+                        "prob": 1.0 / n_samples * prob,
+                        "normal": normal,
                     }
 
     transforms = []
@@ -130,12 +122,12 @@ def compute_stable_poses(mesh,
 
     # Filter stable poses
     for key in norms_to_probs:
-        prob = norms_to_probs[key]['prob']
+        prob = norms_to_probs[key]["prob"]
         if prob > threshold:
             tf = np.eye(4)
 
             # Compute a rotation matrix for this stable pose
-            z = -1.0 * norms_to_probs[key]['normal']
+            z = -1.0 * norms_to_probs[key]["normal"]
             x = np.array([-z[1], z[0], 0])
             if np.linalg.norm(x) == 0.0:
                 x = np.array([1, 0, 0])
@@ -189,9 +181,11 @@ def _orient3dfast(plane, pd):
     bdz = pb[2] - pd[2]
     cdz = pc[2] - pd[2]
 
-    return (adx * (bdy * cdz - bdz * cdy)
-            + bdx * (cdy * adz - cdz * ady)
-            + cdx * (ady * bdz - adz * bdy))
+    return (
+        adx * (bdy * cdz - bdz * cdy)
+        + bdx * (cdy * adz - cdz * ady)
+        + cdx * (ady * bdz - adz * bdy)
+    )
 
 
 def _compute_static_prob(tri, com):
@@ -219,12 +213,32 @@ def _compute_static_prob(tri, com):
 
     # Prevents weirdness with arctan
     try:
-        return 1.0 / np.pi * np.arctan(np.sqrt(np.tan(s / 2) * np.tan(
-            (s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
+        return (
+            1.0
+            / np.pi
+            * np.arctan(
+                np.sqrt(
+                    np.tan(s / 2)
+                    * np.tan((s - a) / 2)
+                    * np.tan((s - b) / 2)
+                    * np.tan((s - c) / 2)
+                )
+            )
+        )
     except BaseException:
         s = s + 1e-8
-        return 1.0 / np.pi * np.arctan(np.sqrt(np.tan(s / 2) * np.tan(
-            (s - a) / 2) * np.tan((s - b) / 2) * np.tan((s - c) / 2)))
+        return (
+            1.0
+            / np.pi
+            * np.arctan(
+                np.sqrt(
+                    np.tan(s / 2)
+                    * np.tan((s - a) / 2)
+                    * np.tan((s - b) / 2)
+                    * np.tan((s - c) / 2)
+                )
+            )
+        )
 
 
 def _create_topple_graph(cvh_mesh, com):
@@ -264,7 +278,7 @@ def _create_topple_graph(cvh_mesh, com):
     graph_edges = []
     for fp, e in zip(face_pairs, edges):
         verts = cvh_mesh.vertices[e]
-        graph_edges.append([fp[0], fp[1], {'verts': verts}])
+        graph_edges.append([fp[0], fp[1], {"verts": verts}])
 
     adj_graph.add_edges_from(graph_edges)
 
@@ -274,9 +288,10 @@ def _create_topple_graph(cvh_mesh, com):
         topple_graph.add_node(i, prob=prob)
 
     # Compute COM projections onto planes of each triangle in cvh_mesh
-    proj_dists = np.einsum('ij,ij->i', cvh_mesh.face_normals,
-                           com - cvh_mesh.triangles[:, 0])
-    proj_coms = com - np.einsum('i,ij->ij', proj_dists, cvh_mesh.face_normals)
+    proj_dists = np.einsum(
+        "ij,ij->i", cvh_mesh.face_normals, com - cvh_mesh.triangles[:, 0]
+    )
+    proj_coms = com - np.einsum("i,ij->ij", proj_dists, cvh_mesh.face_normals)
     barys = points_to_barycentric(cvh_mesh.triangles, proj_coms)
     unstable_face_indices = np.where(np.any(barys < 0, axis=1))[0]
 
@@ -287,15 +302,17 @@ def _create_topple_graph(cvh_mesh, com):
         norm = cvh_mesh.face_normals[fi]
 
         for tfi in adj_graph[fi]:
-            v1, v2 = adj_graph[fi][tfi]['verts']
+            v1, v2 = adj_graph[fi][tfi]["verts"]
             if np.dot(np.cross(v1 - centroid, v2 - centroid), norm) < 0:
                 tmp = v2
                 v2 = v1
                 v1 = tmp
             plane1 = [centroid, v1, v1 + norm]
             plane2 = [centroid, v2 + norm, v2]
-            if _orient3dfast(plane1, proj_com) >= 0 and _orient3dfast(
-                    plane2, proj_com) >= 0:
+            if (
+                _orient3dfast(plane1, proj_com) >= 0
+                and _orient3dfast(plane2, proj_com) >= 0
+            ):
                 break
 
         topple_graph.add_edge(fi, tfi)

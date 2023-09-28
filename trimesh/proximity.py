@@ -16,6 +16,7 @@ try:
     from scipy.spatial import cKDTree
 except BaseException as E:
     from .exceptions import ExceptionWrapper
+
     cKDTree = ExceptionWrapper(E)
 
 
@@ -44,7 +45,7 @@ def nearby_faces(mesh, points):
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
-        raise ValueError('points must be (n,3)!')
+        raise ValueError("points must be (n,3)!")
 
     # an r-tree containing the axis aligned bounding box for every triangle
     rtree = mesh.triangles_tree
@@ -56,8 +57,7 @@ def nearby_faces(mesh, points):
     distance_vertex += tol.merge
 
     # axis aligned bounds
-    bounds = np.column_stack((points - distance_vertex,
-                              points + distance_vertex))
+    bounds = np.column_stack((points - distance_vertex, points + distance_vertex))
 
     # faces that intersect axis aligned bounding box
     candidates = [list(rtree.intersection(b)) for b in bounds]
@@ -94,24 +94,24 @@ def closest_point_naive(mesh, points):
     # establish that input points are sane
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError('triangles shape incorrect')
+        raise ValueError("triangles shape incorrect")
     if not util.is_shape(points, (-1, 3)):
-        raise ValueError('points must be (n,3)')
+        raise ValueError("points must be (n,3)")
 
     # create a giant tiled array of each point tiled len(triangles) times
     points_tiled = np.tile(points, (1, len(triangles)))
-    on_triangle = np.array([_corresponding(
-        triangles, i.reshape((-1, 3))) for i in points_tiled])
+    on_triangle = np.array(
+        [_corresponding(triangles, i.reshape((-1, 3))) for i in points_tiled]
+    )
 
     # distance squared
-    distance_2 = [((i - q)**2).sum(axis=1)
-                  for i, q in zip(on_triangle, points)]
+    distance_2 = [((i - q) ** 2).sum(axis=1) for i, q in zip(on_triangle, points)]
 
     triangle_id = np.array([i.argmin() for i in distance_2])
 
     # closest cartesian point
     closest = np.array([g[i] for i, g in zip(triangle_id, on_triangle)])
-    distance = np.array([g[i] for i, g in zip(triangle_id, distance_2)]) ** .5
+    distance = np.array([g[i] for i, g in zip(triangle_id, distance_2)]) ** 0.5
 
     return closest, distance, triangle_id
 
@@ -139,7 +139,7 @@ def closest_point(mesh, points):
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
-        raise ValueError('points must be (n,3)!')
+        raise ValueError("points must be (n,3)!")
 
     # do a tree- based query for faces near each point
     candidates = nearby_faces(mesh, points)
@@ -168,8 +168,7 @@ def closest_point(mesh, points):
 
     # get best two candidate indices by arg-sorting the per-query_distances
     qds = np.array_split(query_distance, query_group)
-    idxs = np.int32([qd.argsort()[:2] if len(qd) > 1 else [0, 0]
-                    for qd in qds])
+    idxs = np.int32([qd.argsort()[:2] if len(qd) > 1 else [0, 0] for qd in qds])
     idxs[1:] += query_group.reshape(-1, 1)
 
     # points, distances and triangle ids for best two candidates
@@ -193,8 +192,7 @@ def closest_point(mesh, points):
     # get two face normals for the candidate points
     normals = mesh.face_normals[two_candidates[c_mask]]
     # compute normalized surface-point to query-point vectors
-    vectors = (query_vector[idxs[c_mask]] /
-               two_dists[c_mask].reshape(-1, 2, 1) ** 0.5)
+    vectors = query_vector[idxs[c_mask]] / two_dists[c_mask].reshape(-1, 2, 1) ** 0.5
     # compare enclosed angle for both face normals
     dots = (normals * vectors).sum(axis=2)
 
@@ -210,7 +208,7 @@ def closest_point(mesh, points):
 
     # we were comparing the distance squared so
     # now take the square root in one vectorized operation
-    result_distance **= .5
+    result_distance **= 0.5
 
     return result_close, result_distance, result_tid
 
@@ -251,26 +249,29 @@ def signed_distance(mesh, points):
     # triangle normal Project each point in to the closest triangle plane
     nonzero = np.where(nonzero)[0]
     normals = mesh.face_normals[triangle_id]
-    projection = (points[nonzero] -
-                  (normals[nonzero].T * np.einsum(
-                      "ij,ij->i",
-                      points[nonzero] - closest[nonzero],
-                      normals[nonzero])).T)
+    projection = (
+        points[nonzero]
+        - (
+            normals[nonzero].T
+            * np.einsum("ij,ij->i", points[nonzero] - closest[nonzero], normals[nonzero])
+        ).T
+    )
 
     # Determine if the projection lies within the closest triangle
-    barycentric = points_to_barycentric(
-        mesh.triangles[triangle_id[nonzero]],
-        projection)
-    ontriangle = ~((
-        (barycentric < -tol.merge) | (barycentric > 1 + tol.merge)
-    ).any(axis=1))
+    barycentric = points_to_barycentric(mesh.triangles[triangle_id[nonzero]], projection)
+    ontriangle = ~(
+        ((barycentric < -tol.merge) | (barycentric > 1 + tol.merge)).any(axis=1)
+    )
 
     # Where projection does lie in the triangle, compare vector to projection to the
     # triangle normal to compute sign
-    sign = np.sign(np.einsum(
-        "ij,ij->i",
-        normals[nonzero[ontriangle]],
-        points[nonzero[ontriangle]] - projection[ontriangle]))
+    sign = np.sign(
+        np.einsum(
+            "ij,ij->i",
+            normals[nonzero[ontriangle]],
+            points[nonzero[ontriangle]] - projection[ontriangle],
+        )
+    )
     distance[nonzero[ontriangle]] *= -1.0 * sign
 
     # For all other triangles, resort to raycasting against the entire mesh
@@ -328,8 +329,7 @@ class ProximityQuery:
         triangle_id : (m,) int
           Index of closest triangle for each point.
         """
-        return closest_point(mesh=self._mesh,
-                             points=points)
+        return closest_point(mesh=self._mesh, points=points)
 
     def vertex(self, points):
         """
@@ -390,21 +390,20 @@ def longest_ray(mesh, points, directions):
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
-        raise ValueError('points must be (n,3)!')
+        raise ValueError("points must be (n,3)!")
 
     directions = np.asanyarray(directions, dtype=np.float64)
     if not util.is_shape(directions, (-1, 3)):
-        raise ValueError('directions must be (n,3)!')
+        raise ValueError("directions must be (n,3)!")
 
     if len(points) != len(directions):
-        raise ValueError('number of points must equal number of directions!')
+        raise ValueError("number of points must equal number of directions!")
 
-    faces, rays, locations = mesh.ray.intersects_id(points, directions,
-                                                    return_locations=True,
-                                                    multiple_hits=True)
+    faces, rays, locations = mesh.ray.intersects_id(
+        points, directions, return_locations=True, multiple_hits=True
+    )
     if len(rays) > 0:
-        distances = np.linalg.norm(locations - points[rays],
-                                   axis=1)
+        distances = np.linalg.norm(locations - points[rays], axis=1)
     else:
         distances = np.array([])
 
@@ -415,18 +414,13 @@ def longest_ray(mesh, points, directions):
     # Add infinite length for those with no valid intersection
     no_intersections = np.setdiff1d(np.arange(len(points)), rays)
     rays = np.concatenate((rays, no_intersections))
-    distances = np.concatenate((distances,
-                                np.repeat(np.inf,
-                                          len(no_intersections))))
+    distances = np.concatenate((distances, np.repeat(np.inf, len(no_intersections))))
     return group_min(rays, distances)
 
 
-def max_tangent_sphere(mesh,
-                       points,
-                       inwards=True,
-                       normals=None,
-                       threshold=1e-6,
-                       max_iter=100):
+def max_tangent_sphere(
+    mesh, points, inwards=True, normals=None, threshold=1e-6, max_iter=100
+):
     """
     Find the center and radius of the sphere which is tangent to
     the mesh at the given point and at least one more point with no
@@ -457,15 +451,15 @@ def max_tangent_sphere(mesh,
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
-        raise ValueError('points must be (n,3)!')
+        raise ValueError("points must be (n,3)!")
 
     if normals is not None:
         normals = np.asanyarray(normals, dtype=np.float64)
         if not util.is_shape(normals, (-1, 3)):
-            raise ValueError('normals must be (n,3)!')
+            raise ValueError("normals must be (n,3)!")
 
         if len(points) != len(normals):
-            raise ValueError('number of points must equal number of normals!')
+            raise ValueError("number of points must equal number of normals!")
     else:
         normals = mesh.face_normals[closest_point(mesh, points)[2]]
 
@@ -493,8 +487,9 @@ def max_tangent_sphere(mesh,
             not_converged[i] = False
         else:
             vertex = mesh.vertices[projections.argmax()]
-            radii[i] = (np.dot(vertex - points[i], vertex - points[i]) /
-                        (2 * np.dot(vertex - points[i], normals[i])))
+            radii[i] = np.dot(vertex - points[i], vertex - points[i]) / (
+                2 * np.dot(vertex - points[i], normals[i])
+            )
 
     # Compute centers
     centers = points + normals * np.nan_to_num(radii.reshape(-1, 1))
@@ -507,17 +502,17 @@ def max_tangent_sphere(mesh,
     n_iter = 0
     while not_converged.sum() > 0 and n_iter < max_iter:
         n_iter += 1
-        n_points, n_dists, n_faces = mesh.nearest.on_surface(
-            centers[not_converged])
+        n_points, n_dists, n_faces = mesh.nearest.on_surface(centers[not_converged])
 
         # If the distance to the nearest point is the same as the distance
         # to the start point then we are done.
-        done = np.abs(
-            n_dists -
-            np.linalg.norm(
-                centers[not_converged] -
-                points[not_converged],
-                axis=1)) < tol.planar
+        done = (
+            np.abs(
+                n_dists
+                - np.linalg.norm(centers[not_converged] - points[not_converged], axis=1)
+            )
+            < tol.planar
+        )
         not_converged[np.where(not_converged)[0][done]] = False
 
         # Otherwise find the radius and center of the sphere tangent to the mesh
@@ -525,14 +520,12 @@ def max_tangent_sphere(mesh,
         diff = n_points[~done] - points[not_converged]
         old_radii = radii[not_converged].copy()
         # np.einsum produces element wise dot product
-        radii[not_converged] = (np.einsum('ij, ij->i',
-                                          diff,
-                                          diff) /
-                                (2 * np.einsum('ij, ij->i',
-                                               diff,
-                                               normals[not_converged])))
-        centers[not_converged] = points[not_converged] + \
-            normals[not_converged] * radii[not_converged].reshape(-1, 1)
+        radii[not_converged] = np.einsum("ij, ij->i", diff, diff) / (
+            2 * np.einsum("ij, ij->i", diff, normals[not_converged])
+        )
+        centers[not_converged] = points[not_converged] + normals[not_converged] * radii[
+            not_converged
+        ].reshape(-1, 1)
 
         # If change in radius is less than threshold we have converged
         cvged = old_radii - radii[not_converged] < convergence_threshold
@@ -541,11 +534,7 @@ def max_tangent_sphere(mesh,
     return centers, radii
 
 
-def thickness(mesh,
-              points,
-              exterior=False,
-              normals=None,
-              method='max_sphere'):
+def thickness(mesh, points, exterior=False, normals=None, method="max_sphere"):
     """
     Find the thickness of the mesh at the given points.
 
@@ -569,27 +558,26 @@ def thickness(mesh,
     """
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
-        raise ValueError('points must be (n,3)!')
+        raise ValueError("points must be (n,3)!")
 
     if normals is not None:
         normals = np.asanyarray(normals, dtype=np.float64)
         if not util.is_shape(normals, (-1, 3)):
-            raise ValueError('normals must be (n,3)!')
+            raise ValueError("normals must be (n,3)!")
 
         if len(points) != len(normals):
-            raise ValueError('number of points must equal number of normals!')
+            raise ValueError("number of points must equal number of normals!")
     else:
         normals = mesh.face_normals[closest_point(mesh, points)[2]]
 
-    if method == 'max_sphere':
-        centers, radius = max_tangent_sphere(mesh=mesh,
-                                             points=points,
-                                             inwards=not exterior,
-                                             normals=normals)
+    if method == "max_sphere":
+        centers, radius = max_tangent_sphere(
+            mesh=mesh, points=points, inwards=not exterior, normals=normals
+        )
         thickness = radius * 2
         return thickness
 
-    elif method == 'ray':
+    elif method == "ray":
         if exterior:
             return longest_ray(mesh, points, normals)
         else:

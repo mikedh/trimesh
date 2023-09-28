@@ -863,9 +863,7 @@ class Trimesh(Geometry3D):
         # use of advanced indexing on our tracked arrays will
         # trigger a change flag which means the hash will have to be
         # recomputed. We can escape this check by viewing the array.
-        triangles = self.vertices.view(np.ndarray)[self.faces]
-
-        return triangles
+        return self.vertices.view(np.ndarray)[self.faces]
 
     @caching.cache_decorator
     def triangles_tree(self) -> Index:
@@ -877,8 +875,7 @@ class Trimesh(Geometry3D):
         tree : rtree.index
           Each triangle in self.faces has a rectangular cell
         """
-        tree = triangles.bounds_tree(self.triangles)
-        return tree
+        return triangles.bounds_tree(self.triangles)
 
     @caching.cache_decorator
     def triangles_center(self) -> NDArray[float64]:
@@ -890,8 +887,7 @@ class Trimesh(Geometry3D):
         triangles_center : (len(self.faces), 3) float
           Center of each triangular face
         """
-        triangles_center = self.triangles.mean(axis=1)
-        return triangles_center
+        return self.triangles.mean(axis=1)
 
     @caching.cache_decorator
     def triangles_cross(self) -> NDArray[float64]:
@@ -1118,15 +1114,14 @@ class Trimesh(Geometry3D):
         units : str
           Unit system mesh is in, or None if not defined
         """
-        if "units" in self.metadata:
-            return self.metadata["units"]
-        else:
-            return None
+        return self.metadata.get("units", None)
 
     @units.setter
     def units(self, value: str) -> None:
-        value = str(value).lower()
-        self.metadata["units"] = value
+        """
+        Define the units of the current mesh.
+        """
+        self.metadata["units"] = str(value).lower()
 
     def convert_units(self, desired: str, guess: bool = False) -> "Trimesh":
         """
@@ -2378,7 +2373,12 @@ class Trimesh(Geometry3D):
         hull = convex.convex_hull(self)
         return hull
 
-    def sample(self, count, return_index=False, face_weight=None):
+    def sample(
+        self,
+        count: int,
+        return_index: bool = False,
+        face_weight: Optional[NDArray[float64]] = None,
+    ):
         """
         Return random samples distributed across the
         surface of the mesh
@@ -2699,7 +2699,7 @@ class Trimesh(Geometry3D):
         return area_faces
 
     @caching.cache_decorator
-    def mass_properties(self) -> Dict:
+    def mass_properties(self) -> triangles.MassProperties:
         """
         Returns the mass properties of the current mesh.
 
@@ -2720,14 +2720,13 @@ class Trimesh(Geometry3D):
         # if the density or center of mass was overridden they will be put into data
         density = self._data.data.get("density", None)
         center_mass = self._data.data.get("center_mass", None)
-        mass = triangles.mass_properties(
+        return triangles.mass_properties(
             triangles=self.triangles,
             crosses=self.triangles_cross,
             density=density,
             center_mass=center_mass,
             skip_inertia=False,
         )
-        return mass
 
     def invert(self) -> None:
         """

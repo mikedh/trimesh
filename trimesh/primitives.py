@@ -44,39 +44,39 @@ class Primitive(Trimesh):
         self._cache.force_immutable = True
 
     def __repr__(self):
-        return f'<trimesh.primitives.{type(self).__name__}>'
+        return f"<trimesh.primitives.{type(self).__name__}>"
 
     @property
     def faces(self):
-        stored = self._cache['faces']
+        stored = self._cache["faces"]
         if util.is_shape(stored, (-1, 3)):
             return stored
         self._create_mesh()
-        return self._cache['faces']
+        return self._cache["faces"]
 
     @faces.setter
     def faces(self, values):
-        log.warning('primitive faces are immutable: not setting!')
+        log.warning("primitive faces are immutable: not setting!")
 
     @property
     def vertices(self):
-        stored = self._cache['vertices']
+        stored = self._cache["vertices"]
         if util.is_shape(stored, (-1, 3)):
             return stored
 
         self._create_mesh()
-        return self._cache['vertices']
+        return self._cache["vertices"]
 
     @vertices.setter
     def vertices(self, values):
         if values is not None:
-            log.warning('primitive vertices are immutable: not setting!')
+            log.warning("primitive vertices are immutable: not setting!")
 
     @property
     def face_normals(self):
         # we need to avoid the logic in the superclass that
         # is specific to the data model prioritizing faces
-        stored = self._cache['face_normals']
+        stored = self._cache["face_normals"]
         if util.is_shape(stored, (-1, 3)):
             return stored
         # just calculate if not stored
@@ -84,13 +84,13 @@ class Primitive(Trimesh):
         normals = np.zeros((len(valid), 3))
         normals[valid] = unit
         # store and return
-        self._cache['face_normals'] = normals
+        self._cache["face_normals"] = normals
         return normals
 
     @face_normals.setter
     def face_normals(self, values):
         if values is not None:
-            log.warning('Primitive face normals are immutable!')
+            log.warning("Primitive face normals are immutable!")
 
     @property
     def transform(self):
@@ -123,7 +123,7 @@ class Primitive(Trimesh):
         # get the constructor arguments
         kwargs.update(self.to_dict())
         # remove the type indicator, i.e. `Cylinder`
-        kwargs.pop('kind')
+        kwargs.pop("kind")
         # create a new object with kwargs
         primitive_copy = type(self)(**kwargs)
         # copy metadata
@@ -153,8 +153,9 @@ class Primitive(Trimesh):
             vertices=self.vertices.copy(),
             faces=self.faces.copy(),
             face_normals=self.face_normals.copy(),
-            process=kwargs.pop('process', False),
-            **kwargs)
+            process=kwargs.pop("process", False),
+            **kwargs,
+        )
         return result
 
     def apply_transform(self, matrix):
@@ -170,10 +171,9 @@ class Primitive(Trimesh):
         matrix: (4, 4) float
           Homogeneous transformation
         """
-        matrix = np.asanyarray(
-            matrix, order='C', dtype=np.float64)
+        matrix = np.asanyarray(matrix, order="C", dtype=np.float64)
         if matrix.shape != (4, 4):
-            raise ValueError('matrix must be `(4, 4)`!')
+            raise ValueError("matrix must be `(4, 4)`!")
         if util.allclose(matrix, _IDENTITY, 1e-8):
             # identity matrix is a no-op
             return self
@@ -189,19 +189,16 @@ class Primitive(Trimesh):
         kinds = (Box, Cylinder, Capsule, Sphere)
         if isinstance(self, kinds) and abs(scale - 1.0) > 1e-8:
             # scale the primitive attributes
-            if hasattr(prim, 'height'):
+            if hasattr(prim, "height"):
                 prim.height *= scale
-            if hasattr(prim, 'radius'):
+            if hasattr(prim, "radius"):
                 prim.radius *= scale
-            if hasattr(prim, 'extents'):
+            if hasattr(prim, "extents"):
                 prim.extents *= scale
             # scale the translation of the current matrix
             current[:3, 3] *= scale
             # apply new matrix, rescale, translate, current
-            updated = util.multi_dot([
-                matrix,
-                tf.scale_matrix(1.0 / scale),
-                current])
+            updated = util.multi_dot([matrix, tf.scale_matrix(1.0 / scale), current])
         else:
             # without scaling just multiply
             updated = np.dot(matrix, current)
@@ -216,7 +213,7 @@ class Primitive(Trimesh):
         return self
 
     def _create_mesh(self):
-        raise ValueError('Primitive doesn\'t define mesh creation!')
+        raise ValueError("Primitive doesn't define mesh creation!")
 
 
 class PrimitiveAttributes:
@@ -264,68 +261,59 @@ class PrimitiveAttributes:
         # operation can be surprisingly slow and most
         # people never call it
         import pprint
+
         doc = (
-            'Store the attributes of a {name} object.\n\n' +
-            'When these values are changed, the mesh geometry will \n' +
-            'automatically be updated to reflect the new values.\n\n' +
-            'Available properties and their default values are:\n {defaults}' +
-            '\n\nExample\n---------------\n' +
-            'p = trimesh.primitives.{name}()\n' +
-            'p.primitive.radius = 10\n' +
-            '\n').format(
+            "Store the attributes of a {name} object.\n\n"
+            + "When these values are changed, the mesh geometry will \n"
+            + "automatically be updated to reflect the new values.\n\n"
+            + "Available properties and their default values are:\n {defaults}"
+            + "\n\nExample\n---------------\n"
+            + "p = trimesh.primitives.{name}()\n"
+            + "p.primitive.radius = 10\n"
+            + "\n"
+        ).format(
             name=self._parent.__class__.__name__,
-            defaults=pprint.pformat(
-                self._defaults,
-                width=-1)[1:-1])
+            defaults=pprint.pformat(self._defaults, width=-1)[1:-1],
+        )
         return doc
 
     def __getattr__(self, key):
-        if key.startswith('_'):
+        if key.startswith("_"):
             return super().__getattr__(key)
-        elif key == 'center':
+        elif key == "center":
             # this whole __getattr__ is a little hacky
-            return self._data['transform'][:3, 3]
+            return self._data["transform"][:3, 3]
         elif key in self._defaults:
-            return util.convert_like(self._data[key],
-                                     self._defaults[key])
-        raise AttributeError(
-            f"primitive object has no attribute '{key}' ")
+            return util.convert_like(self._data[key], self._defaults[key])
+        raise AttributeError(f"primitive object has no attribute '{key}' ")
 
     def __setattr__(self, key, value):
-        if key.startswith('_'):
+        if key.startswith("_"):
             return super().__setattr__(key, value)
-        elif key == 'center':
+        elif key == "center":
             value = np.array(value, dtype=np.float64)
             transform = np.eye(4)
             transform[:3, 3] = value
-            self._data['transform'] = transform
+            self._data["transform"] = transform
             return
         elif key in self._defaults:
             if self._mutable:
-                self._data[key] = util.convert_like(
-                    value, self._defaults[key])
+                self._data[key] = util.convert_like(value, self._defaults[key])
             else:
                 raise ValueError(
-                    'Primitive is configured as immutable! Cannot set attribute!')
+                    "Primitive is configured as immutable! Cannot set attribute!"
+                )
         else:
             keys = list(self._defaults.keys())
-            raise ValueError(
-                f'Only default attributes {keys} can be set!')
+            raise ValueError(f"Only default attributes {keys} can be set!")
 
     def __dir__(self):
-        result = sorted(dir(type(self)) +
-                        list(self._defaults.keys()))
+        result = sorted(dir(type(self)) + list(self._defaults.keys()))
         return result
 
 
 class Cylinder(Primitive):
-
-    def __init__(self,
-                 radius=1.0,
-                 height=1.0,
-                 transform=None,
-                 sections=32,
-                 mutable=True):
+    def __init__(self, radius=1.0, height=1.0, transform=None, sections=32, mutable=True):
         """
         Create a Cylinder Primitive, a subclass of Trimesh.
 
@@ -344,18 +332,18 @@ class Cylinder(Primitive):
         """
         super().__init__()
 
-        defaults = {'height': 10.0,
-                    'radius': 1.0,
-                    'transform': np.eye(4),
-                    'sections': 32}
+        defaults = {"height": 10.0, "radius": 1.0, "transform": np.eye(4), "sections": 32}
         self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
-            kwargs={'height': height,
-                    'radius': radius,
-                    'transform': transform,
-                    'sections': sections},
-            mutable=mutable)
+            kwargs={
+                "height": height,
+                "radius": radius,
+                "transform": transform,
+                "sections": sections,
+            },
+            mutable=mutable,
+        )
 
     @caching.cache_decorator
     def volume(self):
@@ -367,8 +355,7 @@ class Cylinder(Primitive):
         volume : float
           Volume of the cylinder
         """
-        volume = ((np.pi * self.primitive.radius ** 2) *
-                  self.primitive.height)
+        volume = (np.pi * self.primitive.radius**2) * self.primitive.height
         return volume
 
     @caching.cache_decorator
@@ -386,7 +373,8 @@ class Cylinder(Primitive):
             mass=self.volume,
             radius=self.primitive.radius,
             height=self.primitive.height,
-            transform=self.primitive.transform)
+            transform=self.primitive.transform,
+        )
         return tensor
 
     @caching.cache_decorator
@@ -416,9 +404,8 @@ class Cylinder(Primitive):
         half = self.primitive.height / 2.0
         # apply the transform to the Z- aligned segment
         points = np.dot(
-            self.primitive.transform,
-            np.transpose([[0, 0, -half, 1],
-                          [0, 0, half, 1]])).T[:, :3]
+            self.primitive.transform, np.transpose([[0, 0, -half, 1], [0, 0, half, 1]])
+        ).T[:, :3]
         return points
 
     def to_dict(self):
@@ -432,10 +419,12 @@ class Cylinder(Primitive):
         as_dict : dict
           Serializable data for this primitive.
         """
-        return {'kind': 'cylinder',
-                'transform': self.primitive.transform.tolist(),
-                'radius': float(self.primitive.radius),
-                'height': float(self.primitive.height), }
+        return {
+            "kind": "cylinder",
+            "transform": self.primitive.transform.tolist(),
+            "radius": float(self.primitive.radius),
+            "height": float(self.primitive.height),
+        }
 
     def buffer(self, distance):
         """
@@ -457,29 +446,28 @@ class Cylinder(Primitive):
         buffered = Cylinder(
             height=self.primitive.height + distance * 2,
             radius=self.primitive.radius + distance,
-            transform=self.primitive.transform.copy())
+            transform=self.primitive.transform.copy(),
+        )
         return buffered
 
     def _create_mesh(self):
-        log.debug('creating mesh for Cylinder primitive')
-        mesh = creation.cylinder(radius=self.primitive.radius,
-                                 height=self.primitive.height,
-                                 sections=self.primitive.sections,
-                                 transform=self.primitive.transform)
+        log.debug("creating mesh for Cylinder primitive")
+        mesh = creation.cylinder(
+            radius=self.primitive.radius,
+            height=self.primitive.height,
+            sections=self.primitive.sections,
+            transform=self.primitive.transform,
+        )
 
-        self._cache['vertices'] = mesh.vertices
-        self._cache['faces'] = mesh.faces
-        self._cache['face_normals'] = mesh.face_normals
+        self._cache["vertices"] = mesh.vertices
+        self._cache["faces"] = mesh.faces
+        self._cache["face_normals"] = mesh.face_normals
 
 
 class Capsule(Primitive):
-
-    def __init__(self,
-                 radius=1.0,
-                 height=10.0,
-                 transform=None,
-                 sections=32,
-                 mutable=True):
+    def __init__(
+        self, radius=1.0, height=10.0, transform=None, sections=32, mutable=True
+    ):
         """
         Create a Capsule Primitive, a subclass of Trimesh.
 
@@ -498,18 +486,18 @@ class Capsule(Primitive):
         """
         super().__init__()
 
-        defaults = {'height': 1.0,
-                    'radius': 1.0,
-                    'transform': np.eye(4),
-                    'sections': 32}
+        defaults = {"height": 1.0, "radius": 1.0, "transform": np.eye(4), "sections": 32}
         self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
-            kwargs={'height': height,
-                    'radius': radius,
-                    'transform': transform,
-                    'sections': sections},
-            mutable=mutable)
+            kwargs={
+                "height": height,
+                "radius": radius,
+                "transform": transform,
+                "sections": sections,
+            },
+            mutable=mutable,
+        )
 
     @property
     def transform(self):
@@ -526,10 +514,12 @@ class Capsule(Primitive):
         as_dict : dict
           Serializable data for this primitive.
         """
-        return {'kind': 'capsule',
-                'transform': self.primitive.transform.tolist(),
-                'height': float(self.primitive.height),
-                'radius': float(self.primitive.radius)}
+        return {
+            "kind": "capsule",
+            "transform": self.primitive.transform.tolist(),
+            "height": float(self.primitive.height),
+            "radius": float(self.primitive.radius),
+        }
 
     @caching.cache_decorator
     def direction(self):
@@ -541,30 +531,26 @@ class Capsule(Primitive):
         axis : (3,) float
           Vector along the cylinder axis
         """
-        axis = np.dot(self.primitive.transform,
-                      [0, 0, 1, 0])[:3]
+        axis = np.dot(self.primitive.transform, [0, 0, 1, 0])[:3]
         return axis
 
     def _create_mesh(self):
-        log.debug('creating mesh for `Capsule` primitive')
+        log.debug("creating mesh for `Capsule` primitive")
 
-        mesh = creation.capsule(radius=self.primitive.radius,
-                                height=self.primitive.height)
+        mesh = creation.capsule(
+            radius=self.primitive.radius, height=self.primitive.height
+        )
         mesh.apply_transform(self.primitive.transform)
 
-        self._cache['vertices'] = mesh.vertices
-        self._cache['faces'] = mesh.faces
-        self._cache['face_normals'] = mesh.face_normals
+        self._cache["vertices"] = mesh.vertices
+        self._cache["faces"] = mesh.faces
+        self._cache["face_normals"] = mesh.face_normals
 
 
 class Sphere(Primitive):
-
-    def __init__(self,
-                 radius=1.0,
-                 center=None,
-                 transform=None,
-                 subdivisions=3,
-                 mutable=True):
+    def __init__(
+        self, radius=1.0, center=None, transform=None, subdivisions=3, mutable=True
+    ):
         """
         Create a Sphere Primitive, a subclass of Trimesh.
 
@@ -584,26 +570,23 @@ class Sphere(Primitive):
 
         super().__init__()
 
-        defaults = {'radius': 1.0,
-                    'transform': np.eye(4),
-                    'subdivisions': 3}
-        constructor = {'radius': float(radius),
-                       'subdivisions': int(subdivisions)}
+        defaults = {"radius": 1.0, "transform": np.eye(4), "subdivisions": 3}
+        constructor = {"radius": float(radius), "subdivisions": int(subdivisions)}
         # center is a helper method for "transform"
         # since a sphere is rotationally symmetric
         if center is not None:
             if transform is not None:
-                raise ValueError(
-                    'only one of `center` and `transform` may be passed!')
+                raise ValueError("only one of `center` and `transform` may be passed!")
             translate = np.eye(4)
             translate[:3, 3] = center
-            constructor['transform'] = translate
+            constructor["transform"] = translate
         elif transform is not None:
-            constructor['transform'] = transform
+            constructor["transform"] = transform
 
         # create the attributes object
         self.primitive = PrimitiveAttributes(
-            self, defaults=defaults, kwargs=constructor, mutable=mutable)
+            self, defaults=defaults, kwargs=constructor, mutable=mutable
+        )
 
     @property
     def center(self):
@@ -624,17 +607,23 @@ class Sphere(Primitive):
         as_dict : dict
           Serializable data for this primitive.
         """
-        return {'kind': 'sphere',
-                'transform': self.primitive.transform.tolist(),
-                'radius': float(self.primitive.radius)}
+        return {
+            "kind": "sphere",
+            "transform": self.primitive.transform.tolist(),
+            "radius": float(self.primitive.radius),
+        }
 
     @property
     def bounds(self):
         # no docstring so will inherit Trimesh docstring
         # return exact bounds from primitive center and radius (rather than faces)
         # self.extents will also use this information
-        bounds = np.array([self.primitive.center - self.primitive.radius,
-                           self.primitive.center + self.primitive.radius])
+        bounds = np.array(
+            [
+                self.primitive.center - self.primitive.radius,
+                self.primitive.center + self.primitive.radius,
+            ]
+        )
         return bounds
 
     @property
@@ -655,7 +644,7 @@ class Sphere(Primitive):
         area: float, surface area of the sphere Primitive
         """
 
-        area = 4.0 * np.pi * (self.primitive.radius ** 2)
+        area = 4.0 * np.pi * (self.primitive.radius**2)
         return area
 
     @caching.cache_decorator
@@ -668,7 +657,7 @@ class Sphere(Primitive):
         volume: float, volume of the sphere Primitive
         """
 
-        volume = (4.0 * np.pi * (self.primitive.radius ** 3)) / 3.0
+        volume = (4.0 * np.pi * (self.primitive.radius**3)) / 3.0
         return volume
 
     @caching.cache_decorator
@@ -681,28 +670,22 @@ class Sphere(Primitive):
         tensor: (3, 3) float
           3D inertia tensor.
         """
-        return inertia.sphere_inertia(
-            mass=self.volume,
-            radius=self.primitive.radius)
+        return inertia.sphere_inertia(mass=self.volume, radius=self.primitive.radius)
 
     def _create_mesh(self):
-        log.debug('creating mesh for Sphere primitive')
+        log.debug("creating mesh for Sphere primitive")
         unit = creation.icosphere(
-            subdivisions=self.primitive.subdivisions,
-            radius=self.primitive.radius)
+            subdivisions=self.primitive.subdivisions, radius=self.primitive.radius
+        )
 
         # apply the center offset here
-        self._cache['vertices'] = unit.vertices + self.primitive.center
-        self._cache['faces'] = unit.faces
-        self._cache['face_normals'] = unit.face_normals
+        self._cache["vertices"] = unit.vertices + self.primitive.center
+        self._cache["faces"] = unit.faces
+        self._cache["face_normals"] = unit.face_normals
 
 
 class Box(Primitive):
-    def __init__(self,
-                 extents=None,
-                 transform=None,
-                 bounds=None,
-                 mutable=True):
+    def __init__(self, extents=None, transform=None, bounds=None, mutable=True):
         """
         Create a Box Primitive as a subclass of Trimesh
 
@@ -719,17 +702,17 @@ class Box(Primitive):
           Are extents and transform mutable after creation.
         """
         super().__init__()
-        defaults = {'transform': np.eye(4),
-                    'extents': np.ones(3)}
+        defaults = {"transform": np.eye(4), "extents": np.ones(3)}
 
         if bounds is not None:
             # validate the multiple forms of input available here
             if extents is not None or transform is not None:
                 raise ValueError(
-                    'if `bounds` is passed `extents` and `transform` must not be!')
+                    "if `bounds` is passed `extents` and `transform` must not be!"
+                )
             bounds = np.array(bounds, dtype=np.float64)
             if bounds.shape != (2, 3):
-                raise ValueError('`bounds` must be (2, 3) float')
+                raise ValueError("`bounds` must be (2, 3) float")
             # create extents from AABB
             extents = bounds.ptp(axis=0)
             # translate to the center of the box
@@ -739,9 +722,9 @@ class Box(Primitive):
         self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
-            kwargs={'extents': extents,
-                    'transform': transform},
-            mutable=mutable)
+            kwargs={"extents": extents, "transform": transform},
+            mutable=mutable,
+        )
 
     def to_dict(self):
         """
@@ -754,9 +737,11 @@ class Box(Primitive):
         as_dict : dict
           Serializable data for this primitive.
         """
-        return {'kind': 'box',
-                'transform': self.primitive.transform.tolist(),
-                'extents': self.primitive.extents.tolist()}
+        return {
+            "kind": "box",
+            "transform": self.primitive.transform.tolist(),
+            "extents": self.primitive.extents.tolist(),
+        }
 
     @property
     def transform(self):
@@ -779,7 +764,8 @@ class Box(Primitive):
         samples = sample.volume_rectangular(
             extents=self.primitive.extents,
             count=count,
-            transform=self.primitive.transform)
+            transform=self.primitive.transform,
+        )
         return samples
 
     def sample_grid(self, count=None, step=None):
@@ -801,23 +787,20 @@ class Box(Primitive):
           Points inside the box
         """
 
-        if (count is not None and
-                step is not None):
-            raise ValueError('only step OR count can be specified!')
+        if count is not None and step is not None:
+            raise ValueError("only step OR count can be specified!")
 
         # create pre- transform bounds from extents
-        bounds = np.array([-self.primitive.extents,
-                           self.primitive.extents]) * .5
+        bounds = np.array([-self.primitive.extents, self.primitive.extents]) * 0.5
 
         if step is not None:
             grid = util.grid_arange(bounds, step=step)
         elif count is not None:
             grid = util.grid_linspace(bounds, count=count)
         else:
-            raise ValueError('either count or step must be specified!')
+            raise ValueError("either count or step must be specified!")
 
-        transformed = tf.transform_points(
-            grid, matrix=self.primitive.transform)
+        transformed = tf.transform_points(grid, matrix=self.primitive.transform)
         return transformed
 
     @property
@@ -826,8 +809,7 @@ class Box(Primitive):
         Returns whether or not the current box is rotated at all.
         """
         if util.is_shape(self.primitive.transform, (4, 4)):
-            return not np.allclose(self.primitive.transform[
-                                   0:3, 0:3], np.eye(3))
+            return not np.allclose(self.primitive.transform[0:3, 0:3], np.eye(3))
         else:
             return False
 
@@ -845,14 +827,15 @@ class Box(Primitive):
         return volume
 
     def _create_mesh(self):
-        log.debug('creating mesh for Box primitive')
-        box = creation.box(extents=self.primitive.extents,
-                           transform=self.primitive.transform)
+        log.debug("creating mesh for Box primitive")
+        box = creation.box(
+            extents=self.primitive.extents, transform=self.primitive.transform
+        )
 
         self._cache.cache.update(box._cache.cache)
-        self._cache['vertices'] = box.vertices
-        self._cache['faces'] = box.faces
-        self._cache['face_normals'] = box.face_normals
+        self._cache["vertices"] = box.vertices
+        self._cache["faces"] = box.faces
+        self._cache["face_normals"] = box.face_normals
 
     def as_outline(self):
         """
@@ -865,18 +848,15 @@ class Box(Primitive):
         """
         # do the import in function to keep soft dependency
         from .path.creation import box_outline
+
         # return outline with same size as primitive
         return box_outline(
-            extents=self.primitive.extents,
-            transform=self.primitive.transform)
+            extents=self.primitive.extents, transform=self.primitive.transform
+        )
 
 
 class Extrusion(Primitive):
-    def __init__(self,
-                 polygon=None,
-                 transform=None,
-                 height=1.0,
-                 mutable=True):
+    def __init__(self, polygon=None, transform=None, height=1.0, mutable=True):
         """
         Create an Extrusion primitive, which
         is a subclass of Trimesh.
@@ -898,17 +878,18 @@ class Extrusion(Primitive):
         # run the Trimesh init
         super().__init__()
         # set default values
-        defaults = {'polygon': Point([0, 0]).buffer(1.0),
-                    'transform': np.eye(4),
-                    'height': 1.0}
+        defaults = {
+            "polygon": Point([0, 0]).buffer(1.0),
+            "transform": np.eye(4),
+            "height": 1.0,
+        }
 
         self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
-            kwargs={'transform': transform,
-                    'polygon': polygon,
-                    'height': height},
-            mutable=mutable)
+            kwargs={"transform": transform, "polygon": polygon, "height": height},
+            mutable=mutable,
+        )
 
     @caching.cache_decorator
     def area(self):
@@ -923,8 +904,7 @@ class Extrusion(Primitive):
           Surface area of 3D extrusion
         """
         # area of the sides of the extrusion
-        area = abs(self.primitive.height *
-                   self.primitive.polygon.length)
+        area = abs(self.primitive.height * self.primitive.polygon.length)
         # area of the two caps of the extrusion
         area += self.primitive.polygon.area * 2
         return area
@@ -941,8 +921,7 @@ class Extrusion(Primitive):
           Volume of 3D extrusion
         """
         # height may be negative
-        volume = abs(self.primitive.polygon.area *
-                     self.primitive.height)
+        volume = abs(self.primitive.polygon.area * self.primitive.height)
         return volume
 
     @caching.cache_decorator
@@ -958,8 +937,8 @@ class Extrusion(Primitive):
         """
         # only consider rotation and signed height
         direction = np.dot(
-            self.primitive.transform[:3, :3],
-            [0.0, 0.0, np.sign(self.primitive.height)])
+            self.primitive.transform[:3, :3], [0.0, 0.0, np.sign(self.primitive.height)]
+        )
         return direction
 
     @property
@@ -984,9 +963,9 @@ class Extrusion(Primitive):
         # no docstring for inheritance
         # calculate OBB using 2D polygon and known axis
         from . import bounds
+
         # find the 2D bounding box using the polygon
-        to_origin, box = bounds.oriented_bounds_2D(
-            self.primitive.polygon.exterior.coords)
+        to_origin, box = bounds.oriented_bounds_2D(self.primitive.polygon.exterior.coords)
         #  3D extents
         extents = np.append(box, abs(self.primitive.height))
         # calculate to_3D transform from 2D obb
@@ -994,9 +973,7 @@ class Extrusion(Primitive):
         rotation_Z[2, 3] = self.primitive.height / 2.0
         # combine the 2D OBB transformation with the 2D projection transform
         to_3D = np.dot(self.primitive.transform, rotation_Z)
-        obb = Box(transform=to_3D,
-                  extents=extents,
-                  mutable=False)
+        obb = Box(transform=to_3D, extents=extents, mutable=False)
         return obb
 
     def slide(self, distance):
@@ -1012,8 +989,7 @@ class Extrusion(Primitive):
         distance = float(distance)
         translation = np.eye(4)
         translation[2, 3] = distance
-        new_transform = np.dot(self.primitive.transform.copy(),
-                               translation.copy())
+        new_transform = np.dot(self.primitive.transform.copy(), translation.copy())
         self.primitive.transform = new_transform
 
     def buffer(self, distance, distance_height=None, **kwargs):
@@ -1051,7 +1027,8 @@ class Extrusion(Primitive):
             transform=self.primitive.transform.copy(),
             polygon=self.primitive.polygon.buffer(distance),
             height=height,
-            **kwargs)
+            **kwargs,
+        )
 
         # slide the stock along the axis
         buffered.slide(-np.sign(height) * distance_height)
@@ -1069,23 +1046,26 @@ class Extrusion(Primitive):
         as_dict : dict
           Serializable data for this primitive.
         """
-        return {'kind': 'extrusion',
-                'polygon': self.primitive.polygon.wkt,
-                'transform': self.primitive.transform.tolist(),
-                'height': float(self.primitive.height)}
+        return {
+            "kind": "extrusion",
+            "polygon": self.primitive.polygon.wkt,
+            "transform": self.primitive.transform.tolist(),
+            "height": float(self.primitive.height),
+        }
 
     def _create_mesh(self):
-        log.debug('creating mesh for Extrusion primitive')
+        log.debug("creating mesh for Extrusion primitive")
         # extrude the polygon along Z
         mesh = creation.extrude_polygon(
             polygon=self.primitive.polygon,
             height=self.primitive.height,
-            transform=self.primitive.transform)
+            transform=self.primitive.transform,
+        )
 
         # check volume here in unit tests
         if tol.strict and mesh.volume < 0.0:
-            raise ValueError('matrix inverted mesh!')
+            raise ValueError("matrix inverted mesh!")
 
         # cache mesh geometry in the primitive
-        self._cache['vertices'] = mesh.vertices
-        self._cache['faces'] = mesh.faces
+        self._cache["vertices"] = mesh.vertices
+        self._cache["faces"] = mesh.faces

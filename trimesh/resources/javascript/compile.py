@@ -23,16 +23,15 @@ def minify(path):
     path: str, path of resource
     """
 
-    if path.startswith('http'):
-        data = requests.get(path).content.decode(
-            'ascii', errors='ignore')
-        print('downloaded', path, len(data))
+    if path.startswith("http"):
+        data = requests.get(path).content.decode("ascii", errors="ignore")
+        print("downloaded", path, len(data))
     else:
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             # some upstream JS uses unicode spaces -_-
-            data = f.read().decode('ascii', errors='ignore')
+            data = f.read().decode("ascii", errors="ignore")
     # don't re-minify
-    if '.min.' in path:
+    if ".min." in path:
         return data
 
     try:
@@ -41,51 +40,52 @@ def minify(path):
         return data
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # we're going to embed every non-CDN'd file
-    h = html.parse('viewer.html')
+    h = html.parse("viewer.html")
     collection = []
 
     # find all scripts in the document
-    for s in h.findall('//script'):
-        if 'src' in s.attrib:
-            if 'http' in s.attrib['src']:
+    for s in h.findall("//script"):
+        if "src" in s.attrib:
+            if "http" in s.attrib["src"]:
                 # pass # download CDN files and embed
                 continue  # leave any remote files alone
 
             # get a blob of file
-            path = s.attrib['src'].strip()
-            print('minifying:', path)
+            path = s.attrib["src"].strip()
+            print("minifying:", path)
             mini = minify(path)
 
             # replace test data in our file
-            if path == 'load_base64.js':
+            if path == "load_base64.js":
                 print('replacing test data with "$B64GLTF"')
-                start = mini.find('base64_data')
-                end = mini.find(';', start)
+                start = mini.find("base64_data")
+                end = mini.find(";", start)
                 # replace test data with a string we can replace
                 # keep in quotes to avoid being minified
-                mini = mini.replace(mini[start:end],
-                                    'base64_data="$B64GLTF";')
+                mini = mini.replace(mini[start:end], 'base64_data="$B64GLTF";')
             collection.append(mini)
         # remove the script reference
         s.getparent().remove(s)
 
     # a new script element with everything blobbed together
-    ns = html.Element('script')
-    ns.text = ''.join(collection)
+    ns = html.Element("script")
+    ns.text = "".join(collection)
 
     # append the new script element
-    body = h.find('body')
+    body = h.find("body")
     body.append(ns)
 
-    result = html.tostring(h, pretty_print=False).decode('utf-8')
+    result = html.tostring(h, pretty_print=False).decode("utf-8")
     # result = result.replace('<body>', '').replace('</body>', '')
 
-    with open('../viewer.html.template', 'w') as f:
+    with open("../viewer.html.template", "w") as f:
         f.write(result)
 
     import subprocess
-    subprocess.check_call(['zip', '-9', '-j', '../viewer.template.zip',
-                           '../viewer.html.template'])
-    os.remove('../viewer.html.template')
+
+    subprocess.check_call(
+        ["zip", "-9", "-j", "../viewer.template.zip", "../viewer.html.template"]
+    )
+    os.remove("../viewer.html.template")

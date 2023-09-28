@@ -16,12 +16,15 @@ available = trimesh.available_formats()
 
 # remove loaders that are thin wrappers
 available.difference_update(
-    [k for k, v in
-     trimesh.exchange.load.mesh_loaders.items()
-     if v in (trimesh.exchange.misc.load_meshio,)])
+    [
+        k
+        for k, v in trimesh.exchange.load.mesh_loaders.items()
+        if v in (trimesh.exchange.misc.load_meshio,)
+    ]
+)
 # remove loaders we don't care about
-available.difference_update({'json', 'dae', 'zae'})
-available.update({'dxf', 'svg'})
+available.difference_update({"json", "dae", "zae"})
+available.update({"dxf", "svg"})
 
 
 def on_repo(repo, commit):
@@ -38,43 +41,47 @@ def on_repo(repo, commit):
 
     # get a resolver for the specific commit
     repo = trimesh.resolvers.GithubResolver(
-        repo=repo, commit=commit,
-        save='~/.trimesh-cache')
+        repo=repo, commit=commit, save="~/.trimesh-cache"
+    )
     # list file names in the repo we can load
-    paths = [i for i in repo.keys()
-             if i.lower().split('.')[-1] in available]
+    paths = [i for i in repo.keys() if i.lower().split(".")[-1] in available]
 
     report = {}
     for _i, path in enumerate(paths):
-        namespace, name = path.rsplit('/', 1)
+        namespace, name = path.rsplit("/", 1)
         # get a subresolver that has a root at
         # the file we are trying to load
         resolver = repo.namespaced(namespace)
 
         check = path.lower()
-        broke = ('malformed empty outofmemory ' +
-                 'bad incorrect missing ' +
-                 'failures pond.0.ply').split()
+        broke = (
+            "malformed empty outofmemory "
+            + "bad incorrect missing "
+            + "failures pond.0.ply"
+        ).split()
         should_raise = any(b in check for b in broke)
         raised = False
 
         # clip off the big old name from the archive
-        saveas = path[path.find(commit) + len(commit):]
+        saveas = path[path.find(commit) + len(commit) :]
 
         try:
             m = trimesh.load(
                 file_obj=wrap_as_stream(resolver.get(name)),
                 file_type=name,
-                resolver=resolver)
+                resolver=resolver,
+            )
             report[saveas] = str(m)
 
             # if our source was a GLTF we should be able to roundtrip without
             # dropping
-            if name.lower().split('.')[-1] in ('gltf',
-                                               'glb') and len(m.geometry) > 0:
+            if name.lower().split(".")[-1] in ("gltf", "glb") and len(m.geometry) > 0:
                 # try round-tripping the file
-                e = trimesh.load(file_obj=wrap_as_stream(m.export(file_type='glb')),
-                                 file_type='glb', process=False)
+                e = trimesh.load(
+                    file_obj=wrap_as_stream(m.export(file_type="glb")),
+                    file_type="glb",
+                    process=False,
+                )
 
                 # geometry keys should have survived roundtrip
                 assert set(m.geometry.keys()) == set(e.geometry.keys())
@@ -84,16 +91,17 @@ def on_repo(repo, commit):
                     ori = m.geometry[key]
                     # todo : why doesn't this pass
                     # assert np.allclose(ori.vertices, geom.vertices)
-                    if isinstance(getattr(geom, 'visual', None),
-                                  trimesh.visual.TextureVisuals):
+                    if isinstance(
+                        getattr(geom, "visual", None), trimesh.visual.TextureVisuals
+                    ):
                         a, b = geom.visual.material, ori.visual.material
                         # try our fancy equal
                         assert equal(a.baseColorFactor, b.baseColorFactor)
                         try:
-                            assert equal(
-                                a.baseColorTexture, b.baseColorTexture)
+                            assert equal(a.baseColorTexture, b.baseColorTexture)
                         except BaseException:
                             from IPython import embed
+
                             embed()
 
         except NotImplementedError as E:
@@ -112,7 +120,7 @@ def on_repo(repo, commit):
         # if it worked when it didn't have to add a label
         if should_raise and not raised:
             # raise ValueError(name)
-            report[saveas] += ' SHOULD HAVE RAISED'
+            report[saveas] += " SHOULD HAVE RAISED"
 
     return report
 
@@ -147,7 +155,7 @@ def equal(a, b):
         return np.allclose(a, b)
 
     # a PIL image of some variety
-    if hasattr(a, 'getpixel'):
+    if hasattr(a, "getpixel"):
         if a.size != b.size:
             return False
         # very crude: it's pretty hard to check if two images
@@ -161,28 +169,33 @@ def equal(a, b):
     return a == b
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     trimesh.util.attach_to_log()
 
     with Profiler() as P:
         # check the assimp corpus, about 50mb
         report = on_repo(
-            repo='assimp/assimp',
-            commit='c2967cf79acdc4cd48ecb0729e2733bf45b38a6f')
+            repo="assimp/assimp", commit="c2967cf79acdc4cd48ecb0729e2733bf45b38a6f"
+        )
         # check the gltf-sample-models, about 1gb
-        report.update(on_repo(
-            repo='KhronosGroup/glTF-Sample-Models',
-            commit='8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b'))
+        report.update(
+            on_repo(
+                repo="KhronosGroup/glTF-Sample-Models",
+                commit="8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b",
+            )
+        )
 
         # add back collada for this repo
-        available.update(['dae', 'zae'])
-        report.update(on_repo(
-            repo='ros-industrial/universal_robot',
-            commit='8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe'))
+        available.update(["dae", "zae"])
+        report.update(
+            on_repo(
+                repo="ros-industrial/universal_robot",
+                commit="8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe",
+            )
+        )
 
     # show all profiler lines
     log.info(P.output_text(show_all=True))
 
     # print a formatted report of what we loaded
-    log.debug('\n'.join(f'# {k}\n{v}\n' for k, v in report.items()))
+    log.debug("\n".join(f"# {k}\n{v}\n" for k, v in report.items()))
