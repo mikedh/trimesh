@@ -280,10 +280,10 @@ class Geometry3D(Geometry):
         if tol.strict and hasattr(self, "volume"):
             # in strict mode make sure volume is identical
             check = self.volume
-            matrix = bounds.oriented_bounds(self, **kwargs)
+            matrix, _ = bounds.oriented_bounds(self, **kwargs)
             assert np.isclose(check, self.volume)
         else:
             # calculate the oriented bounding box
-            matrix = bounds.oriented_bounds(self, **kwargs)
+            matrix, _ = bounds.oriented_bounds(self, **kwargs)
 
         return matrix
