@@ -451,9 +451,7 @@ class MassTests(g.unittest.TestCase):
                 triangles=mesh.triangles, density=truth["density"], skip_inertia=False
             )
 
-            for key, _value in calc.items():
-                if key not in truth:
-                    continue
+            for key in truth.keys():
                 if not g.np.allclose(calc[key], truth[key], atol=1e-2):
                     raise ValueError(
                         "{}({}):\n{}\n!=\n{}".format(

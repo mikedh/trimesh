@@ -277,7 +277,7 @@ class Geometry3D(Geometry):
           Transformation matrix that was applied
           to mesh to move it into OBB frame
         """
-        if tol.strict:
+        if tol.strict and hasattr(self, "volume"):
             # in strict mode make sure volume is identical
             check = self.volume
             matrix = bounds.oriented_bounds(self, **kwargs)
