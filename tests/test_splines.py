@@ -17,9 +17,7 @@ class SplineTests(g.unittest.TestCase):
         # perimeter should be about right if it was discretized properly
         if not g.np.isclose(p.polygons_full[0].exterior.length, truth, atol=100.0):
             raise ValueError(
-                "perimeter wrong: {} != {}".format(
-                    truth, p.polygons_full[0].exterior.length
-                )
+                f"perimeter wrong: {truth} != {p.polygons_full[0].exterior.length}"
             )
 
 

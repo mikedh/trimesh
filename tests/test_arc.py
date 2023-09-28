@@ -13,7 +13,7 @@ class ArcTests(g.unittest.TestCase):
         points = test_points[0]
         res_center, res_radius = test_results[0]
         center_info = arc_center(points)
-        C, R, N, angle = (
+        C, R, _N, _angle = (
             center_info["center"],
             center_info["radius"],
             center_info["normal"],
