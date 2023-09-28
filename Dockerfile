@@ -69,6 +69,10 @@ USER user
 # install things like pytest
 RUN pip install -e .[all]
 
+# check formatting
+RUN ruff trimesh
+RUN black --check trimesh
+
 # run pytest wrapped with xvfb for simple viewer tests
 RUN xvfb-run pytest --cov=trimesh \
     -p no:ALL_DEPENDENCIES \
