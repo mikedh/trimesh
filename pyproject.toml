@@ -58,18 +58,8 @@ trimesh = [
 ]
 
 [project.optional-dependencies]
-test = [
-    "pytest-cov",
-    "coveralls",
-    "mypy",
-    "ezdxf",
-    "pytest",
-    "pymeshlab",
-    "pyinstrument",
-    "ruff",
-    "black",
-]
 
+# this is the base extra most users will want
 easy = [
     "colorlog",
     "mapbox-earcut",
@@ -99,6 +89,21 @@ recommend = [
     "scikit-image",
     "python-fcl",
     "pyVHACD",
+]
+
+# this is the list of everything that is ever added anywhere
+# mostly useful for getting our test coverage up
+test = [
+    "pytest-cov",
+    "coveralls",
+    "mypy",
+    "ezdxf",
+    "pytest",
+    "pymeshlab",
+    "pyinstrument",
+    "matplotlib",
+    "ruff",
+    "black",
 ]
 
 # requires pip >= 21.2

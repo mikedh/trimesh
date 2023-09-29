@@ -230,6 +230,7 @@ class VectorTests(g.unittest.TestCase):
             import matplotlib.pyplot  # NOQA
         except BaseException:
             g.log.debug("skipping `matplotlib.pyplot` tests")
+            return
 
         p = g.get_mesh("2D/wrench.dxf")
 

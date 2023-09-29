@@ -795,14 +795,16 @@ def pack(
         img = None
         if isinstance(mat, PBRMaterial):
             if mat.baseColorTexture is not None:
-                img = multiply_factor(mat.baseColorTexture, mat.baseColorFactor, "RGBA")
+                img = multiply_factor(
+                    mat.baseColorTexture, factor=mat.baseColorFactor, mode="RGBA"
+                )
             elif mat.baseColorFactor is not None:
                 c = color.to_rgba(mat.baseColorFactor)
                 assert c.shape == (4,)
                 assert c.dtype == np.uint8
                 img = Image.fromarray(c.reshape((1, 1, -1)))
 
-            if mat.alphaMode != "BLEND":
+            if img is not None and mat.alphaMode != "BLEND":
                 # we can't handle alpha blending well, but we can bake alpha cutoff
                 mode = img.mode
                 img = np.array(img)
