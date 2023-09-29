@@ -513,6 +513,7 @@ def images(
     iterations: Optional[int] = 50,
     seed: Optional[int] = None,
     spacing: Optional[float] = None,
+    mode: Optional[str] = None,
 ):
     """
     Pack a list of images and return result and offsets.
@@ -528,6 +529,10 @@ def images(
     deduplicate
       Should images that have identical hashes be inserted
       more than once?
+    mode
+      If passed return an output image with the
+      requested mode, otherwise will be picked
+      from the input images.
 
     Returns
     -----------
@@ -581,19 +586,25 @@ def images(
         # round up all dimensions to powers of 2
         size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
 
+    if mode is None:
+        # get the mode of every input image
+        modes = list({i.mode for i in images})
+        # pick the longest mode as a simple heuristic
+        # which prefers "RGBA" over "RGB"
+        mode = modes[np.argmax([len(m) for m in modes])]
+
     # create the image in the mode of the first image
-    result = Image.new(images[0].mode, tuple(size))
+    result = Image.new(mode, tuple(size))
 
     done = set()
     # paste each image into the result
     for img, off in zip(images, offset):
-        if tuple(off) in done:
-            continue
+        if tuple(off) not in done:
+            # box is upper left corner
+            corner = (off[0], size[1] - img.size[1] - off[1])
+            result.paste(img, box=corner)
         else:
             done.add(tuple(off))
-        # box is upper left corner
-        corner = (off[0], size[1] - img.size[1] - off[1])
-        result.paste(img, box=corner)
 
     return result, offset
 

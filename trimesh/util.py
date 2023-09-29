@@ -1503,9 +1503,11 @@ def concatenate(a, b=None):
     try:
         # concatenate visuals
         visual = is_mesh[0].visual.concatenate([m.visual for m in is_mesh[1:]])
-    except BaseException:
-        log.debug("failed to combine visuals", exc_info=True)
+    except BaseException as E:
+        log.debug(f"failed to combine visuals {_STRICT}", exc_info=True)
         visual = None
+        if _STRICT:
+            raise E
 
     # create the mesh object
     return trimesh_type(

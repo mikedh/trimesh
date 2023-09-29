@@ -90,6 +90,9 @@ class Geometry(ABC):
         if "Voxel" in type(self).__name__:
             # for VoxelGrid objects
             elements.append(str(self.shape)[1:-1])
+        if "file_name" in self.metadata:
+            display = self.metadata["file_name"]
+            elements.append(f"name=`{display}`")
         return "<trimesh.{}({})>".format(type(self).__name__, ", ".join(elements))
 
     def apply_translation(self, translation):

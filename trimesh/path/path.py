@@ -7,7 +7,6 @@ those stored in a DXF or SVG file.
 """
 import collections
 import copy
-import warnings
 from hashlib import sha256
 
 import numpy as np
@@ -246,10 +245,8 @@ class Path(parent.Geometry):
         """
         if len(self.paths) == 0:
             return np.arange(len(self.entities))
-        else:
-            included = np.hstack(self.paths)
-        dangling = np.setdiff1d(np.arange(len(self.entities)), included)
-        return dangling
+
+        return np.setdiff1d(np.arange(len(self.entities)), np.hstack(self.paths))
 
     @caching.cache_decorator
     def kdtree(self):
@@ -1441,17 +1438,6 @@ class Path2D(Path):
         return sha256(as_int.tobytes(order="C")).hexdigest()
 
     @property
-    def identifier_md5(self):
-        warnings.warn(
-            "`geom.identifier_md5` is deprecated and will "
-            + "be removed in October 2023: replace "
-            + "with `geom.identifier_hash`",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.identifier_hash
-
-    @property
     def path_valid(self):
         """
         Returns
@@ -1460,8 +1446,7 @@ class Path2D(Path):
           Indexes of self.paths self.polygons_closed
           which are valid polygons.
         """
-        valid = np.array([i is not None for i in self.polygons_closed], dtype=bool)
-        return valid
+        return np.array([i is not None for i in self.polygons_closed], dtype=bool)
 
     @caching.cache_decorator
     def root(self):
@@ -1519,5 +1504,4 @@ class Path2D(Path):
         """
         pairs = [(r, self.connected_paths(r, include_self=False)) for r in self.root]
         # OrderedDict to maintain corresponding order
-        corresponding = collections.OrderedDict(pairs)
-        return corresponding
+        return collections.OrderedDict(pairs)

@@ -82,9 +82,7 @@ class MeshTests(g.unittest.TestCase):
 
             assert abs(mesh.volume) > 0.0
 
-            mesh.section(
-                plane_normal=[0, 0, 1], plane_origin=mesh.centroid
-            )
+            mesh.section(plane_normal=[0, 0, 1], plane_origin=mesh.centroid)
 
             sample = mesh.sample(1000)
             even_sample = g.trimesh.sample.sample_surface_even(mesh, 100)  # NOQA

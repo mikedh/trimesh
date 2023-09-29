@@ -211,6 +211,32 @@ class VectorTests(g.unittest.TestCase):
         assert g.np.allclose(p.colors[0], color)
         assert p.colors.shape == (len(p.entities), 4)
 
+        p.colors = g.np.array(
+            [100, 100, 100] * len(p.entities), dtype=g.np.uint8
+        ).reshape((-1, 3))
+        assert g.np.allclose(p.colors[0], [100, 100, 100, 255])
+
+    def test_dangling(self):
+        p = g.get_mesh("2D/wrench.dxf")
+        assert len(p.dangling) == 0
+
+        b = g.get_mesh("2D/loose.dxf")
+        assert len(b.dangling) == 1
+        assert len(b.polygons_full) == 1
+
+    def test_plot(self):
+        try:
+            # only run these if matplotlib is installed
+            import matplotlib.pyplot  # NOQA
+        except BaseException:
+            g.log.debug("skipping `matplotlib.pyplot` tests")
+
+        p = g.get_mesh("2D/wrench.dxf")
+
+        # see if the logic crashes
+        p.plot_entities(show=False)
+        p.plot_discrete(show=False)
+
 
 class SplitTest(g.unittest.TestCase):
     def test_split(self):
