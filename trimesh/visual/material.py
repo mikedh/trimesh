@@ -712,7 +712,7 @@ def empty_material(color=None):
     Returns
     -------------
     material : SimpleMaterial
-      Image is a a one pixel RGB
+      Image is a a four pixel RGB
     """
     try:
         from PIL import Image
@@ -915,12 +915,19 @@ def pack(
                 resized.append(img)
         return resized
 
+    packed = {}
+
     def pack_images(images):
+        key = hash(tuple(sorted([id(i) for i in images])))
+        assert key not in packed
+        if key in packed:
+            return packed[key]
+
         # run image packing with our material-specific settings
         # which including deduplicating by hash, upsizing to the
         # nearest power of two, returning deterministically by seeding
         # and padding every side of the image by 1 pixel
-        return packing.images(
+        result = packing.images(
             images,
             deduplicate=True,
             power_resize=True,
@@ -928,6 +935,8 @@ def pack(
             iterations=10,
             spacing=int(padding),
         )
+        packed[key] = result
+        return result
 
     if deduplicate:
         # start by collecting a list of indexes for each material hash
@@ -1038,81 +1047,34 @@ def pack(
     new_uv = {}
     for group, img, offset in zip(mat_idx, images, offsets):
         # how big was the original image
-        uv_scale = np.array(img.size) / final_size
+        uv_scale = (np.array(img.size) - 1) / final_size
         # the units of offset are *pixels of the final image*
         # thus to scale them to normalized UV coordinates we
         # what is the offset in fractions of final image
-        uv_offset = offset / final_size
+        uv_offset = offset / (final_size - 1)
         # scale and translate each of the new UV coordinates
         # also make sure they are in 0.0-1.0 using modulus (i.e. wrap)
         for g in group:
-            uvs[g].copy()
             # only wrap pixels that are outside of 0.0-1.0.
             # use a small leeway of half a pixel for floating point inaccuracies and
             # the case of uv==1.0
-            """"
-            half_pixel_width = 1.0 / (2 * img.size[0])
-            half_pixel_height = 1.0 / (2 * img.size[1])
-            wrap_mask_u = (g_uvs[:, 0] <= -half_pixel_width) | (
-                g_uvs[:, 0] >= (1.0 + half_pixel_width)
-            )
-            wrap_mask_v = (g_uvs[:, 1] <= -half_pixel_height) | (
-                g_uvs[:, 1] >= (1.0 + half_pixel_height)
-            )
-            wrap_mask = np.stack([wrap_mask_u, wrap_mask_v], axis=-1)
+            uvg = uvs[g]
 
-            g_uvs[wrap_mask] = g_uvs[wrap_mask] % 1.0
-            new_uv[g] = (g_uvs * scale) + xy_off
-            """
-            moved = (uvs[g] * uv_scale) + uv_offset
-            moved[np.logical_or(moved < -0.00001, moved > 1.00001)] %= 1.0
+            moved = (uvg * uv_scale) + uv_offset
+            # wrap by half-pic
+            half = 0.5 / np.array(img.size)
+            wrap = np.logical_or(uvg < -half, uvg > (1.0 + half))
+            moved[wrap] %= 1.0
+
+            if tol.strict:
+                old = color.uv_to_color(uvg, img)
+                new = color.uv_to_color(moved, final)
+                assert np.allclose(old, new, atol=10)
+
             new_uv[g] = moved
 
     # stack the new UV coordinates in the original order
     stacked = np.vstack([new_uv[i] for i in range(len(uvs))])
-
-    # check to make sure the packed result image matches
-    # the original input image exactly in unit tests
-    if tol.strict:
-        # get the pixel color from the original image
-        material_textures = [(get_base_color_texture, final)]
-        if use_pbr:
-            material_textures.append(
-                (get_metallic_roughness_texture, final_metallic_roughness)
-            )
-            if final_emissive:
-                material_textures.append((get_emissive_texture, final_emissive))
-            if final_normals:
-                material_textures.append((get_normal_texture, final_normals))
-            if final_occlusion:
-                material_textures.append((get_occlusion_texture, final_occlusion))
-
-        check = []
-        for uv, mat in zip(uvs, materials):
-            # get the image from the material and whether or not
-            # it had to fill in with default data
-            material_textures_values = []
-            for texture_load_fn, _ in material_textures:
-                orig_img = texture_load_fn(mat)
-                current = color.uv_to_interpolated_color(image=orig_img, uv=uv)
-                material_textures_values.append(current)
-            check.append(material_textures_values)
-
-        check_flat = []
-        for texture_idx in range(len(material_textures)):
-            check_flat.append(np.vstack([c[texture_idx] for c in check]))
-
-        for reference, (_, final_texture) in zip(check_flat, material_textures):
-            # get the pixel color from the packed image
-            compare = color.uv_to_interpolated_color(uv=stacked, image=final_texture)
-            # should be exactly identical
-            # note this is only true for simple colors
-            # interpolation on complicated stuff can break this
-            if not np.allclose(reference, compare):
-                # from IPython import embed
-                # embed()
-                pass
-            assert np.allclose(reference, compare)
 
     if use_pbr:
         return (

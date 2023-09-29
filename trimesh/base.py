@@ -32,7 +32,6 @@ from . import (
     remesh,
     repair,
     sample,
-    smoothing,  # noqa
     transformations,
     triangles,
     units,
