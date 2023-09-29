@@ -11,6 +11,7 @@ and analysis, in the style of the Polygon object in the Shapely library.
 from . import (
     boolean,
     caching,
+    collision,
     comparison,
     convex,
     creation,
