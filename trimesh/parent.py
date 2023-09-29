@@ -277,13 +277,20 @@ class Geometry3D(Geometry):
           Transformation matrix that was applied
           to mesh to move it into OBB frame
         """
+        # save the pre-transform volume
         if tol.strict and hasattr(self, "volume"):
-            # in strict mode make sure volume is identical
-            check = self.volume
-            matrix, _ = bounds.oriented_bounds(self, **kwargs)
-            assert np.isclose(check, self.volume)
-        else:
-            # calculate the oriented bounding box
-            matrix, _ = bounds.oriented_bounds(self, **kwargs)
+            volume = self.volume
+
+        # calculate the OBB passing keyword arguments through
+        matrix, extents = bounds.oriented_bounds(self, **kwargs)
+        # apply the transform
+        self.apply_transform(matrix)
+
+        if tol.strict:
+            # obb transform should not have changed volume
+            if hasattr(self, "volume"):
+                assert np.isclose(self.volume, volume)
+            # overall extents should match what we expected
+            assert np.allclose(self.extents, extents)
 
         return matrix
