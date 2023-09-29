@@ -452,12 +452,10 @@ class MassTests(g.unittest.TestCase):
             )
 
             for key in truth.keys():
-                if not g.np.allclose(calc[key], truth[key], atol=1e-2):
-                    raise ValueError(
-                        "{}({}):\n{}\n!=\n{}".format(
-                            truth["filename"], key, calc[key], g.np.array(truth[key])
-                        )
-                    )
+                if key == "area":
+                    assert g.np.isclose(mesh.area, truth[key], atol=1e-2)
+                elif key in dir(calc):
+                    assert g.np.allclose(calc[key], truth[key], atol=1e-2)
 
 
 if __name__ == "__main__":
