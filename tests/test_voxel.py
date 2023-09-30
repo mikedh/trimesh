@@ -5,21 +5,22 @@ except BaseException:
 
 
 class VoxelGridTest(g.unittest.TestCase):
-
     def test_voxel(self):
         """
         Test that voxels work at all
         """
-        for m in [g.get_mesh('featuretype.STL'),
-                  g.trimesh.primitives.Box(),
-                  g.trimesh.primitives.Sphere()]:
-            for pitch in [.1, .1 - g.tol.merge]:
+        for m in [
+            g.get_mesh("featuretype.STL"),
+            g.trimesh.primitives.Box(),
+            g.trimesh.primitives.Sphere(),
+        ]:
+            for pitch in [0.1, 0.1 - g.tol.merge]:
                 surface = m.voxelized(pitch=pitch)
 
                 # make sure the voxelized pitch is similar to passed
                 assert g.np.allclose(surface.pitch, pitch)
 
-                for fill_method in ('base', 'orthographic'):
+                for fill_method in ("base", "orthographic"):
                     solid = surface.copy().fill(method=fill_method)
 
                     assert len(surface.encoding.dense.shape) == 3
@@ -35,11 +36,8 @@ class VoxelGridTest(g.unittest.TestCase):
                     assert isinstance(box_surface, g.trimesh.Trimesh)
                     assert abs(box_solid.volume - solid.volume) < g.tol.merge
 
-                    assert g.trimesh.util.is_shape(
-                        surface.sparse_indices, (-1, 3))
-                    assert len(
-                        solid.sparse_indices) >= len(
-                        surface.sparse_indices)
+                    assert g.trimesh.util.is_shape(surface.sparse_indices, (-1, 3))
+                    assert len(solid.sparse_indices) >= len(surface.sparse_indices)
                     assert solid.sparse_indices.shape == solid.points.shape
                     outside = m.bounds[1] + m.scale
                     for vox in surface, solid:
@@ -51,11 +49,13 @@ class VoxelGridTest(g.unittest.TestCase):
                         cubes = surface.marching_cubes
                         assert cubes.area > 0.0
                     except ImportError:
-                        g.log.info('no skimage, skipping marching cubes test')
+                        g.log.info("no skimage, skipping marching cubes test")
 
-                    g.log.info('Mesh volume was %f, voxelized volume was %f',
-                               m.volume,
-                               surface.volume)
+                    g.log.info(
+                        "Mesh volume was %f, voxelized volume was %f",
+                        m.volume,
+                        surface.volume,
+                    )
 
     def test_marching(self):
         """
@@ -64,7 +64,7 @@ class VoxelGridTest(g.unittest.TestCase):
         try:
             from skimage import measure  # NOQA
         except ImportError:
-            g.log.warning('no skimage, skipping marching cubes test')
+            g.log.warning("no skimage, skipping marching cubes test")
             return
 
         # make sure offset is correct
@@ -72,8 +72,9 @@ class VoxelGridTest(g.unittest.TestCase):
         mesh = g.trimesh.voxel.ops.matrix_to_marching_cubes(matrix=matrix)
         assert mesh.is_watertight
 
-        mesh = g.trimesh.voxel.ops.matrix_to_marching_cubes(
-            matrix=matrix).apply_scale(3.0)
+        mesh = g.trimesh.voxel.ops.matrix_to_marching_cubes(matrix=matrix).apply_scale(
+            3.0
+        )
         assert mesh.is_watertight
 
     def test_marching_points(self):
@@ -83,7 +84,7 @@ class VoxelGridTest(g.unittest.TestCase):
         try:
             from skimage import measure  # NOQA
         except ImportError:
-            g.log.warning('no skimage, skipping marching cubes test')
+            g.log.warning("no skimage, skipping marching cubes test")
             return
 
         # get some points on the surface of an icosahedron
@@ -91,14 +92,13 @@ class VoxelGridTest(g.unittest.TestCase):
         # make the pitch proportional to scale
         pitch = points.ptp(axis=0).min() / 10
         # run marching cubes
-        mesh = g.trimesh.voxel.ops.points_to_marching_cubes(
-            points=points, pitch=pitch)
+        mesh = g.trimesh.voxel.ops.points_to_marching_cubes(points=points, pitch=pitch)
 
         # mesh should have faces
         assert len(mesh.faces) > 0
         # mesh should be roughly centered
-        assert (mesh.bounds[0] < -.5).all()
-        assert (mesh.bounds[1] > .5).all()
+        assert (mesh.bounds[0] < -0.5).all()
+        assert (mesh.bounds[1] > 0.5).all()
 
     def test_local(self):
         """
@@ -110,31 +110,22 @@ class VoxelGridTest(g.unittest.TestCase):
 
         # it should have some stuff
         voxel = creation.local_voxelize(
-            mesh=mesh,
-            point=[.5, .5, .5],
-            pitch=.1,
-            radius=5,
-            fill=True)
+            mesh=mesh, point=[0.5, 0.5, 0.5], pitch=0.1, radius=5, fill=True
+        )
 
         assert len(voxel.shape) == 3
 
         # try it when it definitely doesn't hit anything
         empty = creation.local_voxelize(
-            mesh=mesh,
-            point=[10, 10, 10],
-            pitch=.1,
-            radius=5,
-            fill=True)
+            mesh=mesh, point=[10, 10, 10], pitch=0.1, radius=5, fill=True
+        )
         # shouldn't have hit anything
         assert empty is None
 
         # try it when it is in the center of a volume
         creation.local_voxelize(
-            mesh=mesh,
-            point=[0, 0, 0],
-            pitch=.1,
-            radius=2,
-            fill=True)
+            mesh=mesh, point=[0, 0, 0], pitch=0.1, radius=2, fill=True
+        )
 
     def test_points_to_from_indices(self):
         # indices = (points - origin) / pitch
@@ -145,23 +136,27 @@ class VoxelGridTest(g.unittest.TestCase):
 
         # points -> indices
         indices2 = g.trimesh.voxel.ops.points_to_indices(
-            points=points, origin=origin, pitch=pitch)
+            points=points, origin=origin, pitch=pitch
+        )
 
         g.np.testing.assert_allclose(indices, indices2, atol=0, rtol=0)
 
         # indices -> points
         points2 = g.trimesh.voxel.ops.indices_to_points(
-            indices=indices, origin=origin, pitch=pitch)
+            indices=indices, origin=origin, pitch=pitch
+        )
         g.np.testing.assert_allclose(
-            g.np.array(indices) * pitch + origin, points2, atol=0, rtol=0)
-        g.np.testing.assert_allclose(
-            points, points2, atol=pitch / 2 * 1.01, rtol=0)
+            g.np.array(indices) * pitch + origin, points2, atol=0, rtol=0
+        )
+        g.np.testing.assert_allclose(points, points2, atol=pitch / 2 * 1.01, rtol=0)
 
         # indices -> points -> indices (this must be consistent)
         points2 = g.trimesh.voxel.ops.indices_to_points(
-            indices=indices, origin=origin, pitch=pitch)
+            indices=indices, origin=origin, pitch=pitch
+        )
         indices2 = g.trimesh.voxel.ops.points_to_indices(
-            points=points2, origin=origin, pitch=pitch)
+            points=points2, origin=origin, pitch=pitch
+        )
         g.np.testing.assert_allclose(indices, indices2, atol=0, rtol=0)
 
     def test_as_boxes(self):
@@ -172,40 +167,37 @@ class VoxelGridTest(g.unittest.TestCase):
 
         matrix = g.np.eye(9, dtype=bool).reshape((-1, 3, 3))
         centers = g.trimesh.voxel.ops.matrix_to_points(
-            matrix=matrix, pitch=pitch, origin=origin)
-        v = voxel.VoxelGrid(matrix).apply_scale(
-            pitch).apply_translation(origin)
+            matrix=matrix, pitch=pitch, origin=origin
+        )
+        v = voxel.VoxelGrid(matrix).apply_scale(pitch).apply_translation(origin)
 
         boxes1 = v.as_boxes()
         boxes2 = g.trimesh.voxel.ops.multibox(centers).apply_scale(pitch)
         colors = [g.trimesh.visual.DEFAULT_COLOR] * matrix.sum() * 12
         for boxes in [boxes1, boxes2]:
-            g.np.testing.assert_allclose(
-                boxes.visual.face_colors, colors, atol=0, rtol=0)
+            g.np.testing.assert_allclose(boxes.visual.face_colors, colors, atol=0, rtol=0)
 
         # check assigning a single color
         color = [255, 0, 0, 255]
         boxes1 = v.as_boxes(colors=color)
-        boxes2 = g.trimesh.voxel.ops.multibox(
-            centers=centers, colors=color).apply_scale(pitch)
+        boxes2 = g.trimesh.voxel.ops.multibox(centers=centers, colors=color).apply_scale(
+            pitch
+        )
         colors = g.np.array([color] * len(centers) * 12)
         for boxes in [boxes1, boxes2]:
-            g.np.testing.assert_allclose(
-                boxes.visual.face_colors, colors, atol=0, rtol=0)
+            g.np.testing.assert_allclose(boxes.visual.face_colors, colors, atol=0, rtol=0)
 
         # check matrix colors
-        colors = color * g.np.ones(g.np.append(v.shape, 4),
-                                   dtype=g.np.uint8)
+        colors = color * g.np.ones(g.np.append(v.shape, 4), dtype=g.np.uint8)
         boxes = v.as_boxes(colors=colors)
-        assert g.np.allclose(
-            boxes.visual.face_colors, color, atol=0, rtol=0)
+        assert g.np.allclose(boxes.visual.face_colors, color, atol=0, rtol=0)
 
     def test_is_filled(self):
         """More rigorous test of VoxelGrid.is_filled."""
         n = 10
         matrix = g.np.random.uniform(size=(n + 1,) * 3) > 0.5
         not_matrix = g.np.logical_not(matrix)
-        pitch = 1. / n
+        pitch = 1.0 / n
         origin = g.np.random.uniform(size=(3,))
         vox = g.trimesh.voxel.VoxelGrid(matrix)
         vox = vox.apply_scale(pitch).apply_translation(origin)
@@ -214,8 +206,7 @@ class VoxelGridTest(g.unittest.TestCase):
         for a, b in ((vox, not_vox), (not_vox, vox)):
             points = a.points
             # slight jitter - shouldn't change indices
-            points += (
-                g.np.random.uniform(size=points.shape) - 1) * 0.4 * pitch
+            points += (g.np.random.uniform(size=points.shape) - 1) * 0.4 * pitch
             g.np.random.shuffle(points)
 
             # all points are filled, and no empty points are filled
@@ -235,8 +226,7 @@ class VoxelGridTest(g.unittest.TestCase):
         # epsilon from zero
         eps = 1e-4
         # should all be contained
-        grid = g.trimesh.util.grid_linspace(
-            [[eps] * 3, [9 - eps] * 3], 11) * scale
+        grid = g.trimesh.util.grid_linspace([[eps] * 3, [9 - eps] * 3], 11) * scale
         assert vox.is_filled(grid).all()
 
         # push it outside the filled area
@@ -247,10 +237,8 @@ class VoxelGridTest(g.unittest.TestCase):
         # try exporting and reloading in the "binvox" format
         m = g.trimesh.creation.box()
         v = m.voxelized(pitch=0.1)
-        e = v.export(file_type='binvox')
-        r = g.trimesh.load(
-            file_obj=g.trimesh.util.wrap_as_stream(e),
-            file_type='binvox')
+        e = v.export(file_type="binvox")
+        r = g.trimesh.load(file_obj=g.trimesh.util.wrap_as_stream(e), file_type="binvox")
 
         assert v.filled_count == r.filled_count
         assert g.np.allclose(r.bounds, v.bounds)
@@ -281,6 +269,7 @@ class VoxelGridTest(g.unittest.TestCase):
         query_points: (optional) points as which `points_to_indices` and
         `is_filled` are tested for consistency.
         """
+
         def array_as_set(array2d):
             return {tuple(x) for x in array2d}
 
@@ -294,8 +283,7 @@ class VoxelGridTest(g.unittest.TestCase):
         self.assertEqual(v0.volume, v1.volume)
         g.np.testing.assert_equal(v0.encoding.dense, v1.encoding.dense)
         # points will be in different order, but should contain same coords
-        g.np.testing.assert_equal(
-            array_as_set(v0.points), array_as_set(v1.points))
+        g.np.testing.assert_equal(array_as_set(v0.points), array_as_set(v1.points))
         # g.np.testing.assert_equal(v0.origin, v1.origin)
         # g.np.testing.assert_equal(v0.pitch, v1.pitch)
         if query_points is not None:
@@ -303,27 +291,30 @@ class VoxelGridTest(g.unittest.TestCase):
             indices1 = v1.points_to_indices(query_points)
             g.np.testing.assert_equal(indices0, indices1)
             g.np.testing.assert_allclose(
-                v0.points_to_indices(v0.indices_to_points(indices0)), indices0)
+                v0.points_to_indices(v0.indices_to_points(indices0)), indices0
+            )
             g.np.testing.assert_allclose(
-                v1.points_to_indices(v1.indices_to_points(indices1)), indices1)
+                v1.points_to_indices(v1.indices_to_points(indices1)), indices1
+            )
             g.np.testing.assert_equal(
-                v0.is_filled(query_points),
-                v1.is_filled(query_points))
+                v0.is_filled(query_points), v1.is_filled(query_points)
+            )
 
     def test_voxel_rle(self):
         from trimesh.voxel import encoding as enc
+
         np = g.np
         voxel = g.trimesh.voxel
         shape = (4, 4, 4)
-        rle_obj = enc.RunLengthEncoding(np.array([
-            0, 8, 1, 40, 0, 16], dtype=np.uint8), dtype=bool)
-        brle_obj = enc.BinaryRunLengthEncoding(np.array([
-            8, 40, 16], dtype=np.uint8))
+        rle_obj = enc.RunLengthEncoding(
+            np.array([0, 8, 1, 40, 0, 16], dtype=np.uint8), dtype=bool
+        )
+        brle_obj = enc.BinaryRunLengthEncoding(np.array([8, 40, 16], dtype=np.uint8))
         v_rle = voxel.VoxelGrid(rle_obj.reshape(shape))
         self.assertEqual(v_rle.filled_count, 40)
         g.np.testing.assert_equal(
-            v_rle.encoding.dense,
-            g.np.reshape([0] * 8 + [1] * 40 + [0] * 16, shape))
+            v_rle.encoding.dense, g.np.reshape([0] * 8 + [1] * 40 + [0] * 16, shape)
+        )
 
         v_brle = voxel.VoxelGrid(brle_obj.reshape(shape))
         query_points = g.np.random.uniform(size=(100, 3), high=4)
@@ -331,19 +322,19 @@ class VoxelGridTest(g.unittest.TestCase):
 
     def test_hollow(self):
         if not g.has_binvox:
-            g.log.warning('no binvox to test!')
+            g.log.warning("no binvox to test!")
             return
 
         filled = g.trimesh.primitives.Sphere().voxelized(
-            pitch=0.1,
-            method='binvox',
-            exact=True)
+            pitch=0.1, method="binvox", exact=True
+        )
         hollow = filled.copy().hollow()
         self.assertLess(hollow.filled_count, filled.filled_count)
         self.assertGreater(hollow.filled_count, 0)
 
     def test_fill(self):
         from trimesh.voxel.morphology import fillers
+
         hollow = g.trimesh.primitives.Sphere().voxelized(pitch=0.1).hollow()
 
         for key in fillers:
@@ -352,18 +343,17 @@ class VoxelGridTest(g.unittest.TestCase):
 
     def test_strip(self):
         if not g.has_binvox:
-            g.log.warning('no binvox to test!')
+            g.log.warning("no binvox to test!")
             return
 
         octant = g.trimesh.primitives.Sphere().voxelized(
-            pitch=0.1,
-            method='binvox',
-            exact=True)
+            pitch=0.1, method="binvox", exact=True
+        )
         dense = octant.encoding.dense.copy()
         nx, ny, nz = octant.shape
-        dense[:nx // 2] = 0
-        dense[:, :ny // 2] = 0
-        dense[:, :, nz // 2:] = 0
+        dense[: nx // 2] = 0
+        dense[:, : ny // 2] = 0
+        dense[:, :, nz // 2 :] = 0
         octant.encoding = dense
         stripped = octant.copy().strip()
         self.assertEqual(octant.filled_count, stripped.filled_count)
@@ -373,22 +363,21 @@ class VoxelGridTest(g.unittest.TestCase):
 
     def test_binvox_with_dimension(self):
         if not g.has_binvox:
-            g.log.warning('no binvox to test!')
+            g.log.warning("no binvox to test!")
             return
 
         dim = 10
         octant = g.trimesh.primitives.Sphere().voxelized(
-            pitch=None,
-            dimension=dim,
-            method='binvox',
-            exact=True)
+            pitch=None, dimension=dim, method="binvox", exact=True
+        )
         assert octant.shape == (dim, dim, dim)
 
     def test_transform_cache(self):
         encoding = [
             [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
             [[0, 1, 1], [0, 1, 0], [1, 1, 0]],
-            [[0, 0, 0], [0, 1, 0], [0, 0, 0]]]
+            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+        ]
         vg = g.trimesh.voxel.VoxelGrid(g.np.asarray(encoding))
 
         scale = g.np.asarray([12, 23, 24])
@@ -408,6 +397,6 @@ class VoxelGridTest(g.unittest.TestCase):
         assert g.np.allclose(vg.scale, scale)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

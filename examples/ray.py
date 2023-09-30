@@ -11,16 +11,13 @@ import numpy as np
 
 import trimesh
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     # test on a sphere mesh
     mesh = trimesh.primitives.Sphere()
 
     # create some rays
-    ray_origins = np.array([[0, 0, -5],
-                            [2, 2, -10]])
-    ray_directions = np.array([[0, 0, 1],
-                               [0, 0, 1]])
+    ray_origins = np.array([[0, 0, -5], [2, 2, -10]])
+    ray_directions = np.array([[0, 0, 1], [0, 0, 1]])
 
     """
     Signature: mesh.ray.intersects_location(ray_origins,
@@ -45,22 +42,19 @@ if __name__ == '__main__':
 
     # run the mesh- ray test
     locations, index_ray, index_tri = mesh.ray.intersects_location(
-        ray_origins=ray_origins,
-        ray_directions=ray_directions)
+        ray_origins=ray_origins, ray_directions=ray_directions
+    )
 
     # stack rays into line segments for visualization as Path3D
-    ray_visualize = trimesh.load_path(np.hstack((
-        ray_origins,
-        ray_origins + ray_directions)).reshape(-1, 2, 3))
+    ray_visualize = trimesh.load_path(
+        np.hstack((ray_origins, ray_origins + ray_directions)).reshape(-1, 2, 3)
+    )
 
     # make mesh transparent- ish
     mesh.visual.face_colors = [100, 100, 100, 100]
 
     # create a visualization scene with rays, hits, and mesh
-    scene = trimesh.Scene([
-        mesh,
-        ray_visualize,
-        trimesh.points.PointCloud(locations)])
+    scene = trimesh.Scene([mesh, ray_visualize, trimesh.points.PointCloud(locations)])
 
     # display the scene
     scene.show()

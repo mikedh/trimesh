@@ -13,6 +13,7 @@ class Visuals(ABC):
     """
     Parent of Visual classes.
     """
+
     @abc.abstractproperty
     def kind(self):
         pass

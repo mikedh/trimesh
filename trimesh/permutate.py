@@ -28,8 +28,7 @@ def transform(mesh, translation_scale=1000.0):
       and rigidly transformed in space.
     """
     # rotate and translate randomly
-    matrix = transformations.random_rotation_matrix(
-        translate=translation_scale)
+    matrix = transformations.random_rotation_matrix(translate=translation_scale)
 
     # randomly re-order triangles
     triangles = np.random.permutation(mesh.triangles).reshape((-1, 3))
@@ -37,10 +36,9 @@ def transform(mesh, translation_scale=1000.0):
     triangles = transformations.transform_points(triangles, matrix)
 
     # extract the class from the input object
-    mesh_type = util.type_named(mesh, 'Trimesh')
+    mesh_type = util.type_named(mesh, "Trimesh")
     # generate a new mesh from the permutated data
-    permutated = mesh_type(
-        **triangles_module.to_kwargs(triangles.reshape((-1, 3, 3))))
+    permutated = mesh_type(**triangles_module.to_kwargs(triangles.reshape((-1, 3, 3))))
 
     return permutated
 
@@ -66,13 +64,13 @@ def noise(mesh, magnitude=None):
     if magnitude is None:
         magnitude = mesh.scale / 100.0
 
-    random = (np.random.random(mesh.vertices.shape) - .5) * magnitude
+    random = (np.random.random(mesh.vertices.shape) - 0.5) * magnitude
     vertices_noise = mesh.vertices.copy() + random
 
     # make sure we've re- ordered faces randomly
     triangles = np.random.permutation(vertices_noise[mesh.faces])
 
-    mesh_type = util.type_named(mesh, 'Trimesh')
+    mesh_type = util.type_named(mesh, "Trimesh")
     permutated = mesh_type(**triangles_module.to_kwargs(triangles))
 
     return permutated
@@ -98,32 +96,32 @@ def tessellation(mesh):
     """
     # create random barycentric coordinates for each face
     # pad all coordinates by a small amount to bias new vertex towards center
-    barycentric = np.random.random(mesh.faces.shape) + .05
+    barycentric = np.random.random(mesh.faces.shape) + 0.05
     barycentric /= barycentric.sum(axis=1).reshape((-1, 1))
 
     # create one new vertex somewhere in a face
-    vertex_face = (barycentric.reshape((-1, 3, 1))
-                   * mesh.triangles).sum(axis=1)
+    vertex_face = (barycentric.reshape((-1, 3, 1)) * mesh.triangles).sum(axis=1)
     vertex_face_id = np.arange(len(vertex_face)) + len(mesh.vertices)
 
     # new vertices are the old vertices stacked on the vertices in the faces
     vertices = np.vstack((mesh.vertices, vertex_face))
     # there are three new faces per old face, and we maintain correct winding
-    faces = np.vstack((np.column_stack((mesh.faces[:, [0, 1]], vertex_face_id)),
-                       np.column_stack(
-                           (mesh.faces[:, [1, 2]], vertex_face_id)),
-                       np.column_stack((mesh.faces[:, [2, 0]], vertex_face_id))))
+    faces = np.vstack(
+        (
+            np.column_stack((mesh.faces[:, [0, 1]], vertex_face_id)),
+            np.column_stack((mesh.faces[:, [1, 2]], vertex_face_id)),
+            np.column_stack((mesh.faces[:, [2, 0]], vertex_face_id)),
+        )
+    )
     # make sure the order of the faces is permutated
     faces = np.random.permutation(faces)
 
-    mesh_type = util.type_named(mesh, 'Trimesh')
-    permutated = mesh_type(vertices=vertices,
-                           faces=faces)
+    mesh_type = util.type_named(mesh, "Trimesh")
+    permutated = mesh_type(vertices=vertices, faces=faces)
     return permutated
 
 
 class Permutator:
-
     def __init__(self, mesh):
         """
         A convenience object to get permutated versions of a mesh.
@@ -131,8 +129,7 @@ class Permutator:
         self._mesh = mesh
 
     def transform(self, translation_scale=1000):
-        return transform(
-            self._mesh, translation_scale=translation_scale)
+        return transform(self._mesh, translation_scale=translation_scale)
 
     def noise(self, magnitude=None):
         return noise(self._mesh, magnitude)

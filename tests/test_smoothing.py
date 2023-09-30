@@ -10,8 +10,7 @@ class SmoothTest(g.unittest.TestCase):
         Load a collada scene with pycollada.
         """
         m = g.trimesh.creation.icosahedron()
-        m.vertices, m.faces = g.trimesh.remesh.subdivide_to_size(
-            m.vertices, m.faces, 0.1)
+        m.vertices, m.faces = g.trimesh.remesh.subdivide_to_size(m.vertices, m.faces, 0.1)
 
         s = m.copy()
         q = m.copy()
@@ -23,8 +22,7 @@ class SmoothTest(g.unittest.TestCase):
         assert m.is_volume
 
         # Equal Weights
-        lap = g.trimesh.smoothing.laplacian_calculation(
-            mesh=m, equal_weight=True)
+        lap = g.trimesh.smoothing.laplacian_calculation(mesh=m, equal_weight=True)
 
         g.trimesh.smoothing.filter_laplacian(s, 0.5, 10, False, True, lap)
         g.trimesh.smoothing.filter_laplacian(q, 0.5, 10, True, True, lap)
@@ -79,6 +77,6 @@ class SmoothTest(g.unittest.TestCase):
         assert g.np.isclose(v.volume, m.volume, rtol=0.1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

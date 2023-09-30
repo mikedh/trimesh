@@ -13,10 +13,9 @@ import PIL.Image
 
 import trimesh
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     # test on a simple mesh
-    mesh = trimesh.load('../models/featuretype.STL')
+    mesh = trimesh.load("../models/featuretype.STL")
 
     # scene will have automatically generated camera and lights
     scene = mesh.scene()
@@ -26,19 +25,18 @@ if __name__ == '__main__':
     scene.camera.resolution = [640, 480]
     # set field of view, in degrees
     # make it relative to resolution so pixels per degree is same
-    scene.camera.fov = 60 * (scene.camera.resolution /
-                             scene.camera.resolution.max())
+    scene.camera.fov = 60 * (scene.camera.resolution / scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
     origins, vectors, pixels = scene.camera_rays()
 
     # do the actual ray- mesh queries
     points, index_ray, index_tri = mesh.ray.intersects_location(
-        origins, vectors, multiple_hits=False)
+        origins, vectors, multiple_hits=False
+    )
 
     # for each hit, find the distance along its vector
-    depth = trimesh.util.diagonal_dot(points - origins[0],
-                                      vectors[index_ray])
+    depth = trimesh.util.diagonal_dot(points - origins[0], vectors[index_ray])
     # find pixel locations of actual hits
     pixel_ray = pixels[index_ray]
 
@@ -47,7 +45,7 @@ if __name__ == '__main__':
     a = np.zeros(scene.camera.resolution, dtype=np.uint8)
 
     # scale depth against range (0.0 - 1.0)
-    depth_float = ((depth - depth.min()) / depth.ptp())
+    depth_float = (depth - depth.min()) / depth.ptp()
 
     # convert depth into 0 - 255 uint8
     depth_int = (depth_float * 255).round().astype(np.uint8)

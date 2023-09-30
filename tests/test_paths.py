@@ -5,7 +5,6 @@ except BaseException:
 
 
 class VectorTests(g.unittest.TestCase):
-
     def test_discrete(self):
         for d in g.get_2D():
             # store hash before requesting passive functions
@@ -17,19 +16,14 @@ class VectorTests(g.unittest.TestCase):
             # make sure various methods return
             # basically the same bounds
             atol = d.scale / 1000
-            for dis, pa, pl in zip(d.discrete,
-                                   d.paths,
-                                   d.polygons_closed):
+            for dis, pa, pl in zip(d.discrete, d.paths, d.polygons_closed):
                 # bounds of discrete version of path
-                bd = g.np.array([g.np.min(dis, axis=0),
-                                 g.np.max(dis, axis=0)])
+                bd = g.np.array([g.np.min(dis, axis=0), g.np.max(dis, axis=0)])
                 # bounds of polygon version of path
                 bl = g.np.reshape(pl.bounds, (2, 2))
                 # try bounds of included entities from path
-                pad = g.np.vstack([d.entities[i].discrete(d.vertices)
-                                   for i in pa])
-                bp = g.np.array([g.np.min(pad, axis=0),
-                                 g.np.max(pad, axis=0)])
+                pad = g.np.vstack([d.entities[i].discrete(d.vertices) for i in pa])
+                bp = g.np.array([g.np.min(pad, axis=0), g.np.max(pad, axis=0)])
 
                 assert g.np.allclose(bd, bl, atol=atol)
                 assert g.np.allclose(bl, bp, atol=atol)
@@ -48,45 +42,49 @@ class VectorTests(g.unittest.TestCase):
 
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names
-            if d.metadata['file_name'][-3:] == 'dxf':
+            if d.metadata["file_name"][-3:] == "dxf":
                 assert len(d.layers) == len(d.entities)
 
             for path in d.paths:
                 verts = d.discretize_path(path)
-                dists = g.np.sum((g.np.diff(verts, axis=0))**2, axis=1)**.5
+                dists = g.np.sum((g.np.diff(verts, axis=0)) ** 2, axis=1) ** 0.5
 
                 if not g.np.all(dists > g.tol_path.zero):
-                    raise ValueError('{} had zero distance in discrete!',
-                                     d.metadata['file_name'])
+                    raise ValueError(
+                        "{} had zero distance in discrete!", d.metadata["file_name"]
+                    )
 
                 circuit_dist = g.trimesh.util.euclidean(verts[0], verts[-1])
                 circuit_test = circuit_dist < g.tol_path.merge
                 if not circuit_test:
-                    g.log.error('On file %s First and last vertex distance %f',
-                                d.metadata['file_name'],
-                                circuit_dist)
+                    g.log.error(
+                        "On file %s First and last vertex distance %f",
+                        d.metadata["file_name"],
+                        circuit_dist,
+                    )
                 assert circuit_test
 
                 is_ccw = g.trimesh.path.util.is_ccw(verts)
                 if not is_ccw:
-                    g.log.error('discrete %s not ccw!',
-                                d.metadata['file_name'])
+                    g.log.error("discrete %s not ccw!", d.metadata["file_name"])
 
             for i in range(len(d.paths)):
                 assert d.polygons_closed[i].is_valid
                 assert d.polygons_closed[i].area > g.tol_path.zero
-            export_dict = d.export(file_type='dict')
+            export_dict = d.export(file_type="dict")
             to_dict = d.to_dict()
             assert isinstance(to_dict, dict)
             assert isinstance(export_dict, dict)
             assert len(to_dict) == len(export_dict)
 
-            export_svg = d.export(file_type='svg')  # NOQA
+            export_svg = d.export(file_type="svg")  # NOQA
             simple = d.simplify()  # NOQA
             split = d.split()
-            g.log.info('Split %s into %d bodies, checking identifiers',
-                       d.metadata['file_name'],
-                       len(split))
+            g.log.info(
+                "Split %s into %d bodies, checking identifiers",
+                d.metadata["file_name"],
+                len(split),
+            )
             for body in split:
                 _ = body.identifier
 
@@ -103,8 +101,7 @@ class VectorTests(g.unittest.TestCase):
             assert g.np.allclose(d.bounds[:, 1], ori[:, 1])
 
             if len(d.polygons_full) > 0 and len(d.vertices) < 150:
-                g.log.info('Checking medial axis on %s',
-                           d.metadata['file_name'])
+                g.log.info("Checking medial axis on %s", d.metadata["file_name"])
                 m = d.medial_axis()
                 assert len(m.entities) > 0
 
@@ -117,12 +114,15 @@ class VectorTests(g.unittest.TestCase):
             d.process()
 
     def test_poly(self):
-        p = g.get_mesh('2D/LM2.dxf')
+        p = g.get_mesh("2D/LM2.dxf")
         assert p.is_closed
 
         # one of the lines should be a polyline
-        assert any(len(e.points) > 2 for e in p.entities if
-                   isinstance(e, g.trimesh.path.entities.Line))
+        assert any(
+            len(e.points) > 2
+            for e in p.entities
+            if isinstance(e, g.trimesh.path.entities.Line)
+        )
 
         # layers should match entity count
         assert len(p.layers) == len(p.entities)
@@ -136,8 +136,11 @@ class VectorTests(g.unittest.TestCase):
         # explode should have added some new layers
         assert len(p.entities) == len(p.layers)
         # all line segments should have two points now
-        assert all(len(i.points) == 2 for i in p.entities if
-                   isinstance(i, g.trimesh.path.entities.Line))
+        assert all(
+            len(i.points) == 2
+            for i in p.entities
+            if isinstance(i, g.trimesh.path.entities.Line)
+        )
         # should still be closed
         assert p.is_closed
         # chop off the last entity
@@ -161,20 +164,19 @@ class VectorTests(g.unittest.TestCase):
         """
         Do some checks on Text entities
         """
-        p = g.get_mesh('2D/LM2.dxf')
+        p = g.get_mesh("2D/LM2.dxf")
         p.explode()
         # get some text entities
-        text = [e for e in p.entities if
-                isinstance(e, g.trimesh.path.entities.Text)]
+        text = [e for e in p.entities if isinstance(e, g.trimesh.path.entities.Text)]
         assert len(text) > 1
 
         # loop through each of them
         for t in text:
             # a spurious error we were seeing in CI
-            if g.trimesh.util.is_instance_named(t, 'Line'):
+            if g.trimesh.util.is_instance_named(t, "Line"):
                 raise ValueError(
-                    'type bases:',
-                    [i.__name__ for i in g.trimesh.util.type_bases(t)])
+                    "type bases:", [i.__name__ for i in g.trimesh.util.type_bases(t)]
+                )
         # make sure this doesn't crash with text entities
         g.trimesh.rendering.convert_to_vertexlist(p)
 
@@ -195,7 +197,7 @@ class VectorTests(g.unittest.TestCase):
         assert not b.is_empty
 
     def test_color(self):
-        p = g.get_mesh('2D/wrench.dxf')
+        p = g.get_mesh("2D/wrench.dxf")
         # make sure we have entities
         assert len(p.entities) > 0
         # make sure shape of colors is correct
@@ -209,16 +211,43 @@ class VectorTests(g.unittest.TestCase):
         assert g.np.allclose(p.colors[0], color)
         assert p.colors.shape == (len(p.entities), 4)
 
+        p.colors = g.np.array(
+            [100, 100, 100] * len(p.entities), dtype=g.np.uint8
+        ).reshape((-1, 3))
+        assert g.np.allclose(p.colors[0], [100, 100, 100, 255])
+
+    def test_dangling(self):
+        p = g.get_mesh("2D/wrench.dxf")
+        assert len(p.dangling) == 0
+
+        b = g.get_mesh("2D/loose.dxf")
+        assert len(b.dangling) == 1
+        assert len(b.polygons_full) == 1
+
+    def test_plot(self):
+        try:
+            # only run these if matplotlib is installed
+            import matplotlib.pyplot  # NOQA
+        except BaseException:
+            g.log.debug("skipping `matplotlib.pyplot` tests")
+            return
+
+        p = g.get_mesh("2D/wrench.dxf")
+
+        # see if the logic crashes
+        p.plot_entities(show=False)
+        p.plot_discrete(show=False)
+
 
 class SplitTest(g.unittest.TestCase):
-
     def test_split(self):
-
-        for fn in ['2D/ChuteHolderPrint.DXF',
-                   '2D/tray-easy1.dxf',
-                   '2D/sliding-base.dxf',
-                   '2D/wrench.dxf',
-                   '2D/spline_1.dxf']:
+        for fn in [
+            "2D/ChuteHolderPrint.DXF",
+            "2D/tray-easy1.dxf",
+            "2D/sliding-base.dxf",
+            "2D/wrench.dxf",
+            "2D/spline_1.dxf",
+        ]:
             p = g.get_mesh(fn)
 
             # make sure something was loaded
@@ -242,15 +271,15 @@ class SplitTest(g.unittest.TestCase):
 
 
 class SectionTest(g.unittest.TestCase):
-
     def test_section(self):
-        mesh = g.get_mesh('tube.obj')
+        mesh = g.get_mesh("tube.obj")
 
         # check the CCW correctness with a normal in both directions
         for sign in [1.0, -1.0]:
             # get a cross section of the tube
-            section = mesh.section(plane_origin=mesh.center_mass,
-                                   plane_normal=[0.0, sign, 0.0])
+            section = mesh.section(
+                plane_origin=mesh.center_mass, plane_normal=[0.0, sign, 0.0]
+            )
 
             # Path3D -> Path2D
             planar, T = section.to_planar()
@@ -262,16 +291,14 @@ class SectionTest(g.unittest.TestCase):
             assert len(polygon.interiors) == 1
 
             # the exterior SHOULD be counterclockwise
-            assert g.trimesh.path.util.is_ccw(
-                polygon.exterior.coords)
+            assert g.trimesh.path.util.is_ccw(polygon.exterior.coords)
             # the interior should NOT be counterclockwise
-            assert not g.trimesh.path.util.is_ccw(
-                polygon.interiors[0].coords)
+            assert not g.trimesh.path.util.is_ccw(polygon.interiors[0].coords)
 
             # should be a valid Path2D
             g.check_path2D(planar)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

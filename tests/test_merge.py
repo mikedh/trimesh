@@ -5,7 +5,6 @@ except BaseException:
 
 
 class MargeTest(g.unittest.TestCase):
-
     def test_cube(self):
         """
         Test PointCloud object
@@ -18,8 +17,7 @@ class MargeTest(g.unittest.TestCase):
         assert m.euler_number == 2
 
         # stack a bunch of unreferenced vertices
-        m.vertices = g.np.vstack((
-            m.vertices, g.random((10000, 3))))
+        m.vertices = g.np.vstack((m.vertices, g.random((10000, 3))))
         assert m.euler_number == 2
         assert m.vertices.shape == (10008, 3)
         assert m.referenced_vertices.sum() == 8
@@ -50,6 +48,6 @@ class MargeTest(g.unittest.TestCase):
         assert copied.referenced_vertices.sum() == 8
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

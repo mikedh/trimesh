@@ -9,7 +9,7 @@ from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
 
 # we compare to identity a lot
 _identity = np.eye(4)
-_identity.flags['WRITEABLE'] = False
+_identity.flags["WRITEABLE"] = False
 
 
 class SceneGraph:
@@ -21,7 +21,7 @@ class SceneGraph:
     nodes.
     """
 
-    def __init__(self, base_frame='world', repair_rigid=1e-5):
+    def __init__(self, base_frame="world", repair_rigid=1e-5):
         """
         Create a scene graph, holding homogeneous transformation
         matrices and instance information about geometry.
@@ -79,19 +79,17 @@ class SceneGraph:
             frame_from = self.base_frame
 
         # pass through
-        attr = {k: v for k, v in kwargs.items()
-                if k in {'geometry', 'metadata'}}
+        attr = {k: v for k, v in kwargs.items() if k in {"geometry", "metadata"}}
         # convert various kwargs to a single matrix
-        attr['matrix'] = kwargs_to_matrix(**kwargs)
+        attr["matrix"] = kwargs_to_matrix(**kwargs)
 
         # add the edges for the transforms
         # wi ll return if it changed anything
         self.transforms.add_edge(frame_from, frame_to, **attr)
 
         # set the node attribute with the geometry information
-        if 'geometry' in kwargs:
-            self.transforms.node_data[
-                frame_to]['geometry'] = kwargs['geometry']
+        if "geometry" in kwargs:
+            self.transforms.node_data[frame_to]["geometry"] = kwargs["geometry"]
 
     def get(self, frame_to, frame_from=None):
         """
@@ -126,8 +124,7 @@ class SceneGraph:
             return self._cache[key]
 
         # get the geometry at the final node if any
-        geometry = self.transforms.node_data[
-            frame_to].get('geometry')
+        geometry = self.transforms.node_data[frame_to].get("geometry")
 
         # get a local reference to edge data
         data = self.transforms.edge_data
@@ -137,13 +134,12 @@ class SceneGraph:
             matrix = _identity
         elif key in data:
             # if the path is just an edge return early
-            matrix = data[key]['matrix']
+            matrix = data[key]["matrix"]
         else:
             # we have a 3+ node path
             # get the path from the forest always going from
             # parent -> child -> child
-            path = self.transforms.shortest_path(
-                frame_from, frame_to)
+            path = self.transforms.shortest_path(frame_from, frame_to)
             # the path should always start with `frame_from`
             assert path[0] == frame_from
             # and end with the `frame_to` node
@@ -154,21 +150,19 @@ class SceneGraph:
             for u, v in zip(path[:-1], path[1:]):
                 forward = data.get((u, v))
                 if forward is not None:
-                    if 'matrix' in forward:
+                    if "matrix" in forward:
                         # append the matrix from u to v
-                        matrices.append(forward['matrix'])
+                        matrices.append(forward["matrix"])
                     continue
                 # since forwards didn't exist backward must
                 # exist otherwise this is a disconnected path
                 # and we should raise an error anyway
                 backward = data[(v, u)]
-                if 'matrix' in backward:
+                if "matrix" in backward:
                     # append the inverted backwards matrix
-                    matrices.append(
-                        np.linalg.inv(backward['matrix']))
+                    matrices.append(np.linalg.inv(backward["matrix"]))
             # filter out any identity matrices
-            matrices = [m for m in matrices if
-                        np.abs(m - _identity).max() > 1e-8]
+            matrices = [m for m in matrices if np.abs(m - _identity).max() > 1e-8]
             if len(matrices) == 0:
                 matrix = _identity
             elif len(matrices) == 1:
@@ -182,7 +176,7 @@ class SceneGraph:
             matrix = fix_rigid(matrix, max_deviance=self.repair_rigid)
 
         # matrix being edited in-place leads to subtle bugs
-        matrix.flags['WRITEABLE'] = False
+        matrix.flags["WRITEABLE"] = False
 
         # store the result
         self._cache[key] = (matrix, geometry)
@@ -223,11 +217,9 @@ class SceneGraph:
             if node == base_frame:
                 continue
             # get the matrix and geometry name
-            matrix, geometry = self.get(
-                frame_to=node, frame_from=base_frame)
+            matrix, geometry = self.get(frame_to=node, frame_from=base_frame)
             # store matrix as list rather than numpy array
-            flat[node] = {'transform': matrix.tolist(),
-                          'geometry': geometry}
+            flat[node] = {"transform": matrix.tolist(), "geometry": geometry}
 
         return flat
 
@@ -252,8 +244,7 @@ class SceneGraph:
         if mesh_index is None:
             # geometry is an OrderedDict
             # map mesh name to index: {geometry key : index}
-            mesh_index = {name: i for i, name
-                          in enumerate(scene.geometry.keys())}
+            mesh_index = {name: i for i, name in enumerate(scene.geometry.keys())}
 
         # get graph information into local scope before loop
         graph = self.transforms
@@ -264,7 +255,7 @@ class SceneGraph:
 
         # list of dict, in gltf format
         # start with base frame as first node index
-        result = [{'name': base_frame}]
+        result = [{"name": base_frame}]
         # {node name : node index in gltf}
         lookup = {base_frame: 0}
 
@@ -275,7 +266,7 @@ class SceneGraph:
             # assign the index to the node-name lookup
             lookup[node] = len(result)
             # populate a result at the correct index
-            result.append({'name': node})
+            result.append({"name": node})
 
         # get generated properties outside of loop
         # does the scene have a defined camera to export
@@ -287,53 +278,52 @@ class SceneGraph:
         # then iterate through to collect data
         for info in result:
             # name of the scene node
-            node = info['name']
+            node = info["name"]
 
             # get the original node names for children
             childs = children.get(node, [])
             if len(childs) > 0:
-                info['children'] = [lookup[k] for k in childs]
+                info["children"] = [lookup[k] for k in childs]
 
             # if we have a mesh store by index
-            if 'geometry' in node_data[node]:
-                mesh_key = node_data[node]['geometry']
+            if "geometry" in node_data[node]:
+                mesh_key = node_data[node]["geometry"]
                 if mesh_key in mesh_index:
-                    info['mesh'] = mesh_index[mesh_key]
+                    info["mesh"] = mesh_index[mesh_key]
             # check to see if we have camera node
             if has_camera and node == scene.camera.name:
-                info['camera'] = 0
+                info["camera"] = 0
 
             if node != base_frame:
                 parent = graph.parents[node]
                 node_edge = edge_data[(parent, node)]
 
                 # get the matrix from this edge
-                matrix = node_edge['matrix']
+                matrix = node_edge["matrix"]
                 # only include if it's not an identify matrix
                 if not util.allclose(matrix, _identity):
-                    info['matrix'] = matrix.T.reshape(-1).tolist()
+                    info["matrix"] = matrix.T.reshape(-1).tolist()
 
                 # if an extra was stored on this edge
-                extras = node_edge.get('metadata')
+                extras = node_edge.get("metadata")
                 if extras:
                     extras = extras.copy()
 
                     # if extensionss were stored on this edge
-                    extensions = extras.pop('gltf_extensions', None)
+                    extensions = extras.pop("gltf_extensions", None)
                     if isinstance(extensions, dict):
-                        info['extensions'] = extensions
-                        extensions_used = extensions_used.union(
-                            set(extensions.keys()))
+                        info["extensions"] = extensions
+                        extensions_used = extensions_used.union(set(extensions.keys()))
 
                     # convert any numpy arrays to lists
                     extras.update(
-                        {k: v.tolist() for k, v in extras.items()
-                         if hasattr(v, 'tolist')})
-                    info['extras'] = extras
+                        {k: v.tolist() for k, v in extras.items() if hasattr(v, "tolist")}
+                    )
+                    info["extras"] = extras
 
-        gltf = {'nodes': result}
+        gltf = {"nodes": result}
         if len(extensions_used) > 0:
-            gltf['extensionsUsed'] = list(extensions_used)
+            gltf["extensionsUsed"] = list(extensions_used)
         return gltf
 
     def to_edgelist(self):
@@ -361,12 +351,12 @@ class SceneGraph:
             # make sure we're not stomping on original
             attr_new = attr.copy()
             # apply node geometry to edge attributes
-            if 'geometry' in b_attr:
-                attr_new['geometry'] = b_attr['geometry']
+            if "geometry" in b_attr:
+                attr_new["geometry"] = b_attr["geometry"]
             # convert any numpy arrays to regular lists
             attr_new.update(
-                {k: v.tolist() for k, v in attr_new.items()
-                 if hasattr(v, 'tolist')})
+                {k: v.tolist() for k, v in attr_new.items() if hasattr(v, "tolist")}
+            )
             export.append([a, b, attr_new])
         return export
 
@@ -394,8 +384,7 @@ class SceneGraph:
                 self.update(edge[1], edge[0])
             # edge is broken
             elif strict:
-                raise ValueError(
-                    'edge incorrect shape: %s', str(edge))
+                raise ValueError("edge incorrect shape: %s", str(edge))
 
     def to_networkx(self):
         """
@@ -407,9 +396,8 @@ class SceneGraph:
           Directed graph.
         """
         import networkx
-        return networkx.from_edgelist(
-            self.to_edgelist(),
-            create_using=networkx.DiGraph)
+
+        return networkx.from_edgelist(self.to_edgelist(), create_using=networkx.DiGraph)
 
     def show(self, **kwargs):
         """
@@ -423,14 +411,12 @@ class SceneGraph:
         """
         import matplotlib.pyplot as plt
         import networkx
+
         # default kwargs will only be set if not
         # passed explicitly to the show command
-        defaults = {'with_labels': True}
-        kwargs.update(**{k: v for k, v in defaults.items()
-                         if k not in kwargs})
-        networkx.draw_networkx(
-            G=self.to_networkx(),
-            **kwargs)
+        defaults = {"with_labels": True}
+        kwargs.update(**{k: v for k, v in defaults.items() if k not in kwargs})
+        networkx.draw_networkx(G=self.to_networkx(), **kwargs)
 
         plt.show()
 
@@ -468,9 +454,7 @@ class SceneGraph:
         nodes_geometry : (m,) array
           Node names which have geometry associated
         """
-        return [n for n, attr in
-                self.transforms.node_data.items()
-                if 'geometry' in attr]
+        return [n for n, attr in self.transforms.node_data.items() if "geometry" in attr]
 
     @caching.cache_decorator
     def geometry_nodes(self):
@@ -485,8 +469,8 @@ class SceneGraph:
         """
         res = collections.defaultdict(list)
         for node, attr in self.transforms.node_data.items():
-            if 'geometry' in attr:
-                res[attr['geometry']].append(node)
+            if "geometry" in attr:
+                res[attr["geometry"]].append(node)
         return res
 
     def remove_geometries(self, geometries):
@@ -507,13 +491,13 @@ class SceneGraph:
         # remove the geometry reference from the node without deleting nodes
         # this lets us keep our cached paths, and will not screw up children
         for attrib in self.transforms.node_data.values():
-            if 'geometry' in attrib and attrib['geometry'] in geometries:
-                attrib.pop('geometry')
+            if "geometry" in attrib and attrib["geometry"] in geometries:
+                attrib.pop("geometry")
 
         # it would be safer to just run _cache.clear
         # but the only property using the geometry should be
         # nodes_geometry: if this becomes not true change this to clear!
-        self._cache.cache.pop('nodes_geometry', None)
+        self._cache.cache.pop("nodes_geometry", None)
 
     def __contains__(self, key):
         return key in self.transforms.node_data
@@ -524,7 +508,7 @@ class SceneGraph:
     def __setitem__(self, key, value):
         value = np.asanyarray(value)
         if value.shape != (4, 4):
-            raise ValueError('Matrix must be specified!')
+            raise ValueError("Matrix must be specified!")
         return self.update(key, matrix=value)
 
     def clear(self):
@@ -575,7 +559,7 @@ class EnforcedForest:
         --------
         changed : bool
           Return if this operation changed anything.
-       """
+        """
         self._hash = None
 
         # topology has changed so clear cache
@@ -584,11 +568,9 @@ class EnforcedForest:
         else:
             # check to see if matrix and geometry are identical
             edge = self.edge_data[(u, v)]
-            if (util.allclose(kwargs.get('matrix', _identity),
-                              edge.get('matrix', _identity),
-                              1e-8)
-                and (edge.get('geometry') ==
-                     kwargs.get('geometry'))):
+            if util.allclose(
+                kwargs.get("matrix", _identity), edge.get("matrix", _identity), 1e-8
+            ) and (edge.get("geometry") == kwargs.get("geometry")):
                 return False
 
         # store a parent reference for traversal
@@ -597,9 +579,8 @@ class EnforcedForest:
         self.edge_data[(u, v)] = kwargs
         # set empty node data
         self.node_data[u].update({})
-        if 'geometry' in kwargs:
-            self.node_data[v].update(
-                {'geometry': kwargs['geometry']})
+        if "geometry" in kwargs:
+            self.node_data[v].update({"geometry": kwargs["geometry"]})
         else:
             self.node_data[v].update({})
 
@@ -628,10 +609,7 @@ class EnforcedForest:
         self._hash = None
 
         # delete all children's references and parent reference
-        children = [
-            child for (
-                child,
-                parent) in self.parents.items() if parent == u]
+        children = [child for (child, parent) in self.parents.items() if parent == u]
         for c in children:
             del self.parents[c]
         if u in self.parents:
@@ -701,10 +679,9 @@ class EnforcedForest:
                 # we have a either a common node between both
                 # traversal directions or we have consumed the whole
                 # tree in both directions so try to find the common node
-                common = set(backward).intersection(
-                    forward).difference({None})
+                common = set(backward).intersection(forward).difference({None})
                 if len(common) == 0:
-                    raise ValueError(f'No path from {u}->{v}!')
+                    raise ValueError(f"No path from {u}->{v}!")
                 elif len(common) > 1:
                     # get the first occurring common element in "forward"
                     link = next(f for f in forward if f in common)
@@ -714,8 +691,8 @@ class EnforcedForest:
                     link = next(iter(common))
 
                 # combine the forward and backwards traversals
-                a = forward[:forward.index(link) + 1]
-                b = backward[:backward.index(link)]
+                a = forward[: forward.index(link) + 1]
+                b = backward[: backward.index(link)]
                 path = a + b[::-1]
 
                 # verify we didn't screw up the order
@@ -726,7 +703,7 @@ class EnforcedForest:
 
                 return path
 
-        raise ValueError('Iteration limit exceeded!')
+        raise ValueError("Iteration limit exceeded!")
 
     @property
     def nodes(self):
@@ -750,17 +727,16 @@ class EnforcedForest:
         children : dict
           Keyed {node : [child, child, ...]}
         """
-        if 'children' in self._cache:
-            return self._cache['children']
+        if "children" in self._cache:
+            return self._cache["children"]
         child = collections.defaultdict(list)
         # append children to parent references
         # skip self-references to avoid a node loop
-        [child[v].append(u) for u, v in
-         self.parents.items() if u != v]
+        [child[v].append(u) for u, v in self.parents.items() if u != v]
 
         # cache and return as a vanilla dict
-        self._cache['children'] = dict(child)
-        return self._cache['children']
+        self._cache["children"] = dict(child)
+        return self._cache["children"]
 
     def successors(self, node):
         """
@@ -815,29 +791,31 @@ class EnforcedForest:
         # to try eliminating because it is very likely that
         # someone somewhere is modifying the data without
         # setting `self._hash = None`
-        hashed = getattr(self, '_hash', None)
+        hashed = getattr(self, "_hash", None)
         if hashed is not None:
             return hashed
 
         hashed = hash_fast(
-            (''.join(str(hash(k)) + v.get('geometry', '')
-                     for k, v in self.edge_data.items()) +
-             ''.join(str(k) + v.get('geometry', '')
-                     for k, v in self.node_data.items())).encode('utf-8') +
-            b''.join(v['matrix'].tobytes()
-                     for v in self.edge_data.values()
-                     if 'matrix' in v))
+            (
+                "".join(
+                    str(hash(k)) + v.get("geometry", "")
+                    for k, v in self.edge_data.items()
+                )
+                + "".join(
+                    str(k) + v.get("geometry", "") for k, v in self.node_data.items()
+                )
+            ).encode("utf-8")
+            + b"".join(
+                v["matrix"].tobytes() for v in self.edge_data.values() if "matrix" in v
+            )
+        )
         self._hash = hashed
         return hashed
 
 
 def kwargs_to_matrix(
-        matrix=None,
-        quaternion=None,
-        translation=None,
-        axis=None,
-        angle=None,
-        **kwargs):
+    matrix=None, quaternion=None, translation=None, axis=None, angle=None, **kwargs
+):
     """
     Take multiple keyword arguments and parse them
     into a homogeneous transformation matrix.

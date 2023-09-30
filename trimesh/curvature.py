@@ -12,6 +12,7 @@ try:
     from scipy.sparse import coo_matrix
 except ImportError as E:
     from . import exceptions
+
     coo_matrix = exceptions.ExceptionWrapper(E)
 
 
@@ -24,10 +25,10 @@ def face_angles_sparse(mesh):
     sparse : scipy.sparse.coo_matrix
       matrix is float shaped (len(vertices), len(faces))
     """
-    matrix = coo_matrix((
-        mesh.face_angles.flatten(),
-        (mesh.faces_sparse.row, mesh.faces_sparse.col)),
-        mesh.faces_sparse.shape)
+    matrix = coo_matrix(
+        (mesh.face_angles.flatten(), (mesh.faces_sparse.row, mesh.faces_sparse.col)),
+        mesh.faces_sparse.shape,
+    )
     return matrix
 
 
@@ -75,7 +76,7 @@ def discrete_gaussian_curvature_measure(mesh, points, radius):
 
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
-        raise ValueError('points must be (n,3)!')
+        raise ValueError("points must be (n,3)!")
 
     nearest = mesh.kdtree.query_ball_point(points, radius)
     gauss_curv = [mesh.vertex_defects[vertices].sum() for vertices in nearest]
@@ -107,24 +108,20 @@ def discrete_mean_curvature_measure(mesh, points, radius):
 
     points = np.asanyarray(points, dtype=np.float64)
     if not util.is_shape(points, (-1, 3)):
-        raise ValueError('points must be (n,3)!')
+        raise ValueError("points must be (n,3)!")
 
     # axis aligned bounds
-    bounds = np.column_stack((points - radius,
-                              points + radius))
+    bounds = np.column_stack((points - radius, points + radius))
 
     # line segments that intersect axis aligned bounding box
-    candidates = [list(mesh.face_adjacency_tree.intersection(b))
-                  for b in bounds]
+    candidates = [list(mesh.face_adjacency_tree.intersection(b)) for b in bounds]
 
     mean_curv = np.empty(len(points))
     for i, (x, x_candidates) in enumerate(zip(points, candidates)):
         endpoints = mesh.vertices[mesh.face_adjacency_edges[x_candidates]]
         lengths = line_ball_intersection(
-            endpoints[:, 0],
-            endpoints[:, 1],
-            center=x,
-            radius=radius)
+            endpoints[:, 0], endpoints[:, 1], center=x, radius=radius
+        )
         angles = mesh.face_adjacency_angles[x_candidates]
         signs = np.where(mesh.face_adjacency_convex[x_candidates], 1, -1)
         mean_curv[i] = (lengths * angles * signs).sum() / 2
@@ -155,9 +152,9 @@ def line_ball_intersection(start_points, end_points, center, radius):
     L = end_points - start_points
     oc = start_points - center  # o-c
     r = radius
-    ldotl = np.einsum('ij, ij->i', L, L)  # l.l
-    ldotoc = np.einsum('ij, ij->i', L, oc)  # l.(o-c)
-    ocdotoc = np.einsum('ij, ij->i', oc, oc)  # (o-c).(o-c)
+    ldotl = np.einsum("ij, ij->i", L, L)  # l.l
+    ldotoc = np.einsum("ij, ij->i", L, oc)  # l.(o-c)
+    ocdotoc = np.einsum("ij, ij->i", oc, oc)  # (o-c).(o-c)
     discrims = ldotoc**2 - ldotl * (ocdotoc - r**2)
 
     # If discriminant is non-positive, then we have zero length

@@ -15,13 +15,16 @@ from .constants import tol
 # how many significant figures to use for each
 # field of the identifier based on hand-tuning
 id_sigfig = np.array(
-    [5,   # area
-     10,  # euler number
-     5,  # area/volume ratio
-     2,  # convex/mesh area ratio
-     2,  # convex area/volume ratio
-     3,  # max radius squared / area
-     1])  # sign of triangle count for mirrored
+    [
+        5,  # area
+        10,  # euler number
+        5,  # area/volume ratio
+        2,  # convex/mesh area ratio
+        2,  # convex area/volume ratio
+        3,  # max radius squared / area
+        1,
+    ]
+)  # sign of triangle count for mirrored
 
 
 def identifier_simple(mesh):
@@ -68,8 +71,9 @@ def identifier_simple(mesh):
         if mesh.is_volume:
             # side length of a cube ratio
             # 1.0 for cubes, different values for other things
-            identifier[2] = (((mesh_area / 6.0) ** (1.0 / 2.0)) /
-                             (mesh.volume ** (1.0 / 3.0)))
+            identifier[2] = ((mesh_area / 6.0) ** (1.0 / 2.0)) / (
+                mesh.volume ** (1.0 / 3.0)
+            )
         else:
             # if we don't have a watertight mesh add information about the
             # convex hull which is slow to compute and unreliable
@@ -86,12 +90,13 @@ def identifier_simple(mesh):
             identifier[3] = mesh_area / hull_area
             # cube side length ratio for the hull
             if hull_volume > 1e-12:
-                identifier[4] = (((hull_area / 6.0) ** (1.0 / 2.0)) /
-                                 (hull_volume ** (1.0 / 3.0)))
+                identifier[4] = ((hull_area / 6.0) ** (1.0 / 2.0)) / (
+                    hull_volume ** (1.0 / 3.0)
+                )
             # calculate maximum mesh radius
             vertices = mesh.vertices - mesh.centroid
             # add in max radius^2 to area ratio
-            R2 = np.dot((vertices ** 2), [1, 1, 1]).max()
+            R2 = np.dot((vertices**2), [1, 1, 1]).max()
             identifier[5] = R2 / mesh_area
 
     # mirrored meshes will look identical in terms of
@@ -106,8 +111,7 @@ def identifier_simple(mesh):
         variance = edges_length.std() / edges_length.mean()
         if variance > 0.25:
             # the length of each edge in faces
-            norms = edges_length[
-                mesh.edges_unique_inverse].reshape((-1, 3))
+            norms = edges_length[mesh.edges_unique_inverse].reshape((-1, 3))
             # stack edge length and get the relative difference
             stack = np.diff(np.column_stack((norms, norms[:, 0])), axis=1)
             pick_idx = np.abs(stack).argmin(axis=1)
@@ -135,11 +139,10 @@ def identifier_hash(identifier):
     """
 
     # convert identifier to integers and order of magnitude
-    as_int, multiplier = util.sigfig_int(
-        identifier, id_sigfig)
+    as_int, multiplier = util.sigfig_int(identifier, id_sigfig)
 
     # make all scales positive
     if (multiplier < 0).any():
         multiplier += np.abs(multiplier.min())
-    data = (as_int * (10 ** multiplier)).astype(np.int64)
+    data = (as_int * (10**multiplier)).astype(np.int64)
     return sha256(data.tobytes()).hexdigest()

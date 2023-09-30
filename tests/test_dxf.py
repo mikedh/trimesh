@@ -10,20 +10,16 @@ except BaseException:
 
 
 class DXFTest(g.unittest.TestCase):
-
     def test_dxf(self):
-
         # get a path we can write
-        temp_name = g.tempfile.NamedTemporaryFile(
-            suffix='.dxf', delete=False).name
+        temp_name = g.tempfile.NamedTemporaryFile(suffix=".dxf", delete=False).name
         loaded = g.get_2D()
         # split drawings into single body parts
         splits = []
         for d in loaded:
             s = d.split()
             # check area of split result vs source
-            assert g.np.isclose(sum(i.area for i in s),
-                                d.area)
+            assert g.np.isclose(sum(i.area for i in s), d.area)
             splits.append(s)
 
             # export the drawing to the file
@@ -36,7 +32,7 @@ class DXFTest(g.unittest.TestCase):
                     ezdxf.read(f)
 
             # export to a string
-            text = d.export(file_type='dxf')
+            text = d.export(file_type="dxf")
 
             # DXF files are always pairs of lines
             lines = str.splitlines(str(text))
@@ -44,9 +40,10 @@ class DXFTest(g.unittest.TestCase):
             assert all(len(L.strip()) > 0 for L in lines)
 
             # reload the file by name and by stream
-            rc = [g.trimesh.load(temp_name),
-                  g.trimesh.load(g.io_wrap(text),
-                                 file_type='dxf')]
+            rc = [
+                g.trimesh.load(temp_name),
+                g.trimesh.load(g.io_wrap(text), file_type="dxf"),
+            ]
 
             # compare reloaded with original
             for r in rc:
@@ -65,32 +62,35 @@ class DXFTest(g.unittest.TestCase):
             r = g.trimesh.load(temp_name)
 
             ratio = abs(p.length - r.length) / p.length
-            if ratio > .01:
-                g.log.error('perimeter ratio on export %s wrong! %f %f %f',
-                            p.metadata['file_name'],
-                            p.length,
-                            r.length,
-                            ratio)
-
-                raise ValueError('perimeter ratio too large ({}) on {}'.format(
+            if ratio > 0.01:
+                g.log.error(
+                    "perimeter ratio on export %s wrong! %f %f %f",
+                    p.metadata["file_name"],
+                    p.length,
+                    r.length,
                     ratio,
-                    p.metadata['file_name']))
+                )
+
+                raise ValueError(
+                    "perimeter ratio too large ({}) on {}".format(
+                        ratio, p.metadata["file_name"]
+                    )
+                )
 
     def test_spline(self):
-
-        d = g.get_mesh('2D/cycloidal.dxf')
+        d = g.get_mesh("2D/cycloidal.dxf")
 
         assert len(d.entities) == 1
-        assert type(d.entities[0]).__name__ == 'BSpline'
+        assert type(d.entities[0]).__name__ == "BSpline"
 
         # export to dxf and wrap as a file object
-        e = g.trimesh.util.wrap_as_stream(d.export(file_type='dxf'))
+        e = g.trimesh.util.wrap_as_stream(d.export(file_type="dxf"))
         # reconstitute drawing
-        r = g.trimesh.load(e, file_type='dxf')
+        r = g.trimesh.load(e, file_type="dxf")
 
         # make sure reconstituted drawing is the same as the source
         assert len(r.entities) == 1
-        assert type(r.entities[0]).__name__ == 'BSpline'
+        assert type(r.entities[0]).__name__ == "BSpline"
         assert g.np.isclose(r.area, d.area)
 
         assert len(d.entities[0].points) == len(r.entities[0].points)
@@ -107,7 +107,7 @@ class DXFTest(g.unittest.TestCase):
         uc.2007b.dxf: unit square, R2007 binary DXF
         """
         # directory where multiple versions of DXF are
-        dir_versions = g.os.path.join(g.dir_2D, 'versions')
+        dir_versions = g.os.path.join(g.dir_2D, "versions")
 
         # load the different versions
         paths = {}
@@ -119,9 +119,9 @@ class DXFTest(g.unittest.TestCase):
             except ValueError as E:
                 # something like 'r14a' for ascii
                 # and 'r14b' for binary
-                version = f.split('.')[-2]
+                version = f.split(".")[-2]
                 # we should only get ValueErrors on binary DXF
-                assert version[-1] == 'b'
+                assert version[-1] == "b"
                 g.log.debug(E, f)
 
         # group drawings which have the same geometry
@@ -129,7 +129,7 @@ class DXFTest(g.unittest.TestCase):
         groups = g.collections.defaultdict(list)
         for k in paths.keys():
             # the first string before a period is the drawing name
-            groups[k.split('.')[0]].append(k)
+            groups[k.split(".")[0]].append(k)
 
         # loop through each group of the same drawing
         for group in groups.values():
@@ -138,13 +138,11 @@ class DXFTest(g.unittest.TestCase):
             L = g.np.array(L, dtype=g.np.float64)
 
             # make sure all versions have consistent length
-            assert g.np.allclose(L, L.mean(), rtol=.01)
+            assert g.np.allclose(L, L.mean(), rtol=0.01)
 
             # count the number of entities in the path
             # this should be the same for every version
-            E = g.np.array(
-                [len(paths[i].entities) for i in group],
-                dtype=g.np.int64)
+            E = g.np.array([len(paths[i].entities) for i in group], dtype=g.np.int64)
             assert E.ptp() == 0
 
     def test_bulge(self):
@@ -153,13 +151,14 @@ class DXFTest(g.unittest.TestCase):
         implicit arcs.
         """
         # get a drawing with bulged polylines
-        p = g.get_mesh('2D/LM2.dxf')
+        p = g.get_mesh("2D/LM2.dxf")
         # count the number of unclosed arc entities
         # this drawing only has polylines with bulge
-        spans = [e.center(p.vertices)['span']
-                 for e in p.entities if
-                 type(e).__name__ == 'Arc' and
-                 not e.closed]
+        spans = [
+            e.center(p.vertices)["span"]
+            for e in p.entities
+            if type(e).__name__ == "Arc" and not e.closed
+        ]
         # should have only one outer loop
         assert len(p.root) == 1
         # should have 6 partial arcs from bulge
@@ -169,12 +168,12 @@ class DXFTest(g.unittest.TestCase):
 
     def test_text(self):
         # load file with a single text entity
-        original = g.get_mesh('2D/text.dxf')
+        original = g.get_mesh("2D/text.dxf")
 
         # export then reload
         roundtrip = g.trimesh.load(
-            file_obj=g.io_wrap(original.export(file_type='dxf')),
-            file_type='dxf')
+            file_obj=g.io_wrap(original.export(file_type="dxf")), file_type="dxf"
+        )
 
         for d in [original, roundtrip]:
             # should contain a single Text entity
@@ -205,20 +204,21 @@ class DXFTest(g.unittest.TestCase):
         the encoding flags in DXF headers.
         """
         # get a base 2D model
-        m = g.get_mesh('2D/wrench.dxf')
+        m = g.get_mesh("2D/wrench.dxf")
         # make one of the entity layers a unicode string
         # store it as B64 so python2 doesn't get mad
-        layer = g.base64.b64decode(
-            'VFJBw4dBRE9IT1JJWk9OVEFMX1RSQcOHQURPNA==').decode('utf-8')
+        layer = g.base64.b64decode("VFJBw4dBRE9IT1JJWk9OVEFMX1RSQcOHQURPNA==").decode(
+            "utf-8"
+        )
         m.entities[0].layer = layer
         # export to a string
-        export = m.export(file_type='dxf')
+        export = m.export(file_type="dxf")
         # if any unicode survived the export this will fail
-        export.encode('ascii')
+        export.encode("ascii")
 
     def test_insert_block(self):
-        a = g.get_mesh('2D/insert.dxf')
-        b = g.get_mesh('2D/insert_r14.dxf')
+        a = g.get_mesh("2D/insert.dxf")
+        b = g.get_mesh("2D/insert_r14.dxf")
 
         assert len(a.polygons_full) == 2
         assert len(b.polygons_full) == 2
@@ -227,6 +227,6 @@ class DXFTest(g.unittest.TestCase):
         assert g.np.isclose(b.area, 54075.0, atol=1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

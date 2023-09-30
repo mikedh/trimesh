@@ -283,7 +283,9 @@ class SparseEncoding(Encoding):
             raise ValueError("indices must be 2D, got shaped %s" % str(indices.shape))
         if data["values"].shape != (indices.shape[0],):
             raise ValueError(
-                "values and indices shapes inconsistent: {} and {}".format(data["values"], data["indices"])
+                "values and indices shapes inconsistent: {} and {}".format(
+                    data["values"], data["indices"]
+                )
             )
         if shape is None:
             self._shape = tuple(data["indices"].max(axis=0) + 1)

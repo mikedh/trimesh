@@ -11,6 +11,7 @@ try:
     from PIL import Image, ImageChops, ImageDraw
 except BaseException as E:
     from .. import exceptions
+
     # re-raise the useful exception when called
     _handle = exceptions.ExceptionWrapper(E)
     Image = _handle
@@ -18,12 +19,7 @@ except BaseException as E:
     ImageChops = _handle
 
 
-def rasterize(path,
-              pitch=None,
-              origin=None,
-              resolution=None,
-              fill=True,
-              width=None):
+def rasterize(path, pitch=None, origin=None, resolution=None, fill=True, width=None):
     """
     Rasterize a Path2D object into a boolean image ("mode 1").
 
@@ -60,17 +56,14 @@ def rasterize(path,
 
     # if resolution is None make it larger than path
     if resolution is None:
-        span = np.vstack((
-            path.bounds, origin)).ptp(axis=0)
+        span = np.vstack((path.bounds, origin)).ptp(axis=0)
         resolution = np.ceil(span / pitch) + 2
     # get resolution as a (2,) int tuple
-    resolution = np.asanyarray(resolution,
-                               dtype=np.int64)
+    resolution = np.asanyarray(resolution, dtype=np.int64)
     resolution = tuple(resolution.tolist())
 
     # convert all discrete paths to pixel space
-    discrete = [((i - origin) / pitch).round().astype(np.int64)
-                for i in path.discrete]
+    discrete = [((i - origin) / pitch).round().astype(np.int64) for i in path.discrete]
 
     # the path indexes that are exteriors
     # needed to know what to fill/empty but expensive
@@ -78,16 +71,14 @@ def rasterize(path,
     enclosure = path.enclosure_directed
 
     # draw the exteriors
-    result = Image.new(mode='1', size=resolution)
+    result = Image.new(mode="1", size=resolution)
     draw = ImageDraw.Draw(result)
 
     # if a width is specified draw the outline
     if width is not None:
         width = int(width)
         for coords in discrete:
-            draw.line(coords.flatten().tolist(),
-                      fill=1,
-                      width=width)
+            draw.line(coords.flatten().tolist(), fill=1, width=width)
         # if we are not filling the polygon exit
         if not fill:
             return result
@@ -97,11 +88,9 @@ def rasterize(path,
     # and then go in as we progress
     for root in roots:
         # draw the exterior
-        draw.polygon(discrete[root].flatten().tolist(),
-                     fill=1)
+        draw.polygon(discrete[root].flatten().tolist(), fill=1)
         # draw the interior children
         for child in enclosure[root]:
-            draw.polygon(discrete[child].flatten().tolist(),
-                         fill=0)
+            draw.polygon(discrete[child].flatten().tolist(), fill=0)
 
     return result

@@ -11,6 +11,7 @@ except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
     from ..exceptions import ExceptionWrapper
+
     nx = ExceptionWrapper(E)
 
 
@@ -37,15 +38,11 @@ def vertex_graph(entities):
         if entity.closed:
             closed.append(index)
         else:
-            graph.add_edges_from(entity.nodes,
-                                 entity_index=index)
+            graph.add_edges_from(entity.nodes, entity_index=index)
     return graph, np.array(closed)
 
 
-def vertex_to_entity_path(vertex_path,
-                          graph,
-                          entities,
-                          vertices=None):
+def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
     """
     Convert a path of vertex indices to a path of entity indices.
 
@@ -65,6 +62,7 @@ def vertex_to_entity_path(vertex_path,
     entity_path : (q,) int
         Entity indices which make up vertex_path
     """
+
     def edge_direction(a, b):
         """
         Given two edges, figure out if the first needs to be
@@ -94,24 +92,28 @@ def vertex_to_entity_path(vertex_path,
         elif a[1] == b[1]:
             return 1, -1
         else:
-            constants.log.debug('\n'.join([
-                'edges not connected!',
-                'vertex path %s',
-                'entity path: %s',
-                'entity[a]: %s,',
-                'entity[b]: %s']),
+            constants.log.debug(
+                "\n".join(
+                    [
+                        "edges not connected!",
+                        "vertex path %s",
+                        "entity path: %s",
+                        "entity[a]: %s,",
+                        "entity[b]: %s",
+                    ]
+                ),
                 vertex_path,
                 entity_path,
                 entities[ea].points,
-                entities[eb].points)
+                entities[eb].points,
+            )
 
             return None, None
 
     if vertices is None or vertices.shape[1] != 2:
         ccw_direction = 1
     else:
-        ccw_check = is_ccw(vertices[np.append(vertex_path,
-                                              vertex_path[0])])
+        ccw_check = is_ccw(vertices[np.append(vertex_path, vertex_path[0])])
         ccw_direction = (ccw_check * 2) - 1
 
     # make sure vertex path is correct type
@@ -123,7 +125,7 @@ def vertex_to_entity_path(vertex_path,
         # get two wrapped vertex positions
         vertex_path_pos = np.mod(np.arange(2) + i, len(vertex_path))
         vertex_index = vertex_path[vertex_path_pos]
-        entity_index = graph.get_edge_data(*vertex_index)['entity_index']
+        entity_index = graph.get_edge_data(*vertex_index)["entity_index"]
         entity_path.append(entity_index)
     # remove duplicate entities and order CCW
     entity_path = grouping.unique_ordered(entity_path)[::ccw_direction]
@@ -140,8 +142,7 @@ def vertex_to_entity_path(vertex_path,
     round_trip = np.append(entity_path, entity_path[0])
     round_trip = zip(round_trip[:-1], round_trip[1:])
     for ea, eb in round_trip:
-        da, db = edge_direction(entities[ea].end_points,
-                                entities[eb].end_points)
+        da, db = edge_direction(entities[ea].end_points, entities[eb].end_points)
         if da is not None:
             entities[ea].reverse(direction=da)
             entities[eb].reverse(direction=db)
@@ -185,11 +186,7 @@ def closed_paths(entities, vertices):
         if len(vertex_path) < 2:
             continue
         # convert vertex indices to entity indices
-        entity_paths.append(
-            vertex_to_entity_path(vertex_path,
-                                  graph,
-                                  entities,
-                                  vertices))
+        entity_paths.append(vertex_to_entity_path(vertex_path, graph, entities, vertices))
 
     return entity_paths
 
@@ -220,12 +217,10 @@ def discretize_path(entities, vertices, path, scale=1.0):
     vertices = np.asanyarray(vertices)
     path_len = len(path)
     if path_len == 0:
-        raise ValueError('Cannot discretize empty path!')
+        raise ValueError("Cannot discretize empty path!")
     if path_len == 1:
         # case where we only have one entity
-        discrete = np.asanyarray(entities[path[0]].discrete(
-            vertices,
-            scale=scale))
+        discrete = np.asanyarray(entities[path[0]].discrete(vertices, scale=scale))
     else:
         # run through path appending each entity
         discrete = []
@@ -251,7 +246,6 @@ def discretize_path(entities, vertices, path, scale=1.0):
 
 
 class PathSample:
-
     def __init__(self, points):
         # make sure input array is numpy
         self._points = np.array(points)
@@ -295,26 +289,22 @@ class PathSample:
         offset = distance - self._cum_norm[position - 1]
 
         if offset < constants.tol_path.merge:
-            truncated = self._points[:position + 1]
+            truncated = self._points[: position + 1]
         else:
-            vector = util.unitize(np.diff(
-                self._points[np.arange(2) + position],
-                axis=0).reshape(-1))
+            vector = util.unitize(
+                np.diff(self._points[np.arange(2) + position], axis=0).reshape(-1)
+            )
             vector *= offset
             endpoint = self._points[position] + vector
-            truncated = np.vstack((self._points[:position + 1],
-                                   endpoint))
-        assert (util.row_norm(np.diff(
-            truncated, axis=0)).sum() -
-            distance) < constants.tol_path.merge
+            truncated = np.vstack((self._points[: position + 1], endpoint))
+        assert (
+            util.row_norm(np.diff(truncated, axis=0)).sum() - distance
+        ) < constants.tol_path.merge
 
         return truncated
 
 
-def resample_path(points,
-                  count=None,
-                  step=None,
-                  step_round=True):
+def resample_path(points, count=None, step=None, step_round=True):
     """
     Given a path along (n,d) points, resample them such that the
     distance traversed along the path is constant in between each
@@ -345,9 +335,9 @@ def resample_path(points,
     points = np.array(points, dtype=np.float64)
     # generate samples along the perimeter from kwarg count or step
     if (count is not None) and (step is not None):
-        raise ValueError('Only step OR count can be specified')
+        raise ValueError("Only step OR count can be specified")
     if (count is None) and (step is None):
-        raise ValueError('Either step or count must be specified')
+        raise ValueError("Either step or count must be specified")
 
     sampler = PathSample(points)
     if step is not None and step_round:
@@ -412,30 +402,35 @@ def split(path):
         for index in connected:
             nodes = paths[index]
             # add a path which is just sequential indexes
-            new_paths.append(np.arange(len(nodes)) +
-                             len(new_entities))
+            new_paths.append(np.arange(len(nodes)) + len(new_entities))
             # save the entity indexes
             new_entities.extend(nodes)
 
         # store the root index from the original drawing
         metadata = copy.deepcopy(path.metadata)
-        metadata['split_2D'] = root_index
+        metadata["split_2D"] = root_index
         # we made the root path the last index of connected
         new_root = np.array([len(new_paths) - 1])
 
         # prevents the copying from nuking our cache
         with path._cache:
             # create the Path2D
-            split.append(Path2D(
-                entities=copy.deepcopy(path.entities[new_entities]),
-                vertices=copy.deepcopy(path.vertices),
-                metadata=metadata))
+            split.append(
+                Path2D(
+                    entities=copy.deepcopy(path.entities[new_entities]),
+                    vertices=copy.deepcopy(path.vertices),
+                    metadata=metadata,
+                )
+            )
             # add back expensive things to the cache
             split[-1]._cache.update(
-                {'paths': new_paths,
-                 'polygons_closed': polygons_closed[connected],
-                 'discrete': [discrete[c] for c in connected],
-                 'root': new_root})
+                {
+                    "paths": new_paths,
+                    "polygons_closed": polygons_closed[connected],
+                    "discrete": [discrete[c] for c in connected],
+                    "root": new_root,
+                }
+            )
             # set the cache ID
             split[-1]._cache.id_set()
 

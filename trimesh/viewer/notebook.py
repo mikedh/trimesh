@@ -29,17 +29,21 @@ def scene_to_html(scene):
     """
     # fetch HTML template from ZIP archive
     # it is bundling all of three.js so compression is nice
-    base = util.decompress(
-        resources.get('templates/viewer.zip', decode=False),
-        file_type='zip')['viewer.html.template'].read().decode('utf-8')
+    base = (
+        util.decompress(
+            resources.get("templates/viewer.zip", decode=False), file_type="zip"
+        )["viewer.html.template"]
+        .read()
+        .decode("utf-8")
+    )
     # make sure scene has camera populated before export
     _ = scene.camera
     # get export as bytes
-    data = scene.export(file_type='glb')
+    data = scene.export(file_type="glb")
     # encode as base64 string
-    encoded = base64.b64encode(data).decode('utf-8')
+    encoded = base64.b64encode(data).decode("utf-8")
     # replace keyword with our scene data
-    result = base.replace('$B64GLTF', encoded)
+    result = base.replace("$B64GLTF", encoded)
 
     return result
 
@@ -67,17 +71,20 @@ def scene_to_notebook(scene, height=500, **kwargs):
     as_html = scene_to_html(scene=scene)
 
     # escape the quotes in the HTML
-    srcdoc = as_html.replace('"', '&quot;')
+    srcdoc = as_html.replace('"', "&quot;")
     # embed this puppy as the srcdoc attr of an IFframe
     # I tried this a dozen ways and this is the only one that works
     # display.IFrame/display.Javascript really, really don't work
     # div is to avoid IPython's pointless hardcoded warning
-    embedded = display.HTML(' '.join([
-        '<div><iframe srcdoc="{srcdoc}"',
-        'width="100%" height="{height}px"',
-        'style="border:none;"></iframe></div>']).format(
-            srcdoc=srcdoc,
-            height=height))
+    embedded = display.HTML(
+        " ".join(
+            [
+                '<div><iframe srcdoc="{srcdoc}"',
+                'width="100%" height="{height}px"',
+                'style="border:none;"></iframe></div>',
+            ]
+        ).format(srcdoc=srcdoc, height=height)
+    )
     return embedded
 
 
@@ -96,10 +103,10 @@ def in_notebook():
         # we only want to render rich output in notebooks
         # in terminals we definitely do not want to output HTML
         name = str(ipy.__class__).lower()
-        terminal = 'terminal' in name
+        terminal = "terminal" in name
 
         # spyder uses ZMQshell, and can appear to be a notebook
-        spyder = '_' in os.environ and 'spyder' in os.environ['_']
+        spyder = "_" in os.environ and "spyder" in os.environ["_"]
 
         # assume we are in a notebook if we are not in
         # a terminal and we haven't been run by spyder

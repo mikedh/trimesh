@@ -56,12 +56,12 @@ def concatenate(visuals, *args):
         visuals = np.array(visuals)
 
     # if there are any texture visuals convert all to texture
-    if any(v.kind == 'texture' for v in visuals):
+    if any(v.kind == "texture" for v in visuals):
         # first collect materials and UV coordinates
         mats = []
         uvs = []
         for v in visuals:
-            if v.kind == 'texture':
+            if v.kind == "texture":
                 mats.append(v.material)
                 if v.uv is None:
                     # otherwise use zeros
@@ -72,8 +72,7 @@ def concatenate(visuals, *args):
 
             else:
                 # create a material and UV coordinates from vertex colors
-                color_mat, color_uv = color_to_uv(
-                    vertex_colors=v.vertex_colors)
+                color_mat, color_uv = color_to_uv(vertex_colors=v.vertex_colors)
                 mats.append(color_mat)
                 uvs.append(color_uv)
         # pack the materials and UV coordinates into one
@@ -82,13 +81,11 @@ def concatenate(visuals, *args):
 
     # convert all visuals to the kind of the first
     kind = visuals[0].kind
-    if kind == 'face':
-        colors = np.vstack([
-            v.face_colors for v in visuals])
+    if kind == "face":
+        colors = np.vstack([v.face_colors for v in visuals])
         return ColorVisuals(face_colors=colors)
-    elif kind == 'vertex':
-        colors = np.vstack([
-            v.vertex_colors for v in visuals])
+    elif kind == "vertex":
+        colors = np.vstack([v.vertex_colors for v in visuals])
         return ColorVisuals(vertex_colors=colors)
 
     return ColorVisuals()

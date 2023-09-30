@@ -18,7 +18,7 @@ example_names = $(foreach path, $(example_notebooks), $(basename $(notdir $(path
 
 example_rsts = $(foreach name, $(example_names), examples.$(name).rst)
 
-html: conf.py index.rst *.md trimesh.rst README.rst examples.md $(example_rsts) .deps
+html: conf.py index.rst trimesh.rst README.rst examples.rst $(example_rsts) .deps
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 	touch "$(BUILDDIR)/html/.nojekyll"
 	echo "trimesh.org" > "$(BUILDDIR)/html/CNAME"
@@ -32,7 +32,7 @@ html: conf.py index.rst *.md trimesh.rst README.rst examples.md $(example_rsts) 
 examples.%.rst : ../examples/%.ipynb .deps
 	$(NBCONVERT) nbconvert --execute --to rst --output $(abspath $@) $<
 
-examples.md: .deps
+examples.rst: .deps
 	$(PYTHON) "examples.py"
 
 trimesh.rst: .deps

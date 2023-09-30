@@ -24,11 +24,11 @@ class ExceptionWrapper:
         # will raise when this object is accessed like an object
         # if it's asking for our class type return None
         # this allows isinstance() checks to not re-raise
-        if args[0] == '__class__':
+        if args[0] == "__class__":
             return None.__class__
         # otherwise raise our original exception
-        raise super().__getattribute__('exception')
+        raise super().__getattribute__("exception")
 
     def __call__(self, *args, **kwargs):
         # will raise when this object is called like a function
-        raise super().__getattribute__('exception')
+        raise super().__getattribute__("exception")

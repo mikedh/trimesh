@@ -5,9 +5,8 @@ except BaseException:
 
 
 class SmoothTest(g.unittest.TestCase):
-
     def test_smooth(self):
-        m = g.get_mesh('chair_model.obj', force='mesh')
+        m = g.get_mesh("chair_model.obj", force="mesh")
         s = m.smoothed()
 
         ori = g.np.hstack((m.visual.uv, m.vertices))
@@ -20,6 +19,6 @@ class SmoothTest(g.unittest.TestCase):
         # g.texture_equal(m, s)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

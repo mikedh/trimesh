@@ -5,7 +5,6 @@ except BaseException:
 
 
 class NormalsTest(g.unittest.TestCase):
-
     def test_vertex_normal(self):
         mesh = g.trimesh.creation.icosahedron()
         # the icosahedron is centered at zero, so the true vertex
@@ -15,16 +14,14 @@ class NormalsTest(g.unittest.TestCase):
         # force fallback to loop normal summing by passing None
         # as the sparse matrix
         normals = g.trimesh.geometry.mean_vertex_normals(
-            len(mesh.vertices),
-            mesh.faces,
-            mesh.face_normals)
+            len(mesh.vertices), mesh.faces, mesh.face_normals
+        )
         assert g.np.allclose(normals - truth, 0.0)
 
         # make sure the automatic sparse matrix generation works
         normals = g.trimesh.geometry.mean_vertex_normals(
-            len(mesh.vertices),
-            mesh.faces,
-            mesh.face_normals)
+            len(mesh.vertices), mesh.faces, mesh.face_normals
+        )
         assert g.np.allclose(normals - truth, 0.0)
 
         # make sure the Trimesh normals- related attributes
@@ -34,26 +31,21 @@ class NormalsTest(g.unittest.TestCase):
         assert g.np.allclose(mesh.vertex_normals - truth, 0.0)
 
     def test_weighted_vertex_normals(self):
-
-        def compare_trimesh_to_groundtruth(
-                mesh,
-                truth,
-                atol=g.trimesh.tol.merge):
+        def compare_trimesh_to_groundtruth(mesh, truth, atol=g.trimesh.tol.merge):
             # force fallback to loop normal summing by passing None
             # as the sparse matrix
             normals = g.trimesh.geometry.weighted_vertex_normals(
                 vertex_count=len(mesh.vertices),
                 faces=mesh.faces,
                 face_normals=mesh.face_normals,
-                face_angles=mesh.face_angles)
+                face_angles=mesh.face_angles,
+            )
             assert g.np.allclose(normals, truth, atol=atol)
 
             # make sure the automatic sparse matrix generation works
             normals = g.trimesh.geometry.weighted_vertex_normals(
-                len(mesh.vertices),
-                mesh.faces,
-                mesh.face_normals,
-                mesh.face_angles)
+                len(mesh.vertices), mesh.faces, mesh.face_normals, mesh.face_angles
+            )
             assert g.np.allclose(normals - truth, 0.0, atol=atol)
 
             # make sure the Trimesh normals- related attributes
@@ -80,7 +72,7 @@ class NormalsTest(g.unittest.TestCase):
         # smooth curved surfaces, corners and sharp creases
         # ground truth vertex normals were computed in MeshLab and
         # are included in the file
-        fandisk_mesh = g.get_mesh('fandisk.obj')
+        fandisk_mesh = g.get_mesh("fandisk.obj")
         fandisk_truth = fandisk_mesh.vertex_normals
         # due to the limited precision in the MeshLab export,
         # we have to tweak the tolerance for the comparison a little
@@ -97,7 +89,7 @@ class NormalsTest(g.unittest.TestCase):
         mask = g.np.zeros(len(m.vertices), dtype=bool)
         mask[m.faces[0]] = False
         # it's a box so normals should all be unit vectors [1,1,1]
-        assert g.np.allclose(g.np.abs(norm[mask]), (1.0 / 3.0) ** .5)
+        assert g.np.allclose(g.np.abs(norm[mask]), (1.0 / 3.0) ** 0.5)
 
         # try with a deliberately broken sparse matrix to test looping path
         norm = g.trimesh.geometry.weighted_vertex_normals(
@@ -105,12 +97,13 @@ class NormalsTest(g.unittest.TestCase):
             faces=m.faces,
             face_normals=m.face_normals,
             face_angles=m.face_angles,
-            use_loop=True)
+            use_loop=True,
+        )
         assert g.np.isfinite(norm).all()
         assert len(norm) == len(m.vertices)
 
         # every intact vertex should be away from box corner
-        assert g.np.allclose(g.np.abs(norm[mask]), (1.0 / 3.0) ** .5)
+        assert g.np.allclose(g.np.abs(norm[mask]), (1.0 / 3.0) ** 0.5)
 
     def test_face_normals(self):
         """
@@ -131,30 +124,24 @@ class NormalsTest(g.unittest.TestCase):
         # setting normals to None should force recompute
         mesh.face_normals = None
         assert mesh.face_normals is not None
-        assert not g.np.allclose(mesh.face_normals,
-                                 [0.0, 0.0, 1.0])
+        assert not g.np.allclose(mesh.face_normals, [0.0, 0.0, 1.0])
 
         # setting face normals to zeros shouldn't work
         mesh.face_normals = g.np.zeros_like(mesh.faces)
-        assert g.np.allclose(
-            g.np.linalg.norm(mesh.face_normals, axis=1), 1.0)
+        assert g.np.allclose(g.np.linalg.norm(mesh.face_normals, axis=1), 1.0)
 
     def test_merge(self):
         """
         Check merging with vertex normals
         """
         # no vertex merging
-        m = g.get_mesh(
-            'cube_compressed.obj',
-            process=False)
+        m = g.get_mesh("cube_compressed.obj", process=False)
         assert m.vertices.shape == (24, 3)
         assert m.faces.shape == (12, 3)
         assert g.np.isclose(m.volume, 8.0, atol=1e-4)
 
         # with normal-aware vertex merging
-        m = g.get_mesh(
-            'cube_compressed.obj',
-            process=True)
+        m = g.get_mesh("cube_compressed.obj", process=True)
         assert m.vertices.shape == (24, 3)
         assert m.faces.shape == (12, 3)
         assert g.np.isclose(m.volume, 8.0, atol=1e-4)
@@ -166,6 +153,6 @@ class NormalsTest(g.unittest.TestCase):
         assert g.np.isclose(m.volume, 8.0, atol=1e-4)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()
