@@ -74,9 +74,9 @@ if __name__ == "__main__":
             raw = json.load(f)
         doc = extract_docstring(raw)
 
+        # 
         name = fn.split(".")[0]
-        file_name = f"examples.{name}.md"
-
+        file_name = f"examples.{name}.rst"
         markdown.append(base.format(name=name, markdown=file_name))
 
     final = "\n".join(markdown)

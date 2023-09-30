@@ -16,7 +16,7 @@ example_notebooks := $(filter-out ../examples/save_image.ipynb, $(example_notebo
 
 example_names = $(foreach path, $(example_notebooks), $(basename $(notdir $(path))))
 
-example_rsts = $(foreach name, $(example_names), examples.$(name).md)
+example_rsts = $(foreach name, $(example_names), examples.$(name).rst)
 
 html: conf.py index.rst *.md trimesh.rst README.rst examples.md $(example_rsts) .deps
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
@@ -29,8 +29,8 @@ html: conf.py index.rst *.md trimesh.rst README.rst examples.md $(example_rsts) 
 	$(PIP) install -r requirements.txt
 	$(PIP) freeze > .deps
 
-examples.%.md : ../examples/%.ipynb .deps
-	$(NBCONVERT) nbconvert --execute --to markdown --output $(abspath $@) $<
+examples.%.rst : ../examples/%.ipynb .deps
+	$(NBCONVERT) nbconvert --execute --to rst --output $(abspath $@) $<
 
 examples.md: .deps
 	$(PYTHON) "examples.py"
