@@ -105,7 +105,7 @@ RUN make
 
 ### Copy just the docs so we can output them
 FROM scratch as docs
-COPY --from=build_docs /home/user/docs/_build/html/ ./
+COPY --from=build_docs /home/user/docs/built/html/ ./
 
 ### Make sure the output stage is the last stage so a simple
 # "docker build ." still outputs an expected image

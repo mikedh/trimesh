@@ -2467,13 +2467,9 @@ class Trimesh(Geometry3D):
 
         # transform overridden center of mass
         if "center_mass" in self._data:
-            center_mass = self._data["center_mass"]
+            center_mass = [self._data["center_mass"]]
             self.center_mass = transformations.transform_points(
-                np.array(
-                    [
-                        center_mass,
-                    ]
-                ),
+                center_mass,
                 matrix,
             )[0]
 

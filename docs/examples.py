@@ -18,12 +18,6 @@ log.setLevel(logging.DEBUG)
 # current working directory
 pwd = os.path.abspath(os.path.expanduser(os.path.dirname(__file__)))
 
-# where are our notebooks to render
-source = os.path.abspath(os.path.join(pwd, "..", "examples"))
-
-# which index file are we generating
-target = os.path.abspath(os.path.join(pwd, "examples.rst"))
-
 
 def extract_docstring(loaded):
     """
@@ -51,16 +45,34 @@ def extract_docstring(loaded):
 
 
 base = """
-{name}
+{title}
 ==========
 .. toctree::
    :maxdepth: 2
 
-   {markdown}
+   {file_name}
 """
+
 if __name__ == "__main__":
+    import argparse
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--source", type=str, help="a directory containing `ipynb` files", required=True
+    )
+    parser.add_argument(
+        "--target", type=str, help="Where the generated .rst file goes", required=True
+    )
+    args = parser.parse_args()
+
+    source = os.path.abspath(args.source)
+    target = os.path.abspath(args.target)
+
     markdown = [
         "# Examples",
+        "===========",
         "Several examples are available as rendered IPython notebooks.",
         "",
     ]
@@ -76,7 +88,8 @@ if __name__ == "__main__":
         #
         name = fn.split(".")[0]
         file_name = f"examples.{name}.rst"
-        markdown.append(base.format(name=name, markdown=file_name))
+        title = " ".join(name.split("_")).title()
+        markdown.append(base.format(title=title, file_name=file_name))
 
     final = "\n".join(markdown)
     with open(target, "w") as f:

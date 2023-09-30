@@ -1,4 +1,4 @@
-.. include:: README.rst
+.. include:: generated/README.rst
 
 Links
 ==========
@@ -10,28 +10,28 @@ Install
 .. toctree::
    :maxdepth: 2
 	      
-   guides/install.md
+   content/install.md
 
 Examples
 ==========
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 	      
-   examples.rst
+   Examples <examples.rst>
 
 Contributing
 ==========  
 .. toctree::
    :maxdepth: 1
 
-   Contributing <guides/contributing.md>
+   Contributing <content/contributing.md>
 
 Docker
 ==========  
 .. toctree::
    :maxdepth: 1
 
-   Docker <guides/docker.md>
+   Docker <content/docker.md>
 
 API Reference
 =============

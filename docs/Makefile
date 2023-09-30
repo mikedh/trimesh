@@ -7,9 +7,12 @@ NBCONVERT     ?= jupyter
 PYTHON        ?= python
 PIP           ?= pip
 SOURCEDIR     = .
-BUILDDIR      = _build
+BUILDDIR      = built
 TEMPLATESDIR  = templates
+# where to put generated RST files
+GENDIR        = generated
 STATICDIR     = _static
+
 
 example_notebooks := $(wildcard ../examples/*.ipynb)
 example_notebooks := $(filter-out ../examples/save_image.ipynb, $(example_notebooks))
@@ -28,18 +31,20 @@ html: conf.py index.rst trimesh.rst README.rst examples.rst $(example_rsts) .dep
 .deps: requirements.txt
 	$(PIP) install -r requirements.txt
 	$(PIP) freeze > .deps
+	mkdir -p $(GENDIR)
+	mkdir -p $(BUILDDIR)
 
 examples.%.rst : ../examples/%.ipynb .deps
-	$(NBCONVERT) nbconvert --execute --to rst --output $(abspath $@) $<
+	$(NBCONVERT) nbconvert --execute --to rst --output-dir $(GENDIR) $<
 
 examples.rst: .deps
-	$(PYTHON) "examples.py"
+	$(PYTHON) "examples.py" "--source=../examples" "--target=$(GENDIR)/examples.rst"
 
 trimesh.rst: .deps
-	$(SPHINXGEN) -eTf -t "$(TEMPLATESDIR)" -o "$(SOURCEDIR)" ../trimesh
+	$(SPHINXGEN) -eTf -t "$(TEMPLATESDIR)" -o "$(GENDIR)" ../trimesh
 
 README.rst: ../README.md .deps
-	pandoc --from=gfm --to=rst --output=README.rst ../README.md
+	pandoc --from=gfm --to=rst --output="$(GENDIR)/README.rst" ../README.md
 
 clean:
-	rm -rvf "$(BUILDDIR)" "$(STATICDIR)/examples" examples.*.* trimesh*.rst .deps
+	rm -rvf "$(BUILDDIR)" "$(GENDIR)" .deps
