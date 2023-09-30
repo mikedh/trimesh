@@ -39,6 +39,7 @@ import socketserver
 tf = trimesh.transformations
 TemporaryDirectory = tempfile.TemporaryDirectory
 
+
 # make a dummy profiler which does nothing
 class DummyProfiler(object):
     def __enter__(self, *args, **kwargs):

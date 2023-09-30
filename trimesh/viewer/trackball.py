@@ -31,8 +31,8 @@ from .. import transformations
 
 
 class Trackball:
-    """A trackball class for creating camera transforms from mouse movements.
-    """
+    """A trackball class for creating camera transforms from mouse movements."""
+
     STATE_ROTATE = 0
     STATE_PAN = 1
     STATE_ROLL = 2
@@ -76,8 +76,7 @@ class Trackball:
 
     @property
     def pose(self):
-        """autolab_core.RigidTransform : The current camera-to-world pose.
-        """
+        """autolab_core.RigidTransform : The current camera-to-world pose."""
         return self._n_pose
 
     def set_state(self, state):
@@ -127,7 +126,7 @@ class Trackball:
         point = np.array(point, dtype=np.float32)
         # get the "down" point defaulting to current point making
         # this a no-op if the "down" event didn't trigger for some reason
-        dx, dy = point - getattr(self, '_pdown', point)
+        dx, dy = point - getattr(self, "_pdown", point)
         mindim = 0.3 * np.min(self._size)
 
         target = self._target
@@ -139,14 +138,10 @@ class Trackball:
         # Interpret drag as a rotation
         if self._state == Trackball.STATE_ROTATE:
             x_angle = -dx / mindim
-            x_rot_mat = transformations.rotation_matrix(
-                x_angle, y_axis, target
-            )
+            x_rot_mat = transformations.rotation_matrix(x_angle, y_axis, target)
 
             y_angle = dy / mindim
-            y_rot_mat = transformations.rotation_matrix(
-                y_angle, x_axis, target
-            )
+            y_rot_mat = transformations.rotation_matrix(y_angle, x_axis, target)
 
             self._n_pose = y_rot_mat.dot(x_rot_mat.dot(self._pose))
 
@@ -158,8 +153,7 @@ class Trackball:
             v_init = v_init / np.linalg.norm(v_init)
             v_curr = v_curr / np.linalg.norm(v_curr)
 
-            theta = (-np.arctan2(v_curr[1], v_curr[0]) +
-                     np.arctan2(v_init[1], v_init[0]))
+            theta = -np.arctan2(v_curr[1], v_curr[0]) + np.arctan2(v_init[1], v_init[0])
 
             rot_mat = transformations.rotation_matrix(theta, z_axis, target)
 
@@ -205,7 +199,7 @@ class Trackball:
         if clicks > 0:
             mult = ratio**clicks
         elif clicks < 0:
-            mult = (1.0 / ratio)**abs(clicks)
+            mult = (1.0 / ratio) ** abs(clicks)
 
         z_axis = self._n_pose[:3, 2].flatten()
         eye = self._n_pose[:3, 3].flatten()

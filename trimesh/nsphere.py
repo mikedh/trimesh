@@ -17,6 +17,7 @@ try:
 except BaseException as E:
     # raise the exception when someone tries to use it
     from . import exceptions
+
     leastsq = exceptions.ExceptionWrapper(E)
     spatial = exceptions.ExceptionWrapper(E)
 
@@ -26,7 +27,9 @@ try:
     def _MAX_MEMORY():
         # if we have psutil check actual free memory when called
         return psutil.virtual_memory().free / 2.0
+
 except BaseException:
+
     def _MAX_MEMORY():
         # use a hardcoded best guess estimate
         return 1e9
@@ -71,7 +74,7 @@ def minimum_nsphere(obj):
     # bothering to compute the voronoi diagram
     fit_C, fit_R, fit_E = fit_nsphere(points)
     # return fit radius and center to global scale
-    fit_R = (((points - fit_C)**2).sum(axis=1).max() ** .5) * points_scale
+    fit_R = (((points - fit_C) ** 2).sum(axis=1).max() ** 0.5) * points_scale
     fit_C = (fit_C * points_scale) + points_origin
 
     if fit_E < 1e-6:
@@ -97,22 +100,22 @@ def minimum_nsphere(obj):
         if memory_estimate > _MAX_MEMORY():
             raise MemoryError
         radii_2 = spatial.distance.cdist(
-            voronoi.vertices, points,
-            metric='sqeuclidean').max(axis=1)
+            voronoi.vertices, points, metric="sqeuclidean"
+        ).max(axis=1)
     except MemoryError:
         # log the MemoryError
-        log.warning('MemoryError: falling back to slower check!')
+        log.warning("MemoryError: falling back to slower check!")
         # fall back to a potentially very slow list comprehension
-        radii_2 = np.array([((points - v) ** 2).sum(axis=1).max()
-                            for v in voronoi.vertices])
+        radii_2 = np.array(
+            [((points - v) ** 2).sum(axis=1).max() for v in voronoi.vertices]
+        )
 
     # we want the smallest sphere so take the min of the radii
     radii_idx = radii_2.argmin()
 
     # return voronoi radius and center to global scale
     radius_v = np.sqrt(radii_2[radii_idx]) * points_scale
-    center_v = (voronoi.vertices[radii_idx] *
-                points_scale) + points_origin
+    center_v = (voronoi.vertices[radii_idx] * points_scale) + points_origin
 
     if radius_v > fit_R:
         return fit_C, fit_R
@@ -158,12 +161,10 @@ def fit_nsphere(points, prior=None):
     else:
         guess = np.asanyarray(prior)
 
-    center_result, return_code = leastsq(residuals,
-                                         guess,
-                                         xtol=1e-8)
+    center_result, return_code = leastsq(residuals, guess, xtol=1e-8)
 
     if return_code not in [1, 2, 3, 4]:
-        raise ValueError('Least square fit failed!')
+        raise ValueError("Least square fit failed!")
 
     radii = util.row_norm(points - center_result)
     radius = radii.mean()

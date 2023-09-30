@@ -38,30 +38,29 @@ def get_readonly(model_name):
     verts = g.np.ndarray(verts.shape, verts.dtype, bytes(verts.tobytes()))
     faces = g.np.ndarray(faces.shape, faces.dtype, bytes(faces.tobytes()))
     # everything should be read only now
-    assert not verts.flags['WRITEABLE']
-    assert not faces.flags['WRITEABLE']
+    assert not verts.flags["WRITEABLE"]
+    assert not faces.flags["WRITEABLE"]
 
     mesh = g.trimesh.Trimesh(verts, faces, process=False, validate=False)
-    assert not mesh.vertices.flags['WRITEABLE']
-    assert not mesh.faces.flags['WRITEABLE']
+    assert not mesh.vertices.flags["WRITEABLE"]
+    assert not mesh.faces.flags["WRITEABLE"]
 
     # return the mesh, and read-only vertices and faces
     return mesh, verts, faces
 
 
 class MutateTests(g.unittest.TestCase):
-
     def test_not_mutated_cube(self):
-        self._test_not_mutated(*get_readonly('cube.OBJ'))
+        self._test_not_mutated(*get_readonly("cube.OBJ"))
 
     def test_not_mutated_torus(self):
-        self._test_not_mutated(*get_readonly('torus.STL'))
+        self._test_not_mutated(*get_readonly("torus.STL"))
 
     def test_not_mutated_bunny(self):
-        self._test_not_mutated(*get_readonly('bunny.ply'))
+        self._test_not_mutated(*get_readonly("bunny.ply"))
 
     def test_not_mutated_teapot(self):
-        self._test_not_mutated(*get_readonly('teapot.stl'))
+        self._test_not_mutated(*get_readonly("teapot.stl"))
 
     def _test_not_mutated(self, mesh, verts, faces):
         verts = g.np.copy(verts)
@@ -171,12 +170,12 @@ class MutateTests(g.unittest.TestCase):
             mesh.section_multiplane(o, n, heights)
             mesh.section_multiplane(mesh.center_mass, n, heights)
 
-        assert not mesh.vertices.flags['WRITEABLE']
-        assert not mesh.faces.flags['WRITEABLE']
+        assert not mesh.vertices.flags["WRITEABLE"]
+        assert not mesh.faces.flags["WRITEABLE"]
         assert g.np.all(g.np.isclose(verts, mesh.vertices))
         assert g.np.all(g.np.isclose(faces, mesh.faces))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

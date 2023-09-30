@@ -12,7 +12,7 @@ import os
 import numpy as np
 
 
-def get_json(file_name='../templates/dxf.json'):
+def get_json(file_name="../templates/dxf.json"):
     """
     Load the JSON blob into native objects
     """
@@ -21,26 +21,25 @@ def get_json(file_name='../templates/dxf.json'):
     return t
 
 
-def write_json(template, file_name='../templates/dxf.json'):
+def write_json(template, file_name="../templates/dxf.json"):
     """
     Write a native object to a JSON blob
     """
-    with open(file_name, 'w') as f:
+    with open(file_name, "w") as f:
         json.dump(template, f, indent=4)
 
 
-def replace_whitespace(text, SAFE_SPACE='|<^>|', insert=True, reformat=False):
+def replace_whitespace(text, SAFE_SPACE="|<^>|", insert=True, reformat=False):
     """
     Replace non-strippable whitepace in a string with a safe space
     """
     if insert:
         # replace whitespace with safe space chr
-        args = (' ', SAFE_SPACE)
+        args = (" ", SAFE_SPACE)
     else:
         # replace safe space chr with whitespace
-        args = (SAFE_SPACE, ' ')
-    lines = [line.strip().replace(*args)
-             for line in str.splitlines(text)]
+        args = (SAFE_SPACE, " ")
+    lines = [line.strip().replace(*args) for line in str.splitlines(text)]
     # remove any blank lines
     if any(len(L) == 0 for L in lines):
         shaped = np.reshape(lines, (-1, 2))
@@ -53,23 +52,23 @@ def replace_whitespace(text, SAFE_SPACE='|<^>|', insert=True, reformat=False):
     if reformat:
         for i in range(len(lines)):
             cur = lines[i].strip()
-            if cur.startswith('$$'):
+            if cur.startswith("$$"):
                 lines[i] = cur[1:]
-            elif cur.startswith('${'):
+            elif cur.startswith("${"):
                 lines[i] = cur[1:]
-            elif cur.startswith('$'):
-                lines[i] = '{' + cur[1:] + '}'
+            elif cur.startswith("$"):
+                lines[i] = "{" + cur[1:] + "}"
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
-def write_files(template, destination='./dxf'):
+def write_files(template, destination="./dxf"):
     """
     For a dict, write each value to destination/key
     """
     os.makedirs(destination)
     for key, value in template.items():
-        with open(os.path.join(destination, key), 'w') as f:
+        with open(os.path.join(destination, key), "w") as f:
             f.write(replace_whitespace(value, reformat=True, insert=False))
 
 
@@ -81,27 +80,28 @@ def read_files(path):
     template = {}
     for file_name in os.listdir(path):
         # skip emacs buffers
-        if '~' in file_name:
+        if "~" in file_name:
             continue
         with open(os.path.join(path, file_name)) as f:
             template[file_name] = replace_whitespace(
-                f.read(), reformat=False, insert=True)
+                f.read(), reformat=False, insert=True
+            )
 
     return template
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     import sys
 
     import trimesh
+
     trimesh.util.attach_to_log()
 
     # dump files to JSON template
-    if 'dump' in sys.argv:
-        t = read_files('dxf')
+    if "dump" in sys.argv:
+        t = read_files("dxf")
         write_json(t)
-    elif 'read' in sys.argv:
+    elif "read" in sys.argv:
         # dump JSON to files for editing
         t = get_json()
         write_files(t)

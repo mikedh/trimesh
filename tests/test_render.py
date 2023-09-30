@@ -17,22 +17,17 @@ class RenderTest(g.unittest.TestCase):
         # a viewer show() call)
         from trimesh import rendering
 
-        files = ['featuretype.STL',
-                 'fuze.obj',
-                 'points_bin.ply']
+        files = ["featuretype.STL", "fuze.obj", "points_bin.ply"]
         for file_name in files:
             m = g.get_mesh(file_name)
             args = rendering.convert_to_vertexlist(m)
 
             if isinstance(m, g.trimesh.Trimesh):
                 # try turning smoothing off and on
-                rendering.mesh_to_vertexlist(
-                    m, smooth_threshold=0)
-                rendering.mesh_to_vertexlist(
-                    m, smooth_threshold=g.np.inf)
+                rendering.mesh_to_vertexlist(m, smooth_threshold=0)
+                rendering.mesh_to_vertexlist(m, smooth_threshold=g.np.inf)
 
-                P30 = m.section(plane_normal=[0, 0, 1],
-                                plane_origin=m.centroid)
+                P30 = m.section(plane_normal=[0, 0, 1], plane_origin=m.centroid)
                 args = rendering.path_to_vertexlist(P30)
                 args_auto = rendering.convert_to_vertexlist(P30)
                 assert len(args) == 6
@@ -44,7 +39,7 @@ class RenderTest(g.unittest.TestCase):
                 assert len(args) == 6
                 assert len(args_auto) == len(args)
 
-        P21 = g.get_mesh('2D/wrench.dxf')
+        P21 = g.get_mesh("2D/wrench.dxf")
         args = rendering.path_to_vertexlist(P21)
         args_auto = rendering.convert_to_vertexlist(P21)
         assert len(args) == 6
@@ -68,6 +63,6 @@ class RenderTest(g.unittest.TestCase):
         assert len(args_auto) == len(args)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

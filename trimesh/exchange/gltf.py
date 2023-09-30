@@ -351,10 +351,6 @@ def load_glb(
     kwargs : dict
       Kwargs to instantiate a trimesh.Scene
     """
-
-    # save the start position of the file for referencing
-    # against lengths
-    start = file_obj.tell()
     # read the first 20 bytes which contain section lengths
     head_data = file_obj.read(20)
     head = np.frombuffer(head_data, dtype="<u4")
@@ -387,7 +383,22 @@ def load_glb(
 
     # read the binary data referred to by GLTF as 'buffers'
     buffers = []
+    start = file_obj.tell()
+
+    # header can contain base64 encoded data in the URI field
+    info = header.get("buffers", []).copy()
+
     while (file_obj.tell() - start) < length:
+        # if we have buffer infos with URI check it here
+        try:
+            # if they have interleaved URI data with GLB data handle it here
+            uri = info.pop(0)["uri"]
+            buffers.append(_uri_to_bytes(uri=uri, resolver=resolver))
+            continue
+        except (IndexError, KeyError):
+            # if there was no buffer info or URI we still need to read
+            pass
+
         # the last read put us past the JSON chunk
         # we now read the chunk header, which is 8 bytes
         chunk_head = file_obj.read(8)
@@ -1363,7 +1374,6 @@ def _read_buffers(
             end = start + view["byteLength"]
             views[i] = buffers[view["buffer"]][start:end]
             assert len(views[i]) == view["byteLength"]
-
         # load data from buffers into numpy arrays
         # using the layout described by accessors
         access = [None] * len(header["accessors"])

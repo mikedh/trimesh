@@ -43,14 +43,14 @@ def simulated_brick(face_count, extents, noise, max_iter=10):
 
     # randomly rotation with translation
     transform = trimesh.transformations.random_rotation_matrix()
-    transform[:3, 3] = (np.random.random(3) - .5) * 1000
+    transform[:3, 3] = (np.random.random(3) - 0.5) * 1000
 
     mesh.apply_transform(transform)
 
     return mesh
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # print log messages to terminal
     trimesh.util.attach_to_log()
     log = trimesh.util.log
@@ -59,9 +59,7 @@ if __name__ == '__main__':
     extents = [6, 12, 2]
 
     # create a simulated brick with noise and random transform
-    scan = simulated_brick(face_count=5000,
-                           extents=extents,
-                           noise=.05)
+    scan = simulated_brick(face_count=5000, extents=extents, noise=0.05)
 
     # create a "true" mesh
     truth = trimesh.creation.box(extents=extents)
@@ -71,14 +69,18 @@ if __name__ == '__main__':
     # seeded by the principal components of inertia
     truth_to_scan, cost = truth.register(scan)
 
-    log.debug("centroid distance pre-registration:",
-              np.linalg.norm(truth.centroid - scan.centroid))
+    log.debug(
+        "centroid distance pre-registration:",
+        np.linalg.norm(truth.centroid - scan.centroid),
+    )
 
     # apply the registration transform
     truth.apply_transform(truth_to_scan)
 
-    log.debug("centroid distance post-registration:",
-              np.linalg.norm(truth.centroid - scan.centroid))
+    log.debug(
+        "centroid distance post-registration:",
+        np.linalg.norm(truth.centroid - scan.centroid),
+    )
 
     # find the distance from the truth mesh to each scan vertex
     distance = truth.nearest.on_surface(scan.vertices)[1]
@@ -89,12 +91,12 @@ if __name__ == '__main__':
     scan.visual.vertex_colors = trimesh.visual.interpolate(distance)
 
     # print some quick statistics about the mesh
-    log.debug('distance max:', distance.max())
-    log.debug('distance mean:', distance.mean())
-    log.debug('distance STD:', distance.std())
+    log.debug("distance max:", distance.max())
+    log.debug("distance mean:", distance.mean())
+    log.debug("distance STD:", distance.std())
 
     # export result with vertex colors for meshlab
-    scan.export('scan_new.ply')
+    scan.export("scan_new.ply")
 
     # show in a pyglet window
     scan.show()

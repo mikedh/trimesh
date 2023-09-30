@@ -9,8 +9,9 @@ try:
     from .path import Path2D, Path3D
 except BaseException as E:
     from .. import exceptions
+
     Path2D = exceptions.ExceptionWrapper(E)
     Path3D = exceptions.ExceptionWrapper(E)
 
 # explicitly add objects to all as per pep8
-__all__ = ['Path2D', 'Path3D']
+__all__ = ["Path2D", "Path3D"]

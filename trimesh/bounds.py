@@ -10,6 +10,7 @@ try:
 except BaseException as E:
     # raise the exception when someone tries to use it
     from . import exceptions
+
     ConvexHull = exceptions.ExceptionWrapper(E)
     optimize = exceptions.ExceptionWrapper(E)
 
@@ -23,7 +24,7 @@ _flip = transformations.planar_matrix(theta=np.pi / 2)
 _flip.flags.writeable = False
 
 
-def oriented_bounds_2D(points, qhull_options='QbB'):
+def oriented_bounds_2D(points, qhull_options="QbB"):
     """
     Find an oriented bounding box for an array of 2D points.
 
@@ -45,8 +46,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # create a convex hull object of our points
     # 'QbB' is a qhull option which has it scale the input to unit
     # box to avoid precision issues with very large/small meshes
-    convex = ConvexHull(
-        points, qhull_options=qhull_options)
+    convex = ConvexHull(points, qhull_options=qhull_options)
 
     # (n,2,3) line segments
     hull_edges = convex.points[convex.simplices]
@@ -56,10 +56,9 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     # unit vector direction of the edges of the hull polygon
     # filter out zero- magnitude edges via check_valid
     edge_vectors = hull_edges[:, 1] - hull_edges[:, 0]
-    edge_norm = np.sqrt(np.dot(edge_vectors ** 2, [1, 1]))
+    edge_norm = np.sqrt(np.dot(edge_vectors**2, [1, 1]))
     edge_nonzero = edge_norm > 1e-10
-    edge_vectors = edge_vectors[edge_nonzero] / \
-        edge_norm[edge_nonzero].reshape((-1, 1))
+    edge_vectors = edge_vectors[edge_nonzero] / edge_norm[edge_nonzero].reshape((-1, 1))
 
     # create a set of perpendicular vectors
     perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
@@ -73,14 +72,10 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     y = np.dot(perp_vectors, hull_points.T)
 
     # reduce the projections to maximum and minimum per edge vector
-    bounds = np.column_stack((x.min(axis=1),
-                              y.min(axis=1),
-                              x.max(axis=1),
-                              y.max(axis=1)))
+    bounds = np.column_stack((x.min(axis=1), y.min(axis=1), x.max(axis=1), y.max(axis=1)))
 
     # calculate the extents and area for each edge vector pair
-    extents = np.diff(bounds.reshape((-1, 2, 2)),
-                      axis=1).reshape((-1, 2))
+    extents = np.diff(bounds.reshape((-1, 2, 2)), axis=1).reshape((-1, 2))
     area = np.prod(extents, axis=1)
     area_min = area.argmin()
 
@@ -89,7 +84,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
 
     # find the (3,3) homogeneous transformation which moves the input
     # points to have a bounding box centered at the origin
-    offset = -bounds[area_min][:2] - (rectangle * .5)
+    offset = -bounds[area_min][:2] - (rectangle * 0.5)
     theta = np.arctan2(*edge_vectors[area_min][::-1])
     transform = transformations.planar_matrix(offset, theta)
 
@@ -105,11 +100,7 @@ def oriented_bounds_2D(points, qhull_options='QbB'):
     return transform, rectangle
 
 
-def oriented_bounds(obj,
-                    angle_digits=1,
-                    ordered=True,
-                    normal=None,
-                    coplanar_tol=1e-12):
+def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None, coplanar_tol=1e-12):
     """
     Find the oriented bounding box for a Trimesh
 
@@ -163,7 +154,7 @@ def oriented_bounds(obj,
         _, _, vh = np.linalg.svd(points_demeaned, full_matrices=False)
         points_2d = np.matmul(points_demeaned, vh.T)
         if np.any(np.abs(points_2d[:, 2]) > coplanar_tol):
-            raise ValueError('Points must be coplanar')
+            raise ValueError("Points must be coplanar")
 
         # Construct a homogeneous matrix representing the transformation above
         to_2d = np.eye(4)
@@ -175,15 +166,14 @@ def oriented_bounds(obj,
         # Make extents 3D
         extents = np.append(extents_2d, 0.0)
         # convert transformation from 2D to 3D and combine
-        to_origin = np.matmul(
-            transformations.planar_matrix_to_3D(to_origin_2d), to_2d)
+        to_origin = np.matmul(transformations.planar_matrix_to_3D(to_origin_2d), to_2d)
         return to_origin, extents
 
     try:
         # extract a set of convex hull vertices and normals from the input
         # we bother to do this to avoid recomputing the full convex hull if
         # possible
-        if hasattr(obj, 'convex_hull'):
+        if hasattr(obj, "convex_hull"):
             # if we have been passed a mesh, use its existing convex hull to pull from
             # cache rather than recomputing. This version of the cached convex hull has
             # normals pointing in arbitrary directions (straight from qhull)
@@ -199,14 +189,13 @@ def oriented_bounds(obj,
             elif util.is_shape(points, (-1, 3)):
                 hull = convex.convex_hull(points, repair=False)
             else:
-                raise ValueError('Points are not (n,3) or (n,2)!')
+                raise ValueError("Points are not (n,3) or (n,2)!")
         else:
-            raise ValueError(
-                'Oriented bounds must be passed a mesh or a set of points!')
+            raise ValueError("Oriented bounds must be passed a mesh or a set of points!")
     except QhullError:
         # Try to recover from Qhull error if due to mesh being less than 3
         # dimensional
-        if hasattr(obj, 'vertices'):
+        if hasattr(obj, "vertices"):
             points = obj.vertices.view(np.ndarray)
         elif util.is_sequence(obj):
             points = np.asanyarray(obj)
@@ -224,15 +213,15 @@ def oriented_bounds(obj,
         # convert face normals to spherical coordinates on the upper hemisphere
         # the vector_hemisphere call effectivly merges negative but otherwise
         # identical vectors
-        spherical_coords = util.vector_to_spherical(
-            util.vector_hemisphere(hull_normals))
+        spherical_coords = util.vector_to_spherical(util.vector_hemisphere(hull_normals))
         # the unique_rows call on merge angles gets unique spherical directions to check
         # we get a substantial speedup in the transformation matrix creation
         # inside the loop by converting to angles ahead of time
-        spherical_unique = grouping.unique_rows(
-            spherical_coords, digits=angle_digits)[0]
-        matrices = [transformations.spherical_matrix(*s).T
-                    for s in spherical_coords[spherical_unique]]
+        spherical_unique = grouping.unique_rows(spherical_coords, digits=angle_digits)[0]
+        matrices = [
+            transformations.spherical_matrix(*s).T
+            for s in spherical_coords[spherical_unique]
+        ]
         normals = util.spherical_to_vector(spherical_coords[spherical_unique])
     else:
         # if explicit normal was passed use it and skip the grouping
@@ -265,10 +254,11 @@ def oriented_bounds(obj,
         edge_vert = projected[:, :2][edges]
         # now get them as unit vectors
         edge_vectors = edge_vert[:, 1, :] - edge_vert[:, 0, :]
-        edge_norm = np.sqrt(np.dot(edge_vectors ** 2, [1, 1]))
+        edge_norm = np.sqrt(np.dot(edge_vectors**2, [1, 1]))
         edge_nonzero = edge_norm > 1e-10
-        edge_vectors = edge_vectors[edge_nonzero] / \
-            edge_norm[edge_nonzero].reshape((-1, 1))
+        edge_vectors = edge_vectors[edge_nonzero] / edge_norm[edge_nonzero].reshape(
+            (-1, 1)
+        )
         # create a set of perpendicular vectors
         perp_vectors = np.fliplr(edge_vectors) * [-1.0, 1.0]
 
@@ -279,8 +269,7 @@ def oriented_bounds(obj,
         # are extremely fast so in practice this usually ends up being fine
         x = np.dot(edge_vectors, edge_vert[:, 0, :2].T)
         y = np.dot(perp_vectors, edge_vert[:, 0, :2].T)
-        area = ((x.max(axis=1) - x.min(axis=1)) *
-                (y.max(axis=1) - y.min(axis=1))).min()
+        area = ((x.max(axis=1) - x.min(axis=1)) * (y.max(axis=1) - y.min(axis=1))).min()
 
         # the volume is 2D area plus the projected height
         volume = area * projected[:, 2].ptp()
@@ -305,7 +294,7 @@ def oriented_bounds(obj,
 
     # transform points using our matrix to find the translation
     transformed = transformations.transform_points(vertices, to_origin)
-    box_center = (transformed.min(axis=0) + transformed.ptp(axis=0) * .5)
+    box_center = transformed.min(axis=0) + transformed.ptp(axis=0) * 0.5
     to_origin[:3, 3] = -box_center
 
     # return ordered 3D extents
@@ -327,8 +316,7 @@ def oriented_bounds(obj,
         # apply the order to the extents
         min_extents = min_extents[order]
 
-    log.debug('oriented_bounds checked %d vectors in %0.4fs',
-              len(matrices), now() - tic)
+    log.debug("oriented_bounds checked %d vectors in %0.4fs", len(matrices), now() - tic)
 
     return to_origin, min_extents
 
@@ -384,10 +372,8 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=0.001):
         else:
             volume (float)
         """
-        to_2D = transformations.spherical_matrix(
-            *spherical, axes='rxyz')
-        projected = transformations.transform_points(
-            hull, matrix=to_2D)
+        to_2D = transformations.spherical_matrix(*spherical, axes="rxyz")
+        projected = transformations.transform_points(hull, matrix=to_2D)
         height = projected[:, 2].ptp()
 
         try:
@@ -395,19 +381,18 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=0.001):
         except ValueError:
             return np.inf
 
-        volume = np.pi * height * (radius ** 2)
+        volume = np.pi * height * (radius**2)
         if return_data:
-            center_3D = np.append(
-                center_2D, projected[:, 2].min() + (height * .5))
+            center_3D = np.append(center_2D, projected[:, 2].min() + (height * 0.5))
             transform = np.dot(
-                np.linalg.inv(to_2D),
-                transformations.translation_matrix(center_3D))
+                np.linalg.inv(to_2D), transformations.translation_matrix(center_3D)
+            )
             return transform, radius, height
         return volume
 
     # we've been passed a mesh with radial symmetry
     # use center mass and symmetry axis and go home early
-    if hasattr(obj, 'symmetry') and obj.symmetry == 'radial':
+    if hasattr(obj, "symmetry") and obj.symmetry == "radial":
         # find our origin
         if obj.is_watertight:
             # set origin to center of mass
@@ -416,42 +401,38 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=0.001):
             # convex hull should be watertight
             origin = obj.convex_hull.center_mass
         # will align symmetry axis with Z and move origin to zero
-        to_2D = geometry.plane_transform(
-            origin=origin,
-            normal=obj.symmetry_axis)
+        to_2D = geometry.plane_transform(origin=origin, normal=obj.symmetry_axis)
         # transform vertices to plane to check
-        on_plane = transformations.transform_points(
-            obj.vertices, to_2D)
+        on_plane = transformations.transform_points(obj.vertices, to_2D)
         # cylinder height is overall Z span
         height = on_plane[:, 2].ptp()
         # center mass is correct on plane, but position
         # along symmetry axis may be wrong so slide it
         slide = transformations.translation_matrix(
-            [0, 0, (height / 2.0) - on_plane[:, 2].max()])
+            [0, 0, (height / 2.0) - on_plane[:, 2].max()]
+        )
         to_2D = np.dot(slide, to_2D)
         # radius is maximum radius
         radius = (on_plane[:, :2] ** 2).sum(axis=1).max() ** 0.5
         # save kwargs
-        result = {'height': height,
-                  'radius': radius,
-                  'transform': np.linalg.inv(to_2D)}
+        result = {"height": height, "radius": radius, "transform": np.linalg.inv(to_2D)}
         return result
 
     # get the points on the convex hull of the result
     hull = convex.hull_points(obj)
     if not util.is_shape(hull, (-1, 3)):
-        raise ValueError('Input must be reducable to 3D points!')
+        raise ValueError("Input must be reducable to 3D points!")
 
     # sample a hemisphere so local hill climbing can do its thing
     samples = util.grid_linspace([[0, 0], [np.pi, np.pi]], sample_count)
 
     # if it's rotationally symmetric the bounding cylinder
     # is almost certainly along one of the PCI vectors
-    if hasattr(obj, 'principal_inertia_vectors'):
+    if hasattr(obj, "principal_inertia_vectors"):
         # add the principal inertia vectors if we have a mesh
         samples = np.vstack(
-            (samples,
-             util.vector_to_spherical(obj.principal_inertia_vectors)))
+            (samples, util.vector_to_spherical(obj.principal_inertia_vectors))
+        )
 
     tic = [now()]
     # the projected volume at each sample
@@ -463,25 +444,19 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=0.001):
     # since we already explored the global space, set the bounds to be
     # just around the sample that had the lowest volume
     step = 2 * np.pi / sample_count
-    bounds = [(best[0] - step, best[0] + step),
-              (best[1] - step, best[1] + step)]
+    bounds = [(best[0] - step, best[0] + step), (best[1] - step, best[1] + step)]
     # run the local optimization
-    r = optimize.minimize(volume_from_angles,
-                          best,
-                          tol=angle_tol,
-                          method='SLSQP',
-                          bounds=bounds)
+    r = optimize.minimize(
+        volume_from_angles, best, tol=angle_tol, method="SLSQP", bounds=bounds
+    )
 
     tic.append(now())
-    log.debug('Performed search in %f and minimize in %f', *np.diff(tic))
+    log.debug("Performed search in %f and minimize in %f", *np.diff(tic))
 
     # actually chunk the information about the cylinder
-    transform, radius, height = volume_from_angles(
-        r['x'], return_data=True)
+    transform, radius, height = volume_from_angles(r["x"], return_data=True)
 
-    result = {'transform': transform,
-              'radius': radius,
-              'height': height}
+    result = {"transform": transform, "radius": radius, "height": height}
     return result
 
 
@@ -504,7 +479,7 @@ def to_extents(bounds):
     """
     bounds = np.asanyarray(bounds, dtype=np.float64)
     if bounds.shape != (2, 3):
-        raise ValueError('bounds must be (2, 3)')
+        raise ValueError("bounds must be (2, 3)")
 
     extents = bounds.ptp(axis=0)
     transform = np.eye(4)
@@ -534,17 +509,37 @@ def corners(bounds):
     if util.is_shape(bounds, (2, 2)):
         bounds = np.column_stack((bounds, [0, 0]))
     elif not util.is_shape(bounds, (2, 3)):
-        raise ValueError('bounds must be (2,2) or (2,3)!')
+        raise ValueError("bounds must be (2,2) or (2,3)!")
 
     minx, miny, minz, maxx, maxy, maxz = np.arange(6)
-    corner_index = np.array([minx, miny, minz,
-                             maxx, miny, minz,
-                             maxx, maxy, minz,
-                             minx, maxy, minz,
-                             minx, miny, maxz,
-                             maxx, miny, maxz,
-                             maxx, maxy, maxz,
-                             minx, maxy, maxz]).reshape((-1, 3))
+    corner_index = np.array(
+        [
+            minx,
+            miny,
+            minz,
+            maxx,
+            miny,
+            minz,
+            maxx,
+            maxy,
+            minz,
+            minx,
+            maxy,
+            minz,
+            minx,
+            miny,
+            maxz,
+            maxx,
+            miny,
+            maxz,
+            maxx,
+            maxy,
+            maxz,
+            minx,
+            maxy,
+            maxz,
+        ]
+    ).reshape((-1, 3))
 
     corners = bounds.reshape(-1)[corner_index]
     return corners
@@ -571,13 +566,13 @@ def contains(bounds, points):
     points = np.asanyarray(points, dtype=np.float64)
 
     if len(bounds) != 2:
-        raise ValueError('bounds must be (2,dimension)!')
+        raise ValueError("bounds must be (2,dimension)!")
     if not util.is_shape(points, (-1, bounds.shape[1])):
-        raise ValueError('bounds shape must match points!')
+        raise ValueError("bounds shape must match points!")
 
     # run the simple check
     points_inside = np.logical_and(
-        (points > bounds[0]).all(axis=1),
-        (points < bounds[1]).all(axis=1))
+        (points > bounds[0]).all(axis=1), (points < bounds[1]).all(axis=1)
+    )
 
     return points_inside

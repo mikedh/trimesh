@@ -21,6 +21,6 @@ class UpstreamTests(g.unittest.TestCase):
         assert g.np.isclose(string.length, 1.0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -277,9 +277,9 @@ class GLTFTest(g.unittest.TestCase):
 
         # reference values generated with:
         # https://kcoley.github.io/glTF/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/
-        assert g.np.allclose(color[0, 0], [253, 234, 208], atol=1)
-        assert g.np.allclose(color[30, 30], [253, 235, 211], atol=1)
-        assert g.np.allclose(color[60, 10], [255, 238, 214], atol=1)
+        assert g.np.allclose(color[0, 0], [247, 223, 190], atol=1)
+        assert g.np.allclose(color[30, 30], [247, 226, 196], atol=1)
+        assert g.np.allclose(color[60, 10], [249, 231, 203], atol=1)
         color = mat.baseColorFactor
         assert color.dtype == g.np.uint8
         assert g.np.allclose(color, [255, 255, 255, 255])
@@ -292,17 +292,33 @@ class GLTFTest(g.unittest.TestCase):
         metallic = metallic_roughness[:, :, 0]
         roughness = metallic_roughness[:, :, 1]
 
-        assert g.np.allclose(metallic[0, 0], 0.514, atol=0.01)
-        assert g.np.allclose(metallic[30, 30], 0.49, atol=0.01)
-        assert g.np.allclose(metallic[60, 10], 0.42, atol=0.01)
+        assert g.np.allclose(metallic[0, 0], 0.231, atol=0.004)
+        assert g.np.allclose(metallic[30, 30], 0.207, atol=0.004)
+        assert g.np.allclose(metallic[60, 10], 0.133, atol=0.004)
 
-        assert g.np.allclose(roughness[0, 0], 0.898, atol=0.01)
-        assert g.np.allclose(roughness[30, 30], 0.898, atol=0.01)
-        assert g.np.allclose(roughness[60, 10], 0.898, atol=0.01)
+        assert g.np.allclose(roughness[0, 0], 0.898, atol=0.004)
+        assert g.np.allclose(roughness[30, 30], 0.902, atol=0.004)
+        assert g.np.allclose(roughness[60, 10], 0.898, atol=0.004)
 
         assert mat.metallicFactor == 1.0
         assert mat.roughnessFactor == 1.0
         assert all(mat.emissiveFactor == [0.0, 0.0, 0.0])
+
+    def test_spec_gloss_factors_only(self):
+        # test that we can load a GLTF with specular/glossiness material without textures
+        s = g.get_mesh("pbr_cubes_emissive_spec_gloss.zip")
+
+        assert all(
+            isinstance(m.visual.material, g.trimesh.visual.material.PBRMaterial)
+            for m in s.geometry.values()
+        )
+
+        spec_gloss_mat = s.geometry["Cube.005"].visual.material
+        # this is a special case, because color is only coming from specular.
+        # the diffuse value is black
+        assert g.np.allclose(spec_gloss_mat.baseColorFactor, [254, 194, 85, 255], atol=1)
+        assert g.np.allclose(spec_gloss_mat.metallicFactor, 1.0)
+        assert g.np.allclose(spec_gloss_mat.roughnessFactor, 0.3)
 
     def test_write_dir(self):
         # try loading from a file name

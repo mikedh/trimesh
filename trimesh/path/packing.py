@@ -4,6 +4,8 @@ packing.py
 
 Pack rectangular regions onto larger rectangular regions.
 """
+from typing import Optional
+
 import numpy as np
 
 from ..constants import log, tol
@@ -158,7 +160,7 @@ def _roll(a, count):
         return np.concatenate([a[-count:], a[:-count]])
 
 
-def rectangles_single(extents, size=None, shuffle=False, rotate=True):
+def rectangles_single(extents, size=None, shuffle=False, rotate=True, random=None):
     """
     Execute a single insertion order of smaller rectangles onto
     a larger rectangle using a binary space partition tree.
@@ -198,15 +200,17 @@ def rectangles_single(extents, size=None, shuffle=False, rotate=True):
     order = np.argsort(extents.max(axis=1))[::-1]
 
     if shuffle:
-        # reorder with permutations
-        order = np.random.permutation(order)
+        if random is not None:
+            order = random.permutation(order)
+        else:
+            # reorder with permutations
+            order = np.random.permutation(order)
 
     if size is None:
         # if no bounds are passed start it with the size of a large
         # rectangle exactly which will require re-rooting for
         # subsequent insertions
-        root_bounds = [[0.0] * dimension,
-                       extents[extents.ptp(axis=1).argmax()]]
+        root_bounds = [[0.0] * dimension, extents[extents.ptp(axis=1).argmax()]]
     else:
         # restrict the bounds to passed size and disallow re-rooting
         root_bounds = [[0.0] * dimension, size]
@@ -273,12 +277,10 @@ def rectangles_single(extents, size=None, shuffle=False, rotate=True):
             # this node has children so it is occupied
             new_root.occupied = True
             # create a bin for both bounds
-            new_root.child = [RectangleBin(bounds_ori),
-                              RectangleBin(bounds_ins)]
+            new_root.child = [RectangleBin(bounds_ori), RectangleBin(bounds_ins)]
 
             # insert the original sheet into the new tree
-            root_offset = new_root.child[0].insert(
-                bounds.ptp(axis=0), rotate=rotate)
+            root_offset = new_root.child[0].insert(bounds.ptp(axis=0), rotate=rotate)
             # we sized the cells so original tree would fit
             assert root_offset is not None
 
@@ -335,13 +337,12 @@ def paths(paths, **kwargs):
     packable = []
     original = []
     for index, path in enumerate(paths):
-        quantity = path.metadata.get('quantity', 1)
+        quantity = path.metadata.get("quantity", 1)
         original.extend([index] * quantity)
         packable.extend([path.polygons_closed[path.root[0]]] * quantity)
 
     # pack the polygons using rectangular bin packing
-    transforms, consume = polygons(
-        polygons=packable, **kwargs)
+    transforms, consume = polygons(polygons=packable, **kwargs)
 
     positioned = []
     for index, matrix in zip(np.nonzero(consume)[0], transforms):
@@ -385,34 +386,38 @@ def polygons(polygons, **kwargs):
     # run packing for a number of iterations
     bounds, consume = rectangles(extents=extents, **kwargs)
 
-    log.debug('%i/%i parts were packed successfully',
-              consume.sum(), len(polygons))
+    log.debug("%i/%i parts were packed successfully", consume.sum(), len(polygons))
 
     # transformations to packed positions
     roll = roll_transform(bounds=bounds, extents=extents[consume])
 
-    transforms = np.array([np.dot(b, a) for a, b in
-                           zip(obb[consume], roll)])
+    transforms = np.array([np.dot(b, a) for a, b in zip(obb[consume], roll)])
 
     if tol.strict:
         # original bounds should not overlap
         assert not bounds_overlap(bounds)
         # confirm transfor
         check_bound = np.array(
-            [polygon_bounds(polygons[index], matrix=m)
-             for index, m in zip(np.nonzero(consume)[0], transforms)])
+            [
+                polygon_bounds(polygons[index], matrix=m)
+                for index, m in zip(np.nonzero(consume)[0], transforms)
+            ]
+        )
         assert not bounds_overlap(check_bound)
 
     return transforms, consume
 
 
-def rectangles(extents,
-               size=None,
-               density_escape=0.99,
-               spacing=0.0,
-               iterations=50,
-               rotate=True,
-               quanta=None):
+def rectangles(
+    extents,
+    size=None,
+    density_escape=0.99,
+    spacing=None,
+    iterations=50,
+    rotate=True,
+    quanta=None,
+    seed=None,
+):
     """
     Run multiple iterations of rectangle packing, this is the
     core function for all rectangular packing.
@@ -427,13 +432,15 @@ def rectangles(extents,
     density_escape : float
       Exit early if rectangular density is above this threshold.
     spacing : float
-      Distance to allow between rect
+      Distance to allow between rectangles
     iterations : int
       Number of iterations to run
     rotate : bool
       Allow right angle rotations or not.
     quanta : None or float
       Discrete "snap" interval.
+    seed
+      If deterministic results are needed seed the RNG here.
 
     Returns
     ---------
@@ -445,8 +452,10 @@ def rectangles(extents,
     # copy extents and make sure they are floats
     extents = np.array(extents, dtype=np.float64)
     dim = extents.shape[1]
-    # add on any requested spacing
-    extents += spacing * 2.0
+
+    if spacing is not None:
+        # add on any requested spacing
+        extents += spacing * 2.0
 
     # hyper-volume: area in 2D, volume in 3D, party in 4D
     area = np.prod(extents, axis=1)
@@ -455,11 +464,17 @@ def rectangles(extents,
     # how many rect were inserted
     best_count = 0
 
+    if seed is None:
+        random = None
+    else:
+        random = np.random.default_rng(seed=seed)
+
     for i in range(iterations):
         # run a single insertion order
         # don't shuffle the first run, shuffle subsequent runs
         bounds, insert = rectangles_single(
-            extents=extents, size=size, shuffle=(i != 0))
+            extents=extents, size=size, shuffle=(i != 0), rotate=rotate, random=random
+        )
 
         count = insert.sum()
         extents_all = bounds.reshape((-1, dim)).ptp(axis=0)
@@ -482,16 +497,24 @@ def rectangles(extents,
             if density > density_escape and insert.all():
                 break
 
-    if spacing > 1e-12:
+    if spacing is not None:
         # shrink the bounds by spacing
         result[0] += [[[spacing], [-spacing]]]
 
-    log.debug(f'packed with density {best_density:0.5f}')
+    log.debug(f"{iterations} iterations packed with density {best_density:0.3f}")
 
     return result
 
 
-def images(images, power_resize=False):
+def images(
+    images,
+    power_resize: bool = False,
+    deduplicate: bool = False,
+    iterations: Optional[int] = 50,
+    seed: Optional[int] = None,
+    spacing: Optional[float] = None,
+    mode: Optional[str] = None,
+):
     """
     Pack a list of images and return result and offsets.
 
@@ -503,6 +526,13 @@ def images(images, power_resize=False):
       Should the result image be upsized to the nearest
       power of two? Not every GPU supports materials that
       aren't a power of two size.
+    deduplicate
+      Should images that have identical hashes be inserted
+      more than once?
+    mode
+      If passed return an output image with the
+      requested mode, otherwise will be picked
+      from the input images.
 
     Returns
     -----------
@@ -512,27 +542,69 @@ def images(images, power_resize=False):
        Offsets for original image to pack
     """
     from PIL import Image
-    # use the number of pixels as the rectangle size
-    bounds, insert = rectangles(
-        extents=[i.size for i in images], rotate=False)
-    # really should have inserted all the rect
-    assert insert.all()
+
+    if deduplicate:
+        # only pack duplicate images once
+        _, index, inverse = np.unique(
+            [hash(i.tobytes()) for i in images], return_index=True, return_inverse=True
+        )
+        # use the number of pixels as the rectangle size
+        bounds, insert = rectangles(
+            extents=[images[i].size for i in index],
+            rotate=False,
+            iterations=iterations,
+            seed=seed,
+            spacing=spacing,
+        )
+        # really should have inserted all the rect
+        assert insert.all()
+        # re-index bounds back to original indexes
+        bounds = bounds[inverse]
+        assert np.allclose(bounds.ptp(axis=1), [i.size for i in images])
+    else:
+        # use the number of pixels as the rectangle size
+        bounds, insert = rectangles(
+            extents=[i.size for i in images],
+            rotate=False,
+            iterations=iterations,
+            seed=seed,
+            spacing=spacing,
+        )
+        # really should have inserted all the rect
+        assert insert.all()
+
+    if spacing is None:
+        spacing = 0
+    else:
+        spacing = int(spacing)
 
     # offsets should be integer multiple of pizels
     offset = bounds[:, 0].round().astype(int)
-    extents = bounds.reshape((-1, 2)).ptp(axis=0)
+    extents = bounds.reshape((-1, 2)).ptp(axis=0) + (spacing * 2)
     size = extents.round().astype(int)
     if power_resize:
         # round up all dimensions to powers of 2
         size = (2 ** np.ceil(np.log2(size))).astype(np.int64)
 
+    if mode is None:
+        # get the mode of every input image
+        modes = list({i.mode for i in images})
+        # pick the longest mode as a simple heuristic
+        # which prefers "RGBA" over "RGB"
+        mode = modes[np.argmax([len(m) for m in modes])]
+
     # create the image in the mode of the first image
-    result = Image.new(images[0].mode, tuple(size))
+    result = Image.new(mode, tuple(size))
+
+    done = set()
     # paste each image into the result
     for img, off in zip(images, offset):
-        # box is upper left corner
-        corner = (off[0], size[1] - img.size[1] - off[1])
-        result.paste(img, box=corner)
+        if tuple(off) not in done:
+            # box is upper left corner
+            corner = (off[0], size[1] - img.size[1] - off[1])
+            result.paste(img, box=corner)
+        else:
+            done.add(tuple(off))
 
     return result, offset
 
@@ -569,16 +641,22 @@ def meshes(meshes, **kwargs):
 
     # generate the transforms from an origin centered AABB
     # to the final placed and rotated AABB
-    transforms = np.array([
-        np.dot(r, np.linalg.inv(o)) for
-        o, r in zip(obb_transform[consume],
-                    roll_transform(bounds=bounds,
-                                   extents=obb_extent[consume]))],
-        dtype=np.float64)
+    transforms = np.array(
+        [
+            np.dot(r, np.linalg.inv(o))
+            for o, r in zip(
+                obb_transform[consume],
+                roll_transform(bounds=bounds, extents=obb_extent[consume]),
+            )
+        ],
+        dtype=np.float64,
+    )
 
     # copy the meshes and move into position
-    placed = [meshes[index].copy().apply_transform(T)
-              for index, T in zip(np.nonzero(consume)[0], transforms)]
+    placed = [
+        meshes[index].copy().apply_transform(T)
+        for index, T in zip(np.nonzero(consume)[0], transforms)
+    ]
 
     return placed, transforms, consume
 
@@ -636,7 +714,7 @@ def roll_transform(bounds, extents):
       into the position determined by `bounds`.
     """
     if len(bounds) != len(extents):
-        raise ValueError('`bounds` must match `extents`')
+        raise ValueError("`bounds` must match `extents`")
     if len(extents) == 0:
         return []
 
@@ -651,19 +729,28 @@ def roll_transform(bounds, extents):
     # a lookup table for rotations for rolling cuboiods
     # as `lookup[dimension - 2][roll]`
     # implemented for 2D and 3D
-    lookup = [np.array([np.eye(3),
-                        np.array([[0., -1., 0.],
-                                  [1., 0., 0.],
-                                  [0., 0., 1.]])]),
-              np.array([np.eye(4),
-                        [[-0., -0., -1., -0.],
-                         [-1., -0., -0., -0.],
-                         [0., 1., 0., 0.],
-                         [0., 0., 0., 1.]],
-                        [[-0., -1., -0., -0.],
-                         [0., 0., 1., 0.],
-                         [-1., -0., -0., -0.],
-                         [0., 0., 0., 1.]]])]
+    lookup = [
+        np.array(
+            [np.eye(3), np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])]
+        ),
+        np.array(
+            [
+                np.eye(4),
+                [
+                    [-0.0, -0.0, -1.0, -0.0],
+                    [-1.0, -0.0, -0.0, -0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+                [
+                    [-0.0, -1.0, -0.0, -0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [-1.0, -0.0, -0.0, -0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+            ]
+        ),
+    ]
 
     # rectangular rotation involves rolling
     for roll in range(extents.shape[1]):
@@ -687,17 +774,21 @@ def roll_transform(bounds, extents):
         if dimension == 3:
             # make sure bounds match inputs
             from ..creation import box
-            assert all(allclose(box(extents=e).apply_transform(m).bounds, b)
-                       for b, e, m in zip(bounds, extents, result))
+
+            assert all(
+                allclose(box(extents=e).apply_transform(m).bounds, b)
+                for b, e, m in zip(bounds, extents, result)
+            )
         elif dimension == 2:
             # in 2D check with a rectangle
             from .creation import rectangle
+
             assert all(
-                allclose(rectangle(
-                    bounds=[-e / 2, e / 2]).apply_transform(m).bounds, b)
-                for b, e, m in zip(bounds, extents, result))
+                allclose(rectangle(bounds=[-e / 2, e / 2]).apply_transform(m).bounds, b)
+                for b, e, m in zip(bounds, extents, result)
+            )
         else:
-            raise ValueError('unsupported dimension')
+            raise ValueError("unsupported dimension")
 
     return result
 
@@ -721,9 +812,9 @@ def bounds_overlap(bounds, epsilon=1e-8):
       True if any bound intersects any other bound.
     """
     # pad AABB by epsilon for deterministic intersections
-    padded = np.array(bounds) + np.reshape(
-        [epsilon, -epsilon], (1, 2, 1))
+    padded = np.array(bounds) + np.reshape([epsilon, -epsilon], (1, 2, 1))
     tree = bounds_tree(padded)
     # every returned AABB should not overlap with any other AABB
-    return any(set(tree.intersection(current.ravel())) !=
-               {i} for i, current in enumerate(bounds))
+    return any(
+        set(tree.intersection(current.ravel())) != {i} for i, current in enumerate(bounds)
+    )

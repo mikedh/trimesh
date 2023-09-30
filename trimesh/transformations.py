@@ -851,9 +851,7 @@ def decompose_matrix(matrix):
     return scale, shear, angles, translate, perspective
 
 
-def compose_matrix(
-    scale=None, shear=None, angles=None, translate=None, perspective=None
-):
+def compose_matrix(scale=None, shear=None, angles=None, translate=None, perspective=None):
     """Return transformation matrix from sequence of transformations.
 
     This is the inverse of the decompose_matrix function.

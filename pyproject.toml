@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.0.0.rc0"
+version = "4.0.0.rc1"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {text = "MIT"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -58,18 +58,8 @@ trimesh = [
 ]
 
 [project.optional-dependencies]
-test = [
-    "pytest-cov",
-    "coveralls",
-    "mypy",
-    "ezdxf",
-    "pytest",
-    "pymeshlab",
-    "pyinstrument",
-    "ruff",
-    "black",
-]
 
+# this is the base extra most users will want
 easy = [
     "colorlog",
     "mapbox-earcut",
@@ -97,7 +87,23 @@ recommend = [
     "psutil",
     "xatlas",
     "scikit-image",
-    "python-fcl"
+    "python-fcl",
+    "pyVHACD",
+]
+
+# this is the list of everything that is ever added anywhere
+# mostly useful for getting our test coverage up
+test = [
+    "pytest-cov",
+    "coveralls",
+    "mypy",
+    "ezdxf",
+    "pytest",
+    "pymeshlab",
+    "pyinstrument",
+    "matplotlib",
+    "ruff",
+    "black",
 ]
 
 # requires pip >= 21.2

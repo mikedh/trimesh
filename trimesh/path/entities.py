@@ -16,14 +16,9 @@ from .curve import discretize_bezier, discretize_bspline
 
 
 class Entity(ABC):
-
-    def __init__(self,
-                 points,
-                 closed=None,
-                 layer=None,
-                 metadata=None,
-                 color=None,
-                 **kwargs):
+    def __init__(
+        self, points, closed=None, layer=None, metadata=None, color=None, **kwargs
+    ):
         # points always reference vertex indices and are int
         self.points = np.asanyarray(points, dtype=np.int64)
         # save explicit closed
@@ -52,7 +47,7 @@ class Entity(ABC):
         metadata : dict
           Bag of properties.
         """
-        if not hasattr(self, '_metadata'):
+        if not hasattr(self, "_metadata"):
             self._metadata = {}
         # note that we don't let a new dict be assigned
         return self._metadata
@@ -68,7 +63,7 @@ class Entity(ABC):
         layer : any
           Hashable layer identifier.
         """
-        return self.metadata.get('layer')
+        return self.metadata.get("layer")
 
     @layer.setter
     def layer(self, value):
@@ -80,7 +75,7 @@ class Entity(ABC):
         layer : any
           Hashable layer indicator
         """
-        self.metadata['layer'] = value
+        self.metadata["layer"] = value
 
     def to_dict(self):
         """
@@ -92,9 +87,11 @@ class Entity(ABC):
         as_dict : dict
           Has keys 'type', 'points', 'closed'
         """
-        return {'type': self.__class__.__name__,
-                'points': self.points.tolist(),
-                'closed': self.closed}
+        return {
+            "type": self.__class__.__name__,
+            "points": self.points.tolist(),
+            "closed": self.closed,
+        }
 
     @property
     def closed(self):
@@ -107,8 +104,7 @@ class Entity(ABC):
         closed : bool
           Is the entity closed or not?
         """
-        closed = (len(self.points) > 2 and
-                  self.points[0] == self.points[-1])
+        closed = len(self.points) > 2 and self.points[0] == self.points[-1]
         return closed
 
     @property
@@ -134,9 +130,9 @@ class Entity(ABC):
         self.points = [0,1,2]
         returns:      [[0,1], [1,2]]
         """
-        return np.column_stack((self.points,
-                                self.points)).reshape(
-                                    -1)[1:-1].reshape((-1, 2))
+        return (
+            np.column_stack((self.points, self.points)).reshape(-1)[1:-1].reshape((-1, 2))
+        )
 
     @property
     def end_points(self):
@@ -194,7 +190,7 @@ class Entity(ABC):
         orient : (n, dimension) float
           Original curve, but possibly reversed
         """
-        if hasattr(self, '_direction') and self._direction < 0:
+        if hasattr(self, "_direction") and self._direction < 0:
             return curve[::-1]
         return curve
 
@@ -212,8 +208,9 @@ class Entity(ABC):
         bounds : (2, dimension) float
           Coordinates of AABB, in (min, max) form
         """
-        bounds = np.array([vertices[self.points].min(axis=0),
-                           vertices[self.points].max(axis=0)])
+        bounds = np.array(
+            [vertices[self.points].min(axis=0), vertices[self.points].max(axis=0)]
+        )
         return bounds
 
     def length(self, vertices):
@@ -256,7 +253,7 @@ class Entity(ABC):
         """
         copied = deepcopy(self)
         # only copy metadata if set
-        if hasattr(self, '_metadata'):
+        if hasattr(self, "_metadata"):
             copied._metadata = deepcopy(self._metadata)
             # check for very annoying subtle copy failures
             assert id(copied._metadata) != id(self._metadata)
@@ -285,11 +282,9 @@ class Entity(ABC):
         """
         # give consistent ordering of points for hash
         if self.points[0] > self.points[-1]:
-            return (self.__class__.__name__.encode('utf-8') +
-                    self.points.tobytes())
+            return self.__class__.__name__.encode("utf-8") + self.points.tobytes()
         else:
-            return (self.__class__.__name__.encode('utf-8') +
-                    self.points[::-1].tobytes())
+            return self.__class__.__name__.encode("utf-8") + self.points[::-1].tobytes()
 
 
 class Text(Entity):
@@ -297,16 +292,18 @@ class Text(Entity):
     Text to annotate a 2D or 3D path.
     """
 
-    def __init__(self,
-                 origin,
-                 text,
-                 height=None,
-                 vector=None,
-                 normal=None,
-                 align=None,
-                 layer=None,
-                 color=None,
-                 metadata=None):
+    def __init__(
+        self,
+        origin,
+        text,
+        height=None,
+        vector=None,
+        normal=None,
+        align=None,
+        layer=None,
+        color=None,
+        metadata=None,
+    ):
         """
         An entity for text labels.
 
@@ -349,20 +346,20 @@ class Text(Entity):
         # None or (2,) str
         if align is None:
             # if not set make everything centered
-            align = ['center', 'center']
+            align = ["center", "center"]
         elif util.is_string(align):
             # if only one is passed set for both
             # horizontal and vertical
             align = [align, align]
         elif len(align) != 2:
             # otherwise raise rror
-            raise ValueError('align must be (2,) str')
+            raise ValueError("align must be (2,) str")
 
         self.align = align
 
         # make sure text is a string
-        if hasattr(text, 'decode'):
-            self.text = text.decode('utf-8')
+        if hasattr(text, "decode"):
+            self.text = text.decode("utf-8")
         else:
             self.text = str(text)
 
@@ -381,7 +378,7 @@ class Text(Entity):
     @origin.setter
     def origin(self, value):
         value = int(value)
-        if not hasattr(self, 'points') or self.points.ptp() == 0:
+        if not hasattr(self, "points") or self.points.ptp() == 0:
             self.points = np.ones(3, dtype=np.int64) * value
         else:
             self.points[0] = value
@@ -436,7 +433,7 @@ class Text(Entity):
           If True, call plt.show()
         """
         if vertices.shape[1] != 2:
-            raise ValueError('only for 2D points!')
+            raise ValueError("only for 2D points!")
 
         import matplotlib.pyplot as plt
 
@@ -444,12 +441,14 @@ class Text(Entity):
         angle = np.degrees(self.angle(vertices))
 
         # TODO: handle text size better
-        plt.text(*vertices[self.origin],
-                 s=self.text,
-                 rotation=angle,
-                 ha=self.align[0],
-                 va=self.align[1],
-                 size=18)
+        plt.text(
+            *vertices[self.origin],
+            s=self.text,
+            rotation=angle,
+            ha=self.align[0],
+            va=self.align[1],
+            size=18,
+        )
 
         if show:
             plt.show()
@@ -470,7 +469,7 @@ class Text(Entity):
         """
 
         if vertices.shape[1] != 2:
-            raise ValueError('angle only valid for 2D points!')
+            raise ValueError("angle only valid for 2D points!")
 
         # get the vector from origin
         direction = vertices[self.vector] - vertices[self.origin]
@@ -502,9 +501,7 @@ class Text(Entity):
         return np.array([])
 
     def _bytes(self):
-        data = b''.join([b'Text',
-                         self.points.tobytes(),
-                         self.text.encode('utf-8')])
+        data = b"".join([b"Text", self.points.tobytes(), self.text.encode("utf-8")])
         return data
 
 
@@ -555,22 +552,21 @@ class Line(Entity):
         """
         # copy over the current layer
         layer = self.layer
-        points = np.column_stack((
-            self.points,
-            self.points)).ravel()[1:-1].reshape((-1, 2))
+        points = (
+            np.column_stack((self.points, self.points)).ravel()[1:-1].reshape((-1, 2))
+        )
         exploded = [Line(i, layer=layer) for i in points]
         return exploded
 
     def _bytes(self):
         # give consistent ordering of points for hash
         if self.points[0] > self.points[-1]:
-            return b'Line' + self.points.tobytes()
+            return b"Line" + self.points.tobytes()
         else:
-            return b'Line' + self.points[::-1].tobytes()
+            return b"Line" + self.points[::-1].tobytes()
 
 
 class Arc(Entity):
-
     @property
     def closed(self):
         """
@@ -581,7 +577,7 @@ class Arc(Entity):
         closed : bool
           If set True, Arc will be a closed circle
         """
-        return getattr(self, '_closed', False)
+        return getattr(self, "_closed", False)
 
     @closed.setter
     def closed(self, value):
@@ -611,7 +607,7 @@ class Arc(Entity):
     def _bytes(self):
         # give consistent ordering of points for hash
         order = int(self.points[0] > self.points[-1]) * 2 - 1
-        return b'Arc' + bytes(self.closed) + self.points[::order].tobytes()
+        return b"Arc" + bytes(self.closed) + self.points[::order].tobytes()
 
     def length(self, vertices):
         """
@@ -631,12 +627,10 @@ class Arc(Entity):
         if self.closed:
             # we don't need the angular span as
             # it's indicated as a closed circle
-            fit = self.center(
-                vertices, return_normal=False, return_angle=False)
+            fit = self.center(vertices, return_normal=False, return_angle=False)
             return np.pi * fit.radius * 4
         # get the angular span of the circular arc
-        fit = self.center(
-            vertices, return_normal=False, return_angle=True)
+        fit = self.center(vertices, return_normal=False, return_angle=True)
         return fit.span * fit.radius * 2
 
     def discrete(self, vertices, scale=1.0):
@@ -656,10 +650,9 @@ class Arc(Entity):
           Path in space made up of line segments
         """
 
-        return self._orient(discretize_arc(
-            vertices[self.points],
-            close=self.closed,
-            scale=scale))
+        return self._orient(
+            discretize_arc(vertices[self.points], close=self.closed, scale=scale)
+        )
 
     def center(self, vertices, **kwargs):
         """
@@ -695,20 +688,17 @@ class Arc(Entity):
             # if we have a closed arc (a circle), we can return the actual bounds
             # this only works in two dimensions, otherwise this would return the
             # AABB of an sphere
-            info = self.center(
-                vertices,
-                return_normal=False,
-                return_angle=False)
-            bounds = np.array([info.center - info.radius,
-                               info.center + info.radius],
-                              dtype=np.float64)
+            info = self.center(vertices, return_normal=False, return_angle=False)
+            bounds = np.array(
+                [info.center - info.radius, info.center + info.radius], dtype=np.float64
+            )
         else:
             # since the AABB of a partial arc is hard, approximate
             # the bounds by just looking at the discrete values
             discrete = self.discrete(vertices)
-            bounds = np.array([discrete.min(axis=0),
-                               discrete.max(axis=0)],
-                              dtype=np.float64)
+            bounds = np.array(
+                [discrete.min(axis=0), discrete.max(axis=0)], dtype=np.float64
+            )
         return bounds
 
 
@@ -716,12 +706,12 @@ class Curve(Entity):
     """
     The parent class for all wild curves in space.
     """
+
     @property
     def nodes(self):
         # a point midway through the curve
         mid = self.points[len(self.points) // 2]
-        return [[self.points[0], mid],
-                [mid, self.points[-1]]]
+        return [[self.points[0], mid], [mid, self.points[-1]]]
 
 
 class Bezier(Curve):
@@ -747,10 +737,9 @@ class Bezier(Curve):
         discrete : (m, 2) or (m, 3) float
           Curve as line segments
         """
-        return self._orient(discretize_bezier(
-            vertices[self.points],
-            count=count,
-            scale=scale))
+        return self._orient(
+            discretize_bezier(vertices[self.points], count=count, scale=scale)
+        )
 
 
 class BSpline(Curve):
@@ -758,13 +747,7 @@ class BSpline(Curve):
     An open or closed B- Spline.
     """
 
-    def __init__(self,
-                 points,
-                 knots,
-                 layer=None,
-                 metadata=None,
-                 color=None,
-                 **kwargs):
+    def __init__(self, points, knots, layer=None, metadata=None, color=None, **kwargs):
         self.points = np.asanyarray(points, dtype=np.int64)
         self.knots = np.asanyarray(knots, dtype=np.float64)
         if layer is not None:
@@ -794,29 +777,25 @@ class BSpline(Curve):
           Curve as line segments
         """
         discrete = discretize_bspline(
-            control=vertices[self.points],
-            knots=self.knots,
-            count=count,
-            scale=scale)
+            control=vertices[self.points], knots=self.knots, count=count, scale=scale
+        )
         return self._orient(discrete)
 
     def _bytes(self):
         # give consistent ordering of points for hash
         if self.points[0] > self.points[-1]:
-            return (b'BSpline' +
-                    self.knots.tobytes() +
-                    self.points.tobytes())
+            return b"BSpline" + self.knots.tobytes() + self.points.tobytes()
         else:
-            return (b'BSpline' +
-                    self.knots[::-1].tobytes() +
-                    self.points[::-1].tobytes())
+            return b"BSpline" + self.knots[::-1].tobytes() + self.points[::-1].tobytes()
 
     def to_dict(self):
         """
         Returns a dictionary with all of the information
         about the entity.
         """
-        return {'type': self.__class__.__name__,
-                'points': self.points.tolist(),
-                'knots': self.knots.tolist(),
-                'closed': self.closed}
+        return {
+            "type": self.__class__.__name__,
+            "points": self.points.tolist(),
+            "knots": self.knots.tolist(),
+            "closed": self.closed,
+        }

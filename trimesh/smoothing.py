@@ -12,12 +12,14 @@ from .triangles import mass_properties
 from .util import unitize
 
 
-def filter_laplacian(mesh,
-                     lamb=0.5,
-                     iterations=10,
-                     implicit_time_integration=False,
-                     volume_constraint=True,
-                     laplacian_operator=None):
+def filter_laplacian(
+    mesh,
+    lamb=0.5,
+    iterations=10,
+    implicit_time_integration=False,
+    volume_constraint=True,
+    laplacian_operator=None,
+):
     """
     Smooth a mesh in-place using laplacian smoothing.
     Articles
@@ -77,21 +79,18 @@ def filter_laplacian(mesh,
         # volume constraint
         if volume_constraint:
             # find the volume with new vertex positions
-            vol_new = triangles.mass_properties(
-                vertices[faces], skip_inertia=True)["volume"]
+            vol_new = triangles.mass_properties(vertices[faces], skip_inertia=True)[
+                "volume"
+            ]
             # scale by volume ratio
-            vertices *= ((vol_ini / vol_new) ** (1.0 / 3.0))
+            vertices *= (vol_ini / vol_new) ** (1.0 / 3.0)
 
     # assign modified vertices back to mesh
     mesh.vertices = vertices
     return mesh
 
 
-def filter_humphrey(mesh,
-                    alpha=0.1,
-                    beta=0.5,
-                    iterations=10,
-                    laplacian_operator=None):
+def filter_humphrey(mesh, alpha=0.1, beta=0.5, iterations=10, laplacian_operator=None):
     """
     Smooth a mesh in-place using laplacian smoothing
     and Humphrey filtering.
@@ -130,19 +129,14 @@ def filter_humphrey(mesh,
         vert_q = vertices.copy()
         vertices = laplacian_operator.dot(vertices)
         vert_b = vertices - (alpha * original + (1.0 - alpha) * vert_q)
-        vertices -= (beta * vert_b + (1.0 - beta) *
-                     laplacian_operator.dot(vert_b))
+        vertices -= beta * vert_b + (1.0 - beta) * laplacian_operator.dot(vert_b)
 
     # assign modified vertices back to mesh
     mesh.vertices = vertices
     return mesh
 
 
-def filter_taubin(mesh,
-                  lamb=0.5,
-                  nu=0.5,
-                  iterations=10,
-                  laplacian_operator=None):
+def filter_taubin(mesh, lamb=0.5, nu=0.5, iterations=10, laplacian_operator=None):
     """
     Smooth a mesh in-place using laplacian smoothing
     and taubin filtering.
@@ -186,11 +180,9 @@ def filter_taubin(mesh,
     return mesh
 
 
-def filter_mut_dif_laplacian(mesh,
-                             lamb=0.5,
-                             iterations=10,
-                             volume_constraint=True,
-                             laplacian_operator=None):
+def filter_mut_dif_laplacian(
+    mesh, lamb=0.5, iterations=10, volume_constraint=True, laplacian_operator=None
+):
     """
     Smooth a mesh in-place using laplacian smoothing using a
     mutable difusion laplacian.
@@ -228,19 +220,17 @@ def filter_mut_dif_laplacian(mesh,
     # get mesh vertices as vanilla numpy array
     vertices = mesh.vertices.copy().view(np.ndarray)
     faces = mesh.faces.copy().view(np.ndarray)
-    eps = 0.01 * (np.max(mesh.area_faces)**0.5)
+    eps = 0.01 * (np.max(mesh.area_faces) ** 0.5)
 
     # Number of passes
     for _index in range(iterations):
-
         # Mutable difusion
         normals = get_vertices_normals(mesh)
         qi = laplacian_operator.dot(vertices)
         pi_qi = vertices - qi
         adil = np.abs((normals * pi_qi).dot(np.ones((3, 1))))
         adil = 1.0 / np.maximum(1e-12, adil)
-        lamber = np.maximum(
-            0.2 * lamb, np.minimum(1.0, lamb * adil / np.mean(adil)))
+        lamber = np.maximum(0.2 * lamb, np.minimum(1.0, lamb * adil / np.mean(adil)))
 
         # Filter
         dot = laplacian_operator.dot(vertices) - vertices
@@ -288,28 +278,26 @@ def laplacian_calculation(mesh, equal_weight=True, pinned_vertices=None):
 
     # stack neighbors to 1D arrays
     col = np.concatenate(neighbors)
-    row = np.concatenate([[i] * len(n)
-                          for i, n in enumerate(neighbors)])
+    row = np.concatenate([[i] * len(n) for i, n in enumerate(neighbors)])
 
     if equal_weight:
         # equal weights for each neighbor
-        data = np.concatenate([[1.0 / len(n)] * len(n)
-                               for n in neighbors])
+        data = np.concatenate([[1.0 / len(n)] * len(n) for n in neighbors])
     else:
         # umbrella weights, distance-weighted
         # use dot product of ones to replace array.sum(axis=1)
         ones = np.ones(3)
         # the distance from verticesex to neighbors
         norms = [
-            1.0 / np.maximum(1e-6, np.sqrt(np.dot(
-                (vertices[i] - vertices[n]) ** 2, ones)))
-            for i, n in enumerate(neighbors)]
+            1.0
+            / np.maximum(1e-6, np.sqrt(np.dot((vertices[i] - vertices[n]) ** 2, ones)))
+            for i, n in enumerate(neighbors)
+        ]
         # normalize group and stack into single array
         data = np.concatenate([i / i.sum() for i in norms])
 
     # create the sparse matrix
-    matrix = coo_matrix((data, (row, col)),
-                        shape=[len(vertices)] * 2)
+    matrix = coo_matrix((data, (row, col)), shape=[len(vertices)] * 2)
 
     return matrix
 

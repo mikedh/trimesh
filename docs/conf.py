@@ -61,7 +61,7 @@ release = trimesh.__version__
 # for a list of supported languages.
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -79,17 +79,9 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages
 html_theme = "furo"
 
-# options for rtd-theme
+# options for furo
 html_theme_options = {
     "display_version": True,
-    "prev_next_buttons_location": "bottom",
-    "style_external_links": False,
-    # toc options
-    "collapse_navigation": True,
-    "sticky_navigation": True,
-    "navigation_depth": 4,
-    "includehidden": True,
-    "titles_only": False,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

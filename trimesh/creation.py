@@ -32,11 +32,7 @@ except BaseException as E:
     _tri_earcut = exceptions.ExceptionWrapper(E)
 
 
-def revolve(linestring,
-            angle=None,
-            sections=None,
-            transform=None,
-            **kwargs):
+def revolve(linestring, angle=None, sections=None, transform=None, **kwargs):
     """
     Revolve a 2D line string around the 2D Y axis, with a result with
     the 2D Y axis pointing along the 3D Z axis.
@@ -72,7 +68,7 @@ def revolve(linestring,
 
     # linestring must be ordered 2D points
     if len(linestring.shape) != 2 or linestring.shape[1] != 2:
-        raise ValueError('linestring must be 2D!')
+        raise ValueError("linestring must be 2D!")
 
     if angle is None:
         # default to closing the revolution
@@ -101,17 +97,18 @@ def revolve(linestring,
     # use the 2D Y component as the height along revolution
     height = linestring[:, 1]
     # a lot of tiling to get our 3D vertices
-    vertices = np.column_stack((
-        np.tile(points, (1, per)).reshape((-1, 2)) *
-        np.tile(radius, len(points)).reshape((-1, 1)),
-        np.tile(height, len(points))))
+    vertices = np.column_stack(
+        (
+            np.tile(points, (1, per)).reshape((-1, 2))
+            * np.tile(radius, len(points)).reshape((-1, 1)),
+            np.tile(height, len(points)),
+        )
+    )
 
     if closed:
         # should be a duplicate set of vertices
         if tol.strict:
-            assert util.allclose(vertices[:per],
-                                 vertices[-per:],
-                                 atol=1e-8)
+            assert util.allclose(vertices[:per], vertices[-per:], atol=1e-8)
 
         # chop off duplicate vertices
         vertices = vertices[:-per]
@@ -125,8 +122,7 @@ def revolve(linestring,
 
     # start with a quad for every segment
     # this is a superset which will then be reduced
-    quad = np.array([0, per, 1,
-                     1, per, per + 1])
+    quad = np.array([0, per, 1, 1, per, per + 1])
     # stack the faces for a single slice of the revolution
     single = np.tile(quad, per).reshape((-1, 3))
     # `per` is basically the stride of the vertices
@@ -138,34 +134,27 @@ def revolve(linestring,
     # how much to offset each slice
     # note arange multiplied by vertex stride
     # but tiled by the number of faces we actually have
-    offset = np.tile(np.arange(slices) * per,
-                     (len(single), 1)).T.reshape((-1, 1))
+    offset = np.tile(np.arange(slices) * per, (len(single), 1)).T.reshape((-1, 1))
     # stack a single slice into N slices
     stacked = np.tile(single.ravel(), slices).reshape((-1, 3))
 
     if tol.strict:
         # make sure we didn't screw up stacking operation
-        assert np.allclose(
-            stacked.reshape(
-                (-1, single.shape[0], 3)) - single, 0)
+        assert np.allclose(stacked.reshape((-1, single.shape[0], 3)) - single, 0)
 
     # offset stacked and wrap vertices
     faces = (stacked + offset) % len(vertices)
 
-
-
-    #if 'process' not in kwargs:
+    # if 'process' not in kwargs:
     #    kwargs['process'] = False
 
     # create the mesh from our vertices and faces
-    mesh = Trimesh(vertices=vertices,
-                   faces=faces,
-                   **kwargs)
+    mesh = Trimesh(vertices=vertices, faces=faces, **kwargs)
 
     # strict checks run only in unit tests
-    if (tol.strict and
-            (np.allclose(radius[[0, -1]], 0.0) or
-             np.allclose(linestring[0], linestring[-1]))):
+    if tol.strict and (
+        np.allclose(radius[[0, -1]], 0.0) or np.allclose(linestring[0], linestring[-1])
+    ):
         # if revolved curve starts and ends with zero radius
         # it should really be a valid volume, unless the sign
         # reversed on the input linestring
@@ -176,10 +165,7 @@ def revolve(linestring,
     return mesh
 
 
-def extrude_polygon(polygon,
-                    height,
-                    transform=None,
-                    **kwargs):
+def extrude_polygon(polygon, height, transform=None, **kwargs):
     """
     Extrude a 2D shapely polygon into a 3D mesh
 
@@ -202,18 +188,13 @@ def extrude_polygon(polygon,
     # create a triangulation from the polygon
     vertices, faces = triangulate_polygon(polygon, **kwargs)
     # extrude that triangulation along Z
-    mesh = extrude_triangulation(vertices=vertices,
-                                 faces=faces,
-                                 height=height,
-                                 transform=transform,
-                                 **kwargs)
+    mesh = extrude_triangulation(
+        vertices=vertices, faces=faces, height=height, transform=transform, **kwargs
+    )
     return mesh
 
 
-def sweep_polygon(polygon,
-                  path,
-                  angles=None,
-                  **kwargs):
+def sweep_polygon(polygon, path, angles=None, **kwargs):
     """
     Extrude a 2D shapely polygon into a 3D mesh along an
     arbitrary 3D path. Doesn't handle sharp curvature well.
@@ -238,12 +219,11 @@ def sweep_polygon(polygon,
 
     path = np.asanyarray(path, dtype=np.float64)
     if not util.is_shape(path, (-1, 3)):
-        raise ValueError('Path must be (n, 3)!')
+        raise ValueError("Path must be (n, 3)!")
 
     # Extract 2D vertices and triangulation
     verts_2d = np.array(polygon.exterior.coords)[:-1]
-    base_verts_2d, faces_2d = triangulate_polygon(
-        polygon, **kwargs)
+    base_verts_2d, faces_2d = triangulate_polygon(polygon, **kwargs)
     n = len(verts_2d)
 
     # Create basis for first planar polygon cap
@@ -255,10 +235,8 @@ def sweep_polygon(polygon,
     # Compute 3D locations of those vertices
     verts_3d = np.c_[verts_2d, np.zeros(n)]
     verts_3d = tf.transform_points(verts_3d, tf_mat)
-    base_verts_3d = np.c_[base_verts_2d,
-                          np.zeros(len(base_verts_2d))]
-    base_verts_3d = tf.transform_points(base_verts_3d,
-                                        tf_mat)
+    base_verts_3d = np.c_[base_verts_2d, np.zeros(len(base_verts_2d))]
+    base_verts_3d = tf.transform_points(base_verts_3d, tf_mat)
 
     # keep matching sequence of vertices and 0- indexed faces
     vertices = [base_verts_3d]
@@ -282,17 +260,14 @@ def sweep_polygon(polygon,
 
         # Rotate if needed
         if angles is not None:
-            tf_mat = tf.rotation_matrix(angles[i],
-                                        norms[i],
-                                        path[i])
-            verts_3d_prev = tf.transform_points(verts_3d_prev,
-                                                tf_mat)
+            tf_mat = tf.rotation_matrix(angles[i], norms[i], path[i])
+            verts_3d_prev = tf.transform_points(verts_3d_prev, tf_mat)
 
         # Project vertices onto plane in 3D
-        ds = np.einsum('ij,j->i', (path[i + 1] - verts_3d_prev), norms[i])
+        ds = np.einsum("ij,j->i", (path[i + 1] - verts_3d_prev), norms[i])
         ds = ds / np.dot(v1s[i], norms[i])
 
-        verts_3d_new = np.einsum('i,j->ij', ds, v1s[i]) + verts_3d_prev
+        verts_3d_new = np.einsum("i,j->ij", ds, v1s[i]) + verts_3d_prev
 
         # Add to face and vertex lists
         new_faces = [[i + n, (i + 1) % n, i] for i in range(n)]
@@ -312,22 +287,19 @@ def sweep_polygon(polygon,
     # Create final cap
     x, y, z = util.generate_basis(path[-1] - path[-2])
     vecs = verts_3d - path[-1]
-    coords = np.c_[np.einsum('ij,j->i', vecs, x),
-                   np.einsum('ij,j->i', vecs, y)]
+    coords = np.c_[np.einsum("ij,j->i", vecs, x), np.einsum("ij,j->i", vecs, y)]
     base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords), **kwargs)
-    base_verts_3d = (np.einsum('i,j->ij', base_verts_2d[:, 0], x) +
-                     np.einsum('i,j->ij', base_verts_2d[:, 1], y)) + path[-1]
+    base_verts_3d = (
+        np.einsum("i,j->ij", base_verts_2d[:, 0], x)
+        + np.einsum("i,j->ij", base_verts_2d[:, 1], y)
+    ) + path[-1]
     faces = np.vstack((faces, faces_2d + len(vertices)))
     vertices = np.vstack((vertices, base_verts_3d))
 
     return Trimesh(vertices, faces)
 
 
-def extrude_triangulation(vertices,
-                          faces,
-                          height,
-                          transform=None,
-                          **kwargs):
+def extrude_triangulation(vertices, faces, height, transform=None, **kwargs):
     """
     Extrude a 2D triangulation into a watertight mesh.
 
@@ -352,15 +324,14 @@ def extrude_triangulation(vertices,
     faces = np.asanyarray(faces, dtype=np.int64)
 
     if not util.is_shape(vertices, (-1, 2)):
-        raise ValueError('Vertices must be (n,2)')
+        raise ValueError("Vertices must be (n,2)")
     if not util.is_shape(faces, (-1, 3)):
-        raise ValueError('Faces must be (n,3)')
+        raise ValueError("Faces must be (n,3)")
     if np.abs(height) < tol.merge:
-        raise ValueError('Height must be nonzero!')
+        raise ValueError("Height must be nonzero!")
 
     # check the winding of the first few triangles
-    signs = np.array([np.cross(*i) for i in
-                      np.diff(vertices[faces[:10]], axis=1)])
+    signs = np.array([np.cross(*i) for i in np.diff(vertices[faces[:10]], axis=1)])
     # make sure the triangulation is aligned with the sign of
     # the height we've been passed
     if len(signs) > 0 and np.sign(signs.mean()) != np.sign(height):
@@ -372,8 +343,7 @@ def extrude_triangulation(vertices,
     # edges which only occur once are on the boundary of the polygon
     # since the triangulation may have subdivided the boundary of the
     # shapely polygon, we need to find it again
-    edges_unique = grouping.group_rows(
-        edges_sorted, require_count=1)
+    edges_unique = grouping.group_rows(edges_sorted, require_count=1)
 
     # (n, 2, 2) set of line segments (positions, not references)
     boundary = vertices[edges[edges_unique]]
@@ -381,11 +351,8 @@ def extrude_triangulation(vertices,
     # we are creating two vertical  triangles for every 2D line segment
     # on the boundary of the 2D triangulation
     vertical = np.tile(boundary.reshape((-1, 2)), 2).reshape((-1, 2))
-    vertical = np.column_stack((vertical,
-                                np.tile([0, height, 0, height],
-                                        len(boundary))))
-    vertical_faces = np.tile([3, 1, 2, 2, 1, 0],
-                             (len(boundary), 1))
+    vertical = np.column_stack((vertical, np.tile([0, height, 0, height], len(boundary))))
+    vertical_faces = np.tile([3, 1, 2, 2, 1, 0], (len(boundary), 1))
     vertical_faces += np.arange(len(boundary)).reshape((-1, 1)) * 4
     vertical_faces = vertical_faces.reshape((-1, 3))
 
@@ -394,28 +361,21 @@ def extrude_triangulation(vertices,
 
     # a sequence of zero- indexed faces, which will then be appended
     # with offsets to create the final mesh
-    faces_seq = [faces[:, ::-1],
-                 faces.copy(),
-                 vertical_faces]
-    vertices_seq = [vertices_3D,
-                    vertices_3D.copy() + [0.0, 0, height],
-                    vertical]
+    faces_seq = [faces[:, ::-1], faces.copy(), vertical_faces]
+    vertices_seq = [vertices_3D, vertices_3D.copy() + [0.0, 0, height], vertical]
 
     # append sequences into flat nicely indexed arrays
     vertices, faces = util.append_faces(vertices_seq, faces_seq)
     if transform is not None:
         # apply transform here to avoid later bookkeeping
-        vertices = tf.transform_points(
-            vertices, transform)
+        vertices = tf.transform_points(vertices, transform)
         # if the transform flips the winding flip faces back
         # so that the normals will be facing outwards
         if tf.flips_winding(transform):
             # fliplr makes arrays non-contiguous
             faces = np.ascontiguousarray(np.fliplr(faces))
     # create mesh object with passed keywords
-    mesh = Trimesh(vertices=vertices,
-                   faces=faces,
-                   **kwargs)
+    mesh = Trimesh(vertices=vertices, faces=faces, **kwargs)
     # only check in strict mode (unit tests)
     if tol.strict:
         assert mesh.volume > 0.0
@@ -423,10 +383,7 @@ def extrude_triangulation(vertices,
     return mesh
 
 
-def triangulate_polygon(polygon,
-                        triangle_args=None,
-                        engine=None,
-                        **kwargs):
+def triangulate_polygon(polygon, triangle_args=None, engine=None, **kwargs):
     """
     Given a shapely polygon create a triangulation using a
     python interface to `triangle.c` or mapbox-earcut.
@@ -449,38 +406,44 @@ def triangulate_polygon(polygon,
     faces : (n, 3) int
        Index of vertices that make up triangles
     """
-    if engine is None or engine == 'earcut':
+    if engine is None or engine == "earcut":
         # get vertices as sequence where exterior
         # is the first value
         vertices = [np.array(polygon.exterior.coords)]
-        vertices.extend(np.array(i.coords)
-                        for i in polygon.interiors)
+        vertices.extend(np.array(i.coords) for i in polygon.interiors)
         # record the index from the length of each vertex array
         rings = np.cumsum([len(v) for v in vertices])
         # stack vertices into (n, 2) float array
         vertices = np.vstack(vertices)
         # run triangulation
-        faces = _tri_earcut(vertices, rings).reshape(
-            (-1, 3)).astype(np.int64).reshape((-1, 3))
+        faces = (
+            _tri_earcut(vertices, rings)
+            .reshape((-1, 3))
+            .astype(np.int64)
+            .reshape((-1, 3))
+        )
 
         return vertices, faces
 
-    elif engine == 'triangle':
+    elif engine == "triangle":
         from triangle import triangulate
+
         # set default triangulation arguments if not specified
         if triangle_args is None:
-            triangle_args = 'p'
+            triangle_args = "p"
             # turn the polygon in to vertices, segments, and holes
         arg = _polygon_to_kwargs(polygon)
         # run the triangulation
         result = triangulate(arg, triangle_args)
-        return result['vertices'], result['triangles']
+        return result["vertices"], result["triangles"]
     else:
-        log.warning('try running `pip install mapbox-earcut`' +
-                    'or explicitly pass:\n' +
-                    '`triangulate_polygon(*args, engine="triangle")`\n' +
-                    'to use the non-FSF-approved-license triangle engine')
-        raise ValueError('no valid triangulation engine!')
+        log.warning(
+            "try running `pip install mapbox-earcut`"
+            + "or explicitly pass:\n"
+            + '`triangulate_polygon(*args, engine="triangle")`\n'
+            + "to use the non-FSF-approved-license triangle engine"
+        )
+        raise ValueError("no valid triangulation engine!")
 
 
 def _polygon_to_kwargs(polygon):
@@ -500,7 +463,7 @@ def _polygon_to_kwargs(polygon):
     """
 
     if not polygon.is_valid:
-        raise ValueError('invalid shapely polygon passed!')
+        raise ValueError("invalid shapely polygon passed!")
 
     def round_trip(start, length):
         """
@@ -537,8 +500,7 @@ def _polygon_to_kwargs(polygon):
         # the points, but this is more robust (to things like concavity), if
         # slower.
         test = Polygon(cleaned)
-        holes.append(np.array(
-            test.representative_point().coords)[0])
+        holes.append(np.array(test.representative_point().coords)[0])
 
         return len(cleaned)
 
@@ -554,7 +516,7 @@ def _polygon_to_kwargs(polygon):
         try:
             start += add_boundary(interior, start)
         except BaseException:
-            log.warning('invalid interior, continuing')
+            log.warning("invalid interior, continuing")
             continue
 
     # create clean (n,2) float array of vertices
@@ -566,14 +528,13 @@ def _polygon_to_kwargs(polygon):
     # strip it out for the triangulation
     if vertices.shape[1] == 3:
         vertices = vertices[:, :2]
-    result = {'vertices': vertices,
-              'segments': facets}
+    result = {"vertices": vertices, "segments": facets}
     # holes in meshpy lingo are a (h, 2) list of (x,y) points
     # which are inside the region of the hole
     # we added a hole for the exterior, which we slice away here
     holes = np.array(holes)[1:]
     if len(holes) > 0:
-        result['holes'] = holes
+        result["holes"] = holes
     return result
 
 
@@ -598,26 +559,26 @@ def box(extents=None, transform=None, bounds=None, **kwargs):
       Mesh of a cuboid
     """
     # vertices of the cube
-    vertices = np.array([0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
-                         1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-                        order='C',
-                        dtype=np.float64).reshape((-1, 3))
+    vertices = np.array(
+        [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+        order="C",
+        dtype=np.float64,
+    ).reshape((-1, 3))
 
     # resize cube based on passed extents
     if bounds is not None:
-
         if transform is not None or extents is not None:
-            raise ValueError('`bounds` overrides `extents`/`transform`!')
+            raise ValueError("`bounds` overrides `extents`/`transform`!")
         bounds = np.array(bounds, dtype=np.float64)
         if bounds.shape != (2, 3):
-            raise ValueError('`bounds` must be (2, 3) float!')
+            raise ValueError("`bounds` must be (2, 3) float!")
         extents = bounds.ptp(axis=0)
         vertices *= extents
         vertices += bounds[0]
     elif extents is not None:
         extents = np.asanyarray(extents, dtype=np.float64)
         if extents.shape != (3,):
-            raise ValueError('Extents must be (3,)!')
+            raise ValueError("Extents must be (3,)!")
         vertices -= 0.5
         vertices *= extents
     else:
@@ -625,27 +586,93 @@ def box(extents=None, transform=None, bounds=None, **kwargs):
         extents = np.asarray((1.0, 1.0, 1.0), dtype=np.float64)
 
     # hardcoded face indices
-    faces = [1, 3, 0, 4, 1, 0, 0, 3, 2, 2, 4, 0, 1, 7, 3, 5, 1, 4,
-             5, 7, 1, 3, 7, 2, 6, 4, 2, 2, 7, 6, 6, 5, 4, 7, 5, 6]
-    faces = np.array(faces, order='C', dtype=np.int64).reshape((-1, 3))
+    faces = [
+        1,
+        3,
+        0,
+        4,
+        1,
+        0,
+        0,
+        3,
+        2,
+        2,
+        4,
+        0,
+        1,
+        7,
+        3,
+        5,
+        1,
+        4,
+        5,
+        7,
+        1,
+        3,
+        7,
+        2,
+        6,
+        4,
+        2,
+        2,
+        7,
+        6,
+        6,
+        5,
+        4,
+        7,
+        5,
+        6,
+    ]
+    faces = np.array(faces, order="C", dtype=np.int64).reshape((-1, 3))
 
-    face_normals = [-1, 0, 0, 0, -1, 0, -1, 0, 0, 0, 0, -1, 0, 0, 1, 0, -1,
-                    0, 0, 0, 1, 0, 1, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0, 1, 0, 0]
-    face_normals = np.asanyarray(face_normals,
-                                 order='C',
-                                 dtype=np.float64).reshape(-1, 3)
+    face_normals = [
+        -1,
+        0,
+        0,
+        0,
+        -1,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        1,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        -1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+    ]
+    face_normals = np.asanyarray(face_normals, order="C", dtype=np.float64).reshape(-1, 3)
 
-    if 'metadata' not in kwargs:
-        kwargs['metadata'] = {}
-    kwargs['metadata'].update(
-        {'shape': 'box',
-         'extents': extents})
+    if "metadata" not in kwargs:
+        kwargs["metadata"] = {}
+    kwargs["metadata"].update({"shape": "box", "extents": extents})
 
-    box = Trimesh(vertices=vertices,
-                  faces=faces,
-                  face_normals=face_normals,
-                  process=False,
-                  **kwargs)
+    box = Trimesh(
+        vertices=vertices, faces=faces, face_normals=face_normals, process=False, **kwargs
+    )
 
     # do the transform here to preserve face normals
     if transform is not None:
@@ -668,21 +695,114 @@ def icosahedron(**kwargs):
     ico : trimesh.Trimesh
       Icosahederon centered at the origin.
     """
-    t = (1.0 + 5.0**.5) / 2.0
-    vertices = [-1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0, 0, -1, t, 0, 1, t,
-                0, -1, -t, 0, 1, -t, t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1]
-    faces = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
-             1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
-             3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
-             4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1]
+    t = (1.0 + 5.0**0.5) / 2.0
+    vertices = [
+        -1,
+        t,
+        0,
+        1,
+        t,
+        0,
+        -1,
+        -t,
+        0,
+        1,
+        -t,
+        0,
+        0,
+        -1,
+        t,
+        0,
+        1,
+        t,
+        0,
+        -1,
+        -t,
+        0,
+        1,
+        -t,
+        t,
+        0,
+        -1,
+        t,
+        0,
+        1,
+        -t,
+        0,
+        -1,
+        -t,
+        0,
+        1,
+    ]
+    faces = [
+        0,
+        11,
+        5,
+        0,
+        5,
+        1,
+        0,
+        1,
+        7,
+        0,
+        7,
+        10,
+        0,
+        10,
+        11,
+        1,
+        5,
+        9,
+        5,
+        11,
+        4,
+        11,
+        10,
+        2,
+        10,
+        7,
+        6,
+        7,
+        1,
+        8,
+        3,
+        9,
+        4,
+        3,
+        4,
+        2,
+        3,
+        2,
+        6,
+        3,
+        6,
+        8,
+        3,
+        8,
+        9,
+        4,
+        9,
+        5,
+        2,
+        4,
+        11,
+        6,
+        2,
+        10,
+        8,
+        6,
+        7,
+        9,
+        8,
+        1,
+    ]
     # scale vertices so each vertex radius is 1.0
     vertices = np.reshape(vertices, (-1, 3)) / np.sqrt(2.0 + t)
     faces = np.reshape(faces, (-1, 3))
 
-    return Trimesh(vertices=vertices,
-                   faces=faces,
-                   process=kwargs.pop('process', False),
-                   **kwargs)
+    return Trimesh(
+        vertices=vertices, faces=faces, process=kwargs.pop("process", False), **kwargs
+    )
 
 
 def icosphere(subdivisions=3, radius=1.0, **kwargs):
@@ -711,24 +831,27 @@ def icosphere(subdivisions=3, radius=1.0, **kwargs):
     for _ in range(subdivisions):
         ico = ico.subdivide()
         vectors = ico.vertices
-        scalar = np.sqrt(np.dot(vectors ** 2, [1, 1, 1]))
+        scalar = np.sqrt(np.dot(vectors**2, [1, 1, 1]))
         unit = vectors / scalar.reshape((-1, 1))
         ico.vertices += unit * (radius - scalar).reshape((-1, 1))
 
     if "color" in kwargs:
         warnings.warn(
-            '`icosphere(color=...)` is deprecated and will ' +
-            'be removed in June 2024: replace with Trimesh constructor ' +
-            'kewyword argument `icosphere(face_colors=...)`',
-            category=DeprecationWarning, stacklevel=2)
+            "`icosphere(color=...)` is deprecated and will "
+            + "be removed in June 2024: replace with Trimesh constructor "
+            + "kewyword argument `icosphere(face_colors=...)`",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
         kwargs["face_colors"] = kwargs.pop("color")
 
-    return Trimesh(vertices=ico.vertices,
-                   faces=ico.faces,
-                   metadata={'shape': 'sphere',
-                             'radius': radius},
-                   process=kwargs.pop('process', False),
-                   **kwargs)
+    return Trimesh(
+        vertices=ico.vertices,
+        faces=ico.faces,
+        metadata={"shape": "sphere", "radius": radius},
+        process=kwargs.pop("process", False),
+        **kwargs,
+    )
 
 
 def uv_sphere(radius=1.0, count=None, transform=None, **kwargs):
@@ -764,18 +887,16 @@ def uv_sphere(radius=1.0, count=None, transform=None, **kwargs):
     linestring = np.column_stack((np.sin(theta), -np.cos(theta))) * radius
 
     # revolve the curve to create a volume
-    return revolve(linestring=linestring,
-                   sections=count[1],
-                   transform=transform,
-                   metadata={'shape': 'sphere',
-                             'radius': radius},
-                   **kwargs)
+    return revolve(
+        linestring=linestring,
+        sections=count[1],
+        transform=transform,
+        metadata={"shape": "sphere", "radius": radius},
+        **kwargs,
+    )
 
 
-def capsule(height=1.0,
-            radius=1.0,
-            count=None,
-            transform=None):
+def capsule(height=1.0, radius=1.0, count=None, transform=None):
     """
     Create a mesh of a capsule, or a cylinder with hemispheric ends.
 
@@ -814,19 +935,15 @@ def capsule(height=1.0,
     linestring[:half][:, 1] -= height / 2.0
     linestring[half:][:, 1] += height / 2.0
 
-    return revolve(linestring,
-                   sections=count[1],
-                   transform=transform,
-                   metadata={'shape': 'capsule',
-                             'height': height,
-                             'radius': radius})
+    return revolve(
+        linestring,
+        sections=count[1],
+        transform=transform,
+        metadata={"shape": "capsule", "height": height, "radius": radius},
+    )
 
 
-def cone(radius,
-         height,
-         sections=None,
-         transform=None,
-         **kwargs):
+def cone(radius, height, sections=None, transform=None, **kwargs):
     """
     Create a mesh of a cone along Z centered at the origin.
 
@@ -849,30 +966,19 @@ def cone(radius,
       Resulting mesh of a cone
     """
     # create the 2D outline of a cone
-    linestring = [[0, 0],
-                  [radius, 0],
-                  [0, height]]
+    linestring = [[0, 0], [radius, 0], [0, height]]
     # revolve the profile to create a cone
-    if 'metadata' not in kwargs:
-        kwargs['metadata'] = {}
-    kwargs['metadata'].update(
-        {'shape': 'cone',
-         'radius': radius,
-         'height': height})
-    cone = revolve(linestring=linestring,
-                   sections=sections,
-                   transform=transform,
-                   **kwargs)
+    if "metadata" not in kwargs:
+        kwargs["metadata"] = {}
+    kwargs["metadata"].update({"shape": "cone", "radius": radius, "height": height})
+    cone = revolve(
+        linestring=linestring, sections=sections, transform=transform, **kwargs
+    )
 
     return cone
 
 
-def cylinder(radius,
-             height=None,
-             sections=None,
-             segment=None,
-             transform=None,
-             **kwargs):
+def cylinder(radius, height=None, sections=None, segment=None, transform=None, **kwargs):
     """
     Create a mesh of a cylinder along Z centered at the origin.
 
@@ -902,34 +1008,23 @@ def cylinder(radius,
         transform, height = _segment_to_cylinder(segment=segment)
 
     if height is None:
-        raise ValueError('either `height` or `segment` must be passed!')
+        raise ValueError("either `height` or `segment` must be passed!")
 
     half = abs(float(height)) / 2.0
     # create a profile to revolve
-    linestring = [[0, -half],
-                  [radius, -half],
-                  [radius, half],
-                  [0, half]]
-    if 'metadata' not in kwargs:
-        kwargs['metadata'] = {}
-    kwargs['metadata'].update(
-        {'shape': 'cylinder',
-         'height': height,
-         'radius': radius})
+    linestring = [[0, -half], [radius, -half], [radius, half], [0, half]]
+    if "metadata" not in kwargs:
+        kwargs["metadata"] = {}
+    kwargs["metadata"].update({"shape": "cylinder", "height": height, "radius": radius})
     # generate cylinder through simple revolution
-    return revolve(linestring=linestring,
-                   sections=sections,
-                   transform=transform,
-                   **kwargs)
+    return revolve(
+        linestring=linestring, sections=sections, transform=transform, **kwargs
+    )
 
 
-def annulus(r_min,
-            r_max,
-            height=None,
-            sections=None,
-            transform=None,
-            segment=None,
-            **kwargs):
+def annulus(
+    r_min, r_max, height=None, sections=None, transform=None, segment=None, **kwargs
+):
     """
     Create a mesh of an annular cylinder along Z centered at the origin.
 
@@ -960,39 +1055,36 @@ def annulus(r_min,
         transform, height = _segment_to_cylinder(segment=segment)
 
     if height is None:
-        raise ValueError('either `height` or `segment` must be passed!')
+        raise ValueError("either `height` or `segment` must be passed!")
 
     r_min = abs(float(r_min))
     # if center radius is zero this is a cylinder
     if r_min < tol.merge:
-        return cylinder(radius=r_max,
-                        height=height,
-                        sections=sections,
-                        transform=transform,
-                        **kwargs)
+        return cylinder(
+            radius=r_max, height=height, sections=sections, transform=transform, **kwargs
+        )
     r_max = abs(float(r_max))
     # we're going to center at XY plane so take half the height
     half = abs(float(height)) / 2.0
     # create counter-clockwise rectangle
-    linestring = [[r_min, -half],
-                  [r_max, -half],
-                  [r_max, half],
-                  [r_min, half],
-                  [r_min, -half]]
+    linestring = [
+        [r_min, -half],
+        [r_max, -half],
+        [r_max, half],
+        [r_min, half],
+        [r_min, -half],
+    ]
 
-    if 'metadata' not in kwargs:
-        kwargs['metadata'] = {}
-    kwargs['metadata'].update(
-        {'shape': 'annulus',
-         'r_min': r_min,
-         'r_max': r_max,
-         'height': height})
+    if "metadata" not in kwargs:
+        kwargs["metadata"] = {}
+    kwargs["metadata"].update(
+        {"shape": "annulus", "r_min": r_min, "r_max": r_max, "height": height}
+    )
 
     # revolve the curve
-    annulus = revolve(linestring=linestring,
-                      sections=sections,
-                      transform=transform,
-                      **kwargs)
+    annulus = revolve(
+        linestring=linestring, sections=sections, transform=transform, **kwargs
+    )
 
     return annulus
 
@@ -1016,7 +1108,7 @@ def _segment_to_cylinder(segment):
     """
     segment = np.asanyarray(segment, dtype=np.float64)
     if segment.shape != (2, 3):
-        raise ValueError('segment must be 2 3D points!')
+        raise ValueError("segment must be 2 3D points!")
     vector = segment[1] - segment[0]
     # override height with segment length
     height = np.linalg.norm(vector)
@@ -1051,11 +1143,13 @@ def random_soup(face_count=100):
     return soup
 
 
-def axis(origin_size=0.04,
-         transform=None,
-         origin_color=None,
-         axis_radius=None,
-         axis_length=None):
+def axis(
+    origin_size=0.04,
+    transform=None,
+    origin_color=None,
+    axis_radius=None,
+    axis_length=None,
+):
     """
     Return an XYZ axis marker as a  Trimesh, which represents position
     and orientation. If you set the origin size the other parameters
@@ -1094,58 +1188,48 @@ def axis(origin_size=0.04,
         axis_length = origin_size * 10.0
 
     # generate a ball for the origin
-    axis_origin = uv_sphere(radius=origin_size,
-                            count=[10, 10])
+    axis_origin = uv_sphere(radius=origin_size, count=[10, 10])
     axis_origin.apply_transform(transform)
 
     # apply color to the origin ball
     axis_origin.visual.face_colors = origin_color
 
     # create the cylinder for the z-axis
-    translation = tf.translation_matrix(
-        [0, 0, axis_length / 2])
+    translation = tf.translation_matrix([0, 0, axis_length / 2])
     z_axis = cylinder(
-        radius=axis_radius,
-        height=axis_length,
-        transform=transform.dot(translation))
+        radius=axis_radius, height=axis_length, transform=transform.dot(translation)
+    )
     # XYZ->RGB, Z is blue
     z_axis.visual.face_colors = [0, 0, 255]
 
     # create the cylinder for the y-axis
-    translation = tf.translation_matrix(
-        [0, 0, axis_length / 2])
-    rotation = tf.rotation_matrix(np.radians(-90),
-                                  [1, 0, 0])
+    translation = tf.translation_matrix([0, 0, axis_length / 2])
+    rotation = tf.rotation_matrix(np.radians(-90), [1, 0, 0])
     y_axis = cylinder(
         radius=axis_radius,
         height=axis_length,
-        transform=transform.dot(rotation).dot(translation))
+        transform=transform.dot(rotation).dot(translation),
+    )
     # XYZ->RGB, Y is green
     y_axis.visual.face_colors = [0, 255, 0]
 
     # create the cylinder for the x-axis
-    translation = tf.translation_matrix(
-        [0, 0, axis_length / 2])
-    rotation = tf.rotation_matrix(np.radians(90),
-                                  [0, 1, 0])
+    translation = tf.translation_matrix([0, 0, axis_length / 2])
+    rotation = tf.rotation_matrix(np.radians(90), [0, 1, 0])
     x_axis = cylinder(
         radius=axis_radius,
         height=axis_length,
-        transform=transform.dot(rotation).dot(translation))
+        transform=transform.dot(rotation).dot(translation),
+    )
     # XYZ->RGB, X is red
     x_axis.visual.face_colors = [255, 0, 0]
 
     # append the sphere and three cylinders
-    marker = util.concatenate([axis_origin,
-                               x_axis,
-                               y_axis,
-                               z_axis])
+    marker = util.concatenate([axis_origin, x_axis, y_axis, z_axis])
     return marker
 
 
-def camera_marker(camera,
-                  marker_height=0.4,
-                  origin_size=None):
+def camera_marker(camera, marker_height=0.4, origin_size=None):
     """
     Create a visual marker for a camera object, including an axis and FOV.
 
@@ -1176,8 +1260,7 @@ def camera_marker(camera,
         from .path.exchange.load import load_path
     except ImportError:
         # they probably don't have shapely installed
-        log.warning('unable to create FOV visualization!',
-                    exc_info=True)
+        log.warning("unable to create FOV visualization!", exc_info=True)
         return meshes
 
     # calculate vertices from camera FOV angles
@@ -1187,26 +1270,16 @@ def camera_marker(camera,
 
     # combine the points into the vertices of an FOV visualization
     points = np.array(
-        [(0, 0, 0),
-         (-x, -y, z),
-         (x, -y, z),
-         (x, y, z),
-         (-x, y, z)],
-        dtype=float)
+        [(0, 0, 0), (-x, -y, z), (x, -y, z), (x, y, z), (-x, y, z)], dtype=float
+    )
 
     # create line segments for the FOV visualization
     # a segment from the origin to each bound of the FOV
-    segments = np.column_stack(
-        (np.zeros_like(points), points)).reshape(
-        (-1, 3))
+    segments = np.column_stack((np.zeros_like(points), points)).reshape((-1, 3))
 
     # add a loop for the outside of the FOV then reshape
     # the whole thing into multiple line segments
-    segments = np.vstack((segments,
-                          points[[1, 2,
-                                  2, 3,
-                                  3, 4,
-                                  4, 1]])).reshape((-1, 2, 3))
+    segments = np.vstack((segments, points[[1, 2, 2, 3, 3, 4, 4, 1]])).reshape((-1, 2, 3))
 
     # add a single Path3D object for all line segments
     meshes.append(load_path(segments))
@@ -1239,8 +1312,7 @@ def truncated_prisms(tris, origin=None, normal=None):
         transform = plane_transform(origin=origin, normal=normal)
 
     # transform the triangles to the specified plane
-    transformed = tf.transform_points(
-        tris.reshape((-1, 3)), transform).reshape((-1, 9))
+    transformed = tf.transform_points(tris.reshape((-1, 3)), transform).reshape((-1, 9))
 
     # stack triangles such that every other one is repeated
     vs = np.column_stack((transformed, transformed)).reshape((-1, 3, 3))
@@ -1248,28 +1320,29 @@ def truncated_prisms(tris, origin=None, normal=None):
     vs[1::2, :, 2] = 0
     # reshape triangles to a flat array of points and transform back to
     # original frame
-    vertices = tf.transform_points(
-        vs.reshape((-1, 3)), matrix=np.linalg.inv(transform))
+    vertices = tf.transform_points(vs.reshape((-1, 3)), matrix=np.linalg.inv(transform))
 
     # face indexes for a *single* truncated triangular prism
-    f = np.array([[2, 1, 0],
-                  [3, 4, 5],
-                  [0, 1, 4],
-                  [1, 2, 5],
-                  [2, 0, 3],
-                  [4, 3, 0],
-                  [5, 4, 1],
-                  [3, 5, 2]])
+    f = np.array(
+        [
+            [2, 1, 0],
+            [3, 4, 5],
+            [0, 1, 4],
+            [1, 2, 5],
+            [2, 0, 3],
+            [4, 3, 0],
+            [5, 4, 1],
+            [3, 5, 2],
+        ]
+    )
     # find the projection of each triangle with the normal vector
-    cross = np.dot([0, 0, 1], triangles.cross(
-        transformed.reshape((-1, 3, 3))).T)
+    cross = np.dot([0, 0, 1], triangles.cross(transformed.reshape((-1, 3, 3))).T)
     # stack faces into one prism per triangle
     f_seq = np.tile(f, (len(transformed), 1)).reshape((-1, len(f), 3))
     # if the normal of the triangle was positive flip the winding
     f_seq[cross > 0] = np.fliplr(f)
     # offset stacked faces to create correct indices
-    faces = (f_seq + (np.arange(len(f_seq)) *
-             6).reshape((-1, 1, 1))).reshape((-1, 3))
+    faces = (f_seq + (np.arange(len(f_seq)) * 6).reshape((-1, 1, 1))).reshape((-1, 3))
 
     # create a mesh from the data
     mesh = Trimesh(vertices=vertices, faces=faces, process=False)
@@ -1277,12 +1350,14 @@ def truncated_prisms(tris, origin=None, normal=None):
     return mesh
 
 
-def torus(major_radius,
-          minor_radius,
-          major_sections=32,
-          minor_sections=32,
-          transform=None,
-          **kwargs):
+def torus(
+    major_radius,
+    minor_radius,
+    major_sections=32,
+    minor_sections=32,
+    transform=None,
+    **kwargs,
+):
     """Create a mesh of a torus around Z centered at the origin.
 
     Parameters
@@ -1308,19 +1383,17 @@ def torus(major_radius,
       Mesh of a torus
     """
     phi = np.linspace(0, 2 * np.pi, minor_sections, endpoint=False)
-    linestring = np.column_stack((minor_radius * np.cos(phi),
-                                  minor_radius * np.sin(phi))) \
-        + [major_radius, 0]
+    linestring = np.column_stack(
+        (minor_radius * np.cos(phi), minor_radius * np.sin(phi))
+    ) + [major_radius, 0]
 
-    if 'metadata' not in kwargs:
-        kwargs['metadata'] = {}
-    kwargs['metadata'].update(
-        {'shape': 'torus',
-         'major_radius': major_radius,
-         'minor_radius': minor_radius})
+    if "metadata" not in kwargs:
+        kwargs["metadata"] = {}
+    kwargs["metadata"].update(
+        {"shape": "torus", "major_radius": major_radius, "minor_radius": minor_radius}
+    )
 
     # generate torus through simple revolution
-    return revolve(linestring=linestring,
-                   sections=major_sections,
-                   transform=transform,
-                   **kwargs)
+    return revolve(
+        linestring=linestring, sections=major_sections, transform=transform, **kwargs
+    )

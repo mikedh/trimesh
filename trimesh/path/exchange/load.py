@@ -32,6 +32,7 @@ def load_path(file_obj, file_type=None, **kwargs):
     """
     # avoid a circular import
     from ...exchange.load import load_kwargs
+
     # record how long we took
     tic = util.now()
 
@@ -41,20 +42,18 @@ def load_path(file_obj, file_type=None, **kwargs):
         return file_obj
     elif util.is_file(file_obj):
         # for open file file_objects use loaders
-        kwargs.update(path_loaders[file_type](
-            file_obj, file_type=file_type))
+        kwargs.update(path_loaders[file_type](file_obj, file_type=file_type))
     elif util.is_string(file_obj):
         # strings passed are evaluated as file file_objects
-        with open(file_obj, 'rb') as f:
+        with open(file_obj, "rb") as f:
             # get the file type from the extension
             file_type = os.path.splitext(file_obj)[-1][1:].lower()
             # call the loader
-            kwargs.update(path_loaders[file_type](
-                f, file_type=file_type))
-    elif util.is_instance_named(file_obj, ['Polygon', 'MultiPolygon']):
+            kwargs.update(path_loaders[file_type](f, file_type=file_type))
+    elif util.is_instance_named(file_obj, ["Polygon", "MultiPolygon"]):
         # convert from shapely polygons to Path2D
         kwargs.update(misc.polygon_to_path(file_obj))
-    elif util.is_instance_named(file_obj, 'MultiLineString'):
+    elif util.is_instance_named(file_obj, "MultiLineString"):
         # convert from shapely LineStrings to Path2D
         kwargs.update(misc.linestrings_to_path(file_obj))
     elif isinstance(file_obj, dict):
@@ -64,10 +63,10 @@ def load_path(file_obj, file_type=None, **kwargs):
         # load as lines in space
         kwargs.update(misc.lines_to_path(file_obj))
     else:
-        raise ValueError('Not a supported object type!')
+        raise ValueError("Not a supported object type!")
 
     result = load_kwargs(kwargs)
-    util.log.debug(f'loaded {str(result)} in {util.now() - tic:0.4f}s')
+    util.log.debug(f"loaded {str(result)} in {util.now() - tic:0.4f}s")
 
     return result
 
@@ -85,5 +84,5 @@ def path_formats():
     return set(path_loaders.keys())
 
 
-path_loaders = {'svg': svg_to_path}
+path_loaders = {"svg": svg_to_path}
 path_loaders.update(_dxf_loaders)

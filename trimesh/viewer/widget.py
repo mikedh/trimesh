@@ -17,7 +17,6 @@ from .windowed import SceneViewer, geometry_hash
 
 
 class SceneGroup(pyglet.graphics.Group):
-
     def __init__(
         self,
         rect,
@@ -31,7 +30,7 @@ class SceneGroup(pyglet.graphics.Group):
         self.scene = scene
 
         if background is None:
-            background = [.99, .99, .99, 1.0]
+            background = [0.99, 0.99, 0.99, 1.0]
         self._background = background
 
         self._pixel_per_point = pixel_per_point
@@ -56,7 +55,7 @@ class SceneGroup(pyglet.graphics.Group):
         gl.glPushMatrix()
         gl.glLoadIdentity()
         near = 0.01
-        far = 1000.
+        far = 1000.0
         gl.gluPerspective(self.scene.camera.fov[1], width / height, near, far)
         gl.glMatrixMode(gl.GL_MODELVIEW)
 
@@ -88,7 +87,8 @@ class SceneGroup(pyglet.graphics.Group):
         gl.glPushMatrix()
         gl.glLoadIdentity()
         gl.glMultMatrixf(
-            rendering.matrix_to_gl(np.linalg.inv(self.scene.camera_transform)))
+            rendering.matrix_to_gl(np.linalg.inv(self.scene.camera_transform))
+        )
 
     def unset_state(self):
         gl.glPopMatrix()
@@ -99,7 +99,6 @@ class SceneGroup(pyglet.graphics.Group):
 
 
 class MeshGroup(pyglet.graphics.Group):
-
     def __init__(self, transform=None, texture=None, parent=None):
         super().__init__(parent)
         if transform is None:
@@ -123,7 +122,6 @@ class MeshGroup(pyglet.graphics.Group):
 
 
 class SceneWidget(glooey.Widget):
-
     def __init__(self, scene, **kwargs):
         super().__init__()
         self.scene = scene
@@ -140,16 +138,17 @@ class SceneWidget(glooey.Widget):
         self._initial_camera_transform = self.scene.camera_transform.copy()
         self.reset_view()
 
-        self._background = kwargs.pop('background', None)
-        self._smooth = kwargs.pop('smooth', True)
+        self._background = kwargs.pop("background", None)
+        self._smooth = kwargs.pop("smooth", True)
         if kwargs:
-            raise TypeError(f'unexpected kwargs: {kwargs}')
+            raise TypeError(f"unexpected kwargs: {kwargs}")
 
     @property
     def scene_group(self):
         if self._scene_group is None:
-            pixel_per_point = (np.array(self.window.get_viewport_size()) /
-                               np.array(self.window.get_size()))
+            pixel_per_point = np.array(self.window.get_viewport_size()) / np.array(
+                self.window.get_size()
+            )
             self._scene_group = SceneGroup(
                 rect=self.rect,
                 scene=self.scene,
@@ -170,12 +169,14 @@ class SceneWidget(glooey.Widget):
 
     def reset_view(self):
         self.view = {
-            'ball': Trackball(
+            "ball": Trackball(
                 pose=self._initial_camera_transform,
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
-                target=self.scene.centroid)}
-        self.scene.camera_transform = self.view['ball'].pose
+                target=self.scene.centroid,
+            )
+        }
+        self.scene.camera_transform = self.view["ball"].pose
 
     def do_claim(self):
         return 0, 0
@@ -197,13 +198,10 @@ class SceneWidget(glooey.Widget):
                 mesh_group = MeshGroup(
                     transform=transform,
                     texture=self.textures.get(geometry_name),
-                    parent=self.scene_group)
+                    parent=self.scene_group,
+                )
                 self.mesh_group[node_name] = mesh_group
-            self.batch.migrate(
-                vertex_list,
-                gl.GL_TRIANGLES,
-                mesh_group,
-                self.batch)
+            self.batch.migrate(vertex_list, gl.GL_TRIANGLES, mesh_group, self.batch)
 
     def do_draw(self):
         resolution = (self.rect.width, self.rect.height)
@@ -237,9 +235,10 @@ class SceneWidget(glooey.Widget):
         y_prev = y - dy
         left, bottom = self.rect.left, self.rect.bottom
         width, height = self.rect.width, self.rect.height
-        if not (left < x_prev <= left + width) or \
-                not (bottom < y_prev <= bottom + height):
-            self.view['ball'].down(np.array([x, y]))
+        if not (left < x_prev <= left + width) or not (
+            bottom < y_prev <= bottom + height
+        ):
+            self.view["ball"].down(np.array([x, y]))
 
         SceneViewer.on_mouse_drag(self, x, y, dx, dy, buttons, modifiers)
         self._draw()
@@ -252,8 +251,7 @@ class SceneWidget(glooey.Widget):
         geometry_hash_new = geometry_hash(geometry)
         if self.vertex_list_hash.get(geometry_name) != geometry_hash_new:
             # if geometry has texture defined convert it to opengl form
-            if hasattr(geometry, 'visual') and hasattr(
-                    geometry.visual, 'material'):
+            if hasattr(geometry, "visual") and hasattr(geometry.visual, "material"):
                 tex = rendering.material_to_texture(geometry.visual.material)
                 if tex is not None:
                     self.textures[geometry_name] = tex
@@ -266,7 +264,8 @@ class SceneWidget(glooey.Widget):
             mesh_group = MeshGroup(
                 transform=transform,
                 texture=self.textures.get(geometry_name),
-                parent=self.scene_group)
+                parent=self.scene_group,
+            )
             self.mesh_group[node_name] = mesh_group
 
         if self.vertex_list_hash.get(geometry_name) != geometry_hash_new:
@@ -275,9 +274,8 @@ class SceneWidget(glooey.Widget):
 
             # convert geometry to constructor args
             args = rendering.convert_to_vertexlist(
-                geometry,
-                group=mesh_group,
-                smooth=self._smooth)
+                geometry, group=mesh_group, smooth=self._smooth
+            )
             # create the indexed vertex list
             self.vertex_list[geometry_name] = self.batch.add_indexed(*args)
             # save the MD5 of the geometry

@@ -37,7 +37,7 @@ def sinwave(scene):
     scene.graph.update(node, matrix=matrix)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # create some spheres
     a = trimesh.primitives.Sphere()
     b = trimesh.primitives.Sphere()
