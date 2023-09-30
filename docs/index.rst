@@ -20,7 +20,7 @@ Examples
 .. toctree::
    :maxdepth: 2
 	      
-   examples.md
+   examples.rst
 
 Contributing
 ==========  

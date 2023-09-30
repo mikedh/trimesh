@@ -1,5 +1,5 @@
 {name}
 =====================
 
-.. raw:: html
+.. raw:: markdown
    :file: {url}
