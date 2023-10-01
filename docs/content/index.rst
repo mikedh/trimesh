@@ -10,28 +10,28 @@ Install
 .. toctree::
    :maxdepth: 2
 	      
-   guides/install.md
-
-Examples
-==========
-.. toctree::
-   :maxdepth: 2
-	      
-   examples.md
+   install.md
 
 Contributing
 ==========  
 .. toctree::
    :maxdepth: 1
 
-   Contributing <guides/contributing.md>
+   Contributing <contributing.md>
 
 Docker
 ==========  
 .. toctree::
    :maxdepth: 1
 
-   Docker <guides/docker.md>
+   Docker <docker.md>
+   
+Examples
+==========
+.. toctree::
+   :maxdepth: 1
+	      
+   Examples <examples.rst>
 
 API Reference
 =============
