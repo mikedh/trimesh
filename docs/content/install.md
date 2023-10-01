@@ -29,8 +29,7 @@ Conda Packages
 
 If you prefer a `conda` environment, `trimesh` is available on `conda-forge` ([trimesh-feedstock repo](https://github.com/conda-forge/trimesh-feedstock))
 
-
-If you install [Miniconda](https://conda.io/docs/install/quick.html) you can then run:
+If you install [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/) you can then run:
 
 ```
 conda install -c conda-forge trimesh
