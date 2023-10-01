@@ -20,7 +20,7 @@ example_names = $(foreach path, $(example_notebooks), $(basename $(notdir $(path
 example_rsts = $(foreach name, $(example_names), examples.$(name).rst)
 
 
-html: conf.py # $(CONTENT)/index.rst trimesh.rst README.rst $(example_rsts) examples.rst .deps
+html: conf.py $(CONTENT)/index.rst trimesh.rst README.rst $(example_rsts) examples.rst .deps
 	@$(SPHINXBUILD) -M html "$(GENDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 	echo "trimesh.org" > "$(BUILDDIR)/html/CNAME"
 	touch "$(BUILDDIR)/html/.nojekyll"
