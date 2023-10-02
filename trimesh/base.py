@@ -2860,7 +2860,7 @@ class Trimesh(Geometry3D):
             "faces": self.faces.tolist(),
         }
 
-    def convex_decomposition(self) -> List["Trimesh"]:
+    def convex_decomposition(self, **kwargs) -> List["Trimesh"]:
         """
         Compute an approximate convex decomposition of a mesh
         using `pip install pyVHACD`.
@@ -2869,8 +2869,12 @@ class Trimesh(Geometry3D):
         -------
         meshes
           List of convex meshes that approximate the original
+        **kwargs : VHACD keyword arguments
         """
-        return [Trimesh(**kwargs) for kwargs in decomposition.convex_decomposition(self)]
+        return [
+            Trimesh(**kwargs)
+            for kwargs in decomposition.convex_decomposition(self, **kwargs)
+        ]
 
     def union(
         self, other: "Trimesh", engine: Optional[str] = None, **kwargs
