@@ -3,14 +3,30 @@ from typing import Dict, List
 import numpy as np
 
 
-def convex_decomposition(mesh) -> List[Dict]:
+def convex_decomposition(mesh, **kwargs) -> List[Dict]:
     """
     Compute an approximate convex decomposition of a mesh.
+
+    VHACD Parameters which can be passed as kwargs:
+
+    Name                              Default
+    -----------------------------------------
+    maxConvexHulls                    64
+    resolution                        400000
+    minimumVolumePercentErrorAllowed  1.0
+    maxRecursionDepth                 10
+    shrinkWrap                        True
+    fillMode                          "flood"
+    maxNumVerticesPerCH               64
+    asyncACD                          True
+    minEdgeLength                     2
+    findBestPlane                     False
 
     Parameters
     ----------
     mesh : trimesh.Trimesh
       Mesh to be decomposed into convex parts
+    **kwargs : VHACD keyword arguments
 
     Returns
     -------
@@ -31,5 +47,5 @@ def convex_decomposition(mesh) -> List[Dict]:
 
     return [
         {"vertices": v, "faces": f.reshape((-1, 4))[:, 1:]}
-        for v, f in compute_vhacd(mesh.vertices, faces)
+        for v, f in compute_vhacd(mesh.vertices, faces, **kwargs)
     ]
