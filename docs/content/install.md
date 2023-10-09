@@ -80,4 +80,4 @@ Trimesh has a lot of soft-required upstream packages. We try to make sure they'r
 |`pytest`| A test runner. | | `test`|
 |`pytest-cov`| A plugin to calculate test coverage. | | `test`|
 |`pyinstrument`| A sampling based profiler for performance tweaking. | | `test`|
-|`pyvhacd`| A binding for VHACD which provides convex decompositions | | `recommend`|
+|`vhacdx`| A binding for VHACD which provides convex decompositions | | `recommend`|

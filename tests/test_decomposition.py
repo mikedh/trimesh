@@ -7,7 +7,7 @@ except BaseException:
 class DecompositionTest(g.unittest.TestCase):
     def test_convex_decomposition(self):
         try:
-            import pyVHACD  # noqa
+            import vhacdx  # noqa
         except ImportError:
             return
 

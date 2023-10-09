@@ -88,7 +88,7 @@ recommend = [
     "xatlas",
     "scikit-image",
     "python-fcl",
-    "pyVHACD",
+    "vhacdx",
 ]
 
 # this is the list of everything that is ever added anywhere

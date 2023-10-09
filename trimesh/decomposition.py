@@ -34,7 +34,7 @@ def convex_decomposition(mesh, **kwargs) -> List[Dict]:
       List of **kwargs for Trimeshes that are nearly
       convex and approximate the original.
     """
-    from pyVHACD import compute_vhacd
+    from vhacdx import compute_vhacd
 
     # the faces are triangulated in a (len(face), ...vertex-index)
     # for vtkPolyData
