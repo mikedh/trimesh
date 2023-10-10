@@ -46,6 +46,6 @@ def convex_decomposition(mesh, **kwargs) -> List[Dict]:
     )
 
     return [
-        {"vertices": v, "faces": f.reshape((-1, 4))[:, 1:]}
+        {"vertices": v, "faces": f}
         for v, f in compute_vhacd(mesh.vertices, faces, **kwargs)
     ]
