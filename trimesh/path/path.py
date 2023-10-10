@@ -17,6 +17,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..geometry import plane_transform
 from ..points import plane_fit
+from ..typed import Dict, List, NDArray, Optional, float64
 from ..visual import to_rgba
 from . import (
     creation,  # NOQA
@@ -25,6 +26,7 @@ from . import (
     simplify,
     traversal,
 )
+from .entities import Entity
 from .exchange.export import export_path
 from .util import concatenate
 
@@ -66,10 +68,10 @@ class Path(parent.Geometry):
 
     def __init__(
         self,
-        entities=None,
-        vertices=None,
-        metadata=None,
-        process=True,
+        entities: Optional[List[Entity]] = None,
+        vertices: Optional[NDArray[float64]] = None,
+        metadata: Optional[Dict] = None,
+        process: bool = True,
         colors=None,
         **kwargs,
     ):
@@ -116,11 +118,12 @@ class Path(parent.Geometry):
 
     def process(self):
         """
-        Apply basic cleaning functions to the Path object in- place.
+        Apply basic cleaning functions to the Path object in-place.
         """
         with self._cache:
-            for func in self._process_functions():
-                func()
+            self.merge_vertices()
+            self.remove_duplicate_entities()
+            self.remove_unreferenced_vertices()
         return self
 
     @property
@@ -169,7 +172,7 @@ class Path(parent.Geometry):
         return self._vertices
 
     @vertices.setter
-    def vertices(self, values):
+    def vertices(self, values: NDArray[float64]):
         self._vertices = caching.tracked_array(values, dtype=np.float64)
 
     @property
@@ -272,9 +275,8 @@ class Path(parent.Geometry):
         scale : float
           Approximate size of the world holding this path
         """
-        # use vertices peak-peak rather than exact extents
-        scale = float((self.vertices.ptp(axis=0) ** 2).sum() ** 0.5)
-        return scale
+        # return the diagonal length of the AABB
+        return np.linalg.norm(self.vertices.ptp(axis=0))
 
     @caching.cache_decorator
     def length(self):
@@ -672,27 +674,8 @@ class Path(parent.Geometry):
         self.replace_vertex_references(mask=mask)
         self.vertices = self.vertices[unique]
 
-    def discretize_path(self, path):
-        """
-        Given a list of entities, return a list of connected points.
-
-        Parameters
-        -----------
-        path: (n,) int
-          Indexes of self.entities
-
-        Returns
-        -----------
-        discrete : (m, dimension)
-          Linear segment path.
-        """
-        discrete = traversal.discretize_path(
-            self.entities, self.vertices, path, scale=self.scale
-        )
-        return discrete
-
     @caching.cache_decorator
-    def discrete(self):
+    def discrete(self) -> List[NDArray[float64]]:
         """
         A sequence of connected vertices in space, corresponding to
         self.paths.
@@ -702,8 +685,18 @@ class Path(parent.Geometry):
         discrete : (len(self.paths),)
             A sequence of (m*, dimension) float
         """
-        discrete = [self.discretize_path(i) for i in self.paths]
-        return discrete
+        # avoid cache hits in the loop
+        scale = self.scale
+        entities = self.entities
+        vertices = self.vertices
+
+        # discretize each path
+        return [
+            traversal.discretize_path(
+                entities=entities, vertices=vertices, path=path, scale=scale
+            )
+            for path in self.paths
+        ]
 
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
@@ -808,13 +801,6 @@ class Path3D(Path):
     """
     Hold multiple vector curves (lines, arcs, splines, etc) in 3D.
     """
-
-    def _process_functions(self):
-        return [
-            self.merge_vertices,
-            self.remove_duplicate_entities,
-            self.remove_unreferenced_vertices,
-        ]
 
     def to_planar(self, to_2D=None, normal=None, check=True):
         """
@@ -933,16 +919,6 @@ class Path2D(Path):
             self.plot_discrete(show=True, annotations=annotations)
         else:
             self.plot_entities(show=True, annotations=annotations)
-
-    def _process_functions(self):
-        """
-        Return a list of functions to clean up a Path2D
-        """
-        return [
-            self.merge_vertices,
-            self.remove_duplicate_entities,
-            self.remove_unreferenced_vertices,
-        ]
 
     def apply_obb(self):
         """
