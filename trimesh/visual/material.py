@@ -739,9 +739,14 @@ def color_image(color: Optional[NDArray[np.uint8]] = None) -> "Image":
     image
       A (2, 2) RGBA image with the specified color.
     """
+    # only raise an error further down the line
+    if isinstance(Image, exceptions.ExceptionWrapper):
+        return Image
+    # start with a single default RGBA color
     single = np.array([100, 100, 100, 255], dtype=np.uint8)
     if np.shape(color) in ((3,), (4,)):
         single[: len(color)] = color
+    # tile into a (2, 2) image and return
     return Image.fromarray(np.tile(single, 4).reshape((2, 2, 4)).astype(np.uint8))
 
 
