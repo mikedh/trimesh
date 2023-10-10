@@ -47,8 +47,11 @@ except BaseException as E:
     cKDTree = exceptions.ExceptionWrapper(E)
 try:
     from shapely.geometry import Polygon
+    from shapely.prepared import prep
 except BaseException as E:
     Polygon = exceptions.ExceptionWrapper(E)
+    prep = exceptions.ExceptionWrapper(E)
+
 try:
     import networkx as nx
 except BaseException as E:
@@ -1093,8 +1096,7 @@ class Path2D(Path):
         """
         # will attempt to recover invalid garbage geometry
         # and will be None if geometry is unrecoverable
-        polys = polygons.paths_to_polygons(self.discrete)
-        return polys
+        return polygons.paths_to_polygons(self.discrete)
 
     @caching.cache_decorator
     def polygons_full(self):
@@ -1125,8 +1127,6 @@ class Path2D(Path):
             shell = closed[root].exterior
             # create a polygon with interiors
             full[i] = polygons.repair_invalid(Polygon(shell=shell, holes=holes))
-        # so we can use advanced indexing
-        full = np.array(full)
 
         return full
 

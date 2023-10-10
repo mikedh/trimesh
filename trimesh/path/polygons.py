@@ -19,12 +19,12 @@ except BaseException as E:
 
     nx = ExceptionWrapper(E)
 try:
-    from rtree import Rtree
+    from rtree.index import Index
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     from ..exceptions import ExceptionWrapper
 
-    Rtree = ExceptionWrapper(E)
+    Index = ExceptionWrapper(E)
 
 
 def enclosure_tree(polygons: List[Polygon]):
@@ -49,24 +49,26 @@ def enclosure_tree(polygons: List[Polygon]):
        Edges indicate a polygon is
        contained by another polygon
     """
-    tree = Rtree()
+
+    # get the bounds for every valid polygon
+    bounds = {
+        i: polygon.bounds
+        for i, polygon in enumerate(polygons)
+        if len(getattr(polygon, "bounds", [])) == 4
+    }
+
     # nodes are indexes in polygons
     contains = nx.DiGraph()
-    for i, polygon in enumerate(polygons):
-        # if a polygon is None it means creation
-        # failed due to weird geometry so ignore it
-        if polygon is None or len(polygon.bounds) != 4:
-            continue
-        # insert polygon bounds into rtree
-        tree.insert(i, polygon.bounds)
-        # make sure every valid polygon has a node
-        contains.add_node(i)
+    # make sure we don't have orphaned polygon
+    contains.add_nodes_from(bounds.keys())
+
+    # create an rtree from the bounds
+    tree = Index(zip(bounds.keys(), bounds.values(), [None] * len(bounds)))
 
     # loop through every polygon
-    for i in contains.nodes():
-        polygon = polygons[i]
+    for i, b in bounds.items():
         # we first query for bounding box intersections from the R-tree
-        for j in tree.intersection(polygon.bounds):
+        for j in tree.intersection(b):
             # if we are checking a polygon against itself continue
             if i == j:
                 continue
@@ -90,7 +92,6 @@ def enclosure_tree(polygons: List[Polygon]):
     if len(degrees) > 0 and degrees.max() > 1:
         # collect new edges for graph
         edges = []
-
         # order the roots so they are sorted by degree
         roots = roots[np.argsort([degree[r] for r in roots])]
         # find edges of subgraph for each root and children
