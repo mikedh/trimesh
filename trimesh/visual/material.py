@@ -11,7 +11,13 @@ import numpy as np
 
 from .. import exceptions, util
 from ..constants import tol
+from ..typed import NDArray, Optional
 from . import color
+
+try:
+    from PIL import Image
+except BaseException as E:
+    Image = exceptions.ExceptionWrapper(E)
 
 # epsilon for comparing floating point
 _eps = 1e-5
@@ -700,7 +706,7 @@ class PBRMaterial(Material):
         )
 
 
-def empty_material(color=None):
+def empty_material(color: Optional[NDArray[np.uint8]] = None) -> SimpleMaterial:
     """
     Return an empty material set to a single color
 
@@ -714,25 +720,36 @@ def empty_material(color=None):
     material : SimpleMaterial
       Image is a a four pixel RGB
     """
-    try:
-        from PIL import Image
-    except BaseException as E:
-        return exceptions.ExceptionWrapper(E)
-
-    final = np.array([255, 255, 255, 255], dtype=np.uint8)
-    if np.shape(color) in ((3,), (4,)):
-        final[: len(color)] = color
 
     # create a one pixel RGB image
-    image = Image.fromarray(final.reshape((1, 1, 4)).astype(np.uint8))
-    return SimpleMaterial(image=image)
+    return SimpleMaterial(image=color_image(color=color))
+
+
+def color_image(color: Optional[NDArray[np.uint8]] = None) -> "Image":
+    """
+    Generate an image with one color.
+
+    Parameters
+    ----------
+    color
+      Optional uint8 color
+
+    Returns
+    ----------
+    image
+      A (2, 2) RGBA image with the specified color.
+    """
+    single = np.array([100, 100, 100, 255], dtype=np.uint8)
+    if np.shape(color) in ((3,), (4,)):
+        single[: len(color)] = color
+    return Image.fromarray(np.tile(single, 4).reshape((2, 2, 4)).astype(np.uint8))
 
 
 def pack(
     materials,
     uvs,
     deduplicate=True,
-    padding: int = 1,
+    padding: int = 2,
     max_tex_size_individual=8192,
     max_tex_size_fused=8192,
 ):
@@ -802,7 +819,7 @@ def pack(
                 c = color.to_rgba(mat.baseColorFactor)
                 assert c.shape == (4,)
                 assert c.dtype == np.uint8
-                img = Image.fromarray(c.reshape((1, 1, -1)))
+                img = color_image(c)
 
             if img is not None and mat.alphaMode != "BLEND":
                 # we can't handle alpha blending well, but we can bake alpha cutoff
@@ -818,15 +835,11 @@ def pack(
             img = mat.image
         elif np.shape(getattr(mat, "diffuse", [])) == (4,):
             # return a one pixel image
-            img = Image.fromarray(
-                np.reshape(color.to_rgba(mat.diffuse), (1, 1, 4)).astype(np.uint8)
-            )
+            img = color_image(mat.diffuse)
 
         if img is None:
             # return a one pixel image
-            img = Image.fromarray(
-                np.reshape([100, 100, 100, 255], (1, 1, 4)).astype(np.uint8)
-            )
+            img = color_image()
         # make sure we're always returning in RGBA mode
         return img.convert("RGBA")
 
@@ -918,15 +931,18 @@ def pack(
     packed = {}
 
     def pack_images(images):
+        # run image packing with our material-specific settings
+        # which including deduplicating by hash, upsizing to the
+        # nearest power of two, returning deterministically by seeding
+        # and padding every side of the image by 1 pixel
+
+        # see if we've already run this packing image
         key = hash(tuple(sorted([id(i) for i in images])))
         assert key not in packed
         if key in packed:
             return packed[key]
 
-        # run image packing with our material-specific settings
-        # which including deduplicating by hash, upsizing to the
-        # nearest power of two, returning deterministically by seeding
-        # and padding every side of the image by 1 pixel
+        # otherwise run packing now
         result = packing.images(
             images,
             deduplicate=True,
@@ -1054,22 +1070,27 @@ def pack(
         uv_offset = offset / (final_size - 1)
         # scale and translate each of the new UV coordinates
         # also make sure they are in 0.0-1.0 using modulus (i.e. wrap)
+        half = 0.5 / np.array(img.size)
+
         for g in group:
             # only wrap pixels that are outside of 0.0-1.0.
             # use a small leeway of half a pixel for floating point inaccuracies and
             # the case of uv==1.0
-            uvg = uvs[g]
+            uvg = uvs[g].copy()
 
-            moved = (uvg * uv_scale) + uv_offset
-            # wrap by half-pic
-            half = 0.5 / np.array(img.size)
+            # wrap before scaling and offsetting
             wrap = np.logical_or(uvg < -half, uvg > (1.0 + half))
-            moved[wrap] %= 1.0
+            uvg[wrap] %= 1.0
+
+            # apply the scale and offset
+            moved = (uvg * uv_scale) + uv_offset
 
             if tol.strict:
-                old = color.uv_to_color(uvg, img)
-                new = color.uv_to_color(moved, final)
-                assert np.allclose(old, new, atol=10)
+                # the color from the original coordinates and image
+                old = color.uv_to_interpolated_color(uvs[g], img)
+                # the color from the packed image
+                new = color.uv_to_interpolated_color(moved, final)
+                assert np.allclose(old, new, atol=4)
 
             new_uv[g] = moved
 
