@@ -52,9 +52,11 @@ def enclosure_tree(polygons: List[Polygon]):
 
     # get the bounds for every valid polygon
     bounds = {
-        i: polygon.bounds
-        for i, polygon in enumerate(polygons)
-        if len(getattr(polygon, "bounds", [])) == 4
+        k: v
+        for k, v in {
+            i: getattr(polygon, "bounds", []) for i, polygon in enumerate(polygons)
+        }.items()
+        if len(v) == 4
     }
 
     # nodes are indexes in polygons
@@ -62,8 +64,12 @@ def enclosure_tree(polygons: List[Polygon]):
     # make sure we don't have orphaned polygon
     contains.add_nodes_from(bounds.keys())
 
-    # create an rtree from the bounds
-    tree = Index(zip(bounds.keys(), bounds.values(), [None] * len(bounds)))
+    if len(bounds) > 0:
+        # if there are no valid bounds tree creation will fail
+        # and we won't be calling `tree.intersection` anywhere
+        # we could return here but having multiple return paths
+        # seems more dangerous than iterating through an empty graph
+        tree = Index(zip(bounds.keys(), bounds.values(), [None] * len(bounds)))
 
     # loop through every polygon
     for i, b in bounds.items():
