@@ -197,7 +197,7 @@ def random_transforms(count, translate=1000):
     Yields
     ------------
     transform : (4, 4) float
-      Homogenous transformation matrix
+      Homogeneous transformation matrix
     """
     quaternion = random((count, 3))
     translate = (random((count, 3)) - 0.5) * float(translate)

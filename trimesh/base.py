@@ -1316,7 +1316,7 @@ class Trimesh(Geometry3D):
         Returns
         --------
         unique : (len(faces),) bool
-          A mask where the first occurance of a unique face is true.
+          A mask where the first occurrence of a unique face is true.
         """
         mask = np.zeros(len(self.faces), dtype=bool)
         mask[grouping.unique_rows(np.sort(self.faces, axis=1))[0]] = True

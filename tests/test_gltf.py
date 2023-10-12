@@ -957,7 +957,7 @@ class GLTFTest(g.unittest.TestCase):
             path = g.os.path.join(D, "hi.gltf")
             scene.export(path, embed_buffers=True)
 
-            # should export with embeded bufferes
+            # should export with embedded buffers
             assert len(g.os.listdir(D)) == 1
 
             reloaded = g.trimesh.load(path)

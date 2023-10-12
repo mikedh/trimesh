@@ -55,7 +55,7 @@ class PrimitiveTest(g.unittest.TestCase):
                     center=[102.20, 0, 102.0], extents=[29, 100, 1000]
                 )
             )
-            raise ValueError("Box shouldnt have accepted `center`!")
+            raise ValueError("Box shouldn't have accepted `center`!")
         except TypeError:
             # this should have raised a TypeError as `center` is not a kwarg
             pass
@@ -132,7 +132,7 @@ class PrimitiveTest(g.unittest.TestCase):
                     # converting to mesh will do all scaling
                     # and transformations on simple discrete
                     # copy of primitive and should match with
-                    # only tesselation differences
+                    # only tessellation differences
                     p = po.copy()
                     m = p.to_mesh()
 
