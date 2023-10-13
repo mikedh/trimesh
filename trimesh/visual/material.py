@@ -1096,7 +1096,7 @@ def pack(
                 old = color.uv_to_interpolated_color(uvs[g], img)
                 # the color from the packed image
                 new = color.uv_to_interpolated_color(moved, final)
-                assert np.allclose(old, new, atol=10)
+                assert np.allclose(old, new, atol=6)
 
             new_uv[g] = moved
 
