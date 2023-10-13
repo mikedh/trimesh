@@ -290,7 +290,7 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                         with xf.element("object", **attribs):
                             with xf.element("mesh"):
                                 with xf.element("vertices"):
-                                    # vertex nodes are writed directly to the file
+                                    # vertex nodes are written directly to the file
                                     # so make sure lxml's buffer is flushed
                                     xf.flush()
                                     for i in range(0, len(m.vertices), batch_size):
