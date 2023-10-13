@@ -196,7 +196,7 @@ class PolygonTests(g.unittest.TestCase):
             )
             # check against wikipedia
             t = truth(bh)
-            # for a centered rectangle, the principal axis are alread aligned
+            # for a centered rectangle, the principal axis are already aligned
             # with the frame axis
             assert g.np.allclose(O_moments, t)
             assert g.np.any(g.np.isclose(O_moments, O_principal_moments[0]))
@@ -207,7 +207,7 @@ class PolygonTests(g.unittest.TestCase):
             # now check a rectangle with the corner, so Ixy != 0
 
             # First we test with centering. The results should be same as
-            # with the initally centered rectangles
+            # with the initially centered rectangles
             C_moments, C_principal_moments, C_alpha, C_transform = second_moments(
                 poly_corner(bh), return_centered=True
             )

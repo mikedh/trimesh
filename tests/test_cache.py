@@ -299,7 +299,7 @@ class CacheTest(g.unittest.TestCase):
         # add 2 and 3 length permutations of our guesses
         attempts.extend([tuple(G) for G in itertools.product(flat, repeat=2)])
 
-        # adding 3-length permuations makes this test 10x slower but if you
+        # adding 3-length permutations makes this test 10x slower but if you
         # are suspicious of a method caching you could uncomment this out:
         # attempts.extend([tuple(G) for G in itertools.permutations(flat, 3)])
         skip = set()

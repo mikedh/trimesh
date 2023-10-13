@@ -55,7 +55,7 @@ class SampleTest(g.unittest.TestCase):
         m = g.trimesh.creation.icosphere()
         samples = g.trimesh.sample.volume_mesh(mesh=m, count=100)
 
-        # all samples should be approximatly within the sphere
+        # all samples should be approximately within the sphere
         radii = g.np.linalg.norm(samples, axis=1)
         assert (radii < 1.00000001).all()
 

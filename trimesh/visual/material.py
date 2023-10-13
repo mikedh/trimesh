@@ -780,7 +780,7 @@ def pack(
     max_tex_size_fused : int | None
       Maximum size of the combined texture.
       Individual texture size will be reduced to fit.
-      Set to None to allow infite size.
+      Set to None to allow infinite size.
 
     Returns
     ------------

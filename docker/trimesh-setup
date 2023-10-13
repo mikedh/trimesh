@@ -136,7 +136,7 @@ def fetch(url, sha256):
       Location of remote resource.
     sha256: str
       The SHA256 hash of the resource once retrieved,
-      wil raise a `ValueError` if the hash doesn't match.
+      will raise a `ValueError` if the hash doesn't match.
 
     Returns
     -------------
@@ -362,7 +362,7 @@ if __name__ == "__main__":
         "apt": lambda x: apt_select.extend(x),
     }
 
-    # allow comma delimeters and de-duplicate
+    # allow comma delimiters and de-duplicate
     if args.install is None:
         parser.print_help()
         exit()

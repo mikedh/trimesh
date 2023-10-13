@@ -10,7 +10,7 @@ class ResolverTest(g.unittest.TestCase):
         models = g.dir_models
         subdir = "2D"
 
-        # create a resolver for the models diretory
+        # create a resolver for the models directory
         resolver = g.trimesh.resolvers.FilePathResolver(models)
 
         # should be able to get an asset
