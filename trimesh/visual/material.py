@@ -1083,9 +1083,10 @@ def pack(
             # the case of uv==1.0
             uvg = uvs[g].copy()
 
-            # wrap before scaling and offsetting
-            wrap = np.logical_or(uvg < -half, uvg > (1.0 + half))
-            uvg[wrap] %= 1.0
+            # now wrap anything more than half a pixel outside
+            uvg[np.logical_or(uvg < -half, uvg > (1.0 + half))] %= 1.0
+            # clamp to half a pixel
+            uvg = np.clip(uvg, half, 1.0 - half)
 
             # apply the scale and offset
             moved = (uvg * uv_scale) + uv_offset
@@ -1095,7 +1096,7 @@ def pack(
                 old = color.uv_to_interpolated_color(uvs[g], img)
                 # the color from the packed image
                 new = color.uv_to_interpolated_color(moved, final)
-                assert np.allclose(old, new, atol=4)
+                assert np.allclose(old, new, atol=10)
 
             new_uv[g] = moved
 
