@@ -21,17 +21,17 @@ In [25]: %timeit xxh3_64_intdigest(d)
 """
 import os
 import time
-import warnings
+from functools import wraps
+
 import numpy as np
 
-from functools import wraps
 from .constants import log
 from .util import is_sequence
 
 try:
     from collections.abc import Mapping
 except BaseException:
-    from collections import Mapping
+    from collections.abc import Mapping
 
 
 # sha256 is always available
@@ -48,6 +48,7 @@ try:
 
     def hash_fallback(item):
         return int(_blake2b(item).hexdigest(), 16)
+
 except BaseException:
     # fallback to sha256
     hash_fallback = sha256
@@ -63,9 +64,11 @@ except BaseException:
         from xxhash import xxh64_intdigest as hash_fast
     except BaseException:
         # use hashlib as a fallback hashing library
-        log.debug('falling back to hashlib ' +
-                  'hashing: `pip install xxhash`' +
-                  'for 50x faster cache checks')
+        log.debug(
+            "falling back to hashlib "
+            + "hashing: `pip install xxhash`"
+            + "for 50x faster cache checks"
+        )
         hash_fast = hash_fallback
 
 
@@ -92,10 +95,9 @@ def tracked_array(array, dtype=None):
     if array is None:
         array = []
     # make sure it is contiguous then view it as our subclass
-    tracked = np.ascontiguousarray(
-        array, dtype=dtype).view(TrackedArray)
+    tracked = np.ascontiguousarray(array, dtype=dtype).view(TrackedArray)
     # should always be contiguous here
-    assert tracked.flags['C_CONTIGUOUS']
+    assert tracked.flags["C_CONTIGUOUS"]
 
     return tracked
 
@@ -138,8 +140,11 @@ def cache_decorator(function):
         # value not in cache so execute the function
         value = function(*args, **kwargs)
         # store the value
-        if self._cache.force_immutable and hasattr(
-                value, 'flags') and len(value.shape) > 0:
+        if (
+            self._cache.force_immutable
+            and hasattr(value, "flags")
+            and len(value.shape) > 0
+        ):
             value.flags.writeable = False
 
         self._cache.cache[name] = value
@@ -189,42 +194,17 @@ class TrackedArray(np.ndarray):
         See https://github.com/numpy/numpy/issues/5819
         """
         if out_arr.ndim:
-            return np.ndarray.__array_wrap__(
-                self, out_arr, context)
+            return np.ndarray.__array_wrap__(self, out_arr, context)
         # Match numpy's behavior and return a numpy dtype scalar
         return out_arr[()]
 
     @property
     def mutable(self):
-        return self.flags['WRITEABLE']
+        return self.flags["WRITEABLE"]
 
     @mutable.setter
     def mutable(self, value):
         self.flags.writeable = value
-
-    def hash(self):
-        warnings.warn(
-            '`array.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def crc(self):
-        warnings.warn(
-            '`array.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def md5(self):
-        warnings.warn(
-            '`array.md5()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
 
     def __hash__(self):
         """
@@ -236,12 +216,12 @@ class TrackedArray(np.ndarray):
           A hash of the array contents.
         """
         # repeat the bookkeeping to get a contiguous array
-        if not self._dirty_hash and hasattr(self, '_hashed'):
+        if not self._dirty_hash and hasattr(self, "_hashed"):
             # we have a valid hash without recomputing.
             return self._hashed
 
         # run a hashing function on the C-order bytes copy
-        hashed = hash_fast(self.tobytes(order='C'))
+        hashed = hash_fast(self.tobytes(order="C"))
 
         # assign the value and set the flag
         self._hashed = hashed
@@ -258,121 +238,98 @@ class TrackedArray(np.ndarray):
         """
 
         self._dirty_hash = True
-        return super(self.__class__, self).__iadd__(
-            *args, **kwargs)
+        return super(self.__class__, self).__iadd__(*args, **kwargs)
 
     def __isub__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__isub__(
-            *args, **kwargs)
+        return super(self.__class__, self).__isub__(*args, **kwargs)
 
     def fill(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).fill(
-            *args, **kwargs)
+        return super(self.__class__, self).fill(*args, **kwargs)
 
     def partition(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).partition(
-            *args, **kwargs)
+        return super(self.__class__, self).partition(*args, **kwargs)
 
     def put(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).put(
-            *args, **kwargs)
+        return super(self.__class__, self).put(*args, **kwargs)
 
     def byteswap(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).byteswap(
-            *args, **kwargs)
+        return super(self.__class__, self).byteswap(*args, **kwargs)
 
     def itemset(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).itemset(
-            *args, **kwargs)
+        return super(self.__class__, self).itemset(*args, **kwargs)
 
     def sort(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).sort(
-            *args, **kwargs)
+        return super(self.__class__, self).sort(*args, **kwargs)
 
     def setflags(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).setflags(
-            *args, **kwargs)
+        return super(self.__class__, self).setflags(*args, **kwargs)
 
     def __imul__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__imul__(
-            *args, **kwargs)
+        return super(self.__class__, self).__imul__(*args, **kwargs)
 
     def __idiv__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__idiv__(
-            *args, **kwargs)
+        return super(self.__class__, self).__idiv__(*args, **kwargs)
 
     def __itruediv__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__itruediv__(
-            *args, **kwargs)
+        return super(self.__class__, self).__itruediv__(*args, **kwargs)
 
     def __imatmul__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__imatmul__(
-            *args, **kwargs)
+        return super(self.__class__, self).__imatmul__(*args, **kwargs)
 
     def __ipow__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__ipow__(
-            *args, **kwargs)
+        return super(self.__class__, self).__ipow__(*args, **kwargs)
 
     def __imod__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__imod__(
-            *args, **kwargs)
+        return super(self.__class__, self).__imod__(*args, **kwargs)
 
     def __ifloordiv__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__ifloordiv__(
-            *args, **kwargs)
+        return super(self.__class__, self).__ifloordiv__(*args, **kwargs)
 
     def __ilshift__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__ilshift__(
-            *args, **kwargs)
+        return super(self.__class__, self).__ilshift__(*args, **kwargs)
 
     def __irshift__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__irshift__(
-            *args, **kwargs)
+        return super(self.__class__, self).__irshift__(*args, **kwargs)
 
     def __iand__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__iand__(
-            *args, **kwargs)
+        return super(self.__class__, self).__iand__(*args, **kwargs)
 
     def __ixor__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__ixor__(
-            *args, **kwargs)
+        return super(self.__class__, self).__ixor__(*args, **kwargs)
 
     def __ior__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__ior__(
-            *args, **kwargs)
+        return super(self.__class__, self).__ior__(*args, **kwargs)
 
     def __setitem__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__setitem__(
-            *args, **kwargs)
+        return super(self.__class__, self).__setitem__(*args, **kwargs)
 
     def __setslice__(self, *args, **kwargs):
         self._dirty_hash = True
-        return super(self.__class__, self).__setslice__(
-            *args, **kwargs)
+        return super(self.__class__, self).__setslice__(*args, **kwargs)
 
 
-class Cache(object):
+class Cache:
     """
     Class to cache values which will be stored until the
     result of an ID function changes.
@@ -393,7 +350,7 @@ class Cache(object):
         # for stored numpy arrays set `flags.writable = False`
         self.force_immutable = bool(force_immutable)
         # call the id function for initial value
-        self.id_current = self._id_function()
+        self.id_current = None
         # a counter for locks
         self._lock = 0
         # actual store for data
@@ -422,9 +379,11 @@ class Cache(object):
         # things changed
         if id_new != self.id_current:
             if len(self.cache) > 0:
-                log.debug('%d items cleared from cache: %s',
-                          len(self.cache),
-                          str(list(self.cache.keys())))
+                log.debug(
+                    "%d items cleared from cache: %s",
+                    len(self.cache),
+                    str(list(self.cache.keys())),
+                )
             # hash changed, so dump the cache
             # do it manually rather than calling clear()
             # as we are internal logic and can avoid function calls
@@ -444,8 +403,7 @@ class Cache(object):
         if exclude is None:
             self.cache = {}
         else:
-            self.cache = {k: v for k, v in self.cache.items()
-                          if k in exclude}
+            self.cache = {k: v for k, v in self.cache.items() if k in exclude}
 
     def update(self, items):
         """
@@ -456,7 +414,7 @@ class Cache(object):
 
         if self.force_immutable:
             for v in self.cache.values():
-                if hasattr(v, 'flags') and len(v.shape) > 0:
+                if hasattr(v, "flags") and len(v.shape) > 0:
                     v.flags.writeable = False
         self.id_set()
 
@@ -500,8 +458,7 @@ class Cache(object):
         # dumpy cache if ID function has changed
         self.verify()
         # make numpy arrays read-only if asked to
-        if self.force_immutable and hasattr(
-                value, 'flags') and len(value.shape) > 0:
+        if self.force_immutable and hasattr(value, "flags") and len(value.shape) > 0:
             value.flags.writeable = False
         # assign data to dict
         self.cache[key] = value
@@ -524,7 +481,7 @@ class Cache(object):
         self.id_current = self._id_function()
 
 
-class DiskCache(object):
+class DiskCache:
     """
     Store results of expensive operations on disk
     with an option to expire the results. This is used
@@ -547,8 +504,7 @@ class DiskCache(object):
         # store how old we allow results to be
         self.expire_days = expire_days
         # store the location for saving results
-        self.path = os.path.abspath(
-            os.path.expanduser(path))
+        self.path = os.path.abspath(os.path.expanduser(path))
         # make sure the specified path exists
         os.makedirs(self.path, exist_ok=True)
 
@@ -565,7 +521,7 @@ class DiskCache(object):
           function and store its result on disk.
         """
         # hash the key so we have a fixed length string
-        key_hash = _sha256(key.encode('utf-8')).hexdigest()
+        key_hash = _sha256(key.encode("utf-8")).hexdigest()
         # full path of result on local disk
         path = os.path.join(self.path, key_hash)
 
@@ -577,15 +533,15 @@ class DiskCache(object):
                 # this nested condition means that
                 # the file both exists and is recent
                 # enough, so just return its contents
-                with open(path, 'rb') as f:
+                with open(path, "rb") as f:
                     return f.read()
 
-        log.debug('not in cache fetching: `{}`'.format(key))
+        log.debug(f"not in cache fetching: `{key}`")
         # since we made it here our data isn't cached
         # run the expensive function to fetch the file
         raw = fetch()
         # write the data so we can save it
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             f.write(raw)
 
         # return the data
@@ -622,7 +578,7 @@ class DataStore(Mapping):
         is_mutable : bool
           Can data be altered in the DataStore
         """
-        return getattr(self, '_mutable', True)
+        return getattr(self, "_mutable", True)
 
     @mutable.setter
     def mutable(self, value):
@@ -638,7 +594,8 @@ class DataStore(Mapping):
         is_mutable = bool(value)
         # apply the flag to any data stored
         for v in self.data.values():
-            v.mutable = value
+            if isinstance(v, TrackedArray):
+                v.mutable = value
         # save the mutable setting
         self._mutable = is_mutable
 
@@ -674,21 +631,36 @@ class DataStore(Mapping):
 
     def __setitem__(self, key, data):
         """
-        Store an item in the DataStore
+        Store an item in the DataStore.
+
+        Parameters
+        -------------
+        key
+          A hashable key to store under
+        data
+          Usually a numpy array which will be subclassed
+          but anything hashable should be able to be stored.
         """
         # we shouldn't allow setting on immutable datastores
         if not self.mutable:
-            raise ValueError('DataStore is configured immutable!')
+            raise ValueError("DataStore is configured immutable!")
 
-        if hasattr(data, 'hash'):
+        if isinstance(data, TrackedArray):
             # don't bother to re-track TrackedArray
             tracked = data
-        else:
-            # otherwise wrap data
+        elif isinstance(data, (np.ndarray, list, set, tuple)):
+            # wrap data if it is array-like
             tracked = tracked_array(data)
-        # apply our mutability setting
+        else:
+            try:
+                # will raise if this is not a hashable type
+                hash(data)
+            except BaseException:
+                raise ValueError("unhashable `{key}:{type(data)}`")
+            tracked = data
 
-        if hasattr(self, '_mutable'):
+        # apply our mutability setting
+        if hasattr(self, "_mutable"):
             # apply our mutability setting only if it was explicitly set
             tracked.mutable = self.mutable
         # store data
@@ -702,7 +674,7 @@ class DataStore(Mapping):
 
     def update(self, values):
         if not isinstance(values, dict):
-            raise ValueError('Update only implemented for dicts')
+            raise ValueError("Update only implemented for dicts")
         for key, value in values.items():
             self[key] = value
 
@@ -717,49 +689,13 @@ class DataStore(Mapping):
         """
         # only hash values that aren't None
         # or if they are arrays require length greater than zero
-        return hash_fast(np.array(
-            [hash(v) for v in self.data.values()
-             if v is not None and
-             (not hasattr(v, '__len__') or len(v) > 0)],
-            dtype=np.int64).tobytes())
-
-    def crc(self):
-        """
-        Get a CRC reflecting everything in the DataStore.
-
-        Returns
-        ----------
-        crc : int
-          CRC of data
-        """
-        warnings.warn(
-            '`array.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def fast_hash(self):
-        """
-        Get a CRC32 or xxhash.xxh64 reflecting the DataStore.
-
-        Returns
-        ------------
-        hashed : int
-          Checksum of data
-        """
-        warnings.warn(
-            '`array.fast_hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-        return self.__hash__()
-
-    def hash(self):
-        warnings.warn(
-            '`array.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `array.__hash__()` or `hash(array)`',
-            category=DeprecationWarning, stacklevel=2)
-
-        return self.__hash__()
+        return hash_fast(
+            np.array(
+                [
+                    hash(v)
+                    for v in self.data.values()
+                    if v is not None and (not hasattr(v, "__len__") or len(v) > 0)
+                ],
+                dtype=np.int64,
+            ).tobytes()
+        )

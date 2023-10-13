@@ -6,8 +6,8 @@ Deal with physical unit systems (i.e. inches, mm)
 Very basic conversions, and no requirement for
 sympy.physics.units or pint.
 """
-from .constants import log
 from . import resources
+from .constants import log
 
 
 def unit_conversion(current, desired):
@@ -27,8 +27,7 @@ def unit_conversion(current, desired):
         Number to multiply by to put values into desired units
     """
     # scaling factors from various unit systems to inches
-    to_inch = resources.get(
-        'units_to_inches.json', decode_json=True)
+    to_inch = resources.get("units_to_inches.json", decode_json=True)
 
     current = str(current).strip().lower()
     desired = str(desired).strip().lower()
@@ -54,43 +53,40 @@ def units_from_metadata(obj, guess=True):
     units: str
         A guess of what the units might be
     """
-    to_inch = resources.get(
-        'units_to_inches.json', decode_json=True)
+    to_inch = resources.get("units_to_inches.json", decode_json=True)
 
     # try to guess from metadata
-    for key in ['file_name', 'name']:
+    for key in ["file_name", "name"]:
         if key not in obj.metadata:
             continue
         # get the string which might contain unit hints
         hints = obj.metadata[key].lower()
-        if 'unit' in hints:
+        if "unit" in hints:
             # replace all delimiter options with white space
-            for delim in '_-.':
-                hints = hints.replace(delim, ' ')
+            for delim in "_-.":
+                hints = hints.replace(delim, " ")
             # loop through each hint
             for hint in hints.strip().split():
                 # key word is "unit" or "units"
-                if 'unit' not in hint:
+                if "unit" not in hint:
                     continue
                 # get rid of keyword and whitespace
-                hint = hint.replace(
-                    'units', '').replace(
-                        'unit', '').strip()
+                hint = hint.replace("units", "").replace("unit", "").strip()
                 # if the hint is a valid unit return it
                 if hint in to_inch:
                     return hint
 
     if not guess:
-        raise ValueError('no units and not allowed to guess')
+        raise ValueError("no units and not allowed to guess")
 
     # we made it to the wild ass guess section
     # if the scale is larger than 100 mystery units
     # declare the model to be millimeters, otherwise inches
-    log.debug('no units: guessing from scale')
+    log.debug("no units: guessing from scale")
     if float(obj.scale) > 100.0:
-        return 'millimeters'
+        return "millimeters"
     else:
-        return 'inches'
+        return "inches"
 
 
 def _convert_units(obj, desired, guess=False):
@@ -114,7 +110,7 @@ def _convert_units(obj, desired, guess=False):
         # to guess will raise a ValueError
         obj.units = units_from_metadata(obj, guess=guess)
 
-    log.debug('converting units from %s to %s', obj.units, desired)
+    log.debug("converting units from %s to %s", obj.units, desired)
     # float, conversion factor
     conversion = unit_conversion(obj.units, desired)
 

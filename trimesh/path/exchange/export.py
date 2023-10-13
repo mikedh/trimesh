@@ -1,14 +1,10 @@
 import os
+
 from ... import util
-
-from . import dxf
-from . import svg_io
+from . import dxf, svg_io
 
 
-def export_path(path,
-                file_type=None,
-                file_obj=None,
-                **kwargs):
+def export_path(path, file_type=None, file_obj=None, **kwargs):
     """
     Export a Path object to a file- like object, or to a filename
 
@@ -43,8 +39,7 @@ def export_dict(path):
     Export a path as a dict of kwargs for the Path constructor.
     """
     export_entities = [e.to_dict() for e in path.entities]
-    export_object = {'entities': export_entities,
-                     'vertices': path.vertices.tolist()}
+    export_object = {"entities": export_entities, "vertices": path.vertices.tolist()}
     return export_object
 
 
@@ -62,23 +57,20 @@ def _write_export(export, file_obj=None):
     if file_obj is None:
         return export
 
-    if hasattr(file_obj, 'write'):
+    if hasattr(file_obj, "write"):
         out_file = file_obj
     else:
         # expand user and relative paths
-        file_path = os.path.abspath(
-            os.path.expanduser(file_obj))
-        out_file = open(file_path, 'wb')
+        file_path = os.path.abspath(os.path.expanduser(file_obj))
+        out_file = open(file_path, "wb")
     try:
         out_file.write(export)
     except TypeError:
-        out_file.write(export.encode('utf-8'))
+        out_file.write(export.encode("utf-8"))
 
     out_file.close()
 
     return export
 
 
-_path_exporters = {'dxf': dxf.export_dxf,
-                   'svg': svg_io.export_svg,
-                   'dict': export_dict}
+_path_exporters = {"dxf": dxf.export_dxf, "svg": svg_io.export_svg, "dict": export_dict}

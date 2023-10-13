@@ -8,18 +8,18 @@ of each body, then combine them back into one mesh.
 Useful for generating collision models of an object.
 """
 
-import trimesh
 import numpy as np
 
-if __name__ == '__main__':
+import trimesh
 
+if __name__ == "__main__":
     # attach to trimesh logs
     trimesh.util.attach_to_log()
     log = trimesh.util.log
 
     # load the mesh from filename
     # file objects are also supported
-    mesh = trimesh.load_mesh('../models/box.STL')
+    mesh = trimesh.load_mesh("../models/box.STL")
 
     # split the mesh into connected components of face adjacency
     # splitting sometimes produces non- watertight meshes
@@ -35,9 +35,9 @@ if __name__ == '__main__':
     # combine all components into one mesh
     convex_combined = np.sum(meshes_convex)
 
-    log.debug('Showing original mesh')
+    log.debug("Showing original mesh")
     mesh.show()
 
     # open a viewer window for convexified mesh
-    log.debug('Showing convexified mesh')
+    log.debug("Showing convexified mesh")
     convex_combined.show()

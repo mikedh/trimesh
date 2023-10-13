@@ -1,54 +1,51 @@
-import numpy as np
-
+import collections
+import subprocess
+import tempfile
 from string import Template
 
-import tempfile
-import subprocess
-import collections
+import numpy as np
 
-from .. import util
-from .. import visual
-from .. import grouping
-from .. import resources
-
-from ..geometry import triangulate_quads
+from .. import grouping, resources, util, visual
 from ..constants import log
+from ..geometry import triangulate_quads
 
 # from ply specification, and additional dtypes found in the wild
 _dtypes = {
-    'char': 'i1',
-    'uchar': 'u1',
-    'short': 'i2',
-    'ushort': 'u2',
-    'int': 'i4',
-    'int8': 'i1',
-    'int16': 'i2',
-    'int32': 'i4',
-    'int64': 'i8',
-    'uint': 'u4',
-    'uint8': 'u1',
-    'uint16': 'u2',
-    'uint32': 'u4',
-    'uint64': 'u8',
-    'float': 'f4',
-    'float16': 'f2',
-    'float32': 'f4',
-    'float64': 'f8',
-    'double': 'f8'}
+    "char": "i1",
+    "uchar": "u1",
+    "short": "i2",
+    "ushort": "u2",
+    "int": "i4",
+    "int8": "i1",
+    "int16": "i2",
+    "int32": "i4",
+    "int64": "i8",
+    "uint": "u4",
+    "uint8": "u1",
+    "uint16": "u2",
+    "uint32": "u4",
+    "uint64": "u8",
+    "float": "f4",
+    "float16": "f2",
+    "float32": "f4",
+    "float64": "f8",
+    "double": "f8",
+}
 
 # Inverse of the above dict, collisions on numpy type were removed
 _inverse_dtypes = {
-    'i1': 'char',
-    'u1': 'uchar',
-    'i2': 'short',
-    'u2': 'ushort',
-    'i4': 'int',
-    'i8': 'int64',
-    'u4': 'uint',
-    'u8': 'uint64',
-    'f4': 'float',
-    'f2': 'float16',
-    'f8': 'double'}
+    "i1": "char",
+    "u1": "uchar",
+    "i2": "short",
+    "u2": "ushort",
+    "i4": "int",
+    "i8": "int64",
+    "u4": "uint",
+    "u8": "uint64",
+    "f4": "float",
+    "f2": "float16",
+    "f8": "double",
+}
 
 
 def _numpy_type_to_ply_type(_numpy_type):
@@ -66,12 +63,9 @@ def _numpy_type_to_ply_type(_numpy_type):
     return _inverse_dtypes[_numpy_type.str[1:]]
 
 
-def load_ply(file_obj,
-             resolver=None,
-             fix_texture=True,
-             prefer_color=None,
-             *args,
-             **kwargs):
+def load_ply(
+    file_obj, resolver=None, fix_texture=True, prefer_color=None, *args, **kwargs
+):
     """
     Load a PLY file from an open file object.
 
@@ -109,21 +103,20 @@ def load_ply(file_obj,
     try:
         # soft dependency
         import PIL.Image
+
         # if an image name is passed try to load it
         if image_name is not None:
             data = resolver.get(image_name)
             image = PIL.Image.open(util.wrap_as_stream(data))
     except ImportError:
-        log.debug('textures require `pip install pillow`')
+        log.debug("textures require `pip install pillow`")
     except BaseException:
-        log.warning('unable to load image!', exc_info=True)
+        log.warning("unable to load image!", exc_info=True)
 
     # translate loaded PLY elements to kwargs
     kwargs = _elements_to_kwargs(
-        image=image,
-        elements=elements,
-        fix_texture=fix_texture,
-        prefer_color=prefer_color)
+        image=image, elements=elements, fix_texture=fix_texture, prefer_color=prefer_color
+    )
 
     return kwargs
 
@@ -147,11 +140,9 @@ def _add_attributes_to_dtype(dtype, attributes):
         if data.ndim == 1:
             dtype.append((name, data.dtype))
         else:
-            attribute_dtype = data.dtype if len(
-                data.dtype) == 0 else data.dtype[0]
-            dtype.append(('{}_count'.format(name), 'u1'))
-            dtype.append(
-                (name, _numpy_type_to_ply_type(attribute_dtype), data.shape[1]))
+            attribute_dtype = data.dtype if len(data.dtype) == 0 else data.dtype[0]
+            dtype.append((f"{name}_count", "u1"))
+            dtype.append((name, _numpy_type_to_ply_type(attribute_dtype), data.shape[1]))
     return dtype
 
 
@@ -173,13 +164,11 @@ def _add_attributes_to_header(header, attributes):
     """
     for name, data in attributes.items():
         if data.ndim == 1:
-            header.append(
-                'property {} {}\n'.format(
-                    _numpy_type_to_ply_type(data.dtype), name))
+            header.append(f"property {_numpy_type_to_ply_type(data.dtype)} {name}\n")
         else:
             header.append(
-                'property list uchar {} {}\n'.format(
-                    _numpy_type_to_ply_type(data.dtype), name))
+                f"property list uchar {_numpy_type_to_ply_type(data.dtype)} {name}\n"
+            )
     return header
 
 
@@ -201,8 +190,7 @@ def _add_attributes_to_data_array(data_array, attributes):
     """
     for name, data in attributes.items():
         if data.ndim > 1:
-            data_array['{}_count'.format(
-                name)] = data.shape[1] * np.ones(data.shape[0])
+            data_array[f"{name}_count"] = data.shape[1] * np.ones(data.shape[0])
         data_array[name] = data
     return data_array
 
@@ -223,17 +211,14 @@ def _assert_attributes_valid(attributes):
     """
     for data in attributes.values():
         if data.ndim not in [1, 2]:
-            raise ValueError('PLY attributes are limited to 1 or 2 dimensions')
+            raise ValueError("PLY attributes are limited to 1 or 2 dimensions")
         # Inelegant test for structured arrays, reference:
         # https://numpy.org/doc/stable/user/basics.rec.html
         if data.dtype.names is not None:
-            raise ValueError('PLY attributes must be of a single datatype')
+            raise ValueError("PLY attributes must be of a single datatype")
 
 
-def export_ply(mesh,
-               encoding='binary',
-               vertex_normal=None,
-               include_attributes=True):
+def export_ply(mesh, encoding="binary", vertex_normal=None, include_attributes=True):
     """
     Export a mesh in the PLY format.
 
@@ -251,117 +236,114 @@ def export_ply(mesh,
     """
     # evaluate input args
     # allow a shortcut for binary
-    if encoding == 'binary':
-        encoding = 'binary_little_endian'
-    elif encoding not in ['binary_little_endian', 'ascii']:
-        raise ValueError('encoding must be binary or ascii')
+    if encoding == "binary":
+        encoding = "binary_little_endian"
+    elif encoding not in ["binary_little_endian", "ascii"]:
+        raise ValueError("encoding must be binary or ascii")
     # if vertex normals aren't specifically asked for
     # only export them if they are stored in cache
     if vertex_normal is None:
-        vertex_normal = 'vertex_normals' in mesh._cache
+        vertex_normal = "vertex_normals" in mesh._cache
 
     # if we want to include mesh attributes in the export
     if include_attributes:
-        if hasattr(mesh, 'vertex_attributes'):
+        if hasattr(mesh, "vertex_attributes"):
             # make sure to export texture coordinates as well
             if hasattr(mesh, "visual") and hasattr(mesh.visual, "uv"):
                 mesh.vertex_attributes["s"] = mesh.visual.uv[:, 0]
                 mesh.vertex_attributes["t"] = mesh.visual.uv[:, 1]
             _assert_attributes_valid(mesh.vertex_attributes)
-        if hasattr(mesh, 'face_attributes'):
+        if hasattr(mesh, "face_attributes"):
             _assert_attributes_valid(mesh.face_attributes)
 
     # custom numpy dtypes for exporting
-    dtype_face = [('count', '<u1'),
-                  ('index', '<i4', (3))]
-    dtype_vertex = [('vertex', '<f4', (3))]
+    dtype_face = [("count", "<u1"), ("index", "<i4", (3))]
+    dtype_vertex = [("vertex", "<f4", (3))]
     # will be appended to main dtype if needed
-    dtype_vertex_normal = ('normals', '<f4', (3))
-    dtype_color = ('rgba', '<u1', (4))
+    dtype_vertex_normal = ("normals", "<f4", (3))
+    dtype_color = ("rgba", "<u1", (4))
 
     # get template strings in dict
-    templates = resources.get('templates/ply.json',
-                              decode_json=True)
+    templates = resources.get("templates/ply.json", decode_json=True)
     # start collecting elements into a string for the header
-    header = [templates['intro']]
+    header = [templates["intro"]]
 
     # check if scene has geometry
-    if hasattr(mesh, 'vertices'):
-        header.append(templates['vertex'])
+    if hasattr(mesh, "vertices"):
+        header.append(templates["vertex"])
 
         num_vertices = len(mesh.vertices)
         # if we're exporting vertex normals add them
         # to the header and dtype
         if vertex_normal:
-            header.append(templates['vertex_normal'])
+            header.append(templates["vertex_normal"])
             dtype_vertex.append(dtype_vertex_normal)
 
         # if mesh has a vertex color add it to the header
-        if mesh.visual.kind == 'vertex':
-            header.append(templates['color'])
+        if mesh.visual.kind == "vertex":
+            header.append(templates["color"])
             dtype_vertex.append(dtype_color)
 
-        if include_attributes and hasattr(mesh, 'vertex_attributes'):
+        if include_attributes and hasattr(mesh, "vertex_attributes"):
             _add_attributes_to_header(header, mesh.vertex_attributes)
             _add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
 
         # create and populate the custom dtype for vertices
-        vertex = np.zeros(num_vertices,
-                          dtype=dtype_vertex)
-        vertex['vertex'] = mesh.vertices
+        vertex = np.zeros(num_vertices, dtype=dtype_vertex)
+        vertex["vertex"] = mesh.vertices
         if vertex_normal:
-            vertex['normals'] = mesh.vertex_normals
-        if mesh.visual.kind == 'vertex' and len(mesh.visual.vertex_colors):
-            vertex['rgba'] = mesh.visual.vertex_colors
+            vertex["normals"] = mesh.vertex_normals
+        if mesh.visual.kind == "vertex" and len(mesh.visual.vertex_colors):
+            vertex["rgba"] = mesh.visual.vertex_colors
 
-        if include_attributes and hasattr(mesh, 'vertex_attributes'):
+        if include_attributes and hasattr(mesh, "vertex_attributes"):
             _add_attributes_to_data_array(vertex, mesh.vertex_attributes)
     else:
         num_vertices = 0
 
-    header_params = {'vertex_count': num_vertices,
-                     'encoding': encoding}
+    header_params = {"vertex_count": num_vertices, "encoding": encoding}
 
-    if hasattr(mesh, 'faces'):
-        header.append(templates['face'])
-        if mesh.visual.kind == 'face' and encoding != 'ascii':
-            header.append(templates['color'])
+    if hasattr(mesh, "faces"):
+        header.append(templates["face"])
+        if mesh.visual.kind == "face" and encoding != "ascii":
+            header.append(templates["color"])
             dtype_face.append(dtype_color)
 
-        if include_attributes and hasattr(mesh, 'face_attributes'):
+        if include_attributes and hasattr(mesh, "face_attributes"):
             _add_attributes_to_header(header, mesh.face_attributes)
             _add_attributes_to_dtype(dtype_face, mesh.face_attributes)
 
         # put mesh face data into custom dtype to export
         faces = np.zeros(len(mesh.faces), dtype=dtype_face)
-        faces['count'] = 3
-        faces['index'] = mesh.faces
-        if mesh.visual.kind == 'face' and encoding != 'ascii':
-            faces['rgba'] = mesh.visual.face_colors
-        header_params['face_count'] = len(mesh.faces)
+        faces["count"] = 3
+        faces["index"] = mesh.faces
+        if mesh.visual.kind == "face" and encoding != "ascii":
+            faces["rgba"] = mesh.visual.face_colors
+        header_params["face_count"] = len(mesh.faces)
 
-        if include_attributes and hasattr(mesh, 'face_attributes'):
+        if include_attributes and hasattr(mesh, "face_attributes"):
             _add_attributes_to_data_array(faces, mesh.face_attributes)
 
-    header.append(templates['outro'])
-    export = Template(''.join(header)).substitute(
-        header_params).encode('utf-8')
+    header.append(templates["outro"])
+    export = Template("".join(header)).substitute(header_params).encode("utf-8")
 
-    if encoding == 'binary_little_endian':
-        if hasattr(mesh, 'vertices'):
+    if encoding == "binary_little_endian":
+        if hasattr(mesh, "vertices"):
             export += vertex.tobytes()
-        if hasattr(mesh, 'faces'):
+        if hasattr(mesh, "faces"):
             export += faces.tobytes()
-    elif encoding == 'ascii':
+    elif encoding == "ascii":
         export_data = util.structured_array_to_string(
-            vertex, col_delim=' ', row_delim='\n')
-        if hasattr(mesh, 'faces'):
-            export_data += '\n'
+            vertex, col_delim=" ", row_delim="\n"
+        )
+        if hasattr(mesh, "faces"):
+            export_data += "\n"
             export_data += util.structured_array_to_string(
-                faces, col_delim=' ', row_delim='\n')
-        export += export_data.encode('utf-8')
+                faces, col_delim=" ", row_delim="\n"
+            )
+        export += export_data.encode("utf-8")
     else:
-        raise ValueError('encoding must be ascii or binary!')
+        raise ValueError("encoding must be ascii or binary!")
 
     return export
 
@@ -386,15 +368,15 @@ def _parse_header(file_obj):
       File name of TextureFile
     """
 
-    if 'ply' not in str(file_obj.readline()).lower():
-        raise ValueError('Not a ply file!')
+    if "ply" not in str(file_obj.readline()).lower():
+        raise ValueError("Not a ply file!")
 
     # collect the encoding: binary or ASCII
-    encoding = file_obj.readline().decode('utf-8').strip().lower()
-    is_ascii = 'ascii' in encoding
+    encoding = file_obj.readline().decode("utf-8").strip().lower()
+    is_ascii = "ascii" in encoding
 
     # big or little endian
-    endian = ['<', '>'][int('big' in encoding)]
+    endian = ["<", ">"][int("big" in encoding)]
     elements = collections.OrderedDict()
 
     # store file name of TextureFiles in the header
@@ -404,54 +386,47 @@ def _parse_header(file_obj):
         raw = file_obj.readline()
         if raw is None:
             raise ValueError("Header not terminated properly!")
-        raw = raw.decode('utf-8').strip()
+        raw = raw.decode("utf-8").strip()
         line = raw.split()
 
         # we're done
-        if 'end_header' in line:
+        if "end_header" in line:
             break
 
         # elements are groups of properties
-        if 'element' in line[0]:
+        if "element" in line[0]:
             # we got a new element so add it
             name, length = line[1:]
             elements[name] = {
-                'length': int(length),
-                'properties': collections.OrderedDict()}
+                "length": int(length),
+                "properties": collections.OrderedDict(),
+            }
         # a property is a member of an element
-        elif 'property' in line[0]:
+        elif "property" in line[0]:
             # is the property a simple single value, like:
             # `propert float x`
             if len(line) == 3:
                 dtype, field = line[1:]
-                elements[name]['properties'][
-                    str(field)] = endian + _dtypes[dtype]
+                elements[name]["properties"][str(field)] = endian + _dtypes[dtype]
             # is the property a painful list, like:
             # `property list uchar int vertex_indices`
-            elif 'list' in line[1]:
+            elif "list" in line[1]:
                 dtype_count, dtype, field = line[2:]
-                elements[name]['properties'][
-                    str(field)] = (
-                    endian +
-                    _dtypes[dtype_count] +
-                    ', ($LIST,)' +
-                    endian +
-                    _dtypes[dtype])
+                elements[name]["properties"][str(field)] = (
+                    endian + _dtypes[dtype_count] + ", ($LIST,)" + endian + _dtypes[dtype]
+                )
         # referenced as a file name
-        elif 'texturefile' in raw.lower():
+        elif "texturefile" in raw.lower():
             # textures come listed like:
             # `comment TextureFile fuze_uv.jpg`
-            index = raw.lower().index('texturefile') + 11
+            index = raw.lower().index("texturefile") + 11
             # use the value from raw to preserve whitespace
             image_name = raw[index:].strip()
 
     return elements, is_ascii, image_name
 
 
-def _elements_to_kwargs(elements,
-                        fix_texture,
-                        image,
-                        prefer_color=None):
+def _elements_to_kwargs(elements, fix_texture, image, prefer_color=None):
     """
     Given an elements data structure, extract the keyword
     arguments that a Trimesh object constructor will expect.
@@ -475,37 +450,35 @@ def _elements_to_kwargs(elements,
       Keyword arguments for Trimesh constructor
     """
     # store the raw ply structure as an internal key in metadata
-    kwargs = {'metadata': {'_ply_raw': elements}}
+    kwargs = {"metadata": {"_ply_raw": elements}}
 
-    if 'vertex' in elements and elements['vertex']['length']:
-        vertices = np.column_stack(
-            [elements['vertex']['data'][i]
-             for i in 'xyz'])
+    if "vertex" in elements and elements["vertex"]["length"]:
+        vertices = np.column_stack([elements["vertex"]["data"][i] for i in "xyz"])
         if not util.is_shape(vertices, (-1, 3)):
-            raise ValueError('Vertices were not (n,3)!')
+            raise ValueError("Vertices were not (n,3)!")
     else:
         # return empty geometry if there are no vertices
-        kwargs['geometry'] = {}
+        kwargs["geometry"] = {}
         return kwargs
-        
+
     try:
-        vertex_normals = np.column_stack([elements['vertex']['data'][j]
-                for j in ('nx', 'ny', 'nz')])
+        vertex_normals = np.column_stack(
+            [elements["vertex"]["data"][j] for j in ("nx", "ny", "nz")]
+        )
         if len(vertex_normals) == len(vertices):
-            kwargs['vertex_normals'] = vertex_normals
+            kwargs["vertex_normals"] = vertex_normals
     except BaseException:
         pass
-        
-    if 'face' in elements and elements['face']['length']:
-        face_data = elements['face']['data']
+
+    if "face" in elements and elements["face"]["length"]:
+        face_data = elements["face"]["data"]
     else:
         # some PLY files only include vertices
         face_data = None
         faces = None
 
     # what keys do in-the-wild exporters use for vertices
-    index_names = ['vertex_index',
-                   'vertex_indices']
+    index_names = ["vertex_index", "vertex_indices"]
     texcoord = None
 
     if util.is_shape(face_data, (-1, (3, 4))):
@@ -517,11 +490,11 @@ def _elements_to_kwargs(elements,
                 faces = face_data[i]
                 break
         # if faces have UV coordinates defined use them
-        if 'texcoord' in face_data:
-            texcoord = face_data['texcoord']
+        if "texcoord" in face_data:
+            texcoord = face_data["texcoord"]
 
     elif isinstance(face_data, np.ndarray):
-        face_blob = elements['face']['data']
+        face_blob = elements["face"]["data"]
         # some exporters set this name to 'vertex_index'
         # and some others use 'vertex_indices' but we really
         # don't care about the name unless there are multiple
@@ -534,10 +507,10 @@ def _elements_to_kwargs(elements,
                     name = i
                     break
         # get faces
-        faces = face_blob[name]['f1']
+        faces = face_blob[name]["f1"]
 
         try:
-            texcoord = face_blob['texcoord']['f1']
+            texcoord = face_blob["texcoord"]["f1"]
         except (ValueError, KeyError):
             # accessing numpy arrays with named fields
             # incorrectly is a ValueError
@@ -552,16 +525,15 @@ def _elements_to_kwargs(elements,
         if texcoord is None:
             # ply has no clear definition of how texture coordinates are stored,
             # unfortunately there are many common names that we need to try
-            texcoord_names = [('texture_u', 'texture_v'), ('u', 'v'), ('s', 't')]
+            texcoord_names = [("texture_u", "texture_v"), ("u", "v"), ("s", "t")]
             for names in texcoord_names:
                 # If texture coordinates are defined with vertices
                 try:
-                    t_u = elements['vertex']['data'][names[0]]
-                    t_v = elements['vertex']['data'][names[1]]
-                    texcoord = np.stack((
-                        t_u[faces.reshape(-1)],
-                        t_v[faces.reshape(-1)]), axis=-1).reshape(
-                            (faces.shape[0], -1))
+                    t_u = elements["vertex"]["data"][names[0]]
+                    t_v = elements["vertex"]["data"][names[1]]
+                    texcoord = np.stack(
+                        (t_u[faces.reshape(-1)], t_v[faces.reshape(-1)]), axis=-1
+                    ).reshape((faces.shape[0], -1))
                     # stop trying once succeeded
                     break
                 except (ValueError, KeyError):
@@ -573,10 +545,11 @@ def _elements_to_kwargs(elements,
         # PLY stores texture coordinates per-face which is
         # slightly annoying, as we have to then figure out
         # which vertices have the same position but different UV
-        if (texcoord is not None and
-            len(shape) == 2 and
-                texcoord.shape == (faces.shape[0], faces.shape[1] * 2)):
-
+        if (
+            texcoord is not None
+            and len(shape) == 2
+            and texcoord.shape == (faces.shape[0], faces.shape[1] * 2)
+        ):
             # vertices with the same position but different
             # UV coordinates can't be merged without it
             # looking like it went through a woodchipper
@@ -597,7 +570,8 @@ def _elements_to_kwargs(elements,
                 # to only merge vertices where the position
                 # AND uv coordinate are the same
                 faces, mask_v, mask_vt = unmerge_faces(
-                    faces, inverse.reshape(faces.shape))
+                    faces, inverse.reshape(faces.shape)
+                )
                 # apply the mask to get resulting vertices
                 vertices = vertices[mask_v]
                 # apply the mask to get UV coordinates
@@ -609,24 +583,24 @@ def _elements_to_kwargs(elements,
                 uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
 
             # create the visuals object for the texture
-            kwargs['visual'] = visual.texture.TextureVisuals(
-                uv=uv, image=image)
+            kwargs["visual"] = visual.texture.TextureVisuals(uv=uv, image=image)
         elif texcoord is not None:
             # create a texture with an empty material
             from ..visual.texture import TextureVisuals
+
             uv = np.zeros((len(vertices), 2))
             uv[faces.reshape(-1)] = texcoord.reshape((-1, 2))
-            kwargs['visual'] = TextureVisuals(uv=uv)
+            kwargs["visual"] = TextureVisuals(uv=uv)
         # faces were not none so assign them
-        kwargs['faces'] = faces
+        kwargs["faces"] = faces
     # kwargs for Trimesh or PointCloud
-    kwargs['vertices'] = vertices
+    kwargs["vertices"] = vertices
 
     # if both vertex and face color are defined pick the one
-    if 'face' in elements:
-        kwargs['face_colors'] = _element_colors(elements['face'])
-    if 'vertex' in elements:
-        kwargs['vertex_colors'] = _element_colors(elements['vertex'])
+    if "face" in elements:
+        kwargs["face_colors"] = _element_colors(elements["face"])
+    if "vertex" in elements:
+        kwargs["vertex_colors"] = _element_colors(elements["vertex"])
 
     return kwargs
 
@@ -648,9 +622,8 @@ def _element_colors(element):
     signal : float
       Estimate of range
     """
-    keys = ['red', 'green', 'blue', 'alpha']
-    candidate_colors = [element['data'][i]
-                        for i in keys if i in element['properties']]
+    keys = ["red", "green", "blue", "alpha"]
+    candidate_colors = [element["data"][i] for i in keys if i in element["properties"]]
     if len(candidate_colors) >= 3:
         return np.column_stack(candidate_colors)
     return None
@@ -674,8 +647,8 @@ def _load_element_different(properties, data):
         start = 0
         for name, dt in properties.items():
             length = 1
-            if '$LIST' in dt:
-                dt = dt.split('($LIST,)')[-1]
+            if "$LIST" in dt:
+                dt = dt.split("($LIST,)")[-1]
                 # the first entry in a list-property is the number of elements
                 # in the list
                 length = int(row[start])
@@ -688,11 +661,15 @@ def _load_element_different(properties, data):
 
     # if the shape of any array is (n, 1) we want to
     # squeeze/concatenate it into (n,)
-    squeeze = {k: np.array(v, dtype='object')
-               for k, v in edata.items()}
+    squeeze = {k: np.array(v, dtype="object") for k, v in edata.items()}
     # squeeze and convert any clean 2D arrays
-    squeeze.update({k: v.squeeze().astype(edata[k][0].dtype)
-                    for k, v in squeeze.items() if len(v.shape) == 2})
+    squeeze.update(
+        {
+            k: v.squeeze().astype(edata[k][0].dtype)
+            for k, v in squeeze.items()
+            if len(v.shape) == 2
+        }
+    )
 
     return squeeze
 
@@ -722,18 +699,17 @@ def _load_element_single(properties, data):
         # of items we actually have exit the loop early
         if current >= len(first):
             break
-        if '$LIST' in dt:
-            dtype = dt.split('($LIST,)')[-1]
+        if "$LIST" in dt:
+            dtype = dt.split("($LIST,)")[-1]
             # the first entry in a list-property
             # is the number of elements in the list
 
             length = int(first[current])
-            columns[name] = data[
-                :, current + 1:current + 1 + length].astype(dtype)
+            columns[name] = data[:, current + 1 : current + 1 + length].astype(dtype)
             # offset by length of array plus one for each uint index
             current += length + 1
         else:
-            columns[name] = data[:, current:current + 1].astype(dt)
+            columns[name] = data[:, current : current + 1].astype(dt)
             current += 1
 
     return columns
@@ -754,21 +730,21 @@ def _ply_ascii(elements, file_obj):
     """
 
     # get the file contents as a string
-    text = str(file_obj.read().decode('utf-8'))
+    text = str(file_obj.read().decode("utf-8"))
     # split by newlines
     lines = str.splitlines(text)
     # get each line as an array split by whitespace
-    array = [np.fromstring(i, sep=' ') for i in lines]
+    array = [np.fromstring(i, sep=" ") for i in lines]
     # store the line position in the file
     row_pos = 0
 
     # loop through data we need
     for key, values in elements.items():
         # if the element is empty ignore it
-        if 'length' not in values or values['length'] == 0:
+        if "length" not in values or values["length"] == 0:
             continue
-        data = array[row_pos:row_pos + values['length']]
-        row_pos += values['length']
+        data = array[row_pos : row_pos + values["length"]]
+        row_pos += values["length"]
         # try stacking the data, which simplifies column-wise access. this is only
         # possible, if all rows have the same length.
         try:
@@ -778,22 +754,19 @@ def _ply_ascii(elements, file_obj):
             col_count_equal = False
 
         # number of list properties in this element
-        list_count = sum(
-            1 for dt in values['properties'].values() if '$LIST' in dt)
+        list_count = sum(1 for dt in values["properties"].values() if "$LIST" in dt)
         if col_count_equal and list_count <= 1:
             # all rows have the same length and we only have at most one list
             # property where all entries have the same length. this means we can
             # use the quick numpy-based loading.
-            element_data = _load_element_single(
-                values['properties'], data)
+            element_data = _load_element_single(values["properties"], data)
         else:
             # there are lists of differing lengths. we need to fall back to loading
             # the data by iterating all rows and checking for list-lengths. this is
             # slower than the variant above.
-            element_data = _load_element_different(
-                values['properties'], data)
+            element_data = _load_element_different(values["properties"], data)
 
-        elements[key]['data'] = element_data
+        elements[key]["data"] = element_data
 
 
 def _ply_binary(elements, file_obj):
@@ -822,15 +795,15 @@ def _ply_binary(elements, file_obj):
         p_current = file_obj.tell()
         elem_pop = []
         for element_key, element in elements.items():
-            props = element['properties']
-            prior_data = ''
+            props = element["properties"]
+            prior_data = ""
             for k, dtype in props.items():
                 prop_pop = []
-                if '$LIST' in dtype:
+                if "$LIST" in dtype:
                     # every list field has two data types:
                     # the list length (single value), and the list data (multiple)
                     # here we are only reading the single value for list length
-                    field_dtype = np.dtype(dtype.split(',')[0])
+                    field_dtype = np.dtype(dtype.split(",")[0])
                     if len(prior_data) == 0:
                         offset = 0
                     else:
@@ -842,8 +815,8 @@ def _ply_binary(elements, file_obj):
                         prop_pop.append(k)
                         break
                     size = np.frombuffer(blob, dtype=field_dtype)[0]
-                    props[k] = props[k].replace('$LIST', str(size))
-                prior_data += props[k] + ','
+                    props[k] = props[k].replace("$LIST", str(size))
+                prior_data += props[k] + ","
             if len(prop_pop) > 0:
                 # if a property was empty remove it
                 for pop in prop_pop:
@@ -854,9 +827,9 @@ def _ply_binary(elements, file_obj):
                     elem_pop.append(element_key)
                     continue
             # get the size of the items in bytes
-            itemsize = np.dtype(', '.join(props.values())).itemsize
+            itemsize = np.dtype(", ".join(props.values())).itemsize
             # offset the file based on read size
-            p_current += element['length'] * itemsize
+            p_current += element["length"] * itemsize
         # move the file back to where we found it
         file_obj.seek(p_start)
         # if there were elements without properties remove them
@@ -869,15 +842,14 @@ def _ply_binary(elements, file_obj):
         read the data and add it to a 'data' field in the element.
         """
         for key in elements.keys():
-            items = list(elements[key]['properties'].items())
+            items = list(elements[key]["properties"].items())
             dtype = np.dtype(items)
-            data = file_obj.read(elements[key]['length'] * dtype.itemsize)
+            data = file_obj.read(elements[key]["length"] * dtype.itemsize)
             try:
-                elements[key]['data'] = np.frombuffer(
-                    data, dtype=dtype)
+                elements[key]["data"] = np.frombuffer(data, dtype=dtype)
             except BaseException:
-                log.warning('PLY failed to populate: {}'.format(key))
-                elements[key]['data'] = None
+                log.warning(f"PLY failed to populate: {key}")
+                elements[key]["data"] = None
         return elements
 
     def _elements_size(elements):
@@ -887,8 +859,8 @@ def _ply_binary(elements, file_obj):
         """
         size = 0
         for element in elements.values():
-            dtype = np.dtype(','.join(element['properties'].values()))
-            size += element['length'] * dtype.itemsize
+            dtype = np.dtype(",".join(element["properties"].values()))
+            size += element["length"] * dtype.itemsize
         return size
 
     # some elements are passed where the list dimensions
@@ -905,7 +877,7 @@ def _ply_binary(elements, file_obj):
 
     # if the number of bytes is not the same the file is probably corrupt
     if size_file != size_elements:
-        raise ValueError('PLY is unexpected length!')
+        raise ValueError("PLY is unexpected length!")
 
     # with everything populated and a reasonable confidence the file
     # is intact, read the data fields described by the header
@@ -932,17 +904,21 @@ def export_draco(mesh, bits=28):
     data : str or bytes
       DRC file bytes
     """
-    with tempfile.NamedTemporaryFile(suffix='.ply') as temp_ply:
+    with tempfile.NamedTemporaryFile(suffix=".ply") as temp_ply:
         temp_ply.write(export_ply(mesh))
         temp_ply.flush()
-        with tempfile.NamedTemporaryFile(suffix='.drc') as encoded:
-            subprocess.check_output([draco_encoder,
-                                     '-qp',
-                                     str(int(bits)),
-                                     '-i',
-                                     temp_ply.name,
-                                     '-o',
-                                     encoded.name])
+        with tempfile.NamedTemporaryFile(suffix=".drc") as encoded:
+            subprocess.check_output(
+                [
+                    draco_encoder,
+                    "-qp",
+                    str(int(bits)),
+                    "-i",
+                    temp_ply.name,
+                    "-o",
+                    encoded.name,
+                ]
+            )
             encoded.seek(0)
             data = encoded.read()
     return data
@@ -963,24 +939,25 @@ def load_draco(file_obj, **kwargs):
       Keyword arguments to construct a Trimesh object
     """
 
-    with tempfile.NamedTemporaryFile(suffix='.drc') as temp_drc:
+    with tempfile.NamedTemporaryFile(suffix=".drc") as temp_drc:
         temp_drc.write(file_obj.read())
         temp_drc.flush()
 
-        with tempfile.NamedTemporaryFile(suffix='.ply') as temp_ply:
+        with tempfile.NamedTemporaryFile(suffix=".ply") as temp_ply:
             subprocess.check_output(
-                [draco_decoder, '-i', temp_drc.name, '-o', temp_ply.name])
+                [draco_decoder, "-i", temp_drc.name, "-o", temp_ply.name]
+            )
             temp_ply.seek(0)
             kwargs = load_ply(temp_ply)
     return kwargs
 
 
-_ply_loaders = {'ply': load_ply}
-_ply_exporters = {'ply': export_ply}
+_ply_loaders = {"ply": load_ply}
+_ply_exporters = {"ply": export_ply}
 
-draco_encoder = util.which('draco_encoder')
-draco_decoder = util.which('draco_decoder')
+draco_encoder = util.which("draco_encoder")
+draco_decoder = util.which("draco_decoder")
 if draco_decoder is not None:
-    _ply_loaders['drc'] = load_draco
+    _ply_loaders["drc"] = load_draco
 if draco_encoder is not None:
-    _ply_exporters['drc'] = export_draco
+    _ply_exporters["drc"] = export_draco

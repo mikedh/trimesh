@@ -8,7 +8,6 @@ Functions for grouping values and rows.
 import numpy as np
 
 from . import util
-
 from .constants import log, tol
 
 try:
@@ -17,15 +16,18 @@ except BaseException as E:
     # wrapping just ImportError fails in some cases
     # will raise the error when someone tries to use KDtree
     from . import exceptions
+
     cKDTree = exceptions.ExceptionWrapper(E)
 
 
-def merge_vertices(mesh,
-                   merge_tex=None,
-                   merge_norm=None,
-                   digits_vertex=None,
-                   digits_norm=None,
-                   digits_uv=None):
+def merge_vertices(
+    mesh,
+    merge_tex=None,
+    merge_norm=None,
+    digits_vertex=None,
+    digits_norm=None,
+    digits_uv=None,
+):
     """
     Removes duplicate vertices, grouped by position and
     optionally texture coordinate and normal.
@@ -60,12 +62,11 @@ def merge_vertices(mesh,
         digits_uv = 4
     if digits_vertex is None:
         # use tol.merge if digit precision not passed
-        digits_vertex = util.decimal_to_digits(
-            tol.merge)
+        digits_vertex = util.decimal_to_digits(tol.merge)
 
     # if we have a ton of unreferenced vertices it will
     # make the unique_rows call super slow so cull first
-    if hasattr(mesh, 'faces') and len(mesh.faces) > 0:
+    if hasattr(mesh, "faces") and len(mesh.faces) > 0:
         referenced = np.zeros(len(mesh.vertices), dtype=bool)
         referenced[mesh.faces] = True
     else:
@@ -73,23 +74,25 @@ def merge_vertices(mesh,
         referenced = np.ones(len(mesh.vertices), dtype=bool)
 
     # collect vertex attributes into sequence we can stack
-    stacked = [mesh.vertices * (10 ** digits_vertex)]
+    stacked = [mesh.vertices * (10**digits_vertex)]
 
     # UV texture visuals require us to update the
     # vertices and normals differently
-    if (not merge_tex and
-        mesh.visual.defined and
-        mesh.visual.kind == 'texture' and
-        mesh.visual.uv is not None and
-            len(mesh.visual.uv) == len(mesh.vertices)):
+    if (
+        not merge_tex
+        and mesh.visual.defined
+        and mesh.visual.kind == "texture"
+        and mesh.visual.uv is not None
+        and len(mesh.visual.uv) == len(mesh.vertices)
+    ):
         # get an array with vertices and UV coordinates
         # converted to integers at requested precision
-        stacked.append(mesh.visual.uv * (10 ** digits_uv))
+        stacked.append(mesh.visual.uv * (10**digits_uv))
 
     # check to see if we have vertex normals
-    normals = mesh._cache['vertex_normals']
+    normals = mesh._cache["vertex_normals"]
     if not merge_norm and np.shape(normals) == mesh.vertices.shape:
-        stacked.append(normals * (10 ** digits_norm))
+        stacked.append(normals * (10**digits_norm))
 
     # stack collected vertex properties and round to integer
     stacked = np.column_stack(stacked).round().astype(np.int64)
@@ -134,7 +137,7 @@ def group(values, min_len=0, max_len=np.inf):
     values = original[order]
 
     # find the indexes which are duplicates
-    if values.dtype.kind == 'f':
+    if values.dtype.kind == "f":
         # for floats in a sorted array, neighbors are not duplicates
         # if the difference between them is greater than approximate zero
         nondupe = np.greater(np.abs(np.diff(values)), tol.zero)
@@ -146,11 +149,10 @@ def group(values, min_len=0, max_len=np.inf):
 
     dupe_idx = np.append(0, np.nonzero(nondupe)[0] + 1)
     dupe_len = np.diff(np.concatenate((dupe_idx, [len(values)])))
-    dupe_ok = np.logical_and(np.greater_equal(dupe_len, min_len),
-                             np.less_equal(dupe_len, max_len))
-    groups = [order[i:(i + j)]
-              for i, j in zip(dupe_idx[dupe_ok],
-                              dupe_len[dupe_ok])]
+    dupe_ok = np.logical_and(
+        np.greater_equal(dupe_len, min_len), np.less_equal(dupe_len, max_len)
+    )
+    groups = [order[i : (i + j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
     return groups
 
 
@@ -191,16 +193,14 @@ def hashable_rows(data, digits=None):
         # can we pack the whole row into a single 64 bit integer
         precision = int(np.floor(64 / as_int.shape[1]))
         # if the max value is less than precision we can do this
-        if np.abs(as_int).max() < 2**(precision - 1):
+        if np.abs(as_int).max() < 2 ** (precision - 1):
             # the resulting package
             hashable = np.zeros(len(as_int), dtype=np.int64)
             # loop through each column and bitwise xor to combine
             # make sure as_int is int64 otherwise bit offset won't work
             for offset, column in enumerate(as_int.astype(np.int64).T):
                 # will modify hashable in place
-                np.bitwise_xor(hashable,
-                               column << (offset * precision),
-                               out=hashable)
+                np.bitwise_xor(hashable, column << (offset * precision), out=hashable)
             return hashable
 
     # reshape array into magical data type that is weird but hashable
@@ -233,9 +233,9 @@ def float_to_int(data, digits=None, dtype=np.int32):
 
     # if data is already an integer or boolean we're done
     # if the data is empty we are also done
-    if data.dtype.kind in 'ib' or data.size == 0:
+    if data.dtype.kind in "ib" or data.size == 0:
         return data.astype(dtype)
-    elif data.dtype.kind != 'f':
+    elif data.dtype.kind != "f":
         data = data.astype(np.float64)
 
     # populate digits from kwargs
@@ -244,8 +244,8 @@ def float_to_int(data, digits=None, dtype=np.int32):
     elif isinstance(digits, float) or isinstance(digits, np.float64):
         digits = util.decimal_to_digits(digits)
     elif not (isinstance(digits, int) or isinstance(digits, np.integer)):
-        log.warning('Digits were passed as %s!', digits.__class__.__name__)
-        raise ValueError('Digits must be None, int, or float!')
+        log.warning("Digits were passed as %s!", digits.__class__.__name__)
+        raise ValueError("Digits must be None, int, or float!")
 
     # data is float so convert to large integers
     data_max = np.abs(data).max() * 10**digits
@@ -254,7 +254,7 @@ def float_to_int(data, digits=None, dtype=np.int32):
     # multiply by requested power of ten
     # then subtract small epsilon to avoid "go either way" rounding
     # then do the rounding and convert to integer
-    as_int = np.round((data * 10 ** digits) - 1e-6).astype(dtype)
+    as_int = np.round((data * 10**digits) - 1e-6).astype(dtype)
 
     return as_int
 
@@ -279,8 +279,7 @@ def unique_ordered(data, return_index=False, return_inverse=False):
     # i.e. `data[index] == unique`
     # inverse is how to re-construct `data` from `unique`
     # i.e. `unique[inverse] == data`
-    unique, index, inverse = np.unique(
-        data, return_index=True, return_inverse=True)
+    unique, index, inverse = np.unique(data, return_index=True, return_inverse=True)
 
     # we want to maintain the original index order
     order = index.argsort()
@@ -302,10 +301,7 @@ def unique_ordered(data, return_index=False, return_inverse=False):
     return result
 
 
-def unique_bincount(values,
-                    minlength=0,
-                    return_inverse=False,
-                    return_counts=False):
+def unique_bincount(values, minlength=0, return_inverse=False, return_counts=False):
     """
     For arrays of integers find unique values using bin counting.
     Roughly 10x faster for correct input than np.unique
@@ -334,19 +330,19 @@ def unique_bincount(values,
       Only returned if return_counts is True
     """
     values = np.asanyarray(values)
-    if len(values.shape) != 1 or values.dtype.kind != 'i':
-        raise ValueError('input must be 1D integers!')
+    if len(values.shape) != 1 or values.dtype.kind != "i":
+        raise ValueError("input must be 1D integers!")
 
     try:
         # count the number of occurrences of each value
         counts = np.bincount(values, minlength=minlength)
     except TypeError:
         # casting failed on 32 bit windows
-        log.warning('casting failed, falling back!')
+        log.warning("casting failed, falling back!")
         # fall back to numpy unique
-        return np.unique(values,
-                         return_inverse=return_inverse,
-                         return_counts=return_counts)
+        return np.unique(
+            values, return_inverse=return_inverse, return_counts=return_counts
+        )
 
     # which bins are occupied at all
     # counts are integers so this works
@@ -404,10 +400,7 @@ def merge_runs(data, digits=None):
     return data[mask]
 
 
-def unique_float(data,
-                 return_index=False,
-                 return_inverse=False,
-                 digits=None):
+def unique_float(data, return_index=False, return_inverse=False, digits=None):
     """
     Identical to the numpy.unique command, except evaluates floating point
     numbers, using a specified number of digits.
@@ -416,9 +409,7 @@ def unique_float(data,
     """
     data = np.asanyarray(data)
     as_int = float_to_int(data, digits)
-    _junk, unique, inverse = np.unique(as_int,
-                                       return_index=True,
-                                       return_inverse=True)
+    _junk, unique, inverse = np.unique(as_int, return_index=True, return_inverse=True)
 
     if (not return_index) and (not return_inverse):
         return data[unique]
@@ -460,8 +451,7 @@ def unique_rows(data, digits=None, keep_order=False):
     # garbage row-hash and only returning index and inverse
     if keep_order:
         # keeps order of original occurrence
-        return unique_ordered(
-            rows, return_index=True, return_inverse=True)[1:]
+        return unique_ordered(rows, return_index=True, return_inverse=True)[1:]
     # returns values sorted by row-hash but since our row-hash
     # were pretty much garbage the sort order isn't meaningful
     return np.unique(rows, return_index=True, return_inverse=True)[1:]
@@ -557,7 +547,7 @@ def group_rows(data, require_count=None, digits=None):
         The loop and appends make this rather slow on
         large arrays but it works on irregular groups.
         """
-        observed = dict()
+        observed = {}
         hashable = hashable_rows(data, digits=digits)
         for index, key in enumerate(hashable):
             key_string = key.tobytes()
@@ -584,10 +574,10 @@ def group_rows(data, require_count=None, digits=None):
         # if you wanted to use this one function to deal with non- regular groups
         # you could use: np.array_split(dupe_idx)
         # this is roughly 3x slower than using the group_dict method above.
-        start_ok = np.diff(
-            np.concatenate((dupe_idx, [len(hashable)]))) == require_count
-        groups = np.tile(dupe_idx[start_ok].reshape((-1, 1)),
-                         require_count) + np.arange(require_count)
+        start_ok = np.diff(np.concatenate((dupe_idx, [len(hashable)]))) == require_count
+        groups = np.tile(dupe_idx[start_ok].reshape((-1, 1)), require_count) + np.arange(
+            require_count
+        )
         groups_idx = order[groups]
         if require_count == 1:
             return groups_idx.reshape(-1)
@@ -621,16 +611,14 @@ def boolean_rows(a, b, operation=np.intersect1d):
     a = np.asanyarray(a, dtype=np.int64)
     b = np.asanyarray(b, dtype=np.int64)
 
-    av = a.view([('', a.dtype)] * a.shape[1]).ravel()
-    bv = b.view([('', b.dtype)] * b.shape[1]).ravel()
+    av = a.view([("", a.dtype)] * a.shape[1]).ravel()
+    bv = b.view([("", b.dtype)] * b.shape[1]).ravel()
     shared = operation(av, bv).view(a.dtype).reshape(-1, a.shape[1])
 
     return shared
 
 
-def group_vectors(vectors,
-                  angle=1e-4,
-                  include_negative=False):
+def group_vectors(vectors, angle=1e-4, include_negative=False):
     """
     Group vectors based on an angle tolerance, with the option to
     include negative vectors.
@@ -685,11 +673,9 @@ def group_distance(values, distance):
         Indexes of points that make up a group
 
     """
-    values = np.asanyarray(values,
-                           dtype=np.float64)
+    values = np.asanyarray(values, dtype=np.float64)
 
-    consumed = np.zeros(len(values),
-                        dtype=bool)
+    consumed = np.zeros(len(values), dtype=bool)
     tree = cKDTree(values)
 
     # (n, d) set of values that are unique
@@ -700,8 +686,7 @@ def group_distance(values, distance):
     for index, value in enumerate(values):
         if consumed[index]:
             continue
-        group = np.array(tree.query_ball_point(value, distance),
-                         dtype=np.int64)
+        group = np.array(tree.query_ball_point(value, distance), dtype=np.int64)
         consumed[group] = True
         unique.append(np.median(values[group], axis=0))
         groups.append(group)
@@ -726,22 +711,18 @@ def clusters(points, radius):
 
     """
     from . import graph
+
     tree = cKDTree(points)
 
     # some versions return pairs as a set of tuples
-    pairs = tree.query_pairs(r=radius, output_type='ndarray')
+    pairs = tree.query_pairs(r=radius, output_type="ndarray")
     # group connected components
     groups = graph.connected_components(pairs)
 
     return groups
 
 
-def blocks(data,
-           min_len=2,
-           max_len=np.inf,
-           wrap=False,
-           digits=None,
-           only_nonzero=False):
+def blocks(data, min_len=2, max_len=np.inf, wrap=False, digits=None, only_nonzero=False):
     """
     Find the indices in an array of contiguous blocks
     of equal values.
@@ -770,7 +751,7 @@ def blocks(data,
 
     # keep an integer range around so we can slice
     arange = np.arange(len(data))
-    arange.flags['WRITEABLE'] = False
+    arange.flags["WRITEABLE"] = False
 
     nonzero = arange[1:][data[1:] != data[:-1]]
     infl = np.zeros(len(nonzero) + 2, dtype=int)
@@ -781,18 +762,15 @@ def blocks(data,
     infl_len = infl[1:] - infl[:-1]
 
     # check the length of each group
-    infl_ok = np.logical_and(infl_len >= min_len,
-                             infl_len <= max_len)
+    infl_ok = np.logical_and(infl_len >= min_len, infl_len <= max_len)
 
     if only_nonzero:
         # check to make sure the values of each contiguous block
         # are True by checking the first value of each block
-        infl_ok = np.logical_and(
-            infl_ok, data[infl[:-1]])
+        infl_ok = np.logical_and(infl_ok, data[infl[:-1]])
 
     # inflate start/end indexes into full ranges of values
-    blocks = [arange[infl[i]:infl[i + 1]]
-              for i, ok in enumerate(infl_ok) if ok]
+    blocks = [arange[infl[i] : infl[i + 1]] for i, ok in enumerate(infl_ok) if ok]
 
     if wrap:
         # wrap only matters if first and last points are the same
@@ -824,8 +802,9 @@ def blocks(data,
             if combined < min_len or combined > max_len:
                 return blocks
             # new block combines both ends
-            new_block = np.append(np.arange(infl[-2], infl[-1]),
-                                  np.arange(infl[0], infl[1]))
+            new_block = np.append(
+                np.arange(infl[-2], infl[-1]), np.arange(infl[0], infl[1])
+            )
             # we are in a first OR last situation now
             if first:
                 # first was already in a block so replace it with combined
@@ -864,7 +843,7 @@ def group_min(groups, data):
     groups = groups[order]  # this is only needed if groups is unsorted
     data = data[order]
     # construct an index which marks borders between groups
-    index = np.empty(len(groups), 'bool')
+    index = np.empty(len(groups), "bool")
     index[0] = True
     index[1:] = groups[1:] != groups[:-1]
     return data[index]

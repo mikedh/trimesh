@@ -4,14 +4,14 @@ repair.py
 
 Try to fix problems with closed regions.
 """
-from . import segments
-from .. import util
-
 import numpy as np
 from scipy.spatial import cKDTree
 
+from .. import util
+from . import segments
 
-def fill_gaps(path, distance=.025):
+
+def fill_gaps(path, distance=0.025):
     """
     For 3D line segments defined by two points, turn
     them in to an origin defined as the closest point along
@@ -34,9 +34,7 @@ def fill_gaps(path, distance=.025):
     """
 
     # find any vertex without degree 2 (connected to two things)
-    broken = np.array([
-        k for k, d in dict(path.vertex_graph.degree()).items()
-        if d != 2])
+    broken = np.array([k for k, d in dict(path.vertex_graph.degree()).items() if d != 2])
 
     # if all vertices have correct connectivity, exit
     if len(broken) == 0:
@@ -44,7 +42,7 @@ def fill_gaps(path, distance=.025):
 
     # first find broken vertices with distance
     tree = cKDTree(path.vertices[broken])
-    pairs = tree.query_pairs(r=distance, output_type='ndarray')
+    pairs = tree.query_pairs(r=distance, output_type="ndarray")
 
     connect_seg = []
     if len(pairs) > 0:
@@ -62,8 +60,11 @@ def fill_gaps(path, distance=.025):
     broken_set = set(broken)
     # query end points set vs path.dangling to avoid having
     # to compute every single path and discrete curve
-    dangle = [i for i, e in enumerate(path.entities) if
-              len(broken_set.intersection(e.end_points)) > 0]
+    dangle = [
+        i
+        for i, e in enumerate(path.entities)
+        if len(broken_set.intersection(e.end_points)) > 0
+    ]
 
     segs = []
     # mask for which entities to keep
@@ -73,7 +74,7 @@ def fill_gaps(path, distance=.025):
 
     for entity_index in dangle:
         # only consider line entities
-        if path.entities[entity_index].__class__.__name__ != 'Line':
+        if path.entities[entity_index].__class__.__name__ != "Line":
             continue
 
         if line_class is None:
@@ -89,8 +90,7 @@ def fill_gaps(path, distance=.025):
         keep[entity_index] = False
 
     # combine segments with connection segments
-    all_segs = util.vstack_empty((util.vstack_empty(segs),
-                                  connect_seg))
+    all_segs = util.vstack_empty((util.vstack_empty(segs), connect_seg))
 
     # go home early
     if len(all_segs) == 0:
@@ -103,10 +103,8 @@ def fill_gaps(path, distance=.025):
 
     # add line segments in as line entities
     entities = []
-    for i in range(len((final_seg))):
-        entities.append(
-            line_class(
-                points=np.arange(2) + (i * 2) + len(path.vertices)))
+    for i in range(len(final_seg)):
+        entities.append(line_class(points=np.arange(2) + (i * 2) + len(path.vertices)))
 
     # replace entities with new entities
     path.entities = np.append(path.entities[keep], entities)

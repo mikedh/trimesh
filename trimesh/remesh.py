@@ -6,19 +6,14 @@ Deal with re- triangulation of existing meshes.
 """
 import numpy as np
 
-from . import util
-from . import grouping
-from . import graph
-
-from .geometry import faces_to_edges
+from . import graph, grouping, util
 from .constants import tol
+from .geometry import faces_to_edges
 
 
-def subdivide(vertices,
-              faces,
-              face_index=None,
-              vertex_attributes=None,
-              return_index=False):
+def subdivide(
+    vertices, faces, face_index=None, vertex_attributes=None, return_index=False
+):
     """
     Subdivide a mesh into smaller triangles.
 
@@ -67,18 +62,22 @@ def subdivide(vertices,
     mid_idx = inverse.reshape((-1, 3)) + len(vertices)
 
     # the new faces_subset with correct winding
-    f = np.column_stack([faces_subset[:, 0],
-                         mid_idx[:, 0],
-                         mid_idx[:, 2],
-                         mid_idx[:, 0],
-                         faces_subset[:, 1],
-                         mid_idx[:, 1],
-                         mid_idx[:, 2],
-                         mid_idx[:, 1],
-                         faces_subset[:, 2],
-                         mid_idx[:, 0],
-                         mid_idx[:, 1],
-                         mid_idx[:, 2]]).reshape((-1, 3))
+    f = np.column_stack(
+        [
+            faces_subset[:, 0],
+            mid_idx[:, 0],
+            mid_idx[:, 2],
+            mid_idx[:, 0],
+            faces_subset[:, 1],
+            mid_idx[:, 1],
+            mid_idx[:, 2],
+            mid_idx[:, 1],
+            faces_subset[:, 2],
+            mid_idx[:, 0],
+            mid_idx[:, 1],
+            mid_idx[:, 2],
+        ]
+    ).reshape((-1, 3))
 
     # add the 3 new faces_subset per old face all on the end
     # by putting all the new faces after all the old faces
@@ -91,14 +90,11 @@ def subdivide(vertices,
         new_attributes = {}
         for key, values in vertex_attributes.items():
             attr_tris = values[faces_subset]
-            attr_mid = np.vstack([
-                attr_tris[:, g, :].mean(axis=1)
-                for g in [[0, 1],
-                          [1, 2],
-                          [2, 0]]])
+            attr_mid = np.vstack(
+                [attr_tris[:, g, :].mean(axis=1) for g in [[0, 1], [1, 2], [2, 0]]]
+            )
             attr_mid = attr_mid[unique]
-            new_attributes[key] = np.vstack((
-                values, attr_mid))
+            new_attributes[key] = np.vstack((values, attr_mid))
         return new_vertices, new_faces, new_attributes
 
     if return_index:
@@ -108,21 +104,16 @@ def subdivide(vertices,
         # but we've removed all the faces in face_mask
         start = len(faces) - len(nonzero)
         # indexes are just offset from start
-        stack = np.arange(
-            start, start + len(f) * 4).reshape((-1, 4))
+        stack = np.arange(start, start + len(f) * 4).reshape((-1, 4))
         # reformat into a slightly silly dict for some reason
-        index_dict = {k: v for k, v in zip(nonzero, stack)}
+        index_dict = dict(zip(nonzero, stack))
 
         return new_vertices, new_faces, index_dict
 
     return new_vertices, new_faces
 
 
-def subdivide_to_size(vertices,
-                      faces,
-                      max_edge,
-                      max_iter=10,
-                      return_index=False):
+def subdivide_to_size(vertices, faces, max_edge, max_iter=10, return_index=False):
     """
     Subdivide a mesh until every edge is shorter than a
     specified length.
@@ -158,10 +149,8 @@ def subdivide_to_size(vertices,
     done_idx = []
 
     # copy inputs and make sure dtype is correct
-    current_faces = np.array(
-        faces, dtype=np.int64, copy=True)
-    current_vertices = np.array(
-        vertices, dtype=np.float64, copy=True)
+    current_faces = np.array(faces, dtype=np.int64, copy=True)
+    current_vertices = np.array(vertices, dtype=np.float64, copy=True)
 
     # store a map to the original face index
     current_index = np.arange(len(faces))
@@ -169,9 +158,9 @@ def subdivide_to_size(vertices,
     # loop through iteration cap
     for i in range(max_iter + 1):
         # compute the length of every triangle edge
-        edge_length = (np.diff(
-            current_vertices[current_faces[:, [0, 1, 2, 0]], :3],
-            axis=1) ** 2).sum(axis=2) ** 0.5
+        edge_length = (
+            np.diff(current_vertices[current_faces[:, [0, 1, 2, 0]], :3], axis=1) ** 2
+        ).sum(axis=2) ** 0.5
         # check edge length against maximum
         too_long = (edge_length > max_edge).any(axis=1)
         # faces that are OK
@@ -180,8 +169,8 @@ def subdivide_to_size(vertices,
         # clean up the faces a little bit so we don't
         # store a ton of unused vertices
         unique, inverse = grouping.unique_bincount(
-            current_faces[face_ok].flatten(),
-            return_inverse=True)
+            current_faces[face_ok].flatten(), return_inverse=True
+        )
 
         # store vertices and faces meeting criteria
         done_vert.append(current_vertices[unique])
@@ -189,8 +178,7 @@ def subdivide_to_size(vertices,
 
         if return_index:
             done_idx.append(current_index[face_ok])
-            current_index = np.tile(current_index[too_long],
-                                    (4, 1)).T.ravel()
+            current_index = np.tile(current_index[too_long], (4, 1)).T.ravel()
 
         # met our goals so exit
         if not too_long.any():
@@ -198,16 +186,15 @@ def subdivide_to_size(vertices,
 
         # check max_iter before subdividing again
         if i >= max_iter:
-            raise ValueError('max_iter exceeded!')
+            raise ValueError("max_iter exceeded!")
 
         # run subdivision again
-        (current_vertices,
-         current_faces) = subdivide(current_vertices,
-                                    current_faces[too_long])
+        (current_vertices, current_faces) = subdivide(
+            current_vertices, current_faces[too_long]
+        )
 
     # stack sequence into nice (n, 3) arrays
-    final_vertices, final_faces = util.append_faces(
-        done_vert, done_face)
+    final_vertices, final_faces = util.append_faces(done_vert, done_face)
 
     if return_index:
         final_index = np.concatenate(done_idx)
@@ -217,9 +204,7 @@ def subdivide_to_size(vertices,
     return final_vertices, final_faces
 
 
-def subdivide_loop(vertices,
-                   faces,
-                   iterations=None):
+def subdivide_loop(vertices, faces, iterations=None):
     """
     Subdivide a mesh by dividing each triangle into four triangles
     and approximating their smoothed surface (loop subdivision).
@@ -277,18 +262,13 @@ def subdivide_loop(vertices,
 
     def _subdivide(vertices, faces):
         # find the unique edges of our faces
-        edges, edges_face = faces_to_edges(
-            faces, return_index=True)
+        edges, edges_face = faces_to_edges(faces, return_index=True)
         edges.sort(axis=1)
         unique, inverse = grouping.unique_rows(edges)
 
         # set interior edges if there are two edges and boundary if there is
         # one.
-        edge_inter = np.sort(
-            grouping.group_rows(
-                edges,
-                require_count=2),
-            axis=1)
+        edge_inter = np.sort(grouping.group_rows(edges, require_count=2), axis=1)
         edge_bound = grouping.group_rows(edges, require_count=1)
         # make sure that one edge is shared by only one or two faces.
         if not len(edge_inter) * 2 + len(edge_bound) == len(edges):
@@ -296,11 +276,10 @@ def subdivide_loop(vertices,
             # edges shared by 2 faces are "connected"
             # so this connected components operation is
             # essentially identical to `face_adjacency`
-            faces_group = graph.connected_components(
-                edges_face[edge_inter])
+            faces_group = graph.connected_components(edges_face[edge_inter])
 
             if len(faces_group) == 1:
-                raise ValueError('Some edges are shared by more than 2 faces')
+                raise ValueError("Some edges are shared by more than 2 faces")
 
             # collect a subdivided copy of each body
             seq_verts = []
@@ -315,12 +294,13 @@ def subdivide_loop(vertices,
                 # want to pass forward the referenced vertices
                 # for this particular group of connected faces
                 unique, inverse = grouping.unique_bincount(
-                    faces[f].reshape(-1), return_inverse=True)
+                    faces[f].reshape(-1), return_inverse=True
+                )
 
                 # subdivide this subset of faces
                 cur_verts, cur_faces = _subdivide(
-                    vertices=vertices[unique],
-                    faces=inverse.reshape((-1, 3)))
+                    vertices=vertices[unique], faces=inverse.reshape((-1, 3))
+                )
 
                 # increment the face references to match
                 # the vertices when we stack them later
@@ -363,13 +343,10 @@ def subdivide_loop(vertices,
 
         # simplified from:
         # # 3 / 8 * (e_v0 + e_v1) + 1 / 8 * (e_v2 + e_v3)
-        odd[edge_inter_mask] = 0.375 * e_v0 + \
-            0.375 * e_v1 + e_v2 / 8.0 + e_v3 / 8.0
+        odd[edge_inter_mask] = 0.375 * e_v0 + 0.375 * e_v1 + e_v2 / 8.0 + e_v3 / 8.0
 
         # find vertex neighbors of each vertex
-        neighbors = graph.neighbors(
-            edges=edges[unique],
-            max_index=len(vertices))
+        neighbors = graph.neighbors(edges=edges[unique], max_index=len(vertices))
         # convert list type of array into a fixed-shaped numpy array (set -1 to
         # empties)
         neighbors = np.array(list(zip_longest(*neighbors, fillvalue=-1))).T
@@ -385,9 +362,11 @@ def subdivide_loop(vertices,
 
         # beta = 1 / k * (5 / 8 - (3 / 8 + 1 / 4 * np.cos(2 * np.pi / k)) ** 2)
         # simplified with sympy.parse_expr('...').simplify()
-        beta = (40.0 - (2.0 * np.cos(2 * np.pi / k) + 3)**2) / (64 * k)
-        even = beta[:, None] * vertices_[neighbors].sum(1) \
+        beta = (40.0 - (2.0 * np.cos(2 * np.pi / k) + 3) ** 2) / (64 * k)
+        even = (
+            beta[:, None] * vertices_[neighbors].sum(1)
             + (1 - k[:, None] * beta[:, None]) * vertices
+        )
 
         # calculate even vertices for the boundary case
         if edge_bound_mask.any():
@@ -399,24 +378,29 @@ def subdivide_loop(vertices,
             boundary_neighbors = neighbors[vrt_bound_mask]
             boundary_neighbors[~vrt_bound_mask[neighbors[vrt_bound_mask]]] = -1
 
-            even[vrt_bound_mask] = (vertices_[boundary_neighbors].sum(axis=1) / 8.0 +
-                                    (3.0 / 4.0) * vertices[vrt_bound_mask])
+            even[vrt_bound_mask] = (
+                vertices_[boundary_neighbors].sum(axis=1) / 8.0
+                + (3.0 / 4.0) * vertices[vrt_bound_mask]
+            )
 
         # the new faces with odd vertices
         odd_idx = inverse.reshape((-1, 3)) + len(vertices)
-        new_faces = np.column_stack([
-            faces[:, 0],
-            odd_idx[:, 0],
-            odd_idx[:, 2],
-            odd_idx[:, 0],
-            faces[:, 1],
-            odd_idx[:, 1],
-            odd_idx[:, 2],
-            odd_idx[:, 1],
-            faces[:, 2],
-            odd_idx[:, 0],
-            odd_idx[:, 1],
-            odd_idx[:, 2]]).reshape((-1, 3))
+        new_faces = np.column_stack(
+            [
+                faces[:, 0],
+                odd_idx[:, 0],
+                odd_idx[:, 2],
+                odd_idx[:, 0],
+                faces[:, 1],
+                odd_idx[:, 1],
+                odd_idx[:, 2],
+                odd_idx[:, 1],
+                faces[:, 2],
+                odd_idx[:, 0],
+                odd_idx[:, 1],
+                odd_idx[:, 2],
+            ]
+        ).reshape((-1, 3))
 
         # stack the new even vertices and odd vertices
         new_vertices = np.vstack((even, odd))

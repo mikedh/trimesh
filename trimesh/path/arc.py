@@ -1,16 +1,43 @@
+from dataclasses import dataclass
+
 import numpy as np
 
 from .. import util
-
 from ..constants import log
-from ..constants import tol_path as tol
 from ..constants import res_path as res
+from ..constants import tol_path as tol
+from ..typed import ArrayLike, NDArray, Optional, float64
 
 # floating point zero
 _TOL_ZERO = 1e-12
 
 
-def arc_center(points, return_normal=True, return_angle=True):
+@dataclass
+class ArcInfo:
+    # What is the radius of the circular arc?
+    radius: float
+
+    # what is the center of the circular arc
+    # it is either 2D or 3D depending on input.
+    center: NDArray[float64]
+
+    # what is the 3D normal vector of the plane the arc lies on
+    normal: Optional[NDArray[float64]] = None
+
+    # what is the starting and ending angle of the arc.
+    angles: Optional[NDArray[float64]] = None
+
+    # what is the angular span of this circular arc.
+    span: Optional[float] = None
+
+    def __getitem__(self, item):
+        # add for backwards compatibility
+        return getattr(self, item)
+
+
+def arc_center(
+    points: ArrayLike, return_normal: bool = True, return_angle: bool = True
+) -> ArcInfo:
     """
     Given three points on a 2D or 3D arc find the center,
     radius, normal, and angular span.
@@ -26,20 +53,15 @@ def arc_center(points, return_normal=True, return_angle=True):
 
     Returns
     ---------
-    result : dict
-      Contains arc center and other keys:
-       'center' : (d,) float, cartesian center of the arc
-       'radius' : float, radius of the arc
-       'normal' : (3,) float, the plane normal.
-       'angles' : (2,) float, angle of start and end in radians
-       'span'   : float, angle swept by the arc in radians
+    info
+      Arc center, radius, and other information.
     """
     points = np.asanyarray(points, dtype=np.float64)
 
     # get the non-unit vectors of the three points
     vectors = points[[2, 0, 1]] - points[[1, 2, 0]]
     # we need both the squared row sum and the non-squared
-    abc2 = np.dot(vectors ** 2, [1] * points.shape[1])
+    abc2 = np.dot(vectors**2, [1] * points.shape[1])
     # same as np.linalg.norm(vectors, axis=1)
     abc = np.sqrt(abc2)
 
@@ -53,37 +75,32 @@ def arc_center(points, return_normal=True, return_angle=True):
     # check the denominator for the radius calculation
     denom = half * np.prod(half - edges)
     if denom < tol.merge:
-        raise ValueError('arc is colinear!')
+        raise ValueError("arc is colinear!")
     # find the radius and scale back after the operation
     radius = scale * ((np.prod(edges) / 4.0) / np.sqrt(denom))
 
     # use a barycentric approach to get the center
-    ba2 = (abc2[[1, 2, 0, 0, 2, 1, 0, 1, 2]] *
-           [1, 1, -1, 1, 1, -1, 1, 1, -1]).reshape(
-               (3, 3)).sum(axis=1) * abc2
+    ba2 = (abc2[[1, 2, 0, 0, 2, 1, 0, 1, 2]] * [1, 1, -1, 1, 1, -1, 1, 1, -1]).reshape(
+        (3, 3)
+    ).sum(axis=1) * abc2
     center = points.T.dot(ba2) / ba2.sum()
 
     if tol.strict:
         # all points should be at the calculated radius from center
-        assert util.allclose(
-            np.linalg.norm(points - center, axis=1),
-            radius)
+        assert util.allclose(np.linalg.norm(points - center, axis=1), radius)
 
     # start with initial results
-    result = {'center': center,
-              'radius': radius}
-
+    result = {"center": center, "radius": radius}
     if return_normal:
         if points.shape == (3, 2):
             # for 2D arcs still use the cross product so that
             # the sign of the normal vector is consistent
-            result['normal'] = util.unitize(
-                np.cross(np.append(-vectors[1], 0),
-                         np.append(vectors[2], 0)))
+            result["normal"] = util.unitize(
+                np.cross(np.append(-vectors[1], 0), np.append(vectors[2], 0))
+            )
         else:
             # otherwise just take the cross product
-            result['normal'] = util.unitize(
-                np.cross(-vectors[1], vectors[2]))
+            result["normal"] = util.unitize(np.cross(-vectors[1], vectors[2]))
 
     if return_angle:
         # vectors from points on arc to center point
@@ -105,16 +122,14 @@ def arc_center(points, return_normal=True, return_angle=True):
         angles = np.arctan2(*vector[:, :2].T[::-1]) + np.pi * 2
         angles_sorted = np.sort(angles[[0, 2]])
         reverse = angles_sorted[0] < angles[1] < angles_sorted[1]
-        angles_sorted = angles_sorted[::(1 - int(not reverse) * 2)]
-        result['angles'] = angles_sorted
-        result['span'] = angle
+        angles_sorted = angles_sorted[:: (1 - int(not reverse) * 2)]
+        result["angles"] = angles_sorted
+        result["span"] = angle
 
-    return result
+    return ArcInfo(**result)
 
 
-def discretize_arc(points,
-                   close=False,
-                   scale=1.0):
+def discretize_arc(points, close=False, scale=1.0):
     """
     Returns a version of a three point arc consisting of
     line segments.
@@ -147,10 +162,12 @@ def discretize_arc(points,
             return points[:, :2]
         return points
 
-    center, R, N, angle = (center_info['center'],
-                           center_info['radius'],
-                           center_info['normal'],
-                           center_info['span'])
+    center, R, N, angle = (
+        center_info.center,
+        center_info.radius,
+        center_info.normal,
+        center_info.span,
+    )
 
     # if requested, close arc into a circle
     if close:
@@ -158,7 +175,7 @@ def discretize_arc(points,
 
     # the number of facets, based on the angle criteria
     count_a = angle / res.seg_angle
-    count_l = ((R * angle)) / (res.seg_frac * scale)
+    count_l = (R * angle) / (res.seg_frac * scale)
 
     # figure out the number of line segments
     count = np.max([count_a, count_l])
@@ -182,11 +199,11 @@ def discretize_arc(points,
         arc_ok = (arc_dist < tol.merge).all()
         if not arc_ok:
             log.warning(
-                'failed to discretize arc (endpoint_distance=%s R=%s)',
-                str(arc_dist), R)
-            log.warning('Failed arc points: %s', str(points))
-            raise ValueError('Arc endpoints diverging!')
-    discrete = discrete[:, :(3 - is_2D)]
+                "failed to discretize arc (endpoint_distance=%s R=%s)", str(arc_dist), R
+            )
+            log.warning("Failed arc points: %s", str(points))
+            raise ValueError("Arc endpoints diverging!")
+    discrete = discrete[:, : (3 - is_2D)]
 
     return discrete
 
@@ -217,24 +234,19 @@ def to_threepoint(center, radius, angles=None):
     # force angles to float64
     angles = np.asanyarray(angles, dtype=np.float64)
     if angles.shape != (2,):
-        raise ValueError('angles must be (2,)!')
+        raise ValueError("angles must be (2,)!")
     # provide the wrap around
     if angles[1] < angles[0]:
         angles[1] += np.pi * 2
 
     center = np.asanyarray(center, dtype=np.float64)
     if center.shape != (2,):
-        raise ValueError('only valid on 2D arcs!')
+        raise ValueError("only valid on 2D arcs!")
 
     # turn the angles of [start, end]
     # into [start, middle, end]
-    angles = np.array([angles[0],
-                       angles.mean(),
-                       angles[1]],
-                      dtype=np.float64)
+    angles = np.array([angles[0], angles.mean(), angles[1]], dtype=np.float64)
     # turn angles into (3, 2) points
-    three = (np.column_stack(
-        (np.cos(angles),
-         np.sin(angles))) * radius) + center
+    three = (np.column_stack((np.cos(angles), np.sin(angles))) * radius) + center
 
     return three

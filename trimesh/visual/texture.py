@@ -2,22 +2,14 @@ import copy
 
 import numpy as np
 
-from .base import Visuals
+from .. import caching, grouping, util
 from . import color
-
-from .. import util
-from .. import caching
-from .. import grouping
-
-from .material import SimpleMaterial, PBRMaterial, empty_material  # NOQA
+from .base import Visuals
+from .material import PBRMaterial, SimpleMaterial, empty_material  # NOQA
 
 
 class TextureVisuals(Visuals):
-    def __init__(self,
-                 uv=None,
-                 material=None,
-                 image=None,
-                 face_materials=None):
+    def __init__(self, uv=None, material=None, image=None, face_materials=None):
         """
         Store a single material and per-vertex UV coordinates
         for a mesh.
@@ -72,7 +64,7 @@ class TextureVisuals(Visuals):
         kind : str
           What type of visuals are defined
         """
-        return 'texture'
+        return "texture"
 
     @property
     def defined(self):
@@ -108,7 +100,7 @@ class TextureVisuals(Visuals):
         uv : (n, 2) float or None
           Pixel position per-vertex.
         """
-        return self.vertex_attributes.get('uv', None)
+        return self.vertex_attributes.get("uv", None)
 
     @uv.setter
     def uv(self, values):
@@ -121,10 +113,9 @@ class TextureVisuals(Visuals):
           Pixel locations on a texture per- vertex
         """
         if values is None:
-            self.vertex_attributes.pop('uv')
+            self.vertex_attributes.pop("uv")
         else:
-            self.vertex_attributes['uv'] = np.asanyarray(
-                values, dtype=np.float64)
+            self.vertex_attributes["uv"] = np.asanyarray(values, dtype=np.float64)
 
     def copy(self, uv=None):
         """
@@ -142,7 +133,8 @@ class TextureVisuals(Visuals):
         copied = TextureVisuals(
             uv=uv,
             material=self.material.copy(),
-            face_materials=copy.copy(self.face_materials))
+            face_materials=copy.copy(self.face_materials),
+        )
 
         return copied
 
@@ -192,7 +184,7 @@ class TextureVisuals(Visuals):
                 updates[key] = value[mask]
             except BaseException:
                 # usual reason is an incorrect size or index
-                util.log.warning('failed to update visual: `{}`'.format(key))
+                util.log.warning(f"failed to update visual: `{key}`")
         # clear all values from the vertex attributes
         self.vertex_attributes.clear()
         # apply the updated values
@@ -220,6 +212,7 @@ class TextureVisuals(Visuals):
           Concatenated visual objects
         """
         from .objects import concatenate
+
         return concatenate(self, others)
 
 
@@ -255,7 +248,7 @@ def unmerge_faces(faces, *args, **kwargs):
     """
     # unfortunately Python2 doesn't let us put named kwargs
     # after an `*args` sequence so we have to do this ugly get
-    maintain_faces = kwargs.get('maintain_faces', False)
+    maintain_faces = kwargs.get("maintain_faces", False)
 
     # don't alter faces
     if maintain_faces:

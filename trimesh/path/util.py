@@ -1,4 +1,5 @@
 import numpy as np
+
 from ..util import is_ccw  # NOQA
 
 
@@ -21,9 +22,9 @@ def concatenate(paths):
         return paths[0].copy()
 
     # upgrade to 3D if we have mixed 2D and 3D paths
-    dimensions = set(i.vertices.shape[1] for i in paths)
+    dimensions = {i.vertices.shape[1] for i in paths}
     if len(dimensions) > 1:
-        paths = [i.to_3D() if hasattr(i, 'to_3D') else i for i in paths]
+        paths = [i.to_3D() if hasattr(i, "to_3D") else i for i in paths]
 
     # length of vertex arrays
     vert_len = np.array([len(i.vertices) for i in paths])
@@ -50,7 +51,7 @@ def concatenate(paths):
             entities.append(copied)
     # generate the single new concatenated path
     # use input types so we don't have circular imports
-    concat = type(path)(metadata=metadata,
-                        entities=entities,
-                        vertices=np.vstack(vertices))
+    concat = type(path)(
+        metadata=metadata, entities=entities, vertices=np.vstack(vertices)
+    )
     return concat

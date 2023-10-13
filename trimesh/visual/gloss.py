@@ -11,12 +11,13 @@ except BaseException as E:
 
 
 def specular_to_pbr(
-        specularFactor=None,
-        glossinessFactor=None,
-        specularGlossinessTexture=None,
-        diffuseTexture=None,
-        diffuseFactor=None,
-        **kwargs):
+    specularFactor=None,
+    glossinessFactor=None,
+    specularGlossinessTexture=None,
+    diffuseTexture=None,
+    diffuseFactor=None,
+    **kwargs,
+):
     """
     Convert the KHR_materials_pbrSpecularGlossiness to a
     metallicRoughness visual.
@@ -27,8 +28,9 @@ def specular_to_pbr(
         Specular color values. Ignored if specularGlossinessTexture
         is present and defaults to [1.0, 1.0, 1.0].
     glossinessFactor : float
-        glossiness factor in range [0, 1], Ignored if
-        specularGlossinessTexture is present and defaults to 1.0.
+        glossiness factor in range [0, 1], scaled
+        specularGlossinessTexture if present.
+        Defaults to 1.0.
     specularGlossinessTexture : PIL.Image
         Texture with 4 color channels. With [0,1,2] representing
         specular RGB and 3 glossiness.
@@ -36,7 +38,7 @@ def specular_to_pbr(
         Texture with 4 color channels. With [0,1,2] representing diffuse
         RGB and 3 opacity.
     diffuseFactor: float
-        Diffuse RGBA color. Ignored if diffuseTexture is present
+        Diffuse RGBA color. scales diffuseTexture if present.
         Defaults to [1.0, 1.0, 1.0, 1.0].
 
     Returns
@@ -51,12 +53,12 @@ def specular_to_pbr(
     # https://github.com/KhronosGroup/glTF/blob/89427b26fcac884385a2e6d5803d917ab5d1b04f/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows-bjs/js/babylon.pbrUtilities.js#L33-L64
 
     if isinstance(Image, ExceptionWrapper):
-        log.debug('unable to convert specular-glossy material without pillow!')
+        log.debug("unable to convert specular-glossy material without pillow!")
         result = {}
         if isinstance(diffuseTexture, dict):
-            result['baseColorTexture'] = diffuseTexture
+            result["baseColorTexture"] = diffuseTexture
         if diffuseFactor is not None:
-            result['baseColorFactor'] = diffuseFactor
+            result["baseColorFactor"] = diffuseFactor
         return result
 
     dielectric_specular = np.array([0.04, 0.04, 0.04], dtype=np.float32)
@@ -72,8 +74,11 @@ def specular_to_pbr(
             specular = specular[..., None]
 
         a = dielectric_specular[0]
-        b = diffuse * one_minus_specular_strength / \
-            (1.0 - dielectric_specular[0]) + specular - 2.0 * dielectric_specular[0]
+        b = (
+            diffuse * one_minus_specular_strength / (1.0 - dielectric_specular[0])
+            + specular
+            - 2.0 * dielectric_specular[0]
+        )
         c = dielectric_specular[0] - specular
         D = b * b - 4.0 * a * c
         D = np.clip(D, epsilon, None)
@@ -83,14 +88,14 @@ def specular_to_pbr(
         return metallic
 
     def get_perceived_brightness(rgb):
-        return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+        return np.sqrt(np.dot(rgb[..., :3] ** 2, [0.299, 0.587, 0.114]))
 
-    def toPIL(img):
+    def toPIL(img, mode=None):
         if isinstance(img, Image):
             return img
         if img.dtype == np.float32 or img.dtype == np.float64:
             img = (np.clip(img, 0.0, 1.0) * 255.0).astype(np.uint8)
-        return fromarray(img)
+        return fromarray(img, mode=mode)
 
     def get_float(val):
         if isinstance(val, float):
@@ -100,12 +105,23 @@ def specular_to_pbr(
         return val.tolist()
 
     def get_diffuse(diffuseFactor, diffuseTexture):
-        diffuseFactor = diffuseFactor if diffuseFactor is not None else [
-            1.0, 1.0, 1.0, 1.0]
+        diffuseFactor = (
+            diffuseFactor if diffuseFactor is not None else [1.0, 1.0, 1.0, 1.0]
+        )
         diffuseFactor = np.array(diffuseFactor, dtype=np.float32)
 
         if diffuseTexture is not None:
+            if diffuseTexture.mode == "BGR":
+                diffuseTexture = diffuseTexture.convert("RGB")
+            elif diffuseTexture.mode == "BGRA":
+                diffuseTexture = diffuseTexture.convert("RGBA")
+
             diffuse = np.array(diffuseTexture) / 255.0
+            # diffuseFactor must be applied to linear scaled colors .
+            # Sometimes, diffuse texture is only 2 channels, how do we know
+            # if they are encoded sRGB or linear?
+            diffuse = convert_texture_srgb2lin(diffuse)
+
             if len(diffuse.shape) == 2:
                 diffuse = diffuse[..., None]
             if diffuse.shape[-1] == 1:
@@ -113,25 +129,31 @@ def specular_to_pbr(
             elif diffuse.shape[-1] == 2:
                 alpha = diffuse[..., 1:2]
                 diffuse = diffuse[..., :1] * diffuseFactor
-                diffuse[..., -1:] *= alpha
+                if diffuseFactor.shape[-1] == 3:
+                    # this should actually not happen, but it seems like many materials are not complying with the spec
+                    diffuse = np.concatenate([diffuse, alpha], axis=-1)
+                else:
+                    diffuse[..., -1:] *= alpha
             elif diffuse.shape[-1] == diffuseFactor.shape[-1]:
                 diffuse = diffuse * diffuseFactor
             elif diffuse.shape[-1] == 3 and diffuseFactor.shape[-1] == 4:
-                diffuse = np.concatenate([diffuse, np.ones_like(
-                    diffuse[..., :1])], axis=-1) * diffuseFactor
+                diffuse = (
+                    np.concatenate([diffuse, np.ones_like(diffuse[..., :1])], axis=-1)
+                    * diffuseFactor
+                )
             else:
                 log.warning(
-                    '`diffuseFactor` and `diffuseTexture` have incompatible shapes: ' +
-                    '{0} and {1}'.format(diffuseFactor.shape, diffuse.shape))
+                    "`diffuseFactor` and `diffuseTexture` have incompatible shapes: "
+                    + f"{diffuseFactor.shape} and {diffuse.shape}"
+                )
         else:
             diffuse = diffuseFactor if diffuseFactor is not None else [1, 1, 1, 1]
             diffuse = np.array(diffuse, dtype=np.float32)
         return diffuse
 
     def get_specular_glossiness(
-            specularFactor,
-            glossinessFactor,
-            specularGlossinessTexture):
+        specularFactor, glossinessFactor, specularGlossinessTexture
+    ):
         if specularFactor is None:
             specularFactor = [1.0, 1.0, 1.0]
         specularFactor = np.array(specularFactor, dtype=np.float32)
@@ -145,14 +167,22 @@ def specular_to_pbr(
         # be multiplied with the provided factors
 
         if specularGlossinessTexture is not None:
-            specularGlossinessTexture = np.array(specularGlossinessTexture)
+            if specularGlossinessTexture.mode == "BGR":
+                specularGlossinessTexture = specularGlossinessTexture.convert("RGB")
+            elif specularGlossinessTexture.mode == "BGRA":
+                specularGlossinessTexture = specularGlossinessTexture.convert("RGBA")
+
+            specularGlossinessTexture = np.array(specularGlossinessTexture) / 255.0
             specularTexture, glossinessTexture = None, None
 
-            if (len(specularGlossinessTexture.shape) == 2 or
-                    specularGlossinessTexture.shape[-1]) == 1:
+            if (
+                len(specularGlossinessTexture.shape) == 2
+                or specularGlossinessTexture.shape[-1]
+            ) == 1:
                 # use the one channel as a multiplier for specular and glossiness
                 specularTexture = glossinessTexture = specularGlossinessTexture.reshape(
-                    (-1, -1, 1))
+                    (-1, -1, 1)
+                )
             elif specularGlossinessTexture.shape[-1] == 3:
                 # all channels are specular, glossiness is only a factor
                 specularTexture = specularGlossinessTexture[..., :3]
@@ -166,16 +196,15 @@ def specular_to_pbr(
                 glossinessTexture = specularGlossinessTexture[..., 3:]
 
             if specularTexture is not None:
-                # convert into [0,1] range. Does this require conversion of sRGB values?
-                specular = specularTexture / 255.0
-                specular = specular * specularFactor
+                # specular texture channels are sRGB
+                specularTexture = convert_texture_srgb2lin(specularTexture)
+                specular = specularTexture * specularFactor
             else:
                 specular = specularFactor
 
             if glossinessTexture is not None:
-                # convert into [0,1] range. Does this require conversion of sRGB values?
-                glossiness = glossinessTexture / 255.0
-                glossiness = glossiness * glossinessFactor
+                # glossiness texture channel is linear
+                glossiness = glossinessTexture * glossinessFactor
             else:
                 glossiness = glossinessFactor
 
@@ -191,33 +220,94 @@ def specular_to_pbr(
 
     if diffuseTexture is not None and specularGlossinessTexture is not None:
         # reshape to the size of the largest texture
-        max_shape = [max(diffuseTexture.size[i],
-                         specularGlossinessTexture.size[i]) for i in range(2)]
-        if (diffuseTexture.size[0] != max_shape[0] or
-                diffuseTexture.size[1] != max_shape[1]):
+        max_shape = [
+            max(diffuseTexture.size[i], specularGlossinessTexture.size[i])
+            for i in range(2)
+        ]
+        if (
+            diffuseTexture.size[0] != max_shape[0]
+            or diffuseTexture.size[1] != max_shape[1]
+        ):
             diffuseTexture = diffuseTexture.resize(max_shape)
-        if (specularGlossinessTexture.size[0] != max_shape[0] or
-                specularGlossinessTexture.size[1] != max_shape[1]):
+        if (
+            specularGlossinessTexture.size[0] != max_shape[0]
+            or specularGlossinessTexture.size[1] != max_shape[1]
+        ):
             specularGlossinessTexture = specularGlossinessTexture.resize(max_shape)
+
+    def srgb2lin(s):
+        """
+        Converts sRGB color values to linear color values.
+        See: https://entropymine.com/imageworsener/srgbformula/
+        """
+
+        mask = s <= 0.0404482362771082
+        lin = np.empty_like(s)
+        lin[mask] = s[mask] / 12.92
+        lin[~mask] = np.power(((s[~mask] + 0.055) / 1.055), 2.4)
+        return lin
+
+    def convert_texture_srgb2lin(texture):
+        """
+        Wrapper for srgb2lin that converts color values from sRGB to linear.
+        If texture has 2 or 4 channels, the last channel (alpha) is left unchanged.
+        """
+        result = texture.copy()
+        color_channels = result.shape[-1]
+        # only scale the color channels, not the alpha channel
+        if color_channels == 4 or color_channels == 2:
+            color_channels -= 1
+        result[..., :color_channels] = srgb2lin(result[..., :color_channels])
+        return result
+
+    def lin2srgb(lin):
+        """
+        Converts linear color values to sRGB color values.
+        See: https://entropymine.com/imageworsener/srgbformula/
+        """
+        s = np.empty_like(lin)
+        mask = lin > 0.00313066844250063
+        s[mask] = 1.055 * np.power(lin[mask], (1.0 / 2.4)) - 0.055
+        s[~mask] = 12.92 * lin[~mask]
+        return s
+
+    def convert_texture_lin2srgb(texture):
+        """
+        Wrapper for lin2srgb that converts color values from linear to sRGB.
+        If texture has 2 or 4 channels, the last channel (alpha) is left unchanged.
+        """
+
+        result = texture.copy()
+        color_channels = result.shape[-1]
+        # only scale the color channels, not the alpha channel
+        if color_channels == 4 or color_channels == 2:
+            color_channels -= 1
+        result[..., :color_channels] = lin2srgb(result[..., :color_channels])
+        return result
 
     diffuse = get_diffuse(diffuseFactor, diffuseTexture)
     specular, glossiness, one_minus_specular_strength = get_specular_glossiness(
-        specularFactor, glossinessFactor, specularGlossinessTexture)
+        specularFactor, glossinessFactor, specularGlossinessTexture
+    )
 
     metallic = solve_metallic(
         get_perceived_brightness(diffuse),
         get_perceived_brightness(specular),
-        one_minus_specular_strength)
+        one_minus_specular_strength,
+    )
     if not isinstance(metallic, np.ndarray):
         metallic = np.array(metallic, dtype=np.float32)
 
     diffuse_rgb = diffuse[..., :3]
     opacity = diffuse[..., -1] if diffuse.shape[-1] == 4 else None
-    base_color_from_diffuse = diffuse_rgb * (one_minus_specular_strength / (
-        1.0 - dielectric_specular[0]) / np.clip((1.0 - metallic), epsilon, None))
-    base_color_from_specular = (
-        specular - dielectric_specular *
-        (1.0 - metallic)) * (1.0 / np.clip(metallic, epsilon, None))
+    base_color_from_diffuse = diffuse_rgb * (
+        one_minus_specular_strength
+        / (1.0 - dielectric_specular[0])
+        / np.clip((1.0 - metallic), epsilon, None)
+    )
+    base_color_from_specular = (specular - dielectric_specular * (1.0 - metallic)) * (
+        1.0 / np.clip(metallic, epsilon, None)
+    )
     mm = metallic * metallic
     base_color = mm * base_color_from_specular + (1.0 - mm) * base_color_from_diffuse
     base_color = np.clip(base_color, 0.0, 1.0)
@@ -227,9 +317,13 @@ def specular_to_pbr(
 
     result = {}
     if len(base_color.shape) > 1:
-        result['baseColorTexture'] = toPIL(base_color)
+        # convert back to sRGB
+        result["baseColorTexture"] = toPIL(
+            convert_texture_lin2srgb(base_color),
+            mode=("RGB" if base_color.shape[-1] == 3 else "RGBA"),
+        )
     else:
-        result['baseColorFactor'] = base_color.tolist()
+        result["baseColorFactor"] = base_color.tolist()
 
     if len(metallic.shape) > 1 or len(glossiness.shape) > 1:
         if len(glossiness.shape) == 1:
@@ -237,10 +331,17 @@ def specular_to_pbr(
         if len(metallic.shape) == 1:
             metallic = np.tile(metallic, (glossiness.shape[0], glossiness.shape[1], 1))
 
-        result['metallicRoughnessTexture'] = toPIL(
-            np.concatenate([metallic, 1.0 - glossiness], axis=-1))
+        # we need to use RGB textures, because 2 channel textures can cause problems
+        result["metallicRoughnessTexture"] = toPIL(
+            np.concatenate(
+                [metallic, 1.0 - glossiness, np.zeros_like(metallic)], axis=-1
+            ),
+            mode="RGB",
+        )
+        result["metallicFactor"] = 1.0
+        result["roughnessFactor"] = 1.0
     else:
-        result['metallicFactor'] = get_float(metallic)
-        result['roughnessFactor'] = get_float(1.0 - glossiness)
+        result["metallicFactor"] = get_float(metallic)
+        result["roughnessFactor"] = get_float(1.0 - glossiness)
 
     return result

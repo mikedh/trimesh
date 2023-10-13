@@ -1,20 +1,15 @@
+import collections
 import io
-import sys
 import uuid
 import zipfile
 
-import collections
 import numpy as np
 
-from .. import util
-from .. import graph
-
+from .. import graph, util
 from ..constants import log
 
 
-def load_3MF(file_obj,
-             postprocess=True,
-             **kwargs):
+def load_3MF(file_obj, postprocess=True, **kwargs):
     """
     Load a 3MF formatted file into a Trimesh scene.
 
@@ -29,20 +24,18 @@ def load_3MF(file_obj,
       Constructor arguments for `trimesh.Scene`
     """
     # dict, {name in archive: BytesIo}
-    archive = util.decompress(file_obj, file_type='zip')
+    archive = util.decompress(file_obj, file_type="zip")
     # get model with case-insensitive keys
-    model = next(iter(v for k, v in archive.items()
-                      if '3d/3dmodel.model' in k.lower()))
+    model = next(iter(v for k, v in archive.items() if "3d/3dmodel.model" in k.lower()))
 
     # read root attributes only from XML first
-    event, root = next(etree.iterparse(
-        model, tag=('{*}model'), events=('start',)))
+    event, root = next(etree.iterparse(model, tag=("{*}model"), events=("start",)))
     # collect unit information from the tree
-    if 'unit' in root.attrib:
-        metadata = {'units': root.attrib['unit']}
+    if "unit" in root.attrib:
+        metadata = {"units": root.attrib["unit"]}
     else:
         # the default units, defined by the specification
-        metadata = {'units': 'millimeters'}
+        metadata = {"units": "millimeters"}
 
     # { mesh id : mesh name}
     id_name = {}
@@ -61,14 +54,14 @@ def load_3MF(file_obj,
     # iterate the XML object and build elements with an LXML iterator
     # loaded elements are cleared to avoid ballooning memory
     model.seek(0)
-    for _, obj in etree.iterparse(model, tag=('{*}object', '{*}build')):
+    for _, obj in etree.iterparse(model, tag=("{*}object", "{*}build")):
         # parse objects
-        if 'object' in obj.tag:
+        if "object" in obj.tag:
             # id is mandatory
-            index = obj.attrib['id']
+            index = obj.attrib["id"]
 
             # start with stored name
-            name = obj.attrib.get('name', str(index))
+            name = obj.attrib.get("name", str(index))
             # apparently some exporters name multiple meshes
             # the same thing so check to see if it's been used
             if name in consumed_names:
@@ -78,39 +71,43 @@ def load_3MF(file_obj,
             id_name[index] = name
 
             # if the object has actual geometry data parse here
-            for mesh in obj.iter('{*}mesh'):
-                vertices = mesh.find('{*}vertices')
-                v_seq[index] = np.array([[i.attrib['x'],
-                                          i.attrib['y'],
-                                          i.attrib['z']] for
-                                         i in vertices.iter('{*}vertex')],
-                                        dtype=np.float64)
+            for mesh in obj.iter("{*}mesh"):
+                vertices = mesh.find("{*}vertices")
+                v_seq[index] = np.array(
+                    [
+                        [i.attrib["x"], i.attrib["y"], i.attrib["z"]]
+                        for i in vertices.iter("{*}vertex")
+                    ],
+                    dtype=np.float64,
+                )
                 vertices.clear()
                 vertices.getparent().remove(vertices)
 
-                faces = mesh.find('{*}triangles')
-                f_seq[index] = np.array([[i.attrib['v1'],
-                                          i.attrib['v2'],
-                                          i.attrib['v3']] for
-                                         i in faces.iter('{*}triangle')],
-                                        dtype=np.int64)
+                faces = mesh.find("{*}triangles")
+                f_seq[index] = np.array(
+                    [
+                        [i.attrib["v1"], i.attrib["v2"], i.attrib["v3"]]
+                        for i in faces.iter("{*}triangle")
+                    ],
+                    dtype=np.int64,
+                )
                 faces.clear()
                 faces.getparent().remove(faces)
 
             # components are references to other geometries
-            for c in obj.iter('{*}component'):
-                mesh_index = c.attrib['objectid']
+            for c in obj.iter("{*}component"):
+                mesh_index = c.attrib["objectid"]
                 transform = _attrib_to_transform(c.attrib)
                 components[index].append((mesh_index, transform))
 
         # parse build
-        if 'build' in obj.tag:
+        if "build" in obj.tag:
             # scene graph information stored here, aka "build" the scene
-            for item in obj.iter('{*}item'):
+            for item in obj.iter("{*}item"):
                 # get a transform from the item's attributes
                 transform = _attrib_to_transform(item.attrib)
                 # the index of the geometry this item instantiates
-                build_items.append((item.attrib['objectid'], transform))
+                build_items.append((item.attrib["objectid"], transform))
 
         # free resources
         obj.clear()
@@ -122,9 +119,11 @@ def load_3MF(file_obj,
     meshes = {}
     for gid in v_seq.keys():
         name = id_name[gid]
-        meshes[name] = {'vertices': v_seq[gid],
-                        'faces': f_seq[gid],
-                        'metadata': metadata.copy()}
+        meshes[name] = {
+            "vertices": v_seq[gid],
+            "faces": f_seq[gid],
+            "metadata": metadata.copy(),
+        }
         meshes[name].update(kwargs)
 
     # turn the item / component representation into
@@ -133,7 +132,7 @@ def load_3MF(file_obj,
     # build items are the only things that exist according to 3MF
     # so we accomplish that by linking them to the base frame
     for gid, tf in build_items:
-        g.add_edge('world', gid, matrix=tf)
+        g.add_edge("world", gid, matrix=tf)
     # components are instances which need to be linked to base
     # frame by a build_item
     for start, group in components.items():
@@ -145,12 +144,9 @@ def load_3MF(file_obj,
     # a single unique node per instance
     graph_args = []
     parents = collections.defaultdict(set)
-    for path in graph.multigraph_paths(G=g,
-                                       source='world'):
+    for path in graph.multigraph_paths(G=g, source="world"):
         # collect all the transform on the path
-        transforms = graph.multigraph_collect(G=g,
-                                              traversal=path,
-                                              attrib='matrix')
+        transforms = graph.multigraph_collect(G=g, traversal=path, attrib="matrix")
         # combine them into a single transform
         if len(transforms) == 1:
             transform = transforms[0]
@@ -161,7 +157,7 @@ def load_3MF(file_obj,
         last = path[-1][0]
         # if someone included an undefined component, skip it
         if last not in id_name:
-            log.debug('id {} included but not defined!'.format(last))
+            log.debug(f"id {last} included but not defined!")
             continue
         # frame names unique
         name = id_name[last] + util.unique_id()
@@ -173,14 +169,18 @@ def load_3MF(file_obj,
             parent = path[-2][0]
             parents[parent].add(last)
 
-        graph_args.append({'frame_from': 'world',
-                           'frame_to': name,
-                           'matrix': transform,
-                           'geometry': geom})
+        graph_args.append(
+            {
+                "frame_from": "world",
+                "frame_to": name,
+                "matrix": transform,
+                "geometry": geom,
+            }
+        )
 
     # solidworks will export each body as its own mesh with the part
     # name as the parent so optionally rename and combine these bodies
-    if postprocess and all('body' in i.lower() for i in meshes.keys()):
+    if postprocess and all("body" in i.lower() for i in meshes.keys()):
         # don't rename by default
         rename = {k: k for k in meshes.keys()}
         for parent, mesh_name in parents.items():
@@ -189,29 +189,27 @@ def load_3MF(file_obj,
             if len(mesh_name) != 1:
                 continue
             # rename the part
-            rename[id_name[next(iter(mesh_name))]] = id_name[parent].split(
-                '(')[0]
+            rename[id_name[next(iter(mesh_name))]] = id_name[parent].split("(")[0]
 
         # apply the rename operation meshes
         meshes = {rename[k]: m for k, m in meshes.items()}
         # rename geometry references in the scene graph
         for arg in graph_args:
-            if 'geometry' in arg:
-                arg['geometry'] = rename[arg['geometry']]
+            if "geometry" in arg:
+                arg["geometry"] = rename[arg["geometry"]]
 
     # construct the kwargs to load the scene
-    kwargs = {'base_frame': 'world',
-              'graph': graph_args,
-              'geometry': meshes,
-              'metadata': metadata}
+    kwargs = {
+        "base_frame": "world",
+        "graph": graph_args,
+        "geometry": meshes,
+        "metadata": metadata,
+    }
 
     return kwargs
 
 
-def export_3MF(mesh,
-               batch_size=4096,
-               compression=zipfile.ZIP_DEFLATED,
-               compresslevel=5):
+def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compresslevel=5):
     """
     Converts a Trimesh object into a 3MF file.
 
@@ -232,11 +230,6 @@ def export_3MF(mesh,
       Represents geometry as a 3MF file.
     """
 
-    if sys.version_info < (3, 6):
-        # Python only added 'w' mode to `zipfile` in Python 3.6
-        # and it is not worth the effort to work around
-        raise NotImplementedError(
-            "3MF export requires Python >= 3.6")
     from ..scene.scene import Scene
 
     if not isinstance(mesh, Scene):
@@ -256,9 +249,7 @@ def export_3MF(mesh,
         "sc": "http://schemas.microsoft.com/3dmanufacturing/securecontent/2019/04",
     }
 
-    rels_nsmap = {
-        None: "http://schemas.openxmlformats.org/package/2006/relationships"
-    }
+    rels_nsmap = {None: "http://schemas.openxmlformats.org/package/2006/relationships"}
 
     # model ids
     models = []
@@ -272,15 +263,14 @@ def export_3MF(mesh,
     file_obj = io.BytesIO()
 
     # specify the parameters for the zip container
-    zip_kwargs = {'compression': compression}
+    zip_kwargs = {"compression": compression}
     # compresslevel was added in Python 3.7
-    if sys.version_info >= (3, 7):
-        zip_kwargs['compresslevel'] = compresslevel
+    zip_kwargs["compresslevel"] = compresslevel
 
-    with zipfile.ZipFile(file_obj, mode='w', **zip_kwargs) as z:
+    with zipfile.ZipFile(file_obj, mode="w", **zip_kwargs) as z:
         # 3dmodel.model
-        with z.open("3D/3dmodel.model", mode='w') as f, etree.xmlfile(
-                f, encoding="utf-8"
+        with z.open("3D/3dmodel.model", mode="w") as f, etree.xmlfile(
+            f, encoding="utf-8"
         ) as xf:
             xf.write_declaration()
 
@@ -295,20 +285,18 @@ def export_3MF(mesh,
                             "id": model_id(name),
                             "name": name,
                             "type": "model",
-                            "p:UUID": str(uuid.uuid4())
+                            "p:UUID": str(uuid.uuid4()),
                         }
                         with xf.element("object", **attribs):
                             with xf.element("mesh"):
                                 with xf.element("vertices"):
-                                    # vertex nodes are writed directly to the file
+                                    # vertex nodes are written directly to the file
                                     # so make sure lxml's buffer is flushed
                                     xf.flush()
-                                    for i in range(
-                                            0, len(m.vertices), batch_size):
-                                        batch = m.vertices[i: i + batch_size]
+                                    for i in range(0, len(m.vertices), batch_size):
+                                        batch = m.vertices[i : i + batch_size]
                                         fragment = (
-                                            '<vertex x="{}" y="{}" z="{}" />'
-                                            * len(batch)
+                                            '<vertex x="{}" y="{}" z="{}" />' * len(batch)
                                         )
                                         f.write(
                                             fragment.format(*batch.flatten()).encode(
@@ -317,9 +305,8 @@ def export_3MF(mesh,
                                         )
                                 with xf.element("triangles"):
                                     xf.flush()
-                                    for i in range(
-                                            0, len(m.faces), batch_size):
-                                        batch = m.faces[i: i + batch_size]
+                                    for i in range(0, len(m.faces), batch_size):
+                                        batch = m.faces[i : i + batch_size]
                                         fragment = (
                                             '<triangle v1="{}" v2="{}" v3="{}" />'
                                             * len(batch)
@@ -341,7 +328,7 @@ def export_3MF(mesh,
                             "id": model_id(node),
                             "name": node,
                             "type": "model",
-                            "p:UUID": str(uuid.uuid4())
+                            "p:UUID": str(uuid.uuid4()),
                         }
                         with xf.element("object", **attribs):
                             with xf.element("components"):
@@ -372,16 +359,16 @@ def export_3MF(mesh,
                         transform = " ".join(
                             str(i) for i in np.array(data["matrix"])[:3, :4].T.flatten()
                         )
-                        uuid_tag = "{{{}}}UUID".format(model_nsmap['p'])
+                        uuid_tag = "{{{}}}UUID".format(model_nsmap["p"])
                         xf.write(
                             etree.Element(
                                 "item",
                                 {
                                     "objectid": model_id(node),
                                     "transform": transform,
-                                    uuid_tag: str(uuid.uuid4())
+                                    uuid_tag: str(uuid.uuid4()),
                                 },
-                                nsmap=model_nsmap
+                                nsmap=model_nsmap,
                             )
                         )
 
@@ -406,9 +393,7 @@ def export_3MF(mesh,
         ) as xf:
             xf.write_declaration()
             # xml namespaces
-            nsmap = {
-                None: "http://schemas.openxmlformats.org/package/2006/content-types"
-            }
+            nsmap = {None: "http://schemas.openxmlformats.org/package/2006/content-types"}
 
             # stream elements
             types = [
@@ -424,11 +409,7 @@ def export_3MF(mesh,
             ]
             with xf.element("Types", nsmap=nsmap):
                 for ext, ctype in types:
-                    xf.write(
-                        etree.Element(
-                            "Default",
-                            Extension=ext,
-                            ContentType=ctype))
+                    xf.write(etree.Element("Default", Extension=ext, ContentType=ctype))
 
     return file_obj.getvalue()
 
@@ -447,29 +428,22 @@ def _attrib_to_transform(attrib):
     """
 
     transform = np.eye(4, dtype=np.float64)
-    if 'transform' in attrib:
+    if "transform" in attrib:
         # wangle their transform format
-        values = np.array(
-            attrib['transform'].split(),
-            dtype=np.float64).reshape((4, 3)).T
+        values = np.array(attrib["transform"].split(), dtype=np.float64).reshape((4, 3)).T
         transform[:3, :4] = values
     return transform
 
 
 # do import here to keep lxml a soft dependency
 try:
-    from lxml import etree
     import networkx as nx
-    _three_loaders = {'3mf': load_3MF}
-    if sys.version_info < (3, 6):
-        # Python only added 'w' mode to `zipfile` in Python 3.6
-        # and it is not worth the effort to work around
-        from ..exceptions import ExceptionWrapper
-        _3mf_exporters = {'3mf': ExceptionWrapper(
-            NotImplementedError("3MF export requires Python >= 3.6"))}
-    else:
-        _3mf_exporters = {'3mf': export_3MF}
+    from lxml import etree
+
+    _three_loaders = {"3mf": load_3MF}
+    _3mf_exporters = {"3mf": export_3MF}
 except BaseException as E:
     from ..exceptions import ExceptionWrapper
-    _three_loaders = {'3mf': ExceptionWrapper(E)}
-    _3mf_exporters = {'3mf': ExceptionWrapper(E)}
+
+    _three_loaders = {"3mf": ExceptionWrapper(E)}
+    _3mf_exporters = {"3mf": ExceptionWrapper(E)}

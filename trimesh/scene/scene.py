@@ -1,22 +1,13 @@
-import numpy as np
 import collections
 import uuid
 
-from . import cameras
-from . import lighting
+import numpy as np
 
-from .. import util
-from .. import units
-from .. import convex
-from .. import inertia
-from .. import caching
-from .. import grouping
-from .. import transformations
-
-from ..util import unique_name
+from .. import caching, convex, grouping, inertia, transformations, units, util
 from ..exchange import export
 from ..parent import Geometry3D
-
+from ..util import unique_name
+from . import cameras, lighting
 from .transforms import SceneGraph
 
 
@@ -28,14 +19,16 @@ class Scene(Geometry3D):
     moved by updating transform in the transform tree.
     """
 
-    def __init__(self,
-                 geometry=None,
-                 base_frame='world',
-                 metadata=None,
-                 graph=None,
-                 camera=None,
-                 lights=None,
-                 camera_transform=None):
+    def __init__(
+        self,
+        geometry=None,
+        base_frame="world",
+        metadata=None,
+        graph=None,
+        camera=None,
+        lights=None,
+        camera_transform=None,
+    ):
         """
         Create a new Scene object.
 
@@ -96,18 +89,18 @@ class Scene(Geometry3D):
         base = self.graph.base_frame
         for child in self.graph.transforms.children[base]:
             combined = np.dot(transform, self.graph[child][0])
-            self.graph.update(frame_from=base,
-                              frame_to=child,
-                              matrix=combined)
+            self.graph.update(frame_from=base, frame_to=child, matrix=combined)
         return self
 
-    def add_geometry(self,
-                     geometry,
-                     node_name=None,
-                     geom_name=None,
-                     parent_node_name=None,
-                     transform=None,
-                     metadata=None):
+    def add_geometry(
+        self,
+        geometry,
+        node_name=None,
+        geom_name=None,
+        parent_node_name=None,
+        transform=None,
+        metadata=None,
+    ):
         """
         Add a geometry to the scene.
 
@@ -142,19 +135,23 @@ class Scene(Geometry3D):
         # PointCloud objects will look like a sequence
         elif util.is_sequence(geometry):
             # if passed a sequence add all elements
-            return [self.add_geometry(
-                geometry=value,
-                node_name=node_name,
-                geom_name=geom_name,
-                parent_node_name=parent_node_name,
-                transform=transform,
-                metadata=metadata) for value in geometry]
+            return [
+                self.add_geometry(
+                    geometry=value,
+                    node_name=node_name,
+                    geom_name=geom_name,
+                    parent_node_name=parent_node_name,
+                    transform=transform,
+                    metadata=metadata,
+                )
+                for value in geometry
+            ]
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
-            return {k: self.add_geometry(
-                    geometry=v,
-                    geom_name=k,
-                    metadata=metadata) for k, v in geometry.items()}
+            return {
+                k: self.add_geometry(geometry=v, geom_name=k, metadata=metadata)
+                for k, v in geometry.items()
+            }
 
         elif isinstance(geometry, Scene):
             # concatenate current scene with passed scene
@@ -166,23 +163,22 @@ class Scene(Geometry3D):
             self.graph.transforms = concat.graph.transforms
             return
 
-        if not hasattr(geometry, 'vertices'):
-            util.log.debug('unknown type ({}) added to scene!'.format(
-                type(geometry).__name__))
+        if not hasattr(geometry, "vertices"):
+            util.log.debug(f"unknown type ({type(geometry).__name__}) added to scene!")
             return
 
         # get or create a name to reference the geometry by
         if geom_name is not None:
             # if name is passed use it
             name = geom_name
-        elif 'name' in geometry.metadata:
+        elif "name" in geometry.metadata:
             # if name is in metadata use it
-            name = geometry.metadata['name']
-        elif 'file_name' in geometry.metadata:
-            name = geometry.metadata['file_name']
+            name = geometry.metadata["name"]
+        elif "file_name" in geometry.metadata:
+            name = geometry.metadata["file_name"]
         else:
             # try to create a simple name
-            name = 'geometry_' + str(len(self.geometry))
+            name = "geometry_" + str(len(self.geometry))
 
         # if its already taken use our unique name logic
         name = unique_name(start=name, contains=self.geometry.keys())
@@ -203,12 +199,14 @@ class Scene(Geometry3D):
             # create an identity transform from parent_node
             transform = np.eye(4)
 
-        self.graph.update(frame_to=node_name,
-                          frame_from=parent_node_name,
-                          matrix=transform,
-                          geometry=name,
-                          geometry_flags={'visible': True},
-                          metadata=metadata)
+        self.graph.update(
+            frame_to=node_name,
+            frame_from=parent_node_name,
+            matrix=transform,
+            geometry=name,
+            geometry_flags={"visible": True},
+            metadata=metadata,
+        )
 
         return node_name
 
@@ -238,8 +236,9 @@ class Scene(Geometry3D):
         and set them to an empty `ColorVisuals`.
         """
         from ..visual.color import ColorVisuals
+
         for geometry in self.geometry.values():
-            if util.is_instance_named(geometry, 'Trimesh'):
+            if util.is_instance_named(geometry, "Trimesh"):
                 geometry.visual = ColorVisuals(mesh=geometry)
 
     def __hash__(self):
@@ -256,10 +255,8 @@ class Scene(Geometry3D):
         # start with the last modified time of the scene graph
         hashable = [hex(self.graph.transforms.__hash__())]
         # take the re-hex string of the hash
-        hashable.extend(hex(geometry[k].__hash__()) for k in
-                        geometry.keys())
-        return caching.hash_fast(
-            ''.join(hashable).encode('utf-8'))
+        hashable.extend(hex(geometry[k].__hash__()) for k in geometry.keys())
+        return caching.hash_fast("".join(hashable).encode("utf-8"))
 
     @property
     def is_empty(self):
@@ -288,8 +285,7 @@ class Scene(Geometry3D):
             return True
 
         try:
-            referenced = {self.graph[i][1]
-                          for i in self.graph.nodes_geometry}
+            referenced = {self.graph[i][1] for i in self.graph.nodes_geometry}
         except BaseException:
             # if connectivity to world frame is broken return false
             return False
@@ -314,14 +310,19 @@ class Scene(Geometry3D):
         # collect AABB for each geometry
         corners = {}
         # collect vertices for every mesh
-        vertices = {k: m.vertices for k, m in
-                    self.geometry.items()
-                    if hasattr(m, 'vertices') and
-                    len(m.vertices) > 0}
+        vertices = {
+            k: m.vertices
+            for k, m in self.geometry.items()
+            if hasattr(m, "vertices") and len(m.vertices) > 0
+        }
         # handle 2D geometries
         vertices.update(
-            {k: np.column_stack((v, np.zeros(len(v))))
-             for k, v in vertices.items() if v.shape[1] == 2})
+            {
+                k: np.column_stack((v, np.zeros(len(v))))
+                for k, v in vertices.items()
+                if v.shape[1] == 2
+            }
+        )
 
         # loop through every node with geometry
         for node_name in self.graph.nodes_geometry:
@@ -336,8 +337,8 @@ class Scene(Geometry3D):
             dot = np.dot(transform[:3, :3], points.T)
             # append the AABB with translation applied after
             corners[node_name] = np.array(
-                [dot.min(axis=1) + transform[:3, 3],
-                 dot.max(axis=1) + transform[:3, 3]])
+                [dot.min(axis=1) + transform[:3, 3], dot.max(axis=1) + transform[:3, 3]]
+            )
         return corners
 
     @caching.cache_decorator
@@ -356,9 +357,7 @@ class Scene(Geometry3D):
             return None
         # combine each geometry node AABB into a larger list
         corners = np.vstack(list(self.bounds_corners.values()))
-        return np.array([corners.min(axis=0),
-                         corners.max(axis=0)],
-                        dtype=np.float64)
+        return np.array([corners.min(axis=0), corners.max(axis=0)], dtype=np.float64)
 
     @caching.cache_decorator
     def extents(self):
@@ -382,7 +381,7 @@ class Scene(Geometry3D):
         scale : float
           The mean of the bounding box edge lengths
         """
-        scale = (self.extents ** 2).sum() ** .5
+        scale = (self.extents**2).sum() ** 0.5
         return scale
 
     @caching.cache_decorator
@@ -409,10 +408,12 @@ class Scene(Geometry3D):
           The center of mass of the scene
         """
         # get the center of mass and volume for each geometry
-        center_mass = {k: m.center_mass for k, m in self.geometry.items()
-                       if hasattr(m, 'center_mass')}
-        mass = {k: m.mass for k, m in self.geometry.items()
-                if hasattr(m, 'mass')}
+        center_mass = {
+            k: m.center_mass
+            for k, m in self.geometry.items()
+            if hasattr(m, "center_mass")
+        }
+        mass = {k: m.mass for k, m in self.geometry.items() if hasattr(m, "mass")}
 
         # get the geometry name and transform for each instance
         graph = self.graph
@@ -420,12 +421,15 @@ class Scene(Geometry3D):
 
         # get the transformed center of mass for each instance
         transformed = np.array(
-            [np.dot(mat, np.append(center_mass[g], 1))[:3]
-             for mat, g in instance
-             if g in center_mass], dtype=np.float64)
+            [
+                np.dot(mat, np.append(center_mass[g], 1))[:3]
+                for mat, g in instance
+                if g in center_mass
+            ],
+            dtype=np.float64,
+        )
         # weight the center of mass locations by volume
-        weights = np.array(
-            [mass[g] for _, g in instance], dtype=np.float64)
+        weights = np.array([mass[g] for _, g in instance], dtype=np.float64)
         weights /= weights.sum()
         return (transformed * weights.reshape((-1, 1))).sum(axis=0)
 
@@ -441,8 +445,8 @@ class Scene(Geometry3D):
           Inertia with respect to cartesian axis at `scene.center_mass`
         """
         return inertia.scene_inertia(
-            scene=self,
-            transform=transformations.translation_matrix(self.center_mass))
+            scene=self, transform=transformations.translation_matrix(self.center_mass)
+        )
 
     def moment_inertia_frame(self, transform):
         """
@@ -472,11 +476,11 @@ class Scene(Geometry3D):
           Summed area of every instanced geometry
         """
         # get the area of every geometry that has an area property
-        areas = {n: g.area for n, g in self.geometry.items()
-                 if hasattr(g, 'area')}
+        areas = {n: g.area for n, g in self.geometry.items() if hasattr(g, "area")}
         # sum the area including instancing
-        return sum((areas.get(self.graph[n][1], 0.0) for n in
-                    self.graph.nodes_geometry), 0.0)
+        return sum(
+            (areas.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry), 0.0
+        )
 
     @caching.cache_decorator
     def volume(self):
@@ -490,11 +494,11 @@ class Scene(Geometry3D):
           Summed area of every instanced geometry
         """
         # get the area of every geometry that has a volume attribute
-        volume = {n: g.volume for n, g in self.geometry.items()
-                  if hasattr(g, 'area')}
+        volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "area")}
         # sum the area including instancing
-        return sum((volume.get(self.graph[n][1], 0.0) for n in
-                    self.graph.nodes_geometry), 0.0)
+        return sum(
+            (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry), 0.0
+        )
 
     @caching.cache_decorator
     def triangles(self):
@@ -516,19 +520,18 @@ class Scene(Geometry3D):
 
             # get the actual potential mesh instance
             geometry = self.geometry[geometry_name]
-            if not hasattr(geometry, 'triangles'):
+            if not hasattr(geometry, "triangles"):
                 continue
             # append the (n, 3, 3) triangles to a sequence
             triangles.append(
                 transformations.transform_points(
-                    geometry.triangles.copy().reshape((-1, 3)),
-                    matrix=transform))
+                    geometry.triangles.copy().reshape((-1, 3)), matrix=transform
+                )
+            )
             # save the node names for each triangle
-            triangles_node.append(
-                np.tile(node_name,
-                        len(geometry.triangles)))
+            triangles_node.append(np.tile(node_name, len(geometry.triangles)))
         # save the resulting nodes to the cache
-        self._cache['triangles_node'] = np.hstack(triangles_node)
+        self._cache["triangles_node"] = np.hstack(triangles_node)
         triangles = np.vstack(triangles).reshape((-1, 3, 3))
         return triangles
 
@@ -543,7 +546,7 @@ class Scene(Geometry3D):
           Node name for each triangle
         """
         populate = self.triangles  # NOQA
-        return self._cache['triangles_node']
+        return self._cache["triangles_node"]
 
     @caching.cache_decorator
     def geometry_identifiers(self):
@@ -555,8 +558,7 @@ class Scene(Geometry3D):
         identifiers : dict
           {Identifier hash: key in self.geometry}
         """
-        identifiers = {mesh.identifier_hash: name
-                       for name, mesh in self.geometry.items()}
+        identifiers = {mesh.identifier_hash: name for name, mesh in self.geometry.items()}
         return identifiers
 
     @caching.cache_decorator
@@ -577,24 +579,27 @@ class Scene(Geometry3D):
             return []
 
         # geometry name : hash of mesh
-        hashes = {k: int(m.identifier_hash, 16)
-                  for k, m in self.geometry.items()
-                  if hasattr(m, 'identifier_hash')}
+        hashes = {
+            k: int(m.identifier_hash, 16)
+            for k, m in self.geometry.items()
+            if hasattr(m, "identifier_hash")
+        }
 
         # bring into local scope for loop
         graph = self.graph
         # get a hash for each node name
         # scene.graph node name : hashed geometry
-        node_hash = {node: hashes.get(
-            graph[node][1]) for
-            node in graph.nodes_geometry}
+        node_hash = {node: hashes.get(graph[node][1]) for node in graph.nodes_geometry}
 
         # collect node names for each hash key
         duplicates = collections.defaultdict(list)
         # use a slightly off-label list comprehension
         # for debatable function call overhead avoidance
-        [duplicates[hashed].append(node) for node, hashed
-         in node_hash.items() if hashed is not None]
+        [
+            duplicates[hashed].append(node)
+            for node, hashed in node_hash.items()
+            if hashed is not None
+        ]
 
         # we only care about the values keys are garbage
         return list(duplicates.values())
@@ -620,12 +625,9 @@ class Scene(Geometry3D):
 
         return Scene(geometry)
 
-    def set_camera(self,
-                   angles=None,
-                   distance=None,
-                   center=None,
-                   resolution=None,
-                   fov=None):
+    def set_camera(
+        self, angles=None, distance=None, center=None, resolution=None, fov=None
+    ):
         """
         Create a camera object for self.camera, and add
         a transform to self.graph for it.
@@ -659,13 +661,10 @@ class Scene(Geometry3D):
 
         rotation = transformations.euler_matrix(*angles)
         transform = cameras.look_at(
-            self.bounds,
-            fov=fov,
-            rotation=rotation,
-            distance=distance,
-            center=center)
+            self.bounds, fov=fov, rotation=rotation, distance=distance, center=center
+        )
 
-        if hasattr(self, '_camera') and self._camera is not None:
+        if hasattr(self, "_camera") and self._camera is not None:
             self._camera.fov = fov
             if resolution is not None:
                 self._camera.resolution = resolution
@@ -721,13 +720,11 @@ class Scene(Geometry3D):
         # find our scene's transform for the camera
         transform = self.camera_transform
         # apply the rotation to the unit ray direction vectors
-        vectors = transformations.transform_points(
-            vectors,
-            transform,
-            translate=False)
+        vectors = transformations.transform_points(vectors, transform, translate=False)
         # camera origin is single point so extract from
-        origins = (np.ones_like(vectors) *
-                   transformations.translation_from_matrix(transform))
+        origins = np.ones_like(vectors) * transformations.translation_from_matrix(
+            transform
+        )
         return origins, vectors, pixels
 
     @property
@@ -765,7 +762,7 @@ class Scene(Geometry3D):
 
     @property
     def has_camera(self):
-        return hasattr(self, '_camera') and self._camera is not None
+        return hasattr(self, "_camera") and self._camera is not None
 
     @property
     def lights(self):
@@ -778,7 +775,7 @@ class Scene(Geometry3D):
         lights : [trimesh.scene.lighting.Light]
           Lights in the scene.
         """
-        if not hasattr(self, '_lights') or self._lights is None:
+        if not hasattr(self, "_lights") or self._lights is None:
             # do some automatic lighting
             lights, transforms = lighting.autolight(self)
             # assign the transforms to the scene graph
@@ -817,10 +814,10 @@ class Scene(Geometry3D):
         matrix[:3, 3] = -self.centroid
 
         # we are going to change the base frame
-        new_base = str(self.graph.base_frame) + '_I'
-        self.graph.update(frame_from=new_base,
-                          frame_to=self.graph.base_frame,
-                          matrix=matrix)
+        new_base = str(self.graph.base_frame) + "_I"
+        self.graph.update(
+            frame_from=new_base, frame_to=self.graph.base_frame, matrix=matrix
+        )
         self.graph.base_frame = new_base
 
     def dump(self, concatenate=False):
@@ -846,7 +843,7 @@ class Scene(Geometry3D):
             current = self.geometry[geometry_name].copy()
 
             # if the geometry is 2D see if we have to upgrade to 3D
-            if hasattr(current, 'to_3D'):
+            if hasattr(current, "to_3D"):
                 # check to see if the scene is transforming the path out of plane
                 check = util.isclose(transform, util._IDENTITY, atol=1e-8)
                 check[:2, :3] = True
@@ -859,8 +856,8 @@ class Scene(Geometry3D):
 
             # move the geometry vertices into the requested frame
             current.apply_transform(transform)
-            current.metadata['name'] = geometry_name
-            current.metadata['node'] = node_name
+            current.metadata["name"] = geometry_name
+            current.metadata["node"] = node_name
 
             # save to our list of meshes
             result.append(current)
@@ -890,15 +887,13 @@ class Scene(Geometry3D):
         graph = self.graph
         nodes = graph.transforms.successors(node)
         # get every edge that has an included node
-        edges = [e for e in graph.to_edgelist()
-                 if e[0] in nodes]
+        edges = [e for e in graph.to_edgelist() if e[0] in nodes]
 
         # create a scene graph when
         graph = SceneGraph(base_frame=node)
         graph.from_edgelist(edges)
 
-        geometry_names = set([e[2]['geometry'] for e in edges
-                              if 'geometry' in e[2]])
+        geometry_names = {e[2]["geometry"] for e in edges if "geometry" in e[2]}
         geometry = {k: self.geometry[k] for k in geometry_names}
         result = Scene(geometry=geometry, graph=graph)
         return result
@@ -912,16 +907,11 @@ class Scene(Geometry3D):
         ---------
         hull: Trimesh object, convex hull of all meshes in scene
         """
-        points = util.vstack_empty(
-            [m.vertices
-             for m in self.dump()])
+        points = util.vstack_empty([m.vertices for m in self.dump()])
         hull = convex.convex_hull(points)
         return hull
 
-    def export(self,
-               file_obj=None,
-               file_type=None,
-               **kwargs):
+    def export(self, file_obj=None, file_type=None, **kwargs):
         """
         Export a snapshot of the current scene.
 
@@ -939,10 +929,8 @@ class Scene(Geometry3D):
           Only returned if file_obj is None
         """
         return export.export_scene(
-            scene=self,
-            file_obj=file_obj,
-            file_type=file_type,
-            **kwargs)
+            scene=self, file_obj=file_obj, file_type=file_type, **kwargs
+        )
 
     def save_image(self, resolution=None, **kwargs):
         """
@@ -961,8 +949,8 @@ class Scene(Geometry3D):
           Render of scene as a PNG
         """
         from ..viewer.windowed import render_scene
-        png = render_scene(
-            scene=self, resolution=resolution, **kwargs)
+
+        png = render_scene(scene=self, resolution=resolution, **kwargs)
         return png
 
     @property
@@ -981,7 +969,7 @@ class Scene(Geometry3D):
         if any(existing[0] != e for e in existing):
             # if all of our geometry doesn't have the same units already
             # this function will only do some hot nonsense
-            raise ValueError('models in scene have inconsistent units!')
+            raise ValueError("models in scene have inconsistent units!")
 
         return existing[0]
 
@@ -1030,9 +1018,7 @@ class Scene(Geometry3D):
             current = units.units_from_metadata(self, guess=guess)
 
         # find the float conversion
-        scale = units.unit_conversion(
-            current=current,
-            desired=desired)
+        scale = units.unit_conversion(current=current, desired=desired)
 
         # exit early if our current units are the same as desired units
         if np.isclose(scale, 1.0):
@@ -1068,8 +1054,7 @@ class Scene(Geometry3D):
             transform, geometry_name = self.graph[node_name]
             centroid = self.geometry[geometry_name].centroid
             # transform centroid into nodes location
-            centroid = np.dot(transform,
-                              np.append(centroid, 1))[:3]
+            centroid = np.dot(transform, np.append(centroid, 1))[:3]
 
             if vector.shape == ():
                 # case where our vector is a single number
@@ -1078,7 +1063,7 @@ class Scene(Geometry3D):
                 projected = np.dot(vector, (centroid - origin))
                 offset = vector * projected
             else:
-                raise ValueError('explode vector wrong shape!')
+                raise ValueError("explode vector wrong shape!")
 
             # original transform is read-only
             T_new = transform.copy()
@@ -1101,8 +1086,7 @@ class Scene(Geometry3D):
           A copy of the current scene but scaled
         """
         # convert 2D geometries to 3D for 3D scaling factors
-        scale_is_3D = isinstance(
-            scale, (list, tuple, np.ndarray)) and len(scale) == 3
+        scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
 
         if scale_is_3D and np.all(np.asarray(scale) == scale[0]):
             # scale is uniform
@@ -1131,10 +1115,13 @@ class Scene(Geometry3D):
                             geom_name=geom_name,
                             node_name=n,
                             parent_node_name=p,
-                            transform=result.graph.transforms.edge_data[(
-                                p, n)].get('matrix', None),
-                            metadata=result.graph.transforms.edge_data[(
-                                p, n)].get('metadata', None))
+                            transform=result.graph.transforms.edge_data[(p, n)].get(
+                                "matrix", None
+                            ),
+                            metadata=result.graph.transforms.edge_data[(p, n)].get(
+                                "metadata", None
+                            ),
+                        )
                     result.delete_geometry(geom_name)
 
             # Convert all 2D paths to 3D paths
@@ -1151,18 +1138,18 @@ class Scene(Geometry3D):
 
                 # Get geometry transform w.r.t. base frame
                 result.geometry[geom_name].apply_transform(T).apply_scale(
-                    scale).apply_transform(np.linalg.inv(T))
+                    scale
+                ).apply_transform(np.linalg.inv(T))
 
             # Scale all transformations in the scene graph
             edge_data = result.graph.transforms.edge_data
             for uv in edge_data:
-                if 'matrix' in edge_data[uv]:
+                if "matrix" in edge_data[uv]:
                     props = edge_data[uv]
-                    T = edge_data[uv]['matrix'].copy()
+                    T = edge_data[uv]["matrix"].copy()
                     T[:3, 3] *= scale
-                    props['matrix'] = T
-                    result.graph.update(
-                        frame_from=uv[0], frame_to=uv[1], **props)
+                    props["matrix"] = T
+                    result.graph.update(frame_from=uv[0], frame_to=uv[1], **props)
             # Clear cache
             result.graph.transforms._cache = {}
             result.graph.transforms._modified = str(uuid.uuid4())
@@ -1200,17 +1187,15 @@ class Scene(Geometry3D):
                     # otherwise apply the full transform
                     result.geometry[geometry].apply_transform(new_geom)
 
-                for node, T in zip(nodes[group],
-                                   transforms[group]):
+                for node, T in zip(nodes[group], transforms[group]):
                     # generate the new transforms
-                    transform = util.multi_dot(
-                        [scale_3D, T, np.linalg.inv(new_geom)])
+                    transform = util.multi_dot([scale_3D, T, np.linalg.inv(new_geom)])
                     # apply scale to translation
                     transform[:3, 3] *= scale
                     # update scene with new transforms
-                    result.graph.update(frame_to=node,
-                                        matrix=transform,
-                                        geometry=geometry)
+                    result.graph.update(
+                        frame_to=node, matrix=transform, geometry=geometry
+                    )
         return result
 
     def copy(self):
@@ -1226,17 +1211,19 @@ class Scene(Geometry3D):
         # allow them to handle references to unpickle-able objects
         geometry = {n: g.copy() for n, g in self.geometry.items()}
 
-        if not hasattr(self, '_camera') or self._camera is None:
+        if not hasattr(self, "_camera") or self._camera is None:
             # if no camera set don't include it
             camera = None
         else:
             # otherwise get a copy of the camera
             camera = self.camera.copy()
         # create a new scene with copied geometry and graph
-        copied = Scene(geometry=geometry,
-                       graph=self.graph.copy(),
-                       metadata=self.metadata.copy(),
-                       camera=camera)
+        copied = Scene(
+            geometry=geometry,
+            graph=self.graph.copy(),
+            metadata=self.metadata.copy(),
+            camera=camera,
+        )
         return copied
 
     def show(self, viewer=None, **kwargs):
@@ -1257,18 +1244,21 @@ class Scene(Geometry3D):
         if viewer is None:
             # check to see if we are in a notebook or not
             from ..viewer import in_notebook
-            if in_notebook():
-                viewer = 'notebook'
-            else:
-                viewer = 'gl'
 
-        if viewer == 'gl':
+            if in_notebook():
+                viewer = "notebook"
+            else:
+                viewer = "gl"
+
+        if viewer == "gl":
             # this imports pyglet, and will raise an ImportError
             # if pyglet is not available
             from ..viewer import SceneViewer
+
             return SceneViewer(self, **kwargs)
-        elif viewer == 'notebook':
+        elif viewer == "notebook":
             from ..viewer import scene_to_notebook
+
             return scene_to_notebook(self, **kwargs)
         elif callable(viewer):
             # if a callable method like a custom class
@@ -1291,9 +1281,7 @@ class Scene(Geometry3D):
         appended : trimesh.Scene
            Scene with geometry from both scenes
         """
-        result = append_scenes(
-            [self, other],
-            common=[self.graph.base_frame])
+        result = append_scenes([self, other], common=[self.graph.base_frame])
         return result
 
 
@@ -1311,7 +1299,7 @@ def split_scene(geometry, **kwargs):
     scene: trimesh.Scene
     """
     # already a scene, so return it
-    if util.is_instance_named(geometry, 'Scene'):
+    if util.is_instance_named(geometry, "Scene"):
         return geometry
 
     # a list of things
@@ -1322,8 +1310,7 @@ def split_scene(geometry, **kwargs):
                 metadata.update(g.metadata)
             except BaseException:
                 continue
-        return Scene(geometry,
-                     metadata=metadata)
+        return Scene(geometry, metadata=metadata)
 
     # a single geometry so we are going to split
     split = []
@@ -1334,15 +1321,15 @@ def split_scene(geometry, **kwargs):
 
     # if there is only one geometry in the mesh
     # name it from the file name
-    if len(split) == 1 and 'file_name' in metadata:
-        split = {metadata['file_name']: split[0]}
+    if len(split) == 1 and "file_name" in metadata:
+        split = {metadata["file_name"]: split[0]}
 
     scene = Scene(split, metadata=metadata)
 
     return scene
 
 
-def append_scenes(iterable, common=None, base_frame='world'):
+def append_scenes(iterable, common=None, base_frame="world"):
     """
     Concatenate multiple scene objects into one scene.
 
@@ -1411,12 +1398,11 @@ def append_scenes(iterable, common=None, base_frame='world'):
     # loop through every geometry
     for s in iterable:
         # allow Trimesh/Path2D geometry to be passed
-        if hasattr(s, 'scene'):
+        if hasattr(s, "scene"):
             s = s.scene()
         # if we don't have a scene raise an exception
         if not isinstance(s, Scene):
-            raise ValueError('{} is not a scene!'.format(
-                type(s).__name__))
+            raise ValueError(f"{type(s).__name__} is not a scene!")
 
         # remap geometries if they have been consumed
         map_geom = {}
@@ -1441,8 +1427,8 @@ def append_scenes(iterable, common=None, base_frame='world'):
             # referred to geometry that doesn't exist
             # rather than crash here we ignore it as the user
             # possibly intended to add in geometries back later
-            if 'geometry' in attr and attr['geometry'] in map_geom:
-                attr['geometry'] = map_geom[attr['geometry']]
+            if "geometry" in attr and attr["geometry"] in map_geom:
+                attr["geometry"] = map_geom[attr["geometry"]]
             # save the new edge
             edges.append((a, b, attr))
         # mark nodes from current scene as consumed

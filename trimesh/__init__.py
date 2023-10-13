@@ -7,37 +7,52 @@ meshes with an emphasis on watertight meshes. The goal of the library is to
 provide a fully featured Trimesh object which allows for easy manipulation
 and analysis, in the style of the Polygon object in the Shapely library.
 """
-
-# current version
-from .version import __version__
+# avoid a circular import in trimesh.base
+from . import (
+    boolean,
+    caching,
+    collision,
+    comparison,
+    convex,
+    creation,
+    curvature,
+    decomposition,
+    geometry,
+    graph,
+    grouping,
+    inertia,
+    intersections,
+    permutate,
+    poses,
+    primitives,
+    proximity,
+    ray,
+    registration,
+    remesh,
+    repair,
+    sample,
+    smoothing,
+    transformations,
+    triangles,
+    units,
+    util,
+)
 
 # geometry objects
 from .base import Trimesh
-from .points import PointCloud
-from .scene.scene import Scene
-
-# utility functions
-from .util import unitize
-from .transformations import transform_points
 
 # general numeric tolerances
 from .constants import tol
 
 # loader functions
-from .exchange.load import (
-    load,
-    load_mesh,
-    load_path,
-    load_remote,
-    available_formats)
+from .exchange.load import available_formats, load, load_mesh, load_path, load_remote
+from .points import PointCloud
+from .scene.scene import Scene
+from .transformations import transform_points
 
-# avoid a circular import in trimesh.base
-from . import voxel
-from . import bounds
-from . import nsphere
-from . import collision
-from . import smoothing
-from . import primitives
+# utility functions
+from .util import unitize
+from .version import __version__
 
 try:
     # handle vector paths
@@ -45,26 +60,52 @@ try:
 except BaseException as E:
     # raise a useful error if path hasn't loaded
     from .exceptions import ExceptionWrapper
+
     path = ExceptionWrapper(E)
 
-# explicitly list imports in __all__
-# as otherwise flake8 gets mad
-__all__ = [__version__,
-           'Trimesh',
-           'PointCloud',
-           'Scene',
-           'voxel',
-           'unitize',
-           'bounds',
-           'nsphere',
-           'collision',
-           'smoothing',
-           'tol',
-           'path',
-           'load',
-           'load_mesh',
-           'load_path',
-           'load_remote',
-           'primitives',
-           'transform_points',
-           'available_formats']
+__all__ = [
+    "PointCloud",
+    "Trimesh",
+    "Scene",
+    "util",
+    "__version__",
+    "available_formats",
+    "boolean",
+    "bounds",
+    "caching",
+    "collision",
+    "comparison",
+    "convex",
+    "creation",
+    "curvature",
+    "decomposition",
+    "geometry",
+    "graph",
+    "grouping",
+    "inertia",
+    "intersections",
+    "load",
+    "load_mesh",
+    "load_path",
+    "load_remote",
+    "nsphere",
+    "path",
+    "permutate",
+    "poses",
+    "primitives",
+    "proximity",
+    "ray",
+    "registration",
+    "remesh",
+    "repair",
+    "sample",
+    "smoothing",
+    "tol",
+    "transform_points",
+    "transformations",
+    "triangles",
+    "unitize",
+    "units",
+    "utilScene",
+    "voxel",
+]

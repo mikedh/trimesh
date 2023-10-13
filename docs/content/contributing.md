@@ -71,16 +71,12 @@ if __name__ == '__main__':
 When you remove the embed and see the profile result you can then tweak the lines that are slow before finishing the function.
 
 ### Automatic Formatting
-Before opening a pull request I run some auto-formatting rules which will run autopep8 and yell at you about any `ruff` rule violations. There is a convenience script baked into `setup.py` to run all of these which you can run with:
+The only check in that's required to pass in CI is `ruff`, which I usually run with:
 ```
-python setup.py --format
+ruff . --fix
 ```
+It can fix a lot of formatting issues automatically. We also periodically run `black` to autoformat the codebase.
 
-This is equivalent to running `codespell`, `autopep8`, and `flake8` on trimesh, examples, and tests. You can also run it yourself with these options:
-```
-autopep8 --recursive --verbose --in-place --aggressive trimesh
-flake8 trimesh
-```
 
 ## Docstrings
 

@@ -6,17 +6,13 @@ View meshes and scenes via pyglet or inline HTML.
 """
 
 
-from .notebook import (in_notebook,
-                       scene_to_notebook,
-                       scene_to_html)
-
 from .. import exceptions
+from .notebook import in_notebook, scene_to_html, scene_to_notebook
 
 try:
     # try importing windowed which will fail
     # if we can't create an openGL context
-    from .windowed import (SceneViewer,
-                           render_scene)
+    from .windowed import SceneViewer, render_scene
 except BaseException as E:
     # if windowed failed to import only raise
     # the exception if someone tries to use them
@@ -34,9 +30,11 @@ except BaseException as E:
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
-__all__ = ['SceneWidget',
-           'SceneViewer',
-           'render_scene',
-           'in_notebook',
-           'scene_to_notebook',
-           'scene_to_html']
+__all__ = [
+    "SceneWidget",
+    "SceneViewer",
+    "render_scene",
+    "in_notebook",
+    "scene_to_notebook",
+    "scene_to_html",
+]

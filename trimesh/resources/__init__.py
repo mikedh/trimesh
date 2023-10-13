@@ -1,11 +1,10 @@
-import os
 import json
+import os
 
 from ..util import decode_text, wrap_as_stream
 
 # find the current absolute path to this directory
-_pwd = os.path.expanduser(os.path.abspath(
-    os.path.dirname(__file__)))
+_pwd = os.path.expanduser(os.path.abspath(os.path.dirname(__file__)))
 
 # once resources are loaded cache them
 _cache = {}
@@ -32,18 +31,15 @@ def get(name, decode=True, decode_json=False, as_stream=False):
       File data
     """
     # key by name and decode
-    cache_key = (name,
-                 bool(decode),
-                 bool(decode_json),
-                 bool(as_stream))
+    cache_key = (name, bool(decode), bool(decode_json), bool(as_stream))
     cached = _cache.get(cache_key)
-    if hasattr(cached, 'seek'):
+    if hasattr(cached, "seek"):
         cached.seek(0)
     if cached is not None:
         return cached
 
     # get the resource using relative names
-    with open(os.path.join(_pwd, name), 'rb') as f:
+    with open(os.path.join(_pwd, name), "rb") as f:
         resource = f.read()
 
     # make sure we return it as a string if asked
@@ -76,13 +72,11 @@ def get_schema(name):
     schema : dict
       Loaded and resolved schema.
     """
-    from ..schemas import resolve
     from ..resolvers import FilePathResolver
+    from ..schemas import resolve
+
     # get a resolver for our base path
-    resolver = FilePathResolver(
-        os.path.join(_pwd, 'schema', name))
+    resolver = FilePathResolver(os.path.join(_pwd, "schema", name))
     # recursively load $ref keys
-    schema = resolve(
-        json.loads(decode_text(resolver.get(name))),
-        resolver=resolver)
+    schema = resolve(json.loads(decode_text(resolver.get(name))), resolver=resolver)
     return schema

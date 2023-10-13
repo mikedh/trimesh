@@ -7,11 +7,10 @@ Randomly sample surface and volume of meshes.
 
 import numpy as np
 
-from . import util
-from . import transformations
+from . import transformations, util
 from .visual import uv_to_interpolated_color
 
-if hasattr(np.random, 'default_rng'):
+if hasattr(np.random, "default_rng"):
     # newer versions of Numpy
     default_rng = np.random.default_rng
 else:
@@ -81,7 +80,7 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
     tri_origins = tri_origins[face_index]
     tri_vectors = tri_vectors[face_index]
 
-    if sample_color and hasattr(mesh.visual, 'uv'):
+    if sample_color and hasattr(mesh.visual, "uv"):
         uv_origins = mesh.visual.uv[mesh.faces[:, 0]]
         uv_vectors = mesh.visual.uv[mesh.faces[:, 1:]].copy()
         uv_origins_tile = np.tile(uv_origins, (1, 2)).reshape((-1, 2, 2))
@@ -108,7 +107,7 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
     samples = sample_vector + tri_origins
 
     if sample_color:
-        if hasattr(mesh.visual, 'uv'):
+        if hasattr(mesh.visual, "uv"):
             sample_uv_vector = (uv_vectors * random_lengths).sum(axis=1)
             uv_samples = sample_uv_vector + uv_origins
             texture = mesh.visual.material.image
@@ -145,9 +144,7 @@ def volume_mesh(mesh, count):
     return samples
 
 
-def volume_rectangular(extents,
-                       count,
-                       transform=None):
+def volume_rectangular(extents, count, transform=None):
     """
     Return random samples inside a rectangular volume,
     useful for sampling inside oriented bounding boxes.
@@ -166,11 +163,10 @@ def volume_rectangular(extents,
     samples : (count, 3) float
       Points in requested volume
     """
-    samples = np.random.random((count, 3)) - .5
+    samples = np.random.random((count, 3)) - 0.5
     samples *= extents
     if transform is not None:
-        samples = transformations.transform_points(samples,
-                                                   transform)
+        samples = transformations.transform_points(samples, transform)
     return samples
 
 
@@ -219,8 +215,7 @@ def sample_surface_even(mesh, count, radius=None, seed=None):
         return points[:count], index[mask][:count]
 
     # warn if we didn't get all the samples we expect
-    util.log.warning('only got {}/{} samples!'.format(
-        len(points), count))
+    util.log.warning(f"only got {len(points)}/{count} samples!")
 
     return points, index[mask]
 
@@ -248,6 +243,5 @@ def sample_surface_sphere(count):
     theta = np.pi * 2 * u
     phi = np.arccos((2 * v) - 1)
     # convert spherical coordinates to cartesian
-    points = util.spherical_to_vector(
-        np.column_stack((theta, phi)))
+    points = util.spherical_to_vector(np.column_stack((theta, phi)))
     return points

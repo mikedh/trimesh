@@ -8,7 +8,6 @@ except BaseException:
 
 
 class MeshTests(g.unittest.TestCase):
-
     def test_vertex_neighbors(self):
         m = g.trimesh.primitives.Box()
         neighbors = m.vertex_neighbors
@@ -17,13 +16,13 @@ class MeshTests(g.unittest.TestCase):
 
         for v_i, neighs in enumerate(neighbors):
             for n in neighs:
-                assert ([v_i, n] in elist or [n, v_i] in elist)
+                assert [v_i, n] in elist or [n, v_i] in elist
 
     def test_validate(self):
         """
         Make sure meshes with validation work
         """
-        m = g.get_mesh('featuretype.STL', validate=True)
+        m = g.get_mesh("featuretype.STL", validate=True)
 
         assert m.is_volume
 
@@ -64,22 +63,22 @@ class MeshTests(g.unittest.TestCase):
         """
         # a radially symmetric mesh with units
         # should have no properties that are None
-        mesh = g.get_mesh('tube.obj')
-        mesh.units = 'in'
+        mesh = g.get_mesh("tube.obj")
+        mesh.units = "in"
 
         # loop through string property names
         for method in dir(mesh):
             # ignore private- ish methods
-            if method.startswith('_'):
+            if method.startswith("_"):
                 continue
             # a string expression to evaluate
-            expr = 'mesh.{}'.format(method)
+            expr = f"mesh.{method}"
 
             try:
                 # get the value of that expression
                 res = eval(expr)
             except ImportError:
-                g.log.warning('unable to import!', exc_info=True)
+                g.log.warning("unable to import!", exc_info=True)
                 continue
 
             # shouldn't be None!
@@ -88,20 +87,20 @@ class MeshTests(g.unittest.TestCase):
         # check methods in scene objects
         scene = mesh.scene()
         # camera will be None unless set
-        blacklist = ['camera']
+        blacklist = ["camera"]
         for method in dir(scene):
             # ignore private- ish methods
-            if method.startswith('_') or method in blacklist:
+            if method.startswith("_") or method in blacklist:
                 continue
             # a string expression to evaluate
-            expr = 'scene.{}'.format(method)
+            expr = f"scene.{method}"
             # get the value of that expression
             res = eval(expr)
             # shouldn't be None!
             if res is None:
-                raise ValueError('"{}" is None!!'.format(expr))
+                raise ValueError(f'"{expr}" is None!!')
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

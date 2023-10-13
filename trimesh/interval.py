@@ -40,7 +40,7 @@ def check(a, b, digits):
     b = np.array(b, dtype=np.float64)
 
     if a.shape != b.shape or a.shape[-1] != 2:
-        raise ValueError('ranges must be identical and (2,)!')
+        raise ValueError("ranges must be identical and (2,)!")
 
     # if input was single interval reshape it here
     is_1D = False
@@ -89,32 +89,28 @@ def intersection(a, b, digits=8):
     overlap = np.zeros(a.shape, dtype=np.float64)
 
     # A fully overlaps B
-    current = np.logical_and(a_int[:, 0] <= b_int[:, 0],
-                             a_int[:, 1] >= b_int[:, 1])
+    current = np.logical_and(a_int[:, 0] <= b_int[:, 0], a_int[:, 1] >= b_int[:, 1])
     overlap[current] = b[current]
 
     # B fully overlaps A
-    current = np.logical_and(a_int[:, 0] >= b_int[:, 0],
-                             a_int[:, 1] <= b_int[:, 1])
+    current = np.logical_and(a_int[:, 0] >= b_int[:, 0], a_int[:, 1] <= b_int[:, 1])
     overlap[current] = a[current]
 
     # A starts B ends
     # A:, 0   B:, 0     A:, 1        B:, 1
     current = np.logical_and(
-        np.logical_and(a_int[:, 0] <= b_int[:, 0],
-                       b_int[:, 0] < a_int[:, 1]),
-        a_int[:, 1] < b_int[:, 1])
-    overlap[current] = np.column_stack([b[current][:, 0],
-                                        a[current][:, 1]])
+        np.logical_and(a_int[:, 0] <= b_int[:, 0], b_int[:, 0] < a_int[:, 1]),
+        a_int[:, 1] < b_int[:, 1],
+    )
+    overlap[current] = np.column_stack([b[current][:, 0], a[current][:, 1]])
 
     # B starts A ends
     # B:, 0  A:, 0    B:, 1  A:, 1
     current = np.logical_and(
-        np.logical_and(b_int[:, 0] <= a_int[:, 0],
-                       a_int[:, 0] < b_int[:, 1]),
-        b_int[:, 1] < a_int[:, 1])
-    overlap[current] = np.column_stack([a[current][:, 0],
-                                        b[current][:, 1]])
+        np.logical_and(b_int[:, 0] <= a_int[:, 0], a_int[:, 0] < b_int[:, 1]),
+        b_int[:, 1] < a_int[:, 1],
+    )
+    overlap[current] = np.column_stack([a[current][:, 0], b[current][:, 1]])
 
     # is range overlapping at all
     intersects = overlap.ptp(axis=1) > 10**-digits

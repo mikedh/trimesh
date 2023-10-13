@@ -28,25 +28,26 @@
 #     distribution.
 # ------------------------------------------------------------------------------
 
-import os
 import ctypes
 import ctypes.util
+import os
 
 import numpy as np
+
 _ctm_loaders = {}
 
 try:
-
     # try to find the shared library
-    _ctm_lib_name = ctypes.util.find_library('openctm')
-    if os.name == 'nt':
+    _ctm_lib_name = ctypes.util.find_library("openctm")
+    if os.name == "nt":
         _ctm_loader = ctypes.WinDLL
     else:
         _ctm_loader = ctypes.CDLL
     if _ctm_lib_name is None or len(_ctm_lib_name) == 0:
-        raise ImportError('libopenctm library not found!')
+        raise ImportError("libopenctm library not found!")
 except BaseException as E:
     from ..exceptions import ExceptionWrapper
+
     _ctm_lib_name = None
     _ctm_loader = ExceptionWrapper(E)
 
@@ -124,38 +125,35 @@ def load_ctm(file_obj, file_type=None, **kwargs):
     # !!load file from name
     # this should be replaced with something that
     # actually uses the file object data to support streams
-    name = str(file_obj.name).encode('utf-8')
+    name = str(file_obj.name).encode("utf-8")
     ctmLoad(ctm, name)
 
     err = ctmGetError(ctm)
     if err != CTM_NONE:
-        raise IOError("Error loading file: " + str(ctmErrorString(err)))
+        raise OSError("Error loading file: " + str(ctmErrorString(err)))
 
     # get vertices
     vertex_count = ctmGetInteger(ctm, CTM_VERTEX_COUNT)
     vertex_ctm = ctmGetFloatArray(ctm, CTM_VERTICES)
     # use fromiter to avoid loop
-    vertices = np.fromiter(vertex_ctm,
-                           dtype=np.float64,
-                           count=vertex_count * 3).reshape((-1, 3))
+    vertices = np.fromiter(vertex_ctm, dtype=np.float64, count=vertex_count * 3).reshape(
+        (-1, 3)
+    )
     # get faces
     face_count = ctmGetInteger(ctm, CTM_TRIANGLE_COUNT)
     face_ctm = ctmGetIntegerArray(ctm, CTM_INDICES)
-    faces = np.fromiter(face_ctm,
-                        dtype=np.int64,
-                        count=face_count * 3).reshape((-1, 3))
+    faces = np.fromiter(face_ctm, dtype=np.int64, count=face_count * 3).reshape((-1, 3))
 
     # create kwargs for trimesh constructor
-    result = {'vertices': vertices,
-              'faces': faces}
+    result = {"vertices": vertices, "faces": faces}
 
     # get face normals if available
     if ctmGetInteger(ctm, CTM_HAS_NORMALS) == CTM_TRUE:
         normals_ctm = ctmGetFloatArray(ctm, CTM_NORMALS)
-        normals = np.fromiter(normals_ctm,
-                              dtype=np.float64,
-                              count=face_count * 3).reshape((-1, 3))
-        result['face_normals'] = normals
+        normals = np.fromiter(
+            normals_ctm, dtype=np.float64, count=face_count * 3
+        ).reshape((-1, 3))
+        result["face_normals"] = normals
 
     # free context
     ctmFreeContext(ctm)
@@ -165,4 +163,4 @@ def load_ctm(file_obj, file_type=None, **kwargs):
 
 if _ctm_lib_name is not None:
     # we have a library so add load_ctm
-    _ctm_loaders = {'ctm': load_ctm}
+    _ctm_loaders = {"ctm": load_ctm}

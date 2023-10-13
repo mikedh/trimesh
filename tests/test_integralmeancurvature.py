@@ -5,13 +5,11 @@ except BaseException:
 
 
 class IntegralMeanCurvatureTest(g.unittest.TestCase):
-
     def test_IMCsphere(self):
         # how close do we need to be - relative tolerance
         tol = 1e-3
         for radius in [0.1, 1.0, 3.1459, 29.20]:
-            m = g.trimesh.creation.icosphere(
-                subdivisions=4, radius=radius)
+            m = g.trimesh.creation.icosphere(subdivisions=4, radius=radius)
             IMC = m.integral_mean_curvature
             ref = 4 * g.np.pi * radius
             assert g.np.isclose(IMC, ref, rtol=tol)
@@ -22,8 +20,7 @@ class IntegralMeanCurvatureTest(g.unittest.TestCase):
         radius = 1.2
         for aspect_ratio in [0.0, 0.5, 1.0, 4.0, 100]:
             L = aspect_ratio * radius
-            m = g.trimesh.creation.capsule(
-                height=L, radius=radius, count=[64, 64])
+            m = g.trimesh.creation.capsule(height=L, radius=radius, count=[64, 64])
             IMC = m.integral_mean_curvature
             ref = g.np.pi * (L + 4 * radius)
             assert g.np.isclose(IMC, ref, rtol=tol)
@@ -42,6 +39,6 @@ class IntegralMeanCurvatureTest(g.unittest.TestCase):
             assert g.np.isclose(IMC, ref, rtol=tol)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

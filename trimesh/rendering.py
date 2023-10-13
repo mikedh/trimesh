@@ -30,33 +30,26 @@ def convert_to_vertexlist(geometry, **kwargs):
       Args to be passed to pyglet indexed vertex list
       constructor.
     """
-    if util.is_instance_named(geometry, 'Trimesh'):
+    if util.is_instance_named(geometry, "Trimesh"):
         return mesh_to_vertexlist(geometry, **kwargs)
-    elif util.is_instance_named(geometry, 'Path'):
+    elif util.is_instance_named(geometry, "Path"):
         # works for Path3D and Path2D
         # both of which inherit from Path
-        return path_to_vertexlist(
-            geometry, **kwargs)
-    elif util.is_instance_named(geometry, 'PointCloud'):
+        return path_to_vertexlist(geometry, **kwargs)
+    elif util.is_instance_named(geometry, "PointCloud"):
         # pointcloud objects contain colors
-        return points_to_vertexlist(geometry.vertices,
-                                    colors=geometry.colors,
-                                    **kwargs)
-    elif util.is_instance_named(geometry, 'ndarray'):
+        return points_to_vertexlist(geometry.vertices, colors=geometry.colors, **kwargs)
+    elif util.is_instance_named(geometry, "ndarray"):
         # (n,2) or (n,3) points
         return points_to_vertexlist(geometry, **kwargs)
-    elif util.is_instance_named(geometry, 'VoxelGrid'):
+    elif util.is_instance_named(geometry, "VoxelGrid"):
         # for voxels view them as a bunch of boxes
-        return mesh_to_vertexlist(geometry.as_boxes(**kwargs),
-                                  **kwargs)
+        return mesh_to_vertexlist(geometry.as_boxes(**kwargs), **kwargs)
     else:
-        raise ValueError('Geometry passed is not a viewable type!')
+        raise ValueError("Geometry passed is not a viewable type!")
 
 
-def mesh_to_vertexlist(mesh,
-                       group=None,
-                       smooth=True,
-                       smooth_threshold=60000):
+def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
     """
     Convert a Trimesh object to arguments for an
     indexed vertex list constructor.
@@ -78,7 +71,7 @@ def mesh_to_vertexlist(mesh,
       Args for vertex list constructor
     """
 
-    if hasattr(mesh.visual, 'uv'):
+    if hasattr(mesh.visual, "uv"):
         # if the mesh has texture defined pass it to pyglet
         vertex_count = len(mesh.vertices)
         normals = mesh.vertex_normals.reshape(-1).tolist()
@@ -90,10 +83,10 @@ def mesh_to_vertexlist(mesh,
 
         # shortcut for the material
         material = mesh.visual.material
-        if hasattr(material, 'image'):
+        if hasattr(material, "image"):
             # does the material actually have an image specified
             no_image = material.image is None
-        elif hasattr(material, 'baseColorTexture'):
+        elif hasattr(material, "baseColorTexture"):
             no_image = material.baseColorTexture is None
         else:
             no_image = True
@@ -102,15 +95,13 @@ def mesh_to_vertexlist(mesh,
         if uv is None or no_image or len(uv) != vertex_count:
             # if no UV coordinates on material, just set face colors
             # to the diffuse color of the material
-            color_gl = colors_to_gl(
-                material.main_color, vertex_count)
+            color_gl = colors_to_gl(material.main_color, vertex_count)
         else:
             # if someone passed (n, 3) UVR cut it off here
             if uv.shape[1] > 2:
                 uv = uv[:, :2]
             # texcoord as (2,) float
-            color_gl = ('t2f/static',
-                        uv.astype(np.float64).reshape(-1).tolist())
+            color_gl = ("t2f/static", uv.astype(np.float64).reshape(-1).tolist())
 
     elif smooth and len(mesh.faces) < smooth_threshold:
         # if we have a small number of faces and colors defined
@@ -121,29 +112,28 @@ def mesh_to_vertexlist(mesh,
         normals = mesh.vertex_normals.reshape(-1).tolist()
         faces = mesh.faces.reshape(-1).tolist()
         vertices = mesh.vertices.reshape(-1).tolist()
-        color_gl = colors_to_gl(mesh.visual.vertex_colors,
-                                vertex_count)
+        color_gl = colors_to_gl(mesh.visual.vertex_colors, vertex_count)
     else:
         # we don't have textures or want to smooth so
         # send a polygon soup of disconnected triangles to opengl
         vertex_count = len(mesh.triangles) * 3
-        normals = np.tile(mesh.face_normals,
-                          (1, 3)).reshape(-1).tolist()
+        normals = np.tile(mesh.face_normals, (1, 3)).reshape(-1).tolist()
         vertices = mesh.triangles.reshape(-1).tolist()
         faces = np.arange(vertex_count).tolist()
-        colors = np.tile(mesh.visual.face_colors,
-                         (1, 3)).reshape((-1, 4))
+        colors = np.tile(mesh.visual.face_colors, (1, 3)).reshape((-1, 4))
         color_gl = colors_to_gl(colors, vertex_count)
 
     # create the ordered tuple for pyglet, use like:
     # `batch.add_indexed(*args)`
-    args = (vertex_count,    # number of vertices
-            GL_TRIANGLES,    # mode
-            group,           # group
-            faces,           # indices
-            ('v3f/static', vertices),
-            ('n3f/static', normals),
-            color_gl)
+    args = (
+        vertex_count,  # number of vertices
+        GL_TRIANGLES,  # mode
+        group,  # group
+        faces,  # indices
+        ("v3f/static", vertices),
+        ("n3f/static", normals),
+        color_gl,
+    )
     return args
 
 
@@ -168,8 +158,7 @@ def path_to_vertexlist(path, group=None, **kwargs):
     vertices = path.vertices
 
     # get (n, 2, (2|3)) lines
-    stacked = [util.stack_lines(e.discrete(vertices))
-               for e in path.entities]
+    stacked = [util.stack_lines(e.discrete(vertices)) for e in path.entities]
     lines = util.vstack_empty(stacked)
     count = len(lines)
 
@@ -184,25 +173,27 @@ def path_to_vertexlist(path, group=None, **kwargs):
     colors = path.colors
     if colors is not None:
         colors = np.vstack(
-            [(np.ones((len(s), 4)) * c).astype(np.uint8)
-             for s, c in zip(stacked, path.colors)])
+            [
+                (np.ones((len(s), 4)) * c).astype(np.uint8)
+                for s, c in zip(stacked, path.colors)
+            ]
+        )
     # convert to gl-friendly colors
     gl_colors = colors_to_gl(colors, count=count)
 
     # collect args for vertexlist constructor
-    args = (count,    # number of lines
-            GL_LINES,  # mode
-            group,    # group
-            index,    # indices
-            ('v3f/static', lines.reshape(-1)),
-            gl_colors)
+    args = (
+        count,  # number of lines
+        GL_LINES,  # mode
+        group,  # group
+        index,  # indices
+        ("v3f/static", lines.reshape(-1)),
+        gl_colors,
+    )
     return args
 
 
-def points_to_vertexlist(points,
-                         colors=None,
-                         group=None,
-                         **kwargs):
+def points_to_vertexlist(points, colors=None, group=None, **kwargs):
     """
     Convert a numpy array of 3D points to args for
     a vertex list constructor.
@@ -226,16 +217,18 @@ def points_to_vertexlist(points,
     if util.is_shape(points, (-1, 2)):
         points = np.column_stack((points, np.zeros(len(points))))
     elif not util.is_shape(points, (-1, 3)):
-        raise ValueError('Pointcloud must be (n,3)!')
+        raise ValueError("Pointcloud must be (n,3)!")
 
     index = np.arange(len(points)).tolist()
 
-    args = (len(points),  # number of vertices
-            GL_POINTS,   # mode
-            group,       # group
-            index,       # indices
-            ('v3f/static', points.reshape(-1)),
-            colors_to_gl(colors, len(points)))
+    args = (
+        len(points),  # number of vertices
+        GL_POINTS,  # mode
+        group,  # group
+        index,  # indices
+        ("v3f/static", points.reshape(-1)),
+        colors_to_gl(colors, len(points)),
+    )
     return args
 
 
@@ -260,9 +253,7 @@ def colors_to_gl(colors, count):
     colors = np.asanyarray(colors)
     count = int(count)
     # get the GL kind of color we have
-    colors_dtypes = {'f': 'f',
-                     'i': 'B',
-                     'u': 'B'}
+    colors_dtypes = {"f": "f", "i": "B", "u": "B"}
 
     if colors.dtype.kind in colors_dtypes:
         dtype = colors_dtypes[colors.dtype.kind]
@@ -271,22 +262,24 @@ def colors_to_gl(colors, count):
 
     if dtype is not None and util.is_shape(colors, (count, (3, 4))):
         # save the shape and dtype for opengl color string
-        colors_type = 'c{}{}/static'.format(colors.shape[1], dtype)
+        colors_type = f"c{colors.shape[1]}{dtype}/static"
         # reshape the 2D array into a 1D one and then convert to a python list
         gl_colors = colors.reshape(-1).tolist()
     elif dtype is not None and colors.shape in [(3,), (4,)]:
         # we've been passed a single color so tile them
-        gl_colors = (np.ones((count, colors.size),
-                             dtype=colors.dtype) * colors).reshape(-1).tolist()
+        gl_colors = (
+            (np.ones((count, colors.size), dtype=colors.dtype) * colors)
+            .reshape(-1)
+            .tolist()
+        )
         # we know we're tiling
-        colors_type = 'c{}{}/static'.format(colors.size, dtype)
+        colors_type = f"c{colors.size}{dtype}/static"
     else:
         # case where colors are wrong shape
         # use black as the default color
-        gl_colors = np.tile([0.0, 0.0, 0.0],
-                            (count, 1)).reshape(-1).tolist()
+        gl_colors = np.tile([0.0, 0.0, 0.0], (count, 1)).reshape(-1).tolist()
         # we're returning RGB float colors
-        colors_type = 'c3f/static'
+        colors_type = "c3f/static"
 
     return colors_type, gl_colors
 
@@ -312,9 +305,9 @@ def material_to_texture(material, upsize=True):
     import pyglet
 
     # try to extract a PIL image from material
-    if hasattr(material, 'image'):
+    if hasattr(material, "image"):
         img = material.image
-    elif hasattr(material, 'baseColorTexture'):
+    elif hasattr(material, "baseColorTexture"):
         img = material.baseColorTexture
     else:
         return None
@@ -326,16 +319,17 @@ def material_to_texture(material, upsize=True):
     # if we're not powers of two upsize
     if upsize:
         from .visual.texture import power_resize
+
         img = power_resize(img)
 
     # use a PNG export to exchange into pyglet
     # probably a way to do this with a PIL converter
     with util.BytesIO() as f:
         # export PIL image as PNG
-        img.save(f, format='png')
+        img.save(f, format="png")
         f.seek(0)
         # filename used for format guess
-        gl_image = pyglet.image.load(filename='.png', file=f)
+        gl_image = pyglet.image.load(filename=".png", file=f)
 
     # turn image into pyglet texture
     texture = gl_image.get_texture()
@@ -361,8 +355,7 @@ def matrix_to_gl(matrix):
     from pyglet import gl
 
     # convert to GLfloat, switch to column major and flatten to (16,)
-    return (gl.GLfloat * 16)(*np.array(
-        matrix, dtype=np.float32).T.ravel())
+    return (gl.GLfloat * 16)(*np.array(matrix, dtype=np.float32).T.ravel())
 
 
 def vector_to_gl(array, *args):
@@ -409,8 +402,10 @@ def light_to_gl(light, transform, lightN):
     gl_position = vector_to_gl(transform[:3, 3])
 
     # create the different position and color arguments
-    args = [(lightN, gl.GL_POSITION, gl_position),
-            (lightN, gl.GL_SPECULAR, gl_color),
-            (lightN, gl.GL_DIFFUSE, gl_color),
-            (lightN, gl.GL_AMBIENT, gl_color)]
+    args = [
+        (lightN, gl.GL_POSITION, gl_position),
+        (lightN, gl.GL_SPECULAR, gl_color),
+        (lightN, gl.GL_DIFFUSE, gl_color),
+        (lightN, gl.GL_AMBIENT, gl_color),
+    ]
     return args

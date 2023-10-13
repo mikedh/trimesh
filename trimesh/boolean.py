@@ -22,7 +22,7 @@ def difference(meshes, engine=None, **kwargs):
     ----------
     difference : a - (other meshes), **kwargs for a Trimesh
     """
-    result = _engines[engine](meshes, operation='difference', **kwargs)
+    result = _engines[engine](meshes, operation="difference", **kwargs)
     return result
 
 
@@ -41,7 +41,7 @@ def union(meshes, engine=None, **kwargs):
     ----------
     union : a + (other meshes), **kwargs for a Trimesh
     """
-    result = _engines[engine](meshes, operation='union', **kwargs)
+    result = _engines[engine](meshes, operation="union", **kwargs)
     return result
 
 
@@ -61,7 +61,7 @@ def intersection(meshes, engine=None, **kwargs):
     intersection : **kwargs for a Trimesh object of the
                     volume that is contained by all meshes
     """
-    result = _engines[engine](meshes, operation='intersection', **kwargs)
+    result = _engines[engine](meshes, operation="intersection", **kwargs)
     return result
 
 
@@ -86,12 +86,14 @@ def boolean_automatic(meshes, operation, **kwargs):
     elif interfaces.scad.exists:
         result = interfaces.scad.boolean(meshes, operation, **kwargs)
     else:
-        raise ValueError('No backends available for boolean operations!')
+        raise ValueError("No backends available for boolean operations!")
     return result
 
 
 # which backend boolean engines
-_engines = {None: boolean_automatic,
-            'auto': boolean_automatic,
-            'scad': interfaces.scad.boolean,
-            'blender': interfaces.blender.boolean}
+_engines = {
+    None: boolean_automatic,
+    "auto": boolean_automatic,
+    "scad": interfaces.scad.boolean,
+    "blender": interfaces.blender.boolean,
+}

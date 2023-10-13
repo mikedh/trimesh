@@ -6,45 +6,45 @@ SPHINXGEN     ?= sphinx-apidoc
 NBCONVERT     ?= jupyter
 PYTHON        ?= python
 PIP           ?= pip
-SOURCEDIR     = .
-BUILDDIR      = _build
+BUILDDIR      = built
 TEMPLATESDIR  = templates
-STATICDIR     = _static
+# where to put generated RST files
+GENDIR        = generate
+CONTENT       = content
+STATICDIR     = static
+
 
 example_notebooks := $(wildcard ../examples/*.ipynb)
 example_notebooks := $(filter-out ../examples/save_image.ipynb, $(example_notebooks))
-
 example_names = $(foreach path, $(example_notebooks), $(basename $(notdir $(path))))
-example_htmls = $(foreach name, $(example_names), $(STATICDIR)/examples/$(name).html)
 example_rsts = $(foreach name, $(example_names), examples.$(name).rst)
 
-html: conf.py index.rst *.md README.rst trimesh.rst examples.md $(example_rsts) $(example_htmls) .deps
-	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+html: conf.py $(CONTENT)/index.rst trimesh.rst README.rst $(example_rsts) examples.rst .deps
+	@$(SPHINXBUILD) -M html "$(GENDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	echo "trimesh.org" > "$(BUILDDIR)/html/CNAME"
 	touch "$(BUILDDIR)/html/.nojekyll"
-	echo "trimsh.org" > "$(BUILDDIR)/html/CNAME"
-	mv "$(BUILDDIR)/html/_static/examples" "$(BUILDDIR)/html/examples" || true
-	mv "$(BUILDDIR)/html/_static/images" "$(BUILDDIR)/html/images" || true
-	cp "$(STATICDIR)/favicon.ico" "$(BUILDDIR)/html/favicon.ico" || true
+	cp -R "$(STATICDIR)/images" "$(BUILDDIR)/html/images" || true
+	cp   "$(STATICDIR)/favicon.ico" "$(BUILDDIR)/html/favicon.ico" || true
 
 .deps: requirements.txt
 	$(PIP) install -r requirements.txt
 	$(PIP) freeze > .deps
+	mkdir -p $(GENDIR)
+	mkdir -p $(BUILDDIR)
+	cp conf.py $(CONTENT)/* $(GENDIR)
 
-$(STATICDIR)/examples/%.html: ../examples/%.ipynb .deps
-	mkdir -p "$(STATICDIR)/examples"
-	$(NBCONVERT) nbconvert --execute --to html --output $(abspath $@) $<
+examples.%.rst : ../examples/%.ipynb .deps
+	$(NBCONVERT) nbconvert --execute --to rst --output-dir $(GENDIR) $<
 
-examples.%.rst: $(STATICDIR)/examples/%.html examples.template 
-	$(PYTHON) -c "open('$@', 'w').write(open('examples.template').read().format(name='$(*F)', url='$<'))"
-
-examples.md: .deps
-	$(PYTHON) "examples.py"
+examples.rst: .deps
+	$(PYTHON) examples.py --source=../examples --target=$(GENDIR)/examples.rst
 
 trimesh.rst: .deps
-	$(SPHINXGEN) -eTf -t "$(TEMPLATESDIR)" -o "$(SOURCEDIR)" ../trimesh
+	$(SPHINXGEN) -eTf -t "$(TEMPLATESDIR)" -o "$(GENDIR)" ../trimesh
 
 README.rst: ../README.md .deps
-	pandoc --from=gfm --to=rst --output=README.rst ../README.md
+	pandoc --from=gfm --to=rst --output="$(GENDIR)/README.rst" ../README.md
 
 clean:
-	rm -rvf "$(BUILDDIR)" "$(STATICDIR)/examples" examples.*.rst trimesh*.rst .deps
+	rm -rvf "$(BUILDDIR)" "$(GENDIR)"  .deps

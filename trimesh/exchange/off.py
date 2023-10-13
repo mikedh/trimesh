@@ -1,4 +1,5 @@
 import re
+
 import numpy as np
 
 from .. import util
@@ -22,14 +23,12 @@ def load_off(file_obj, **kwargs):
     text = file_obj.read()
     # will magically survive weird encoding sometimes
     # comment strip will handle all cases of commenting
-    text = util.comment_strip(
-        util.decode_text(text)).strip()
+    text = util.comment_strip(util.decode_text(text)).strip()
 
     # split the first key
-    _, header, raw = re.split('(COFF|OFF)', text, maxsplit=1)
-    if header.upper() not in ['OFF', 'COFF']:
-        raise NameError(
-            'Not an OFF file! Header was: `{}`'.format(header))
+    _, header, raw = re.split("(COFF|OFF)", text, maxsplit=1)
+    if header.upper() not in ["OFF", "COFF"]:
+        raise NameError(f"Not an OFF file! Header was: `{header}`")
 
     # split into lines and remove whitespace
     splits = [i.strip() for i in str.splitlines(str(raw))]
@@ -40,24 +39,21 @@ def load_off(file_obj, **kwargs):
     header = np.array(splits[0].split(), dtype=np.int64)
     vertex_count, face_count = header[:2]
 
-    vertices = np.array([
-        i.split()[:3] for i in
-        splits[1: vertex_count + 1]],
-        dtype=np.float64)
+    vertices = np.array(
+        [i.split()[:3] for i in splits[1 : vertex_count + 1]], dtype=np.float64
+    )
 
     # will fail if incorrect number of vertices loaded
     vertices = vertices.reshape((vertex_count, 3))
 
     # get lines with face data
-    faces = [i.split() for i in
-             splits[vertex_count + 1:vertex_count + face_count + 1]]
+    faces = [i.split() for i in splits[vertex_count + 1 : vertex_count + face_count + 1]]
     # the first value is count
-    faces = [line[1:int(line[0]) + 1] for line in faces]
+    faces = [line[1 : int(line[0]) + 1] for line in faces]
 
     faces = triangulate_quads(faces)
     # save data as kwargs for a trimesh.Trimesh
-    kwargs = {'vertices': vertices,
-              'faces': faces}
+    kwargs = {"vertices": vertices, "faces": faces}
 
     return kwargs
 
@@ -81,17 +77,19 @@ def export_off(mesh, digits=10):
     # make sure specified digits is an int
     digits = int(digits)
     # prepend a 3 (face count) to each face
-    faces_stacked = np.column_stack((np.ones(len(mesh.faces)) * 3,
-                                     mesh.faces)).astype(np.int64)
-    export = 'OFF\n'
+    faces_stacked = np.column_stack((np.ones(len(mesh.faces)) * 3, mesh.faces)).astype(
+        np.int64
+    )
+    export = "OFF\n"
     # the header is vertex count, face count, another number
-    export += str(len(mesh.vertices)) + ' ' + str(len(mesh.faces)) + ' 0\n'
-    export += util.array_to_string(
-        mesh.vertices, col_delim=' ', row_delim='\n', digits=digits) + '\n'
-    export += util.array_to_string(
-        faces_stacked, col_delim=' ', row_delim='\n')
+    export += str(len(mesh.vertices)) + " " + str(len(mesh.faces)) + " 0\n"
+    export += (
+        util.array_to_string(mesh.vertices, col_delim=" ", row_delim="\n", digits=digits)
+        + "\n"
+    )
+    export += util.array_to_string(faces_stacked, col_delim=" ", row_delim="\n")
     return export
 
 
-_off_loaders = {'off': load_off}
-_off_exporters = {'off': export_off}
+_off_loaders = {"off": load_off}
+_off_exporters = {"off": export_off}

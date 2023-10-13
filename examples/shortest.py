@@ -7,12 +7,11 @@ between the two vertices while only traveling along edges
 of the mesh.
 """
 
-import trimesh
-
 import networkx as nx
 
-if __name__ == '__main__':
+import trimesh
 
+if __name__ == "__main__":
     # test on a sphere mesh
     mesh = trimesh.primitives.Sphere()
 
@@ -30,18 +29,14 @@ if __name__ == '__main__':
     # alternative method for weighted graph creation
     # you can also create the graph with from_edgelist and
     # a list comprehension, which is like 1.5x faster
-    ga = nx.from_edgelist([(e[0], e[1], {'length': L})
-                           for e, L in zip(edges, length)])
+    ga = nx.from_edgelist([(e[0], e[1], {"length": L}) for e, L in zip(edges, length)])
 
     # arbitrary indices of mesh.vertices to test with
     start = 0
     end = int(len(mesh.vertices) / 2.0)
 
     # run the shortest path query using length for edge weight
-    path = nx.shortest_path(g,
-                            source=start,
-                            target=end,
-                            weight='length')
+    path = nx.shortest_path(g, source=start, target=end, weight="length")
 
     # VISUALIZE RESULT
     # make the sphere transparent-ish
@@ -52,9 +47,6 @@ if __name__ == '__main__':
     points_visual = trimesh.points.PointCloud(mesh.vertices[[start, end]])
 
     # create a scene with the mesh, path, and points
-    scene = trimesh.Scene([
-        points_visual,
-        path_visual,
-        mesh])
+    scene = trimesh.Scene([points_visual, path_visual, mesh])
 
     scene.show(smooth=False)

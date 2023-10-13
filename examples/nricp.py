@@ -9,12 +9,11 @@ For more information, see
 
 """
 
-import trimesh
 import numpy as np
-from trimesh.registration import (nricp_amberg,
-                                  nricp_sumner,
-                                  procrustes)
+
+import trimesh
 from trimesh.proximity import closest_point
+from trimesh.registration import nricp_amberg, nricp_sumner, procrustes
 from trimesh.triangles import points_to_barycentric
 
 
@@ -22,49 +21,45 @@ def slider_closure(records, pv_mesh):
     """
     Return a function used for a PyVista slider widget.
     """
+
     def cb(value):
         t1 = min(int(value), len(records) - 1)
         t2 = min(t1 + 1, len(records) - 1)
         t = value - t1
         pv_mesh.points = (1 - t) * records[t1] + t * records[t2]
-        for i, pos in enumerate(
-                pv_mesh.points[landmarks_vertex_indices[:, 0]]):
-            p.add_mesh(
-                pv.Sphere(
-                    target.scale / 200,
-                    pos),
-                name=str(i),
-                color='r')
-            pv_mesh['distance'] = (
-                1 - t) * distances[t1] + t * distances[t2]
+        for i, pos in enumerate(pv_mesh.points[landmarks_vertex_indices[:, 0]]):
+            p.add_mesh(pv.Sphere(target.scale / 200, pos), name=str(i), color="r")
+            pv_mesh["distance"] = (1 - t) * distances[t1] + t * distances[t2]
+
     return cb
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     # attach to trimesh logs
     trimesh.util.attach_to_log()
 
     # Get two meshes that have a comparable shape
-    source = trimesh.load_mesh('../models/reference.obj', process=False)
-    target = trimesh.load_mesh('../models/target.obj', process=False)
+    source = trimesh.load_mesh("../models/reference.obj", process=False)
+    target = trimesh.load_mesh("../models/target.obj", process=False)
 
     # Vertex indices of landmarks source / target
-    landmarks_vertex_indices = np.array([
-        [177, 1633],
-        [181, 1561],
-        [614, 1556],
-        [610, 1629],
-        [114, 315],
-        [398, 413],
-        [812, 412],
-        [227, 99],
-        [241, 87],
-        [674, 86],
-        [660, 98],
-        [362, 574],
-        [779, 573],
-    ])
+    landmarks_vertex_indices = np.array(
+        [
+            [177, 1633],
+            [181, 1561],
+            [614, 1556],
+            [610, 1629],
+            [114, 315],
+            [398, 413],
+            [812, 412],
+            [227, 99],
+            [241, 87],
+            [674, 86],
+            [660, 98],
+            [362, 574],
+            [779, 573],
+        ]
+    )
 
     source_markers_vertices = source.vertices[landmarks_vertex_indices[:, 0]]
     target_markers_vertices = target.vertices[landmarks_vertex_indices[:, 1]]
@@ -77,9 +72,9 @@ if __name__ == '__main__':
     if use_barycentric_coordinates:
         source_markers_vertices = source.vertices[landmarks_vertex_indices[:, 0]]
         source_markers_tids = closest_point(source, source_markers_vertices)[2]
-        source_markers_barys = \
-            points_to_barycentric(source.triangles[source_markers_tids],
-                                  source_markers_vertices)
+        source_markers_barys = points_to_barycentric(
+            source.triangles[source_markers_tids], source_markers_vertices
+        )
         source_landmarks = (source_markers_tids, source_markers_barys)
     else:
         source_landmarks = landmarks_vertex_indices[:, 0]
@@ -115,45 +110,61 @@ if __name__ == '__main__':
 
     # Amberg et al. 2007
     records_amberg = nricp_amberg(
-        source, target, source_landmarks=source_landmarks,
-        distance_threshold=0.05,
-        target_positions=target_markers_vertices,
-        steps=steps_amberg, return_records=True)
-
-    # Sumner and Popovic 2004
-    records_sumner = nricp_sumner(
-        source, target,
+        source,
+        target,
         source_landmarks=source_landmarks,
         distance_threshold=0.05,
         target_positions=target_markers_vertices,
-        steps=steps_sumner, return_records=True)
+        steps=steps_amberg,
+        return_records=True,
+    )
+
+    # Sumner and Popovic 2004
+    records_sumner = nricp_sumner(
+        source,
+        target,
+        source_landmarks=source_landmarks,
+        distance_threshold=0.05,
+        target_positions=target_markers_vertices,
+        steps=steps_sumner,
+        return_records=True,
+    )
 
     # Show the result
     try:
         import pyvista as pv
-        for records, name in [(records_amberg, 'Amberg et al. 2007'),
-                              (records_sumner, 'Sumner and Popovic 2004')]:
+
+        for records, name in [
+            (records_amberg, "Amberg et al. 2007"),
+            (records_sumner, "Sumner and Popovic 2004"),
+        ]:
             distances = [closest_point(target, r)[1] for r in records]
             p = pv.Plotter()
-            p.background_color = 'w'
+            p.background_color = "w"
             pv_mesh = pv.wrap(source)
-            pv_mesh['distance'] = distances[0]
+            pv_mesh["distance"] = distances[0]
             p.add_text(name, color=(0, 0, 0))
             p.add_mesh(
-                pv_mesh, color=(0.6, 0.6, 0.9), cmap='rainbow',
-                clim=(0, target.scale / 100), scalars='distance',
-                scalar_bar_args={'color': (0, 0, 0)})
-            p.add_mesh(pv.wrap(target), style='wireframe')
+                pv_mesh,
+                color=(0.6, 0.6, 0.9),
+                cmap="rainbow",
+                clim=(0, target.scale / 100),
+                scalars="distance",
+                scalar_bar_args={"color": (0, 0, 0)},
+            )
+            p.add_mesh(pv.wrap(target), style="wireframe")
 
             p.add_slider_widget(
                 slider_closure(records=records, pv_mesh=pv_mesh),
-                rng=(0, len(records)), value=0,
-                color='black',
-                event_type='always',
-                title='step')
+                rng=(0, len(records)),
+                value=0,
+                color="black",
+                event_type="always",
+                title="step",
+            )
 
             for pos in target_markers_vertices:
-                p.add_mesh(pv.Sphere(target.scale / 200, pos), color='g')
+                p.add_mesh(pv.Sphere(target.scale / 200, pos), color="g")
 
             p.show()
 
