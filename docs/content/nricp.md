@@ -2,7 +2,7 @@ Non-Rigid Registration
 =====================
 
 Mesh non-rigid registration methods are capable of aligning (*i.e.* superimposing) a *source mesh* on a *target geometry* which can be any 3D structure that enables nearest point query. In Trimesh, the target geometry can either be a mesh `trimesh.Trimesh` or a point cloud `trimesh.PointCloud`. This process is often used to build dense correspondence, needed for the creation of [3D Morphable Models](https://www.face-rec.org/algorithms/3d_morph/morphmod2.pdf).
-The "non-rigid" part means that the vertices of the source mesh are not scaled, rotated and translated together to match the target geometry as with [Iterative Closest Points](https://en.wikipedia.org/wiki/Iterative_closest_point) (ICP) methods. Instead, they are allowed to move *more or less independantly* to land on the target geometry.
+The "non-rigid" part means that the vertices of the source mesh are not scaled, rotated and translated together to match the target geometry as with [Iterative Closest Points](https://en.wikipedia.org/wiki/Iterative_closest_point) (ICP) methods. Instead, they are allowed to move *more or less independently* to land on the target geometry.
 
 Trimesh implements two mesh non-rigid registrations algorithms which are both extensions of ICP. They are called Non-Rigid ICP methods :
 
@@ -30,7 +30,7 @@ $\mathbf{x}_4$ is basically the point at the tip of the triangle normal starting
 Each deformed vertex $\tilde{\mathbf{v}}_i$ is computed from the vertex $\mathbf{v}_i$ via an affine transformation $\{\mathbf{T}, \mathbf{d}\}_i$ with $\mathbf{T}_i \in \mathbb{R}^{3\times3}$ being its scaling/rotational part and $\mathbf{d}_i$ being its translational part.
 We get $\tilde{\mathbf{v}}_i = \mathbf{T}_i\mathbf{v}_i + \mathbf{d}_i$.
 
-The main idea is to subtract $\mathbf{d}$ from the previous equation. To do this, we substract $\mathbf{x}_1$ from each tetrahedron to obtain frames $\mathbf{V}_i$ and $\tilde{\mathbf{V}}_i \in \mathbb{R}^{3\times3}$ :
+The main idea is to subtract $\mathbf{d}$ from the previous equation. To do this, we subtract $\mathbf{x}_1$ from each tetrahedron to obtain frames $\mathbf{V}_i$ and $\tilde{\mathbf{V}}_i \in \mathbb{R}^{3\times3}$ :
 
 $$
 \begin{matrix}
@@ -103,7 +103,7 @@ Then we either start the next iteration or return the result.
 The number of iterations is determined by the length of the `steps` argument. `steps` should be an iterable of five floats iterables  `[[wc_1, wi_1, ws_1, wl_1, wn_1], ..., [wc_n, wi_n, ws_n, wl_n, wn_n]]`. The floats should correspond to $w_C, w_I, w_S, w_L$ and $w_N$. The extra weight $w_N$ is related to outlier robustness. 
 
 ### Robustness to outliers
-The target geometry can be noisy or incomplete which can lead to bad closest points $\mathbf{c}$. To remedy this issue, the linear equations related to $E_C$ are also weighted by *closest point validity weights*. First, if the distance to the closest point greater than the user specified threshold `distance_threshold`, the corresponding linear equations are multiplied by 0 (*i.e.* removed). Second, one may need the normals at the source mesh vertices and the normals at target geoemtry closest points to coincide. We use the dot product to the power $w_N$ to determine if normals are well aligned and use it to weight the linear equations. Eventually, the *closest point validity weights* are :
+The target geometry can be noisy or incomplete which can lead to bad closest points $\mathbf{c}$. To remedy this issue, the linear equations related to $E_C$ are also weighted by *closest point validity weights*. First, if the distance to the closest point greater than the user specified threshold `distance_threshold`, the corresponding linear equations are multiplied by 0 (*i.e.* removed). Second, one may need the normals at the source mesh vertices and the normals at target geometry closest points to coincide. We use the dot product to the power $w_N$ to determine if normals are well aligned and use it to weight the linear equations. Eventually, the *closest point validity weights* are :
 
 $$
 \boldsymbol{\alpha}=\left[
@@ -115,7 +115,7 @@ $$
 $$
 
 
-With $d_{max}$ being the threshold given with the argument `distance_threshold`, and $\mathbf{n}_v$ and $\mathbf{n}_c$ the normals mentionned above.
+With $d_{max}$ being the threshold given with the argument `distance_threshold`, and $\mathbf{n}_v$ and $\mathbf{n}_c$ the normals mentioned above.
 
 ### Summary
 
@@ -148,7 +148,7 @@ Three energies are minimized :
 
 $$E_C = \sum\limits^n_{i=1} \boldsymbol{\alpha}_i \lVert \mathbf{w}_i^\text{T}\mathbf{X}_i - \mathbf{c}_i \rVert^2$$
 
-- The **deformation smoothness term** (stiffness term) $E_S$. In the following, $\mathbf{G}=[1,1,1,\gamma]$ is used to weights differences in the rotational and skew part of the deformation, and can be accesed via the argument `gamma`. Two vertices are adjacent if they share an edge.
+- The **deformation smoothness term** (stiffness term) $E_S$. In the following, $\mathbf{G}=[1,1,1,\gamma]$ is used to weights differences in the rotational and skew part of the deformation, and can be accessed via the argument `gamma`. Two vertices are adjacent if they share an edge.
 
 $$E_S = \sum\limits^n_{j\in\text{adj}(i)} \lVert (\mathbf{X}_i - \mathbf{X}_j) \mathbf{G} \rVert^2$$
 
@@ -206,7 +206,7 @@ The [same implementation](#robustness-to-outliers) than `nricp_sumner` is used, 
     - $j ← j + 1$
 
 
-> In contrast to `nricp_sumner`, the matrix $\mathbf{A}_C$ is built only once at initilization.
+> In contrast to `nricp_sumner`, the matrix $\mathbf{A}_C$ is built only once at initialization.
 
 ## Comparison of the two methods
 The main difference between `nricp_sumner` and `nricp_amberg` is the kind of transformations that is optimized. `nricp_sumner` involves frames with an extra vertex representing the orientation of the triangles, and solves implicitly for transformations that act on these frames. In `nricp_amberg`, per-vertex transformations are explicitly solved for which allows to construct the correspondence cost matrix $\mathbf{A}_C$ only once. As a result, `nricp_sumner` tends to output smoother results with less high frequencies. The users are advised to try both algorithms with different parameter sets, especially different `steps` arguments, and find which suits better their problem.  `nricp_amberg` appears to be easier to tune, though.

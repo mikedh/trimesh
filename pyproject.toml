@@ -5,9 +5,9 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.0.0.rc1"
+version = "4.0.0.rc2"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
-license = {text = "MIT"}
+license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
 keywords = ["graphics", "mesh", "geometry", "3D"]
 classifiers = [
@@ -88,7 +88,7 @@ recommend = [
     "xatlas",
     "scikit-image",
     "python-fcl",
-    "pyVHACD",
+    "vhacdx",
 ]
 
 # this is the list of everything that is ever added anywhere

@@ -1,4 +1,4 @@
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 # our default integer and floating point types
 from numpy import float64, int64
@@ -10,4 +10,13 @@ except BaseException:
     ArrayLike = Sequence
 
 
-__all__ = ["NDArray", "ArrayLike", "Optional", "List", "Tuple", "float64", "int64"]
+__all__ = [
+    "NDArray",
+    "ArrayLike",
+    "Optional",
+    "List",
+    "Dict",
+    "Tuple",
+    "float64",
+    "int64",
+]

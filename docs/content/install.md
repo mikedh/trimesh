@@ -29,8 +29,7 @@ Conda Packages
 
 If you prefer a `conda` environment, `trimesh` is available on `conda-forge` ([trimesh-feedstock repo](https://github.com/conda-forge/trimesh-feedstock))
 
-
-If you install [Miniconda](https://conda.io/docs/install/quick.html) you can then run:
+If you install [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/) you can then run:
 
 ```
 conda install -c conda-forge trimesh
@@ -81,4 +80,4 @@ Trimesh has a lot of soft-required upstream packages. We try to make sure they'r
 |`pytest`| A test runner. | | `test`|
 |`pytest-cov`| A plugin to calculate test coverage. | | `test`|
 |`pyinstrument`| A sampling based profiler for performance tweaking. | | `test`|
-|`pyvhacd`| A binding for VHACD which provides convex decompositions | | `recommend`|
+|`vhacdx`| A binding for VHACD which provides convex decompositions | | `recommend`|

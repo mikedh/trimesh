@@ -45,8 +45,8 @@ class VectorTests(g.unittest.TestCase):
             if d.metadata["file_name"][-3:] == "dxf":
                 assert len(d.layers) == len(d.entities)
 
-            for path in d.paths:
-                verts = d.discretize_path(path)
+            for path, verts in zip(d.paths, d.discrete):
+                assert len(path) >= 1
                 dists = g.np.sum((g.np.diff(verts, axis=0)) ** 2, axis=1) ** 0.5
 
                 if not g.np.all(dists > g.tol_path.zero):

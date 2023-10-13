@@ -18,7 +18,7 @@ RUN pip install trimesh[easy]
 
 ### Using Prebuilt Images
 
-The `trimesh/trimesh` docker images are based on the offical Python base image, currently `python:3.11-slim-bullseye`. They are built and pushed to Docker Hub automatically in Github Actions for every release. 
+The `trimesh/trimesh` docker images are based on the official Python base image, currently `python:3.11-slim-bullseye`. They are built and pushed to Docker Hub automatically in Github Actions for every release.
 
 If you need some of the more demanding dependencies they can be a good option. The `trimesh/trimesh` images are pushed with three tags: `latest` (for latest :), semantic version (i.e. `3.15.5`), or git short hash (i.e. `1c6178d`). These images include `embree` and `trimesh[all]` which is run in a multi-stage build to avoid including intermediate files in the final image.
 

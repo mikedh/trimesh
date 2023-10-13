@@ -294,7 +294,7 @@ class BoundsTest(g.unittest.TestCase):
             # check the mesh bounds against the claimed OBB bounds
             half = o.primitive.extents / 2.0
             check_extents = g.np.array([-half, half])
-            # check that the OBB does countain the mesh
+            # check that the OBB does contain the mesh
             assert g.np.allclose(check.bounds, check_extents, rtol=1e-4)
 
 

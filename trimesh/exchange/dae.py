@@ -191,6 +191,8 @@ def _parse_node(
                 primitive = primitive.triangleset()
             if isinstance(primitive, collada.triangleset.TriangleSet):
                 vertex = primitive.vertex
+                if vertex is None:
+                    continue
                 vertex_index = primitive.vertex_index
                 vertices = vertex[vertex_index].reshape(len(vertex_index) * 3, 3)
 
