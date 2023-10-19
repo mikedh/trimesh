@@ -136,7 +136,6 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
         color_gl,
     )
 
-    print("renda", hash(mesh), np.array(vertices).reshape((-1, 3)).ptp(axis=0))
     return args
 
 

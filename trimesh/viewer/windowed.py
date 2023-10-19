@@ -229,11 +229,9 @@ class SceneViewer(pyglet.window.Window):
         for name, geom in self.scene.geometry.items():
             if geom.is_empty:
                 continue
-            # if geometry_hash(geom) == self.vertex_list_hash.get(name):
-            #    continue
-            i = hash(geom)
+            if _geometry_hash(geom) == self.vertex_list_hash.get(name):
+                continue
             self.add_geometry(name=name, geometry=geom, smooth=bool(self._smooth))
-            assert hash(geom) == i
 
     def _update_meshes(self):
         # call the callback if specified
@@ -265,7 +263,7 @@ class SceneViewer(pyglet.window.Window):
         # create the indexed vertex list
         self.vertex_list[name] = self.batch.add_indexed(*args)
         # save the hash of the geometry
-        self.vertex_list_hash[name] = hash(geometry)
+        self.vertex_list_hash[name] = _geometry_hash(geometry)
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
@@ -842,7 +840,7 @@ class SceneViewer(pyglet.window.Window):
         return file_obj
 
 
-def geometry_hash(geometry):
+def _geometry_hash(geometry):
     """
     Get a hash for a geometry object
 
