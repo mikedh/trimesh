@@ -31,7 +31,7 @@ def typical_application():
 
         faces = mesh.facets[mesh.facets_area.argmax()]
         outline = mesh.outline(faces)  # NOQA
-        smoothed = mesh.smoothed()  # NOQA
+        smoothed = mesh.smooth_shaded  # NOQA
 
         assert mesh.volume > 0.0
 

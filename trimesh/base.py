@@ -2114,25 +2114,14 @@ class Trimesh(Geometry3D):
 
     def smoothed(self, **kwargs):
         """
-        Return a version of the current mesh which will render
-        nicely, without changing source mesh.
-
-        Parameters
-        -------------
-        angle : float or None
-          Angle in radians face pairs with angles
-          smaller than this will appear smoothed
-        facet_minarea : float or None
-          Minimum area fraction to consider
-          IE for `facets_minarea=25` only facets larger
-          than `mesh.area / 25` will be considered.
-
-        Returns
-        ---------
-        smoothed : trimesh.Trimesh
-          Non watertight version of current mesh
-          which will render nicely with smooth shading
+        DEPRECATED: use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`
         """
+        warnings.warn(
+            "`mesh.smooth_shaded` is deprected and will be removed in March 2024: "
+            + "use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
         # run smoothing
         return self.smooth_shaded
 

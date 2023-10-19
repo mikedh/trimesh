@@ -9,6 +9,7 @@ Currently uses networkx or scipy.sparse.csgraph backend.
 """
 
 import collections
+import warnings
 
 import numpy as np
 
@@ -743,6 +744,15 @@ def neighbors(edges, max_index=None, directed=False):
 
 
 def smoothed(*args, **kwargs):
+    """
+    DEPRECATED: use `trimesh.graph.smooth_shade(mesh, ...)`
+    """
+    warnings.warn(
+        "`trimesh.graph.smooth_shaded` is deprected and will be removed in March 2024: "
+        + "use `trimesh.graph.smooth_shade(mesh, ...)`",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
     return smooth_shade(*args, **kwargs)
 
 

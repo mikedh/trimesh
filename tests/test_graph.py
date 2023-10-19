@@ -113,7 +113,7 @@ class GraphTest(g.unittest.TestCase):
 
         for name in ["ADIS16480.STL", "featuretype.STL"]:
             mesh = g.get_mesh(name)
-            assert len(mesh.faces) == len(mesh.smoothed().faces)
+            assert len(mesh.faces) == len(mesh.smooth_shaded.faces)
 
     def test_engines(self):
         edges = g.np.arange(10).reshape((-1, 2))

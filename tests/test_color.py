@@ -123,7 +123,7 @@ class VisualTest(g.unittest.TestCase):
         m = g.get_mesh("featuretype.STL")
 
         # will put smoothed mesh into visuals cache
-        s = m.smoothed()
+        s = m.smooth_shaded
         # every color should be default color
         assert s.visual.face_colors.ptp(axis=0).max() == 0
 
@@ -131,16 +131,16 @@ class VisualTest(g.unittest.TestCase):
         m.visual.face_colors[0] = [255, 0, 0, 255]
 
         # cache should be dumped yo
-        s1 = m.smoothed()
+        s1 = m.smooth_shaded
         assert s1.visual.face_colors.ptp(axis=0).max() != 0
 
         # do the same check on vertex color
         m = g.get_mesh("featuretype.STL")
-        s = m.smoothed()
+        s = m.smooth_shaded
         # every color should be default color
         assert s.visual.vertex_colors.ptp(axis=0).max() == 0
         m.visual.vertex_colors[g.np.arange(10)] = [255, 0, 0, 255]
-        s1 = m.smoothed()
+        s1 = m.smooth_shaded
         assert s1.visual.face_colors.ptp(axis=0).max() != 0
 
     def test_vertex(self):
