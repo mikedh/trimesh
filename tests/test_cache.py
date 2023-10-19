@@ -356,6 +356,24 @@ class CacheTest(g.unittest.TestCase):
         m.process(validate=True)
         assert m.triangles.shape == (1, 3, 3)
 
+    def test_smooth_shade(self, count=10):
+        # test to make sure the smooth shaded copy is cached correctly
+        mesh = g.trimesh.creation.cylinder(radius=1, height=10)
+        scene = g.trimesh.Scene({"mesh": mesh})
+
+        initial = scene.camera_transform.copy()
+
+        hashes = set()
+        for n in range(count):
+            angle = g.np.pi * n / count
+            matrix = g.trimesh.transformations.rotation_matrix(angle, [1, 0, 0])
+            scene.geometry["mesh"].apply_transform(matrix)
+            hashes.add(scene.geometry["mesh"].smooth_shaded)
+            scene.camera_transform = initial
+
+        # the smooth shade should be unique for every transform
+        assert len(hashes) == count
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
