@@ -37,7 +37,7 @@ from . import (
     units,
     util,
 )
-from .constants import log, log_time, tol
+from .constants import log, tol
 from .exceptions import ExceptionWrapper
 from .exchange.export import export_mesh
 from .parent import Geometry3D
@@ -2112,7 +2112,6 @@ class Trimesh(Geometry3D):
         result = Trimesh(vertices=new_vertices, faces=new_faces, process=False)
         return result
 
-    @log_time
     def smoothed(self, **kwargs):
         """
         Return a version of the current mesh which will render
@@ -2134,16 +2133,25 @@ class Trimesh(Geometry3D):
           Non watertight version of current mesh
           which will render nicely with smooth shading
         """
-
-        # smooth should be recomputed if visuals change
-        self.visual._verify_hash()
-        cached = self.visual._cache["smoothed"]
-        if cached is not None:
-            return cached
         # run smoothing
-        smoothed = graph.smoothed(self, **kwargs)
-        self.visual._cache["smoothed"] = smoothed
-        return smoothed
+        return self.smooth_shaded
+
+    @caching.cache_decorator
+    def smooth_shaded(self):
+        """
+        Smooth shading in OpenGL relies on which vertices are shared,
+        this function will disconnect regions above an angle threshold
+        and return a non-watertight version which will look better
+        in an OpenGL rendering context.
+
+        If you would like to use non-default arguments see `graph.smooth_shade`.
+
+        Returns
+        ---------
+        smooth_shaded : trimesh.Trimesh
+          Non watertight version of current mesh.
+        """
+        return graph.smooth_shade(self)
 
     @property
     def visual(self):

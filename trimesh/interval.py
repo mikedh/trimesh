@@ -8,6 +8,8 @@ Deal with 1D intervals which are defined by:
 
 import numpy as np
 
+from .typed import NDArray, float64
+
 
 def check(a, b, digits):
     """
@@ -119,3 +121,45 @@ def intersection(a, b, digits=8):
         return intersects[0], overlap[0]
 
     return intersects, overlap
+
+
+def union(intervals: NDArray[float64], sort: bool = True) -> NDArray[float64]:
+    """
+    For an array of intervals union them into just the subset of intervals.
+
+    Parameters
+    ------------
+    intervals : (n, 2)
+      Pairs of `(min, max)` values.
+    sort
+      If the array is already ordered into (min, max) pairs
+      and then pairs sorted by minimum value you can skip the
+      sorting in this function.
+
+    Returns
+    ----------
+    unioned : (m, 2)
+      New intervals where `m <= n`
+    """
+    if len(intervals) == 0:
+        return np.empty(0)
+
+    # if the intervals have not been pre-sorted we should apply our sorting logic
+    # you would only skip this if you are subsetting a larger list elsewhere.
+    if sort:
+        # copy inputs and make sure they are (min, max) pairs
+        intervals = np.sort(intervals, axis=1)
+        # order them by lowest starting point
+        intervals = intervals[intervals[:, 0].argsort()]
+
+    # we know we will have at least one interval
+    unions = [intervals[0]]
+
+    for begin, end in intervals[1:]:
+        if unions[-1][1] >= begin:
+            #
+            unions[-1][1] = max(unions[-1][1], end)
+        else:
+            unions.append([begin, end])
+
+    return unions

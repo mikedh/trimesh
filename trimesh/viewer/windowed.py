@@ -229,9 +229,11 @@ class SceneViewer(pyglet.window.Window):
         for name, geom in self.scene.geometry.items():
             if geom.is_empty:
                 continue
-            if geometry_hash(geom) == self.vertex_list_hash.get(name):
-                continue
+            # if geometry_hash(geom) == self.vertex_list_hash.get(name):
+            #    continue
+            i = hash(geom)
             self.add_geometry(name=name, geometry=geom, smooth=bool(self._smooth))
+            assert hash(geom) == i
 
     def _update_meshes(self):
         # call the callback if specified
@@ -263,7 +265,7 @@ class SceneViewer(pyglet.window.Window):
         # create the indexed vertex list
         self.vertex_list[name] = self.batch.add_indexed(*args)
         # save the hash of the geometry
-        self.vertex_list_hash[name] = geometry_hash(geometry)
+        self.vertex_list_hash[name] = hash(geometry)
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
@@ -731,7 +733,6 @@ class SceneViewer(pyglet.window.Window):
 
             # get the transform from world to geometry and mesh name
             transform, geometry_name = graph.get(current_node)
-
             # if no geometry at this frame continue without rendering
             if geometry_name is None or geometry_name not in self.vertex_list_mode:
                 continue
@@ -749,7 +750,6 @@ class SceneViewer(pyglet.window.Window):
             mesh = geometry[geometry_name]
             if mesh.is_empty:
                 continue
-
             # get the GL mode of the current geometry
             mode = self.vertex_list_mode[geometry_name]
 

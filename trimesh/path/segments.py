@@ -9,9 +9,10 @@ import numpy as np
 
 from .. import geometry, grouping, interval, transformations, util
 from ..constants import tol
+from ..typed import NDArray, float64
 
 
-def segments_to_parameters(segments):
+def segments_to_parameters(segments: NDArray[float64]):
     """
     For 3D line segments defined by two points, turn
     them in to an origin defined as the closest point along
@@ -144,6 +145,27 @@ def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
         colinear = colinear[identical]
 
     return colinear
+
+
+def clean(segments, digits=10):
+    """
+    Clean
+    """
+    # convert segments to parameterized origins
+    # which are the closest point on the line to
+    # the actual zero- origin
+    origins, vectors, param = segments_to_parameters(segments)
+
+    # collect new unified paramameters
+    p, o, v = [], [], []
+    for g in grouping.group_rows(np.column_stack((origins, vectors)), digits=digits):
+        # union the ranges
+        u = interval.union(param[g])
+        p.extend(u)
+        o.extend(origins[g[: len(u)]])
+        v.extend(vectors[g[: len(u)]])
+
+    return parameters_to_segments(o, v, p)
 
 
 def split(segments, points, atol=1e-5):

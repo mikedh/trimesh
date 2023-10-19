@@ -252,11 +252,10 @@ class Scene(Geometry3D):
         """
         # avoid accessing attribute in tight loop
         geometry = self.geometry
-        # start with the last modified time of the scene graph
-        hashable = [hex(self.graph.transforms.__hash__())]
-        # take the re-hex string of the hash
-        hashable.extend(hex(geometry[k].__hash__()) for k in geometry.keys())
-        return caching.hash_fast("".join(hashable).encode("utf-8"))
+        # hash of geometry and transforms
+        return hash(
+            (hash(self.graph.transforms), hash((k, hash(v)) for k, v in geometry.items()))
+        )
 
     @property
     def is_empty(self):
