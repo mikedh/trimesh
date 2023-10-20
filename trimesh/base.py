@@ -2125,7 +2125,7 @@ class Trimesh(Geometry3D):
         # run smoothing
         return self.smooth_shaded
 
-    @caching.cache_decorator
+    @property
     def smooth_shaded(self):
         """
         Smooth shading in OpenGL relies on which vertices are shared,
@@ -2140,7 +2140,16 @@ class Trimesh(Geometry3D):
         smooth_shaded : trimesh.Trimesh
           Non watertight version of current mesh.
         """
-        return graph.smooth_shade(self)
+        # key this also by the visual properties
+        # but store it in the mesh cache
+        key = f"smooth_shaded_{hash(self.visual)}"
+        if key in self._cache:
+            return self._cache[key]
+        smooth = graph.smooth_shade(self)
+
+        # store it in the mesh cache which dumps when vertices change
+        self._cache[key] = smooth
+        return smooth
 
     @property
     def visual(self):
