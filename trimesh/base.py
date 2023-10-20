@@ -2222,7 +2222,7 @@ class Trimesh(Geometry3D):
         plane_origin: NDArray[float64],
         plane_normal: NDArray[float64],
         heights: NDArray[float64],
-    ) -> list["Path2D"]:
+    ):
         """
         Return multiple parallel cross sections of the current
         mesh in 2D.
