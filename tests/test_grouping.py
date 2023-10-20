@@ -78,6 +78,22 @@ class GroupTests(g.unittest.TestCase):
         assert set(result[0]) == {1}
         assert all(a[i].all() for i in result)
 
+        # make sure wrapping works if all values are True
+        arr = g.np.ones(10, dtype=bool)
+        result = blocks(arr, min_len=1, wrap=True, only_nonzero=True)
+        assert len(result) == 1
+        assert set(result[0]) == set(range(10))
+
+        # and all false
+        arr = g.np.zeros(10, dtype=bool)
+        result = blocks(arr, min_len=1, wrap=True, only_nonzero=True)
+        assert len(result) == 0
+
+        arr = g.np.zeros(10, dtype=bool)
+        result = blocks(arr, min_len=1, wrap=True, only_nonzero=False)
+        assert len(result) == 1
+        assert set(result[0]) == set(range(10))
+
     def test_block_wrap(self):
         """
         Test blocks with wrapping
