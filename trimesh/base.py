@@ -2121,7 +2121,7 @@ class Trimesh(Geometry3D):
         DEPRECATED: use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`
         """
         warnings.warn(
-            "`mesh.smooth_shaded` is deprected and will be removed in March 2024: "
+            "`mesh.smoothed()` is deprected and will be removed in March 2024: "
             + "use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`",
             category=DeprecationWarning,
             stacklevel=2,
