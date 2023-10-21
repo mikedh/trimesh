@@ -2149,7 +2149,8 @@ class Trimesh(Geometry3D):
         self.visual._verify_hash()
 
         cache = self.visual._cache
-        key = f"smooth_shaded_{hash(self.visual)}"
+        # needs to be dumped whenever visual or mesh changes
+        key = f"smooth_shaded_{hash(self.visual)}_{hash(self)}"
         if key in cache:
             return cache[key]
         smooth = graph.smooth_shade(self)
