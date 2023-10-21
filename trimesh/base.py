@@ -2146,13 +2146,16 @@ class Trimesh(Geometry3D):
         """
         # key this also by the visual properties
         # but store it in the mesh cache
+        self.visual._verify_hash()
+
+        cache = self.visual._cache
         key = f"smooth_shaded_{hash(self.visual)}"
-        if key in self._cache:
-            return self._cache[key]
+        if key in cache:
+            return cache[key]
         smooth = graph.smooth_shade(self)
 
         # store it in the mesh cache which dumps when vertices change
-        self._cache[key] = smooth
+        cache[key] = smooth
         return smooth
 
     @property
