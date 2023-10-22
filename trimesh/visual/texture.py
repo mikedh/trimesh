@@ -271,8 +271,8 @@ def unmerge_faces(faces, *args, **kwargs):
             # and use that index note that this is doing a float conversion
             # and then median before converting back to int: could also do this as
             # a column diff and sort but this seemed easier and is fast enough
-            # use nanmedian to turn default attribute value of -1 to nan
-            # and compute the median igoring the nan values
+            # turn default attribute value of -1 to nan before median computation
+            # and use nanmedian to compute the median igoring the nan values
             masks_nan = np.where(masks!=-1, masks, np.NaN)
             result.append(np.nanmedian(masks_nan, axis=0).astype(np.int64))
 
