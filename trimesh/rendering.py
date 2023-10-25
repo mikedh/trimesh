@@ -69,6 +69,7 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
     --------------
     args : (7,) tuple
       Args for vertex list constructor
+
     """
 
     if hasattr(mesh.visual, "uv"):
@@ -107,7 +108,7 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
         # if we have a small number of faces and colors defined
         # smooth the  mesh by merging vertices of faces below
         # the threshold angle
-        mesh = mesh.smoothed()
+        mesh = mesh.smooth_shaded
         vertex_count = len(mesh.vertices)
         normals = mesh.vertex_normals.reshape(-1).tolist()
         faces = mesh.faces.reshape(-1).tolist()
@@ -134,6 +135,7 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
         ("n3f/static", normals),
         color_gl,
     )
+
     return args
 
 

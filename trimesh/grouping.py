@@ -781,6 +781,10 @@ def blocks(data, min_len=2, max_len=np.inf, wrap=False, digits=None, only_nonzer
         if only_nonzero and not bool(data[0]):
             return blocks
 
+        # if all values are True or False we can exit
+        if len(blocks) == 1 and len(blocks[0]) == len(data):
+            return blocks
+
         # so now first point equals last point, so the cases are:
         # - first and last point are in a block: combine two blocks
         # - first OR last point are in block: add other point to block

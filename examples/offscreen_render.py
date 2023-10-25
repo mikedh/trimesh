@@ -17,11 +17,11 @@ if __name__ == "__main__":
     # a 45 degree homogeneous rotation matrix around
     # the Y axis at the scene centroid
     rotate = trimesh.transformations.rotation_matrix(
-        angle=np.radians(10.0), direction=[0, 1, 0], point=scene.centroid
+        angle=np.radians(30.0), direction=[1, 0, 0], point=scene.centroid
     )
 
-    for i in range(4):
-        trimesh.constants.log.info("Saving image %d", i)
+    for i in range(10):
+        trimesh.constants.log.info(f"Saving image {i}")
 
         # rotate the camera view transform
         camera_old, _geometry = scene.graph[scene.camera.name]

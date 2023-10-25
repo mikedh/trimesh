@@ -7,7 +7,7 @@ except BaseException:
 class SmoothTest(g.unittest.TestCase):
     def test_smooth(self):
         m = g.get_mesh("chair_model.obj", force="mesh")
-        s = m.smoothed()
+        s = m.smooth_shaded
 
         ori = g.np.hstack((m.visual.uv, m.vertices))
         check = g.np.hstack((s.visual.uv, s.vertices))

@@ -78,7 +78,7 @@ class MeshTests(g.unittest.TestCase):
                 # on a Path3D object
                 test = outline.paths  # NOQA
 
-            smoothed = mesh.smoothed()  # NOQA
+            smoothed = mesh.smooth_shaded  # NOQA
 
             assert abs(mesh.volume) > 0.0
 

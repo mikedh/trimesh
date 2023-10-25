@@ -8,114 +8,100 @@ Deal with 1D intervals which are defined by:
 
 import numpy as np
 
+from .typed import NDArray, float64
 
-def check(a, b, digits):
+
+def intersection(a: NDArray[float64], b: NDArray[float64]) -> NDArray[float64]:
     """
-    Check input ranges, convert them to vector form,
-    and get a fixed precision integer version of them.
+    Given pairs of ranges merge them in to
+    one range if they overlap.
 
     Parameters
     --------------
-    a : (2, ) or (2, n) float
+    a : (2, ) or (n, 2)
       Start and end of a 1D interval
-    b : (2, ) or (2, n) float
+    b : (2, ) float
       Start and end of a 1D interval
-    digits : int
-      How many digits to consider
 
     Returns
     --------------
-    a : (2, n) float
-      Ranges as vector
-    b : (2, n) float
-      Ranges as vector
-    a_int : (2, n) int64
-      Ranges rounded to digits, as vector
-    b_int : (2, n) int64
-      Ranges rounded to digits, as vector
-    is_1D : bool
-      If True, input was single pair of ranges
+    inter : (2, ) or (2, 2) float
+      The unioned range from the two inputs,
+      if not `inter.ptp(axis=1)` will be zero.
     """
     a = np.array(a, dtype=np.float64)
     b = np.array(b, dtype=np.float64)
 
-    if a.shape != b.shape or a.shape[-1] != 2:
-        raise ValueError("ranges must be identical and (2,)!")
+    # convert to vectorized form
+    is_1D = a.shape == (2,)
+    a = a.reshape((-1, 2))
+    b = b.reshape((-1, 2))
 
-    # if input was single interval reshape it here
-    is_1D = False
-    if len(a.shape) == 1:
-        a = a.reshape((-1, 2))
-        b = b.reshape((-1, 2))
-        is_1D = True
-
-    # make sure ranges are sorted
+    # make sure they're min-max
     a.sort(axis=1)
     b.sort(axis=1)
+    a_low, a_high = a.T
+    b_low, b_high = b.T
 
-    # compare in fixed point as integers
-    a_int = (a * 10**digits).round().astype(np.int64)
-    b_int = (b * 10**digits).round().astype(np.int64)
-
-    return a, b, a_int, b_int, is_1D
-
-
-def intersection(a, b, digits=8):
-    """
-    Given a pair of ranges, merge them in to
-    one range if they overlap at all
-
-    Parameters
-    --------------
-    a : (2, ) float
-      Start and end of a 1D interval
-    b : (2, ) float
-      Start and end of a 1D interval
-    digits : int
-      How many digits to consider
-
-    Returns
-    --------------
-    intersects : bool or (n,) bool
-      Indicates if the ranges overlap at all
-    new_range : (2, ) or (2, 2) float
-      The unioned range from the two inputs,
-      or both of the original ranges if not overlapping
-    """
-    # check shape and convert
-    a, b, a_int, b_int, is_1D = check(a, b, digits)
-
-    # what are the starting and ending points of the overlap
+    # do the checks
+    check = np.logical_not(np.logical_or(b_low >= a_high, a_low >= b_high))
     overlap = np.zeros(a.shape, dtype=np.float64)
-
-    # A fully overlaps B
-    current = np.logical_and(a_int[:, 0] <= b_int[:, 0], a_int[:, 1] >= b_int[:, 1])
-    overlap[current] = b[current]
-
-    # B fully overlaps A
-    current = np.logical_and(a_int[:, 0] >= b_int[:, 0], a_int[:, 1] <= b_int[:, 1])
-    overlap[current] = a[current]
-
-    # A starts B ends
-    # A:, 0   B:, 0     A:, 1        B:, 1
-    current = np.logical_and(
-        np.logical_and(a_int[:, 0] <= b_int[:, 0], b_int[:, 0] < a_int[:, 1]),
-        a_int[:, 1] < b_int[:, 1],
+    overlap[check] = np.column_stack(
+        (
+            np.array([a_low[check], b_low[check]]).max(axis=0),
+            np.array([a_high[check], b_high[check]]).min(axis=0),
+        )
     )
-    overlap[current] = np.column_stack([b[current][:, 0], a[current][:, 1]])
-
-    # B starts A ends
-    # B:, 0  A:, 0    B:, 1  A:, 1
-    current = np.logical_and(
-        np.logical_and(b_int[:, 0] <= a_int[:, 0], a_int[:, 0] < b_int[:, 1]),
-        b_int[:, 1] < a_int[:, 1],
-    )
-    overlap[current] = np.column_stack([a[current][:, 0], b[current][:, 1]])
-
-    # is range overlapping at all
-    intersects = overlap.ptp(axis=1) > 10**-digits
 
     if is_1D:
-        return intersects[0], overlap[0]
+        return overlap[0]
 
-    return intersects, overlap
+    return overlap
+
+
+def union(intervals: NDArray[float64], sort: bool = True) -> NDArray[float64]:
+    """
+    For array of multiple intervals union them all into
+    the subset of intervals.
+
+    For example:
+    `intervals = [[1,2], [2,3]] -> [[1, 3]]`
+    `intervals = [[1,2], [2.5,3]] -> [[1, 2], [2.5, 3]]`
+
+
+    Parameters
+    ------------
+    intervals : (n, 2)
+      Pairs of `(min, max)` values.
+    sort
+      If the array is already ordered into (min, max) pairs
+      and then pairs sorted by minimum value you can skip the
+      sorting in this function.
+
+    Returns
+    ----------
+    unioned : (m, 2)
+      New intervals where `m <= n`
+    """
+    if len(intervals) == 0:
+        return np.empty(0)
+
+    # if the intervals have not been pre-sorted we should apply our sorting logic
+    # you would only skip this if you are subsetting a larger list elsewhere.
+    if sort:
+        # copy inputs and make sure they are (min, max) pairs
+        intervals = np.sort(intervals, axis=1)
+        # order them by lowest starting point
+        intervals = intervals[intervals[:, 0].argsort()]
+
+    # we know we will have at least one interval
+    unions = [intervals[0]]
+
+    for begin, end in intervals[1:]:
+        if unions[-1][1] >= begin:
+            #
+            unions[-1][1] = max(unions[-1][1], end)
+        else:
+            unions.append([begin, end])
+
+    return np.array(unions)

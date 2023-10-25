@@ -252,6 +252,7 @@ class Scene(Geometry3D):
         """
         # avoid accessing attribute in tight loop
         geometry = self.geometry
+        # hash of geometry and transforms
         # start with the last modified time of the scene graph
         hashable = [hex(self.graph.transforms.__hash__())]
         # take the re-hex string of the hash

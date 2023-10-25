@@ -24,8 +24,7 @@ pip install trimesh[all]
 ```
 
 
-Conda Packages
---------------
+## Conda Packages
 
 If you prefer a `conda` environment, `trimesh` is available on `conda-forge` ([trimesh-feedstock repo](https://github.com/conda-forge/trimesh-feedstock))
 
@@ -34,20 +33,11 @@ If you install [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/) 
 ```
 conda install -c conda-forge trimesh
 ```
-      
-Ubuntu-Debian Notes
--------------------
 
-Blender and openSCAD are soft dependencies used for boolean operations with subprocess, you can get them with `apt`:
-
-```
-sudo apt-get install blender
-```
-
-Dependency Overview
+## Dependency Overview
 --------------------
 
-Trimesh has a lot of soft-required upstream packages. We try to make sure they're active and big-ish. Here's a quick summary of what they're used for.
+Trimesh has a lot of soft-required upstream packages, and we try to make sure they're actively maintained. Here's a quick summary of what they're used for:
 
  
 | Package | Description | Alternatives | Level |
@@ -81,3 +71,16 @@ Trimesh has a lot of soft-required upstream packages. We try to make sure they'r
 |`pytest-cov`| A plugin to calculate test coverage. | | `test`|
 |`pyinstrument`| A sampling based profiler for performance tweaking. | | `test`|
 |`vhacdx`| A binding for VHACD which provides convex decompositions | | `recommend`|
+
+## Adding A Dependency
+
+If there's no way to implement something reasonably in vectorized Python or there is a mature minimal C++ or Rust implementation of something useful and complicated we may add a dependency. If it's a major, active project with few dependencies (i.e. `jinja2`) that's probably fine. Otherwise it's a lot more of a commitment than just implementing the function in Python however. An example of this is `embree`, Intel's ray check engine: it is a super complicated thing to do well and 50-100x faster than Python ray checks.
+
+There are a few projects that we've forked into the [`trimesh`](https://github.com/trimesh/) GitHub organization which you can take a look at. The general idea of the requirements for a new compiled dependency are:
+
+- is actively maintained and has an MIT/BSD compatible license.
+- has all source code in the repository or as a submodule, i.e. no mysterious binary blobs.
+- binding preferably uses [pybind11](https://pybind11.readthedocs.io/en/stable/index.html), [nanobind](https://github.com/wjakob/nanobind) or [maturin/py03](https://github.com/PyO3/maturin) for Rust projects. Cython is also OK but other options are preferable if possible. 
+- uses `cibuildwheel` to publish releases configured in `pyproject.toml`.
+- has unit tests which run in CI
+- has minimal dependencies: ideally only `numpy`.

@@ -37,7 +37,7 @@ from . import (
     units,
     util,
 )
-from .constants import log, log_time, tol
+from .constants import log, tol
 from .exceptions import ExceptionWrapper
 from .exchange.export import export_mesh
 from .parent import Geometry3D
@@ -277,7 +277,7 @@ class Trimesh(Geometry3D):
         return self._data.mutable
 
     @mutable.setter
-    def mutable(self, value: bool):
+    def mutable(self, value: bool) -> None:
         """
         Set the mutability of the current mesh.
 
@@ -342,7 +342,7 @@ class Trimesh(Geometry3D):
         return sparse
 
     @property
-    def face_normals(self):
+    def face_normals(self) -> NDArray[float64]:
         """
         Return the unit normal vector for each face.
 
@@ -394,7 +394,7 @@ class Trimesh(Geometry3D):
         return padded
 
     @face_normals.setter
-    def face_normals(self, values):
+    def face_normals(self, values: NDArray[float64]) -> None:
         """
         Assign values to face normals.
 
@@ -434,7 +434,7 @@ class Trimesh(Geometry3D):
         self._cache["face_normals"] = values
 
     @property
-    def vertices(self):
+    def vertices(self) -> NDArray[float64]:
         """
         The vertices of the mesh.
 
@@ -451,7 +451,7 @@ class Trimesh(Geometry3D):
         return self._data.get("vertices", np.empty(shape=(0, 3), dtype=float64))
 
     @vertices.setter
-    def vertices(self, values):
+    def vertices(self, values: NDArray[float64]):
         """
         Assign vertex values to the mesh.
 
@@ -465,7 +465,7 @@ class Trimesh(Geometry3D):
         self._data["vertices"] = np.asanyarray(values, order="C", dtype=float64)
 
     @caching.cache_decorator
-    def vertex_normals(self):
+    def vertex_normals(self) -> NDArray[float64]:
         """
         The vertex normals of the mesh. If the normals were loaded
         we check to make sure we have the same number of vertex
@@ -491,7 +491,7 @@ class Trimesh(Geometry3D):
         return vertex_normals
 
     @vertex_normals.setter
-    def vertex_normals(self, values: NDArray[float64]):
+    def vertex_normals(self, values: NDArray[float64]) -> None:
         """
         Assign values to vertex normals.
 
@@ -608,7 +608,7 @@ class Trimesh(Geometry3D):
         return centroid
 
     @property
-    def center_mass(self):
+    def center_mass(self) -> NDArray[float64]:
         """
         The point in space which is the center of mass/volume.
 
@@ -620,7 +620,7 @@ class Trimesh(Geometry3D):
         return self.mass_properties.center_mass
 
     @center_mass.setter
-    def center_mass(self, value):
+    def center_mass(self, value: NDArray[float64]) -> None:
         """
         Override the point in space which is the center of mass and volume.
 
@@ -648,7 +648,7 @@ class Trimesh(Geometry3D):
         return self.mass_properties.density
 
     @density.setter
-    def density(self, value: float):
+    def density(self, value: float) -> None:
         """
         Set the density of the primitive.
 
@@ -1138,9 +1138,9 @@ class Trimesh(Geometry3D):
         self,
         merge_tex: Optional[bool] = None,
         merge_norm: Optional[bool] = None,
-        digits_vertex: None = None,
-        digits_norm: None = None,
-        digits_uv: None = None,
+        digits_vertex: Optional[bool] = None,
+        digits_norm: Optional[bool] = None,
+        digits_uv: Optional[bool] = None,
     ) -> None:
         """
         Removes duplicate vertices grouped by position and
@@ -1336,7 +1336,7 @@ class Trimesh(Geometry3D):
         )
         self.update_faces(self.unique_faces())
 
-    def rezero(self):
+    def rezero(self) -> None:
         """
         Translate the mesh so that all vertex vertices are positive.
 
@@ -1709,7 +1709,7 @@ class Trimesh(Geometry3D):
         )
         self.update_faces(self.nondegenerate_faces(height=height))
 
-    def nondegenerate_faces(self, height=tol.merge) -> NDArray[bool]:
+    def nondegenerate_faces(self, height: float = tol.merge) -> NDArray[bool]:
         """
         Remove degenerate faces (faces without 3 unique vertex indices)
         from the current mesh.
@@ -1855,7 +1855,7 @@ class Trimesh(Geometry3D):
 
         return on_hull
 
-    def fix_normals(self, multibody: Optional[bool] = None):
+    def fix_normals(self, multibody: Optional[bool] = None) -> None:
         """
         Find and fix problems with self.face_normals and self.faces
         winding direction.
@@ -1885,7 +1885,7 @@ class Trimesh(Geometry3D):
         """
         return repair.fill_holes(self)
 
-    def register(self, other, **kwargs):
+    def register(self, other: Geometry3D, **kwargs):
         """
         Align a mesh with another mesh or a PointCloud using
         the principal axes of inertia as a starting point which
@@ -1917,7 +1917,11 @@ class Trimesh(Geometry3D):
         return mesh_to_other, cost
 
     def compute_stable_poses(
-        self, center_mass=None, sigma=0.0, n_samples=1, threshold=0.0
+        self,
+        center_mass: Optional[NDArray[float64]] = None,
+        sigma: float = 0.0,
+        n_samples: int = 1,
+        threshold: float = 0.0,
     ):
         """
         Computes stable orientations of a mesh and their quasi-static probabilities.
@@ -2112,38 +2116,48 @@ class Trimesh(Geometry3D):
         result = Trimesh(vertices=new_vertices, faces=new_faces, process=False)
         return result
 
-    @log_time
     def smoothed(self, **kwargs):
         """
-        Return a version of the current mesh which will render
-        nicely, without changing source mesh.
+        DEPRECATED: use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`
+        """
+        warnings.warn(
+            "`mesh.smoothed()` is deprected and will be removed in March 2024: "
+            + "use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        # run smoothing
+        return self.smooth_shaded
 
-        Parameters
-        -------------
-        angle : float or None
-          Angle in radians face pairs with angles
-          smaller than this will appear smoothed
-        facet_minarea : float or None
-          Minimum area fraction to consider
-          IE for `facets_minarea=25` only facets larger
-          than `mesh.area / 25` will be considered.
+    @property
+    def smooth_shaded(self):
+        """
+        Smooth shading in OpenGL relies on which vertices are shared,
+        this function will disconnect regions above an angle threshold
+        and return a non-watertight version which will look better
+        in an OpenGL rendering context.
+
+        If you would like to use non-default arguments see `graph.smooth_shade`.
 
         Returns
         ---------
-        smoothed : trimesh.Trimesh
-          Non watertight version of current mesh
-          which will render nicely with smooth shading
+        smooth_shaded : trimesh.Trimesh
+          Non watertight version of current mesh.
         """
-
-        # smooth should be recomputed if visuals change
+        # key this also by the visual properties
+        # but store it in the mesh cache
         self.visual._verify_hash()
-        cached = self.visual._cache["smoothed"]
-        if cached is not None:
-            return cached
-        # run smoothing
-        smoothed = graph.smoothed(self, **kwargs)
-        self.visual._cache["smoothed"] = smoothed
-        return smoothed
+
+        cache = self.visual._cache
+        # needs to be dumped whenever visual or mesh changes
+        key = f"smooth_shaded_{hash(self.visual)}_{hash(self)}"
+        if key in cache:
+            return cache[key]
+        smooth = graph.smooth_shade(self)
+
+        # store it in the mesh cache which dumps when vertices change
+        cache[key] = smooth
+        return smooth
 
     @property
     def visual(self):
@@ -2216,7 +2230,12 @@ class Trimesh(Geometry3D):
 
         return path
 
-    def section_multiplane(self, plane_origin, plane_normal, heights):
+    def section_multiplane(
+        self,
+        plane_origin: NDArray[float64],
+        plane_normal: NDArray[float64],
+        heights: NDArray[float64],
+    ):
         """
         Return multiple parallel cross sections of the current
         mesh in 2D.

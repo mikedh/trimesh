@@ -9,12 +9,14 @@ Currently uses networkx or scipy.sparse.csgraph backend.
 """
 
 import collections
+import warnings
 
 import numpy as np
 
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
+from .typed import Optional
 
 try:
     from scipy.sparse import coo_matrix, csgraph
@@ -741,9 +743,24 @@ def neighbors(edges, max_index=None, directed=False):
     return array
 
 
-def smoothed(mesh, angle=None, facet_minarea=10):
+def smoothed(*args, **kwargs):
     """
-    Return a non- watertight version of the mesh which
+    DEPRECATED: use `trimesh.graph.smooth_shade(mesh, ...)`
+    """
+    warnings.warn(
+        "`trimesh.graph.smoothed` is deprected and will be removed in March 2024: "
+        + "use `trimesh.graph.smooth_shade(mesh, ...)`",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+    return smooth_shade(*args, **kwargs)
+
+
+def smooth_shade(
+    mesh, angle: Optional[float] = None, facet_minarea: Optional[float] = 10.0
+):
+    """
+    Return a non-watertight version of the mesh which
     will render nicely with smooth shading by
     disconnecting faces at sharp angles to each other.
 

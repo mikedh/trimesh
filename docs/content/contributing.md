@@ -71,9 +71,10 @@ if __name__ == '__main__':
 When you remove the embed and see the profile result you can then tweak the lines that are slow before finishing the function.
 
 ### Automatic Formatting
-The only check in that's required to pass in CI is `ruff`, which I usually run with:
+Trimesh uses `ruff` and `black` configured in `pyproject.toml`, you can run with:
 ```
 ruff . --fix
+black .
 ```
 It can fix a lot of formatting issues automatically. We also periodically run `black` to autoformat the codebase.
 
@@ -81,6 +82,7 @@ It can fix a lot of formatting issues automatically. We also periodically run `b
 ## Docstrings
 
 Trimesh uses the [Sphinx Numpy-style](https://www.sphinx-doc.org/en/master/usage/extensions/example_numpy.html#example-numpy) docstrings which get parsed into the API reference page. 
+
 
 ## General Tips
 
