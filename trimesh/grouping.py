@@ -5,6 +5,7 @@ grouping.py
 Functions for grouping values and rows.
 """
 
+
 import numpy as np
 
 from . import util
@@ -541,52 +542,35 @@ def group_rows(data, require_count=None, digits=None):
       Indices from in indicating identical rows.
     """
 
-    def group_dict():
-        """
-        Simple hash table based grouping.
-        The loop and appends make this rather slow on
-        large arrays but it works on irregular groups.
-        """
-        observed = {}
-        hashable = hashable_rows(data, digits=digits)
-        for index, key in enumerate(hashable):
-            key_string = key.tobytes()
-            if key_string in observed:
-                observed[key_string].append(index)
-            else:
-                observed[key_string] = [index]
-        return list(observed.values())
+    # start with getting a sortable format
+    hashable = hashable_rows(data, digits=digits)
 
-    def group_slice():
-        # create a representation of the rows that can be sorted
-        hashable = hashable_rows(data, digits=digits)
-        # record the order of the rows so we can get the original indices back
-        # later
-        order = np.argsort(hashable)
-        # but for now, we want our hashes sorted
-        hashable = hashable[order]
-        # this is checking each neighbour for equality, example:
-        # example: hashable = [1, 1, 1]; dupe = [0, 0]
-        dupe = hashable[1:] != hashable[:-1]
-        # we want the first index of a group, so we can slice from that location
-        # example: hashable = [0 1 1]; dupe = [1,0]; dupe_idx = [0,1]
-        dupe_idx = np.append(0, np.nonzero(dupe)[0] + 1)
-        # if you wanted to use this one function to deal with non- regular groups
-        # you could use: np.array_split(dupe_idx)
-        # this is roughly 3x slower than using the group_dict method above.
-        start_ok = np.diff(np.concatenate((dupe_idx, [len(hashable)]))) == require_count
-        groups = np.tile(dupe_idx[start_ok].reshape((-1, 1)), require_count) + np.arange(
-            require_count
-        )
-        groups_idx = order[groups]
-        if require_count == 1:
-            return groups_idx.reshape(-1)
-        return groups_idx
-
+    # if there isn't a constant column size use more complex logic
     if require_count is None:
-        return group_dict()
-    else:
-        return group_slice()
+        return group(hashable)
+
+    # record the order of the rows so we can get the original indices back
+    order = hashable.argsort()
+    # but for now, we want our hashes sorted
+    hashable = hashable[order]
+    # this is checking each neighbour for equality, example:
+    # example: hashable = [1, 1, 1]; dupe = [0, 0]
+    dupe = hashable[1:] != hashable[:-1]
+    # we want the first index of a group, so we can slice from that location
+    # example: hashable = [0 1 1]; dupe = [1,0]; dupe_idx = [0,1]
+    dupe_idx = np.append(0, np.nonzero(dupe)[0] + 1)
+    # if you wanted to use this one function to deal with non- regular groups
+    # you could use: np.array_split(dupe_idx)
+    # this is roughly 3x slower than using the group_dict method above.
+    start_ok = np.diff(np.concatenate((dupe_idx, [len(hashable)]))) == require_count
+    groups = np.tile(dupe_idx[start_ok].reshape((-1, 1)), require_count) + np.arange(
+        require_count
+    )
+    groups_idx = order[groups]
+
+    if require_count == 1:
+        return groups_idx.reshape(-1)
+    return groups_idx
 
 
 def boolean_rows(a, b, operation=np.intersect1d):
