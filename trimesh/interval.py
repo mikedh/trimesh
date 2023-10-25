@@ -36,7 +36,7 @@ def intersection(a: NDArray[float64], b: NDArray[float64]) -> NDArray[float64]:
     is_1D = a.shape == (2,)
     a = a.reshape((-1, 2))
     b = b.reshape((-1, 2))
-    
+
     # make sure they're min-max
     a.sort(axis=1)
     b.sort(axis=1)
