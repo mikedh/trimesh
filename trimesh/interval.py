@@ -13,8 +13,8 @@ from .typed import NDArray, float64
 
 def intersection(a: NDArray[float64], b: NDArray[float64]) -> NDArray[float64]:
     """
-    Given a pair of ranges, merge them in to
-    one range if they overlap at all
+    Given pairs of ranges merge them in to
+    one range if they overlap.
 
     Parameters
     --------------
@@ -27,7 +27,7 @@ def intersection(a: NDArray[float64], b: NDArray[float64]) -> NDArray[float64]:
     --------------
     inter : (2, ) or (2, 2) float
       The unioned range from the two inputs,
-      if not overlapping ptp will be zero.
+      if not `inter.ptp(axis=1)` will be zero.
     """
     a = np.array(a, dtype=np.float64)
     b = np.array(b, dtype=np.float64)

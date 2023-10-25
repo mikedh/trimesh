@@ -177,9 +177,11 @@ def clean(segments: NDArray[float64], digits: int = 10) -> NDArray[float64]:
     # collect new unified paramameters
     p, o, v = [], [], []
     for g in group_rows(np.column_stack((origins, vectors)), digits=digits):
+        # union the intervals sorting ourselves to skip the `sort(axis=1)` we did above
         group = param[g]
         u = interval.union(group[group[:, 0].argsort()], sort=False)
         p.extend(u)
+        # use the origins for the subsetted union
         o.extend(origins[g[: len(u)]])
         v.extend(vectors[g[: len(u)]])
 
