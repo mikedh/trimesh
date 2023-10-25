@@ -113,6 +113,31 @@ class SegmentsTest(g.unittest.TestCase):
         # make sure overall length hasn't changed
         assert g.np.isclose(length(res), length(seg))
 
+    def test_clean(self):
+        from trimesh.path.segments import clean, resample
+
+        seg = g.np.array(
+            [[[0, 0], [1, 0]], [[1, 0], [1, 1]], [[1, 1], [0, 1]], [[0, 1], [0, 0]]],
+            dtype=g.np.float64,
+        )
+
+        c = clean(seg)
+        assert len(seg) == len(c)
+        # bounding box should be the same
+        assert g.np.allclose(
+            c.reshape((-1, 2)).min(axis=0), seg.reshape((-1, 2)).min(axis=0)
+        )
+        assert g.np.allclose(
+            c.reshape((-1, 2)).max(axis=0), seg.reshape((-1, 2)).max(axis=0)
+        )
+
+        # resample to shorten
+        r = resample(seg, maxlen=0.3)
+        assert r.shape == (16, 2, 2)
+        # after cleaning should be back to 4 segments
+        rc = clean(r)
+        assert rc.shape == (4, 2, 2)
+
     def test_svg(self):
         from trimesh.path.segments import to_svg
 
