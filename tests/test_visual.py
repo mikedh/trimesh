@@ -53,6 +53,15 @@ class VisualTest(g.unittest.TestCase):
     #     distances, index = tree.query(check, k=1)
     #     assert distances.max() < 1e-8
 
+    def test_face_maintain_order(self):
+        # chose a mesh that has the same number of vs and vts
+        # to prevent confict without unmerging when maintain_order=True
+        mesh1 = g.get_mesh("capsule.obj", process=False, maintain_order=True)
+        mesh2 = g.get_mesh("capsule.obj", process=False, maintain_order=False)
+        colors1 = mesh1.visual.to_color()
+        colors2 = mesh2.visual.to_color()
+        g.np.testing.assert_allclose(colors1.vertex_colors, colors2.vertex_colors)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
