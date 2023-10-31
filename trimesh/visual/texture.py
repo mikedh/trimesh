@@ -263,7 +263,7 @@ def unmerge_faces(faces, *args, **kwargs):
         for arg in args:
             # create a mask of the attribute-vertex mapping
             # note that these might conflict since we're not unmerging
-            masks = np.zeros((3, max_idx + 1), dtype=np.int64)
+            masks = np.full((3, max_idx + 1), -1, dtype=np.int64)
             # set the mask using the unmodified face indexes
             for i, f, a in zip(range(3), faces.T, arg.T):
                 masks[i][f] = a
@@ -271,7 +271,10 @@ def unmerge_faces(faces, *args, **kwargs):
             # and use that index note that this is doing a float conversion
             # and then median before converting back to int: could also do this as
             # a column diff and sort but this seemed easier and is fast enough
-            result.append(np.median(masks, axis=0).astype(np.int64))
+            # turn default attribute value of -1 to nan before median computation
+            # and use nanmedian to compute the median igoring the nan values
+            masks_nan = np.where(masks != -1, masks, np.NaN)
+            result.append(np.nanmedian(masks_nan, axis=0).astype(np.int64))
 
         return result
 

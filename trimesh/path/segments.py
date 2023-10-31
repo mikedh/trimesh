@@ -7,9 +7,10 @@ Deal with (n, 2, 3) line segments.
 
 import numpy as np
 
-from .. import geometry, interval, transformations, util
+from .. import geometry, transformations, util
 from ..constants import tol
 from ..grouping import group_rows, unique_rows
+from ..interval import union
 from ..typed import NDArray, float64
 
 
@@ -174,18 +175,18 @@ def clean(segments: NDArray[float64], digits: int = 10) -> NDArray[float64]:
     # make sure parameters are in min-max order
     param.sort(axis=1)
 
-    # collect new unified paramameters
-    p, o, v = [], [], []
-    for g in group_rows(np.column_stack((origins, vectors)), digits=digits):
-        # union the intervals sorting ourselves to skip the `sort(axis=1)` we did above
-        group = param[g]
-        u = interval.union(group[group[:, 0].argsort()], sort=False)
-        p.extend(u)
-        # use the origins for the subsetted union
-        o.extend(origins[g[: len(u)]])
-        v.extend(vectors[g[: len(u)]])
+    # find the groups of values with identical origins and vectors
+    groups = group_rows(np.column_stack((origins, vectors)), digits=digits)
 
-    return parameters_to_segments(o, v, p)
+    # get the union of every interval range for colinear segements
+    unions = [union(param[g][param[g][:, 0].argsort()], sort=False) for g in groups]
+    # reconstruct indexes for the origins and vectors
+    indexes = np.concatenate([g[: len(u)] for g, u in zip(groups, unions)])
+
+    # conver parametric form back into vertex-segment form
+    return parameters_to_segments(
+        origins=origins[indexes], vectors=vectors[indexes], parameters=np.vstack(unions)
+    )
 
 
 def split(segments, points, atol=1e-5):
