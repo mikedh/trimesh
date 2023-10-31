@@ -50,6 +50,7 @@ requirements_easy = set(
         "chardet",  # figure out if someone used UTF-16
         "mapbox-earcut",  # fast 2D triangulations of polygons
         "colorlog",
+        "manifold3d"
     ]
 )  # log in pretty colors
 
