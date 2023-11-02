@@ -50,7 +50,6 @@ def load_collada(file_obj, resolver=None, ignore_broken=True, **kwargs):
 
     # load scene using pycollada
     c = collada.Collada(file_obj, ignore=ignores)
-    unitmeter = c.assetInfo.unitmeter or 1.0  # default 1.0
 
     # Create material map from Material ID to trimesh material
     material_map = {}
@@ -73,7 +72,6 @@ def load_collada(file_obj, resolver=None, ignore_broken=True, **kwargs):
             meshes_count=meshes_count,
             graph=graph,
             resolver=resolver,
-            unitmeter=unitmeter,
         )
 
     # create kwargs for load_kwargs
@@ -166,8 +164,7 @@ def export_collada(mesh, **kwargs):
 
 
 def _parse_node(
-    node, parent_matrix, material_map, meshes, meshes_count, graph, resolver=None,
-    unitmeter=1.0
+    node, parent_matrix, material_map, meshes, meshes_count, graph, resolver=None
 ):
     """
     Recursively parse COLLADA scene nodes.
@@ -196,7 +193,6 @@ def _parse_node(
                 vertex = primitive.vertex
                 if vertex is None:
                     continue
-                vertex = vertex * unitmeter
                 vertex_index = primitive.vertex_index
                 vertices = vertex[vertex_index].reshape(len(vertex_index) * 3, 3)
 
@@ -262,7 +258,6 @@ def _parse_node(
                     meshes_count=meshes_count,
                     graph=graph,
                     resolver=resolver,
-                    unitmeter=unitmeter,
                 )
 
     elif isinstance(node, collada.scene.CameraNode):
