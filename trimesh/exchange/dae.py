@@ -75,7 +75,10 @@ def load_collada(file_obj, resolver=None, ignore_broken=True, **kwargs):
         )
 
     # create kwargs for load_kwargs
-    result = {"class": "Scene", "graph": graph, "geometry": meshes}
+    unitmeter = c.assetInfo.unitmeter or 1.0  # default 1.0
+    metadata = {'units': unitmeter}
+    result = {"class": "Scene", "graph": graph, "geometry": meshes,
+              'metadata': metadata}
 
     return result
 
