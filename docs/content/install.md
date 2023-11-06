@@ -71,6 +71,7 @@ Trimesh has a lot of soft-required upstream packages, and we try to make sure th
 |`pytest-cov`| A plugin to calculate test coverage. | | `test`|
 |`pyinstrument`| A sampling based profiler for performance tweaking. | | `test`|
 |`vhacdx`| A binding for VHACD which provides convex decompositions | | `recommend`|
+|`manifold3d`| A binding for the Manifold mesh boolean engine | | `recommend`|
 
 ## Adding A Dependency
 

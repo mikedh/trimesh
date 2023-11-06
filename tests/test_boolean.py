@@ -3,6 +3,16 @@ try:
 except BaseException:
     import generic as g
 
+try:
+    import manifold3d
+except BaseException:
+    manifold3d = None
+
+engines = [
+    ("blender", g.trimesh.interfaces.blender.exists),
+    ("manifold", manifold3d is not None),
+]
+
 
 class BooleanTest(g.unittest.TestCase):
     def setUp(self):
@@ -16,11 +26,7 @@ class BooleanTest(g.unittest.TestCase):
     def test_boolean(self):
         a, b = self.a, self.b
 
-        engines = [
-            ("blender", g.trimesh.interfaces.blender.exists),
-            ("scad", g.trimesh.interfaces.scad.exists),
-        ]
-
+        times = {}
         for engine, exists in engines:
             # if we have all_dep set it means we should fail if
             # engine is not installed so don't continue
@@ -29,36 +35,41 @@ class BooleanTest(g.unittest.TestCase):
                 continue
 
             g.log.info("Testing boolean ops with engine %s", engine)
+
+            tic = g.time.time()
+
+            # do all booleans before checks so we can time the backends
             ab = a.difference(b, engine=engine)
+            ba = b.difference(a, engine=engine)
+            i = a.intersection(b, engine=engine)
+            u = a.union(b, engine=engine)
+
+            times[engine] = g.time.time() - tic
+
             assert ab.is_volume
             assert self.is_zero(ab.volume - self.truth["difference"])
 
             assert g.np.allclose(ab.bounds[0], a.bounds[0])
 
-            ba = b.difference(a, engine=engine)
             assert ba.is_volume
             assert self.is_zero(ba.volume - self.truth["difference"])
 
             assert g.np.allclose(ba.bounds[1], b.bounds[1])
 
-            i = a.intersection(b, engine=engine)
             assert i.is_volume
             assert self.is_zero(i.volume - self.truth["intersection"])
 
-            u = a.union(b, engine=engine)
             assert u.is_volume
             assert self.is_zero(u.volume - self.truth["union"])
 
             g.log.info("booleans succeeded with %s", engine)
 
+        g.log.info(times)
+
     def test_multiple(self):
         """
         Make sure boolean operations work on multiple meshes.
         """
-        engines = [
-            ("blender", g.trimesh.interfaces.blender.exists),
-            ("scad", g.trimesh.interfaces.scad.exists),
-        ]
         for _engine, exists in engines:
             if not exists:
                 continue
@@ -73,10 +84,6 @@ class BooleanTest(g.unittest.TestCase):
             assert g.np.isclose(r.volume, 8.617306056726884)
 
     def test_empty(self):
-        engines = [
-            ("blender", g.trimesh.interfaces.blender.exists),
-            ("scad", g.trimesh.interfaces.scad.exists),
-        ]
         for engine, exists in engines:
             if not exists:
                 continue
