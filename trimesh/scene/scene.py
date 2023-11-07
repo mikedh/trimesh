@@ -955,7 +955,7 @@ class Scene(Geometry3D):
         return png
 
     @property
-    def units(self):
+    def units(self) -> str:
         """
         Get the units for every model in the scene, and
         raise a ValueError if there are mixed units.
@@ -975,7 +975,7 @@ class Scene(Geometry3D):
         return existing[0]
 
     @units.setter
-    def units(self, value):
+    def units(self, value: str):
         """
         Set the units for every model in the scene without
         converting any units just setting the tag.
@@ -988,7 +988,7 @@ class Scene(Geometry3D):
         for m in self.geometry.values():
             m.units = value
 
-    def convert_units(self, desired, guess=False):
+    def convert_units(self, desired: str, guess: bool = False) -> "Scene":
         """
         If geometry has units defined convert them to new units.
 

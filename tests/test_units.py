@@ -59,6 +59,24 @@ class UnitsTest(g.unittest.TestCase):
         # extents should scale exactly with unit conversion
         assert g.np.allclose(p.extents / extents_pre, 25.4, atol=0.01)
 
+    def test_arbitrary(self):
+        ac = g.np.allclose
+        to_inch = g.trimesh.units.to_inch
+
+        # check whitespace
+        assert ac(1.0, to_inch("in"))
+        assert ac(1.0, to_inch("1.00000* in"))
+        assert ac(1.0, to_inch("1.00    * in"))
+
+        # check centimeter conversion
+        assert ac(100, to_inch("m") / to_inch("0.01*m"))
+
+        # if we are currently in centimeters and want to go to meters
+        # it should be dividing it by 100
+        assert ac(
+            0.01, g.trimesh.units.unit_conversion(current="0.01*m", desired="meters")
+        )
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
