@@ -75,7 +75,10 @@ def load_collada(file_obj, resolver=None, ignore_broken=True, **kwargs):
         )
 
     # create kwargs for load_kwargs
-    result = {"class": "Scene", "graph": graph, "geometry": meshes}
+    unitmeter = c.assetInfo.unitmeter or 1.0  # default 1.0
+    metadata = {'units': unitmeter}
+    result = {"class": "Scene", "graph": graph, "geometry": meshes,
+              'metadata': metadata}
 
     return result
 
@@ -360,6 +363,8 @@ def _unparse_material(material):
     # TODO EXPORT TEXTURES
     if isinstance(material, visual.material.PBRMaterial):
         diffuse = material.baseColorFactor
+        if diffuse is None:
+            diffuse = np.array([255.0, 255.0, 255.0, 255.0])
         diffuse = diffuse / 255.0
         if diffuse is not None:
             diffuse = list(diffuse)
@@ -369,6 +374,8 @@ def _unparse_material(material):
             emission = [float(emission[0]), float(emission[1]), float(emission[2]), 1.0]
 
         shininess = material.roughnessFactor
+        if shininess is None:
+            shininess = 1.0
         if shininess is not None:
             shininess = 2.0 / shininess**2 - 2.0
 
