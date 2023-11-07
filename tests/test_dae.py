@@ -28,6 +28,9 @@ class DAETest(g.unittest.TestCase):
         assert len(scene.geometry) == 1
         assert len(scene.graph.nodes_geometry) == 1
 
+        conv = scene.convert_units("inch")
+        assert conv.units == 'inch'
+
     def test_shoulder(self):
         if collada is None:
             g.log.error("no pycollada to test!")
@@ -36,6 +39,10 @@ class DAETest(g.unittest.TestCase):
         scene = g.get_mesh("shoulder.zae")
         assert len(scene.geometry) == 3
         assert len(scene.graph.nodes_geometry) == 3
+
+        assert scene.units != 'mm'
+        conv = scene.convert_units("mm")
+        assert conv.units == 'mm'
 
     def test_export(self):
         if collada is None:
@@ -58,6 +65,10 @@ class DAETest(g.unittest.TestCase):
             rec = g.trimesh.load(path, force="mesh")
         assert rec.visual.uv.ptp(axis=0).ptp() > 1e-5
         assert s.visual.material.baseColorTexture.size == rec.visual.material.image.size
+
+        conv = s.convert_units("inch")
+        assert conv.units == 'inch'
+
 
     def test_material_round(self):
         """
