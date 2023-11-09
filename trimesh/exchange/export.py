@@ -308,7 +308,7 @@ def export_scene(scene, file_obj, file_type=None, resolver=None, **kwargs):
         return util.write_encoded(file_obj, data)
     elif util.is_string(file_obj):
         # assume strings are file paths
-        file_path = os.path.expanduser(os.path.abspath(file_obj))
+        file_path = os.path.abspath(os.path.expanduser(file_obj))
         with open(file_path, "wb") as f:
             util.write_encoded(f, data)
 
