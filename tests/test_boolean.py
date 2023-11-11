@@ -70,14 +70,14 @@ class BooleanTest(g.unittest.TestCase):
         """
         Make sure boolean operations work on multiple meshes.
         """
-        for _engine, exists in engines:
+        for engine, exists in engines:
             if not exists:
                 continue
             a = g.trimesh.primitives.Sphere(center=[0, 0, 0])
             b = g.trimesh.primitives.Sphere(center=[0, 0, 0.75])
             c = g.trimesh.primitives.Sphere(center=[0, 0, 1.5])
 
-            r = g.trimesh.boolean.union([a, b, c])
+            r = g.trimesh.boolean.union([a, b, c], engine=engine)
 
             assert r.is_volume
             assert r.body_count == 1

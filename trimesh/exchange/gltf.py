@@ -66,7 +66,7 @@ def export_gltf(
     scene,
     include_normals=None,
     merge_buffers=False,
-    unitize_normals=False,
+    unitize_normals=True,
     tree_postprocessor=None,
     embed_buffers=False,
     extension_webp=False,
@@ -85,6 +85,9 @@ def export_gltf(
       Include vertex normals
     merge_buffers : bool
       Merge buffers into one blob.
+    unitize_normals
+      GLTF requires unit normals, however sometimes people
+      want to include non-unit normals for shading reasons.
     resolver : trimesh.resolvers.Resolver
       If passed will use to write each file.
     tree_postprocesser : None or callable
@@ -160,7 +163,7 @@ def export_gltf(
 def export_glb(
     scene,
     include_normals=None,
-    unitize_normals=False,
+    unitize_normals=True,
     tree_postprocessor=None,
     buffer_postprocessor=None,
     extension_webp=False,
