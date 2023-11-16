@@ -73,7 +73,7 @@ easy = [
     "shapely",
     "xxhash",
     "rtree",
-    "requests",
+    "httpx",
     "scipy",
     "embreex",
     "pillow",

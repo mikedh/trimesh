@@ -34,6 +34,18 @@ def unit_conversion(current: str, desired: str) -> float:
     return to_inch(current.strip().lower()) / to_inch(desired.strip().lower())
 
 
+def keys() -> set:
+    """
+    Return a set containing all currently valid units.
+
+    Returns
+    --------
+    keys
+      All units with conversions i.e. {'in', 'm', ...}
+    """
+    return set(_lookup.keys())
+
+
 def to_inch(unit: str) -> float:
     """
     Calculate the conversion to an arbitrary common unit.

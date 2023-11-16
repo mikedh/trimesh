@@ -344,10 +344,12 @@ def load_remote(url, **kwargs):
       Loaded result
     """
     # import here to keep requirement soft
-    import requests
+    import httpx
 
     # download the mesh
-    response = requests.get(url)
+    response = httpx.get(url, follow_redirects=True)
+    response.raise_for_status()
+
     # wrap as file object
     file_obj = util.wrap_as_stream(response.content)
 

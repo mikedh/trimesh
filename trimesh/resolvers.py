@@ -354,7 +354,7 @@ class WebResolver(Resolver):
           Asset name, i.e. 'quadknot.obj.mtl'
         """
         # do import here to keep soft dependency
-        import requests
+        import httpx
 
         # remove leading and trailing whitespace
         name = name.strip()
@@ -363,16 +363,16 @@ class WebResolver(Resolver):
         # base url has been carefully formatted
         url = self.base_url + name
 
-        response = requests.get(url)
+        response = httpx.get(url, follow_redirects=True)
 
-        if response.status_code != 200:
+        if response.status_code >= 300:
             # try to strip off filesystem crap
             if name.startswith("./"):
                 name = name[2:]
-            response = requests.get(self.base_url + name)
+            response = httpx.get(self.base_url + name, follow_redirects=True)
 
-        if response.status_code == "404":
-            raise ValueError(response.content)
+        # now raise if we don't have
+        response.raise_for_status()
 
         # return the bytes of the response
         return response.content
