@@ -59,6 +59,11 @@ class UnitsTest(g.unittest.TestCase):
         # extents should scale exactly with unit conversion
         assert g.np.allclose(p.extents / extents_pre, 25.4, atol=0.01)
 
+    def test_keys(self):
+        units = g.trimesh.units.keys()
+        assert isinstance(units, set)
+        assert "in" in units
+
     def test_arbitrary(self):
         ac = g.np.allclose
         to_inch = g.trimesh.units.to_inch

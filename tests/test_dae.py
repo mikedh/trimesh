@@ -29,7 +29,7 @@ class DAETest(g.unittest.TestCase):
         assert len(scene.graph.nodes_geometry) == 1
 
         conv = scene.convert_units("inch")
-        assert conv.units == 'inch'
+        assert conv.units == "inch"
 
     def test_shoulder(self):
         if collada is None:
@@ -40,9 +40,9 @@ class DAETest(g.unittest.TestCase):
         assert len(scene.geometry) == 3
         assert len(scene.graph.nodes_geometry) == 3
 
-        assert scene.units != 'mm'
+        assert scene.units != "mm"
         conv = scene.convert_units("mm")
-        assert conv.units == 'mm'
+        assert conv.units == "mm"
 
     def test_export(self):
         if collada is None:
@@ -67,8 +67,7 @@ class DAETest(g.unittest.TestCase):
         assert s.visual.material.baseColorTexture.size == rec.visual.material.image.size
 
         conv = s.convert_units("inch")
-        assert conv.units == 'inch'
-
+        assert conv.units == "inch"
 
     def test_material_round(self):
         """
