@@ -9,6 +9,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
+from ..typed import Loadable, Optional
 from ..util import log, now
 from . import misc
 from .binvox import _binvox_loaders
@@ -32,11 +33,11 @@ except BaseException as E:
     load_path = ExceptionWrapper(E)
     # no path formats available
 
-    def path_formats():
+    def path_formats() -> set:
         return set()
 
 
-def mesh_formats():
+def mesh_formats() -> set:
     """
     Get a list of mesh formats available to load.
 
@@ -50,7 +51,7 @@ def mesh_formats():
     return {k for k, v in mesh_loaders.items() if not isinstance(v, ExceptionWrapper)}
 
 
-def available_formats():
+def available_formats() -> set:
     """
     Get a list of all available loaders
 
@@ -60,7 +61,6 @@ def available_formats():
         Extensions of available loaders
         i.e. 'stl', 'ply', 'dxf', etc.
     """
-    # set
     loaders = mesh_formats()
     loaders.update(path_formats())
     loaders.update(compressed_loaders.keys())
@@ -68,7 +68,13 @@ def available_formats():
     return loaders
 
 
-def load(file_obj, file_type=None, resolver=None, force=None, **kwargs):
+def load(
+    file_obj: Loadable,
+    file_type: Optional[str] = None,
+    resolver: Optional[resolvers.Resolver] = None,
+    force: Optional[str] = None,
+    **kwargs,
+):
     """
     Load a mesh or vectorized path into objects like
     Trimesh, Path2D, Path3D, Scene
@@ -155,7 +161,12 @@ def load(file_obj, file_type=None, resolver=None, force=None, **kwargs):
     return loaded
 
 
-def load_mesh(file_obj, file_type=None, resolver=None, **kwargs):
+def load_mesh(
+    file_obj: Loadable,
+    file_type: Optional[str] = None,
+    resolver: Optional[resolvers.Resolver] = None,
+    **kwargs,
+):
     """
     Load a mesh file into a Trimesh object
 
@@ -491,7 +502,12 @@ def load_kwargs(*args, **kwargs):
     return handler()
 
 
-def parse_file_args(file_obj, file_type, resolver=None, **kwargs):
+def parse_file_args(
+    file_obj: Loadable,
+    file_type: Optional[str],
+    resolver: Optional[resolvers.Resolver] = None,
+    **kwargs,
+):
     """
     Given a file_obj and a file_type try to magically convert
     arguments to a file-like object and a lowercase string of
