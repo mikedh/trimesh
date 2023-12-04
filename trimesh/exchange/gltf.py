@@ -1561,7 +1561,7 @@ def _read_buffers(
                 mesh_prim[index].append(name)
         except BaseException as E:
             if ignore_broken:
-                log.debug("failed to load mesh", exc_info=True),
+                log.debug("failed to load mesh", exc_info=True)
             else:
                 raise E
 
