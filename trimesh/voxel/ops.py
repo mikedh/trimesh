@@ -135,7 +135,9 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
     if pitch.size == 1:
         pitch = (pitch,) * 3
     meshed = func(
-        volume=rev_matrix, level=0.5, spacing=pitch  # it is a boolean voxel grid
+        volume=rev_matrix,
+        level=0.5,
+        spacing=pitch,  # it is a boolean voxel grid
     )
 
     # allow results from either marching cubes function in skimage

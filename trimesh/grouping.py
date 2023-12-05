@@ -190,16 +190,17 @@ def hashable_rows(data, digits=None):
     # if array is 2D and smallish, we can try bitbanging
     # this is significantly faster than the custom dtype
     if len(as_int.shape) == 2 and as_int.shape[1] <= 4:
-        # time for some righteous bitbanging
         # can we pack the whole row into a single 64 bit integer
         precision = int(np.floor(64 / as_int.shape[1]))
-        # if the max value is less than precision we can do this
-        if np.abs(as_int).max() < 2 ** (precision - 1):
+        # offset to zero so that the bit shift is defined
+        norm = as_int - as_int.min()
+        # if the max value is less int64 precision we can do this
+        if norm.max() < (2 ** (precision - 1)):
             # the resulting package
-            hashable = np.zeros(len(as_int), dtype=np.int64)
+            hashable = np.zeros(len(norm), dtype=np.int64)
             # loop through each column and bitwise xor to combine
             # make sure as_int is int64 otherwise bit offset won't work
-            for offset, column in enumerate(as_int.astype(np.int64).T):
+            for offset, column in enumerate(norm.astype(np.int64).T):
                 # will modify hashable in place
                 np.bitwise_xor(hashable, column << (offset * precision), out=hashable)
             return hashable
