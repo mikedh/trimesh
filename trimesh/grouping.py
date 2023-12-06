@@ -183,35 +183,18 @@ def hashable_rows(data, digits=None):
     # get array as integer to precision we care about
     as_int = float_to_int(data, digits=digits)
 
-    # if it is flat integers already, return
+    # if it is flat integers already return
     if len(as_int.shape) == 1:
         return as_int
 
-    # if array is 2D and smallish, we can try bitbanging
-    # this is significantly faster than the custom dtype
-    if len(as_int.shape) == 2 and as_int.shape[1] <= 4:
-        # time for some righteous bitbanging
-        # can we pack the whole row into a single 64 bit integer
-        precision = int(np.floor(64 / as_int.shape[1]))
-        # if the max value is less than precision we can do this
-        if np.abs(as_int).max() < 2 ** (precision - 1):
-            # the resulting package
-            hashable = np.zeros(len(as_int), dtype=np.int64)
-            # loop through each column and bitwise xor to combine
-            # make sure as_int is int64 otherwise bit offset won't work
-            for offset, column in enumerate(as_int.astype(np.int64).T):
-                # will modify hashable in place
-                np.bitwise_xor(hashable, column << (offset * precision), out=hashable)
-            return hashable
-
     # reshape array into magical data type that is weird but hashable
     dtype = np.dtype((np.void, as_int.dtype.itemsize * as_int.shape[1]))
+
     # make sure result is contiguous and flat
-    hashable = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
-    return hashable
+    return np.ascontiguousarray(as_int).view(dtype).reshape(-1)
 
 
-def float_to_int(data, digits=None, dtype=np.int32):
+def float_to_int(data, digits=None):
     """
     Given a numpy array of float/bool/int, return as integers.
 
@@ -221,8 +204,6 @@ def float_to_int(data, digits=None, dtype=np.int32):
       Input data
     digits : float or int
       Precision for float conversion
-    dtype : numpy.dtype
-      What datatype should result be returned as
 
     Returns
     -------------
@@ -250,14 +231,14 @@ def float_to_int(data, digits=None, dtype=np.int32):
 
     # data is float so convert to large integers
     data_max = np.abs(data).max() * 10**digits
+
     # ignore passed dtype if we have something large
     dtype = [np.int32, np.int64][int(data_max > 2**31)]
+
     # multiply by requested power of ten
     # then subtract small epsilon to avoid "go either way" rounding
     # then do the rounding and convert to integer
-    as_int = np.round((data * 10**digits) - 1e-6).astype(dtype)
-
-    return as_int
+    return np.round((data * 10**digits) - 1e-6).astype(dtype)
 
 
 def unique_ordered(data, return_index=False, return_inverse=False):
