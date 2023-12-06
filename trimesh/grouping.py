@@ -6,6 +6,8 @@ Functions for grouping values and rows.
 """
 
 
+from typing import Optional
+
 import numpy as np
 
 from . import util
@@ -194,7 +196,7 @@ def hashable_rows(data, digits=None):
     return np.ascontiguousarray(as_int).view(dtype).reshape(-1)
 
 
-def float_to_int(data, digits=None):
+def float_to_int(data, digits: Optional[int] = None):
     """
     Given a numpy array of float/bool/int, return as integers.
 
@@ -213,27 +215,25 @@ def float_to_int(data, digits=None):
     # convert to any numpy array
     data = np.asanyarray(data)
 
-    # if data is already an integer or boolean we're done
-    # if the data is empty we are also done
-    if data.dtype.kind in "ib" or data.size == 0:
-        return data.astype(dtype)
+    # we can early-exit if we've been passed data that is already
+    # an integer, unsigned integer, boolean, or empty
+    if data.dtype.kind in "iub" or data.size == 0:
+        return data
     elif data.dtype.kind != "f":
+        # if it's not a floating point try to make it one
         data = data.astype(np.float64)
 
-    # populate digits from kwargs
     if digits is None:
+        # get digits from `tol.merge`
         digits = util.decimal_to_digits(tol.merge)
-    elif isinstance(digits, float) or isinstance(digits, np.float64):
-        digits = util.decimal_to_digits(digits)
-    elif not (isinstance(digits, int) or isinstance(digits, np.integer)):
-        log.warning("Digits were passed as %s!", digits.__class__.__name__)
-        raise ValueError("Digits must be None, int, or float!")
+    elif not isinstance(digits, (int, np.integer)):
+        raise TypeError("Digits must be `None` or `int`, not `{type(digits)}`")
 
-    # data is float so convert to large integers
-    data_max = np.abs(data).max() * 10**digits
+    # see if we can use a smaller integer
+    d_extrema = max(abs(data.min()), abs(data.max()))
 
-    # ignore passed dtype if we have something large
-    dtype = [np.int32, np.int64][int(data_max > 2**31)]
+    # compare against `np.iinfo(np.int32).max`
+    dtype = [np.int32, np.int64][int(d_extrema > 2147483646)]
 
     # multiply by requested power of ten
     # then subtract small epsilon to avoid "go either way" rounding
