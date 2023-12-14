@@ -7,7 +7,7 @@ Functions for grouping values and rows.
 
 import numpy as np
 
-from ..typed import ArrayLike, NDArray, Optional, Union
+from .typed import ArrayLike, NDArray, Optional, Union
 from . import util
 from .constants import log, tol
 
