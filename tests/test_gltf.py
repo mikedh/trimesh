@@ -104,15 +104,18 @@ class GLTFTest(g.unittest.TestCase):
 
     def test_skip_materials(self):
         # load textured PLY
-        mesh = g.get_mesh('fuze.ply')
+        mesh = g.get_mesh("fuze.ply")
         g.check_fuze(mesh)
 
         # load as GLB
-        export = mesh.export(file_type='glb', unitize_normals=True)
+        export = mesh.export(file_type="glb", unitize_normals=True)
         validate_glb(export)
         mesh_glb = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
-            file_type="glb", force="mesh", skip_materials=True)
+            file_type="glb",
+            force="mesh",
+            skip_materials=True,
+        )
 
         # visuals should not be present
         assert not mesh_glb.visual.defined

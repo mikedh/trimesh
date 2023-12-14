@@ -70,7 +70,7 @@ def load_ply(
     prefer_color=None,
     skip_texture=False,
     *args,
-    **kwargs
+    **kwargs,
 ):
     """
     Load a PLY file from an open file object.

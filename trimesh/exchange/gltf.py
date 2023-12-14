@@ -340,7 +340,7 @@ def load_glb(
     ignore_broken=False,
     merge_primitives=False,
     skip_materials=False,
-    **mesh_kwargs
+    **mesh_kwargs,
 ):
     """
     Load a GLTF file in the binary GLB format into a trimesh.Scene.

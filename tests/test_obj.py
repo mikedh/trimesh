@@ -180,7 +180,7 @@ class OBJTest(g.unittest.TestCase):
         m_tex = g.get_mesh("fuze.obj")
         m_tex_size = m_tex.visual.material.image.size
 
-        m_notex = g.get_mesh('fuze.obj', skip_materials=True)
+        m_notex = g.get_mesh("fuze.obj", skip_materials=True)
         m_notex_size = m_notex.visual.material.image.size
 
         assert m_tex_size != m_notex_size
