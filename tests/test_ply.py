@@ -232,6 +232,16 @@ class PlyTest(g.unittest.TestCase):
         # correct number of vertices and has texture loaded
         g.check_fuze(m)
 
+    def test_skip_texturefile(self):
+        # not loading the texture should produce a trivial texture
+        m_tex = g.get_mesh("fuze.ply")
+        m_tex_size = m_tex.visual.material.image.size
+
+        m_notex = g.get_mesh('fuze.ply', skip_texture=True)
+        m_notex_size = m_notex.visual.material.image.size
+
+        assert m_tex_size != m_notex_size
+
     def test_metadata(self):
         mesh = g.get_mesh("metadata.ply")
 
