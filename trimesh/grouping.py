@@ -189,7 +189,6 @@ def hashable_rows(data, digits=None):
     if len(as_int.shape) == 1:
         return as_int
 
-
     # if array is 2D and smallish, we can try bitbanging
     # this is significantly faster than the custom dtype
     if len(as_int.shape) == 2 and as_int.shape[1] <= 4:
@@ -198,9 +197,10 @@ def hashable_rows(data, digits=None):
         precision = int(np.floor(64 / as_int.shape[1]))
 
         d_min, d_max = as_int.min(), as_int.max()
+        imax = 2 ** (precision - 1)
 
         # if the max value is less than precision we can do this
-        if abs(d_max - d_min) < 2 ** (precision - 1):
+        if d_max < imax and d_min > -imax:
             # the resulting package
             hashable = np.zeros(len(as_int), dtype=np.uint64)
             # offset to zero
@@ -253,7 +253,7 @@ def float_to_int(data, digits: Optional[int] = None):
         raise TypeError("Digits must be `None` or `int`, not `{type(digits)}`")
 
     # see if we can use a smaller integer
-    d_extrema = max(abs(data.min()), abs(data.max()))
+    d_extrema = max(abs(data.min()), abs(data.max())) * 10**digits
 
     # compare against `np.iinfo(np.int32).max`
     dtype = [np.int32, np.int64][int(d_extrema > 2147483646)]
