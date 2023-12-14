@@ -5,11 +5,9 @@ grouping.py
 Functions for grouping values and rows.
 """
 
-
-from typing import Optional
-
 import numpy as np
 
+from ..typed import ArrayLike, NDArray, Optional, Union
 from . import util
 from .constants import log, tol
 
@@ -159,7 +157,9 @@ def group(values, min_len=0, max_len=np.inf):
     return groups
 
 
-def hashable_rows(data, digits=None):
+def hashable_rows(
+    data: ArrayLike, digits=None
+) -> Union[NDArray[np.uint64], NDArray[np.void]]:
     """
     We turn our array into integers based on the precision
     given by digits and then put them in a hashable format.
@@ -174,9 +174,8 @@ def hashable_rows(data, digits=None):
 
     Returns
     ---------
-    hashable : (n,) array
-      Custom data type which can be sorted
-      or used as hash keys
+    hashable : (n,)
+      May return as a `np.void` or a `np.uint64`
     """
     # if there is no data return immediately
     if len(data) == 0:
@@ -188,6 +187,32 @@ def hashable_rows(data, digits=None):
     # if it is flat integers already return
     if len(as_int.shape) == 1:
         return as_int
+
+    # if array is 2D and smallish, we can try bitbanging
+    # this is significantly faster than the custom dtype
+    if len(as_int.shape) == 2 and as_int.shape[1] <= 4:
+        # can we pack the whole row into a single 64 bit integer
+        precision = int(np.floor(64 / as_int.shape[1]))
+
+        # get the extreme values of the data set
+        d_min, d_max = as_int.min(), as_int.max()
+        # since we are quantizing the data down we need every value
+        # to fit in a partial integer so we have to check against extrema
+        threshold = 2 ** (precision - 1)
+
+        # if the data is within the range of our precision threshold
+        if d_max < threshold and d_min > -threshold:
+            # the resulting package
+            hashable = np.zeros(len(as_int), dtype=np.uint64)
+            # offset to the middle of the unsigned integer range
+            # this array should contain only positive values
+            bitbang = (as_int + threshold).astype(np.uint64).T
+            # loop through each column and bitwise xor to combine
+            # make sure as_int is int64 otherwise bit offset won't work
+            for offset, column in enumerate(bitbang):
+                # will modify hashable in place
+                np.bitwise_xor(hashable, column << (offset * precision), out=hashable)
+            return hashable
 
     # reshape array into magical data type that is weird but works with unique
     dtype = np.dtype((np.void, as_int.dtype.itemsize * as_int.shape[1]))
