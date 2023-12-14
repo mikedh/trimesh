@@ -207,7 +207,7 @@ def hashable_rows(data, digits=None):
             bitbang = (as_int - d_min).astype(np.uint64).T
             # loop through each column and bitwise xor to combine
             # make sure as_int is int64 otherwise bit offset won't work
-            for offset, column in enumerate(bitbang)
+            for offset, column in enumerate(bitbang):
                 # will modify hashable in place
                 np.bitwise_xor(hashable, column << (offset * precision), out=hashable)
             return hashable
