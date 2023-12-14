@@ -175,6 +175,16 @@ class OBJTest(g.unittest.TestCase):
             r = g.trimesh.load(file_path)
             g.check_fuze(r)
 
+    def test_skip_mtl(self):
+        # not loading materials should produce a trivial texture
+        m_tex = g.get_mesh("fuze.obj")
+        m_tex_size = m_tex.visual.material.image.size
+
+        m_notex = g.get_mesh('fuze.obj', skip_materials=True)
+        m_notex_size = m_notex.visual.material.image.size
+
+        assert m_tex_size != m_notex_size
+
     def test_mtl(self):
         # get a mesh with texture
         m = g.get_mesh("fuze.obj")

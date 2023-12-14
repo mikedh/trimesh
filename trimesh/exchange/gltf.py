@@ -264,6 +264,7 @@ def load_gltf(
     resolver=None,
     ignore_broken=False,
     merge_primitives=False,
+    skip_materials=False,
     **mesh_kwargs,
 ):
     """
@@ -283,6 +284,8 @@ def load_gltf(
     merge_primitives : bool
       If True, each GLTF 'mesh' will correspond
       to a single Trimesh object
+    skip_materials : bool
+      If true, will not load materials (if present).
     **mesh_kwargs : dict
       Passed to mesh constructor
 
@@ -325,13 +328,19 @@ def load_gltf(
         ignore_broken=ignore_broken,
         merge_primitives=merge_primitives,
         mesh_kwargs=mesh_kwargs,
+        skip_materials=skip_materials,
         resolver=resolver,
     )
     return kwargs
 
 
 def load_glb(
-    file_obj, resolver=None, ignore_broken=False, merge_primitives=False, **mesh_kwargs
+    file_obj,
+    resolver=None,
+    ignore_broken=False,
+    merge_primitives=False,
+    skip_materials=False,
+    **mesh_kwargs
 ):
     """
     Load a GLTF file in the binary GLB format into a trimesh.Scene.
@@ -345,9 +354,15 @@ def load_glb(
       Containing GLB data
     resolver : trimesh.visual.Resolver
       Object which can be used to load other files by name
+    ignore_broken : bool
+      If there is a mesh we can't load and this
+      is True don't raise an exception but return
+      a partial result
     merge_primitives : bool
       If True, each GLTF 'mesh' will correspond to a
       single Trimesh object.
+    skip_materials : bool
+      If true, will not load materials (if present).
 
     Returns
     ------------
@@ -426,6 +441,7 @@ def load_glb(
         buffers=buffers,
         ignore_broken=ignore_broken,
         merge_primitives=merge_primitives,
+        skip_materials=skip_materials,
         mesh_kwargs=mesh_kwargs,
     )
 
@@ -1337,6 +1353,7 @@ def _read_buffers(
     mesh_kwargs,
     ignore_broken=False,
     merge_primitives=False,
+    skip_materials=False,
     resolver=None,
 ):
     """
@@ -1357,6 +1374,8 @@ def _read_buffers(
       a partial result
     merge_primitives : bool
       If true, combine primitives into a single mesh.
+    skip_materials : bool
+      If true, will not load materials (if present).
     resolver : trimesh.resolvers.Resolver
       Resolver to load referenced assets
 
@@ -1436,8 +1455,11 @@ def _read_buffers(
                 # a "sparse" accessor should be initialized as zeros
                 access[index] = np.zeros(count * per_count, dtype=dtype).reshape(shape)
 
-        # load images and textures into material objects
-        materials = _parse_materials(header, views=views, resolver=resolver)
+        # possibly load images and textures into material objects
+        if skip_materials:
+            materials = []
+        else:
+            materials = _parse_materials(header, views=views, resolver=resolver)
 
     mesh_prim = collections.defaultdict(list)
     # load data from accessors into Trimesh objects
@@ -1505,7 +1527,7 @@ def _read_buffers(
                         kwargs["vertex_normals"] = access[attr["NORMAL"]]
                         # do we have UV coordinates
                     visuals = None
-                    if "material" in p:
+                    if "material" in p and not skip_materials:
                         if materials is None:
                             log.debug("no materials! `pip install pillow`")
                         else:
