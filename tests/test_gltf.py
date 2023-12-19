@@ -102,6 +102,24 @@ class GLTFTest(g.unittest.TestCase):
         a = g.json.loads(scene.export(file_type="gltf")["model.gltf"].decode("utf-8"))
         assert len(a["buffers"]) <= 3
 
+    def test_skip_materials(self):
+        # load textured PLY
+        mesh = g.get_mesh("fuze.ply")
+        g.check_fuze(mesh)
+
+        # load as GLB
+        export = mesh.export(file_type="glb", unitize_normals=True)
+        validate_glb(export)
+        mesh_glb = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(export),
+            file_type="glb",
+            force="mesh",
+            skip_materials=True,
+        )
+
+        # visuals should not be present
+        assert not mesh_glb.visual.defined
+
     def test_tex_export(self):
         # load textured PLY
         mesh = g.get_mesh("fuze.ply")

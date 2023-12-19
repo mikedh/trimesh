@@ -43,7 +43,10 @@ class InertiaTest(g.unittest.TestCase):
         assert g.np.abs(g.np.dot(t1, t1.T) - g.np.eye(4)).max() < 1e-10
 
         c = g.trimesh.primitives.Cylinder(
-            height=10, radius=1, sections=720, transform=t0  # number of slices
+            height=10,
+            radius=1,
+            sections=720,
+            transform=t0,  # number of slices
         )
         c0m = c.moment_inertia.copy()
         c0 = g.trimesh.inertia.cylinder_inertia(
@@ -343,9 +346,7 @@ class InertiaTest(g.unittest.TestCase):
         # CHECK FRAME 0
         # analytical calculations of inertia tensor by hand
         inertia0 = (
-            0.083333333333
-            * mass
-            * g.np.diag([h**2 + b**2, h**2 + d**2, b**2 + d**2])
+            0.083333333333 * mass * g.np.diag([h**2 + b**2, h**2 + d**2, b**2 + d**2])
         )
         a1 = -0.5 * d
         a2 = -0.5 * b
@@ -358,9 +359,7 @@ class InertiaTest(g.unittest.TestCase):
         # CHECK FRAME 1
         # analytical calculations of inertia tensor by hand
         inertia1 = (
-            0.083333333333
-            * mass
-            * g.np.diag([h**2 + d**2, h**2 + b**2, b**2 + d**2])
+            0.083333333333 * mass * g.np.diag([h**2 + d**2, h**2 + b**2, b**2 + d**2])
         )
         a1 = -0.5 * b
         a2 = 0.5 * d
@@ -376,9 +375,7 @@ class InertiaTest(g.unittest.TestCase):
         # CHECK FRAME 2
         # analytical calculations of inertia tensor by hand
         inertia2 = (
-            0.083333333333
-            * mass
-            * g.np.diag([h**2 + b**2, b**2 + d**2, h**2 + d**2])
+            0.083333333333 * mass * g.np.diag([h**2 + b**2, b**2 + d**2, h**2 + d**2])
         )
         a1 = -0.5 * d
         a2 = 0.5 * h

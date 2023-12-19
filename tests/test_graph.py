@@ -176,9 +176,15 @@ class GraphTest(g.unittest.TestCase):
                 )
 
                 # make a set from edges included in the traversal
-                inc_set = set(g.trimesh.grouping.hashable_rows(g.np.sort(inc, axis=1)))
+                inc_set = {
+                    i.tobytes()
+                    for i in g.trimesh.grouping.hashable_rows(g.np.sort(inc, axis=1))
+                }
                 # make a set of the source edges we were supposed to include
-                edge_set = set(g.trimesh.grouping.hashable_rows(g.np.sort(edges, axis=1)))
+                edge_set = {
+                    i.tobytes()
+                    for i in g.trimesh.grouping.hashable_rows(g.np.sort(edges, axis=1))
+                }
 
                 # we should have exactly the same edges
                 # after the filled traversal as we started with

@@ -5,11 +5,11 @@ grouping.py
 Functions for grouping values and rows.
 """
 
-
 import numpy as np
 
 from . import util
 from .constants import log, tol
+from .typed import ArrayLike, NDArray, Optional, Union
 
 try:
     from scipy.spatial import cKDTree
@@ -157,7 +157,9 @@ def group(values, min_len=0, max_len=np.inf):
     return groups
 
 
-def hashable_rows(data, digits=None):
+def hashable_rows(
+    data: ArrayLike, digits=None
+) -> Union[NDArray[np.uint64], NDArray[np.void]]:
     """
     We turn our array into integers based on the precision
     given by digits and then put them in a hashable format.
@@ -172,9 +174,8 @@ def hashable_rows(data, digits=None):
 
     Returns
     ---------
-    hashable : (n,) array
-      Custom data type which can be sorted
-      or used as hash keys
+    hashable : (n,)
+      May return as a `np.void` or a `np.uint64`
     """
     # if there is no data return immediately
     if len(data) == 0:
@@ -183,35 +184,46 @@ def hashable_rows(data, digits=None):
     # get array as integer to precision we care about
     as_int = float_to_int(data, digits=digits)
 
-    # if it is flat integers already, return
+    # if it is flat integers already return
     if len(as_int.shape) == 1:
         return as_int
 
     # if array is 2D and smallish, we can try bitbanging
     # this is significantly faster than the custom dtype
     if len(as_int.shape) == 2 and as_int.shape[1] <= 4:
-        # time for some righteous bitbanging
         # can we pack the whole row into a single 64 bit integer
         precision = int(np.floor(64 / as_int.shape[1]))
-        # if the max value is less than precision we can do this
-        if np.abs(as_int).max() < 2 ** (precision - 1):
+
+        # get the extreme values of the data set
+        d_min, d_max = as_int.min(), as_int.max()
+        # since we are quantizing the data down we need every value
+        # to fit in a partial integer so we have to check against extrema
+        threshold = 2 ** (precision - 1)
+
+        # if the data is within the range of our precision threshold
+        if d_max < threshold and d_min > -threshold:
             # the resulting package
-            hashable = np.zeros(len(as_int), dtype=np.int64)
+            hashable = np.zeros(len(as_int), dtype=np.uint64)
+            # offset to the middle of the unsigned integer range
+            # this array should contain only positive values
+            bitbang = (as_int + threshold).astype(np.uint64).T
             # loop through each column and bitwise xor to combine
             # make sure as_int is int64 otherwise bit offset won't work
-            for offset, column in enumerate(as_int.astype(np.int64).T):
+            for offset, column in enumerate(bitbang):
                 # will modify hashable in place
                 np.bitwise_xor(hashable, column << (offset * precision), out=hashable)
             return hashable
 
-    # reshape array into magical data type that is weird but hashable
+    # reshape array into magical data type that is weird but works with unique
     dtype = np.dtype((np.void, as_int.dtype.itemsize * as_int.shape[1]))
     # make sure result is contiguous and flat
-    hashable = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
-    return hashable
+    result = np.ascontiguousarray(as_int).view(dtype).reshape(-1)
+    result.flags["WRITEABLE"] = False
+
+    return result
 
 
-def float_to_int(data, digits=None, dtype=np.int32):
+def float_to_int(data, digits: Optional[int] = None):
     """
     Given a numpy array of float/bool/int, return as integers.
 
@@ -221,8 +233,6 @@ def float_to_int(data, digits=None, dtype=np.int32):
       Input data
     digits : float or int
       Precision for float conversion
-    dtype : numpy.dtype
-      What datatype should result be returned as
 
     Returns
     -------------
@@ -232,32 +242,30 @@ def float_to_int(data, digits=None, dtype=np.int32):
     # convert to any numpy array
     data = np.asanyarray(data)
 
-    # if data is already an integer or boolean we're done
-    # if the data is empty we are also done
-    if data.dtype.kind in "ib" or data.size == 0:
-        return data.astype(dtype)
+    # we can early-exit if we've been passed data that is already
+    # an integer, unsigned integer, boolean, or empty
+    if data.dtype.kind in "iub" or data.size == 0:
+        return data
     elif data.dtype.kind != "f":
+        # if it's not a floating point try to make it one
         data = data.astype(np.float64)
 
-    # populate digits from kwargs
     if digits is None:
+        # get digits from `tol.merge`
         digits = util.decimal_to_digits(tol.merge)
-    elif isinstance(digits, float) or isinstance(digits, np.float64):
-        digits = util.decimal_to_digits(digits)
-    elif not (isinstance(digits, int) or isinstance(digits, np.integer)):
-        log.warning("Digits were passed as %s!", digits.__class__.__name__)
-        raise ValueError("Digits must be None, int, or float!")
+    elif not isinstance(digits, (int, np.integer)):
+        raise TypeError("Digits must be `None` or `int`, not `{type(digits)}`")
 
-    # data is float so convert to large integers
-    data_max = np.abs(data).max() * 10**digits
-    # ignore passed dtype if we have something large
-    dtype = [np.int32, np.int64][int(data_max > 2**31)]
+    # see if we can use a smaller integer
+    d_extrema = max(abs(data.min()), abs(data.max())) * 10**digits
+
+    # compare against `np.iinfo(np.int32).max`
+    dtype = [np.int32, np.int64][int(d_extrema > 2147483646)]
+
     # multiply by requested power of ten
     # then subtract small epsilon to avoid "go either way" rounding
     # then do the rounding and convert to integer
-    as_int = np.round((data * 10**digits) - 1e-6).astype(dtype)
-
-    return as_int
+    return np.round((data * 10**digits) - 1e-6).astype(dtype)
 
 
 def unique_ordered(data, return_index=False, return_inverse=False):

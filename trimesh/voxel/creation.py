@@ -8,7 +8,7 @@ from . import encoding as enc
 
 
 @log_time
-def voxelize_subdivide(mesh, pitch, max_iter=10, edge_factor=2.0):
+def voxelize_subdivide(mesh, pitch: float, max_iter: int = 10, edge_factor: float = 2.0):
     """
     Voxelize a surface by subdividing a mesh until every edge is
     shorter than: (pitch / edge_factor)
@@ -43,11 +43,9 @@ def voxelize_subdivide(mesh, pitch, max_iter=10, edge_factor=2.0):
     )
 
     # convert the vertices to their voxel grid position
-    hit = v / pitch
-
     # Provided edge_factor > 1 and max_iter is large enough, this is
     # sufficient to preserve 6-connectivity at the level of voxels.
-    hit = np.round(hit).astype(int)
+    hit = np.round(v / pitch).astype(int)
 
     # remove duplicates
     unique, inverse = grouping.unique_rows(hit)

@@ -8,6 +8,8 @@ import numpy as np
 from .. import grouping, resources, util, visual
 from ..constants import log
 from ..geometry import triangulate_quads
+from ..resolvers import Resolver
+from ..typed import Optional
 
 # from ply specification, and additional dtypes found in the wild
 _dtypes = {
@@ -64,7 +66,13 @@ def _numpy_type_to_ply_type(_numpy_type):
 
 
 def load_ply(
-    file_obj, resolver=None, fix_texture=True, prefer_color=None, *args, **kwargs
+    file_obj,
+    resolver: Optional[Resolver] = None,
+    fix_texture: bool = True,
+    prefer_color: Optional[str] = None,
+    skip_materials: bool = False,
+    *args,
+    **kwargs,
 ):
     """
     Load a PLY file from an open file object.
@@ -73,13 +81,16 @@ def load_ply(
     ---------
     file_obj : an open file- like object
       Source data, ASCII or binary PLY
-    resolver : trimesh.visual.resolvers.Resolver
+    resolver
       Object which can resolve assets
-    fix_texture : bool
+    fix_texture
       If True, will re- index vertices and faces
       so vertices with different UV coordinates
       are disconnected.
-    prefer_color : None, 'vertex', or 'face'
+    skip_materials
+      If True, will not load texture (if present).
+    prefer_color
+      None, 'vertex', or 'face'
       Which kind of color to prefer if both defined
 
     Returns
@@ -100,18 +111,19 @@ def load_ply(
 
     # try to load the referenced image
     image = None
-    try:
-        # soft dependency
-        import PIL.Image
+    if not skip_materials:
+        try:
+            # soft dependency
+            import PIL.Image
 
-        # if an image name is passed try to load it
-        if image_name is not None:
-            data = resolver.get(image_name)
-            image = PIL.Image.open(util.wrap_as_stream(data))
-    except ImportError:
-        log.debug("textures require `pip install pillow`")
-    except BaseException:
-        log.warning("unable to load image!", exc_info=True)
+            # if an image name is passed try to load it
+            if image_name is not None:
+                data = resolver.get(image_name)
+                image = PIL.Image.open(util.wrap_as_stream(data))
+        except ImportError:
+            log.debug("textures require `pip install pillow`")
+        except BaseException:
+            log.warning("unable to load image!", exc_info=True)
 
     # translate loaded PLY elements to kwargs
     kwargs = _elements_to_kwargs(
@@ -218,7 +230,12 @@ def _assert_attributes_valid(attributes):
             raise ValueError("PLY attributes must be of a single datatype")
 
 
-def export_ply(mesh, encoding="binary", vertex_normal=None, include_attributes=True):
+def export_ply(
+    mesh,
+    encoding="binary",
+    vertex_normal: Optional[bool] = None,
+    include_attributes: bool = True,
+):
     """
     Export a mesh in the PLY format.
 
