@@ -169,6 +169,22 @@ class SceneTests(g.unittest.TestCase):
 
         assert g.np.allclose(scaled.extents / extents, factor)
 
+    def test_mixed_units(self):
+        # create two boxes in a scene
+        a = g.trimesh.creation.box()
+        a.units = "in"
+
+        b = g.trimesh.creation.box()
+        b.units = "m"
+
+        # mixed units should be None
+        s = g.trimesh.Scene([a, b])
+        assert s.units is None
+
+        # now all units should be meters and scene should report that
+        a.units = "m"
+        assert s.units == "m"
+
     def test_scaling_3D_mixed(self):
         # same as test_scaling_3D but input scene contains 2D and 3D geometry
         scene = g.get_mesh("scenes.zip", mixed=True)
