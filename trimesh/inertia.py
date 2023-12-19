@@ -198,7 +198,7 @@ def radial_symmetry(mesh):
     scalar = mesh.principal_inertia_components.copy()
 
     # exit early if inertia components are all zero
-    if (scalar < 1e-12).any():
+    if (scalar < 1e-30).any():
         return None, None, None
 
     # normalize the PCI so we can compare them
