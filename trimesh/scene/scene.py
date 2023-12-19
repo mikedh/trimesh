@@ -6,6 +6,7 @@ import numpy as np
 from .. import caching, convex, grouping, inertia, transformations, units, util
 from ..exchange import export
 from ..parent import Geometry3D
+from ..typed import Optional
 from ..util import unique_name
 from . import cameras, lighting
 from .transforms import SceneGraph
@@ -955,24 +956,22 @@ class Scene(Geometry3D):
         return png
 
     @property
-    def units(self) -> str:
+    def units(self) -> Optional[str]:
         """
-        Get the units for every model in the scene, and
-        raise a ValueError if there are mixed units.
+        Get the units for every model in the scene. If the scene has
+        mixed units or no units this will return None.
 
         Returns
         -----------
-        units : str
-          Units for every model in the scene
+        units
+          Units for every model in the scene or None
+          if there are no units or mixed units
         """
-        existing = [i.units for i in self.geometry.values()]
-
-        if any(existing[0] != e for e in existing):
-            # if all of our geometry doesn't have the same units already
-            # this function will only do some hot nonsense
-            raise ValueError("models in scene have inconsistent units!")
-
-        return existing[0]
+        # get a set of the units of every geometry
+        existing = {i.units for i in self.geometry.values()}
+        if len(existing) == 1:
+            return existing.pop()
+        return None
 
     @units.setter
     def units(self, value: str):
