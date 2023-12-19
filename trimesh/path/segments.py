@@ -178,12 +178,12 @@ def clean(segments: NDArray[float64], digits: int = 10) -> NDArray[float64]:
     # find the groups of values with identical origins and vectors
     groups = group_rows(np.column_stack((origins, vectors)), digits=digits)
 
-    # get the union of every interval range for colinear segements
+    # get the union of every interval range for colinear segments
     unions = [union(param[g][param[g][:, 0].argsort()], sort=False) for g in groups]
     # reconstruct indexes for the origins and vectors
     indexes = np.concatenate([g[: len(u)] for g, u in zip(groups, unions)])
 
-    # conver parametric form back into vertex-segment form
+    # convert parametric form back into vertex-segment form
     return parameters_to_segments(
         origins=origins[indexes], vectors=vectors[indexes], parameters=np.vstack(unions)
     )

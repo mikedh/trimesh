@@ -325,7 +325,7 @@ def weighted_vertex_normals(
 ):
     """
     Compute vertex normals from the faces that contain that vertex.
-    The contibution of a face's normal to a vertex normal is the
+    The contribution of a face's normal to a vertex normal is the
     ratio of the corner-angle in which the vertex is, with respect
     to the sum of all corner-angles surrounding the vertex.
 

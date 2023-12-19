@@ -71,13 +71,11 @@ if __name__ == '__main__':
 When you remove the embed and see the profile result you can then tweak the lines that are slow before finishing the function.
 
 ### Automatic Formatting
-Trimesh uses `ruff` and `black` configured in `pyproject.toml`, you can run with:
+Trimesh uses `ruff` for both linting and formatting which is configured in `pyproject.toml`, you can run with:
 ```
 ruff . --fix
-black .
+ruff format .
 ```
-It can fix a lot of formatting issues automatically. We also periodically run `black` to autoformat the codebase.
-
 
 ## Docstrings
 

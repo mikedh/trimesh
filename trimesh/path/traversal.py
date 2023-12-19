@@ -271,7 +271,7 @@ class PathSample:
         offsets = np.append(0, self._cum_norm)[positions]
         # the distance past the reference vertex we need to travel
         projection = distances - offsets
-        # find out which dirction we need to project
+        # find out which direction we need to project
         direction = self._unit_vec[positions]
         # find out which vertex we're offset from
         origin = self._points[positions]

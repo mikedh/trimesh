@@ -421,7 +421,7 @@ def _parse_header(file_obj):
         # a property is a member of an element
         elif "property" in line[0]:
             # is the property a simple single value, like:
-            # `propert float x`
+            # `property float x`
             if len(line) == 3:
                 dtype, field = line[1:]
                 elements[name]["properties"][str(field)] = endian + _dtypes[dtype]

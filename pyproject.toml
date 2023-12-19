@@ -103,8 +103,7 @@ test = [
     "pymeshlab",
     "pyinstrument",
     "matplotlib",
-    "ruff",
-    "black",
+    "ruff"
 ]
 
 # requires pip >= 21.2
@@ -140,7 +139,3 @@ ignore = [
 ]
 line-length = 90
 
-
-[tool.black]
-line-length = 90
-target-version = ['py37']

@@ -32,7 +32,7 @@ def identifier_simple(mesh):
     Return a basic identifier for a mesh consisting of
     properties that have been hand tuned to be somewhat
     robust to rigid transformations and different
-    tesselations.
+    tessellations.
 
     Parameters
     ------------
