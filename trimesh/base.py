@@ -1935,7 +1935,7 @@ class Trimesh(Geometry3D):
         This method returns the 4x4 homogeneous transform matrices that place
         the shape against the planar surface with the z-axis pointing upwards
         and a list of the probabilities for each pose.
-        The transforms and probabilties that are returned are sorted, with the
+        The transforms and probabilities that are returned are sorted, with the
         most probable pose first.
 
         Parameters
@@ -2121,7 +2121,7 @@ class Trimesh(Geometry3D):
         DEPRECATED: use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`
         """
         warnings.warn(
-            "`mesh.smoothed()` is deprected and will be removed in March 2024: "
+            "`mesh.smoothed()` is deprecated and will be removed in March 2024: "
             + "use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`",
             category=DeprecationWarning,
             stacklevel=2,

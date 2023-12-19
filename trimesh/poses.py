@@ -34,7 +34,7 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
     the shape against the planar surface with the z-axis pointing upwards
     and a list of the probabilities for each pose.
 
-    The transforms and probabilties that are returned are sorted, with the
+    The transforms and probabilities that are returned are sorted, with the
     most probable pose first.
 
     Parameters

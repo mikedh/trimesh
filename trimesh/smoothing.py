@@ -185,7 +185,7 @@ def filter_mut_dif_laplacian(
 ):
     """
     Smooth a mesh in-place using laplacian smoothing using a
-    mutable difusion laplacian.
+    mutable diffusion laplacian.
 
     Articles
       Barroqueiro, B., Andrade-Campos, A., Dias-de-Oliveira,
@@ -224,7 +224,7 @@ def filter_mut_dif_laplacian(
 
     # Number of passes
     for _index in range(iterations):
-        # Mutable difusion
+        # Mutable diffusion
         normals = get_vertices_normals(mesh)
         qi = laplacian_operator.dot(vertices)
         pi_qi = vertices - qi

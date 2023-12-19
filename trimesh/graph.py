@@ -748,7 +748,7 @@ def smoothed(*args, **kwargs):
     DEPRECATED: use `trimesh.graph.smooth_shade(mesh, ...)`
     """
     warnings.warn(
-        "`trimesh.graph.smoothed` is deprected and will be removed in March 2024: "
+        "`trimesh.graph.smoothed` is deprecated and will be removed in March 2024: "
         + "use `trimesh.graph.smooth_shade(mesh, ...)`",
         category=DeprecationWarning,
         stacklevel=2,

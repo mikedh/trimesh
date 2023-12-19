@@ -327,7 +327,7 @@ def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
     points_c -= center_c
 
     # Find the minimum distance for the camera from the origin
-    # so that all points fit in the view frustrum
+    # so that all points fit in the view frustum
     tfov = np.tan(np.radians(fov) / 2.0)
 
     if distance is None:

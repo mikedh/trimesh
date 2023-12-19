@@ -211,7 +211,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None, coplanar_tol
     # matrices which will rotate each hull normal to [0,0,1]
     if normal is None:
         # convert face normals to spherical coordinates on the upper hemisphere
-        # the vector_hemisphere call effectivly merges negative but otherwise
+        # the vector_hemisphere call effectively merges negative but otherwise
         # identical vectors
         spherical_coords = util.vector_to_spherical(util.vector_hemisphere(hull_normals))
         # the unique_rows call on merge angles gets unique spherical directions to check

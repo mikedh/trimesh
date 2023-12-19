@@ -384,7 +384,7 @@ def ray_bounds(ray_origins, ray_directions, bounds, buffer_dist=1e-5):
     t_a = t[:, 0].reshape((-1, 1))
     t_b = t[:, 1].reshape((-1, 1))
 
-    # the cartesion point for where the line hits the plane defined by
+    # the cartesian point for where the line hits the plane defined by
     # axis
     on_a = (ray_directions * t_a) + ray_origins
     on_b = (ray_directions * t_b) + ray_origins
