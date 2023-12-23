@@ -65,6 +65,21 @@ class GraphTests(g.unittest.TestCase):
         # should have dumped the cache and removed the node
         assert node not in graph.nodes
 
+    def test_remove_geometries(self):
+        # remove geometries from a scene graph
+        scene = g.get_mesh("cycloidal.3DXML")
+
+        # only keep geometry instances of these
+        keep = {"disc_cam_A", "disc_cam_B", "vxb-6800-2rs"}
+
+        assert len(scene.duplicate_nodes) == 12
+
+        # should remove instance references except `keep`
+        scene.graph.remove_geometries(set(scene.geometry.keys()).difference(keep))
+
+        # there should now be three groups of duplicate nodes
+        assert len(scene.duplicate_nodes) == len(keep)
+
     def test_kwargs(self):
         # test the function that converts various
         # arguments into a homogeneous transformation
