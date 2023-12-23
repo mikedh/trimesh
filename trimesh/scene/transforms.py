@@ -1,5 +1,6 @@
 import collections
 from copy import deepcopy
+from typing import Sequence
 
 import numpy as np
 
@@ -473,7 +474,7 @@ class SceneGraph:
                 res[attr["geometry"]].append(node)
         return res
 
-    def remove_geometries(self, geometries):
+    def remove_geometries(self, geometries: Sequence):
         """
         Remove the reference for specified geometries
         from nodes without deleting the node.
@@ -498,6 +499,7 @@ class SceneGraph:
         # but the only property using the geometry should be
         # nodes_geometry: if this becomes not true change this to clear!
         self._cache.cache.pop("nodes_geometry", None)
+        self.transforms._hash = None
 
     def __contains__(self, key):
         return key in self.transforms.node_data

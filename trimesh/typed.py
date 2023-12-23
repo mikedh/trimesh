@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import IO, Dict, List, Optional, Sequence, Tuple, Union
 
 # our default integer and floating point types
@@ -11,7 +12,7 @@ except BaseException:
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path
-Loadable = Union[str, IO]
+Loadable = Union[str, Path, IO]
 
 __all__ = [
     "NDArray",
