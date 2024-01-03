@@ -117,6 +117,9 @@ def export_collada(mesh, **kwargs):
                 uv = m.visual.uv
             elif m.visual.kind == "vertex":
                 colors = (m.visual.vertex_colors / 255.0)[:, :3]
+                mat.effect.diffuse = np.array(m.visual.main_color) / 255.0
+            elif m.visual.kind == "face":
+                mat.effect.diffuse = np.array(m.visual.main_color) / 255.0
         c.effects.append(mat.effect)
         c.materials.append(mat)
 
