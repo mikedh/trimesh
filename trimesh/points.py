@@ -475,6 +475,10 @@ class PointCloud(Geometry3D):
 
         # copy vertex and face data
         copied._data.data = copy.deepcopy(self._data.data)
+
+        # copy visual data
+        copied.visual = copy.deepcopy(self.visual)
+
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
 
