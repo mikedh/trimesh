@@ -83,8 +83,8 @@ def boolean_manifold(meshes, operation, debug=False, **kwargs):
     """
     # Convert to manifold meshes
     manifolds = [
-        Manifold.from_mesh(
-            Mesh(
+        Manifold(
+            mesh=Mesh(
                 vert_properties=np.asarray(mesh.vertices, dtype="float32"),
                 tri_verts=np.asarray(mesh.faces, dtype="int32"),
             )

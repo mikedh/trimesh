@@ -77,6 +77,8 @@ easy = [
     "scipy",
     "embreex",
     "pillow",
+    "vhacdx",
+    "manifold3d>=2.3.0"
 ]
 
 recommend = [
@@ -88,8 +90,6 @@ recommend = [
     "xatlas",
     "scikit-image",
     "python-fcl",
-    "vhacdx",
-    "manifold3d"
 ]
 
 # this is the list of everything that is ever added anywhere
