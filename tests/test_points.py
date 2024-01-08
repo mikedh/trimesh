@@ -62,6 +62,7 @@ class PointsTest(g.unittest.TestCase):
 
         # check to see if copy works
         assert g.np.allclose(cloud.vertices, cloud.copy().vertices)
+        assert hash(cloud.visual) == hash(cloud.copy().visual)
 
     def test_empty(self):
         p = g.trimesh.PointCloud(None)
