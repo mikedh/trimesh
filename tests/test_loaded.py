@@ -54,6 +54,9 @@ class LoaderTest(g.unittest.TestCase):
         # clean up
         file_obj.close()
 
+    def test_load_bz2(self):
+        mesh = g.trimesh.load(g.os.path.join(g.dir_models, "rock.obj.bz2"), force="mesh")
+        assert mesh.is_volume
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
