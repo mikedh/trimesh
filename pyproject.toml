@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.0.8"
+version = "4.0.9"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -77,6 +77,7 @@ easy = [
     "scipy",
     "embreex",
     "pillow",
+    "vhacdx",
 ]
 
 recommend = [
@@ -88,8 +89,7 @@ recommend = [
     "xatlas",
     "scikit-image",
     "python-fcl",
-    "vhacdx",
-    "manifold3d"
+    "manifold3d>=2.3.0"
 ]
 
 # this is the list of everything that is ever added anywhere

@@ -637,6 +637,7 @@ compressed_loaders = {
     "zip": load_compressed,
     "tar.bz2": load_compressed,
     "tar.gz": load_compressed,
+    "bz2": load_compressed,
 }
 
 # map file_type to loader function

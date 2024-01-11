@@ -178,6 +178,12 @@ class TransformTest(g.unittest.TestCase):
             g.np.linalg.norm(random_quat(num=100), axis=1), 1.0, atol=1e-6
         )
 
+    def test_angle(self):
+        assert g.np.isclose(
+            g.trimesh.transformations.angle_between_vectors(g.np.ones(3), g.np.ones(3)),
+            0.0,
+        )
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

@@ -1933,6 +1933,9 @@ def angle_between_vectors(v0, v1, directed=True, axis=0):
     v1 = np.array(v1, dtype=np.float64, copy=False)
     dot = np.sum(v0 * v1, axis=axis)
     dot /= vector_norm(v0, axis=axis) * vector_norm(v1, axis=axis)
+
+    # clip off floating point error to avoid `nan` in the arccos`
+    dot = np.clip(dot, -1.0, 1.0)
     return np.arccos(dot if directed else np.fabs(dot))
 
 
