@@ -21,10 +21,10 @@ example_rsts = $(foreach name, $(example_names), examples.$(name).rst)
 
 
 html: conf.py $(CONTENT)/index.rst trimesh.rst README.rst $(example_rsts) examples.rst .deps
+	cp -R "$(STATICDIR)" "$(GENDIR)/static"
 	@$(SPHINXBUILD) -M html "$(GENDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 	echo "trimesh.org" > "$(BUILDDIR)/html/CNAME"
 	touch "$(BUILDDIR)/html/.nojekyll"
-	cp -R "$(STATICDIR)/images" "$(BUILDDIR)/html/images" || true
 	cp   "$(STATICDIR)/favicon.ico" "$(BUILDDIR)/html/favicon.ico" || true
 
 .deps: requirements.txt
