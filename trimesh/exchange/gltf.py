@@ -235,6 +235,8 @@ def export_glb(
         tree["bufferViews"] = views
 
     # export the tree to JSON for the header
+    if 'nodes' in tree and tree['nodes'][0]['name'].find("world") >= 0:
+        tree['nodes'].pop(0)
     content = util.jsonify(tree, separators=(',', ':'))
     # add spaces to content, so the start of the data
     # is 4 byte aligned as per spec
