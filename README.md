@@ -8,7 +8,7 @@ Trimesh is a pure Python 3.7+ library for loading and using [triangular meshes](
 
 The API is mostly stable, but this should not be relied on and is not guaranteed: install a specific version if you plan on deploying something using trimesh.
 
-Pull requests are appreciated and responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/1557) although things not on that list are also welcome. Here's a quick [development and contributing guide.](https://trimsh.org/contributing.html)
+Pull requests are appreciated and responded to promptly! If you'd like to contribute, here is an [up to date list of potential enhancements](https://github.com/mikedh/trimesh/issues/1557) although things not on that list are also welcome. Here's a quick [development and contributing guide.](https://trimesh.org/contributing.html)
 
 
 ## Basic Installation
@@ -24,12 +24,12 @@ The minimal install can load many supported formats (STL, PLY, GLTF/GLB) into nu
 pip install trimesh[easy]
 ```
 
-Further information is available in the [advanced installation documentation](https://trimsh.org/install.html).
+Further information is available in the [advanced installation documentation](https://trimesh.org/install.html).
 
 ## Quick Start
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](https://trimsh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimsh.org/examples/section.html).
+[ipython notebook version](https://trimesh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimesh.org/examples/section.html).
 
 ```python
 import numpy as np
@@ -207,7 +207,7 @@ A question that comes up pretty frequently is [how to cite the library.](https:/
 @software{trimesh,
 	author = {{Dawson-Haggerty et al.}},
 	title = {trimesh},
-	url = {https://trimsh.org/},
+	url = {https://trimesh.org/},
 	version = {3.2.0},
 	date = {2019-12-8},
 }
