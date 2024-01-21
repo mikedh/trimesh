@@ -79,8 +79,8 @@ def concatenate(visuals, *args):
         new_mat, new_uv = pack(materials=mats, uvs=uvs)
         return TextureVisuals(material=new_mat, uv=new_uv)
 
-    # convert all visuals to the kind of the first
-    kind = visuals[0].kind
+    # convert all visuals to the first valid kind
+    kind = next((v.kind for v in visuals if v.kind is not None), None)
     if kind == "face":
         colors = np.vstack([v.face_colors for v in visuals])
         return ColorVisuals(face_colors=colors)
