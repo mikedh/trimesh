@@ -184,6 +184,49 @@ class TransformTest(g.unittest.TestCase):
             0.0,
         )
 
+    def test_symbolic_rotation(self):
+        # you can pass `sympy.Symbol` to `trimesh.transformation.rotation_matrix`
+        try:
+            import sympy as sp
+        except BaseException:
+            return
+        tf = g.trimesh.transformations
+
+        a = sp.Symbol("a")
+        vector = [1, 1, 1]
+        m = tf.rotation_matrix(a, vector)
+        for v in [0.0, 1.1, 1.234, g.np.pi]:
+            # evaluate the symbolic matrix with a value
+            s = g.np.array(m.subs({a: v}).evalf(), dtype=g.np.float64)
+            # call rotation matrix with a scalar
+            n = tf.rotation_matrix(v, vector)
+
+            # they should be the same matrix
+            assert g.np.allclose(s, n)
+
+    def test_symbolic_euler(self):
+        # some of the functions have been modified to support `sympy.Symbol`
+        # values which is useful for calculating final rotations symbolically
+        try:
+            import sympy as sp
+        except BaseException:
+            return
+
+        euler = g.trimesh.transformations.euler_matrix
+
+        ra, rb, rc = sp.symbols("ra rb rc")
+        m = euler(ra, rb, rc)
+        for rot in g.random((100, 3)):
+            # get the euler matrix evaluated from the symbolic matrix
+            s = g.np.array(
+                m.subs({ra: rot[0], rb: rot[1], rc: rot[2]}).evalf(), dtype=g.np.float64
+            )
+            # get it from a numeric scalar
+            n = euler(*rot)
+
+            # they should be the same matrix
+            assert g.np.allclose(s, n)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
