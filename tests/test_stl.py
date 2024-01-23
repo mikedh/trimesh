@@ -69,7 +69,7 @@ class STLTests(g.unittest.TestCase):
     def test_ascii_multibody(self):
         s = g.get_mesh("multibody.stl")
         assert len(s.geometry) == 2
-        assert set(s.geometry.keys()) == {"bodya", "bodyb"}
+        assert set(s.geometry.keys()) == {"bodyA", "bodyB"}
 
     def test_empty(self):
         # demo files to check
