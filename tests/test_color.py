@@ -28,6 +28,34 @@ class VisualTest(g.unittest.TestCase):
         r = a + b
         assert any(r.visual.face_colors.ptp(axis=0) > 1)
 
+    def test_concatenate_empty_mesh(self):
+        box = g.get_mesh("box.STL")
+
+        mesh_fcolor = box.copy()
+        mesh_fcolor.visual.face_colors = [255, 0, 0]
+
+        mesh_vcolor = box.copy()
+        mesh_vcolor.visual.vertex_colors = [0, 0, 255]
+
+        mesh_empty = g.trimesh.Trimesh()
+
+        r_left_fcolor = mesh_fcolor + mesh_empty
+        r_right_fcolor = mesh_empty + mesh_fcolor
+        r_left_vcolor = mesh_vcolor + mesh_empty
+        r_right_vcolor = mesh_empty + mesh_vcolor
+        r_empty = mesh_empty + mesh_empty
+
+        for visual_face in [r_left_fcolor.visual, r_right_fcolor.visual]:
+            assert (visual_face.face_colors == mesh_fcolor.visual.face_colors).all()
+            assert visual_face.kind == "face"
+
+        for visual_vert in [r_left_vcolor.visual, r_right_vcolor.visual]:
+            assert (visual_vert.vertex_colors == mesh_vcolor.visual.vertex_colors).all()
+            assert visual_vert.kind == "vertex"
+
+        assert len(r_empty.visual.face_colors) == 0
+        assert r_empty.visual.kind is None
+
     def test_data_model(self):
         """
         Test the probably too- magical color caching and storage
