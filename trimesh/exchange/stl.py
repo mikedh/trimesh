@@ -158,8 +158,8 @@ def load_stl_ascii(file_obj):
     raw_mixed_case = util.decode_text(file_obj.read()).strip()
     # convert to lower case for solids and name capture
     raw_lower_case = raw_mixed_case.lower()
-    # split into solid body sections
-    solids = raw_lower_case.split("endsolid")
+
+    kwargs = {}
 
     # get the name of each solid in mixed case to be used later
     mixed_case_names = []
@@ -173,14 +173,14 @@ def load_stl_ascii(file_obj):
         end_index = start_index + raw_lower_case[start_index:].find("\n")
         aName = raw_mixed_case[start_index:end_index].strip()
         mixed_case_names.append(aName)
+
+        # split into solid body section for easier parsing
+        solid = raw_lower_case[solid_start_index:solid_end_index]
         # find first instance of 'endsolid' in reduced string and remove everything before it
         raw_lower_case = raw_lower_case[solid_end_index + len("endsolid") :]
         raw_mixed_case = raw_mixed_case[solid_end_index + len("endsolid") :]
         solid_end_index = raw_lower_case.find("endsolid")
 
-    # split into solid body
-    kwargs = {}
-    for solid in solids:
         # get just the vertices
         vertex_text = solid.split("vertex")
         vertices = np.fromstring(
