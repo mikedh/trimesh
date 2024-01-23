@@ -155,12 +155,32 @@ def load_stl_ascii(file_obj):
     """
 
     # read all text into one string
-    raw = util.decode_text(file_obj.read()).strip().lower()
+    raw_mixed_case = util.decode_text(file_obj.read()).strip()
+    # convert to lower case for solids and name capture
+    raw_lower_case = raw_mixed_case.lower()
 
-    # split into solid body
     kwargs = {}
-    solids = raw.split("endsolid")
-    for solid in solids:
+
+    # get the name of each solid in mixed case to be used later
+    mixed_case_names = []
+    solid_end_index = raw_lower_case.find("endsolid")
+    while solid_end_index != -1:
+        solid_start_index = raw_lower_case.find("solid")
+        if solid_start_index < 0 or solid_start_index > solid_end_index:
+            raise ValueError("missing `solid` keyword")
+        # find first instance of 'solid' in reduced string and capture name from it
+        start_index = raw_lower_case.find("solid") + len("solid")
+        end_index = start_index + raw_lower_case[start_index:].find("\n")
+        aName = raw_mixed_case[start_index:end_index].strip()
+        mixed_case_names.append(aName)
+
+        # split into solid body section for easier parsing
+        solid = raw_lower_case[solid_start_index:solid_end_index]
+        # find first instance of 'endsolid' in reduced string and remove everything before it
+        raw_lower_case = raw_lower_case[solid_end_index + len("endsolid") :]
+        raw_mixed_case = raw_mixed_case[solid_end_index + len("endsolid") :]
+        solid_end_index = raw_lower_case.find("endsolid")
+
         # get just the vertices
         vertex_text = solid.split("vertex")
         vertices = np.fromstring(
@@ -192,15 +212,9 @@ def load_stl_ascii(file_obj):
             util.log.warning("failed to extract face_normals", exc_info=True)
 
         try:
-            # try to extract the name from the header
-            text = vertex_text[0]
-            # find the keyword for the header format:
-            #    `solid {name}`
-            index = text.find("solid")
-            if index < 0:
-                raise ValueError("missing `solid` keyword")
-            # clip to the first newline after the `solid`
-            name = text[index + 6 :].strip().split("\n", 1)[0].strip()
+            # Previously checked to make sure there was matching 'solid' for 'endsolid'
+            # so there should be a name to pop
+            name = mixed_case_names.pop(0)
         except BaseException:
             # will be filled in by unique_name
             name = None
