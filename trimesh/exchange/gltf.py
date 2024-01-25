@@ -203,9 +203,6 @@ def export_glb(
         extension_webp=extension_webp,
     )
 
-    # allow custom postprocessing
-    if tree_postprocessor is not None:
-        tree_postprocessor(tree)
 
     # A bufferView is a slice of a file
     views = _build_views(buffer_items)
@@ -217,6 +214,10 @@ def export_glb(
     if len(buffer_data) > 0:
         tree["buffers"] = [{"byteLength": len(buffer_data)}]
         tree["bufferViews"] = views
+
+    # allow custom postprocessing
+    if tree_postprocessor is not None:
+        tree_postprocessor(tree)
 
     # export the tree to JSON for the header
     content = util.jsonify(tree, separators=(",", ":"))
