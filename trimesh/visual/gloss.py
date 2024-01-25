@@ -299,7 +299,7 @@ def specular_to_pbr(
         metallic = np.array(metallic, dtype=np.float32)
 
     diffuse_rgb = diffuse[..., :3]
-    opacity = diffuse[..., -1] if diffuse.shape[-1] == 4 else None
+
     base_color_from_diffuse = diffuse_rgb * (
         one_minus_specular_strength
         / (1.0 - dielectric_specular[0])
@@ -312,8 +312,29 @@ def specular_to_pbr(
     base_color = mm * base_color_from_specular + (1.0 - mm) * base_color_from_diffuse
     base_color = np.clip(base_color, 0.0, 1.0)
 
-    if opacity is not None and np.any(opacity < 1.0):
-        base_color = np.concatenate([base_color, opacity[..., None]], axis=-1)
+    # get opacity
+    try:
+        if diffuse.shape == (4,):
+            # opacity is a single scalar value
+            opacity = diffuse[-1]
+            if base_color.shape == (3,):
+                # simple case with one color and diffuse with opacity
+                # add on the opacity from the diffuse color
+                base_color = np.append(base_color, opacity)
+            elif len(base_color.shape) == 3:
+                # stack opacity to match the base color array
+                dim = base_color.shape
+                base_color = np.dstack(
+                    (
+                        base_color,
+                        np.full(np.prod(dim[:2]), opacity).reshape((dim[0], dim[1], 1)),
+                    )
+                )
+        elif diffuse.shape[-1] == 4:
+            opacity = diffuse[..., -1]
+            base_color = np.concatenate([base_color, opacity[..., None]], axis=-1)
+    except BaseException:
+        log.error("unable to get opacity", exc_info=True)
 
     result = {}
     if len(base_color.shape) > 1:
