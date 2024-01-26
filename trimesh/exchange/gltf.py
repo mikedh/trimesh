@@ -203,7 +203,6 @@ def export_glb(
         extension_webp=extension_webp,
     )
 
-
     # A bufferView is a slice of a file
     views = _build_views(buffer_items)
 

@@ -528,7 +528,7 @@ class Trimesh(Geometry3D):
         return vertex_faces
 
     @caching.cache_decorator
-    def bounds(self) -> NDArray[float64]:
+    def bounds(self) -> Optional[NDArray[float64]]:
         """
         The axis aligned bounds of the faces of the mesh.
 
@@ -547,7 +547,7 @@ class Trimesh(Geometry3D):
         return np.array([in_mesh.min(axis=0), in_mesh.max(axis=0)])
 
     @caching.cache_decorator
-    def extents(self) -> NDArray[float64]:
+    def extents(self) -> Optional[NDArray[float64]]:
         """
         The length, width, and height of the axis aligned
         bounding box of the mesh.
