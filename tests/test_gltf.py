@@ -1019,6 +1019,19 @@ class GLTFTest(g.unittest.TestCase):
             r = g.trimesh.load(path)
             assert g.np.isclose(r.volume, 1.0)
 
+    def test_postprocess(self):
+        # check to see if keys we expect exist
+        s = g.get_mesh("cycloidal.3DXML")
+
+        def post(tree):
+            # should have exported meshes here
+            assert len(tree["meshes"]) == len(s.geometry)
+            # should have buffers
+            assert len(tree["buffers"]) >= 1
+
+        # export with a postprocessor
+        s.export(file_type="glb", tree_postprocessor=post)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

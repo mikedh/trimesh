@@ -1124,12 +1124,21 @@ def euler_matrix(ai, aj, ak, axes="sxyz"):
     if parity:
         ai, aj, ak = -ai, -aj, -ak
 
-    si, sj, sk = np.sin(ai), np.sin(aj), np.sin(ak)
-    ci, cj, ck = np.cos(ai), np.cos(aj), np.cos(ak)
+    if type(ai).__name__ == "Symbol":
+        # if we have been passed input values as sympy.Symbol
+        # use symbolic cosine and identity matrix
+        from sympy import cos, eye, sin
+
+        M = eye(4)
+    else:
+        sin, cos = np.sin, np.cos
+        M = np.eye(4)
+
+    si, sj, sk = sin(ai), sin(aj), sin(ak)
+    ci, cj, ck = cos(ai), cos(aj), cos(ak)
     cc, cs = ci * ck, ci * sk
     sc, ss = si * ck, si * sk
 
-    M = np.identity(4)
     if repetition:
         M[i, i] = cj
         M[i, j] = sj * si
