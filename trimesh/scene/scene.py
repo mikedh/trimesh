@@ -296,7 +296,7 @@ class Scene(Geometry3D):
         return referenced == set(self.geometry.keys())
 
     @caching.cache_decorator
-    def bounds_corners(self) -> Dict[NDArray[float64]]:
+    def bounds_corners(self) -> Dict[str, NDArray[float64]]:
         """
         Get the post-transform AABB for each node
         which has geometry defined.
