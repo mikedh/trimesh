@@ -149,39 +149,44 @@ def load_stl_ascii(file_obj):
     ----------
     loaded : dict
       kwargs for a Trimesh constructor with keys:
-      vertices:     (n,3) float, vertices
-      faces:        (m,3) int, indexes of vertices
-      face_normals: (m,3) float, normal vector of each face
+      vertices:     (n, 3) float, vertices
+      faces:        (m, 3) int, indexes of vertices
+      face_normals: (m, 3) float, normal vector of each face
     """
 
     # read all text into one string
-    raw_mixed_case = util.decode_text(file_obj.read()).strip()
+    raw_mixed = util.decode_text(file_obj.read()).strip()
     # convert to lower case for solids and name capture
-    raw_lower_case = raw_mixed_case.lower()
+    raw_lower = raw_mixed.lower()
 
+    # collect the keyword arguments for the Trimesh constructor
     kwargs = {}
 
-    # get the name of each solid in mixed case to be used later
-    mixed_case_names = []
-    solid_end_index = raw_lower_case.find("endsolid")
-    while solid_end_index != -1:
-        solid_start_index = raw_lower_case.find("solid")
-        if solid_start_index < 0 or solid_start_index > solid_end_index:
-            raise ValueError("missing `solid` keyword")
-        # find first instance of 'solid' in reduced string and capture name from it
-        start_index = raw_lower_case.find("solid") + len("solid")
-        end_index = start_index + raw_lower_case[start_index:].find("\n")
-        aName = raw_mixed_case[start_index:end_index].strip()
-        mixed_case_names.append(aName)
+    # keep track of our position in the file
+    position = 0
 
-        # split into solid body section for easier parsing
-        solid = raw_lower_case[solid_start_index:solid_end_index]
-        # find first instance of 'endsolid' in reduced string and remove everything before it
-        raw_lower_case = raw_lower_case[solid_end_index + len("endsolid") :]
-        raw_mixed_case = raw_mixed_case[solid_end_index + len("endsolid") :]
-        solid_end_index = raw_lower_case.find("endsolid")
+    # use a for loop to avoid any possibility of infinite looping
+    for _ in range(len(raw_mixed)):
+        # find the start of the solid chunk
+        solid_start = raw_lower.find("solid", position)
+        # find the end of the solid chunk
+        solid_end = raw_lower.find("endsolid", position)
 
-        # get just the vertices
+        # on the next loop we don't have to check the text we've consumed
+        position = solid_end + len("endsolid")
+
+        # delimiter wasn't found for a chunk so exit
+        if solid_end < 0 or solid_start < 0:
+            break
+
+        # end delimiter order is wrong so this file is very malformed
+        if solid_start > solid_end:
+            raise ValueError("`endsolid` precedes `solid`!")
+
+        # get the chunk of text with this particular solid
+        solid = raw_lower[solid_start:solid_end]
+
+        # extract the vertices
         vertex_text = solid.split("vertex")
         vertices = np.fromstring(
             " ".join(line[: line.find("\n")] for line in vertex_text[1:]),
@@ -213,14 +218,15 @@ def load_stl_ascii(file_obj):
 
         try:
             # Previously checked to make sure there was matching 'solid' for 'endsolid'
-            # so there should be a name to pop
-            name = mixed_case_names.pop(0)
+            # the name is right after the `solid` keyword if it exists
+            name = raw_mixed[solid_start : solid_start + solid.find("\n")][6:].strip()
         except BaseException:
             # will be filled in by unique_name
             name = None
 
-        # make sure geometry has a unique name
+        # make sure geometry has a unique name for the scene
         name = util.unique_name(name, kwargs)
+        # save the constructor arguments
         kwargs[name] = {
             "vertices": vertices.reshape((-1, 3)),
             "face_normals": face_normals,
