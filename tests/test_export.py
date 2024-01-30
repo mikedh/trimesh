@@ -47,6 +47,9 @@ class ExportTest(g.unittest.TestCase):
 
                 g.log.info("Export/import testing on %s", mesh.metadata["file_name"])
 
+                if isinstance(export, str):
+                    assert export.endswith("\n"), f"{file_type} doesn't end with newline"
+
                 # if export is string or bytes wrap as pseudo file object
                 if isinstance(export, str) or isinstance(export, bytes):
                     file_obj = g.io_wrap(export)
@@ -179,6 +182,11 @@ class ExportTest(g.unittest.TestCase):
                     # we should have the same number of vertices and faces
                     assert len(r.vertices) == len(mesh.vertices)
                     assert len(r.faces) == len(mesh.faces)
+
+                    if option.get("encoding", None) == "ascii":
+                        with open(temp.name) as f:
+                            exported = f.read()
+                        assert exported.endswith("\n")
 
                     # manual cleanup
                     g.os.remove(temp.name)
