@@ -231,6 +231,7 @@ def load_stl_ascii(file_obj):
             "vertices": vertices.reshape((-1, 3)),
             "face_normals": face_normals,
             "faces": faces,
+            "metadata": {"name": name},
         }
 
     if len(kwargs) == 1:
@@ -239,17 +240,19 @@ def load_stl_ascii(file_obj):
     return {"geometry": kwargs}
 
 
-def export_stl(mesh):
+def export_stl(mesh) -> bytes:
     """
     Convert a Trimesh object into a binary STL file.
 
     Parameters
     ---------
-    mesh: Trimesh object
+    mesh
+      Trimesh object to export.
 
     Returns
     ---------
-    export: bytes, representing mesh in binary STL form
+    export
+      Represents mesh in binary STL form
     """
     header = np.zeros(1, dtype=_stl_dtype_header)
     if hasattr(mesh, "faces"):
@@ -265,7 +268,7 @@ def export_stl(mesh):
     return export
 
 
-def export_stl_ascii(mesh):
+def export_stl_ascii(mesh) -> str:
     """
     Convert a Trimesh object into an ASCII STL file.
 
@@ -275,8 +278,8 @@ def export_stl_ascii(mesh):
 
     Returns
     ---------
-    export : str
-        Mesh represented as an ASCII STL file
+    export
+      Mesh represented as an ASCII STL file
     """
 
     # move all the data that's going into the STL file into one array
@@ -285,17 +288,28 @@ def export_stl_ascii(mesh):
     blob[:, 1:, :] = mesh.triangles
 
     # create a lengthy format string for the data section of the file
-    format_string = "facet normal {} {} {}\nouter loop\n"
-    format_string += "vertex {} {} {}\n" * 3
-    format_string += "endloop\nendfacet\n"
-    format_string *= len(mesh.faces)
+    formatter = (
+        "\n".join(
+            [
+                "facet normal {} {} {}",
+                "outer loop",
+                "vertex {} {} {}\nvertex {} {} {}\nvertex {} {} {}",
+                "endloop",
+                "endfacet",
+                "",
+            ]
+        )
+    ) * len(mesh.faces)
 
-    # concatenate the header, data, and footer
-    export = "solid \n"
-    export += format_string.format(*blob.reshape(-1))
-    export += "endsolid"
+    # try applying the name from metadata if it exists
+    name = mesh.metadata.get("name", "")
+    if not isinstance(name, str):
+        name = ""
+    if len(name) > 80 or "\n" in name:
+        name = ""
 
-    return export
+    # concatenate the header, data, and footer, and a new line
+    return "\n".join(["solid {name}", formatter.format(*blob.reshape(-1)), "endsolid\n"])
 
 
 _stl_loaders = {"stl": load_stl, "stl_ascii": load_stl}

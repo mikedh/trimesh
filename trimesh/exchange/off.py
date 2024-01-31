@@ -2,11 +2,11 @@ import re
 
 import numpy as np
 
-from .. import util
 from ..geometry import triangulate_quads
+from ..util import array_to_string, comment_strip, decode_text
 
 
-def load_off(file_obj, **kwargs):
+def load_off(file_obj, **kwargs) -> dict:
     """
     Load an OFF file into the kwargs for a Trimesh constructor.
 
@@ -23,7 +23,7 @@ def load_off(file_obj, **kwargs):
     text = file_obj.read()
     # will magically survive weird encoding sometimes
     # comment strip will handle all cases of commenting
-    text = util.comment_strip(util.decode_text(text)).strip()
+    text = comment_strip(decode_text(text)).strip()
 
     # split the first key
     _, header, raw = re.split("(COFF|OFF)", text, maxsplit=1)
@@ -58,7 +58,7 @@ def load_off(file_obj, **kwargs):
     return kwargs
 
 
-def export_off(mesh, digits=10):
+def export_off(mesh, digits=10) -> str:
     """
     Export a mesh as an OFF file, a simple text format
 
@@ -80,14 +80,17 @@ def export_off(mesh, digits=10):
     faces_stacked = np.column_stack((np.ones(len(mesh.faces)) * 3, mesh.faces)).astype(
         np.int64
     )
-    export = "OFF\n"
     # the header is vertex count, face count, another number
-    export += str(len(mesh.vertices)) + " " + str(len(mesh.faces)) + " 0\n"
-    export += (
-        util.array_to_string(mesh.vertices, col_delim=" ", row_delim="\n", digits=digits)
-        + "\n"
+    export = "\n".join(
+        [
+            "OFF",
+            str(len(mesh.vertices)) + " " + str(len(mesh.faces)) + " 0",
+            array_to_string(mesh.vertices, col_delim=" ", row_delim="\n", digits=digits),
+            array_to_string(faces_stacked, col_delim=" ", row_delim="\n"),
+            "",
+        ]
     )
-    export += util.array_to_string(faces_stacked, col_delim=" ", row_delim="\n")
+
     return export
 
 

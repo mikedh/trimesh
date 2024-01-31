@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bookworm AS base
+FROM python:3.12-slim-bookworm AS base
 LABEL maintainer="mikedh@kerfed.com"
 
 # Install helper script to PATH.
@@ -63,7 +63,7 @@ COPY --chown=499 pyproject.toml .
 COPY --chown=499 ./.git ./.git/
 
 USER root
-RUN trimesh-setup --install=test,gltf_validator,llvmpipe,binvox
+RUN trimesh-setup --install=test,build,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest

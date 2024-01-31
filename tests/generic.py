@@ -351,6 +351,7 @@ def get_meshes(
                 loaded = trimesh.load(os.path.join(dir_models, file_name))
             except BaseException as E:
                 if raise_error:
+                    log.error(f'failed to load {file_name}')
                     raise E
                 continue
 

@@ -957,6 +957,10 @@ def export_obj(
     if header is not None:
         # add a created-with header to the top of the file
         objects.appendleft(f"# {header}")
+
+    # add a trailing newline
+    objects.append("\n")
+
     # combine elements into a single string
     text = "\n".join(objects)
 

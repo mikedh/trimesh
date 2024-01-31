@@ -342,27 +342,35 @@ def export_ply(
             _add_attributes_to_data_array(faces, mesh.face_attributes)
 
     header.append(templates["outro"])
-    export = Template("".join(header)).substitute(header_params).encode("utf-8")
+    export = [Template("".join(header)).substitute(header_params).encode("utf-8")]
 
     if encoding == "binary_little_endian":
         if hasattr(mesh, "vertices"):
-            export += vertex.tobytes()
+            export.append(vertex.tobytes())
         if hasattr(mesh, "faces"):
-            export += faces.tobytes()
+            export.append(faces.tobytes())
     elif encoding == "ascii":
-        export_data = util.structured_array_to_string(
-            vertex, col_delim=" ", row_delim="\n"
+        export.append(
+            util.structured_array_to_string(vertex, col_delim=" ", row_delim="\n").encode(
+                "utf-8"
+            ),
         )
+
         if hasattr(mesh, "faces"):
-            export_data += "\n"
-            export_data += util.structured_array_to_string(
-                faces, col_delim=" ", row_delim="\n"
+            export.extend(
+                [
+                    b"\n",
+                    util.structured_array_to_string(
+                        faces, col_delim=" ", row_delim="\n"
+                    ).encode("utf-8"),
+                ]
             )
-        export += export_data.encode("utf-8")
+        export.append(b"\n")
+
     else:
         raise ValueError("encoding must be ascii or binary!")
 
-    return export
+    return b"".join(export)
 
 
 def _parse_header(file_obj):
