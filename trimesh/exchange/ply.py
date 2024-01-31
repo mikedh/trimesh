@@ -350,13 +350,10 @@ def export_ply(
         if hasattr(mesh, "faces"):
             export.append(faces.tobytes())
     elif encoding == "ascii":
-        export.extend(
-            [
-                b"\n",
-                util.structured_array_to_string(
-                    vertex, col_delim=" ", row_delim="\n"
-                ).encode("utf-8"),
-            ]
+        export.append(
+            util.structured_array_to_string(vertex, col_delim=" ", row_delim="\n").encode(
+                "utf-8"
+            ),
         )
 
         if hasattr(mesh, "faces"):
