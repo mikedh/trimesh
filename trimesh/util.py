@@ -17,6 +17,7 @@ import json
 import logging
 import random
 import shutil
+import sys
 import time
 import uuid
 import zipfile
@@ -48,7 +49,7 @@ _IDENTITY = np.eye(4, dtype=np.float64)
 _IDENTITY.flags["WRITEABLE"] = False
 
 
-def has_module(name):
+def has_module(name: str) -> bool:
     """
     Check to see if a module is installed by name without
     actually importing the module.
@@ -63,28 +64,14 @@ def has_module(name):
     installed : bool
       True if module is installed
     """
-    # this should work on Python 2.7 and 3.4+
-    import pkgutil
+    if sys.version_info >= (3, 10):
+        # pkgutil was deprecated
+        from importlib.util import find_spec
+    else:
+        # this should work on Python 2.7 and 3.4+
+        from pkgutil import find_loader as find_spec
 
-    return pkgutil.find_loader(name) is not None
-
-
-try:
-    import rtree
-
-    # some versions of rtree screw up indexes on stream loading
-    # do a test here so we know if we are free to use stream loading
-    assert (
-        next(
-            rtree.index.Index(
-                [(1564, [0, 0, 0, 10, 10, 10], None)],
-                properties=rtree.index.Property(dimension=3),
-            ).intersection([1, 1, 1, 2, 2, 2])
-        )
-        == 1564
-    )
-except BaseException as E:
-    rtree = E
+    return find_spec(name) is not None
 
 
 def unitize(vectors, check_valid=False, threshold=None):
@@ -142,7 +129,7 @@ def unitize(vectors, check_valid=False, threshold=None):
     return unit
 
 
-def euclidean(a, b):
+def euclidean(a, b) -> float:
     """
     Euclidean distance between vectors a and b.
 
@@ -199,7 +186,7 @@ def is_pathlib(obj):
     return hasattr(obj, "absolute") and name.endswith("Path")
 
 
-def is_string(obj):
+def is_string(obj) -> bool:
     """
     Check if an object is a string.
 
@@ -216,7 +203,7 @@ def is_string(obj):
     return isinstance(obj, str)
 
 
-def is_none(obj):
+def is_none(obj) -> bool:
     """
     Check to see if an object is None or not.
 
@@ -239,7 +226,7 @@ def is_none(obj):
     return False
 
 
-def is_sequence(obj):
+def is_sequence(obj) -> bool:
     """
     Check if an object is a sequence or not.
 
@@ -1765,6 +1752,8 @@ def bounds_tree(bounds):
     tree : Rtree
       Tree containing bounds by index
     """
+    import rtree
+
     # make sure we've copied bounds
     bounds = np.array(bounds, dtype=np.float64, copy=True)
     if len(bounds.shape) == 3:
