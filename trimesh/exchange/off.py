@@ -87,7 +87,7 @@ def export_off(mesh, digits=10) -> str:
             str(len(mesh.vertices)) + " " + str(len(mesh.faces)) + " 0",
             array_to_string(mesh.vertices, col_delim=" ", row_delim="\n", digits=digits),
             array_to_string(faces_stacked, col_delim=" ", row_delim="\n"),
-            "\n",
+            "",
         ]
     )
 

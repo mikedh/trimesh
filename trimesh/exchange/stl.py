@@ -231,6 +231,7 @@ def load_stl_ascii(file_obj):
             "vertices": vertices.reshape((-1, 3)),
             "face_normals": face_normals,
             "faces": faces,
+            "metadata": {"name": name},
         }
 
     if len(kwargs) == 1:
@@ -287,13 +288,24 @@ def export_stl_ascii(mesh) -> str:
     blob[:, 1:, :] = mesh.triangles
 
     # create a lengthy format string for the data section of the file
-    format_string = "facet normal {} {} {}\nouter loop\n"
-    format_string += "vertex {} {} {}\n" * 3
-    format_string += "endloop\nendfacet\n"
-    format_string *= len(mesh.faces)
+    formatter = "\n".join(
+        [
+            "facet normal {} {} {}\nouter loop",
+            "vertex {} {} {}\n" * 3,
+            "endloop",
+            "endfacet",
+        ]
+    ) * len(mesh.faces)
+
+    # try applying the name from metadata if it exists
+    name = mesh.metadata.get("name", "")
+    if not isinstance(name, str):
+        name = ""
+    if len(name) > 80:
+        name = ""
 
     # concatenate the header, data, and footer, and a new line
-    return "\n".join(["solid", format_string.format(*blob.reshape(-1)), "endsolid\n"])
+    return "\n".join(["solid {name}", formatter.format(*blob.reshape(-1)), "endsolid\n"])
 
 
 _stl_loaders = {"stl": load_stl, "stl_ascii": load_stl}
