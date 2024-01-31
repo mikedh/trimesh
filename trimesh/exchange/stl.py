@@ -288,20 +288,24 @@ def export_stl_ascii(mesh) -> str:
     blob[:, 1:, :] = mesh.triangles
 
     # create a lengthy format string for the data section of the file
-    formatter = "\n".join(
-        [
-            "facet normal {} {} {}\nouter loop",
-            "vertex {} {} {}\n" * 3,
-            "endloop",
-            "endfacet",
-        ]
+    formatter = (
+        "\n".join(
+            [
+                "facet normal {} {} {}",
+                "outer loop",
+                "vertex {} {} {}\nvertex {} {} {}\nvertex {} {} {}",
+                "endloop",
+                "endfacet",
+                "",
+            ]
+        )
     ) * len(mesh.faces)
 
     # try applying the name from metadata if it exists
     name = mesh.metadata.get("name", "")
     if not isinstance(name, str):
         name = ""
-    if len(name) > 80:
+    if len(name) > 80 or "\n" in name:
         name = ""
 
     # concatenate the header, data, and footer, and a new line
