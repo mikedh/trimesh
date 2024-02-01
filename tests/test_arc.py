@@ -21,7 +21,7 @@ class ArcTests(g.unittest.TestCase):
         )
 
         assert abs(R - res_radius) < g.tol_path.zero
-        assert g.trimesh.util.euclidean(C, res_center) < g.tol_path.zero
+        assert g.np.linalg.norm(C - res_center) < g.tol_path.zero
         # large magnitude arc failed some coplanar tests
         c = g.trimesh.path.arc.arc_center(
             [

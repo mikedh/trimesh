@@ -54,7 +54,7 @@ class VectorTests(g.unittest.TestCase):
                         "{} had zero distance in discrete!", d.metadata["file_name"]
                     )
 
-                circuit_dist = g.trimesh.util.euclidean(verts[0], verts[-1])
+                circuit_dist = g.np.linalg.norm(verts[0] - verts[-1])
                 circuit_test = circuit_dist < g.tol_path.merge
                 if not circuit_test:
                     g.log.error(
