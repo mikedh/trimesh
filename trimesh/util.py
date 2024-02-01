@@ -20,6 +20,7 @@ import shutil
 import sys
 import time
 import uuid
+import warnings
 import zipfile
 
 # for type checking
@@ -131,20 +132,16 @@ def unitize(vectors, check_valid=False, threshold=None):
 
 def euclidean(a, b) -> float:
     """
-    Euclidean distance between vectors a and b.
-
-    Parameters
-    ------------
-    a : (n,) float
-       First vector
-    b : (n,) float
-       Second vector
-
-    Returns
-    ------------
-    distance : float
-        Euclidean distance between A and B
+    DEPRECATED: use `np.linalg.norm(a - b)` instead of this.
     """
+    warnings.warn(
+        "`trimesh.util.euclidean` is deprecated "
+        + "and will be removed in January 2025. "
+        + "replace with `np.linalg.norm(a - b)`",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+
     a = np.asanyarray(a, dtype=np.float64)
     b = np.asanyarray(b, dtype=np.float64)
     return np.sqrt(((a - b) ** 2).sum())
