@@ -922,10 +922,7 @@ def _append_mesh(
     ):
         # store vertex normals if requested
         if unitize_normals:
-            normals = mesh.vertex_normals.copy()
-            norms = np.linalg.norm(normals, axis=1)
-            if not util.allclose(norms, 1.0, atol=1e-4):
-                normals /= norms.reshape((-1, 1))
+            normals = util.unitize(mesh.vertex_normals)
         else:
             # we don't have to copy them since
             # they aren't being altered
