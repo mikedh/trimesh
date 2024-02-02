@@ -16,7 +16,7 @@ class ExportTest(g.unittest.TestCase):
             if not isinstance(v, ExceptionWrapper)
         }
 
-        meshes = list(g.get_meshes(8))
+        meshes = list(g.get_meshes(10))
         # make sure we've got something with texture
         meshes.append(g.get_mesh("fuze.obj"))
 
@@ -35,6 +35,11 @@ class ExportTest(g.unittest.TestCase):
                     raise ValueError(
                         "No data exported %s to %s", mesh.metadata["file_name"], file_type
                     )
+
+                if mesh.visual.kind == "texture":
+                    c = mesh.copy()
+                    c.visual.uv = None
+                    c.export(file_type=file_type)
 
                 if file_type in [
                     "dae",  # collada, no native importers

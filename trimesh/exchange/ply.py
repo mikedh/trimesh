@@ -266,7 +266,11 @@ def export_ply(
     if include_attributes:
         if hasattr(mesh, "vertex_attributes"):
             # make sure to export texture coordinates as well
-            if hasattr(mesh, "visual") and hasattr(mesh.visual, "uv"):
+            if (
+                hasattr(mesh, "visual")
+                and hasattr(mesh.visual, "uv")
+                and np.shape(mesh.visual.uv) == (len(mesh.vertices), 2)
+            ):
                 mesh.vertex_attributes["s"] = mesh.visual.uv[:, 0]
                 mesh.vertex_attributes["t"] = mesh.visual.uv[:, 1]
             _assert_attributes_valid(mesh.vertex_attributes)
