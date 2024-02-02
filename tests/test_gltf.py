@@ -1032,6 +1032,30 @@ class GLTFTest(g.unittest.TestCase):
         # export with a postprocessor
         s.export(file_type="glb", tree_postprocessor=post)
 
+    def test_unitize_normals_null_values(self):
+        # Create the mesh
+        mesh = g.trimesh.Trimesh(
+            vertices=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1]],
+            faces=[[0, 1, 2], [1, 3, 2], [0, 1, 4]],
+        )
+
+        # Set the normal of the first vertex to null
+        modified_normals = mesh.vertex_normals.copy()
+        modified_normals[0] = [0, 0, 0]
+
+        mesh.vertex_normals = modified_normals
+
+        # Export the mesh
+        export = mesh.export(file_type="glb", unitize_normals=True)
+        reimported_mesh = list(
+            g.trimesh.load(
+                g.trimesh.util.wrap_as_stream(export), file_type="glb"
+            ).geometry.values()
+        )[0]
+
+        # Check that the normals are still null
+        assert g.np.allclose(reimported_mesh.vertex_normals[0], [0, 0, 0])
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
