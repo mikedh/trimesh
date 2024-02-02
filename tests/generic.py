@@ -543,7 +543,7 @@ def check_fuze(fuze):
     fuze.visual.material.copy()
 
 
-def wrapload(exported, file_type, **kwargs):
+def roundtrip(exported, file_type, **kwargs):
     """
     Reload an exported byte blob into a mesh.
 

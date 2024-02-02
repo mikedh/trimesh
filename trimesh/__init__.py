@@ -17,6 +17,7 @@ from . import (
     creation,
     curvature,
     decomposition,
+    exceptions,
     geometry,
     graph,
     grouping,
@@ -59,9 +60,15 @@ try:
     from . import path
 except BaseException as E:
     # raise a useful error if path hasn't loaded
-    from .exceptions import ExceptionWrapper
+    path = exceptions.ExceptionWrapper(E)
 
-    path = ExceptionWrapper(E)
+
+try:
+    from . import voxel
+except BaseException as E:
+    # requires non-minimal imports
+    voxel = exceptions.ExceptionWrapper(E)
+
 
 __all__ = [
     "PointCloud",
@@ -108,4 +115,5 @@ __all__ = [
     "units",
     "utilScene",
     "voxel",
+    "exceptions",
 ]
