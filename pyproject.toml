@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.1.2"
+version = "4.1.3"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -112,7 +112,12 @@ all = ["trimesh[easy,recommend,test]"]
 
 [tool.ruff]
 target-version = "py37"
+line-length = 90
+
+
 # See https://github.com/charliermarsh/ruff#rules for error code definitions.
+
+[tool.ruff.lint]
 select = [
     # "ANN", # annotations
     "B", # bugbear
@@ -121,7 +126,7 @@ select = [
     "F", # flakes
     "I", # import sorting
     "RUF100", # meta
-    "U", # upgrade
+    "UP", # upgrade
     "W", # style warnings
     "YTT", # sys.version
 ]
@@ -133,9 +138,4 @@ ignore = [
   "E501", # Line too long ({width} > {limit} characters)
   "B904", # raise ... from err
   "B905", # zip() without an explicit strict= parameter
-  "ANN101", # type hint for `self`
-  "ANN002", # type hint for *args
-  "ANN003", # type hint for **kwargs
 ]
-line-length = 90
-

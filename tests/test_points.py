@@ -222,7 +222,7 @@ class PointsTest(g.unittest.TestCase):
         assert hash(p.visual) != initial
 
         # test exporting a pointcloud to a PLY file
-        r = g.wrapload(p.export(file_type="ply"), file_type="ply")
+        r = g.roundtrip(p.export(file_type="ply"), file_type="ply")
         assert r.vertices.shape == p.vertices.shape
         # make sure colors survived the round trip
         assert g.np.allclose(r.colors, p.colors)

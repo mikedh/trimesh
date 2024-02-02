@@ -7,14 +7,15 @@ as GL_TRIANGLES, and trimesh.Path2D/Path3D as GL_LINES
 """
 
 import base64
-import collections
 import json
+from collections import OrderedDict, defaultdict, deque
 
 import numpy as np
 
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
+from ..typed import NDArray
 from ..util import unique_name
 from ..visual.gloss import specular_to_pbr
 
@@ -484,7 +485,7 @@ def _buffer_append(ordered, data):
 
     Parameters
     ----------
-    od : collections.OrderedDict
+    od : OrderedDict
       Keyed like { hash : data }
     data : bytes
       To be stored
@@ -505,19 +506,19 @@ def _buffer_append(ordered, data):
     return len(ordered) - 1
 
 
-def _data_append(acc, buff, blob, data):
+def _data_append(acc: OrderedDict, buff: OrderedDict, blob: dict, data: NDArray):
     """
     Append a new accessor to an OrderedDict.
 
     Parameters
     ------------
-    acc : collections.OrderedDict
+    acc
       Collection of accessors, will be mutated in-place
-    buff : collections.OrderedDict
+    buff
       Collection of buffer bytes, will be mutated in-place
-    blob : dict
+    blob
       Candidate accessor
-    data : numpy.array
+    data
       Data to fill in details to blob
 
     Returns
@@ -561,6 +562,11 @@ def _data_append(acc, buff, blob, data):
     dtype = np.dtype(_dtypes[blob["componentType"]])
     # see if we're an array, matrix, etc
     kind = blob["type"]
+
+    if tol.strict:
+        # in unit tests make sure everything we're trying to export
+        # is finite, which also checks for accidental NaN values
+        assert np.isfinite(data).all()
 
     if kind == "SCALAR":
         # is probably (n, 1)
@@ -665,7 +671,7 @@ def _create_gltf_structure(
         "scene": 0,
         "scenes": [{"nodes": [0]}],
         "asset": {"version": "2.0", "generator": "https://github.com/mikedh/trimesh"},
-        "accessors": collections.OrderedDict(),
+        "accessors": OrderedDict(),
         "meshes": [],
         "images": [],
         "textures": [],
@@ -689,7 +695,7 @@ def _create_gltf_structure(
     # store materials as {hash : index} to avoid duplicates
     mat_hashes = {}
     # store data from geometries
-    buffer_items = collections.OrderedDict()
+    buffer_items = OrderedDict()
 
     # map the name of each mesh to the index in tree['meshes']
     mesh_index = {}
@@ -922,10 +928,7 @@ def _append_mesh(
     ):
         # store vertex normals if requested
         if unitize_normals:
-            normals = mesh.vertex_normals.copy()
-            norms = np.linalg.norm(normals, axis=1)
-            if not util.allclose(norms, 1.0, atol=1e-4):
-                normals /= norms.reshape((-1, 1))
+            normals = util.unitize(mesh.vertex_normals)
         else:
             # we don't have to copy them since
             # they aren't being altered
@@ -978,7 +981,7 @@ def _build_views(buffer_items):
 
     Parameters
     --------------
-    buffer_items : collections.OrderedDict
+    buffer_items : OrderedDict
       Buffers to build views for
 
     Returns
@@ -1461,9 +1464,9 @@ def _read_buffers(
         else:
             materials = _parse_materials(header, views=views, resolver=resolver)
 
-    mesh_prim = collections.defaultdict(list)
+    mesh_prim = defaultdict(list)
     # load data from accessors into Trimesh objects
-    meshes = collections.OrderedDict()
+    meshes = OrderedDict()
 
     # keep track of how many times each name has been attempted to
     # be inserted to avoid a potentially slow search through our
@@ -1661,9 +1664,9 @@ def _read_buffers(
     names[base_frame] = base_frame
 
     # visited, kwargs for scene.graph.update
-    graph = collections.deque()
+    graph = deque()
     # unvisited, pairs of node indexes
-    queue = collections.deque()
+    queue = deque()
 
     if "scene" in header:
         # specify the index of scenes if specified
