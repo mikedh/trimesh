@@ -32,9 +32,11 @@ _blender_executable = util.which("blender", path=_search_path)
 exists = _blender_executable is not None
 
 
-def boolean(meshes, operation="difference", debug=False):
+def boolean(meshes, operation="difference", solver_options="FAST", use_self=False, debug=False):
     """
     Run a boolean operation with multiple meshes using Blender.
+    :param solver_options: Solver option for the boolean operation, "FAST" or "EXACT".
+    :param use_self: Boolean indicating whether to consider self-intersections.
     """
     if not exists:
         raise ValueError("No blender available!")
@@ -42,9 +44,12 @@ def boolean(meshes, operation="difference", debug=False):
     if operation == "INTERSECTION":
         operation = "INTERSECT"
 
+    solver_options = solver_options.upper()
     # get the template from our resources folder
     template = resources.get("templates/blender_boolean.py.tmpl")
     script = template.replace("$OPERATION", operation)
+    script = script.replace("$SOLVER_OPTIONS", solver_options)
+    script = script.replace("$USE_SELF", use_self)
 
     with MeshScript(meshes=meshes, script=script, debug=debug) as blend:
         result = blend.run(_blender_executable + " --background --python $SCRIPT")
