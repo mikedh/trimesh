@@ -49,7 +49,7 @@ def boolean(meshes, operation="difference", solver_options="FAST", use_self=Fals
     template = resources.get("templates/blender_boolean.py.tmpl")
     script = template.replace("$OPERATION", operation)
     script = script.replace("$SOLVER_OPTIONS", solver_options)
-    script = script.replace("$USE_SELF", use_self)
+    script = script.replace("$USE_SELF", f'{use_self}')
 
     with MeshScript(meshes=meshes, script=script, debug=debug) as blend:
         result = blend.run(_blender_executable + " --background --python $SCRIPT")
