@@ -34,9 +34,17 @@ exists = _blender_executable is not None
 
 def boolean(meshes, operation="difference", solver_options=False, use_self=False, debug=False):
     """
-    Run a boolean operation with multiple meshes using Blender.
-    :param solver_options: Solver option for the boolean operation, "FAST" or "EXACT".
-    :param use_self: Boolean indicating whether to consider self-intersections.
+    Run a boolean operation with multiple meshes using Blenderoy.
+    
+    Parameters:
+    - meshes: List of mesh file paths to be processed.
+    - operation: Type of boolean operation ("difference", "union", "intersect").
+    - solver_options: Solver option for the boolean operation, True == 'Exact'
+    - use_self: Boolean indicating whether to consider self-intersections.
+    - debug: If True, run in debug mode to provide additional output for troubleshooting.
+    
+    Returns:
+    - The result of the boolean operation on the provided meshes.
     """
     if not exists:
         raise ValueError("No blender available!")
