@@ -57,7 +57,7 @@ def union(meshes, engine=None, **kwargs):
     return result
 
 
-def intersection(meshes, engine=None, solver_options="FAST", use_self=False, **kwargs):
+def intersection(meshes, engine=None, solver_options=False, use_self=False, **kwargs):
     """
     Compute the boolean intersection between a mesh an n other meshes.
 
