@@ -435,7 +435,7 @@ def stitch(mesh, faces=None, insert_vertices=False):
         if not valid.any():
             continue
         # take the first valid normal from our new faces
-        check = check[valid][0]
+        check = check[0]
 
         # if our new faces are reversed from the original
         # Adjacent face flip them along their axis
