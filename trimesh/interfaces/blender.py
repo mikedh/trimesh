@@ -52,8 +52,8 @@ def boolean(meshes, operation="difference", solver_options=False, use_self=False
 
     if solver_options is True:
         solver_options = 'EXACT'
-    else: 
-        solver_options = 'FAST'    
+    else:
+        solver_options = 'FAST'
     # get the template from our resources folder
     template = resources.get("templates/blender_boolean.py.tmpl")
     script = template.replace("$OPERATION", operation)
