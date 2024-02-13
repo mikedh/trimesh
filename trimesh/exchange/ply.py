@@ -153,8 +153,8 @@ def _add_attributes_to_dtype(dtype, attributes):
             dtype.append((name, data.dtype))
         else:
             attribute_dtype = data.dtype if len(data.dtype) == 0 else data.dtype[0]
-            dtype.append((f"{name}_count", "u1"))
-            dtype.append((name, _numpy_type_to_ply_type(attribute_dtype), data.shape[1]))
+            dtype.append((f"{name}_count", "<u1"))
+            dtype.append((name, attribute_dtype, data.shape[1]))
     return dtype
 
 
