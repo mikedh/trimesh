@@ -566,24 +566,6 @@ class Trimesh(Geometry3D):
         return extents
 
     @caching.cache_decorator
-    def scale(self) -> float:
-        """
-        A metric for the overall scale of the mesh, the length of the
-        diagonal of the axis aligned bounding box of the mesh.
-
-        Returns
-        ----------
-        scale : float
-          The length of the meshes AABB diagonal
-        """
-        # if mesh is empty just return no scale
-        if self.extents is None:
-            return 1.0
-        # make sure we are returning python floats
-        scale = float((self.extents**2).sum() ** 0.5)
-        return scale
-
-    @caching.cache_decorator
     def centroid(self) -> NDArray[float64]:
         """
         The point in space which is the average of the triangle

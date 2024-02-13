@@ -267,24 +267,6 @@ class Path(parent.Geometry):
         kdtree = cKDTree(self.vertices.view(np.ndarray))
         return kdtree
 
-    @property
-    def scale(self) -> float:
-        """
-        What is a representitive number that reflects the magnitude
-        of the world holding the paths, for numerical comparisons.
-
-        Returns
-        ----------
-        scale : float
-          Approximate size of the world holding this path
-        """
-        # check to see if this path is empty first
-        if len(self.vertices) == 0:
-            return 1.0
-
-        # return the diagonal length of the AABB
-        return np.linalg.norm(self.vertices.ptp(axis=0))
-
     @caching.cache_decorator
     def length(self):
         """

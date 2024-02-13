@@ -10,6 +10,7 @@ import numpy as np
 
 from . import bounds, caching
 from . import transformations as tf
+from .caching import cache_decorator
 from .constants import tol
 from .util import ABC
 
@@ -151,6 +152,32 @@ class Geometry(ABC):
             return self
         # otherwise just use the regular add function
         return self.__add__(type(self)(other))
+
+    @cache_decorator
+    def scale(self) -> float:
+        """
+        A loosely specified "order of magnitude scale" for the
+        geometry which always returns a value and can be used
+        to make code more robust to large scaling differences.
+
+        It returns the diagonal of the axis aligned bounding box
+        or if anything is invalid or undefined, `1.0`.
+
+        Returns
+        ----------
+        scale : float
+          Approximate order of magnitude scale of the geometry.
+        """
+        # if geometry is empty return 1.0
+        if self.extents is None:
+            return 1.0
+
+        # get the length of the AABB diagonal
+        scale = float((self.extents**2).sum() ** 0.5)
+        if scale < tol.zero:
+            return 1.0
+
+        return scale
 
 
 class Geometry3D(Geometry):
