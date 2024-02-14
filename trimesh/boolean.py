@@ -57,7 +57,7 @@ def union(meshes, engine=None, **kwargs):
     return result
 
 
-def intersection(meshes, engine=None, solver_options=False, use_self=False, **kwargs):
+def intersection(meshes, engine=None, **kwargs):
     """
     Compute the boolean intersection between a mesh an n other meshes.
 
@@ -78,8 +78,6 @@ def intersection(meshes, engine=None, solver_options=False, use_self=False, **kw
     intersection : **kwargs for a Trimesh object of the
                     volume that is contained by all meshes
     """
-    kwargs.setdefault("solver_options", solver_options)
-    kwargs.setdefault("use_self", use_self)
     result = _engines[engine](meshes, operation="intersection", **kwargs)
     return result
 
@@ -107,7 +105,6 @@ def boolean_manifold(meshes, operation, debug=False, **kwargs):
         result_manifold = manifolds[0] - manifolds[1]
     elif operation == "union":
         result_manifold = manifolds[0]
-
         for manifold in manifolds[1:]:
             result_manifold = result_manifold + manifold
     elif operation == "intersection":
