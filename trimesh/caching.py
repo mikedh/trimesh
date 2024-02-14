@@ -47,7 +47,7 @@ try:
     from hashlib import blake2b as _blake2b
 
     def hash_fallback(item):
-        return int(_blake2b(item).hexdigest(), 16)
+        return int(_blake2b(item, usedforsecurity=False).hexdigest(), 16)
 
 except BaseException:
     # fallback to sha256
