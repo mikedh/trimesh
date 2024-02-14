@@ -135,6 +135,7 @@ class TextureVisuals(Visuals):
             material=self.material.copy(),
             face_materials=copy.copy(self.face_materials),
         )
+        copied.vertex_attributes.data = copy.deepcopy(self.vertex_attributes.data)
 
         return copied
 
