@@ -103,24 +103,30 @@ class PlyTest(g.unittest.TestCase):
         # Test writing face attributes to a ply, by reading
         # them back and asserting the written attributes array matches
 
-        m = g.get_mesh("box.STL")
-        test_1d_attribute = g.np.copy(m.face_angles[:, 0])
-        test_nd_attribute = g.np.copy(m.face_angles)
-        m.face_attributes["test_1d_attribute"] = test_1d_attribute
-        m.face_attributes["test_nd_attribute"] = test_nd_attribute
+        for encoding in ["binary", "ascii"]:
+            for dt in [g.np.float32, g.np.float64]:
+                m = g.get_mesh("box.STL")
+                test_1d_attribute = g.np.copy(m.face_angles[:, 0])
+                test_nd_attribute = g.np.copy(m.face_angles)
+                m.face_attributes["test_1d_attribute"] = test_1d_attribute.astype(dt)
+                m.face_attributes["test_nd_attribute"] = test_nd_attribute.astype(dt)
 
-        export = m.export(file_type="ply")
-        reconstructed = g.roundtrip(export, file_type="ply")
+                export = m.export(file_type="ply", include_attributes=True, encoding=encoding)
+                reconstructed = g.roundtrip(export, file_type="ply", process=False)
 
-        face_attributes = reconstructed.metadata["_ply_raw"]["face"]["data"]
-        result_1d = face_attributes["test_1d_attribute"]
-        result_nd = face_attributes["test_nd_attribute"]["f1"]
+                face_attributes = reconstructed.metadata["_ply_raw"]["face"]["data"]
+                result_1d = face_attributes["test_1d_attribute"]
+                if encoding == "binary":
+                    # only binary format allows this
+                    result_nd = face_attributes["test_nd_attribute"]["f1"]
+                else:
+                    result_nd = face_attributes["test_nd_attribute"]
 
-        g.np.testing.assert_almost_equal(result_1d, test_1d_attribute)
-        g.np.testing.assert_almost_equal(result_nd, test_nd_attribute)
+                g.np.testing.assert_almost_equal(result_1d, test_1d_attribute)
+                g.np.testing.assert_almost_equal(result_nd, test_nd_attribute)
 
-        no_attr = m.export(file_type="ply", include_attributes=False)
-        assert len(no_attr) < len(export)
+                no_attr = m.export(file_type="ply", include_attributes=False)
+                assert len(no_attr) < len(export)
 
     def test_cases(self):
         a = g.get_mesh("featuretype.STL")
