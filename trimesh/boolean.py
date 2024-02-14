@@ -78,8 +78,8 @@ def intersection(meshes, engine=None, solver_options=False, use_self=False, **kw
     intersection : **kwargs for a Trimesh object of the
                     volume that is contained by all meshes
     """
-    kwargs.setdefault('solver_options', solver_options)
-    kwargs.setdefault('use_self', use_self)
+    kwargs.setdefault("solver_options", solver_options)
+    kwargs.setdefault("use_self", use_self)
     result = _engines[engine](meshes, operation="intersection", **kwargs)
     return result
 

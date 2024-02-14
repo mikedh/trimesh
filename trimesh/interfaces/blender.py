@@ -32,7 +32,9 @@ _blender_executable = util.which("blender", path=_search_path)
 exists = _blender_executable is not None
 
 
-def boolean(meshes, operation="difference", solver_options=False, use_self=False, debug=False):
+def boolean(
+    meshes, operation="difference", solver_options=False, use_self=False, debug=False
+):
     """
     Run a boolean operation with multiple meshes using Blenderoy.
     Parameters:
@@ -51,14 +53,14 @@ def boolean(meshes, operation="difference", solver_options=False, use_self=False
         operation = "INTERSECT"
 
     if solver_options is True:
-        solver_options = 'EXACT'
+        solver_options = "EXACT"
     else:
-        solver_options = 'FAST'
+        solver_options = "FAST"
     # get the template from our resources folder
     template = resources.get("templates/blender_boolean.py.tmpl")
     script = template.replace("$OPERATION", operation)
     script = script.replace("$SOLVER_OPTIONS", solver_options)
-    script = script.replace("$USE_SELF", f'{use_self}')
+    script = script.replace("$USE_SELF", f"{use_self}")
 
     with MeshScript(meshes=meshes, script=script, debug=debug) as blend:
         result = blend.run(_blender_executable + " --background --python $SCRIPT")
