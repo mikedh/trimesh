@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.1.3"
+version = "4.1.4"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -78,6 +78,7 @@ easy = [
     "embreex",
     "pillow",
     "vhacdx",
+    "xatlas",
 ]
 
 recommend = [
@@ -86,7 +87,6 @@ recommend = [
     "meshio",
     "pyglet<2",
     "psutil",
-    "xatlas",
     "scikit-image",
     "python-fcl",
     "manifold3d>=2.3.0"

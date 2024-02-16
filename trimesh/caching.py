@@ -20,8 +20,10 @@ In [25]: %timeit xxh3_64_intdigest(d)
 ```
 """
 import os
+import sys
 import time
 from functools import wraps
+from hashlib import sha256 as _sha256
 
 import numpy as np
 
@@ -34,22 +36,17 @@ except BaseException:
     from collections.abc import Mapping
 
 
-# sha256 is always available
-from hashlib import sha256 as _sha256
-
-
-def sha256(item):
+def sha256(item) -> int:
     return int(_sha256(item).hexdigest(), 16)
 
 
-try:
+if sys.version_info >= (3, 9):
     # blake2b is available on Python 3 and
     from hashlib import blake2b as _blake2b
 
     def hash_fallback(item):
-        return int(_blake2b(item).hexdigest(), 16)
-
-except BaseException:
+        return int(_blake2b(item, usedforsecurity=False).hexdigest(), 16)
+else:
     # fallback to sha256
     hash_fallback = sha256
 
