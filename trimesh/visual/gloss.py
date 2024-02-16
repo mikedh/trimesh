@@ -17,7 +17,7 @@ def specular_to_pbr(
     diffuseTexture=None,
     diffuseFactor=None,
     **kwargs,
-):
+) -> dict:
     """
     Convert the KHR_materials_pbrSpecularGlossiness to a
     metallicRoughness visual.
@@ -175,16 +175,18 @@ def specular_to_pbr(
             specularGlossinessTexture = np.array(specularGlossinessTexture) / 255.0
             specularTexture, glossinessTexture = None, None
 
-            if (
-                len(specularGlossinessTexture.shape) == 2
-                or specularGlossinessTexture.shape[-1]
-            ) == 1:
+            if len(specularGlossinessTexture.shape) == 2:
                 # use the one channel as a multiplier for specular and glossiness
                 specularTexture = glossinessTexture = specularGlossinessTexture.reshape(
                     specularGlossinessTexture.shape[0],
                     specularGlossinessTexture.shape[1],
                     1,
                 )
+            elif specularGlossinessTexture.shape[-1] == 1:
+                # use the one channel as a multiplier for specular and glossiness
+                specularTexture = glossinessTexture = specularGlossinessTexture[
+                    ..., np.newaxis
+                ]
             elif specularGlossinessTexture.shape[-1] == 3:
                 # all channels are specular, glossiness is only a factor
                 specularTexture = specularGlossinessTexture[..., :3]
