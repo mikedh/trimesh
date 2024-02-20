@@ -16,8 +16,8 @@ import pyglet
 # to shaders and we will likely support it by forking an entirely
 # new viewer `trimesh.viewer.shaders` and then basically keeping
 # `windowed` around for backwards-compatibility with no changes
-if int(pyglet.version.split(".")[0]) >= 2:
-    raise ImportError('`trimesh.viewer.windowed` requires `pip install "pyglet<2"`')
+if tuple(map(int, pyglet.version.split("."))) < (2, 0, 0):
+    raise ImportError(f'{pyglet.version} < 2.0.0')
 
 from .. import rendering, util
 from ..transformations import translation_matrix
