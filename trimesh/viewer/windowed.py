@@ -20,7 +20,7 @@ from .. import rendering
 from ..visual import to_rgba
 from ..transformations import translation_matrix
 
-pyglet.options['shadow_window'] = False
+pyglet.options["shadow_window"] = False
 
 import pyglet.gl as gl  # NOQA
 
@@ -29,25 +29,26 @@ _SMOOTH_MAX_FACES = 100000
 
 
 class SceneViewer(pyglet.window.Window):
-
-    def __init__(self,
-                 scene,
-                 smooth=True,
-                 flags=None,
-                 visible=True,
-                 resolution=None,
-                 start_loop=True,
-                 callback=None,
-                 callback_period=None,
-                 caption=None,
-                 fixed=None,
-                 offset_lines=True,
-                 line_settings=None,
-                 background=None,
-                 window_conf=None,
-                 profile=False,
-                 record=False,
-                 **kwargs):
+    def __init__(
+        self,
+        scene,
+        smooth=True,
+        flags=None,
+        visible=True,
+        resolution=None,
+        start_loop=True,
+        callback=None,
+        callback_period=None,
+        caption=None,
+        fixed=None,
+        offset_lines=True,
+        line_settings=None,
+        background=None,
+        window_conf=None,
+        profile=False,
+        record=False,
+        **kwargs,
+    ):
         """
         Create a window that will display a trimesh.Scene object
         in an OpenGL context via pyglet.
@@ -104,25 +105,32 @@ class SceneViewer(pyglet.window.Window):
 
         # a transform to offset lines slightly to avoid Z-fighting
         self._line_offset = translation_matrix(
-            [0, 0, scene.scale / 1000 if self.offset_lines else 0])
+            [0, 0, scene.scale / 1000 if self.offset_lines else 0]
+        )
 
         self.reset_view()
         self.batch = pyglet.graphics.Batch()
-        vertex_list = shader_program.vertex_list(4, GL_TRIANGLES, batch, group,
-                                         position=('f', vertex_positions),
-                                         tex_coords=('f', tex.tex_coords))
+        vertex_list = shader_program.vertex_list(
+            4,
+            GL_TRIANGLES,
+            batch,
+            group,
+            position=("f", vertex_positions),
+            tex_coords=("f", tex.tex_coords),
+        )
 
         self._smooth = smooth
 
         self._profile = bool(profile)
         if self._profile:
             from pyinstrument import Profiler
+
             self.Profiler = Profiler
 
         self._record = bool(record)
         if self._record:
             # will save bytes here
-            self.scene.metadata['recording'] = []
+            self.scene.metadata["recording"] = []
 
         # store kwargs
         self.kwargs = kwargs
@@ -153,8 +161,7 @@ class SceneViewer(pyglet.window.Window):
         # set the default line settings to a fraction
         # of our resolution so the points aren't tiny
         scale = max(resolution)
-        self.line_settings = {'point_size': scale / 200,
-                              'line_width': scale / 400}
+        self.line_settings = {"point_size": scale / 200, "line_width": scale / 400}
         # if we've been passed line settings override the default
         if line_settings is not None:
             self.line_settings.update(line_settings)
@@ -164,32 +171,37 @@ class SceneViewer(pyglet.window.Window):
             try:
                 # try enabling antialiasing
                 # if you have a graphics card this will probably work
-                conf = gl.Config(sample_buffers=1,
-                                 samples=4,
-                                 depth_size=24,
-                                 double_buffer=True)
-                super(SceneViewer, self).__init__(config=conf,
-                                                  visible=visible,
-                                                  resizable=True,
-                                                  width=resolution[0],
-                                                  height=resolution[1],
-                                                  caption=caption)
+                conf = gl.Config(
+                    sample_buffers=1, samples=4, depth_size=24, double_buffer=True
+                )
+                super(SceneViewer, self).__init__(
+                    config=conf,
+                    visible=visible,
+                    resizable=True,
+                    width=resolution[0],
+                    height=resolution[1],
+                    caption=caption,
+                )
             except pyglet.window.NoSuchConfigException:
                 conf = gl.Config(double_buffer=True)
-                super(SceneViewer, self).__init__(config=conf,
-                                                  resizable=True,
-                                                  visible=visible,
-                                                  width=resolution[0],
-                                                  height=resolution[1],
-                                                  caption=caption)
+                super(SceneViewer, self).__init__(
+                    config=conf,
+                    resizable=True,
+                    visible=visible,
+                    width=resolution[0],
+                    height=resolution[1],
+                    caption=caption,
+                )
         else:
             # window config was manually passed
-            super(SceneViewer, self).__init__(config=window_conf,
-                                              resizable=True,
-                                              visible=visible,
-                                              width=resolution[0],
-                                              height=resolution[1],
-                                              caption=caption)
+            super(SceneViewer, self).__init__(
+                config=window_conf,
+                resizable=True,
+                visible=visible,
+                width=resolution[0],
+                height=resolution[1],
+                caption=caption,
+            )
 
         # add scene geometry to viewer geometry
         self._update_vertex_list()
@@ -210,8 +222,7 @@ class SceneViewer(pyglet.window.Window):
             # set up a do-nothing periodic task which will
             # trigger `self.on_draw` every `callback_period`
             # seconds if someone has passed a callback
-            pyglet.clock.schedule_interval(lambda x: x,
-                                           callback_period)
+            pyglet.clock.schedule_interval(lambda x: x, callback_period)
         if start_loop:
             pyglet.app.run()
 
@@ -225,9 +236,7 @@ class SceneViewer(pyglet.window.Window):
                 continue
             if geometry_hash(geom) == self.vertex_list_hash.get(name):
                 continue
-            self.add_geometry(name=name,
-                              geometry=geom,
-                              smooth=bool(self._smooth))
+            self.add_geometry(name=name, geometry=geom, smooth=bool(self._smooth))
 
     def _update_meshes(self):
         # call the callback if specified
@@ -253,8 +262,7 @@ class SceneViewer(pyglet.window.Window):
             # convert geometry to constructor args
             args = rendering.convert_to_vertexlist(geometry, **kwargs)
         except BaseException:
-            util.log.warning('failed to add geometry `{}`'.format(name),
-                             exc_info=True)
+            util.log.warning("failed to add geometry `{}`".format(name), exc_info=True)
             return
 
         # create the indexed vertex list
@@ -265,14 +273,14 @@ class SceneViewer(pyglet.window.Window):
         self.vertex_list_mode[name] = args[1]
 
         # get the visual if the element has it
-        visual = getattr(geometry, 'visual', None)
-        if hasattr(visual, 'uv') and hasattr(visual, 'material'):
+        visual = getattr(geometry, "visual", None)
+        if hasattr(visual, "uv") and hasattr(visual, "material"):
             try:
                 tex = rendering.material_to_texture(visual.material)
                 if tex is not None:
                     self.textures[name] = tex
             except BaseException:
-                util.log.warning('failed to load texture', exc_info=True)
+                util.log.warning("failed to load texture", exc_info=True)
 
     def cleanup_geometries(self):
         """
@@ -282,11 +290,9 @@ class SceneViewer(pyglet.window.Window):
         # shorthand to scene graph
         graph = self.scene.graph
         # which parts of the graph still have geometry
-        geom_keep = set([graph[node][1] for
-                         node in graph.nodes_geometry])
+        geom_keep = set([graph[node][1] for node in graph.nodes_geometry])
         # which geometries no longer need to be kept
-        geom_delete = [geom for geom in self.vertex_list
-                       if geom not in geom_keep]
+        geom_delete = [geom for geom in self.vertex_list if geom not in geom_keep]
         for geom in geom_delete:
             # remove stored vertex references
             self.vertex_list.pop(geom, None)
@@ -329,16 +335,18 @@ class SceneViewer(pyglet.window.Window):
           e.g. {'cull': False}
         """
         self.trimesh_view = {
-            'cull': True,
-            'axis': False,
-            'grid': False,
-            'fullscreen': False,
-            'wireframe': False,
-            'ball': Trackball(
+            "cull": True,
+            "axis": False,
+            "grid": False,
+            "fullscreen": False,
+            "wireframe": False,
+            "ball": Trackball(
                 pose=self._initial_camera_transform,
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
-                target=self.scene.centroid)}
+                target=self.scene.centroid,
+            ),
+        }
         try:
             # if any flags are passed override defaults
             if isinstance(flags, dict):
@@ -400,34 +408,33 @@ class SceneViewer(pyglet.window.Window):
     @staticmethod
     def _gl_enable_color_material():
         # do some openGL things
-        gl.glColorMaterial(gl.GL_FRONT_AND_BACK,
-                           gl.GL_AMBIENT_AND_DIFFUSE)
+        gl.glColorMaterial(gl.GL_FRONT_AND_BACK, gl.GL_AMBIENT_AND_DIFFUSE)
         gl.glEnable(gl.GL_COLOR_MATERIAL)
         gl.glShadeModel(gl.GL_SMOOTH)
 
-        gl.glMaterialfv(gl.GL_FRONT,
-                        gl.GL_AMBIENT,
-                        rendering.vector_to_gl(
-                            0.192250, 0.192250, 0.192250))
-        gl.glMaterialfv(gl.GL_FRONT,
-                        gl.GL_DIFFUSE,
-                        rendering.vector_to_gl(
-                            0.507540, 0.507540, 0.507540))
-        gl.glMaterialfv(gl.GL_FRONT,
-                        gl.GL_SPECULAR,
-                        rendering.vector_to_gl(
-                            .5082730, .5082730, .5082730))
+        gl.glMaterialfv(
+            gl.GL_FRONT,
+            gl.GL_AMBIENT,
+            rendering.vector_to_gl(0.192250, 0.192250, 0.192250),
+        )
+        gl.glMaterialfv(
+            gl.GL_FRONT,
+            gl.GL_DIFFUSE,
+            rendering.vector_to_gl(0.507540, 0.507540, 0.507540),
+        )
+        gl.glMaterialfv(
+            gl.GL_FRONT,
+            gl.GL_SPECULAR,
+            rendering.vector_to_gl(0.5082730, 0.5082730, 0.5082730),
+        )
 
-        gl.glMaterialf(gl.GL_FRONT,
-                       gl.GL_SHININESS,
-                       .4 * 128.0)
+        gl.glMaterialf(gl.GL_FRONT, gl.GL_SHININESS, 0.4 * 128.0)
 
     @staticmethod
     def _gl_enable_blending():
         # enable blending for transparency
         gl.glEnable(gl.GL_BLEND)
-        gl.glBlendFunc(gl.GL_SRC_ALPHA,
-                       gl.GL_ONE_MINUS_SRC_ALPHA)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
     @staticmethod
     def _gl_enable_smooth_lines(line_width=4, point_size=4):
@@ -449,16 +456,15 @@ class SceneViewer(pyglet.window.Window):
         # opengl only supports 7 lights?
         for i, light in enumerate(scene.lights[:7]):
             # the index of which light we have
-            lightN = eval('gl.GL_LIGHT{}'.format(i))
+            lightN = eval("gl.GL_LIGHT{}".format(i))
 
             # get the transform for the light by name
             matrix = scene.graph.get(light.name)[0]
 
             # convert light object to glLightfv calls
             multiargs = rendering.light_to_gl(
-                light=light,
-                transform=matrix,
-                lightN=lightN)
+                light=light, transform=matrix, lightN=lightN
+            )
 
             # enable the light in question
             gl.glEnable(lightN)
@@ -474,7 +480,7 @@ class SceneViewer(pyglet.window.Window):
         non- watertight meshes you probably want to be able
         to see the back sides.
         """
-        self.trimesh_view['cull'] = not self.trimesh_view['cull']
+        self.trimesh_view["cull"] = not self.trimesh_view["cull"]
         self.update_flags()
 
     def toggle_wireframe(self):
@@ -483,14 +489,14 @@ class SceneViewer(pyglet.window.Window):
 
         Good for  looking inside meshes, off by default.
         """
-        self.trimesh_view['wireframe'] = not self.trimesh_view['wireframe']
+        self.trimesh_view["wireframe"] = not self.trimesh_view["wireframe"]
         self.update_flags()
 
     def toggle_fullscreen(self):
         """
         Toggle between fullscreen and windowed mode.
         """
-        self.trimesh_view['fullscreen'] = not self.trimesh_view['fullscreen']
+        self.trimesh_view["fullscreen"] = not self.trimesh_view["fullscreen"]
         self.update_flags()
 
     def toggle_axis(self):
@@ -499,11 +505,11 @@ class SceneViewer(pyglet.window.Window):
         off, world frame, every frame
         """
         # cycle through three axis states
-        states = [False, 'world', 'all', 'without_world']
+        states = [False, "world", "all", "without_world"]
         # the state after toggling
-        index = (states.index(self.trimesh_view['axis']) + 1) % len(states)
+        index = (states.index(self.trimesh_view["axis"]) + 1) % len(states)
         # update state to next index
-        self.trimesh_view['axis'] = states[index]
+        self.trimesh_view["axis"] = states[index]
         # perform gl actions
         self.update_flags()
 
@@ -512,7 +518,7 @@ class SceneViewer(pyglet.window.Window):
         Toggle a rendered grid.
         """
         # update state to next index
-        self.trimesh_view['grid'] = not self.trimesh_view['grid']
+        self.trimesh_view["grid"] = not self.trimesh_view["grid"]
         # perform gl actions
         self.update_flags()
 
@@ -521,24 +527,25 @@ class SceneViewer(pyglet.window.Window):
         Check the view flags, and call required GL functions.
         """
         # view mode, filled vs wirefrom
-        if self.trimesh_view['wireframe']:
+        if self.trimesh_view["wireframe"]:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
         # set fullscreen or windowed
-        self.set_fullscreen(fullscreen=self.trimesh_view['fullscreen'])
+        self.set_fullscreen(fullscreen=self.trimesh_view["fullscreen"])
 
         # backface culling on or off
-        if self.trimesh_view['cull']:
+        if self.trimesh_view["cull"]:
             gl.glEnable(gl.GL_CULL_FACE)
         else:
             gl.glDisable(gl.GL_CULL_FACE)
 
         # case where we WANT an axis and NO vertexlist
         # is stored internally
-        if self.trimesh_view['axis'] and self._axis is None:
+        if self.trimesh_view["axis"] and self._axis is None:
             from .. import creation
+
             # create an axis marker sized relative to the scene
             axis = creation.axis(origin_size=self.scene.scale / 100)
             # create ordered args for a vertex list
@@ -547,16 +554,17 @@ class SceneViewer(pyglet.window.Window):
             self._axis = self.batch.add_indexed(*args)
         # case where we DON'T want an axis but a vertexlist
         # IS stored internally
-        elif not self.trimesh_view['axis'] and self._axis is not None:
+        elif not self.trimesh_view["axis"] and self._axis is not None:
             # remove the axis from the rendering batch
             self._axis.delete()
             # set the reference to None
             self._axis = None
 
-        if self.trimesh_view['grid'] and self._grid is None:
+        if self.trimesh_view["grid"] and self._grid is None:
             try:
                 # create a grid marker
                 from ..path.creation import grid
+
                 bounds = self.scene.bounds
                 center = bounds.mean(axis=0)
                 # set the grid to the lowest Z position
@@ -566,17 +574,15 @@ class SceneViewer(pyglet.window.Window):
                 side = bounds.ptp(axis=0)[:2].max()
                 # create an axis marker sized relative to the scene
                 grid_mesh = grid(
-                    side=side,
-                    count=4,
-                    transform=translation_matrix(center))
+                    side=side, count=4, transform=translation_matrix(center)
+                )
                 # convert the path to vertexlist args
                 args = rendering.convert_to_vertexlist(grid_mesh)
                 # create ordered args for a vertex list
                 self._grid = self.batch.add_indexed(*args)
             except BaseException:
-                util.log.warning(
-                    'failed to create grid!', exc_info=True)
-        elif not self.trimesh_view['grid'] and self._grid is not None:
+                util.log.warning("failed to create grid!", exc_info=True)
+        elif not self.trimesh_view["grid"] and self._grid is not None:
             self._grid.delete()
             self._grid = None
 
@@ -598,10 +604,9 @@ class SceneViewer(pyglet.window.Window):
         camera = self.scene.camera
 
         # set perspective from camera data
-        gl.gluPerspective(camera.fov[1],
-                          width / float(height),
-                          camera.z_near,
-                          camera.z_far)
+        gl.gluPerspective(
+            camera.fov[1], width / float(height), camera.z_near, camera.z_far
+        )
         gl.glMatrixMode(gl.GL_MODELVIEW)
 
         return width, height
@@ -612,44 +617,44 @@ class SceneViewer(pyglet.window.Window):
         """
         width, height = self._update_perspective(width, height)
         self.scene.camera.resolution = (width, height)
-        self.trimesh_view['ball'].resize(self.scene.camera.resolution)
-        self.scene.camera_transform[...] = self.trimesh_view['ball'].pose
+        self.trimesh_view["ball"].resize(self.scene.camera.resolution)
+        self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
 
     def on_mouse_press(self, x, y, buttons, modifiers):
         """
         Set the start point of the drag.
         """
-        self.trimesh_view['ball'].set_state(Trackball.STATE_ROTATE)
-        if (buttons == pyglet.window.mouse.LEFT):
-            ctrl = (modifiers & pyglet.window.key.MOD_CTRL)
-            shift = (modifiers & pyglet.window.key.MOD_SHIFT)
-            if (ctrl and shift):
-                self.trimesh_view['ball'].set_state(Trackball.STATE_ZOOM)
+        self.trimesh_view["ball"].set_state(Trackball.STATE_ROTATE)
+        if buttons == pyglet.window.mouse.LEFT:
+            ctrl = modifiers & pyglet.window.key.MOD_CTRL
+            shift = modifiers & pyglet.window.key.MOD_SHIFT
+            if ctrl and shift:
+                self.trimesh_view["ball"].set_state(Trackball.STATE_ZOOM)
             elif shift:
-                self.trimesh_view['ball'].set_state(Trackball.STATE_ROLL)
+                self.trimesh_view["ball"].set_state(Trackball.STATE_ROLL)
             elif ctrl:
-                self.trimesh_view['ball'].set_state(Trackball.STATE_PAN)
-        elif (buttons == pyglet.window.mouse.MIDDLE):
-            self.trimesh_view['ball'].set_state(Trackball.STATE_PAN)
-        elif (buttons == pyglet.window.mouse.RIGHT):
-            self.trimesh_view['ball'].set_state(Trackball.STATE_ZOOM)
+                self.trimesh_view["ball"].set_state(Trackball.STATE_PAN)
+        elif buttons == pyglet.window.mouse.MIDDLE:
+            self.trimesh_view["ball"].set_state(Trackball.STATE_PAN)
+        elif buttons == pyglet.window.mouse.RIGHT:
+            self.trimesh_view["ball"].set_state(Trackball.STATE_ZOOM)
 
-        self.trimesh_view['ball'].down(np.array([x, y]))
-        self.scene.camera_transform[...] = self.trimesh_view['ball'].pose
+        self.trimesh_view["ball"].down(np.array([x, y]))
+        self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """
         Pan or rotate the view.
         """
-        self.trimesh_view['ball'].drag(np.array([x, y]))
-        self.scene.camera_transform[...] = self.trimesh_view['ball'].pose
+        self.trimesh_view["ball"].drag(np.array([x, y]))
+        self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
 
     def on_mouse_scroll(self, x, y, dx, dy):
         """
         Zoom the view.
         """
-        self.trimesh_view['ball'].scroll(dy)
-        self.scene.camera_transform[...] = self.trimesh_view['ball'].pose
+        self.trimesh_view["ball"].scroll(dy)
+        self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
 
     def on_key_press(self, symbol, modifiers):
         """
@@ -674,20 +679,21 @@ class SceneViewer(pyglet.window.Window):
             self.toggle_fullscreen()
 
         if symbol in [
-                pyglet.window.key.LEFT,
-                pyglet.window.key.RIGHT,
-                pyglet.window.key.DOWN,
-                pyglet.window.key.UP]:
-            self.trimesh_view['ball'].down([0, 0])
+            pyglet.window.key.LEFT,
+            pyglet.window.key.RIGHT,
+            pyglet.window.key.DOWN,
+            pyglet.window.key.UP,
+        ]:
+            self.trimesh_view["ball"].down([0, 0])
             if symbol == pyglet.window.key.LEFT:
-                self.trimesh_view['ball'].drag([-magnitude, 0])
+                self.trimesh_view["ball"].drag([-magnitude, 0])
             elif symbol == pyglet.window.key.RIGHT:
-                self.trimesh_view['ball'].drag([magnitude, 0])
+                self.trimesh_view["ball"].drag([magnitude, 0])
             elif symbol == pyglet.window.key.DOWN:
-                self.trimesh_view['ball'].drag([0, -magnitude])
+                self.trimesh_view["ball"].drag([0, -magnitude])
             elif symbol == pyglet.window.key.UP:
-                self.trimesh_view['ball'].drag([0, magnitude])
-            self.scene.camera_transform[...] = self.trimesh_view['ball'].pose
+                self.trimesh_view["ball"].drag([0, magnitude])
+            self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
 
     def on_draw(self):
         """
@@ -716,7 +722,7 @@ class SceneViewer(pyglet.window.Window):
         count = -1
 
         # if we are rendering an axis marker at the world
-        if self._axis and not self.trimesh_view['axis'] == 'without_world':
+        if self._axis and not self.trimesh_view["axis"] == "without_world":
             # we stored it as a vertex list
             self._axis.draw(mode=gl.GL_TRIANGLES)
         if self._grid:
@@ -744,7 +750,8 @@ class SceneViewer(pyglet.window.Window):
             if self.fixed is not None and geometry_name in self.fixed:
                 # remove altered camera transform from fixed geometry
                 transform_fix = np.linalg.inv(
-                    np.dot(self._initial_camera_transform, transform_camera))
+                    np.dot(self._initial_camera_transform, transform_camera)
+                )
                 # apply the transform so the fixed geometry doesn't move
                 transform = np.dot(transform, transform_fix)
 
@@ -760,11 +767,14 @@ class SceneViewer(pyglet.window.Window):
             # the best way to do this is probably a shader but this works fine
             if mode == gl.GL_LINES:
                 # apply the offset in camera space
-                transform = util.multi_dot([
-                    transform,
-                    np.linalg.inv(transform_camera),
-                    self._line_offset,
-                    transform_camera])
+                transform = util.multi_dot(
+                    [
+                        transform,
+                        np.linalg.inv(transform_camera),
+                        self._line_offset,
+                        transform_camera,
+                    ]
+                )
 
             # add a new matrix to the model stack
             gl.glPushMatrix()
@@ -772,16 +782,18 @@ class SceneViewer(pyglet.window.Window):
             gl.glMultMatrixf(rendering.matrix_to_gl(transform))
 
             # draw an axis marker for each mesh frame
-            if self.trimesh_view['axis'] == 'all':
+            if self.trimesh_view["axis"] == "all":
                 self._axis.draw(mode=gl.GL_TRIANGLES)
-            elif self.trimesh_view['axis'] == 'without_world':
+            elif self.trimesh_view["axis"] == "without_world":
                 if not util.allclose(transform, np.eye(4), atol=1e-5):
                     self._axis.draw(mode=gl.GL_TRIANGLES)
 
             # transparent things must be drawn last
-            if (hasattr(mesh, 'visual') and
-                hasattr(mesh.visual, 'transparency')
-                    and mesh.visual.transparency):
+            if (
+                hasattr(mesh, "visual")
+                and hasattr(mesh.visual, "transparency")
+                and mesh.visual.transparency
+            ):
                 # put the current item onto the back of the queue
                 if count < count_original:
                     # add the node to be drawn last
@@ -819,7 +831,7 @@ class SceneViewer(pyglet.window.Window):
             # seek start of file-like object
             img.seek(0)
             # save the bytes from the file object
-            self.scene.metadata['recording'].append(img.read())
+            self.scene.metadata["recording"].append(img.read())
 
     def save_image(self, file_obj):
         """
@@ -833,7 +845,7 @@ class SceneViewer(pyglet.window.Window):
         manager = pyglet.image.get_buffer_manager()
         colorbuffer = manager.get_color_buffer()
         # if passed a string save by name
-        if hasattr(file_obj, 'write'):
+        if hasattr(file_obj, "write"):
             colorbuffer.save(file=file_obj)
         else:
             colorbuffer.save(filename=file_obj)
@@ -853,17 +865,14 @@ def geometry_hash(geometry):
     hash : str
     """
     h = str(hash(geometry))
-    if hasattr(geometry, 'visual'):
+    if hasattr(geometry, "visual"):
         # if visual properties are defined
         h += str(hash(geometry.visual))
 
     return h
 
 
-def render_scene(scene,
-                 resolution=None,
-                 visible=True,
-                 **kwargs):
+def render_scene(scene, resolution=None, visible=True, **kwargs):
     """
     Render a preview of a scene to a PNG. Note that
     whether this works or not highly variable based on
@@ -889,8 +898,8 @@ def render_scene(scene,
       Image in PNG format
     """
     window = SceneViewer(
-        scene, start_loop=False, visible=visible,
-        resolution=resolution, **kwargs)
+        scene, start_loop=False, visible=visible, resolution=resolution, **kwargs
+    )
 
     from ..util import BytesIO
 
@@ -899,7 +908,7 @@ def render_scene(scene,
         pyglet.clock.tick()
         window.switch_to()
         window.dispatch_events()
-        window.dispatch_event('on_draw')
+        window.dispatch_event("on_draw")
         window.flip()
         if save:
             # save the color buffer data to memory
