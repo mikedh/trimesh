@@ -17,7 +17,7 @@ class URDFTest(g.unittest.TestCase):
         # a viewer show() call)
         from trimesh.exchange import urdf
 
-        mesh = g.get_mesh('featuretype.STL')
+        mesh = g.get_mesh("featuretype.STL")
 
         out_dir = g.tempfile.mkdtemp()
 
@@ -31,6 +31,6 @@ class URDFTest(g.unittest.TestCase):
         g.shutil.rmtree(out_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -2,22 +2,14 @@ import copy
 
 import numpy as np
 
-from .base import Visuals
+from .. import caching, grouping, util
 from . import color
-
-from .. import util
-from .. import caching
-from .. import grouping
-
-from .material import SimpleMaterial, PBRMaterial, empty_material  # NOQA
+from .base import Visuals
+from .material import PBRMaterial, SimpleMaterial, empty_material  # NOQA
 
 
 class TextureVisuals(Visuals):
-    def __init__(self,
-                 uv=None,
-                 material=None,
-                 image=None,
-                 face_materials=None):
+    def __init__(self, uv=None, material=None, image=None, face_materials=None):
         """
         Store a single material and per-vertex UV coordinates
         for a mesh.
@@ -72,7 +64,7 @@ class TextureVisuals(Visuals):
         kind : str
           What type of visuals are defined
         """
-        return 'texture'
+        return "texture"
 
     @property
     def defined(self):
@@ -105,10 +97,10 @@ class TextureVisuals(Visuals):
 
         Returns
         ------------
-        uv : (n, 2) float
-          Pixel position per- vertex
+        uv : (n, 2) float or None
+          Pixel position per-vertex.
         """
-        return self.vertex_attributes.get('uv', None)
+        return self.vertex_attributes.get("uv", None)
 
     @uv.setter
     def uv(self, values):
@@ -117,14 +109,13 @@ class TextureVisuals(Visuals):
 
         Parameters
         --------------
-        values : (n, 2) float
+        values : (n, 2) float or None
           Pixel locations on a texture per- vertex
         """
         if values is None:
-            self.vertex_attributes['uv'] = None
+            self.vertex_attributes.pop("uv")
         else:
-            self.vertex_attributes['uv'] = np.asanyarray(
-                values, dtype=np.float64)
+            self.vertex_attributes["uv"] = np.asanyarray(values, dtype=np.float64)
 
     def copy(self, uv=None):
         """
@@ -142,7 +133,8 @@ class TextureVisuals(Visuals):
         copied = TextureVisuals(
             uv=uv,
             material=self.material.copy(),
-            face_materials=copy.copy(self.face_materials))
+            face_materials=copy.copy(self.face_materials),
+        )
 
         return copied
 
@@ -192,7 +184,7 @@ class TextureVisuals(Visuals):
                 updates[key] = value[mask]
             except BaseException:
                 # usual reason is an incorrect size or index
-                util.log.warning('failed to update visual: `{}`'.format(key))
+                util.log.warning(f"failed to update visual: `{key}`")
         # clear all values from the vertex attributes
         self.vertex_attributes.clear()
         # apply the updated values
@@ -203,7 +195,6 @@ class TextureVisuals(Visuals):
         Apply a mask to remove or duplicate face properties,
         not applicable to texture visuals.
         """
-        pass
 
     def concatenate(self, others):
         """
@@ -220,8 +211,8 @@ class TextureVisuals(Visuals):
         concatenated : TextureVisuals
           Concatenated visual objects
         """
-        util.log.warning('concatenating texture: may result in visual artifacts')
         from .objects import concatenate
+
         return concatenate(self, others)
 
 
@@ -257,7 +248,7 @@ def unmerge_faces(faces, *args, **kwargs):
     """
     # unfortunately Python2 doesn't let us put named kwargs
     # after an `*args` sequence so we have to do this ugly get
-    maintain_faces = kwargs.get('maintain_faces', False)
+    maintain_faces = kwargs.get("maintain_faces", False)
 
     # don't alter faces
     if maintain_faces:
@@ -272,7 +263,7 @@ def unmerge_faces(faces, *args, **kwargs):
         for arg in args:
             # create a mask of the attribute-vertex mapping
             # note that these might conflict since we're not unmerging
-            masks = np.zeros((3, max_idx + 1), dtype=np.int64)
+            masks = np.full((3, max_idx + 1), -1, dtype=np.int64)
             # set the mask using the unmodified face indexes
             for i, f, a in zip(range(3), faces.T, arg.T):
                 masks[i][f] = a
@@ -280,7 +271,10 @@ def unmerge_faces(faces, *args, **kwargs):
             # and use that index note that this is doing a float conversion
             # and then median before converting back to int: could also do this as
             # a column diff and sort but this seemed easier and is fast enough
-            result.append(np.median(masks, axis=0).astype(np.int64))
+            # turn default attribute value of -1 to nan before median computation
+            # and use nanmedian to compute the median ignoring the nan values
+            masks_nan = np.where(masks != -1, masks, np.NaN)
+            result.append(np.nanmedian(masks_nan, axis=0).astype(np.int64))
 
         return result
 

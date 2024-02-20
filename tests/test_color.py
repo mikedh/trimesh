@@ -5,9 +5,8 @@ except BaseException:
 
 
 class VisualTest(g.unittest.TestCase):
-
     def test_visual(self):
-        mesh = g.get_mesh('featuretype.STL')
+        mesh = g.get_mesh("featuretype.STL")
 
         # stl shouldn't have any visual properties defined
         assert not mesh.visual.defined
@@ -22,19 +21,47 @@ class VisualTest(g.unittest.TestCase):
         assert mesh.visual.transparency
 
     def test_concatenate(self):
-        a = g.get_mesh('ballA.off')
-        b = g.get_mesh('ballB.off')
+        a = g.get_mesh("ballA.off")
+        b = g.get_mesh("ballB.off")
 
         a.visual.face_colors = [255, 0, 0]
         r = a + b
         assert any(r.visual.face_colors.ptp(axis=0) > 1)
+
+    def test_concatenate_empty_mesh(self):
+        box = g.get_mesh("box.STL")
+
+        mesh_fcolor = box.copy()
+        mesh_fcolor.visual.face_colors = [255, 0, 0]
+
+        mesh_vcolor = box.copy()
+        mesh_vcolor.visual.vertex_colors = [0, 0, 255]
+
+        mesh_empty = g.trimesh.Trimesh()
+
+        r_left_fcolor = mesh_fcolor + mesh_empty
+        r_right_fcolor = mesh_empty + mesh_fcolor
+        r_left_vcolor = mesh_vcolor + mesh_empty
+        r_right_vcolor = mesh_empty + mesh_vcolor
+        r_empty = mesh_empty + mesh_empty
+
+        for visual_face in [r_left_fcolor.visual, r_right_fcolor.visual]:
+            assert (visual_face.face_colors == mesh_fcolor.visual.face_colors).all()
+            assert visual_face.kind == "face"
+
+        for visual_vert in [r_left_vcolor.visual, r_right_vcolor.visual]:
+            assert (visual_vert.vertex_colors == mesh_vcolor.visual.vertex_colors).all()
+            assert visual_vert.kind == "vertex"
+
+        assert len(r_empty.visual.face_colors) == 0
+        assert r_empty.visual.kind is None
 
     def test_data_model(self):
         """
         Test the probably too- magical color caching and storage
         system.
         """
-        m = g.get_mesh('featuretype.STL')
+        m = g.get_mesh("featuretype.STL")
         test_color = [255, 0, 0, 255]
         test_color_2 = [0, 255, 0, 255]
         test_color_transparent = [25, 33, 0, 146]
@@ -67,7 +94,7 @@ class VisualTest(g.unittest.TestCase):
         # the rest of the colors should be unchanged
         assert (m.visual.face_colors[1] != test_color).any()
         assert len(m.visual._data) >= 1
-        assert m.visual.kind == 'face'
+        assert m.visual.kind == "face"
         assert m.visual.defined
         assert not m.visual.transparency
 
@@ -77,7 +104,7 @@ class VisualTest(g.unittest.TestCase):
         # assert len(m.visual._cache) == 0
         # should be just material and face information
         assert len(m.visual._data.data) >= 1
-        assert m.visual.kind == 'face'
+        assert m.visual.kind == "face"
         assert bool((m.visual.vertex_colors == test_color).all())
         assert m.visual.defined
         assert not m.visual.transparency
@@ -86,48 +113,45 @@ class VisualTest(g.unittest.TestCase):
         m.visual.vertex_colors[0] = test_color_2
         assert (m.visual.vertex_colors[0] == test_color_2).all()
         assert (m.visual.vertex_colors[1] != test_color_2).any()
-        assert m.visual.kind == 'vertex'
+        assert m.visual.kind == "vertex"
         assert m.visual.defined
         assert not m.visual.transparency
 
         m.visual.vertex_colors[1] = test_color_transparent
         assert m.visual.transparency
 
-        test = (g.np.random.random((len(m.faces), 4)) * 255).astype(g.np.uint8)
+        test = (g.random((len(m.faces), 4)) * 255).astype(g.np.uint8)
         m.visual.face_colors = test
         assert bool((m.visual.face_colors == test).all())
-        assert m.visual.kind == 'face'
+        assert m.visual.kind == "face"
 
-        test = (g.np.random.random((len(m.vertices), 4))
-                * 255).astype(g.np.uint8)
+        test = (g.random((len(m.vertices), 4)) * 255).astype(g.np.uint8)
         m.visual.vertex_colors = test
         assert bool((m.visual.vertex_colors == test).all())
-        assert m.visual.kind == 'vertex'
+        assert m.visual.kind == "vertex"
 
-        test = (g.np.random.random(4) * 255).astype(g.np.uint8)
+        test = (g.random(4) * 255).astype(g.np.uint8)
         m.visual.face_colors = test
         assert bool((m.visual.vertex_colors == test).all())
-        assert m.visual.kind == 'face'
-        m.visual.vertex_colors[0] = (
-            g.np.random.random(4) * 255).astype(g.np.uint8)
-        assert m.visual.kind == 'vertex'
+        assert m.visual.kind == "face"
+        m.visual.vertex_colors[0] = [0, 0, 0, 0]
+        assert m.visual.kind == "vertex"
 
-        test = (g.np.random.random(4) * 255).astype(g.np.uint8)
+        test = (g.random(4) * 255).astype(g.np.uint8)
         m.visual.vertex_colors = test
         assert bool((m.visual.face_colors == test).all())
-        assert m.visual.kind == 'vertex'
-        m.visual.face_colors[0] = (
-            g.np.random.random(4) * 255).astype(g.np.uint8)
-        assert m.visual.kind == 'face'
+        assert m.visual.kind == "vertex"
+        m.visual.face_colors[:2] = (g.random((2, 4)) * 255).astype(g.np.uint8)
+        assert m.visual.kind == "face"
 
     def test_smooth(self):
         """
         Make sure cached smooth model is dumped if colors are changed
         """
-        m = g.get_mesh('featuretype.STL')
+        m = g.get_mesh("featuretype.STL")
 
         # will put smoothed mesh into visuals cache
-        s = m.smoothed()
+        s = m.smooth_shaded
         # every color should be default color
         assert s.visual.face_colors.ptp(axis=0).max() == 0
 
@@ -135,29 +159,28 @@ class VisualTest(g.unittest.TestCase):
         m.visual.face_colors[0] = [255, 0, 0, 255]
 
         # cache should be dumped yo
-        s1 = m.smoothed()
+        s1 = m.smooth_shaded
         assert s1.visual.face_colors.ptp(axis=0).max() != 0
 
         # do the same check on vertex color
-        m = g.get_mesh('featuretype.STL')
-        s = m.smoothed()
+        m = g.get_mesh("featuretype.STL")
+        s = m.smooth_shaded
         # every color should be default color
         assert s.visual.vertex_colors.ptp(axis=0).max() == 0
         m.visual.vertex_colors[g.np.arange(10)] = [255, 0, 0, 255]
-        s1 = m.smoothed()
+        s1 = m.smooth_shaded
         assert s1.visual.face_colors.ptp(axis=0).max() != 0
 
     def test_vertex(self):
-
-        m = g.get_mesh('torus.STL')
+        m = g.get_mesh("torus.STL")
 
         m.visual.vertex_colors = [100, 100, 100, 255]
 
         assert len(m.visual.vertex_colors) == len(m.vertices)
 
     def test_conversion(self):
-        m = g.get_mesh('machinist.XAML')
-        assert m.visual.kind == 'face'
+        m = g.get_mesh("machinist.XAML")
+        assert m.visual.kind == "face"
 
         # unmerge vertices so we don't get average colors
         m.unmerge_vertices()
@@ -167,7 +190,7 @@ class VisualTest(g.unittest.TestCase):
 
         # assign averaged vertex colors as default
         m.visual.vertex_colors = m.visual.vertex_colors
-        assert m.visual.kind == 'vertex'
+        assert m.visual.kind == "vertex"
 
         m.visual._cache.clear()
         assert g.np.allclose(initial, m.visual.face_colors)
@@ -196,8 +219,7 @@ class VisualTest(g.unittest.TestCase):
 
         # try interpolating with matplotlib color maps
         try:
-            colors = g.trimesh.visual.interpolate(values,
-                                                  'viridis')
+            colors = g.trimesh.visual.interpolate(values, "viridis")
         except ImportError:
             # if matplotlib isn't installed
             return
@@ -237,10 +259,11 @@ class VisualTest(g.unittest.TestCase):
 
         img = PIL.Image.fromarray(texture)
         colors = g.trimesh.visual.uv_to_interpolated_color(uv, img)
-        colors_expected = [[7.75, 24.8, 128 + 7.75, 255],
-                           [12.4, 15.5, 128 + 12.4, 255]]
 
-        g.np.testing.assert_allclose(colors, colors_expected, rtol=0, atol=0.1)
+        # exact interpolated values before being converted to uint8
+        colors_expected = [[7.75, 24.8, 128 + 7.75, 255], [12.4, 15.5, 128 + 12.4, 255]]
+
+        assert g.np.allclose(colors, colors_expected, rtol=0, atol=1)
 
     def test_iterset(self):
         m = g.trimesh.creation.box()
@@ -257,18 +280,17 @@ class VisualTest(g.unittest.TestCase):
 
     def test_copy(self):
         s = g.trimesh.creation.uv_sphere().scene()
-        s.geometry['geometry_0'].visual.face_colors[:, :3] = [0, 255, 0]
+        s.geometry["geometry_0"].visual.face_colors[:, :3] = [0, 255, 0]
 
-        a = s.geometry['geometry_0']
-        assert id(a) == id(s.geometry['geometry_0'])
+        a = s.geometry["geometry_0"]
+        assert id(a) == id(s.geometry["geometry_0"])
 
-        b = s.geometry['geometry_0'].copy()
+        b = s.geometry["geometry_0"].copy()
         assert id(a) != id(b)
 
-        assert g.np.allclose(a.visual.face_colors,
-                             b.visual.face_colors)
+        assert g.np.allclose(a.visual.face_colors, b.visual.face_colors)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

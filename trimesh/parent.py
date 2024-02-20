@@ -5,12 +5,13 @@ parent.py
 The base class for Trimesh, PointCloud, and Scene objects
 """
 import abc
-import warnings
 
 import numpy as np
 
-from . import caching
+from . import bounds, caching
 from . import transformations as tf
+from .caching import cache_decorator
+from .constants import tol
 from .util import ABC
 
 
@@ -37,62 +38,8 @@ class Geometry(ABC):
         pass
 
     @abc.abstractmethod
-    def is_empty(self):
+    def is_empty(self) -> bool:
         pass
-
-    def crc(self):
-        """
-        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
-
-        Get a hash of the current geometry.
-
-        Returns
-        ---------
-        hash : int
-          Hash of current graph and geometry.
-        """
-        warnings.warn(
-            '`geometry.crc()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`',
-            DeprecationWarning)
-        return self.__hash__()
-
-    def hash(self):
-        """
-        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
-
-        Get a hash of the current geometry.
-
-        Returns
-        ---------
-        hash : int
-          Hash of current graph and geometry.
-        """
-        warnings.warn(
-            '`geometry.hash()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`',
-            DeprecationWarning)
-        return self.__hash__()
-
-    def md5(self):
-        """
-        DEPRECATED OCTOBER 2023 : Use `hash(geometry)`
-
-        Get a hash of the current geometry.
-
-        Returns
-        ---------
-        hash : int
-          Hash of current graph and geometry.
-        """
-        warnings.warn(
-            '`geometry.md5()` is deprecated and will ' +
-            'be removed in October 2023: replace ' +
-            'with `geometry.__hash__()` or `hash(geometry)`',
-            DeprecationWarning)
-        return self.__hash__()
 
     def __hash__(self):
         """
@@ -132,24 +79,22 @@ class Geometry(ABC):
           Human readable quick look at the geometry.
         """
         elements = []
-        if hasattr(self, 'vertices'):
+        if hasattr(self, "vertices"):
             # for Trimesh and PointCloud
-            elements.append('vertices.shape={}'.format(
-                self.vertices.shape))
-        if hasattr(self, 'faces'):
+            elements.append(f"vertices.shape={self.vertices.shape}")
+        if hasattr(self, "faces"):
             # for Trimesh
-            elements.append('faces.shape={}'.format(
-                self.faces.shape))
-        if hasattr(self, 'geometry') and isinstance(
-                self.geometry, dict):
+            elements.append(f"faces.shape={self.faces.shape}")
+        if hasattr(self, "geometry") and isinstance(self.geometry, dict):
             # for Scene
-            elements.append('len(geometry)={}'.format(
-                len(self.geometry)))
-        if 'Voxel' in type(self).__name__:
+            elements.append(f"len(geometry)={len(self.geometry)}")
+        if "Voxel" in type(self).__name__:
             # for VoxelGrid objects
             elements.append(str(self.shape)[1:-1])
-        return '<trimesh.{}({})>'.format(
-            type(self).__name__, ', '.join(elements))
+        if "file_name" in self.metadata:
+            display = self.metadata["file_name"]
+            elements.append(f"name=`{display}`")
+        return "<trimesh.{}({})>".format(type(self).__name__, ", ".join(elements))
 
     def apply_translation(self, translation):
         """
@@ -163,10 +108,9 @@ class Geometry(ABC):
         translation = np.asanyarray(translation, dtype=np.float64)
         if translation.shape == (2,):
             # create a planar matrix if we were passed a 2D offset
-            return self.apply_transform(
-                tf.planar_matrix(offset=translation))
+            return self.apply_transform(tf.planar_matrix(offset=translation))
         elif translation.shape != (3,):
-            raise ValueError('Translation must be (3,) or (2,)!')
+            raise ValueError("Translation must be (3,) or (2,)!")
 
         # manually create a translation matrix
         matrix = np.eye(4)
@@ -209,6 +153,32 @@ class Geometry(ABC):
         # otherwise just use the regular add function
         return self.__add__(type(self)(other))
 
+    @cache_decorator
+    def scale(self) -> float:
+        """
+        A loosely specified "order of magnitude scale" for the
+        geometry which always returns a value and can be used
+        to make code more robust to large scaling differences.
+
+        It returns the diagonal of the axis aligned bounding box
+        or if anything is invalid or undefined, `1.0`.
+
+        Returns
+        ----------
+        scale : float
+          Approximate order of magnitude scale of the geometry.
+        """
+        # if geometry is empty return 1.0
+        if self.extents is None:
+            return 1.0
+
+        # get the length of the AABB diagonal
+        scale = float((self.extents**2).sum() ** 0.5)
+        if scale < tol.zero:
+            return 1.0
+
+        return scale
+
 
 class Geometry3D(Geometry):
 
@@ -235,9 +205,7 @@ class Geometry3D(Geometry):
         # translate to center of axis aligned bounds
         transform[:3, 3] = self.bounds.mean(axis=0)
 
-        aabb = primitives.Box(transform=transform,
-                              extents=self.extents,
-                              mutable=False)
+        aabb = primitives.Box(transform=transform, extents=self.extents, mutable=False)
         return aabb
 
     @caching.cache_decorator
@@ -252,11 +220,12 @@ class Geometry3D(Geometry):
           representing the minimum volume oriented
           bounding box of the mesh
         """
-        from . import primitives, bounds
+        from . import bounds, primitives
+
         to_origin, extents = bounds.oriented_bounds(self)
-        obb = primitives.Box(transform=np.linalg.inv(to_origin),
-                             extents=extents,
-                             mutable=False)
+        obb = primitives.Box(
+            transform=np.linalg.inv(to_origin), extents=extents, mutable=False
+        )
         return obb
 
     @caching.cache_decorator
@@ -275,11 +244,10 @@ class Geometry3D(Geometry):
         minball : trimesh.primitives.Sphere
           Sphere primitive containing current mesh
         """
-        from . import primitives, nsphere
+        from . import nsphere, primitives
+
         center, radius = nsphere.minimum_nsphere(self)
-        minball = primitives.Sphere(center=center,
-                                    radius=radius,
-                                    mutable=False)
+        minball = primitives.Sphere(center=center, radius=radius, mutable=False)
         return minball
 
     @caching.cache_decorator
@@ -292,7 +260,8 @@ class Geometry3D(Geometry):
         mincyl : trimesh.primitives.Cylinder
           Cylinder primitive containing current mesh
         """
-        from . import primitives, bounds
+        from . import bounds, primitives
+
         kwargs = bounds.minimum_cylinder(self)
         mincyl = primitives.Cylinder(mutable=False, **kwargs)
         return mincyl
@@ -311,19 +280,26 @@ class Geometry3D(Geometry):
           trimesh.primitives.Box
           trimesh.primitives.Cylinder
         """
-        options = [self.bounding_box_oriented,
-                   self.bounding_sphere,
-                   self.bounding_cylinder]
+        options = [
+            self.bounding_box_oriented,
+            self.bounding_sphere,
+            self.bounding_cylinder,
+        ]
         volume_min = np.argmin([i.volume for i in options])
         bounding_primitive = options[volume_min]
         return bounding_primitive
 
-    def apply_obb(self):
+    def apply_obb(self, **kwargs):
         """
         Apply the oriented bounding box transform to the current mesh.
 
         This will result in a mesh with an AABB centered at the
         origin and the same dimensions as the OBB.
+
+        Parameters
+        ------------
+        kwargs
+          Passed through to `bounds.oriented_bounds`
 
         Returns
         ----------
@@ -331,7 +307,20 @@ class Geometry3D(Geometry):
           Transformation matrix that was applied
           to mesh to move it into OBB frame
         """
-        matrix = self.bounding_box_oriented.primitive.transform
-        matrix = np.linalg.inv(matrix)
+        # save the pre-transform volume
+        if tol.strict and hasattr(self, "volume"):
+            volume = self.volume
+
+        # calculate the OBB passing keyword arguments through
+        matrix, extents = bounds.oriented_bounds(self, **kwargs)
+        # apply the transform
         self.apply_transform(matrix)
+
+        if tol.strict:
+            # obb transform should not have changed volume
+            if hasattr(self, "volume"):
+                assert np.isclose(self.volume, volume)
+            # overall extents should match what we expected
+            assert np.allclose(self.extents, extents)
+
         return matrix

@@ -3,12 +3,18 @@ try:
 except BaseException:
     import generic as g
 from trimesh.voxel import runlength as rl
+
 np = g.np
 
 
 def random_rle_encoding(n=20, max_value=255, dtype=np.uint8):
-    return (np.random.uniform(size=(n,),) *
-            (max_value - 1) + 1).astype(np.uint8)
+    return (
+        np.random.uniform(
+            size=(n,),
+        )
+        * (max_value - 1)
+        + 1
+    ).astype(np.uint8)
 
 
 def random_brle_encoding(n=20, max_value=255, dtype=np.uint8):
@@ -60,32 +66,21 @@ class RleTest(g.unittest.TestCase):
 
     def test_rle_length(self):
         np.testing.assert_equal(
-            rl.rle_length(
-                [0, 5, 1, 3, 0, 6]), rl.brle_length([5, 3, 6, 0]))
+            rl.rle_length([0, 5, 1, 3, 0, 6]), rl.brle_length([5, 3, 6, 0])
+        )
 
     def test_rle_to_brle(self):
-        np.testing.assert_equal(
-            rl.rle_to_brle([0, 5, 1, 3, 0, 10]),
-            [5, 3, 10, 0])
-        np.testing.assert_equal(
-            rl.rle_to_brle([0, 5, 0, 3, 1, 10]),
-            [8, 10])
-        np.testing.assert_equal(
-            rl.rle_to_brle([1, 5, 0, 3, 1, 10]),
-            [0, 5, 3, 10])
-        np.testing.assert_equal(
-            rl.rle_to_brle([1, 5, 0, 2]),
-            [0, 5, 2, 0])
+        np.testing.assert_equal(rl.rle_to_brle([0, 5, 1, 3, 0, 10]), [5, 3, 10, 0])
+        np.testing.assert_equal(rl.rle_to_brle([0, 5, 0, 3, 1, 10]), [8, 10])
+        np.testing.assert_equal(rl.rle_to_brle([1, 5, 0, 3, 1, 10]), [0, 5, 3, 10])
+        np.testing.assert_equal(rl.rle_to_brle([1, 5, 0, 2]), [0, 5, 2, 0])
 
     def test_rle_to_dense(self):
-        np.testing.assert_equal(
-            rl.rle_to_dense([5, 3, 4, 10]), [5] * 3 + [4] * 10)
-        np.testing.assert_equal(
-            rl.rle_to_dense([5, 300, 4, 100]), [5] * 300 + [4] * 100)
+        np.testing.assert_equal(rl.rle_to_dense([5, 3, 4, 10]), [5] * 3 + [4] * 10)
+        np.testing.assert_equal(rl.rle_to_dense([5, 300, 4, 100]), [5] * 300 + [4] * 100)
 
     def test_brle_encode_decode(self):
-        small = np.array(
-            [False] * 500 + [True] * 1000 + [False], dtype=bool)
+        small = np.array([False] * 500 + [True] * 1000 + [False], dtype=bool)
         rand = np.random.uniform(size=(10000,)) > 0.05
         for original in [small, rand]:
             for dtype in [np.uint8, np.int64]:
@@ -107,23 +102,19 @@ class RleTest(g.unittest.TestCase):
         notted = rl.brle_logical_not(original)
         dense_notted = rl.brle_to_dense(notted)
         dense_original = rl.brle_to_dense(original)
-        np.testing.assert_equal(
-            dense_notted, np.logical_not(dense_original))
+        np.testing.assert_equal(dense_notted, np.logical_not(dense_original))
 
     def test_merge_brle_lengths(self):
-        np.testing.assert_equal(
-            rl.merge_brle_lengths([10, 0, 10, 2]), [20, 2])
-        np.testing.assert_equal(
-            rl.merge_brle_lengths([10, 0, 10, 2]), [20, 2])
-        np.testing.assert_equal(
-            rl.merge_brle_lengths([10, 1, 10, 2]), [10, 1, 10, 2])
-        np.testing.assert_equal(
-            rl.merge_brle_lengths([0, 10, 2, 3]), [0, 10, 2, 3])
+        np.testing.assert_equal(rl.merge_brle_lengths([10, 0, 10, 2]), [20, 2])
+        np.testing.assert_equal(rl.merge_brle_lengths([10, 0, 10, 2]), [20, 2])
+        np.testing.assert_equal(rl.merge_brle_lengths([10, 1, 10, 2]), [10, 1, 10, 2])
+        np.testing.assert_equal(rl.merge_brle_lengths([0, 10, 2, 3]), [0, 10, 2, 3])
 
     def test_split_long_brle_lengths(self):
         np.testing.assert_equal(
             rl.split_long_brle_lengths([300, 600, 10], np.uint8),
-            [255, 0, 45, 255, 0, 255, 0, 90, 10])
+            [255, 0, 45, 255, 0, 255, 0, 90, 10],
+        )
 
     def test_brle_split_merge(self):
         # TODO: REMOVE RETURN
@@ -141,9 +132,7 @@ class RleTest(g.unittest.TestCase):
         rle_data = rl.brle_to_rle(brle_data)
         rle_dense = rl.rle_to_dense(rle_data)
         np.testing.assert_equal(brle_dense, rle_dense)
-        np.testing.assert_equal(
-            rl.brle_to_rle([0, 5, 2, 0]),
-            [1, 5, 0, 2])
+        np.testing.assert_equal(rl.brle_to_rle([0, 5, 2, 0]), [1, 5, 0, 2])
 
     def test_dense_to_brle(self):
         # should be an (300, 200, 1000) array
@@ -153,21 +142,25 @@ class RleTest(g.unittest.TestCase):
         if True:
             return
         # TODO: FIGURE OUT WHY THIS FAILS
-        np.testing.assert_equal(rl.dense_to_brle(x),
-                                [300, 200, 1000, 0])
+        np.testing.assert_equal(rl.dense_to_brle(x), [300, 200, 1000, 0])
         np.testing.assert_equal(
             rl.dense_to_brle(x, np.uint8),
-            [255, 0, 45, 200, 255, 0, 255, 0, 255, 0, 235, 0])
+            [255, 0, 45, 200, 255, 0, 255, 0, 255, 0, 235, 0],
+        )
 
     def test_brle_to_dense(self):
         np.testing.assert_equal(
             rl.brle_to_dense(np.array([300, 200, 1000, 0], dtype=np.int64)),
-            [False] * 300 + [True] * 200 + [False] * 1000)
+            [False] * 300 + [True] * 200 + [False] * 1000,
+        )
         np.testing.assert_equal(
-            rl.brle_to_dense(np.array(
-                [255, 0, 45, 200, 255, 0, 255, 0, 255, 0, 235, 0],
-                dtype=np.int64)),
-            [False] * 300 + [True] * 200 + [False] * 1000)
+            rl.brle_to_dense(
+                np.array(
+                    [255, 0, 45, 200, 255, 0, 255, 0, 255, 0, 235, 0], dtype=np.int64
+                )
+            ),
+            [False] * 300 + [True] * 200 + [False] * 1000,
+        )
 
     def test_brle_length(self):
         enc = random_brle_encoding(dtype=np.int64)
@@ -192,13 +185,13 @@ class RleTest(g.unittest.TestCase):
 
     def test_rle_strip(self):
         for rle_data, expected_rle, expected_padding in (
-                ([0, 5, 1, 3, 0, 10], [1, 3], (5, 10)),
-                ([1, 3, 0, 10], [1, 3], (0, 10)),
-                ([0, 5, 1, 3], [1, 3], (5, 0)),
-                ([0, 5, 1, 3, 0, 0], [1, 3], (5, 0)),
-                ([0, 5, 1, 3, 0, 10, 0, 5], [1, 3], (5, 15)),
-                ([0, 5, 0, 3, 1, 3, 0, 10, 0, 5], [1, 3], (8, 15)),
-                ([1, 3], [1, 3], (0, 0)),
+            ([0, 5, 1, 3, 0, 10], [1, 3], (5, 10)),
+            ([1, 3, 0, 10], [1, 3], (0, 10)),
+            ([0, 5, 1, 3], [1, 3], (5, 0)),
+            ([0, 5, 1, 3, 0, 0], [1, 3], (5, 0)),
+            ([0, 5, 1, 3, 0, 10, 0, 5], [1, 3], (5, 15)),
+            ([0, 5, 0, 3, 1, 3, 0, 10, 0, 5], [1, 3], (8, 15)),
+            ([1, 3], [1, 3], (0, 0)),
         ):
             actual_rle, actual_padding = rl.rle_strip(rle_data)
             np.testing.assert_equal(actual_rle, expected_rle)
@@ -206,19 +199,19 @@ class RleTest(g.unittest.TestCase):
 
     def test_brle_strip(self):
         for brle_data, expected_brle, expected_padding in (
-                ([5, 3, 10], [0, 3], [5, 10]),
-                ([0, 3, 10], [0, 3], [0, 10]),
-                ([5, 3], [0, 3], [5, 0]),
-                ([5, 3, 0, 0], [0, 3], (5, 0)),
-                ([5, 3, 10, 0, 5], [0, 3], (5, 15)),
-                ([5, 0, 3, 3, 10, 0, 5], [0, 3], (8, 15)),
-                ([0, 3], [0, 3], (0, 0)),
+            ([5, 3, 10], [0, 3], [5, 10]),
+            ([0, 3, 10], [0, 3], [0, 10]),
+            ([5, 3], [0, 3], [5, 0]),
+            ([5, 3, 0, 0], [0, 3], (5, 0)),
+            ([5, 3, 10, 0, 5], [0, 3], (5, 15)),
+            ([5, 0, 3, 3, 10, 0, 5], [0, 3], (8, 15)),
+            ([0, 3], [0, 3], (0, 0)),
         ):
             actual_brle, actual_padding = rl.brle_strip(brle_data)
             np.testing.assert_equal(actual_brle, expected_brle)
             np.testing.assert_equal(actual_padding, expected_padding)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

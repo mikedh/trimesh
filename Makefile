@@ -36,6 +36,7 @@ help: ## Print usage help
 build: ## Build the docker images
 	DOCKER_BUILDKIT=1 \
 	docker build \
+		--progress=plain \
 		--target output \
 		--tag $(TAG_LATEST) \
 		--tag $(TAG_VERSION) \
@@ -48,6 +49,7 @@ tests: ## Run unit tests inside docker images.
 	DOCKER_BUILDKIT=1 \
 	docker build \
 		--target tests \
+		--progress=plain \
 		--build-arg "CODECOV_TOKEN=$(CODECOV_TOKEN)" \
 		.
 
@@ -63,7 +65,7 @@ docs: ## Build trimesh's sphinx docs
 		.
 
 .PHONY: bash
-bash: build ## Start a bash terminal inside the image.
+bash: build ## Start a bash terminal in the image.
 	docker run -it $(TAG_LATEST) /bin/bash
 
 .PHONY: publish-docker

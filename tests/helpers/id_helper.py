@@ -10,25 +10,28 @@ which is supposed to be pretty invariant to translation and tessellation
 changes. We use this to generate the arbitrary sigfig thresholds.
 """
 
+import collections
+import json
+import logging
+import os
+import time
+
 import numpy as np
+
 import trimesh
 
-import time
-import json
-import os
-
-import collections
-import logging
-
+log = trimesh.util.log
 TOL_ZERO = 1e-12
 
 
-def permutations(mesh,
-                 function=lambda x: x.identifier,
-                 displacement_max=1e-8,
-                 count=1000,
-                 subdivisions=2,
-                 cutoff=3600):
+def permutations(
+    mesh,
+    function=lambda x: x.identifier,
+    displacement_max=1e-8,
+    count=1000,
+    subdivisions=2,
+    cutoff=3600,
+):
     """
     Permutate a mesh, record the maximum it deviates from the original mesh
     and the resulting value of an identifier function.
@@ -51,12 +54,12 @@ def permutations(mesh,
 
     # do subdivisions
     divided = [mesh.copy()]
-    for j in range(subdivisions - 1):
+    for _j in range(subdivisions - 1):
         divided.append(divided[-1].copy().subdivide())
 
-    for i, displacement in enumerate(np.linspace(0.0,
-                                                 displacement_max / mesh.scale,
-                                                 count)):
+    for i, _displacement in enumerate(
+        np.linspace(0.0, displacement_max / mesh.scale, count)
+    ):
         # get one of the subdivided meshes
         current = np.random.choice(divided).copy()
 
@@ -72,14 +75,13 @@ def permutations(mesh,
         identifiers.append(identifier)
 
         if (time.time() - start) > cutoff:
-            print('bailing for time:{} count:{}'.format(time.time() - start,
-                                                        i))
+            log.debug(f"bailing for time:{time.time() - start} count:{i}")
             return np.array(identifiers)
 
     return np.array(identifiers)
 
 
-def get_meshes(path='../../../models', cutoff=None):
+def get_meshes(path="../../../models", cutoff=None):
     """
     Get a list of single- body meshes to test identifiers on.
 
@@ -107,27 +109,26 @@ def get_meshes(path='../../../models', cutoff=None):
         if cutoff is not None and len(bodies) > cutoff:
             return np.array(bodies)
 
-    for i in range(100):
+    for _i in range(100):
         cylinder = trimesh.creation.cylinder(
             radius=np.random.random() * 100,
             height=np.random.random() * 1000,
-            sections=int(np.clip(np.random.random() * 720,
-                                 20,
-                                 720)))
+            sections=int(np.clip(np.random.random() * 720, 20, 720)),
+        )
 
         capsule = trimesh.creation.capsule(
             radius=np.random.random() * 100,
             height=np.random.random() * 1000,
-            count=np.clip(np.random.random(2) * 720,
-                          20,
-                          720).astype(int))
+            count=np.clip(np.random.random(2) * 720, 20, 720).astype(int),
+        )
         bodies.append(cylinder)
         bodies.append(capsule)
-    for i in range(10):
-        bodies.append(trimesh.creation.random_soup(
-            int(np.clip(np.random.random() * 1000,
-                        20,
-                        1000))))
+    for _i in range(10):
+        bodies.append(
+            trimesh.creation.random_soup(
+                int(np.clip(np.random.random() * 1000, 20, 1000))
+            )
+        )
     bodies.append(trimesh.creation.icosphere())
     bodies.append(trimesh.creation.uv_sphere())
     bodies.append(trimesh.creation.icosahedron())
@@ -146,12 +147,12 @@ def data_stats(data):
     return mean, percent
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     trimesh.util.attach_to_log(level=logging.INFO)
 
     meshes = get_meshes()
 
-    print('loaded meshes!')
+    log.debug("loaded meshes!")
 
     # we want the whole thing to last less than
     hours = 5
@@ -161,36 +162,29 @@ if __name__ == '__main__':
     running = []
 
     for i, m in enumerate(meshes):
-
         # calculate permutations
-        identifier = permutations(m,
-                                  count=1000,
-                                  cutoff=cutoff)
+        identifier = permutations(m, count=1000, cutoff=cutoff)
         # get data
         mean, percent = data_stats(identifier)
 
-        nz = np.logical_and(np.abs(mean) > TOL_ZERO,
-                            np.abs(percent) > TOL_ZERO)
+        nz = np.logical_and(np.abs(mean) > TOL_ZERO, np.abs(percent) > TOL_ZERO)
 
         r = np.ones_like(mean) * 10
         r[nz] = np.round(np.log10(np.abs(mean[nz] / percent[nz]))) - 1
 
         running.append(r)
-        result.append({'mean': mean.tolist(),
-                       'percent': percent.tolist()})
+        result.append({"mean": mean.tolist(), "percent": percent.tolist()})
 
-        print('\n\n{}/{}'.format(i, len(meshes) - 1))
-        print('mean', mean)
-        print('percent', percent)
-        print('oom', mean / percent)
-        print('curun', running[-1])
-        print('minrun', np.min(running, axis=0))
-        print('meanrun', np.mean(running, axis=0))
+        log.debug(f"\n\n{i}/{len(meshes) - 1}")
+        log.debug("mean", mean)
+        log.debug("percent", percent)
+        log.debug("oom", mean / percent)
+        log.debug("curun", running[-1])
+        log.debug("minrun", np.min(running, axis=0))
+        log.debug("meanrun", np.mean(running, axis=0))
 
         # every loop dump everything
         # thrash- ey for sure but intermediate results are great
-        name_out = 'res.json'
-        with open(name_out, 'w') as file_obj:
-            json.dump(result,
-                      file_obj,
-                      indent=4)
+        name_out = "res.json"
+        with open(name_out, "w") as file_obj:
+            json.dump(result, file_obj, indent=4)

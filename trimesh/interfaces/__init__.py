@@ -1,9 +1,4 @@
-# flake8: noqa
-
-from . import gmsh
-from . import scad
-from . import blender
-from . import vhacd
+from . import blender, gmsh
 
 # add to __all__ as per pep8
-__all__ = [scad, blender, vhacd]
+__all__ = ["blender", "gmsh"]

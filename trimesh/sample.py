@@ -7,12 +7,20 @@ Randomly sample surface and volume of meshes.
 
 import numpy as np
 
-from . import util
-from . import transformations
+from . import transformations, util
 from .visual import uv_to_interpolated_color
 
+if hasattr(np.random, "default_rng"):
+    # newer versions of Numpy
+    default_rng = np.random.default_rng
+else:
+    # Python 2 Numpy
+    class default_rng(np.random.RandomState):
+        def random(self, *args, **kwargs):
+            return self.random_sample(*args, **kwargs)
 
-def sample_surface(mesh, count, face_weight=None, sample_color=False):
+
+def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None):
     """
     Sample the surface of a mesh, returning the specified
     number of points
@@ -32,6 +40,10 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
     sample_color : bool
       Option to calculate the color of the sampled points.
       Default is False.
+    seed : None or int
+      If passed as an integer will provide deterministic results
+      otherwise pulls the seed from operating system entropy.
+
     Returns
     ---------
     samples : (count, 3) float
@@ -51,8 +63,11 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
     # cumulative sum of weights (len(mesh.faces))
     weight_cum = np.cumsum(face_weight)
 
+    # seed the random number generator as requested
+    random = default_rng(seed).random
+
     # last value of cumulative sum is total summed weight/area
-    face_pick = np.random.random(count) * weight_cum[-1]
+    face_pick = random(count) * weight_cum[-1]
     # get the index of the selected faces
     face_index = np.searchsorted(weight_cum, face_pick)
 
@@ -65,7 +80,7 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
     tri_origins = tri_origins[face_index]
     tri_vectors = tri_vectors[face_index]
 
-    if sample_color:
+    if sample_color and hasattr(mesh.visual, "uv"):
         uv_origins = mesh.visual.uv[mesh.faces[:, 0]]
         uv_vectors = mesh.visual.uv[mesh.faces[:, 1:]].copy()
         uv_origins_tile = np.tile(uv_origins, (1, 2)).reshape((-1, 2, 2))
@@ -73,8 +88,8 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
         uv_origins = uv_origins[face_index]
         uv_vectors = uv_vectors[face_index]
 
-    # randomly generate two 0-1 scalar components to multiply edge vectors by
-    random_lengths = np.random.random((len(tri_vectors), 2, 1))
+    # randomly generate two 0-1 scalar components to multiply edge vectors b
+    random_lengths = random((len(tri_vectors), 2, 1))
 
     # points will be distributed on a quadrilateral if we use 2 0-1 samples
     # if the two scalar components sum less than 1.0 the point will be
@@ -92,10 +107,13 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False):
     samples = sample_vector + tri_origins
 
     if sample_color:
-        sample_uv_vector = (uv_vectors * random_lengths).sum(axis=1)
-        uv_samples = sample_uv_vector + uv_origins
-        texture = mesh.visual.material.image
-        colors = uv_to_interpolated_color(uv_samples, texture)
+        if hasattr(mesh.visual, "uv"):
+            sample_uv_vector = (uv_vectors * random_lengths).sum(axis=1)
+            uv_samples = sample_uv_vector + uv_origins
+            texture = mesh.visual.material.image
+            colors = uv_to_interpolated_color(uv_samples, texture)
+        else:
+            colors = mesh.visual.face_colors[face_index]
 
         return samples, face_index, colors
 
@@ -126,9 +144,7 @@ def volume_mesh(mesh, count):
     return samples
 
 
-def volume_rectangular(extents,
-                       count,
-                       transform=None):
+def volume_rectangular(extents, count, transform=None):
     """
     Return random samples inside a rectangular volume,
     useful for sampling inside oriented bounding boxes.
@@ -147,15 +163,14 @@ def volume_rectangular(extents,
     samples : (count, 3) float
       Points in requested volume
     """
-    samples = np.random.random((count, 3)) - .5
+    samples = np.random.random((count, 3)) - 0.5
     samples *= extents
     if transform is not None:
-        samples = transformations.transform_points(samples,
-                                                   transform)
+        samples = transformations.transform_points(samples, transform)
     return samples
 
 
-def sample_surface_even(mesh, count, radius=None):
+def sample_surface_even(mesh, count, radius=None, seed=None):
     """
     Sample the surface of a mesh, returning samples which are
     VERY approximately evenly spaced. This is accomplished by
@@ -173,6 +188,8 @@ def sample_surface_even(mesh, count, radius=None):
       Number of points to return
     radius : None or float
       Removes samples below this radius
+    seed : None or int
+      Provides deterministic values
 
     Returns
     ---------
@@ -188,7 +205,7 @@ def sample_surface_even(mesh, count, radius=None):
         radius = np.sqrt(mesh.area / (3 * count))
 
     # get points on the surface
-    points, index = sample_surface(mesh, count * 3)
+    points, index = sample_surface(mesh, count * 3, seed=seed)
 
     # remove the points closer than radius
     points, mask = remove_close(points, radius)
@@ -198,8 +215,7 @@ def sample_surface_even(mesh, count, radius=None):
         return points[:count], index[mask][:count]
 
     # warn if we didn't get all the samples we expect
-    util.log.warning('only got {}/{} samples!'.format(
-        len(points), count))
+    util.log.warning(f"only got {len(points)}/{count} samples!")
 
     return points, index[mask]
 
@@ -227,6 +243,5 @@ def sample_surface_sphere(count):
     theta = np.pi * 2 * u
     phi = np.arccos((2 * v) - 1)
     # convert spherical coordinates to cartesian
-    points = util.spherical_to_vector(
-        np.column_stack((theta, phi)))
+    points = util.spherical_to_vector(np.column_stack((theta, phi)))
     return points

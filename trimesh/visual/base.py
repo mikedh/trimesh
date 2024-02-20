@@ -5,6 +5,7 @@ base.py
 The base class for `Visual` objects
 """
 import abc
+
 from ..util import ABC
 
 
@@ -12,16 +13,17 @@ class Visuals(ABC):
     """
     Parent of Visual classes.
     """
+
     @abc.abstractproperty
     def kind(self):
         pass
 
     @abc.abstractmethod
-    def update_vertices(self):
+    def update_vertices(self, mask):
         pass
 
     @abc.abstractmethod
-    def update_faces(self):
+    def update_faces(self, mask):
         pass
 
     @abc.abstractmethod

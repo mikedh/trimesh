@@ -27,7 +27,7 @@
               <ModelVisual3D.Content>
                 <GeometryModel3D>
 
-                  <!-- The geometry specifes the shape of the 3D plane. In this sample, a flat sheet is created. -->
+                  <!-- The geometry specifies the shape of the 3D plane. In this sample, a flat sheet is created. -->
                   <GeometryModel3D.Geometry>
                     <MeshGeometry3D
                      TriangleIndices="0,1,2 3,4,5 "

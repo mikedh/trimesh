@@ -7,16 +7,14 @@ Deal with (n, 2, 3) line segments.
 
 import numpy as np
 
-from .. import util
-from .. import grouping
-from .. import geometry
-from .. import interval
-from .. import transformations
-
+from .. import geometry, transformations, util
 from ..constants import tol
+from ..grouping import group_rows, unique_rows
+from ..interval import union
+from ..typed import NDArray, float64
 
 
-def segments_to_parameters(segments):
+def segments_to_parameters(segments: NDArray[float64]):
     """
     For 3D line segments defined by two points, turn
     them in to an origin defined as the closest point along
@@ -39,8 +37,7 @@ def segments_to_parameters(segments):
     """
     segments = np.asanyarray(segments, dtype=np.float64)
     if not util.is_shape(segments, (-1, 2, (2, 3))):
-        raise ValueError('incorrect segment shape!',
-                         segments.shape)
+        raise ValueError("incorrect segment shape!", segments.shape)
 
     # make the initial origin one of the end points
     endpoint = segments[:, 0]
@@ -56,14 +53,15 @@ def segments_to_parameters(segments):
     # parametric start and end of line segment
     parameters = np.column_stack((offset, offset + vectors_norm))
     # make sure signs are consistent
-    vectors, signs = util.vector_hemisphere(
-        vectors, return_sign=True)
+    vectors, signs = util.vector_hemisphere(vectors, return_sign=True)
     parameters *= signs.reshape((-1, 1))
 
     return origins, vectors, parameters
 
 
-def parameters_to_segments(origins, vectors, parameters):
+def parameters_to_segments(
+    origins: NDArray[float64], vectors: NDArray[float64], parameters: NDArray[float64]
+):
     """
     Convert a parametric line segment representation to
     a two point line segment representation
@@ -88,16 +86,14 @@ def parameters_to_segments(origins, vectors, parameters):
     parameters = np.asanyarray(parameters, dtype=np.float64)
 
     # turn the segments into a reshapable 2D array
-    segments = np.hstack((origins + vectors * parameters[:, :1],
-                          origins + vectors * parameters[:, 1:]))
+    segments = np.hstack(
+        (origins + vectors * parameters[:, :1], origins + vectors * parameters[:, 1:])
+    )
 
     return segments.reshape((-1, 2, origins.shape[1]))
 
 
-def colinear_pairs(segments,
-                   radius=.01,
-                   angle=.01,
-                   length=None):
+def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
     """
     Find pairs of segments which are colinear.
 
@@ -131,15 +127,15 @@ def colinear_pairs(segments,
     tree = spatial.cKDTree(origins)
 
     # find origins closer than specified radius
-    pairs = tree.query_pairs(r=radius, output_type='ndarray')
+    pairs = tree.query_pairs(r=radius, output_type="ndarray")
 
     # calculate angles between pairs
     angles = geometry.vector_angle(vectors[pairs])
 
     # angles can be within tolerance of 180 degrees or 0.0 degrees
     angle_ok = np.logical_or(
-        util.isclose(angles, np.pi, atol=angle),
-        util.isclose(angles, 0.0, atol=angle))
+        util.isclose(angles, np.pi, atol=angle), util.isclose(angles, 0.0, atol=angle)
+    )
 
     # apply angle threshold
     colinear = pairs[angle_ok]
@@ -147,13 +143,50 @@ def colinear_pairs(segments,
     # if length is specified check endpoint proximity
     if length is not None:
         a, b = param[colinear.T]
-        distance = np.abs(np.column_stack(
-            [a[:, :1] - b, a[:, 1:] - b])).min(axis=1)
+        distance = np.abs(np.column_stack([a[:, :1] - b, a[:, 1:] - b])).min(axis=1)
         identical = distance < length
         # remove non- identical pairs
         colinear = colinear[identical]
 
     return colinear
+
+
+def clean(segments: NDArray[float64], digits: int = 10) -> NDArray[float64]:
+    """
+    Clean up line segments by unioning the ranges of colinear segments.
+
+    Parameters
+    ------------
+    segments : (n, 2, 2) or (n, 2, 3)
+      Line segments in space.
+    digits
+      How many digits to consider.
+
+    Returns
+    -----------
+    cleaned : (m, 2, 2) or (m, 2, 3)
+      Where `m <= n`
+    """
+    # convert segments to parameterized origins
+    # which are the closest point on the line to
+    # the actual zero- origin
+    origins, vectors, param = segments_to_parameters(segments)
+
+    # make sure parameters are in min-max order
+    param.sort(axis=1)
+
+    # find the groups of values with identical origins and vectors
+    groups = group_rows(np.column_stack((origins, vectors)), digits=digits)
+
+    # get the union of every interval range for colinear segments
+    unions = [union(param[g][param[g][:, 0].argsort()], sort=False) for g in groups]
+    # reconstruct indexes for the origins and vectors
+    indexes = np.concatenate([g[: len(u)] for g, u in zip(groups, unions)])
+
+    # convert parametric form back into vertex-segment form
+    return parameters_to_segments(
+        origins=origins[indexes], vectors=vectors[indexes], parameters=np.vstack(unions)
+    )
 
 
 def split(segments, points, atol=1e-5):
@@ -186,8 +219,7 @@ def split(segments, points, atol=1e-5):
     seg_flat = segments.reshape((-1, segments.shape[2]))
 
     # find the length of every segment
-    length = ((segments[:, 0, :] -
-               segments[:, 1, :]) ** 2).sum(axis=1) ** 0.5
+    length = ((segments[:, 0, :] - segments[:, 1, :]) ** 2).sum(axis=1) ** 0.5
 
     # a mask to remove segments we split at the end
     keep = np.ones(len(segments), dtype=bool)
@@ -200,13 +232,13 @@ def split(segments, points, atol=1e-5):
         # by using scipy.spatial.distance.cdist here
 
         # find the distance from point to every segment endpoint
-        pair = ((seg_flat - p) ** 2).sum(
-            axis=1).reshape((-1, 2)) ** 0.5
+        pair = ((seg_flat - p) ** 2).sum(axis=1).reshape((-1, 2)) ** 0.5
         # point is on a segment if it is not on a vertex
         # and the sum length is equal to the actual segment length
         on_seg = np.logical_and(
             util.isclose(length, pair.sum(axis=1), atol=atol),
-            ~util.isclose(pair, 0.0, atol=atol).any(axis=1))
+            ~util.isclose(pair, 0.0, atol=atol).any(axis=1),
+        )
 
         # if we have any points on the segment split it in twain
         if on_seg.any():
@@ -242,87 +274,21 @@ def unique(segments, digits=5):
     segments = np.asanyarray(segments, dtype=np.float64)
 
     # find segments as unique indexes so we can find duplicates
-    inverse = grouping.unique_rows(
-        segments.reshape((-1, segments.shape[2])),
-        digits=digits)[1].reshape((-1, 2))
+    inverse = unique_rows(segments.reshape((-1, segments.shape[2])), digits=digits)[
+        1
+    ].reshape((-1, 2))
     # make sure rows are sorted
     inverse.sort(axis=1)
     # remove segments where both indexes are the same
     mask = np.zeros(len(segments), dtype=bool)
     # only include the first occurrence of a segment
-    mask[grouping.unique_rows(inverse)[0]] = True
+    mask[unique_rows(inverse)[0]] = True
     # remove segments that are zero-length
     mask[inverse[:, 0] == inverse[:, 1]] = False
     # apply the unique mask
     unique = segments[mask]
 
     return unique
-
-
-def overlap(origins, vectors, params):
-    """
-    Find the overlap of two parallel line segments.
-
-    Parameters
-    ------------
-    origins : (2, 3) float
-       Origin points of lines in space
-    vectors : (2, 3) float
-       Unit direction vectors of lines
-    params : (2, 2) float
-       Two (start, end) distance pairs
-
-    Returns
-    ------------
-    length : float
-       Overlapping length
-    overlap : (n, 2, 3) float
-       Line segments for overlapping distance
-    """
-    # copy inputs and make sure shape is correct
-    origins = np.array(origins).reshape((2, 3))
-    vectors = np.array(vectors).reshape((2, 3))
-    params = np.array(params).reshape((2, 2))
-
-    if tol.strict:
-        # convert input to parameters before flipping
-        # to make sure we didn't screw it up
-        truth = parameters_to_segments(origins,
-                                       vectors,
-                                       params)
-
-    # this function only works on parallel lines
-    dot = np.dot(*vectors)
-    assert np.isclose(np.abs(dot), 1.0, atol=.01)
-
-    # if two vectors are reversed
-    if dot < 0.0:
-        # reverse direction vector
-        vectors[1] *= -1.0
-        # negate parameters
-        params[1] *= -1.0
-
-    if tol.strict:
-        # do a check to make sure our reversal didn't
-        # inadvertently give us incorrect segments
-        assert np.allclose(truth,
-                           parameters_to_segments(origins,
-                                                  vectors,
-                                                  params))
-
-    # merge the parameter ranges
-    ok, new_range = interval.intersection(*params)
-
-    if not ok:
-        return 0.0, np.array([])
-
-    # create the overlapping segment pairs (2, 2, 3)
-    segments = np.array([o + v * new_range.reshape((-1, 1))
-                         for o, v in zip(origins, vectors)])
-    # get the length of the new range
-    length = new_range.ptp()
-
-    return length, segments
 
 
 def extrude(segments, height, double_sided=False):
@@ -347,23 +313,24 @@ def extrude(segments, height, double_sided=False):
     """
     segments = np.asanyarray(segments, dtype=np.float64)
     if not util.is_shape(segments, (-1, 2, 2)):
-        raise ValueError('segments shape incorrect')
+        raise ValueError("segments shape incorrect")
 
     # we are creating two vertices  triangles for every 2D line segment
     # on the segments of the 2D triangulation
-    vertices = np.tile(segments.reshape((-1, 2)), 2).reshape((-1, 2))
-    vertices = np.column_stack((vertices,
-                                np.tile([0, height, 0, height],
-                                        len(segments))))
-    faces = np.tile([3, 1, 2, 2, 1, 0],
-                    (len(segments), 1))
-    faces += np.arange(len(segments)).reshape((-1, 1)) * 4
-    faces = faces.reshape((-1, 3))
+    vertices = np.column_stack(
+        (
+            np.tile(segments.reshape((-1, 2)), 2).reshape((-1, 2)),
+            np.tile([0, height, 0, height], len(segments)),
+        )
+    )
+    faces = (
+        np.tile([3, 1, 2, 2, 1, 0], (len(segments), 1))
+        + np.arange(len(segments)).reshape((-1, 1)) * 4
+    ).reshape((-1, 3))
 
     if double_sided:
         # stack so they will render from the back
-        faces = np.vstack((
-            faces, np.fliplr(faces)))
+        faces = np.vstack((faces, np.fliplr(faces)))
 
     return vertices, faces
 
@@ -395,17 +362,14 @@ def length(segments, summed=True):
     return norms
 
 
-def resample(segments,
-             maxlen,
-             return_index=False,
-             return_count=False):
+def resample(segments, maxlen, return_index=False, return_count=False):
     """
     Resample line segments until no segment
     is longer than maxlen.
 
     Parameters
     -------------
-    segments : (n, 2, 2) float
+    segments : (n, 2, 2|3) float
       2D line segments
     maxlen : float
       The maximum length of a line segment
@@ -416,7 +380,7 @@ def resample(segments,
 
     Returns
     -------------
-    resampled : (m, 2, 3) float
+    resampled : (m, 2, 2|3) float
       Line segments where no segment is longer than maxlen
     index : (m,) int
       [OPTIONAL] The index of segments resampled came from
@@ -426,6 +390,10 @@ def resample(segments,
     # check arguments
     maxlen = float(maxlen)
     segments = np.array(segments, dtype=np.float64)
+    if len(segments.shape) != 3:
+        raise ValueError(f"{segments.shape} != (n, 2, 2|3)")
+
+    dimension = segments.shape[2]
 
     # shortcut for endpoints
     pt1 = segments[:, 0]
@@ -451,13 +419,13 @@ def resample(segments,
         # the vector for each incremental length
         increment = vec[mask] / split
         # stack the increment vector into the shape needed
-        v = (tile(increment, split + 1).reshape((-1, 3)) *
-             tile(np.arange(split + 1),
-                  len(increment)).reshape((-1, 1)))
+        v = tile(increment, split + 1).reshape((-1, dimension)) * tile(
+            np.arange(split + 1), len(increment)
+        ).reshape((-1, 1))
         # stack the origin points correctly
-        o = tile(pt1[mask], split + 1).reshape((-1, 3))
+        o = tile(pt1[mask], split + 1).reshape((-1, dimension))
         # now get each segment as an (split, 3) polyline
-        poly = (o + v).reshape((-1, split + 1, 3))
+        poly = (o + v).reshape((-1, split + 1, dimension))
         # save the resulting segments
         # magical slicing is equivalent to:
         # > [p[stack] for p in poly]
@@ -467,9 +435,9 @@ def resample(segments,
             # get the original index from the mask
             index_original = np.nonzero(mask)[0].reshape((-1, 1))
             # save one entry per split segment
-            index.append((np.ones((len(poly), split),
-                                  dtype=np.int64) *
-                          index_original).ravel())
+            index.append(
+                (np.ones((len(poly), split), dtype=np.int64) * index_original).ravel()
+            )
         if tol.strict:
             # check to make sure every start and end point
             # from the reconstructed result corresponds
@@ -477,18 +445,14 @@ def resample(segments,
                 assert np.allclose(original[0], recon[0])
                 assert np.allclose(original[-1], recon[-1])
             # make sure stack slicing was OK
-            assert np.allclose(
-                util.stack_lines(np.arange(split + 1)),
-                stacks[:split])
+            assert np.allclose(util.stack_lines(np.arange(split + 1)), stacks[:split])
 
     # stack into (n, 2, 3) segments
     result = [np.concatenate(result)]
 
     if tol.strict:
         # make sure resampled segments have the same length as input
-        assert np.isclose(length(segments),
-                          length(result[0]),
-                          atol=1e-3)
+        assert np.isclose(length(segments), length(result[0]), atol=1e-3)
 
     # stack additional return options
     if return_index:
@@ -530,22 +494,21 @@ def to_svg(segments, digits=4, matrix=None, merge=True):
     """
     segments = np.array(segments, copy=True)
     if not util.is_shape(segments, (-1, 2, 2)):
-        raise ValueError('only for (n, 2, 2) segments!')
+        raise ValueError("only for (n, 2, 2) segments!")
 
     # create the array to export
     # apply 2D transformation if passed
     if matrix is not None:
         segments = transformations.transform_points(
-            segments.reshape((-1, 2)),
-            matrix=matrix).reshape((-1, 2, 2))
+            segments.reshape((-1, 2)), matrix=matrix
+        ).reshape((-1, 2, 2))
 
     if merge:
         # remove duplicate and zero-length segments
         segments = unique(segments, digits=digits)
 
     # create the format string for a single line segment
-    base = 'M_ _L_ _'.replace(
-        '_', '{:0.' + str(int(digits)) + 'f}')
+    base = "M_ _L_ _".replace("_", "{:0." + str(int(digits)) + "f}")
     # create one large format string then apply points
     result = (base * len(segments)).format(*segments.ravel())
     return result

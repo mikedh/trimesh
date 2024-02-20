@@ -5,9 +5,8 @@ except BaseException:
 
 
 class EdgeTest(g.unittest.TestCase):
-
     def test_face_unique(self):
-        m = g.get_mesh('featuretype.STL')
+        m = g.get_mesh("featuretype.STL")
 
         # our basic edges should have the same
         # unique values as our faces
@@ -25,10 +24,9 @@ class EdgeTest(g.unittest.TestCase):
         assert (e[:, 0] == e[:, 1]).all()
 
         # should be the same values as the original faces
-        assert (e[:, 0].reshape((-1, 3)) ==
-                g.np.sort(m.faces, axis=1)).all()
+        assert (e[:, 0].reshape((-1, 3)) == g.np.sort(m.faces, axis=1)).all()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

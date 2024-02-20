@@ -10,52 +10,31 @@ or imported inside of a function
 """
 
 import abc
-import sys
+import base64
+import collections
 import copy
 import json
-import uuid
-import base64
+import logging
 import random
 import shutil
-import logging
+import sys
+import time
+import uuid
+import warnings
 import zipfile
-import tempfile
-import collections
+
+# for type checking
+from collections.abc import Mapping
+from io import BytesIO, StringIO
 
 import numpy as np
 
-if sys.version_info >= (3, 4):
-    # for newer version of python
-    ABC = abc.ABC
-else:
-    # an abstract base class that works on older versions
-    ABC = abc.ABCMeta('ABC', (), {})
-
-# a flag we can check elsewhere for Python 3
-PY3 = sys.version_info.major >= 3
-if PY3:
-    # for type checking
-    basestring = str
-    # Python 3
-    from io import BytesIO, StringIO
-    from shutil import which  # noqa
-else:
-    # Python 2
-    from StringIO import StringIO
-    from distutils.spawn import find_executable as which  # noqa
-    # monkey patch StringIO so `with` statements work
-    StringIO.__enter__ = lambda a: a
-    StringIO.__exit__ = lambda a, b, c, d: a.close()
-    BytesIO = StringIO
-
-
-try:
-    from collections.abc import Mapping
-except ImportError:
-    from collections import Mapping
-
 # create a default logger
-log = logging.getLogger('trimesh')
+log = logging.getLogger("trimesh")
+
+ABC = abc.ABC
+now = time.time
+which = shutil.which
 
 # include constants here so we don't have to import
 # a floating point threshold for 0.0
@@ -67,8 +46,11 @@ TOL_MERGE = 1e-8
 # enable additional potentially slow checks
 _STRICT = False
 
+_IDENTITY = np.eye(4, dtype=np.float64)
+_IDENTITY.flags["WRITEABLE"] = False
 
-def has_module(name):
+
+def has_module(name: str) -> bool:
     """
     Check to see if a module is installed by name without
     actually importing the module.
@@ -83,14 +65,17 @@ def has_module(name):
     installed : bool
       True if module is installed
     """
-    # this should work on Python 2.7 and 3.4+
-    import pkgutil
-    return pkgutil.find_loader(name) is not None
+    if sys.version_info >= (3, 10):
+        # pkgutil was deprecated
+        from importlib.util import find_spec
+    else:
+        # this should work on Python 2.7 and 3.4+
+        from pkgutil import find_loader as find_spec
+
+    return find_spec(name) is not None
 
 
-def unitize(vectors,
-            check_valid=False,
-            threshold=None):
+def unitize(vectors, check_valid=False, threshold=None):
     """
     Unitize a vector or an array or row-vectors.
 
@@ -121,8 +106,7 @@ def unitize(vectors,
         # for (m, d) arrays take the per-row unit vector
         # using sqrt and avoiding exponents is slightly faster
         # also dot with ones is faser than .sum(axis=1)
-        norm = np.sqrt(np.dot(vectors * vectors,
-                              [1.0] * vectors.shape[1]))
+        norm = np.sqrt(np.dot(vectors * vectors, [1.0] * vectors.shape[1]))
         # non-zero norms
         valid = norm > threshold
         # in-place reciprocal of nonzero norms
@@ -139,29 +123,25 @@ def unitize(vectors,
         else:
             unit = vectors.copy()
     else:
-        raise ValueError('vectors must be (n, ) or (n, d)!')
+        raise ValueError("vectors must be (n, ) or (n, d)!")
 
     if check_valid:
         return unit[valid], valid
     return unit
 
 
-def euclidean(a, b):
+def euclidean(a, b) -> float:
     """
-    Euclidean distance between vectors a and b.
-
-    Parameters
-    ------------
-    a : (n,) float
-       First vector
-    b : (n,) float
-       Second vector
-
-    Returns
-    ------------
-    distance : float
-        Euclidean distance between A and B
+    DEPRECATED: use `np.linalg.norm(a - b)` instead of this.
     """
+    warnings.warn(
+        "`trimesh.util.euclidean` is deprecated "
+        + "and will be removed in January 2025. "
+        + "replace with `np.linalg.norm(a - b)`",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+
     a = np.asanyarray(a, dtype=np.float64)
     b = np.asanyarray(b, dtype=np.float64)
     return np.sqrt(((a - b) ** 2).sum())
@@ -181,7 +161,7 @@ def is_file(obj):
     is_file : bool
         True if object is a file
     """
-    return hasattr(obj, 'read') or hasattr(obj, 'write')
+    return hasattr(obj, "read") or hasattr(obj, "write")
 
 
 def is_pathlib(obj):
@@ -200,10 +180,10 @@ def is_pathlib(obj):
     """
     # check class name rather than a pathlib import
     name = obj.__class__.__name__
-    return hasattr(obj, 'absolute') and name.endswith('Path')
+    return hasattr(obj, "absolute") and name.endswith("Path")
 
 
-def is_string(obj):
+def is_string(obj) -> bool:
     """
     Check if an object is a string.
 
@@ -217,10 +197,10 @@ def is_string(obj):
     is_string : bool
         True if obj is a string
     """
-    return isinstance(obj, basestring)
+    return isinstance(obj, str)
 
 
-def is_none(obj):
+def is_none(obj) -> bool:
     """
     Check to see if an object is None or not.
 
@@ -238,14 +218,12 @@ def is_none(obj):
     """
     if obj is None:
         return True
-    if (is_sequence(obj) and
-        len(obj) == 1 and
-            obj[0] is None):
+    if is_sequence(obj) and len(obj) == 1 and obj[0] is None:
         return True
     return False
 
 
-def is_sequence(obj):
+def is_sequence(obj) -> bool:
     """
     Check if an object is a sequence or not.
 
@@ -259,21 +237,21 @@ def is_sequence(obj):
     is_sequence : bool
         True if object is sequence
     """
-    seq = (not hasattr(obj, "strip") and
-           hasattr(obj, "__getitem__") or
-           hasattr(obj, "__iter__"))
+    seq = (
+        not hasattr(obj, "strip")
+        and hasattr(obj, "__getitem__")
+        or hasattr(obj, "__iter__")
+    )
 
     # check to make sure it is not a set, string, or dictionary
-    seq = seq and all(not isinstance(obj, i) for i in (dict,
-                                                       set,
-                                                       basestring))
+    seq = seq and all(not isinstance(obj, i) for i in (dict, set, str))
 
     # PointCloud objects can look like an array but are not
-    seq = seq and type(obj).__name__ not in ['PointCloud']
+    seq = seq and type(obj).__name__ not in ["PointCloud"]
 
     # numpy sometimes returns objects that are single float64 values
     # but sure look like sequences, so we check the shape
-    if hasattr(obj, 'shape'):
+    if hasattr(obj, "shape"):
         seq = seq and obj.shape != ()
 
     return seq
@@ -328,8 +306,7 @@ def is_shape(obj, shape, allow_zeros=False):
     # if the obj.shape is different length than
     # the goal shape it means they have different number
     # of dimensions and thus the obj is not the query shape
-    if (not hasattr(obj, 'shape') or
-            len(obj.shape) != len(shape)):
+    if not hasattr(obj, "shape") or len(obj.shape) != len(shape):
         return False
 
     # empty lists with any flexible dimensions match
@@ -426,8 +403,7 @@ def vector_hemisphere(vectors, return_sign=False):
         # check the Y value and reverse vector
         # direction if negative.
         negative = vectors < -TOL_ZERO
-        zero = np.logical_not(
-            np.logical_or(negative, vectors > TOL_ZERO))
+        zero = np.logical_not(np.logical_or(negative, vectors > TOL_ZERO))
 
         signs = np.ones(len(vectors), dtype=np.float64)
         # negative Y values are reversed
@@ -439,8 +415,7 @@ def vector_hemisphere(vectors, return_sign=False):
     elif is_shape(vectors, (-1, 3)):
         # 3D vector case
         negative = vectors < -TOL_ZERO
-        zero = np.logical_not(
-            np.logical_or(negative, vectors > TOL_ZERO))
+        zero = np.logical_not(np.logical_or(negative, vectors > TOL_ZERO))
         # move all                          negative Z to positive
         # then for zero Z vectors, move all negative Y to positive
         # then for zero Y vectors, move all negative X to positive
@@ -451,12 +426,12 @@ def vector_hemisphere(vectors, return_sign=False):
         signs[np.logical_and(zero[:, 2], negative[:, 1])] = -1.0
         # all on-plane vectors with zero Y values
         # and negative X values
-        signs[np.logical_and(np.logical_and(zero[:, 2],
-                                            zero[:, 1]),
-                             negative[:, 0])] = -1.0
+        signs[
+            np.logical_and(np.logical_and(zero[:, 2], zero[:, 1]), negative[:, 0])
+        ] = -1.0
 
     else:
-        raise ValueError('vectors must be (n, 3)!')
+        raise ValueError("vectors must be (n, 3)!")
 
     # apply the signs to the vectors
     oriented = vectors * signs.reshape((-1, 1))
@@ -484,15 +459,14 @@ def vector_to_spherical(cartesian):
     """
     cartesian = np.asanyarray(cartesian, dtype=np.float64)
     if not is_shape(cartesian, (-1, 3)):
-        raise ValueError('Cartesian points must be (n, 3)!')
+        raise ValueError("Cartesian points must be (n, 3)!")
 
     unit, valid = unitize(cartesian, check_valid=True)
     unit[np.abs(unit) < TOL_MERGE] = 0.0
 
     x, y, z = unit.T
     spherical = np.zeros((len(cartesian), 2), dtype=np.float64)
-    spherical[valid] = np.column_stack((np.arctan2(y, x),
-                                        np.arccos(z)))
+    spherical[valid] = np.column_stack((np.arctan2(y, x), np.arccos(z)))
     return spherical
 
 
@@ -512,14 +486,12 @@ def spherical_to_vector(spherical):
     """
     spherical = np.asanyarray(spherical, dtype=np.float64)
     if not is_shape(spherical, (-1, 2)):
-        raise ValueError('spherical coordinates must be (n, 2)!')
+        raise ValueError("spherical coordinates must be (n, 2)!")
 
     theta, phi = spherical.T
     st, ct = np.sin(theta), np.cos(theta)
     sp, cp = np.sin(phi), np.cos(phi)
-    vectors = np.column_stack((ct * sp,
-                               st * sp,
-                               cp))
+    vectors = np.column_stack((ct * sp, st * sp, cp))
     return vectors
 
 
@@ -556,6 +528,7 @@ def pairwise(iterable):
 
     # if we have a normal iterable use itertools
     import itertools
+
     a, b = itertools.tee(iterable)
     # pop the first element of the second item
     next(b)
@@ -568,7 +541,7 @@ try:
     # only included in recent-ish version of numpy
     multi_dot = np.linalg.multi_dot
 except AttributeError:
-    log.debug('np.linalg.multi_dot not available, using fallback')
+    log.debug("np.linalg.multi_dot not available, using fallback")
 
     def multi_dot(arrays):
         """
@@ -660,7 +633,7 @@ def row_norm(data):
     norm : (n,) float
       Norm of each row of input array
     """
-    return np.sqrt(np.dot(data ** 2, [1] * data.shape[1]))
+    return np.sqrt(np.dot(data**2, [1] * data.shape[1]))
 
 
 def stack_3D(points, return_2D=False):
@@ -688,15 +661,14 @@ def stack_3D(points, return_2D=False):
     if shape == (0,):
         is_2D = False
     elif len(shape) != 2:
-        raise ValueError('Points must be 2D array!')
+        raise ValueError("Points must be 2D array!")
     elif shape[1] == 2:
-        points = np.column_stack((
-            points, np.zeros(len(points))))
+        points = np.column_stack((points, np.zeros(len(points))))
         is_2D = True
     elif shape[1] == 3:
         is_2D = False
     else:
-        raise ValueError('Points must be (n, 2) or (n, 3)!')
+        raise ValueError("Points must be (n, 2) or (n, 3)!")
 
     if return_2D:
         return points, is_2D
@@ -719,7 +691,7 @@ def grid_arange(bounds, step):
     """
     bounds = np.asanyarray(bounds, dtype=np.float64)
     if len(bounds) != 2:
-        raise ValueError('bounds must be (2, dimension!')
+        raise ValueError("bounds must be (2, dimension!")
 
     # allow single float or per-dimension spacing
     step = np.asanyarray(step, dtype=np.float64)
@@ -727,8 +699,11 @@ def grid_arange(bounds, step):
         step = np.tile(step, bounds.shape[1])
 
     grid_elements = [np.arange(*b, step=s) for b, s in zip(bounds.T, step)]
-    grid = np.vstack(np.meshgrid(*grid_elements, indexing='ij')
-                     ).reshape(bounds.shape[1], -1).T
+    grid = (
+        np.vstack(np.meshgrid(*grid_elements, indexing="ij"))
+        .reshape(bounds.shape[1], -1)
+        .T
+    )
     return grid
 
 
@@ -747,15 +722,18 @@ def grid_linspace(bounds, count):
     """
     bounds = np.asanyarray(bounds, dtype=np.float64)
     if len(bounds) != 2:
-        raise ValueError('bounds must be (2, dimension!')
+        raise ValueError("bounds must be (2, dimension!")
 
     count = np.asanyarray(count, dtype=np.int64)
     if count.shape == ():
         count = np.tile(count, bounds.shape[1])
 
     grid_elements = [np.linspace(*b, num=c) for b, c in zip(bounds.T, count)]
-    grid = np.vstack(np.meshgrid(*grid_elements, indexing='ij')
-                     ).reshape(bounds.shape[1], -1).T
+    grid = (
+        np.vstack(np.meshgrid(*grid_elements, indexing="ij"))
+        .reshape(bounds.shape[1], -1)
+        .T
+    )
     return grid
 
 
@@ -859,12 +837,14 @@ def decimal_to_digits(decimal, min_digits=None):
     return digits
 
 
-def attach_to_log(level=logging.DEBUG,
-                  handler=None,
-                  loggers=None,
-                  colors=True,
-                  capture_warnings=True,
-                  blacklist=None):
+def attach_to_log(
+    level=logging.DEBUG,
+    handler=None,
+    loggers=None,
+    colors=True,
+    capture_warnings=True,
+    blacklist=None,
+):
     """
     Attach a stream handler to all loggers.
 
@@ -884,12 +864,14 @@ def attach_to_log(level=logging.DEBUG,
 
     # default blacklist includes ipython debugging stuff
     if blacklist is None:
-        blacklist = ['TerminalIPythonApp',
-                     'PYREADLINE',
-                     'pyembree',
-                     'shapely',
-                     'matplotlib',
-                     'parso']
+        blacklist = [
+            "TerminalIPythonApp",
+            "PYREADLINE",
+            "pyembree",
+            "shapely",
+            "matplotlib",
+            "parso",
+        ]
 
     # make sure we log warnings from the warnings module
     logging.captureWarnings(capture_warnings)
@@ -897,20 +879,27 @@ def attach_to_log(level=logging.DEBUG,
     # create a basic formatter
     formatter = logging.Formatter(
         "[%(asctime)s] %(levelname)-7s (%(filename)s:%(lineno)3s) %(message)s",
-        "%Y-%m-%d %H:%M:%S")
+        "%Y-%m-%d %H:%M:%S",
+    )
     if colors:
         try:
             from colorlog import ColoredFormatter
+
             formatter = ColoredFormatter(
-                ("%(log_color)s%(levelname)-8s%(reset)s " +
-                 "%(filename)17s:%(lineno)-4s  %(blue)4s%(message)s"),
+                (
+                    "%(log_color)s%(levelname)-8s%(reset)s "
+                    + "%(filename)17s:%(lineno)-4s  %(blue)4s%(message)s"
+                ),
                 datefmt=None,
                 reset=True,
-                log_colors={'DEBUG': 'cyan',
-                            'INFO': 'green',
-                            'WARNING': 'yellow',
-                            'ERROR': 'red',
-                            'CRITICAL': 'red'})
+                log_colors={
+                    "DEBUG": "cyan",
+                    "INFO": "green",
+                    "WARNING": "yellow",
+                    "ERROR": "red",
+                    "CRITICAL": "red",
+                },
+            )
         except ImportError:
             pass
 
@@ -927,16 +916,17 @@ def attach_to_log(level=logging.DEBUG,
         # de-duplicate loggers using a set
         loggers = set(logging.Logger.manager.loggerDict.values())
     # add the warnings logging
-    loggers.add(logging.getLogger('py.warnings'))
+    loggers.add(logging.getLogger("py.warnings"))
 
     # disable pyembree warnings
-    logging.getLogger('pyembree').disabled = True
+    logging.getLogger("pyembree").disabled = True
 
     # loop through all available loggers
     for logger in loggers:
         # skip loggers on the blacklist
-        if (logger.__class__.__name__ != 'Logger' or
-                any(logger.name.startswith(b) for b in blacklist)):
+        if logger.__class__.__name__ != "Logger" or any(
+            logger.name.startswith(b) for b in blacklist
+        ):
             continue
         logger.addHandler(handler)
         logger.setLevel(level)
@@ -991,8 +981,7 @@ def stack_lines(indices):
         shape = (-1, len(indices[0]))
     else:
         shape = (-1, 2)
-    return np.column_stack((indices[:-1],
-                            indices[1:])).reshape(shape)
+    return np.column_stack((indices[:-1], indices[1:])).reshape(shape)
 
 
 def append_faces(vertices_seq, faces_seq):
@@ -1034,11 +1023,7 @@ def append_faces(vertices_seq, faces_seq):
     return vertices, faces
 
 
-def array_to_string(array,
-                    col_delim=' ',
-                    row_delim='\n',
-                    digits=8,
-                    value_format='{}'):
+def array_to_string(array, col_delim=" ", row_delim="\n", digits=8, value_format="{}"):
     """
     Convert a 1 or 2D array into a string with a specified number
     of digits and delimiter. The reason this exists is that the
@@ -1074,27 +1059,25 @@ def array_to_string(array,
 
     # abort for non-flat arrays
     if len(array.shape) > 2:
-        raise ValueError('conversion only works on 1D/2D arrays not %s!',
-                         str(array.shape))
+        raise ValueError(
+            "conversion only works on 1D/2D arrays not %s!", str(array.shape)
+        )
 
     # abort for structured arrays
     if array.dtype.names is not None:
-        raise ValueError(
-            'array is  structured, use structured_array_to_string instead')
+        raise ValueError("array is  structured, use structured_array_to_string instead")
 
     # allow a value to be repeated in a value format
-    repeats = value_format.count('{')
+    repeats = value_format.count("{")
 
-    if array.dtype.kind in ['i', 'u']:
+    if array.dtype.kind in ["i", "u"]:
         # integer types don't need a specified precision
         format_str = value_format + col_delim
-    elif array.dtype.kind == 'f':
+    elif array.dtype.kind == "f":
         # add the digits formatting to floats
-        format_str = value_format.replace(
-            '{}', '{:.' + str(digits) + 'f}') + col_delim
+        format_str = value_format.replace("{}", "{:." + str(digits) + "f}") + col_delim
     else:
-        raise ValueError('dtype %s not convertible!',
-                         array.dtype.name)
+        raise ValueError("dtype %s not convertible!", array.dtype.name)
 
     # length of extra delimiters at the end
     end_junk = len(col_delim)
@@ -1102,7 +1085,7 @@ def array_to_string(array,
     if len(array.shape) == 2:
         format_str *= array.shape[1]
         # cut off the last column delimiter and add a row delimiter
-        format_str = format_str[:-len(col_delim)] + row_delim
+        format_str = format_str[: -len(col_delim)] + row_delim
         end_junk = len(row_delim)
 
     # expand format string to whole array
@@ -1110,8 +1093,7 @@ def array_to_string(array,
 
     # if an array is repeated in the value format
     # do the shaping here so we don't need to specify indexes
-    shaped = np.tile(array.reshape((-1, 1)),
-                     (1, repeats)).reshape(-1)
+    shaped = np.tile(array.reshape((-1, 1)), (1, repeats)).reshape(-1)
 
     # run the format operation and remove the extra delimiters
     formatted = format_str.format(*shaped)[:-end_junk]
@@ -1119,11 +1101,9 @@ def array_to_string(array,
     return formatted
 
 
-def structured_array_to_string(array,
-                               col_delim=' ',
-                               row_delim='\n',
-                               digits=8,
-                               value_format='{}'):
+def structured_array_to_string(
+    array, col_delim=" ", row_delim="\n", digits=8, value_format="{}"
+):
     """
     Convert an unstructured array into a string with a specified
     number of digits and delimiter. The reason thisexists is
@@ -1160,39 +1140,40 @@ def structured_array_to_string(array,
 
     # abort for non-flat arrays
     if len(array.shape) > 1:
-        raise ValueError('conversion only works on 1D/2D arrays not %s!',
-                         str(array.shape))
+        raise ValueError(
+            "conversion only works on 1D/2D arrays not %s!", str(array.shape)
+        )
 
     # abort for unstructured arrays
     if array.dtype.names is None:
-        raise ValueError('array is not structured, use array_to_string instead')
+        raise ValueError("array is not structured, use array_to_string instead")
 
     # do not allow a value to be repeated in a value format
-    if value_format.count('{') > 1:
+    if value_format.count("{") > 1:
         raise ValueError(
-            'value_format %s is invalid, repeating unstructured array '
-            + 'values is unsupported', value_format)
+            "value_format %s is invalid, repeating unstructured array "
+            + "values is unsupported",
+            value_format,
+        )
 
-    format_str = ''
+    format_str = ""
     for name in array.dtype.names:
         kind = array[name].dtype.kind
-        element_row_length = (
-            array[name].shape[1] if len(array[name].shape) == 2 else 1)
-        if kind in ['i', 'u']:
+        element_row_length = array[name].shape[1] if len(array[name].shape) == 2 else 1
+        if kind in ["i", "u"]:
             # integer types need a no-decimal formatting
-            element_format_str = value_format.replace(
-                '{}', '{:0.0f}') + col_delim
-        elif kind == 'f':
+            element_format_str = value_format.replace("{}", "{:0.0f}") + col_delim
+        elif kind == "f":
             # add the digits formatting to floats
-            element_format_str = value_format.replace(
-                '{}', '{:.' + str(digits) + 'f}') + col_delim
+            element_format_str = (
+                value_format.replace("{}", "{:." + str(digits) + "f}") + col_delim
+            )
         else:
-            raise ValueError('dtype %s not convertible!',
-                             array.dtype)
+            raise ValueError("dtype %s not convertible!", array.dtype)
         format_str += element_row_length * element_format_str
 
     # length of extra delimiters at the end
-    format_str = format_str[:-len(col_delim)] + row_delim
+    format_str = format_str[: -len(col_delim)] + row_delim
     # expand format string to whole array
     format_str *= len(array)
 
@@ -1200,16 +1181,16 @@ def structured_array_to_string(array,
     count = len(array)
     # will upgrade everything to a float
     flattened = np.hstack(
-        [array[k].reshape((count, -1))
-         for k in array.dtype.names]).reshape(-1)
+        [array[k].reshape((count, -1)) for k in array.dtype.names]
+    ).reshape(-1)
 
     # run the format operation and remove the extra delimiters
-    formatted = format_str.format(*flattened)[:-len(row_delim)]
+    formatted = format_str.format(*flattened)[: -len(row_delim)]
 
     return formatted
 
 
-def array_to_encoded(array, dtype=None, encoding='base64'):
+def array_to_encoded(array, dtype=None, encoding="base64"):
     """
     Export a numpy array to a compact serializable dictionary.
 
@@ -1237,21 +1218,20 @@ def array_to_encoded(array, dtype=None, encoding='base64'):
     if dtype is None:
         dtype = array.dtype
 
-    encoded = {'dtype': np.dtype(dtype).str,
-               'shape': shape}
-    if encoding in ['base64', 'dict64']:
+    encoded = {"dtype": np.dtype(dtype).str, "shape": shape}
+    if encoding in ["base64", "dict64"]:
         packed = base64.b64encode(flat.astype(dtype).tobytes())
-        if hasattr(packed, 'decode'):
-            packed = packed.decode('utf-8')
-        encoded['base64'] = packed
-    elif encoding == 'binary':
-        encoded['binary'] = array.tobytes(order='C')
+        if hasattr(packed, "decode"):
+            packed = packed.decode("utf-8")
+        encoded["base64"] = packed
+    elif encoding == "binary":
+        encoded["binary"] = array.tobytes(order="C")
     else:
-        raise ValueError('encoding {} is not available!'.format(encoding))
+        raise ValueError(f"encoding {encoding} is not available!")
     return encoded
 
 
-def decode_keys(store, encoding='utf-8'):
+def decode_keys(store, encoding="utf-8"):
     """
     If a dictionary has keys that are bytes decode them to a str.
 
@@ -1276,7 +1256,7 @@ def decode_keys(store, encoding='utf-8'):
     """
     keys = store.keys()
     for key in keys:
-        if hasattr(key, 'decode'):
+        if hasattr(key, "decode"):
             decoded = key.decode(encoding)
             if key != decoded:
                 store[key.decode(encoding)] = store[key]
@@ -1284,7 +1264,7 @@ def decode_keys(store, encoding='utf-8'):
     return store
 
 
-def comment_strip(text, starts_with='#', new_line='\n'):
+def comment_strip(text, starts_with="#", new_line="\n"):
     """
     Strip comments from a text block.
 
@@ -1311,16 +1291,18 @@ def comment_strip(text, starts_with='#', new_line='\n'):
 
     # special case files that start with a comment
     if text.startswith(starts_with):
-        lead = ''
+        lead = ""
     else:
         lead = split[0]
 
     # take each comment up until the newline
     removed = [i.split(new_line, 1) for i in split]
     # add the leading string back on
-    result = lead + new_line + new_line.join(
-        i[1] for i in removed
-        if len(i) > 1 and len(i[1]) > 0)
+    result = (
+        lead
+        + new_line
+        + new_line.join(i[1] for i in removed if len(i) > 1 and len(i[1]) > 0)
+    )
     # strip leading and trailing whitespace
     result = result.strip()
 
@@ -1350,19 +1332,17 @@ def encoded_to_array(encoded):
             as_array = np.asanyarray(encoded)
             return as_array
         else:
-            raise ValueError('Unable to extract numpy array from input')
+            raise ValueError("Unable to extract numpy array from input")
 
     encoded = decode_keys(encoded)
 
-    dtype = np.dtype(encoded['dtype'])
-    if 'base64' in encoded:
-        array = np.frombuffer(base64.b64decode(encoded['base64']),
-                              dtype)
-    elif 'binary' in encoded:
-        array = np.frombuffer(encoded['binary'],
-                              dtype=dtype)
-    if 'shape' in encoded:
-        array = array.reshape(encoded['shape'])
+    dtype = np.dtype(encoded["dtype"])
+    if "base64" in encoded:
+        array = np.frombuffer(base64.b64decode(encoded["base64"]), dtype)
+    elif "binary" in encoded:
+        array = np.frombuffer(encoded["binary"], dtype=dtype)
+    if "shape" in encoded:
+        array = array.reshape(encoded["shape"])
     return array
 
 
@@ -1404,9 +1384,7 @@ def type_bases(obj, depth=4):
         bases = np.hstack(bases)
     except IndexError:
         bases = []
-    # we do the hasattr as None/NoneType can be in the list of bases
-    bases = [i for i in bases if hasattr(i, '__name__')]
-    return np.array(bases)
+    return [i for i in bases if hasattr(i, "__name__")]
 
 
 def type_named(obj, name):
@@ -1416,12 +1394,15 @@ def type_named(obj, name):
 
     Parameters
     ------------
-    obj: object to look for class of
-    name : str, name of class
+    obj : any
+      Object to look for class of
+    name : str
+      Nnme of class
 
     Returns
     ----------
-    named class, or None
+    class : Optional[Callable]
+      Camed class, or None
     """
     # if obj is a member of the named class, return True
     name = str(name)
@@ -1430,7 +1411,7 @@ def type_named(obj, name):
     for base in type_bases(obj):
         if base.__name__ == name:
             return base
-    raise ValueError('Unable to extract class of name ' + name)
+    raise ValueError("Unable to extract class of name " + name)
 
 
 def concatenate(a, b=None):
@@ -1450,55 +1431,82 @@ def concatenate(a, b=None):
     result : trimesh.Trimesh
       Concatenated mesh
     """
-    if b is None:
-        b = []
-    # stack meshes into flat list
-    meshes = np.append(a, b)
 
-    # if there is only one mesh just return the first
-    if len(meshes) == 1:
-        return meshes[0].copy()
-    elif len(meshes) == 0:
+    # get a flat list of meshes
+    flat = []
+    if a is not None:
+        if is_sequence(a):
+            flat.extend(a)
+        else:
+            flat.append(a)
+    if b is not None:
+        if is_sequence(b):
+            flat.extend(b)
+        else:
+            flat.append(b)
+
+    if len(flat) == 1:
+        # if there is only one mesh just return the first
+        return flat[0].copy()
+    elif len(flat) == 0:
+        # if there are no meshes return an empty list
+        return []
+
+    is_mesh = [f for f in flat if is_instance_named(f, "Trimesh")]
+    is_path = [f for f in flat if is_instance_named(f, "Path")]
+
+    if len(is_path) > len(is_mesh):
+        from .path.util import concatenate as concatenate_path
+
+        return concatenate_path(is_path)
+
+    if len(is_mesh) == 0:
         return []
 
     # extract the trimesh type to avoid a circular import
-    # and assert that both inputs are Trimesh objects
-    trimesh_type = type_named(meshes[0], 'Trimesh')
+    # and assert that all inputs are Trimesh objects
+    trimesh_type = type_named(is_mesh[0], "Trimesh")
 
     # append faces and vertices of meshes
     vertices, faces = append_faces(
-        [m.vertices.copy() for m in meshes],
-        [m.faces.copy() for m in meshes])
+        [m.vertices.copy() for m in is_mesh], [m.faces.copy() for m in is_mesh]
+    )
 
-    # only save face normals if already calculated
+    # save face normals if already calculated
     face_normals = None
-    if all('face_normals' in m._cache for m in meshes):
-        face_normals = np.vstack(
-            [m.face_normals for m in meshes])
+    if any("face_normals" in m._cache for m in is_mesh):
+        face_normals = vstack_empty([m.face_normals for m in is_mesh])
+        assert face_normals.shape == faces.shape
+
+    # save vertex normals if any mesh has them
+    vertex_normals = None
+    if any("vertex_normals" in m._cache for m in is_mesh):
+        vertex_normals = vstack_empty([m.vertex_normals for m in is_mesh])
+        assert vertex_normals.shape == vertices.shape
 
     try:
         # concatenate visuals
-        visual = meshes[0].visual.concatenate(
-            [m.visual for m in meshes[1:]])
-    except BaseException:
-        log.debug(
-            'failed to combine visuals', exc_info=True)
+        visual = is_mesh[0].visual.concatenate([m.visual for m in is_mesh[1:]])
+    except BaseException as E:
+        log.debug(f"failed to combine visuals {_STRICT}", exc_info=True)
         visual = None
+        if _STRICT:
+            raise E
+
     # create the mesh object
-    mesh = trimesh_type(vertices=vertices,
-                        faces=faces,
-                        face_normals=face_normals,
-                        visual=visual,
-                        process=False)
-    return mesh
+    return trimesh_type(
+        vertices=vertices,
+        faces=faces,
+        face_normals=face_normals,
+        vertex_normals=vertex_normals,
+        visual=visual,
+        process=False,
+    )
 
 
-def submesh(mesh,
-            faces_sequence,
-            repair=True,
-            only_watertight=False,
-            min_faces=None,
-            append=False):
+def submesh(
+    mesh, faces_sequence, repair=True, only_watertight=False, min_faces=None, append=False
+):
     """
     Return a subset of a mesh.
 
@@ -1545,7 +1553,7 @@ def submesh(mesh,
         if len(index) == 0:
             # regardless of type empty arrays are useless
             continue
-        if index.dtype.kind == 'b':
+        if index.dtype.kind == "b":
             # if passed a bool with no true continue
             if not index.any():
                 continue
@@ -1563,14 +1571,18 @@ def submesh(mesh,
         normals.append(mesh.face_normals[index])
         faces.append(mask[current])
         vertices.append(original_vertices[unique])
-        visuals.append(mesh.visual.face_subset(index))
+
+        try:
+            visuals.append(mesh.visual.face_subset(index))
+        except BaseException:
+            visuals = None
 
     if len(vertices) == 0:
         return np.array([])
 
     # we use type(mesh) rather than importing Trimesh from base
     # to avoid a circular import
-    trimesh_type = type_named(mesh, 'Trimesh')
+    trimesh_type = type_named(mesh, "Trimesh")
     if append:
         visual = None
         try:
@@ -1585,26 +1597,30 @@ def submesh(mesh,
             faces=faces,
             face_normals=np.vstack(normals),
             visual=visual,
-            process=False)
+            process=False,
+        )
         return appended
 
+    if visuals is None:
+        visuals = [None] * len(vertices)
+
     # generate a list of Trimesh objects
-    result = [trimesh_type(
-        vertices=v,
-        faces=f,
-        face_normals=n,
-        visual=c,
-        metadata=copy.deepcopy(mesh.metadata),
-        process=False) for v, f, n, c in zip(vertices,
-                                             faces,
-                                             normals,
-                                             visuals)]
+    result = [
+        trimesh_type(
+            vertices=v,
+            faces=f,
+            face_normals=n,
+            visual=c,
+            metadata=copy.deepcopy(mesh.metadata),
+            process=False,
+        )
+        for v, f, n, c in zip(vertices, faces, normals, visuals)
+    ]
     result = np.array(result)
     if only_watertight or repair:
         # fill_holes will attempt a repair and returns the
         # watertight status at the end of the repair attempt
-        watertight = np.array([i.fill_holes() and len(i.faces) >= 4
-                               for i in result])
+        watertight = np.array([i.fill_holes() and len(i.faces) >= 4 for i in result])
     if only_watertight:
         # remove unrepairable meshes
         result = result[watertight]
@@ -1631,9 +1647,9 @@ def zero_pad(data, count, right=True):
     elif len(data) < count:
         padded = np.zeros(count)
         if right:
-            padded[-len(data):] = data
+            padded[-len(data) :] = data
         else:
-            padded[:len(data)] = data
+            padded[: len(data)] = data
         return padded
     else:
         return np.asanyarray(data)
@@ -1656,15 +1672,17 @@ def jsonify(obj, **kwargs):
     dumped : str
       JSON dump of obj
     """
+
     class EdgeEncoder(json.JSONEncoder):
         def default(self, obj):
             # will work for numpy.ndarrays
             # as well as their int64/etc objects
-            if hasattr(obj, 'tolist'):
+            if hasattr(obj, "tolist"):
                 return obj.tolist()
-            elif hasattr(obj, 'timestamp'):
+            elif hasattr(obj, "timestamp"):
                 return obj.timestamp()
             return json.JSONEncoder.default(self, obj)
+
     # run the dumps using our encoder
     return json.dumps(obj, cls=EdgeEncoder, **kwargs)
 
@@ -1694,16 +1712,18 @@ def convert_like(item, like):
         return item
 
     # if it's an array with one item return it
-    if (is_sequence(item) and len(item) == 1 and
-            isinstance(item[0], like.__class__)):
+    if is_sequence(item) and len(item) == 1 and isinstance(item[0], like.__class__):
         return item[0]
 
-    if (isinstance(item, str) and
-        like.__class__.__name__ == 'Polygon' and
-            item.startswith('POLYGON')):
+    if (
+        isinstance(item, str)
+        and like.__class__.__name__ == "Polygon"
+        and item.startswith("POLYGON")
+    ):
         # break our rule on imports but only a little bit
         # the import was a WKT serialized polygon
         from shapely import wkt
+
         return wkt.loads(item)
 
     # otherwise just run the conversion
@@ -1729,7 +1749,6 @@ def bounds_tree(bounds):
     tree : Rtree
       Tree containing bounds by index
     """
-    # rtree is a soft dependency
     import rtree
 
     # make sure we've copied bounds
@@ -1737,41 +1756,23 @@ def bounds_tree(bounds):
     if len(bounds.shape) == 3:
         # should be min-max per bound
         if bounds.shape[1] != 2:
-            raise ValueError('bounds not (n, 2, dimension)!')
+            raise ValueError("bounds not (n, 2, dimension)!")
         # reshape to one-row-per-hyperrectangle
         bounds = bounds.reshape((len(bounds), -1))
     elif len(bounds.shape) != 2 or bounds.size == 0:
-        raise ValueError('Bounds must be (n, dimension * 2)!')
+        raise ValueError("Bounds must be (n, dimension * 2)!")
 
     # check to make sure we have correct shape
     dimension = bounds.shape[1]
     if (dimension % 2) != 0:
-        raise ValueError('Bounds must be (n,dimension*2)!')
+        raise ValueError("Bounds must be (n,dimension*2)!")
     dimension = int(dimension / 2)
 
-    # some versions of rtree screw up indexes on stream loading
-    # do a test here so we know if we are free to use stream loading
-    # or if we have to do a loop to insert things which is 5x slower
-    rtree_test = rtree.index.Index(
-        [(1564, [0, 0, 0, 10, 10, 10], None)],
-        properties=rtree.index.Property(dimension=3))
-    rtree_stream_ok = next(rtree_test.intersection(
-        [1, 1, 1, 2, 2, 2])) == 1564
-
     properties = rtree.index.Property(dimension=dimension)
-    if rtree_stream_ok:
-        # stream load was verified working on import above
-        tree = rtree.index.Index(zip(np.arange(len(bounds)),
-                                     bounds,
-                                     [None] * len(bounds)),
-                                 properties=properties)
-    else:
-        # in some rtree versions stream loading goofs the index
-        log.warning('rtree stream loading broken! Try upgrading rtree!')
-        tree = rtree.index.Index(properties=properties)
-        for i, b in enumerate(bounds):
-            tree.insert(i, b)
-    return tree
+    # stream load was verified working on import above
+    return rtree.index.Index(
+        zip(np.arange(len(bounds)), bounds, [None] * len(bounds)), properties=properties
+    )
 
 
 def wrap_as_stream(item):
@@ -1788,14 +1789,11 @@ def wrap_as_stream(item):
     wrapped : file-like object
       Contains data from item
     """
-    if not PY3:
-        # in python 2 StringIO handles bytes and str
-        return StringIO(item)
     if isinstance(item, str):
         return StringIO(item)
     elif isinstance(item, bytes):
         return BytesIO(item)
-    raise ValueError('{} is not wrappable!'.format(type(item).__name__))
+    raise ValueError(f"{type(item).__name__} is not wrappable!")
 
 
 def sigfig_round(values, sigfig=1):
@@ -1827,7 +1825,7 @@ def sigfig_round(values, sigfig=1):
     Out[3]: 0.0001405
     """
     as_int, multiplier = sigfig_int(values, sigfig)
-    rounded = as_int * (10 ** multiplier)
+    rounded = as_int * (10**multiplier)
 
     return rounded
 
@@ -1857,7 +1855,7 @@ def sigfig_int(values, sigfig):
     sigfig = np.asanyarray(sigfig, dtype=np.int64).reshape(-1)
 
     if sigfig.shape != values.shape:
-        raise ValueError('sigfig must match identifier')
+        raise ValueError("sigfig must match identifier")
 
     exponent = np.zeros(len(values))
     nonzero = np.abs(values) > TOL_ZERO
@@ -1891,16 +1889,19 @@ def decompress(file_obj, file_type):
     if isinstance(file_obj, bytes):
         file_obj = wrap_as_stream(file_obj)
 
-    if file_type.endswith('zip'):
+    if file_type.endswith("zip"):
         archive = zipfile.ZipFile(file_obj)
-        return {name: wrap_as_stream(archive.read(name))
-                for name in archive.namelist()}
-    if 'tar' in file_type[-6:]:
+        return {name: wrap_as_stream(archive.read(name)) for name in archive.namelist()}
+    if file_type.endswith("bz2"):
+        import bz2
+
+        return {file_obj.name[:-4]: wrap_as_stream(bz2.open(file_obj, mode="r").read())}
+    if "tar" in file_type[-6:]:
         import tarfile
-        archive = tarfile.open(fileobj=file_obj, mode='r')
-        return {name: archive.extractfile(name)
-                for name in archive.getnames()}
-    raise ValueError('Unsupported type passed!')
+
+        archive = tarfile.open(fileobj=file_obj, mode="r")
+        return {name: archive.extractfile(name) for name in archive.getnames()}
+    raise ValueError("Unsupported type passed!")
 
 
 def compress(info, **kwargs):
@@ -1919,17 +1920,12 @@ def compress(info, **kwargs):
     compressed : bytes
       Compressed file data
     """
-    if PY3:
-        file_obj = BytesIO()
-    else:
-        file_obj = StringIO()
-
+    file_obj = BytesIO()
     with zipfile.ZipFile(
-            file_obj,
-            mode='w',
-            compression=zipfile.ZIP_DEFLATED, **kwargs) as zipper:
+        file_obj, mode="w", compression=zipfile.ZIP_DEFLATED, **kwargs
+    ) as zipper:
         for name, data in info.items():
-            if hasattr(data, 'read'):
+            if hasattr(data, "read"):
                 # if we were passed a file object, read it
                 data = data.read()
             zipper.writestr(name, data)
@@ -1938,7 +1934,7 @@ def compress(info, **kwargs):
     return compressed
 
 
-def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
+def split_extension(file_name, special=None):
     """
     Find the file extension of a file name, including support for
     special case multipart file extensions (like .tar.gz)
@@ -1959,11 +1955,13 @@ def split_extension(file_name, special=['tar.bz2', 'tar.gz']):
     """
     file_name = str(file_name)
 
+    if special is None:
+        special = ["tar.bz2", "tar.gz"]
     if file_name.endswith(tuple(special)):
         for end in special:
             if file_name.endswith(end):
                 return end
-    return file_name.split('.')[-1]
+    return file_name.split(".")[-1]
 
 
 def triangle_strips_to_faces(strips):
@@ -2002,7 +2000,7 @@ def triangle_strips_to_faces(strips):
     # preallocate and slice the blob into rough triangles
     tri = np.zeros((len(blob) - 2, 3), dtype=np.int64)
     for i in range(3):
-        tri[:len(blob) - 3, i] = blob[i:-3 + i]
+        tri[: len(blob) - 3, i] = blob[i : -3 + i]
     # the last triangle is left off from the slicing, add it back
     tri[-1] = blob[-3:]
 
@@ -2018,10 +2016,32 @@ def triangle_strips_to_faces(strips):
     length_index = np.append(0, np.cumsum(lengths - 2))
     flip = np.zeros(length_index[-1], dtype=bool)
     for i in range(len(length_index) - 1):
-        flip[length_index[i] + 1:length_index[i + 1]][::2] = True
+        flip[length_index[i] + 1 : length_index[i + 1]][::2] = True
     tri[flip] = np.fliplr(tri[flip])
 
     return tri
+
+
+def triangle_fans_to_faces(fans):
+    """
+    Convert fans of m + 2 vertex indices in fan format to m triangles
+
+    Parameters
+    ----------
+    fans: (n,) list of (m + 2,) int
+      Vertex indices
+
+    Returns
+    -------
+    faces: (m, 3) int
+      Vertex indices representing triangles
+    """
+
+    faces = [
+        np.transpose([fan[0] * np.ones(len(fan) - 2, dtype=int), fan[1:-1], fan[2:]])
+        for fan in fans
+    ]
+    return np.concatenate(faces, axis=1)
 
 
 def vstack_empty(tup):
@@ -2051,9 +2071,7 @@ def vstack_empty(tup):
     return np.vstack(stackable)
 
 
-def write_encoded(file_obj,
-                  stuff,
-                  encoding='utf-8'):
+def write_encoded(file_obj, stuff, encoding="utf-8"):
     """
     If a file is open in binary mode and a
     string is passed, encode and write.
@@ -2073,13 +2091,11 @@ def write_encoded(file_obj,
     encoding : str
       Encoding of text
     """
-    binary_file = 'b' in getattr(file_obj, 'mode', 'b')
-    string_stuff = isinstance(stuff, basestring)
+    binary_file = "b" in getattr(file_obj, "mode", "b")
+    string_stuff = isinstance(stuff, str)
     binary_stuff = isinstance(stuff, bytes)
 
-    if not PY3:
-        file_obj.write(stuff)
-    elif binary_file and string_stuff:
+    if binary_file and string_stuff:
         file_obj.write(stuff.encode(encoding))
     elif not binary_file and binary_stuff:
         file_obj.write(stuff.decode(encoding))
@@ -2104,8 +2120,7 @@ def unique_id(length=12):
     unique : str
       Unique alphanumeric identifier
     """
-    return uuid.UUID(int=random.getrandbits(128),
-                     version=4).hex[:length]
+    return uuid.UUID(int=random.getrandbits(128), version=4).hex[:length]
 
 
 def generate_basis(z, epsilon=1e-12):
@@ -2133,7 +2148,7 @@ def generate_basis(z, epsilon=1e-12):
     z = np.array(z, dtype=np.float64, copy=True)
     # must be a 3D vector
     if z.shape != (3,):
-        raise ValueError('z must be (3,) float!')
+        raise ValueError("z must be (3,) float!")
 
     z_norm = np.linalg.norm(z)
     if z_norm < epsilon:
@@ -2239,11 +2254,11 @@ class FunctionRegistry(Mapping):
 
     def __setitem__(self, key, value):
         if not isinstance(key, str):
-            raise ValueError('key must be a string, got %s' % str(key))
+            raise ValueError("key must be a string, got %s" % str(key))
         if key in self:
-            raise KeyError('Cannot set new value to existing key %s' % key)
+            raise KeyError("Cannot set new value to existing key %s" % key)
         if not callable(value):
-            raise ValueError('Cannot set value which is not callable.')
+            raise ValueError("Cannot set value which is not callable.")
         self._dict[key] = value
 
     def __iter__(self):
@@ -2259,28 +2274,7 @@ class FunctionRegistry(Mapping):
         return self[key](*args, **kwargs)
 
 
-class TemporaryDirectory(object):
-    """
-    Same basic usage as tempfile.TemporaryDirectory
-    but functional in Python 2.7+.
-
-    Example
-    ---------
-    ```
-    with trimesh.util.TemporaryDirectory() as path:
-       writable = os.path.join(path, 'hi.txt')
-    ```
-    """
-
-    def __enter__(self):
-        self.path = tempfile.mkdtemp()
-        return self.path
-
-    def __exit__(self, *args, **kwargs):
-        shutil.rmtree(self.path)
-
-
-def decode_text(text, initial='utf-8'):
+def decode_text(text, initial="utf-8"):
     """
     Try to decode byte input as a string.
 
@@ -2300,7 +2294,7 @@ def decode_text(text, initial='utf-8'):
       Data as a string
     """
     # if not bytes just return input
-    if not hasattr(text, 'decode'):
+    if not hasattr(text, "decode"):
         return text
     try:
         # initially guess file is UTF-8 or specified encoding
@@ -2308,18 +2302,19 @@ def decode_text(text, initial='utf-8'):
     except UnicodeDecodeError:
         # detect different file encodings
         import chardet
+
         # try to detect the encoding of the file
-        # only look at the first 1000 charecters otherwise
+        # only look at the first 1000 characters otherwise
         # for big files chardet looks at everything and is slow
         detect = chardet.detect(text[:1000])
         # warn on files that aren't UTF-8
         log.debug(
-            'Data not {}! Trying {} (confidence {})'.format(
-                initial,
-                detect['encoding'],
-                detect['confidence']))
+            "Data not {}! Trying {} (confidence {})".format(
+                initial, detect["encoding"], detect["confidence"]
+            )
+        )
         # try to decode again, unwrap in try
-        text = text.decode(detect['encoding'], errors='ignore')
+        text = text.decode(detect["encoding"], errors="ignore")
     return text
 
 
@@ -2337,18 +2332,17 @@ def to_ascii(text):
     ascii : str
       Input as an ASCII string
     """
-    if hasattr(text, 'encode'):
+    if hasattr(text, "encode"):
         # case for existing strings
-        return text.encode(
-            'ascii', errors='ignore').decode('ascii')
-    elif hasattr(text, 'decode'):
+        return text.encode("ascii", errors="ignore").decode("ascii")
+    elif hasattr(text, "decode"):
         # case for bytes
-        return text.decode('ascii', errors='ignore')
+        return text.decode("ascii", errors="ignore")
     # otherwise just wrap as a string
     return str(text)
 
 
-def is_ccw(points):
+def is_ccw(points, return_all=False):
     """
     Check if connected 2D points are counterclockwise.
 
@@ -2356,28 +2350,42 @@ def is_ccw(points):
     -----------
     points : (n, 2) float
       Connected points on a plane
+    return_all : bool
+      Return polygon area and centroid or just counter-clockwise.
 
     Returns
     ----------
     ccw : bool
       True if points are counter-clockwise
+    area : float
+      Only returned if `return_centroid`
+    centroid : (2,) float
+      Centroid of the polygon.
     """
-    points = np.asanyarray(points, dtype=np.float64)
+    points = np.array(points, dtype=np.float64)
 
-    if (len(points.shape) != 2 or points.shape[1] != 2):
-        raise ValueError('CCW is only defined for 2D')
-    xd = np.diff(points[:, 0])
-    # sum along axis=1 with a dot product
-    yd = np.dot(np.column_stack((
-        points[:, 1],
-        points[:, 1])).reshape(-1)[1:-1].reshape((-1, 2)), [1, 1])
-    area = np.sum(xd * yd) * .5
-    ccw = area < 0
+    if len(points.shape) != 2 or points.shape[1] != 2:
+        raise ValueError("only defined for `(n, 2)` points")
 
-    return ccw
+    # the "shoelace formula"
+    product = np.subtract(*(points[:-1, [1, 0]] * points[1:]).T)
+    # the area of the polygon
+    area = product.sum() / 2.0
+    # check the sign of the area
+    ccw = area < 0.0
+
+    if not return_all:
+        return ccw
+
+    # the centroid of the polygon uses the same formula
+    centroid = ((points[:-1] + points[1:]) * product.reshape((-1, 1))).sum(axis=0) / (
+        6.0 * area
+    )
+
+    return ccw, area, centroid
 
 
-def unique_name(start, contains):
+def unique_name(start, contains, counts=None):
     """
     Deterministically generate a unique name not
     contained in a dict, set or other grouping with
@@ -2390,6 +2398,13 @@ def unique_name(start, contains):
       Initial guess for name.
     contains : dict, set, or list
       Bundle of existing names we can *not* use.
+    counts : None or dict
+      Maps name starts encountered before to increments in
+      order to speed up finding a unique name as otherwise
+      it potentially has to iterate through all of contains.
+      Should map to "how many times has this `start`
+      been attempted, i.e. `counts[start]: int`.
+      Note that this *will be mutated* in-place by this function!
 
     Returns
     ---------
@@ -2397,34 +2412,39 @@ def unique_name(start, contains):
       A name that is not contained in `contains`
     """
     # exit early if name is not in bundle
-    if len(start) > 0 and start not in contains:
+    if start is not None and len(start) > 0 and start not in contains:
         return start
 
-    # start checking with zero index
-    increment = 0
-    formatter = start + '_{}'
-
-    if len(start) > 0:
+    # start checking with zero index unless found
+    if counts is None:
+        increment = 0
+    else:
+        increment = counts.get(start, 0)
+    if start is not None and len(start) > 0:
+        formatter = start + "_{}"
         # split by our delimiter once
-        split = start.rsplit('_', 1)
-        if len(split) == 2:
+        split = start.rsplit("_", 1)
+        if len(split) == 2 and increment == 0:
             try:
-                # start incrementing from the existing trailing value
+                # start incrementing from the existing
+                # trailing value
                 # if it is not an integer this will fail
                 increment = int(split[1])
                 # include the first split value
-                formatter = split[0] + '_{}'
+                formatter = split[0] + "_{}"
             except BaseException:
                 pass
     else:
-        formatter = 'geometry_{}'
+        formatter = "geometry_{}"
 
     # if contains is empty we will only need to check once
     for i in range(increment + 1, 2 + increment + len(contains)):
         check = formatter.format(i)
         if check not in contains:
+            if counts is not None:
+                counts[start] = i
             return check
 
     # this should really never happen since we looped
     # through the full length of contains
-    raise ValueError('Unable to establish unique name!')
+    raise ValueError("Unable to establish unique name!")

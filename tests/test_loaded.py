@@ -5,29 +5,20 @@ except BaseException:
 
 
 class LoaderTest(g.unittest.TestCase):
-
     def test_remote(self):
         """
         Try loading a remote mesh using requests
         """
         # get a unit cube from localhost
         with g.serve_meshes() as address:
-            mesh = g.trimesh.exchange.load.load_remote(
-                url=address + '/unit_cube.STL')
+            mesh = g.trimesh.exchange.load.load_remote(url=address + "/unit_cube.STL")
 
         assert g.np.isclose(mesh.volume, 1.0)
         assert isinstance(mesh, g.trimesh.Trimesh)
 
     def test_stl(self):
-        model = g.get_mesh('empty.stl')
+        model = g.get_mesh("empty.stl")
         assert model.is_empty
-
-    def test_ply_dtype(self):
-        # make sure all ply dtype strings are valid dtypes
-        dtypes = g.trimesh.exchange.ply.dtypes
-        for d in dtypes.values():
-            # will raise if dtype string not valid
-            g.np.dtype(d)
 
     def test_meshio(self):
         try:
@@ -35,19 +26,16 @@ class LoaderTest(g.unittest.TestCase):
         except BaseException:
             return
         # if meshio is importable we should be able to load this
-        m = g.get_mesh('insulated.msh')
+        m = g.get_mesh("insulated.msh")
         assert len(m.faces) > 0
         assert m.area > 1e-5
 
     def test_fileobj(self):
         # make sure we don't close file objects that were passed
         # check load_mesh
-        file_obj = open(
-            g.os.path.join(g.dir_models, 'featuretype.STL'), 'rb')
+        file_obj = open(g.os.path.join(g.dir_models, "featuretype.STL"), "rb")
         assert not file_obj.closed
-        mesh = g.trimesh.load(
-            file_obj=file_obj,
-            file_type='stl')
+        mesh = g.trimesh.load(file_obj=file_obj, file_type="stl")
         # should have actually loaded the mesh
         assert len(mesh.faces) == 3476
         # should not close the file object
@@ -56,12 +44,9 @@ class LoaderTest(g.unittest.TestCase):
         file_obj.close()
 
         # check load_path
-        file_obj = open(
-            g.os.path.join(g.dir_models, '2D', 'wrench.dxf'), 'rb')
+        file_obj = open(g.os.path.join(g.dir_models, "2D", "wrench.dxf"), "rb")
         assert not file_obj.closed
-        path = g.trimesh.load(
-            file_obj=file_obj,
-            file_type='dxf')
+        path = g.trimesh.load(file_obj=file_obj, file_type="dxf")
         assert g.np.isclose(path.area, 1.667, atol=1e-2)
         # should have actually loaded the path
         # should not close the file object
@@ -69,7 +54,11 @@ class LoaderTest(g.unittest.TestCase):
         # clean up
         file_obj.close()
 
+    def test_load_bz2(self):
+        mesh = g.trimesh.load(g.os.path.join(g.dir_models, "rock.obj.bz2"), force="mesh")
+        assert mesh.is_volume
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -8,17 +8,21 @@ Trimesh, Scene, PointCloud, and Path objects.
 Works on all major platforms: Windows, Linux, and OSX.
 """
 import collections
-import numpy as np
 
+import numpy as np
 import pyglet
 
-from .trackball import Trackball
+# pyglet 2.0 is close to a re-write moving from fixed-function
+# to shaders and we will likely support it by forking an entirely
+# new viewer `trimesh.viewer.shaders` and then basically keeping
+# `windowed` around for backwards-compatibility with no changes
+if int(pyglet.version.split(".")[0]) >= 2:
+    raise ImportError('`trimesh.viewer.windowed` requires `pip install "pyglet<2"`')
 
-from .. import util
-from .. import rendering
-
-from ..visual import to_rgba
+from .. import rendering, util
 from ..transformations import translation_matrix
+from ..visual import to_rgba
+from .trackball import Trackball
 
 pyglet.options["shadow_window"] = False
 
@@ -174,7 +178,7 @@ class SceneViewer(pyglet.window.Window):
                 conf = gl.Config(
                     sample_buffers=1, samples=4, depth_size=24, double_buffer=True
                 )
-                super(SceneViewer, self).__init__(
+                super().__init__(
                     config=conf,
                     visible=visible,
                     resizable=True,
@@ -184,7 +188,7 @@ class SceneViewer(pyglet.window.Window):
                 )
             except pyglet.window.NoSuchConfigException:
                 conf = gl.Config(double_buffer=True)
-                super(SceneViewer, self).__init__(
+                super().__init__(
                     config=conf,
                     resizable=True,
                     visible=visible,
@@ -194,7 +198,7 @@ class SceneViewer(pyglet.window.Window):
                 )
         else:
             # window config was manually passed
-            super(SceneViewer, self).__init__(
+            super().__init__(
                 config=window_conf,
                 resizable=True,
                 visible=visible,
@@ -234,7 +238,7 @@ class SceneViewer(pyglet.window.Window):
         for name, geom in self.scene.geometry.items():
             if geom.is_empty:
                 continue
-            if geometry_hash(geom) == self.vertex_list_hash.get(name):
+            if _geometry_hash(geom) == self.vertex_list_hash.get(name):
                 continue
             self.add_geometry(name=name, geometry=geom, smooth=bool(self._smooth))
 
@@ -262,13 +266,13 @@ class SceneViewer(pyglet.window.Window):
             # convert geometry to constructor args
             args = rendering.convert_to_vertexlist(geometry, **kwargs)
         except BaseException:
-            util.log.warning("failed to add geometry `{}`".format(name), exc_info=True)
+            util.log.warning(f"failed to add geometry `{name}`", exc_info=True)
             return
 
         # create the indexed vertex list
         self.vertex_list[name] = self.batch.add_indexed(*args)
         # save the hash of the geometry
-        self.vertex_list_hash[name] = geometry_hash(geometry)
+        self.vertex_list_hash[name] = _geometry_hash(geometry)
         # save the rendering mode from the constructor args
         self.vertex_list_mode[name] = args[1]
 
@@ -290,7 +294,7 @@ class SceneViewer(pyglet.window.Window):
         # shorthand to scene graph
         graph = self.scene.graph
         # which parts of the graph still have geometry
-        geom_keep = set([graph[node][1] for node in graph.nodes_geometry])
+        geom_keep = {graph[node][1] for node in graph.nodes_geometry}
         # which geometries no longer need to be kept
         geom_delete = [geom for geom in self.vertex_list if geom not in geom_keep]
         for geom in geom_delete:
@@ -395,9 +399,6 @@ class SceneViewer(pyglet.window.Window):
         Enable depth test in OpenGL using distances
         from `scene.camera`.
         """
-        # set the culling depth from our camera object
-        gl.glDepthRange(camera.z_near, camera.z_far)
-
         gl.glClearDepth(1.0)
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glDepthFunc(gl.GL_LEQUAL)
@@ -456,7 +457,7 @@ class SceneViewer(pyglet.window.Window):
         # opengl only supports 7 lights?
         for i, light in enumerate(scene.lights[:7]):
             # the index of which light we have
-            lightN = eval("gl.GL_LIGHT{}".format(i))
+            lightN = eval(f"gl.GL_LIGHT{i}")
 
             # get the transform for the light by name
             matrix = scene.graph.get(light.name)[0]
@@ -573,9 +574,7 @@ class SceneViewer(pyglet.window.Window):
                 # choose the side length by maximum XY length
                 side = bounds.ptp(axis=0)[:2].max()
                 # create an axis marker sized relative to the scene
-                grid_mesh = grid(
-                    side=side, count=4, transform=translation_matrix(center)
-                )
+                grid_mesh = grid(side=side, count=4, transform=translation_matrix(center))
                 # convert the path to vertexlist args
                 args = rendering.convert_to_vertexlist(grid_mesh)
                 # create ordered args for a vertex list
@@ -618,7 +617,7 @@ class SceneViewer(pyglet.window.Window):
         width, height = self._update_perspective(width, height)
         self.scene.camera.resolution = (width, height)
         self.trimesh_view["ball"].resize(self.scene.camera.resolution)
-        self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
+        self.scene.camera_transform = self.trimesh_view["ball"].pose
 
     def on_mouse_press(self, x, y, buttons, modifiers):
         """
@@ -640,21 +639,21 @@ class SceneViewer(pyglet.window.Window):
             self.trimesh_view["ball"].set_state(Trackball.STATE_ZOOM)
 
         self.trimesh_view["ball"].down(np.array([x, y]))
-        self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
+        self.scene.camera_transform = self.trimesh_view["ball"].pose
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """
         Pan or rotate the view.
         """
         self.trimesh_view["ball"].drag(np.array([x, y]))
-        self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
+        self.scene.camera_transform = self.trimesh_view["ball"].pose
 
     def on_mouse_scroll(self, x, y, dx, dy):
         """
         Zoom the view.
         """
         self.trimesh_view["ball"].scroll(dy)
-        self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
+        self.scene.camera_transform = self.trimesh_view["ball"].pose
 
     def on_key_press(self, symbol, modifiers):
         """
@@ -693,7 +692,7 @@ class SceneViewer(pyglet.window.Window):
                 self.trimesh_view["ball"].drag([0, -magnitude])
             elif symbol == pyglet.window.key.UP:
                 self.trimesh_view["ball"].drag([0, magnitude])
-            self.scene.camera_transform[...] = self.trimesh_view["ball"].pose
+            self.scene.camera_transform = self.trimesh_view["ball"].pose
 
     def on_draw(self):
         """
@@ -741,7 +740,6 @@ class SceneViewer(pyglet.window.Window):
 
             # get the transform from world to geometry and mesh name
             transform, geometry_name = graph.get(current_node)
-
             # if no geometry at this frame continue without rendering
             if geometry_name is None or geometry_name not in self.vertex_list_mode:
                 continue
@@ -759,7 +757,6 @@ class SceneViewer(pyglet.window.Window):
             mesh = geometry[geometry_name]
             if mesh.is_empty:
                 continue
-
             # get the GL mode of the current geometry
             mode = self.vertex_list_mode[geometry_name]
 
@@ -821,10 +818,10 @@ class SceneViewer(pyglet.window.Window):
 
         if self._profile:
             profiler.stop()
-            print(profiler.output_text(unicode=True, color=True))
+            util.log.debug(profiler.output_text(unicode=True, color=True))
 
     def flip(self):
-        super(SceneViewer, self).flip()
+        super().flip()
         if self._record:
             # will save a PNG-encoded bytes
             img = self.save_image(util.BytesIO())
@@ -852,7 +849,7 @@ class SceneViewer(pyglet.window.Window):
         return file_obj
 
 
-def geometry_hash(geometry):
+def _geometry_hash(geometry):
     """
     Get a hash for a geometry object
 

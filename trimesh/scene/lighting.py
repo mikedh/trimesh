@@ -10,9 +10,7 @@ https://github.com/mmatl/pyrender
 
 import numpy as np
 
-from .. import util
-from .. import visual
-from .. import transformations
+from .. import transformations, util, visual
 
 # default light color
 _DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
@@ -40,15 +38,10 @@ class Light(util.ABC):
         If None, the radius is assumed to be infinite.
     """
 
-    def __init__(self,
-                 name=None,
-                 color=None,
-                 intensity=None,
-                 radius=None):
-
+    def __init__(self, name=None, color=None, intensity=None, radius=None):
         if name is None:
             # if name is not passed, make it something unique
-            self.name = 'light_{}'.format(util.unique_id(6).upper())
+            self.name = f"light_{util.unique_id(6).upper()}"
         else:
             # otherwise assign it
             self.name = name
@@ -124,17 +117,8 @@ class DirectionalLight(Light):
         If None, the radius is assumed to be infinite.
     """
 
-    def __init__(self,
-                 name=None,
-                 color=None,
-                 intensity=None,
-                 radius=None):
-        super(DirectionalLight, self).__init__(
-            name=name,
-            color=color,
-            intensity=intensity,
-            radius=radius
-        )
+    def __init__(self, name=None, color=None, intensity=None, radius=None):
+        super().__init__(name=name, color=color, intensity=intensity, radius=radius)
 
 
 class PointLight(Light):
@@ -163,17 +147,8 @@ class PointLight(Light):
         If None, the radius is assumed to be infinite.
     """
 
-    def __init__(self,
-                 name=None,
-                 color=None,
-                 intensity=None,
-                 radius=None):
-        super(PointLight, self).__init__(
-            name=name,
-            color=color,
-            intensity=intensity,
-            radius=radius
-        )
+    def __init__(self, name=None, color=None, intensity=None, radius=None):
+        super().__init__(name=name, color=color, intensity=intensity, radius=radius)
 
 
 class SpotLight(Light):
@@ -213,19 +188,16 @@ class SpotLight(Light):
         Must be greater than `innerConeAngle` and less than or equal to `PI / 2.0`.
     """
 
-    def __init__(self,
-                 name=None,
-                 color=None,
-                 intensity=None,
-                 radius=None,
-                 innerConeAngle=0.0,
-                 outerConeAngle=np.pi / 4.0):
-        super(SpotLight, self).__init__(
-            name=name,
-            color=color,
-            intensity=intensity,
-            radius=radius
-        )
+    def __init__(
+        self,
+        name=None,
+        color=None,
+        intensity=None,
+        radius=None,
+        innerConeAngle=0.0,
+        outerConeAngle=np.pi / 4.0,
+    ):
+        super().__init__(name=name, color=color, intensity=intensity, radius=radius)
         self.outerConeAngle = outerConeAngle
         self.innerConeAngle = innerConeAngle
 
@@ -236,7 +208,7 @@ class SpotLight(Light):
     @innerConeAngle.setter
     def innerConeAngle(self, value):
         if value < 0.0 or value > self.outerConeAngle:
-            raise ValueError('Invalid value for inner cone angle')
+            raise ValueError("Invalid value for inner cone angle")
         self._innerConeAngle = float(value)
 
     @property
@@ -246,7 +218,7 @@ class SpotLight(Light):
     @outerConeAngle.setter
     def outerConeAngle(self, value):
         if value < 0.0 or value > np.pi / 2.0 + 1e-9:
-            raise ValueError('Invalid value for outer cone angle')
+            raise ValueError("Invalid value for outer cone angle")
         self._outerConeAngle = float(value)
 
 
@@ -271,7 +243,6 @@ def autolight(scene):
     lights = [PointLight(), PointLight()]
 
     # create two translation matrices for bounds corners
-    transforms = [transformations.translation_matrix(b)
-                  for b in scene.bounds]
+    transforms = [transformations.translation_matrix(b) for b in scene.bounds]
 
     return lights, transforms

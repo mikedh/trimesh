@@ -5,9 +5,8 @@ except BaseException:
 
 
 class FacetTest(g.unittest.TestCase):
-
     def test_facet(self):
-        m = g.get_mesh('featuretype.STL')
+        m = g.get_mesh("featuretype.STL")
 
         assert len(m.facets) > 0
         assert len(m.facets) == len(m.facets_boundary)
@@ -31,6 +30,6 @@ class FacetTest(g.unittest.TestCase):
         assert len(m.facets) == len(m.facets_on_hull)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -7,9 +7,9 @@ ColorVisuals and TextureVisuals.
 """
 import numpy as np
 
-from .material import from_color, pack
+from .color import ColorVisuals, color_to_uv
+from .material import pack
 from .texture import TextureVisuals
-from .color import ColorVisuals
 
 
 def create_visual(**kwargs):
@@ -56,12 +56,12 @@ def concatenate(visuals, *args):
         visuals = np.array(visuals)
 
     # if there are any texture visuals convert all to texture
-    if any(v.kind == 'texture' for v in visuals):
+    if any(v.kind == "texture" for v in visuals):
         # first collect materials and UV coordinates
         mats = []
         uvs = []
         for v in visuals:
-            if v.kind == 'texture':
+            if v.kind == "texture":
                 mats.append(v.material)
                 if v.uv is None:
                     # otherwise use zeros
@@ -72,23 +72,20 @@ def concatenate(visuals, *args):
 
             else:
                 # create a material and UV coordinates from vertex colors
-                color_mat, color_uv = from_color(
-                    vertex_colors=v.vertex_colors)
+                color_mat, color_uv = color_to_uv(vertex_colors=v.vertex_colors)
                 mats.append(color_mat)
                 uvs.append(color_uv)
         # pack the materials and UV coordinates into one
         new_mat, new_uv = pack(materials=mats, uvs=uvs)
         return TextureVisuals(material=new_mat, uv=new_uv)
 
-    # convert all visuals to the kind of the first
-    kind = visuals[0].kind
-    if kind == 'face':
-        colors = np.vstack([
-            v.face_colors for v in visuals])
+    # convert all visuals to the first valid kind
+    kind = next((v.kind for v in visuals if v.kind is not None), None)
+    if kind == "face":
+        colors = np.vstack([v.face_colors for v in visuals])
         return ColorVisuals(face_colors=colors)
-    elif kind == 'vertex':
-        colors = np.vstack([
-            v.vertex_colors for v in visuals])
+    elif kind == "vertex":
+        colors = np.vstack([v.vertex_colors for v in visuals])
         return ColorVisuals(vertex_colors=colors)
 
     return ColorVisuals()

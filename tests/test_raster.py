@@ -5,42 +5,33 @@ except BaseException:
 
 
 class RasterTest(g.unittest.TestCase):
-
     def test_rasterize(self):
-        p = g.get_mesh('2D/wrench.dxf')
+        p = g.get_mesh("2D/wrench.dxf")
 
         origin = p.bounds[0]
         pitch = p.extents.max() / 600
         resolution = g.np.ceil(p.extents / pitch).astype(int)
 
         # rasterize with filled
-        filled = p.rasterize(origin=origin,
-                             pitch=pitch,
-                             resolution=resolution,
-                             fill=True,
-                             width=None)
+        filled = p.rasterize(
+            origin=origin, pitch=pitch, resolution=resolution, fill=True, width=None
+        )
 
         # rasterize just the outline
-        outline = p.rasterize(origin=origin,
-                              pitch=pitch,
-                              resolution=resolution,
-                              fill=False,
-                              width=2.0)
+        outline = p.rasterize(
+            origin=origin, pitch=pitch, resolution=resolution, fill=False, width=2.0
+        )
 
         # rasterize both
-        both = p.rasterize(origin=origin,
-                           pitch=pitch,
-                           resolution=resolution,
-                           fill=True,
-                           width=2.0)
+        both = p.rasterize(
+            origin=origin, pitch=pitch, resolution=resolution, fill=True, width=2.0
+        )
 
         # rasterize with two-dimensional pitch
         pitch = p.extents / 600
-        filled_2dpitch = p.rasterize(origin=origin,
-                                     pitch=pitch,
-                                     resolution=resolution,
-                                     fill=True,
-                                     width=None)
+        filled_2dpitch = p.rasterize(
+            origin=origin, pitch=pitch, resolution=resolution, fill=True, width=None
+        )
 
         # count the number of filled pixels
         fill_cnt = g.np.array(filled).sum()
@@ -74,19 +65,17 @@ class RasterTest(g.unittest.TestCase):
 
         pitch = path.extents.max() / 1000
         origin = path.bounds[0] - pitch
-        resolution = (g.np.ceil(
-            path.extents / pitch) + 2).astype(int)
+        resolution = (g.np.ceil(path.extents / pitch) + 2).astype(int)
 
         # rasterize using the settings
-        r = path.rasterize(
-            pitch=pitch, origin=origin, resolution=resolution)
+        r = path.rasterize(pitch=pitch, origin=origin, resolution=resolution)
         # it's a boolean image so filled cells times
         # pitch area should be about the same as the area
-        filled = g.np.array(r).sum() * pitch ** 2
+        filled = g.np.array(r).sum() * pitch**2
 
         assert g.np.isclose(filled, path.area, rtol=0.01)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

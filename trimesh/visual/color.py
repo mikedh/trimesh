@@ -22,16 +22,15 @@ Goals
    and setting or altering a value should automatically change the mode.
 """
 
+import colorsys
+import copy
+
 import numpy as np
 
-import copy
-import colorsys
-
+from .. import caching, util
+from ..constants import tol
+from ..grouping import unique_rows
 from .base import Visuals
-
-from .. import util
-from .. import caching
-from .. import grouping
 
 
 class ColorVisuals(Visuals):
@@ -39,10 +38,7 @@ class ColorVisuals(Visuals):
     Store color information about a mesh.
     """
 
-    def __init__(self,
-                 mesh=None,
-                 face_colors=None,
-                 vertex_colors=None):
+    def __init__(self, mesh=None, face_colors=None, vertex_colors=None):
         """
         Store color information about a mesh.
 
@@ -58,17 +54,14 @@ class ColorVisuals(Visuals):
         """
         self.mesh = mesh
         self._data = caching.DataStore()
-        self._cache = caching.Cache(
-            id_function=self._data.__hash__)
+        self._cache = caching.Cache(id_function=self._data.__hash__)
 
         self.defaults = {
-            'material_diffuse': np.array([102, 102, 102, 255],
-                                         dtype=np.uint8),
-            'material_ambient': np.array([64, 64, 64, 255],
-                                         dtype=np.uint8),
-            'material_specular': np.array([197, 197, 197, 255],
-                                          dtype=np.uint8),
-            'material_shine': 77.0}
+            "material_diffuse": np.array([102, 102, 102, 255], dtype=np.uint8),
+            "material_ambient": np.array([64, 64, 64, 255], dtype=np.uint8),
+            "material_specular": np.array([197, 197, 197, 255], dtype=np.uint8),
+            "material_shine": 77.0,
+        }
 
         try:
             if face_colors is not None:
@@ -76,7 +69,7 @@ class ColorVisuals(Visuals):
             if vertex_colors is not None:
                 self.vertex_colors = vertex_colors
         except ValueError:
-            util.log.warning('unable to convert colors!')
+            util.log.warning("unable to convert colors!")
 
     @caching.cache_decorator
     def transparency(self):
@@ -87,10 +80,10 @@ class ColorVisuals(Visuals):
         ----------
         transparency: bool, does the current visual contain transparency
         """
-        if 'vertex_colors' in self._data:
-            a_min = self._data['vertex_colors'][:, 3].min()
-        elif 'face_colors' in self._data:
-            a_min = self._data['face_colors'][:, 3].min()
+        if "vertex_colors" in self._data:
+            a_min = self._data["vertex_colors"][:, 3].min()
+        elif "face_colors" in self._data:
+            a_min = self._data["face_colors"][:, 3].min()
         else:
             return False
 
@@ -126,10 +119,10 @@ class ColorVisuals(Visuals):
         self._verify_hash()
 
         # check modes in data
-        if 'vertex_colors' in self._data:
-            return 'vertex'
-        elif 'face_colors' in self._data:
-            return 'face'
+        if "vertex_colors" in self._data:
+            return "vertex"
+        elif "face_colors" in self._data:
+            return "face"
 
         return None
 
@@ -147,9 +140,9 @@ class ColorVisuals(Visuals):
           Contains the same information as self
         """
         copied = ColorVisuals()
-        # call the literally insane generators
-        self.face_colors
-        self.vertex_colors
+        # call the literally insane generators to validate
+        self.face_colors  # noqa
+        self.vertex_colors  # noqa
         # copy anything that's actually data
         copied._data.data = copy.deepcopy(self._data.data)
 
@@ -167,7 +160,7 @@ class ColorVisuals(Visuals):
         colors : (len(mesh.faces), 4) uint8
           RGBA color for each face
         """
-        return self._get_colors(name='face')
+        return self._get_colors(name="face")
 
     @face_colors.setter
     def face_colors(self, values):
@@ -185,20 +178,19 @@ class ColorVisuals(Visuals):
                  (4,) int, set the whole mesh this color
         """
         if values is None:
-            if 'face_colors' in self._data:
-                self._data.data.pop('face_colors')
+            if "face_colors" in self._data:
+                self._data.data.pop("face_colors")
             return
 
         colors = to_rgba(values)
 
-        if (self.mesh is not None and
-                colors.shape == (4,)):
+        if self.mesh is not None and colors.shape == (4,):
             count = len(self.mesh.faces)
             colors = np.tile(colors, (count, 1))
 
         # if we set any color information, clear the others
         self._data.clear()
-        self._data['face_colors'] = colors
+        self._data["face_colors"] = colors
         self._cache.verify()
 
     @property
@@ -210,7 +202,7 @@ class ColorVisuals(Visuals):
         ------------
         colors: (len(mesh.vertices), 4) uint8, color for each vertex
         """
-        return self._get_colors(name='vertex')
+        return self._get_colors(name="vertex")
 
     @vertex_colors.setter
     def vertex_colors(self, values):
@@ -228,29 +220,29 @@ class ColorVisuals(Visuals):
                  (4,) int, set the whole mesh this color
         """
         if values is None:
-            if 'vertex_colors' in self._data:
-                self._data.data.pop('vertex_colors')
+            if "vertex_colors" in self._data:
+                self._data.data.pop("vertex_colors")
             return
 
         # make sure passed values are numpy array
         values = np.asanyarray(values)
         # Ensure the color shape is sane
-        if (self.mesh is not None and not
-                (values.shape == (len(self.mesh.vertices), 3) or
-                 values.shape == (len(self.mesh.vertices), 4) or
-                 values.shape == (3,) or
-                 values.shape == (4,))):
+        if self.mesh is not None and not (
+            values.shape == (len(self.mesh.vertices), 3)
+            or values.shape == (len(self.mesh.vertices), 4)
+            or values.shape == (3,)
+            or values.shape == (4,)
+        ):
             return
 
         colors = to_rgba(values)
-        if (self.mesh is not None and
-                colors.shape == (4,)):
+        if self.mesh is not None and colors.shape == (4,):
             count = len(self.mesh.vertices)
             colors = np.tile(colors, (count, 1))
 
         # if we set any color information, clear the others
         self._data.clear()
-        self._data['vertex_colors'] = colors
+        self._data["vertex_colors"] = colors
         self._cache.verify()
 
     def _get_colors(self, name):
@@ -280,17 +272,17 @@ class ColorVisuals(Visuals):
 
         count = None
         try:
-            if name == 'face':
+            if name == "face":
                 count = len(self.mesh.faces)
-            elif name == 'vertex':
+            elif name == "vertex":
                 count = len(self.mesh.vertices)
         except BaseException:
             pass
 
         # the face or vertex colors
-        key_colors = str(name) + '_colors'
+        key_colors = str(name) + "_colors"
         # the initial hash of the colors
-        key_hash = key_colors + '_hash'
+        key_hash = key_colors + "_hash"
 
         if key_colors in self._data:
             # if a user has explicitly stored or changed the color it
@@ -306,12 +298,12 @@ class ColorVisuals(Visuals):
             if hash(colors) != self._cache[key_hash]:
                 # call the setter on the property using exec
                 # this avoids having to pass a setter to this function
-                if name == 'face':
+                if name == "face":
                     self.face_colors = colors
-                elif name == 'vertex':
+                elif name == "vertex":
                     self.vertex_colors = colors
                 else:
-                    raise ValueError('unsupported name!!!')
+                    raise ValueError("unsupported name!!!")
                 self._cache.verify()
                 # return the stored copy of the colors
                 return self._data[key_colors]
@@ -320,24 +312,20 @@ class ColorVisuals(Visuals):
             if self.kind is None:
                 # no colors are defined, so create a (count, 4) tiled
                 # copy of the default color
-                colors = np.tile(self.defaults['material_diffuse'],
-                                 (count, 1))
-            elif (self.kind == 'vertex' and
-                  name == 'face'):
+                colors = np.tile(self.defaults["material_diffuse"], (count, 1))
+            elif self.kind == "vertex" and name == "face":
                 colors = vertex_to_face_color(
-                    vertex_colors=self.vertex_colors,
-                    faces=self.mesh.faces)
-            elif (self.kind == 'face' and
-                  name == 'vertex'):
+                    vertex_colors=self.vertex_colors, faces=self.mesh.faces
+                )
+            elif self.kind == "face" and name == "vertex":
                 colors = face_to_vertex_color(
-                    mesh=self.mesh,
-                    face_colors=self.face_colors)
+                    mesh=self.mesh, face_colors=self.face_colors
+                )
             else:
-                raise ValueError('self.kind not accepted values!!')
+                raise ValueError("self.kind not accepted values!!")
 
-        if (count is not None and
-                colors.shape != (count, 4)):
-            raise ValueError('face colors incorrect shape!')
+        if count is not None and colors.shape != (count, 4):
+            raise ValueError("face colors incorrect shape!")
 
         # subclass the array to track for changes using a hash
         colors = caching.tracked_array(colors)
@@ -357,14 +345,14 @@ class ColorVisuals(Visuals):
         the DataStore at self._data since the user action has made them
         user data.
         """
-        if not hasattr(self, '_cache') or len(self._cache) == 0:
+        if not hasattr(self, "_cache") or len(self._cache) == 0:
             return
 
-        for name in ['face', 'vertex']:
+        for name in ["face", "vertex"]:
             # the face or vertex colors
-            key_colors = str(name) + '_colors'
+            key_colors = str(name) + "_colors"
             # the initial hash of the colors
-            key_hash = key_colors + '_hash'
+            key_hash = key_colors + "_hash"
 
             if key_colors not in self._cache:
                 continue
@@ -373,25 +361,25 @@ class ColorVisuals(Visuals):
             # if the cached colors have been changed since creation
             # move them to data
             if hash(colors) != self._cache[key_hash]:
-                if name == 'face':
+                if name == "face":
                     self.face_colors = colors
-                elif name == 'vertex':
+                elif name == "vertex":
                     self.vertex_colors = colors
                 else:
-                    raise ValueError('unsupported name!!!')
+                    raise ValueError("unsupported name!!!")
                 self._cache.verify()
 
     def update_vertices(self, mask):
         """
         Apply a mask to remove or duplicate vertex properties.
         """
-        self._update_key(mask, 'vertex_colors')
+        self._update_key(mask, "vertex_colors")
 
     def update_faces(self, mask):
         """
         Apply a mask to remove or duplicate face properties
         """
-        self._update_key(mask, 'face_colors')
+        self._update_key(mask, "face_colors")
 
     def face_subset(self, face_index):
         """
@@ -431,15 +419,15 @@ class ColorVisuals(Visuals):
         """
         if self.kind is None:
             return DEFAULT_COLOR
-        elif self.kind == 'face':
+        elif self.kind == "face":
             colors = self.face_colors
-        elif self.kind == 'vertex':
+        elif self.kind == "vertex":
             colors = self.vertex_colors
         else:
-            raise ValueError('color kind incorrect!')
+            raise ValueError("color kind incorrect!")
 
         # find the unique colors
-        unique, inverse = grouping.unique_rows(colors)
+        unique, inverse = unique_rows(colors)
         # the most commonly occurring color, or mode
         # this will be an index of inverse, not colors
         mode_index = np.bincount(inverse).argmax()
@@ -448,9 +436,18 @@ class ColorVisuals(Visuals):
         return color
 
     def to_texture(self):
-        from .material import from_color
+        """
+        Convert the current ColorVisuals object to a texture
+        with a `SimpleMaterial` defined.
+
+        Returns
+        ------------
+        visual : trimesh.visual.TextureVisuals
+          Copy of the current visuals as a texture.
+        """
         from .texture import TextureVisuals
-        mat, uv = from_color(vertex_colors=self.vertex_colors)
+
+        mat, uv = color_to_uv(vertex_colors=self.vertex_colors)
         return TextureVisuals(material=mat, uv=uv)
 
     def concatenate(self, other, *args):
@@ -472,6 +469,7 @@ class ColorVisuals(Visuals):
         """
         # avoid a circular import
         from . import objects
+
         result = objects.concatenate(self, other, *args)
         return result
 
@@ -505,7 +503,7 @@ class VertexColor(Visuals):
 
     @property
     def kind(self):
-        return 'vertex'
+        return "vertex"
 
     def update_vertices(self, mask):
         if self._colors is not None:
@@ -551,9 +549,7 @@ class VertexColor(Visuals):
         concate : VertexColor
           Object with both colors
         """
-        return VertexColor(colors=np.vstack(
-            self.vertex_colors,
-            other.vertex_colors))
+        return VertexColor(colors=np.vstack(self.vertex_colors, other.vertex_colors))
 
     def __hash__(self):
         return self._colors.__hash__()
@@ -582,29 +578,26 @@ def to_rgba(colors, dtype=np.uint8):
     # integer value for opaque alpha given our datatype
     opaque = np.iinfo(dtype).max
 
-    if colors.dtype.kind == 'f':
+    if colors.dtype.kind == "f":
         # replace any `nan` or `inf` values with zero
         colors[~np.isfinite(colors)] = 0.0
 
-    if (colors.dtype.kind == 'f' and colors.max() < (1.0 + 1e-8)):
+    if colors.dtype.kind == "f" and colors.max() < (1.0 + 1e-8):
         colors = (colors * opaque).round().astype(dtype)
-    elif (colors.max() <= opaque):
+    elif colors.max() <= opaque:
         colors = colors.astype(dtype)
     else:
-        raise ValueError('colors non-convertible!')
+        raise ValueError("colors non-convertible!")
 
     if util.is_shape(colors, (-1, 3)):
         # add an opaque alpha for RGB colors
-        colors = np.column_stack((
-            colors,
-            opaque * np.ones(len(colors)))).astype(dtype)
+        colors = np.column_stack((colors, opaque * np.ones(len(colors)))).astype(dtype)
     elif util.is_shape(colors, (3,)):
         # if passed a single RGB color add an alpha
         colors = np.append(colors, opaque).astype(dtype)
 
-    if not (util.is_shape(colors, (4,)) or
-            util.is_shape(colors, (-1, 4))):
-        raise ValueError('Colors not of appropriate shape!')
+    if not (util.is_shape(colors, (4,)) or util.is_shape(colors, (-1, 4))):
+        raise ValueError("Colors not of appropriate shape!")
 
     return colors
 
@@ -626,14 +619,14 @@ def to_float(colors):
 
     # colors as numpy array
     colors = np.asanyarray(colors)
-    if colors.dtype.kind == 'f':
+    if colors.dtype.kind == "f":
         return colors
-    elif colors.dtype.kind in 'iu':
+    elif colors.dtype.kind in "iu":
         # integer value for opaque alpha given our datatype
         opaque = np.iinfo(colors.dtype).max
         return colors.astype(np.float64) / opaque
     else:
-        raise ValueError('only works on int or float colors!')
+        raise ValueError("only works on int or float colors!")
 
 
 def hex_to_rgba(color):
@@ -648,12 +641,12 @@ def hex_to_rgba(color):
     -----------
     rgba: (4,) np.uint8, RGBA color
     """
-    value = str(color).lstrip('#').strip()
+    value = str(color).lstrip("#").strip()
     if len(value) == 6:
-        rgb = [int(value[i:i + 2], 16) for i in (0, 2, 4)]
+        rgb = [int(value[i : i + 2], 16) for i in (0, 2, 4)]
         rgba = np.append(rgb, 255).astype(np.uint8)
     else:
-        raise ValueError('Only RGB supported')
+        raise ValueError("Only RGB supported")
 
     return rgba
 
@@ -670,11 +663,11 @@ def random_color(dtype=np.uint8):
     ----------
     color: (4,) dtype, random color that looks OK
     """
-    hue = np.random.random() + .61803
+    hue = np.random.random() + 0.61803
     hue %= 1.0
-    color = np.array(colorsys.hsv_to_rgb(hue, .99, .99))
-    if np.dtype(dtype).kind in 'iu':
-        max_value = (2**(np.dtype(dtype).itemsize * 8)) - 1
+    color = np.array(colorsys.hsv_to_rgb(hue, 0.99, 0.99))
+    if np.dtype(dtype).kind in "iu":
+        max_value = (2 ** (np.dtype(dtype).itemsize * 8)) - 1
         color *= max_value
     color = np.append(color, max_value).astype(dtype)
     return color
@@ -698,10 +691,7 @@ def vertex_to_face_color(vertex_colors, faces):
     return face_colors.astype(np.uint8)
 
 
-def face_to_vertex_color(
-        mesh,
-        face_colors,
-        dtype=np.uint8):
+def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
     """
     Convert face colors into vertex colors.
 
@@ -759,10 +749,10 @@ def colors_to_materials(colors, count=None):
     elif util.is_shape(rgba, (-1, 4)):
         # we were passed multiple colors
         # find the unique colors in the list to save as materials
-        unique, index = grouping.unique_rows(rgba)
+        unique, index = unique_rows(rgba)
         diffuse = rgba[unique]
     else:
-        raise ValueError('Colors not convertible!')
+        raise ValueError("Colors not convertible!")
 
     return diffuse, index
 
@@ -788,24 +778,20 @@ def linear_color_map(values, color_range=None):
     """
 
     if color_range is None:
-        color_range = np.array([[255, 0, 0, 255],
-                                [0, 255, 0, 255]],
-                               dtype=np.uint8)
+        color_range = np.array([[255, 0, 0, 255], [0, 255, 0, 255]], dtype=np.uint8)
     else:
-        color_range = np.asanyarray(color_range,
-                                    dtype=np.uint8)
+        color_range = np.asanyarray(color_range, dtype=np.uint8)
 
     if color_range.shape != (2, 4):
-        raise ValueError('color_range must be RGBA (2, 4)')
+        raise ValueError("color_range must be RGBA (2, 4)")
 
     # float 1D array clamped to 0.0 - 1.0
-    values = np.clip(np.asanyarray(
-        values, dtype=np.float64).ravel(),
-        0.0, 1.0).reshape((-1, 1))
+    values = np.clip(np.asanyarray(values, dtype=np.float64).ravel(), 0.0, 1.0).reshape(
+        (-1, 1)
+    )
 
     # the stacked component colors
-    color = [np.ones((len(values), 4)) * c
-             for c in color_range.astype(np.float64)]
+    color = [np.ones((len(values), 4)) * c for c in color_range.astype(np.float64)]
 
     # interpolated colors
     colors = (color[1] * values) + (color[0] * (1.0 - values))
@@ -841,6 +827,7 @@ def interpolate(values, color_map=None, dtype=np.uint8):
         cmap = linear_color_map
     else:
         from matplotlib.pyplot import get_cmap
+
         cmap = get_cmap(color_map)
 
     # make input always float
@@ -866,7 +853,7 @@ def uv_to_color(uv, image):
 
     Returns
     ----------
-    colors : (n, 4) float
+    colors : (n, 4) uint4
       RGBA color at each of the UV coordinates
     """
     if image is None or uv is None:
@@ -876,20 +863,18 @@ def uv_to_color(uv, image):
     uv = np.asanyarray(uv, dtype=np.float64)
 
     # get texture image pixel positions of UV coordinates
-    x = (uv[:, 0] * (image.width - 1))
-    y = ((1 - uv[:, 1]) * (image.height - 1))
-
-    # convert to int and wrap to image
-    # size in the manner of GL_REPEAT
-    x = x.round().astype(np.int64) % image.width
-    y = y.round().astype(np.int64) % image.height
+    x = (uv[:, 0] * (image.width - 1)) % image.width
+    y = ((1 - uv[:, 1]) * (image.height - 1)) % image.height
 
     # access colors from pixel locations
     # make sure image is RGBA before getting values
-    colors = np.asanyarray(image.convert('RGBA'))[y, x]
+    colors = np.asanyarray(image.convert("RGBA"))[
+        y.round().astype(np.int64), x.round().astype(np.int64)
+    ]
 
     # conversion to RGBA should have corrected shape
     assert colors.ndim == 2 and colors.shape[1] == 4
+    assert colors.dtype == np.uint8
 
     return colors
 
@@ -907,8 +892,8 @@ def uv_to_interpolated_color(uv, image):
 
     Returns
     ----------
-    colors : (n, 4) float
-      RGBA color at each of the UV coordinates
+    colors : (n, 4) uint8
+      RGBA color at each of the UV coordinates.
     """
     if image is None or uv is None:
         return None
@@ -917,8 +902,8 @@ def uv_to_interpolated_color(uv, image):
     uv = np.asanyarray(uv, dtype=np.float64)
 
     # get texture image pixel positions of UV coordinates
-    x = (uv[:, 0] * (image.width - 1))
-    y = ((1 - uv[:, 1]) * (image.height - 1))
+    x = uv[:, 0] * (image.width - 1)
+    y = (1 - uv[:, 1]) * (image.height - 1)
 
     x_floor = np.floor(x).astype(np.int64) % image.width
     y_floor = np.floor(y).astype(np.int64) % image.height
@@ -929,11 +914,11 @@ def uv_to_interpolated_color(uv, image):
     dx = x % image.width - x_floor
     dy = y % image.height - y_floor
 
-    img = np.asanyarray(image.convert('RGBA'))
+    img = np.asanyarray(image.convert("RGBA"))
 
     colors00 = img[y_floor, x_floor]
-    colors01 = img[y_ceil, x_floor]
-    colors10 = img[y_floor, x_ceil]
+    colors01 = img[y_floor, x_ceil]
+    colors10 = img[y_ceil, x_floor]
     colors11 = img[y_ceil, x_ceil]
 
     a00 = (1 - dx) * (1 - dy)
@@ -946,12 +931,75 @@ def uv_to_interpolated_color(uv, image):
     a10 = np.repeat(a10[:, None], 4, axis=1)
     a11 = np.repeat(a11[:, None], 4, axis=1)
 
-    colors = a00 * colors00 + a01 * colors01 + a10 * colors10 + a11 * colors11
+    # interpolated colors as floating point then convert back to uint8
+    colors = (
+        (a00 * colors00 + a01 * colors01 + a10 * colors10 + a11 * colors11)
+        .round()
+        .astype(np.uint8)
+    )
 
     # conversion to RGBA should have corrected shape
     assert colors.ndim == 2 and colors.shape[1] == 4
+    assert colors.dtype == np.uint8
 
     return colors
+
+
+def color_to_uv(vertex_colors):
+    """
+    Pack vertex colors into UV coordinates and a simple image material
+
+    Parameters
+    ------------
+    vertex_colors : (n, 4) float
+      Array of vertex colors.
+
+    Returns
+    ------------
+    material : SimpleMaterial
+      Material containing color information.
+    uv : (n, 2) float
+      Normalized UV coordinates
+    """
+    from .material import SimpleMaterial, empty_material
+
+    # deduplicate the vertex colors
+    unique, inverse = unique_rows(vertex_colors)
+
+    # if there is only one color return a
+    if len(unique) == 1:
+        # return a simple single-pixel material
+        material = empty_material(color=vertex_colors[unique[0]])
+        uvs = np.zeros((len(vertex_colors), 2)) + 0.5
+        return material, uvs
+
+    from PIL import Image
+
+    # return a square image of (size, size)
+    size = int(np.ceil(np.sqrt(len(unique))))
+    ctype = vertex_colors.shape[1]
+
+    colors = np.zeros((size**2, ctype), dtype=vertex_colors.dtype)
+    colors[: len(unique)] = vertex_colors[unique]
+
+    # PIL has reversed x-y coordinates
+    image = Image.fromarray(colors.reshape((size, size, ctype))[::-1])
+
+    pos = np.arange(len(unique))
+    # create tiled coordinates for the color pixels
+    coords = np.column_stack((pos % size, np.floor(pos / size)))
+
+    # normalize the index coords into 0.0 - 1.0
+    # and offset them to be centered on the pixel
+    coords = (coords / size) + (1.0 / (size * 2.0))
+    uvs = coords[inverse]
+
+    if tol.strict:
+        # check the packed colors against the image
+        check = uv_to_color(image=image, uv=uvs)
+        assert np.all(check == vertex_colors)
+
+    return SimpleMaterial(image=image), uvs
 
 
 # set an arbitrary grey as the default color

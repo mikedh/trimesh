@@ -7,20 +7,19 @@ like MTL files, texture images, etc. Assets can be from ZIP
 archives, web assets, or a local file path.
 """
 
-import os
 import abc
 import itertools
+import os
 
-from . import util
-from . import caching
+from . import caching, util
 
 # URL parsing for remote resources via WebResolver
 try:
     # Python 3
-    from urllib.parse import urlparse, urljoin
+    from urllib.parse import urlparse
 except ImportError:
     # Python 2
-    from urlparse import urlparse, urljoin
+    from urlparse import urlparse
 
 
 class Resolver(util.ABC):
@@ -30,23 +29,28 @@ class Resolver(util.ABC):
 
     @abc.abstractmethod
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError('Use a resolver subclass!')
+        raise NotImplementedError("Use a resolver subclass!")
 
     @abc.abstractmethod
     def get(self, key):
         raise NotImplementedError()
 
+    @abc.abstractmethod
     def write(self, name, data):
-        raise NotImplementedError('`write` not implemented!')
+        raise NotImplementedError("`write` not implemented!")
 
+    @abc.abstractmethod
     def namespaced(self, namespace):
-        raise NotImplementedError('`namespaced` not implemented!')
+        raise NotImplementedError("`namespaced` not implemented!")
 
     def __getitem__(self, key):
         return self.get(key)
 
-    def __setitem(self, key, value):
+    def __setitem__(self, key, value):
         return self.write(key, value)
+
+    def __contains__(self, key):
+        return key in self.keys()
 
 
 class FilePathResolver(Resolver):
@@ -64,8 +68,7 @@ class FilePathResolver(Resolver):
           File path where mesh was loaded from
         """
         # remove everything other than absolute path
-        clean = os.path.expanduser(
-            os.path.abspath(str(source)))
+        clean = os.path.expanduser(os.path.abspath(str(source)))
 
         self.clean = clean
         if os.path.isdir(clean):
@@ -78,9 +81,7 @@ class FilePathResolver(Resolver):
 
         # exit if directory doesn't exist
         if not os.path.isdir(self.parent):
-            raise ValueError(
-                'path `{} `not a directory!'.format(
-                    self.parent))
+            raise ValueError(f"path `{self.parent} `not a directory!")
 
     def keys(self):
         """
@@ -91,9 +92,31 @@ class FilePathResolver(Resolver):
         name : str
           Name of a file which can be accessed.
         """
+        parent = self.parent
         for path, _, names in os.walk(self.parent):
+            # strip any leading parent key
+            if path.startswith(parent):
+                path = path[len(parent) :]
+            # yield each name
             for name in names:
                 yield os.path.join(path, name)
+
+    def namespaced(self, namespace):
+        """
+        Return a resolver which changes the root of the
+        resolver by an added namespace.
+
+        Parameters
+        -------------
+        namespace : str
+          Probably a subdirectory
+
+        Returns
+        --------------
+        resolver : FilePathResolver
+          Resolver with root directory changed.
+        """
+        return FilePathResolver(os.path.join(self.parent, namespace))
 
     def get(self, name):
         """
@@ -112,9 +135,8 @@ class FilePathResolver(Resolver):
         # load the file by path name
         path = os.path.join(self.parent, name.strip())
         if not os.path.exists(path):
-            path = os.path.join(
-                self.parent, os.path.split(name)[-1])
-        with open(path, 'rb') as f:
+            path = os.path.join(self.parent, os.path.split(name)[-1])
+        with open(path, "rb") as f:
             data = f.read()
         return data
 
@@ -130,7 +152,7 @@ class FilePathResolver(Resolver):
           Data to write to the file
         """
         # write files to path name
-        with open(os.path.join(self.parent, name.strip()), 'wb') as f:
+        with open(os.path.join(self.parent, name.strip()), "wb") as f:
             # handle encodings correctly for str/bytes
             util.write_encoded(file_obj=f, stuff=data)
 
@@ -140,7 +162,7 @@ class ZipResolver(Resolver):
     Resolve files inside a ZIP archive.
     """
 
-    def __init__(self, archive, namespace=None):
+    def __init__(self, archive=None, namespace=None):
         """
         Resolve files inside a ZIP archive as loaded by
         trimesh.util.decompress
@@ -156,21 +178,46 @@ class ZipResolver(Resolver):
         """
         self.archive = archive
         if isinstance(namespace, str):
-            self.namespace = namespace.strip().rstrip('/') + '/'
+            self.namespace = namespace.strip().rstrip("/") + "/"
         else:
             self.namespace = None
 
     def keys(self):
+        """
+        Get the available keys in the current archive.
+
+        Returns
+        -----------
+        keys : iterable
+          Keys in the current archive.
+        """
         if self.namespace is not None:
             namespace = self.namespace
-            length = len(namespace) + 1
+            length = len(namespace)
             # only return keys that start with the namespace
             # and strip off the namespace from the returned
             # keys.
-            return [k[length:] for k in self.archive.keys()
-                    if k.startswith(namespace)
-                    and len(k) > length]
+            return [
+                k[length:]
+                for k in self.archive.keys()
+                if k.startswith(namespace) and len(k) > length
+            ]
         return self.archive.keys()
+
+    def write(self, key, value):
+        """
+        Store a value in the current archive.
+
+        Parameters
+        -----------
+        key : hashable
+          Key to store data under.
+        value : str, bytes, file-like
+          Value to store.
+        """
+        if self.archive is None:
+            self.archive = {}
+        self.archive[key] = value
 
     def get(self, name):
         """
@@ -190,8 +237,8 @@ class ZipResolver(Resolver):
         if name is None:
             return
         # make sure name is a string
-        if hasattr(name, 'decode'):
-            name = name.decode('utf-8')
+        if hasattr(name, "decode"):
+            name = name.decode("utf-8")
         # store reference to archive inside this function
         archive = self.archive
         # requested name not identical in
@@ -234,8 +281,19 @@ class ZipResolver(Resolver):
         resolver : Resolver
           Namespaced resolver.
         """
-        return ZipResolver(archive=self.archive,
-                           namespace=namespace)
+        return ZipResolver(archive=self.archive, namespace=namespace)
+
+    def export(self):
+        """
+        Export the contents of the current archive as
+        a ZIP file.
+
+        Returns
+        ------------
+        compressed : bytes
+          Compressed data in ZIP format.
+        """
+        return util.compress(self.archive)
 
 
 class WebResolver(Resolver):
@@ -253,23 +311,38 @@ class WebResolver(Resolver):
           Location where a mesh was stored or
           directory where mesh was stored
         """
-        if hasattr(url, 'decode'):
-            url = url.decode('utf-8')
+        if hasattr(url, "decode"):
+            url = url.decode("utf-8")
 
         # parse string into namedtuple
         parsed = urlparse(url)
 
-        # we want a base url where the mesh was located
-        path = parsed.path
-        if path[-1] != '/':
-            # clip off last item
-            path = '/'.join(path.split('/')[:-1]) + '/'
+        # we want a base url
+        split = [i for i in parsed.path.split("/") if len(i) > 0]
 
-        # store the base url
-        self.base_url = '{scheme}://{netloc}/{path}'.format(
-            scheme=parsed.scheme,
-            netloc=parsed.netloc,
-            path=path)
+        # if the last item in the url path is a filename
+        # move up a "directory" for the base path
+        if len(split) == 0:
+            path = ""
+        elif "." in split[-1]:
+            # clip off last item
+            path = "/".join(split[:-1])
+        else:
+            # recombine into string ignoring any double slashes
+            path = "/".join(split)
+        self.base_url = (
+            "/".join(
+                i
+                for i in [parsed.scheme + ":/", parsed.netloc.strip("/"), path.strip("/")]
+                if len(i) > 0
+            )
+            + "/"
+        )
+
+        # our string handling should have never inserted double slashes
+        assert "//" not in self.base_url[len(parsed.scheme) + 3 :]
+        # we should always have ended with a single slash
+        assert self.base_url.endswith("/")
 
     def get(self, name):
         """
@@ -281,33 +354,52 @@ class WebResolver(Resolver):
           Asset name, i.e. 'quadknot.obj.mtl'
         """
         # do import here to keep soft dependency
-        import requests
+        import httpx
 
         # remove leading and trailing whitespace
         name = name.strip()
         # fetch the data from the remote url
-        response = requests.get(urljoin(
-            self.base_url, name))
 
-        if response.status_code != 200:
+        # base url has been carefully formatted
+        url = self.base_url + name
+
+        response = httpx.get(url, follow_redirects=True)
+
+        if response.status_code >= 300:
             # try to strip off filesystem crap
-            response = requests.get(urljoin(
-                self.base_url,
-                name.lstrip('./')))
+            if name.startswith("./"):
+                name = name[2:]
+            response = httpx.get(self.base_url + name, follow_redirects=True)
 
-        if response.status_code == '404':
-            raise ValueError(response.content)
+        # now raise if we don't have
+        response.raise_for_status()
 
         # return the bytes of the response
         return response.content
 
+    def namespaced(self, namespace):
+        """
+        Return a namespaced version of current resolver.
+
+        Parameters
+        -------------
+        namespace : str
+          URL fragment
+
+        Returns
+        -----------
+        resolver : WebResolver
+          With sub-url: `https://example.com/{namespace}`
+        """
+        # join the base url and the namespace
+        return WebResolver(url=self.base_url + namespace)
+
+    def write(self, key, value):
+        raise NotImplementedError("can't write to remote")
+
 
 class GithubResolver(Resolver):
-    def __init__(self,
-                 repo,
-                 branch=None,
-                 commit=None,
-                 save=None):
+    def __init__(self, repo, branch=None, commit=None, save=None):
         """
         Get files from a remote Github repository by
         downloading a zip file with the entire branch
@@ -327,14 +419,13 @@ class GithubResolver(Resolver):
         # the github URL for the latest commit of a branch.
         if commit is None:
             self.url = (
-                'https://github.com/{repo}/archive/' +
-                'refs/heads/{branch}.zip').format(
-                    repo=repo, branch=branch)
+                "https://github.com/{repo}/archive/" + "refs/heads/{branch}.zip"
+            ).format(repo=repo, branch=branch)
         else:
             # get a commit URL
-            self.url = ('https://github.com/{repo}/archive/' +
-                        '{commit}.zip').format(
-                            repo=repo, commit=commit)
+            self.url = ("https://github.com/{repo}/archive/" + "{commit}.zip").format(
+                repo=repo, commit=commit
+            )
 
         if save is not None:
             self.cache = caching.DiskCache(save)
@@ -352,6 +443,9 @@ class GithubResolver(Resolver):
         """
         return self.zipped.keys()
 
+    def write(self, name, data):
+        raise NotImplementedError("`write` not implemented!")
+
     @property
     def zipped(self):
         """
@@ -360,23 +454,26 @@ class GithubResolver(Resolver):
         - locally saved zip file
         - retrieve zip file and saved
         """
+
         def fetch():
             """
             Fetch the remote zip file.
             """
             import requests
+
             response = requests.get(self.url)
             if not response.ok:
                 raise ValueError(response.content)
             return response.content
 
-        if hasattr(self, '_zip'):
+        if hasattr(self, "_zip"):
             return self._zip
         # download the archive or get from disc
         raw = self.cache.get(self.url, fetch)
         # create a zip resolver for the archive
-        self._zip = ZipResolver(util.decompress(
-            util.wrap_as_stream(raw), file_type='zip'))
+        self._zip = ZipResolver(
+            util.decompress(util.wrap_as_stream(raw), file_type="zip")
+        )
 
         return self._zip
 
@@ -417,17 +514,25 @@ def nearby_names(name, namespace=None):
       Name that is a lightly permutated version
       of the initial name.
     """
+
     # the various operations that *might* result in a correct key
-    cleaners = [lambda x: x,
-                lambda x: x.strip(),
-                lambda x: x.lstrip('./'),
-                lambda x: x.lstrip('.\\'),
-                lambda x: x.lstrip('\\'),
-                lambda x: os.path.split(x)[-1],
-                lambda x: x.replace('%20', ' ')]
+    def trim(prefix, item):
+        if item.startswith(prefix):
+            return item[len(prefix) :]
+        return item
+
+    cleaners = [
+        lambda x: x,
+        lambda x: x.strip(),
+        lambda x: trim("./", x),
+        lambda x: trim(".\\", x),
+        lambda x: trim("\\", x),
+        lambda x: os.path.split(x)[-1],
+        lambda x: x.replace("%20", " "),
+    ]
 
     if namespace is None:
-        namespace = ''
+        namespace = ""
 
     # make sure we don't return repeat values
     hit = set()
@@ -454,8 +559,8 @@ def nearby_names(name, namespace=None):
         hit.add(current)
         yield namespace + current
 
-    if '..' in name and namespace is not None:
+    if ".." in name and namespace is not None:
         # if someone specified relative paths give it one attempt
-        strip = namespace.strip('/').split('/')[:-name.count('..')]
-        strip.extend(name.split('..')[-1].strip('/').split('/'))
-        yield '/'.join(strip)
+        strip = namespace.strip("/").split("/")[: -name.count("..")]
+        strip.extend(name.split("..")[-1].strip("/").split("/"))
+        yield "/".join(strip)

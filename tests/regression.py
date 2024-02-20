@@ -12,7 +12,7 @@ def typical_application():
     meshes = g.get_meshes(raise_error=True)
 
     for mesh in meshes:
-        g.log.info('Testing %s', mesh.metadata['file_name'])
+        g.log.info("Testing %s", mesh.metadata["file_name"])
         assert len(mesh.faces) > 0
         assert len(mesh.vertices) > 0
 
@@ -31,12 +31,11 @@ def typical_application():
 
         faces = mesh.facets[mesh.facets_area.argmax()]
         outline = mesh.outline(faces)  # NOQA
-        smoothed = mesh.smoothed()  # NOQA
+        smoothed = mesh.smooth_shaded  # NOQA
 
         assert mesh.volume > 0.0
 
-        section = mesh.section(plane_normal=[0, 0, 1],  # NOQA
-                               plane_origin=mesh.centroid)
+        section = mesh.section(plane_normal=[0, 0, 1], plane_origin=mesh.centroid)  # NOQA
 
         sample = mesh.sample(1000)
         assert sample.shape == (1000, 3)
@@ -45,7 +44,7 @@ def typical_application():
         assert len(ident) > 0
 
 
-def establish_baseline(counts=[390, 3820, 1710]):
+def establish_baseline(counts=None):
     """
     Try to establish a baseline of how fast a computer is so
     we can normalize our tests to be meaningful even on garbage CI VM's.
@@ -66,30 +65,29 @@ def establish_baseline(counts=[390, 3820, 1710]):
     times : dict
       Minimum times for each test
     """
-
-    setup = 'import numpy as np'
+    if counts is None:
+        counts = [390, 3820, 1710]
+    setup = "import numpy as np"
 
     # test a dot product with itself
-    dot = '\n'.join(('a = np.arange(3*10**3,dtype=np.float64).reshape((-1,3))',
-                     'b = np.dot(a, a.T)'))
+    dot = "\n".join(
+        ("a = np.arange(3*10**3,dtype=np.float64).reshape((-1,3))", "b = np.dot(a, a.T)")
+    )
     # test a cross product
-    cross = '\n'.join(
-        ('a = np.arange(3*10**4,dtype=np.float64).reshape((-1,3))',
-         'b = np.cross(a, a[::-1])'))
+    cross = "\n".join(
+        (
+            "a = np.arange(3*10**4,dtype=np.float64).reshape((-1,3))",
+            "b = np.cross(a, a[::-1])",
+        )
+    )
 
     # try a list comprehension with some stuff in it
-    loop = '[i * 3.14 for i in np.arange(10**3) if i % 7 == 0]'
+    loop = "[i * 3.14 for i in np.arange(10**3) if i % 7 == 0]"
 
     times = {}
-    times['dot'] = min(timeit.repeat(dot,
-                                     setup,
-                                     number=counts[0]))
-    times['cross'] = min(timeit.repeat(cross,
-                                       setup,
-                                       number=counts[1]))
-    times['loop'] = min(timeit.repeat(loop,
-                                      setup,
-                                      number=counts[2]))
+    times["dot"] = min(timeit.repeat(dot, setup, number=counts[0]))
+    times["cross"] = min(timeit.repeat(cross, setup, number=counts[1]))
+    times["loop"] = min(timeit.repeat(loop, setup, number=counts[2]))
 
     return times
 
@@ -104,16 +102,16 @@ def machine_info():
       Contains information about machine
     """
     import psutil
+
     info = {}
-    info['cpu_count'] = psutil.cpu_count()
+    info["cpu_count"] = psutil.cpu_count()
 
     return info
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     info = machine_info()
-    info['baseline'] = establish_baseline()
+    info["baseline"] = establish_baseline()
 
     import pyinstrument
 
@@ -123,4 +121,4 @@ if __name__ == '__main__':
     typical_application()
 
     profiler.stop()
-    print(profiler.output_text(unicode=True, color=True))
+    g.log.debug(profiler.output_text(unicode=True, color=True))

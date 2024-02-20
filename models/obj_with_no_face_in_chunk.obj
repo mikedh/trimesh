@@ -1,0 +1,9 @@
+g group1
+# of and space
+v 1 4 5
+v 1 2 3
+v 4 5 6
+
+g group2
+usemtl mat-1
+f 1 2 3

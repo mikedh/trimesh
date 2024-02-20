@@ -1,0 +1,9 @@
+v 10 20 30
+v 15 5 25
+v 1 5 10
+v 5 15 20
+f 1//1 2//2 4//4
+
+g An f Three Other Things
+v 5 15 21
+f 1 3 5

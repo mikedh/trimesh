@@ -5,7 +5,6 @@ except BaseException:
 
 
 class TransformTest(g.unittest.TestCase):
-
     def test_doctest(self):
         """
         Run doctests on transformations, which checks docstrings
@@ -16,9 +15,10 @@ class TransformTest(g.unittest.TestCase):
         but it depends on numpy string formatting and is very
         flaky.
         """
-        import trimesh
-        import random
         import doctest
+        import random
+
+        import trimesh
 
         # make sure formatting is the same as their docstrings
         g.np.set_printoptions(suppress=True, precision=5)
@@ -28,10 +28,13 @@ class TransformTest(g.unittest.TestCase):
 
         # search for interactive sessions in docstrings and verify they work
         # they are super unreliable and depend on janky string formatting
-        results = doctest.testmod(trimesh.transformations,
-                                  verbose=False,
-                                  raise_on_error=True)
-        g.log.info('transformations {}'.format(str(results)))
+        results = doctest.testmod(
+            trimesh.transformations, verbose=False, raise_on_error=False
+        )
+
+        if results.failed > 0:
+            raise ValueError(str(results))
+        g.log.debug(str(results))
 
     def test_downstream(self):
         """
@@ -65,13 +68,12 @@ class TransformTest(g.unittest.TestCase):
 
     def test_around(self):
         # check transform_around on 2D points
-        points = g.np.random.random((100, 2))
+        points = g.random((100, 2))
         for i, p in enumerate(points):
-            offset = g.np.random.random(2)
+            offset = g.random(2)
             matrix = g.trimesh.transformations.planar_matrix(
-                theta=g.np.random.random() + .1,
-                offset=offset,
-                point=p)
+                theta=g.random() + 0.1, offset=offset, point=p
+            )
 
             # apply the matrix
             check = g.trimesh.transform_points(points, matrix)
@@ -82,7 +84,7 @@ class TransformTest(g.unittest.TestCase):
             assert compare.all(axis=1).sum() == 1
 
         # check transform_around on 3D points
-        points = g.np.random.random((100, 3))
+        points = g.random((100, 3))
         for i, p in enumerate(points):
             matrix = g.trimesh.transformations.random_rotation_matrix()
             matrix = g.trimesh.transformations.transform_around(matrix, p)
@@ -102,13 +104,11 @@ class TransformTest(g.unittest.TestCase):
         rotation_matrix = g.trimesh.transformations.rotation_matrix
 
         R = rotation_matrix(g.np.pi / 2, [0, 0, 1], [1, 0, 0])
-        assert g.np.allclose(g.np.dot(R,
-                                      [0, 0, 0, 1]),
-                             [1, -1, 0, 1])
+        assert g.np.allclose(g.np.dot(R, [0, 0, 0, 1]), [1, -1, 0, 1])
 
-        angle = (g.np.random.random() - 0.5) * (2 * g.np.pi)
-        direc = g.np.random.random(3) - 0.5
-        point = g.np.random.random(3) - 0.5
+        angle = (g.random() - 0.5) * (2 * g.np.pi)
+        direc = g.random(3) - 0.5
+        point = g.random(3) - 0.5
         R0 = rotation_matrix(angle, direc, point)
         R1 = rotation_matrix(angle - 2 * g.np.pi, direc, point)
         assert g.trimesh.transformations.is_same_transform(R0, R1)
@@ -120,23 +120,16 @@ class TransformTest(g.unittest.TestCase):
         I = g.np.identity(4, g.np.float64)  # NOQA
         assert g.np.allclose(I, rotation_matrix(g.np.pi * 2, direc))
 
-        assert g.np.allclose(
-            2,
-            g.np.trace(rotation_matrix(g.np.pi / 2,
-                                       direc, point)))
+        assert g.np.allclose(2, g.np.trace(rotation_matrix(g.np.pi / 2, direc, point)))
 
         # test symbolic
         if g.sp is not None:
-            angle = g.sp.Symbol('angle')
+            angle = g.sp.Symbol("angle")
             Rs = rotation_matrix(angle, [0, 0, 1], [1, 0, 0])
 
-            R = g.np.array(Rs.subs(
-                angle,
-                g.np.pi / 2.0).evalf()).astype(g.np.float64)
+            R = g.np.array(Rs.subs(angle, g.np.pi / 2.0).evalf()).astype(g.np.float64)
 
-            assert g.np.allclose(
-                g.np.dot(R, [0, 0, 0, 1]),
-                [1, -1, 0, 1])
+            assert g.np.allclose(g.np.dot(R, [0, 0, 0, 1]), [1, -1, 0, 1])
 
     def test_tiny(self):
         """
@@ -144,15 +137,13 @@ class TransformTest(g.unittest.TestCase):
         very small triangles.
         """
         for validate in [False, True]:
-            m = g.get_mesh('ADIS16480.STL', validate=validate)
-            m.apply_scale(.001)
+            m = g.get_mesh("ADIS16480.STL", validate=validate)
+            m.apply_scale(0.001)
             m._cache.clear()
-            g.np.nonzero(g.np.linalg.norm(
-                m.face_normals,
-                axis=1) < 1e-3)
+            g.np.nonzero(g.np.linalg.norm(m.face_normals, axis=1) < 1e-3)
             m.apply_transform(
-                g.trimesh.transformations.rotation_matrix(
-                    g.np.pi / 4, [0, 0, 1]))
+                g.trimesh.transformations.rotation_matrix(g.np.pi / 4, [0, 0, 1])
+            )
 
     def test_quat(self):
         """
@@ -183,11 +174,60 @@ class TransformTest(g.unittest.TestCase):
         # all random matrices should be rigid transforms
         assert all(is_rigid(T) for T in random_matrix(num=100))
         # random quaternions should all be unit vector
-        assert g.np.allclose(g.np.linalg.norm(random_quat(num=100),
-                                              axis=1),
-                             1.0, atol=1e-6)
+        assert g.np.allclose(
+            g.np.linalg.norm(random_quat(num=100), axis=1), 1.0, atol=1e-6
+        )
+
+    def test_angle(self):
+        assert g.np.isclose(
+            g.trimesh.transformations.angle_between_vectors(g.np.ones(3), g.np.ones(3)),
+            0.0,
+        )
+
+    def test_symbolic_rotation(self):
+        # you can pass `sympy.Symbol` to `trimesh.transformation.rotation_matrix`
+        try:
+            import sympy as sp
+        except BaseException:
+            return
+        tf = g.trimesh.transformations
+
+        a = sp.Symbol("a")
+        vector = [1, 1, 1]
+        m = tf.rotation_matrix(a, vector)
+        for v in [0.0, 1.1, 1.234, g.np.pi]:
+            # evaluate the symbolic matrix with a value
+            s = g.np.array(m.subs({a: v}).evalf(), dtype=g.np.float64)
+            # call rotation matrix with a scalar
+            n = tf.rotation_matrix(v, vector)
+
+            # they should be the same matrix
+            assert g.np.allclose(s, n)
+
+    def test_symbolic_euler(self):
+        # some of the functions have been modified to support `sympy.Symbol`
+        # values which is useful for calculating final rotations symbolically
+        try:
+            import sympy as sp
+        except BaseException:
+            return
+
+        euler = g.trimesh.transformations.euler_matrix
+
+        ra, rb, rc = sp.symbols("ra rb rc")
+        m = euler(ra, rb, rc)
+        for rot in g.random((100, 3)):
+            # get the euler matrix evaluated from the symbolic matrix
+            s = g.np.array(
+                m.subs({ra: rot[0], rb: rot[1], rc: rot[2]}).evalf(), dtype=g.np.float64
+            )
+            # get it from a numeric scalar
+            n = euler(*rot)
+
+            # they should be the same matrix
+            assert g.np.allclose(s, n)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

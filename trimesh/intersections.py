@@ -6,20 +6,21 @@ Primarily mesh-plane intersections (slicing).
 """
 import numpy as np
 
-from . import util
-from . import geometry
-from . import grouping
+from . import geometry, grouping, util
 from . import transformations as tf
-
+from . import triangles as tm
 from .constants import tol
+from .triangles import points_to_barycentric
 
 
-def mesh_plane(mesh,
-               plane_normal,
-               plane_origin,
-               return_faces=False,
-               local_faces=None,
-               cached_dots=None):
+def mesh_plane(
+    mesh,
+    plane_normal,
+    plane_origin,
+    return_faces=False,
+    local_faces=None,
+    cached_dots=None,
+):
     """
     Find a the intersections between a mesh and a plane,
     returning a set of line segments on that plane.
@@ -117,13 +118,11 @@ def mesh_plane(mesh,
         vertex_plane = faces[signs == 0]
         edge_thru = faces[signs != 0].reshape((-1, 2))
         point_intersect, valid = plane_lines(
-            plane_origin,
-            plane_normal,
-            vertices[edge_thru.T],
-            line_segments=False)
-        lines = np.column_stack((
-            vertices[vertex_plane[valid]],
-            point_intersect)).reshape((-1, 2, 3))
+            plane_origin, plane_normal, vertices[edge_thru.T], line_segments=False
+        )
+        lines = np.column_stack((vertices[vertex_plane[valid]], point_intersect)).reshape(
+            (-1, 2, 3)
+        )
         return lines
 
     def handle_on_edge(signs, faces, vertices):
@@ -134,18 +133,18 @@ def mesh_plane(mesh,
 
     def handle_basic(signs, faces, vertices):
         # case where one vertex is on one side and two are on the other
-        unique_element = grouping.unique_value_in_row(
-            signs, unique=[-1, 1])
+        unique_element = grouping.unique_value_in_row(signs, unique=[-1, 1])
         edges = np.column_stack(
-            (faces[unique_element],
-             faces[np.roll(unique_element, 1, axis=1)],
-             faces[unique_element],
-             faces[np.roll(unique_element, 2, axis=1)])).reshape(
-            (-1, 2))
-        intersections, valid = plane_lines(plane_origin,
-                                           plane_normal,
-                                           vertices[edges.T],
-                                           line_segments=False)
+            (
+                faces[unique_element],
+                faces[np.roll(unique_element, 1, axis=1)],
+                faces[unique_element],
+                faces[np.roll(unique_element, 2, axis=1)],
+            )
+        ).reshape((-1, 2))
+        intersections, valid = plane_lines(
+            plane_origin, plane_normal, vertices[edges.T], line_segments=False
+        )
         # since the data has been pre- culled, any invalid intersections at all
         # means the culling was done incorrectly and thus things are broken
         assert valid.all()
@@ -155,14 +154,13 @@ def mesh_plane(mesh,
     plane_normal = np.asanyarray(plane_normal, dtype=np.float64)
     plane_origin = np.asanyarray(plane_origin, dtype=np.float64)
     if plane_origin.shape != (3,) or plane_normal.shape != (3,):
-        raise ValueError('Plane origin and normal must be (3,)!')
+        raise ValueError("Plane origin and normal must be (3,)!")
 
     if local_faces is None:
         # do a cross section against all faces
         faces = mesh.faces
     else:
-        local_faces = np.asanyarray(
-            local_faces, dtype=np.int64)
+        local_faces = np.asanyarray(local_faces, dtype=np.int64)
         # only take the subset of faces if passed
         faces = mesh.faces[local_faces]
 
@@ -185,20 +183,17 @@ def mesh_plane(mesh,
     # and which of the three intersection cases they are in
     cases = triangle_cases(signs)
     # handlers for each case
-    handlers = (handle_basic,
-                handle_on_vertex,
-                handle_on_edge)
+    handlers = (handle_basic, handle_on_vertex, handle_on_edge)
 
     # the (m, 2, 3) line segments
-    lines = np.vstack([h(signs[c],
-                         faces[c],
-                         mesh.vertices)
-                       for c, h in zip(cases, handlers)])
+    lines = np.vstack(
+        [h(signs[c], faces[c], mesh.vertices) for c, h in zip(cases, handlers)]
+    )
 
     if return_faces:
         # everything that hit something
         index = np.hstack([np.nonzero(c)[0] for c in cases])
-        assert index.dtype.kind == 'i'
+        assert index.dtype.kind == "i"
         if local_faces is None:
             return lines, index
         # we are considering a subset of faces
@@ -207,11 +202,7 @@ def mesh_plane(mesh,
     return lines
 
 
-def mesh_multiplane(
-        mesh,
-        plane_origin,
-        plane_normal,
-        heights):
+def mesh_multiplane(mesh, plane_origin, plane_normal, heights):
     """
     A utility function for slicing a mesh by multiple
     parallel planes which caches the dot product operation.
@@ -239,19 +230,14 @@ def mesh_multiplane(
     """
     # check input plane
     plane_normal = util.unitize(plane_normal)
-    plane_origin = np.asanyarray(plane_origin,
-                                 dtype=np.float64)
+    plane_origin = np.asanyarray(plane_origin, dtype=np.float64)
     heights = np.asanyarray(heights, dtype=np.float64)
 
     # dot product of every vertex with plane
-    vertex_dots = np.dot(
-        plane_normal,
-        (mesh.vertices - plane_origin).T)
+    vertex_dots = np.dot(plane_normal, (mesh.vertices - plane_origin).T)
 
     # reconstruct transforms for each 2D section
-    base_transform = geometry.plane_transform(
-        origin=plane_origin,
-        normal=plane_normal)
+    base_transform = geometry.plane_transform(origin=plane_origin, normal=plane_normal)
     base_transform = np.linalg.inv(base_transform)
 
     # alter translation Z inside loop
@@ -274,7 +260,8 @@ def mesh_multiplane(
             plane_origin=new_origin,
             plane_normal=plane_normal,
             return_faces=True,
-            cached_dots=new_dots)
+            cached_dots=new_dots,
+        )
 
         # get the transforms to 3D space and back
         translation[2, 3] = height
@@ -283,8 +270,7 @@ def mesh_multiplane(
         transforms.append(to_3D)
 
         # transform points to 2D frame
-        lines_2D = tf.transform_points(
-            lines.reshape((-1, 3)), to_2D)
+        lines_2D = tf.transform_points(lines.reshape((-1, 3)), to_2D)
 
         # if we didn't screw up the transform all
         # of the Z values should be zero
@@ -303,10 +289,7 @@ def mesh_multiplane(
     return segments, transforms, face_index
 
 
-def plane_lines(plane_origin,
-                plane_normal,
-                endpoints,
-                line_segments=True):
+def plane_lines(plane_origin, plane_normal, endpoints, line_segments=True):
     """
     Calculate plane-line intersections
 
@@ -344,11 +327,9 @@ def plane_lines(plane_origin,
     # We discard on-plane vectors by checking that the dot product is nonzero
     valid = np.abs(b) > tol.zero
     if line_segments:
-        test = np.dot(plane_normal,
-                      np.transpose(plane_origin - endpoints[1]))
+        test = np.dot(plane_normal, np.transpose(plane_origin - endpoints[1]))
         different_sides = np.sign(t) != np.sign(test)
-        nonzero = np.logical_or(np.abs(t) > tol.zero,
-                                np.abs(test) > tol.zero)
+        nonzero = np.logical_or(np.abs(t) > tol.zero, np.abs(test) > tol.zero)
         valid = np.logical_and(valid, different_sides)
         valid = np.logical_and(valid, nonzero)
 
@@ -359,12 +340,14 @@ def plane_lines(plane_origin,
     return intersection, valid
 
 
-def planes_lines(plane_origins,
-                 plane_normals,
-                 line_origins,
-                 line_directions,
-                 return_distance=False,
-                 return_denom=False):
+def planes_lines(
+    plane_origins,
+    plane_normals,
+    line_origins,
+    line_directions,
+    return_distance=False,
+    return_denom=False,
+):
     """
     Given one line per plane find the intersection points.
 
@@ -409,8 +392,7 @@ def planes_lines(plane_origins,
 
     valid = np.abs(projection_dir) > 1e-5
 
-    distance = np.divide(projection_ori[valid],
-                         projection_dir[valid])
+    distance = np.divide(projection_ori[valid], projection_dir[valid])
 
     on_plane = line_directions[valid] * distance.reshape((-1, 1))
     on_plane += line_origins[valid]
@@ -425,12 +407,15 @@ def planes_lines(plane_origins,
     return result
 
 
-def slice_faces_plane(vertices,
-                      faces,
-                      plane_normal,
-                      plane_origin,
-                      face_index=None,
-                      cached_dots=None):
+def slice_faces_plane(
+    vertices,
+    faces,
+    plane_normal,
+    plane_origin,
+    uv=None,
+    face_index=None,
+    cached_dots=None,
+):
     """
     Slice a mesh (given as a set of faces and vertices) with a plane, returning a
     new mesh (again as a set of faces and vertices) that is the
@@ -446,6 +431,8 @@ def slice_faces_plane(vertices,
         Normal vector of plane to intersect with mesh
     plane_origin :  (3,) float
         Point on plane to intersect with mesh
+    uv : (n, 2) float, optional
+        UV coordinates of source mesh to slice
     face_index : ((m,) int)
         Indexes of faces to slice. When no mask is provided, the
         default is to slice all faces.
@@ -459,17 +446,18 @@ def slice_faces_plane(vertices,
         Vertices of sliced mesh
     new_faces : (n, 3) int
         Faces of sliced mesh
+    new_uv : (n, 2) int or None
+        UV coordinates of sliced mesh
     """
 
     if len(vertices) == 0:
-        return vertices, faces
+        return vertices, faces, uv
+
+    have_uv = uv is not None
 
     # Construct a mask for the faces to slice.
-    if face_index is None:
-        mask = np.ones(len(faces), dtype=bool)
-    else:
-        mask = np.zeros(len(faces), dtype=bool)
-        mask[face_index] = True
+    if face_index is not None:
+        faces = faces[face_index]
 
     if cached_dots is not None:
         dots = cached_dots
@@ -477,8 +465,7 @@ def slice_faces_plane(vertices,
         # dot product of each vertex with the plane normal indexed by face
         # so for each face the dot product of each vertex is a row
         # shape is the same as faces (n,3)
-        dots = np.einsum('i,ij->j', plane_normal,
-                         (vertices - plane_origin).T)
+        dots = np.dot(vertices - plane_origin, plane_normal)
 
     # Find vertex orientations w.r.t. faces for all triangles:
     #  -1 -> vertex "inside" plane (positive normal direction)
@@ -499,12 +486,26 @@ def slice_faces_plane(vertices,
     # (0,0,0),  (-1,0,0),  (-1,-1,0), (-1,-1,-1) <- inside
     # (1,0,0),  (1,1,0),   (1,1,1)               <- outside
     # (1,0,-1), (1,-1,-1), (1,1,-1)              <- onedge
-    onedge = np.logical_and(np.logical_and(signs_asum >= 2,
-                                           np.abs(signs_sum) <= 1),
-                            mask)
+    onedge = np.logical_and(signs_asum >= 2, np.abs(signs_sum) <= 1)
 
-    inside = np.logical_or((signs_sum == -signs_asum),
-                           ~mask)
+    inside = signs_sum == -signs_asum
+
+    # for any faces that lie exactly on-the-plane
+    # we want to only include them if their normal
+    # is backwards from the slicing normal
+    on_plane = signs_asum == 0
+    if on_plane.any():
+        # compute the normals and whether
+        # face is degenerate here
+        check, valid = tm.normals(vertices[faces[on_plane]])
+        # only include faces back from normal
+        dot_check = np.dot(check, plane_normal)
+        # exclude any degenerate faces from the result
+        inside[on_plane] = valid
+        # exclude the degenerate face from our mask
+        on_plane[on_plane] = valid
+        # apply results for this subset
+        inside[on_plane] = dot_check < 0.0
 
     # Automatically include all faces that are "inside"
     new_faces = faces[inside]
@@ -522,37 +523,42 @@ def slice_faces_plane(vertices,
     # If no faces to cut, the surface is not in contact with this plane.
     # Thus, return a mesh with only the inside faces
     if len(cut_faces_quad) + len(cut_faces_tri) == 0:
-
         if len(new_faces) == 0:
             # if no new faces at all return empty arrays
-            empty = (np.zeros((0, 3), dtype=np.float64),
-                     np.zeros((0, 3), dtype=np.int64))
+            empty = (
+                np.zeros((0, 3), dtype=np.float64),
+                np.zeros((0, 3), dtype=np.int64),
+                np.zeros((0, 2), dtype=np.float64) if have_uv else None,
+            )
             return empty
 
         # find the unique indices in the new faces
         # using an integer-only unique function
-        unique, inverse = grouping.unique_bincount(new_faces.reshape(-1),
-                                                   minlength=len(vertices),
-                                                   return_inverse=True)
+        unique, inverse = grouping.unique_bincount(
+            new_faces.reshape(-1), minlength=len(vertices), return_inverse=True
+        )
 
         # use the unique indices for our final vertices and faces
         final_vert = vertices[unique]
         final_face = inverse.reshape((-1, 3))
+        final_uv = uv[unique] if have_uv else None
 
-        return final_vert, final_face
+        return final_vert, final_face, final_uv
 
     # Extract the intersections of each triangle's edges with the plane
-    o = cut_triangles                               # origins
-    d = np.roll(o, -1, axis=1) - o                  # directions
-    num = (plane_origin - o).dot(plane_normal)      # compute num/denom
+    o = cut_triangles  # origins
+    d = np.roll(o, -1, axis=1) - o  # directions
+    num = (plane_origin - o).dot(plane_normal)  # compute num/denom
     denom = np.dot(d, plane_normal)
-    denom[denom == 0.0] = 1e-12                     # prevent division by zero
+    denom[denom == 0.0] = 1e-12  # prevent division by zero
     dist = np.divide(num, denom)
     # intersection points for each segment
-    int_points = np.einsum('ij,ijk->ijk', dist, d) + o
+    int_points = np.einsum("ij,ijk->ijk", dist, d) + o
 
     # Initialize the array of new vertices with the current vertices
     new_vertices = vertices
+    new_quad_vertices = np.zeros((0, 3))
+    new_tri_vertices = np.zeros((0, 3))
 
     # Handle the case where a new quad is formed by the intersection
     # First, extract the intersection points belonging to a new quad
@@ -564,21 +570,25 @@ def slice_faces_plane(vertices,
         quad_int_inds = np.where(cut_signs_quad == 1)[1]
         quad_int_verts = cut_faces_quad[
             np.stack((range(num_quads), range(num_quads)), axis=1),
-            np.stack(((quad_int_inds + 1) % 3, (quad_int_inds + 2) % 3), axis=1)]
+            np.stack(((quad_int_inds + 1) % 3, (quad_int_inds + 2) % 3), axis=1),
+        ]
 
         # Fill out new quad faces with the intersection points as vertices
         new_quad_faces = np.append(
             quad_int_verts,
-            np.arange(len(new_vertices),
-                      len(new_vertices) +
-                      2 * num_quads).reshape(num_quads, 2), axis=1)
+            np.arange(len(new_vertices), len(new_vertices) + 2 * num_quads).reshape(
+                num_quads, 2
+            ),
+            axis=1,
+        )
 
         # Extract correct intersection points from int_points and order them in
         # the same way as they were added to faces
         new_quad_vertices = quad_int_points[
             np.stack((range(num_quads), range(num_quads)), axis=1),
-            np.stack((((quad_int_inds + 2) % 3).T, quad_int_inds.T),
-                     axis=1), :].reshape(2 * num_quads, 3)
+            np.stack((((quad_int_inds + 2) % 3).T, quad_int_inds.T), axis=1),
+            :,
+        ].reshape(2 * num_quads, 3)
 
         # Add new vertices to existing vertices, triangulate quads, and add the
         # resulting triangles to the new faces
@@ -594,24 +604,24 @@ def slice_faces_plane(vertices,
         # Extract the single vertex for each triangle inside the plane and get the
         # inside vertices (CCW order)
         tri_int_inds = np.where(cut_signs_tri == -1)[1]
-        tri_int_verts = cut_faces_tri[range(
-            num_tris), tri_int_inds].reshape(num_tris, 1)
+        tri_int_verts = cut_faces_tri[range(num_tris), tri_int_inds].reshape(num_tris, 1)
 
         # Fill out new triangles with the intersection points as vertices
         new_tri_faces = np.append(
             tri_int_verts,
-            np.arange(len(new_vertices),
-                      len(new_vertices) +
-                      2 * num_tris).reshape(num_tris, 2),
-            axis=1)
+            np.arange(len(new_vertices), len(new_vertices) + 2 * num_tris).reshape(
+                num_tris, 2
+            ),
+            axis=1,
+        )
 
         # Extract correct intersection points and order them in the same way as
         # the vertices were added to the faces
         new_tri_vertices = tri_int_points[
             np.stack((range(num_tris), range(num_tris)), axis=1),
-            np.stack((tri_int_inds.T, ((tri_int_inds + 2) % 3).T),
-                     axis=1),
-            :].reshape(2 * num_tris, 3)
+            np.stack((tri_int_inds.T, ((tri_int_inds + 2) % 3).T), axis=1),
+            :,
+        ].reshape(2 * num_tris, 3)
 
         # Append new vertices and new faces
         new_vertices = np.append(new_vertices, new_tri_vertices, axis=0)
@@ -619,27 +629,47 @@ def slice_faces_plane(vertices,
 
     # find the unique indices in the new faces
     # using an integer-only unique function
-    unique, inverse = grouping.unique_bincount(new_faces.reshape(-1),
-                                               minlength=len(new_vertices),
-                                               return_inverse=True)
+    unique, inverse = grouping.unique_bincount(
+        new_faces.reshape(-1), minlength=len(new_vertices), return_inverse=True
+    )
 
     # use the unique indexes for our final vertex and faces
     final_vert = new_vertices[unique]
     final_face = inverse.reshape((-1, 3))
 
-    return final_vert, final_face
+    final_uv = None
+    if have_uv:
+        # Generate barycentric coordinates for intersection vertices
+        quad_barycentrics = points_to_barycentric(
+            np.repeat(vertices[cut_faces_quad], 2, axis=0), new_quad_vertices
+        )
+        tri_barycentrics = points_to_barycentric(
+            np.repeat(vertices[cut_faces_tri], 2, axis=0), new_tri_vertices
+        )
+        all_barycentrics = np.concatenate([quad_barycentrics, tri_barycentrics])
+
+        # Interpolate UVs
+        cut_uv = np.concatenate([uv[cut_faces_quad], uv[cut_faces_tri]])
+        new_uv = np.einsum("ijk,ij->ik", np.repeat(cut_uv, 2, axis=0), all_barycentrics)
+        final_uv = np.concatenate([uv, new_uv])[unique]
+
+    return final_vert, final_face, final_uv
 
 
-def slice_mesh_plane(mesh,
-                     plane_normal,
-                     plane_origin,
-                     face_index=None,
-                     cap=False,
-                     cached_dots=None,
-                     **kwargs):
+def slice_mesh_plane(
+    mesh,
+    plane_normal,
+    plane_origin,
+    face_index=None,
+    cap=False,
+    cached_dots=None,
+    engine=None,
+    **kwargs,
+):
     """
-    Slice a mesh with a plane, returning a new mesh that is the
-    portion of the original mesh to the positive normal side of the plane
+    Slice a mesh with a plane returning a new mesh that is the
+    portion of the original mesh to the positive normal side
+    of the plane.
 
     Parameters
     ---------
@@ -657,6 +687,8 @@ def slice_mesh_plane(mesh,
     cached_dots : (n, 3) float
       If an external function has stored dot
       products pass them here to avoid recomputing
+    engine : None or str
+      Triangulation engine passed to `triangulate_polygon`
     kwargs : dict
       Passed to the newly created sliced mesh
 
@@ -670,60 +702,68 @@ def slice_mesh_plane(mesh,
         return None
 
     # avoid circular import
+    from scipy.spatial import cKDTree
+
     from .base import Trimesh
     from .creation import triangulate_polygon
     from .path import polygons
-    from scipy.spatial import cKDTree
+    from .visual import TextureVisuals
 
     # check input plane
-    plane_normal = np.asanyarray(
-        plane_normal, dtype=np.float64)
-    plane_origin = np.asanyarray(
-        plane_origin, dtype=np.float64)
+    plane_normal = np.asanyarray(plane_normal, dtype=np.float64)
+    plane_origin = np.asanyarray(plane_origin, dtype=np.float64)
 
     # check to make sure origins and normals have acceptable shape
-    shape_ok = ((plane_origin.shape == (3,) or
-                 util.is_shape(plane_origin, (-1, 3))) and
-                (plane_normal.shape == (3,) or
-                 util.is_shape(plane_normal, (-1, 3))) and
-                plane_origin.shape == plane_normal.shape)
+    shape_ok = (
+        (plane_origin.shape == (3,) or util.is_shape(plane_origin, (-1, 3)))
+        and (plane_normal.shape == (3,) or util.is_shape(plane_normal, (-1, 3)))
+        and plane_origin.shape == plane_normal.shape
+    )
     if not shape_ok:
-        raise ValueError('plane origins and normals must be (n, 3)!')
+        raise ValueError("plane origins and normals must be (n, 3)!")
 
     # start with copy of original mesh, faces, and vertices
     vertices = mesh.vertices.copy()
     faces = mesh.faces.copy()
 
-    if 'process' not in kwargs:
-        kwargs['process'] = False
+    # We copy the UV coordinates if available
+    has_uv = (
+        hasattr(mesh.visual, "uv") and np.shape(mesh.visual.uv) == (len(mesh.vertices), 2)
+    ) and not cap
+    uv = mesh.visual.uv.copy() if has_uv else None
+
+    if "process" not in kwargs:
+        kwargs["process"] = False
 
     # slice away specified planes
-    for origin, normal in zip(plane_origin.reshape((-1, 3)),
-                              plane_normal.reshape((-1, 3))):
+    for origin, normal in zip(
+        plane_origin.reshape((-1, 3)), plane_normal.reshape((-1, 3))
+    ):
         # save the new vertices and faces
-        vertices, faces = slice_faces_plane(
+        vertices, faces, uv = slice_faces_plane(
             vertices=vertices,
             faces=faces,
+            uv=uv,
             plane_normal=normal,
             plane_origin=origin,
-            face_index=face_index)
+            face_index=face_index,
+        )
         # check if cap arg specified
         if cap:
             if face_index:
                 # This hasn't been implemented yet.
-                raise NotImplementedError(
-                    "face_index and cap can't be used together")
+                raise NotImplementedError("face_index and cap can't be used together")
 
             # start by deduplicating vertices again
             unique, inverse = grouping.unique_rows(vertices)
             vertices = vertices[unique]
             # will collect additional faces
             f = inverse[faces]
-
+            # remove degenerate faces by checking to make sure
+            # that each face has three unique indices
+            f = f[(f[:, :1] != f[:, 1:]).all(axis=1)]
             # transform to the cap plane
-            to_2D = geometry.plane_transform(
-                origin=origin,
-                normal=-normal)
+            to_2D = geometry.plane_transform(origin=origin, normal=-normal)
             to_3D = np.linalg.inv(to_2D)
 
             vertices_2D = tf.transform_points(vertices, to_2D)
@@ -734,24 +774,27 @@ def slice_mesh_plane(mesh,
             edges = edges[on_plane[edges].all(axis=1)]
             edges = edges[edges[:, 0] != edges[:, 1]]
 
-            unique_edge = grouping.group_rows(
-                edges, require_count=1)
+            unique_edge = grouping.group_rows(edges, require_count=1)
             if len(unique) < 3:
                 continue
 
             tree = cKDTree(vertices)
             # collect new faces
             faces = [f]
-            for p in polygons.edges_to_polygons(
-                    edges[unique_edge], vertices_2D[:, :2]):
-                vn, fn = triangulate_polygon(p)
+            for p in polygons.edges_to_polygons(edges[unique_edge], vertices_2D[:, :2]):
+                vn, fn = triangulate_polygon(p, engine=engine)
                 # collect the original index for the new vertices
                 vn3 = tf.transform_points(util.stack_3D(vn), to_3D)
                 distance, vid = tree.query(vn3)
+                if distance.max() > 1e-8:
+                    util.log.debug("triangulate may have inserted vertex!")
                 # triangulation should not have inserted vertices
-                assert distance.max() < 1e-8
                 faces.append(vid[fn])
             faces = np.vstack(faces)
 
+    visual = (
+        TextureVisuals(uv=uv, material=mesh.visual.material.copy()) if has_uv else None
+    )
+
     # return the sliced mesh
-    return Trimesh(vertices=vertices, faces=faces, **kwargs)
+    return Trimesh(vertices=vertices, faces=faces, visual=visual, **kwargs)
