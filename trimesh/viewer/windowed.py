@@ -17,7 +17,9 @@ import pyglet
 # new viewer `trimesh.viewer.shaders` and then basically keeping
 # `windowed` around for backwards-compatibility with no changes
 if tuple(map(int, pyglet.version.split("."))) < (2, 0, 0):
-    raise ImportError(f'{pyglet.version} < 2.0.0')
+    raise ImportError(f"{pyglet.version} < 2.0.0")
+
+from pyglet.graphics.shader import Shader, ShaderProgram
 
 from .. import rendering, util
 from ..transformations import translation_matrix
@@ -30,6 +32,30 @@ import pyglet.gl as gl  # NOQA
 
 # smooth only when fewer faces than this
 _SMOOTH_MAX_FACES = 100000
+
+vertex_source = """#version 150 core
+    in vec2 position;
+    in vec4 colors;
+    out vec4 vertex_colors;
+
+    uniform mat4 projection;
+
+    void main()
+    {
+        gl_Position = projection * vec4(position, 0.0, 1.0);
+        vertex_colors = colors;
+    }
+"""
+
+fragment_source = """#version 150 core
+    in vec4 vertex_colors;
+    out vec4 final_color;
+
+    void main()
+    {
+        final_color = vertex_colors;
+    }
+"""
 
 
 class SceneViewer(pyglet.window.Window):
@@ -107,6 +133,10 @@ class SceneViewer(pyglet.window.Window):
         # save initial camera transform
         self._initial_camera_transform = scene.camera_transform.copy()
 
+        vert_shader = Shader(vertex_source, "vertex")
+        frag_shader = Shader(fragment_source, "fragment")
+        self.shader_program = ShaderProgram(vert_shader, frag_shader)
+
         # a transform to offset lines slightly to avoid Z-fighting
         self._line_offset = translation_matrix(
             [0, 0, scene.scale / 1000 if self.offset_lines else 0]
@@ -114,15 +144,6 @@ class SceneViewer(pyglet.window.Window):
 
         self.reset_view()
         self.batch = pyglet.graphics.Batch()
-        vertex_list = shader_program.vertex_list(
-            4,
-            GL_TRIANGLES,
-            batch,
-            group,
-            position=("f", vertex_positions),
-            tex_coords=("f", tex.tex_coords),
-        )
-
         self._smooth = smooth
 
         self._profile = bool(profile)
@@ -227,6 +248,7 @@ class SceneViewer(pyglet.window.Window):
             # trigger `self.on_draw` every `callback_period`
             # seconds if someone has passed a callback
             pyglet.clock.schedule_interval(lambda x: x, callback_period)
+
         if start_loop:
             pyglet.app.run()
 
@@ -270,7 +292,7 @@ class SceneViewer(pyglet.window.Window):
             return
 
         # create the indexed vertex list
-        self.vertex_list[name] = self.batch.add_indexed(*args)
+        self.vertex_list[name] = self.shader_program.vertex_list_indexed(*args)
         # save the hash of the geometry
         self.vertex_list_hash[name] = _geometry_hash(geometry)
         # save the rendering mode from the constructor args

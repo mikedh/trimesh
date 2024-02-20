@@ -126,7 +126,8 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
 
     # create the ordered tuple for pyglet, use like:
     # `batch.add_indexed(*args)`
-    args = (
+    args = {"count": vertex_count, "mode": GL_TRIANGLES, "group": group, "indices": faces}
+    """
         vertex_count,  # number of vertices
         GL_TRIANGLES,  # mode
         group,  # group
@@ -135,7 +136,7 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
         ("n3f/static", normals),
         color_gl,
     )
-
+    """
     return args
 
 
