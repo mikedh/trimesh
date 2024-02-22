@@ -111,7 +111,9 @@ class PlyTest(g.unittest.TestCase):
                 m.face_attributes["test_1d_attribute"] = test_1d_attribute.astype(dt)
                 m.face_attributes["test_nd_attribute"] = test_nd_attribute.astype(dt)
 
-                export = m.export(file_type="ply", include_attributes=True, encoding=encoding)
+                export = m.export(
+                    file_type="ply", include_attributes=True, encoding=encoding
+                )
                 reconstructed = g.roundtrip(export, file_type="ply", process=False)
 
                 face_attributes = reconstructed.metadata["_ply_raw"]["face"]["data"]

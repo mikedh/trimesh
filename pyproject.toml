@@ -139,3 +139,7 @@ ignore = [
   "B904", # raise ... from err
   "B905", # zip() without an explicit strict= parameter
 ]
+
+[tool.codespell]
+skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"
+ignore-words-list = "nd,coo,whats,bu,childs,mis,filetests"

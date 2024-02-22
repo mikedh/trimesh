@@ -401,7 +401,7 @@ def ray_pixel_coords(camera):
     return xy, pixels
 
 
-def camera_to_rays(camera):
+def camera_to_rays(camera: Camera):
     """
     Calculate the trimesh.scene.Camera object to direction vectors.
 
