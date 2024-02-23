@@ -2,6 +2,7 @@ import numpy as np
 
 from ..constants import log
 from ..exceptions import ExceptionWrapper
+from ..typed import NDArray, Optional, float64
 
 try:
     from PIL.Image import Image, fromarray
@@ -11,11 +12,11 @@ except BaseException as E:
 
 
 def specular_to_pbr(
-    specularFactor=None,
-    glossinessFactor=None,
-    specularGlossinessTexture=None,
-    diffuseTexture=None,
-    diffuseFactor=None,
+    specularFactor: Optional[NDArray[float64]] = None,
+    glossinessFactor: Optional[float] = None,
+    specularGlossinessTexture: Optional["Image"] = None,
+    diffuseTexture: Optional["Image"] = None,
+    diffuseFactor: float = None,
     **kwargs,
 ) -> dict:
     """

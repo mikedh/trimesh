@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.1.4"
+version = "4.1.5"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -139,3 +139,7 @@ ignore = [
   "B904", # raise ... from err
   "B905", # zip() without an explicit strict= parameter
 ]
+
+[tool.codespell]
+skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"
+ignore-words-list = "nd,coo,whats,bu,childs,mis,filetests"
