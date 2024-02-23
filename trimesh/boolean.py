@@ -138,8 +138,8 @@ def boolean_manifold(
     manifolds = [
         Manifold(
             mesh=Mesh(
-                vert_properties=mesh.vertices.view(np.float32),
-                tri_verts=mesh.faces.view(np.int32),
+                vert_properties=np.array(mesh.vertices, dtype=np.float32),
+                tri_verts=np.array(mesh.faces, dtype=np.uint32),
             )
         )
         for mesh in meshes
