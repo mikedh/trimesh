@@ -8,37 +8,49 @@ import warnings
 
 import numpy as np
 
+from . import exceptions, interfaces
+from .typed import Optional, Sequence
+
 try:
     from manifold3d import Manifold, Mesh
 except BaseException as E:
-    from .exceptions import ExceptionWrapper
-
-    Mesh = ExceptionWrapper(E)
-    Manifold = ExceptionWrapper(E)
-
-from . import interfaces
+    Mesh = exceptions.ExceptionWrapper(E)
+    Manifold = exceptions.ExceptionWrapper(E)
 
 
-def difference(meshes, engine=None, **kwargs):
+def difference(
+    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+):
     """
     Compute the boolean difference between a mesh an n other meshes.
 
     Parameters
     ----------
-    meshes : list of trimesh.Trimesh
-      Meshes to be processed
-    engine : str
+    meshes : sequence of trimesh.Trimesh
+      Meshes to be processed.
+    engine
       Which backend to use, i.e. 'blender' or 'manifold'
+    check_volume
+      Raise an error if not all meshes are watertight
+      positive volumes. Advanced users may want to ignore
+      this check as it is expensive.
+    kwargs
+      Passed through to the `engine`.
 
     Returns
     ----------
-    difference : a - (other meshes), **kwargs for a Trimesh
+    difference
+      A `Trimesh` that contains `meshes[0] - meshes[1:]`
     """
-    result = _engines[engine](meshes, operation="difference", **kwargs)
-    return result
+    if check_volume and not all(m.is_volume for m in meshes):
+        raise ValueError("Not all meshes are volumes!")
+
+    return _engines[engine](meshes, operation="difference", **kwargs)
 
 
-def union(meshes, engine=None, **kwargs):
+def union(
+    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+):
     """
     Compute the boolean union between a mesh an n other meshes.
 
@@ -48,18 +60,30 @@ def union(meshes, engine=None, **kwargs):
       Meshes to be processed
     engine : str
       Which backend to use, i.e. 'blender' or 'manifold'
+    check_volume
+      Raise an error if not all meshes are watertight
+      positive volumes. Advanced users may want to ignore
+      this check as it is expensive.
+    kwargs
+      Passed through to the `engine`.
 
     Returns
     ----------
-    union : a + (other meshes), **kwargs for a Trimesh
+    union
+      A `Trimesh` that contains the union of all passed meshes.
     """
+    if check_volume and not all(m.is_volume for m in meshes):
+        raise ValueError("Not all meshes are volumes!")
+
     result = _engines[engine](meshes, operation="union", **kwargs)
     return result
 
 
-def intersection(meshes, engine=None, **kwargs):
+def intersection(
+    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+):
     """
-    Compute the boolean intersection between a mesh an n other meshes.
+    Compute the boolean intersection between a mesh and other meshes.
 
     Parameters
     ----------
@@ -67,31 +91,55 @@ def intersection(meshes, engine=None, **kwargs):
       Meshes to be processed
     engine : str
       Which backend to use, i.e. 'blender' or 'manifold'
-    solver_options: str
-      Fast has some limitations
-      Exact is slow but handles most of the cases
-    use_self: Bool
-      Self Intersection, Do self-union or self-intersection
+    check_volume
+      Raise an error if not all meshes are watertight
+      positive volumes. Advanced users may want to ignore
+      this check as it is expensive.
+    kwargs
+      Passed through to the `engine`.
 
     Returns
     ----------
-    intersection : **kwargs for a Trimesh object of the
-                    volume that is contained by all meshes
+    intersection
+      A `Trimesh` that contains the intersection geometry.
     """
-    result = _engines[engine](meshes, operation="intersection", **kwargs)
-    return result
+    if check_volume and not all(m.is_volume for m in meshes):
+        raise ValueError("Not all meshes are volumes!")
+    return _engines[engine](meshes, operation="intersection", **kwargs)
 
 
-def boolean_manifold(meshes, operation, debug=False, **kwargs):
+def boolean_manifold(
+    meshes: Sequence,
+    operation: str,
+    check_volume: bool = True,
+    debug: bool = False,
+    **kwargs,
+):
     """
     Run an operation on a set of meshes using the Manifold engine.
+
+    Parameters
+    ----------
+    meshes : list of trimesh.Trimesh
+      Meshes to be processed
+    operation
+      Which boolean operation to do.
+    check_volume
+      Raise an error if not all meshes are watertight
+      positive volumes. Advanced users may want to ignore
+      this check as it is expensive.
+    debug
+      Enable potentially slow additional checks and debug info.
+    kwargs
+      Passed through to the `engine`.
+
     """
     # Convert to manifold meshes
     manifolds = [
         Manifold(
             mesh=Mesh(
-                vert_properties=np.asarray(mesh.vertices, dtype="float32"),
-                tri_verts=np.asarray(mesh.faces, dtype="int32"),
+                vert_properties=mesh.vertices.view(np.float32),
+                tri_verts=mesh.faces.view(np.int32),
             )
         )
         for mesh in meshes

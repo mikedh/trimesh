@@ -2878,65 +2878,110 @@ class Trimesh(Geometry3D):
         ]
 
     def union(
-        self, other: "Trimesh", engine: Optional[str] = None, **kwargs
+        self,
+        other: "Trimesh",
+        engine: Optional[str] = None,
+        check_volume: bool = True,
+        **kwargs,
     ) -> "Trimesh":
         """
-        Boolean union between this mesh and n other meshes
+        Boolean union between this mesh and other meshes.
 
         Parameters
         ------------
         other : Trimesh or (n, ) Trimesh
           Other meshes to union
-        engine : None or str
-          Which backend to use
+        engine
+          Which backend to use, the default
+          recommendation is: `pip install manifold3d`.
+        check_volume
+          Raise an error if not all meshes are watertight
+          positive volumes. Advanced users may want to ignore
+          this check as it is expensive.
+        kwargs
+          Passed through to the `engine`.
 
         Returns
         ---------
         union : trimesh.Trimesh
           Union of self and other Trimesh objects
         """
-        result = boolean.union(meshes=np.append(self, other), engine=engine, **kwargs)
-        return result
+
+        return boolean.union(
+            meshes=np.append(self, other),
+            engine=engine,
+            check_volume=check_volume,
+            **kwargs,
+        )
 
     def difference(
-        self, other: "Trimesh", engine: Optional[str] = None, **kwargs
+        self,
+        other: "Trimesh",
+        engine: Optional[str] = None,
+        check_volume: bool = True,
+        **kwargs,
     ) -> "Trimesh":
         """
-        Boolean difference between this mesh and n other meshes
+         Boolean difference between this mesh and n other meshes
 
-        Parameters
-        ------------
-        other : trimesh.Trimesh, or list of trimesh.Trimesh objects
-         Meshes to difference
+         Parameters
+         ------------
+         other : trimesh.Trimesh, or list of trimesh.Trimesh objects
+           Meshes to difference
+         engine
+           Which backend to use, the default
+           recommendation is: `pip install manifold3d`.
+        check_volume
+           Raise an error if not all meshes are watertight
+           positive volumes. Advanced users may want to ignore
+           this check as it is expensive.
+         kwargs
+           Passed through to the `engine`.
 
-        Returns
-        ---------
-        difference : trimesh.Trimesh
-          Difference between self and other Trimesh objects
+         Returns
+         ---------
+         difference : trimesh.Trimesh
+           Difference between self and other Trimesh objects
         """
-        result = boolean.difference(meshes=[self, other], engine=engine, **kwargs)
-        return result
+        return boolean.difference(
+            meshes=[self, other], engine=engine, check_volume=check_volume, **kwargs
+        )
 
     def intersection(
-        self, other: "Trimesh", engine: Optional[str] = None, **kwargs
+        self,
+        other: "Trimesh",
+        engine: Optional[str] = None,
+        check_volume: bool = True,
+        **kwargs,
     ) -> "Trimesh":
         """
-        Boolean intersection between this mesh and n other meshes
+         Boolean intersection between this mesh and other meshes.
 
-        Parameters
-        ------------
-        other : trimesh.Trimesh, or list of trimesh.Trimesh objects
-          Meshes to calculate intersections with
+         Parameters
+         ------------
+         other : trimesh.Trimesh, or list of trimesh.Trimesh objects
+           Meshes to calculate intersections with
+         engine
+           Which backend to use, the default
+           recommendation is: `pip install manifold3d`.
+        check_volume
+           Raise an error if not all meshes are watertight
+           positive volumes. Advanced users may want to ignore
+           this check as it is expensive.
+         kwargs
+           Passed through to the `engine`.
 
-        Returns
-        ---------
-        intersection : trimesh.Trimesh
-          Mesh of the volume contained by all passed meshes
+         Returns
+         ---------
+         intersection : trimesh.Trimesh
+           Mesh of the volume contained by all passed meshes
         """
-        result = boolean.intersection(
-            meshes=np.append(self, other), engine=engine, **kwargs
+        return boolean.intersection(
+            meshes=np.append(self, other),
+            engine=engine,
+            check_volume=check_volume,
+            **kwargs,
         )
-        return result
 
     def contains(self, points: ArrayLike) -> NDArray[bool]:
         """

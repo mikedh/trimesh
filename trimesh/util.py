@@ -2184,7 +2184,7 @@ def generate_basis(z, epsilon=1e-12):
     return result
 
 
-def isclose(a, b, atol):
+def isclose(a, b, atol: float = 1e-8):
     """
     A replacement for np.isclose that does fewer checks
     and validation and as a result is roughly 4x faster.
@@ -2207,12 +2207,10 @@ def isclose(a, b, atol):
       Per-element closeness
     """
     diff = a - b
-    close = np.logical_and(diff > -atol, diff < atol)
-
-    return close
+    return np.logical_and(diff > -atol, diff < atol)
 
 
-def allclose(a, b, atol=1e-8):
+def allclose(a, b, atol: float = 1e-8):
     """
     A replacement for np.allclose that does few checks
     and validation and as a result is faster.

@@ -3,6 +3,7 @@ import platform
 
 from .. import resources, util
 from ..constants import log
+from ..typed import Sequence
 from .generic import MeshScript
 
 _search_path = os.environ.get("PATH", "")
@@ -16,7 +17,7 @@ if platform.system() == "Windows":
             for p in os.listdir(pf):
                 if "Blender" in p:
                     _search_path.append(os.path.join(pf, p))
-    _search_path = ";".join(_search_path)
+    _search_path = ";".join(set(_search_path))
     log.debug("searching for blender in: %s", _search_path)
 
 if platform.system() == "Darwin":
@@ -25,7 +26,7 @@ if platform.system() == "Darwin":
     _search_path.append("/Applications/blender.app/Contents/MacOS")
     _search_path.append("/Applications/Blender.app/Contents/MacOS")
     _search_path.append("/Applications/Blender/blender.app/Contents/MacOS")
-    _search_path = ":".join(_search_path)
+    _search_path = ":".join(set(_search_path))
     log.debug("searching for blender in: %s", _search_path)
 
 _blender_executable = util.which("blender", path=_search_path)
@@ -33,7 +34,7 @@ exists = _blender_executable is not None
 
 
 def boolean(
-    meshes,
+    meshes: Sequence,
     operation: str = "difference",
     use_exact: bool = False,
     use_self: bool = False,
@@ -86,7 +87,9 @@ def boolean(
     return result
 
 
-def unwrap(mesh, angle_limit=66, island_margin=0.0, debug=False):
+def unwrap(
+    mesh, angle_limit: float = 66.0, island_margin: float = 0.0, debug: bool = False
+):
     """
     Run an unwrap operation using blender.
     """
