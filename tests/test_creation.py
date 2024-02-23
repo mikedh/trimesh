@@ -241,7 +241,7 @@ class CreationTest(g.unittest.TestCase):
         # check triangulation of both meshpy and triangle engine
         # including an example that has interiors
         for engine in self.engines:
-            # make sure all our polygons triangulate resonably
+            # make sure all our polygons triangulate reasonably
             for poly in bench:
                 v, f = g.trimesh.creation.triangulate_polygon(poly, engine=engine)
                 # run asserts

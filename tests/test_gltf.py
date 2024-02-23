@@ -1011,7 +1011,7 @@ class GLTFTest(g.unittest.TestCase):
             g.os.chdir(cwd)
 
         with g.TemporaryDirectory() as d:
-            # now try it without chaging to that directory
+            # now try it without changing to that directory
             full = g.os.path.join(d, "hi", "there", "different", "levels")
             path = g.os.path.join(full, "hey.gltf")
             g.os.makedirs(full)

@@ -55,7 +55,7 @@ class VisualTest(g.unittest.TestCase):
 
     def test_face_maintain_order(self):
         # chose a mesh that has the same number of vs and vts
-        # to prevent confict without unmerging when maintain_order=True
+        # to prevent conflict without unmerging when maintain_order=True
         mesh1 = g.get_mesh("capsule.obj", process=False, maintain_order=True)
         mesh2 = g.get_mesh("capsule.obj", process=False, maintain_order=False)
         colors1 = mesh1.visual.to_color()

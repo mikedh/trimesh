@@ -48,7 +48,7 @@ class Scene(Geometry3D):
         lights : [trimesh.scene.lighting.Light] or None
           A passed lights to use
         camera_transform
-          Homogenous (4, 4) camera transform in the base frame
+          Homogeneous (4, 4) camera transform in the base frame
         """
         # mesh name : Trimesh object
         self.geometry = collections.OrderedDict()
