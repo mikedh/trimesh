@@ -27,7 +27,7 @@ class Scene(Geometry3D):
         metadata: Optional[Dict] = None,
         graph: Optional[SceneGraph] = None,
         camera: Optional[cameras.Camera] = None,
-        lights: Optional[lighting.Light] = None,
+        lights: Optional[List[lighting.Light]] = None,
         camera_transform: Optional[NDArray] = None,
     ):
         """
