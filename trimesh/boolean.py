@@ -4,7 +4,6 @@ boolean.py
 
 Do boolean operations on meshes using either Blender or Manifold.
 """
-import warnings
 
 import numpy as np
 
@@ -172,22 +171,9 @@ def boolean_manifold(
     return out_mesh
 
 
-def boolean_scad(*args, **kwargs):
-    warnings.warn(
-        "The OpenSCAD interface is deprecated, and Trimesh will instead"
-        + " use Manifold ('manifold'), which should be equivalent. In future versions"
-        + " of Trimesh, attempting to use engine 'scad' may raise an error.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return boolean_manifold(*args, **kwargs)
-
-
 # which backend boolean engines
 _engines = {
     None: boolean_manifold,
-    "auto": boolean_manifold,
     "manifold": boolean_manifold,
-    "scad": boolean_scad,
     "blender": interfaces.blender.boolean,
 }

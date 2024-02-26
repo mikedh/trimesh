@@ -104,6 +104,7 @@ test = [
     "pyinstrument",
     "matplotlib",
     "ruff",
+    "gmsh",
     "typeguard>=4.1.2"
 ]
 
