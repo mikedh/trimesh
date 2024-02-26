@@ -2057,9 +2057,9 @@ def get_schema():
     from ..schemas import resolve
 
     # get a blob of a zip file including the GLTF 2.0 schema
-    blob = resources.get("schema/gltf2.schema.zip", decode=False)
+    stream = resources.get_stream("schema/gltf2.schema.zip")
     # get the zip file as a dict keyed by file name
-    archive = util.decompress(util.wrap_as_stream(blob), "zip")
+    archive = util.decompress(stream, "zip")
     # get a resolver object for accessing the schema
     resolver = ZipResolver(archive)
     # get a loaded dict from the base file

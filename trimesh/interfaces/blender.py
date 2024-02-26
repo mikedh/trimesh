@@ -72,7 +72,7 @@ def boolean(
     else:
         solver_options = "FAST"
     # get the template from our resources folder
-    template = resources.get("templates/blender_boolean.py.tmpl")
+    template = resources.get_string("templates/blender_boolean.py.tmpl")
     script = template.replace("$OPERATION", operation)
     script = script.replace("$SOLVER_OPTIONS", solver_options)
     script = script.replace("$USE_SELF", f"{use_self}")
@@ -97,7 +97,7 @@ def unwrap(
         raise ValueError("No blender available!")
 
     # get the template from our resources folder
-    template = resources.get("templates/blender_unwrap.py")
+    template = resources.get_string("templates/blender_unwrap.py")
     script = template.replace("$ANGLE_LIMIT", "%.6f" % angle_limit).replace(
         "$ISLAND_MARGIN", "%.6f" % island_margin
     )

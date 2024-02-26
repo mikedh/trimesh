@@ -558,7 +558,7 @@ def export_svg(drawing, return_path=False, only_layers=None, digits=None, **kwar
         return " ".join(v[1] for v in pairs)
 
     # fetch the export template for the base SVG file
-    template_svg = resources.get("templates/base.svg")
+    template_svg = resources.get_string("templates/base.svg")
 
     elements = []
     for meta, path_string in pairs:
