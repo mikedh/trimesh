@@ -73,7 +73,10 @@ RUN pip install -e .[all]
 RUN ruff trimesh
 
 # run pytest wrapped with xvfb for simple viewer tests
-RUN xvfb-run pytest --cov=trimesh \
+## TODO : get typeguard to pass on more/all of the codebase
+RUN xvfb-run pytest \
+    --cov=trimesh \
+    --typeguard-packages=trimesh.scene \
     -p no:ALL_DEPENDENCIES \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests

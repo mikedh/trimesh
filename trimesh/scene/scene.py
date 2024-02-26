@@ -6,7 +6,7 @@ import numpy as np
 from .. import caching, convex, grouping, inertia, transformations, units, util
 from ..exchange import export
 from ..parent import Geometry, Geometry3D
-from ..typed import Dict, List, NDArray, Optional, Tuple, Union, float64, int64
+from ..typed import Dict, List, NDArray, Optional, Sequence, Tuple, Union, float64, int64
 from ..util import unique_name
 from . import cameras, lighting
 from .transforms import SceneGraph
@@ -22,12 +22,12 @@ class Scene(Geometry3D):
 
     def __init__(
         self,
-        geometry: Union[Geometry, None, List[Geometry]] = None,
+        geometry: Union[Geometry, Sequence[Geometry], NDArray[Geometry], None] = None,
         base_frame: str = "world",
         metadata: Optional[Dict] = None,
         graph: Optional[SceneGraph] = None,
         camera: Optional[cameras.Camera] = None,
-        lights: Optional[List[lighting.Light]] = None,
+        lights: Optional[Sequence[lighting.Light]] = None,
         camera_transform: Optional[NDArray] = None,
     ):
         """
@@ -71,11 +71,12 @@ class Scene(Geometry3D):
             # if we've been passed a graph override the default
             self.graph = graph
 
-        self.camera = camera
-        self.lights = lights
-
-        if camera is not None and camera_transform is not None:
-            self.camera_transform = camera_transform
+        if lights is not None:
+            self.lights = lights
+        if camera is not None:
+            self.camera = camera
+            if camera_transform is not None:
+                self.camera_transform = camera_transform
 
     def apply_transform(self, transform):
         """
@@ -242,7 +243,7 @@ class Scene(Geometry3D):
             if util.is_instance_named(geometry, "Trimesh"):
                 geometry.visual = ColorVisuals(mesh=geometry)
 
-    def __hash__(self) -> str:
+    def __hash__(self) -> int:
         """
         Return information about scene which is hashable.
 
@@ -756,7 +757,7 @@ class Scene(Geometry3D):
         return self._camera
 
     @camera.setter
-    def camera(self, camera: cameras.Camera):
+    def camera(self, camera: Optional[cameras.Camera]):
         """
         Set a camera object for the Scene.
 
@@ -795,7 +796,7 @@ class Scene(Geometry3D):
         return self._lights
 
     @lights.setter
-    def lights(self, lights: List[lighting.Light]):
+    def lights(self, lights: Sequence[lighting.Light]):
         """
         Assign a list of light objects to the scene
 
@@ -829,7 +830,7 @@ class Scene(Geometry3D):
         )
         self.graph.base_frame = new_base
 
-    def dump(self, concatenate: bool = False) -> Union["Scene", List[Geometry]]:
+    def dump(self, concatenate: bool = False) -> Union[Geometry, List[Geometry]]:
         """
         Append all meshes in scene freezing transforms.
 
@@ -875,7 +876,7 @@ class Scene(Geometry3D):
             # if scene has mixed geometry this may drop some of it
             return util.concatenate(result)
 
-        return np.array(result)
+        return result
 
     def subscene(self, node: str) -> "Scene":
         """
@@ -918,8 +919,7 @@ class Scene(Geometry3D):
           Trimesh object which is a convex hull of all meshes in scene
         """
         points = util.vstack_empty([m.vertices for m in self.dump()])
-        hull = convex.convex_hull(points)
-        return hull
+        return convex.convex_hull(points)
 
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
@@ -1077,7 +1077,7 @@ class Scene(Geometry3D):
             T_new[:3, 3] += offset
             self.graph[node_name] = T_new
 
-    def scaled(self, scale: Union[float, NDArray[float64]]) -> "Scene":
+    def scaled(self, scale: Union[float, Sequence]) -> "Scene":
         """
         Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.

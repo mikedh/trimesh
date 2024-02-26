@@ -15,7 +15,7 @@ import numpy as np
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
-from ..typed import NDArray
+from ..typed import NDArray, Optional
 from ..util import unique_name
 from ..visual.gloss import specular_to_pbr
 
@@ -775,7 +775,7 @@ def _append_mesh(
     name,
     tree,
     buffer_items,
-    include_normals: bool,
+    include_normals: Optional[bool],
     unitize_normals: bool,
     mat_hashes: dict,
     extension_webp: bool,

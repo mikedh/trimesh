@@ -1,6 +1,6 @@
 import collections
 from copy import deepcopy
-from typing import Sequence
+from typing import Sequence, Union
 
 import numpy as np
 
@@ -474,7 +474,7 @@ class SceneGraph:
                 res[attr["geometry"]].append(node)
         return res
 
-    def remove_geometries(self, geometries: Sequence):
+    def remove_geometries(self, geometries: Union[str, set, Sequence]):
         """
         Remove the reference for specified geometries
         from nodes without deleting the node.

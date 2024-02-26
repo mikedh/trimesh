@@ -16,7 +16,7 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import Optional
+from .typed import List, Optional
 
 try:
     from scipy.sparse import coo_matrix, csgraph
@@ -324,7 +324,7 @@ def facets(mesh, engine=None):
     return components
 
 
-def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs):
+def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs) -> List:
     """
     Split a mesh into multiple meshes from face
     connectivity.

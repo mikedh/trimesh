@@ -103,7 +103,8 @@ test = [
     "pymeshlab",
     "pyinstrument",
     "matplotlib",
-    "ruff"
+    "ruff",
+    "typeguard"
 ]
 
 # requires pip >= 21.2

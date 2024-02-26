@@ -257,7 +257,7 @@ def is_sequence(obj) -> bool:
     return seq
 
 
-def is_shape(obj, shape, allow_zeros=False):
+def is_shape(obj, shape, allow_zeros: bool = False) -> bool:
     """
     Compare the shape of a numpy.ndarray to a target shape,
     with any value less than zero being considered a wildcard
@@ -817,7 +817,7 @@ def distance_to_end(file_obj):
     return distance
 
 
-def decimal_to_digits(decimal, min_digits=None):
+def decimal_to_digits(decimal, min_digits=None) -> int:
     """
     Return the number of digits to the first nonzero decimal.
 
@@ -834,7 +834,7 @@ def decimal_to_digits(decimal, min_digits=None):
     digits = abs(int(np.log10(decimal)))
     if min_digits is not None:
         digits = np.clip(digits, min_digits, 20)
-    return digits
+    return int(digits)
 
 
 def attach_to_log(
@@ -1616,14 +1616,14 @@ def submesh(
         )
         for v, f, n, c in zip(vertices, faces, normals, visuals)
     ]
-    result = np.array(result)
+
     if only_watertight or repair:
         # fill_holes will attempt a repair and returns the
         # watertight status at the end of the repair attempt
-        watertight = np.array([i.fill_holes() and len(i.faces) >= 4 for i in result])
+        watertight = [i.fill_holes() and len(i.faces) >= 4 for i in result]
     if only_watertight:
         # remove unrepairable meshes
-        result = result[watertight]
+        return [i for i, w in zip(result, watertight) if w]
 
     return result
 
