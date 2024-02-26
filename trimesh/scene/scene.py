@@ -11,6 +11,11 @@ from ..util import unique_name
 from . import cameras, lighting
 from .transforms import SceneGraph
 
+# the types of objects we can create a scene from
+GeometryInput = Union[
+    Geometry, Sequence[Geometry], NDArray[Geometry], Dict[str, Geometry]
+]
+
 
 class Scene(Geometry3D):
     """
@@ -22,7 +27,7 @@ class Scene(Geometry3D):
 
     def __init__(
         self,
-        geometry: Union[Geometry, Sequence[Geometry], NDArray[Geometry], None] = None,
+        geometry: Optional[GeometryInput] = None,
         base_frame: str = "world",
         metadata: Optional[Dict] = None,
         graph: Optional[SceneGraph] = None,
@@ -59,8 +64,9 @@ class Scene(Geometry3D):
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
 
-        # add passed geometry to scene
-        self.add_geometry(geometry)
+        if geometry is not None:
+            # add passed geometry to scene
+            self.add_geometry(geometry)
 
         # hold metadata about the scene
         self.metadata = {}
@@ -96,7 +102,7 @@ class Scene(Geometry3D):
 
     def add_geometry(
         self,
-        geometry: Union[Geometry, None, List[Geometry]] = None,
+        geometry: GeometryInput,
         node_name: Optional[str] = None,
         geom_name: Optional[str] = None,
         parent_node_name: Optional[str] = None,
@@ -212,7 +218,7 @@ class Scene(Geometry3D):
 
         return node_name
 
-    def delete_geometry(self, names: Union[set, str]) -> None:
+    def delete_geometry(self, names: Union[set, str, Sequence]) -> None:
         """
         Delete one more multiple geometries from the scene and also
         remove any node in the transform graph which references it.
@@ -637,7 +643,7 @@ class Scene(Geometry3D):
 
     def set_camera(
         self, angles=None, distance=None, center=None, resolution=None, fov=None
-    ) -> None:
+    ) -> cameras.Camera:
         """
         Create a camera object for self.camera, and add
         a transform to self.graph for it.
