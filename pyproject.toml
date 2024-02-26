@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.1.5"
+version = "4.1.6"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -103,7 +103,8 @@ test = [
     "pymeshlab",
     "pyinstrument",
     "matplotlib",
-    "ruff"
+    "ruff",
+    "typeguard>=4.1.2"
 ]
 
 # requires pip >= 21.2
@@ -129,6 +130,7 @@ select = [
     "UP", # upgrade
     "W", # style warnings
     "YTT", # sys.version
+    "ISC002"
 ]
 
 ignore = [
@@ -139,6 +141,9 @@ ignore = [
   "B904", # raise ... from err
   "B905", # zip() without an explicit strict= parameter
 ]
+
+# don't allow implicit string concatenation
+flake8-implicit-str-concat = {"allow-multiline" = false}
 
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"

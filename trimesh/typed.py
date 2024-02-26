@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import IO, Dict, List, Optional, Sequence, Tuple, Union
+from typing import IO, Any, Dict, List, Optional, Sequence, Tuple, Union
 
 # our default integer and floating point types
 from numpy import float64, int64
@@ -22,6 +22,7 @@ __all__ = [
     "IO",
     "List",
     "Dict",
+    "Any",
     "Tuple",
     "float64",
     "int64",

@@ -15,7 +15,7 @@ import numpy as np
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
-from ..typed import NDArray
+from ..typed import NDArray, Optional
 from ..util import unique_name
 from ..visual.gloss import specular_to_pbr
 
@@ -775,7 +775,7 @@ def _append_mesh(
     name,
     tree,
     buffer_items,
-    include_normals: bool,
+    include_normals: Optional[bool],
     unitize_normals: bool,
     mat_hashes: dict,
     extension_webp: bool,
@@ -2057,9 +2057,9 @@ def get_schema():
     from ..schemas import resolve
 
     # get a blob of a zip file including the GLTF 2.0 schema
-    blob = resources.get("schema/gltf2.schema.zip", decode=False)
+    stream = resources.get_stream("schema/gltf2.schema.zip")
     # get the zip file as a dict keyed by file name
-    archive = util.decompress(util.wrap_as_stream(blob), "zip")
+    archive = util.decompress(stream, "zip")
     # get a resolver object for accessing the schema
     resolver = ZipResolver(archive)
     # get a loaded dict from the base file

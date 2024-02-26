@@ -7,7 +7,6 @@ Library for importing, exporting and doing simple operations on triangular meshe
 
 import copy
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from numpy import float64, int64, ndarray
@@ -43,7 +42,7 @@ from .exchange.export import export_mesh
 from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
-from .typed import ArrayLike, NDArray
+from .typed import Any, ArrayLike, Dict, List, NDArray, Optional, Tuple, Union
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
 try:
@@ -72,8 +71,8 @@ except BaseException as E:
 class Trimesh(Geometry3D):
     def __init__(
         self,
-        vertices: Optional[NDArray[float64]] = None,
-        faces: Optional[NDArray[int64]] = None,
+        vertices: Optional[ArrayLike] = None,
+        faces: Optional[ArrayLike] = None,
         face_normals: Optional[NDArray[float64]] = None,
         vertex_normals: Optional[NDArray[float64]] = None,
         face_colors: Optional[NDArray[float64]] = None,
@@ -451,7 +450,7 @@ class Trimesh(Geometry3D):
         return self._data.get("vertices", np.empty(shape=(0, 3), dtype=float64))
 
     @vertices.setter
-    def vertices(self, values: NDArray[float64]):
+    def vertices(self, values: ArrayLike):
         """
         Assign vertex values to the mesh.
 
@@ -491,7 +490,7 @@ class Trimesh(Geometry3D):
         return vertex_normals
 
     @vertex_normals.setter
-    def vertex_normals(self, values: NDArray[float64]) -> None:
+    def vertex_normals(self, values: ArrayLike) -> None:
         """
         Assign values to vertex normals.
 
@@ -1156,8 +1155,8 @@ class Trimesh(Geometry3D):
 
     def update_vertices(
         self,
-        mask: NDArray[bool],
-        inverse: Optional[NDArray] = None,
+        mask: ArrayLike,
+        inverse: Optional[ArrayLike] = None,
     ) -> None:
         """
         Update vertices with a mask.
@@ -1222,7 +1221,7 @@ class Trimesh(Geometry3D):
             except BaseException:
                 pass
 
-    def update_faces(self, mask: NDArray[bool]) -> None:
+    def update_faces(self, mask: ArrayLike) -> None:
         """
         In many cases, we will want to remove specific faces.
         However, there is additional bookkeeping to do this cleanly.
@@ -1551,8 +1550,7 @@ class Trimesh(Geometry3D):
         > [1, 2, 3, 4]
         """
 
-        adjacency_g = graph.vertex_adjacency_graph(mesh=self)
-        return adjacency_g
+        return graph.vertex_adjacency_graph(mesh=self)
 
     @caching.cache_decorator
     def vertex_neighbors(self) -> List[List[int64]]:
@@ -2170,23 +2168,23 @@ class Trimesh(Geometry3D):
         self._visual = value
 
     def section(
-        self, plane_normal: List[int], plane_origin: List[int], **kwargs
-    ) -> Path3D:
+        self, plane_normal: ArrayLike, plane_origin: ArrayLike, **kwargs
+    ) -> Optional[Path3D]:
         """
         Returns a 3D cross section of the current mesh and a plane
         defined by origin and normal.
 
         Parameters
         ------------
-        plane_normal: (3) vector for plane normal
-          Normal vector of section plane
+        plane_normal : (3,) float
+          Normal vector of section plane.
         plane_origin : (3, ) float
-          Point on the cross section plane
+          Point on the cross section plane.
 
         Returns
         ---------
-        intersections: Path3D or None
-          Curve of intersection
+        intersections
+          Curve of intersection or None if it was not hit by plane.
         """
         # turn line segments into Path2D/Path3D objects
         from .exchange.load import load_path
@@ -2214,10 +2212,10 @@ class Trimesh(Geometry3D):
 
     def section_multiplane(
         self,
-        plane_origin: NDArray[float64],
-        plane_normal: NDArray[float64],
-        heights: NDArray[float64],
-    ):
+        plane_origin: ArrayLike,
+        plane_normal: ArrayLike,
+        heights: ArrayLike,
+    ) -> List[Optional[Path2D]]:
         """
         Return multiple parallel cross sections of the current
         mesh in 2D.
@@ -2226,7 +2224,7 @@ class Trimesh(Geometry3D):
         ------------
         plane_origin : (3, ) float
           Point on the cross section plane
-        plane_normal: (3) vector for plane normal
+        plane_normal : (3) float
           Normal vector of section plane
         heights : (n, ) float
           Each section is offset by height along
@@ -2367,8 +2365,7 @@ class Trimesh(Geometry3D):
         convex : trimesh.Trimesh
           Mesh of convex hull of current mesh
         """
-        hull = convex.convex_hull(self)
-        return hull
+        return convex.convex_hull(self)
 
     def sample(
         self,

@@ -27,7 +27,7 @@ except BaseException as E:
     Index = ExceptionWrapper(E)
 
 
-def enclosure_tree(polygons: List[Polygon]):
+def enclosure_tree(polygons):
     """
     Given a list of shapely polygons with only exteriors,
     find which curves represent the exterior shell or root curve
@@ -365,8 +365,7 @@ def stack_boundaries(boundaries):
     """
     if len(boundaries["holes"]) == 0:
         return boundaries["shell"]
-    result = np.vstack((boundaries["shell"], np.vstack(boundaries["holes"])))
-    return result
+    return np.vstack((boundaries["shell"], np.vstack(boundaries["holes"])))
 
 
 def medial_axis(polygon: Polygon, resolution: Optional[float] = None, clip=None):
