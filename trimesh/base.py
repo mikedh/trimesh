@@ -1694,17 +1694,18 @@ class Trimesh(Geometry3D):
         Identify degenerate faces (faces without 3 unique vertex indices)
         in the current mesh.
 
-        Usage example: `self.update_faces(self.nondegenerate_faces(height=height))`
+        Usage example for removing them:
+        `self.update_faces(self.nondegenerate_faces(height=height))`
 
-        If a height is specified, it will remove any face with a 2D oriented
+        If a height is specified, it will identify any face with a 2D oriented
         bounding box with one edge shorter than that height.
 
-        If not specified, it will remove any face with a zero normal.
+        If not specified, it will identify any face with a zero normal.
 
         Parameters
         ------------
         height : float
-          If specified removes faces with an oriented bounding
+          If specified identifies faces with an oriented bounding
           box shorter than this on one side.
 
         Returns
