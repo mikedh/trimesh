@@ -175,8 +175,8 @@ def boolean_manifold(
 def boolean_scad(*args, **kwargs):
     warnings.warn(
         "The OpenSCAD interface is deprecated, and Trimesh will instead"
-        " use Manifold ('manifold'), which should be equivalent. In future versions"
-        " of Trimesh, attempting to use engine 'scad' may raise an error.",
+        + " use Manifold ('manifold'), which should be equivalent. In future versions"
+        + " of Trimesh, attempting to use engine 'scad' may raise an error.",
         DeprecationWarning,
         stacklevel=2,
     )

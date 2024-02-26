@@ -130,6 +130,7 @@ select = [
     "UP", # upgrade
     "W", # style warnings
     "YTT", # sys.version
+    "ISC002"
 ]
 
 ignore = [
@@ -140,6 +141,9 @@ ignore = [
   "B904", # raise ... from err
   "B905", # zip() without an explicit strict= parameter
 ]
+
+# don't allow implicit string concatenation
+flake8-implicit-str-concat = {"allow-multiline" = false}
 
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"
