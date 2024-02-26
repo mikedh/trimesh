@@ -6,7 +6,18 @@ import numpy as np
 from .. import caching, convex, grouping, inertia, transformations, units, util
 from ..exchange import export
 from ..parent import Geometry, Geometry3D
-from ..typed import Dict, List, NDArray, Optional, Sequence, Tuple, Union, float64, int64
+from ..typed import (
+    ArrayLike,
+    Dict,
+    List,
+    NDArray,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    float64,
+    int64,
+)
 from ..util import unique_name
 from . import cameras, lighting
 from .transforms import SceneGraph
@@ -1083,7 +1094,7 @@ class Scene(Geometry3D):
             T_new[:3, 3] += offset
             self.graph[node_name] = T_new
 
-    def scaled(self, scale: Union[float, Sequence]) -> "Scene":
+    def scaled(self, scale: Union[float, ArrayLike]) -> "Scene":
         """
         Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.

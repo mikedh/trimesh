@@ -72,14 +72,24 @@ RUN pip install -e .[all]
 # check formatting
 RUN ruff trimesh
 
-# run pytest wrapped with xvfb for simple viewer tests
+
+
 ## TODO : get typeguard to pass on more/all of the codebase
+## this is running on a very arbitrary subset right now!
+RUN pytest \
+    --typeguard-packages=trimesh.scene,trimesh.base \
+    -p no:ALL_DEPENDENCIES \
+    -p no:INCLUDE_RENDERING \
+    -p no:cacheprovider tests/test_s*
+
+
+# run pytest wrapped with xvfb for simple viewer tests
 RUN xvfb-run pytest \
     --cov=trimesh \
-    --typeguard-packages=trimesh.scene \
     -p no:ALL_DEPENDENCIES \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
+
 
 # set codecov token as a build arg to upload
 ARG CODECOV_TOKEN=""

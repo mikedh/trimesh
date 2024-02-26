@@ -1155,8 +1155,8 @@ class Trimesh(Geometry3D):
 
     def update_vertices(
         self,
-        mask: NDArray[bool],
-        inverse: Optional[NDArray] = None,
+        mask: ArrayLike,
+        inverse: Optional[ArrayLike] = None,
     ) -> None:
         """
         Update vertices with a mask.
@@ -1221,7 +1221,7 @@ class Trimesh(Geometry3D):
             except BaseException:
                 pass
 
-    def update_faces(self, mask: NDArray[bool]) -> None:
+    def update_faces(self, mask: ArrayLike) -> None:
         """
         In many cases, we will want to remove specific faces.
         However, there is additional bookkeeping to do this cleanly.
@@ -2168,23 +2168,23 @@ class Trimesh(Geometry3D):
         self._visual = value
 
     def section(
-        self, plane_normal: List[int], plane_origin: List[int], **kwargs
-    ) -> Path3D:
+        self, plane_normal: ArrayLike, plane_origin: ArrayLike, **kwargs
+    ) -> Optional[Path3D]:
         """
         Returns a 3D cross section of the current mesh and a plane
         defined by origin and normal.
 
         Parameters
         ------------
-        plane_normal: (3) vector for plane normal
-          Normal vector of section plane
+        plane_normal : (3,) float
+          Normal vector of section plane.
         plane_origin : (3, ) float
-          Point on the cross section plane
+          Point on the cross section plane.
 
         Returns
         ---------
-        intersections: Path3D or None
-          Curve of intersection
+        intersections
+          Curve of intersection or None if it was not hit by plane.
         """
         # turn line segments into Path2D/Path3D objects
         from .exchange.load import load_path
@@ -2212,10 +2212,10 @@ class Trimesh(Geometry3D):
 
     def section_multiplane(
         self,
-        plane_origin: NDArray[float64],
-        plane_normal: NDArray[float64],
-        heights: NDArray[float64],
-    ):
+        plane_origin: ArrayLike,
+        plane_normal: ArrayLike,
+        heights: ArrayLike,
+    ) -> List[Optional[Path2D]]:
         """
         Return multiple parallel cross sections of the current
         mesh in 2D.
@@ -2224,7 +2224,7 @@ class Trimesh(Geometry3D):
         ------------
         plane_origin : (3, ) float
           Point on the cross section plane
-        plane_normal: (3) vector for plane normal
+        plane_normal : (3) float
           Normal vector of section plane
         heights : (n, ) float
           Each section is offset by height along
