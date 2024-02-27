@@ -1695,7 +1695,7 @@ class Trimesh(Geometry3D):
         in the current mesh.
 
         Usage example for removing them:
-        `self.update_faces(self.nondegenerate_faces(height=height))`
+        `mesh.update_faces(mesh.nondegenerate_faces())`
 
         If a height is specified, it will identify any face with a 2D oriented
         bounding box with one edge shorter than that height.
