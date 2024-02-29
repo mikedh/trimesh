@@ -6,6 +6,7 @@ Test things that should work with a *minimal* trimesh install.
 
 
 """
+
 import os
 import unittest
 
