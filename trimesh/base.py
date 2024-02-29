@@ -1691,24 +1691,27 @@ class Trimesh(Geometry3D):
 
     def nondegenerate_faces(self, height: float = tol.merge) -> NDArray[bool]:
         """
-        Remove degenerate faces (faces without 3 unique vertex indices)
-        from the current mesh.
+        Identify degenerate faces (faces without 3 unique vertex indices)
+        in the current mesh.
 
-        If a height is specified, it will remove any face with a 2D oriented
+        Usage example for removing them:
+        `mesh.update_faces(mesh.nondegenerate_faces())`
+
+        If a height is specified, it will identify any face with a 2D oriented
         bounding box with one edge shorter than that height.
 
-        If not specified, it will remove any face with a zero normal.
+        If not specified, it will identify any face with a zero normal.
 
         Parameters
         ------------
         height : float
-          If specified removes faces with an oriented bounding
+          If specified identifies faces with an oriented bounding
           box shorter than this on one side.
 
         Returns
         -------------
         nondegenerate : (len(self.faces), ) bool
-          Mask used to remove faces
+          Mask that can be used to remove faces
         """
         return triangles.nondegenerate(
             self.triangles, areas=self.area_faces, height=height
