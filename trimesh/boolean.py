@@ -8,7 +8,7 @@ Do boolean operations on meshes using either Blender or Manifold.
 import numpy as np
 
 from . import exceptions, interfaces
-from .typed import Optional, Sequence
+from .typed import Optional, Sequence, Iterable
 
 try:
     from manifold3d import Manifold, Mesh
@@ -18,7 +18,7 @@ except BaseException as E:
 
 
 def difference(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Iterable, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean difference between a mesh an n other meshes.
@@ -48,7 +48,7 @@ def difference(
 
 
 def union(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Iterable, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean union between a mesh an n other meshes.
@@ -79,7 +79,7 @@ def union(
 
 
 def intersection(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Iterable, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean intersection between a mesh and other meshes.
@@ -108,7 +108,7 @@ def intersection(
 
 
 def boolean_manifold(
-    meshes: Sequence,
+    meshes: Iterable,
     operation: str,
     check_volume: bool = True,
     debug: bool = False,

@@ -1,3 +1,14 @@
+# DEPRECATED AND WILL BE REMOVED MAY 2024!
+# This should be built into wheels separately if someone
+# wants to maintain a ctypes binding of openctm, e.g.
+# https://github.com/trimesh/vhacdx
+
+
+
+
+
+
+
 # Modified from the original OpenCTM python binding
 # for inclusion in the `trimesh` package:
 # https://github.com/mikedh/trimesh
@@ -33,6 +44,15 @@ import ctypes.util
 import os
 
 import numpy as np
+
+import warnings
+warnings.warn("trimesh.exchange.openctm is deprecated " +
+              " and will be removed May 2025! Copy `openctm.py`" +
+              " into your own project!",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+
 
 _ctm_loaders = {}
 
