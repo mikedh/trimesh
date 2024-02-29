@@ -27,6 +27,7 @@ from . import (
     simplify,
     traversal,
 )
+from .exceptions import ExceptionWrapper
 from .entities import Entity
 from .exchange.export import export_path
 from .util import concatenate
@@ -47,10 +48,13 @@ try:
 except BaseException as E:
     cKDTree = exceptions.ExceptionWrapper(E)
 try:
-    from shapely.geometry import Polygon
+    from shapely.geometry import Polygon, LinearRing, LineString
     from shapely.prepared import prep
 except BaseException as E:
     Polygon = exceptions.ExceptionWrapper(E)
+    LinearRing = exceptions.ExceptionWrapper(E)
+    LineString = exceptions.ExceptionWrapper(E)
+    
     prep = exceptions.ExceptionWrapper(E)
 
 try:
@@ -1116,6 +1120,26 @@ class Path2D(Path):
 
         return full
 
+
+    def linearings(self) -> List[LinearRing]:
+        """
+        Contains all the closed rings.  
+        """
+        pass
+
+    def linestrings(self) -> List[LineString]:
+        """
+        Contains all the non-closed but connected geometry.
+        """
+        pass
+
+    def polygons(self) -> List[Polygon]:
+        """
+        Contains all the closed geometry with interiors
+        evaluated from `enclosure_tree`.
+        """
+    
+    
     @caching.cache_decorator
     def area(self):
         """
