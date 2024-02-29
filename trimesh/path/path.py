@@ -12,10 +12,11 @@ from hashlib import sha256
 
 import numpy as np
 
-from .. import bounds, caching, exceptions, grouping, parent, units, util
+from .. import bounds, caching, grouping, parent, units, util
 from .. import transformations as tf
 from ..constants import log
 from ..constants import tol_path as tol
+from ..exceptions import ExceptionWrapper
 from ..geometry import plane_transform
 from ..points import plane_fit
 from ..typed import Dict, Iterable, List, NDArray, Optional, float64
@@ -27,7 +28,6 @@ from . import (
     simplify,
     traversal,
 )
-from .exceptions import ExceptionWrapper
 from .entities import Entity
 from .exchange.export import export_path
 from .util import concatenate
@@ -38,29 +38,26 @@ from .util import concatenate
 try:
     from . import repair
 except BaseException as E:
-    repair = exceptions.ExceptionWrapper(E)
+    repair = ExceptionWrapper(E)
 try:
     from . import polygons
 except BaseException as E:
-    polygons = exceptions.ExceptionWrapper(E)
+    polygons = ExceptionWrapper(E)
 try:
     from scipy.spatial import cKDTree
 except BaseException as E:
-    cKDTree = exceptions.ExceptionWrapper(E)
+    cKDTree = ExceptionWrapper(E)
 try:
-    from shapely.geometry import Polygon, LinearRing, LineString
-    from shapely.prepared import prep
+    from shapely.geometry import LinearRing, LineString, Polygon
 except BaseException as E:
-    Polygon = exceptions.ExceptionWrapper(E)
-    LinearRing = exceptions.ExceptionWrapper(E)
-    LineString = exceptions.ExceptionWrapper(E)
-    
-    prep = exceptions.ExceptionWrapper(E)
+    Polygon = ExceptionWrapper(E)
+    LinearRing = ExceptionWrapper(E)
+    LineString = ExceptionWrapper(E)
 
 try:
     import networkx as nx
 except BaseException as E:
-    nx = exceptions.ExceptionWrapper(E)
+    nx = ExceptionWrapper(E)
 
 
 class Path(parent.Geometry):
@@ -232,20 +229,19 @@ class Path(parent.Geometry):
         return caching.hash_fast(b"".join(hashable))
 
     @caching.cache_decorator
-    def paths(self):
+    def entity_cycles(self) -> List[List[int]]:
         """
-        Sequence of closed paths, encoded by entity index.
+        Cycles of entities, also known as closed rings.
 
         Returns
         ---------
-        paths : (n,) sequence of (*,) int
-          Referencing self.entities
+        paths
+          Indexes of `self.entities`
         """
-        paths = traversal.closed_paths(self.entities, self.vertices)
-        return paths
+        return traversal.closed_paths(entities=self.entities, vertices=self.vertices)
 
     @caching.cache_decorator
-    def dangling(self):
+    def entity_dangling(self) -> List[List[int]]:
         """
         List of entities that aren't included in a closed path
 
@@ -379,20 +375,23 @@ class Path(parent.Geometry):
         # explicitly clear cache
         self._cache.clear()
 
-    def fill_gaps(self, distance=0.025):
+    def fill_gaps(self, distance: Optional[float] = None):
         """
         Find vertices without degree 2 and try to connect to
         other vertices. Operations are done in-place.
 
         Parameters
         ----------
-        distance : float
+        distance
           Connect vertices up to this distance
         """
+        if distance is None:
+            distance = self.scale / 1000.0
+
         repair.fill_gaps(self, distance=distance)
 
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         """
         Are all entities connected to other entities.
 
@@ -401,12 +400,10 @@ class Path(parent.Geometry):
         closed : bool
           Every entity is connected at its ends
         """
-        closed = all(i == 2 for i in dict(self.vertex_graph.degree()).values())
-
-        return closed
+        return not any(i != 2 for i in dict(self.vertex_graph.degree()).values())
 
     @property
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Are any entities defined for the current path.
 
@@ -425,7 +422,7 @@ class Path(parent.Geometry):
         graph : networkx.Graph
           Holds vertex indexes
         """
-        graph, closed = traversal.vertex_graph(self.entities)
+        graph, _ = traversal.vertex_graph(self.entities)
         return graph
 
     @caching.cache_decorator
@@ -1120,16 +1117,16 @@ class Path2D(Path):
 
         return full
 
-
-    def linearings(self) -> List[LinearRing]:
+    def linear_rings(self) -> List[LinearRing]:
         """
-        Contains all the closed rings.  
+        Contains all the closed rings in the current path.
         """
         pass
 
-    def linestrings(self) -> List[LineString]:
+    def line_strings(self) -> List[LineString]:
         """
-        Contains all the non-closed but connected geometry.
+        Contains all the connected geometry that is *not*
+        included in `self.linear_rings`
         """
         pass
 
@@ -1138,8 +1135,7 @@ class Path2D(Path):
         Contains all the closed geometry with interiors
         evaluated from `enclosure_tree`.
         """
-    
-    
+
     @caching.cache_decorator
     def area(self):
         """

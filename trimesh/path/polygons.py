@@ -1,10 +1,11 @@
 import numpy as np
 from shapely import ops
-from shapely.geometry import Polygon
+from shapely.geometry import LinearRing, Polygon
 
 from .. import bounds, geometry, graph, grouping
 from ..constants import log
 from ..constants import tol_path as tol
+from ..exceptions import ExceptionWrapper
 from ..transformations import transform_points
 from ..typed import List, NDArray, Optional, float64
 from .simplify import fit_circle_check
@@ -15,7 +16,6 @@ try:
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    from ..exceptions import ExceptionWrapper
 
     nx = ExceptionWrapper(E)
 try:
@@ -27,7 +27,7 @@ except BaseException as E:
     Index = ExceptionWrapper(E)
 
 
-def enclosure_tree(polygons):
+def enclosure_tree(rings: List[LinearRing]) -> Tuple[NDArray, nx.DiGraph]:
     """
     Given a list of shapely polygons with only exteriors,
     find which curves represent the exterior shell or root curve
@@ -54,7 +54,7 @@ def enclosure_tree(polygons):
     bounds = {
         k: v
         for k, v in {
-            i: getattr(polygon, "bounds", []) for i, polygon in enumerate(polygons)
+            i: getattr(ring, "bounds", []) for i, ring in enumerate(rings)
         }.items()
         if len(v) == 4
     }
@@ -110,6 +110,26 @@ def enclosure_tree(polygons):
         contains.add_nodes_from(roots)
 
     return roots, contains
+
+
+def construct(
+    rings: List[LinearRing], roots: List[int], graph: nx.DiGraph
+) -> List[Polygon]:
+    # pre- allocate the list to avoid indexing problems
+    full = [None] * len(roots)
+
+    # loop through root curves
+    for i, root in enumerate(roots):
+        # a list of multiple Polygon objects that
+        # are fully contained by the root curve
+        children = [rings[child] for child in enclosure[root].keys()]
+        # all rings should have been constructed counter-clockwise
+        # so for interiors reverse them
+        holes = [np.array(p.coords)[::-1] for p in children]
+        # create a polygon with interiors
+        full[i] = repair_invalid(Polygon(shell=rings[root], holes=holes))
+
+    return full
 
 
 def edges_to_polygons(edges, vertices):

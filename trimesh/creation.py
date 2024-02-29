@@ -397,7 +397,7 @@ def triangulate_polygon(polygon, triangle_args=None, engine=None, **kwargs):
     triangle_args : str or None
         Passed to triangle.triangulate i.e: 'p', 'pq30'
     engine : None or str
-      Any value other than 'earcut' will use `triangle`
+      Valid options are [None, "triangle", "earcut"]
 
     Returns
     --------------
@@ -436,14 +436,14 @@ def triangulate_polygon(polygon, triangle_args=None, engine=None, **kwargs):
         # run the triangulation
         result = triangulate(arg, triangle_args)
         return result["vertices"], result["triangles"]
-    else:
-        log.warning(
-            "try running `pip install mapbox-earcut`"
-            + "or explicitly pass:\n"
-            + '`triangulate_polygon(*args, engine="triangle")`\n'
-            + "to use the non-FSF-approved-license triangle engine"
-        )
-        raise ValueError("no valid triangulation engine!")
+
+    log.warning(
+        "try running `pip install mapbox-earcut`"
+        + "or explicitly pass:\n"
+        + '`triangulate_polygon(*args, engine="triangle")`\n'
+        + "to use the non-FSF-approved-license triangle engine"
+    )
+    raise ValueError(f"`{engine}` not a valid engine!")
 
 
 def _polygon_to_kwargs(polygon):
