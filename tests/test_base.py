@@ -1,6 +1,7 @@
 """
 Test the base trimesh.Trimesh object.
 """
+
 try:
     from . import generic as g
 except BaseException:

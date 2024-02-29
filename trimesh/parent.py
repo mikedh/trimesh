@@ -4,6 +4,7 @@ parent.py
 
 The base class for Trimesh, PointCloud, and Scene objects
 """
+
 import abc
 
 import numpy as np
@@ -16,7 +17,6 @@ from .util import ABC
 
 
 class Geometry(ABC):
-
     """
     `Geometry` is the parent class for all geometry.
 
@@ -181,7 +181,6 @@ class Geometry(ABC):
 
 
 class Geometry3D(Geometry):
-
     """
     The `Geometry3D` object is the parent object of geometry objects
     which are three dimensional, including Trimesh, PointCloud,

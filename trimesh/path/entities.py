@@ -5,6 +5,7 @@ entities.py
 Basic geometric primitives which only store references to
 vertex indices rather than vertices themselves.
 """
+
 from copy import deepcopy
 
 import numpy as np

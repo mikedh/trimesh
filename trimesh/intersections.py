@@ -4,6 +4,7 @@ intersections.py
 
 Primarily mesh-plane intersections (slicing).
 """
+
 import numpy as np
 
 from . import geometry, grouping, util

@@ -4,6 +4,7 @@ points.py
 
 Functions dealing with (n, d) points.
 """
+
 import copy
 
 import numpy as np

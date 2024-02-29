@@ -5,6 +5,7 @@ objects.py
 Deal with objects which hold visual properties, like
 ColorVisuals and TextureVisuals.
 """
+
 import numpy as np
 
 from .color import ColorVisuals, color_to_uv

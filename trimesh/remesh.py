@@ -4,6 +4,7 @@ remesh.py
 
 Deal with re- triangulation of existing meshes.
 """
+
 import numpy as np
 
 from . import graph, grouping, util

@@ -5,6 +5,7 @@ trimesh.path
 Handle 2D and 3D vector paths such as those contained in an
 SVG or DXF file.
 """
+
 try:
     from .path import Path2D, Path3D
 except BaseException as E:

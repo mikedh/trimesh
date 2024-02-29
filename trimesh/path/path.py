@@ -5,6 +5,7 @@ path.py
 A module designed to work with vector paths such as
 those stored in a DXF or SVG file.
 """
+
 import collections
 import copy
 from hashlib import sha256
@@ -17,7 +18,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..geometry import plane_transform
 from ..points import plane_fit
-from ..typed import Dict, List, NDArray, Optional, Sequence, float64
+from ..typed import Dict, Iterable, List, NDArray, Optional, float64
 from ..visual import to_rgba
 from . import (
     creation,  # NOQA
@@ -71,7 +72,7 @@ class Path(parent.Geometry):
 
     def __init__(
         self,
-        entities: Optional[Sequence[Entity]] = None,
+        entities: Optional[Iterable[Entity]] = None,
         vertices: Optional[NDArray[float64]] = None,
         metadata: Optional[Dict] = None,
         process: bool = True,
@@ -1084,7 +1085,7 @@ class Path2D(Path):
         return polygons.paths_to_polygons(self.discrete)
 
     @caching.cache_decorator
-    def polygons_full(self) -> NDArray:
+    def polygons_full(self) -> List:
         """
         A list of shapely.geometry.Polygon objects with interiors created
         by checking which closed polygons enclose which other polygons.

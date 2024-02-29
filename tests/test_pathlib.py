@@ -1,6 +1,7 @@
 """
 Test loading from pathlib objects.
 """
+
 try:
     from . import generic as g
 except BaseException:

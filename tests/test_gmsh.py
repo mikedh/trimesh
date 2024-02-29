@@ -19,6 +19,15 @@ class GMSHTest(g.unittest.TestCase):
         result = g.trimesh.interfaces.gmsh.to_volume(m)
         assert len(result) > 0
 
+    def test_load(self):
+        if gmsh is None:
+            return
+        r = g.trimesh.interfaces.gmsh.load_gmsh(
+            g.os.path.join(g.dir_models, "wrench.STEP")
+        )
+        assert isinstance(r, dict)
+        assert len(g.trimesh.Trimesh(**r).faces) > 0
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

@@ -4,6 +4,7 @@ voxel.py
 
 Convert meshes to a simple voxel data structure and back again.
 """
+
 import numpy as np
 
 from .. import bounds as bounds_module

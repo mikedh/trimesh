@@ -1,6 +1,7 @@
 """
 A basic slow implementation of ray- triangle queries.
 """
+
 import numpy as np
 
 from .. import caching, grouping, intersections, util

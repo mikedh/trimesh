@@ -6,6 +6,7 @@ Deal with physical unit systems (i.e. inches, mm)
 Very basic conversions, and no requirement for
 sympy.physics.units or pint.
 """
+
 from . import resources
 from .constants import log
 from .parent import Geometry

@@ -4,6 +4,7 @@
 Get the current version from package metadata or pyproject.toml
 if everything else fails.
 """
+
 import json
 import os
 from typing import Optional

@@ -4,6 +4,7 @@ xaml.py
 
 Load 3D XAMl files, an export option from Solidworks.
 """
+
 import collections
 
 import numpy as np

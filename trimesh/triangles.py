@@ -4,6 +4,7 @@ triangles.py
 
 Functions for dealing with triangle soups in (n, 3, 3) float form.
 """
+
 from dataclasses import dataclass
 
 import numpy as np

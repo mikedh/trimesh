@@ -2,6 +2,7 @@
 Ray queries using the embreex package with the
 API wrapped to match our native raytracer.
 """
+
 from copy import deepcopy
 
 import numpy as np
