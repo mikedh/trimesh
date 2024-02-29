@@ -5,7 +5,6 @@ viewer
 View meshes and scenes via pyglet or inline HTML.
 """
 
-
 from .. import exceptions
 from .notebook import in_notebook, scene_to_html, scene_to_notebook
 

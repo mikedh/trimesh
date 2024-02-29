@@ -1,4 +1,5 @@
 """Basic morphology operations that create new encodings."""
+
 import numpy as np
 
 from .. import util

@@ -4,6 +4,7 @@ threedxml.py
 
 Load 3DXML files, a scene format from Dassault products like Solidworks, Abaqus, Catia
 """
+
 import numpy as np
 
 try:

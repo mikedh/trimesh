@@ -4,6 +4,7 @@ material.py
 
 Store visual materials as objects.
 """
+
 import abc
 import copy
 

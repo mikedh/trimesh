@@ -6,6 +6,7 @@ https://www.patrickmin.com/binvox/binvox.html
 Exporting meshes as binvox files requires the
 `binvox` executable to be in your path.
 """
+
 import collections
 import os
 import subprocess

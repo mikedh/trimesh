@@ -8,7 +8,7 @@ Do boolean operations on meshes using either Blender or Manifold.
 import numpy as np
 
 from . import exceptions, interfaces
-from .typed import Optional, Sequence, Iterable
+from .typed import Iterable, Optional
 
 try:
     from manifold3d import Manifold, Mesh

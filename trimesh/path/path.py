@@ -5,6 +5,7 @@ path.py
 A module designed to work with vector paths such as
 those stored in a DXF or SVG file.
 """
+
 import collections
 import copy
 from hashlib import sha256
@@ -17,7 +18,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..geometry import plane_transform
 from ..points import plane_fit
-from ..typed import Dict, List, NDArray, Optional, Iterable, Sequence, float64
+from ..typed import Dict, Iterable, List, NDArray, Optional, float64
 from ..visual import to_rgba
 from . import (
     creation,  # NOQA

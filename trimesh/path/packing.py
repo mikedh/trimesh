@@ -4,6 +4,7 @@ packing.py
 
 Pack rectangular regions onto larger rectangular regions.
 """
+
 from typing import Optional
 
 import numpy as np

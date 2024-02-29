@@ -4,6 +4,7 @@ schemas.py
 
 Tools for dealing with schemas, particularly JSONschema
 """
+
 import json
 
 from .util import decode_text

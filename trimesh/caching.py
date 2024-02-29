@@ -19,6 +19,7 @@ In [25]: %timeit xxh3_64_intdigest(d)
 3.37 us +/- 116 ns per loop
 ```
 """
+
 import os
 import sys
 import time
