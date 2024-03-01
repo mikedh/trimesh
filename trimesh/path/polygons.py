@@ -49,6 +49,9 @@ def enclosure_tree(rings: List[LinearRing]) -> Tuple[NDArray, nx.DiGraph]:
        contained by another polygon
     """
 
+    # rings have no area and so can't contain anything
+    check = [Polygon(ring) for ring in rings]
+
     # get the bounds for every valid polygon
     bounds = {
         k: v
@@ -79,9 +82,9 @@ def enclosure_tree(rings: List[LinearRing]) -> Tuple[NDArray, nx.DiGraph]:
                 continue
             # do a more accurate polygon in polygon test
             # for the enclosure tree information
-            if rings[i].contains(rings[j]):
+            if check[i].contains(check[j]):
                 contains.add_edge(i, j)
-            elif rings[j].contains(rings[i]):
+            elif check[j].contains(check[i]):
                 contains.add_edge(j, i)
 
     # a root or exterior curve has an even number of parents
@@ -112,13 +115,8 @@ def enclosure_tree(rings: List[LinearRing]) -> Tuple[NDArray, nx.DiGraph]:
 
 
 def construct(
-    rings: List[LinearRing],
-    roots: Optional[List[int]] = None,
-    graph: Optional[nx.DiGraph] = None,
+    rings: List[LinearRing], roots: List[int] = None, graph: nx.DiGraph = None
 ) -> List[Polygon]:
-    if roots is None or graph is None:
-        roots, graph = enclosure_tree(rings=rings)
-
     # pre- allocate the list to avoid indexing problems
     full = [None] * len(roots)
 
