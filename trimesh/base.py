@@ -2172,7 +2172,7 @@ class Trimesh(Geometry3D):
 
     def section(
         self, plane_normal: ArrayLike, plane_origin: ArrayLike, **kwargs
-    ) -> Optional[Path3D]:
+    ) -> Optional["Path3D"]:
         """
         Returns a 3D cross section of the current mesh and a plane
         defined by origin and normal.
@@ -2599,7 +2599,7 @@ class Trimesh(Geometry3D):
         simple = self.as_open3d.simplify_quadric_decimation(int(face_count))
         return Trimesh(vertices=simple.vertices, faces=simple.triangles)
 
-    def outline(self, face_ids: Optional[NDArray[int64]] = None, **kwargs) -> Path3D:
+    def outline(self, face_ids: Optional[NDArray[int64]] = None, **kwargs) -> "Path3D":
         """
         Given a list of face indexes find the outline of those
         faces and return it as a Path3D.
