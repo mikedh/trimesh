@@ -7,7 +7,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..exceptions import ExceptionWrapper
 from ..transformations import transform_points
-from ..typed import List, NDArray, Optional, float64
+from ..typed import List, NDArray, Optional, Tuple, float64
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -29,9 +29,8 @@ except BaseException as E:
 
 def enclosure_tree(rings: List[LinearRing]) -> Tuple[NDArray, nx.DiGraph]:
     """
-    Given a list of shapely polygons with only exteriors,
-    find which curves represent the exterior shell or root curve
-    and which represent holes which penetrate the exterior.
+    Given a list of closed rings find which curves represent
+    the exterior shell and which represent holes.
 
     This is done with an R-tree for rough overlap detection,
     and then exact polygon queries for a final result.
@@ -80,9 +79,9 @@ def enclosure_tree(rings: List[LinearRing]) -> Tuple[NDArray, nx.DiGraph]:
                 continue
             # do a more accurate polygon in polygon test
             # for the enclosure tree information
-            if polygons[i].contains(polygons[j]):
+            if rings[i].contains(rings[j]):
                 contains.add_edge(i, j)
-            elif polygons[j].contains(polygons[i]):
+            elif rings[j].contains(rings[i]):
                 contains.add_edge(j, i)
 
     # a root or exterior curve has an even number of parents
@@ -113,8 +112,13 @@ def enclosure_tree(rings: List[LinearRing]) -> Tuple[NDArray, nx.DiGraph]:
 
 
 def construct(
-    rings: List[LinearRing], roots: List[int], graph: nx.DiGraph
+    rings: List[LinearRing],
+    roots: Optional[List[int]] = None,
+    graph: Optional[nx.DiGraph] = None,
 ) -> List[Polygon]:
+    if roots is None or graph is None:
+        roots, graph = enclosure_tree(rings=rings)
+
     # pre- allocate the list to avoid indexing problems
     full = [None] * len(roots)
 
@@ -122,7 +126,7 @@ def construct(
     for i, root in enumerate(roots):
         # a list of multiple Polygon objects that
         # are fully contained by the root curve
-        children = [rings[child] for child in enclosure[root].keys()]
+        children = [rings[child] for child in graph[root].keys()]
         # all rings should have been constructed counter-clockwise
         # so for interiors reverse them
         holes = [np.array(p.coords)[::-1] for p in children]

@@ -240,6 +240,10 @@ class Path(parent.Geometry):
         """
         return traversal.closed_paths(entities=self.entities, vertices=self.vertices)
 
+    @property
+    def paths(self):
+        return self.entity_cycles
+
     @caching.cache_decorator
     def entity_dangling(self) -> List[List[int]]:
         """
@@ -665,14 +669,14 @@ class Path(parent.Geometry):
         self.vertices = self.vertices[unique]
 
     @caching.cache_decorator
-    def discrete(self) -> List[NDArray[float64]]:
+    def discrete_cycles(self) -> List[NDArray[float64]]:
         """
         A sequence of connected vertices in space, corresponding to
-        self.paths.
+        self.entity_cycles.
 
         Returns
         ---------
-        discrete : (len(self.paths),)
+        discrete
             A sequence of (m*, dimension) float
         """
         # avoid cache hits in the loop
@@ -1081,9 +1085,7 @@ class Path2D(Path):
         ---------
         polygons_closed : (n,) list of shapely.geometry.Polygon objects
         """
-        # will attempt to recover invalid garbage geometry
-        # and will be None if geometry is unrecoverable
-        return polygons.paths_to_polygons(self.discrete)
+        return [Polygon(shell=r) for r in self.linear_rings]
 
     @caching.cache_decorator
     def polygons_full(self) -> List:
@@ -1096,33 +1098,16 @@ class Path2D(Path):
         full : (len(self.root),) shapely.geometry.Polygon
             Polygons containing interiors
         """
-        # pre- allocate the list to avoid indexing problems
-        full = [None] * len(self.root)
-        # store the graph to avoid cache thrashing
-        enclosure = self.enclosure_directed
-        # store closed polygons to avoid cache hits
-        closed = self.polygons_closed
+        return self.polygons
 
-        # loop through root curves
-        for i, root in enumerate(self.root):
-            # a list of multiple Polygon objects that
-            # are fully contained by the root curve
-            children = [closed[child] for child in enclosure[root].keys()]
-            # all polygons_closed are CCW, so for interiors reverse them
-            holes = [np.array(p.exterior.coords)[::-1] for p in children]
-            # a single Polygon object
-            shell = closed[root].exterior
-            # create a polygon with interiors
-            full[i] = polygons.repair_invalid(Polygon(shell=shell, holes=holes))
-
-        return full
-
+    @caching.cache_decorator
     def linear_rings(self) -> List[LinearRing]:
         """
         Contains all the closed rings in the current path.
         """
-        pass
+        return [LinearRing(d) for d in self.discrete_cycles]
 
+    @caching.cache_decorator
     def line_strings(self) -> List[LineString]:
         """
         Contains all the connected geometry that is *not*
@@ -1130,54 +1115,45 @@ class Path2D(Path):
         """
         pass
 
+    @caching.cache_decorator
     def polygons(self) -> List[Polygon]:
         """
         Contains all the closed geometry with interiors
         evaluated from `enclosure_tree`.
         """
+        return polygons.construct(self.linear_rings)
 
     @caching.cache_decorator
-    def area(self):
+    def area(self) -> float:
         """
         Return the area of the polygons interior.
 
         Returns
         ---------
-        area : float
+        area
           Total area of polygons minus interiors
         """
-        area = float(sum(i.area for i in self.polygons_full))
-        return area
 
-    def extrude(self, height, **kwargs):
+        return float(sum(i.area for i in self.polygons))
+
+    def extrude(self, height: float, **kwargs) -> "Extrusion":  # noqa
         """
         Extrude the current 2D path into a 3D mesh.
 
         Parameters
         ----------
-        height: float, how far to extrude the profile
-        kwargs: passed directly to meshpy.triangle.build:
-                triangle.build(mesh_info,
-                               verbose=False,
-                               refinement_func=None,
-                               attributes=False,
-                               volume_constraints=True,
-                               max_volume=None,
-                               allow_boundary_steiner=True,
-                               allow_volume_steiner=True,
-                               quality_meshing=True,
-                               generate_edges=None,
-                               generate_faces=False,
-                               min_angle=None)
+        height
+          How far to extrude the profile from `Z=0` to `Z=height`
+        kwargs :
+          Passed to `triangulate_polygon`.
         Returns
         --------
-        mesh: trimesh object representing extruded polygon
+        mesh
+          Extruded object containing requested geometry.
         """
         from ..primitives import Extrusion
 
-        result = [
-            Extrusion(polygon=i, height=height, **kwargs) for i in self.polygons_full
-        ]
+        result = [Extrusion(polygon=i, height=height, **kwargs) for i in self.polygons]
         if len(result) == 1:
             return result[0]
         return result
@@ -1420,7 +1396,7 @@ class Path2D(Path):
         return sha256(as_int.tobytes(order="C")).hexdigest()
 
     @property
-    def path_valid(self):
+    def path_valid(self) -> NDArray[bool]:
         """
         Returns
         ----------
@@ -1441,7 +1417,8 @@ class Path2D(Path):
         root : (n,) int
           List of indexes
         """
-        populate = self.enclosure_directed  # NOQA
+        # populate the cache
+        _ = self.enclosure_directed
         return self._cache["root"]
 
     @caching.cache_decorator
@@ -1454,6 +1431,7 @@ class Path2D(Path):
         enclosure : networkx.Graph
           Enclosure graph of self.polygons by index.
         """
+        raise NotImplementedError("use enclosure_directed")
         with self._cache:
             undirected = self.enclosure_directed.to_undirected()
         return undirected
