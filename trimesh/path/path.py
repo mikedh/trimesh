@@ -1420,7 +1420,7 @@ class Path2D(Path):
         return self._cache["root"]
 
     @caching.cache_decorator
-    def enclosure_directed(self) -> nx.DiGraph:
+    def enclosure_directed(self) -> "nx.DiGraph":
         """
         Directed graph of polygon enclosure.
 

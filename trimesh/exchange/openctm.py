@@ -43,7 +43,7 @@ import numpy as np
 
 warnings.warn(
     "trimesh.exchange.openctm is deprecated "
-    + " and will be removed May 2025! Copy `openctm.py`"
+    + " and will be removed May 2024! Copy `openctm.py`"
     + " into your own project!",
     category=DeprecationWarning,
     stacklevel=2,
