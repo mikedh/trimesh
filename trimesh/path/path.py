@@ -6,8 +6,8 @@ A module designed to work with vector paths such as
 those stored in a DXF or SVG file.
 """
 
-import collections
 import copy
+import warnings
 from hashlib import sha256
 
 import numpy as np
@@ -1096,28 +1096,33 @@ class Path2D(Path):
     @caching.cache_decorator
     def polygons_closed(self) -> NDArray:
         """
-        Cycles in the vertex graph, as shapely.geometry.Polygons.
-        These are polygon objects for every closed circuit, with no notion
-        of whether a polygon is a hole or an area. Every polygon in this
-        list will have an exterior, but NO interiors.
-
-        Returns
-        ---------
-        polygons_closed : (n,) list of shapely.geometry.Polygon objects
+        DEPRECATED AND REMOVED JANUARY 2025
+        Replace with:
+         - `path.linear_rings` (preferred)
+         - `[Polygon(r) for r in path.linear_rings]` (if you need contains-checks)
         """
+        warnings.warn(
+            "`path.polygons_closed` is deprecated "
+            + " and will be removed January 2025!"
+            + " replace with `path.linear_rings`"
+            + " or `[Polygon(r) for r in path.linear_rings]`",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
         return [Polygon(shell=r) for r in self.linear_rings]
 
-    @caching.cache_decorator
+    @property
     def polygons_full(self) -> List:
         """
-        A list of shapely.geometry.Polygon objects with interiors created
-        by checking which closed polygons enclose which other polygons.
-
-        Returns
-        ---------
-        full : (len(self.root),) shapely.geometry.Polygon
-            Polygons containing interiors
+        # DEPRECATED: replace with `path.polygons`
         """
+        warnings.warn(
+            "`Path2D.polygons_full` is deprecated "
+            + " and will be removed January 2025!"
+            + " replace with `Path2D.polygons`",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
         return self.polygons
 
     @caching.cache_decorator
@@ -1148,14 +1153,13 @@ class Path2D(Path):
     @caching.cache_decorator
     def area(self) -> float:
         """
-        Return the area of the polygons interior.
+        Return the area of all polygons in this path.
 
         Returns
         ---------
         area
-          Total area of polygons minus interiors
+          Total area of polygons.
         """
-
         return float(sum(i.area for i in self.polygons))
 
     def extrude(self, height: float, **kwargs) -> "Extrusion":  # noqa
@@ -1182,7 +1186,7 @@ class Path2D(Path):
 
     def triangulate(self, **kwargs):
         """
-        Create a region- aware triangulation of the 2D path.
+        Create a region-aware triangulation of the 2D path.
 
         Parameters
         -------------
@@ -1210,7 +1214,7 @@ class Path2D(Path):
 
         return util.append_faces(v_seq, f_seq)
 
-    def medial_axis(self, resolution=None, clip=None):
+    def medial_axis(self, resolution: Optional[float] = None, clip=None) -> "Path2D":
         """
         Find the approximate medial axis based
         on a voronoi diagram of evenly spaced points on the
@@ -1240,47 +1244,21 @@ class Path2D(Path):
         medials = [Path2D(**edges_to_path(edges=e, vertices=v)) for e, v in edge_vert]
 
         # get a single Path2D of medial axis
-        medial = concatenate(medials)
+        return concatenate(medials)
 
-        return medial
-
-    def connected_paths(self, path_id, include_self=False):
-        """
-        Given an index of self.paths find other paths which
-        overlap with that path.
-
-        Parameters
-        -----------
-        path_id : int
-          Index of self.paths
-        include_self : bool
-          Should the result include path_id or not
-
-        Returns
-        -----------
-        path_ids :  (n, ) int
-          Indexes of self.paths that overlap input path_id
-        """
-        if len(self.root) == 1:
-            path_ids = np.arange(len(self.linear_rings))
-        else:
-            path_ids = list(nx.node_connected_component(self.enclosure, path_id))
-        if include_self:
-            return np.array(path_ids)
-        return np.setdiff1d(path_ids, [path_id])
-
-    def simplify(self, **kwargs):
+    def simplify(self, **kwargs) -> "Path2D":
         """
         Return a version of the current path with colinear segments
         merged, and circles entities replacing segmented circular paths.
 
         Returns
         ---------
-        simplified : Path2D object
+        simplified
+          The current path object.
         """
         return simplify.simplify_basic(self, **kwargs)
 
-    def simplify_spline(self, smooth=0.0002, verbose=False):
+    def simplify_spline(self, smooth=0.0002, verbose=False) -> "Path2D":
         """
         Convert paths into b-splines.
 
@@ -1384,14 +1362,14 @@ class Path2D(Path):
             plt.show()
 
     @property
-    def identifier(self):
+    def identifier(self) -> NDArray[np.float64]:
         """
         A unique identifier for the path.
 
         Returns
         ---------
-        identifier : (5,) float
-          Unique identifier
+        identifier
+          Unique identifier vector.
         """
         hasher = polygons.identifier
         target = self.polygons
@@ -1403,7 +1381,7 @@ class Path2D(Path):
         return np.sum([hasher(p) for p in target], axis=1)
 
     @caching.cache_decorator
-    def identifier_hash(self):
+    def identifier_hash(self) -> str:
         """
         Return a hash of the identifier.
 
@@ -1427,7 +1405,7 @@ class Path2D(Path):
         return np.array([i is not None for i in self.linear_rings], dtype=bool)
 
     @caching.cache_decorator
-    def root(self):
+    def root(self) -> NDArray[int64]:
         """
         Which indexes of self.paths/self.linear_rings
         are root curves, also known as 'shell' or 'exterior.
@@ -1442,22 +1420,7 @@ class Path2D(Path):
         return self._cache["root"]
 
     @caching.cache_decorator
-    def enclosure(self):
-        """
-        Undirected graph object of polygon enclosure.
-
-        Returns
-        -----------
-        enclosure : networkx.Graph
-          Enclosure graph of self.polygons by index.
-        """
-        raise NotImplementedError("use enclosure_directed")
-        with self._cache:
-            undirected = self.enclosure_directed.to_undirected()
-        return undirected
-
-    @caching.cache_decorator
-    def enclosure_directed(self):
+    def enclosure_directed(self) -> nx.DiGraph:
         """
         Directed graph of polygon enclosure.
 
@@ -1470,18 +1433,3 @@ class Path2D(Path):
         root, enclosure = polygons.enclosure_tree(self.linear_rings)
         self._cache["root"] = root
         return enclosure
-
-    @caching.cache_decorator
-    def enclosure_shell(self):
-        """
-        A dictionary of path indexes which are 'shell' paths, and values
-        of 'hole' paths.
-
-        Returns
-        ----------
-        corresponding : dict
-          {index of self.paths of shell : [indexes of holes]}
-        """
-        pairs = [(r, self.connected_paths(r, include_self=False)) for r in self.root]
-        # OrderedDict to maintain corresponding order
-        return collections.OrderedDict(pairs)
