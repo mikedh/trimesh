@@ -1126,14 +1126,14 @@ class Path2D(Path):
         return self.polygons
 
     @caching.cache_decorator
-    def linear_rings(self) -> List[LinearRing]:
+    def linear_rings(self) -> List["LinearRing"]:
         """
         Contains all the closed rings in the current path.
         """
         return [LinearRing(d) for d in self.discrete_cycles]
 
     @caching.cache_decorator
-    def line_strings(self) -> List[LineString]:
+    def line_strings(self) -> List["LineString"]:
         """
         Contains all the connected geometry that is *not*
         included in `self.linear_rings`
@@ -1141,7 +1141,7 @@ class Path2D(Path):
         raise NotImplementedError
 
     @caching.cache_decorator
-    def polygons(self) -> List[Polygon]:
+    def polygons(self) -> List["Polygon"]:
         """
         Contains all the closed geometry with interiors
         evaluated from `enclosure_tree`.
