@@ -2218,7 +2218,7 @@ class Trimesh(Geometry3D):
         plane_origin: ArrayLike,
         plane_normal: ArrayLike,
         heights: ArrayLike,
-    ) -> List[Optional[Path2D]]:
+    ) -> List[Optional["Path2D"]]:
         """
         Return multiple parallel cross sections of the current
         mesh in 2D.
@@ -2626,7 +2626,7 @@ class Trimesh(Geometry3D):
 
         return Path3D(**faces_to_path(self, face_ids, **kwargs))
 
-    def projected(self, normal, **kwargs) -> Path2D:
+    def projected(self, normal, **kwargs) -> "Path2D":
         """
         Project a mesh onto a plane and then extract the
         polygon that outlines the mesh projection on that
