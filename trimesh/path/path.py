@@ -250,7 +250,11 @@ class Path(parent.Geometry):
           Indexes of self.paths self.
           which are valid polygons.
         """
-        return np.array([i is not None for i in self.linear_rings], dtype=bool)
+        return np.array([i.is_valid for i in self.linear_rings], dtype=bool)
+
+    @property
+    def path_valid(self):
+        return self.entity_cycles_valid
 
     @caching.cache_decorator
     def entity_dangling(self) -> List[List[int]]:
@@ -266,6 +270,10 @@ class Path(parent.Geometry):
             return np.arange(len(self.entities))
 
         return np.setdiff1d(np.arange(len(self.entities)), np.hstack(self.entity_cycles))
+
+    @property
+    def dangling(self):
+        return self.entity_dangling
 
     @property
     def paths(self):
@@ -1129,8 +1137,16 @@ class Path2D(Path):
     def linear_rings(self) -> List["LinearRing"]:
         """
         Contains all the closed rings in the current path.
+
+        Indexes match `self.discrete_cycles` and `self.entity_cycles`.
         """
-        return [LinearRing(d) for d in self.discrete_cycles]
+        scale = self.scale
+        # attempt to heal the linear rings but don't require it to work
+        # this avoids having to maintain a "valid" mask
+        return [
+            polygons.repair_invalid(Polygon(d), scale=scale, return_invalid=True).exterior
+            for d in self.discrete_cycles
+        ]
 
     @caching.cache_decorator
     def line_strings(self) -> List["LineString"]:
@@ -1138,7 +1154,7 @@ class Path2D(Path):
         Contains all the connected geometry that is *not*
         included in `self.linear_rings`
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @caching.cache_decorator
     def polygons(self) -> List["Polygon"]:
@@ -1162,7 +1178,7 @@ class Path2D(Path):
         """
         return float(sum(i.area for i in self.polygons))
 
-    def extrude(self, height: float, **kwargs) -> "Extrusion":  # noqa
+    def extrude(self, height: float, **kwargs) -> List["Extrusion"]:  # noqa
         """
         Extrude the current 2D path into a 3D mesh.
 
@@ -1179,10 +1195,7 @@ class Path2D(Path):
         """
         from ..primitives import Extrusion
 
-        result = [Extrusion(polygon=i, height=height, **kwargs) for i in self.polygons]
-        if len(result) == 1:
-            return result[0]
-        return result
+        return [Extrusion(polygon=i, height=height, **kwargs) for i in self.polygons]
 
     def triangulate(self, **kwargs):
         """

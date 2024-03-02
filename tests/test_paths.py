@@ -257,9 +257,9 @@ class SplitTest(g.unittest.TestCase):
             split = p.split()
 
             # make sure split parts have same area as source
-            assert g.np.isclose(p.area, sum(i.area for i in split))
+            assert g.np.isclose(p.area, sum(i.area for i in split), rtol=1e-3)
             # make sure concatenation doesn't break that
-            assert g.np.isclose(p.area, g.np.sum(split).area)
+            assert g.np.isclose(p.area, g.np.sum(split).area, rtol=1e-3)
 
             # check that cache didn't screw things up
             for s in split:

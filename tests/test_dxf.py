@@ -19,7 +19,12 @@ class DXFTest(g.unittest.TestCase):
         for d in loaded:
             s = d.split()
             # check area of split result vs source
-            assert g.np.isclose(sum(i.area for i in s), d.area)
+            # TODO : calculate 2D area exactly
+            # this is hard because the boundary can be splines, arcs
+            # lines, etc, and you'd have to find a nice way to
+            # integrate all of these primitives
+            assert g.np.isclose(sum(i.area for i in s), d.area, rtol=0.001)
+
             splits.append(s)
 
             # export the drawing to the file

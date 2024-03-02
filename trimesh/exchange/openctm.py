@@ -41,15 +41,6 @@ import warnings
 
 import numpy as np
 
-warnings.warn(
-    "trimesh.exchange.openctm is deprecated "
-    + " and will be removed May 2024! Copy `openctm.py`"
-    + " into your own project!",
-    category=DeprecationWarning,
-    stacklevel=2,
-)
-
-
 _ctm_loaders = {}
 
 try:
@@ -61,6 +52,16 @@ try:
         _ctm_loader = ctypes.CDLL
     if _ctm_lib_name is None or len(_ctm_lib_name) == 0:
         raise ImportError("libopenctm library not found!")
+
+    # warn anyone who has OpenCTM installed on-import
+    warnings.warn(
+        "trimesh.exchange.openctm is deprecated "
+        + " and will be removed May 2024! Copy `openctm.py`"
+        + " into your own project!",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+
 except BaseException as E:
     from ..exceptions import ExceptionWrapper
 
