@@ -1617,14 +1617,19 @@ def _read_buffers(
             v_seq = [p["vertices"] for p in current]
             f_seq = [p["faces"] for p in current]
             v, f = util.append_faces(v_seq, f_seq)
-            materials = [p["visual"].material for p in current]
-            face_materials = []
-            for i, p in enumerate(current):
-                face_materials += [i] * len(p["faces"])
-            visuals = visual.texture.TextureVisuals(
-                material=visual.material.MultiMaterial(materials=materials),
-                face_materials=face_materials,
-            )
+
+            try:
+                materials = [p["visual"].material for p in current]
+                face_materials = []
+                for i, p in enumerate(current):
+                    face_materials += [i] * len(p["faces"])
+                    visuals = visual.texture.TextureVisuals(
+                        material=visual.material.MultiMaterial(materials=materials),
+                        face_materials=face_materials,
+                    )
+            except:
+                visuals = None
+
             if "metadata" in meshes[names[0]]:
                 metadata = meshes[names[0]]["metadata"]
             else:

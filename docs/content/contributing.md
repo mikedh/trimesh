@@ -107,7 +107,7 @@ In [15]: %timeit '\n'.join('{}/{}/{}'.format(*row) for row in array)
 In [16]: %timeit ('{}/{}/{}\n' * len(array))[:-1].format(*array.flatten())
 10 loops, best of 3: 34.3 ms per loop
 ```
-- Sometimes you can use sparse matrices to replace a loop and get a huge speedup. [Here's the same algorithm implemented two ways, looping and sparse dot products.](https://github.com/mikedh/trimesh/blob/master/trimesh/geometry.py#L186-L203)
+- Sometimes you can use sparse matrices to replace a loop and get a huge speedup.
 - In tight loops, `array.sum(axis=1)` often pops up as the slowest thing. This can be replaced with a dot product of ones, which are very optimized can be substantially faster:
 ```
 In [1]: import numpy as np
