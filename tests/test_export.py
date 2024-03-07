@@ -267,7 +267,7 @@ class ExportTest(g.unittest.TestCase):
         Test the magical trimesh.exchange.load.parse_file_args
         """
         # it's wordy
-        f = g.trimesh.exchange.load.parse_file_args
+        f = g.trimesh.exchange.load._parse_file_args
 
         RET_COUNT = 5
 
