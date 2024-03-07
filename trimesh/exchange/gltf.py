@@ -1081,11 +1081,7 @@ def _byte_pad(data, bound=4):
         result = b"".join([data, pad])
         # we should always divide evenly
         if tol.strict and (len(result) % bound) != 0:
-            raise ValueError(
-                "byte_pad failed! ori:{} res:{} pad:{} req:{}".format(
-                    len(data), len(result), count, bound
-                )
-            )
+            raise ValueError("byte_pad failed!")
         return result
     return data
 

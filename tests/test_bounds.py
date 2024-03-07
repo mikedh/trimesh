@@ -55,12 +55,8 @@ class BoundsTest(g.unittest.TestCase):
                     # from IPython import embed
                     # embed()
                     raise ValueError(
-                        "OBB extents incorrect:\n{}\n{}".format(
-                            str(m.bounding_box.extents),
-                            str(m.bounding_box_oriented.extents),
-                        )
+                        f"OBB extents incorrect:\n{m.bounding_box.extents}\n{m.bounding_box_oriented.extents}"
                     )
-
             c = m.bounding_cylinder  # NOQA
             s = m.bounding_sphere  # NOQA
             p = m.bounding_primitive  # NOQA
