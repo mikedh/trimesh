@@ -21,7 +21,7 @@ def get(
     warnings.warn(
         "`trimesh.resources.get` is deprecated "
         + "and will be removed in January 2025: "
-        + "replace with typed `trimesh.resouces.get_*type*`",
+        + "replace with typed `trimesh.resources.get_*type*`",
         category=DeprecationWarning,
         stacklevel=2,
     )

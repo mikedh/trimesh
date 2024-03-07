@@ -116,7 +116,7 @@ class Path(parent.Geometry):
         """
         Print a quick summary of the number of vertices and entities.
         """
-        return "<trimesh.{type(self).__name__}(vertices.shape={self.vertices.shape}, len(entities)={len(self.entities)})>"
+        return f"<trimesh.{type(self).__name__}(vertices.shape={self.vertices.shape}, len(entities)={len(self.entities)})>"
 
     def process(self):
         """
