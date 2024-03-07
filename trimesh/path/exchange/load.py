@@ -31,7 +31,7 @@ def load_path(file_obj, file_type=None, **kwargs):
         Data as a native trimesh Path file_object
     """
     # avoid a circular import
-    from ...exchange.load import _kwargs_to_geometry
+    from ...exchange.load import load_kwargs
 
     # record how long we took
     tic = util.now()
@@ -58,14 +58,14 @@ def load_path(file_obj, file_type=None, **kwargs):
         kwargs.update(misc.linestrings_to_path(file_obj))
     elif isinstance(file_obj, dict):
         # load as kwargs
-        return _kwargs_to_geometry(file_obj)
+        return load_kwargs(file_obj)
     elif util.is_sequence(file_obj):
         # load as lines in space
         kwargs.update(misc.lines_to_path(file_obj))
     else:
         raise ValueError("Not a supported object type!")
 
-    result = _kwargs_to_geometry(kwargs)
+    result = load_kwargs(kwargs)
     util.log.debug(f"loaded {str(result)} in {util.now() - tic:0.4f}s")
 
     return result

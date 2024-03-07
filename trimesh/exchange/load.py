@@ -116,7 +116,7 @@ def load(
         if isinstance(file_obj, dict):
             # if we've been passed a dict treat it as kwargs
             kwargs.update(file_obj)
-            loaded = _kwargs_to_geometry(kwargs)
+            loaded = load_kwargs(kwargs)
         elif file_type in path_formats():
             # path formats get loaded with path loader
             loaded = load_path(file_obj, file_type=file_type, **kwargs)
@@ -205,7 +205,7 @@ def load_mesh(
         loaded = []
         for result in results:
             kwargs.update(result)
-            loaded.append(_kwargs_to_geometry(kwargs))
+            loaded.append(load_kwargs(kwargs))
             loaded[-1].metadata.update(metadata)
 
         # todo : remove this
@@ -386,7 +386,7 @@ def load_remote(url, **kwargs):
     return loaded
 
 
-def _kwargs_to_geometry(*args, **kwargs) -> Geometry:
+def load_kwargs(*args, **kwargs) -> Geometry:
     """
     Load geometry from a properly formatted dict or kwargs
     """
@@ -401,7 +401,7 @@ def _kwargs_to_geometry(*args, **kwargs) -> Geometry:
         base_frame: str, base frame of graph
         """
         graph = kwargs.get("graph", None)
-        geometry = {k: _kwargs_to_geometry(v) for k, v in kwargs["geometry"].items()}
+        geometry = {k: load_kwargs(v) for k, v in kwargs["geometry"].items()}
 
         if graph is not None:
             scene = Scene()
