@@ -9,7 +9,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Loadable, Optional
+from ..typed import List, Loadable, Optional, Union
 from ..util import log, now
 from . import misc
 from .binvox import _binvox_loaders
@@ -74,7 +74,7 @@ def load(
     resolver: Optional[resolvers.Resolver] = None,
     force: Optional[str] = None,
     **kwargs,
-):
+) -> Geometry:
     """
     Load a mesh or vectorized path into objects like
     Trimesh, Path2D, Path3D, Scene
@@ -111,13 +111,13 @@ def load(
         metadata,  # dict, any metadata from file name
         opened,  # bool, did we open the file ourselves
         resolver,  # object to load referenced resources
-    ) = parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+    ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
     try:
         if isinstance(file_obj, dict):
             # if we've been passed a dict treat it as kwargs
             kwargs.update(file_obj)
-            loaded = load_kwargs(kwargs)
+            loaded = _kwargs_to_geometry(kwargs)
         elif file_type in path_formats():
             # path formats get loaded with path loader
             loaded = load_path(file_obj, file_type=file_type, **kwargs)
@@ -166,9 +166,9 @@ def load_mesh(
     file_type: Optional[str] = None,
     resolver: Optional[resolvers.Resolver] = None,
     **kwargs,
-):
+) -> Union[Geometry, List[Geometry]]:
     """
-    Load a mesh file into a Trimesh object
+    Load a mesh file into a Trimesh object.
 
     Parameters
     -----------
@@ -181,18 +181,18 @@ def load_mesh(
 
     Returns
     ----------
-    mesh : trimesh.Trimesh or trimesh.Scene
-      Loaded geometry data
+    mesh
+      Loaded geometry data.
     """
 
     # parse the file arguments into clean loadable form
     (
-        file_obj,  # file- like object
-        file_type,  # str, what kind of file
-        metadata,  # dict, any metadata from file name
-        opened,  # bool, did we open the file ourselves
-        resolver,  # object to load referenced resources
-    ) = parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+        file_obj,  # file-like object
+        file_type,  # str: what kind of file
+        metadata,  # dict: any metadata from file name
+        opened,  # bool: did we open the file ourselves
+        resolver,  # Resolver: to load referenced resources
+    ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
     try:
         # make sure we keep passed kwargs to loader
@@ -206,10 +206,8 @@ def load_mesh(
         loaded = []
         for result in results:
             kwargs.update(result)
-            loaded.append(load_kwargs(kwargs))
+            loaded.append(_kwargs_to_geometry(kwargs))
             loaded[-1].metadata.update(metadata)
-        if len(loaded) == 1:
-            loaded = loaded[0]
         # show the repr for loaded, loader used, and time
         log.debug(
             f"loaded {str(loaded)} using `{loader.__name__}` in {now() - tic:0.4f}s"
@@ -250,7 +248,7 @@ def load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwar
         metadata,  # dict, any metadata from file name
         opened,  # bool, did we open the file ourselves
         resolver,  # object to load referenced resources
-    ) = parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+    ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
     try:
         # a dict of 'name' : file-like object
@@ -384,7 +382,7 @@ def load_remote(url, **kwargs):
     return loaded
 
 
-def load_kwargs(*args, **kwargs):
+def _kwargs_to_geometry(*args, **kwargs) -> Geometry:
     """
     Load geometry from a properly formatted dict or kwargs
     """
@@ -399,7 +397,7 @@ def load_kwargs(*args, **kwargs):
         base_frame: str, base frame of graph
         """
         graph = kwargs.get("graph", None)
-        geometry = {k: load_kwargs(v) for k, v in kwargs["geometry"].items()}
+        geometry = {k: _kwargs_to_geometry(v) for k, v in kwargs["geometry"].items()}
 
         if graph is not None:
             scene = Scene()
@@ -502,7 +500,7 @@ def load_kwargs(*args, **kwargs):
     return handler()
 
 
-def parse_file_args(
+def _parse_file_args(
     file_obj: Loadable,
     file_type: Optional[str],
     resolver: Optional[resolvers.Resolver] = None,
