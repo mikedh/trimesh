@@ -207,6 +207,11 @@ def load_mesh(
             kwargs.update(result)
             loaded.append(_kwargs_to_geometry(kwargs))
             loaded[-1].metadata.update(metadata)
+
+        # todo : remove this
+        if len(loaded) == 1:
+            loaded = loaded[0]
+
         # show the repr for loaded, loader used, and time
         log.debug(
             f"loaded {str(loaded)} using `{loader.__name__}` in {now() - tic:0.4f}s"
@@ -641,7 +646,6 @@ compressed_loaders = {
 mesh_loaders = {}
 mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_stl_loaders)
-mesh_loaders.update(_ctm_loaders)
 mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_obj_loaders)
 mesh_loaders.update(_off_loaders)

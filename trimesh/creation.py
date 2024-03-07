@@ -1381,7 +1381,7 @@ def torus(
       If not specified default is 32 per revolution
     transform : (4, 4) float
       Transformation matrix
- 
+
     **kwargs:
       passed to Trimesh to create torus
 
