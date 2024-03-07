@@ -29,7 +29,7 @@ Further information is available in the [advanced installation documentation](ht
 ## Quick Start
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](https://trimesh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimesh.org/examples/section.html).
+[ipython notebook version](https://trimesh.org/quick_start.html) of this example. Also check out the [cross section example](https://trimesh.org/section.html).
 
 ```python
 import numpy as np

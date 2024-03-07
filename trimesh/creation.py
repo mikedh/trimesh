@@ -175,6 +175,8 @@ def extrude_polygon(polygon, height, transform=None, **kwargs):
       2D geometry to extrude
     height : float
       Distance to extrude polygon along Z
+    transform : None or (4, 4) float
+      Transform to apply to mesh after construction
     triangle_args : str or None
       Passed to triangle
     **kwargs : dict
@@ -311,6 +313,8 @@ def extrude_triangulation(vertices, faces, height, transform=None, **kwargs):
       Triangle indexes of vertices
     height : float
       Distance to extrude triangulation
+    transform : None or (4, 4) float
+      Transform to apply to mesh after construction
     **kwargs : dict
       Passed to Trimesh constructor
 
@@ -866,6 +870,8 @@ def uv_sphere(radius=1.0, count=None, transform=None, **kwargs):
       Radius of sphere
     count : (2,) int
       Number of latitude and longitude lines
+    transform : None or (4, 4) float
+      Transform to apply to mesh after construction
     kwargs : dict
       Passed thgrough
     Returns
@@ -908,7 +914,8 @@ def capsule(height=1.0, radius=1.0, count=None, transform=None):
       Radius of the cylinder and hemispheres
     count : (2,) int
       Number of sections on latitude and longitude
-
+    transform : None or (4, 4) float
+      Transform to apply to mesh after construction
     Returns
     ----------
     capsule : trimesh.Trimesh
@@ -992,8 +999,8 @@ def cylinder(radius, height=None, sections=None, segment=None, transform=None, *
       How many pie wedges should the cylinder have
     segment : (2, 3) float
       Endpoints of axis, overrides transform and height
-    transform : (4, 4) float
-      Transform to apply
+    transform : None or (4, 4) float
+      Transform to apply to mesh after construction
     **kwargs:
         passed to Trimesh to create cylinder
 
@@ -1157,10 +1164,10 @@ def axis(
 
     Parameters
     ----------
-    transform : (4, 4) float
-      Transformation matrix
     origin_size : float
       Radius of sphere that represents the origin
+    transform : (4, 4) float
+      Transformation matrix
     origin_color : (3,) float or int, uint8 or float
       Color of the origin
     axis_radius : float
@@ -1372,8 +1379,9 @@ def torus(
     minor_sections: int
       Number of sections around minor radius result should have
       If not specified default is 32 per revolution
-    transform: (4, 4) float
+    transform : (4, 4) float
       Transformation matrix
+ 
     **kwargs:
       passed to Trimesh to create torus
 
