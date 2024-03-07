@@ -15,6 +15,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
+from .typed import ArrayLike, Dict, NDArray, Optional, float64
 
 try:
     # shapely is a soft dependency
@@ -32,7 +33,13 @@ except BaseException as E:
     _tri_earcut = exceptions.ExceptionWrapper(E)
 
 
-def revolve(linestring, angle=None, sections=None, transform=None, **kwargs):
+def revolve(
+    linestring: ArrayLike,
+    angle: Optional[float] = None,
+    sections: Optional[int] = None,
+    transform: Optional[NDArray] = None,
+    **kwargs,
+):
     """
     Revolve a 2D line string around the 2D Y axis, with a result with
     the 2D Y axis pointing along the 3D Z axis.
@@ -165,7 +172,9 @@ def revolve(linestring, angle=None, sections=None, transform=None, **kwargs):
     return mesh
 
 
-def extrude_polygon(polygon, height, transform=None, **kwargs):
+def extrude_polygon(
+    polygon: "Polygon", height: float, transform: Optional[NDArray] = None, **kwargs
+):
     """
     Extrude a 2D shapely polygon into a 3D mesh
 
@@ -196,7 +205,9 @@ def extrude_polygon(polygon, height, transform=None, **kwargs):
     return mesh
 
 
-def sweep_polygon(polygon, path, angles=None, **kwargs):
+def sweep_polygon(
+    polygon: "Polygon", path: ArrayLike, angles: Optional[NDArray] = None, **kwargs
+):
     """
     Extrude a 2D shapely polygon into a 3D mesh along an
     arbitrary 3D path. Doesn't handle sharp curvature well.
@@ -301,7 +312,13 @@ def sweep_polygon(polygon, path, angles=None, **kwargs):
     return Trimesh(vertices, faces)
 
 
-def extrude_triangulation(vertices, faces, height, transform=None, **kwargs):
+def extrude_triangulation(
+    vertices: ArrayLike,
+    faces: ArrayLike,
+    height: float,
+    transform: Optional[NDArray] = None,
+    **kwargs,
+):
     """
     Extrude a 2D triangulation into a watertight mesh.
 
@@ -387,7 +404,7 @@ def extrude_triangulation(vertices, faces, height, transform=None, **kwargs):
     return mesh
 
 
-def triangulate_polygon(polygon, triangle_args=None, engine=None, **kwargs):
+def triangulate_polygon(polygon: Polygon, triangle_args=None, engine=None, **kwargs):
     """
     Given a shapely polygon create a triangulation using a
     python interface to `triangle.c` or mapbox-earcut.
@@ -450,7 +467,7 @@ def triangulate_polygon(polygon, triangle_args=None, engine=None, **kwargs):
         raise ValueError("no valid triangulation engine!")
 
 
-def _polygon_to_kwargs(polygon):
+def _polygon_to_kwargs(polygon: Polygon) -> Dict:
     """
     Given a shapely polygon generate the data to pass to
     the triangle mesh generator
@@ -542,7 +559,7 @@ def _polygon_to_kwargs(polygon):
     return result
 
 
-def box(extents=None, transform=None, bounds=None, **kwargs):
+def box(extents=None, transform: Optional[NDArray] = None, bounds=None, **kwargs):
     """
     Return a cuboid.
 
@@ -590,6 +607,7 @@ def box(extents=None, transform=None, bounds=None, **kwargs):
         extents = np.asarray((1.0, 1.0, 1.0), dtype=np.float64)
 
     # hardcoded face indices
+    # TODO : make less lol?
     faces = [
         1,
         3,
@@ -809,7 +827,7 @@ def icosahedron(**kwargs):
     )
 
 
-def icosphere(subdivisions=3, radius=1.0, **kwargs):
+def icosphere(subdivisions: int = 3, radius: float = 1.0, **kwargs):
     """
     Create an isophere centered at the origin.
 
@@ -858,7 +876,12 @@ def icosphere(subdivisions=3, radius=1.0, **kwargs):
     )
 
 
-def uv_sphere(radius=1.0, count=None, transform=None, **kwargs):
+def uv_sphere(
+    radius: float = 1.0,
+    count: Optional[ArrayLike] = None,
+    transform: Optional[NDArray] = None,
+    **kwargs,
+):
     """
     Create a UV sphere (latitude + longitude) centered at the
     origin. Roughly one order of magnitude faster than an
@@ -902,7 +925,12 @@ def uv_sphere(radius=1.0, count=None, transform=None, **kwargs):
     )
 
 
-def capsule(height=1.0, radius=1.0, count=None, transform=None):
+def capsule(
+    height: float = 1.0,
+    radius: float = 1.0,
+    count: Optional[ArrayLike] = None,
+    transform: Optional[NDArray] = None,
+):
     """
     Create a mesh of a capsule, or a cylinder with hemispheric ends.
 
@@ -950,7 +978,13 @@ def capsule(height=1.0, radius=1.0, count=None, transform=None):
     )
 
 
-def cone(radius, height, sections=None, transform=None, **kwargs):
+def cone(
+    radius: float,
+    height: float,
+    sections: Optional[int] = None,
+    transform: Optional[NDArray] = None,
+    **kwargs,
+):
     """
     Create a mesh of a cone along Z centered at the origin.
 
@@ -985,7 +1019,14 @@ def cone(radius, height, sections=None, transform=None, **kwargs):
     return cone
 
 
-def cylinder(radius, height=None, sections=None, segment=None, transform=None, **kwargs):
+def cylinder(
+    radius: float,
+    height: Optional[float] = None,
+    sections: Optional[int] = None,
+    segment=None,
+    transform: Optional[NDArray] = None,
+    **kwargs,
+):
     """
     Create a mesh of a cylinder along Z centered at the origin.
 
@@ -994,7 +1035,7 @@ def cylinder(radius, height=None, sections=None, segment=None, transform=None, *
     radius : float
       The radius of the cylinder
     height : float or None
-      The height of the cylinder
+      The height of the cylinder, or None if `segment` has been passed.
     sections : int or None
       How many pie wedges should the cylinder have
     segment : (2, 3) float
@@ -1030,7 +1071,13 @@ def cylinder(radius, height=None, sections=None, segment=None, transform=None, *
 
 
 def annulus(
-    r_min, r_max, height=None, sections=None, transform=None, segment=None, **kwargs
+    r_min: float,
+    r_max: float,
+    height: Optional[float] = None,
+    sections: Optional[int] = None,
+    transform: Optional[NDArray] = None,
+    segment: Optional[NDArray] = None,
+    **kwargs,
 ):
     """
     Create a mesh of an annular cylinder along Z centered at the origin.
@@ -1096,7 +1143,7 @@ def annulus(
     return annulus
 
 
-def _segment_to_cylinder(segment):
+def _segment_to_cylinder(segment: NDArray[float64]):
     """
     Convert a line segment to a transform and height for a cylinder
     or cylinder-like primitive.
@@ -1130,7 +1177,7 @@ def _segment_to_cylinder(segment):
     return transform, height
 
 
-def random_soup(face_count=100):
+def random_soup(face_count: int = 100):
     """
     Return random triangles as a Trimesh
 
@@ -1151,11 +1198,11 @@ def random_soup(face_count=100):
 
 
 def axis(
-    origin_size=0.04,
-    transform=None,
-    origin_color=None,
-    axis_radius=None,
-    axis_length=None,
+    origin_size: float = 0.04,
+    transform: Optional[NDArray] = None,
+    origin_color: Optional[ArrayLike] = None,
+    axis_radius: Optional[float] = None,
+    axis_length: Optional[float] = None,
 ):
     """
     Return an XYZ axis marker as a  Trimesh, which represents position
@@ -1236,7 +1283,9 @@ def axis(
     return marker
 
 
-def camera_marker(camera, marker_height=0.4, origin_size=None):
+def camera_marker(
+    camera, marker_height: float = 0.4, origin_size: Optional[float] = None
+):
     """
     Create a visual marker for a camera object, including an axis and FOV.
 
@@ -1294,7 +1343,11 @@ def camera_marker(camera, marker_height=0.4, origin_size=None):
     return meshes
 
 
-def truncated_prisms(tris, origin=None, normal=None):
+def truncated_prisms(
+    tris: ArrayLike,
+    origin: Optional[ArrayLike] = None,
+    normal: Optional[ArrayLike] = None,
+):
     """
     Return a mesh consisting of multiple watertight prisms below
     a list of triangles, truncated by a specified plane.
@@ -1358,11 +1411,11 @@ def truncated_prisms(tris, origin=None, normal=None):
 
 
 def torus(
-    major_radius,
-    minor_radius,
-    major_sections=32,
-    minor_sections=32,
-    transform=None,
+    major_radius: float,
+    minor_radius: float,
+    major_sections: int = 32,
+    minor_sections: int = 32,
+    transform: Optional[NDArray] = None,
     **kwargs,
 ):
     """Create a mesh of a torus around Z centered at the origin.
