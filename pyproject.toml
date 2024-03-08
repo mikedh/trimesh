@@ -89,6 +89,7 @@ recommend = [
     "psutil",
     "scikit-image",
     "python-fcl",
+    "openctm",
     "manifold3d>=2.3.0"
 ]
 
