@@ -142,11 +142,21 @@ def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
 
     # if length is specified check endpoint proximity
     if length is not None:
-        a, b = param[colinear.T]
-        distance = np.abs(np.column_stack([a[:, :1] - b, a[:, 1:] - b])).min(axis=1)
-        identical = distance < length
-        # remove non- identical pairs
-        colinear = colinear[identical]
+        # `segments` index of colinear pairs
+        a, b = colinear.T
+
+        # we want the minimum distance of any of these pairs:
+        # a[0] - b[0]
+        # a[1] - b[0]
+        # a[0] - b[1]
+        # a[1] - b[1]
+        # do it in the most confusing possible vectorized way
+        min_vertex = np.linalg.norm(
+            segments[a][:, [0, 1, 0, 1], :] - segments[b][:, [0, 0, 1, 1], :], axis=2
+        ).min(axis=1)
+
+        # remove pairs that don't meet the distance metric
+        colinear = colinear[min_vertex < length]
 
     return colinear
 

@@ -13,6 +13,7 @@ from ..typed import List, Loadable, Optional, Union
 from ..util import log, now
 from . import misc
 from .binvox import _binvox_loaders
+from .cascade import _cascade_loaders
 from .dae import _collada_loaders
 from .gltf import _gltf_loaders
 from .misc import _misc_loaders
@@ -655,6 +656,7 @@ mesh_loaders.update(_xaml_loaders)
 mesh_loaders.update(_threedxml_loaders)
 mesh_loaders.update(_three_loaders)
 mesh_loaders.update(_xyz_loaders)
+mesh_loaders.update(_cascade_loaders)
 
 # collect loaders which return voxel types
 voxel_loaders = {}

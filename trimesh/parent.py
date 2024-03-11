@@ -25,11 +25,13 @@ class Geometry(ABC):
     those methods.
     """
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def bounds(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def extents(self):
         pass
 

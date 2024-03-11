@@ -71,6 +71,8 @@ Trimesh has a lot of soft-required upstream packages, and we try to make sure th
 |`pyinstrument`| A sampling based profiler for performance tweaking. | | `test`|
 |`vhacdx`| A binding for VHACD which provides convex decompositions | | `recommend`|
 |`manifold3d`| A binding for the Manifold mesh boolean engine | | `recommend`|
+|`openctm`| A binding for OpenCTM loaders enabling `.ctm` loading | | `recommend`|
+|`cascadio`| A binding for OpenCASCADE enabling `.STEP` loading | | `recommend`|
 
 ## Adding A Dependency
 
