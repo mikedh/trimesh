@@ -225,8 +225,6 @@ class Trimesh(Geometry3D):
                of their 2D oriented bounding box
                shorter than tol.merge
             4) remove duplicated triangles
-            5) ensure triangles are consistently wound
-               and normals face outwards
 
         Parameters
         ------------
@@ -249,7 +247,6 @@ class Trimesh(Geometry3D):
             if validate:
                 # get a mask with only unique and non-degenerate faces
                 mask = self.unique_faces() & self.nondegenerate_faces()
-                self.fix_normals()
                 self.update_faces(mask)
 
             # since none of our process operations moved vertices or faces
