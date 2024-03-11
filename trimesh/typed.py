@@ -1,5 +1,16 @@
 from pathlib import Path
-from typing import IO, Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import (
+    IO,
+    Any,
+    BinaryIO,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 # our default integer and floating point types
 from numpy import float64, int64
@@ -22,6 +33,7 @@ __all__ = [
     "Iterable",
     "Loadable",
     "IO",
+    "BinaryIO",
     "List",
     "Dict",
     "Any",
