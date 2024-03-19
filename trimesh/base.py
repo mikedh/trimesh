@@ -42,7 +42,7 @@ from .exchange.export import export_mesh
 from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
-from .typed import Any, ArrayLike, Dict, List, NDArray, Optional, Tuple, Union
+from .typed import Any, ArrayLike, Dict, List, NDArray, Optional, Sequence, Tuple, Union
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
 try:
@@ -2767,7 +2767,9 @@ class Trimesh(Geometry3D):
         scene = self.scene()
         return scene.show(**kwargs)
 
-    def submesh(self, faces_sequence: List[NDArray[int64]], **kwargs):
+    def submesh(
+        self, faces_sequence: Sequence[ArrayLike], **kwargs
+    ) -> Union["Trimesh", List["Trimesh"]]:
         """
         Return a subset of the mesh.
 

@@ -73,7 +73,8 @@ RUN pip install -e .[all]
 RUN ruff trimesh
 
 # run pytest wrapped with xvfb for simple viewer tests
-RUN xvfb-run pytest \
+# print more columns so the short summary is usable
+RUN COLUMNS=140 xvfb-run pytest \
     --cov=trimesh \
     --typeguard-packages=trimesh \
     -p no:ALL_DEPENDENCIES \
