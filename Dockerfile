@@ -69,8 +69,8 @@ USER user
 # install things like pytest
 RUN pip install -e .[all]
 
-# check formatting
-RUN ruff trimesh
+# check for lint problems
+RUN ruff check trimesh
 
 # run pytest wrapped with xvfb for simple viewer tests
 # print more columns so the short summary is usable
