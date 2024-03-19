@@ -801,7 +801,7 @@ class Trimesh(Geometry3D):
         return symmetry
 
     @property
-    def symmetry_axis(self) -> NDArray[float64]:
+    def symmetry_axis(self) -> Optional[NDArray[float64]]:
         """
         If a mesh has rotational symmetry, return the axis.
 
@@ -814,7 +814,7 @@ class Trimesh(Geometry3D):
             return self._cache["symmetry_axis"]
 
     @property
-    def symmetry_section(self) -> NDArray[float64]:
+    def symmetry_section(self) -> Optional[NDArray[float64]]:
         """
         If a mesh has rotational symmetry return the two
         vectors which make up a section coordinate frame.
