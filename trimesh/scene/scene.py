@@ -1009,7 +1009,7 @@ class Scene(Geometry3D):
         value : str
           Value to set every geometry unit value to
         """
-        values = value.strip().lower()
+        value = value.strip().lower()
         for m in self.geometry.values():
             m.units = value
 
