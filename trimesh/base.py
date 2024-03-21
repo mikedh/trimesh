@@ -122,9 +122,6 @@ class Trimesh(Geometry3D):
           Assigned to self.visual
         """
 
-        if initial_cache is None:
-            initial_cache = {}
-
         # self._data stores information about the mesh which
         # CANNOT be regenerated.
         # in the base class all that is stored here is vertex and
@@ -139,7 +136,8 @@ class Trimesh(Geometry3D):
         # In order to maintain consistency
         # the cache is cleared when self._data.__hash__() changes
         self._cache = caching.Cache(id_function=self._data.__hash__, force_immutable=True)
-        self._cache.update(initial_cache)
+        if initial_cache is not None:
+            self._cache.update(initial_cache)
 
         # check for None only to avoid warning messages in subclasses
         if vertices is not None:
@@ -185,9 +183,8 @@ class Trimesh(Geometry3D):
         # convenience class for nearest point queries
         self.nearest = proximity.ProximityQuery(self)
 
-        # store metadata about the mesh in a dictionary
-        self.metadata = {}
         # update the mesh metadata with passed metadata
+        self.metadata = {}
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
         elif metadata is not None:
@@ -450,7 +447,7 @@ class Trimesh(Geometry3D):
         return self._data.get("vertices", np.empty(shape=(0, 3), dtype=float64))
 
     @vertices.setter
-    def vertices(self, values: ArrayLike):
+    def vertices(self, values: Optional[ArrayLike]):
         """
         Assign vertex values to the mesh.
 
@@ -601,7 +598,7 @@ class Trimesh(Geometry3D):
         return self.mass_properties.center_mass
 
     @center_mass.setter
-    def center_mass(self, value: NDArray[float64]) -> None:
+    def center_mass(self, value: ArrayLike) -> None:
         """
         Override the point in space which is the center of mass and volume.
 
@@ -810,8 +807,9 @@ class Trimesh(Geometry3D):
         axis : (3, ) float
           Axis around which a 2D profile was revolved to create this mesh.
         """
-        if self.symmetry is not None:
-            return self._cache["symmetry_axis"]
+        if self.symmetry is None:
+            return None
+        return self._cache["symmetry_axis"]
 
     @property
     def symmetry_section(self) -> Optional[NDArray[float64]]:
@@ -824,8 +822,9 @@ class Trimesh(Geometry3D):
         section : (2, 3) float
           Vectors to take a section along
         """
-        if self.symmetry is not None:
-            return self._cache["symmetry_section"]
+        if self.symmetry is None:
+            return None
+        return self._cache["symmetry_section"]
 
     @caching.cache_decorator
     def triangles(self) -> NDArray[float64]:
@@ -1080,25 +1079,6 @@ class Trimesh(Geometry3D):
         referenced = np.zeros(len(self.vertices), dtype=bool)
         referenced[self.faces] = True
         return referenced
-
-    @property
-    def units(self) -> Optional[str]:
-        """
-        Definition of units for the mesh.
-
-        Returns
-        ----------
-        units : str
-          Unit system mesh is in, or None if not defined
-        """
-        return self.metadata.get("units", None)
-
-    @units.setter
-    def units(self, value: str) -> None:
-        """
-        Define the units of the current mesh.
-        """
-        self.metadata["units"] = str(value).lower()
 
     def convert_units(self, desired: str, guess: bool = False) -> "Trimesh":
         """
@@ -1868,7 +1848,7 @@ class Trimesh(Geometry3D):
         """
         return repair.fill_holes(self)
 
-    def register(self, other: Geometry3D, **kwargs):
+    def register(self, other: Union[Geometry3D, NDArray], **kwargs):
         """
         Align a mesh with another mesh or a PointCloud using
         the principal axes of inertia as a starting point which
@@ -1876,8 +1856,6 @@ class Trimesh(Geometry3D):
 
         Parameters
         ------------
-        mesh : trimesh.Trimesh object
-          Mesh to align with other
         other : trimesh.Trimesh or (n, 3) float
           Mesh or points in space
         samples : int
@@ -1955,14 +1933,14 @@ class Trimesh(Geometry3D):
             threshold=threshold,
         )
 
-    def subdivide(self, face_index: None = None) -> "Trimesh":
+    def subdivide(self, face_index: Optional[ArrayLike] = None) -> "Trimesh":
         """
-        Subdivide a mesh, with each subdivided face replaced with four
-        smaller faces.
+        Subdivide a mesh, with each subdivided face replaced
+        with four smaller faces.
 
         Parameters
         ------------
-        face_index: (m, ) int or None
+        face_index : (m, ) int or None
           If None all faces of mesh will be subdivided
           If (m, ) int array of indices: only specified faces will be
           subdivided. Note that in this case the mesh will generally
@@ -1971,8 +1949,6 @@ class Trimesh(Geometry3D):
           and an additional postprocessing step will be required to
           make resulting mesh watertight
         """
-        # subdivide vertex attributes
-        vertex_attributes = {}
         visual = None
         if hasattr(self.visual, "uv") and np.shape(self.visual.uv) == (
             len(self.vertices),
@@ -1983,7 +1959,7 @@ class Trimesh(Geometry3D):
                 vertices=np.hstack((self.vertices, self.visual.uv)),
                 faces=self.faces,
                 face_index=face_index,
-                vertex_attributes=vertex_attributes,
+                vertex_attributes=self.vertex_attributes,
             )
 
             # get a copy of the current visuals
@@ -1998,7 +1974,7 @@ class Trimesh(Geometry3D):
                 vertices=self.vertices,
                 faces=self.faces,
                 face_index=face_index,
-                vertex_attributes=vertex_attributes,
+                vertex_attributes=self.vertex_attributes,
             )
 
         # create a new mesh

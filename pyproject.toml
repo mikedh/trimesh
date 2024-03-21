@@ -150,3 +150,10 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"
 ignore-words-list = "nd,coo,whats,bu,childs,mis,filetests"
+
+[tool.mypy]
+python_version = "3.8"
+ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+disable_error_code = ["method-assign"]

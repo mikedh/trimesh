@@ -72,9 +72,13 @@ RUN pip install -e .[all]
 # check for lint problems
 RUN ruff check trimesh
 
+# run a limited array of static type checks
+# TODO : get this to pass on base
+RUN mypy trimesh/base.py || true
+
 # run pytest wrapped with xvfb for simple viewer tests
 # print more columns so the short summary is usable
-RUN COLUMNS=140 xvfb-run pytest \
+RUN COLUMNS=240 xvfb-run pytest \
     --cov=trimesh \
     --typeguard-packages=trimesh \
     -p no:ALL_DEPENDENCIES \

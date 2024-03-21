@@ -16,7 +16,7 @@ def specular_to_pbr(
     glossinessFactor: Optional[float] = None,
     specularGlossinessTexture: Optional["Image"] = None,
     diffuseTexture: Optional["Image"] = None,
-    diffuseFactor: float = None,
+    diffuseFactor: Optional[float] = None,
     **kwargs,
 ) -> dict:
     """

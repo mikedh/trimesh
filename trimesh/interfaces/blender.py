@@ -6,11 +6,10 @@ from ..constants import log
 from ..typed import Sequence
 from .generic import MeshScript
 
-_search_path = os.environ.get("PATH", "")
 if platform.system() == "Windows":
     # try to find Blender install on Windows
     # split existing path by delimiter
-    _search_path = [i for i in _search_path.split(";") if len(i) > 0]
+    _search_path = [i for i in os.environ.get("PATH", "").split(";") if len(i) > 0]
     for pf in [r"C:\Program Files", r"C:\Program Files (x86)"]:
         pf = os.path.join(pf, "Blender Foundation")
         if os.path.exists(pf):
@@ -19,15 +18,20 @@ if platform.system() == "Windows":
                     _search_path.append(os.path.join(pf, p))
     _search_path = ";".join(set(_search_path))
     log.debug("searching for blender in: %s", _search_path)
-
-if platform.system() == "Darwin":
+elif platform.system() == "Darwin":
     # try to find Blender on Mac OSX
-    _search_path = [i for i in _search_path.split(":") if len(i) > 0]
-    _search_path.append("/Applications/blender.app/Contents/MacOS")
-    _search_path.append("/Applications/Blender.app/Contents/MacOS")
-    _search_path.append("/Applications/Blender/blender.app/Contents/MacOS")
+    _search_path = [i for i in os.environ.get("PATH", "").split(":") if len(i) > 0]
+    _search_path.extend(
+        [
+            "/Applications/blender.app/Contents/MacOS",
+            "/Applications/Blender.app/Contents/MacOS",
+            "/Applications/Blender/blender.app/Contents/MacOS",
+        ]
+    )
     _search_path = ":".join(set(_search_path))
     log.debug("searching for blender in: %s", _search_path)
+else:
+    _search_path = os.environ.get("PATH", "")
 
 _blender_executable = util.which("blender", path=_search_path)
 exists = _blender_executable is not None

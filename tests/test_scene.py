@@ -179,6 +179,7 @@ class SceneTests(g.unittest.TestCase):
 
         # mixed units should be None
         s = g.trimesh.Scene([a, b])
+        assert len(s.geometry) == 2
         assert s.units is None
 
         # now all units should be meters and scene should report that

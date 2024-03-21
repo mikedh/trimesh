@@ -15,7 +15,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
-from .typed import ArrayLike, Dict, NDArray, Optional, float64
+from .typed import ArrayLike, Dict, NDArray, Optional, float64, IntLike, FloatLike
 
 try:
     # shapely is a soft dependency
@@ -35,9 +35,9 @@ except BaseException as E:
 
 def revolve(
     linestring: ArrayLike,
-    angle: Optional[float] = None,
-    sections: Optional[int] = None,
-    transform: Optional[NDArray] = None,
+    angle: Optional[FloatLike] = None,
+    sections: Optional[IntLike] = None,
+    transform: Optional[ArrayLike] = None,
     **kwargs,
 ):
     """

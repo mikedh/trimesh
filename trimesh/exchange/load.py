@@ -9,7 +9,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import List, Loadable, Optional, Union
+from ..typed import List, Sequence, Loadable, Optional, Union
 from ..util import log, now
 from . import misc
 from .binvox import _binvox_loaders
@@ -74,7 +74,7 @@ def load(
     resolver: Optional[resolvers.Resolver] = None,
     force: Optional[str] = None,
     **kwargs,
-) -> Geometry:
+) -> Union[Geometry, List[Geometry]]:
     """
     Load a mesh or vectorized path into objects like
     Trimesh, Path2D, Path3D, Scene

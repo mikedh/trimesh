@@ -18,7 +18,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..geometry import plane_transform
 from ..points import plane_fit
-from ..typed import Dict, Iterable, List, NDArray, Optional, float64
+from ..typed import ArrayLike, Dict, Iterable, List, NDArray, Optional, float64
 from ..visual import to_rgba
 from . import (
     creation,  # NOQA
@@ -73,7 +73,7 @@ class Path(parent.Geometry):
     def __init__(
         self,
         entities: Optional[Iterable[Entity]] = None,
-        vertices: Optional[NDArray[float64]] = None,
+        vertices: Optional[ArrayLike] = None,
         metadata: Optional[Dict] = None,
         process: bool = True,
         colors=None,
@@ -170,11 +170,11 @@ class Path(parent.Geometry):
             e.color = c
 
     @property
-    def vertices(self):
+    def vertices(self) -> NDArray[float64]:
         return self._vertices
 
     @vertices.setter
-    def vertices(self, values: NDArray[float64]):
+    def vertices(self, values: ArrayLike):
         self._vertices = caching.tracked_array(values, dtype=np.float64)
 
     @property
@@ -327,26 +327,7 @@ class Path(parent.Geometry):
         """
         return self.bounds.ptp(axis=0)
 
-    @property
-    def units(self):
-        """
-        If there are units defined in self.metadata return them.
-
-        Returns
-        -----------
-        units : str
-          Current unit system
-        """
-        if "units" in self.metadata:
-            return self.metadata["units"]
-        else:
-            return None
-
-    @units.setter
-    def units(self, units):
-        self.metadata["units"] = units
-
-    def convert_units(self, desired, guess=False):
+    def convert_units(self, desired: str, guess: bool = False):
         """
         Convert the units of the current drawing in place.
 
