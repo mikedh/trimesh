@@ -3,7 +3,7 @@ import platform
 
 from .. import resources, util
 from ..constants import log
-from ..typed import Sequence
+from ..typed import Iterable
 from .generic import MeshScript
 
 if platform.system() == "Windows":
@@ -38,7 +38,7 @@ exists = _blender_executable is not None
 
 
 def boolean(
-    meshes: Sequence,
+    meshes: Iterable,
     operation: str = "difference",
     use_exact: bool = False,
     use_self: bool = False,
@@ -84,11 +84,12 @@ def boolean(
     with MeshScript(meshes=meshes, script=script, debug=debug) as blend:
         result = blend.run(_blender_executable + " --background --python $SCRIPT")
 
-    for m in util.make_sequence(result):
+    result = util.make_sequence(result)
+    for m in result:
         # blender returns actively incorrect face normals
         m.face_normals = None
 
-    return result
+    return util.concatenate(result)
 
 
 def unwrap(
@@ -101,7 +102,7 @@ def unwrap(
         raise ValueError("No blender available!")
 
     # get the template from our resources folder
-    template = resources.get_string("templates/blender_unwrap.py")
+    template = resources.get_string("templates/blender_unwrap.py.template")
     script = template.replace("$ANGLE_LIMIT", "%.6f" % angle_limit).replace(
         "$ISLAND_MARGIN", "%.6f" % island_margin
     )

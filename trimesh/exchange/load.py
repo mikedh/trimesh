@@ -71,7 +71,7 @@ def available_formats() -> set:
 def load(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Optional[Union[resolvers.Resolver, Dict]] = None,
+    resolver: Union[resolvers.Resolver, Dict, None] = None,
     force: Optional[str] = None,
     **kwargs,
 ) -> Union[Geometry, List[Geometry]]:
@@ -164,7 +164,7 @@ def load(
 def load_mesh(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Optional[resolvers.Resolver] = None,
+    resolver: Union[resolvers.Resolver, Dict, None] = None,
     **kwargs,
 ) -> Union[Geometry, List[Geometry]]:
     """
@@ -508,7 +508,7 @@ def load_kwargs(*args, **kwargs) -> Geometry:
 def _parse_file_args(
     file_obj: Loadable,
     file_type: Optional[str],
-    resolver: Optional[resolvers.Resolver] = None,
+    resolver: Union[None, Dict, resolvers.Resolver] = None,
     **kwargs,
 ):
     """

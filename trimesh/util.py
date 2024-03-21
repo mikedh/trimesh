@@ -1444,16 +1444,24 @@ def concatenate(a, b=None):
             flat.extend(b)
         else:
             flat.append(b)
+    dump = []
+    for i in flat:
+        if is_instance_named(i, "Scene"):
+            dump.extend(i.dump())
+        else:
+            dump.append(i)
 
-    if len(flat) == 1:
+    if len(dump) == 1:
         # if there is only one mesh just return the first
-        return flat[0].copy()
-    elif len(flat) == 0:
-        # if there are no meshes return an empty list
-        return []
+        return dump[0].copy()
+    elif len(dump) == 0:
+        # if there are no meshes return an empty mesh
+        from .base import Trimesh
 
-    is_mesh = [f for f in flat if is_instance_named(f, "Trimesh")]
-    is_path = [f for f in flat if is_instance_named(f, "Path")]
+        return Trimesh()
+
+    is_mesh = [f for f in dump if is_instance_named(f, "Trimesh")]
+    is_path = [f for f in dump if is_instance_named(f, "Path")]
 
     if len(is_path) > len(is_mesh):
         from .path.util import concatenate as concatenate_path

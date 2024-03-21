@@ -27,6 +27,13 @@ class UnwrapTest(g.unittest.TestCase):
         # make sure image was attached correctly
         assert u.visual.material.image.size == image.size
 
+    def test_blender_unwrap(self):
+        if not g.trimesh.interfaces.blender.exists:
+            return
+        m = g.get_mesh("rabbit.obj")
+        # TODO : verify this returns geometry!
+        _todo = g.trimesh.interfaces.blender.unwrap(m)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
