@@ -15,7 +15,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
-from .typed import ArrayLike, Dict, NDArray, Optional, float64, IntLike, FloatLike
+from .typed import ArrayLike, Dict, FloatLike, IntLike, NDArray, Optional, float64
 
 try:
     # shapely is a soft dependency

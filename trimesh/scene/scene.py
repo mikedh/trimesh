@@ -4,6 +4,7 @@ import uuid
 import numpy as np
 
 from .. import caching, convex, grouping, inertia, transformations, units, util
+from ..constants import log
 from ..exchange import export
 from ..parent import Geometry, Geometry3D
 from ..typed import (
@@ -19,7 +20,6 @@ from ..typed import (
     int64,
 )
 from ..util import unique_name
-from ..constants import log
 from . import cameras, lighting
 from .transforms import SceneGraph
 
