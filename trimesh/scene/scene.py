@@ -493,7 +493,7 @@ class Scene(Geometry3D):
         return inertia.scene_inertia(scene=self, transform=transform)
 
     @caching.cache_decorator
-    def area(self) -> float64:
+    def area(self) -> float:
         """
         What is the summed area of every geometry which
         has area.
@@ -715,7 +715,7 @@ class Scene(Geometry3D):
         return self.graph[self.camera.name][0]
 
     @camera_transform.setter
-    def camera_transform(self, matrix: NDArray[float64]):
+    def camera_transform(self, matrix: ArrayLike):
         """
         Set the camera transform in the base frame
 

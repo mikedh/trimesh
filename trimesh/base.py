@@ -42,7 +42,7 @@ from .exchange.export import export_mesh
 from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
-from .typed import Any, ArrayLike, Dict, List, NDArray, Optional, Sequence, Tuple, Union
+from .typed import Any, ArrayLike, Dict, List, NDArray, Optional, Sequence, Union
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
 try:
@@ -73,12 +73,12 @@ class Trimesh(Geometry3D):
         self,
         vertices: Optional[ArrayLike] = None,
         faces: Optional[ArrayLike] = None,
-        face_normals: Optional[NDArray[float64]] = None,
-        vertex_normals: Optional[NDArray[float64]] = None,
-        face_colors: Optional[NDArray[float64]] = None,
-        vertex_colors: Optional[NDArray[float64]] = None,
-        face_attributes: Optional[Dict[str, NDArray]] = None,
-        vertex_attributes: Optional[Dict[str, NDArray]] = None,
+        face_normals: Optional[ArrayLike] = None,
+        vertex_normals: Optional[ArrayLike] = None,
+        face_colors: Optional[ArrayLike] = None,
+        vertex_colors: Optional[ArrayLike] = None,
+        face_attributes: Optional[Dict[str, ArrayLike]] = None,
+        vertex_attributes: Optional[Dict[str, ArrayLike]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         process: bool = True,
         validate: bool = False,
@@ -390,14 +390,14 @@ class Trimesh(Geometry3D):
         return padded
 
     @face_normals.setter
-    def face_normals(self, values: NDArray[float64]) -> None:
+    def face_normals(self, values: Optional[ArrayLike]) -> None:
         """
         Assign values to face normals.
 
         Parameters
         -------------
         values : (len(self.faces), 3) float
-          Unit face normals
+          Unit face normals. If None will clear existing normals.
         """
         # if nothing passed exit
         if values is None:
@@ -684,7 +684,7 @@ class Trimesh(Geometry3D):
         """
         return self.mass_properties.inertia
 
-    def moment_inertia_frame(self, transform: NDArray[float64]) -> NDArray[float64]:
+    def moment_inertia_frame(self, transform: ArrayLike) -> NDArray[float64]:
         """
         Get the moment of inertia of this mesh with respect to
         an arbitrary frame, versus with respect to the center
@@ -2410,7 +2410,7 @@ class Trimesh(Geometry3D):
         # keep face normals as the haven't changed
         self._cache.clear(exclude=["face_normals"])
 
-    def apply_transform(self, matrix: NDArray[float64]) -> "Trimesh":
+    def apply_transform(self, matrix: ArrayLike) -> "Trimesh":
         """
         Transform mesh by a homogeneous transformation matrix.
 
@@ -2797,12 +2797,7 @@ class Trimesh(Geometry3D):
         file_obj=None,
         file_type: Optional[str] = None,
         **kwargs,
-    ) -> Union[
-        Dict[str, Union[Dict[str, str], List[List[int]], List[List[float]]]],
-        str,
-        bytes,
-        Dict[str, Union[Dict[str, str], Dict[str, Union[str, Tuple[int, int]]]]],
-    ]:
+    ):
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.

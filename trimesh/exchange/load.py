@@ -9,7 +9,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import List, Loadable, Optional, Union
+from ..typed import Dict, List, Loadable, Optional, Union
 from ..util import log, now
 from . import misc
 from .binvox import _binvox_loaders
@@ -71,7 +71,7 @@ def available_formats() -> set:
 def load(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Optional[resolvers.Resolver] = None,
+    resolver: Optional[Union[resolvers.Resolver, Dict]] = None,
     force: Optional[str] = None,
     **kwargs,
 ) -> Union[Geometry, List[Geometry]]:

@@ -15,7 +15,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
-from .typed import ArrayLike, Dict, FloatLike, IntLike, NDArray, Optional, float64
+from .typed import ArrayLike, Dict, FloatLike, IntLike, Optional
 
 try:
     # shapely is a soft dependency
@@ -39,7 +39,7 @@ def revolve(
     sections: Optional[IntLike] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
-):
+) -> Trimesh:
     """
     Revolve a 2D line string around the 2D Y axis, with a result with
     the 2D Y axis pointing along the 3D Z axis.
@@ -173,8 +173,8 @@ def revolve(
 
 
 def extrude_polygon(
-    polygon: "Polygon", height: float, transform: Optional[NDArray] = None, **kwargs
-):
+    polygon: "Polygon", height: FloatLike, transform: Optional[ArrayLike] = None, **kwargs
+) -> Trimesh:
     """
     Extrude a 2D shapely polygon into a 3D mesh
 
@@ -206,7 +206,7 @@ def extrude_polygon(
 
 
 def sweep_polygon(
-    polygon: "Polygon", path: ArrayLike, angles: Optional[NDArray] = None, **kwargs
+    polygon: "Polygon", path: ArrayLike, angles: Optional[ArrayLike] = None, **kwargs
 ):
     """
     Extrude a 2D shapely polygon into a 3D mesh along an
@@ -315,10 +315,10 @@ def sweep_polygon(
 def extrude_triangulation(
     vertices: ArrayLike,
     faces: ArrayLike,
-    height: float,
-    transform: Optional[NDArray] = None,
+    height: FloatLike,
+    transform: Optional[ArrayLike] = None,
     **kwargs,
-):
+) -> Trimesh:
     """
     Extrude a 2D triangulation into a watertight mesh.
 
@@ -404,10 +404,13 @@ def extrude_triangulation(
     return mesh
 
 
-def triangulate_polygon(polygon: Polygon, triangle_args=None, engine=None, **kwargs):
+def triangulate_polygon(
+    polygon, triangle_args: Optional[str] = None, engine: Optional[str] = None, **kwargs
+):
     """
     Given a shapely polygon create a triangulation using a
-    python interface to `triangle.c` or mapbox-earcut.
+    python interface to the permissively licensed `mapbox-earcut`
+    or the more robust `triangle.c`.
     > pip install triangle
     > pip install mapbox_earcut
 
@@ -416,9 +419,9 @@ def triangulate_polygon(polygon: Polygon, triangle_args=None, engine=None, **kwa
     polygon : Shapely.geometry.Polygon
         Polygon object to be triangulated.
     triangle_args : str or None
-        Passed to triangle.triangulate i.e: 'p', 'pq30'
+        Passed to triangle.triangulate i.e: 'p', 'pq30', 'pY'="don't insert vert"
     engine : None or str
-      Any value other than 'earcut' will use `triangle`
+      None or 'earcut' will use earcut, 'triangle' will use triangle
 
     Returns
     --------------
@@ -467,7 +470,7 @@ def triangulate_polygon(polygon: Polygon, triangle_args=None, engine=None, **kwa
         raise ValueError("no valid triangulation engine!")
 
 
-def _polygon_to_kwargs(polygon: Polygon) -> Dict:
+def _polygon_to_kwargs(polygon) -> Dict:
     """
     Given a shapely polygon generate the data to pass to
     the triangle mesh generator
@@ -559,13 +562,18 @@ def _polygon_to_kwargs(polygon: Polygon) -> Dict:
     return result
 
 
-def box(extents=None, transform: Optional[NDArray] = None, bounds=None, **kwargs):
+def box(
+    extents: Optional[ArrayLike] = None,
+    transform: Optional[ArrayLike] = None,
+    bounds: Optional[ArrayLike] = None,
+    **kwargs,
+):
     """
     Return a cuboid.
 
     Parameters
     ------------
-    extents : float, or (3,) float
+    extents : (3,) float
       Edge lengths
     transform: (4, 4) float
       Transformation matrix
@@ -703,7 +711,7 @@ def box(extents=None, transform: Optional[NDArray] = None, bounds=None, **kwargs
     return box
 
 
-def icosahedron(**kwargs):
+def icosahedron(**kwargs) -> Trimesh:
     """
     Create an icosahedron, one of the platonic solids which is has 20 faces.
 
@@ -827,7 +835,7 @@ def icosahedron(**kwargs):
     )
 
 
-def icosphere(subdivisions: int = 3, radius: float = 1.0, **kwargs):
+def icosphere(subdivisions: IntLike = 3, radius: FloatLike = 1.0, **kwargs):
     """
     Create an isophere centered at the origin.
 
@@ -877,11 +885,11 @@ def icosphere(subdivisions: int = 3, radius: float = 1.0, **kwargs):
 
 
 def uv_sphere(
-    radius: float = 1.0,
+    radius: FloatLike = 1.0,
     count: Optional[ArrayLike] = None,
-    transform: Optional[NDArray] = None,
+    transform: Optional[ArrayLike] = None,
     **kwargs,
-):
+) -> Trimesh:
     """
     Create a UV sphere (latitude + longitude) centered at the
     origin. Roughly one order of magnitude faster than an
@@ -926,10 +934,10 @@ def uv_sphere(
 
 
 def capsule(
-    height: float = 1.0,
-    radius: float = 1.0,
+    height: FloatLike = 1.0,
+    radius: FloatLike = 1.0,
     count: Optional[ArrayLike] = None,
-    transform: Optional[NDArray] = None,
+    transform: Optional[ArrayLike] = None,
 ):
     """
     Create a mesh of a capsule, or a cylinder with hemispheric ends.
@@ -979,12 +987,12 @@ def capsule(
 
 
 def cone(
-    radius: float,
-    height: float,
-    sections: Optional[int] = None,
-    transform: Optional[NDArray] = None,
+    radius: FloatLike,
+    height: FloatLike,
+    sections: Optional[IntLike] = None,
+    transform: Optional[ArrayLike] = None,
     **kwargs,
-):
+) -> Trimesh:
     """
     Create a mesh of a cone along Z centered at the origin.
 
@@ -1020,11 +1028,11 @@ def cone(
 
 
 def cylinder(
-    radius: float,
-    height: Optional[float] = None,
-    sections: Optional[int] = None,
-    segment=None,
-    transform: Optional[NDArray] = None,
+    radius: FloatLike,
+    height: Optional[FloatLike] = None,
+    sections: Optional[IntLike] = None,
+    segment: Optional[ArrayLike] = None,
+    transform: Optional[ArrayLike] = None,
     **kwargs,
 ):
     """
@@ -1071,12 +1079,12 @@ def cylinder(
 
 
 def annulus(
-    r_min: float,
-    r_max: float,
-    height: Optional[float] = None,
-    sections: Optional[int] = None,
-    transform: Optional[NDArray] = None,
-    segment: Optional[NDArray] = None,
+    r_min: FloatLike,
+    r_max: FloatLike,
+    height: Optional[FloatLike] = None,
+    sections: Optional[IntLike] = None,
+    transform: Optional[ArrayLike] = None,
+    segment: Optional[ArrayLike] = None,
     **kwargs,
 ):
     """
@@ -1143,7 +1151,7 @@ def annulus(
     return annulus
 
 
-def _segment_to_cylinder(segment: NDArray[float64]):
+def _segment_to_cylinder(segment: ArrayLike):
     """
     Convert a line segment to a transform and height for a cylinder
     or cylinder-like primitive.
@@ -1177,7 +1185,7 @@ def _segment_to_cylinder(segment: NDArray[float64]):
     return transform, height
 
 
-def random_soup(face_count: int = 100):
+def random_soup(face_count: IntLike = 100):
     """
     Return random triangles as a Trimesh
 
@@ -1198,11 +1206,11 @@ def random_soup(face_count: int = 100):
 
 
 def axis(
-    origin_size: float = 0.04,
-    transform: Optional[NDArray] = None,
+    origin_size: FloatLike = 0.04,
+    transform: Optional[ArrayLike] = None,
     origin_color: Optional[ArrayLike] = None,
-    axis_radius: Optional[float] = None,
-    axis_length: Optional[float] = None,
+    axis_radius: Optional[FloatLike] = None,
+    axis_length: Optional[FloatLike] = None,
 ):
     """
     Return an XYZ axis marker as a  Trimesh, which represents position
@@ -1284,7 +1292,7 @@ def axis(
 
 
 def camera_marker(
-    camera, marker_height: float = 0.4, origin_size: Optional[float] = None
+    camera, marker_height: FloatLike = 0.4, origin_size: Optional[FloatLike] = None
 ):
     """
     Create a visual marker for a camera object, including an axis and FOV.
@@ -1411,11 +1419,11 @@ def truncated_prisms(
 
 
 def torus(
-    major_radius: float,
-    minor_radius: float,
-    major_sections: int = 32,
-    minor_sections: int = 32,
-    transform: Optional[NDArray] = None,
+    major_radius: FloatLike,
+    minor_radius: FloatLike,
+    major_sections: IntLike = 32,
+    minor_sections: IntLike = 32,
+    transform: Optional[ArrayLike] = None,
     **kwargs,
 ):
     """Create a mesh of a torus around Z centered at the origin.

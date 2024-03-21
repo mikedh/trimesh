@@ -174,8 +174,11 @@ class Path(parent.Geometry):
         return self._vertices
 
     @vertices.setter
-    def vertices(self, values: ArrayLike):
-        self._vertices = caching.tracked_array(values, dtype=np.float64)
+    def vertices(self, values: Optional[ArrayLike]):
+        if values is None:
+            self._vertices = caching.tracked_array([], dtype=np.float64)
+        else:
+            self._vertices = caching.tracked_array(values, dtype=np.float64)
 
     @property
     def entities(self):
