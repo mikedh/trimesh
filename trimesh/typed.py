@@ -1,3 +1,4 @@
+from io import BytesIO
 from pathlib import Path
 from sys import version_info
 from typing import (
@@ -5,6 +6,7 @@ from typing import (
     Any,
     BinaryIO,
     Optional,
+    TextIO,
     Union,
 )
 
@@ -23,7 +25,7 @@ else:
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
-Loadable = Union[str, Path, IO, Dict, None]
+Loadable = Union[str, Path, IO, BytesIO, BinaryIO, TextIO, Dict, None]
 
 # if you type a function argument as an `int` and then pass
 # a value from a numpy array like `np.ones(10, dtype=np.int64)[0]`
