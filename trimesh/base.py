@@ -483,13 +483,12 @@ class Trimesh(Geometry3D):
         """
         # make sure we have faces_sparse
         assert hasattr(self.faces_sparse, "dot")
-        vertex_normals = geometry.weighted_vertex_normals(
+        return geometry.weighted_vertex_normals(
             vertex_count=len(self.vertices),
             faces=self.faces,
             face_normals=self.face_normals,
             face_angles=self.face_angles,
         )
-        return vertex_normals
 
     @vertex_normals.setter
     def vertex_normals(self, values: ArrayLike) -> None:
