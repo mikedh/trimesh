@@ -106,7 +106,7 @@ test = [
     "pyinstrument",
     "matplotlib",
     "ruff",
-    "pytest-beartype"
+    "pytest-beartype; python_version>='3.10'"
 ]
 
 # requires pip >= 21.2

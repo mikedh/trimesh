@@ -15,7 +15,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
-from .typed import ArrayLike, Dict, FloatLike, IntLike, Optional
+from .typed import ArrayLike, Dict, FloatLike, IntLike, Numeric, Optional
 
 try:
     # shapely is a soft dependency
@@ -35,7 +35,7 @@ except BaseException as E:
 
 def revolve(
     linestring: ArrayLike,
-    angle: Optional[FloatLike] = None,
+    angle: Optional[Numeric] = None,
     sections: Optional[IntLike] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
@@ -1029,7 +1029,7 @@ def cone(
 
 def cylinder(
     radius: FloatLike,
-    height: Optional[FloatLike] = None,
+    height: Optional[Numeric] = None,
     sections: Optional[IntLike] = None,
     segment: Optional[ArrayLike] = None,
     transform: Optional[ArrayLike] = None,
@@ -1081,7 +1081,7 @@ def cylinder(
 def annulus(
     r_min: FloatLike,
     r_max: FloatLike,
-    height: Optional[FloatLike] = None,
+    height: Optional[Numeric] = None,
     sections: Optional[IntLike] = None,
     transform: Optional[ArrayLike] = None,
     segment: Optional[ArrayLike] = None,
@@ -1209,8 +1209,8 @@ def axis(
     origin_size: FloatLike = 0.04,
     transform: Optional[ArrayLike] = None,
     origin_color: Optional[ArrayLike] = None,
-    axis_radius: Optional[FloatLike] = None,
-    axis_length: Optional[FloatLike] = None,
+    axis_radius: Optional[Numeric] = None,
+    axis_length: Optional[Numeric] = None,
 ):
     """
     Return an XYZ axis marker as a  Trimesh, which represents position
@@ -1292,7 +1292,7 @@ def axis(
 
 
 def camera_marker(
-    camera, marker_height: FloatLike = 0.4, origin_size: Optional[FloatLike] = None
+    camera, marker_height: FloatLike = 0.4, origin_size: Optional[Numeric] = None
 ):
     """
     Create a visual marker for a camera object, including an axis and FOV.

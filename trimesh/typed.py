@@ -34,6 +34,7 @@ Loadable = Union[str, Path, IO, BytesIO, StringIO, BinaryIO, TextIO, Dict, None]
 # these wrappers union numpy integers and python integers
 IntLike = Union[int, integer]
 FloatLike = Union[float, floating]
+Numeric = Union[int, integer, float, floating]
 
 __all__ = [
     "NDArray",
@@ -50,4 +51,5 @@ __all__ = [
     "Tuple",
     "float64",
     "int64",
+    "Numeric",
 ]

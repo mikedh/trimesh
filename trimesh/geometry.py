@@ -102,7 +102,7 @@ def faces_to_edges(faces, return_index=False):
     edges : (n*3, 2) int
       Vertex indices representing edges
     """
-    faces = np.asanyarray(faces)
+    faces = np.asanyarray(faces, np.int64)
 
     # each face has three edges
     edges = faces[:, [0, 1, 1, 2, 2, 0]].reshape((-1, 2))
