@@ -36,6 +36,7 @@ from . import (
     units,
     util,
 )
+from .caching import TrackedArray
 from .constants import log, tol
 from .exceptions import ExceptionWrapper
 from .exchange.export import export_mesh
@@ -285,7 +286,7 @@ class Trimesh(Geometry3D):
         self._data.mutable = value
 
     @property
-    def faces(self) -> NDArray[int64]:
+    def faces(self) -> TrackedArray[int64]:
         """
         The faces of the mesh.
 
@@ -302,7 +303,7 @@ class Trimesh(Geometry3D):
         return self._data.get("faces", np.empty(shape=(0, 3), dtype=int64))
 
     @faces.setter
-    def faces(self, values: Union[List[List[int]], NDArray[int64]]):
+    def faces(self, values: ArrayLike) -> None:
         """
         Set the vertex indexes that make up triangular faces.
 
@@ -313,7 +314,7 @@ class Trimesh(Geometry3D):
         """
         if values is None or len(values) == 0:
             return self._data.data.pop("faces", None)
-        if not (isinstance(values, np.ndarray) and values.dtype == int64):
+        if not isinstance(values, np.ndarray or values.dtype != int64):
             values = np.asanyarray(values, dtype=int64)
 
         # automatically triangulate quad faces

@@ -6,7 +6,7 @@ from .. import bounds, geometry, graph, grouping
 from ..constants import log
 from ..constants import tol_path as tol
 from ..transformations import transform_points
-from ..typed import List, NDArray, Optional, float64
+from ..typed import Iterable, NDArray, Optional, Union, float64
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -164,7 +164,7 @@ def edges_to_polygons(edges, vertices):
     return complete
 
 
-def polygons_obb(polygons: List[Polygon]):
+def polygons_obb(polygons: Iterable[Polygon]):
     """
     Find the OBBs for a list of shapely.geometry.Polygons
     """
@@ -175,7 +175,7 @@ def polygons_obb(polygons: List[Polygon]):
     return np.array(transforms), np.array(rectangles)
 
 
-def polygon_obb(polygon: Polygon):
+def polygon_obb(polygon: Union[Polygon, NDArray]):
     """
     Find the oriented bounding box of a Shapely polygon.
 

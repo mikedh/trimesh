@@ -9,7 +9,7 @@ import numpy as np
 
 from . import util
 from .constants import log, tol
-from .typed import ArrayLike, NDArray, Optional, Union
+from .typed import ArrayLike, NDArray, Optional
 
 try:
     from scipy.spatial import cKDTree
@@ -157,9 +157,7 @@ def group(values, min_len=0, max_len=np.inf):
     return groups
 
 
-def hashable_rows(
-    data: ArrayLike, digits=None
-) -> Union[NDArray[np.uint64], NDArray[np.void]]:
+def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
     """
     We turn our array into integers based on the precision
     given by digits and then put them in a hashable format.
@@ -179,7 +177,7 @@ def hashable_rows(
     """
     # if there is no data return immediately
     if len(data) == 0:
-        return np.array([])
+        return np.array([], dtype=np.uint64)
 
     # get array as integer to precision we care about
     as_int = float_to_int(data, digits=digits)

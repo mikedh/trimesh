@@ -1,20 +1,25 @@
 from pathlib import Path
+from sys import version_info
 from typing import (
     IO,
     Any,
     BinaryIO,
-    Dict,
-    Iterable,
-    List,
     Optional,
-    Sequence,
-    Tuple,
     Union,
 )
 
 # our default integer and floating point types
 from numpy import float64, floating, int64, integer
 from numpy.typing import ArrayLike, NDArray
+
+if version_info >= (3, 9):
+    # use PEP585 hints on newer python
+    List = list
+    Tuple = tuple
+    Dict = dict
+    from collections.abc import Iterable, Sequence
+else:
+    from typing import Dict, Iterable, List, Sequence, Tuple
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict

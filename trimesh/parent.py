@@ -6,7 +6,6 @@ The base class for Trimesh, PointCloud, and Scene objects
 """
 
 import abc
-from typing import Dict, Optional
 
 import numpy as np
 
@@ -14,6 +13,7 @@ from . import bounds, caching
 from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
+from .typed import Dict, Optional
 from .util import ABC
 
 
@@ -203,7 +203,6 @@ class Geometry(ABC):
         """
         Define the units of the current mesh.
         """
-        print(value)
         self.metadata["units"] = str(value).lower().strip()
 
 

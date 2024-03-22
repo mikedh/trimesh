@@ -80,7 +80,7 @@ RUN mypy trimesh/base.py || true
 # print more columns so the short summary is usable
 RUN COLUMNS=240 xvfb-run pytest \
     --cov=trimesh \
-    --typeguard-packages=trimesh \
+    --beartype-packages=trimesh \
     -p no:ALL_DEPENDENCIES \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests

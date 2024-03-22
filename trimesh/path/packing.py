@@ -5,11 +5,10 @@ packing.py
 Pack rectangular regions onto larger rectangular regions.
 """
 
-from typing import Optional
-
 import numpy as np
 
 from ..constants import log, tol
+from ..typed import Optional
 from ..util import allclose, bounds_tree
 
 # floating point zero
