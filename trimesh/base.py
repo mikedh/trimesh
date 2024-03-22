@@ -444,7 +444,14 @@ class Trimesh(Geometry3D):
         vertices : (n, 3) float
           Points in cartesian space referenced by self.faces
         """
-        return self._data.get("vertices", np.empty(shape=(0, 3), dtype=float64))
+        # get vertices if already stored
+        vertices = self._data.get("vertices", None)
+        if vertices is None:
+            # will be assigned to a trackedarray so if modified in place
+            # the caching mechanism can catch it
+            self.data["vertices"] = np.empty(shape=(0, 3), dtype=float64)
+            return self._data["vertices"]
+        return vertices
 
     @vertices.setter
     def vertices(self, values: Optional[ArrayLike]):
@@ -456,7 +463,8 @@ class Trimesh(Geometry3D):
         values : (n, 3) float
           Points in space
         """
-        if values is None or len(values) == 0:
+        if values is None:
+            # remove any stored data
             return self._data.data.pop("vertices", None)
         self._data["vertices"] = np.asanyarray(values, order="C", dtype=float64)
 

@@ -15,7 +15,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
-from .typed import ArrayLike, Dict, FloatLike, IntLike, Numeric, Optional
+from .typed import ArrayLike, Dict, IntLike, Numeric, Optional
 
 try:
     # shapely is a soft dependency
@@ -173,7 +173,7 @@ def revolve(
 
 
 def extrude_polygon(
-    polygon: "Polygon", height: FloatLike, transform: Optional[ArrayLike] = None, **kwargs
+    polygon: "Polygon", height: Numeric, transform: Optional[ArrayLike] = None, **kwargs
 ) -> Trimesh:
     """
     Extrude a 2D shapely polygon into a 3D mesh
@@ -315,7 +315,7 @@ def sweep_polygon(
 def extrude_triangulation(
     vertices: ArrayLike,
     faces: ArrayLike,
-    height: FloatLike,
+    height: Numeric,
     transform: Optional[ArrayLike] = None,
     **kwargs,
 ) -> Trimesh:
@@ -835,7 +835,7 @@ def icosahedron(**kwargs) -> Trimesh:
     )
 
 
-def icosphere(subdivisions: IntLike = 3, radius: FloatLike = 1.0, **kwargs):
+def icosphere(subdivisions: IntLike = 3, radius: Numeric = 1.0, **kwargs):
     """
     Create an isophere centered at the origin.
 
@@ -885,7 +885,7 @@ def icosphere(subdivisions: IntLike = 3, radius: FloatLike = 1.0, **kwargs):
 
 
 def uv_sphere(
-    radius: FloatLike = 1.0,
+    radius: Numeric = 1.0,
     count: Optional[ArrayLike] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
@@ -934,8 +934,8 @@ def uv_sphere(
 
 
 def capsule(
-    height: FloatLike = 1.0,
-    radius: FloatLike = 1.0,
+    height: Numeric = 1.0,
+    radius: Numeric = 1.0,
     count: Optional[ArrayLike] = None,
     transform: Optional[ArrayLike] = None,
 ):
@@ -987,8 +987,8 @@ def capsule(
 
 
 def cone(
-    radius: FloatLike,
-    height: FloatLike,
+    radius: Numeric,
+    height: Numeric,
     sections: Optional[IntLike] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
@@ -1028,7 +1028,7 @@ def cone(
 
 
 def cylinder(
-    radius: FloatLike,
+    radius: Numeric,
     height: Optional[Numeric] = None,
     sections: Optional[IntLike] = None,
     segment: Optional[ArrayLike] = None,
@@ -1079,8 +1079,8 @@ def cylinder(
 
 
 def annulus(
-    r_min: FloatLike,
-    r_max: FloatLike,
+    r_min: Numeric,
+    r_max: Numeric,
     height: Optional[Numeric] = None,
     sections: Optional[IntLike] = None,
     transform: Optional[ArrayLike] = None,
@@ -1206,7 +1206,7 @@ def random_soup(face_count: IntLike = 100):
 
 
 def axis(
-    origin_size: FloatLike = 0.04,
+    origin_size: Numeric = 0.04,
     transform: Optional[ArrayLike] = None,
     origin_color: Optional[ArrayLike] = None,
     axis_radius: Optional[Numeric] = None,
@@ -1292,7 +1292,7 @@ def axis(
 
 
 def camera_marker(
-    camera, marker_height: FloatLike = 0.4, origin_size: Optional[Numeric] = None
+    camera, marker_height: Numeric = 0.4, origin_size: Optional[Numeric] = None
 ):
     """
     Create a visual marker for a camera object, including an axis and FOV.
@@ -1419,8 +1419,8 @@ def truncated_prisms(
 
 
 def torus(
-    major_radius: FloatLike,
-    minor_radius: FloatLike,
+    major_radius: Numeric,
+    minor_radius: Numeric,
     major_sections: IntLike = 32,
     minor_sections: IntLike = 32,
     transform: Optional[ArrayLike] = None,
