@@ -8,7 +8,7 @@ Pack rectangular regions onto larger rectangular regions.
 import numpy as np
 
 from ..constants import log, tol
-from ..typed import Optional
+from ..typed import FloatLike, IntLike, Optional
 from ..util import allclose, bounds_tree
 
 # floating point zero
@@ -510,9 +510,9 @@ def images(
     images,
     power_resize: bool = False,
     deduplicate: bool = False,
-    iterations: Optional[int] = 50,
-    seed: Optional[int] = None,
-    spacing: Optional[float] = None,
+    iterations: Optional[IntLike] = 50,
+    seed: Optional[IntLike] = None,
+    spacing: Optional[FloatLike] = None,
     mode: Optional[str] = None,
 ):
     """

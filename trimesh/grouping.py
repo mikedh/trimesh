@@ -9,7 +9,7 @@ import numpy as np
 
 from . import util
 from .constants import log, tol
-from .typed import ArrayLike, NDArray, Optional
+from .typed import ArrayLike, IntLike, NDArray, Optional
 
 try:
     from scipy.spatial import cKDTree
@@ -221,7 +221,7 @@ def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
     return result
 
 
-def float_to_int(data, digits: Optional[int] = None):
+def float_to_int(data, digits: Optional[IntLike] = None):
     """
     Given a numpy array of float/bool/int, return as integers.
 

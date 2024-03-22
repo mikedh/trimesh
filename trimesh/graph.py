@@ -16,7 +16,7 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import List, NDArray, Optional, int64
+from .typed import FloatLike, List, NDArray, Optional, int64
 
 try:
     from scipy.sparse import coo_matrix, csgraph
@@ -760,7 +760,7 @@ def smoothed(*args, **kwargs):
 
 
 def smooth_shade(
-    mesh, angle: Optional[float] = None, facet_minarea: Optional[float] = 10.0
+    mesh, angle: Optional[FloatLike] = None, facet_minarea: Optional[FloatLike] = 10.0
 ):
     """
     Return a non-watertight version of the mesh which

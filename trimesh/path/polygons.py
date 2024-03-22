@@ -6,7 +6,7 @@ from .. import bounds, geometry, graph, grouping
 from ..constants import log
 from ..constants import tol_path as tol
 from ..transformations import transform_points
-from ..typed import Iterable, NDArray, Optional, Union, float64
+from ..typed import FloatLike, Iterable, NDArray, Optional, Union, float64
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -368,7 +368,7 @@ def stack_boundaries(boundaries):
     return np.vstack((boundaries["shell"], np.vstack(boundaries["holes"])))
 
 
-def medial_axis(polygon: Polygon, resolution: Optional[float] = None, clip=None):
+def medial_axis(polygon: Polygon, resolution: Optional[FloatLike] = None, clip=None):
     """
     Given a shapely polygon, find the approximate medial axis
     using a voronoi diagram of evenly spaced points on the
