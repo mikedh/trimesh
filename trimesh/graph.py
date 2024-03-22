@@ -16,7 +16,7 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import List, Optional
+from .typed import List, NDArray, Optional, int64
 
 try:
     from scipy.sparse import coo_matrix, csgraph
@@ -107,10 +107,11 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
         adjacency_edges = edges[edge_groups[:, 0][nondegenerate]]
         assert len(adjacency_edges) == len(adjacency)
         return adjacency, adjacency_edges
+
     return adjacency
 
 
-def face_neighborhood(mesh):
+def face_neighborhood(mesh) -> NDArray[int64]:
     """
     Find faces that share a vertex i.e. 'neighbors' faces.
     Relies on the fact that an adjacency matrix at a power p
@@ -129,7 +130,9 @@ def face_neighborhood(mesh):
     TT.setdiag(0)
     TT.eliminate_zeros()
     TT = TT.tocoo()
-    neighborhood = np.concatenate((TT.row[:, None], TT.col[:, None]), axis=-1)
+    neighborhood = np.concatenate(
+        (TT.row[:, None], TT.col[:, None]), axis=-1, dtype=np.int64
+    )
     return neighborhood
 
 

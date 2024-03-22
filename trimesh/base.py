@@ -141,12 +141,12 @@ class Trimesh(Geometry3D):
             self._cache.update(initial_cache)
 
         # check for None only to avoid warning messages in subclasses
-        if vertices is not None:
-            # (n, 3) float, set of vertices
-            self.vertices = vertices
-        if faces is not None:
-            # (m, 3) int of triangle faces, references self.vertices
-            self.faces = faces
+
+        # (n, 3) float array of vertices
+        self.vertices = vertices
+
+        # (m, 3) int of triangle faces that references self.vertices
+        self.faces = faces
 
         # hold visual information about the mesh (vertex and face colors)
         if visual is None:
@@ -300,10 +300,10 @@ class Trimesh(Geometry3D):
         faces : (n, 3) int64
           References for `self.vertices` for triangles.
         """
-        return self._data.get("faces", np.empty(shape=(0, 3), dtype=int64))
+        return self._data["faces"]
 
     @faces.setter
-    def faces(self, values: ArrayLike) -> None:
+    def faces(self, values: Optional[ArrayLike]) -> None:
         """
         Set the vertex indexes that make up triangular faces.
 
@@ -312,14 +312,17 @@ class Trimesh(Geometry3D):
         values : (n, 3) int64
           Indexes of self.vertices
         """
-        if values is None or len(values) == 0:
-            return self._data.data.pop("faces", None)
-        values = np.asanyarray(values, dtype=int64)
+        if values is None:
+            # if passed none store an empty array
+            values = np.empty(shape=(0, 3), dtype=int64)
+        else:
+            values = np.asanyarray(values, dtype=int64)
 
         # automatically triangulate quad faces
         if len(values.shape) == 2 and values.shape[1] != 3:
             log.info("triangulating faces")
             values = geometry.triangulate_quads(values)
+
         self._data["faces"] = values
 
     @caching.cache_decorator
@@ -445,13 +448,7 @@ class Trimesh(Geometry3D):
           Points in cartesian space referenced by self.faces
         """
         # get vertices if already stored
-        vertices = self._data.get("vertices", None)
-        if vertices is None:
-            # will be assigned to a trackedarray so if modified in place
-            # the caching mechanism can catch it
-            self.data["vertices"] = np.empty(shape=(0, 3), dtype=float64)
-            return self._data["vertices"]
-        return vertices
+        return self._data["vertices"]
 
     @vertices.setter
     def vertices(self, values: Optional[ArrayLike]):
@@ -464,8 +461,8 @@ class Trimesh(Geometry3D):
           Points in space
         """
         if values is None:
-            # remove any stored data
-            return self._data.data.pop("vertices", None)
+            # remove any stored data and store an empty array
+            values = np.empty(shape=(0, 3), dtype=float64)
         self._data["vertices"] = np.asanyarray(values, order="C", dtype=float64)
 
     @caching.cache_decorator

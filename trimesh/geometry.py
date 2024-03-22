@@ -2,6 +2,7 @@ import numpy as np
 
 from . import util
 from .constants import log
+from .typed import NDArray
 
 try:
     import scipy.sparse
@@ -146,7 +147,7 @@ def vector_angle(pairs):
     return angles
 
 
-def triangulate_quads(quads, dtype=np.int64):
+def triangulate_quads(quads, dtype=np.int64) -> NDArray:
     """
     Given an array of quad faces return them as triangle faces,
     also handles pure triangles and mixed triangles and quads.
