@@ -363,7 +363,7 @@ class Trimesh(Geometry3D):
 
         # if we have no faces exit early
         if faces is None or len(faces) == 0:
-            return np.array([], dtype=int64).reshape((0, 3))
+            return np.array([], dtype=float64).reshape((0, 3))
 
         # if the shape of cached normals equals the shape of faces return
         if np.shape(cached) == np.shape(faces):

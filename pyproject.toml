@@ -99,7 +99,7 @@ recommend = [
 test = [
     "pytest-cov",
     "coveralls",
-    "mypy",
+    "pyright",
     "ezdxf",
     "pytest",
     "pymeshlab",

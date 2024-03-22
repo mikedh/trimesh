@@ -74,7 +74,7 @@ RUN ruff check trimesh
 
 # run a limited array of static type checks
 # TODO : get this to pass on base
-RUN mypy trimesh/base.py || true
+RUN pyright trimesh/base.py || true
 
 # run pytest wrapped with xvfb for simple viewer tests
 # print more columns so the short summary is usable
