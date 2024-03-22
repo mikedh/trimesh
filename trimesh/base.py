@@ -286,7 +286,7 @@ class Trimesh(Geometry3D):
         self._data.mutable = value
 
     @property
-    def faces(self) -> TrackedArray[int64]:
+    def faces(self) -> TrackedArray:
         """
         The faces of the mesh.
 
@@ -431,7 +431,7 @@ class Trimesh(Geometry3D):
         self._cache["face_normals"] = values
 
     @property
-    def vertices(self) -> NDArray[float64]:
+    def vertices(self) -> TrackedArray:
         """
         The vertices of the mesh.
 
