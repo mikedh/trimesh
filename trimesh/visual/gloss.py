@@ -2,7 +2,7 @@ import numpy as np
 
 from ..constants import log
 from ..exceptions import ExceptionWrapper
-from ..typed import ArrayLike, FloatLike, Optional
+from ..typed import ArrayLike, Numeric, Optional
 
 try:
     from PIL.Image import Image, fromarray
@@ -13,7 +13,7 @@ except BaseException as E:
 
 def specular_to_pbr(
     specularFactor: Optional[ArrayLike] = None,
-    glossinessFactor: Optional[FloatLike] = None,
+    glossinessFactor: Optional[Numeric] = None,
     specularGlossinessTexture: Optional["Image"] = None,
     diffuseTexture: Optional["Image"] = None,
     diffuseFactor: Optional[ArrayLike] = None,
