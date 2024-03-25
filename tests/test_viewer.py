@@ -29,6 +29,8 @@ class ViewerTest(g.unittest.TestCase):
         assert len(png) > 0
 
     def test_methods(self):
+        if not g.include_rendering:
+            return
         # set a GL config that fixes a depth buffer issue in xvfb
         # this should raise an exception if pyglet can't get a library
         from pyglet import gl
