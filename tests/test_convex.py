@@ -20,7 +20,7 @@ class ConvexTest(g.unittest.TestCase):
             (
                 False,
                 (
-                    g.trimesh.creation.box(extents=(1, 1, 1))
+                    g.trimesh.creation.box(extents=[1, 1, 1])
                     + g.trimesh.creation.box(bounds=[[10, 10, 10], [12, 12, 12]])
                 ),
             ),

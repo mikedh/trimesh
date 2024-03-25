@@ -15,7 +15,8 @@ class Visuals(ABC):
     Parent of Visual classes.
     """
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def kind(self):
         pass
 

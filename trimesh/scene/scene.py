@@ -4,6 +4,7 @@ import uuid
 import numpy as np
 
 from .. import caching, convex, grouping, inertia, transformations, units, util
+from ..constants import log
 from ..exchange import export
 from ..parent import Geometry, Geometry3D
 from ..typed import (
@@ -492,7 +493,7 @@ class Scene(Geometry3D):
         return inertia.scene_inertia(scene=self, transform=transform)
 
     @caching.cache_decorator
-    def area(self) -> float64:
+    def area(self) -> float:
         """
         What is the summed area of every geometry which
         has area.
@@ -538,9 +539,8 @@ class Scene(Geometry3D):
         triangles : (n, 3, 3) float
           Triangles in space
         """
-        triangles = collections.deque()
-        triangles_node = collections.deque()
-
+        triangles = []
+        triangles_node = []
         for node_name in self.graph.nodes_geometry:
             # which geometry does this node refer to
             transform, geometry_name = self.graph[node_name]
@@ -559,8 +559,7 @@ class Scene(Geometry3D):
             triangles_node.append(np.tile(node_name, len(geometry.triangles)))
         # save the resulting nodes to the cache
         self._cache["triangles_node"] = np.hstack(triangles_node)
-        triangles = np.vstack(triangles).reshape((-1, 3, 3))
-        return triangles
+        return np.vstack(triangles).reshape((-1, 3, 3))
 
     @caching.cache_decorator
     def triangles_node(self):
@@ -716,7 +715,7 @@ class Scene(Geometry3D):
         return self.graph[self.camera.name][0]
 
     @camera_transform.setter
-    def camera_transform(self, matrix: NDArray[float64]):
+    def camera_transform(self, matrix: ArrayLike):
         """
         Set the camera transform in the base frame
 
@@ -995,6 +994,8 @@ class Scene(Geometry3D):
         existing = {i.units for i in self.geometry.values()}
         if len(existing) == 1:
             return existing.pop()
+        elif len(existing) > 1:
+            log.warning(f"Mixed units `{existing}` returning None")
         return None
 
     @units.setter
@@ -1008,6 +1009,7 @@ class Scene(Geometry3D):
         value : str
           Value to set every geometry unit value to
         """
+        value = value.strip().lower()
         for m in self.geometry.values():
             m.units = value
 

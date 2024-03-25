@@ -32,7 +32,8 @@ class Material(util.ABC):
     def __hash__(self):
         raise NotImplementedError("must be subclassed!")
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def main_color(self):
         """
         The "average" color of this material.
@@ -726,7 +727,7 @@ def empty_material(color: Optional[NDArray[np.uint8]] = None) -> SimpleMaterial:
     return SimpleMaterial(image=color_image(color=color))
 
 
-def color_image(color: Optional[NDArray[np.uint8]] = None) -> "Image":
+def color_image(color: Optional[NDArray[np.uint8]] = None):
     """
     Generate an image with one color.
 

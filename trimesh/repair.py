@@ -101,7 +101,6 @@ def fix_inversion(mesh, multibody=False):
         # this will make things worse for non-watertight meshes
         return
 
-
     if multibody:
         groups = graph.connected_components(mesh.face_adjacency)
         # escape early for single body

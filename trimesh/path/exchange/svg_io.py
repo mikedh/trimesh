@@ -670,7 +670,7 @@ def _deep_same(original, other):
         assert original == other
         return
     elif isinstance(original, (float, int, np.ndarray)):
-        # for numeric classes use numpy magic comparison
+        # for Number classes use numpy magic comparison
         # which includes an epsilon for floating point
         assert np.allclose(original, other)
         return

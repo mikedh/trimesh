@@ -94,7 +94,7 @@ def principal_axis(inertia):
     # you could any of the following to calculate this:
     # np.linalg.svd, np.linalg.eig, np.linalg.eigh
     # moment of inertia is square symmetric matrix
-    # eigh has the best numeric precision in tests
+    # eigh has the best precision in tests
     components, vectors = np.linalg.eigh(inertia)
 
     # eigh returns them as column vectors, change them to row vectors

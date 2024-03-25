@@ -2,7 +2,7 @@ import json
 import os
 import warnings
 
-from ..typed import IO, Dict
+from ..typed import Dict, Stream
 from ..util import decode_text, wrap_as_stream
 
 # find the current absolute path to this directory
@@ -150,7 +150,7 @@ def get_bytes(name: str) -> bytes:
     return _get(name, decode=False, decode_json=False, as_stream=False)
 
 
-def get_stream(name: str) -> IO:
+def get_stream(name: str) -> Stream:
     """
     Get a resource from the `trimesh/resources` folder as a binary stream.
 

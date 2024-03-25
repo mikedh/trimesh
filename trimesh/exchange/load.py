@@ -9,7 +9,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import List, Loadable, Optional, Union
+from ..typed import Dict, List, Loadable, Optional, Union
 from ..util import log, now
 from . import misc
 from .binvox import _binvox_loaders
@@ -71,10 +71,10 @@ def available_formats() -> set:
 def load(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Optional[resolvers.Resolver] = None,
+    resolver: Union[resolvers.Resolver, Dict, None] = None,
     force: Optional[str] = None,
     **kwargs,
-) -> Geometry:
+) -> Union[Geometry, List[Geometry]]:
     """
     Load a mesh or vectorized path into objects like
     Trimesh, Path2D, Path3D, Scene
@@ -164,7 +164,7 @@ def load(
 def load_mesh(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Optional[resolvers.Resolver] = None,
+    resolver: Union[resolvers.Resolver, Dict, None] = None,
     **kwargs,
 ) -> Union[Geometry, List[Geometry]]:
     """
@@ -508,7 +508,7 @@ def load_kwargs(*args, **kwargs) -> Geometry:
 def _parse_file_args(
     file_obj: Loadable,
     file_type: Optional[str],
-    resolver: Optional[resolvers.Resolver] = None,
+    resolver: Union[None, Dict, resolvers.Resolver] = None,
     **kwargs,
 ):
     """

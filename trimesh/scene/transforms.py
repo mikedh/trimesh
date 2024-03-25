@@ -1,12 +1,12 @@
 import collections
 from copy import deepcopy
-from typing import Sequence, Union
 
 import numpy as np
 
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
+from ..typed import Sequence, Union
 
 # we compare to identity a lot
 _identity = np.eye(4)

@@ -11,10 +11,10 @@ from .. import geometry, transformations, util
 from ..constants import tol
 from ..grouping import group_rows, unique_rows
 from ..interval import union
-from ..typed import NDArray, float64
+from ..typed import ArrayLike, NDArray, float64
 
 
-def segments_to_parameters(segments: NDArray[float64]):
+def segments_to_parameters(segments: ArrayLike):
     """
     For 3D line segments defined by two points, turn
     them in to an origin defined as the closest point along
@@ -60,7 +60,7 @@ def segments_to_parameters(segments: NDArray[float64]):
 
 
 def parameters_to_segments(
-    origins: NDArray[float64], vectors: NDArray[float64], parameters: NDArray[float64]
+    origins: NDArray[float64], vectors: ArrayLike, parameters: NDArray[float64]
 ):
     """
     Convert a parametric line segment representation to
@@ -161,7 +161,7 @@ def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
     return colinear
 
 
-def clean(segments: NDArray[float64], digits: int = 10) -> NDArray[float64]:
+def clean(segments: ArrayLike, digits: int = 10) -> NDArray[float64]:
     """
     Clean up line segments by unioning the ranges of colinear segments.
 
