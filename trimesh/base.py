@@ -58,7 +58,7 @@ except BaseException as E:
     Graph = ExceptionWrapper(E)
 
 try:
-    from rtree import Index
+    from rtree.index import Index
 except BaseException as E:
     Index = ExceptionWrapper(E)
 
@@ -337,8 +337,7 @@ class Trimesh(Geometry3D):
           dtype : bool
           shape : (len(self.vertices), len(self.faces))
         """
-        sparse = geometry.index_sparse(columns=len(self.vertices), indices=self.faces)
-        return sparse
+        return geometry.index_sparse(columns=len(self.vertices), indices=self.faces)
 
     @property
     def face_normals(self) -> NDArray[float64]:
@@ -1065,13 +1064,12 @@ class Trimesh(Geometry3D):
         euler_number : int
           Topological invariant
         """
-        euler = int(
+        return int(
             self.referenced_vertices.sum() - len(self.edges_unique) + len(self.faces)
         )
-        return euler
 
     @caching.cache_decorator
-    def referenced_vertices(self) -> NDArray[bool]:
+    def referenced_vertices(self) -> NDArray[np.bool_]:
         """
         Which vertices in the current mesh are referenced by a face.
 
@@ -1274,7 +1272,7 @@ class Trimesh(Geometry3D):
             vertex_mask = np.isfinite(self.vertices).all(axis=1)
             self.update_vertices(vertex_mask)
 
-    def unique_faces(self) -> NDArray[bool]:
+    def unique_faces(self) -> NDArray[np.bool_]:
         """
         On the current mesh find which faces are unique.
 
@@ -1440,7 +1438,7 @@ class Trimesh(Geometry3D):
         return projections
 
     @caching.cache_decorator
-    def face_adjacency_convex(self) -> NDArray[bool]:
+    def face_adjacency_convex(self) -> NDArray[np.bool_]:
         """
         Return faces which are adjacent and locally convex.
 
@@ -1673,7 +1671,7 @@ class Trimesh(Geometry3D):
         )
         self.update_faces(self.nondegenerate_faces(height=height))
 
-    def nondegenerate_faces(self, height: float = tol.merge) -> NDArray[bool]:
+    def nondegenerate_faces(self, height: float = tol.merge) -> NDArray[np.bool_]:
         """
         Identify degenerate faces (faces without 3 unique vertex indices)
         in the current mesh.
@@ -1790,7 +1788,7 @@ class Trimesh(Geometry3D):
         return edges_boundary
 
     @caching.cache_decorator
-    def facets_on_hull(self) -> NDArray[bool]:
+    def facets_on_hull(self) -> NDArray[np.bool_]:
         """
         Find which facets of the mesh are on the convex hull.
 
@@ -2960,7 +2958,7 @@ class Trimesh(Geometry3D):
             **kwargs,
         )
 
-    def contains(self, points: ArrayLike) -> NDArray[bool]:
+    def contains(self, points: ArrayLike) -> NDArray[np.bool_]:
         """
         Given an array of points determine whether or not they
         are inside the mesh. This raises an error if called on a
