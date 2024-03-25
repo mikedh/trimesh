@@ -2115,7 +2115,7 @@ def write_encoded(file_obj, stuff, encoding="utf-8"):
 
 def unique_id(length=12):
     """
-    Generate a random alphanumeric unique identifier
+    Generate a random alphaNumber unique identifier
     using UUID logic.
 
     Parameters
@@ -2126,7 +2126,7 @@ def unique_id(length=12):
     Returns
     ------------
     unique : str
-      Unique alphanumeric identifier
+      Unique alphaNumber identifier
     """
     return uuid.UUID(int=random.getrandbits(128), version=4).hex[:length]
 

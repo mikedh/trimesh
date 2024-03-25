@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-from ..typed import BinaryIO, Dict, FloatLike, Optional
+from ..typed import BinaryIO, Dict, Number, Optional
 
 # used as an intermediate format
 from .gltf import load_glb
@@ -10,8 +10,8 @@ from .gltf import load_glb
 def load_step(
     file_obj: BinaryIO,
     file_type,
-    tol_linear: Optional[FloatLike] = None,
-    tol_angular: Optional[FloatLike] = None,
+    tol_linear: Optional[Number] = None,
+    tol_angular: Optional[Number] = None,
     tol_relative: Optional[bool] = False,
     merge_primitives: bool = True,
     **kwargs,

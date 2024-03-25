@@ -43,7 +43,7 @@ from .exchange.export import export_mesh
 from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
-from .typed import Any, ArrayLike, Dict, List, NDArray, Numeric, Optional, Sequence, Union
+from .typed import Any, ArrayLike, Dict, List, NDArray, Number, Optional, Sequence, Union
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
 try:
@@ -629,7 +629,7 @@ class Trimesh(Geometry3D):
         return float(self.mass_properties.density)
 
     @density.setter
-    def density(self, value: Numeric) -> None:
+    def density(self, value: Number) -> None:
         """
         Set the density of the primitive.
 

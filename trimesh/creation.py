@@ -15,7 +15,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
-from .typed import ArrayLike, Dict, IntLike, Numeric, Optional
+from .typed import ArrayLike, Dict, Integer, Number, Optional
 
 try:
     # shapely is a soft dependency
@@ -35,8 +35,8 @@ except BaseException as E:
 
 def revolve(
     linestring: ArrayLike,
-    angle: Optional[Numeric] = None,
-    sections: Optional[IntLike] = None,
+    angle: Optional[Number] = None,
+    sections: Optional[Integer] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
 ) -> Trimesh:
@@ -173,7 +173,7 @@ def revolve(
 
 
 def extrude_polygon(
-    polygon: "Polygon", height: Numeric, transform: Optional[ArrayLike] = None, **kwargs
+    polygon: "Polygon", height: Number, transform: Optional[ArrayLike] = None, **kwargs
 ) -> Trimesh:
     """
     Extrude a 2D shapely polygon into a 3D mesh
@@ -315,7 +315,7 @@ def sweep_polygon(
 def extrude_triangulation(
     vertices: ArrayLike,
     faces: ArrayLike,
-    height: Numeric,
+    height: Number,
     transform: Optional[ArrayLike] = None,
     **kwargs,
 ) -> Trimesh:
@@ -835,7 +835,7 @@ def icosahedron(**kwargs) -> Trimesh:
     )
 
 
-def icosphere(subdivisions: IntLike = 3, radius: Numeric = 1.0, **kwargs):
+def icosphere(subdivisions: Integer = 3, radius: Number = 1.0, **kwargs):
     """
     Create an isophere centered at the origin.
 
@@ -885,7 +885,7 @@ def icosphere(subdivisions: IntLike = 3, radius: Numeric = 1.0, **kwargs):
 
 
 def uv_sphere(
-    radius: Numeric = 1.0,
+    radius: Number = 1.0,
     count: Optional[ArrayLike] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
@@ -934,8 +934,8 @@ def uv_sphere(
 
 
 def capsule(
-    height: Numeric = 1.0,
-    radius: Numeric = 1.0,
+    height: Number = 1.0,
+    radius: Number = 1.0,
     count: Optional[ArrayLike] = None,
     transform: Optional[ArrayLike] = None,
 ):
@@ -987,9 +987,9 @@ def capsule(
 
 
 def cone(
-    radius: Numeric,
-    height: Numeric,
-    sections: Optional[IntLike] = None,
+    radius: Number,
+    height: Number,
+    sections: Optional[Integer] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
 ) -> Trimesh:
@@ -1028,9 +1028,9 @@ def cone(
 
 
 def cylinder(
-    radius: Numeric,
-    height: Optional[Numeric] = None,
-    sections: Optional[IntLike] = None,
+    radius: Number,
+    height: Optional[Number] = None,
+    sections: Optional[Integer] = None,
     segment: Optional[ArrayLike] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
@@ -1079,10 +1079,10 @@ def cylinder(
 
 
 def annulus(
-    r_min: Numeric,
-    r_max: Numeric,
-    height: Optional[Numeric] = None,
-    sections: Optional[IntLike] = None,
+    r_min: Number,
+    r_max: Number,
+    height: Optional[Number] = None,
+    sections: Optional[Integer] = None,
     transform: Optional[ArrayLike] = None,
     segment: Optional[ArrayLike] = None,
     **kwargs,
@@ -1185,7 +1185,7 @@ def _segment_to_cylinder(segment: ArrayLike):
     return transform, height
 
 
-def random_soup(face_count: IntLike = 100):
+def random_soup(face_count: Integer = 100):
     """
     Return random triangles as a Trimesh
 
@@ -1206,11 +1206,11 @@ def random_soup(face_count: IntLike = 100):
 
 
 def axis(
-    origin_size: Numeric = 0.04,
+    origin_size: Number = 0.04,
     transform: Optional[ArrayLike] = None,
     origin_color: Optional[ArrayLike] = None,
-    axis_radius: Optional[Numeric] = None,
-    axis_length: Optional[Numeric] = None,
+    axis_radius: Optional[Number] = None,
+    axis_length: Optional[Number] = None,
 ):
     """
     Return an XYZ axis marker as a  Trimesh, which represents position
@@ -1292,7 +1292,7 @@ def axis(
 
 
 def camera_marker(
-    camera, marker_height: Numeric = 0.4, origin_size: Optional[Numeric] = None
+    camera, marker_height: Number = 0.4, origin_size: Optional[Number] = None
 ):
     """
     Create a visual marker for a camera object, including an axis and FOV.
@@ -1419,10 +1419,10 @@ def truncated_prisms(
 
 
 def torus(
-    major_radius: Numeric,
-    minor_radius: Numeric,
-    major_sections: IntLike = 32,
-    minor_sections: IntLike = 32,
+    major_radius: Number,
+    minor_radius: Number,
+    major_sections: Integer = 32,
+    minor_sections: Integer = 32,
     transform: Optional[ArrayLike] = None,
     **kwargs,
 ):

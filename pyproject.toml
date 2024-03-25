@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.2.0"
+version = "4.2.1"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -26,7 +26,8 @@ classifiers = [
     "Topic :: Multimedia :: Graphics :: 3D Modeling"
 ]
 urls = {Homepage = "https://github.com/mikedh/trimesh"}
-dependencies = ["numpy"]
+
+dependencies = ["numpy>=1.20"]
 
 [project.readme]
 file = "README.md"
@@ -91,7 +92,7 @@ recommend = [
     "python-fcl", # do collision checks
     "openctm", # load `CTM` compressed models
     "cascadio", # load `STEP` files
-    "manifold3d>=2.3.0"
+    "manifold3d>=2.3.0" # do boolean operations
 ]
 
 # this is the list of everything that is ever added anywhere

@@ -10,8 +10,9 @@ from typing import (
     Union,
 )
 
-# our default integer and floating point types
-from numpy import float64, floating, int64, integer
+from numpy import float64, floating, int64, integer, unsignedinteger
+
+# requires numpy>=1.20
 from numpy.typing import ArrayLike, NDArray
 
 if version_info >= (3, 9):
@@ -29,14 +30,15 @@ else:
 Stream = Union[IO, BytesIO, StringIO, BinaryIO, TextIO]
 Loadable = Union[str, Path, Stream, Dict, None]
 
+# numpy integers do not inherit from python integers, i.e.
 # if you type a function argument as an `int` and then pass
 # a value from a numpy array like `np.ones(10, dtype=np.int64)[0]`
-# you will have a type error as `np.integer` does not
-# inherit from `int`
+# you may have a type error.
 # these wrappers union numpy integers and python integers
-IntLike = Union[int, integer]
-FloatLike = Union[float, floating]
-Numeric = Union[int, integer, float, floating]
+Integer = Union[int, integer, unsignedinteger]
+
+# Many arguments take "any valid number."
+Number = Union[float, floating, Integer]
 
 __all__ = [
     "NDArray",
@@ -53,5 +55,7 @@ __all__ = [
     "Tuple",
     "float64",
     "int64",
-    "Numeric",
+    "Number",
+    "Integer",
+    "Stream",
 ]

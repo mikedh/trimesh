@@ -8,13 +8,13 @@ Randomly sample surface and volume of meshes.
 import numpy as np
 
 from . import transformations, util
-from .typed import ArrayLike, FloatLike, IntLike, NDArray, Optional, float64
+from .typed import ArrayLike, Integer, NDArray, Number, Optional, float64
 from .visual import uv_to_interpolated_color
 
 
 def sample_surface(
     mesh,
-    count: IntLike,
+    count: Integer,
     face_weight: Optional[ArrayLike] = None,
     sample_color=False,
     seed=None,
@@ -121,7 +121,7 @@ def sample_surface(
     return samples, face_index
 
 
-def volume_mesh(mesh, count: IntLike) -> NDArray[float64]:
+def volume_mesh(mesh, count: Integer) -> NDArray[float64]:
     """
     Use rejection sampling to produce points randomly
     distributed in the volume of a mesh.
@@ -146,7 +146,7 @@ def volume_mesh(mesh, count: IntLike) -> NDArray[float64]:
 
 
 def volume_rectangular(
-    extents, count: IntLike, transform: Optional[ArrayLike] = None
+    extents, count: Integer, transform: Optional[ArrayLike] = None
 ) -> NDArray[float64]:
     """
     Return random samples inside a rectangular volume,
@@ -173,9 +173,7 @@ def volume_rectangular(
     return samples
 
 
-def sample_surface_even(
-    mesh, count: IntLike, radius: Optional[FloatLike] = None, seed=None
-):
+def sample_surface_even(mesh, count: Integer, radius: Optional[Number] = None, seed=None):
     """
     Sample the surface of a mesh, returning samples which are
     VERY approximately evenly spaced. This is accomplished by
