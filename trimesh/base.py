@@ -36,13 +36,14 @@ from . import (
     units,
     util,
 )
+from .caching import TrackedArray
 from .constants import log, tol
 from .exceptions import ExceptionWrapper
 from .exchange.export import export_mesh
 from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
-from .typed import Any, ArrayLike, Dict, List, NDArray, Optional, Tuple, Union
+from .typed import Any, ArrayLike, Dict, List, NDArray, Number, Optional, Sequence, Union
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
 try:
@@ -57,7 +58,7 @@ except BaseException as E:
     Graph = ExceptionWrapper(E)
 
 try:
-    from rtree import Index
+    from rtree.index import Index
 except BaseException as E:
     Index = ExceptionWrapper(E)
 
@@ -73,12 +74,12 @@ class Trimesh(Geometry3D):
         self,
         vertices: Optional[ArrayLike] = None,
         faces: Optional[ArrayLike] = None,
-        face_normals: Optional[NDArray[float64]] = None,
-        vertex_normals: Optional[NDArray[float64]] = None,
-        face_colors: Optional[NDArray[float64]] = None,
-        vertex_colors: Optional[NDArray[float64]] = None,
-        face_attributes: Optional[Dict[str, NDArray]] = None,
-        vertex_attributes: Optional[Dict[str, NDArray]] = None,
+        face_normals: Optional[ArrayLike] = None,
+        vertex_normals: Optional[ArrayLike] = None,
+        face_colors: Optional[ArrayLike] = None,
+        vertex_colors: Optional[ArrayLike] = None,
+        face_attributes: Optional[Dict[str, ArrayLike]] = None,
+        vertex_attributes: Optional[Dict[str, ArrayLike]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         process: bool = True,
         validate: bool = False,
@@ -122,9 +123,6 @@ class Trimesh(Geometry3D):
           Assigned to self.visual
         """
 
-        if initial_cache is None:
-            initial_cache = {}
-
         # self._data stores information about the mesh which
         # CANNOT be regenerated.
         # in the base class all that is stored here is vertex and
@@ -139,15 +137,16 @@ class Trimesh(Geometry3D):
         # In order to maintain consistency
         # the cache is cleared when self._data.__hash__() changes
         self._cache = caching.Cache(id_function=self._data.__hash__, force_immutable=True)
-        self._cache.update(initial_cache)
+        if initial_cache is not None:
+            self._cache.update(initial_cache)
 
         # check for None only to avoid warning messages in subclasses
-        if vertices is not None:
-            # (n, 3) float, set of vertices
-            self.vertices = vertices
-        if faces is not None:
-            # (m, 3) int of triangle faces, references self.vertices
-            self.faces = faces
+
+        # (n, 3) float array of vertices
+        self.vertices = vertices
+
+        # (m, 3) int of triangle faces that references self.vertices
+        self.faces = faces
 
         # hold visual information about the mesh (vertex and face colors)
         if visual is None:
@@ -185,9 +184,8 @@ class Trimesh(Geometry3D):
         # convenience class for nearest point queries
         self.nearest = proximity.ProximityQuery(self)
 
-        # store metadata about the mesh in a dictionary
-        self.metadata = {}
         # update the mesh metadata with passed metadata
+        self.metadata = {}
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
         elif metadata is not None:
@@ -225,8 +223,8 @@ class Trimesh(Geometry3D):
                of their 2D oriented bounding box
                shorter than tol.merge
             4) remove duplicated triangles
-            5) ensure triangles are consistently wound
-               and normals face outwards
+            5) Attempt to ensure triangles are consistently wound
+               and normals face outwards.
 
         Parameters
         ------------
@@ -249,8 +247,8 @@ class Trimesh(Geometry3D):
             if validate:
                 # get a mask with only unique and non-degenerate faces
                 mask = self.unique_faces() & self.nondegenerate_faces()
-                self.fix_normals()
                 self.update_faces(mask)
+                self.fix_normals()
 
             # since none of our process operations moved vertices or faces
             # we can keep face and vertex normals in the cache without recomputing
@@ -288,7 +286,7 @@ class Trimesh(Geometry3D):
         self._data.mutable = value
 
     @property
-    def faces(self) -> NDArray[int64]:
+    def faces(self) -> TrackedArray:
         """
         The faces of the mesh.
 
@@ -302,10 +300,10 @@ class Trimesh(Geometry3D):
         faces : (n, 3) int64
           References for `self.vertices` for triangles.
         """
-        return self._data.get("faces", np.empty(shape=(0, 3), dtype=int64))
+        return self._data["faces"]
 
     @faces.setter
-    def faces(self, values: Union[List[List[int]], NDArray[int64]]):
+    def faces(self, values: Optional[ArrayLike]) -> None:
         """
         Set the vertex indexes that make up triangular faces.
 
@@ -314,15 +312,17 @@ class Trimesh(Geometry3D):
         values : (n, 3) int64
           Indexes of self.vertices
         """
-        if values is None or len(values) == 0:
-            return self._data.data.pop("faces", None)
-        if not (isinstance(values, np.ndarray) and values.dtype == int64):
+        if values is None:
+            # if passed none store an empty array
+            values = np.empty(shape=(0, 3), dtype=int64)
+        else:
             values = np.asanyarray(values, dtype=int64)
 
         # automatically triangulate quad faces
         if len(values.shape) == 2 and values.shape[1] != 3:
             log.info("triangulating faces")
             values = geometry.triangulate_quads(values)
+
         self._data["faces"] = values
 
     @caching.cache_decorator
@@ -337,8 +337,7 @@ class Trimesh(Geometry3D):
           dtype : bool
           shape : (len(self.vertices), len(self.faces))
         """
-        sparse = geometry.index_sparse(columns=len(self.vertices), indices=self.faces)
-        return sparse
+        return geometry.index_sparse(columns=len(self.vertices), indices=self.faces)
 
     @property
     def face_normals(self) -> NDArray[float64]:
@@ -363,7 +362,7 @@ class Trimesh(Geometry3D):
 
         # if we have no faces exit early
         if faces is None or len(faces) == 0:
-            return np.array([], dtype=int64).reshape((0, 3))
+            return np.array([], dtype=float64).reshape((0, 3))
 
         # if the shape of cached normals equals the shape of faces return
         if np.shape(cached) == np.shape(faces):
@@ -393,14 +392,14 @@ class Trimesh(Geometry3D):
         return padded
 
     @face_normals.setter
-    def face_normals(self, values: NDArray[float64]) -> None:
+    def face_normals(self, values: Optional[ArrayLike]) -> None:
         """
         Assign values to face normals.
 
         Parameters
         -------------
         values : (len(self.faces), 3) float
-          Unit face normals
+          Unit face normals. If None will clear existing normals.
         """
         # if nothing passed exit
         if values is None:
@@ -433,7 +432,7 @@ class Trimesh(Geometry3D):
         self._cache["face_normals"] = values
 
     @property
-    def vertices(self) -> NDArray[float64]:
+    def vertices(self) -> TrackedArray:
         """
         The vertices of the mesh.
 
@@ -447,10 +446,11 @@ class Trimesh(Geometry3D):
         vertices : (n, 3) float
           Points in cartesian space referenced by self.faces
         """
-        return self._data.get("vertices", np.empty(shape=(0, 3), dtype=float64))
+        # get vertices if already stored
+        return self._data["vertices"]
 
     @vertices.setter
-    def vertices(self, values: ArrayLike):
+    def vertices(self, values: Optional[ArrayLike]):
         """
         Assign vertex values to the mesh.
 
@@ -459,8 +459,9 @@ class Trimesh(Geometry3D):
         values : (n, 3) float
           Points in space
         """
-        if values is None or len(values) == 0:
-            return self._data.data.pop("vertices", None)
+        if values is None:
+            # remove any stored data and store an empty array
+            values = np.empty(shape=(0, 3), dtype=float64)
         self._data["vertices"] = np.asanyarray(values, order="C", dtype=float64)
 
     @caching.cache_decorator
@@ -481,13 +482,12 @@ class Trimesh(Geometry3D):
         """
         # make sure we have faces_sparse
         assert hasattr(self.faces_sparse, "dot")
-        vertex_normals = geometry.weighted_vertex_normals(
+        return geometry.weighted_vertex_normals(
             vertex_count=len(self.vertices),
             faces=self.faces,
             face_normals=self.face_normals,
             face_angles=self.face_angles,
         )
-        return vertex_normals
 
     @vertex_normals.setter
     def vertex_normals(self, values: ArrayLike) -> None:
@@ -601,7 +601,7 @@ class Trimesh(Geometry3D):
         return self.mass_properties.center_mass
 
     @center_mass.setter
-    def center_mass(self, value: NDArray[float64]) -> None:
+    def center_mass(self, value: ArrayLike) -> None:
         """
         Override the point in space which is the center of mass and volume.
 
@@ -626,10 +626,10 @@ class Trimesh(Geometry3D):
         density
           The density of the primitive.
         """
-        return self.mass_properties.density
+        return float(self.mass_properties.density)
 
     @density.setter
-    def density(self, value: float) -> None:
+    def density(self, value: Number) -> None:
         """
         Set the density of the primitive.
 
@@ -687,7 +687,7 @@ class Trimesh(Geometry3D):
         """
         return self.mass_properties.inertia
 
-    def moment_inertia_frame(self, transform: NDArray[float64]) -> NDArray[float64]:
+    def moment_inertia_frame(self, transform: ArrayLike) -> NDArray[float64]:
         """
         Get the moment of inertia of this mesh with respect to
         an arbitrary frame, versus with respect to the center
@@ -801,7 +801,7 @@ class Trimesh(Geometry3D):
         return symmetry
 
     @property
-    def symmetry_axis(self) -> NDArray[float64]:
+    def symmetry_axis(self) -> Optional[NDArray[float64]]:
         """
         If a mesh has rotational symmetry, return the axis.
 
@@ -810,11 +810,12 @@ class Trimesh(Geometry3D):
         axis : (3, ) float
           Axis around which a 2D profile was revolved to create this mesh.
         """
-        if self.symmetry is not None:
-            return self._cache["symmetry_axis"]
+        if self.symmetry is None:
+            return None
+        return self._cache["symmetry_axis"]
 
     @property
-    def symmetry_section(self) -> NDArray[float64]:
+    def symmetry_section(self) -> Optional[NDArray[float64]]:
         """
         If a mesh has rotational symmetry return the two
         vectors which make up a section coordinate frame.
@@ -824,8 +825,9 @@ class Trimesh(Geometry3D):
         section : (2, 3) float
           Vectors to take a section along
         """
-        if self.symmetry is not None:
-            return self._cache["symmetry_section"]
+        if self.symmetry is None:
+            return None
+        return self._cache["symmetry_section"]
 
     @caching.cache_decorator
     def triangles(self) -> NDArray[float64]:
@@ -1062,13 +1064,12 @@ class Trimesh(Geometry3D):
         euler_number : int
           Topological invariant
         """
-        euler = int(
+        return int(
             self.referenced_vertices.sum() - len(self.edges_unique) + len(self.faces)
         )
-        return euler
 
     @caching.cache_decorator
-    def referenced_vertices(self) -> NDArray[bool]:
+    def referenced_vertices(self) -> NDArray[np.bool_]:
         """
         Which vertices in the current mesh are referenced by a face.
 
@@ -1080,25 +1081,6 @@ class Trimesh(Geometry3D):
         referenced = np.zeros(len(self.vertices), dtype=bool)
         referenced[self.faces] = True
         return referenced
-
-    @property
-    def units(self) -> Optional[str]:
-        """
-        Definition of units for the mesh.
-
-        Returns
-        ----------
-        units : str
-          Unit system mesh is in, or None if not defined
-        """
-        return self.metadata.get("units", None)
-
-    @units.setter
-    def units(self, value: str) -> None:
-        """
-        Define the units of the current mesh.
-        """
-        self.metadata["units"] = str(value).lower()
 
     def convert_units(self, desired: str, guess: bool = False) -> "Trimesh":
         """
@@ -1290,7 +1272,7 @@ class Trimesh(Geometry3D):
             vertex_mask = np.isfinite(self.vertices).all(axis=1)
             self.update_vertices(vertex_mask)
 
-    def unique_faces(self) -> NDArray[bool]:
+    def unique_faces(self) -> NDArray[np.bool_]:
         """
         On the current mesh find which faces are unique.
 
@@ -1456,7 +1438,7 @@ class Trimesh(Geometry3D):
         return projections
 
     @caching.cache_decorator
-    def face_adjacency_convex(self) -> NDArray[bool]:
+    def face_adjacency_convex(self) -> NDArray[np.bool_]:
         """
         Return faces which are adjacent and locally convex.
 
@@ -1689,7 +1671,7 @@ class Trimesh(Geometry3D):
         )
         self.update_faces(self.nondegenerate_faces(height=height))
 
-    def nondegenerate_faces(self, height: float = tol.merge) -> NDArray[bool]:
+    def nondegenerate_faces(self, height: float = tol.merge) -> NDArray[np.bool_]:
         """
         Identify degenerate faces (faces without 3 unique vertex indices)
         in the current mesh.
@@ -1806,7 +1788,7 @@ class Trimesh(Geometry3D):
         return edges_boundary
 
     @caching.cache_decorator
-    def facets_on_hull(self) -> NDArray[bool]:
+    def facets_on_hull(self) -> NDArray[np.bool_]:
         """
         Find which facets of the mesh are on the convex hull.
 
@@ -1868,7 +1850,7 @@ class Trimesh(Geometry3D):
         """
         return repair.fill_holes(self)
 
-    def register(self, other: Geometry3D, **kwargs):
+    def register(self, other: Union[Geometry3D, NDArray], **kwargs):
         """
         Align a mesh with another mesh or a PointCloud using
         the principal axes of inertia as a starting point which
@@ -1876,8 +1858,6 @@ class Trimesh(Geometry3D):
 
         Parameters
         ------------
-        mesh : trimesh.Trimesh object
-          Mesh to align with other
         other : trimesh.Trimesh or (n, 3) float
           Mesh or points in space
         samples : int
@@ -1955,14 +1935,14 @@ class Trimesh(Geometry3D):
             threshold=threshold,
         )
 
-    def subdivide(self, face_index: None = None) -> "Trimesh":
+    def subdivide(self, face_index: Optional[ArrayLike] = None) -> "Trimesh":
         """
-        Subdivide a mesh, with each subdivided face replaced with four
-        smaller faces.
+        Subdivide a mesh, with each subdivided face replaced
+        with four smaller faces.
 
         Parameters
         ------------
-        face_index: (m, ) int or None
+        face_index : (m, ) int or None
           If None all faces of mesh will be subdivided
           If (m, ) int array of indices: only specified faces will be
           subdivided. Note that in this case the mesh will generally
@@ -1971,8 +1951,6 @@ class Trimesh(Geometry3D):
           and an additional postprocessing step will be required to
           make resulting mesh watertight
         """
-        # subdivide vertex attributes
-        vertex_attributes = {}
         visual = None
         if hasattr(self.visual, "uv") and np.shape(self.visual.uv) == (
             len(self.vertices),
@@ -1983,7 +1961,7 @@ class Trimesh(Geometry3D):
                 vertices=np.hstack((self.vertices, self.visual.uv)),
                 faces=self.faces,
                 face_index=face_index,
-                vertex_attributes=vertex_attributes,
+                vertex_attributes=self.vertex_attributes,
             )
 
             # get a copy of the current visuals
@@ -1998,7 +1976,7 @@ class Trimesh(Geometry3D):
                 vertices=self.vertices,
                 faces=self.faces,
                 face_index=face_index,
-                vertex_attributes=vertex_attributes,
+                vertex_attributes=self.vertex_attributes,
             )
 
         # create a new mesh
@@ -2434,7 +2412,7 @@ class Trimesh(Geometry3D):
         # keep face normals as the haven't changed
         self._cache.clear(exclude=["face_normals"])
 
-    def apply_transform(self, matrix: NDArray[float64]) -> "Trimesh":
+    def apply_transform(self, matrix: ArrayLike) -> "Trimesh":
         """
         Transform mesh by a homogeneous transformation matrix.
 
@@ -2767,7 +2745,9 @@ class Trimesh(Geometry3D):
         scene = self.scene()
         return scene.show(**kwargs)
 
-    def submesh(self, faces_sequence: List[NDArray[int64]], **kwargs):
+    def submesh(
+        self, faces_sequence: Sequence[ArrayLike], **kwargs
+    ) -> Union["Trimesh", List["Trimesh"]]:
         """
         Return a subset of the mesh.
 
@@ -2819,12 +2799,7 @@ class Trimesh(Geometry3D):
         file_obj=None,
         file_type: Optional[str] = None,
         **kwargs,
-    ) -> Union[
-        Dict[str, Union[Dict[str, str], List[List[int]], List[List[float]]]],
-        str,
-        bytes,
-        Dict[str, Union[Dict[str, str], Dict[str, Union[str, Tuple[int, int]]]]],
-    ]:
+    ):
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
@@ -2983,7 +2958,7 @@ class Trimesh(Geometry3D):
             **kwargs,
         )
 
-    def contains(self, points: ArrayLike) -> NDArray[bool]:
+    def contains(self, points: ArrayLike) -> NDArray[np.bool_]:
         """
         Given an array of points determine whether or not they
         are inside the mesh. This raises an error if called on a

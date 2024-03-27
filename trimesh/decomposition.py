@@ -1,6 +1,6 @@
-from typing import Dict, List
-
 import numpy as np
+
+from .typed import Dict, List
 
 
 def convex_decomposition(mesh, **kwargs) -> List[Dict]:

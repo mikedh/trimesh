@@ -19,7 +19,7 @@ from ..constants import tol_path as tol
 from ..exceptions import ExceptionWrapper
 from ..geometry import plane_transform
 from ..points import plane_fit
-from ..typed import Dict, Iterable, List, NDArray, Optional, float64, int64
+from ..typed import ArrayLike, Dict, Iterable, List, NDArray, Optional, float64, int64
 from ..visual import to_rgba
 from . import (
     creation,  # NOQA
@@ -74,7 +74,7 @@ class Path(parent.Geometry):
     def __init__(
         self,
         entities: Optional[Iterable[Entity]] = None,
-        vertices: Optional[NDArray[float64]] = None,
+        vertices: Optional[ArrayLike] = None,
         metadata: Optional[Dict] = None,
         process: bool = True,
         colors=None,
@@ -117,9 +117,7 @@ class Path(parent.Geometry):
         """
         Print a quick summary of the number of vertices and entities.
         """
-        return "<trimesh.{}(vertices.shape={}, len(entities)={})>".format(
-            type(self).__name__, self.vertices.shape, len(self.entities)
-        )
+        return f"<trimesh.{type(self).__name__}(vertices.shape={self.vertices.shape}, len(entities)={len(self.entities)})>"
 
     def process(self):
         """
@@ -173,12 +171,15 @@ class Path(parent.Geometry):
             e.color = c
 
     @property
-    def vertices(self):
+    def vertices(self) -> NDArray[float64]:
         return self._vertices
 
     @vertices.setter
-    def vertices(self, values: NDArray[float64]):
-        self._vertices = caching.tracked_array(values, dtype=np.float64)
+    def vertices(self, values: Optional[ArrayLike]):
+        if values is None:
+            self._vertices = caching.tracked_array([], dtype=np.float64)
+        else:
+            self._vertices = caching.tracked_array(values, dtype=np.float64)
 
     @property
     def entities(self):
@@ -352,25 +353,6 @@ class Path(parent.Geometry):
           Edge length of AABB
         """
         return self.bounds.ptp(axis=0)
-
-    @property
-    def units(self):
-        """
-        If there are units defined in self.metadata return them.
-
-        Returns
-        -----------
-        units : str
-          Current unit system
-        """
-        if "units" in self.metadata:
-            return self.metadata["units"]
-        else:
-            return None
-
-    @units.setter
-    def units(self, units):
-        self.metadata["units"] = units
 
     def convert_units(self, desired: str, guess: bool = False):
         """

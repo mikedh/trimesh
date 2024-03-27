@@ -8,10 +8,10 @@ Deal with 1D intervals which are defined by:
 
 import numpy as np
 
-from .typed import NDArray, float64
+from .typed import ArrayLike, NDArray, float64
 
 
-def intersection(a: NDArray[float64], b: NDArray[float64]) -> NDArray[float64]:
+def intersection(a: ArrayLike, b: NDArray[float64]) -> NDArray[float64]:
     """
     Given pairs of ranges merge them in to
     one range if they overlap.
@@ -59,7 +59,7 @@ def intersection(a: NDArray[float64], b: NDArray[float64]) -> NDArray[float64]:
     return overlap
 
 
-def union(intervals: NDArray[float64], sort: bool = True) -> NDArray[float64]:
+def union(intervals: ArrayLike, sort: bool = True) -> NDArray[float64]:
     """
     For array of multiple intervals union them all into
     the subset of intervals.

@@ -48,13 +48,6 @@ class AlignTests(g.unittest.TestCase):
                 assert norm < tol_norm
 
         norms = g.np.array(norms)
-        g.log.debug(
-            "vector error after transform:\n"
-            + "err.ptp: {}\nerr.std: {}\nerr.mean: {}\nerr.median: {}".format(
-                norms.ptp(), norms.std(), norms.mean(), g.np.median(norms)
-            )
-        )
-
         # these vectors should be perpendicular and zero
         angles = [
             align(i, target, return_angle=True)[1]

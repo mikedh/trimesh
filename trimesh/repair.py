@@ -97,6 +97,10 @@ def fix_inversion(mesh, multibody=False):
     multibody : bool
       If True will try to fix normals on every body
     """
+    if not mesh.is_watertight:
+        # this will make things worse for non-watertight meshes
+        return
+
     if multibody:
         groups = graph.connected_components(mesh.face_adjacency)
         # escape early for single body

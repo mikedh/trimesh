@@ -39,31 +39,38 @@ class Encoding(ABC):
         self._data = data
         self._cache = caching.Cache(id_function=self._data.__hash__)
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def dtype(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def shape(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def sum(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def size(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def sparse_indices(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def sparse_values(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def dense(self):
         pass
 

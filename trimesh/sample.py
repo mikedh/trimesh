@@ -8,19 +8,17 @@ Randomly sample surface and volume of meshes.
 import numpy as np
 
 from . import transformations, util
+from .typed import ArrayLike, Integer, NDArray, Number, Optional, float64
 from .visual import uv_to_interpolated_color
 
-if hasattr(np.random, "default_rng"):
-    # newer versions of Numpy
-    default_rng = np.random.default_rng
-else:
-    # Python 2 Numpy
-    class default_rng(np.random.RandomState):
-        def random(self, *args, **kwargs):
-            return self.random_sample(*args, **kwargs)
 
-
-def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None):
+def sample_surface(
+    mesh,
+    count: Integer,
+    face_weight: Optional[ArrayLike] = None,
+    sample_color=False,
+    seed=None,
+):
     """
     Sample the surface of a mesh, returning the specified
     number of points
@@ -64,7 +62,10 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
     weight_cum = np.cumsum(face_weight)
 
     # seed the random number generator as requested
-    random = default_rng(seed).random
+    if seed is None:
+        random = np.random.random
+    else:
+        random = np.random.default_rng(seed).random
 
     # last value of cumulative sum is total summed weight/area
     face_pick = random(count) * weight_cum[-1]
@@ -120,7 +121,7 @@ def sample_surface(mesh, count, face_weight=None, sample_color=False, seed=None)
     return samples, face_index
 
 
-def volume_mesh(mesh, count):
+def volume_mesh(mesh, count: Integer) -> NDArray[float64]:
     """
     Use rejection sampling to produce points randomly
     distributed in the volume of a mesh.
@@ -144,7 +145,9 @@ def volume_mesh(mesh, count):
     return samples
 
 
-def volume_rectangular(extents, count, transform=None):
+def volume_rectangular(
+    extents, count: Integer, transform: Optional[ArrayLike] = None
+) -> NDArray[float64]:
     """
     Return random samples inside a rectangular volume,
     useful for sampling inside oriented bounding boxes.
@@ -170,7 +173,7 @@ def volume_rectangular(extents, count, transform=None):
     return samples
 
 
-def sample_surface_even(mesh, count, radius=None, seed=None):
+def sample_surface_even(mesh, count: Integer, radius: Optional[Number] = None, seed=None):
     """
     Sample the surface of a mesh, returning samples which are
     VERY approximately evenly spaced. This is accomplished by
@@ -220,7 +223,7 @@ def sample_surface_even(mesh, count, radius=None, seed=None):
     return points, index[mask]
 
 
-def sample_surface_sphere(count):
+def sample_surface_sphere(count: int) -> NDArray[float64]:
     """
     Correctly pick random points on the surface of a unit sphere
 

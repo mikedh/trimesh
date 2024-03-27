@@ -6,7 +6,7 @@ from .. import util
 from ..constants import log
 from ..constants import res_path as res
 from ..constants import tol_path as tol
-from ..typed import ArrayLike, NDArray, Optional, float64
+from ..typed import ArrayLike, NDArray, Number, Optional, float64
 
 # floating point zero
 _TOL_ZERO = 1e-12
@@ -28,7 +28,7 @@ class ArcInfo:
     angles: Optional[NDArray[float64]] = None
 
     # what is the angular span of this circular arc.
-    span: Optional[float] = None
+    span: Optional[Number] = None
 
     def __getitem__(self, item):
         # add for backwards compatibility

@@ -69,23 +69,18 @@ USER user
 # install things like pytest
 RUN pip install -e .[all]
 
-# check formatting
-RUN ruff trimesh
+# check for lint problems
+RUN ruff check trimesh
 
-
-
-## TODO : get typeguard to pass on more/all of the codebase
-## this is running on a very arbitrary subset right now!
-RUN pytest \
-    --typeguard-packages=trimesh.scene,trimesh.base \
-    -p no:ALL_DEPENDENCIES \
-    -p no:INCLUDE_RENDERING \
-    -p no:cacheprovider tests/test_s*
-
+# run a limited array of static type checks
+# TODO : get this to pass on base
+RUN pyright trimesh/base.py || true
 
 # run pytest wrapped with xvfb for simple viewer tests
-RUN xvfb-run pytest \
+# print more columns so the short summary is usable
+RUN COLUMNS=240 xvfb-run pytest \
     --cov=trimesh \
+    --beartype-packages=trimesh \
     -p no:ALL_DEPENDENCIES \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests

@@ -206,7 +206,7 @@ def discretize_path(entities, vertices, path, scale=1.0):
         Indexes of entities
     scale : float
         Overall scale of drawing used for
-        numeric tolerances in certain cases
+        Number tolerances in certain cases
 
     Returns
     -----------
