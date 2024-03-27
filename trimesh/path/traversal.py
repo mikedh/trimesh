@@ -3,6 +3,7 @@ import copy
 import numpy as np
 
 from .. import constants, grouping, util
+from ..typed import List
 from .util import is_ccw
 
 try:
@@ -361,7 +362,7 @@ def resample_path(points, count=None, step=None, step_round=True):
     return resampled
 
 
-def split(path):
+def split(path) -> List:
     """
     Split a Path2D into multiple Path2D objects where each
     one has exactly one root curve.
@@ -384,9 +385,8 @@ def split(path):
 
     # get objects from cache to avoid a bajillion
     # cache checks inside the tight loop
-    paths = path.paths
-    discrete = path.discrete
-    polygons_closed = path.polygons_closed
+    paths = path.entity_cycles
+
     enclosure_directed = path.enclosure_directed
 
     for root_index, root in enumerate(path.root):
@@ -410,7 +410,7 @@ def split(path):
         metadata = copy.deepcopy(path.metadata)
         metadata["split_2D"] = root_index
         # we made the root path the last index of connected
-        new_root = np.array([len(new_paths) - 1])
+        np.array([len(new_paths) - 1])
 
         # prevents the copying from nuking our cache
         with path._cache:
@@ -422,16 +422,5 @@ def split(path):
                     metadata=metadata,
                 )
             )
-            # add back expensive things to the cache
-            split[-1]._cache.update(
-                {
-                    "paths": new_paths,
-                    "polygons_closed": polygons_closed[connected],
-                    "discrete": [discrete[c] for c in connected],
-                    "root": new_root,
-                }
-            )
-            # set the cache ID
-            split[-1]._cache.id_set()
 
     return np.array(split)

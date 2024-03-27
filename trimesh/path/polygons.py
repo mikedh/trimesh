@@ -1,12 +1,13 @@
 import numpy as np
 from shapely import ops
-from shapely.geometry import Polygon
+from shapely.geometry import LinearRing, Polygon
 
 from .. import bounds, geometry, graph, grouping
 from ..constants import log
 from ..constants import tol_path as tol
+from ..exceptions import ExceptionWrapper
 from ..transformations import transform_points
-from ..typed import Iterable, NDArray, Number, Optional, Union, float64
+from ..typed import Iterable, List, NDArray, Number, Optional, Tuple, Union, float64
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -15,7 +16,6 @@ try:
 except BaseException as E:
     # create a dummy module which will raise the ImportError
     # or other exception only when someone tries to use networkx
-    from ..exceptions import ExceptionWrapper
 
     nx = ExceptionWrapper(E)
 try:
@@ -27,11 +27,10 @@ except BaseException as E:
     Index = ExceptionWrapper(E)
 
 
-def enclosure_tree(polygons):
+def enclosure_tree(rings: List[LinearRing]) -> Tuple[NDArray, nx.DiGraph]:
     """
-    Given a list of shapely polygons with only exteriors,
-    find which curves represent the exterior shell or root curve
-    and which represent holes which penetrate the exterior.
+    Given a list of closed rings find which curves represent
+    the exterior shell and which represent holes.
 
     This is done with an R-tree for rough overlap detection,
     and then exact polygon queries for a final result.
@@ -50,11 +49,14 @@ def enclosure_tree(polygons):
        contained by another polygon
     """
 
+    # rings have no area and so can't contain anything
+    check = [Polygon(ring) for ring in rings]
+
     # get the bounds for every valid polygon
     bounds = {
         k: v
         for k, v in {
-            i: getattr(polygon, "bounds", []) for i, polygon in enumerate(polygons)
+            i: getattr(ring, "bounds", []) for i, ring in enumerate(rings)
         }.items()
         if len(v) == 4
     }
@@ -80,9 +82,9 @@ def enclosure_tree(polygons):
                 continue
             # do a more accurate polygon in polygon test
             # for the enclosure tree information
-            if polygons[i].contains(polygons[j]):
+            if check[i].contains(check[j]):
                 contains.add_edge(i, j)
-            elif polygons[j].contains(polygons[i]):
+            elif check[j].contains(check[i]):
                 contains.add_edge(j, i)
 
     # a root or exterior curve has an even number of parents
@@ -110,6 +112,39 @@ def enclosure_tree(polygons):
         contains.add_nodes_from(roots)
 
     return roots, contains
+
+
+def construct(
+    rings: List[LinearRing], roots: List[int] = None, graph: nx.DiGraph = None
+) -> List[Polygon]:
+    """
+    Combine closed boundary curves into polygons with interiors.
+
+    Parameters
+    -----------
+    rings
+      Closed curves that can represent an exterior or
+      an interior of a 2D polygon region
+    roots
+      The indexes of `rings` that are exterior curves
+    graph
+      The "enclosur
+    """
+    # pre- allocate the list to avoid indexing problems
+    full = [None] * len(roots)
+
+    # loop through root curves
+    for i, root in enumerate(roots):
+        # a list of multiple Polygon objects that
+        # are fully contained by the root curve
+        children = [rings[child] for child in graph[root].keys()]
+        # all rings should have been constructed counter-clockwise
+        # so for interiors reverse them
+        holes = [np.array(p.coords)[::-1] for p in children]
+        # create a polygon with interiors
+        full[i] = repair_invalid(Polygon(shell=rings[root], holes=holes))
+
+    return full
 
 
 def edges_to_polygons(edges, vertices):
@@ -525,42 +560,6 @@ def polygon_scale(polygon):
     return scale
 
 
-def paths_to_polygons(paths, scale=None):
-    """
-    Given a sequence of connected points turn them into
-    valid shapely Polygon objects.
-
-    Parameters
-    -----------
-    paths : (n,) sequence
-      Of (m, 2) float closed paths
-    scale : float
-      Approximate scale of drawing for precision
-
-    Returns
-    -----------
-    polys : (p,) list
-      Filled with Polygon or None
-
-    """
-    polygons = [None] * len(paths)
-    for i, path in enumerate(paths):
-        if len(path) < 4:
-            # since the first and last vertices are identical in
-            # a closed loop a 4 vertex path is the minimum for
-            # non-zero area
-            continue
-        try:
-            polygons[i] = repair_invalid(Polygon(path), scale)
-        except ValueError:
-            # raised if a polygon is unrecoverable
-            continue
-        except BaseException:
-            log.error("unrecoverable polygon", exc_info=True)
-    polygons = np.array(polygons)
-    return polygons
-
-
 def sample(polygon, count, factor=1.5, max_iter=10):
     """
     Use rejection sampling to generate random points inside a
@@ -624,7 +623,12 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     return hit
 
 
-def repair_invalid(polygon, scale=None, rtol=0.5):
+def repair_invalid(
+    polygon: Polygon,
+    scale: Optional[float] = None,
+    rtol: float = 0.5,
+    return_invalid: bool = False,
+) -> Optional[Polygon]:
     """
     Given a shapely.geometry.Polygon, attempt to return a
     valid version of the polygon through buffering tricks.
@@ -648,63 +652,71 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
     ValueError
       If polygon can't be repaired
     """
-    if hasattr(polygon, "is_valid") and polygon.is_valid:
+
+    try:
+        if hasattr(polygon, "is_valid") and polygon.is_valid:
+            return polygon
+
+        # basic repair involves buffering the polygon outwards
+        # this will fix a subset of problems.
+        basic = polygon.buffer(tol.zero)
+        # if it returned multiple polygons check the largest
+        if hasattr(basic, "geoms"):
+            basic = basic.geoms[np.argmax([i.area for i in basic.geoms])]
+
+        # check perimeter of result against original perimeter
+        if basic.is_valid and np.isclose(basic.length, polygon.length, rtol=rtol):
+            return basic
+
+        if scale is None:
+            scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).mean()
+            distance = 0.002 * scale
+
+        # if there are no interiors, we can work with just the exterior
+        # ring, which is often more reliable
+        if len(polygon.interiors) == 0:
+            # try buffering the exterior of the polygon
+            # the interior will be offset by -tol.buffer
+            rings = polygon.exterior.buffer(distance).interiors
+            if len(rings) == 1:
+                # reconstruct a single polygon from the interior ring
+                recon = Polygon(shell=rings[0]).buffer(distance)
+                # check perimeter of result against original perimeter
+                if recon.is_valid and np.isclose(recon.length, polygon.length, rtol=rtol):
+                    return recon
+
+            # try de-deuplicating the outside ring
+            points = np.array(polygon.exterior.coords)
+            # remove any segments shorter than tol.merge
+            # this is a little risky as if it was discretized more
+            # finely than 1-e8 it may remove detail
+            unique = np.append(
+                True, (np.diff(points, axis=0) ** 2).sum(axis=1) ** 0.5 > 1e-8
+            )
+            # make a new polygon with result
+            dedupe = Polygon(shell=points[unique])
+            # check result
+            if dedupe.is_valid and np.isclose(dedupe.length, polygon.length, rtol=rtol):
+                return dedupe
+
+        # buffer and unbuffer the whole polygon
+        buffered = polygon.buffer(distance).buffer(-distance)
+        # if it returned multiple polygons check the largest
+        if hasattr(buffered, "geoms"):
+            areas = np.array([b.area for b in buffered.geoms])
+            return buffered.geoms[areas.argmax()]
+
+        # check perimeter of result against original perimeter
+        if buffered.is_valid and np.isclose(buffered.length, polygon.length, rtol=rtol):
+            log.debug("Recovered invalid polygon through double buffering")
+            return buffered
+    except BaseException:
+        log.debug("failed to recover polygon", exc_info=True)
+
+    if return_invalid:
         return polygon
 
-    # basic repair involves buffering the polygon outwards
-    # this will fix a subset of problems.
-    basic = polygon.buffer(tol.zero)
-    # if it returned multiple polygons check the largest
-    if hasattr(basic, "geoms"):
-        basic = basic.geoms[np.argmax([i.area for i in basic.geoms])]
-
-    # check perimeter of result against original perimeter
-    if basic.is_valid and np.isclose(basic.length, polygon.length, rtol=rtol):
-        return basic
-
-    if scale is None:
-        distance = 0.002 * np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).mean()
-    else:
-        distance = 0.002 * scale
-
-    # if there are no interiors, we can work with just the exterior
-    # ring, which is often more reliable
-    if len(polygon.interiors) == 0:
-        # try buffering the exterior of the polygon
-        # the interior will be offset by -tol.buffer
-        rings = polygon.exterior.buffer(distance).interiors
-        if len(rings) == 1:
-            # reconstruct a single polygon from the interior ring
-            recon = Polygon(shell=rings[0]).buffer(distance)
-            # check perimeter of result against original perimeter
-            if recon.is_valid and np.isclose(recon.length, polygon.length, rtol=rtol):
-                return recon
-
-        # try de-deuplicating the outside ring
-        points = np.array(polygon.exterior.coords)
-        # remove any segments shorter than tol.merge
-        # this is a little risky as if it was discretized more
-        # finely than 1-e8 it may remove detail
-        unique = np.append(True, (np.diff(points, axis=0) ** 2).sum(axis=1) ** 0.5 > 1e-8)
-        # make a new polygon with result
-        dedupe = Polygon(shell=points[unique])
-        # check result
-        if dedupe.is_valid and np.isclose(dedupe.length, polygon.length, rtol=rtol):
-            return dedupe
-
-    # buffer and unbuffer the whole polygon
-    buffered = polygon.buffer(distance).buffer(-distance)
-    # if it returned multiple polygons check the largest
-    if hasattr(buffered, "geoms"):
-        areas = np.array([b.area for b in buffered.geoms])
-        return buffered.geoms[areas.argmax()]
-
-    # check perimeter of result against original perimeter
-    if buffered.is_valid and np.isclose(buffered.length, polygon.length, rtol=rtol):
-        log.debug("Recovered invalid polygon through double buffering")
-        return buffered
-
-    raise ValueError("unable to recover polygon!")
+    return None
 
 
 def projected(

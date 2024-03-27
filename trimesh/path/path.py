@@ -6,19 +6,20 @@ A module designed to work with vector paths such as
 those stored in a DXF or SVG file.
 """
 
-import collections
 import copy
+import warnings
 from hashlib import sha256
 
 import numpy as np
 
-from .. import bounds, caching, exceptions, grouping, parent, units, util
+from .. import bounds, caching, grouping, parent, units, util
 from .. import transformations as tf
 from ..constants import log
 from ..constants import tol_path as tol
+from ..exceptions import ExceptionWrapper
 from ..geometry import plane_transform
 from ..points import plane_fit
-from ..typed import ArrayLike, Dict, Iterable, List, NDArray, Optional, float64
+from ..typed import ArrayLike, Dict, Iterable, List, NDArray, Optional, float64, int64
 from ..visual import to_rgba
 from . import (
     creation,  # NOQA
@@ -37,26 +38,26 @@ from .util import concatenate
 try:
     from . import repair
 except BaseException as E:
-    repair = exceptions.ExceptionWrapper(E)
+    repair = ExceptionWrapper(E)
 try:
     from . import polygons
 except BaseException as E:
-    polygons = exceptions.ExceptionWrapper(E)
+    polygons = ExceptionWrapper(E)
 try:
     from scipy.spatial import cKDTree
 except BaseException as E:
-    cKDTree = exceptions.ExceptionWrapper(E)
+    cKDTree = ExceptionWrapper(E)
 try:
-    from shapely.geometry import Polygon
-    from shapely.prepared import prep
+    from shapely.geometry import LinearRing, LineString, Polygon
 except BaseException as E:
-    Polygon = exceptions.ExceptionWrapper(E)
-    prep = exceptions.ExceptionWrapper(E)
+    Polygon = ExceptionWrapper(E)
+    LinearRing = ExceptionWrapper(E)
+    LineString = ExceptionWrapper(E)
 
 try:
     import networkx as nx
 except BaseException as E:
-    nx = exceptions.ExceptionWrapper(E)
+    nx = ExceptionWrapper(E)
 
 
 class Path(parent.Geometry):
@@ -229,20 +230,35 @@ class Path(parent.Geometry):
         return caching.hash_fast(b"".join(hashable))
 
     @caching.cache_decorator
-    def paths(self):
+    def entity_cycles(self) -> List[List[int]]:
         """
-        Sequence of closed paths, encoded by entity index.
+        Groups of entity indexes which form closed "cycles"
+        which can be used to construct discrete rings.
 
         Returns
         ---------
-        paths : (n,) sequence of (*,) int
-          Referencing self.entities
+        paths
+          Indexes of `self.entities`
         """
-        paths = traversal.closed_paths(self.entities, self.vertices)
-        return paths
+        return traversal.closed_paths(entities=self.entities, vertices=self.vertices)
+
+    @property
+    def entity_cycles_valid(self) -> NDArray[bool]:
+        """
+        Returns
+        ----------
+        path_valid : (n,) bool
+          Indexes of self.paths self.
+          which are valid polygons.
+        """
+        return np.array([i.is_valid for i in self.linear_rings], dtype=bool)
+
+    @property
+    def path_valid(self):
+        return self.entity_cycles_valid
 
     @caching.cache_decorator
-    def dangling(self):
+    def entity_dangling(self) -> List[List[int]]:
         """
         List of entities that aren't included in a closed path
 
@@ -254,7 +270,16 @@ class Path(parent.Geometry):
         if len(self.paths) == 0:
             return np.arange(len(self.entities))
 
-        return np.setdiff1d(np.arange(len(self.entities)), np.hstack(self.paths))
+        return np.setdiff1d(np.arange(len(self.entities)), np.hstack(self.entity_cycles))
+
+    @property
+    def dangling(self):
+        return self.entity_dangling
+
+    @property
+    def paths(self):
+        # DEPRECATED, replace with `path.entity_cycles
+        return self.entity_cycles
 
     @caching.cache_decorator
     def kdtree(self):
@@ -270,7 +295,7 @@ class Path(parent.Geometry):
         return kdtree
 
     @caching.cache_decorator
-    def length(self):
+    def length(self) -> float:
         """
         The total discretized length of every entity.
 
@@ -279,11 +304,10 @@ class Path(parent.Geometry):
         length : float
           Summed length of every entity
         """
-        length = float(sum(i.length(self.vertices) for i in self.entities))
-        return length
+        return float(sum(i.length(self.vertices) for i in self.entities))
 
     @caching.cache_decorator
-    def bounds(self):
+    def bounds(self) -> NDArray[float64]:
         """
         Return the axis aligned bounding box of the current path.
 
@@ -306,7 +330,7 @@ class Path(parent.Geometry):
         return np.array([points.min(axis=0), points.max(axis=0)], dtype=np.float64)
 
     @caching.cache_decorator
-    def centroid(self):
+    def centroid(self) -> NDArray[float64]:
         """
         Return the centroid of axis aligned bounding box enclosing
         all entities of the path object.
@@ -319,7 +343,7 @@ class Path(parent.Geometry):
         return self.bounds.mean(axis=0)
 
     @property
-    def extents(self):
+    def extents(self) -> NDArray[float64]:
         """
         The size of the axis aligned bounding box.
 
@@ -336,14 +360,14 @@ class Path(parent.Geometry):
 
         Parameters
         -----------
-        desired : str
-          Unit system to convert to
-        guess : bool
-          If True will attempt to guess units
+        desired
+          Unit system to convert to.
+        guess
+          If True will attempt to guess units.
         """
         units._convert_units(self, desired=desired, guess=guess)
 
-    def explode(self):
+    def explode(self) -> None:
         """
         Turn every multi- segment entity into single segment
         entities in- place.
@@ -357,20 +381,23 @@ class Path(parent.Geometry):
         # explicitly clear cache
         self._cache.clear()
 
-    def fill_gaps(self, distance=0.025):
+    def fill_gaps(self, distance: Optional[float] = None):
         """
         Find vertices without degree 2 and try to connect to
         other vertices. Operations are done in-place.
 
         Parameters
         ----------
-        distance : float
+        distance
           Connect vertices up to this distance
         """
+        if distance is None:
+            distance = self.scale / 1000.0
+
         repair.fill_gaps(self, distance=distance)
 
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         """
         Are all entities connected to other entities.
 
@@ -379,12 +406,10 @@ class Path(parent.Geometry):
         closed : bool
           Every entity is connected at its ends
         """
-        closed = all(i == 2 for i in dict(self.vertex_graph.degree()).values())
-
-        return closed
+        return not any(i != 2 for i in dict(self.vertex_graph.degree()).values())
 
     @property
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Are any entities defined for the current path.
 
@@ -403,7 +428,7 @@ class Path(parent.Geometry):
         graph : networkx.Graph
           Holds vertex indexes
         """
-        graph, closed = traversal.vertex_graph(self.entities)
+        graph, _ = traversal.vertex_graph(self.entities)
         return graph
 
     @caching.cache_decorator
@@ -599,11 +624,12 @@ class Path(parent.Geometry):
 
     def remove_duplicate_entities(self):
         """
-        Remove entities that are duplicated
+        Remove entities that are duplicated.
 
         Notes
         -------
-        self.entities: length same or shorter
+        self.entities
+          Length same or shorter
         """
         entity_hashes = np.array([hash(i) for i in self.entities])
         unique, inverse = grouping.unique_rows(entity_hashes)
@@ -611,13 +637,14 @@ class Path(parent.Geometry):
             self.entities = self.entities[unique]
 
     @caching.cache_decorator
-    def referenced_vertices(self):
+    def referenced_vertices(self) -> NDArray[int64]:
         """
         Which vertices are referenced by an entity.
 
         Returns
         -----------
-        referenced_vertices: (n,) int, indexes of self.vertices
+        referenced_vertices
+          Indexes of self.vertices
         """
         # no entities no reference
         if len(self.entities) == 0:
@@ -627,14 +654,16 @@ class Path(parent.Geometry):
 
         return referenced
 
-    def remove_unreferenced_vertices(self):
+    def remove_unreferenced_vertices(self) -> None:
         """
         Removes all vertices which aren't used by an entity.
 
         Notes
         ---------
-        self.vertices : reordered and shortened
-        self.entities : entity.points references updated
+        self.vertices
+          Reordered and shortened
+        self.entities
+          Entity.points references updated
         """
 
         unique = self.referenced_vertices
@@ -646,14 +675,14 @@ class Path(parent.Geometry):
         self.vertices = self.vertices[unique]
 
     @caching.cache_decorator
-    def discrete(self) -> List[NDArray[float64]]:
+    def discrete_cycles(self) -> List[NDArray[float64]]:
         """
         A sequence of connected vertices in space, corresponding to
-        self.paths.
+        self.entity_cycles.
 
         Returns
         ---------
-        discrete : (len(self.paths),)
+        discrete
             A sequence of (m*, dimension) float
         """
         # avoid cache hits in the loop
@@ -668,6 +697,10 @@ class Path(parent.Geometry):
             )
             for path in self.paths
         ]
+
+    @property
+    def discrete(self):
+        return self.discrete_cycles
 
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
@@ -991,7 +1024,7 @@ class Path2D(Path):
           Random points inside polygon
         """
 
-        poly = self.polygons_full
+        poly = self.polygons
         if len(poly) == 0:
             samples = np.array([])
         elif len(poly) == 1:
@@ -1053,100 +1086,102 @@ class Path2D(Path):
     @caching.cache_decorator
     def polygons_closed(self) -> NDArray:
         """
-        Cycles in the vertex graph, as shapely.geometry.Polygons.
-        These are polygon objects for every closed circuit, with no notion
-        of whether a polygon is a hole or an area. Every polygon in this
-        list will have an exterior, but NO interiors.
-
-        Returns
-        ---------
-        polygons_closed : (n,) list of shapely.geometry.Polygon objects
+        DEPRECATED AND REMOVED JANUARY 2025
+        Replace with:
+         - `path.linear_rings` (preferred)
+         - `[Polygon(r) for r in path.linear_rings]` (if you need contains-checks)
         """
-        # will attempt to recover invalid garbage geometry
-        # and will be None if geometry is unrecoverable
-        return polygons.paths_to_polygons(self.discrete)
+        warnings.warn(
+            "`path.polygons_closed` is deprecated "
+            + " and will be removed January 2025!"
+            + " replace with `path.linear_rings`"
+            + " or `[Polygon(r) for r in path.linear_rings]`",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        return [Polygon(shell=r) for r in self.linear_rings]
 
-    @caching.cache_decorator
+    @property
     def polygons_full(self) -> List:
         """
-        A list of shapely.geometry.Polygon objects with interiors created
-        by checking which closed polygons enclose which other polygons.
-
-        Returns
-        ---------
-        full : (len(self.root),) shapely.geometry.Polygon
-            Polygons containing interiors
+        # DEPRECATED: replace with `path.polygons`
         """
-        # pre- allocate the list to avoid indexing problems
-        full = [None] * len(self.root)
-        # store the graph to avoid cache thrashing
-        enclosure = self.enclosure_directed
-        # store closed polygons to avoid cache hits
-        closed = self.polygons_closed
-
-        # loop through root curves
-        for i, root in enumerate(self.root):
-            # a list of multiple Polygon objects that
-            # are fully contained by the root curve
-            children = [closed[child] for child in enclosure[root].keys()]
-            # all polygons_closed are CCW, so for interiors reverse them
-            holes = [np.array(p.exterior.coords)[::-1] for p in children]
-            # a single Polygon object
-            shell = closed[root].exterior
-            # create a polygon with interiors
-            full[i] = polygons.repair_invalid(Polygon(shell=shell, holes=holes))
-
-        return full
+        warnings.warn(
+            "`Path2D.polygons_full` is deprecated "
+            + " and will be removed January 2025!"
+            + " replace with `Path2D.polygons`",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.polygons
 
     @caching.cache_decorator
-    def area(self):
+    def linear_rings(self) -> List["LinearRing"]:
         """
-        Return the area of the polygons interior.
+        Contains all the closed rings in the current path.
+
+        Indexes match `self.discrete_cycles` and `self.entity_cycles`.
+        """
+        scale = self.scale
+        # attempt to heal the linear rings but don't require it to work
+        # this avoids having to maintain a "valid" mask
+        return [
+            polygons.repair_invalid(Polygon(d), scale=scale, return_invalid=True).exterior
+            for d in self.discrete_cycles
+        ]
+
+    @caching.cache_decorator
+    def line_strings(self) -> List["LineString"]:
+        """
+        Contains all the connected geometry that is *not*
+        included in `self.linear_rings`
+        """
+        raise NotImplementedError()
+
+    @caching.cache_decorator
+    def polygons(self) -> List["Polygon"]:
+        """
+        Contains all the closed geometry with interiors
+        evaluated from `enclosure_tree`.
+        """
+        return polygons.construct(
+            rings=self.linear_rings, roots=self.root, graph=self.enclosure_directed
+        )
+
+    @caching.cache_decorator
+    def area(self) -> float:
+        """
+        Return the area of all polygons in this path.
 
         Returns
         ---------
-        area : float
-          Total area of polygons minus interiors
+        area
+          Total area of polygons.
         """
-        area = float(sum(i.area for i in self.polygons_full))
-        return area
+        return float(sum(i.area for i in self.polygons))
 
-    def extrude(self, height, **kwargs):
+    def extrude(self, height: float, **kwargs) -> List["Extrusion"]:  # noqa
         """
         Extrude the current 2D path into a 3D mesh.
 
         Parameters
         ----------
-        height: float, how far to extrude the profile
-        kwargs: passed directly to meshpy.triangle.build:
-                triangle.build(mesh_info,
-                               verbose=False,
-                               refinement_func=None,
-                               attributes=False,
-                               volume_constraints=True,
-                               max_volume=None,
-                               allow_boundary_steiner=True,
-                               allow_volume_steiner=True,
-                               quality_meshing=True,
-                               generate_edges=None,
-                               generate_faces=False,
-                               min_angle=None)
+        height
+          How far to extrude the profile from `Z=0` to `Z=height`
+        kwargs :
+          Passed to `triangulate_polygon`.
         Returns
         --------
-        mesh: trimesh object representing extruded polygon
+        mesh
+          Extruded object containing requested geometry.
         """
         from ..primitives import Extrusion
 
-        result = [
-            Extrusion(polygon=i, height=height, **kwargs) for i in self.polygons_full
-        ]
-        if len(result) == 1:
-            return result[0]
-        return result
+        return [Extrusion(polygon=i, height=height, **kwargs) for i in self.polygons]
 
     def triangulate(self, **kwargs):
         """
-        Create a region- aware triangulation of the 2D path.
+        Create a region-aware triangulation of the 2D path.
 
         Parameters
         -------------
@@ -1167,14 +1202,14 @@ class Path2D(Path):
         f_seq = []
 
         # loop through polygons with interiors
-        for polygon in self.polygons_full:
+        for polygon in self.polygons:
             v, f = triangulate_polygon(polygon, **kwargs)
             v_seq.append(v)
             f_seq.append(f)
 
         return util.append_faces(v_seq, f_seq)
 
-    def medial_axis(self, resolution=None, clip=None):
+    def medial_axis(self, resolution: Optional[float] = None, clip=None) -> "Path2D":
         """
         Find the approximate medial axis based
         on a voronoi diagram of evenly spaced points on the
@@ -1199,54 +1234,26 @@ class Path2D(Path):
         from .exchange.misc import edges_to_path
 
         # edges and vertices
-        edge_vert = [
-            polygons.medial_axis(i, resolution, clip) for i in self.polygons_full
-        ]
+        edge_vert = [polygons.medial_axis(i, resolution, clip) for i in self.polygons]
         # create a Path2D object for each region
         medials = [Path2D(**edges_to_path(edges=e, vertices=v)) for e, v in edge_vert]
 
         # get a single Path2D of medial axis
-        medial = concatenate(medials)
+        return concatenate(medials)
 
-        return medial
-
-    def connected_paths(self, path_id, include_self=False):
-        """
-        Given an index of self.paths find other paths which
-        overlap with that path.
-
-        Parameters
-        -----------
-        path_id : int
-          Index of self.paths
-        include_self : bool
-          Should the result include path_id or not
-
-        Returns
-        -----------
-        path_ids :  (n, ) int
-          Indexes of self.paths that overlap input path_id
-        """
-        if len(self.root) == 1:
-            path_ids = np.arange(len(self.polygons_closed))
-        else:
-            path_ids = list(nx.node_connected_component(self.enclosure, path_id))
-        if include_self:
-            return np.array(path_ids)
-        return np.setdiff1d(path_ids, [path_id])
-
-    def simplify(self, **kwargs):
+    def simplify(self, **kwargs) -> "Path2D":
         """
         Return a version of the current path with colinear segments
         merged, and circles entities replacing segmented circular paths.
 
         Returns
         ---------
-        simplified : Path2D object
+        simplified
+          The current path object.
         """
         return simplify.simplify_basic(self, **kwargs)
 
-    def simplify_spline(self, smooth=0.0002, verbose=False):
+    def simplify_spline(self, smooth=0.0002, verbose=False) -> "Path2D":
         """
         Convert paths into b-splines.
 
@@ -1350,26 +1357,26 @@ class Path2D(Path):
             plt.show()
 
     @property
-    def identifier(self):
+    def identifier(self) -> NDArray[np.float64]:
         """
         A unique identifier for the path.
 
         Returns
         ---------
-        identifier : (5,) float
-          Unique identifier
+        identifier
+          Unique identifier vector.
         """
         hasher = polygons.identifier
-        target = self.polygons_full
+        target = self.polygons
         if len(target) == 1:
-            return hasher(self.polygons_full[0])
+            return hasher(target[0])
         elif len(target) == 0:
             return np.zeros(5)
 
         return np.sum([hasher(p) for p in target], axis=1)
 
     @caching.cache_decorator
-    def identifier_hash(self):
+    def identifier_hash(self) -> str:
         """
         Return a hash of the identifier.
 
@@ -1382,20 +1389,20 @@ class Path2D(Path):
         return sha256(as_int.tobytes(order="C")).hexdigest()
 
     @property
-    def path_valid(self):
+    def entity_cycles_valid(self) -> NDArray[bool]:
         """
         Returns
         ----------
         path_valid : (n,) bool
-          Indexes of self.paths self.polygons_closed
+          Indexes of self.paths self.linear_rings
           which are valid polygons.
         """
-        return np.array([i is not None for i in self.polygons_closed], dtype=bool)
+        return np.array([i is not None for i in self.linear_rings], dtype=bool)
 
     @caching.cache_decorator
-    def root(self):
+    def root(self) -> NDArray[int64]:
         """
-        Which indexes of self.paths/self.polygons_closed
+        Which indexes of self.paths/self.linear_rings
         are root curves, also known as 'shell' or 'exterior.
 
         Returns
@@ -1403,25 +1410,12 @@ class Path2D(Path):
         root : (n,) int
           List of indexes
         """
-        populate = self.enclosure_directed  # NOQA
+        # populate the cache
+        _ = self.enclosure_directed
         return self._cache["root"]
 
     @caching.cache_decorator
-    def enclosure(self):
-        """
-        Undirected graph object of polygon enclosure.
-
-        Returns
-        -----------
-        enclosure : networkx.Graph
-          Enclosure graph of self.polygons by index.
-        """
-        with self._cache:
-            undirected = self.enclosure_directed.to_undirected()
-        return undirected
-
-    @caching.cache_decorator
-    def enclosure_directed(self):
+    def enclosure_directed(self) -> "nx.DiGraph":
         """
         Directed graph of polygon enclosure.
 
@@ -1431,21 +1425,6 @@ class Path2D(Path):
           Directed graph: child nodes are fully
           contained by their parent node.
         """
-        root, enclosure = polygons.enclosure_tree(self.polygons_closed)
+        root, enclosure = polygons.enclosure_tree(self.linear_rings)
         self._cache["root"] = root
         return enclosure
-
-    @caching.cache_decorator
-    def enclosure_shell(self):
-        """
-        A dictionary of path indexes which are 'shell' paths, and values
-        of 'hole' paths.
-
-        Returns
-        ----------
-        corresponding : dict
-          {index of self.paths of shell : [indexes of holes]}
-        """
-        pairs = [(r, self.connected_paths(r, include_self=False)) for r in self.root]
-        # OrderedDict to maintain corresponding order
-        return collections.OrderedDict(pairs)
