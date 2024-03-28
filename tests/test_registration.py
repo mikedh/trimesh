@@ -109,7 +109,7 @@ class RegistrationTest(g.unittest.TestCase):
         # see if ICP alignment works with meshes
         m = g.trimesh.creation.box()
         X = m.sample(10)
-        X = [*X, 0.1, 0.1, 0.1]
+        X = X + [0.1, 0.1, 0.1]
         _matrix, _transformed, cost = g.trimesh.registration.icp(X, m, scale=False)
         assert cost < 0.01
 
