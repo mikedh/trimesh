@@ -363,7 +363,7 @@ def convert_entities(blob, blob_raw=None, blocks=None, return_name=False):
         # origin point
         origin = np.array([e["10"], e["20"]], dtype=np.float64)
         # an origin-relative point (so transforms work)
-        vector = origin + np.array([np.cos(angle), np.sin(angle)], dtype=np.float64)
+        vector = origin + [np.cos(angle), np.sin(angle)]
         # try to extract a (horizontal, vertical) text alignment
         align = ["center", "center"]
         try:
