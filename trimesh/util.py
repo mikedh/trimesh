@@ -237,10 +237,8 @@ def is_sequence(obj) -> bool:
     is_sequence : bool
         True if object is sequence
     """
-    seq = (
-        (not hasattr(obj, "strip")
-        and hasattr(obj, "__getitem__"))
-        or hasattr(obj, "__iter__")
+    seq = (not hasattr(obj, "strip") and hasattr(obj, "__getitem__")) or hasattr(
+        obj, "__iter__"
     )
 
     # check to make sure it is not a set, string, or dictionary

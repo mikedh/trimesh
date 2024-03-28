@@ -29,7 +29,7 @@ class PosesTest(g.unittest.TestCase):
                 copied.apply_transform(matrix)
 
                 # Compute the stable poses of the icosahedron
-                trans, probs = copied.compute_stable_poses()
+                _trans, probs = copied.compute_stable_poses()
 
                 # we are only testing primitives with point symmetry
                 # AKA 3 principal components of inertia are the same
@@ -43,8 +43,8 @@ class PosesTest(g.unittest.TestCase):
     def test_round(self):
         mesh = g.trimesh.primitives.Cylinder(radius=1.0, height=10.0)
 
-        transforms, probabilities = mesh.compute_stable_poses()
-        transforms, probabilities = mesh.compute_stable_poses(n_samples=10)
+        _transforms, _probabilities = mesh.compute_stable_poses()
+        _transforms, _probabilities = mesh.compute_stable_poses(n_samples=10)
 
 
 if __name__ == "__main__":

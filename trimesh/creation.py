@@ -1452,7 +1452,11 @@ def torus(
       Mesh of a torus
     """
     phi = np.linspace(0, 2 * np.pi, minor_sections, endpoint=False)
-    linestring = [*np.column_stack((minor_radius * np.cos(phi), minor_radius * np.sin(phi))), major_radius, 0]
+    linestring = [
+        *np.column_stack((minor_radius * np.cos(phi), minor_radius * np.sin(phi))),
+        major_radius,
+        0,
+    ]
 
     if "metadata" not in kwargs:
         kwargs["metadata"] = {}

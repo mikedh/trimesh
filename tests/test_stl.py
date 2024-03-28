@@ -75,7 +75,10 @@ class STLTests(g.unittest.TestCase):
     def test_ascii_solid_name(self):
         mesh = g.trimesh.creation.icosphere(subdivisions=1, radius=1.0)
         mesh.metadata = {"name": "solid_A"}
-        assert g.trimesh.exchange.stl.export_stl_ascii(mesh).splitlines()[0] == "solid solid_A"
+        assert (
+            g.trimesh.exchange.stl.export_stl_ascii(mesh).splitlines()[0]
+            == "solid solid_A"
+        )
 
     def test_empty(self):
         # demo files to check

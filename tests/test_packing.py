@@ -72,7 +72,7 @@ class PackingTest(g.unittest.TestCase):
         from trimesh.path import packing
 
         nestable = [g.Polygon(i) for i in g.data["nestable"]]
-        inserted, transforms = packing.polygons(nestable)
+        _inserted, _transforms = packing.polygons(nestable)
 
     def test_image(self):
         from trimesh.path import packing
@@ -157,11 +157,11 @@ class PackingTest(g.unittest.TestCase):
         )
 
         # try packing these 3D boxes
-        bounds, consume = packing.rectangles_single(e)
+        _bounds, consume = packing.rectangles_single(e)
         assert consume.all()
 
         # try packing these 3D boxes
-        bounds, consume = packing.rectangles_single(e, size=[14, 14, 1])
+        _bounds, consume = packing.rectangles_single(e, size=[14, 14, 1])
         assert not consume.all()
 
     def test_transform(self):
