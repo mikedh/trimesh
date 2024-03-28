@@ -143,6 +143,7 @@ ignore = [
   "E501", # Line too long ({width} > {limit} characters)
   "B904", # raise ... from err
   "B905", # zip() without an explicit strict= parameter
+  "RUF005", # recommends non-type-aware expansion
 ]
 
 # don't allow implicit string concatenation
