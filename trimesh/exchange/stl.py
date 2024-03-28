@@ -309,7 +309,7 @@ def export_stl_ascii(mesh) -> str:
         name = ""
 
     # concatenate the header, data, and footer, and a new line
-    return "\n".join(["solid {name}", formatter.format(*blob.reshape(-1)), "endsolid\n"])
+    return "\n".join([f"solid {name}", formatter.format(*blob.reshape(-1)), "endsolid\n"])
 
 
 _stl_loaders = {"stl": load_stl, "stl_ascii": load_stl}
