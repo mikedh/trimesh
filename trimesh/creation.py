@@ -382,8 +382,9 @@ def extrude_triangulation(
 
     # a sequence of zero- indexed faces, which will then be appended
     # with offsets to create the final mesh
+    heights = np.array([0.0, 0.0, height], dtype=np.float64)
     faces_seq = [faces[:, ::-1], faces.copy(), vertical_faces]
-    vertices_seq = [vertices_3D, [*vertices_3D.copy(), 0.0, 0, height], vertical]
+    vertices_seq = [vertices_3D, vertices_3D.copy() + heights, vertical]
 
     # append sequences into flat nicely indexed arrays
     vertices, faces = util.append_faces(vertices_seq, faces_seq)
