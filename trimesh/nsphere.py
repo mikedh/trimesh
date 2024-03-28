@@ -187,6 +187,6 @@ def is_nsphere(points):
     check : bool
       True if input points are on an nsphere
     """
-    center, radius, error = fit_nsphere(points)
+    _center, _radius, error = fit_nsphere(points)
     check = error < tol.merge
     return check

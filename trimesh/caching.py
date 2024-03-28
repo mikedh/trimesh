@@ -654,7 +654,7 @@ class DataStore(Mapping):
                 # will raise if this is not a hashable type
                 hash(data)
             except BaseException:
-                raise ValueError("unhashable `{key}:{type(data)}`")
+                raise ValueError(f"unhashable `{key}:{type(data)}`")
             tracked = data
 
         # apply our mutability setting

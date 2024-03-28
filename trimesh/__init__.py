@@ -73,9 +73,8 @@ except BaseException as E:
 
 __all__ = [
     "PointCloud",
-    "Trimesh",
     "Scene",
-    "util",
+    "Trimesh",
     "__version__",
     "available_formats",
     "boolean",
@@ -87,6 +86,7 @@ __all__ = [
     "creation",
     "curvature",
     "decomposition",
+    "exceptions",
     "geometry",
     "graph",
     "grouping",
@@ -114,7 +114,7 @@ __all__ = [
     "triangles",
     "unitize",
     "units",
+    "util",
     "utilScene",
     "voxel",
-    "exceptions",
 ]

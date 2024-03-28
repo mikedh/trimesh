@@ -487,7 +487,7 @@ def connected_component_labels(edges, node_count=None):
         Component labels for each node
     """
     matrix = edges_to_coo(edges, node_count)
-    body_count, labels = csgraph.connected_components(matrix, directed=False)
+    _body_count, labels = csgraph.connected_components(matrix, directed=False)
 
     if node_count is not None:
         assert len(labels) == node_count

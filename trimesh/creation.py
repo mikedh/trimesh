@@ -383,7 +383,7 @@ def extrude_triangulation(
     # a sequence of zero- indexed faces, which will then be appended
     # with offsets to create the final mesh
     faces_seq = [faces[:, ::-1], faces.copy(), vertical_faces]
-    vertices_seq = [vertices_3D, vertices_3D.copy() + [0.0, 0, height], vertical]
+    vertices_seq = [vertices_3D, [*vertices_3D.copy(), 0.0, 0, height], vertical]
 
     # append sequences into flat nicely indexed arrays
     vertices, faces = util.append_faces(vertices_seq, faces_seq)
@@ -1452,9 +1452,7 @@ def torus(
       Mesh of a torus
     """
     phi = np.linspace(0, 2 * np.pi, minor_sections, endpoint=False)
-    linestring = np.column_stack(
-        (minor_radius * np.cos(phi), minor_radius * np.sin(phi))
-    ) + [major_radius, 0]
+    linestring = [*np.column_stack((minor_radius * np.cos(phi), minor_radius * np.sin(phi))), major_radius, 0]
 
     if "metadata" not in kwargs:
         kwargs["metadata"] = {}

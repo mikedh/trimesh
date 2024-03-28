@@ -51,7 +51,7 @@ def contains_points(intersector, points, check_direction=None):
         )
 
     # cast a ray both forwards and backwards
-    location, index_ray, c = intersector.intersects_location(
+    _location, index_ray, _c = intersector.intersects_location(
         np.vstack((points[inside_aabb], points[inside_aabb])),
         np.vstack((ray_directions, -ray_directions)),
     )

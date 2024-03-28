@@ -238,8 +238,8 @@ def is_sequence(obj) -> bool:
         True if object is sequence
     """
     seq = (
-        not hasattr(obj, "strip")
-        and hasattr(obj, "__getitem__")
+        (not hasattr(obj, "strip")
+        and hasattr(obj, "__getitem__"))
         or hasattr(obj, "__iter__")
     )
 

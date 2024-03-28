@@ -12,4 +12,4 @@ except BaseException as E:
     has_embree = False
 
 # add to __all__ as per pep8
-__all__ = ["ray_triangle", "ray_pyembree"]
+__all__ = ["ray_pyembree", "ray_triangle"]

@@ -403,7 +403,7 @@ class Path(parent.Geometry):
         graph : networkx.Graph
           Holds vertex indexes
         """
-        graph, closed = traversal.vertex_graph(self.entities)
+        graph, _closed = traversal.vertex_graph(self.entities)
         return graph
 
     @caching.cache_decorator
@@ -606,7 +606,7 @@ class Path(parent.Geometry):
         self.entities: length same or shorter
         """
         entity_hashes = np.array([hash(i) for i in self.entities])
-        unique, inverse = grouping.unique_rows(entity_hashes)
+        unique, _inverse = grouping.unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
             self.entities = self.entities[unique]
 

@@ -129,7 +129,7 @@ select = [
     "E", # style errors
     "F", # flakes
     "I", # import sorting
-    "RUF100", # meta
+    "RUF", # ruff specific rules
     "UP", # upgrade
     "W", # style warnings
     "YTT", # sys.version

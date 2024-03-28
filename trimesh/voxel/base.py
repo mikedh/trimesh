@@ -413,7 +413,7 @@ class VoxelGrid(Geometry):
         shape = tuple(shape)
         bounds = self.bounds.copy()
         extents = self.extents
-        points = util.grid_linspace(bounds, shape).reshape(shape + (3,))
+        points = util.grid_linspace(bounds, shape).reshape((*shape, 3))
         dense = self.is_filled(points)
         scale = extents / np.asanyarray(shape)
         translate = bounds[0]
