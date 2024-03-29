@@ -39,9 +39,6 @@ from . import (
     units,
     util,
 )
-
-# geometry objects
-from .parent import Geometry
 from .base import Trimesh
 
 # general numeric tolerances
@@ -49,6 +46,9 @@ from .constants import tol
 
 # loader functions
 from .exchange.load import available_formats, load, load_mesh, load_path, load_remote
+
+# geometry objects
+from .parent import Geometry
 from .points import PointCloud
 from .scene.scene import Scene
 from .transformations import transform_points
