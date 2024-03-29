@@ -41,6 +41,7 @@ from . import (
 )
 
 # geometry objects
+from .parent import Geometry
 from .base import Trimesh
 
 # general numeric tolerances
@@ -73,6 +74,8 @@ except BaseException as E:
 
 __all__ = [
     "PointCloud",
+    "Geometry",
+    "Trimesh",
     "Scene",
     "Trimesh",
     "__version__",
