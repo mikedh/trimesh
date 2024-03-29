@@ -214,9 +214,7 @@ def load_mesh(
             loaded = loaded[0]
 
         # show the repr for loaded, loader used, and time
-        log.debug(
-            f"loaded {str(loaded)} using `{loader.__name__}` in {now() - tic:0.4f}s"
-        )
+        log.debug(f"loaded {loaded!s} using `{loader.__name__}` in {now() - tic:0.4f}s")
     finally:
         # if we failed to load close file
         if opened:

@@ -14,7 +14,7 @@ class SampleTest(g.unittest.TestCase):
         distance = m.nearest.signed_distance(samples)
         assert g.np.abs(distance).max() < 1e-4
 
-        even, index = g.trimesh.sample.sample_surface_even(m, 1000)
+        even, _index = g.trimesh.sample.sample_surface_even(m, 1000)
         # check to make sure all samples are on the mesh surface
         distance = m.nearest.signed_distance(even)
         assert g.np.abs(distance).max() < 1e-4
@@ -27,7 +27,7 @@ class SampleTest(g.unittest.TestCase):
         weights[0] = 1.0
 
         # sample with passed weights
-        points, fid = m.sample(count=100, return_index=True, face_weight=weights)
+        _points, fid = m.sample(count=100, return_index=True, face_weight=weights)
         # all faces should be on single face
         assert (fid == 0).all()
 
@@ -42,13 +42,13 @@ class SampleTest(g.unittest.TestCase):
 
         # sample a textured mesh
         m = g.get_mesh("fuze.obj")
-        points, index, color = g.trimesh.sample.sample_surface(m, 100, sample_color=True)
+        points, _index, color = g.trimesh.sample.sample_surface(m, 100, sample_color=True)
         assert len(points) == len(color)
 
         # sample a color mesh
         m = g.get_mesh("machinist.XAML")
         assert m.visual.kind == "face"
-        points, index, color = g.trimesh.sample.sample_surface(m, 100, sample_color=True)
+        points, _index, color = g.trimesh.sample.sample_surface(m, 100, sample_color=True)
         assert len(points) == len(color)
 
     def test_sample_volume(self):

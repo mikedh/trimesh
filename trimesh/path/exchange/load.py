@@ -66,7 +66,7 @@ def load_path(file_obj, file_type=None, **kwargs):
         raise ValueError("Not a supported object type!")
 
     result = load_kwargs(kwargs)
-    util.log.debug(f"loaded {str(result)} in {util.now() - tic:0.4f}s")
+    util.log.debug(f"loaded {result!s} in {util.now() - tic:0.4f}s")
 
     return result
 

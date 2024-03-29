@@ -282,7 +282,7 @@ class SectionTest(g.unittest.TestCase):
             )
 
             # Path3D -> Path2D
-            planar, T = section.to_planar()
+            planar, _T = section.to_planar()
 
             # tube should have one closed polygon
             assert len(planar.polygons_full) == 1

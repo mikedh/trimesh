@@ -121,7 +121,7 @@ def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
     # convert segments to parameterized origins
     # which are the closest point on the line to
     # the actual zero- origin
-    origins, vectors, param = segments_to_parameters(segments)
+    origins, vectors, _param = segments_to_parameters(segments)
 
     # create a kdtree for origins
     tree = spatial.cKDTree(origins)

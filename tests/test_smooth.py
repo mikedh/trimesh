@@ -13,7 +13,7 @@ class SmoothTest(g.unittest.TestCase):
         check = g.np.hstack((s.visual.uv, s.vertices))
 
         tree = g.spatial.cKDTree(ori)
-        distances, index = tree.query(check, k=1)
+        distances, _index = tree.query(check, k=1)
         assert distances.max() < 1e-8
 
         # g.texture_equal(m, s)

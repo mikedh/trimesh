@@ -29,7 +29,7 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     model = next(iter(v for k, v in archive.items() if "3d/3dmodel.model" in k.lower()))
 
     # read root attributes only from XML first
-    event, root = next(etree.iterparse(model, tag=("{*}model"), events=("start",)))
+    _event, root = next(etree.iterparse(model, tag=("{*}model"), events=("start",)))
     # collect unit information from the tree
     if "unit" in root.attrib:
         metadata = {"units": root.attrib["unit"]}

@@ -64,7 +64,7 @@ class SimplifyTest(g.unittest.TestCase):
         m = scene.geometry["disc_cam_A"]
 
         path_3D = m.outline(m.facets[m.facets_area.argmax()])
-        path_2D, to_3D = path_3D.to_planar()
+        path_2D, _to_3D = path_3D.to_planar()
 
         simple = g.trimesh.path.simplify.simplify_spline(
             path_2D, smooth=0.01, verbose=True

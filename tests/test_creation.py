@@ -267,7 +267,7 @@ class CreationTest(g.unittest.TestCase):
                     )
                 except BaseException:
                     g.log.error("failed to benchmark triangle", exc_info=True)
-        g.log.info(f"benchmarked triangulation on {len(bench)} polygons: {str(times)}")
+        g.log.info(f"benchmarked triangulation on {len(bench)} polygons: {times!s}")
 
     def test_triangulate_plumbing(self):
         """

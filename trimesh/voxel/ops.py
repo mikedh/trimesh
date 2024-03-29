@@ -148,7 +148,7 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
         vertices, faces = meshed
         normals = None
     elif len(meshed) == 4:
-        vertices, faces, normals, vals = meshed
+        vertices, faces, normals, _vals = meshed
 
     # Return to the origin, add in the pad_width
     vertices = np.subtract(vertices, pad_width * pitch)
