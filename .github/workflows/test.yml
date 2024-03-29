@@ -16,11 +16,9 @@ jobs:
       with:
         python-version: "3.11"
     - name: Install
-      run: pip install ruff black
+      run: pip install ruff
     - name: Run Ruff
-      run: ruff .
-#    - name: Run Black
-#      run: black --check .
+      run: ruff check .
 
   tests:
     name: Run Unit Tests

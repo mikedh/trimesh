@@ -102,7 +102,7 @@ class PointsTest(g.unittest.TestCase):
             # so the true normal should be Z then rotated
             truth = g.trimesh.transform_points([[0, 0, 1]], matrix, translate=False)[0]
             # run the plane fit
-            C, N = g.trimesh.points.plane_fit(p)
+            _C, N = g.trimesh.points.plane_fit(p)
             # sign of normal is arbitrary on fit so check both
             assert g.np.allclose(truth, N) or g.np.allclose(truth, -N)
         # make sure plane fit works with multiple point sets at once
@@ -130,7 +130,7 @@ class PointsTest(g.unittest.TestCase):
                     [[0, 0, 1]], matrix, translate=False
                 )[0]
             # run the plane fit
-            C, N = g.trimesh.points.plane_fit(p)
+            _C, N = g.trimesh.points.plane_fit(p)
 
             # sign of normal is arbitrary on fit so check both
             cosines = g.np.einsum("ij,ij->i", N, truths)

@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.2.2"
+version = "4.2.3"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -129,7 +129,7 @@ select = [
     "E", # style errors
     "F", # flakes
     "I", # import sorting
-    "RUF100", # meta
+    "RUF", # ruff specific rules
     "UP", # upgrade
     "W", # style warnings
     "YTT", # sys.version
@@ -143,6 +143,7 @@ ignore = [
   "E501", # Line too long ({width} > {limit} characters)
   "B904", # raise ... from err
   "B905", # zip() without an explicit strict= parameter
+  "RUF005", # recommends non-type-aware expansion
 ]
 
 # don't allow implicit string concatenation

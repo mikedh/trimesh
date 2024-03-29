@@ -433,7 +433,7 @@ class GLTFTest(g.unittest.TestCase):
         )
         assert len(reloaded.geometry) == 1
         # get meshes back
-        sphere_b = list(reloaded.geometry.values())[0]
+        sphere_b = next(iter(reloaded.geometry.values()))
         assert (sphere_b.visual.material.baseColorFactor == (255, 0, 0, 255)).all()
 
     def test_material_hash(self):
@@ -1047,11 +1047,13 @@ class GLTFTest(g.unittest.TestCase):
 
         # Export the mesh
         export = mesh.export(file_type="glb", unitize_normals=True)
-        reimported_mesh = list(
-            g.trimesh.load(
-                g.trimesh.util.wrap_as_stream(export), file_type="glb"
-            ).geometry.values()
-        )[0]
+        reimported_mesh = next(
+            iter(
+                g.trimesh.load(
+                    g.trimesh.util.wrap_as_stream(export), file_type="glb"
+                ).geometry.values()
+            )
+        )
 
         # Check that the normals are still null
         assert g.np.allclose(reimported_mesh.vertex_normals[0], [0, 0, 0])

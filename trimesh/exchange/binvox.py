@@ -426,7 +426,7 @@ class Binvoxer:
             raise ValueError("Maximum dimension using exact is 1024, got %d" % dimension)
         if file_type not in Binvoxer.SUPPORTED_OUTPUT_TYPES:
             raise ValueError(
-                f"file_type {file_type} not in set of supported output types {str(Binvoxer.SUPPORTED_OUTPUT_TYPES)}"
+                f"file_type {file_type} not in set of supported output types {Binvoxer.SUPPORTED_OUTPUT_TYPES!s}"
             )
         args = [encoder, "-d", str(dimension), "-t", file_type]
         if exact:
@@ -513,7 +513,7 @@ class Binvoxer:
         ext = ext[1:].lower()
         if ext not in Binvoxer.SUPPORTED_INPUT_TYPES:
             raise ValueError(
-                f"file_type {ext} not in set of supported input types {str(Binvoxer.SUPPORTED_INPUT_TYPES)}"
+                f"file_type {ext} not in set of supported input types {Binvoxer.SUPPORTED_INPUT_TYPES!s}"
             )
         out_path = f"{head}.{self._file_type}"
         if os.path.isfile(out_path) and not overwrite:

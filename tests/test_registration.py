@@ -110,7 +110,7 @@ class RegistrationTest(g.unittest.TestCase):
         m = g.trimesh.creation.box()
         X = m.sample(10)
         X = X + [0.1, 0.1, 0.1]
-        matrix, transformed, cost = g.trimesh.registration.icp(X, m, scale=False)
+        _matrix, _transformed, cost = g.trimesh.registration.icp(X, m, scale=False)
         assert cost < 0.01
 
     def test_icp_points(self):
@@ -157,7 +157,7 @@ class RegistrationTest(g.unittest.TestCase):
         truth = g.trimesh.creation.box(extents=extents)
 
         for a, b in [[truth, scan], [scan, truth]]:
-            a_to_b, cost = a.register(b)
+            a_to_b, _cost = a.register(b)
 
             a_check = a.copy()
             a_check.apply_transform(a_to_b)
@@ -172,7 +172,7 @@ class RegistrationTest(g.unittest.TestCase):
         points = g.trimesh.transform_points(
             scan.sample(100), matrix=g.trimesh.transformations.random_rotation_matrix()
         )
-        truth_to_points, cost = truth.register(points)
+        truth_to_points, _cost = truth.register(points)
         truth.apply_transform(truth_to_points)
         distance = truth.nearest.on_surface(points)[1]
 

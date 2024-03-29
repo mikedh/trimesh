@@ -110,7 +110,7 @@ class OBJTest(g.unittest.TestCase):
         m = g.trimesh.load(file_name, process=False)
         # use trivial loading to compare with fancy performant one
         with open(file_name) as f:
-            f, v, vt = simple_load(f.read())
+            f, v, _vt = simple_load(f.read())
         # trimesh loader should return the same face order
         assert g.np.allclose(f, m.faces)
         assert g.np.allclose(v, m.vertices)
@@ -123,7 +123,7 @@ class OBJTest(g.unittest.TestCase):
         m = g.trimesh.load(file_name, process=False, maintain_order=True)
         # use trivial loading to compare with fancy performant one
         with open(file_name) as f:
-            f, v, vt = simple_load(f.read())
+            f, v, _vt = simple_load(f.read())
         # trimesh loader should return the same face order
         assert g.np.allclose(f, m.faces)
         assert g.np.allclose(v, m.vertices)
@@ -448,7 +448,7 @@ class OBJTest(g.unittest.TestCase):
     def test_export_mtl_args(self):
         mesh = g.trimesh.creation.box()
         # check for a crash with no materials defined
-        a, b = g.trimesh.exchange.obj.export_obj(
+        _a, _b = g.trimesh.exchange.obj.export_obj(
             mesh, return_texture=True, mtl_name="hi.mtl"
         )
 

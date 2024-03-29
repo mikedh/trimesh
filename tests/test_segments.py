@@ -107,7 +107,7 @@ class SegmentsTest(g.unittest.TestCase):
         assert g.np.isclose(length(res), length(seg))
 
         # now try with indexes returned
-        res, index = resample(seg, maxlen=maxlen, return_index=True)
+        res, _index = resample(seg, maxlen=maxlen, return_index=True)
         # check lengths of the resampled result
         assert (length(res, summed=False) < maxlen).all()
         # make sure overall length hasn't changed

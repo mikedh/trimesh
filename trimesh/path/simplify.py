@@ -283,7 +283,7 @@ def points_to_spline_entity(points, smooth=None, count=None):
     points = np.asanyarray(points, dtype=np.float64)
     closed = np.linalg.norm(points[0] - points[-1]) < tol.merge
 
-    knots, control, degree = splprep(points.T, s=smooth)[0]
+    knots, control, _degree = splprep(points.T, s=smooth)[0]
     control = np.transpose(control)
     index = np.arange(len(control))
 

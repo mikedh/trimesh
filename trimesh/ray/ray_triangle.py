@@ -146,7 +146,7 @@ class RayMeshIntersector:
         hit : (m,) bool
           Whether any ray hit any triangle on the mesh
         """
-        index_tri, index_ray = self.intersects_id(ray_origins, ray_directions)
+        _index_tri, index_ray = self.intersects_id(ray_origins, ray_directions)
         hit_any = np.zeros(len(ray_origins), dtype=bool)
         hit_idx = np.unique(index_ray)
         if len(hit_idx) > 0:

@@ -20,7 +20,7 @@ jobs:
       run: |
         pip install ruff
     - name: Check Formatting
-      run: ruff .
+      run: ruff check .
   tests:
     name: Run Unit Tests
     needs: formatting

@@ -30,10 +30,10 @@ except BaseException as E:
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad
 __all__ = [
-    "SceneWidget",
     "SceneViewer",
-    "render_scene",
+    "SceneWidget",
     "in_notebook",
-    "scene_to_notebook",
+    "render_scene",
     "scene_to_html",
+    "scene_to_notebook",
 ]
