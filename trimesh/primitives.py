@@ -16,6 +16,7 @@ from . import caching, creation, inertia, sample, triangles, util
 from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
+from .typed import ArrayLike, Integer, Number, Optional
 
 # immutable identity matrix for checks
 _IDENTITY = np.eye(4)
@@ -57,7 +58,8 @@ class Primitive(Trimesh):
 
     @faces.setter
     def faces(self, values):
-        log.warning("primitive faces are immutable: not setting!")
+        if values is not None:
+            raise ValueError("primitive faces are immutable: not setting!")
 
     @property
     def vertices(self):
@@ -71,7 +73,7 @@ class Primitive(Trimesh):
     @vertices.setter
     def vertices(self, values):
         if values is not None:
-            log.warning("primitive vertices are immutable: not setting!")
+            raise ValueError("primitive vertices are immutable: not setting!")
 
     @property
     def face_normals(self):
@@ -550,28 +552,32 @@ class Capsule(Primitive):
 
 class Sphere(Primitive):
     def __init__(
-        self, radius=1.0, center=None, transform=None, subdivisions=3, mutable=True
+        self,
+        radius: Number = 1.0,
+        center: Optional[ArrayLike] = None,
+        transform: Optional[ArrayLike] = None,
+        subdivisions: Integer = 3,
+        mutable: bool = True,
     ):
         """
         Create a Sphere Primitive, a subclass of Trimesh.
 
         Parameters
         ----------
-        radius : float
+        radius
           Radius of sphere
         center : None or (3,) float
           Center of sphere.
         transform : None or (4, 4) float
           Full homogeneous transform. Pass `center` OR `transform.
-        subdivisions : int
+        subdivisions
           Number of subdivisions for icosphere.
-        mutable : bool
+        mutable
           Are extents and transform mutable after creation.
         """
 
         super().__init__()
 
-        defaults = {"radius": 1.0, "transform": np.eye(4), "subdivisions": 3}
         constructor = {"radius": float(radius), "subdivisions": int(subdivisions)}
         # center is a helper method for "transform"
         # since a sphere is rotationally symmetric
@@ -586,7 +592,10 @@ class Sphere(Primitive):
 
         # create the attributes object
         self.primitive = PrimitiveAttributes(
-            self, defaults=defaults, kwargs=constructor, mutable=mutable
+            self,
+            defaults={"radius": 1.0, "transform": np.eye(4), "subdivisions": 3},
+            kwargs=constructor,
+            mutable=mutable,
         )
 
     @property

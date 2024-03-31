@@ -1937,8 +1937,9 @@ class Trimesh(Geometry3D):
 
     def subdivide(self, face_index: Optional[ArrayLike] = None) -> "Trimesh":
         """
-        Subdivide a mesh, with each subdivided face replaced
-        with four smaller faces.
+        Subdivide a mesh with each subdivided face replaced
+        with four smaller faces. Will return a copy of current
+        mesh with subdivided faces.
 
         Parameters
         ------------

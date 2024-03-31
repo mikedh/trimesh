@@ -330,6 +330,29 @@ class PrimitiveTest(g.unittest.TestCase):
             assert g.np.allclose(box.center_mass, box_copy.center_mass)
             assert box.metadata["foo"] == box_copy.metadata["foo"]
 
+    def test_sphere_subdivisions(self):
+        # make sure we don't subdivide when asked not to
+        a = g.trimesh.creation.icosphere(subdivisions=0)
+        assert a.faces.shape == g.trimesh.creation.icosahedron().faces.shape
+
+        # now apply the subdivisions ourself
+        a = a.subdivide().subdivide()
+
+        # should have the same subdivisions as manually doing this
+        b = g.trimesh.primitives.Sphere(subdivisions=2)
+
+        assert a.faces.shape == b.faces.shape
+
+    def test_sphere_subdivisions_radius(self):
+        tf = list(g.random_transforms(4))
+        for r in [1e-4, 1.1, 3, 1213.22]:
+            for subd in range(4):
+                s = g.trimesh.primitives.Sphere(
+                    radius=r, transform=tf[subd], subdivisions=subd
+                )
+                rc = g.np.linalg.norm(s.vertices - s.center_mass, axis=1)
+                assert g.np.isclose(rc.mean(), r)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
