@@ -855,11 +855,21 @@ def icosphere(subdivisions: Integer = 3, radius: Number = 1.0, **kwargs):
     ico : trimesh.Trimesh
       Meshed sphere
     """
+    radius = float(radius)
+    subdivisions = int(subdivisions)
 
     ico = icosahedron()
     ico._validate = False
+
     for _ in range(subdivisions):
         ico = ico.subdivide()
+        vectors = ico.vertices
+        scalar = np.sqrt(np.dot(vectors**2, [1, 1, 1]))
+        unit = vectors / scalar.reshape((-1, 1))
+        ico.vertices += unit * (radius - scalar).reshape((-1, 1))
+
+    # if we didn't subdivide we still need to refine the radius
+    if subdivisions <= 0:
         vectors = ico.vertices
         scalar = np.sqrt(np.dot(vectors**2, [1, 1, 1]))
         unit = vectors / scalar.reshape((-1, 1))
