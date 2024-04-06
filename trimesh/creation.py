@@ -206,12 +206,15 @@ def extrude_polygon(
 
 
 def sweep_polygon(
-    polygon: "Polygon", path: ArrayLike, angles: Optional[ArrayLike] = None, **kwargs
-):
+    polygon: "Polygon",
+    path: ArrayLike,
+    closed: bool = False,
+    angles: Optional[ArrayLike] = None,
+    **kwargs,
+) -> Trimesh:
     """
     Extrude a 2D shapely polygon into a 3D mesh along an
     arbitrary 3D path. Doesn't handle sharp curvature well.
-
 
     Parameters
     ----------
@@ -219,7 +222,9 @@ def sweep_polygon(
       Profile to sweep along path
     path : (n, 3) float
       A path in 3D
-    angles :  (n,) float
+    closed : bool
+      Whether to close the 2 ends of the path
+    angles : (n,) float
       Optional rotation angle relative to prior vertex
       at each vertex
     **kwargs : dict
@@ -248,12 +253,16 @@ def sweep_polygon(
     # Compute 3D locations of those vertices
     verts_3d = np.c_[verts_2d, np.zeros(n)]
     verts_3d = tf.transform_points(verts_3d, tf_mat)
-    base_verts_3d = np.c_[base_verts_2d, np.zeros(len(base_verts_2d))]
-    base_verts_3d = tf.transform_points(base_verts_3d, tf_mat)
 
-    # keep matching sequence of vertices and 0- indexed faces
-    vertices = [base_verts_3d]
-    faces = [faces_2d]
+    if closed:
+        vertices = []
+        faces = []
+    else:
+        base_verts_3d = np.c_[base_verts_2d, np.zeros(len(base_verts_2d))]
+        base_verts_3d = tf.transform_points(base_verts_3d, tf_mat)
+
+        vertices = [base_verts_3d]
+        faces = [faces_2d]
 
     # Compute plane normals for each turn --
     # each turn induces a plane halfway between the two vectors
@@ -286,6 +295,15 @@ def sweep_polygon(
         new_faces = [[i + n, (i + 1) % n, i] for i in range(n)]
         new_faces.extend([[(i - 1) % n + n, i + n, i] for i in range(n)])
 
+        if i == len(norms) - 1 and closed:  # add faces to close mesh
+            N = 2 * n * len(norms)  # total number of vertices in mesh
+            new_faces.extend(
+                [[i + n - (N - n), (i + 1) % n + n, i + n] for i in range(n)]
+            )
+            new_faces.extend(
+                [[(i - 1) % n + n - (N - n), i + n - (N - n), i + n] for i in range(n)]
+            )
+
         # save faces and vertices into a sequence
         faces.append(np.array(new_faces))
         vertices.append(np.vstack((verts_3d, verts_3d_new)))
@@ -294,20 +312,21 @@ def sweep_polygon(
 
     # do the main stack operation from a sequence to (n,3) arrays
     # doing one vstack provides a substantial speedup by
-    # avoiding a bunch of temporary  allocations
+    # avoiding a bunch of temporary allocations
     vertices, faces = util.append_faces(vertices, faces)
 
     # Create final cap
-    x, y, z = util.generate_basis(path[-1] - path[-2])
-    vecs = verts_3d - path[-1]
-    coords = np.c_[np.einsum("ij,j->i", vecs, x), np.einsum("ij,j->i", vecs, y)]
-    base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords), **kwargs)
-    base_verts_3d = (
-        np.einsum("i,j->ij", base_verts_2d[:, 0], x)
-        + np.einsum("i,j->ij", base_verts_2d[:, 1], y)
-    ) + path[-1]
-    faces = np.vstack((faces, faces_2d + len(vertices)))
-    vertices = np.vstack((vertices, base_verts_3d))
+    if not closed:
+        x, y, z = util.generate_basis(path[-1] - path[-2])
+        vecs = verts_3d - path[-1]
+        coords = np.c_[np.einsum("ij,j->i", vecs, x), np.einsum("ij,j->i", vecs, y)]
+        base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords), **kwargs)
+        base_verts_3d = (
+            np.einsum("i,j->ij", base_verts_2d[:, 0], x)
+            + np.einsum("i,j->ij", base_verts_2d[:, 1], y)
+        ) + path[-1]
+        faces = np.vstack((faces, faces_2d + len(vertices)))
+        vertices = np.vstack((vertices, base_verts_3d))
 
     return Trimesh(vertices, faces)
 
