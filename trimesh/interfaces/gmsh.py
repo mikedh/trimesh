@@ -76,8 +76,7 @@ def load_gmsh(file_name, gmsh_args=None):
         raise ValueError("No import since no file was provided!")
 
     # if we initialize with sys.argv it could be anything
-    if not gmsh.isInitialized():
-        gmsh.initialize()
+    gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh.model.add("Surface_Mesh_Generation")
     # loop through our numbered args which do things, stuff
