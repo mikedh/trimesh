@@ -171,7 +171,7 @@ class CreationTest(g.unittest.TestCase):
         # Extrude
         for engine in self.engines:
             mesh = g.trimesh.creation.sweep_polygon(
-                poly, path_closed, closed=True, engine=engine
+                poly, path_closed, engine=engine
             )
             assert mesh.is_volume
 

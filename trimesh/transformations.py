@@ -197,6 +197,7 @@ True
 """
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
 
 _IDENTITY = np.eye(4)
 _IDENTITY.flags["WRITEABLE"] = False
@@ -228,10 +229,19 @@ def translation_matrix(direction):
     """
     # are we 2D or 3D
     dim = len(direction)
+
+
     # start with identity matrix
-    M = np.identity(dim + 1)
+    if any(type(v).__name__ == "Symbol" for v in direction):
+        # if we have been passed input values as sympy.Symbol
+        from sympy import eye
+        M = eye(dim + 1)
+    else:
+        M = np.eye(dim + 1)
+
     # apply the offset
     M[:dim, dim] = direction[:dim]
+
     return M
 
 
@@ -2131,7 +2141,7 @@ def spherical_matrix(theta, phi, axes="sxyz"):
     return result
 
 
-def transform_points(points, matrix, translate=True):
+def transform_points(points: ArrayLike, matrix: ArrayLike, translate: bool=True) -> NDArray[np.float64]:
     """
     Returns points rotated by a homogeneous
     transformation matrix.

@@ -208,13 +208,11 @@ def extrude_polygon(
 def sweep_polygon(
     polygon: "Polygon",
     path: ArrayLike,
-    closed: bool = False,
     angles: Optional[ArrayLike] = None,
     **kwargs,
 ) -> Trimesh:
     """
-    Extrude a 2D shapely polygon into a 3D mesh along an
-    arbitrary 3D path. Doesn't handle sharp curvature well.
+    Extrude a 2D polygon into a 3D mesh along a 3D path.
 
     Parameters
     ----------
@@ -222,13 +220,12 @@ def sweep_polygon(
       Profile to sweep along path
     path : (n, 3) float
       A path in 3D
-    closed : bool
-      Whether to close the 2 ends of the path
     angles : (n,) float
       Optional rotation angle relative to prior vertex
-      at each vertex
+      at each vertex.
     **kwargs : dict
-      Passed to `triangulate_polygon`.
+      Passed to `triangulate_polygon`
+
     Returns
     -------
     mesh : trimesh.Trimesh
@@ -239,94 +236,142 @@ def sweep_polygon(
     if not util.is_shape(path, (-1, 3)):
         raise ValueError("Path must be (n, 3)!")
 
-    # Extract 2D vertices and triangulation
-    verts_2d = np.array(polygon.exterior.coords)[:-1]
-    base_verts_2d, faces_2d = triangulate_polygon(polygon, **kwargs)
-    n = len(verts_2d)
-
-    # Create basis for first planar polygon cap
-    x, y, z = util.generate_basis(path[0] - path[1])
-    tf_mat = np.ones((4, 4))
-    tf_mat[:3, :3] = np.c_[x, y, z]
-    tf_mat[:3, 3] = path[0]
-
-    # Compute 3D locations of those vertices
-    verts_3d = np.c_[verts_2d, np.zeros(n)]
-    verts_3d = tf.transform_points(verts_3d, tf_mat)
-
-    if closed:
-        vertices = []
-        faces = []
+    if angles is not None:
+        angles = np.asanyarray(angles, dtype=np.float64)
+        if angles.shape != (len(path),):
+            raise ValueError(angles.shape)
     else:
-        base_verts_3d = np.c_[base_verts_2d, np.zeros(len(base_verts_2d))]
-        base_verts_3d = tf.transform_points(base_verts_3d, tf_mat)
+        # set all angles to zero
+        angles = np.zeros(len(path), dtype=np.float64)
 
-        vertices = [base_verts_3d]
-        faces = [faces_2d]
+    # check to see if path is closed
+    closed = np.linalg.norm(path[0] - path[-1]) < tol.merge
+    if closed:
+        # make sure vertices are exactly identical
+        path[-1] = path[0]
 
-    # Compute plane normals for each turn --
-    # each turn induces a plane halfway between the two vectors
-    v1s = util.unitize(path[1:-1] - path[:-2])
-    v2s = util.unitize(path[1:-1] - path[2:])
-    norms = np.cross(np.cross(v1s, v2s), v1s + v2s)
-    norms[(norms == 0.0).all(1)] = v1s[(norms == 0.0).all(1)]
-    norms = util.unitize(norms)
-    final_v1 = util.unitize(path[-1] - path[-2])
-    norms = np.vstack((norms, final_v1))
-    v1s = np.vstack((v1s, final_v1))
+    # Extract 2D vertices and triangulation
+    vertices_2D, faces = triangulate_polygon(polygon, **kwargs)
 
-    # Create all side walls by projecting the 3d vertices into each plane
-    # in succession
-    for i in range(len(norms)):
-        verts_3d_prev = verts_3d
+    # stack the `(n, 3)` faces into `(3 * n, 2)` edges
+    edges = faces_to_edges(faces)
+    # edges which only occur once are on the boundary of the polygon
+    # since the triangulation may have subdivided the boundary of the
+    # shapely polygon, we need to find it again
+    edges_unique = grouping.group_rows(np.sort(edges, axis=1), require_count=1)
 
-        # Rotate if needed
-        if angles is not None:
-            tf_mat = tf.rotation_matrix(angles[i], norms[i], path[i])
-            verts_3d_prev = tf.transform_points(verts_3d_prev, tf_mat)
+    # subset the vertices to only ones included in the boundary
+    unique, inverse = np.unique(edges[edges_unique].reshape(-1), return_inverse=True)
+    # take only the vertices in the boundary
+    # and stack them with zeros and ones so we can use dot
+    # products to transform them all over the place
+    vertices_tf = np.column_stack(
+        (vertices_2D[unique], np.zeros(len(unique)), np.ones(len(unique)))
+    ).T
+    # the indices of vertices_tf
+    boundary = inverse.reshape((-1, 2))
 
-        # Project vertices onto plane in 3D
-        ds = np.einsum("ij,j->i", (path[i + 1] - verts_3d_prev), norms[i])
-        ds = ds / np.dot(v1s[i], norms[i])
+    # now create a matrix for every vertex along our path.
+    # - plane origin at the vertex
+    # - plane normal along the induced normal from the vector
+    # - rotation specified by angle
 
-        verts_3d_new = np.einsum("i,j->ij", ds, v1s[i]) + verts_3d_prev
+    # this will be the plane normal for each slice
+    normal = path[1:] - path[:-1]
+    normal = np.vstack((normal, [normal[-1]]))
 
-        # Add to face and vertex lists
-        new_faces = [[i + n, (i + 1) % n, i] for i in range(n)]
-        new_faces.extend([[(i - 1) % n + n, i + n, i] for i in range(n)])
+    normal = util.unitize(normal)
 
-        if i == len(norms) - 1 and closed:  # add faces to close mesh
-            N = 2 * n * len(norms)  # total number of vertices in mesh
-            new_faces.extend(
-                [[i + n - (N - n), (i + 1) % n + n, i + n] for i in range(n)]
-            )
-            new_faces.extend(
-                [[(i - 1) % n + n - (N - n), i + n - (N - n), i + n] for i in range(n)]
-            )
+    # try to vectorize some things
+    syaw, spitch = util.vector_to_spherical(normal).T
 
-        # save faces and vertices into a sequence
-        faces.append(np.array(new_faces))
-        vertices.append(np.vstack((verts_3d, verts_3d_new)))
+    # this will be the roll vector
+    roll = np.cross(normal[1:], normal[:-1])
+    roll_norm = np.linalg.norm(roll, axis=1)
+    roll_nonzero = roll_norm > tol.zero
+    roll[roll_nonzero] /= roll_norm[roll_nonzero].reshape((-1, 1))
 
-        verts_3d = verts_3d_new
+    roll = np.zeros(len(syaw))
+    x, y, z = path.T
 
-    # do the main stack operation from a sequence to (n,3) arrays
-    # doing one vstack provides a substantial speedup by
-    # avoiding a bunch of temporary allocations
-    vertices, faces = util.append_faces(vertices, faces)
+    assert len(roll) == len(syaw)
+    assert len(roll) == len(x)
 
-    # Create final cap
-    if not closed:
-        x, y, z = util.generate_basis(path[-1] - path[-2])
-        vecs = verts_3d - path[-1]
-        coords = np.c_[np.einsum("ij,j->i", vecs, x), np.einsum("ij,j->i", vecs, y)]
-        base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords), **kwargs)
-        base_verts_3d = (
-            np.einsum("i,j->ij", base_verts_2d[:, 0], x)
-            + np.einsum("i,j->ij", base_verts_2d[:, 1], y)
-        ) + path[-1]
-        faces = np.vstack((faces, faces_2d + len(vertices)))
-        vertices = np.vstack((vertices, base_verts_3d))
+    cos = np.cos
+    sin = np.sin
+    ze = np.zeros_like(x)
+    o = np.ones_like(x)
+
+    import sympy as sp
+
+    yaw, pitch, roll, xt, yt, zt = sp.symbols("yaw pitch roll xt yt zt")
+
+    """
+    - polygon is rolled around z by requested-induced angle
+    - polygon is yaw around y
+    - polygon is pitch around x
+    - polygon is translated
+    """
+
+    rm = tf.rotation_matrix(roll, [0, 0, 1])
+    ym = tf.rotation_matrix(yaw, [0, 1, 0])
+    pm = tf.rotation_matrix(pitch, [1, 0, 0])
+    tm = tf.translation_matrix([xt, yt, zt])
+
+    final = rm @ ym @ pm @ tm
+
+    chk = np.array(
+        final.subs({roll: 0.0, yaw: syaw[0], pitch: spitch[0], xt: 0, yt: 0, zt: 0}),
+        dtype=np.float64,
+    )
+
+    from IPython import embed
+
+    embed()
+
+    # generate a transform for every slice in a somewhat vectorized way
+    # originally generated using sympy:
+    # print(tf.euler_matrix(*sympy.symbols('yaw pitch roll')))
+    mats = np.column_stack(
+        [
+            cos(pitch) * cos(roll),
+            sin(pitch) * sin(yaw) * cos(roll) - sin(roll) * cos(yaw),
+            sin(pitch) * cos(roll) * cos(yaw) + sin(roll) * sin(yaw),
+            x,
+            sin(roll) * cos(pitch),
+            sin(pitch) * sin(roll) * sin(yaw) + cos(roll) * cos(yaw),
+            sin(pitch) * sin(roll) * cos(yaw) - sin(yaw) * cos(roll),
+            y,
+            -sin(pitch),
+            sin(yaw) * cos(pitch),
+            cos(pitch) * cos(yaw),
+            z,
+            ze,
+            ze,
+            ze,
+            o,
+        ]
+    ).reshape((-1, 4, 4))
+
+    import trimesh
+
+    check = np.array(
+        [
+            trimesh.transform_points([[0.0, 0.0, 1.0]], m, translate=False)[0]
+            for n, m in zip(normal, mats)
+        ]
+    )
+
+    vertices_3D = np.vstack([np.dot(m, vertices_tf).T[:, :3] for m in mats])
+
+    # check = [tf.transform_points(ver
+
+    # matrix_init = align_c
+    # matrices =
+
+    from IPython import embed
+
+    embed()
 
     return Trimesh(vertices, faces)
 
