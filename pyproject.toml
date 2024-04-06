@@ -102,6 +102,7 @@ test = [
     "coveralls",
     "pyright",
     "ezdxf",
+    "gmsh>=4.12.1",
     "pytest",
     "pymeshlab",
     "pyinstrument",
