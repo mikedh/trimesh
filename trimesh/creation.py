@@ -15,6 +15,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
+from .resources import get_json
 from .typed import ArrayLike, Dict, Integer, Number, Optional
 
 try:
@@ -31,6 +32,9 @@ try:
     from mapbox_earcut import triangulate_float64 as _tri_earcut
 except BaseException as E:
     _tri_earcut = exceptions.ExceptionWrapper(E)
+
+# get stored values for simple box and icosahedron primitives
+_data = get_json("creation.json")
 
 
 def revolve(
@@ -642,12 +646,10 @@ def box(
     geometry : trimesh.Trimesh
       Mesh of a cuboid
     """
-    # vertices of the cube
-    vertices = np.array(
-        [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        order="C",
-        dtype=np.float64,
-    ).reshape((-1, 3))
+    # vertices of the cube from reference
+    vertices = np.array(_data["box"]["vertices"], order="C", dtype=np.float64)
+    faces = np.array(_data["box"]["faces"], order="C", dtype=np.int64)
+    face_normals = np.array(_data["box"]["face_normals"], order="C", dtype=np.float64)
 
     # resize cube based on passed extents
     if bounds is not None:
@@ -668,88 +670,6 @@ def box(
     else:
         vertices -= 0.5
         extents = np.asarray((1.0, 1.0, 1.0), dtype=np.float64)
-
-    # hardcoded face indices
-    # TODO : make less lol?
-    faces = [
-        1,
-        3,
-        0,
-        4,
-        1,
-        0,
-        0,
-        3,
-        2,
-        2,
-        4,
-        0,
-        1,
-        7,
-        3,
-        5,
-        1,
-        4,
-        5,
-        7,
-        1,
-        3,
-        7,
-        2,
-        6,
-        4,
-        2,
-        2,
-        7,
-        6,
-        6,
-        5,
-        4,
-        7,
-        5,
-        6,
-    ]
-    faces = np.array(faces, order="C", dtype=np.int64).reshape((-1, 3))
-
-    face_normals = [
-        -1,
-        0,
-        0,
-        0,
-        -1,
-        0,
-        -1,
-        0,
-        0,
-        0,
-        0,
-        -1,
-        0,
-        0,
-        1,
-        0,
-        -1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        0,
-        0,
-        0,
-        -1,
-        0,
-        1,
-        0,
-        1,
-        0,
-        0,
-        1,
-        0,
-        0,
-    ]
-    face_normals = np.asanyarray(face_normals, order="C", dtype=np.float64).reshape(-1, 3)
 
     if "metadata" not in kwargs:
         kwargs["metadata"] = {}
@@ -780,111 +700,9 @@ def icosahedron(**kwargs) -> Trimesh:
     ico : trimesh.Trimesh
       Icosahederon centered at the origin.
     """
-    t = (1.0 + 5.0**0.5) / 2.0
-    vertices = [
-        -1,
-        t,
-        0,
-        1,
-        t,
-        0,
-        -1,
-        -t,
-        0,
-        1,
-        -t,
-        0,
-        0,
-        -1,
-        t,
-        0,
-        1,
-        t,
-        0,
-        -1,
-        -t,
-        0,
-        1,
-        -t,
-        t,
-        0,
-        -1,
-        t,
-        0,
-        1,
-        -t,
-        0,
-        -1,
-        -t,
-        0,
-        1,
-    ]
-    faces = [
-        0,
-        11,
-        5,
-        0,
-        5,
-        1,
-        0,
-        1,
-        7,
-        0,
-        7,
-        10,
-        0,
-        10,
-        11,
-        1,
-        5,
-        9,
-        5,
-        11,
-        4,
-        11,
-        10,
-        2,
-        10,
-        7,
-        6,
-        7,
-        1,
-        8,
-        3,
-        9,
-        4,
-        3,
-        4,
-        2,
-        3,
-        2,
-        6,
-        3,
-        6,
-        8,
-        3,
-        8,
-        9,
-        4,
-        9,
-        5,
-        2,
-        4,
-        11,
-        6,
-        2,
-        10,
-        8,
-        6,
-        7,
-        9,
-        8,
-        1,
-    ]
-    # scale vertices so each vertex radius is 1.0
-    vertices = np.reshape(vertices, (-1, 3)) / np.sqrt(2.0 + t)
-    faces = np.reshape(faces, (-1, 3))
-
+    # get stored pre-baked primitive values
+    vertices = np.array(_data["icosahedron"]["vertices"], dtype=np.float64)
+    faces = np.array(_data["icosahedron"]["faces"], dtype=np.int64)
     return Trimesh(
         vertices=vertices, faces=faces, process=kwargs.pop("process", False), **kwargs
     )
