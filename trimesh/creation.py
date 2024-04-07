@@ -213,7 +213,8 @@ def sweep_polygon(
     polygon: "Polygon",
     path: ArrayLike,
     angles: Optional[ArrayLike] = None,
-    **kwargs,
+    triangulation: Optional[Dict] = None,
+    kwargs: Optional[Dict] = None,
 ) -> Trimesh:
     """
     Extrude a 2D polygon into a 3D mesh along a 3D path.
@@ -252,7 +253,11 @@ def sweep_polygon(
     closed = np.linalg.norm(path[0] - path[-1]) < tol.merge
 
     # Extract 2D vertices and triangulation
-    vertices_2D, faces_2D = triangulate_polygon(polygon, **kwargs)
+    if triangulation is None:
+        triangulation = {}
+
+    vertices_2D, faces_2D = triangulate_polygon(polygon, **triangulation)
+
     # stack the `(n, 3)` faces into `(3 * n, 2)` edges
     edges = faces_to_edges(faces_2D)
     # edges which only occur once are on the boundary of the polygon
@@ -270,13 +275,12 @@ def sweep_polygon(
     # the indices of vertices_tf
     boundary = inverse.reshape((-1, 2))
 
-    # now create the planes each slice will lie on
-    # consider a path with 3 vertices and therefore 2 vectors:
+    # now create the normals for the plane each slice will lie on
+    # consider the simple path with 3 vertices and therefore 2 vectors:
     # - the first plane will be exactly along the first vector
     # - the second plane will be the average of the two vectors
     # - the last plane will be exactly along the last vector
-    # this will be the plane normal for each slice
-    # and each plane origin will be a vertex on the path
+    # and each plane origin will be the corresponding vertex on the path
     vector = util.unitize(path[1:] - path[:-1])
     # unitize instead of / 2 as they may be degenerate / zero
     vector_mean = util.unitize(vector[1:] + vector[:-1])
@@ -284,7 +288,7 @@ def sweep_polygon(
     normal = np.concatenate([[vector[0]], vector_mean, [vector[-1]]], axis=0)
 
     if closed:
-        # if we have a closed loop average the planes here
+        # if we have a closed loop average the first and last planes
         normal[0] = normal[[0, -1]].mean(axis=0)
 
     # planes should have one unit normal and one vertex each
@@ -293,12 +297,13 @@ def sweep_polygon(
     # get the spherical coordinates for the normal vectors
     theta, phi = util.vector_to_spherical(normal).T
 
-    # collect the trig terms into numpy arrays
+    # collect the trig values into numpy arrays we can compose into matrices
     cos_theta, sin_theta = np.cos(theta), np.sin(theta)
     cos_phi, sin_phi = np.cos(phi), np.sin(phi)
     cos_roll, sin_roll = np.cos(angles), np.sin(angles)
 
-    # this was constructed from the following sympy block
+    # we want a rotation which will be the identity for a Z+ vector
+    # this was constructed and unrolled from the following sympy block
     # theta, phi, roll = sp.symbols("theta phi roll")
     # matrix = (
     #     tf.rotation_matrix(roll, [0, 0, 1]) @
@@ -352,23 +357,54 @@ def sweep_polygon(
     ).reshape((-1, 3))
 
     # offset the slices
-    faces = np.vstack(
-        [faces_slice + offset for offset in np.arange(len(path) - 1) * stride]
-    )
+    faces = [faces_slice + offset for offset in np.arange(len(path) - 1) * stride]
 
     if closed:
-        # merge the last slices
-        faces[-len(faces_slice) :] %= (len(path) - 1) * stride
+        # the last slice will not be required
+        max_vertex = (len(path) - 1) * stride
+        # clip off the duplicated vertices
+        vertices_3D = vertices_3D[:max_vertex]
+        # apply the modulus in-place to a conservative subset
+        faces[-1] %= max_vertex
     else:
-        # todo : apply some caps
-        pass
+        # we don't want to sloppily add vertices everywhere so we need to
+        # - find the vertices in `faces_2D` not referenced by boundary
+        # - stack them onto the first and last planes
+        # - append faces for both end caps
+        # these are indices of `vertices_2D` that were not included
+        if set(unique) != set(faces_2D.ravel()):
+            raise NotImplementedError("triangulation added vertices: no logic to cap!")
 
-    # import trimesh
-    # m = trimesh.Trimesh(vertices_3D, faces).show()
-    # from IPython import embed
-    # embed()
+        # hmm map the 2D faces to the order we used
+        mapped = np.zeros(unique.max() + 2)
+        mapped[unique] = np.arange(len(unique))
+        cap_zero = mapped[faces_2D]
+        # winding will be along +Z so flip for the bottom cap
+        faces.append(np.fliplr(cap_zero))
+        # offset the end cap
+        faces.append(cap_zero + stride * (len(path) - 1))
 
-    return Trimesh(vertices_3D, faces)
+    if kwargs is None:
+        kwargs = {}
+
+    if "process" not in kwargs:
+        # we should be constructing clean meshes here
+        # so we don't need to run an expensive verex merge
+        kwargs["process"] = False
+
+    # stack the faces used
+    faces = np.concatenate(faces, axis=0)
+
+    # generate the mesh from the face data
+    mesh = Trimesh(vertices=vertices_3D, faces=faces, **kwargs)
+
+    if tol.strict:
+        # we should not have included any unused vertices
+        assert len(np.unique(faces)) == len(vertices_3D)
+        # mesh should be a volume
+        assert mesh.is_volume
+
+    return mesh
 
 
 def extrude_triangulation(
