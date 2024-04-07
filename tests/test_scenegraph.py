@@ -206,13 +206,13 @@ class GraphTests(g.unittest.TestCase):
             return
 
         tf = g.trimesh.transformations
-        # start with creating a random tree
-        edgelist = {}
-        tree = g.nx.random_tree(n=1000, seed=0, create_using=g.nx.DiGraph)
-        edges = list(tree.edges)
+        # start with a known good random tree
+        edges = [tuple(row) for row in g.data["random_tree"]]
+        tree = g.nx.from_edgelist(edges, create_using=g.nx.DiGraph)
 
         r_choices = g.random((len(edges), 2))
         r_matrices = g.random_transforms(len(edges))
+        edgelist = {}
         for e, r_choice, r_mat in zip(edges, r_choices, r_matrices):
             data = {}
             if r_choice[0] > 0.5:
