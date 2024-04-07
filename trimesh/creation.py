@@ -246,9 +246,6 @@ def sweep_polygon(
 
     # check to see if path is closed
     closed = np.linalg.norm(path[0] - path[-1]) < tol.merge
-    if closed:
-        # make sure vertices are exactly identical
-        path[-1] = path[0]
 
     # Extract 2D vertices and triangulation
     vertices_2D, faces_2D = triangulate_polygon(polygon, **kwargs)
@@ -269,48 +266,43 @@ def sweep_polygon(
     # the indices of vertices_tf
     boundary = inverse.reshape((-1, 2))
 
-    # now create a matrix for every vertex along our path.
-    # - plane origin at the vertex
-    # - plane normal along the induced normal from the vector
-    # - rotation specified by angle
-
+    # now create the planes each slice will lie on
+    # consider a path with 3 vertices and therefore 2 vectors:
+    # - the first plane will be exactly along the first vector
+    # - the second plane will be the average of the two vectors
+    # - the last plane will be exactly along the last vector
     # this will be the plane normal for each slice
-    normal = util.unitize(path[1:] - path[:-1])
+    # and each plane origin will be a vertex on the path
+    vector = util.unitize(path[1:] - path[:-1])
+    # unitize instead of / 2 as they may be degenerate / zero
+    vector_mean = util.unitize(vector[1:] + vector[:-1])
+    # collect the vectors into plane normals
+    normal = np.concatenate([[vector[0]], vector_mean, [vector[-1]]], axis=0)
 
     if closed:
-        ends = normal[[0, -1]]
-        normal[0] = ends.mean(axis=0)
-        normal[-1] = normal[0]
+        # if we have a closed loop average the planes here
+        normal[0] = normal[[0, -1]].mean(axis=0)
 
-    normal[1:] += normal[:-1]
-
-    normal = util.unitize(normal)
-    normal = np.vstack((normal, normal[-1]))
-
+    # planes should have one unit normal and one vertex each
     assert normal.shape == path.shape
 
-    # try to vectorize some things
+    # get the spherical coordinates for the normal vectors
     theta, phi = util.vector_to_spherical(normal).T
+
+    # collect the trig terms into numpy arrays
     cos_theta, sin_theta = np.cos(theta), np.sin(theta)
     cos_phi, sin_phi = np.cos(phi), np.sin(phi)
     cos_roll, sin_roll = np.cos(angles), np.sin(angles)
 
-    if angles is None:
-        angles = np.zeros(len(path))
-    else:
-        angles = np.asanyarray(angles, dtype=np.float64)
-        assert angles.shape == (len(path),)
+    # this was constructed from the following sympy block
+    # theta, phi, roll = sp.symbols("theta phi roll")
+    # matrix = (
+    #     tf.rotation_matrix(roll, [0, 0, 1]) @
+    #     tf.rotation_matrix(phi, [1, 0, 0]) @
+    #     tf.rotation_matrix((sp.pi / 2) - theta, [0, 0, 1])
+    # ).inv()
+    # matrix.simplify()
 
-    # this was constructed from the following sympy block:
-    """
-    theta, phi, roll = sp.symbols("theta phi roll")
-    matrix = (
-        tf.rotation_matrix(roll, [0, 0, 1]) @
-        tf.rotation_matrix(phi, [1, 0, 0]) @
-        tf.rotation_matrix((sp.pi / 2) - theta, [0, 0, 1])
-    ).inv()
-    matrix.simplify()
-    """
     # shorthand for stacking
     zeros = np.zeros(len(theta))
     ones = np.ones(len(theta))
@@ -343,7 +335,7 @@ def sweep_polygon(
             check = tf.transform_points([[0.0, 0.0, 1.0]], matrix, translate=False)[0]
             assert np.allclose(check, n)
 
-    # apply transforms to prebaked homogenous coordinates
+    # apply transforms to prebaked homogeneous coordinates
     vertices_3D = np.concatenate(
         [np.dot(vertices_tf, matrix.T) for matrix in transforms], axis=0
     )[:, :3]

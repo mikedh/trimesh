@@ -5,7 +5,7 @@ import numpy as np
 
 from ..constants import log
 
-# the old `gmsh-sdk` package is deprectated and
+# the old `gmsh-sdk` package is deprecated and
 # has a different incompatible API!
 _min_gmsh = (4, 12, 1)
 
