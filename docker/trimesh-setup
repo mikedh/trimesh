@@ -47,7 +47,8 @@ config_json = """
       "curl",
       "git",
       "libxft2"
-    ]
+    ],
+   "gmsh": ["libxft2", "libxinerama-dev", "libxcursor1","libgomp1"]
   },
   "fetch": {
     "gltf_validator": {
