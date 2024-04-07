@@ -1,5 +1,6 @@
 import os
 import tempfile
+import warnings
 
 import numpy as np
 
@@ -8,6 +9,17 @@ from ..constants import log
 # the old `gmsh-sdk` package is deprecated and
 # has a different incompatible API!
 _min_gmsh = (4, 12, 1)
+
+
+_warning = " ".join(
+    [
+        "`trimesh.interfaces.gmsh` is deprecated and will be removed January 2025!",
+        "There are *many* gmsh options on PyPi: `scikit-gmsh` `gmsh` `pygmsh` `gmsh-sdk`,",
+        "users should pick one of those and use it directly. If STEP loading is the only",
+        "thing needed you may want `pip install cascadio` which uses OpenCASCADE more",
+        "directly and will immediatly enable STEP as a loadable format in trimesh.",
+    ]
+)
 
 
 def load_gmsh(file_name, gmsh_args=None):
@@ -38,6 +50,8 @@ def load_gmsh(file_name, gmsh_args=None):
     mesh : trimesh.Trimesh
       Surface mesh of input geometry
     """
+    warnings.warn(_warning, category=DeprecationWarning, stacklevel=2)
+
     # use STL as an intermediate format
     # do import here to avoid very occasional segfaults
     import gmsh
@@ -179,6 +193,8 @@ def to_volume(mesh, file_type="msh", max_element=None, mesher_id=1) -> bytes:
       MSH data, only returned if file_name is None
 
     """
+    warnings.warn(_warning, category=DeprecationWarning, stacklevel=2)
+
     # do import here to avoid very occasional segfaults
     import gmsh
 
