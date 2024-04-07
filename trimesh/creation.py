@@ -283,37 +283,43 @@ def sweep_polygon(
     theta, phi = util.vector_to_spherical(normal).T
     cos_theta, sin_theta = np.cos(theta), np.sin(theta)
     cos_phi, sin_phi = np.cos(phi), np.sin(phi)
+    cos_roll, sin_roll = np.cos(angles), np.sin(angles)
 
-    # plane origins are the points on the path
-    o_x, o_y, o_z = path.T
+    if angles is None:
+        angles = np.zeros(len(path))
+    else:
+        angles = np.asanyarray(angles, dtype=np.float64)
+        assert angles.shape == (len(path),)
 
     # this was constructed from the following sympy block:
     """
-    theta, phi = sp.symbols("theta phi")
+    theta, phi, roll = sp.symbols("theta phi roll")
     matrix = (
-        tf.rotation_matrix(phi, [1, 0, 0])
-        @ tf.rotation_matrix((sp.pi / 2) - theta, [0, 0, 1])
+        tf.rotation_matrix(roll, [0, 0, 1]) @
+        tf.rotation_matrix(phi, [1, 0, 0]) @
+        tf.rotation_matrix((sp.pi / 2) - theta, [0, 0, 1])
     ).inv()
     matrix.simplify()
     """
     # shorthand for stacking
     zeros = np.zeros(len(theta))
     ones = np.ones(len(theta))
+
     # stack initially as one unrolled matrix per row
     transforms = np.column_stack(
         [
-            sin_theta,
-            cos_phi * cos_theta,
+            -sin_roll * cos_phi * cos_theta + sin_theta * cos_roll,
+            sin_roll * sin_theta + cos_phi * cos_roll * cos_theta,
             sin_phi * cos_theta,
-            o_x,
-            -cos_theta,
-            sin_theta * cos_phi,
+            path[:, 0],
+            -sin_roll * sin_theta * cos_phi - cos_roll * cos_theta,
+            -sin_roll * cos_theta + sin_theta * cos_phi * cos_roll,
             sin_phi * sin_theta,
-            o_y,
-            zeros,
-            -sin_phi,
+            path[:, 1],
+            sin_phi * sin_roll,
+            -sin_phi * cos_roll,
             cos_phi,
-            o_z,
+            path[:, 2],
             zeros,
             zeros,
             zeros,
@@ -327,20 +333,12 @@ def sweep_polygon(
             check = tf.transform_points([[0.0, 0.0, 1.0]], matrix, translate=False)[0]
             assert np.allclose(check, n)
 
-    """
-    # this will be the roll vector
-    roll = np.cross(normal[1:], normal[:-1])
-    roll_norm = np.linalg.norm(roll, axis=1)
-    roll_nonzero = roll_norm > tol.zero
-    roll[roll_nonzero] /= roll_norm[roll_nonzero].reshape((-1, 1))
-    """
-
     # apply transforms to prebaked homogenous coordinates
     vertices_3D = np.vstack(
         [np.dot(matrix, vertices_tf).T[:, :3] for matrix in transforms]
     )
 
-    # now construct the faces
+    # now construct the faces with one group of boundary faces per slice
     stride = len(unique)
     boundary_next = boundary + stride
     faces_slice = np.column_stack(
