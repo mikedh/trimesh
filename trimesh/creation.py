@@ -321,7 +321,7 @@ def sweep_polygon(
         ]
     ).reshape((-1, 4, 4))
 
-    if tol.strict or True:
+    if tol.strict:
         # make sure that each transform moves the Z+ vector to the requested normal
         for n, matrix in zip(normal, transforms):
             check = tf.transform_points([[0.0, 0.0, 1.0]], matrix, translate=False)[0]
