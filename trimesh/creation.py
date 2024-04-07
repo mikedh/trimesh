@@ -213,9 +213,9 @@ def sweep_polygon(
     polygon: "Polygon",
     path: ArrayLike,
     angles: Optional[ArrayLike] = None,
-        cap: bool = True,
-    triangulation: Optional[Dict] = None,
+    cap: bool = True,
     kwargs: Optional[Dict] = None,
+    **triangulation,
 ) -> Trimesh:
     """
     Extrude a 2D polygon into a 3D mesh along a 3D path.
@@ -254,9 +254,6 @@ def sweep_polygon(
     closed = np.linalg.norm(path[0] - path[-1]) < tol.merge
 
     # Extract 2D vertices and triangulation
-    if triangulation is None:
-        triangulation = {}
-
     vertices_2D, faces_2D = triangulate_polygon(polygon, **triangulation)
 
     # stack the `(n, 3)` faces into `(3 * n, 2)` edges
@@ -290,7 +287,7 @@ def sweep_polygon(
 
     if closed:
         # if we have a closed loop average the first and last planes
-        normal[0] = normal[[0, -1]].mean(axis=0)
+        normal[0] = util.unitize(normal[[0, -1]].mean(axis=0))
 
     # planes should have one unit normal and one vertex each
     assert normal.shape == path.shape
