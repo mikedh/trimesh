@@ -45,7 +45,8 @@ config_json = """
       "blender",
       "openscad",
       "curl",
-      "git"
+      "git",
+      "libxft2"
     ]
   },
   "fetch": {
