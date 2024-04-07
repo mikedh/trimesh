@@ -227,6 +227,31 @@ class TransformTest(g.unittest.TestCase):
             # they should be the same matrix
             assert g.np.allclose(s, n)
 
+    def test_symbolic_translate(self):
+        # some of the functions have been modified to support `sympy.Symbol`
+        # values which is useful for calculating final rotations symbolically
+        try:
+            import sympy as sp
+        except BaseException:
+            return
+
+        translate = g.trimesh.transformations.translation_matrix
+
+        x, y, z = sp.symbols("x y z")
+
+        m = translate([x, y, z])
+
+        for T in g.random((100, 3)):
+            # get the euler matrix evaluated from the symbolic matrix
+            s = g.np.array(
+                m.subs({x: T[0], y: T[1], z: T[2]}).evalf(), dtype=g.np.float64
+            )
+            # get it from a numeric scalar
+            n = translate(T)
+
+            # they should be the same matrix
+            assert g.np.allclose(s, n)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

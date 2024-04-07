@@ -252,14 +252,12 @@ def sweep_polygon(
 
     # Extract 2D vertices and triangulation
     vertices_2D, faces = triangulate_polygon(polygon, **kwargs)
-
     # stack the `(n, 3)` faces into `(3 * n, 2)` edges
     edges = faces_to_edges(faces)
     # edges which only occur once are on the boundary of the polygon
     # since the triangulation may have subdivided the boundary of the
     # shapely polygon, we need to find it again
     edges_unique = grouping.group_rows(np.sort(edges, axis=1), require_count=1)
-
     # subset the vertices to only ones included in the boundary
     unique, inverse = np.unique(edges[edges_unique].reshape(-1), return_inverse=True)
     # take only the vertices in the boundary
@@ -279,101 +277,87 @@ def sweep_polygon(
     # this will be the plane normal for each slice
     normal = path[1:] - path[:-1]
     normal = np.vstack((normal, [normal[-1]]))
-
     normal = util.unitize(normal)
 
     # try to vectorize some things
-    syaw, spitch = util.vector_to_spherical(normal).T
+    theta, phi = util.vector_to_spherical(normal).T
+    cos_theta, sin_theta = np.cos(theta), np.sin(theta)
+    cos_phi, sin_phi = np.cos(phi), np.sin(phi)
 
+    # plane origins are the points on the path
+    o_x, o_y, o_z = path.T
+
+    # this was constructed from the following sympy block:
+    """
+    theta, phi = sp.symbols("theta phi")
+    matrix = (
+        tf.rotation_matrix(phi, [1, 0, 0])
+        @ tf.rotation_matrix((sp.pi / 2) - theta, [0, 0, 1])
+    ).inv()
+    matrix.simplify()
+    """
+    # shorthand for stacking
+    zeros = np.zeros(len(theta))
+    ones = np.ones(len(theta))
+    # stack initially as one unrolled matrix per row
+    transforms = np.column_stack(
+        [
+            sin_theta,
+            cos_phi * cos_theta,
+            sin_phi * cos_theta,
+            o_x,
+            -cos_theta,
+            sin_theta * cos_phi,
+            sin_phi * sin_theta,
+            o_y,
+            zeros,
+            -sin_phi,
+            cos_phi,
+            o_z,
+            zeros,
+            zeros,
+            zeros,
+            ones,
+        ]
+    ).reshape((-1, 4, 4))
+
+    if tol.strict or True:
+        # make sure that each transform moves the Z+ vector to the requested normal
+        for n, matrix in zip(normal, transforms):
+            check = tf.transform_points([[0.0, 0.0, 1.0]], matrix, translate=False)[0]
+            assert np.allclose(check, n)
+
+    """
     # this will be the roll vector
     roll = np.cross(normal[1:], normal[:-1])
     roll_norm = np.linalg.norm(roll, axis=1)
     roll_nonzero = roll_norm > tol.zero
     roll[roll_nonzero] /= roll_norm[roll_nonzero].reshape((-1, 1))
-
-    roll = np.zeros(len(syaw))
-    x, y, z = path.T
-
-    assert len(roll) == len(syaw)
-    assert len(roll) == len(x)
-
-    cos = np.cos
-    sin = np.sin
-    ze = np.zeros_like(x)
-    o = np.ones_like(x)
-
-    import sympy as sp
-
-    yaw, pitch, roll, xt, yt, zt = sp.symbols("yaw pitch roll xt yt zt")
-
-    """
-    - polygon is rolled around z by requested-induced angle
-    - polygon is yaw around y
-    - polygon is pitch around x
-    - polygon is translated
     """
 
-    rm = tf.rotation_matrix(roll, [0, 0, 1])
-    ym = tf.rotation_matrix(yaw, [0, 1, 0])
-    pm = tf.rotation_matrix(pitch, [1, 0, 0])
-    tm = tf.translation_matrix([xt, yt, zt])
-
-    final = rm @ ym @ pm @ tm
-
-    chk = np.array(
-        final.subs({roll: 0.0, yaw: syaw[0], pitch: spitch[0], xt: 0, yt: 0, zt: 0}),
-        dtype=np.float64,
+    # apply transforms to prebaked homogenous coordinates
+    vertices_3D = np.vstack(
+        [np.dot(matrix, vertices_tf).T[:, :3] for matrix in transforms]
     )
 
-    from IPython import embed
+    # now construct the faces
+    stride = len(unique)
+    boundary_next = boundary + stride
+    faces_slice = np.column_stack(
+        [boundary, boundary_next[:, :1], boundary_next[:, ::-1], boundary[:, 1:]]
+    ).reshape((-1, 3))
 
-    embed()
-
-    # generate a transform for every slice in a somewhat vectorized way
-    # originally generated using sympy:
-    # print(tf.euler_matrix(*sympy.symbols('yaw pitch roll')))
-    mats = np.column_stack(
-        [
-            cos(pitch) * cos(roll),
-            sin(pitch) * sin(yaw) * cos(roll) - sin(roll) * cos(yaw),
-            sin(pitch) * cos(roll) * cos(yaw) + sin(roll) * sin(yaw),
-            x,
-            sin(roll) * cos(pitch),
-            sin(pitch) * sin(roll) * sin(yaw) + cos(roll) * cos(yaw),
-            sin(pitch) * sin(roll) * cos(yaw) - sin(yaw) * cos(roll),
-            y,
-            -sin(pitch),
-            sin(yaw) * cos(pitch),
-            cos(pitch) * cos(yaw),
-            z,
-            ze,
-            ze,
-            ze,
-            o,
-        ]
-    ).reshape((-1, 4, 4))
-
-    import trimesh
-
-    check = np.array(
-        [
-            trimesh.transform_points([[0.0, 0.0, 1.0]], m, translate=False)[0]
-            for n, m in zip(normal, mats)
-        ]
+    # offset the slices
+    faces = np.vstack(
+        [faces_slice + offset for offset in np.arange(len(path) - 1) * stride]
     )
 
-    vertices_3D = np.vstack([np.dot(m, vertices_tf).T[:, :3] for m in mats])
+    # import trimesh
+    # m = trimesh.Trimesh(vertices_3D, faces).show()
+    # from IPython import embed
+    # embed()
 
-    # check = [tf.transform_points(ver
-
-    # matrix_init = align_c
-    # matrices =
-
-    from IPython import embed
-
-    embed()
-
-    return Trimesh(vertices, faces)
+    return Trimesh(vertices_3D, faces)
 
 
 def extrude_triangulation(
