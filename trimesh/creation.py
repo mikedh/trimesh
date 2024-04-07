@@ -251,9 +251,9 @@ def sweep_polygon(
         path[-1] = path[0]
 
     # Extract 2D vertices and triangulation
-    vertices_2D, faces = triangulate_polygon(polygon, **kwargs)
+    vertices_2D, faces_2D = triangulate_polygon(polygon, **kwargs)
     # stack the `(n, 3)` faces into `(3 * n, 2)` edges
-    edges = faces_to_edges(faces)
+    edges = faces_to_edges(faces_2D)
     # edges which only occur once are on the boundary of the polygon
     # since the triangulation may have subdivided the boundary of the
     # shapely polygon, we need to find it again
@@ -265,7 +265,7 @@ def sweep_polygon(
     # products to transform them all over the place
     vertices_tf = np.column_stack(
         (vertices_2D[unique], np.zeros(len(unique)), np.ones(len(unique)))
-    ).T
+    )
     # the indices of vertices_tf
     boundary = inverse.reshape((-1, 2))
 
@@ -275,9 +275,19 @@ def sweep_polygon(
     # - rotation specified by angle
 
     # this will be the plane normal for each slice
-    normal = path[1:] - path[:-1]
-    normal = np.vstack((normal, [normal[-1]]))
+    normal = util.unitize(path[1:] - path[:-1])
+
+    if closed:
+        ends = normal[[0, -1]]
+        normal[0] = ends.mean(axis=0)
+        normal[-1] = normal[0]
+
+    normal[1:] += normal[:-1]
+
     normal = util.unitize(normal)
+    normal = np.vstack((normal, normal[-1]))
+
+    assert normal.shape == path.shape
 
     # try to vectorize some things
     theta, phi = util.vector_to_spherical(normal).T
@@ -334,9 +344,9 @@ def sweep_polygon(
             assert np.allclose(check, n)
 
     # apply transforms to prebaked homogenous coordinates
-    vertices_3D = np.vstack(
-        [np.dot(matrix, vertices_tf).T[:, :3] for matrix in transforms]
-    )
+    vertices_3D = np.concatenate(
+        [np.dot(vertices_tf, matrix.T) for matrix in transforms], axis=0
+    )[:, :3]
 
     # now construct the faces with one group of boundary faces per slice
     stride = len(unique)
@@ -349,6 +359,13 @@ def sweep_polygon(
     faces = np.vstack(
         [faces_slice + offset for offset in np.arange(len(path) - 1) * stride]
     )
+
+    if closed:
+        # merge the last slices
+        faces[-len(faces_slice) :] %= (len(path) - 1) * stride
+    else:
+        # todo : apply some caps
+        pass
 
     # import trimesh
     # m = trimesh.Trimesh(vertices_3D, faces).show()
