@@ -45,8 +45,7 @@ config_json = """
       "blender",
       "openscad",
       "curl",
-      "git",
-      "libxft2"
+      "git"
     ],
    "gmsh": ["libxft2", "libxinerama-dev", "libxcursor1","libgomp1"]
   },
