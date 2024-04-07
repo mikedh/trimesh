@@ -213,6 +213,7 @@ def sweep_polygon(
     polygon: "Polygon",
     path: ArrayLike,
     angles: Optional[ArrayLike] = None,
+        cap: bool = True,
     triangulation: Optional[Dict] = None,
     kwargs: Optional[Dict] = None,
 ) -> Trimesh:
@@ -367,17 +368,19 @@ def sweep_polygon(
         # apply the modulus in-place to a conservative subset
         faces[-1] %= max_vertex
     else:
-        # we don't want to sloppily add vertices everywhere so we need to
-        # - find the vertices in `faces_2D` not referenced by boundary
-        # - stack them onto the first and last planes
-        # - append faces for both end caps
-        # these are indices of `vertices_2D` that were not included
-        if set(unique) != set(faces_2D.ravel()):
+        # these are indices of `vertices_2D` that were not on the boundary
+        # which can happen for triangulation algorithms that added vertices
+        # we don't currently support that but you could append the unconsumed
+        # vertices and then update the mapping below to reflect that
+        unconsumed = set(unique).difference(faces_2D.ravel())
+        if len(unconsumed) > 0:
             raise NotImplementedError("triangulation added vertices: no logic to cap!")
 
-        # hmm map the 2D faces to the order we used
-        mapped = np.zeros(unique.max() + 2)
+        # map the 2D faces to the order we used
+        mapped = np.zeros(unique.max() + 2, dtype=np.int64)
         mapped[unique] = np.arange(len(unique))
+
+        # now should correspond to the first vertex block
         cap_zero = mapped[faces_2D]
         # winding will be along +Z so flip for the bottom cap
         faces.append(np.fliplr(cap_zero))
