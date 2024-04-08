@@ -470,7 +470,7 @@ def vector_to_spherical(cartesian):
 
 def spherical_to_vector(spherical):
     """
-    Convert a set of (n, 2) spherical vectors to (n, 3) vectors
+    Convert an array of `(n, 2)` spherical angles to `(n, 3)` unit vectors.
 
     Parameters
     ------------
@@ -489,8 +489,7 @@ def spherical_to_vector(spherical):
     theta, phi = spherical.T
     st, ct = np.sin(theta), np.cos(theta)
     sp, cp = np.sin(phi), np.cos(phi)
-    vectors = np.column_stack((ct * sp, st * sp, cp))
-    return vectors
+    return np.column_stack((ct * sp, st * sp, cp))
 
 
 def pairwise(iterable):

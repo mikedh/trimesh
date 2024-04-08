@@ -15,6 +15,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
+from .resources import get_json
 from .typed import ArrayLike, Dict, Integer, Number, Optional
 
 try:
@@ -31,6 +32,9 @@ try:
     from mapbox_earcut import triangulate_float64 as _tri_earcut
 except BaseException as E:
     _tri_earcut = exceptions.ExceptionWrapper(E)
+
+# get stored values for simple box and icosahedron primitives
+_data = get_json("creation.json")
 
 
 def revolve(
@@ -208,13 +212,20 @@ def extrude_polygon(
 def sweep_polygon(
     polygon: "Polygon",
     path: ArrayLike,
-    closed: bool = False,
     angles: Optional[ArrayLike] = None,
-    **kwargs,
+    cap: bool = True,
+    connect: bool = True,
+    kwargs: Optional[Dict] = None,
+    **triangulation,
 ) -> Trimesh:
     """
-    Extrude a 2D shapely polygon into a 3D mesh along an
-    arbitrary 3D path. Doesn't handle sharp curvature well.
+    Extrude a 2D polygon into a 3D mesh along a 3D path. Note that this
+    does *not* handle the case where there is very sharp curvature leading
+    the polygon to intersect the plane of a previous slice, and does *not*
+    scale the polygon along the induced normal to result in a constant cross section.
+
+    You may want to resample your path with a B-spline, i.e:
+      `trimesh.path.simplify.resample_spline(path, smooth=0.2, count=100)`
 
     Parameters
     ----------
@@ -222,13 +233,19 @@ def sweep_polygon(
       Profile to sweep along path
     path : (n, 3) float
       A path in 3D
-    closed : bool
-      Whether to close the 2 ends of the path
     angles : (n,) float
       Optional rotation angle relative to prior vertex
-      at each vertex
-    **kwargs : dict
-      Passed to `triangulate_polygon`.
+      at each vertex.
+    cap
+      If an open path is passed apply a cap to both ends.
+    connect
+      If a closed path is passed connect the sweep into
+      a single watertight mesh.
+    kwargs : dict
+      Passed to the mesh constructor.
+    **triangulation
+      Passed to `triangulate_polygon`, i.e. `engine='triangle'`
+
     Returns
     -------
     mesh : trimesh.Trimesh
@@ -239,96 +256,175 @@ def sweep_polygon(
     if not util.is_shape(path, (-1, 3)):
         raise ValueError("Path must be (n, 3)!")
 
-    # Extract 2D vertices and triangulation
-    verts_2d = np.array(polygon.exterior.coords)[:-1]
-    base_verts_2d, faces_2d = triangulate_polygon(polygon, **kwargs)
-    n = len(verts_2d)
-
-    # Create basis for first planar polygon cap
-    x, y, z = util.generate_basis(path[0] - path[1])
-    tf_mat = np.ones((4, 4))
-    tf_mat[:3, :3] = np.c_[x, y, z]
-    tf_mat[:3, 3] = path[0]
-
-    # Compute 3D locations of those vertices
-    verts_3d = np.c_[verts_2d, np.zeros(n)]
-    verts_3d = tf.transform_points(verts_3d, tf_mat)
-
-    if closed:
-        vertices = []
-        faces = []
+    if angles is not None:
+        angles = np.asanyarray(angles, dtype=np.float64)
+        if angles.shape != (len(path),):
+            raise ValueError(angles.shape)
     else:
-        base_verts_3d = np.c_[base_verts_2d, np.zeros(len(base_verts_2d))]
-        base_verts_3d = tf.transform_points(base_verts_3d, tf_mat)
+        # set all angles to zero
+        angles = np.zeros(len(path), dtype=np.float64)
 
-        vertices = [base_verts_3d]
-        faces = [faces_2d]
+    # check to see if path is closed i.e. first and last vertex are the same
+    closed = np.linalg.norm(path[0] - path[-1]) < tol.merge
+    # Extract 2D vertices and triangulation
+    vertices_2D, faces_2D = triangulate_polygon(polygon, **triangulation)
 
-    # Compute plane normals for each turn --
-    # each turn induces a plane halfway between the two vectors
-    v1s = util.unitize(path[1:-1] - path[:-2])
-    v2s = util.unitize(path[1:-1] - path[2:])
-    norms = np.cross(np.cross(v1s, v2s), v1s + v2s)
-    norms[(norms == 0.0).all(1)] = v1s[(norms == 0.0).all(1)]
-    norms = util.unitize(norms)
-    final_v1 = util.unitize(path[-1] - path[-2])
-    norms = np.vstack((norms, final_v1))
-    v1s = np.vstack((v1s, final_v1))
+    # stack the `(n, 3)` faces into `(3 * n, 2)` edges
+    edges = faces_to_edges(faces_2D)
+    # edges which only occur once are on the boundary of the polygon
+    # since the triangulation may have subdivided the boundary of the
+    # shapely polygon, we need to find it again
+    edges_unique = grouping.group_rows(np.sort(edges, axis=1), require_count=1)
+    # subset the vertices to only ones included in the boundary
+    unique, inverse = np.unique(edges[edges_unique].reshape(-1), return_inverse=True)
+    # take only the vertices in the boundary
+    # and stack them with zeros and ones so we can use dot
+    # products to transform them all over the place
+    vertices_tf = np.column_stack(
+        (vertices_2D[unique], np.zeros(len(unique)), np.ones(len(unique)))
+    )
+    # the indices of vertices_tf
+    boundary = inverse.reshape((-1, 2))
 
-    # Create all side walls by projecting the 3d vertices into each plane
-    # in succession
-    for i in range(len(norms)):
-        verts_3d_prev = verts_3d
+    # now create the normals for the plane each slice will lie on
+    # consider the simple path with 3 vertices and therefore 2 vectors:
+    # - the first plane will be exactly along the first vector
+    # - the second plane will be the average of the two vectors
+    # - the last plane will be exactly along the last vector
+    # and each plane origin will be the corresponding vertex on the path
+    vector = util.unitize(path[1:] - path[:-1])
+    # unitize instead of / 2 as they may be degenerate / zero
+    vector_mean = util.unitize(vector[1:] + vector[:-1])
+    # collect the vectors into plane normals
+    normal = np.concatenate([[vector[0]], vector_mean, [vector[-1]]], axis=0)
 
-        # Rotate if needed
-        if angles is not None:
-            tf_mat = tf.rotation_matrix(angles[i], norms[i], path[i])
-            verts_3d_prev = tf.transform_points(verts_3d_prev, tf_mat)
+    if closed and connect:
+        # if we have a closed loop average the first and last planes
+        normal[0] = util.unitize(normal[[0, -1]].mean(axis=0))
 
-        # Project vertices onto plane in 3D
-        ds = np.einsum("ij,j->i", (path[i + 1] - verts_3d_prev), norms[i])
-        ds = ds / np.dot(v1s[i], norms[i])
+    # planes should have one unit normal and one vertex each
+    assert normal.shape == path.shape
 
-        verts_3d_new = np.einsum("i,j->ij", ds, v1s[i]) + verts_3d_prev
+    # get the spherical coordinates for the normal vectors
+    theta, phi = util.vector_to_spherical(normal).T
 
-        # Add to face and vertex lists
-        new_faces = [[i + n, (i + 1) % n, i] for i in range(n)]
-        new_faces.extend([[(i - 1) % n + n, i + n, i] for i in range(n)])
+    # collect the trig values into numpy arrays we can compose into matrices
+    cos_theta, sin_theta = np.cos(theta), np.sin(theta)
+    cos_phi, sin_phi = np.cos(phi), np.sin(phi)
+    cos_roll, sin_roll = np.cos(angles), np.sin(angles)
 
-        if i == len(norms) - 1 and closed:  # add faces to close mesh
-            N = 2 * n * len(norms)  # total number of vertices in mesh
-            new_faces.extend(
-                [[i + n - (N - n), (i + 1) % n + n, i + n] for i in range(n)]
-            )
-            new_faces.extend(
-                [[(i - 1) % n + n - (N - n), i + n - (N - n), i + n] for i in range(n)]
-            )
+    # we want a rotation which will be the identity for a Z+ vector
+    # this was constructed and unrolled from the following sympy block
+    # theta, phi, roll = sp.symbols("theta phi roll")
+    # matrix = (
+    #     tf.rotation_matrix(roll, [0, 0, 1]) @
+    #     tf.rotation_matrix(phi, [1, 0, 0]) @
+    #     tf.rotation_matrix((sp.pi / 2) - theta, [0, 0, 1])
+    # ).inv()
+    # matrix.simplify()
 
-        # save faces and vertices into a sequence
-        faces.append(np.array(new_faces))
-        vertices.append(np.vstack((verts_3d, verts_3d_new)))
+    # shorthand for stacking
+    zeros = np.zeros(len(theta))
+    ones = np.ones(len(theta))
 
-        verts_3d = verts_3d_new
+    # stack initially as one unrolled matrix per row
+    transforms = np.column_stack(
+        [
+            -sin_roll * cos_phi * cos_theta + sin_theta * cos_roll,
+            sin_roll * sin_theta + cos_phi * cos_roll * cos_theta,
+            sin_phi * cos_theta,
+            path[:, 0],
+            -sin_roll * sin_theta * cos_phi - cos_roll * cos_theta,
+            -sin_roll * cos_theta + sin_theta * cos_phi * cos_roll,
+            sin_phi * sin_theta,
+            path[:, 1],
+            sin_phi * sin_roll,
+            -sin_phi * cos_roll,
+            cos_phi,
+            path[:, 2],
+            zeros,
+            zeros,
+            zeros,
+            ones,
+        ]
+    ).reshape((-1, 4, 4))
 
-    # do the main stack operation from a sequence to (n,3) arrays
-    # doing one vstack provides a substantial speedup by
-    # avoiding a bunch of temporary allocations
-    vertices, faces = util.append_faces(vertices, faces)
+    if tol.strict:
+        # make sure that each transform moves the Z+ vector to the requested normal
+        for n, matrix in zip(normal, transforms):
+            check = tf.transform_points([[0.0, 0.0, 1.0]], matrix, translate=False)[0]
+            assert np.allclose(check, n)
 
-    # Create final cap
-    if not closed:
-        x, y, z = util.generate_basis(path[-1] - path[-2])
-        vecs = verts_3d - path[-1]
-        coords = np.c_[np.einsum("ij,j->i", vecs, x), np.einsum("ij,j->i", vecs, y)]
-        base_verts_2d, faces_2d = triangulate_polygon(Polygon(coords), **kwargs)
-        base_verts_3d = (
-            np.einsum("i,j->ij", base_verts_2d[:, 0], x)
-            + np.einsum("i,j->ij", base_verts_2d[:, 1], y)
-        ) + path[-1]
-        faces = np.vstack((faces, faces_2d + len(vertices)))
-        vertices = np.vstack((vertices, base_verts_3d))
+    # apply transforms to prebaked homogeneous coordinates
+    vertices_3D = np.concatenate(
+        [np.dot(vertices_tf, matrix.T) for matrix in transforms], axis=0
+    )[:, :3]
 
-    return Trimesh(vertices, faces)
+    # now construct the faces with one group of boundary faces per slice
+    stride = len(unique)
+    boundary_next = boundary + stride
+    faces_slice = np.column_stack(
+        [boundary, boundary_next[:, :1], boundary_next[:, ::-1], boundary[:, 1:]]
+    ).reshape((-1, 3))
+
+    # offset the slices
+    faces = [faces_slice + offset for offset in np.arange(len(path) - 1) * stride]
+
+    # connect only applies to closed paths
+    if closed and connect:
+        # the last slice will not be required
+        max_vertex = (len(path) - 1) * stride
+        # clip off the duplicated vertices
+        vertices_3D = vertices_3D[:max_vertex]
+        # apply the modulus in-place to a conservative subset
+        faces[-1] %= max_vertex
+    elif cap:
+        # these are indices of `vertices_2D` that were not on the boundary
+        # which can happen for triangulation algorithms that added vertices
+        # we don't currently support that but you could append the unconsumed
+        # vertices and then update the mapping below to reflect that
+        unconsumed = set(unique).difference(faces_2D.ravel())
+        if len(unconsumed) > 0:
+            raise NotImplementedError("triangulation added vertices: no logic to cap!")
+
+        # map the 2D faces to the order we used
+        mapped = np.zeros(unique.max() + 2, dtype=np.int64)
+        mapped[unique] = np.arange(len(unique))
+
+        # now should correspond to the first vertex block
+        cap_zero = mapped[faces_2D]
+        # winding will be along +Z so flip for the bottom cap
+        faces.append(np.fliplr(cap_zero))
+        # offset the end cap
+        faces.append(cap_zero + stride * (len(path) - 1))
+
+    if kwargs is None:
+        kwargs = {}
+
+    if "process" not in kwargs:
+        # we should be constructing clean meshes here
+        # so we don't need to run an expensive verex merge
+        kwargs["process"] = False
+
+    # stack the faces used
+    faces = np.concatenate(faces, axis=0)
+
+    # generate the mesh from the face data
+    mesh = Trimesh(vertices=vertices_3D, faces=faces, **kwargs)
+
+    if tol.strict:
+        # we should not have included any unused vertices
+        assert len(np.unique(faces)) == len(vertices_3D)
+
+        if cap:
+            # mesh should always be a volume if cap is true
+            assert mesh.is_volume
+
+        if closed and connect:
+            assert mesh.is_volume
+            assert mesh.body_count == 1
+
+    return mesh
 
 
 def extrude_triangulation(
@@ -606,12 +702,10 @@ def box(
     geometry : trimesh.Trimesh
       Mesh of a cuboid
     """
-    # vertices of the cube
-    vertices = np.array(
-        [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        order="C",
-        dtype=np.float64,
-    ).reshape((-1, 3))
+    # vertices of the cube from reference
+    vertices = np.array(_data["box"]["vertices"], order="C", dtype=np.float64)
+    faces = np.array(_data["box"]["faces"], order="C", dtype=np.int64)
+    face_normals = np.array(_data["box"]["face_normals"], order="C", dtype=np.float64)
 
     # resize cube based on passed extents
     if bounds is not None:
@@ -632,88 +726,6 @@ def box(
     else:
         vertices -= 0.5
         extents = np.asarray((1.0, 1.0, 1.0), dtype=np.float64)
-
-    # hardcoded face indices
-    # TODO : make less lol?
-    faces = [
-        1,
-        3,
-        0,
-        4,
-        1,
-        0,
-        0,
-        3,
-        2,
-        2,
-        4,
-        0,
-        1,
-        7,
-        3,
-        5,
-        1,
-        4,
-        5,
-        7,
-        1,
-        3,
-        7,
-        2,
-        6,
-        4,
-        2,
-        2,
-        7,
-        6,
-        6,
-        5,
-        4,
-        7,
-        5,
-        6,
-    ]
-    faces = np.array(faces, order="C", dtype=np.int64).reshape((-1, 3))
-
-    face_normals = [
-        -1,
-        0,
-        0,
-        0,
-        -1,
-        0,
-        -1,
-        0,
-        0,
-        0,
-        0,
-        -1,
-        0,
-        0,
-        1,
-        0,
-        -1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        0,
-        0,
-        0,
-        -1,
-        0,
-        1,
-        0,
-        1,
-        0,
-        0,
-        1,
-        0,
-        0,
-    ]
-    face_normals = np.asanyarray(face_normals, order="C", dtype=np.float64).reshape(-1, 3)
 
     if "metadata" not in kwargs:
         kwargs["metadata"] = {}
@@ -744,111 +756,9 @@ def icosahedron(**kwargs) -> Trimesh:
     ico : trimesh.Trimesh
       Icosahederon centered at the origin.
     """
-    t = (1.0 + 5.0**0.5) / 2.0
-    vertices = [
-        -1,
-        t,
-        0,
-        1,
-        t,
-        0,
-        -1,
-        -t,
-        0,
-        1,
-        -t,
-        0,
-        0,
-        -1,
-        t,
-        0,
-        1,
-        t,
-        0,
-        -1,
-        -t,
-        0,
-        1,
-        -t,
-        t,
-        0,
-        -1,
-        t,
-        0,
-        1,
-        -t,
-        0,
-        -1,
-        -t,
-        0,
-        1,
-    ]
-    faces = [
-        0,
-        11,
-        5,
-        0,
-        5,
-        1,
-        0,
-        1,
-        7,
-        0,
-        7,
-        10,
-        0,
-        10,
-        11,
-        1,
-        5,
-        9,
-        5,
-        11,
-        4,
-        11,
-        10,
-        2,
-        10,
-        7,
-        6,
-        7,
-        1,
-        8,
-        3,
-        9,
-        4,
-        3,
-        4,
-        2,
-        3,
-        2,
-        6,
-        3,
-        6,
-        8,
-        3,
-        8,
-        9,
-        4,
-        9,
-        5,
-        2,
-        4,
-        11,
-        6,
-        2,
-        10,
-        8,
-        6,
-        7,
-        9,
-        8,
-        1,
-    ]
-    # scale vertices so each vertex radius is 1.0
-    vertices = np.reshape(vertices, (-1, 3)) / np.sqrt(2.0 + t)
-    faces = np.reshape(faces, (-1, 3))
-
+    # get stored pre-baked primitive values
+    vertices = np.array(_data["icosahedron"]["vertices"], dtype=np.float64)
+    faces = np.array(_data["icosahedron"]["faces"], dtype=np.int64)
     return Trimesh(
         vertices=vertices, faces=faces, process=kwargs.pop("process", False), **kwargs
     )
