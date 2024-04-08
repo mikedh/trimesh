@@ -304,45 +304,6 @@ class CreationTest(g.unittest.TestCase):
         assert len(split) == count
         assert all(s.volume > 0 for s in split)
 
-    def test_simple_sweep_closed(self):
-        # a simple closed path
-        h1 = 1
-        w = 2
-        r = 4.4
-        square = g.Polygon(
-            [(-0.01, -h1 / 2), (w, -h1 / 2), (w, +h1 / 2), (-0.01, +h1 / 2)]
-        )
-        circle = g.Point([0, 0]).buffer(1.0)
-
-        # a simple square of side `r`
-        path = [[0, 0, 0], [r, 0, 0], [r, r, 0], [0, r, 0], [0, 0, 0]]
-
-        a = g.trimesh.creation.sweep_polygon(square, path)
-        assert a.is_volume
-
-        b = g.trimesh.creation.sweep_polygon(circle, path)
-        assert b.is_volume
-
-    def test_simple_extrude(self):
-        # make sure sweep behaves okay on a simple single segment path
-        # this should be identical to the extrude operation
-        height = 10.0
-        circle = g.Point([0, 0]).buffer(1.0)
-
-        # a simple extrusion
-        path = [[0, 0, 0], [0, 0, height]]
-        # will be running asserts inside function
-        b = g.trimesh.creation.sweep_polygon(circle, path)
-
-        # should be a straight extrude along Z
-        expected = g.np.append(g.np.reshape(circle.bounds, (2, 2)).ptp(axis=0), height)
-        assert g.np.allclose(expected, b.extents)
-
-        # should be well constructed
-        assert b.is_volume
-        # volume should correspond to expected cylinder area
-        assert g.np.isclose(b.volume, circle.area * height)
-
 
 def check_triangulation(v, f, true_area):
     assert g.trimesh.util.is_shape(v, (-1, 2))

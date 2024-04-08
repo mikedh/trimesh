@@ -214,6 +214,7 @@ def sweep_polygon(
     path: ArrayLike,
     angles: Optional[ArrayLike] = None,
     cap: bool = True,
+        connect: bool = True,
     kwargs: Optional[Dict] = None,
     **triangulation,
 ) -> Trimesh:
@@ -229,8 +230,15 @@ def sweep_polygon(
     angles : (n,) float
       Optional rotation angle relative to prior vertex
       at each vertex.
-    **kwargs : dict
-      Passed to `triangulate_polygon`
+    cap
+      If an open path is passed apply a cap to both ends.
+    connect
+      If a closed path is passed connect the sweep into
+      a single watertight mesh.
+    kwargs : dict
+      Passed to the mesh constructor.
+    **triangulation
+      Passed to `triangulate_polygon`, i.e. `engine='triangle'`
 
     Returns
     -------
@@ -250,9 +258,8 @@ def sweep_polygon(
         # set all angles to zero
         angles = np.zeros(len(path), dtype=np.float64)
 
-    # check to see if path is closed
+    # check to see if path is closed i.e. first and last vertex are the same
     closed = np.linalg.norm(path[0] - path[-1]) < tol.merge
-
     # Extract 2D vertices and triangulation
     vertices_2D, faces_2D = triangulate_polygon(polygon, **triangulation)
 
@@ -285,7 +292,7 @@ def sweep_polygon(
     # collect the vectors into plane normals
     normal = np.concatenate([[vector[0]], vector_mean, [vector[-1]]], axis=0)
 
-    if closed:
+    if closed and connect:
         # if we have a closed loop average the first and last planes
         normal[0] = util.unitize(normal[[0, -1]].mean(axis=0))
 
@@ -357,14 +364,15 @@ def sweep_polygon(
     # offset the slices
     faces = [faces_slice + offset for offset in np.arange(len(path) - 1) * stride]
 
-    if closed:
+    # connect only applies to closed paths
+    if closed and connect:
         # the last slice will not be required
         max_vertex = (len(path) - 1) * stride
         # clip off the duplicated vertices
         vertices_3D = vertices_3D[:max_vertex]
         # apply the modulus in-place to a conservative subset
         faces[-1] %= max_vertex
-    else:
+    elif cap:
         # these are indices of `vertices_2D` that were not on the boundary
         # which can happen for triangulation algorithms that added vertices
         # we don't currently support that but you could append the unconsumed
@@ -401,8 +409,14 @@ def sweep_polygon(
     if tol.strict:
         # we should not have included any unused vertices
         assert len(np.unique(faces)) == len(vertices_3D)
-        # mesh should be a volume
-        assert mesh.is_volume
+
+        if cap:
+            # mesh should always be a volume if cap is true
+            assert mesh.is_volume
+
+        if closed and connect:
+            assert mesh.is_volume
+            assert mesh.body_count == 1
 
     return mesh
 
