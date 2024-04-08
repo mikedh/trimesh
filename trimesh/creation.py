@@ -214,12 +214,18 @@ def sweep_polygon(
     path: ArrayLike,
     angles: Optional[ArrayLike] = None,
     cap: bool = True,
-        connect: bool = True,
+    connect: bool = True,
     kwargs: Optional[Dict] = None,
     **triangulation,
 ) -> Trimesh:
     """
-    Extrude a 2D polygon into a 3D mesh along a 3D path.
+    Extrude a 2D polygon into a 3D mesh along a 3D path. Note that this
+    does *not* handle the case where there is very sharp curvature leading
+    the polygon to intersect the plane of a previous slice, and does *not*
+    scale the polygon along the induced normal to result in a constant cross section.
+
+    You may want to resample your path with a B-spline, i.e:
+      `trimesh.path.simplify.resample_spline(path, smooth=0.2, count=100)`
 
     Parameters
     ----------

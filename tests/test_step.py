@@ -18,6 +18,7 @@ class STEPTests(g.unittest.TestCase):
         b = g.get_mesh("featuretype.STEP")
         assert len(b.geometry) == 1
         m = next(iter(b.geometry.values()))
+        m.merge_vertices(merge_tex=True, merge_norm=True)
         assert m.is_watertight
 
 
