@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.7"
-version = "4.2.4"
+version = "4.3.0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -102,6 +102,7 @@ test = [
     "coveralls",
     "pyright",
     "ezdxf",
+    "gmsh>=4.12.1",
     "pytest",
     "pymeshlab",
     "pyinstrument",
@@ -133,7 +134,8 @@ select = [
     "UP", # upgrade
     "W", # style warnings
     "YTT", # sys.version
-    "ISC002"
+    "ISC002",
+    "NPY201"
 ]
 
 ignore = [

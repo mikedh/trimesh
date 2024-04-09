@@ -147,6 +147,7 @@ class CreationTest(g.unittest.TestCase):
             vec = g.np.dot(rotmat, vec)
         poly = g.Polygon(perim)
 
+        # --- test open sweep
         # Create 3D path
         angles = g.np.linspace(0, 8 * g.np.pi, 1000)
         x = angles / 10.0
@@ -157,6 +158,19 @@ class CreationTest(g.unittest.TestCase):
         # Extrude
         for engine in self.engines:
             mesh = g.trimesh.creation.sweep_polygon(poly, path, engine=engine)
+            assert mesh.is_volume
+
+        # --- test closed sweep
+        # Create 3D path
+        angles = g.np.linspace(0, 2 * 0.999 * g.np.pi, 1000)
+        x = g.np.zeros((1000,))
+        y = g.np.cos(angles)
+        z = g.np.sin(angles)
+        path_closed = g.np.c_[x, y, z]
+
+        # Extrude
+        for engine in self.engines:
+            mesh = g.trimesh.creation.sweep_polygon(poly, path_closed, engine=engine)
             assert mesh.is_volume
 
     def test_annulus(self):

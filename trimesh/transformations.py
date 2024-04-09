@@ -197,6 +197,7 @@ True
 """
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
 
 _IDENTITY = np.eye(4)
 _IDENTITY.flags["WRITEABLE"] = False
@@ -228,10 +229,20 @@ def translation_matrix(direction):
     """
     # are we 2D or 3D
     dim = len(direction)
+
     # start with identity matrix
-    M = np.identity(dim + 1)
+
+    if any("sympy" in str(type(v)) for v in direction):
+        # if we have been passed input values as sympy.Symbol
+        from sympy import eye
+
+        M = eye(dim + 1)
+    else:
+        M = np.eye(dim + 1)
+
     # apply the offset
     M[:dim, dim] = direction[:dim]
+
     return M
 
 
@@ -344,7 +355,7 @@ def rotation_matrix(angle, direction, point=None):
     True
 
     """
-    if type(angle).__name__ == "Symbol":
+    if "sympy" in str(type(angle)):
         # special case sympy symbolic angles
         import sympy as sp
 
@@ -357,6 +368,7 @@ def rotation_matrix(angle, direction, point=None):
         cosa = np.cos(angle)
 
     direction = unit_vector(direction[:3])
+
     # rotation matrix around unit vector
     M = np.diag([cosa, cosa, cosa, 1.0])
     M[:3, :3] += np.outer(direction, direction) * (1.0 - cosa)
@@ -1124,7 +1136,7 @@ def euler_matrix(ai, aj, ak, axes="sxyz"):
     if parity:
         ai, aj, ak = -ai, -aj, -ak
 
-    if type(ai).__name__ == "Symbol":
+    if "sympy" in str(type(ai)):
         # if we have been passed input values as sympy.Symbol
         # use symbolic cosine and identity matrix
         from sympy import cos, eye, sin
@@ -2131,7 +2143,9 @@ def spherical_matrix(theta, phi, axes="sxyz"):
     return result
 
 
-def transform_points(points, matrix, translate=True):
+def transform_points(
+    points: ArrayLike, matrix: ArrayLike, translate: bool = True
+) -> NDArray[np.float64]:
     """
     Returns points rotated by a homogeneous
     transformation matrix.
