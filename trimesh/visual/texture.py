@@ -273,7 +273,7 @@ def unmerge_faces(faces, *args, **kwargs):
             # a column diff and sort but this seemed easier and is fast enough
             # turn default attribute value of -1 to nan before median computation
             # and use nanmedian to compute the median ignoring the nan values
-            masks_nan = np.where(masks != -1, masks, np.NaN)
+            masks_nan = np.where(masks != -1, masks, np.nan)
             result.append(np.nanmedian(masks_nan, axis=0).astype(np.int64))
 
         return result

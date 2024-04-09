@@ -134,7 +134,8 @@ select = [
     "UP", # upgrade
     "W", # style warnings
     "YTT", # sys.version
-    "ISC002"
+    "ISC002",
+    "NPY201"
 ]
 
 ignore = [
