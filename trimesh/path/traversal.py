@@ -3,6 +3,7 @@ import copy
 import numpy as np
 
 from .. import constants, grouping, util
+from ..typed import ArrayLike, Integer, NDArray, Number, Optional
 from .util import is_ccw
 
 try:
@@ -246,7 +247,7 @@ def discretize_path(entities, vertices, path, scale=1.0):
 
 
 class PathSample:
-    def __init__(self, points):
+    def __init__(self, points: ArrayLike):
         # make sure input array is numpy
         self._points = np.array(points)
         # find the direction of each segment
@@ -263,7 +264,20 @@ class PathSample:
         # note that this is sorted
         self._cum_norm = np.cumsum(self._norms)
 
-    def sample(self, distances):
+    def sample(self, distances: ArrayLike) -> NDArray[np.float64]:
+        """
+        Return points at the distances along the path requested.
+
+        Parameters
+        ----------
+        distances
+          Distances along the path to sample at.
+
+        Returns
+        --------
+        samples : (len(distances), dimension)
+          Samples requested.
+        """
         # return the indices in cum_norm that each sample would
         # need to be inserted at to maintain the sorted property
         positions = np.searchsorted(self._cum_norm, distances)
@@ -280,10 +294,20 @@ class PathSample:
 
         return resampled
 
-    def truncate(self, distance):
+    def truncate(self, distance: Number) -> NDArray[np.float64]:
         """
         Return a truncated version of the path.
         Only one vertex (at the endpoint) will be added.
+
+        Parameters
+        ----------
+        distance
+          Distance along the path to truncate at.
+
+        Returns
+        ----------
+        path
+          Path clipped to `distance` requested.
         """
         position = np.searchsorted(self._cum_norm, distance)
         offset = distance - self._cum_norm[position - 1]
@@ -304,7 +328,13 @@ class PathSample:
         return truncated
 
 
-def resample_path(points, count=None, step=None, step_round=True):
+def resample_path(
+    points: ArrayLike,
+    count: Optional[Integer] = None,
+    step: Optional[Number] = None,
+    step_round: bool = True,
+    include_original: bool = False,
+) -> NDArray[np.float64]:
     """
     Given a path along (n,d) points, resample them such that the
     distance traversed along the path is constant in between each
@@ -320,11 +350,15 @@ def resample_path(points, count=None, step=None, step_round=True):
     Parameters
     ----------
     points:   (n, d) float
-        Points in space
+      Points in space
     count : int,
-        Number of points to sample evenly (aka np.linspace)
+      Number of points to sample evenly (aka np.linspace)
     step : float
-        Distance each step should take along the path (aka np.arange)
+      Distance each step should take along the path (aka np.arange)
+    step_round
+      Alter `step` to the nearest integer division of overall length.
+    include_original
+      Include the exact original points in the output.
 
     Returns
     ----------
@@ -350,6 +384,11 @@ def resample_path(points, count=None, step=None, step_round=True):
         samples = np.linspace(0, sampler.length, count)
     elif step is not None:
         samples = np.arange(0, sampler.length, step)
+
+    if include_original:
+        from IPython import embed
+
+        embed()
 
     resampled = sampler.sample(samples)
 
