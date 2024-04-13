@@ -264,7 +264,9 @@ class PathSample:
         # note that this is sorted
         self._cum_norm = np.cumsum(self._norms)
 
-    def sample(self, distances: ArrayLike) -> NDArray[np.float64]:
+    def sample(
+        self, distances: ArrayLike, include_original: bool = False
+    ) -> NDArray[np.float64]:
         """
         Return points at the distances along the path requested.
 
@@ -272,11 +274,17 @@ class PathSample:
         ----------
         distances
           Distances along the path to sample at.
+        include_original
+          Include the original vertices even if they are not
+          specified in `distance`. Useful as this will return
+          a result with identical area and length, however
+          indexes of `distance` will not correspond with result.
 
         Returns
         --------
-        samples : (len(distances), dimension)
+        samples : (n, dimension)
           Samples requested.
+          `n==len(distances)` if not `include_original`
         """
         # return the indices in cum_norm that each sample would
         # need to be inserted at to maintain the sorted property
@@ -289,8 +297,18 @@ class PathSample:
         direction = self._unit_vec[positions]
         # find out which vertex we're offset from
         origin = self._points[positions]
+
         # just the parametric equation for a line
         resampled = origin + (direction * projection.reshape((-1, 1)))
+
+        if include_original:
+            # find the insertion index of the original positions
+            unique, index = np.unique(positions, return_index=True)
+            # see if we already have this point
+            ok = projection[index] > 1e-12
+
+            # insert the original vertices into the resampled array
+            resampled = np.insert(resampled, index[ok], self._points[unique[ok]], axis=0)
 
         return resampled
 
@@ -365,7 +383,6 @@ def resample_path(
     resampled : (j,d) float
         Points on the path
     """
-
     points = np.array(points, dtype=np.float64)
     # generate samples along the perimeter from kwarg count or step
     if (count is not None) and (step is not None):
@@ -385,17 +402,13 @@ def resample_path(
     elif step is not None:
         samples = np.arange(0, sampler.length, step)
 
-    if include_original:
-        from IPython import embed
+    resampled = sampler.sample(samples, include_original=include_original)
 
-        embed()
-
-    resampled = sampler.sample(samples)
-
-    check = util.row_norm(points[[0, -1]] - resampled[[0, -1]])
-    assert check[0] < constants.tol_path.merge
-    if count is not None:
-        assert check[1] < constants.tol_path.merge
+    if constants.tol.strict:
+        check = util.row_norm(points[[0, -1]] - resampled[[0, -1]])
+        assert check[0] < constants.tol_path.merge
+        if count is not None:
+            assert check[1] < constants.tol_path.merge
 
     return resampled
 
