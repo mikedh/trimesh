@@ -152,12 +152,14 @@ def _convert_units(obj: Geometry, desired: str, guess=False) -> None:
         # to guess will raise a ValueError
         obj.units = units_from_metadata(obj, guess=guess)
 
-    log.debug("converting units from %s to %s", obj.units, desired)
     # float, conversion factor
     conversion = unit_conversion(obj.units, desired)
 
-    # apply scale uses transforms which preserve
-    # cached properties rather than just multiplying vertices
-    obj.apply_scale(conversion)
+    if abs(conversion - 1.0) > 1e-10:
+        log.debug("Converting units: `%s`->`%s`", obj.units, desired)
+        # apply scale uses transforms which preserve
+        # cached properties rather than just multiplying vertices
+        obj.apply_scale(conversion)
+
     # units are now desired units
     obj.units = desired
