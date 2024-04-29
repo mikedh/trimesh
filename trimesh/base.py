@@ -189,7 +189,7 @@ class Trimesh(Geometry3D):
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
         elif metadata is not None:
-            raise ValueError("metadata should be a dict or None, got %s" % str(metadata))
+            raise ValueError(f"metadata should be a dict or None, got {metadata!s}")
 
         # store per-face and per-vertex attributes which will
         # be updated when an update_faces call is made

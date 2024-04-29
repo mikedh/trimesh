@@ -103,8 +103,8 @@ def unwrap(
 
     # get the template from our resources folder
     template = resources.get_string("templates/blender_unwrap.py.template")
-    script = template.replace("$ANGLE_LIMIT", "%.6f" % angle_limit).replace(
-        "$ISLAND_MARGIN", "%.6f" % island_margin
+    script = template.replace("$ANGLE_LIMIT", f"{angle_limit:.6f}").replace(
+        "$ISLAND_MARGIN", f"{island_margin:.6f}"
     )
 
     with MeshScript(meshes=[mesh], script=script, exchange="obj", debug=debug) as blend:

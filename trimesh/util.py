@@ -2258,9 +2258,9 @@ class FunctionRegistry(Mapping):
 
     def __setitem__(self, key, value):
         if not isinstance(key, str):
-            raise ValueError("key must be a string, got %s" % str(key))
+            raise ValueError(f"key must be a string, got {key!s}")
         if key in self:
-            raise KeyError("Cannot set new value to existing key %s" % key)
+            raise KeyError(f"Cannot set new value to existing key {key}")
         if not callable(value):
             raise ValueError("Cannot set value which is not callable.")
         self._dict[key] = value
