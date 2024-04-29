@@ -212,11 +212,13 @@ class TextureTest(g.unittest.TestCase):
             metallicFactor=0.3,
             roughnessFactor=0.5,
             baseColorFactor=(0, 255, 0, 255),
-            name="abc"
+            name="abc",
         )
         mesh = g.trimesh.Trimesh(
-            vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 1]], faces=[[0, 1, 2]], process=False,
-            visual=g.trimesh.visual.TextureVisuals(material=material)
+            vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 1]],
+            faces=[[0, 1, 2]],
+            process=False,
+            visual=g.trimesh.visual.TextureVisuals(material=material),
         )
         scene = g.trimesh.Scene()
         scene.add_geometry(mesh, geom_name="geom")
@@ -230,7 +232,9 @@ class TextureTest(g.unittest.TestCase):
             # make sure material survived
             assert r.geometry["geom"].visual.material.metallicFactor == 0.3
             assert r.geometry["geom"].visual.material.roughnessFactor == 0.5
-            assert (r.geometry["geom"].visual.material.baseColorFactor == [0, 255, 0, 255]).all()
+            assert (
+                r.geometry["geom"].visual.material.baseColorFactor == [0, 255, 0, 255]
+            ).all()
 
     def test_pbr_export(self):
         # try loading a textured box
