@@ -920,8 +920,8 @@ def _append_mesh(
             # add the reference for UV coordinates
             current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
 
-            # only reference the material if we had UV coordinates
-            current["primitives"][0]["material"] = current_material
+        # reference the material
+        current["primitives"][0]["material"] = current_material
 
     if include_normals or (
         include_normals is None and "vertex_normals" in mesh._cache.cache
