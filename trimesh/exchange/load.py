@@ -137,7 +137,7 @@ def load(
                 # this prevents the exception from being super opaque
                 load_path()
             else:
-                raise ValueError("File type: %s not supported" % file_type)
+                raise ValueError(f"File type: {file_type} not supported")
     finally:
         # close any opened files even if we crashed out
         if opened:

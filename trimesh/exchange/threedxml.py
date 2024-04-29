@@ -85,7 +85,7 @@ def load_3DXML(file_obj, *args, **kwargs):
             if texture is not None:
                 tex_file, tex_id = texture.attrib["Value"].split(":")[-1].split("#")
                 rep_image = as_etree[tex_file].find(
-                    "{*}CATRepImage/{*}CATRepresentationImage[@id='%s']" % tex_id
+                    f"{{*}}CATRepImage/{{*}}CATRepresentationImage[@id='{tex_id}']"
                 )
                 if rep_image is not None:
                     image_file = rep_image.get("associatedFile", "").split(":")[-1]
@@ -167,7 +167,7 @@ def load_3DXML(file_obj, *args, **kwargs):
 
         if part_file not in as_etree and part_file in archive:
             # the data is stored in some binary format
-            util.log.warning("unable to load Rep %r" % part_file)
+            util.log.warning(f"unable to load Rep {part_file!r}")
             # data = archive[part_file]
             continue
 

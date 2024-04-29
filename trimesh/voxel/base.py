@@ -39,7 +39,7 @@ class VoxelGrid(Geometry):
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
         elif metadata is not None:
-            raise ValueError("metadata should be a dict or None, got %s" % str(metadata))
+            raise ValueError(f"metadata should be a dict or None, got {metadata!s}")
 
     def __hash__(self):
         """
@@ -66,13 +66,13 @@ class VoxelGrid(Geometry):
         if isinstance(encoding, np.ndarray):
             encoding = DenseEncoding(encoding)
         elif not isinstance(encoding, Encoding):
-            raise ValueError("encoding must be an Encoding, got %s" % str(encoding))
+            raise ValueError(f"encoding must be an Encoding, got {encoding!s}")
         if len(encoding.shape) != 3:
             raise ValueError(
-                "encoding must be rank 3, got shape %s" % str(encoding.shape)
+                f"encoding must be rank 3, got shape {encoding.shape!s}"
             )
         if encoding.dtype != bool:
-            raise ValueError("encoding must be binary, got %s" % encoding.dtype)
+            raise ValueError(f"encoding must be binary, got {encoding.dtype}")
         self._data["encoding"] = encoding
 
     @property

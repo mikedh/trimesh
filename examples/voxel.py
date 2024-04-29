@@ -24,7 +24,7 @@ if __name__ == "__main__":
     trimesh.util.attach_to_log()
 
     base_name = "chair_model"
-    chair_mesh = trimesh.load(os.path.join(dir_models, "%s.obj" % base_name))
+    chair_mesh = trimesh.load(os.path.join(dir_models, f"{base_name}.obj"))
     if isinstance(chair_mesh, trimesh.scene.Scene):
         chair_mesh = trimesh.util.concatenate(
             [
@@ -33,7 +33,7 @@ if __name__ == "__main__":
             ]
         )
 
-    binvox_path = os.path.join(dir_models, "%s.binvox" % base_name)
+    binvox_path = os.path.join(dir_models, f"{base_name}.binvox")
     chair_voxels = trimesh.load(binvox_path)
 
     chair_voxels = v.VoxelGrid(chair_voxels.encoding.dense, chair_voxels.transform)
@@ -62,10 +62,10 @@ if __name__ == "__main__":
     transform = np.eye(4)
     transform[:3] += np.random.normal(size=(3, 4)) * 0.2
     transformed_chair_mesh = chair_mesh.copy().apply_transform(transform)
-    log.debug("original transform volume: %s" % str(chair_voxels.element_volume))
+    log.debug(f"original transform volume: {chair_voxels.element_volume!s}")
 
     chair_voxels.apply_transform(transform)
-    log.debug("warped transform volume:   %s" % str(chair_voxels.element_volume))
+    log.debug(f"warped transform volume:   {chair_voxels.element_volume!s}")
     log.debug("blue: transformed voxels")
     log.debug("Transformation is lazy, and each voxel is no longer a cube.")
     show(transformed_chair_mesh, chair_voxels, colors=(0, 0, 1, 0.3))

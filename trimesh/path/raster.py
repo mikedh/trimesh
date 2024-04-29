@@ -46,7 +46,12 @@ def rasterize(path, pitch=None, origin=None, resolution=None, fill=True, width=N
     """
 
     if pitch is None:
-        pitch = path.extents.max() / 2048
+        if resolution is not None:
+            resolution = np.array(resolution, dtype=np.int64)
+            # establish pitch from passed resolution
+            pitch = (path.extents / (resolution + 2)).max()
+        else:
+            pitch = path.extents.max() / 2048
 
     if origin is None:
         origin = path.bounds[0] - (pitch * 2.0)

@@ -144,7 +144,7 @@ def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
       Suitable for writing to binary file
     """
     if rle_data.dtype != np.uint8:
-        raise ValueError("rle_data.dtype must be np.uint8, got %s" % rle_data.dtype)
+        raise ValueError(f"rle_data.dtype must be np.uint8, got {rle_data.dtype}")
 
     header = binvox_header(shape, translate, scale).encode()
     return header + rle_data.tobytes()
@@ -228,7 +228,7 @@ def load_binvox(file_obj, resolver=None, axis_order="xzy", file_type=None):
       Loaded voxel data
     """
     if file_type is not None and file_type != "binvox":
-        raise ValueError("file_type must be None or binvox, got %s" % file_type)
+        raise ValueError(f"file_type must be None or binvox, got {file_type}")
     data = parse_binvox(file_obj, writeable=True)
     return voxel_from_binvox(
         rle_data=data.rle_data,
@@ -553,7 +553,7 @@ def voxelize_mesh(mesh, binvoxer=None, export_type="off", **binvoxer_kwargs):
     `VoxelGrid` object resulting.
     """
     if not isinstance(mesh, Trimesh):
-        raise ValueError("mesh must be Trimesh instance, got %s" % str(mesh))
+        raise ValueError(f"mesh must be Trimesh instance, got {mesh!s}")
     if binvoxer is None:
         binvoxer = Binvoxer(**binvoxer_kwargs)
     elif len(binvoxer_kwargs) > 0:
@@ -561,7 +561,7 @@ def voxelize_mesh(mesh, binvoxer=None, export_type="off", **binvoxer_kwargs):
     if binvoxer.file_type != "binvox":
         raise ValueError('Only "binvox" binvoxer `file_type` currently supported')
     with TemporaryDirectory() as folder:
-        model_path = os.path.join(folder, "model.%s" % export_type)
+        model_path = os.path.join(folder, f"model.{export_type}")
         with open(model_path, "wb") as fp:
             mesh.export(fp, file_type=export_type)
         out_path = binvoxer(model_path)

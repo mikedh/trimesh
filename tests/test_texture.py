@@ -206,6 +206,36 @@ class TextureTest(g.unittest.TestCase):
         c = m.copy()
         assert c.visual.uv is None
 
+    def test_pbr_nouv_export(self):
+        # Test that we can properly save and load a pbr material without uv and texture image.
+        material = g.trimesh.visual.material.PBRMaterial(
+            metallicFactor=0.3,
+            roughnessFactor=0.5,
+            baseColorFactor=(0, 255, 0, 255),
+            name="abc",
+        )
+        mesh = g.trimesh.Trimesh(
+            vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 1]],
+            faces=[[0, 1, 2]],
+            process=False,
+            visual=g.trimesh.visual.TextureVisuals(material=material),
+        )
+        scene = g.trimesh.Scene()
+        scene.add_geometry(mesh, geom_name="geom")
+        with g.TemporaryDirectory() as d:
+            # exports by path allow files to be written
+            path = g.os.path.join(d, "tmp.glb")
+            scene.export(path)
+
+            # try reloading
+            r = g.trimesh.load(path)
+            # make sure material survived
+            assert r.geometry["geom"].visual.material.metallicFactor == 0.3
+            assert r.geometry["geom"].visual.material.roughnessFactor == 0.5
+            assert (
+                r.geometry["geom"].visual.material.baseColorFactor == [0, 255, 0, 255]
+            ).all()
+
     def test_pbr_export(self):
         # try loading a textured box
         m = next(iter(g.get_mesh("BoxTextured.glb").geometry.values()))
