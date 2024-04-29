@@ -148,7 +148,12 @@ def mesh_other(
 
         # run first pass ICP
         matrix, _junk, cost = icp(
-            a=points, b=search, initial=a_to_b, max_iterations=int(icp_first), scale=scale
+            a=points,
+            b=search,
+            initial=a_to_b,
+            max_iterations=int(icp_first),
+            scale=scale,
+            **kwargs,
         )
 
         # save transform and costs from ICP
@@ -162,6 +167,7 @@ def mesh_other(
         initial=transforms[np.argmin(costs)],
         max_iterations=int(icp_final),
         scale=scale,
+        **kwargs,
     )
 
     # convert to per- point distance average
