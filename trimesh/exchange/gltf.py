@@ -1832,7 +1832,7 @@ def _cam_from_gltf(cam):
     camera : trimesh.scene.cameras.Camera
       Trimesh camera object
     """
-    name = cam["name"]
+    name = cam.get("name")
     znear = cam["perspective"]["znear"]
     aspect_ratio = cam["perspective"]["aspectRatio"]
     yfov = np.degrees(cam["perspective"]["yfov"])
