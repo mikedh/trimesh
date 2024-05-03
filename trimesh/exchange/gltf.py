@@ -1746,7 +1746,10 @@ def _read_buffers(
         #TODO will only read perspective camera
         if "camera" in child and camera is None:
             cam_idx = child["camera"]
-            camera = _cam_from_gltf(header['cameras'][cam_idx])
+            try:
+                camera = _cam_from_gltf(header['cameras'][cam_idx])
+            except KeyError:
+                log.debug("GLTF camera is not fully-defined")
             if camera:
                 camera_transform = kwargs["matrix"]
             continue
@@ -1825,6 +1828,7 @@ def _cam_from_gltf(cam):
     does not contain it.
 
     If the camera is not perspective will return None.
+    If the camera is perspective but is missing fields, will raise `KeyError`
 
     Parameters
     ------------
