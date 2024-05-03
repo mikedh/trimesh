@@ -17,6 +17,7 @@ from ..caching import hash_fast
 from ..constants import log, tol
 from ..typed import NDArray, Optional
 from ..util import unique_name
+from ..scene.cameras import Camera
 from ..visual.gloss import specular_to_pbr
 
 # magic numbers which have meaning in GLTF
@@ -1664,6 +1665,10 @@ def _read_buffers(
     # unvisited, pairs of node indexes
     queue = deque()
 
+    # camera(s), if they exist
+    camera = None
+    camera_transform = None
+
     if "scene" in header:
         # specify the index of scenes if specified
         scene_index = header["scene"]
@@ -1735,6 +1740,15 @@ def _read_buffers(
                 kwargs["matrix"], np.diag(np.concatenate((child["scale"], [1.0])))
             )
 
+        # If a camera exists, create the camera and dont add the node to the graph
+        #TODO only will read the first camera
+        #TODO assumes the camera node is child of the world frame
+        if "camera" in child and camera is None:
+            cam_idx = child["camera"]
+            camera = _cam_from_gltf(header['cameras'][cam_idx])
+            camera_transform = kwargs["matrix"]
+            continue
+
         # treat node metadata similarly to mesh metadata
         if isinstance(child.get("extras"), dict):
             kwargs["metadata"] = child["extras"]
@@ -1780,6 +1794,8 @@ def _read_buffers(
         "geometry": meshes,
         "graph": graph,
         "base_frame": base_frame,
+        "camera": camera,
+        "camera_transform": camera_transform
     }
     try:
         # load any scene extras into scene.metadata
@@ -1797,6 +1813,34 @@ def _read_buffers(
         pass
 
     return result
+
+
+def _cam_from_gltf(cam):
+    """
+    Convert a gltf perspective camera to trimesh.
+
+    The retrieved camera will have default resolution, since the gltf specification
+    does not contain it.
+
+    Parameters
+    ------------
+    cam : dict
+      Camera represented as a dictionary according to glTF
+
+    Returns
+    -------------
+    camera : trimesh.scene.cameras.Camera
+      Trimesh camera object
+    """
+    name = cam["name"]
+    znear = cam["perspective"]["znear"]
+    aspect_ratio = cam["perspective"]["aspectRatio"]
+    yfov = np.degrees(cam["perspective"]["yfov"])
+
+    fov = (aspect_ratio * yfov, yfov)
+
+    return Camera(name=name,
+            fov=fov, z_near=znear)
 
 
 def _convert_camera(camera):

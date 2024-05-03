@@ -413,6 +413,10 @@ def load_kwargs(*args, **kwargs) -> Geometry:
         else:
             scene = Scene(geometry)
 
+        # camera, if it exists
+        scene.camera = kwargs.get('camera')
+        scene.camera_transform = kwargs.get('camera_transform')
+
         if "base_frame" in kwargs:
             scene.graph.base_frame = kwargs["base_frame"]
         metadata = kwargs.get("metadata")
