@@ -118,7 +118,7 @@ class SceneTests(g.unittest.TestCase):
             r = g.trimesh.load(path, force="scene")
 
             # ensure no added nodes
-            assert set(r.graph.nodes) == set(["world", "geometry_0", "cam1"])
+            assert set(r.graph.nodes) == {"world", "geometry_0", "cam1"}
             # ensure same camera parameters and extrinsics
             assert (r.camera_transform == scene.camera_transform).all()
             assert r.camera.name == cam.name

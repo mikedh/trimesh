@@ -15,9 +15,9 @@ import numpy as np
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
+from ..scene.cameras import Camera
 from ..typed import NDArray, Optional
 from ..util import unique_name
-from ..scene.cameras import Camera
 from ..visual.gloss import specular_to_pbr
 
 # magic numbers which have meaning in GLTF
