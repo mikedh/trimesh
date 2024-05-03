@@ -1741,12 +1741,14 @@ def _read_buffers(
             )
 
         # If a camera exists, create the camera and dont add the node to the graph
-        #TODO only will read the first camera
+        #TODO only process the first camera, ignore the rest
         #TODO assumes the camera node is child of the world frame
+        #TODO will only read perspective camera
         if "camera" in child and camera is None:
             cam_idx = child["camera"]
             camera = _cam_from_gltf(header['cameras'][cam_idx])
-            camera_transform = kwargs["matrix"]
+            if camera:
+                camera_transform = kwargs["matrix"]
             continue
 
         # treat node metadata similarly to mesh metadata
@@ -1822,6 +1824,8 @@ def _cam_from_gltf(cam):
     The retrieved camera will have default resolution, since the gltf specification
     does not contain it.
 
+    If the camera is not perspective will return None.
+
     Parameters
     ------------
     cam : dict
@@ -1832,6 +1836,8 @@ def _cam_from_gltf(cam):
     camera : trimesh.scene.cameras.Camera
       Trimesh camera object
     """
+    if "perspective" not in cam:
+        return
     name = cam.get("name")
     znear = cam["perspective"]["znear"]
     aspect_ratio = cam["perspective"]["aspectRatio"]
