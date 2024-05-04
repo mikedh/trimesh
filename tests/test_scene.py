@@ -1,3 +1,5 @@
+import numpy as np
+
 try:
     from . import generic as g
 except BaseException:
@@ -109,7 +111,7 @@ class SceneTests(g.unittest.TestCase):
         scene = g.trimesh.Scene(
                 geometry=[box],
                 camera=cam,
-                camera_transform=[[0, 1, 0, -1], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+                camera_transform=np.array([[0, 1, 0, -1], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
                 )
         with g.TemporaryDirectory() as d:
             # exports by path allow files to be written
