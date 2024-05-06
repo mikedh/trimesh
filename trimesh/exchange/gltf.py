@@ -15,6 +15,7 @@ import numpy as np
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
+from ..scene.cameras import Camera
 from ..typed import NDArray, Optional
 from ..util import unique_name
 from ..visual.gloss import specular_to_pbr
@@ -1664,6 +1665,10 @@ def _read_buffers(
     # unvisited, pairs of node indexes
     queue = deque()
 
+    # camera(s), if they exist
+    camera = None
+    camera_transform = None
+
     if "scene" in header:
         # specify the index of scenes if specified
         scene_index = header["scene"]
@@ -1735,6 +1740,20 @@ def _read_buffers(
                 kwargs["matrix"], np.diag(np.concatenate((child["scale"], [1.0])))
             )
 
+        # If a camera exists, create the camera and dont add the node to the graph
+        #TODO only process the first camera, ignore the rest
+        #TODO assumes the camera node is child of the world frame
+        #TODO will only read perspective camera
+        if "camera" in child and camera is None:
+            cam_idx = child["camera"]
+            try:
+                camera = _cam_from_gltf(header['cameras'][cam_idx])
+            except KeyError:
+                log.debug("GLTF camera is not fully-defined")
+            if camera:
+                camera_transform = kwargs["matrix"]
+            continue
+
         # treat node metadata similarly to mesh metadata
         if isinstance(child.get("extras"), dict):
             kwargs["metadata"] = child["extras"]
@@ -1780,6 +1799,8 @@ def _read_buffers(
         "geometry": meshes,
         "graph": graph,
         "base_frame": base_frame,
+        "camera": camera,
+        "camera_transform": camera_transform
     }
     try:
         # load any scene extras into scene.metadata
@@ -1797,6 +1818,39 @@ def _read_buffers(
         pass
 
     return result
+
+
+def _cam_from_gltf(cam):
+    """
+    Convert a gltf perspective camera to trimesh.
+
+    The retrieved camera will have default resolution, since the gltf specification
+    does not contain it.
+
+    If the camera is not perspective will return None.
+    If the camera is perspective but is missing fields, will raise `KeyError`
+
+    Parameters
+    ------------
+    cam : dict
+      Camera represented as a dictionary according to glTF
+
+    Returns
+    -------------
+    camera : trimesh.scene.cameras.Camera
+      Trimesh camera object
+    """
+    if "perspective" not in cam:
+        return
+    name = cam.get("name")
+    znear = cam["perspective"]["znear"]
+    aspect_ratio = cam["perspective"]["aspectRatio"]
+    yfov = np.degrees(cam["perspective"]["yfov"])
+
+    fov = (aspect_ratio * yfov, yfov)
+
+    return Camera(name=name,
+            fov=fov, z_near=znear)
 
 
 def _convert_camera(camera):
