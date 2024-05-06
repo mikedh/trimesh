@@ -538,7 +538,7 @@ def check_fuze(fuze):
     viz = fuze.visual.to_color()
     assert viz.kind == "vertex"
     # should be actual colors defined
-    assert g.np.ptp(g.np.ptp(viz.vertex_colors, axis=0)) != 0
+    assert np.ptp(np.ptp(viz.vertex_colors, axis=0)) != 0
     # shouldn't crash
     fuze.visual.copy()
     fuze.visual.material.copy()
