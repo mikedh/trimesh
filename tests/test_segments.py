@@ -68,7 +68,7 @@ class SegmentsTest(g.unittest.TestCase):
         for pair in n:
             val = seg[pair]
             close = g.np.append(
-                (val[0] - val[1]).ptp(axis=1), (val[0] - val[1][::-1]).ptp(axis=1)
+                g.np.ptp(val[0] - val[1], axis=1), g.np.ptp(val[0] - val[1][::-1], axis=1)
             ).min()
             assert close < epsilon
 

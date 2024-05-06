@@ -47,7 +47,7 @@ def test_simple_extrude(height=10):
     b = sweep_polygon(circle, path)
 
     # should be a straight extrude along Z
-    expected = np.append(np.reshape(circle.bounds, (2, 2)).ptp(axis=0), height)
+    expected = np.append(np.ptp(np.reshape(circle.bounds, (2, 2)), axis=0), height)
     assert np.allclose(expected, b.extents)
 
     # should be well constructed

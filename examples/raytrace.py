@@ -45,7 +45,7 @@ if __name__ == "__main__":
     a = np.zeros(scene.camera.resolution, dtype=np.uint8)
 
     # scale depth against range (0.0 - 1.0)
-    depth_float = (depth - depth.min()) / depth.ptp()
+    depth_float = (depth - depth.min()) / np.ptp(depth)
 
     # convert depth into 0 - 255 uint8
     depth_int = (depth_float * 255).round().astype(np.uint8)

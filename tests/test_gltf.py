@@ -771,7 +771,7 @@ class GLTFTest(g.unittest.TestCase):
         )
         # original mesh should have vertex colors
         assert m.visual.kind == "face"
-        assert m.visual.vertex_colors.ptp(axis=0).ptp() > 0
+        assert g.np.ptp(g.np.ptp(m.visual.vertex_colors, axis=0)) > 0
         # vertex colors should have survived import-export
         assert g.np.allclose(m.visual.vertex_colors, r.visual.vertex_colors)
 

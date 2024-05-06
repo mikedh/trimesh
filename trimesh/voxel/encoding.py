@@ -815,9 +815,7 @@ class TransposedEncoding(LazyIndexMap):
 
     def __init__(self, base_encoding, perm):
         if not isinstance(base_encoding, Encoding):
-            raise ValueError(
-                f"base_encoding must be an Encoding, got {base_encoding!s}"
-            )
+            raise ValueError(f"base_encoding must be an Encoding, got {base_encoding!s}")
         if len(base_encoding.shape) != len(perm):
             raise ValueError(
                 "base_encoding has %d ndims - cannot transpose with perm %s"

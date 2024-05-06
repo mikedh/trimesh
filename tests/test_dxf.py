@@ -143,7 +143,7 @@ class DXFTest(g.unittest.TestCase):
             # count the number of entities in the path
             # this should be the same for every version
             E = g.np.array([len(paths[i].entities) for i in group], dtype=g.np.int64)
-            assert E.ptp() == 0
+            assert g.np.ptp(E) == 0
 
     def test_bulge(self):
         """

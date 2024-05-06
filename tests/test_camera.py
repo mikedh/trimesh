@@ -93,7 +93,7 @@ class CameraTests(g.unittest.TestCase):
             T = g.trimesh.scene.cameras.look_at(points + offset, fov)
 
             # check using trig
-            check = (points.ptp(axis=0)[:2] / 2.0) / g.np.tan(np.radians(fov / 2))
+            check = (np.ptp(points, axis=0)[:2] / 2.0) / g.np.tan(np.radians(fov / 2))
             check += points[:, 2].mean()
 
             # Z should be the same as maximum trig option

@@ -21,7 +21,7 @@ class RayTests(g.unittest.TestCase):
         hit_any = g.np.array(hit_any, dtype=g.np.int64)
 
         for i in g.trimesh.grouping.group(g.np.unique(names, return_inverse=True)[1]):
-            broken = hit_any[i].astype(g.np.int64).ptp(axis=0).sum()
+            broken = g.np.ptp(hit_any[i].astype(g.np.int64), axis=0).sum()
             assert broken == 0
 
     def test_rps(self):

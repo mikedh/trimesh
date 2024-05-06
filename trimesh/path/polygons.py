@@ -394,7 +394,7 @@ def medial_axis(polygon: Polygon, resolution: Optional[Number] = None, clip=None
     # a circle will have a single point medial axis
     if len(polygon.interiors) == 0:
         # what is the approximate scale of the polygon
-        scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
+        scale = np.ptp(np.reshape(polygon.bounds, (2, 2)), axis=0).max()
         # a (center, radius, error) tuple
         fit = fit_circle_check(polygon.exterior.coords, scale=scale)
         # is this polygon in fact a circle
@@ -413,7 +413,7 @@ def medial_axis(polygon: Polygon, resolution: Optional[Number] = None, clip=None
     from shapely import vectorized
 
     if resolution is None:
-        resolution = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
+        resolution = np.ptp(np.reshape(polygon.bounds, (2, 2)), axis=0).max() / 100
 
     # get evenly spaced points on the polygons boundaries
     samples = resample_boundaries(polygon=polygon, resolution=resolution, clip=clip)
@@ -442,7 +442,7 @@ def medial_axis(polygon: Polygon, resolution: Optional[Number] = None, clip=None
 
     if tol.strict:
         # make sure we didn't screw up indexes
-        assert (vertices[edges_final] - voronoi.vertices[edges]).ptp() < 1e-5
+        assert np.ptp(vertices[edges_final] - voronoi.vertices[edges]) < 1e-5
 
     return edges_final, vertices
 
@@ -519,7 +519,7 @@ def polygon_scale(polygon):
     scale : float
       Length of AABB diagonal
     """
-    extents = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0)
+    extents = np.ptp(np.reshape(polygon.bounds, (2, 2)), axis=0)
     scale = (extents**2).sum() ** 0.5
 
     return scale
@@ -589,7 +589,7 @@ def sample(polygon, count, factor=1.5, max_iter=10):
 
     # get size of bounding box
     bounds = np.reshape(polygon.bounds, (2, 2))
-    extents = bounds.ptp(axis=0)
+    extents = np.ptp(bounds, axis=0)
 
     # how many points to check per loop iteration
     per_loop = int(count * factor)
@@ -663,7 +663,7 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
         return basic
 
     if scale is None:
-        distance = 0.002 * np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).mean()
+        distance = 0.002 * np.ptp(np.reshape(polygon.bounds, (2, 2)), axis=0).mean()
     else:
         distance = 0.002 * scale
 
@@ -834,7 +834,7 @@ def projected(
         padding += float(apad)
     if rpad is not None:
         # get the 2D scale as the longest side of the AABB
-        scale = vertices_2D.ptp(axis=0).max()
+        scale = np.ptp(vertices_2D, axis=0).max()
         # apply the scale-relative padding
         padding += float(rpad) * scale
 

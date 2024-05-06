@@ -215,11 +215,11 @@ class GroupTests(g.unittest.TestCase):
 
         gr = g.trimesh.grouping.group_rows(c)
         assert g.np.shape(gr) == (100, 2)
-        assert g.np.allclose(c[gr].ptp(axis=1), 0.0)
+        assert g.np.allclose(g.np.ptp(c[gr], axis=1), 0.0)
 
         gr = g.trimesh.grouping.group_rows(c, require_count=2)
         assert gr.shape == (100, 2)
-        assert g.np.allclose(c[gr].ptp(axis=1), 0.0)
+        assert g.np.allclose(g.np.ptp(c[gr], axis=1), 0.0)
 
         c = g.np.vstack((c, [1, 2, 3]))
         gr = g.trimesh.grouping.group_rows(c, require_count=2)
@@ -229,7 +229,7 @@ class GroupTests(g.unittest.TestCase):
         # should get the single element correctly
         assert len(grd) == 101
         assert sum(1 for i in grd if len(i) == 2) == 100
-        assert g.np.allclose(c[gr].ptp(axis=1), 0.0)
+        assert g.np.allclose(g.np.ptp(c[gr], axis=1), 0.0)
 
     def test_group_vector(self):
         x = g.np.linspace(-100, 100, 100)

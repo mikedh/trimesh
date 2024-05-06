@@ -68,9 +68,7 @@ class VoxelGrid(Geometry):
         elif not isinstance(encoding, Encoding):
             raise ValueError(f"encoding must be an Encoding, got {encoding!s}")
         if len(encoding.shape) != 3:
-            raise ValueError(
-                f"encoding must be rank 3, got shape {encoding.shape!s}"
-            )
+            raise ValueError(f"encoding must be rank 3, got shape {encoding.shape!s}")
         if encoding.dtype != bool:
             raise ValueError(f"encoding must be binary, got {encoding.dtype}")
         self._data["encoding"] = encoding
