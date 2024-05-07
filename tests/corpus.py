@@ -176,13 +176,20 @@ if __name__ == "__main__":
     with Profiler() as P:
         # check the assimp corpus, about 50mb
         report = on_repo(
-            repo="assimp/assimp", commit="c2967cf79acdc4cd48ecb0729e2733bf45b38a6f"
+            repo="assimp/assimp", commit="c9537394876931880b6d71d27519c0baeb637c46"
         )
-        # check the gltf-sample-models, about 1gb
+        # check the older gltf-sample-models, about 1gb
         report.update(
             on_repo(
                 repo="KhronosGroup/glTF-Sample-Models",
                 commit="8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b",
+            )
+        )
+        # check the samples on the new repo
+        report.update(
+            on_repo(
+                repo="KhronosGroup/glTF-Sample-Assets",
+                commit="cfbe2f9ac259490855940ff85feb5b4b02386046",
             )
         )
 
