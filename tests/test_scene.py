@@ -109,10 +109,12 @@ class SceneTests(g.unittest.TestCase):
         cam = g.trimesh.scene.cameras.Camera(fov=[60, 90], name="cam1")
         box = g.trimesh.creation.box(extents=[1, 2, 3])
         scene = g.trimesh.Scene(
-                geometry=[box],
-                camera=cam,
-                camera_transform=np.array([[0, 1, 0, -1], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-                )
+            geometry=[box],
+            camera=cam,
+            camera_transform=np.array(
+                [[0, 1, 0, -1], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+            ),
+        )
         with g.TemporaryDirectory() as d:
             # exports by path allow files to be written
             path = g.os.path.join(d, "tmp.glb")

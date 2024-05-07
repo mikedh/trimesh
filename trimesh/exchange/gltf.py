@@ -1741,13 +1741,13 @@ def _read_buffers(
             )
 
         # If a camera exists, create the camera and dont add the node to the graph
-        #TODO only process the first camera, ignore the rest
-        #TODO assumes the camera node is child of the world frame
-        #TODO will only read perspective camera
+        # TODO only process the first camera, ignore the rest
+        # TODO assumes the camera node is child of the world frame
+        # TODO will only read perspective camera
         if "camera" in child and camera is None:
             cam_idx = child["camera"]
             try:
-                camera = _cam_from_gltf(header['cameras'][cam_idx])
+                camera = _cam_from_gltf(header["cameras"][cam_idx])
             except KeyError:
                 log.debug("GLTF camera is not fully-defined")
             if camera:
@@ -1800,7 +1800,7 @@ def _read_buffers(
         "graph": graph,
         "base_frame": base_frame,
         "camera": camera,
-        "camera_transform": camera_transform
+        "camera_transform": camera_transform,
     }
     try:
         # load any scene extras into scene.metadata
@@ -1849,8 +1849,7 @@ def _cam_from_gltf(cam):
 
     fov = (aspect_ratio * yfov, yfov)
 
-    return Camera(name=name,
-            fov=fov, z_near=znear)
+    return Camera(name=name, fov=fov, z_near=znear)
 
 
 def _convert_camera(camera):
