@@ -74,7 +74,7 @@ all_dependencies = "ALL_DEPENDENCIES" in argv
 include_rendering = "INCLUDE_RENDERING" in argv
 
 if all_dependencies and not trimesh.ray.has_embree:
-    raise ValueError("missing embree!")
+    import embreex
 
 try:
     import sympy as sp
