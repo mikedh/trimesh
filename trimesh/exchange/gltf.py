@@ -1518,7 +1518,7 @@ def _read_buffers(
                         # indices are apparently optional and we are supposed to
                         # do the same thing as webGL drawArrays?
                         kwargs["faces"] = np.arange(
-                            len(kwargs["vertices"]) * 3, dtype=np.int64
+                            len(kwargs["vertices"]), dtype=np.int64
                         ).reshape((-1, 3))
 
                     if "NORMAL" in attr:
