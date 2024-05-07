@@ -1058,6 +1058,12 @@ class GLTFTest(g.unittest.TestCase):
         # Check that the normals are still null
         assert g.np.allclose(reimported_mesh.vertex_normals[0], [0, 0, 0])
 
+    def test_no_indices(self):
+        # test mesh with no indices (faces should be generated correctly)
+        mesh = g.get_mesh("no_indices_3storybuilding.glb")
+        assert len(mesh.triangles) == 72
+        mesh = g.get_mesh("Mesh_PrimitiveMode_04.gltf")
+        assert len(mesh.triangles) == 1
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
