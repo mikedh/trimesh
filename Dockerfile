@@ -67,7 +67,7 @@ RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
-RUN pip install -e --pre --upgrade .[all]
+RUN pip install --pre --upgrade .[all]
 
 # check for lint problems
 RUN ruff check trimesh
