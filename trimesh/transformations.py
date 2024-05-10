@@ -209,7 +209,7 @@ def identity_matrix():
     >>> I = identity_matrix()
     >>> np.allclose(I, np.dot(I, I))
     True
-    >>> np.sum(I), np.trace(I)
+    >>> float(np.sum(I)), float(np.trace(I))
     (4.0, 4.0)
     >>> np.allclose(I, np.identity(4))
     True
@@ -801,8 +801,8 @@ def decompose_matrix(matrix):
     True
     >>> S = scale_matrix(0.123)
     >>> scale, shear, angles, trans, persp = decompose_matrix(S)
-    >>> scale[0]
-    0.123
+    >>> bool(np.isclose(scale[0], 0.123))
+    True
     >>> R0 = euler_matrix(1, 2, 3)
     >>> scale, shear, angles, trans, persp = decompose_matrix(R0)
     >>> R1 = euler_matrix(*angles)
@@ -1826,9 +1826,9 @@ def vector_norm(data, axis=None, out=None):
     >>> vector_norm(v, axis=1, out=n)
     >>> np.allclose(n, np.sqrt(np.sum(v*v, axis=1)))
     True
-    >>> vector_norm([])
+    >>> float(vector_norm([]))
     0.0
-    >>> vector_norm([1])
+    >>> float(vector_norm([1]))
     1.0
 
     """
@@ -1868,7 +1868,7 @@ def unit_vector(data, axis=None, out=None):
     True
     >>> list(unit_vector([]))
     []
-    >>> list(unit_vector([1]))
+    >>> [float(i) for i in unit_vector([1])]
     [1.0]
 
     """
@@ -1894,11 +1894,11 @@ def random_vector(size):
     """Return array of random doubles in the half-open interval [0.0, 1.0).
 
     >>> v = random_vector(10000)
-    >>> np.all(v >= 0) and np.all(v < 1)
+    >>> bool(np.all(v >= 0) and np.all(v < 1))
     True
     >>> v0 = random_vector(10)
     >>> v1 = random_vector(10)
-    >>> np.any(v0 == v1)
+    >>> bool(np.any(v0 == v1))
     False
 
     """
