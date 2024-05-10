@@ -616,7 +616,7 @@ def rle_to_sparse(rle_data):
     try:
         while True:
             value = next(it)
-            counts = next(it)
+            counts = int(next(it))
             end = index + counts
             if value:
                 indices.append(np.arange(index, end, dtype=np.int64))
@@ -629,7 +629,7 @@ def rle_to_sparse(rle_data):
         return indices, values
 
     indices = np.concatenate(indices)
-    values = np.concatenate(values)
+    values = np.concatenate(values, dtype=rle_data.dtype)
     return indices, values
 
 
