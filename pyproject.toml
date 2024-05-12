@@ -103,7 +103,7 @@ test = [
     "pyright",
     "ezdxf",
     "pytest",
-    "pymeshlab",
+    #"pymeshlab",
     "pyinstrument",
     "matplotlib",
     "ruff",
