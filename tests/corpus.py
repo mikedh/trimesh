@@ -24,7 +24,7 @@ available.difference_update(
     ]
 )
 # remove loaders we don't care about
-available.difference_update({"json", "dae", "zae"})
+available.difference_update({"json", "obj", "dae", "zae"})
 available.update({"dxf", "svg"})
 
 

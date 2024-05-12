@@ -17,7 +17,7 @@ from ..caching import hash_fast
 from ..constants import log, tol
 from ..scene.cameras import Camera
 from ..typed import NDArray, Optional
-from ..util import unique_name
+from ..util import triangle_strips_to_faces, unique_name
 from ..visual.gloss import specular_to_pbr
 
 # magic numbers which have meaning in GLTF
@@ -1512,16 +1512,21 @@ def _read_buffers(
                         if mode == _GL_STRIP:
                             # this is triangle strips
                             flat = access[p["indices"]].reshape(-1)
-                            kwargs["faces"] = util.triangle_strips_to_faces([flat])
+                            kwargs["faces"] = triangle_strips_to_faces([flat])
                         else:
                             kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
                     else:
                         # indices are apparently optional and we are supposed to
                         # do the same thing as webGL drawArrays?
-                        faces_len = int(3 * round(len(kwargs["vertices"]) / 3.))
-                        kwargs["faces"] = np.arange(
-                            faces_len, dtype=np.int64
-                        ).reshape((-1, 3))
+                        if mode == _GL_STRIP:
+                            kwargs["faces"] = triangle_strips_to_faces(
+                                np.array([np.arange(len(kwargs["vertices"]))])
+                            )
+                        else:
+                            # GL_TRIANGLES
+                            kwargs["faces"] = np.arange(
+                                len(kwargs["vertices"]), dtype=np.int64
+                            ).reshape((-1, 3))
 
                     if "NORMAL" in attr:
                         # vertex normals are specified
