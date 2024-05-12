@@ -1062,8 +1062,11 @@ class GLTFTest(g.unittest.TestCase):
         # test mesh with no indices (faces should be generated correctly)
         mesh = g.get_mesh("no_indices_3storybuilding.glb")
         assert len(mesh.triangles) == 72
+
+        # the mesh is actually mode 5 with 4 vertices
+        # which as triangle strips would be 2 faces
         mesh = g.get_mesh("Mesh_PrimitiveMode_04.gltf")
-        assert len(mesh.triangles) == 1
+        assert len(mesh.triangles) == 2
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
