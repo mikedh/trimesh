@@ -281,7 +281,7 @@ def shared_edges(faces_a, faces_b):
     return shared
 
 
-def facets(mesh, engine=None, facet_threshold=tol.facet_threshold):
+def facets(mesh, engine=None, facet_threshold: Optional[Number] = None):
     """
     Find the list of parallel adjacent faces.
 
@@ -300,6 +300,8 @@ def facets(mesh, engine=None, facet_threshold=tol.facet_threshold):
         Groups of face indexes of
         parallel adjacent faces.
     """
+    if facet_threshold is None:
+        facet_threshold = tol.facet_threshold
     # what is the radius of a circle that passes through the perpendicular
     # projection of the vector between the two non- shared vertices
     # onto the shared edge, with the face normal from the two adjacent faces
