@@ -281,16 +281,18 @@ def shared_edges(faces_a, faces_b):
     return shared
 
 
-def facets(mesh, engine=None):
+def facets(mesh, engine=None, facet_threshold=tol.facet_threshold):
     """
     Find the list of parallel adjacent faces.
 
     Parameters
     -----------
-    mesh :  trimesh.Trimesh
+    mesh : trimesh.Trimesh
     engine : str
-       Which graph engine to use:
-       ('scipy', 'networkx')
+      Which graph engine to use:
+      ('scipy', 'networkx')
+    facet_threshold : float
+      Threshold for two facets to be considered coplanar
 
     Returns
     ---------
@@ -314,7 +316,7 @@ def facets(mesh, engine=None):
     # if span is zero we know faces are small/parallel
     nonzero = np.abs(span) > tol.zero
     # faces with a radii/span ratio larger than a threshold pass
-    parallel[nonzero] = (radii[nonzero] / span[nonzero]) ** 2 > tol.facet_threshold
+    parallel[nonzero] = (radii[nonzero] / span[nonzero]) ** 2 > facet_threshold
 
     # run connected components on the parallel faces to group them
     components = connected_components(
