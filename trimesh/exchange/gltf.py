@@ -15,8 +15,9 @@ import numpy as np
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
+from ..resolvers import Resolver, ZipResolver
 from ..scene.cameras import Camera
-from ..typed import NDArray, Optional
+from ..typed import NDArray, Optional, Stream
 from ..util import triangle_strips_to_faces, unique_name
 from ..visual.gloss import specular_to_pbr
 
@@ -262,11 +263,11 @@ def export_glb(
 
 
 def load_gltf(
-    file_obj=None,
-    resolver=None,
-    ignore_broken=False,
-    merge_primitives=False,
-    skip_materials=False,
+    file_obj: Optional[Stream] = None,
+    resolver: Optional[Resolver] = None,
+    ignore_broken: bool = False,
+    merge_primitives: bool = False,
+    skip_materials: bool = False,
     **mesh_kwargs,
 ):
     """
@@ -337,11 +338,11 @@ def load_gltf(
 
 
 def load_glb(
-    file_obj,
-    resolver=None,
-    ignore_broken=False,
-    merge_primitives=False,
-    skip_materials=False,
+    file_obj: Stream,
+    resolver: Optional[Resolver] = None,
+    ignore_broken: bool = False,
+    merge_primitives: bool = False,
+    skip_materials: bool = False,
     **mesh_kwargs,
 ):
     """
@@ -445,6 +446,7 @@ def load_glb(
         merge_primitives=merge_primitives,
         skip_materials=skip_materials,
         mesh_kwargs=mesh_kwargs,
+        resolver=resolver,
     )
 
     return kwargs
@@ -1351,10 +1353,10 @@ def _read_buffers(
     header,
     buffers,
     mesh_kwargs,
-    ignore_broken=False,
-    merge_primitives=False,
-    skip_materials=False,
-    resolver=None,
+    resolver: Optional[Resolver],
+    ignore_broken: bool = False,
+    merge_primitives: bool = False,
+    skip_materials: bool = False,
 ):
     """
     Given binary data and a layout return the
@@ -2108,7 +2110,6 @@ def get_schema():
     """
     # replace references
     # get zip resolver to access referenced assets
-    from ..resolvers import ZipResolver
     from ..schemas import resolve
 
     # get a blob of a zip file including the GLTF 2.0 schema
