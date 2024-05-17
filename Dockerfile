@@ -73,8 +73,10 @@ RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
-RUN pip install --pre --upgrade .[all]
-    
+# install prerelease for tests and make sure we're on Numpy 2.X
+RUN pip install --pre --upgrade .[all] && \
+    python -c "import numpy as n; assert(n.__version__.startswith('1'))"
+
 # check for lint problems
 RUN ruff check trimesh
 
