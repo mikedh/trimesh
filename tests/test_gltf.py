@@ -1068,6 +1068,7 @@ class GLTFTest(g.unittest.TestCase):
         mesh = g.get_mesh("Mesh_PrimitiveMode_04.gltf")
         assert len(mesh.triangles) == 2
 
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -5,6 +5,7 @@ from typing import (
     IO,
     Any,
     BinaryIO,
+    Mapping,
     Optional,
     TextIO,
     Union,
@@ -58,4 +59,5 @@ __all__ = [
     "Tuple",
     "float64",
     "int64",
+    "Mapping",
 ]

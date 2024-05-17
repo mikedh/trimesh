@@ -17,7 +17,7 @@ from ..caching import hash_fast
 from ..constants import log, tol
 from ..resolvers import Resolver, ZipResolver
 from ..scene.cameras import Camera
-from ..typed import NDArray, Optional, Stream
+from ..typed import Mapping, NDArray, Optional, Stream, Union
 from ..util import triangle_strips_to_faces, unique_name
 from ..visual.gloss import specular_to_pbr
 
@@ -49,6 +49,9 @@ _default_material = {
         "roughnessFactor": 0,
     }
 }
+
+# we can accept dict resolvers
+ResolverLike = Union[Resolver, Mapping]
 
 # GL geometry modes
 _GL_LINES = 1
@@ -264,7 +267,7 @@ def export_glb(
 
 def load_gltf(
     file_obj: Optional[Stream] = None,
-    resolver: Optional[Resolver] = None,
+    resolver: Optional[ResolverLike] = None,
     ignore_broken: bool = False,
     merge_primitives: bool = False,
     skip_materials: bool = False,
@@ -339,7 +342,7 @@ def load_gltf(
 
 def load_glb(
     file_obj: Stream,
-    resolver: Optional[Resolver] = None,
+    resolver: Optional[ResolverLike] = None,
     ignore_broken: bool = False,
     merge_primitives: bool = False,
     skip_materials: bool = False,
