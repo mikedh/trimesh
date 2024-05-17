@@ -1356,7 +1356,7 @@ def _read_buffers(
     header,
     buffers,
     mesh_kwargs,
-    resolver: Optional[Resolver],
+    resolver: Optional[ResolverLike],
     ignore_broken: bool = False,
     merge_primitives: bool = False,
     skip_materials: bool = False,
