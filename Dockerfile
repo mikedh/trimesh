@@ -29,7 +29,14 @@ USER user
 # install trimesh into .local
 # then delete any included test directories
 # and remove Cython after all the building is complete
+
+
+# TODO
+# remove mapbox-earcut fork when this is merged:
+# https://github.com/skogler/mapbox_earcut_python/pull/15
+
 RUN pip install --user /home/user[easy] && \
+    pip install --user --force-reinstall git+https://github.com/mikedh/mapbox_earcut_python.git && \
     find /home/user/.local -type d -name tests -prune -exec rm -rf {} \;
 
 ####################################
