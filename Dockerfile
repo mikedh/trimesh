@@ -34,7 +34,6 @@ USER user
 # TODO
 # remove mapbox-earcut fork when this is merged:
 # https://github.com/skogler/mapbox_earcut_python/pull/15
-
 RUN pip install --user /home/user[easy] && \
     pip install --user --force-reinstall git+https://github.com/mikedh/mapbox_earcut_python.git && \
     find /home/user/.local -type d -name tests -prune -exec rm -rf {} \;
@@ -74,8 +73,8 @@ RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
-RUN pip install --force-reinstall --pre --upgrade .[all]
-
+RUN pip install --pre --upgrade .[all]
+    
 # check for lint problems
 RUN ruff check trimesh
 
