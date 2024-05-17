@@ -1,6 +1,7 @@
 import numpy as np
 
 from ... import graph, grouping, util
+from ...constants import tol_path
 from ..entities import Arc, Line
 
 
@@ -62,7 +63,7 @@ def lines_to_path(lines):
         # convert lines to even number of (n, dimension) points
         lines = lines.reshape((-1, dimension))
         # merge duplicate vertices
-        unique, inverse = grouping.unique_rows(lines)
+        unique, inverse = grouping.unique_rows(lines, digits=tol_path.merge_digits)
         # use scipy edges_to_path to skip creating
         # a bajillion individual line entities which
         # will be super slow vs. fewer polyline entities

@@ -24,7 +24,7 @@ class OBJTest(g.unittest.TestCase):
         assert m.visual.uv.max() < (1 + 1e-5)
         assert m.visual.uv.min() > -1e-5
         # check to make sure it's not all zeros
-        assert m.visual.uv.ptp() > 0.5
+        assert g.np.ptp(m.visual.uv) > 0.5
         rec = g.roundtrip(m.export(file_type="obj"), file_type="obj")
         assert g.np.isclose(m.area, rec.area)
 
@@ -48,7 +48,7 @@ class OBJTest(g.unittest.TestCase):
         # assert len(mesh.metadata['face_groups']) == len(mesh.faces)
 
         # check to make sure there is signal not just zeros
-        # assert mesh.metadata['face_groups'].ptp() > 0
+        # assert g.np.ptp(mesh.metadata['face_groups']) > 0
 
     def test_obj_negative_indices(self):
         # a wavefront file with negative indices

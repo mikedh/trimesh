@@ -771,7 +771,7 @@ class GLTFTest(g.unittest.TestCase):
         )
         # original mesh should have vertex colors
         assert m.visual.kind == "face"
-        assert m.visual.vertex_colors.ptp(axis=0).ptp() > 0
+        assert g.np.ptp(g.np.ptp(m.visual.vertex_colors, axis=0)) > 0
         # vertex colors should have survived import-export
         assert g.np.allclose(m.visual.vertex_colors, r.visual.vertex_colors)
 
@@ -1057,6 +1057,16 @@ class GLTFTest(g.unittest.TestCase):
 
         # Check that the normals are still null
         assert g.np.allclose(reimported_mesh.vertex_normals[0], [0, 0, 0])
+
+    def test_no_indices(self):
+        # test mesh with no indices (faces should be generated correctly)
+        mesh = g.get_mesh("no_indices_3storybuilding.glb")
+        assert len(mesh.triangles) == 72
+
+        # the mesh is actually mode 5 with 4 vertices
+        # which as triangle strips would be 2 faces
+        mesh = g.get_mesh("Mesh_PrimitiveMode_04.gltf")
+        assert len(mesh.triangles) == 2
 
 
 if __name__ == "__main__":

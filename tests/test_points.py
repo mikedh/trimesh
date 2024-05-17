@@ -47,7 +47,9 @@ class PointsTest(g.unittest.TestCase):
         assert hash(cloud) != initial_hash
 
         # AABB volume should be same as points
-        assert g.np.isclose(cloud.bounding_box.volume, g.np.prod(points.ptp(axis=0)))
+        assert g.np.isclose(
+            cloud.bounding_box.volume, g.np.prod(g.np.ptp(points, axis=0))
+        )
 
         # will populate all bounding primitives
         assert cloud.bounding_primitive.volume > 0.0
@@ -153,7 +155,7 @@ class PointsTest(g.unittest.TestCase):
         centroids, klabel = g.trimesh.points.k_means(points=clustered, k=cluster_count)
 
         # reshape to make sure all groups have the same index
-        variance = klabel.reshape((cluster_count, points_per_cluster)).ptp(axis=1)
+        variance = g.np.ptp(klabel.reshape((cluster_count, points_per_cluster)), axis=1)
 
         assert len(centroids) == cluster_count
         assert (variance == 0).all()

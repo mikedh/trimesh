@@ -16,7 +16,7 @@ class PlyTest(g.unittest.TestCase):
         m = g.get_mesh("machinist.XAML")
 
         assert m.visual.kind == "face"
-        assert m.visual.face_colors.ptp(axis=0).max() > 0
+        assert g.np.ptp(m.visual.face_colors, axis=0).max() > 0
 
         export = m.export(file_type="ply")
         reconstructed = g.roundtrip(export, file_type="ply")
@@ -28,7 +28,7 @@ class PlyTest(g.unittest.TestCase):
         m = g.get_mesh("reference.ply")
 
         assert m.visual.kind == "vertex"
-        assert m.visual.vertex_colors.ptp(axis=0).max() > 0
+        assert g.np.ptp(m.visual.vertex_colors, axis=0).max() > 0
 
         export = m.export(file_type="ply")
         reconstructed = g.roundtrip(export, file_type="ply")

@@ -99,8 +99,8 @@ class SectionTest(g.unittest.TestCase):
                 back_3D.apply_transform(base_inv)
 
                 # make sure all vertices have constant Z
-                assert back_3D.vertices[:, 2].ptp() < 1e-8
-                assert sections_3D[index].vertices[:, 2].ptp() < 1e-8
+                assert g.np.ptp(back_3D.vertices[:, 2]) < 1e-8
+                assert g.np.ptp(sections_3D[index].vertices[:, 2]) < 1e-8
 
                 # make sure reconstructed 3D section is at right height
                 assert g.np.isclose(

@@ -74,7 +74,7 @@ all_dependencies = "ALL_DEPENDENCIES" in argv
 include_rendering = "INCLUDE_RENDERING" in argv
 
 if all_dependencies and not trimesh.ray.has_embree:
-    raise ValueError("missing embree!")
+    import embreex
 
 try:
     import sympy as sp
@@ -512,7 +512,7 @@ def check_fuze(fuze):
     # UV coordinates should be unmerged correctly
     assert len(fuze.visual.uv) == 664
     # UV coordinates shouldn't be all zero- ish
-    assert fuze.visual.uv[:, :2].ptp(axis=0).min() > 0.1
+    assert np.ptp(fuze.visual.uv[:, :2], axis=0).min() > 0.1
     # UV coordinates should be between zero and 1
     assert fuze.visual.uv.min() > -tol.merge
     assert fuze.visual.uv.max() < 1 + tol.merge
@@ -538,7 +538,7 @@ def check_fuze(fuze):
     viz = fuze.visual.to_color()
     assert viz.kind == "vertex"
     # should be actual colors defined
-    assert viz.vertex_colors.ptp(axis=0).ptp() != 0
+    assert np.ptp(np.ptp(viz.vertex_colors, axis=0)) != 0
     # shouldn't crash
     fuze.visual.copy()
     fuze.visual.material.copy()

@@ -44,7 +44,7 @@ class SubDivideTest(g.unittest.TestCase):
                 assert bary.max() < (1 + epsilon)
                 assert bary.min() > -epsilon
                 # make sure it's not all zeros
-                assert bary.ptp() > epsilon
+                assert g.np.ptp(bary) > epsilon
 
             v, f = g.trimesh.remesh.subdivide(vertices=m.vertices, faces=m.faces)
 
@@ -74,7 +74,7 @@ class SubDivideTest(g.unittest.TestCase):
                 assert bary.max() < (1 + epsilon)
                 assert bary.min() > -epsilon
                 # make sure it's not all zeros
-                assert bary.ptp() > epsilon
+                assert g.np.ptp(bary) > epsilon
 
             check = m.subdivide_to_size(
                 max_edge=m.extents.sum(), max_iter=1, return_index=False
@@ -201,8 +201,8 @@ class SubDivideTest(g.unittest.TestCase):
         sv = s.visual.uv[s.faces]
         # both subdivided and original should have faces
         # that don't vary wildly
-        assert ov.ptp(axis=1).mean(axis=0).max() < 0.1
-        assert sv.ptp(axis=1).mean(axis=0).max() < 0.1
+        assert g.np.ptp(ov, axis=1).mean(axis=0).max() < 0.1
+        assert g.np.ptp(sv, axis=1).mean(axis=0).max() < 0.1
 
         max_edge = m.scale / 50
         s = m.subdivide_to_size(max_edge=max_edge)
@@ -220,8 +220,8 @@ class SubDivideTest(g.unittest.TestCase):
         sv = s.visual.uv[s.faces]
         # both subdivided and original should have faces
         # that don't vary wildly
-        assert ov.ptp(axis=1).mean(axis=0).max() < 0.1
-        assert sv.ptp(axis=1).mean(axis=0).max() < 0.1
+        assert g.np.ptp(ov, axis=1).mean(axis=0).max() < 0.1
+        assert g.np.ptp(sv, axis=1).mean(axis=0).max() < 0.1
 
     def test_max_iter(self):
         m = g.trimesh.creation.box()

@@ -63,7 +63,7 @@ class DAETest(g.unittest.TestCase):
             s.export(path)
             # bring it back from outer space
             rec = g.trimesh.load(path, force="mesh")
-        assert rec.visual.uv.ptp(axis=0).ptp() > 1e-5
+        assert g.np.ptp(g.np.ptp(rec.visual.uv, axis=0)) > 1e-5
         assert s.visual.material.baseColorTexture.size == rec.visual.material.image.size
 
         conv = s.convert_units("inch")

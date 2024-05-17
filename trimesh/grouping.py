@@ -204,7 +204,7 @@ def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
             hashable = np.zeros(len(as_int), dtype=np.uint64)
             # offset to the middle of the unsigned integer range
             # this array should contain only positive values
-            bitbang = (as_int + threshold).astype(np.uint64).T
+            bitbang = as_int.astype(np.uint64).T + threshold
             # loop through each column and bitwise xor to combine
             # make sure as_int is int64 otherwise bit offset won't work
             for offset, column in enumerate(bitbang):

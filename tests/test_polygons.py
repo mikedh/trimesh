@@ -73,7 +73,7 @@ class PolygonTests(g.unittest.TestCase):
         # try getting OBB of samples
         _T, extents = g.trimesh.path.polygons.polygon_obb(s)
         # OBB of samples should be less than diameter of circle
-        diameter = g.np.reshape(p.bounds, (2, 2)).ptp(axis=0).max()
+        diameter = g.np.ptp(g.np.reshape(p.bounds, (2, 2)), axis=0).max()
         assert (extents <= diameter).all()
 
         # test sampling with multiple bodies

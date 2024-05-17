@@ -90,7 +90,7 @@ class VoxelGridTest(g.unittest.TestCase):
         # get some points on the surface of an icosahedron
         points = g.trimesh.creation.icosahedron().sample(1000)
         # make the pitch proportional to scale
-        pitch = points.ptp(axis=0).min() / 10
+        pitch = g.np.ptp(points, axis=0).min() / 10
         # run marching cubes
         mesh = g.trimesh.voxel.ops.points_to_marching_cubes(points=points, pitch=pitch)
 

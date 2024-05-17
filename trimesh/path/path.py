@@ -328,7 +328,7 @@ class Path(parent.Geometry):
         extents : (dimension,) float
           Edge length of AABB
         """
-        return self.bounds.ptp(axis=0)
+        return np.ptp(self.bounds, axis=0)
 
     def convert_units(self, desired: str, guess: bool = False):
         """
@@ -833,7 +833,7 @@ class Path3D(Path):
         # Z values of vertices which are referenced
         heights = flat[referenced][:, 2]
         # points are not on a plane because Z varies
-        if heights.ptp() > tol.planar:
+        if np.ptp(heights) > tol.planar:
             # since Z is inconsistent set height to zero
             height = 0.0
             if check:

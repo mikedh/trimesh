@@ -27,7 +27,7 @@ class MedialTests(g.unittest.TestCase):
         # with midpoint at origin
         assert len(med.vertices) == 2
         assert len(med.entities) == 1
-        assert float(med.vertices.mean(axis=0).ptp()) < 1e-8
+        assert float(g.np.ptp(med.vertices.mean(axis=0))) < 1e-8
 
 
 if __name__ == "__main__":

@@ -22,9 +22,7 @@ def _dense(encoding, rank=None):
     elif isinstance(encoding, enc.Encoding):
         dense = encoding.dense
     else:
-        raise ValueError(
-            f"encoding must be np.ndarray or Encoding, got {encoding!s}"
-        )
+        raise ValueError(f"encoding must be np.ndarray or Encoding, got {encoding!s}")
     if rank:
         _assert_rank(dense, rank)
     return dense
@@ -36,9 +34,7 @@ def _sparse_indices(encoding, rank=None):
     elif isinstance(encoding, enc.Encoding):
         sparse_indices = encoding.sparse_indices
     else:
-        raise ValueError(
-            f"encoding must be np.ndarray or Encoding, got {encoding!s}"
-        )
+        raise ValueError(f"encoding must be np.ndarray or Encoding, got {encoding!s}")
 
     _assert_sparse_rank(sparse_indices, 3)
     return sparse_indices

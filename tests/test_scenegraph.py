@@ -232,7 +232,7 @@ class GraphTests(g.unittest.TestCase):
         # generate a lot of random queries
         queries = g.np.random.choice(list(forest.nodes), 10000).reshape((-1, 2))
         # filter out any self-queries as networkx doesn't handle them
-        queries = queries[queries.ptp(axis=1) > 0]
+        queries = queries[g.np.ptp(queries, axis=1) > 0]
 
         # now run our shortest path algorithm in a profiler
         with g.Profiler() as P:

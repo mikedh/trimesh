@@ -281,16 +281,18 @@ def shared_edges(faces_a, faces_b):
     return shared
 
 
-def facets(mesh, engine=None):
+def facets(mesh, engine=None, facet_threshold: Optional[Number] = None):
     """
     Find the list of parallel adjacent faces.
 
     Parameters
     -----------
-    mesh :  trimesh.Trimesh
+    mesh : trimesh.Trimesh
     engine : str
-       Which graph engine to use:
-       ('scipy', 'networkx')
+      Which graph engine to use:
+      ('scipy', 'networkx')
+    facet_threshold : float
+      Threshold for two facets to be considered coplanar
 
     Returns
     ---------
@@ -298,6 +300,8 @@ def facets(mesh, engine=None):
         Groups of face indexes of
         parallel adjacent faces.
     """
+    if facet_threshold is None:
+        facet_threshold = tol.facet_threshold
     # what is the radius of a circle that passes through the perpendicular
     # projection of the vector between the two non- shared vertices
     # onto the shared edge, with the face normal from the two adjacent faces
@@ -314,7 +318,7 @@ def facets(mesh, engine=None):
     # if span is zero we know faces are small/parallel
     nonzero = np.abs(span) > tol.zero
     # faces with a radii/span ratio larger than a threshold pass
-    parallel[nonzero] = (radii[nonzero] / span[nonzero]) ** 2 > tol.facet_threshold
+    parallel[nonzero] = (radii[nonzero] / span[nonzero]) ** 2 > facet_threshold
 
     # run connected components on the parallel faces to group them
     components = connected_components(
@@ -525,7 +529,7 @@ def split_traversal(traversal, edges, edges_hash=None):
     # hash each edge so we can compare to edge set
     trav_hash = grouping.hashable_rows(np.sort(trav_edge, axis=1))
     # check if each edge is contained in edge set
-    contained = np.in1d(trav_hash, edges_hash)
+    contained = np.isin(trav_hash, edges_hash)
 
     # exit early if every edge of traversal exists
     if contained.all():
@@ -547,7 +551,7 @@ def split_traversal(traversal, edges, edges_hash=None):
             continue
         # make sure it's not already closed
         edge = np.sort([t[0], t[-1]])
-        if edge.ptp() == 0:
+        if np.ptp(edge) == 0:
             continue
         close = grouping.hashable_rows(edge.reshape((1, 2)))[0]
         # if we need the edge add it
