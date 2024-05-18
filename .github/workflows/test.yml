@@ -35,10 +35,10 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Test a minimal install
       run: |
-        pip install .
+        pip install --no-cache-dir .
         python tests/test_minimal.py
     - name: Install Trimesh
-      run: pip install .[easy,test]
+      run: pip install --no-cache-dir .[easy,test]
     - name: Run Pytest
       run: |
         pytest
