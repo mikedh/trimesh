@@ -112,8 +112,7 @@ def enclosure_tree(polygons):
     return roots, contains
 
 
-def edges_to_polygons(edges: NDArray[int64],
-                      vertices: NDArray[float64]):
+def edges_to_polygons(edges: NDArray[int64], vertices: NDArray[float64]):
     """
     Given an edge list of indices and associated vertices
     representing lines, generate a list of polygons.

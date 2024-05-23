@@ -18,7 +18,7 @@ _warning = " ".join(
         "There are *many* gmsh options on PyPi: `scikit-gmsh` `gmsh` `pygmsh` `gmsh-sdk`,",
         "users should pick one of those and use it directly. If STEP loading is the only",
         "thing needed you may want `pip install cascadio` which uses OpenCASCADE more",
-        "directly and will immediatly enable STEP as a loadable format in trimesh.",
+        "directly and will immediately enable STEP as a loadable format in trimesh.",
     ]
 )
 

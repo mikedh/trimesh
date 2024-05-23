@@ -252,7 +252,7 @@ def export_scene(scene, file_obj, file_type=None, resolver=None, **kwargs):
         else:
             raise ValueError("file_type not specified!")
 
-    # always remove whitepace and leading characters
+    # always remove whitespace and leading characters
     file_type = file_type.strip().lower().lstrip(".")
 
     # now handle our different scene export types
