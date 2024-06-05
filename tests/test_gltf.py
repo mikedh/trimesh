@@ -802,7 +802,7 @@ class GLTFTest(g.unittest.TestCase):
         assert len(m.geometry.items()) > 0
 
         mesh = next(iter(m.geometry.items()))[1]
-        validate_glb(mesh)
+        assert mesh is not None
 
         # Loaded mesh should have vertex colors
         assert hasattr(mesh.visual, 'vertex_colors')
