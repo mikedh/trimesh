@@ -801,7 +801,7 @@ class GLTFTest(g.unittest.TestCase):
         m = g.get_mesh("cubevc.glb")
         assert len(m.geometry.items()) > 0
 
-        mesh = list(m.geometry.items())[0][1]
+        mesh = next(iter(m.geometry.items()))[1]
         validate_glb(mesh)
 
         # Loaded mesh should have vertex colors
