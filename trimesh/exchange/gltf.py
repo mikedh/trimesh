@@ -1560,11 +1560,11 @@ def _read_buffers(
                             if len(colors) == len(kwargs["vertices"]):
                                 if visuals is None:
                                     # just pass to mesh as vertex color
-                                    kwargs["vertex_colors"] = colors
+                                    kwargs["vertex_colors"] = colors.copy()
                                 else:
                                     # we ALSO have texture so save as vertex
                                     # attribute
-                                    visuals.vertex_attributes["color"] = colors
+                                    visuals.vertex_attributes["color"] = colors.copy()
                         except BaseException:
                             # survive failed colors
                             log.debug("failed to load colors", exc_info=True)
