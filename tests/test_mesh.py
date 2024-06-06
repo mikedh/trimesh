@@ -104,8 +104,33 @@ class MeshTests(g.unittest.TestCase):
             assert len(mesh.vertices) == len(mesh.vertex_defects)
             assert len(mesh.principal_inertia_components) == 3
 
+            # make a ray query which may lead to unpicklable caching
+            dimension = (100, 3)
+            ray_origins = g.random(dimension)
+            ray_directions = g.np.tile([0, 0, 1], (dimension[0], 1))
+            ray_origins[:, 2] = mesh.bounds[0][2] - mesh.scale
+
+            # call additional C objects
+            assert mesh.kdtree is not None
+            assert mesh.triangles_tree is not None
+
+            # force ray object to be created
+            ray = mesh.ray.intersects_location(ray_origins, ray_directions)
+            assert ray is not None
+
             # collect list of cached properties that are writeable
             writeable = []
+
+            # make sure a roundtrip pickle works
+            # if the cache has non-pickleable stuff this will break
+            pickle = g.pickle.dumps(mesh)
+            assert isinstance(pickle, bytes)
+            assert len(pickle) > 0
+
+            r = g.pickle.loads(pickle)
+            assert r.faces.shape == mesh.faces.shape
+            assert g.np.isclose(r.volume, mesh.volume)
+
             # we should have built up a bunch of stuff into
             # our cache, so make sure all numpy arrays cached
             # are read-only and not crazy

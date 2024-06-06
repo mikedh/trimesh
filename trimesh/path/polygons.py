@@ -6,7 +6,7 @@ from .. import bounds, geometry, graph, grouping
 from ..constants import log
 from ..constants import tol_path as tol
 from ..transformations import transform_points
-from ..typed import Iterable, NDArray, Number, Optional, Union, float64
+from ..typed import Iterable, NDArray, Number, Optional, Union, float64, int64
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -112,17 +112,17 @@ def enclosure_tree(polygons):
     return roots, contains
 
 
-def edges_to_polygons(edges, vertices):
+def edges_to_polygons(edges: NDArray[int64], vertices: NDArray[float64]):
     """
     Given an edge list of indices and associated vertices
     representing lines, generate a list of polygons.
 
     Parameters
     -----------
-    edges : (n, 2) int
+    edges : (n, 2)
       Indexes of vertices which represent lines
-    vertices : (m, 2) float
-      Vertices in 2D space
+    vertices : (m, 2)
+      Vertices in 2D space.
 
     Returns
     ----------
