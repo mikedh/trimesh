@@ -805,13 +805,13 @@ class GLTFTest(g.unittest.TestCase):
         assert mesh is not None
 
         # Loaded mesh should have vertex colors
-        assert hasattr(mesh.visual, 'vertex_colors')
+        assert hasattr(mesh.visual, "vertex_colors")
 
         # Loaded mesh should have all vertex colors filled with magenta color
-        magenta = g.np.array([255,0,255, 255])
+        magenta = g.np.array([255, 0, 255, 255])
         for color in mesh.visual.vertex_colors:
             is_magenta = g.np.array_equal(color, magenta)
-            assert is_magenta, f'Imported vertex color is not of expected value: got {color}, expected {magenta}'
+            assert is_magenta, f"Imported vertex color is not of expected value: got {color}, expected {magenta}"
 
     def test_export_postprocess(self):
         scene = g.trimesh.Scene()
