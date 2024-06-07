@@ -74,7 +74,7 @@ USER user
 
 # install things like pytest
 # install prerelease for tests and make sure we're on Numpy 2.X
-RUN pip install --pre --upgrade .[all] && \
+RUN pip install .[all] && \
     pip install --pre --upgrade --force-reinstall numpy && \
     python -c "import numpy as n; assert(n.__version__.startswith('2'))"
 
