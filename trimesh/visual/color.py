@@ -581,13 +581,7 @@ def to_rgba(colors, dtype=np.uint8):
     if colors.dtype.kind == "f":
         # replace any `nan` or `inf` values with zero
         colors[~np.isfinite(colors)] = 0.0
-
-    if colors.dtype.kind == "f" and colors.max() < (1.0 + 1e-8):
         colors = (colors * opaque).round().astype(dtype)
-    elif colors.max() <= opaque:
-        colors = colors.astype(dtype)
-    else:
-        raise ValueError("colors non-convertible!")
 
     if util.is_shape(colors, (-1, 3)):
         # add an opaque alpha for RGB colors
