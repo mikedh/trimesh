@@ -1983,8 +1983,8 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
     try:
         # try to convert base color to (4,) float color
         result["baseColorFactor"] = (
-            visual.color.to_float(
-                as_pbr.baseColorFactor).reshape(4).tolist())
+            visual.color.to_float(as_pbr.baseColorFactor).reshape(4).tolist()
+        )
     except BaseException:
         pass
 

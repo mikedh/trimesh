@@ -30,7 +30,7 @@ import numpy as np
 from .. import caching, util
 from ..constants import tol
 from ..grouping import unique_rows
-from ..typed import ArrayLike, NDArray, Optional
+from ..typed import ArrayLike, NDArray
 from .base import Visuals
 
 
