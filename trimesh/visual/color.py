@@ -556,7 +556,7 @@ class VertexColor(Visuals):
         return self._colors.__hash__()
 
 
-def to_rgba(colors: Optional[ArrayLike], dtype=np.uint8) -> NDArray:
+def to_rgba(colors, dtype=np.uint8) -> NDArray:
     """
     Convert a single or multiple RGB colors to RGBA colors.
 
