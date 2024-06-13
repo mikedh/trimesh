@@ -45,7 +45,7 @@ from .base import Trimesh
 from .constants import tol
 
 # loader functions
-from .exchange.load import available_formats, load, load_mesh, load_path, load_remote
+from .exchange.load import available_formats, load, load_mesh, load_path
 
 # geometry objects
 from .parent import Geometry
