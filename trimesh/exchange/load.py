@@ -1,5 +1,6 @@
 import json
 import os
+import warnings
 
 import numpy as np
 
@@ -9,7 +10,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Dict, Loadable, Optional, Union
+from ..typed import Loadable, Optional
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -71,11 +72,11 @@ def available_formats() -> set:
 def load(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Union[resolvers.Resolver, Dict, None] = None,
+    resolver: Optional[resolvers.ResolverLike] = None,
     force: Optional[str] = None,
     allow_remote: bool = False,
     **kwargs,
-) -> Scene:
+):
     """
     Load a mesh or vectorized path into objects like
     Trimesh, Path2D, Path3D, Scene
@@ -117,6 +118,9 @@ def load(
         is_remote,  #  is this a URL
     ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
+    if is_remote and not allow_remote:
+        raise ValueError("URL passed with `allow_remote=False`")
+
     try:
         if isinstance(file_obj, dict):
             # if we've been passed a dict treat it as kwargs
@@ -147,7 +151,7 @@ def load(
             else:
                 raise ValueError(f"File type: {file_type} not supported")
     finally:
-        # close any opened files even if we crashed out
+        # close any opened files even if we crashed
         if opened:
             file_obj.close()
 
@@ -159,19 +163,30 @@ def load(
     elif isinstance(getattr(loaded, "metadata", None), dict):
         loaded.metadata.update(metadata)
 
-    # if we opened the file in this function ourselves from a
-    # file name clean up after ourselves by closing it
-    if opened:
-        file_obj.close()
+    if force is None:
+        # old behavior
+        return loaded
 
     # combine a scene into a single mesh
-    if force == "mesh" and isinstance(loaded, Scene):
-        return util.concatenate(loaded.dump())
+    if force == "mesh":
+        warnings.warn(
+            "``trimesh.load(... force='mesh')`"
+            + "and should be replaced with `trimesh.load_mesh`"
+            + "current functionality may be replaced June 2025.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        # coerce values into a mesh
+        return Scene(loaded).to_mesh()
 
     if not isinstance(loaded, Scene):
         return Scene(loaded)
 
     return loaded
+
+
+def load_scene(*args, **kwargs) -> Scene:
+    """ """
 
 
 def load_mesh(*args, **kwargs) -> Trimesh:
@@ -192,7 +207,7 @@ def load_mesh(*args, **kwargs) -> Trimesh:
     mesh
       Loaded geometry data.
     """
-    return load(*args, **kwargs).dump_mesh()
+    return load(*args, **kwargs, force="scene").to_mesh()
 
 
 def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwargs):
@@ -484,7 +499,7 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
 def _parse_file_args(
     file_obj: Loadable,
     file_type: Optional[str],
-    resolver: Union[None, Dict, resolvers.Resolver] = None,
+    resolver: Optional[resolvers.ResolverLike] = None,
     **kwargs,
 ):
     """

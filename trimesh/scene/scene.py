@@ -847,8 +847,7 @@ class Scene(Geometry3D):
         self.graph.base_frame = new_base
 
     def dump_mesh(self):
-        """
-        """
+        """ """
         return self.dump(concatenate=True)
 
     def dump(self, concatenate: bool = False) -> Union[Geometry, List[Geometry]]:
