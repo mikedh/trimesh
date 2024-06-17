@@ -1,4 +1,5 @@
 """OO interfaces to encodings for ND arrays which caching."""
+
 import abc
 
 import numpy as np
@@ -38,31 +39,38 @@ class Encoding(ABC):
         self._data = data
         self._cache = caching.Cache(id_function=self._data.__hash__)
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def dtype(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def shape(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def sum(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def size(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def sparse_indices(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def sparse_values(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def dense(self):
         pass
 
@@ -280,7 +288,7 @@ class SparseEncoding(Encoding):
         data["values"] = values
         indices = data["indices"]
         if len(indices.shape) != 2:
-            raise ValueError("indices must be 2D, got shaped %s" % str(indices.shape))
+            raise ValueError(f"indices must be 2D, got shaped {indices.shape!s}")
         if data["values"].shape != (indices.shape[0],):
             raise ValueError(
                 "values and indices shapes inconsistent: {} and {}".format(
@@ -503,7 +511,7 @@ class RunLengthEncoding(Encoding):
 
     def _flip(self, axes):
         if axes != (0,):
-            raise ValueError("encoding is 1D - cannot flip on axis %s" % str(axes))
+            raise ValueError(f"encoding is 1D - cannot flip on axis {axes!s}")
         return RunLengthEncoding(runlength.rle_reverse(self._data))
 
     @caching.cache_decorator
@@ -608,7 +616,7 @@ class BinaryRunLengthEncoding(RunLengthEncoding):
 
     def _flip(self, axes):
         if axes != (0,):
-            raise ValueError("encoding is 1D - cannot flip on axis %s" % str(axes))
+            raise ValueError(f"encoding is 1D - cannot flip on axis {axes!s}")
         return BinaryRunLengthEncoding(runlength.brle_reverse(self._data))
 
     @property
@@ -807,9 +815,7 @@ class TransposedEncoding(LazyIndexMap):
 
     def __init__(self, base_encoding, perm):
         if not isinstance(base_encoding, Encoding):
-            raise ValueError(
-                "base_encoding must be an Encoding, got %s" % str(base_encoding)
-            )
+            raise ValueError(f"base_encoding must be an Encoding, got {base_encoding!s}")
         if len(base_encoding.shape) != len(perm):
             raise ValueError(
                 "base_encoding has %d ndims - cannot transpose with perm %s"
@@ -818,7 +824,7 @@ class TransposedEncoding(LazyIndexMap):
         super().__init__(base_encoding)
         perm = np.array(perm, dtype=np.int64)
         if not all(i in perm for i in range(base_encoding.ndims)):
-            raise ValueError("perm %s is not a valid permutation" % str(perm))
+            raise ValueError(f"perm {perm!s} is not a valid permutation")
         inv_perm = np.empty_like(perm)
         inv_perm[perm] = np.arange(base_encoding.ndims)
         self._perm = perm
@@ -888,7 +894,7 @@ class FlippedEncoding(LazyIndexMap):
         axes = tuple(a + ndims if a < 0 else a for a in axes)
         self._axes = tuple(sorted(axes))
         if len(set(self._axes)) != len(self._axes):
-            raise ValueError("Axes cannot contain duplicates, got %s" % str(self._axes))
+            raise ValueError(f"Axes cannot contain duplicates, got {self._axes!s}")
         super().__init__(encoding)
         if not all(0 <= a < self._data.ndims for a in axes):
             raise ValueError(

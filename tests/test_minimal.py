@@ -6,6 +6,7 @@ Test things that should work with a *minimal* trimesh install.
 
 
 """
+
 import os
 import unittest
 
@@ -34,7 +35,7 @@ class MinimalTest(unittest.TestCase):
         bounds, inserted = packing.rectangles_single([[1, 1], [2, 2]], size=[2, 4])
         assert inserted.all()
 
-        extents = bounds.reshape((-1, 2)).ptp(axis=0)
+        extents = np.ptp(bounds.reshape((-1, 2)), axis=0)
         assert np.allclose(extents, [2, 3])
         assert bounds.shape == (2, 2, 2)
         density = 5.0 / np.prod(extents)

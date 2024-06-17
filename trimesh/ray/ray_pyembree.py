@@ -2,6 +2,7 @@
 Ray queries using the embreex package with the
 API wrapped to match our native raytracer.
 """
+
 from copy import deepcopy
 
 import numpy as np
@@ -310,6 +311,17 @@ class RayMeshIntersector:
                          Whether point is inside mesh or not
         """
         return contains_points(self, points)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # don't pickle cache
+        state.pop("_cache", None)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Add cache back since it doesn't exist in the pickle
+        self._cache = caching.Cache(id_function=self.mesh.__hash__)
 
 
 class _EmbreeWrap:

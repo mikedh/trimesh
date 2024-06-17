@@ -147,8 +147,13 @@ def mesh_other(
         )
 
         # run first pass ICP
-        matrix, junk, cost = icp(
-            a=points, b=search, initial=a_to_b, max_iterations=int(icp_first), scale=scale
+        matrix, _junk, cost = icp(
+            a=points,
+            b=search,
+            initial=a_to_b,
+            max_iterations=int(icp_first),
+            scale=scale,
+            **kwargs,
         )
 
         # save transform and costs from ICP
@@ -156,12 +161,13 @@ def mesh_other(
         costs[i] = cost
 
     # run a final ICP refinement step
-    matrix, junk, cost = icp(
+    matrix, _junk, cost = icp(
         a=points,
         b=search,
         initial=transforms[np.argmin(costs)],
         max_iterations=int(icp_final),
         scale=scale,
+        **kwargs,
     )
 
     # convert to per- point distance average
@@ -268,7 +274,7 @@ def procrustes(
             ((b - bcenter) / bscale).T, ((a - acenter) / ascale) * w.reshape((-1, 1))
         )
 
-    u, s, vh = np.linalg.svd(target)
+    u, _s, vh = np.linalg.svd(target)
 
     if reflection:
         R = np.dot(u, vh)
@@ -349,9 +355,9 @@ def icp(a, b, initial=None, threshold=1e-5, max_iterations=20, **kwargs):
     for _ in range(max_iterations):
         # Closest point in b to each point in a
         if is_mesh:
-            closest, distance, faces = b.nearest.on_surface(a)
+            closest, _distance, _faces = b.nearest.on_surface(a)
         else:
-            distances, ix = btree.query(a, 1)
+            _distances, ix = btree.query(a, 1)
             closest = b[ix]
 
         # align a with closest points

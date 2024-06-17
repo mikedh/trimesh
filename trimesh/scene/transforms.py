@@ -1,12 +1,12 @@
 import collections
 from copy import deepcopy
-from typing import Sequence
 
 import numpy as np
 
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
+from ..typed import Sequence, Union
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -474,7 +474,7 @@ class SceneGraph:
                 res[attr["geometry"]].append(node)
         return res
 
-    def remove_geometries(self, geometries: Sequence):
+    def remove_geometries(self, geometries: Union[str, set, Sequence]):
         """
         Remove the reference for specified geometries
         from nodes without deleting the node.

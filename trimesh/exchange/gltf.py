@@ -15,8 +15,10 @@ import numpy as np
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
-from ..typed import NDArray
-from ..util import unique_name
+from ..resolvers import Resolver, ZipResolver
+from ..scene.cameras import Camera
+from ..typed import Mapping, NDArray, Optional, Stream, Union
+from ..util import triangle_strips_to_faces, unique_name
 from ..visual.gloss import specular_to_pbr
 
 # magic numbers which have meaning in GLTF
@@ -47,6 +49,9 @@ _default_material = {
         "roughnessFactor": 0,
     }
 }
+
+# we can accept dict resolvers
+ResolverLike = Union[Resolver, Mapping]
 
 # GL geometry modes
 _GL_LINES = 1
@@ -261,11 +266,11 @@ def export_glb(
 
 
 def load_gltf(
-    file_obj=None,
-    resolver=None,
-    ignore_broken=False,
-    merge_primitives=False,
-    skip_materials=False,
+    file_obj: Optional[Stream] = None,
+    resolver: Optional[ResolverLike] = None,
+    ignore_broken: bool = False,
+    merge_primitives: bool = False,
+    skip_materials: bool = False,
     **mesh_kwargs,
 ):
     """
@@ -336,11 +341,11 @@ def load_gltf(
 
 
 def load_glb(
-    file_obj,
-    resolver=None,
-    ignore_broken=False,
-    merge_primitives=False,
-    skip_materials=False,
+    file_obj: Stream,
+    resolver: Optional[ResolverLike] = None,
+    ignore_broken: bool = False,
+    merge_primitives: bool = False,
+    skip_materials: bool = False,
     **mesh_kwargs,
 ):
     """
@@ -444,6 +449,7 @@ def load_glb(
         merge_primitives=merge_primitives,
         skip_materials=skip_materials,
         mesh_kwargs=mesh_kwargs,
+        resolver=resolver,
     )
 
     return kwargs
@@ -775,7 +781,7 @@ def _append_mesh(
     name,
     tree,
     buffer_items,
-    include_normals: bool,
+    include_normals: Optional[bool],
     unitize_normals: bool,
     mat_hashes: dict,
     extension_webp: bool,
@@ -920,8 +926,8 @@ def _append_mesh(
             # add the reference for UV coordinates
             current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
 
-            # only reference the material if we had UV coordinates
-            current["primitives"][0]["material"] = current_material
+        # reference the material
+        current["primitives"][0]["material"] = current_material
 
     if include_normals or (
         include_normals is None and "vertex_normals" in mesh._cache.cache
@@ -1081,11 +1087,7 @@ def _byte_pad(data, bound=4):
         result = b"".join([data, pad])
         # we should always divide evenly
         if tol.strict and (len(result) % bound) != 0:
-            raise ValueError(
-                "byte_pad failed! ori:{} res:{} pad:{} req:{}".format(
-                    len(data), len(result), count, bound
-                )
-            )
+            raise ValueError("byte_pad failed!")
         return result
     return data
 
@@ -1354,10 +1356,10 @@ def _read_buffers(
     header,
     buffers,
     mesh_kwargs,
-    ignore_broken=False,
-    merge_primitives=False,
-    skip_materials=False,
-    resolver=None,
+    resolver: Optional[ResolverLike],
+    ignore_broken: bool = False,
+    merge_primitives: bool = False,
+    skip_materials: bool = False,
 ):
     """
     Given binary data and a layout return the
@@ -1515,15 +1517,21 @@ def _read_buffers(
                         if mode == _GL_STRIP:
                             # this is triangle strips
                             flat = access[p["indices"]].reshape(-1)
-                            kwargs["faces"] = util.triangle_strips_to_faces([flat])
+                            kwargs["faces"] = triangle_strips_to_faces([flat])
                         else:
                             kwargs["faces"] = access[p["indices"]].reshape((-1, 3))
                     else:
                         # indices are apparently optional and we are supposed to
                         # do the same thing as webGL drawArrays?
-                        kwargs["faces"] = np.arange(
-                            len(kwargs["vertices"]) * 3, dtype=np.int64
-                        ).reshape((-1, 3))
+                        if mode == _GL_STRIP:
+                            kwargs["faces"] = triangle_strips_to_faces(
+                                np.array([np.arange(len(kwargs["vertices"]))])
+                            )
+                        else:
+                            # GL_TRIANGLES
+                            kwargs["faces"] = np.arange(
+                                len(kwargs["vertices"]), dtype=np.int64
+                            ).reshape((-1, 3))
 
                     if "NORMAL" in attr:
                         # vertex normals are specified
@@ -1552,11 +1560,11 @@ def _read_buffers(
                             if len(colors) == len(kwargs["vertices"]):
                                 if visuals is None:
                                     # just pass to mesh as vertex color
-                                    kwargs["vertex_colors"] = colors
+                                    kwargs["vertex_colors"] = colors.copy()
                                 else:
                                     # we ALSO have texture so save as vertex
                                     # attribute
-                                    visuals.vertex_attributes["color"] = colors
+                                    visuals.vertex_attributes["color"] = colors.copy()
                         except BaseException:
                             # survive failed colors
                             log.debug("failed to load colors", exc_info=True)
@@ -1668,6 +1676,10 @@ def _read_buffers(
     # unvisited, pairs of node indexes
     queue = deque()
 
+    # camera(s), if they exist
+    camera = None
+    camera_transform = None
+
     if "scene" in header:
         # specify the index of scenes if specified
         scene_index = header["scene"]
@@ -1739,6 +1751,20 @@ def _read_buffers(
                 kwargs["matrix"], np.diag(np.concatenate((child["scale"], [1.0])))
             )
 
+        # If a camera exists, create the camera and dont add the node to the graph
+        # TODO only process the first camera, ignore the rest
+        # TODO assumes the camera node is child of the world frame
+        # TODO will only read perspective camera
+        if "camera" in child and camera is None:
+            cam_idx = child["camera"]
+            try:
+                camera = _cam_from_gltf(header["cameras"][cam_idx])
+            except KeyError:
+                log.debug("GLTF camera is not fully-defined")
+            if camera:
+                camera_transform = kwargs["matrix"]
+            continue
+
         # treat node metadata similarly to mesh metadata
         if isinstance(child.get("extras"), dict):
             kwargs["metadata"] = child["extras"]
@@ -1784,6 +1810,8 @@ def _read_buffers(
         "geometry": meshes,
         "graph": graph,
         "base_frame": base_frame,
+        "camera": camera,
+        "camera_transform": camera_transform,
     }
     try:
         # load any scene extras into scene.metadata
@@ -1801,6 +1829,38 @@ def _read_buffers(
         pass
 
     return result
+
+
+def _cam_from_gltf(cam):
+    """
+    Convert a gltf perspective camera to trimesh.
+
+    The retrieved camera will have default resolution, since the gltf specification
+    does not contain it.
+
+    If the camera is not perspective will return None.
+    If the camera is perspective but is missing fields, will raise `KeyError`
+
+    Parameters
+    ------------
+    cam : dict
+      Camera represented as a dictionary according to glTF
+
+    Returns
+    -------------
+    camera : trimesh.scene.cameras.Camera
+      Trimesh camera object
+    """
+    if "perspective" not in cam:
+        return
+    name = cam.get("name")
+    znear = cam["perspective"]["znear"]
+    aspect_ratio = cam["perspective"]["aspectRatio"]
+    yfov = np.degrees(cam["perspective"]["yfov"])
+
+    fov = (aspect_ratio * yfov, yfov)
+
+    return Camera(name=name, fov=fov, z_near=znear)
 
 
 def _convert_camera(camera):
@@ -2053,13 +2113,12 @@ def get_schema():
     """
     # replace references
     # get zip resolver to access referenced assets
-    from ..resolvers import ZipResolver
     from ..schemas import resolve
 
     # get a blob of a zip file including the GLTF 2.0 schema
-    blob = resources.get("schema/gltf2.schema.zip", decode=False)
+    stream = resources.get_stream("schema/gltf2.schema.zip")
     # get the zip file as a dict keyed by file name
-    archive = util.decompress(util.wrap_as_stream(blob), "zip")
+    archive = util.decompress(stream, "zip")
     # get a resolver object for accessing the schema
     resolver = ZipResolver(archive)
     # get a loaded dict from the base file

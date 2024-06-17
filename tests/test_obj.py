@@ -24,7 +24,7 @@ class OBJTest(g.unittest.TestCase):
         assert m.visual.uv.max() < (1 + 1e-5)
         assert m.visual.uv.min() > -1e-5
         # check to make sure it's not all zeros
-        assert m.visual.uv.ptp() > 0.5
+        assert g.np.ptp(m.visual.uv) > 0.5
         rec = g.roundtrip(m.export(file_type="obj"), file_type="obj")
         assert g.np.isclose(m.area, rec.area)
 
@@ -48,7 +48,7 @@ class OBJTest(g.unittest.TestCase):
         # assert len(mesh.metadata['face_groups']) == len(mesh.faces)
 
         # check to make sure there is signal not just zeros
-        # assert mesh.metadata['face_groups'].ptp() > 0
+        # assert g.np.ptp(mesh.metadata['face_groups']) > 0
 
     def test_obj_negative_indices(self):
         # a wavefront file with negative indices
@@ -110,7 +110,7 @@ class OBJTest(g.unittest.TestCase):
         m = g.trimesh.load(file_name, process=False)
         # use trivial loading to compare with fancy performant one
         with open(file_name) as f:
-            f, v, vt = simple_load(f.read())
+            f, v, _vt = simple_load(f.read())
         # trimesh loader should return the same face order
         assert g.np.allclose(f, m.faces)
         assert g.np.allclose(v, m.vertices)
@@ -123,7 +123,7 @@ class OBJTest(g.unittest.TestCase):
         m = g.trimesh.load(file_name, process=False, maintain_order=True)
         # use trivial loading to compare with fancy performant one
         with open(file_name) as f:
-            f, v, vt = simple_load(f.read())
+            f, v, _vt = simple_load(f.read())
         # trimesh loader should return the same face order
         assert g.np.allclose(f, m.faces)
         assert g.np.allclose(v, m.vertices)
@@ -448,7 +448,7 @@ class OBJTest(g.unittest.TestCase):
     def test_export_mtl_args(self):
         mesh = g.trimesh.creation.box()
         # check for a crash with no materials defined
-        a, b = g.trimesh.exchange.obj.export_obj(
+        _a, _b = g.trimesh.exchange.obj.export_obj(
             mesh, return_texture=True, mtl_name="hi.mtl"
         )
 

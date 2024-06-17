@@ -6,7 +6,7 @@ from .. import bounds, geometry, graph, grouping
 from ..constants import log
 from ..constants import tol_path as tol
 from ..transformations import transform_points
-from ..typed import List, NDArray, Optional, float64
+from ..typed import Iterable, NDArray, Number, Optional, Union, float64, int64
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -27,7 +27,7 @@ except BaseException as E:
     Index = ExceptionWrapper(E)
 
 
-def enclosure_tree(polygons: List[Polygon]):
+def enclosure_tree(polygons):
     """
     Given a list of shapely polygons with only exteriors,
     find which curves represent the exterior shell or root curve
@@ -112,17 +112,17 @@ def enclosure_tree(polygons: List[Polygon]):
     return roots, contains
 
 
-def edges_to_polygons(edges, vertices):
+def edges_to_polygons(edges: NDArray[int64], vertices: NDArray[float64]):
     """
     Given an edge list of indices and associated vertices
     representing lines, generate a list of polygons.
 
     Parameters
     -----------
-    edges : (n, 2) int
+    edges : (n, 2)
       Indexes of vertices which represent lines
-    vertices : (m, 2) float
-      Vertices in 2D space
+    vertices : (m, 2)
+      Vertices in 2D space.
 
     Returns
     ----------
@@ -164,7 +164,7 @@ def edges_to_polygons(edges, vertices):
     return complete
 
 
-def polygons_obb(polygons: List[Polygon]):
+def polygons_obb(polygons: Iterable[Polygon]):
     """
     Find the OBBs for a list of shapely.geometry.Polygons
     """
@@ -175,7 +175,7 @@ def polygons_obb(polygons: List[Polygon]):
     return np.array(transforms), np.array(rectangles)
 
 
-def polygon_obb(polygon: Polygon):
+def polygon_obb(polygon: Union[Polygon, NDArray]):
     """
     Find the oriented bounding box of a Shapely polygon.
 
@@ -365,11 +365,10 @@ def stack_boundaries(boundaries):
     """
     if len(boundaries["holes"]) == 0:
         return boundaries["shell"]
-    result = np.vstack((boundaries["shell"], np.vstack(boundaries["holes"])))
-    return result
+    return np.vstack((boundaries["shell"], np.vstack(boundaries["holes"])))
 
 
-def medial_axis(polygon: Polygon, resolution: Optional[float] = None, clip=None):
+def medial_axis(polygon: Polygon, resolution: Optional[Number] = None, clip=None):
     """
     Given a shapely polygon, find the approximate medial axis
     using a voronoi diagram of evenly spaced points on the
@@ -395,7 +394,7 @@ def medial_axis(polygon: Polygon, resolution: Optional[float] = None, clip=None)
     # a circle will have a single point medial axis
     if len(polygon.interiors) == 0:
         # what is the approximate scale of the polygon
-        scale = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max()
+        scale = np.ptp(np.reshape(polygon.bounds, (2, 2)), axis=0).max()
         # a (center, radius, error) tuple
         fit = fit_circle_check(polygon.exterior.coords, scale=scale)
         # is this polygon in fact a circle
@@ -414,7 +413,7 @@ def medial_axis(polygon: Polygon, resolution: Optional[float] = None, clip=None)
     from shapely import vectorized
 
     if resolution is None:
-        resolution = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).max() / 100
+        resolution = np.ptp(np.reshape(polygon.bounds, (2, 2)), axis=0).max() / 100
 
     # get evenly spaced points on the polygons boundaries
     samples = resample_boundaries(polygon=polygon, resolution=resolution, clip=clip)
@@ -443,7 +442,7 @@ def medial_axis(polygon: Polygon, resolution: Optional[float] = None, clip=None)
 
     if tol.strict:
         # make sure we didn't screw up indexes
-        assert (vertices[edges_final] - voronoi.vertices[edges]).ptp() < 1e-5
+        assert np.ptp(vertices[edges_final] - voronoi.vertices[edges]) < 1e-5
 
     return edges_final, vertices
 
@@ -520,7 +519,7 @@ def polygon_scale(polygon):
     scale : float
       Length of AABB diagonal
     """
-    extents = np.reshape(polygon.bounds, (2, 2)).ptp(axis=0)
+    extents = np.ptp(np.reshape(polygon.bounds, (2, 2)), axis=0)
     scale = (extents**2).sum() ** 0.5
 
     return scale
@@ -590,7 +589,7 @@ def sample(polygon, count, factor=1.5, max_iter=10):
 
     # get size of bounding box
     bounds = np.reshape(polygon.bounds, (2, 2))
-    extents = bounds.ptp(axis=0)
+    extents = np.ptp(bounds, axis=0)
 
     # how many points to check per loop iteration
     per_loop = int(count * factor)
@@ -664,7 +663,7 @@ def repair_invalid(polygon, scale=None, rtol=0.5):
         return basic
 
     if scale is None:
-        distance = 0.002 * np.reshape(polygon.bounds, (2, 2)).ptp(axis=0).mean()
+        distance = 0.002 * np.ptp(np.reshape(polygon.bounds, (2, 2)), axis=0).mean()
     else:
         distance = 0.002 * scale
 
@@ -835,7 +834,7 @@ def projected(
         padding += float(apad)
     if rpad is not None:
         # get the 2D scale as the longest side of the AABB
-        scale = vertices_2D.ptp(axis=0).max()
+        scale = np.ptp(vertices_2D, axis=0).max()
         # apply the scale-relative padding
         padding += float(rpad) * scale
 

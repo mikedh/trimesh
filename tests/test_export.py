@@ -267,7 +267,7 @@ class ExportTest(g.unittest.TestCase):
         Test the magical trimesh.exchange.load.parse_file_args
         """
         # it's wordy
-        f = g.trimesh.exchange.load.parse_file_args
+        f = g.trimesh.exchange.load._parse_file_args
 
         RET_COUNT = 5
 
@@ -312,7 +312,7 @@ class ExportTest(g.unittest.TestCase):
 
     def test_buffered_random(self):
         """Test writing to non-standard file"""
-        mesh = list(g.get_meshes(1))[0]
+        mesh = next(iter(g.get_meshes(1)))
         with io.BufferedRandom(io.BytesIO()) as rw:
             mesh.export(rw, "STL")
             rw.seek(0)

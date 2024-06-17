@@ -341,7 +341,7 @@ def _svg_path_convert(paths, force=None):
                 )
                 # all arcs share the same center radius and rotation
                 closed = False
-                if verts[:, 4:].ptp(axis=0).mean() < 1e-3:
+                if np.ptp(verts[:, 4:], axis=0).mean() < 1e-3:
                     start, end = verts[:, :2], verts[:, 2:4]
                     # if every end point matches the start point of a new
                     # arc that means this is really a closed circle made
@@ -558,7 +558,7 @@ def export_svg(drawing, return_path=False, only_layers=None, digits=None, **kwar
         return " ".join(v[1] for v in pairs)
 
     # fetch the export template for the base SVG file
-    template_svg = resources.get("templates/base.svg")
+    template_svg = resources.get_string("templates/base.svg")
 
     elements = []
     for meta, path_string in pairs:
@@ -670,7 +670,7 @@ def _deep_same(original, other):
         assert original == other
         return
     elif isinstance(original, (float, int, np.ndarray)):
-        # for numeric classes use numpy magic comparison
+        # for Number classes use numpy magic comparison
         # which includes an epsilon for floating point
         assert np.allclose(original, other)
         return

@@ -21,7 +21,7 @@ class RayTests(g.unittest.TestCase):
         hit_any = g.np.array(hit_any, dtype=g.np.int64)
 
         for i in g.trimesh.grouping.group(g.np.unique(names, return_inverse=True)[1]):
-            broken = hit_any[i].astype(g.np.int64).ptp(axis=0).sum()
+            broken = g.np.ptp(hit_any[i].astype(g.np.int64), axis=0).sum()
             assert broken == 0
 
     def test_rps(self):
@@ -102,7 +102,7 @@ class RayTests(g.unittest.TestCase):
 
             assert m.ray.intersects_any(ray_origins=origins, ray_directions=vectors).all()
 
-            (locations, index_ray, index_tri) = m.ray.intersects_location(
+            (_locations, index_ray, _index_tri) = m.ray.intersects_location(
                 ray_origins=origins, ray_directions=vectors
             )
 
@@ -146,14 +146,14 @@ class RayTests(g.unittest.TestCase):
 
             # Perform 256 * 256 raycasts, one for each pixel on the image
             # plane. We only want the 'first' hit.
-            index_triangles, index_ray = cube_mesh.ray.intersects_id(
+            index_triangles, _index_ray = cube_mesh.ray.intersects_id(
                 ray_origins=ray_origins,
                 ray_directions=ray_directions,
                 multiple_hits=False,
             )
             assert len(g.np.unique(index_triangles)) == 2
 
-            index_triangles, index_ray = cube_mesh.ray.intersects_id(
+            index_triangles, _index_ray = cube_mesh.ray.intersects_id(
                 ray_origins=ray_origins, ray_directions=ray_directions, multiple_hits=True
             )
             assert len(g.np.unique(index_triangles)) > 2
@@ -192,7 +192,7 @@ class RayTests(g.unittest.TestCase):
             # (n,3) float intersection position in space
             # (n,) int, index of original ray
             # (m,) int, index of mesh.faces
-            pos, ray, tri = mesh.ray.intersects_location(
+            pos, ray, _tri = mesh.ray.intersects_location(
                 ray_origins=origins, ray_directions=vectors
             )
 
@@ -218,7 +218,7 @@ class RayTests(g.unittest.TestCase):
             for kwargs in [{"use_embree": True}, {"use_embree": False}]:
                 mesh = g.get_mesh("broken.STL", **kwargs)
 
-                locations, index_ray, index_tri = mesh.ray.intersects_location(
+                locations, _index_ray, _index_tri = mesh.ray.intersects_location(
                     ray_origins=ray_origins, ray_directions=ray_directions
                 )
 

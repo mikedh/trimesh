@@ -4,6 +4,7 @@ proximity.py
 
 Query mesh- point proximity.
 """
+
 import numpy as np
 
 from . import util
@@ -183,7 +184,7 @@ def closest_point(mesh, points):
 
     # however: same closest point on two different faces
     # find the best one and correct triangle ids if necessary
-    check_distance = two_dists.ptp(axis=1) < tol.merge
+    check_distance = np.ptp(two_dists, axis=1) < tol.merge
     check_magnitude = np.all(np.abs(two_dists) > tol.merge, axis=1)
 
     # mask results where corrections may be apply
@@ -399,7 +400,7 @@ def longest_ray(mesh, points, directions):
     if len(points) != len(directions):
         raise ValueError("number of points must equal number of directions!")
 
-    faces, rays, locations = mesh.ray.intersects_id(
+    _faces, rays, locations = mesh.ray.intersects_id(
         points, directions, return_locations=True, multiple_hits=True
     )
     if len(rays) > 0:
@@ -502,7 +503,7 @@ def max_tangent_sphere(
     n_iter = 0
     while not_converged.sum() > 0 and n_iter < max_iter:
         n_iter += 1
-        n_points, n_dists, n_faces = mesh.nearest.on_surface(centers[not_converged])
+        n_points, n_dists, _n_faces = mesh.nearest.on_surface(centers[not_converged])
 
         # If the distance to the nearest point is the same as the distance
         # to the start point then we are done.
@@ -571,7 +572,7 @@ def thickness(mesh, points, exterior=False, normals=None, method="max_sphere"):
         normals = mesh.face_normals[closest_point(mesh, points)[2]]
 
     if method == "max_sphere":
-        centers, radius = max_tangent_sphere(
+        _centers, radius = max_tangent_sphere(
             mesh=mesh, points=points, inwards=not exterior, normals=normals
         )
         thickness = radius * 2

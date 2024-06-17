@@ -71,9 +71,9 @@ class PolygonTests(g.unittest.TestCase):
         assert radius < (1.0 + 1e-8)
 
         # try getting OBB of samples
-        T, extents = g.trimesh.path.polygons.polygon_obb(s)
+        _T, extents = g.trimesh.path.polygons.polygon_obb(s)
         # OBB of samples should be less than diameter of circle
-        diameter = g.np.reshape(p.bounds, (2, 2)).ptp(axis=0).max()
+        diameter = g.np.ptp(g.np.reshape(p.bounds, (2, 2)), axis=0).max()
         assert (extents <= diameter).all()
 
         # test sampling with multiple bodies
@@ -260,7 +260,7 @@ class PolygonTests(g.unittest.TestCase):
 
         for p, c in zip(polygons, coords):
             # area will be signed with respect to counter-clockwise
-            ccw, area, centroid = g.trimesh.util.is_ccw(c, return_all=True)
+            _ccw, area, centroid = g.trimesh.util.is_ccw(c, return_all=True)
             assert g.np.allclose(centroid, g.np.array(p.centroid.coords)[0])
             assert g.np.isclose(abs(area), p.area)
 

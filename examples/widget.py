@@ -67,7 +67,6 @@ def create_scene():
 
 
 class Application:
-
     """
     Example application that includes moving camera, scene and image update.
     """

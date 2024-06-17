@@ -6,12 +6,13 @@ Deal with physical unit systems (i.e. inches, mm)
 Very basic conversions, and no requirement for
 sympy.physics.units or pint.
 """
+
 from . import resources
 from .constants import log
 from .parent import Geometry
 
 # scaling factors from various unit systems to inches
-_lookup = resources.get("units_to_inches.json", decode_json=True)
+_lookup = resources.get_json("units_to_inches.json")
 
 
 def unit_conversion(current: str, desired: str) -> float:
@@ -98,7 +99,6 @@ def units_from_metadata(obj: Geometry, guess: bool = True) -> str:
     units
      A guess of what the units might be
     """
-    to_inch = resources.get("units_to_inches.json", decode_json=True)
 
     # try to guess from metadata
     for key in ["file_name", "name"]:
@@ -112,13 +112,10 @@ def units_from_metadata(obj: Geometry, guess: bool = True) -> str:
                 hints = hints.replace(delim, " ")
             # loop through each hint
             for hint in hints.strip().split():
-                # key word is "unit" or "units"
-                if "unit" not in hint:
-                    continue
                 # get rid of keyword and whitespace
                 hint = hint.replace("units", "").replace("unit", "").strip()
                 # if the hint is a valid unit return it
-                if hint in to_inch:
+                if hint in _lookup:
                     return hint
 
     if not guess:

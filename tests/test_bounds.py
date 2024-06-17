@@ -55,12 +55,8 @@ class BoundsTest(g.unittest.TestCase):
                     # from IPython import embed
                     # embed()
                     raise ValueError(
-                        "OBB extents incorrect:\n{}\n{}".format(
-                            str(m.bounding_box.extents),
-                            str(m.bounding_box_oriented.extents),
-                        )
+                        f"OBB extents incorrect:\n{m.bounding_box.extents}\n{m.bounding_box_oriented.extents}"
                     )
-
             c = m.bounding_cylinder  # NOQA
             s = m.bounding_sphere  # NOQA
             p = m.bounding_primitive  # NOQA
@@ -121,7 +117,7 @@ class BoundsTest(g.unittest.TestCase):
             points = g.random((10, 2)) * [5, 1]
 
             # save the basic AABB of the points before rotation
-            rectangle_pre = points.ptp(axis=0)
+            rectangle_pre = g.np.ptp(points, axis=0)
 
             # rotate them by an increment
             TR = g.trimesh.transformations.planar_matrix(theta=theta)
@@ -133,10 +129,10 @@ class BoundsTest(g.unittest.TestCase):
             # apply the calculated OBB
             oriented = g.trimesh.transform_points(points, T)
 
-            origin = oriented.min(axis=0) + oriented.ptp(axis=0) / 2.0
+            origin = oriented.min(axis=0) + g.np.ptp(oriented, axis=0) / 2.0
 
             # check to make sure the returned rectangle size is right
-            assert g.np.allclose(oriented.ptp(axis=0), rectangle)
+            assert g.np.allclose(g.np.ptp(oriented, axis=0), rectangle)
             # check to make sure the OBB consistently returns the
             # long axis in the same direction
             assert rectangle[0] > rectangle[1]
@@ -203,7 +199,7 @@ class BoundsTest(g.unittest.TestCase):
         r = p.bounding_cylinder
 
         # transformed height should match source mesh
-        assert g.np.isclose(i.vertices[:, 2].ptp(), r.primitive.height, rtol=1e-6)
+        assert g.np.isclose(g.np.ptp(i.vertices[:, 2]), r.primitive.height, rtol=1e-6)
         # slightly inflated cylinder should contain all
         # vertices of the source mesh
         assert r.buffer(0.01).contains(p.vertices).all()

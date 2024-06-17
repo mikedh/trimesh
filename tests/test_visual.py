@@ -15,7 +15,7 @@ class VisualTest(g.unittest.TestCase):
         check = m.visual.face_subset(face_index).uv
 
         tree = g.spatial.cKDTree(ori)
-        distances, index = tree.query(check, k=1)
+        distances, _index = tree.query(check, k=1)
         assert distances.max() < 1e-8
 
     def test_face_subset_color_visuals(self):
@@ -33,7 +33,7 @@ class VisualTest(g.unittest.TestCase):
         check = m.visual.face_subset(face_index).vertex_colors
 
         tree = g.spatial.cKDTree(ori)
-        distances, index = tree.query(check, k=1)
+        distances, _index = tree.query(check, k=1)
         assert distances.max() < 1e-8
 
     # def test_face_subset_vertex_color(self):

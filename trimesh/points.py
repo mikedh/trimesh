@@ -4,6 +4,7 @@ points.py
 
 Functions dealing with (n, d) points.
 """
+
 import copy
 
 import numpy as np
@@ -58,7 +59,7 @@ def major_axis(points):
     axis : (dimension,) float
       Vector along approximate major axis
     """
-    U, S, V = np.linalg.svd(points)
+    _U, S, V = np.linalg.svd(points)
     axis = util.unitize(np.dot(S, V))
     return axis
 
@@ -268,7 +269,7 @@ def k_means(points, k, **kwargs):
     points_std = points.std(axis=0)
     points_std[points_std < tol.zero] = 1
     whitened = points / points_std
-    centroids_whitened, distortion = kmeans(whitened, k, **kwargs)
+    centroids_whitened, _distortion = kmeans(whitened, k, **kwargs)
     centroids = centroids_whitened * points_std
 
     # find which centroid each point is closest to
@@ -413,7 +414,6 @@ class PointCloud(Geometry3D):
         self._data = caching.DataStore()
         self._cache = caching.Cache(self._data.__hash__)
         self.metadata = {}
-
         if metadata is not None:
             self.metadata.update(metadata)
 
@@ -558,7 +558,7 @@ class PointCloud(Geometry3D):
         extents : (3,) float
           Edge length of axis aligned bounding box
         """
-        return self.bounds.ptp(axis=0)
+        return np.ptp(self.bounds, axis=0)
 
     @property
     def centroid(self):

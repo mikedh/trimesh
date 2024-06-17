@@ -29,7 +29,13 @@ USER user
 # install trimesh into .local
 # then delete any included test directories
 # and remove Cython after all the building is complete
+
+
+# TODO
+# remove mapbox-earcut fork when this is merged:
+# https://github.com/skogler/mapbox_earcut_python/pull/15
 RUN pip install --user /home/user[easy] && \
+    pip install --user --force-reinstall git+https://github.com/mikedh/mapbox_earcut_python.git && \
     find /home/user/.local -type d -name tests -prune -exec rm -rf {} \;
 
 ####################################
@@ -63,20 +69,30 @@ COPY --chown=499 pyproject.toml .
 COPY --chown=499 ./.git ./.git/
 
 USER root
-RUN trimesh-setup --install=test,gltf_validator,llvmpipe,binvox
+RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest
-RUN pip install -e .[all]
+# install prerelease for tests and make sure we're on Numpy 2.X
+RUN pip install --pre --upgrade .[all] && \
+    python -c "import numpy as n; assert(n.__version__.startswith('1'))"
 
-# check formatting
-RUN ruff trimesh
+# check for lint problems
+RUN ruff check trimesh
+
+# run a limited array of static type checks
+# TODO : get this to pass on base
+RUN pyright trimesh/base.py || true
 
 # run pytest wrapped with xvfb for simple viewer tests
-RUN xvfb-run pytest --cov=trimesh \
+# print more columns so the short summary is usable
+RUN COLUMNS=240 xvfb-run pytest \
+    --cov=trimesh \
+    --beartype-packages=trimesh \
     -p no:ALL_DEPENDENCIES \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
+
 
 # set codecov token as a build arg to upload
 ARG CODECOV_TOKEN=""

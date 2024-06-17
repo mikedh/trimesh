@@ -40,6 +40,7 @@ handled carefully. For example, the `uint8` encoding of 300 zeros
 
 This module contains implementations of various RLE/BRLE operations.
 """
+
 import functools
 
 import numpy as np
@@ -230,7 +231,7 @@ def brle_to_dense(brle_data, vals=None):
     else:
         vals = np.asarray(vals)
         if vals.shape != (2,):
-            raise ValueError("vals.shape must be (2,), got %s" % (vals.shape))
+            raise ValueError(f"vals.shape must be (2,), got {vals.shape}")
     ft = np.repeat(_ft[np.newaxis, :], (len(brle_data) + 1) // 2, axis=0).flatten()
     return np.repeat(ft[: len(brle_data)], brle_data).flatten()
 
@@ -615,7 +616,7 @@ def rle_to_sparse(rle_data):
     try:
         while True:
             value = next(it)
-            counts = next(it)
+            counts = int(next(it))
             end = index + counts
             if value:
                 indices.append(np.arange(index, end, dtype=np.int64))
@@ -628,7 +629,7 @@ def rle_to_sparse(rle_data):
         return indices, values
 
     indices = np.concatenate(indices)
-    values = np.concatenate(values)
+    values = np.concatenate(values, dtype=rle_data.dtype)
     return indices, values
 
 

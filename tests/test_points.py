@@ -47,7 +47,9 @@ class PointsTest(g.unittest.TestCase):
         assert hash(cloud) != initial_hash
 
         # AABB volume should be same as points
-        assert g.np.isclose(cloud.bounding_box.volume, g.np.prod(points.ptp(axis=0)))
+        assert g.np.isclose(
+            cloud.bounding_box.volume, g.np.prod(g.np.ptp(points, axis=0))
+        )
 
         # will populate all bounding primitives
         assert cloud.bounding_primitive.volume > 0.0
@@ -102,7 +104,7 @@ class PointsTest(g.unittest.TestCase):
             # so the true normal should be Z then rotated
             truth = g.trimesh.transform_points([[0, 0, 1]], matrix, translate=False)[0]
             # run the plane fit
-            C, N = g.trimesh.points.plane_fit(p)
+            _C, N = g.trimesh.points.plane_fit(p)
             # sign of normal is arbitrary on fit so check both
             assert g.np.allclose(truth, N) or g.np.allclose(truth, -N)
         # make sure plane fit works with multiple point sets at once
@@ -130,7 +132,7 @@ class PointsTest(g.unittest.TestCase):
                     [[0, 0, 1]], matrix, translate=False
                 )[0]
             # run the plane fit
-            C, N = g.trimesh.points.plane_fit(p)
+            _C, N = g.trimesh.points.plane_fit(p)
 
             # sign of normal is arbitrary on fit so check both
             cosines = g.np.einsum("ij,ij->i", N, truths)
@@ -153,7 +155,7 @@ class PointsTest(g.unittest.TestCase):
         centroids, klabel = g.trimesh.points.k_means(points=clustered, k=cluster_count)
 
         # reshape to make sure all groups have the same index
-        variance = klabel.reshape((cluster_count, points_per_cluster)).ptp(axis=1)
+        variance = g.np.ptp(klabel.reshape((cluster_count, points_per_cluster)), axis=1)
 
         assert len(centroids) == cluster_count
         assert (variance == 0).all()

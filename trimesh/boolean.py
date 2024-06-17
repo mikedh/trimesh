@@ -4,12 +4,11 @@ boolean.py
 
 Do boolean operations on meshes using either Blender or Manifold.
 """
-import warnings
 
 import numpy as np
 
 from . import exceptions, interfaces
-from .typed import Optional, Sequence
+from .typed import Iterable, Optional
 
 try:
     from manifold3d import Manifold, Mesh
@@ -19,7 +18,7 @@ except BaseException as E:
 
 
 def difference(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Iterable, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean difference between a mesh an n other meshes.
@@ -49,7 +48,7 @@ def difference(
 
 
 def union(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Iterable, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean union between a mesh an n other meshes.
@@ -80,7 +79,7 @@ def union(
 
 
 def intersection(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Iterable, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean intersection between a mesh and other meshes.
@@ -109,7 +108,7 @@ def intersection(
 
 
 def boolean_manifold(
-    meshes: Sequence,
+    meshes: Iterable,
     operation: str,
     check_volume: bool = True,
     debug: bool = False,
@@ -172,22 +171,9 @@ def boolean_manifold(
     return out_mesh
 
 
-def boolean_scad(*args, **kwargs):
-    warnings.warn(
-        "The OpenSCAD interface is deprecated, and Trimesh will instead"
-        " use Manifold ('manifold'), which should be equivalent. In future versions"
-        " of Trimesh, attempting to use engine 'scad' may raise an error.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return boolean_manifold(*args, **kwargs)
-
-
 # which backend boolean engines
 _engines = {
     None: boolean_manifold,
-    "auto": boolean_manifold,
     "manifold": boolean_manifold,
-    "scad": boolean_scad,
     "blender": interfaces.blender.boolean,
 }

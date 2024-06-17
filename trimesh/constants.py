@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .util import log, now
+from .util import decimal_to_digits, log, now
 
 
 @dataclass
@@ -88,18 +88,22 @@ class TolerancePath:
 
     zero: float = 1e-12
     merge: float = 1e-5
+
     planar: float = 1e-5
     seg_frac: float = 0.125
-    seg_angle: float = np.radians(50)
-    seg_angle_min: float = np.radians(1)
+    seg_angle: float = float(np.radians(50))
+    seg_angle_min: float = float(np.radians(1))
     seg_angle_frac: float = 0.5
     aspect_frac: float = 0.1
     radius_frac: float = 0.02
     radius_min: float = 1e-4
     radius_max: float = 50.0
-    tangent: float = np.radians(20)
-
+    tangent: float = float(np.radians(20))
     strict: bool = False
+
+    @property
+    def merge_digits(self) -> int:
+        return decimal_to_digits(self.merge)
 
 
 @dataclass
@@ -122,8 +126,8 @@ class ResolutionPath:
 
     seg_frac: float = 0.05
     seg_angle: float = 0.08
-    max_sections: float = 500
-    min_sections: float = 20
+    max_sections: float = 500.0
+    min_sections: float = 20.0
     export: str = "0.10f"
 
 

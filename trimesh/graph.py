@@ -16,7 +16,7 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import Optional
+from .typed import List, NDArray, Number, Optional, int64
 
 try:
     from scipy.sparse import coo_matrix, csgraph
@@ -107,10 +107,11 @@ def face_adjacency(faces=None, mesh=None, return_edges=False):
         adjacency_edges = edges[edge_groups[:, 0][nondegenerate]]
         assert len(adjacency_edges) == len(adjacency)
         return adjacency, adjacency_edges
+
     return adjacency
 
 
-def face_neighborhood(mesh):
+def face_neighborhood(mesh) -> NDArray[int64]:
     """
     Find faces that share a vertex i.e. 'neighbors' faces.
     Relies on the fact that an adjacency matrix at a power p
@@ -129,7 +130,9 @@ def face_neighborhood(mesh):
     TT.setdiag(0)
     TT.eliminate_zeros()
     TT = TT.tocoo()
-    neighborhood = np.concatenate((TT.row[:, None], TT.col[:, None]), axis=-1)
+    neighborhood = np.concatenate(
+        (TT.row[:, None], TT.col[:, None]), axis=-1, dtype=np.int64
+    )
     return neighborhood
 
 
@@ -278,16 +281,18 @@ def shared_edges(faces_a, faces_b):
     return shared
 
 
-def facets(mesh, engine=None):
+def facets(mesh, engine=None, facet_threshold: Optional[Number] = None):
     """
     Find the list of parallel adjacent faces.
 
     Parameters
     -----------
-    mesh :  trimesh.Trimesh
+    mesh : trimesh.Trimesh
     engine : str
-       Which graph engine to use:
-       ('scipy', 'networkx')
+      Which graph engine to use:
+      ('scipy', 'networkx')
+    facet_threshold : float
+      Threshold for two facets to be considered coplanar
 
     Returns
     ---------
@@ -295,6 +300,8 @@ def facets(mesh, engine=None):
         Groups of face indexes of
         parallel adjacent faces.
     """
+    if facet_threshold is None:
+        facet_threshold = tol.facet_threshold
     # what is the radius of a circle that passes through the perpendicular
     # projection of the vector between the two non- shared vertices
     # onto the shared edge, with the face normal from the two adjacent faces
@@ -311,7 +318,7 @@ def facets(mesh, engine=None):
     # if span is zero we know faces are small/parallel
     nonzero = np.abs(span) > tol.zero
     # faces with a radii/span ratio larger than a threshold pass
-    parallel[nonzero] = (radii[nonzero] / span[nonzero]) ** 2 > tol.facet_threshold
+    parallel[nonzero] = (radii[nonzero] / span[nonzero]) ** 2 > facet_threshold
 
     # run connected components on the parallel faces to group them
     components = connected_components(
@@ -324,7 +331,7 @@ def facets(mesh, engine=None):
     return components
 
 
-def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs):
+def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs) -> List:
     """
     Split a mesh into multiple meshes from face
     connectivity.
@@ -484,7 +491,7 @@ def connected_component_labels(edges, node_count=None):
         Component labels for each node
     """
     matrix = edges_to_coo(edges, node_count)
-    body_count, labels = csgraph.connected_components(matrix, directed=False)
+    _body_count, labels = csgraph.connected_components(matrix, directed=False)
 
     if node_count is not None:
         assert len(labels) == node_count
@@ -522,7 +529,7 @@ def split_traversal(traversal, edges, edges_hash=None):
     # hash each edge so we can compare to edge set
     trav_hash = grouping.hashable_rows(np.sort(trav_edge, axis=1))
     # check if each edge is contained in edge set
-    contained = np.in1d(trav_hash, edges_hash)
+    contained = np.isin(trav_hash, edges_hash)
 
     # exit early if every edge of traversal exists
     if contained.all():
@@ -544,7 +551,7 @@ def split_traversal(traversal, edges, edges_hash=None):
             continue
         # make sure it's not already closed
         edge = np.sort([t[0], t[-1]])
-        if edge.ptp() == 0:
+        if np.ptp(edge) == 0:
             continue
         close = grouping.hashable_rows(edge.reshape((1, 2)))[0]
         # if we need the edge add it
@@ -757,7 +764,7 @@ def smoothed(*args, **kwargs):
 
 
 def smooth_shade(
-    mesh, angle: Optional[float] = None, facet_minarea: Optional[float] = 10.0
+    mesh, angle: Optional[Number] = None, facet_minarea: Optional[Number] = 10.0
 ):
     """
     Return a non-watertight version of the mesh which

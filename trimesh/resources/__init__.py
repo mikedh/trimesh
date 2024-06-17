@@ -1,6 +1,8 @@
 import json
 import os
+import warnings
 
+from ..typed import Dict, Stream
 from ..util import decode_text, wrap_as_stream
 
 # find the current absolute path to this directory
@@ -10,7 +12,23 @@ _pwd = os.path.expanduser(os.path.abspath(os.path.dirname(__file__)))
 _cache = {}
 
 
-def get(name, decode=True, decode_json=False, as_stream=False):
+def get(
+    name: str, decode: bool = True, decode_json: bool = False, as_stream: bool = False
+):
+    """
+    DERECATED JANUARY 2025 REPLACE WITH TYPED `get_json`, `get_string`, etc.
+    """
+    warnings.warn(
+        "`trimesh.resources.get` is deprecated "
+        + "and will be removed in January 2025: "
+        + "replace with typed `trimesh.resources.get_*type*`",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+    return _get(name=name, decode=decode, decode_json=decode_json, as_stream=as_stream)
+
+
+def _get(name: str, decode: bool, decode_json: bool, as_stream: bool):
     """
     Get a resource from the `trimesh/resources` folder.
 
@@ -58,7 +76,7 @@ def get(name, decode=True, decode_json=False, as_stream=False):
     return resource
 
 
-def get_schema(name):
+def get_schema(name: str) -> Dict:
     """
     Load a schema and evaluate the referenced files.
 
@@ -69,7 +87,7 @@ def get_schema(name):
 
     Returns
     ----------
-    schema : dict
+    schema
       Loaded and resolved schema.
     """
     from ..resolvers import FilePathResolver
@@ -78,5 +96,73 @@ def get_schema(name):
     # get a resolver for our base path
     resolver = FilePathResolver(os.path.join(_pwd, "schema", name))
     # recursively load $ref keys
-    schema = resolve(json.loads(decode_text(resolver.get(name))), resolver=resolver)
-    return schema
+    return resolve(json.loads(decode_text(resolver.get(name))), resolver=resolver)
+
+
+def get_json(name: str) -> Dict:
+    """
+    Get a resource from the `trimesh/resources` folder as a decoded string.
+
+    Parameters
+    -------------
+    name : str
+      File path relative to `trimesh/resources`
+
+    Returns
+    -------------
+    resource
+      File data decoded from JSON.
+    """
+    return _get(name, decode=True, decode_json=True, as_stream=False)
+
+
+def get_string(name: str) -> str:
+    """
+    Get a resource from the `trimesh/resources` folder as a decoded string.
+
+    Parameters
+    -------------
+    name : str
+      File path relative to `trimesh/resources`
+
+    Returns
+    -------------
+    resource
+      File data as a string.
+    """
+    return _get(name, decode=True, decode_json=False, as_stream=False)
+
+
+def get_bytes(name: str) -> bytes:
+    """
+    Get a resource from the `trimesh/resources` folder as binary data.
+
+    Parameters
+    -------------
+    name : str
+      File path relative to `trimesh/resources`
+
+    Returns
+    -------------
+    resource
+      File data as raw bytes.
+    """
+    return _get(name, decode=False, decode_json=False, as_stream=False)
+
+
+def get_stream(name: str) -> Stream:
+    """
+    Get a resource from the `trimesh/resources` folder as a binary stream.
+
+    Parameters
+    -------------
+    name : str
+      File path relative to `trimesh/resources`
+
+    Returns
+    -------------
+    resource
+      File data as a binary stream.
+    """
+
+    return _get(name, decode=False, decode_json=False, as_stream=True)

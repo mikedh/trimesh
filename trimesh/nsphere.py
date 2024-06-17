@@ -5,6 +5,7 @@ nsphere.py
 Functions for fitting and minimizing nspheres:
 circles, spheres, hyperspheres, etc.
 """
+
 import numpy as np
 
 from . import convex, util
@@ -66,7 +67,7 @@ def minimum_nsphere(obj):
     # this used to pass qhull_options 'QbB' to Voronoi however this had a bug somewhere
     # to avoid this we scale to a unit cube ourselves inside this function
     points_origin = points.min(axis=0)
-    points_scale = points.ptp(axis=0).min()
+    points_scale = np.ptp(points, axis=0).min()
     points = (points - points_origin) / points_scale
 
     # if all of the points are on an n-sphere already the voronoi
@@ -168,7 +169,7 @@ def fit_nsphere(points, prior=None):
 
     radii = util.row_norm(points - center_result)
     radius = radii.mean()
-    error = radii.ptp()
+    error = np.ptp(radii)
     return center_result, radius, error
 
 
@@ -186,6 +187,6 @@ def is_nsphere(points):
     check : bool
       True if input points are on an nsphere
     """
-    center, radius, error = fit_nsphere(points)
+    _center, _radius, error = fit_nsphere(points)
     check = error < tol.merge
     return check

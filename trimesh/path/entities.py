@@ -5,6 +5,7 @@ entities.py
 Basic geometric primitives which only store references to
 vertex indices rather than vertices themselves.
 """
+
 from copy import deepcopy
 
 import numpy as np
@@ -378,7 +379,7 @@ class Text(Entity):
     @origin.setter
     def origin(self, value):
         value = int(value)
-        if not hasattr(self, "points") or self.points.ptp() == 0:
+        if not hasattr(self, "points") or np.ptp(self.points) == 0:
             self.points = np.ones(3, dtype=np.int64) * value
         else:
             self.points[0] = value

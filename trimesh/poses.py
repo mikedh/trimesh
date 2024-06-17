@@ -4,6 +4,7 @@ poses.py
 
 Find stable orientations of meshes.
 """
+
 import numpy as np
 
 from .triangles import points_to_barycentric

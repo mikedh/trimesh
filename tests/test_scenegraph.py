@@ -206,13 +206,13 @@ class GraphTests(g.unittest.TestCase):
             return
 
         tf = g.trimesh.transformations
-        # start with creating a random tree
-        edgelist = {}
-        tree = g.nx.random_tree(n=1000, seed=0, create_using=g.nx.DiGraph)
-        edges = list(tree.edges)
+        # start with a known good random tree
+        edges = [tuple(row) for row in g.data["random_tree"]]
+        tree = g.nx.from_edgelist(edges, create_using=g.nx.DiGraph)
 
         r_choices = g.random((len(edges), 2))
         r_matrices = g.random_transforms(len(edges))
+        edgelist = {}
         for e, r_choice, r_mat in zip(edges, r_choices, r_matrices):
             data = {}
             if r_choice[0] > 0.5:
@@ -232,7 +232,7 @@ class GraphTests(g.unittest.TestCase):
         # generate a lot of random queries
         queries = g.np.random.choice(list(forest.nodes), 10000).reshape((-1, 2))
         # filter out any self-queries as networkx doesn't handle them
-        queries = queries[queries.ptp(axis=1) > 0]
+        queries = queries[g.np.ptp(queries, axis=1) > 0]
 
         # now run our shortest path algorithm in a profiler
         with g.Profiler() as P:

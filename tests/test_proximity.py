@@ -20,7 +20,7 @@ class NearestTest(g.unittest.TestCase):
         triangles = sphere.triangles  # NOQA
 
         # do the check
-        closest, distance, tid = g.trimesh.proximity.closest_point_naive(sphere, points)
+        closest, distance, _tid = g.trimesh.proximity.closest_point_naive(sphere, points)
 
         # the distance from a sphere of radius 1.0 to a sphere of radius 2.0
         # should be pretty darn close to 1.0
@@ -98,7 +98,7 @@ class NearestTest(g.unittest.TestCase):
             # create a mesh with one triangle
             mesh = g.Trimesh(**g.trimesh.triangles.to_kwargs([triangle]))
 
-            result, result_distance, result_tid = fun(mesh, query)
+            result, result_distance, _result_tid = fun(mesh, query)
 
             polygon = g.Polygon(triangle[:, 0:2])
             polygon_buffer = polygon.buffer(1e-5)

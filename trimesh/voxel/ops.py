@@ -148,7 +148,7 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
         vertices, faces = meshed
         normals = None
     elif len(meshed) == 4:
-        vertices, faces, normals, vals = meshed
+        vertices, faces, normals, _vals = meshed
 
     # Return to the origin, add in the pad_width
     vertices = np.subtract(vertices, pad_width * pitch)
@@ -299,7 +299,7 @@ def boolean_sparse(a, b, operation=np.logical_and):
     # find the bounding box of both arrays
     extrema = np.array([a.min(axis=0), a.max(axis=0), b.min(axis=0), b.max(axis=0)])
     origin = extrema.min(axis=0) - 1
-    size = tuple(extrema.ptp(axis=0) + 2)
+    size = tuple(np.ptp(extrema, axis=0) + 2)
 
     # put nearby voxel arrays into same shape sparse array
     sp_a = sparse.COO((a - origin).T, data=np.ones(len(a), dtype=bool), shape=size)

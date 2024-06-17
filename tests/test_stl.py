@@ -1,6 +1,7 @@
 """
 Check things related to STL files
 """
+
 try:
     from . import generic as g
 except BaseException:
@@ -70,6 +71,14 @@ class STLTests(g.unittest.TestCase):
         s = g.get_mesh("multibody.stl")
         assert len(s.geometry) == 2
         assert set(s.geometry.keys()) == {"bodyA", "bodyB"}
+
+    def test_ascii_solid_name(self):
+        mesh = g.trimesh.creation.icosphere(subdivisions=1, radius=1.0)
+        mesh.metadata = {"name": "solid_A"}
+        assert (
+            g.trimesh.exchange.stl.export_stl_ascii(mesh).splitlines()[0]
+            == "solid solid_A"
+        )
 
     def test_empty(self):
         # demo files to check

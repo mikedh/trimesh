@@ -133,3 +133,10 @@ try:
     _misc_loaders.update(_meshio_loaders)
 except BaseException:
     _meshio_loaders = {}
+
+try:
+    import openctm
+
+    _misc_loaders["ctm"] = openctm.load_ctm
+except BaseException:
+    pass

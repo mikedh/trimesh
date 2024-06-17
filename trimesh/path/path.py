@@ -5,6 +5,7 @@ path.py
 A module designed to work with vector paths such as
 those stored in a DXF or SVG file.
 """
+
 import collections
 import copy
 from hashlib import sha256
@@ -17,7 +18,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..geometry import plane_transform
 from ..points import plane_fit
-from ..typed import Dict, List, NDArray, Optional, float64
+from ..typed import ArrayLike, Dict, Iterable, List, NDArray, Optional, float64
 from ..visual import to_rgba
 from . import (
     creation,  # NOQA
@@ -71,8 +72,8 @@ class Path(parent.Geometry):
 
     def __init__(
         self,
-        entities: Optional[List[Entity]] = None,
-        vertices: Optional[NDArray[float64]] = None,
+        entities: Optional[Iterable[Entity]] = None,
+        vertices: Optional[ArrayLike] = None,
         metadata: Optional[Dict] = None,
         process: bool = True,
         colors=None,
@@ -98,26 +99,24 @@ class Path(parent.Geometry):
 
         # assign each color to each entity
         self.colors = colors
-        # collect metadata into new dictionary
+        # collect metadata
         self.metadata = {}
-        if metadata.__class__.__name__ == "dict":
+        if isinstance(metadata, dict):
             self.metadata.update(metadata)
 
         # cache will dump whenever self.crc changes
         self._cache = caching.Cache(id_function=self.__hash__)
 
         if process:
-            # literally nothing will work if vertices
-            # aren't merged properly
+            # if our input had disconnected but identical points
+            # pretty much nothing will work if vertices aren't merged properly
             self.merge_vertices()
 
     def __repr__(self):
         """
         Print a quick summary of the number of vertices and entities.
         """
-        return "<trimesh.{}(vertices.shape={}, len(entities)={})>".format(
-            type(self).__name__, self.vertices.shape, len(self.entities)
-        )
+        return f"<trimesh.{type(self).__name__}(vertices.shape={self.vertices.shape}, len(entities)={len(self.entities)})>"
 
     def process(self):
         """
@@ -171,12 +170,15 @@ class Path(parent.Geometry):
             e.color = c
 
     @property
-    def vertices(self):
+    def vertices(self) -> NDArray[float64]:
         return self._vertices
 
     @vertices.setter
-    def vertices(self, values: NDArray[float64]):
-        self._vertices = caching.tracked_array(values, dtype=np.float64)
+    def vertices(self, values: Optional[ArrayLike]):
+        if values is None:
+            self._vertices = caching.tracked_array([], dtype=np.float64)
+        else:
+            self._vertices = caching.tracked_array(values, dtype=np.float64)
 
     @property
     def entities(self):
@@ -314,8 +316,7 @@ class Path(parent.Geometry):
         centroid : (d,) float
           Approximate centroid of the path
         """
-        centroid = self.bounds.mean(axis=0)
-        return centroid
+        return self.bounds.mean(axis=0)
 
     @property
     def extents(self):
@@ -327,28 +328,9 @@ class Path(parent.Geometry):
         extents : (dimension,) float
           Edge length of AABB
         """
-        return self.bounds.ptp(axis=0)
+        return np.ptp(self.bounds, axis=0)
 
-    @property
-    def units(self):
-        """
-        If there are units defined in self.metadata return them.
-
-        Returns
-        -----------
-        units : str
-          Current unit system
-        """
-        if "units" in self.metadata:
-            return self.metadata["units"]
-        else:
-            return None
-
-    @units.setter
-    def units(self, units):
-        self.metadata["units"] = units
-
-    def convert_units(self, desired, guess=False):
+    def convert_units(self, desired: str, guess: bool = False):
         """
         Convert the units of the current drawing in place.
 
@@ -421,7 +403,7 @@ class Path(parent.Geometry):
         graph : networkx.Graph
           Holds vertex indexes
         """
-        graph, closed = traversal.vertex_graph(self.entities)
+        graph, _closed = traversal.vertex_graph(self.entities)
         return graph
 
     @caching.cache_decorator
@@ -624,7 +606,7 @@ class Path(parent.Geometry):
         self.entities: length same or shorter
         """
         entity_hashes = np.array([hash(i) for i in self.entities])
-        unique, inverse = grouping.unique_rows(entity_hashes)
+        unique, _inverse = grouping.unique_rows(entity_hashes)
         if len(unique) != len(self.entities):
             self.entities = self.entities[unique]
 
@@ -851,7 +833,7 @@ class Path3D(Path):
         # Z values of vertices which are referenced
         heights = flat[referenced][:, 2]
         # points are not on a plane because Z varies
-        if heights.ptp() > tol.planar:
+        if np.ptp(heights) > tol.planar:
             # since Z is inconsistent set height to zero
             height = 0.0
             if check:
@@ -1069,7 +1051,7 @@ class Path2D(Path):
         return path_3D
 
     @caching.cache_decorator
-    def polygons_closed(self):
+    def polygons_closed(self) -> NDArray:
         """
         Cycles in the vertex graph, as shapely.geometry.Polygons.
         These are polygon objects for every closed circuit, with no notion
@@ -1078,14 +1060,14 @@ class Path2D(Path):
 
         Returns
         ---------
-        polygons_closed: (n,) list of shapely.geometry.Polygon objects
+        polygons_closed : (n,) list of shapely.geometry.Polygon objects
         """
         # will attempt to recover invalid garbage geometry
         # and will be None if geometry is unrecoverable
         return polygons.paths_to_polygons(self.discrete)
 
     @caching.cache_decorator
-    def polygons_full(self):
+    def polygons_full(self) -> List:
         """
         A list of shapely.geometry.Polygon objects with interiors created
         by checking which closed polygons enclose which other polygons.

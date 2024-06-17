@@ -433,7 +433,7 @@ class GLTFTest(g.unittest.TestCase):
         )
         assert len(reloaded.geometry) == 1
         # get meshes back
-        sphere_b = list(reloaded.geometry.values())[0]
+        sphere_b = next(iter(reloaded.geometry.values()))
         assert (sphere_b.visual.material.baseColorFactor == (255, 0, 0, 255)).all()
 
     def test_material_hash(self):
@@ -771,7 +771,7 @@ class GLTFTest(g.unittest.TestCase):
         )
         # original mesh should have vertex colors
         assert m.visual.kind == "face"
-        assert m.visual.vertex_colors.ptp(axis=0).ptp() > 0
+        assert g.np.ptp(g.np.ptp(m.visual.vertex_colors, axis=0)) > 0
         # vertex colors should have survived import-export
         assert g.np.allclose(m.visual.vertex_colors, r.visual.vertex_colors)
 
@@ -795,6 +795,23 @@ class GLTFTest(g.unittest.TestCase):
 
         # make sure the color vertex attributes survived the roundtrip
         assert g.np.allclose(r.visual.vertex_attributes["color"], colors)
+
+    def test_vertex_colors_import(self):
+        # get a mesh with face colors
+        m = g.get_mesh("cubevc.glb")
+        assert len(m.geometry.items()) > 0
+
+        mesh = next(iter(m.geometry.items()))[1]
+        assert mesh is not None
+
+        # Loaded mesh should have vertex colors
+        assert hasattr(mesh.visual, "vertex_colors")
+
+        # Loaded mesh should have all vertex colors filled with magenta color
+        magenta = g.np.array([255, 0, 255, 255])
+        for color in mesh.visual.vertex_colors:
+            is_magenta = g.np.array_equal(color, magenta)
+            assert is_magenta, f"Imported vertex color is not of expected value: got {color}, expected {magenta}"
 
     def test_export_postprocess(self):
         scene = g.trimesh.Scene()
@@ -1047,14 +1064,26 @@ class GLTFTest(g.unittest.TestCase):
 
         # Export the mesh
         export = mesh.export(file_type="glb", unitize_normals=True)
-        reimported_mesh = list(
-            g.trimesh.load(
-                g.trimesh.util.wrap_as_stream(export), file_type="glb"
-            ).geometry.values()
-        )[0]
+        reimported_mesh = next(
+            iter(
+                g.trimesh.load(
+                    g.trimesh.util.wrap_as_stream(export), file_type="glb"
+                ).geometry.values()
+            )
+        )
 
         # Check that the normals are still null
         assert g.np.allclose(reimported_mesh.vertex_normals[0], [0, 0, 0])
+
+    def test_no_indices(self):
+        # test mesh with no indices (faces should be generated correctly)
+        mesh = g.get_mesh("no_indices_3storybuilding.glb")
+        assert len(mesh.triangles) == 72
+
+        # the mesh is actually mode 5 with 4 vertices
+        # which as triangle strips would be 2 faces
+        mesh = g.get_mesh("Mesh_PrimitiveMode_04.gltf")
+        assert len(mesh.triangles) == 2
 
 
 if __name__ == "__main__":

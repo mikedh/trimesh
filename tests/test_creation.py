@@ -100,7 +100,7 @@ class CreationTest(g.unittest.TestCase):
             assert g.np.allclose(radii, 1.0)
 
         # test additional arguments
-        red_sphere = g.trimesh.creation.icosphere(face_colors=(1.0, 0, 0))
+        red_sphere = g.trimesh.creation.icosphere(face_colors=[1.0, 0, 0])
         expected = g.np.full((len(red_sphere.faces), 4), (255, 0, 0, 255))
         g.np.testing.assert_allclose(red_sphere.visual.face_colors, expected)
 
@@ -147,6 +147,7 @@ class CreationTest(g.unittest.TestCase):
             vec = g.np.dot(rotmat, vec)
         poly = g.Polygon(perim)
 
+        # --- test open sweep
         # Create 3D path
         angles = g.np.linspace(0, 8 * g.np.pi, 1000)
         x = angles / 10.0
@@ -157,6 +158,19 @@ class CreationTest(g.unittest.TestCase):
         # Extrude
         for engine in self.engines:
             mesh = g.trimesh.creation.sweep_polygon(poly, path, engine=engine)
+            assert mesh.is_volume
+
+        # --- test closed sweep
+        # Create 3D path
+        angles = g.np.linspace(0, 2 * 0.999 * g.np.pi, 1000)
+        x = g.np.zeros((1000,))
+        y = g.np.cos(angles)
+        z = g.np.sin(angles)
+        path_closed = g.np.c_[x, y, z]
+
+        # Extrude
+        for engine in self.engines:
+            mesh = g.trimesh.creation.sweep_polygon(poly, path_closed, engine=engine)
             assert mesh.is_volume
 
     def test_annulus(self):
@@ -267,7 +281,7 @@ class CreationTest(g.unittest.TestCase):
                     )
                 except BaseException:
                     g.log.error("failed to benchmark triangle", exc_info=True)
-        g.log.info(f"benchmarked triangulation on {len(bench)} polygons: {str(times)}")
+        g.log.info(f"benchmarked triangulation on {len(bench)} polygons: {times!s}")
 
     def test_triangulate_plumbing(self):
         """

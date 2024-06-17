@@ -6,6 +6,7 @@ https://www.patrickmin.com/binvox/binvox.html
 Exporting meshes as binvox files requires the
 `binvox` executable to be in your path.
 """
+
 import collections
 import os
 import subprocess
@@ -143,7 +144,7 @@ def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):
       Suitable for writing to binary file
     """
     if rle_data.dtype != np.uint8:
-        raise ValueError("rle_data.dtype must be np.uint8, got %s" % rle_data.dtype)
+        raise ValueError(f"rle_data.dtype must be np.uint8, got {rle_data.dtype}")
 
     header = binvox_header(shape, translate, scale).encode()
     return header + rle_data.tobytes()
@@ -227,7 +228,7 @@ def load_binvox(file_obj, resolver=None, axis_order="xzy", file_type=None):
       Loaded voxel data
     """
     if file_type is not None and file_type != "binvox":
-        raise ValueError("file_type must be None or binvox, got %s" % file_type)
+        raise ValueError(f"file_type must be None or binvox, got {file_type}")
     data = parse_binvox(file_obj, writeable=True)
     return voxel_from_binvox(
         rle_data=data.rle_data,
@@ -425,7 +426,7 @@ class Binvoxer:
             raise ValueError("Maximum dimension using exact is 1024, got %d" % dimension)
         if file_type not in Binvoxer.SUPPORTED_OUTPUT_TYPES:
             raise ValueError(
-                f"file_type {file_type} not in set of supported output types {str(Binvoxer.SUPPORTED_OUTPUT_TYPES)}"
+                f"file_type {file_type} not in set of supported output types {Binvoxer.SUPPORTED_OUTPUT_TYPES!s}"
             )
         args = [encoder, "-d", str(dimension), "-t", file_type]
         if exact:
@@ -512,7 +513,7 @@ class Binvoxer:
         ext = ext[1:].lower()
         if ext not in Binvoxer.SUPPORTED_INPUT_TYPES:
             raise ValueError(
-                f"file_type {ext} not in set of supported input types {str(Binvoxer.SUPPORTED_INPUT_TYPES)}"
+                f"file_type {ext} not in set of supported input types {Binvoxer.SUPPORTED_INPUT_TYPES!s}"
             )
         out_path = f"{head}.{self._file_type}"
         if os.path.isfile(out_path) and not overwrite:
@@ -552,7 +553,7 @@ def voxelize_mesh(mesh, binvoxer=None, export_type="off", **binvoxer_kwargs):
     `VoxelGrid` object resulting.
     """
     if not isinstance(mesh, Trimesh):
-        raise ValueError("mesh must be Trimesh instance, got %s" % str(mesh))
+        raise ValueError(f"mesh must be Trimesh instance, got {mesh!s}")
     if binvoxer is None:
         binvoxer = Binvoxer(**binvoxer_kwargs)
     elif len(binvoxer_kwargs) > 0:
@@ -560,7 +561,7 @@ def voxelize_mesh(mesh, binvoxer=None, export_type="off", **binvoxer_kwargs):
     if binvoxer.file_type != "binvox":
         raise ValueError('Only "binvox" binvoxer `file_type` currently supported')
     with TemporaryDirectory() as folder:
-        model_path = os.path.join(folder, "model.%s" % export_type)
+        model_path = os.path.join(folder, f"model.{export_type}")
         with open(model_path, "wb") as fp:
             mesh.export(fp, file_type=export_type)
         out_path = binvoxer(model_path)

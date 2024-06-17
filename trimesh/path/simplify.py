@@ -130,7 +130,7 @@ def is_circle(points, scale, verbose=False):
     if np.linalg.norm(points[0] - points[-1]) > tol.merge:
         return None
 
-    box = points.ptp(axis=0)
+    box = np.ptp(points, axis=0)
     # the bounding box size of the points
     # check aspect ratio as an early exit if the path is not a circle
     aspect = np.divide(*box)
@@ -283,7 +283,7 @@ def points_to_spline_entity(points, smooth=None, count=None):
     points = np.asanyarray(points, dtype=np.float64)
     closed = np.linalg.norm(points[0] - points[-1]) < tol.merge
 
-    knots, control, degree = splprep(points.T, s=smooth)[0]
+    knots, control, _degree = splprep(points.T, s=smooth)[0]
     control = np.transpose(control)
     index = np.arange(len(control))
 

@@ -282,7 +282,7 @@ class SectionTest(g.unittest.TestCase):
             )
 
             # Path3D -> Path2D
-            planar, T = section.to_planar()
+            planar, _T = section.to_planar()
 
             # tube should have one closed polygon
             assert len(planar.polygons_full) == 1
@@ -297,6 +297,26 @@ class SectionTest(g.unittest.TestCase):
 
             # should be a valid Path2D
             g.check_path2D(planar)
+
+    def test_multiplane(self):
+        # check to make sure we're applying `tol_path.merge_digits` for line segments
+        vertices = g.np.array(
+            [
+                [19.402250931139097, -14.88787016674277, 64.0],
+                [20.03318396099334, -14.02738654377374, 64.0],
+                [19.402250931139097, -14.88787016674277, 0.0],
+                [20.03318396099334, -14.02738654377374, 0.0],
+                [21, -16.5, 32],
+            ]
+        )
+        faces = g.np.array(
+            [[1, 3, 0], [0, 3, 2], [1, 0, 4], [0, 2, 4], [3, 1, 4], [2, 3, 4]]
+        )
+        z_layer_centers = g.np.array([3, 3.0283334255218506])
+        m = g.trimesh.Trimesh(vertices, faces)
+        r = m.section_multiplane([0, 0, 0], [0, 0, 1], z_layer_centers)
+        assert len(r) == 2
+        assert all(i.is_closed for i in r)
 
 
 if __name__ == "__main__":

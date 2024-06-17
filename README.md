@@ -29,7 +29,7 @@ Further information is available in the [advanced installation documentation](ht
 ## Quick Start
 
 Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](https://trimesh.org/examples/quick_start.html) of this example. Also check out the [cross section example](https://trimesh.org/examples/section.html).
+[ipython notebook version](https://trimesh.org/quick_start.html) of this example. Also check out the [cross section example](https://trimesh.org/section.html).
 
 ```python
 import numpy as np
@@ -144,7 +144,7 @@ print(mesh.bounding_box_oriented.volume,
 * Determine if a mesh is watertight, convex, etc.
 * Uniformly sample the surface of a mesh
 * Ray-mesh queries including location, triangle index, etc.
-* Boolean operations on meshes (intersection, union, difference) using OpenSCAD or Blender as a back end. Note that mesh booleans in general are usually slow and unreliable
+* Boolean operations on meshes (intersection, union, difference) using Manifold3D or Blender Note that mesh booleans in general are usually slow and unreliable
 * Voxelize watertight meshes
 * Volume mesh generation (TETgen) using Gmsh SDK
 * Smooth watertight meshes using laplacian smoothing algorithms (Classic, Taubin, Humphrey)

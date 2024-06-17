@@ -6,6 +6,7 @@ A widget which can visualize trimesh.Scene objects in a glooey window.
 
 Check out an example in `examples/widget.py`
 """
+
 import glooey
 import numpy as np
 import pyglet

@@ -27,7 +27,8 @@ config_json = """
     "build": [
       "build-essential",
       "g++",
-      "make"
+      "make",
+      "git"
     ],
     "docs": [
       "make",
@@ -46,7 +47,8 @@ config_json = """
       "openscad",
       "curl",
       "git"
-    ]
+    ],
+   "gmsh": ["libxft2", "libxinerama-dev", "libxcursor1","libgomp1"]
   },
   "fetch": {
     "gltf_validator": {

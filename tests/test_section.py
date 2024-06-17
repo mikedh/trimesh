@@ -57,7 +57,7 @@ class SectionTest(g.unittest.TestCase):
                 assert g.np.allclose(section.vertices[:, 2], z)
                 assert len(section.centroid) == 3
 
-                planar, to_3D = section.to_planar()
+                planar, _to_3D = section.to_planar()
                 assert planar.is_closed
                 assert len(planar.polygons_full) > 0
                 assert len(planar.centroid) == 2
@@ -72,7 +72,7 @@ class SectionTest(g.unittest.TestCase):
             )
 
             # call the multiplane method directly
-            lines, faces, T = g.trimesh.intersections.mesh_multiplane(
+            lines, _faces, _T = g.trimesh.intersections.mesh_multiplane(
                 mesh=mesh,
                 plane_origin=[0, 0, 0],
                 plane_normal=plane_normal,
@@ -99,8 +99,8 @@ class SectionTest(g.unittest.TestCase):
                 back_3D.apply_transform(base_inv)
 
                 # make sure all vertices have constant Z
-                assert back_3D.vertices[:, 2].ptp() < 1e-8
-                assert sections_3D[index].vertices[:, 2].ptp() < 1e-8
+                assert g.np.ptp(back_3D.vertices[:, 2]) < 1e-8
+                assert g.np.ptp(sections_3D[index].vertices[:, 2]) < 1e-8
 
                 # make sure reconstructed 3D section is at right height
                 assert g.np.isclose(

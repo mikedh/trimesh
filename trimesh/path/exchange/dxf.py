@@ -558,7 +558,7 @@ def export_dxf(path, only_layers=None):
       Path formatted as a DXF file
     """
     # get the template for exporting DXF files
-    template = resources.get("templates/dxf.json", decode_json=True)
+    template = resources.get_json("templates/dxf.json")
 
     def format_points(points, as_2D=False, increment=True):
         """

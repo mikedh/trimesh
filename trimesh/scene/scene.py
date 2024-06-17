@@ -4,12 +4,29 @@ import uuid
 import numpy as np
 
 from .. import caching, convex, grouping, inertia, transformations, units, util
+from ..constants import log
 from ..exchange import export
 from ..parent import Geometry, Geometry3D
-from ..typed import Dict, List, NDArray, Optional, Tuple, Union, float64, int64
+from ..typed import (
+    ArrayLike,
+    Dict,
+    List,
+    NDArray,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    float64,
+    int64,
+)
 from ..util import unique_name
 from . import cameras, lighting
 from .transforms import SceneGraph
+
+# the types of objects we can create a scene from
+GeometryInput = Union[
+    Geometry, Sequence[Geometry], NDArray[Geometry], Dict[str, Geometry]
+]
 
 
 class Scene(Geometry3D):
@@ -22,12 +39,12 @@ class Scene(Geometry3D):
 
     def __init__(
         self,
-        geometry: Union[Geometry, None, List[Geometry]] = None,
+        geometry: Optional[GeometryInput] = None,
         base_frame: str = "world",
         metadata: Optional[Dict] = None,
         graph: Optional[SceneGraph] = None,
         camera: Optional[cameras.Camera] = None,
-        lights: Optional[lighting.Light] = None,
+        lights: Optional[Sequence[lighting.Light]] = None,
         camera_transform: Optional[NDArray] = None,
     ):
         """
@@ -59,8 +76,9 @@ class Scene(Geometry3D):
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
 
-        # add passed geometry to scene
-        self.add_geometry(geometry)
+        if geometry is not None:
+            # add passed geometry to scene
+            self.add_geometry(geometry)
 
         # hold metadata about the scene
         self.metadata = {}
@@ -71,11 +89,12 @@ class Scene(Geometry3D):
             # if we've been passed a graph override the default
             self.graph = graph
 
-        self.camera = camera
-        self.lights = lights
-
-        if camera is not None and camera_transform is not None:
-            self.camera_transform = camera_transform
+        if lights is not None:
+            self.lights = lights
+        if camera is not None:
+            self.camera = camera
+            if camera_transform is not None:
+                self.camera_transform = camera_transform
 
     def apply_transform(self, transform):
         """
@@ -95,7 +114,7 @@ class Scene(Geometry3D):
 
     def add_geometry(
         self,
-        geometry: Union[Geometry, None, List[Geometry]] = None,
+        geometry: GeometryInput,
         node_name: Optional[str] = None,
         geom_name: Optional[str] = None,
         parent_node_name: Optional[str] = None,
@@ -211,7 +230,7 @@ class Scene(Geometry3D):
 
         return node_name
 
-    def delete_geometry(self, names: Union[set, str]) -> None:
+    def delete_geometry(self, names: Union[set, str, Sequence]) -> None:
         """
         Delete one more multiple geometries from the scene and also
         remove any node in the transform graph which references it.
@@ -242,7 +261,7 @@ class Scene(Geometry3D):
             if util.is_instance_named(geometry, "Trimesh"):
                 geometry.visual = ColorVisuals(mesh=geometry)
 
-    def __hash__(self) -> str:
+    def __hash__(self) -> int:
         """
         Return information about scene which is hashable.
 
@@ -474,7 +493,7 @@ class Scene(Geometry3D):
         return inertia.scene_inertia(scene=self, transform=transform)
 
     @caching.cache_decorator
-    def area(self) -> float64:
+    def area(self) -> float:
         """
         What is the summed area of every geometry which
         has area.
@@ -520,9 +539,8 @@ class Scene(Geometry3D):
         triangles : (n, 3, 3) float
           Triangles in space
         """
-        triangles = collections.deque()
-        triangles_node = collections.deque()
-
+        triangles = []
+        triangles_node = []
         for node_name in self.graph.nodes_geometry:
             # which geometry does this node refer to
             transform, geometry_name = self.graph[node_name]
@@ -541,8 +559,7 @@ class Scene(Geometry3D):
             triangles_node.append(np.tile(node_name, len(geometry.triangles)))
         # save the resulting nodes to the cache
         self._cache["triangles_node"] = np.hstack(triangles_node)
-        triangles = np.vstack(triangles).reshape((-1, 3, 3))
-        return triangles
+        return np.vstack(triangles).reshape((-1, 3, 3))
 
     @caching.cache_decorator
     def triangles_node(self):
@@ -636,7 +653,7 @@ class Scene(Geometry3D):
 
     def set_camera(
         self, angles=None, distance=None, center=None, resolution=None, fov=None
-    ) -> None:
+    ) -> cameras.Camera:
         """
         Create a camera object for self.camera, and add
         a transform to self.graph for it.
@@ -698,7 +715,7 @@ class Scene(Geometry3D):
         return self.graph[self.camera.name][0]
 
     @camera_transform.setter
-    def camera_transform(self, matrix: NDArray[float64]):
+    def camera_transform(self, matrix: ArrayLike):
         """
         Set the camera transform in the base frame
 
@@ -756,7 +773,7 @@ class Scene(Geometry3D):
         return self._camera
 
     @camera.setter
-    def camera(self, camera: cameras.Camera):
+    def camera(self, camera: Optional[cameras.Camera]):
         """
         Set a camera object for the Scene.
 
@@ -795,7 +812,7 @@ class Scene(Geometry3D):
         return self._lights
 
     @lights.setter
-    def lights(self, lights: List[lighting.Light]):
+    def lights(self, lights: Sequence[lighting.Light]):
         """
         Assign a list of light objects to the scene
 
@@ -829,7 +846,7 @@ class Scene(Geometry3D):
         )
         self.graph.base_frame = new_base
 
-    def dump(self, concatenate: bool = False) -> Union["Scene", List[Geometry]]:
+    def dump(self, concatenate: bool = False) -> Union[Geometry, List[Geometry]]:
         """
         Append all meshes in scene freezing transforms.
 
@@ -875,7 +892,7 @@ class Scene(Geometry3D):
             # if scene has mixed geometry this may drop some of it
             return util.concatenate(result)
 
-        return np.array(result)
+        return result
 
     def subscene(self, node: str) -> "Scene":
         """
@@ -918,8 +935,7 @@ class Scene(Geometry3D):
           Trimesh object which is a convex hull of all meshes in scene
         """
         points = util.vstack_empty([m.vertices for m in self.dump()])
-        hull = convex.convex_hull(points)
-        return hull
+        return convex.convex_hull(points)
 
     def export(self, file_obj=None, file_type=None, **kwargs):
         """
@@ -978,6 +994,8 @@ class Scene(Geometry3D):
         existing = {i.units for i in self.geometry.values()}
         if len(existing) == 1:
             return existing.pop()
+        elif len(existing) > 1:
+            log.warning(f"Mixed units `{existing}` returning None")
         return None
 
     @units.setter
@@ -991,6 +1009,7 @@ class Scene(Geometry3D):
         value : str
           Value to set every geometry unit value to
         """
+        value = value.strip().lower()
         for m in self.geometry.values():
             m.units = value
 
@@ -1077,7 +1096,7 @@ class Scene(Geometry3D):
             T_new[:3, 3] += offset
             self.graph[node_name] = T_new
 
-    def scaled(self, scale: Union[float, NDArray[float64]]) -> "Scene":
+    def scaled(self, scale: Union[float, ArrayLike]) -> "Scene":
         """
         Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.

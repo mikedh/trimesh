@@ -9,7 +9,7 @@ import numpy as np
 
 from . import util
 from .constants import log, tol
-from .typed import ArrayLike, NDArray, Optional, Union
+from .typed import ArrayLike, Integer, NDArray, Optional
 
 try:
     from scipy.spatial import cKDTree
@@ -157,9 +157,7 @@ def group(values, min_len=0, max_len=np.inf):
     return groups
 
 
-def hashable_rows(
-    data: ArrayLike, digits=None
-) -> Union[NDArray[np.uint64], NDArray[np.void]]:
+def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
     """
     We turn our array into integers based on the precision
     given by digits and then put them in a hashable format.
@@ -179,7 +177,7 @@ def hashable_rows(
     """
     # if there is no data return immediately
     if len(data) == 0:
-        return np.array([])
+        return np.array([], dtype=np.uint64)
 
     # get array as integer to precision we care about
     as_int = float_to_int(data, digits=digits)
@@ -206,7 +204,7 @@ def hashable_rows(
             hashable = np.zeros(len(as_int), dtype=np.uint64)
             # offset to the middle of the unsigned integer range
             # this array should contain only positive values
-            bitbang = (as_int + threshold).astype(np.uint64).T
+            bitbang = as_int.astype(np.uint64).T + threshold
             # loop through each column and bitwise xor to combine
             # make sure as_int is int64 otherwise bit offset won't work
             for offset, column in enumerate(bitbang):
@@ -223,7 +221,7 @@ def hashable_rows(
     return result
 
 
-def float_to_int(data, digits: Optional[int] = None):
+def float_to_int(data, digits: Optional[Integer] = None):
     """
     Given a numpy array of float/bool/int, return as integers.
 

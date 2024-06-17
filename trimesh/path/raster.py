@@ -4,6 +4,7 @@ raster.py
 
 Turn 2D vector paths into raster images using `pillow`
 """
+
 import numpy as np
 
 try:
@@ -45,7 +46,12 @@ def rasterize(path, pitch=None, origin=None, resolution=None, fill=True, width=N
     """
 
     if pitch is None:
-        pitch = path.extents.max() / 2048
+        if resolution is not None:
+            resolution = np.array(resolution, dtype=np.int64)
+            # establish pitch from passed resolution
+            pitch = (path.extents / (resolution + 2)).max()
+        else:
+            pitch = path.extents.max() / 2048
 
     if origin is None:
         origin = path.bounds[0] - (pitch * 2.0)
@@ -56,7 +62,7 @@ def rasterize(path, pitch=None, origin=None, resolution=None, fill=True, width=N
 
     # if resolution is None make it larger than path
     if resolution is None:
-        span = np.vstack((path.bounds, origin)).ptp(axis=0)
+        span = np.ptp(np.vstack((path.bounds, origin)), axis=0)
         resolution = np.ceil(span / pitch) + 2
     # get resolution as a (2,) int tuple
     resolution = np.asanyarray(resolution, dtype=np.int64)

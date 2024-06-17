@@ -5,6 +5,7 @@ notebook.py
 Render trimesh.Scene objects in HTML
 and jupyter notebooks using three.js
 """
+
 import base64
 import os
 
@@ -30,9 +31,9 @@ def scene_to_html(scene):
     # fetch HTML template from ZIP archive
     # it is bundling all of three.js so compression is nice
     base = (
-        util.decompress(
-            resources.get("templates/viewer.zip", decode=False), file_type="zip"
-        )["viewer.html.template"]
+        util.decompress(resources.get_bytes("templates/viewer.zip"), file_type="zip")[
+            "viewer.html.template"
+        ]
         .read()
         .decode("utf-8")
     )

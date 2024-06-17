@@ -4,6 +4,7 @@ curvature.py
 
 Query mesh curvature.
 """
+
 import numpy as np
 
 from . import util

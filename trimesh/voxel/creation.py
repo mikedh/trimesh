@@ -38,7 +38,7 @@ def voxelize_subdivide(mesh, pitch: float, max_iter: int = 10, edge_factor: floa
 
     # get the same mesh sudivided so every edge is shorter
     # than a factor of our pitch
-    v, f, idx = remesh.subdivide_to_size(
+    v, _f, _idx = remesh.subdivide_to_size(
         mesh.vertices, mesh.faces, max_edge=max_edge, max_iter=max_iter, return_index=True
     )
 
@@ -48,7 +48,7 @@ def voxelize_subdivide(mesh, pitch: float, max_iter: int = 10, edge_factor: floa
     hit = np.round(v / pitch).astype(int)
 
     # remove duplicates
-    unique, inverse = grouping.unique_rows(hit)
+    unique, _inverse = grouping.unique_rows(hit)
 
     # get the voxel centers in model space
     occupied_index = hit[unique]
@@ -144,11 +144,8 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
             for i in range(1, n + 1)
         ]
         contains = mesh.contains(np.asarray(representatives) * pitch + local_origin)
-
         where = np.where(contains)[0] + 1
-        # use in1d vs isin for older numpy versions
-        internal = np.in1d(regions.flatten(), where).reshape(regions.shape)
-
+        internal = np.isin(regions.flatten(), where).reshape(regions.shape)
         voxels = np.logical_or(voxels, internal)
 
     return base.VoxelGrid(voxels, tr.translation_matrix(local_origin))

@@ -33,7 +33,7 @@ class RenderTest(g.unittest.TestCase):
                 assert len(args) == 6
                 assert len(args_auto) == len(args)
 
-                P20, T = P30.to_planar()
+                P20, _T = P30.to_planar()
                 args = rendering.path_to_vertexlist(P20)
                 args_auto = rendering.convert_to_vertexlist(P20)
                 assert len(args) == 6

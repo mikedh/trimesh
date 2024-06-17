@@ -9,16 +9,16 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Loadable, Optional
+from ..typed import Dict, List, Loadable, Optional, Union
 from ..util import log, now
 from . import misc
 from .binvox import _binvox_loaders
+from .cascade import _cascade_loaders
 from .dae import _collada_loaders
 from .gltf import _gltf_loaders
 from .misc import _misc_loaders
 from .obj import _obj_loaders
 from .off import _off_loaders
-from .openctm import _ctm_loaders
 from .ply import _ply_loaders
 from .stl import _stl_loaders
 from .threedxml import _threedxml_loaders
@@ -71,10 +71,10 @@ def available_formats() -> set:
 def load(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Optional[resolvers.Resolver] = None,
+    resolver: Union[resolvers.Resolver, Dict, None] = None,
     force: Optional[str] = None,
     **kwargs,
-):
+) -> Union[Geometry, List[Geometry]]:
     """
     Load a mesh or vectorized path into objects like
     Trimesh, Path2D, Path3D, Scene
@@ -111,7 +111,7 @@ def load(
         metadata,  # dict, any metadata from file name
         opened,  # bool, did we open the file ourselves
         resolver,  # object to load referenced resources
-    ) = parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+    ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
     try:
         if isinstance(file_obj, dict):
@@ -137,7 +137,7 @@ def load(
                 # this prevents the exception from being super opaque
                 load_path()
             else:
-                raise ValueError("File type: %s not supported" % file_type)
+                raise ValueError(f"File type: {file_type} not supported")
     finally:
         # close any opened files even if we crashed out
         if opened:
@@ -164,11 +164,11 @@ def load(
 def load_mesh(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Optional[resolvers.Resolver] = None,
+    resolver: Union[resolvers.Resolver, Dict, None] = None,
     **kwargs,
-):
+) -> Union[Geometry, List[Geometry]]:
     """
-    Load a mesh file into a Trimesh object
+    Load a mesh file into a Trimesh object.
 
     Parameters
     -----------
@@ -181,18 +181,18 @@ def load_mesh(
 
     Returns
     ----------
-    mesh : trimesh.Trimesh or trimesh.Scene
-      Loaded geometry data
+    mesh
+      Loaded geometry data.
     """
 
     # parse the file arguments into clean loadable form
     (
-        file_obj,  # file- like object
-        file_type,  # str, what kind of file
-        metadata,  # dict, any metadata from file name
-        opened,  # bool, did we open the file ourselves
-        resolver,  # object to load referenced resources
-    ) = parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+        file_obj,  # file-like object
+        file_type,  # str: what kind of file
+        metadata,  # dict: any metadata from file name
+        opened,  # bool: did we open the file ourselves
+        resolver,  # Resolver: to load referenced resources
+    ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
     try:
         # make sure we keep passed kwargs to loader
@@ -208,12 +208,13 @@ def load_mesh(
             kwargs.update(result)
             loaded.append(load_kwargs(kwargs))
             loaded[-1].metadata.update(metadata)
+
+        # todo : remove this
         if len(loaded) == 1:
             loaded = loaded[0]
+
         # show the repr for loaded, loader used, and time
-        log.debug(
-            f"loaded {str(loaded)} using `{loader.__name__}` in {now() - tic:0.4f}s"
-        )
+        log.debug(f"loaded {loaded!s} using `{loader.__name__}` in {now() - tic:0.4f}s")
     finally:
         # if we failed to load close file
         if opened:
@@ -250,7 +251,7 @@ def load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwar
         metadata,  # dict, any metadata from file name
         opened,  # bool, did we open the file ourselves
         resolver,  # object to load referenced resources
-    ) = parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+    ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
     try:
         # a dict of 'name' : file-like object
@@ -384,7 +385,7 @@ def load_remote(url, **kwargs):
     return loaded
 
 
-def load_kwargs(*args, **kwargs):
+def load_kwargs(*args, **kwargs) -> Geometry:
     """
     Load geometry from a properly formatted dict or kwargs
     """
@@ -411,6 +412,12 @@ def load_kwargs(*args, **kwargs):
                     scene.graph.update(k[1], k[0], **k[2])
         else:
             scene = Scene(geometry)
+
+        # camera, if it exists
+        camera = kwargs.get("camera")
+        if camera:
+            scene.camera = camera
+            scene.camera_transform = kwargs.get("camera_transform")
 
         if "base_frame" in kwargs:
             scene.graph.base_frame = kwargs["base_frame"]
@@ -502,10 +509,10 @@ def load_kwargs(*args, **kwargs):
     return handler()
 
 
-def parse_file_args(
+def _parse_file_args(
     file_obj: Loadable,
     file_type: Optional[str],
-    resolver: Optional[resolvers.Resolver] = None,
+    resolver: Union[None, Dict, resolvers.Resolver] = None,
     **kwargs,
 ):
     """
@@ -644,7 +651,6 @@ compressed_loaders = {
 mesh_loaders = {}
 mesh_loaders.update(_misc_loaders)
 mesh_loaders.update(_stl_loaders)
-mesh_loaders.update(_ctm_loaders)
 mesh_loaders.update(_ply_loaders)
 mesh_loaders.update(_obj_loaders)
 mesh_loaders.update(_off_loaders)
@@ -654,6 +660,7 @@ mesh_loaders.update(_xaml_loaders)
 mesh_loaders.update(_threedxml_loaders)
 mesh_loaders.update(_three_loaders)
 mesh_loaders.update(_xyz_loaders)
+mesh_loaders.update(_cascade_loaders)
 
 # collect loaders which return voxel types
 voxel_loaders = {}

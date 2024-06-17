@@ -1,3 +1,5 @@
+import numpy as np
+
 try:
     from . import generic as g
 except BaseException:
@@ -102,6 +104,31 @@ class SceneTests(g.unittest.TestCase):
                 # make sure explode doesn't crash
                 s.explode()
 
+    def test_cam_gltf(self):
+        # Test that the camera is stored and loaded successfully into a Scene from a gltf.
+        cam = g.trimesh.scene.cameras.Camera(fov=[60, 90], name="cam1")
+        box = g.trimesh.creation.box(extents=[1, 2, 3])
+        scene = g.trimesh.Scene(
+            geometry=[box],
+            camera=cam,
+            camera_transform=np.array(
+                [[0, 1, 0, -1], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+            ),
+        )
+        with g.TemporaryDirectory() as d:
+            # exports by path allow files to be written
+            path = g.os.path.join(d, "tmp.glb")
+            scene.export(path)
+            r = g.trimesh.load(path, force="scene")
+
+            # ensure no added nodes
+            assert set(r.graph.nodes) == {"world", "geometry_0", "cam1"}
+            # ensure same camera parameters and extrinsics
+            assert (r.camera_transform == scene.camera_transform).all()
+            assert r.camera.name == cam.name
+            assert (r.camera.fov == cam.fov).all()
+            assert r.camera.z_near == cam.z_near
+
     def test_scaling(self):
         # Test the scaling of scenes including unit conversion.
 
@@ -179,6 +206,7 @@ class SceneTests(g.unittest.TestCase):
 
         # mixed units should be None
         s = g.trimesh.Scene([a, b])
+        assert len(s.geometry) == 2
         assert s.units is None
 
         # now all units should be meters and scene should report that

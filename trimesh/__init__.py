@@ -7,6 +7,7 @@ meshes with an emphasis on watertight meshes. The goal of the library is to
 provide a fully featured Trimesh object which allows for easy manipulation
 and analysis, in the style of the Polygon object in the Shapely library.
 """
+
 # avoid a circular import in trimesh.base
 from . import (
     boolean,
@@ -38,8 +39,6 @@ from . import (
     units,
     util,
 )
-
-# geometry objects
 from .base import Trimesh
 
 # general numeric tolerances
@@ -47,6 +46,9 @@ from .constants import tol
 
 # loader functions
 from .exchange.load import available_formats, load, load_mesh, load_path, load_remote
+
+# geometry objects
+from .parent import Geometry
 from .points import PointCloud
 from .scene.scene import Scene
 from .transformations import transform_points
@@ -72,9 +74,10 @@ except BaseException as E:
 
 __all__ = [
     "PointCloud",
+    "Geometry",
     "Trimesh",
     "Scene",
-    "util",
+    "Trimesh",
     "__version__",
     "available_formats",
     "boolean",
@@ -86,6 +89,7 @@ __all__ = [
     "creation",
     "curvature",
     "decomposition",
+    "exceptions",
     "geometry",
     "graph",
     "grouping",
@@ -113,7 +117,7 @@ __all__ = [
     "triangles",
     "unitize",
     "units",
+    "util",
     "utilScene",
     "voxel",
-    "exceptions",
 ]

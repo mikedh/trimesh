@@ -4,6 +4,7 @@ parent.py
 
 The base class for Trimesh, PointCloud, and Scene objects
 """
+
 import abc
 
 import numpy as np
@@ -12,11 +13,11 @@ from . import bounds, caching
 from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
+from .typed import Dict, Optional
 from .util import ABC
 
 
 class Geometry(ABC):
-
     """
     `Geometry` is the parent class for all geometry.
 
@@ -25,11 +26,16 @@ class Geometry(ABC):
     those methods.
     """
 
-    @abc.abstractproperty
+    # geometry should have a dict to store loose metadata
+    metadata: Dict
+
+    @property
+    @abc.abstractmethod
     def bounds(self):
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def extents(self):
         pass
 
@@ -37,6 +43,7 @@ class Geometry(ABC):
     def apply_transform(self, matrix):
         pass
 
+    @property
     @abc.abstractmethod
     def is_empty(self) -> bool:
         pass
@@ -179,9 +186,27 @@ class Geometry(ABC):
 
         return scale
 
+    @property
+    def units(self) -> Optional[str]:
+        """
+        Definition of units for the mesh.
+
+        Returns
+        ----------
+        units : str
+          Unit system mesh is in, or None if not defined
+        """
+        return self.metadata.get("units", None)
+
+    @units.setter
+    def units(self, value: str) -> None:
+        """
+        Define the units of the current mesh.
+        """
+        self.metadata["units"] = str(value).lower().strip()
+
 
 class Geometry3D(Geometry):
-
     """
     The `Geometry3D` object is the parent object of geometry objects
     which are three dimensional, including Trimesh, PointCloud,

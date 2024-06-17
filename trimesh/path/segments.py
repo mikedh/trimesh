@@ -11,10 +11,10 @@ from .. import geometry, transformations, util
 from ..constants import tol
 from ..grouping import group_rows, unique_rows
 from ..interval import union
-from ..typed import NDArray, float64
+from ..typed import ArrayLike, NDArray, float64
 
 
-def segments_to_parameters(segments: NDArray[float64]):
+def segments_to_parameters(segments: ArrayLike):
     """
     For 3D line segments defined by two points, turn
     them in to an origin defined as the closest point along
@@ -60,7 +60,7 @@ def segments_to_parameters(segments: NDArray[float64]):
 
 
 def parameters_to_segments(
-    origins: NDArray[float64], vectors: NDArray[float64], parameters: NDArray[float64]
+    origins: NDArray[float64], vectors: ArrayLike, parameters: NDArray[float64]
 ):
     """
     Convert a parametric line segment representation to
@@ -121,7 +121,7 @@ def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
     # convert segments to parameterized origins
     # which are the closest point on the line to
     # the actual zero- origin
-    origins, vectors, param = segments_to_parameters(segments)
+    origins, vectors, _param = segments_to_parameters(segments)
 
     # create a kdtree for origins
     tree = spatial.cKDTree(origins)
@@ -142,16 +142,26 @@ def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
 
     # if length is specified check endpoint proximity
     if length is not None:
-        a, b = param[colinear.T]
-        distance = np.abs(np.column_stack([a[:, :1] - b, a[:, 1:] - b])).min(axis=1)
-        identical = distance < length
-        # remove non- identical pairs
-        colinear = colinear[identical]
+        # `segments` index of colinear pairs
+        a, b = colinear.T
+
+        # we want the minimum distance of any of these pairs:
+        # a[0] - b[0]
+        # a[1] - b[0]
+        # a[0] - b[1]
+        # a[1] - b[1]
+        # do it in the most confusing possible vectorized way
+        min_vertex = np.linalg.norm(
+            segments[a][:, [0, 1, 0, 1], :] - segments[b][:, [0, 0, 1, 1], :], axis=2
+        ).min(axis=1)
+
+        # remove pairs that don't meet the distance metric
+        colinear = colinear[min_vertex < length]
 
     return colinear
 
 
-def clean(segments: NDArray[float64], digits: int = 10) -> NDArray[float64]:
+def clean(segments: ArrayLike, digits: int = 10) -> NDArray[float64]:
     """
     Clean up line segments by unioning the ranges of colinear segments.
 

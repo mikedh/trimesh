@@ -27,8 +27,6 @@ def export_urdf(mesh, directory, scale=1.0, color=None, **kwargs):
 
     import lxml.etree as et
 
-    from ..resources import get
-
     # TODO: fix circular import
     from .export import export_mesh
 
@@ -153,8 +151,10 @@ def export_urdf(mesh, directory, scale=1.0, color=None, **kwargs):
     tree = et.ElementTree(root)
 
     if tol.strict:
+        from ..resources import get_stream
+
         # todo : we don't pass the URDF schema validation
-        schema = et.XMLSchema(file=get("schema/urdf.xsd", as_stream=True))
+        schema = et.XMLSchema(file=get_stream("schema/urdf.xsd"))
         if not schema.validate(tree):
             # actual error isn't raised by validate
             log.debug(schema.error_log)

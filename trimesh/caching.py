@@ -19,6 +19,7 @@ In [25]: %timeit xxh3_64_intdigest(d)
 3.37 us +/- 116 ns per loop
 ```
 """
+
 import os
 import sys
 import time
@@ -185,13 +186,13 @@ class TrackedArray(np.ndarray):
         if isinstance(obj, type(self)):
             obj._dirty_hash = True
 
-    def __array_wrap__(self, out_arr, context=None):
+    def __array_wrap__(self, out_arr, context=None, *args, **kwargs):
         """
         Return a numpy scalar if array is 0d.
         See https://github.com/numpy/numpy/issues/5819
         """
         if out_arr.ndim:
-            return np.ndarray.__array_wrap__(self, out_arr, context)
+            return np.ndarray.__array_wrap__(self, out_arr, context, *args, **kwargs)
         # Match numpy's behavior and return a numpy dtype scalar
         return out_arr[()]
 
@@ -653,7 +654,7 @@ class DataStore(Mapping):
                 # will raise if this is not a hashable type
                 hash(data)
             except BaseException:
-                raise ValueError("unhashable `{key}:{type(data)}`")
+                raise ValueError(f"unhashable `{key}:{type(data)}`")
             tracked = data
 
         # apply our mutability setting
