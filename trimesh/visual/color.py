@@ -30,6 +30,7 @@ import numpy as np
 from .. import caching, util
 from ..constants import tol
 from ..grouping import unique_rows
+from ..typed import ArrayLike, NDArray
 from .base import Visuals
 
 
@@ -555,14 +556,14 @@ class VertexColor(Visuals):
         return self._colors.__hash__()
 
 
-def to_rgba(colors, dtype=np.uint8):
+def to_rgba(colors, dtype=np.uint8) -> NDArray:
     """
     Convert a single or multiple RGB colors to RGBA colors.
 
     Parameters
     ----------
     colors : (n, 3) or (n, 4) array
-      RGB or RGBA colors
+      RGB or RGBA colors or None
 
     Returns
     ----------
@@ -582,29 +583,25 @@ def to_rgba(colors, dtype=np.uint8):
         # replace any `nan` or `inf` values with zero
         colors[~np.isfinite(colors)] = 0.0
 
-    if colors.dtype.kind == "f" and colors.max() < (1.0 + 1e-8):
-        colors = (colors * opaque).round().astype(dtype)
-    elif colors.max() <= opaque:
-        colors = colors.astype(dtype)
-    else:
-        raise ValueError("colors non-convertible!")
+        # if we've been passed float colors they better be
+        # 0.0-1.0
+        colors = np.clip((colors * opaque).round(), 0, opaque)
 
     if util.is_shape(colors, (-1, 3)):
         # add an opaque alpha for RGB colors
-        colors = np.column_stack((colors, opaque * np.ones(len(colors)))).astype(dtype)
+        colors = np.column_stack((colors, opaque * np.ones(len(colors))))
     elif util.is_shape(colors, (3,)):
         # if passed a single RGB color add an alpha
-        colors = np.append(colors, opaque).astype(dtype)
-
+        colors = np.append(colors, opaque)
     if not (util.is_shape(colors, (4,)) or util.is_shape(colors, (-1, 4))):
         raise ValueError("Colors not of appropriate shape!")
 
-    return colors
+    return colors.astype(dtype)
 
 
-def to_float(colors):
+def to_float(colors: ArrayLike) -> NDArray[np.float64]:
     """
-    Convert integer colors to 0.0 - 1.0 floating point colors
+    Convert integer colors to 0.0-1.0 floating point colors
 
     Parameters
     -------------
@@ -620,7 +617,7 @@ def to_float(colors):
     # colors as numpy array
     colors = np.asanyarray(colors)
     if colors.dtype.kind == "f":
-        return colors
+        return colors.astype(np.float64)
     elif colors.dtype.kind in "iu":
         # integer value for opaque alpha given our datatype
         opaque = np.iinfo(colors.dtype).max

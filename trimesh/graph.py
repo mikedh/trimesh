@@ -712,8 +712,7 @@ def edges_to_coo(edges, count=None, data=None):
     if data is None:
         data = np.ones(len(edges), dtype=bool)
 
-    matrix = coo_matrix((data, edges.T), dtype=data.dtype, shape=(count, count))
-    return matrix
+    return coo_matrix((data, edges.T), dtype=data.dtype, shape=(count, count))
 
 
 def neighbors(edges, max_index=None, directed=False):
