@@ -773,7 +773,12 @@ class Path3D(Path):
     Hold multiple vector curves (lines, arcs, splines, etc) in 3D.
     """
 
-    def to_planar(self, to_2D=None, normal=None, check=True):
+    def to_planar(
+        self,
+        to_2D: Optional[ArrayLike] = None,
+        normal: Optional[ArrayLike] = None,
+        check: bool = True,
+    ):
         """
         Check to see if current vectors are all coplanar.
 
@@ -782,16 +787,13 @@ class Path3D(Path):
 
         Parameters
         -----------
-        to_2D: (4,4) float
-            Homogeneous transformation matrix to apply,
-            If not passed a plane will be fitted to vertices.
-        normal: (3,) float, or None
-           Approximate normal of direction of plane
-           If to_2D is not specified sign
-           will be applied to fit plane normal
-        check:  bool
-            If True: Raise a ValueError if
-            points aren't coplanar
+        to_2D : (4, 4) float
+          Homogeneous transformation matrix to apply,
+          if not passed a plane will be fitted to vertices.
+        normal : (3,) float or None
+           Normal of direction of plane to use.
+        check
+         Raise a ValueError if points aren't coplanar
 
         Returns
         -----------
@@ -807,40 +809,50 @@ class Path3D(Path):
         if len(referenced) == 0:
             return Path2D(), np.eye(4)
 
+        # support (n, 2) and (n, 3) vertices here
+        dim = self.vertices.shape[1]
+
+        # already flat
+        if dim == 2:
+            to_2D = np.eye(4)
+        elif dim != 3:
+            raise ValueError(f"vertices are `{dim}D != 2D | 3D`!")
+
         # no explicit transform passed
         if to_2D is None:
             # fit a plane to our vertices
             C, N = plane_fit(self.vertices[referenced])
             # apply the normal sign hint
             if normal is not None:
-                normal = np.asanyarray(normal, dtype=np.float64)
-                if normal.shape == (3,):
-                    N *= np.sign(np.dot(N, normal))
-                    N = normal
-                else:
-                    log.debug(f"passed normal not used: {normal.shape}")
+                # make sure normal is a 3D vector
+                normal = np.array(normal, dtype=np.float64).reshape(3)
+                # apply the sign from the passed normal
+                N *= np.sign(np.dot(N, normal))
             # create a transform from fit plane to XY
             to_2D = plane_transform(origin=C, normal=N)
 
         # make sure we've extracted a transform
-        to_2D = np.asanyarray(to_2D, dtype=np.float64)
+        to_2D = np.array(to_2D, dtype=np.float64)
         if to_2D.shape != (4, 4):
             raise ValueError("unable to create transform!")
 
-        # transform all vertices to 2D plane
-        flat = tf.transform_points(self.vertices, to_2D)
-
-        # Z values of vertices which are referenced
-        heights = flat[referenced][:, 2]
-        # points are not on a plane because Z varies
-        if np.ptp(heights) > tol.planar:
-            # since Z is inconsistent set height to zero
+        if dim == 3:
+            # transform all vertices to 2D plane
+            flat = tf.transform_points(self.vertices, to_2D)
+            # Z values of vertices which are referenced
+            heights = flat[referenced][:, 2]
+            # points are not on a plane because Z varies
+            if np.ptp(heights) > tol.planar:
+                # since Z is inconsistent set height to zero
+                height = 0.0
+                if check:
+                    raise ValueError("points are not flat!")
+            else:
+                # if the points were planar store the height
+                height = heights.mean()
+        elif dim == 2:
+            flat = self.vertices.copy()
             height = 0.0
-            if check:
-                raise ValueError("points are not flat!")
-        else:
-            # if the points were planar store the height
-            height = heights.mean()
 
         # the transform from 2D to 3D
         to_3D = np.linalg.inv(to_2D)
