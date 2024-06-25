@@ -90,7 +90,7 @@ def export_xyz(cloud, write_colors=True, delimiter=None):
         # stack colors and  vertices
         data = np.hstack((data, cloud.colors))
 
-    # if delimiter not passed use whitepace
+    # if delimiter not passed use whitespace
     if delimiter is None:
         delimiter = " "
     # stack blob into XYZ format

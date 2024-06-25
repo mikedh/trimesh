@@ -13,7 +13,7 @@ from . import triangles as triangles_module
 
 def transform(mesh, translation_scale=1000.0):
     """
-    Return a permutated variant of a mesh by randomly reording faces
+    Return a permutated variant of a mesh by randomly reordering faces
     and rotatating + translating a mesh by a random matrix.
 
     Parameters

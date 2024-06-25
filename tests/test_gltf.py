@@ -796,6 +796,23 @@ class GLTFTest(g.unittest.TestCase):
         # make sure the color vertex attributes survived the roundtrip
         assert g.np.allclose(r.visual.vertex_attributes["color"], colors)
 
+    def test_vertex_colors_import(self):
+        # get a mesh with face colors
+        m = g.get_mesh("cubevc.glb")
+        assert len(m.geometry.items()) > 0
+
+        mesh = next(iter(m.geometry.items()))[1]
+        assert mesh is not None
+
+        # Loaded mesh should have vertex colors
+        assert hasattr(mesh.visual, "vertex_colors")
+
+        # Loaded mesh should have all vertex colors filled with magenta color
+        magenta = g.np.array([255, 0, 255, 255])
+        for color in mesh.visual.vertex_colors:
+            is_magenta = g.np.array_equal(color, magenta)
+            assert is_magenta, f"Imported vertex color is not of expected value: got {color}, expected {magenta}"
+
     def test_export_postprocess(self):
         scene = g.trimesh.Scene()
         sphere = g.trimesh.primitives.Sphere()

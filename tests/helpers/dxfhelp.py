@@ -31,7 +31,7 @@ def write_json(template, file_name="../templates/dxf.json"):
 
 def replace_whitespace(text, SAFE_SPACE="|<^>|", insert=True, reformat=False):
     """
-    Replace non-strippable whitepace in a string with a safe space
+    Replace non-strippable whitespace in a string with a safe space
     """
     if insert:
         # replace whitespace with safe space chr

@@ -98,12 +98,7 @@ def on_repo(repo, commit):
                         a, b = geom.visual.material, ori.visual.material
                         # try our fancy equal
                         assert equal(a.baseColorFactor, b.baseColorFactor)
-                        try:
-                            assert equal(a.baseColorTexture, b.baseColorTexture)
-                        except BaseException:
-                            from IPython import embed
-
-                            embed()
+                        assert equal(a.baseColorTexture, b.baseColorTexture)
 
         except NotImplementedError as E:
             # this is what unsupported formats
