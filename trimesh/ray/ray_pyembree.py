@@ -265,8 +265,11 @@ class RayMeshIntersector:
           Index of triangle ray hit, or -1 if not hit
         """
 
-        ray_origins = np.asanyarray(deepcopy(ray_origins))
-        ray_directions = np.asanyarray(ray_directions)
+        ray_origins = np.array(deepcopy(ray_origins), dtype=np.float64)
+        ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
+        if ray_origins.shape != ray_directions.shape:
+            raise ValueError("Ray origin and direction don't match!")
+        ray_directions = util.unitize(ray_directions)
 
         triangle_index = self._scene.run(ray_origins, ray_directions)
         return triangle_index
