@@ -1007,7 +1007,7 @@ def pack(
                     scale = max_tex_size.max() / max_tex_size_individual
                     max_tex_size = np.round(max_tex_size / scale).astype(np.int64)
 
-                unpadded_sizes.append(max_tex_size)
+                unpadded_sizes.append(tuple(max_tex_size))
 
             # use the same size for all of them to ensure
             # that texture atlassing is identical
