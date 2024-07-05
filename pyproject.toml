@@ -75,7 +75,7 @@ easy = [
     "rtree",
     "httpx",
     "scipy",
-    "embreex",
+    "embreex ; platform_machine == x86_64",
     "pillow",
     "vhacdx",
     "xatlas",
