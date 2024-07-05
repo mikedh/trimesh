@@ -225,10 +225,10 @@ def specular_to_pbr(
 
     if diffuseTexture is not None and specularGlossinessTexture is not None:
         # reshape to the size of the largest texture
-        max_shape = [
+        max_shape = tuple(
             max(diffuseTexture.size[i], specularGlossinessTexture.size[i])
             for i in range(2)
-        ]
+        )
         if (
             diffuseTexture.size[0] != max_shape[0]
             or diffuseTexture.size[1] != max_shape[1]
