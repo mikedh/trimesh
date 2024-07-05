@@ -4,7 +4,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 
 [project]
 name = "trimesh"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 version = "4.4.2"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
@@ -14,7 +14,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -118,7 +117,7 @@ deprecated = ["gmsh==4.12.2"]
 all = ["trimesh[easy,recommend,test,deprecated]"]
 
 [tool.ruff]
-target-version = "py37"
+target-version = "py38"
 line-length = 90
 
 
