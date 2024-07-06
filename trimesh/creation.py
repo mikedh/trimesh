@@ -31,12 +31,9 @@ except BaseException as E:
 # get stored values for simple box and icosahedron primitives
 _data = get_json("creation.json")
 _engines = [
-    "earcut",
-    util.has_module("mapbox_earcut"),
-    "manifold",
-    util.has_module("manifold3d"),
-    "triangle",
-    util.has_module("triangle"),
+    ("earcut", util.has_module("mapbox_earcut")),
+    ("manifold", util.has_module("manifold3d")),
+    ("triangle", util.has_module("triangle")),
 ]
 
 
