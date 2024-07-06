@@ -555,13 +555,8 @@ def split_traversal(traversal: NDArray, edges_tree) -> Sequence:
         for s in split:
             check_edge = np.column_stack((s[:-1], s[1:]))
             check_edge.sort(axis=1)
-            try:
-                assert (edges_tree.query(check_edge)[0] < 1e-10).all()
-            except:
-                from IPython import embed
+            assert (edges_tree.query(check_edge)[0] < 1e-10).all()
 
-                embed()
-                assert 0
     return split
 
 
@@ -591,7 +586,6 @@ def fill_traversals(traversals, edges):
     # make sure edges are sorted
     edges.sort(axis=1)
     edges_tree = cKDTree(edges)
-
 
     # if there are no traversals just return edges
     if len(traversals) == 0:
