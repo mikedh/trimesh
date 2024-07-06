@@ -157,7 +157,9 @@ def group(values, min_len=0, max_len=np.inf):
     return groups
 
 
-def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
+def hashable_rows(
+    data: ArrayLike, digits: Optional[Integer] = None, allow_int: bool = True
+) -> NDArray:
     """
     We turn our array into integers based on the precision
     given by digits and then put them in a hashable format.
@@ -188,7 +190,7 @@ def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
 
     # if array is 2D and smallish, we can try bitbanging
     # this is significantly faster than the custom dtype
-    if len(as_int.shape) == 2 and as_int.shape[1] <= 4:
+    if allow_int and len(as_int.shape) == 2 and as_int.shape[1] <= 4:
         # can we pack the whole row into a single 64 bit integer
         precision = int(np.floor(64 / as_int.shape[1]))
 
@@ -603,9 +605,7 @@ def boolean_rows(a, b, operation=np.intersect1d):
 
     av = a.view([("", a.dtype)] * a.shape[1]).ravel()
     bv = b.view([("", b.dtype)] * b.shape[1]).ravel()
-    shared = operation(av, bv).view(a.dtype).reshape(-1, a.shape[1])
-
-    return shared
+    return operation(av, bv).view(a.dtype).reshape(-1, a.shape[1])
 
 
 def group_vectors(vectors, angle=1e-4, include_negative=False):

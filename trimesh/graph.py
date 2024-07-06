@@ -16,12 +16,14 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import List, NDArray, Number, Optional, int64
+from .typed import List, NDArray, Number, Optional, Sequence, int64
 
 try:
     from scipy.sparse import coo_matrix, csgraph
+    from scipy.spatial import cKDTree
 except BaseException as E:
     # re-raise exception when used
+    cKDTree = exceptions.ExceptionWrapper(E)
     csgraph = exceptions.ExceptionWrapper(E)
     coo_matrix = exceptions.ExceptionWrapper(E)
 
@@ -499,17 +501,17 @@ def connected_component_labels(edges, node_count=None):
     return labels
 
 
-def split_traversal(traversal, edges, edges_hash=None):
+def split_traversal(traversal: NDArray, edges_tree) -> Sequence:
     """
     Given a traversal as a list of nodes, split the traversal
     if a sequential index pair is not in the given edges.
 
     Parameters
     --------------
-    edges : (n, 2) int
-       Graph edge indexes
     traversal : (m,) int
        Traversal through edges
+    edges : (n, 2) int
+       Graph edge indexes
     edge_hash : (n,)
        Edges sorted on axis=1 and
        passed to grouping.hashable_rows
@@ -519,49 +521,51 @@ def split_traversal(traversal, edges, edges_hash=None):
     split : sequence of (p,) int
     """
     traversal = np.asanyarray(traversal, dtype=np.int64)
-
-    # hash edge rows for contains checks
-    if edges_hash is None:
-        edges_hash = grouping.hashable_rows(np.sort(edges, axis=1))
-
     # turn the (n,) traversal into (n-1, 2) edges
-    trav_edge = np.column_stack((traversal[:-1], traversal[1:]))
-    # hash each edge so we can compare to edge set
-    trav_hash = grouping.hashable_rows(np.sort(trav_edge, axis=1))
-    # check if each edge is contained in edge set
-    contained = np.isin(trav_hash, edges_hash)
+    trav_edge_order = np.column_stack((traversal[:-1], traversal[1:]))
+    trav_edge = np.sort(trav_edge_order, axis=1)
 
-    # exit early if every edge of traversal exists
-    if contained.all():
-        # just reshape one traversal
+    # edges which occur in the traversal but don't occur in the original edges
+    exists = edges_tree.query(trav_edge)[0] < 1e-10
+
+    if exists.all():
         split = [traversal]
     else:
-        # find contiguous groups of contained edges
-        blocks = grouping.blocks(contained, min_len=1, only_nonzero=True)
+        # contiguous groups of edges
+        blocks = grouping.blocks(exists, min_len=1, only_nonzero=True)
+        split = [
+            np.concatenate([trav_edge_order[:, 0][b], trav_edge_order[b[-1]][1:]])
+            for b in blocks
+        ]
 
-        # turn edges back in to sequence of traversals
-        split = [np.append(trav_edge[b][:, 0], trav_edge[b[-1]][1]) for b in blocks]
+    needs_close = np.array(
+        [
+            len(s) > 2
+            and s[0] != s[-1]
+            and edges_tree.query(sorted([s[0], s[-1]]))[0] < 1e-10
+            for s in split
+        ]
+    )
 
-    # close traversals if necessary
-    for i, t in enumerate(split):
-        # make sure elements of sequence are numpy arrays
-        split[i] = np.asanyarray(split[i], dtype=np.int64)
-        # don't close if its a single edge
-        if len(t) <= 2:
-            continue
-        # make sure it's not already closed
-        edge = np.sort([t[0], t[-1]])
-        if np.ptp(edge) == 0:
-            continue
-        close = grouping.hashable_rows(edge.reshape((1, 2)))[0]
-        # if we need the edge add it
-        if close in edges_hash:
-            split[i] = np.append(t, t[0]).astype(np.int64)
+    if needs_close.any():
+        for i in np.nonzero(needs_close)[0]:
+            split[i] = np.concatenate([split[i], split[i][:1]])
 
+    if tol.strict:
+        for s in split:
+            check_edge = np.column_stack((s[:-1], s[1:]))
+            check_edge.sort(axis=1)
+            try:
+                assert (edges_tree.query(check_edge)[0] < 1e-10).all()
+            except:
+                from IPython import embed
+
+                embed()
+                assert 0
     return split
 
 
-def fill_traversals(traversals, edges, edges_hash=None):
+def fill_traversals(traversals, edges):
     """
     Convert a traversal of a list of edges into a sequence of
     traversals where every pair of consecutive node indexes
@@ -586,22 +590,18 @@ def fill_traversals(traversals, edges, edges_hash=None):
     edges = np.asanyarray(edges, dtype=np.int64)
     # make sure edges are sorted
     edges.sort(axis=1)
+    edges_tree = cKDTree(edges)
+
 
     # if there are no traversals just return edges
     if len(traversals) == 0:
         return edges.copy()
 
-    # hash edges for contains checks
-    if edges_hash is None:
-        edges_hash = grouping.hashable_rows(edges)
-
     splits = []
     for nodes in traversals:
         # split traversals to remove edges
         # that don't actually exist
-        splits.extend(
-            split_traversal(traversal=nodes, edges=edges, edges_hash=edges_hash)
-        )
+        splits.extend(split_traversal(traversal=nodes, edges_tree=edges_tree))
     # turn the split traversals back into (n, 2) edges
     included = util.vstack_empty([np.column_stack((i[:-1], i[1:])) for i in splits])
     if len(included) > 0:

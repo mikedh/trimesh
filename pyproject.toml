@@ -62,7 +62,7 @@ trimesh = [
 # this is the base extra most users will want
 easy = [
     "colorlog",
-    "mapbox-earcut",
+    # "mapbox-earcut", BLOCKED FOR NUMPY2
     "chardet",
     "lxml",
     "jsonschema",
