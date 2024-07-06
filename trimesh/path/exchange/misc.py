@@ -107,8 +107,10 @@ def polygon_to_path(polygon):
         vertices.append(np.array(boundary.coords))
 
     # make sure result arrays are numpy
-    kwargs = {"entities": entities, "vertices": np.vstack(vertices)}
-
+    kwargs = {
+        "entities": entities,
+        "vertices": np.vstack(vertices) if len(vertices) > 0 else vertices,
+    }
     return kwargs
 
 

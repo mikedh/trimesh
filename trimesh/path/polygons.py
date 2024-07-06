@@ -714,8 +714,7 @@ def projected(
     ignore_sign=True,
     rpad=1e-5,
     apad=None,
-    tol_dot=0.01,
-    max_regions=200,
+    tol_dot=1e-10,
     precise: bool = False,
 ):
     """
@@ -779,8 +778,8 @@ def projected(
     if ignore_sign:
         # for watertight mesh speed up projection by handling side with less faces
         # check if face lies on front or back of normal
-        front = dot_face > 0.0
-        back = dot_face < 0.0
+        front = dot_face > tol_dot
+        back = dot_face < -tol_dot
         # divide the mesh into front facing section and back facing parts
         # and discard the faces perpendicular to the axis.
         # since we are doing a unary_union later we can use the front *or*

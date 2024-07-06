@@ -16,7 +16,7 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import List, NDArray, Number, Optional, Sequence, int64
+from .typed import ArrayLike, List, NDArray, Number, Optional, Sequence, int64
 
 try:
     from scipy.sparse import coo_matrix, csgraph
@@ -501,32 +501,36 @@ def connected_component_labels(edges, node_count=None):
     return labels
 
 
-def split_traversal(traversal: NDArray, edges_tree) -> Sequence:
+def _split_traversal(traversal: NDArray, edges_tree) -> Sequence:
     """
-    Given a traversal as a list of nodes, split the traversal
+    Given a traversal as a list of nodes split the traversal
     if a sequential index pair is not in the given edges.
+    Useful since the implementation of DFS we're using will
+    happily return disconnected values in a flat traversal.
 
     Parameters
     --------------
     traversal : (m,) int
        Traversal through edges
-    edges : (n, 2) int
-       Graph edge indexes
-    edge_hash : (n,)
-       Edges sorted on axis=1 and
-       passed to grouping.hashable_rows
+    edges_tree : cKDTree
+      A way to reconstruct original edge indices from
+      sorted (n, 2) edge values. This is a slight misuse of a
+      kdtree since one could just hash the tuples of the integer
+      edges, but that isn't possible with numpy arrays easily
+      and this allows a vectorized reconstruction.
 
     Returns
     ---------------
     split : sequence of (p,) int
+      Traversals split into only connected paths.
     """
-    traversal = np.asanyarray(traversal, dtype=np.int64)
     # turn the (n,) traversal into (n-1, 2) edges
-    trav_edge_order = np.column_stack((traversal[:-1], traversal[1:]))
-    trav_edge = np.sort(trav_edge_order, axis=1)
+    # save the original order of the edges for reconstruction
+    trav_edge = np.column_stack((traversal[:-1], traversal[1:]))
 
-    # edges which occur in the traversal but don't occur in the original edges
-    exists = edges_tree.query(trav_edge)[0] < 1e-10
+    # check to see if the traversal edges exists in the original edges
+    # the tree is holding the sorted edges so query after sorting
+    exists = edges_tree.query(np.sort(trav_edge, axis=1))[0] < 1e-10
 
     if exists.all():
         split = [traversal]
@@ -534,10 +538,11 @@ def split_traversal(traversal: NDArray, edges_tree) -> Sequence:
         # contiguous groups of edges
         blocks = grouping.blocks(exists, min_len=1, only_nonzero=True)
         split = [
-            np.concatenate([trav_edge_order[:, 0][b], trav_edge_order[b[-1]][1:]])
-            for b in blocks
+            np.concatenate([trav_edge[:, 0][b], trav_edge[b[-1]][1:]]) for b in blocks
         ]
 
+    # a traversal may be effectively closed so check
+    # to see if we need to add on the first index to the end
     needs_close = np.array(
         [
             len(s) > 2
@@ -553,14 +558,13 @@ def split_traversal(traversal: NDArray, edges_tree) -> Sequence:
 
     if tol.strict:
         for s in split:
-            check_edge = np.column_stack((s[:-1], s[1:]))
-            check_edge.sort(axis=1)
+            check_edge = np.sort(np.column_stack((s[:-1], s[1:])), axis=1)
             assert (edges_tree.query(check_edge)[0] < 1e-10).all()
 
     return split
 
 
-def fill_traversals(traversals, edges):
+def fill_traversals(traversals: Sequence, edges: ArrayLike) -> Sequence:
     """
     Convert a traversal of a list of edges into a sequence of
     traversals where every pair of consecutive node indexes
@@ -572,9 +576,6 @@ def fill_traversals(traversals, edges):
        Node indexes of traversals of a graph
     edges : (n, 2) int
        Pairs of connected node indexes
-    edges_hash : None, or (n,) int
-       Edges sorted along axis 1 then hashed
-       using grouping.hashable_rows
 
     Returns
     --------------
@@ -582,9 +583,7 @@ def fill_traversals(traversals, edges):
        Node indexes of connected traversals
     """
     # make sure edges are correct type
-    edges = np.asanyarray(edges, dtype=np.int64)
-    # make sure edges are sorted
-    edges.sort(axis=1)
+    edges = np.sort(edges, axis=1, dtype=np.int64)
     edges_tree = cKDTree(edges)
 
     # if there are no traversals just return edges
@@ -595,7 +594,7 @@ def fill_traversals(traversals, edges):
     for nodes in traversals:
         # split traversals to remove edges
         # that don't actually exist
-        splits.extend(split_traversal(traversal=nodes, edges_tree=edges_tree))
+        splits.extend(_split_traversal(traversal=nodes, edges_tree=edges_tree))
     # turn the split traversals back into (n, 2) edges
     included = util.vstack_empty([np.column_stack((i[:-1], i[1:])) for i in splits])
     if len(included) > 0:
