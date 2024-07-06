@@ -583,7 +583,7 @@ def fill_traversals(traversals: Sequence, edges: ArrayLike) -> Sequence:
        Node indexes of connected traversals
     """
     # make sure edges are correct type
-    edges = np.sort(edges, axis=1, dtype=np.int64)
+    edges = np.sort(edges, axis=1)
     edges_tree = cKDTree(edges)
 
     # if there are no traversals just return edges

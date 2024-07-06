@@ -1090,7 +1090,7 @@ def superimposition_matrix(v0, v1, scale=False, usesvd=True):
     >>> M = superimposition_matrix(v0, v1, scale=True, usesvd=False)
     >>> np.allclose(v1, np.dot(M, v0))
     True
-    >>> v = np.empty((4, 100, 3))
+    >>> v = np.zeros((4, 100, 3))
     >>> v[:, :, 0] = v0
     >>> M = superimposition_matrix(v0, v1, scale=True, usesvd=False)
     >>> np.allclose(v1, np.dot(M, v[:, :, 0]))
@@ -1283,7 +1283,7 @@ def quaternion_from_euler(ai, aj, ak, axes="sxyz"):
     sc = si * ck
     ss = si * sk
 
-    q = np.empty((4,))
+    q = np.zeros((4,))
     if repetition:
         q[0] = cj * (cc - ss)
         q[i] = cj * (cs + sc)
@@ -1404,7 +1404,7 @@ def quaternion_from_matrix(matrix, isprecise=False):
     """
     M = np.asarray(matrix, dtype=np.float64)[:4, :4]
     if isprecise:
-        q = np.empty((4,))
+        q = np.zeros((4,))
         t = np.trace(M)
         if t > M[3, 3]:
             q[0] = t
@@ -1822,7 +1822,7 @@ def vector_norm(data, axis=None, out=None):
     >>> np.allclose(n, np.sqrt(np.sum(v*v, axis=1)))
     True
     >>> v = np.random.rand(5, 4, 3)
-    >>> n = np.empty((5, 3))
+    >>> n = np.zeros((5, 3))
     >>> vector_norm(v, axis=1, out=n)
     >>> np.allclose(n, np.sqrt(np.sum(v*v, axis=1)))
     True
@@ -1862,7 +1862,7 @@ def unit_vector(data, axis=None, out=None):
     >>> v2 = v0 / np.expand_dims(np.sqrt(np.sum(v0*v0, axis=1)), 1)
     >>> np.allclose(v1, v2)
     True
-    >>> v1 = np.empty((5, 4, 3))
+    >>> v1 = np.zeros((5, 4, 3))
     >>> unit_vector(v0, axis=1, out=v1)
     >>> np.allclose(v1, v2)
     True

@@ -402,7 +402,7 @@ def merge_runs(data, digits=None):
     Out[2]: array([-1,  0,  1,  2,  0,  3,  4,  5,  6,  7,  8,  9])
     """
     data = np.asanyarray(data)
-    mask = np.empty(len(data), dtype=bool)
+    mask = np.zeros(len(data), dtype=bool)
     mask[0] = True
     mask[1:] = np.abs(data[1:] - data[:-1]) > tol.merge
 
@@ -837,7 +837,7 @@ def group_min(groups, data):
     groups = groups[order]  # this is only needed if groups is unsorted
     data = data[order]
     # construct an index which marks borders between groups
-    index = np.empty(len(groups), "bool")
+    index = np.zeros(len(groups), "bool")
     index[0] = True
     index[1:] = groups[1:] != groups[:-1]
     return data[index]

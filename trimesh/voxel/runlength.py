@@ -290,7 +290,7 @@ def split_long_rle_lengths(values, lengths, dtype=np.int64):
         repeats += 1
         remainder = lengths % max_length
         values = np.repeat(values, repeats)
-        lengths = np.empty(len(repeats), dtype=dtype)
+        lengths = np.zeros(len(repeats), dtype=dtype)
         lengths.fill(max_length)
         lengths = np.repeat(lengths, repeats)
         lengths[np.cumsum(repeats) - 1] = remainder
@@ -352,7 +352,7 @@ def _unsorted_gatherer(indices, sorted_gather_fn):
     ordered_indices = indices[order]
 
     def f(data, dtype=None):
-        result = np.empty(len(order), dtype=dtype or getattr(data, "dtype", None))
+        result = np.zeros(len(order), dtype=dtype or getattr(data, "dtype", None))
         result[order] = tuple(sorted_gather_fn(data, ordered_indices))
         return result
 
