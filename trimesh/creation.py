@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Dict, Integer, Number, Optional
+from .typed import ArrayLike, Dict, Integer, NDArray, Number, Optional
 
 try:
     # shapely is a soft dependency
@@ -427,6 +427,13 @@ def sweep_polygon(
     return mesh
 
 
+def _cross_2d(a: NDArray, b: NDArray) -> NDArray:
+    """
+    Numpy 2.0 depreciated cross products of 2D arrays.
+    """
+    return a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]
+
+
 def extrude_triangulation(
     vertices: ArrayLike,
     faces: ArrayLike,
@@ -467,7 +474,10 @@ def extrude_triangulation(
         raise ValueError("Height must be nonzero!")
 
     # check the winding of the first few triangles
-    signs = np.array([np.cross(*i) for i in np.diff(vertices[faces[:10]], axis=1)])
+    signs = _cross_2d(
+        np.subtract(*vertices[faces[:10, :2].T]), np.subtract(*vertices[faces[:10, 1:].T])
+    )
+
     # make sure the triangulation is aligned with the sign of
     # the height we've been passed
     if len(signs) > 0 and np.sign(signs.mean()) != np.sign(height):

@@ -62,7 +62,7 @@ trimesh = [
 # this is the base extra most users will want
 easy = [
     "colorlog",
-"manifold3d>=2.3.0", # do boolean operations    
+    "manifold3d>=2.3.0", # do boolean operations    
     "chardet",
     "lxml",
     "jsonschema",

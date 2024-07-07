@@ -16,7 +16,7 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import ArrayLike, List, NDArray, Number, Optional, Sequence, int64
+from .typed import ArrayLike, List, NDArray, Number, Optional, Sequence, Union, int64
 
 try:
     from scipy.sparse import coo_matrix, csgraph
@@ -501,7 +501,7 @@ def connected_component_labels(edges, node_count=None):
     return labels
 
 
-def _split_traversal(traversal: NDArray, edges_tree) -> Sequence:
+def _split_traversal(traversal: NDArray, edges_tree) -> List[NDArray]:
     """
     Given a traversal as a list of nodes split the traversal
     if a sequential index pair is not in the given edges.
@@ -564,7 +564,7 @@ def _split_traversal(traversal: NDArray, edges_tree) -> Sequence:
     return split
 
 
-def fill_traversals(traversals: Sequence, edges: ArrayLike) -> Sequence:
+def fill_traversals(traversals: Sequence, edges: ArrayLike) -> Union[Sequence, NDArray]:
     """
     Convert a traversal of a list of edges into a sequence of
     traversals where every pair of consecutive node indexes
@@ -592,9 +592,9 @@ def fill_traversals(traversals: Sequence, edges: ArrayLike) -> Sequence:
 
     splits = []
     for nodes in traversals:
-        # split traversals to remove edges
-        # that don't actually exist
+        # split traversals to remove edges that don't actually exist
         splits.extend(_split_traversal(traversal=nodes, edges_tree=edges_tree))
+
     # turn the split traversals back into (n, 2) edges
     included = util.vstack_empty([np.column_stack((i[:-1], i[1:])) for i in splits])
     if len(included) > 0:
