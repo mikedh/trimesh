@@ -548,7 +548,8 @@ def triangulate_polygon(
     """
 
     if engine is None:
-        engine = next(name for name, exists in _engines if exists)
+        # try getting the first engine that is installed
+        engine = next((name for name, exists in _engines if exists), None)
 
     if polygon is None or polygon.is_empty:
         return [], []
