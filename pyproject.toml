@@ -91,7 +91,7 @@ recommend = [
     "python-fcl", # do collision checks
     "openctm", # load `CTM` compressed models
     "cascadio", # load `STEP` files
-    "mapbox-earcut", BLOCKED FOR NUMPY2
+    "mapbox-earcut", # BLOCKED FOR NUMPY2
     
 ]
 
