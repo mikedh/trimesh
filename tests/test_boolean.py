@@ -95,6 +95,51 @@ class BooleanTest(g.unittest.TestCase):
 
             assert i.is_empty
 
+    def test_boolean_manifold(self):
+        if manifold3d is None:
+            return
+
+        times = {}
+        for operation in ["union", "intersection"]:
+
+            if operation == "union":
+                # chain of icospheres
+                meshes = [g.trimesh.primitives.Sphere(center=[x / 2, 0, 0], subdivisions=0) for x in range(100)]
+            else:
+                # closer icospheres for non-empty-intersection
+                meshes = [g.trimesh.primitives.Sphere(center=[x, x, x], subdivisions=0) for x in g.np.linspace(0, 0.5, 101)]
+
+            # the old 'serial' manifold method
+            tic = g.time.time()
+            manifolds = [
+                manifold3d.Manifold(
+                    mesh=manifold3d.Mesh(
+                        vert_properties=g.np.array(mesh.vertices, dtype=g.np.float32),
+                        tri_verts=g.np.array(mesh.faces, dtype=g.np.uint32),
+                    )
+                )
+                for mesh in meshes
+            ]
+            result_manifold = manifolds[0]
+            for manifold in manifolds[1:]:
+                if operation == "union":
+                    result_manifold = result_manifold + manifold
+                else: # operation == "intersection":
+                    result_manifold = result_manifold ^ manifold
+            result_mesh = result_manifold.to_mesh()
+            old_mesh = g.trimesh.Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
+            times["serial " + operation] = g.time.time() - tic
+
+            # new 'binary' method
+            tic = g.time.time()
+            new_mesh = g.trimesh.boolean.boolean_manifold(meshes, operation)
+            times["binary " + operation] = g.time.time() - tic
+
+            assert old_mesh.is_volume == new_mesh.is_volume
+            assert old_mesh.body_count == new_mesh.body_count
+            assert g.np.isclose(old_mesh.volume, new_mesh.volume)
+
+        g.log.info(times)
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
