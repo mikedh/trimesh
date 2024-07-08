@@ -131,7 +131,7 @@ def boolean_manifold(
     """
     if check_volume and not all(m.is_volume for m in meshes):
         raise ValueError("Not all meshes are volumes!")
-    
+
     # Convert to manifold meshes
     manifolds = [
         Manifold(
@@ -150,7 +150,7 @@ def boolean_manifold(
 
         result_manifold = manifolds[0] - manifolds[1]
     elif operation in ["union", "intersection"]:
-        for lvl in range(int(1 + np.log2(len(manifolds)))):
+        for _lvl in range(int(1 + np.log2(len(manifolds)))):
             results = []
             for i in np.arange(len(manifolds) // 2) * 2:
                 if operation == "union":

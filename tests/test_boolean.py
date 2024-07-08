@@ -139,7 +139,7 @@ class BooleanTest(g.unittest.TestCase):
             assert old_mesh.body_count == new_mesh.body_count
             assert g.np.isclose(old_mesh.volume, new_mesh.volume)
 
-        g.log.info(times)        
+        g.log.info(times)
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
