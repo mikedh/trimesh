@@ -5,6 +5,7 @@ from typing import (
     IO,
     Any,
     BinaryIO,
+    Callable,
     Mapping,
     Optional,
     TextIO,
@@ -60,4 +61,5 @@ __all__ = [
     "float64",
     "int64",
     "Mapping",
+    "Callable",
 ]

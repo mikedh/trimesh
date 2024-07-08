@@ -101,13 +101,18 @@ class BooleanTest(g.unittest.TestCase):
 
         times = {}
         for operation in ["union", "intersection"]:
-
             if operation == "union":
                 # chain of icospheres
-                meshes = [g.trimesh.primitives.Sphere(center=[x / 2, 0, 0], subdivisions=0) for x in range(100)]
+                meshes = [
+                    g.trimesh.primitives.Sphere(center=[x / 2, 0, 0], subdivisions=0)
+                    for x in range(100)
+                ]
             else:
                 # closer icospheres for non-empty-intersection
-                meshes = [g.trimesh.primitives.Sphere(center=[x, x, x], subdivisions=0) for x in g.np.linspace(0, 0.5, 101)]
+                meshes = [
+                    g.trimesh.primitives.Sphere(center=[x, x, x], subdivisions=0)
+                    for x in g.np.linspace(0, 0.5, 101)
+                ]
 
             # the old 'serial' manifold method
             tic = g.time.time()
@@ -124,10 +129,12 @@ class BooleanTest(g.unittest.TestCase):
             for manifold in manifolds[1:]:
                 if operation == "union":
                     result_manifold = result_manifold + manifold
-                else: # operation == "intersection":
+                else:  # operation == "intersection":
                     result_manifold = result_manifold ^ manifold
             result_mesh = result_manifold.to_mesh()
-            old_mesh = g.trimesh.Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
+            old_mesh = g.trimesh.Trimesh(
+                vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts
+            )
             times["serial " + operation] = g.time.time() - tic
 
             # new 'binary' method
@@ -140,6 +147,57 @@ class BooleanTest(g.unittest.TestCase):
             assert g.np.isclose(old_mesh.volume, new_mesh.volume)
 
         g.log.info(times)
+
+    def test_reduce_cascade(self):
+        # the multiply will explode quickly past the integer maximum
+
+        from functools import reduce
+
+        from trimesh.boolean import reduce_cascade
+
+        def both(operation, items):
+            """
+            Run our cascaded reduce and regular reduce.
+            """
+
+            b = reduce_cascade(operation, items)
+
+            if len(items) > 0:
+                assert b == reduce(operation, items)
+
+            return b
+
+        for i in range(20):
+            data = g.np.arange(i)
+            c = both(items=data, operation=lambda a, b: a + b)
+
+            if i == 0:
+                assert c is None
+            else:
+                assert c == g.np.arange(i).sum()
+
+            # try a multiply
+            data = g.np.arange(i)
+            c = both(items=data, operation=lambda a, b: a * b)
+
+            if i == 0:
+                assert c is None
+            else:
+                assert c == g.np.prod(data)
+
+            # try a multiply
+            data = g.np.arange(i)[1:]
+            c = both(items=data, operation=lambda a, b: a * b)
+            if i <= 1:
+                assert c is None
+            else:
+                assert c == g.np.prod(data)
+
+        data = ["a", "b", "c", "d", "e", "f", "g"]
+        print("# reduce_pairwise\n-----------")
+        r = both(operation=lambda a, b: a + b, items=data)
+        assert r == "abcdefg"
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
