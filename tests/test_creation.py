@@ -11,6 +11,9 @@ class CreationTest(g.unittest.TestCase):
             engines.append("triangle")
         if g.trimesh.util.has_module("mapbox_earcut"):
             engines.append("earcut")
+        if g.trimesh.util.has_module("manifold3d"):
+            engines.append("manifold")
+
         self.engines = engines
 
     def test_box(self):
@@ -245,10 +248,13 @@ class CreationTest(g.unittest.TestCase):
         # make sure difference did what we think it should
         assert g.np.isclose(donut.area, bigger.area - smaller.area)
 
-        times = {"earcut": 0.0, "triangle": 0.0}
-        iterations = 50
+        times = {"earcut": 0.0, "triangle": 0.0, "manifold": 0.0}
+        iterations = 10
         # get a polygon to benchmark times with including interiors
         bench = [bigger, smaller, donut]
+        for path in g.get_2D(1):
+            bench.extend(path.polygons_full)
+
         bench.extend(g.get_mesh("2D/ChuteHolderPrint.DXF").polygons_full)
         bench.extend(g.get_mesh("2D/wrench.dxf").polygons_full)
 
@@ -284,9 +290,8 @@ class CreationTest(g.unittest.TestCase):
         g.log.info(f"benchmarked triangulation on {len(bench)} polygons: {times!s}")
 
     def test_triangulate_plumbing(self):
-        """
-        Check the plumbing of path triangulation
-        """
+        # @ Check the plumbing of path triangulation
+
         if len(self.engines) == 0:
             return
         p = g.get_mesh("2D/ChuteHolderPrint.DXF")
@@ -313,7 +318,7 @@ def check_triangulation(v, f, true_area):
 
     tri = g.trimesh.util.stack_3D(v)[f]
     area = g.trimesh.triangles.area(tri).sum()
-    assert g.np.isclose(area, true_area)
+    assert g.np.isclose(area, true_area, rtol=1e-7)
 
 
 def test_torus():

@@ -714,8 +714,8 @@ def projected(
     ignore_sign=True,
     rpad=1e-5,
     apad=None,
-    tol_dot=0.01,
-    max_regions=200,
+    tol_dot=1e-10,
+    precise: bool = False,
 ):
     """
     Project a mesh onto a plane and then extract the polygon
@@ -804,20 +804,28 @@ def projected(
     adjacency_check = side[mesh.face_adjacency].all(axis=1)
     adjacency = mesh.face_adjacency[adjacency_check]
 
-    # a sequence of face indexes that are connected
-    face_groups = graph.connected_components(adjacency, nodes=np.nonzero(side)[0])
-
-    # if something is goofy we may end up with thousands of
-    # regions that do nothing except hang for an hour then segfault
-    if len(face_groups) > max_regions:
-        raise ValueError("too many disconnected groups!")
-
-    # reshape edges into shape length of faces for indexing
-    edges = mesh.edges_sorted.reshape((-1, 6))
     # transform from the mesh frame in 3D to the XY plane
     to_2D = geometry.plane_transform(origin=origin, normal=normal)
     # transform mesh vertices to 2D and clip the zero Z
     vertices_2D = transform_points(mesh.vertices, to_2D)[:, :2]
+
+    if precise:
+        eps = 1e-10
+        faces = mesh.faces[side]
+        # just union all the polygons
+        return (
+            ops.unary_union(
+                [Polygon(f) for f in vertices_2D[np.column_stack((faces, faces[:, :1]))]]
+            )
+            .buffer(eps)
+            .buffer(-eps)
+        )
+
+    # a sequence of face indexes that are connected
+    face_groups = graph.connected_components(adjacency, nodes=np.nonzero(side)[0])
+
+    # reshape edges into shape length of faces for indexing
+    edges = mesh.edges_sorted.reshape((-1, 6))
 
     polygons = []
     for faces in face_groups:
@@ -838,30 +846,22 @@ def projected(
         # apply the scale-relative padding
         padding += float(rpad) * scale
 
-    # some types of errors will lead to a bajillion disconnected
-    # regions and the union will take forever to fail
-    # so exit here early
-    if len(polygons) > max_regions:
-        raise ValueError("too many disconnected groups!")
-
     # if there is only one region we don't need to run a union
     elif len(polygons) == 1:
         return polygons[0]
     elif len(polygons) == 0:
         return None
-    else:
-        # inflate each polygon before unioning to remove zero-size
-        # gaps then deflate the result after unioning by the same amount
-        # note the following provides a 25% speedup but needs
-        # more testing to see if it deflates to a decent looking
-        # result:
-        # polygon = ops.unary_union(
-        #    [p.buffer(padding,
-        #              join_style=2,
-        #              mitre_limit=1.5)
-        #     for p in polygons]).buffer(-padding)
-        polygon = ops.unary_union([p.buffer(padding) for p in polygons]).buffer(-padding)
-    return polygon
+    # inflate each polygon before unioning to remove zero-size
+    # gaps then deflate the result after unioning by the same amount
+    # note the following provides a 25% speedup but needs
+    # more testing to see if it deflates to a decent looking
+    # result:
+    # polygon = ops.unary_union(
+    #    [p.buffer(padding,
+    #              join_style=2,
+    #              mitre_limit=1.5)
+    #     for p in polygons]).buffer(-padding)
+    return ops.unary_union([p.buffer(padding) for p in polygons]).buffer(-padding)
 
 
 def second_moments(polygon: Polygon, return_centered=False):

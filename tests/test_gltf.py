@@ -808,7 +808,7 @@ class GLTFTest(g.unittest.TestCase):
         assert hasattr(mesh.visual, "vertex_colors")
 
         # Loaded mesh should have all vertex colors filled with magenta color
-        magenta = g.np.array([255, 0, 255, 255])
+        magenta = g.np.array([255, 0, 255, 255], dtype=g.np.uint8)
         for color in mesh.visual.vertex_colors:
             is_magenta = g.np.array_equal(color, magenta)
             assert is_magenta, f"Imported vertex color is not of expected value: got {color}, expected {magenta}"

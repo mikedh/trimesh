@@ -18,7 +18,7 @@ except BaseException as E:
 
 def _empty_stripped(shape):
     num_dims = len(shape)
-    encoding = DenseEncoding(np.empty(shape=(0,) * num_dims, dtype=bool))
+    encoding = DenseEncoding(np.zeros(shape=(0,) * num_dims, dtype=bool))
     padding = np.zeros(shape=(num_dims, 2), dtype=int)
     padding[:, 1] = shape
     return encoding, padding
@@ -355,7 +355,7 @@ class SparseEncoding(Encoding):
     def dense(self):
         sparse = self._csc
         # sparse.todense gives an `np.matrix` which cannot be reshaped
-        dense = np.empty(shape=sparse.shape, dtype=sparse.dtype)
+        dense = np.zeros(shape=sparse.shape, dtype=sparse.dtype)
         sparse.todense(out=dense)
         return np.reshape(dense, self.shape)
 

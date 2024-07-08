@@ -663,7 +663,6 @@ def slice_mesh_plane(
     plane_origin,
     face_index=None,
     cap=False,
-    cached_dots=None,
     engine=None,
     **kwargs,
 ):
@@ -790,7 +789,11 @@ def slice_mesh_plane(
                 if distance.max() > 1e-8:
                     util.log.debug("triangulate may have inserted vertex!")
                 # triangulation should not have inserted vertices
-                faces.append(vid[fn])
+                nf = vid[fn]
+                # hmm but it may have returned faces that are now degenerate
+                nf_ok = (nf[:, 1:] != nf[:, :1]).all(axis=1) & (nf[:, 1] != nf[:, 2])
+                faces.append(nf[nf_ok])
+
             faces = np.vstack(faces)
 
     visual = (

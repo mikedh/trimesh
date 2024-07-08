@@ -16,12 +16,14 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import List, NDArray, Number, Optional, int64
+from .typed import ArrayLike, List, NDArray, Number, Optional, Sequence, Union, int64
 
 try:
     from scipy.sparse import coo_matrix, csgraph
+    from scipy.spatial import cKDTree
 except BaseException as E:
     # re-raise exception when used
+    cKDTree = exceptions.ExceptionWrapper(E)
     csgraph = exceptions.ExceptionWrapper(E)
     coo_matrix = exceptions.ExceptionWrapper(E)
 
@@ -499,69 +501,70 @@ def connected_component_labels(edges, node_count=None):
     return labels
 
 
-def split_traversal(traversal, edges, edges_hash=None):
+def _split_traversal(traversal: NDArray, edges_tree) -> List[NDArray]:
     """
-    Given a traversal as a list of nodes, split the traversal
+    Given a traversal as a list of nodes split the traversal
     if a sequential index pair is not in the given edges.
+    Useful since the implementation of DFS we're using will
+    happily return disconnected values in a flat traversal.
 
     Parameters
     --------------
-    edges : (n, 2) int
-       Graph edge indexes
     traversal : (m,) int
        Traversal through edges
-    edge_hash : (n,)
-       Edges sorted on axis=1 and
-       passed to grouping.hashable_rows
+    edges_tree : cKDTree
+      A way to reconstruct original edge indices from
+      sorted (n, 2) edge values. This is a slight misuse of a
+      kdtree since one could just hash the tuples of the integer
+      edges, but that isn't possible with numpy arrays easily
+      and this allows a vectorized reconstruction.
 
     Returns
     ---------------
     split : sequence of (p,) int
+      Traversals split into only connected paths.
     """
-    traversal = np.asanyarray(traversal, dtype=np.int64)
-
-    # hash edge rows for contains checks
-    if edges_hash is None:
-        edges_hash = grouping.hashable_rows(np.sort(edges, axis=1))
-
     # turn the (n,) traversal into (n-1, 2) edges
+    # save the original order of the edges for reconstruction
     trav_edge = np.column_stack((traversal[:-1], traversal[1:]))
-    # hash each edge so we can compare to edge set
-    trav_hash = grouping.hashable_rows(np.sort(trav_edge, axis=1))
-    # check if each edge is contained in edge set
-    contained = np.isin(trav_hash, edges_hash)
 
-    # exit early if every edge of traversal exists
-    if contained.all():
-        # just reshape one traversal
+    # check to see if the traversal edges exists in the original edges
+    # the tree is holding the sorted edges so query after sorting
+    exists = edges_tree.query(np.sort(trav_edge, axis=1))[0] < 1e-10
+
+    if exists.all():
         split = [traversal]
     else:
-        # find contiguous groups of contained edges
-        blocks = grouping.blocks(contained, min_len=1, only_nonzero=True)
+        # contiguous groups of edges
+        blocks = grouping.blocks(exists, min_len=1, only_nonzero=True)
+        split = [
+            np.concatenate([trav_edge[:, 0][b], trav_edge[b[-1]][1:]]) for b in blocks
+        ]
 
-        # turn edges back in to sequence of traversals
-        split = [np.append(trav_edge[b][:, 0], trav_edge[b[-1]][1]) for b in blocks]
+    # a traversal may be effectively closed so check
+    # to see if we need to add on the first index to the end
+    needs_close = np.array(
+        [
+            len(s) > 2
+            and s[0] != s[-1]
+            and edges_tree.query(sorted([s[0], s[-1]]))[0] < 1e-10
+            for s in split
+        ]
+    )
 
-    # close traversals if necessary
-    for i, t in enumerate(split):
-        # make sure elements of sequence are numpy arrays
-        split[i] = np.asanyarray(split[i], dtype=np.int64)
-        # don't close if its a single edge
-        if len(t) <= 2:
-            continue
-        # make sure it's not already closed
-        edge = np.sort([t[0], t[-1]])
-        if np.ptp(edge) == 0:
-            continue
-        close = grouping.hashable_rows(edge.reshape((1, 2)))[0]
-        # if we need the edge add it
-        if close in edges_hash:
-            split[i] = np.append(t, t[0]).astype(np.int64)
+    if needs_close.any():
+        for i in np.nonzero(needs_close)[0]:
+            split[i] = np.concatenate([split[i], split[i][:1]])
+
+    if tol.strict:
+        for s in split:
+            check_edge = np.sort(np.column_stack((s[:-1], s[1:])), axis=1)
+            assert (edges_tree.query(check_edge)[0] < 1e-10).all()
 
     return split
 
 
-def fill_traversals(traversals, edges, edges_hash=None):
+def fill_traversals(traversals: Sequence, edges: ArrayLike) -> Union[Sequence, NDArray]:
     """
     Convert a traversal of a list of edges into a sequence of
     traversals where every pair of consecutive node indexes
@@ -573,9 +576,6 @@ def fill_traversals(traversals, edges, edges_hash=None):
        Node indexes of traversals of a graph
     edges : (n, 2) int
        Pairs of connected node indexes
-    edges_hash : None, or (n,) int
-       Edges sorted along axis 1 then hashed
-       using grouping.hashable_rows
 
     Returns
     --------------
@@ -583,25 +583,18 @@ def fill_traversals(traversals, edges, edges_hash=None):
        Node indexes of connected traversals
     """
     # make sure edges are correct type
-    edges = np.asanyarray(edges, dtype=np.int64)
-    # make sure edges are sorted
-    edges.sort(axis=1)
+    edges = np.sort(edges, axis=1)
+    edges_tree = cKDTree(edges)
 
     # if there are no traversals just return edges
     if len(traversals) == 0:
         return edges.copy()
 
-    # hash edges for contains checks
-    if edges_hash is None:
-        edges_hash = grouping.hashable_rows(edges)
-
     splits = []
     for nodes in traversals:
-        # split traversals to remove edges
-        # that don't actually exist
-        splits.extend(
-            split_traversal(traversal=nodes, edges=edges, edges_hash=edges_hash)
-        )
+        # split traversals to remove edges that don't actually exist
+        splits.extend(_split_traversal(traversal=nodes, edges_tree=edges_tree))
+
     # turn the split traversals back into (n, 2) edges
     included = util.vstack_empty([np.column_stack((i[:-1], i[1:])) for i in splits])
     if len(included) > 0:

@@ -345,6 +345,6 @@ def power_resize(image, resample=1, square=False):
 
     # if we're not powers of two upsize
     if (size != new_size).any():
-        return image.resize(new_size, resample=resample)
+        return image.resize(tuple(new_size), resample=resample)
 
     return image.copy()

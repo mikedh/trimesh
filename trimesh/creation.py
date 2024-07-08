@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Dict, Integer, Number, Optional
+from .typed import ArrayLike, Dict, Integer, NDArray, Number, Optional
 
 try:
     # shapely is a soft dependency
@@ -28,13 +28,13 @@ except BaseException as E:
     Polygon = exceptions.ExceptionWrapper(E)
     load_wkb = exceptions.ExceptionWrapper(E)
 
-try:
-    from mapbox_earcut import triangulate_float64 as _tri_earcut
-except BaseException as E:
-    _tri_earcut = exceptions.ExceptionWrapper(E)
-
 # get stored values for simple box and icosahedron primitives
 _data = get_json("creation.json")
+_engines = [
+    ("earcut", util.has_module("mapbox_earcut")),
+    ("manifold", util.has_module("manifold3d")),
+    ("triangle", util.has_module("triangle")),
+]
 
 
 def revolve(
@@ -427,6 +427,13 @@ def sweep_polygon(
     return mesh
 
 
+def _cross_2d(a: NDArray, b: NDArray) -> NDArray:
+    """
+    Numpy 2.0 depreciated cross products of 2D arrays.
+    """
+    return a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]
+
+
 def extrude_triangulation(
     vertices: ArrayLike,
     faces: ArrayLike,
@@ -467,7 +474,10 @@ def extrude_triangulation(
         raise ValueError("Height must be nonzero!")
 
     # check the winding of the first few triangles
-    signs = np.array([np.cross(*i) for i in np.diff(vertices[faces[:10]], axis=1)])
+    signs = _cross_2d(
+        np.subtract(*vertices[faces[:10, :2].T]), np.subtract(*vertices[faces[:10, 1:].T])
+    )
+
     # make sure the triangulation is aligned with the sign of
     # the height we've been passed
     if len(signs) > 0 and np.sign(signs.mean()) != np.sign(height):
@@ -526,6 +536,7 @@ def triangulate_polygon(
     Given a shapely polygon create a triangulation using a
     python interface to the permissively licensed `mapbox-earcut`
     or the more robust `triangle.c`.
+    > pip install manifold3d
     > pip install triangle
     > pip install mapbox_earcut
 
@@ -545,7 +556,17 @@ def triangulate_polygon(
     faces : (n, 3) int
        Index of vertices that make up triangles
     """
-    if engine is None or engine == "earcut":
+
+    if engine is None:
+        # try getting the first engine that is installed
+        engine = next((name for name, exists in _engines if exists), None)
+
+    if polygon is None or polygon.is_empty:
+        return [], []
+
+    if engine == "earcut":
+        from mapbox_earcut import triangulate_float64
+
         # get vertices as sequence where exterior
         # is the first value
         vertices = [np.array(polygon.exterior.coords)]
@@ -556,12 +577,27 @@ def triangulate_polygon(
         vertices = np.vstack(vertices)
         # run triangulation
         faces = (
-            _tri_earcut(vertices, rings)
+            triangulate_float64(vertices, rings)
             .reshape((-1, 3))
             .astype(np.int64)
             .reshape((-1, 3))
         )
 
+        return vertices, faces
+
+    elif engine == "manifold":
+        import manifold3d
+
+        # the outer ring is wound counter-clockwise
+        rings = [
+            np.array(polygon.exterior.coords)[:: (1 if polygon.exterior.is_ccw else -1)]
+        ]
+        # wind interiors
+        rings.extend(
+            np.array(b.coords)[:: (-1 if b.is_ccw else 1)] for b in polygon.interiors
+        )
+        faces = manifold3d.triangulate(rings)
+        vertices = np.vstack(rings)
         return vertices, faces
 
     elif engine == "triangle":
@@ -575,14 +611,14 @@ def triangulate_polygon(
         # run the triangulation
         result = triangulate(arg, triangle_args)
         return result["vertices"], result["triangles"]
-    else:
-        log.warning(
-            "try running `pip install mapbox-earcut`"
-            + "or explicitly pass:\n"
-            + '`triangulate_polygon(*args, engine="triangle")`\n'
-            + "to use the non-FSF-approved-license triangle engine"
-        )
-        raise ValueError("no valid triangulation engine!")
+
+    log.warning(
+        "try running `pip install manifold3d`"
+        + "or `triangle`, `mapbox_earcut`, then explicitly pass:\n"
+        + '`triangulate_polygon(*args, engine="triangle")`\n'
+        + "to use the non-FSF-approved-license triangle engine"
+    )
+    raise ValueError("No available triangulation engine!")
 
 
 def _polygon_to_kwargs(polygon) -> Dict:

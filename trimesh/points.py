@@ -582,7 +582,7 @@ class PointCloud(Geometry3D):
         vertices : (n, 3) float
           Points in the PointCloud
         """
-        return self._data.get("vertices", np.empty(shape=(0, 3), dtype=float64))
+        return self._data.get("vertices", np.zeros(shape=(0, 3), dtype=float64))
 
     @vertices.setter
     def vertices(self, values):

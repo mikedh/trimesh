@@ -314,7 +314,7 @@ class Trimesh(Geometry3D):
         """
         if values is None:
             # if passed none store an empty array
-            values = np.empty(shape=(0, 3), dtype=int64)
+            values = np.zeros(shape=(0, 3), dtype=int64)
         else:
             values = np.asanyarray(values, dtype=int64)
 
@@ -461,7 +461,7 @@ class Trimesh(Geometry3D):
         """
         if values is None:
             # remove any stored data and store an empty array
-            values = np.empty(shape=(0, 3), dtype=float64)
+            values = np.zeros(shape=(0, 3), dtype=float64)
         self._data["vertices"] = np.asanyarray(values, order="C", dtype=float64)
 
     @caching.cache_decorator
