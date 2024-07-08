@@ -32,6 +32,7 @@ def cross(triangles):
     """
     vectors = np.diff(triangles, axis=1)
     crosses = np.cross(vectors[:, 0], vectors[:, 1])
+
     return crosses
 
 
