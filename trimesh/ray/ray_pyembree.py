@@ -3,8 +3,6 @@ Ray queries using the embreex package with the
 API wrapped to match our native raytracer.
 """
 
-from copy import deepcopy
-
 import numpy as np
 
 from .. import caching, intersections, util
@@ -147,8 +145,8 @@ class RayMeshIntersector:
           Intersection points, only returned if return_locations
         """
         # make sure input is _dtype for embree
-        ray_origins = np.array(deepcopy(ray_origins), dtype=np.float64)
-        ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
+        ray_origins = np.array(ray_origins, dtype=np.float64)
+        ray_directions = np.array(ray_directions, dtype=np.float64)
         if ray_origins.shape != ray_directions.shape:
             raise ValueError("Ray origin and direction don't match!")
         ray_directions = util.unitize(ray_directions)
@@ -265,8 +263,8 @@ class RayMeshIntersector:
           Index of triangle ray hit, or -1 if not hit
         """
 
-        ray_origins = np.array(deepcopy(ray_origins), dtype=np.float64)
-        ray_directions = np.asanyarray(ray_directions, dtype=np.float64)
+        ray_origins = np.array(ray_origins, dtype=np.float64)
+        ray_directions = np.array(ray_directions, dtype=np.float64)
         if ray_origins.shape != ray_directions.shape:
             raise ValueError("Ray origin and direction don't match!")
         ray_directions = util.unitize(ray_directions)
