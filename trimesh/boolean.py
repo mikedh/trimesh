@@ -149,19 +149,18 @@ def boolean_manifold(
             raise ValueError("Difference only defined over two meshes.")
 
         result_manifold = manifolds[0] - manifolds[1]
-    elif operation == "union":
+    elif operation in ["union", "intersection"]:
         for lvl in range(int(1 + np.log2(len(manifolds)))):
             results = []
             for i in np.arange(len(manifolds) // 2) * 2:
-                results.append(manifolds[i] + manifolds[i + 1])    
+                if operation == "union":
+                    results.append(manifolds[i] + manifolds[i + 1])
+                else: # operation == "intersection":
+                    results.append(manifolds[i] ^ manifolds[i + 1])
             if len(manifolds) % 2:
                 results.append(manifolds[-1])
             manifolds = results
         result_manifold = manifolds[0]
-    elif operation == "intersection":
-        result_manifold = manifolds[0]
-        for manifold in manifolds[1:]:
-            result_manifold = result_manifold ^ manifold
     else:
         raise ValueError(f"Invalid boolean operation: '{operation}'")
 
