@@ -12,7 +12,7 @@ import itertools
 import os
 
 from . import caching, util
-from .typed import Dict, Optional
+from .typed import Dict, Mapping, Optional, Union
 
 # URL parsing for remote resources via WebResolver
 try:
@@ -167,7 +167,7 @@ class ZipResolver(Resolver):
     Resolve files inside a ZIP archive.
     """
 
-    def __init__(self, archive:Optional[Dict]=None, namespace: Optional[str]=None):
+    def __init__(self, archive: Optional[Dict] = None, namespace: Optional[str] = None):
         """
         Resolve files inside a ZIP archive as loaded by
         trimesh.util.decompress
@@ -569,3 +569,7 @@ def nearby_names(name, namespace=None):
         strip = namespace.strip("/").split("/")[: -name.count("..")]
         strip.extend(name.split("..")[-1].strip("/").split("/"))
         yield "/".join(strip)
+
+
+# most loaders can use a mapping in additon to a resolver
+ResolverLike = Union[Resolver, Mapping]

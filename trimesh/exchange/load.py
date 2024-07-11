@@ -9,7 +9,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Dict, Loadable, Optional, Union
+from ..typed import Loadable, Optional
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -71,7 +71,7 @@ def available_formats() -> set:
 def load(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Union[resolvers.Resolver, Dict, None] = None,
+    resolver: Optional[resolvers.ResolverLike] = None,
     force: Optional[str] = None,
     allow_remote: bool = False,
     **kwargs,
@@ -118,6 +118,9 @@ def load(
         resolver,  # object to load referenced resources
         is_remote,  #  is this a URL
     ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+
+    if is_remote and not allow_remote:
+        raise ValueError("URL passed with `allow_remote=False`")
 
     try:
         if isinstance(file_obj, dict):
@@ -179,7 +182,7 @@ def load(
 def load_scene(
     file_obj: Loadable,
     file_type: Optional[str] = None,
-    resolver: Union[resolvers.Resolver, Dict, None] = None,
+    resolver: Optional[resolvers.ResolverLike] = None,
     allow_remote: bool = False,
     **kwargs,
 ) -> Scene:
@@ -222,6 +225,8 @@ def load_scene(
 
     return loaded
 
+    """ """
+
 
 def load_mesh(*args, **kwargs) -> Trimesh:
     """
@@ -241,7 +246,7 @@ def load_mesh(*args, **kwargs) -> Trimesh:
     mesh
       Loaded geometry data.
     """
-    return load(*args, **kwargs).dump_mesh()
+    return load_scene(*args, **kwargs).dump_mesh()
 
 
 def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwargs):
@@ -533,7 +538,7 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
 def _parse_file_args(
     file_obj: Loadable,
     file_type: Optional[str],
-    resolver: Union[None, Dict, resolvers.Resolver] = None,
+    resolver: Optional[resolvers.ResolverLike] = None,
     **kwargs,
 ):
     """
