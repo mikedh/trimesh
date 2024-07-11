@@ -2,6 +2,7 @@ import numpy as np
 
 from ... import graph, grouping, util
 from ...constants import tol_path
+from ...typed import ArrayLike, Dict
 from ..entities import Arc, Line
 
 
@@ -98,14 +99,18 @@ def polygon_to_path(polygon):
         boundaries = [polygon.boundary]
 
     # append interiors as single Line objects
+    current = 0
     for boundary in boundaries:
-        entities.append(Line(np.arange(len(boundary.coords)) + len(vertices)))
+        entities.append(Line(np.arange(len(boundary.coords)) + current))
+        current += len(boundary.coords)
         # append the new vertex array
-        vertices.extend(boundary.coords)
+        vertices.append(np.array(boundary.coords))
 
     # make sure result arrays are numpy
-    kwargs = {"entities": entities, "vertices": np.array(vertices)}
-
+    kwargs = {
+        "entities": entities,
+        "vertices": np.vstack(vertices) if len(vertices) > 0 else vertices,
+    }
     return kwargs
 
 
@@ -173,7 +178,7 @@ def faces_to_path(mesh, face_ids=None, **kwargs):
     return kwargs
 
 
-def edges_to_path(edges, vertices, **kwargs):
+def edges_to_path(edges: ArrayLike, vertices: ArrayLike, **kwargs) -> Dict:
     """
     Given an edge list of indices and associated vertices
     representing lines, generate kwargs for a Path object.

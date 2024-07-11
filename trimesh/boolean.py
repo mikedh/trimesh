@@ -8,7 +8,7 @@ Do boolean operations on meshes using either Blender or Manifold.
 import numpy as np
 
 from . import exceptions, interfaces
-from .typed import Iterable, Optional
+from .typed import Callable, Iterable, Optional
 
 try:
     from manifold3d import Manifold, Mesh
@@ -111,7 +111,6 @@ def boolean_manifold(
     meshes: Iterable,
     operation: str,
     check_volume: bool = True,
-    debug: bool = False,
     **kwargs,
 ):
     """
@@ -127,12 +126,12 @@ def boolean_manifold(
       Raise an error if not all meshes are watertight
       positive volumes. Advanced users may want to ignore
       this check as it is expensive.
-    debug
-      Enable potentially slow additional checks and debug info.
     kwargs
       Passed through to the `engine`.
-
     """
+    if check_volume and not all(m.is_volume for m in meshes):
+        raise ValueError("Not all meshes are volumes!")
+
     # Convert to manifold meshes
     manifolds = [
         Manifold(
@@ -151,14 +150,9 @@ def boolean_manifold(
 
         result_manifold = manifolds[0] - manifolds[1]
     elif operation == "union":
-        result_manifold = manifolds[0]
-        for manifold in manifolds[1:]:
-            result_manifold = result_manifold + manifold
+        result_manifold = reduce_cascade(lambda a, b: a + b, manifolds)
     elif operation == "intersection":
-        result_manifold = manifolds[0]
-
-        for manifold in manifolds[1:]:
-            result_manifold = result_manifold ^ manifold
+        result_manifold = reduce_cascade(lambda a, b: a ^ b, manifolds)
     else:
         raise ValueError(f"Invalid boolean operation: '{operation}'")
 
@@ -169,6 +163,61 @@ def boolean_manifold(
     out_mesh = Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
 
     return out_mesh
+
+
+def reduce_cascade(operation: Callable, items: Iterable):
+    """
+    Call a function in a cascaded pairwise way against a
+    flat sequence of items. This should produce the same
+    result as `functools.reduce` but may be faster for some
+    functions that for example perform only as fast as their
+    largest input.
+
+    For example on `a b c d e f g` this function would run and return:
+        a b
+        c d
+        e f
+        ab cd
+        ef g
+        abcd efg
+     -> abcdefg
+
+    Where `functools.reduce` would run and return:
+        a b
+        ab c
+        abc d
+        abcd e
+        abcde f
+        abcdef g
+     -> abcdefg
+
+    Parameters
+    ----------
+    operation
+      The function to call on pairs of items.
+    items
+      The flat list of items to apply operation against.
+    """
+    if len(items) == 0:
+        return None
+    elif len(items) == 2:
+        # might as well skip the loop overhead
+        return operation(items[0], items[1])
+
+    for _ in range(int(1 + np.log2(len(items)))):
+        results = []
+        for i in np.arange(len(items) // 2) * 2:
+            results.append(operation(items[i], items[i + 1]))
+
+        if len(items) % 2:
+            results.append(items[-1])
+
+        items = results
+
+    # logic should have reduced to a single item
+    assert len(results) == 1
+
+    return results[0]
 
 
 # which backend boolean engines

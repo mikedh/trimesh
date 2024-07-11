@@ -32,6 +32,7 @@ def cross(triangles):
     """
     vectors = np.diff(triangles, axis=1)
     crosses = np.cross(vectors[:, 0], vectors[:, 1])
+
     return crosses
 
 
@@ -475,18 +476,10 @@ def barycentric_to_points(triangles, barycentric):
     points : (m, 3) float
       Points in space
     """
-    barycentric = np.asanyarray(barycentric, dtype=np.float64)
+    barycentric = np.array(barycentric, dtype=np.float64)
     triangles = np.asanyarray(triangles, dtype=np.float64)
 
-    if not util.is_shape(triangles, (-1, 3, 3)):
-        raise ValueError("Triangles must be (n, 3, 3)!")
-    if barycentric.shape == (2,):
-        barycentric = np.ones((len(triangles), 2), dtype=np.float64) * barycentric
-    if util.is_shape(barycentric, (len(triangles), 2)):
-        barycentric = np.column_stack((barycentric, 1.0 - barycentric.sum(axis=1)))
-    elif not util.is_shape(barycentric, (len(triangles), 3)):
-        raise ValueError("Barycentric shape incorrect!")
-
+    # normalize in-place
     barycentric /= barycentric.sum(axis=1).reshape((-1, 1))
     points = (triangles * barycentric.reshape((-1, 3, 1))).sum(axis=1)
 
@@ -506,9 +499,9 @@ def points_to_barycentric(triangles, points, method="cramer"):
 
     Parameters
     -----------
-    triangles : (n, 3, 3) float
+    triangles : (n, 3, 2 | 3) float
       Triangles vertices in space
-    points : (n, 3) float
+    points : (n, 2 | 3) float
       Point in space associated with a triangle
     method :  str
       Which method to compute the barycentric coordinates with:
@@ -550,13 +543,22 @@ def points_to_barycentric(triangles, points, method="cramer"):
     # establish that input triangles and points are sane
     triangles = np.asanyarray(triangles, dtype=np.float64)
     points = np.asanyarray(points, dtype=np.float64)
-    if not util.is_shape(triangles, (-1, 3, 3)):
+
+    # triangles should be (n, 3, dimension)
+    if len(triangles.shape) != 3:
         raise ValueError("triangles shape incorrect")
-    if not util.is_shape(points, (len(triangles), 3)):
+
+    # this should work for 2D and 3D triangles
+    dim = triangles.shape[2]
+    if (
+        len(points.shape) != 2
+        or points.shape[1] != dim
+        or points.shape[0] != triangles.shape[0]
+    ):
         raise ValueError("triangles and points must correspond")
 
     edge_vectors = triangles[:, 1:] - triangles[:, :1]
-    w = points - triangles[:, 0].reshape((-1, 3))
+    w = points - triangles[:, 0].reshape((-1, dim))
 
     if method == "cross":
         return method_cross()

@@ -84,7 +84,7 @@ def union(intervals: ArrayLike, sort: bool = True) -> NDArray[float64]:
       New intervals where `m <= n`
     """
     if len(intervals) == 0:
-        return np.empty(0)
+        return np.zeros(0)
 
     # if the intervals have not been pre-sorted we should apply our sorting logic
     # you would only skip this if you are subsetting a larger list elsewhere.
