@@ -198,7 +198,7 @@ def hashable_rows(
         d_min, d_max = as_int.min(), as_int.max()
         # since we are quantizing the data down we need every value
         # to fit in a partial integer so we have to check against extrema
-        threshold = 2 ** (precision - 1)
+        threshold = (2 ** (precision - 1)) - 1
 
         # if the data is within the range of our precision threshold
         if d_max < threshold and d_min > -threshold:
@@ -206,7 +206,7 @@ def hashable_rows(
             hashable = np.zeros(len(as_int), dtype=np.uint64)
             # offset to the middle of the unsigned integer range
             # this array should contain only positive values
-            bitbang = as_int.astype(np.uint64).T + threshold
+            bitbang = (as_int.T + (threshold + 1)).astype(np.uint64)
             # loop through each column and bitwise xor to combine
             # make sure as_int is int64 otherwise bit offset won't work
             for offset, column in enumerate(bitbang):
@@ -223,7 +223,7 @@ def hashable_rows(
     return result
 
 
-def float_to_int(data, digits: Optional[Integer] = None):
+def float_to_int(data, digits: Optional[Integer] = None) -> NDArray[np.int64]:
     """
     Given a numpy array of float/bool/int, return as integers.
 
@@ -244,8 +244,10 @@ def float_to_int(data, digits: Optional[Integer] = None):
 
     # we can early-exit if we've been passed data that is already
     # an integer, unsigned integer, boolean, or empty
-    if data.dtype.kind in "iub" or data.size == 0:
+    if data.dtype == np.int64:
         return data
+    elif data.dtype.kind in "iub" or data.size == 0:
+        return data.astype(np.int64)
     elif data.dtype.kind != "f":
         # if it's not a floating point try to make it one
         data = data.astype(np.float64)
@@ -256,16 +258,10 @@ def float_to_int(data, digits: Optional[Integer] = None):
     elif not isinstance(digits, (int, np.integer)):
         raise TypeError("Digits must be `None` or `int`, not `{type(digits)}`")
 
-    # see if we can use a smaller integer
-    d_extrema = max(abs(data.min()), abs(data.max())) * 10**digits
-
-    # compare against `np.iinfo(np.int32).max`
-    dtype = [np.int32, np.int64][int(d_extrema > 2147483646)]
-
     # multiply by requested power of ten
     # then subtract small epsilon to avoid "go either way" rounding
     # then do the rounding and convert to integer
-    return np.round((data * 10**digits) - 1e-6).astype(dtype)
+    return np.round((data * 10**digits) - 1e-6).astype(np.int64)
 
 
 def unique_ordered(data, return_index=False, return_inverse=False):
