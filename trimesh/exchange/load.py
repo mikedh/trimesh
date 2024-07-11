@@ -75,7 +75,7 @@ def load(
     force: Optional[str] = None,
     allow_remote: bool = False,
     **kwargs,
-) -> Scene:
+) -> Geometry:
     """
     Load a mesh or vectorized path into objects like
     Trimesh, Path2D, Path3D, Scene
@@ -104,7 +104,9 @@ def load(
     # check to see if we're trying to load something
     # that is already a native trimesh Geometry subclass
     if isinstance(file_obj, Geometry):
-        log.info("Load called on %s object, returning input", file_obj.__class__.__name__)
+        log.debug(
+            "trimesh.load called on %s returning input", file_obj.__class__.__name__
+        )
         return file_obj
 
     # parse the file arguments into clean loadable form
@@ -147,6 +149,7 @@ def load(
             else:
                 raise ValueError(f"File type: {file_type} not supported")
     finally:
+        # if we opened the file ourselves from a file name
         # close any opened files even if we crashed out
         if opened:
             file_obj.close()
@@ -154,19 +157,65 @@ def load(
     # add load metadata ('file_name') to each loaded geometry
     if isinstance(loaded, list):
         [L.metadata.update(metadata) for L in loaded]
+        # make a scene from it
+        loaded = Scene(loaded)
     elif isinstance(loaded, dict):
+        # wtf is this case?
         [L.metadata.update(metadata) for L in loaded.values()]
     elif isinstance(getattr(loaded, "metadata", None), dict):
         loaded.metadata.update(metadata)
 
-    # if we opened the file in this function ourselves from a
-    # file name clean up after ourselves by closing it
-    if opened:
-        file_obj.close()
-
     # combine a scene into a single mesh
-    if force == "mesh" and isinstance(loaded, Scene):
-        return util.concatenate(loaded.dump())
+    if force == "mesh":
+        log.debug("hey in the future use `load_mesh` ;)")
+        return loaded.dump_mesh()
+
+    if not isinstance(loaded, Scene):
+        return Scene(loaded)
+
+    return loaded
+
+
+def load_scene(
+    file_obj: Loadable,
+    file_type: Optional[str] = None,
+    resolver: Union[resolvers.Resolver, Dict, None] = None,
+    allow_remote: bool = False,
+    **kwargs,
+) -> Scene:
+    """
+    Load geometry into the `trimesh.Scene` container. This may contain
+    any `parent.Geometry` object, including `Trimesh`, `Path2D`, `Path3D`,
+    or a `PointCloud`.
+
+    Parameters
+    -----------
+    file_obj : str, or file- like object
+      The source of the data to be loadeded
+    file_type: str
+      What kind of file type do we have (eg: 'stl')
+    resolver : trimesh.visual.Resolver
+      Object to load referenced assets like materials and textures
+    force : None or str
+      For 'mesh': try to coerce scenes into a single mesh
+      For 'scene': try to coerce everything into a scene
+    allow_remote
+      If True allow this load call to work on a remote URL.
+    kwargs : dict
+      Passed to geometry __init__
+
+    Returns
+    ---------
+    geometry : Trimesh, Path2D, Path3D, Scene
+      Loaded geometry as trimesh classes
+    """
+
+    loaded = load(
+        file_obj=file_obj,
+        file_type=file_type,
+        resolver=resolver,
+        allow_remote=allow_remote,
+    )
 
     if not isinstance(loaded, Scene):
         return Scene(loaded)
