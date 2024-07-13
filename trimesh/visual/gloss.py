@@ -360,7 +360,7 @@ def specular_to_pbr(
         # we need to use RGB textures, because 2 channel textures can cause problems
         result["metallicRoughnessTexture"] = toPIL(
             np.concatenate(
-                [metallic, 1.0 - glossiness, np.zeros_like(metallic)], axis=-1
+                [np.zeros_like(metallic), 1.0 - glossiness, metallic], axis=-1
             ),
             mode="RGB",
         )
