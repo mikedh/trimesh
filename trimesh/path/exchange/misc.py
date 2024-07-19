@@ -111,6 +111,7 @@ def polygon_to_path(polygon):
         "entities": entities,
         "vertices": np.vstack(vertices) if len(vertices) > 0 else vertices,
     }
+
     return kwargs
 
 
