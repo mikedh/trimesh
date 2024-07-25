@@ -323,7 +323,7 @@ def rotation_matrix(angle, direction, point=None):
     angle     : float, or sympy.Symbol
       Angle, in radians or symbolic angle
     direction : (3,) float
-      Unit vector along rotation axis
+      Any vector along rotation axis
     point     : (3, ) float, or None
       Origin point of rotation axis
 
