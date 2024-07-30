@@ -6,15 +6,7 @@ except BaseException:
 
 class CreationTest(g.unittest.TestCase):
     def setUp(self):
-        engines = []
-        if g.trimesh.util.has_module("triangle"):
-            engines.append("triangle")
-        if g.trimesh.util.has_module("mapbox_earcut"):
-            engines.append("earcut")
-        if g.trimesh.util.has_module("manifold3d"):
-            engines.append("manifold")
-
-        self.engines = engines
+        self.engines = list(g.trimesh.creation._engines.keys())
 
     def test_box(self):
         box = g.trimesh.creation.box

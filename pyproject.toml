@@ -79,6 +79,8 @@ easy = [
     "pillow",
     "vhacdx",
     "xatlas",
+    "earcutx", 
+    # "mapbox-earcut", # Blocked for Numpy2
 ]
 
 recommend = [
@@ -91,7 +93,6 @@ recommend = [
     "python-fcl", # do collision checks
     "openctm", # load `CTM` compressed models
     "cascadio", # load `STEP` files
-    "mapbox-earcut", # BLOCKED FOR NUMPY2
     
 ]
 
@@ -103,7 +104,7 @@ test = [
     "pyright",
     "ezdxf",
     "pytest",
-    #     "pymeshlab; python_version<='3.11'",
+    "pymeshlab; python_version<='3.11'",
     "pyinstrument",
     "matplotlib",
     "ruff",

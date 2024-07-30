@@ -32,6 +32,7 @@ except BaseException as E:
 _data = get_json("creation.json")
 _engines = [
     ("earcut", util.has_module("mapbox_earcut")),
+    ("earcutx", util.has_module("earcutx")),
     ("manifold", util.has_module("manifold3d")),
     ("triangle", util.has_module("triangle")),
 ]
@@ -565,7 +566,10 @@ def triangulate_polygon(
         return [], []
 
     if engine == "earcut":
-        from mapbox_earcut import triangulate_float64
+        try:
+            from earcutx import triangulate_float64
+        except BaseException:
+            from mapbox_earcut import triangulate_float64
 
         # get vertices as sequence where exterior
         # is the first value
