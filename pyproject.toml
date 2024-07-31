@@ -79,8 +79,8 @@ easy = [
     "pillow",
     "vhacdx",
     "xatlas",
-    "earcutx", 
-    # "mapbox-earcut", # Blocked for Numpy2
+    # "earcutx", 
+    "mapbox-earcut"
 ]
 
 recommend = [
