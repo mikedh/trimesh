@@ -77,9 +77,8 @@ easy = [
     "scipy",
     "embreex; platform_machine=='x86_64'",
     "pillow",
-    "vhacdx",
     "xatlas",
-    # "earcutx", 
+    "vhacdx; python_version>='3.9'"
     "mapbox-earcut"
 ]
 
