@@ -78,7 +78,7 @@ easy = [
     "embreex; platform_machine=='x86_64'",
     "pillow",
     "xatlas",
-    "vhacdx; python_version>='3.9'"
+    "vhacdx; python_version>='3.9'",
     "mapbox-earcut"
 ]
 
