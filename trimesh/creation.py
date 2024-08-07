@@ -30,8 +30,9 @@ except BaseException as E:
 
 # get stored values for simple box and icosahedron primitives
 _data = get_json("creation.json")
+# check available triangulation engines without importing them
 _engines = [
-    ("earcut", util.has_module("earcutx")),
+    ("earcut", util.has_module("mapbox_earcut")),
     ("manifold", util.has_module("manifold3d")),
     ("triangle", util.has_module("triangle")),
 ]
@@ -565,10 +566,7 @@ def triangulate_polygon(
         return [], []
 
     if engine == "earcut":
-        try:
-            from earcutx import triangulate_float64
-        except ImportError:
-            from mapbox_earcut import triangulate_float64
+        from mapbox_earcut import triangulate_float64
 
         # get vertices as sequence where exterior
         # is the first value

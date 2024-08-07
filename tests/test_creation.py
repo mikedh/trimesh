@@ -6,7 +6,7 @@ except BaseException:
 
 class CreationTest(g.unittest.TestCase):
     def setUp(self):
-        self.engines = [k for k, _ in g.trimesh.creation._engines]
+        self.engines = [k for k, exists in g.trimesh.creation._engines if exists]
 
     def test_box(self):
         box = g.trimesh.creation.box
