@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.8"
-version = "4.4.3"
+version = "4.4.4"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -77,8 +77,10 @@ easy = [
     "scipy",
     "embreex; platform_machine=='x86_64'",
     "pillow",
-    "vhacdx",
     "xatlas",
+    "vhacdx; python_version>='3.9'",
+    # old versions of mapbox_earcut produce incorrect values on numpy 2.0
+    "mapbox_earcut >= 1.0.2; python_version>='3.9'",
 ]
 
 recommend = [
@@ -91,7 +93,6 @@ recommend = [
     "python-fcl", # do collision checks
     "openctm", # load `CTM` compressed models
     "cascadio", # load `STEP` files
-    "mapbox-earcut", # BLOCKED FOR NUMPY2
     
 ]
 
@@ -103,7 +104,7 @@ test = [
     "pyright",
     "ezdxf",
     "pytest",
-    #     "pymeshlab; python_version<='3.11'",
+    "pymeshlab; python_version<='3.11'",
     "pyinstrument",
     "matplotlib",
     "ruff",

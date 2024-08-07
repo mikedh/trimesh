@@ -307,7 +307,8 @@ class GLTFTest(g.unittest.TestCase):
         )
         assert metallic_roughness.shape[0] == 84 and metallic_roughness.shape[1] == 71
 
-        metallic = metallic_roughness[:, :, 0]
+        # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
+        metallic = metallic_roughness[:, :, 2]
         roughness = metallic_roughness[:, :, 1]
 
         assert g.np.allclose(metallic[0, 0], 0.231, atol=0.004)

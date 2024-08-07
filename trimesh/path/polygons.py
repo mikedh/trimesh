@@ -50,6 +50,16 @@ def enclosure_tree(polygons):
        contained by another polygon
     """
 
+    # nodes are indexes in polygons
+    contains = nx.DiGraph()
+
+    if len(polygons) == 0:
+        return np.array([], dtype=np.int64), contains
+    elif len(polygons) == 1:
+        # add an early exit for only a single polygon
+        contains.add_node(0)
+        return np.array([0], dtype=np.int64), contains
+
     # get the bounds for every valid polygon
     bounds = {
         k: v
@@ -59,8 +69,6 @@ def enclosure_tree(polygons):
         if len(v) == 4
     }
 
-    # nodes are indexes in polygons
-    contains = nx.DiGraph()
     # make sure we don't have orphaned polygon
     contains.add_nodes_from(bounds.keys())
 
@@ -551,13 +559,18 @@ def paths_to_polygons(paths, scale=None):
             # non-zero area
             continue
         try:
-            polygons[i] = repair_invalid(Polygon(path), scale)
+            polygon = Polygon(path)
+            if polygon.is_valid:
+                polygons[i] = polygon
+            else:
+                polygons[i] = repair_invalid(polygon, scale)
         except ValueError:
             # raised if a polygon is unrecoverable
             continue
         except BaseException:
             log.error("unrecoverable polygon", exc_info=True)
     polygons = np.array(polygons)
+
     return polygons
 
 

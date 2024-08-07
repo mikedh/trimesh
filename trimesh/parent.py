@@ -343,7 +343,7 @@ class Geometry3D(Geometry):
 
         if tol.strict:
             # obb transform should not have changed volume
-            if hasattr(self, "volume"):
+            if hasattr(self, "volume") and getattr(self, "is_watertight", False):
                 assert np.isclose(self.volume, volume)
             # overall extents should match what we expected
             assert np.allclose(self.extents, extents)

@@ -16,7 +16,7 @@ from .typed import NDArray, Optional, float64
 from .util import diagonal_dot, unitize
 
 
-def cross(triangles):
+def cross(triangles: NDArray) -> NDArray:
     """
     Returns the cross product of two edges from input triangles
 
@@ -30,13 +30,19 @@ def cross(triangles):
     crosses : (n, 3) float
       Cross product of two edge vectors
     """
-    vectors = np.diff(triangles, axis=1)
-    crosses = np.cross(vectors[:, 0], vectors[:, 1])
+    vectors = triangles[:, 1:, :] - triangles[:, :2, :]
+    if triangles.shape[2] == 3:
+        return np.cross(vectors[:, 0], vectors[:, 1])
+    elif triangles.shape[2] == 2:
+        a = vectors[:, 0]
+        b = vectors[:, 1]
+        # numpy 2.0 deprecated 2D cross productes
+        return a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]
 
-    return crosses
+    raise ValueError(triangles.shape)
 
 
-def area(triangles=None, crosses=None, sum=False):
+def area(triangles=None, crosses=None):
     """
     Calculates the sum area of input triangles
 
@@ -55,11 +61,8 @@ def area(triangles=None, crosses=None, sum=False):
       Individual or summed area depending on `sum` argument
     """
     if crosses is None:
-        crosses = cross(triangles)
-    areas = np.sqrt((crosses**2).sum(axis=1)) / 2.0
-    if sum:
-        return areas.sum()
-    return areas
+        crosses = cross(np.asanyarray(triangles, dtype=np.float64))
+    return np.sqrt((crosses**2).sum(axis=1)) / 2.0
 
 
 def normals(triangles=None, crosses=None):
@@ -80,6 +83,8 @@ def normals(triangles=None, crosses=None):
     valid : (n,) bool
       Was the face nonzero area or not
     """
+    if triangles is not None and triangles.shape[-1] == 2:
+        return np.tile([0.0, 0.0, 1.0], (triangles.shape[0], 1))
     if crosses is None:
         crosses = cross(triangles)
     # unitize the cross product vectors
@@ -271,10 +276,9 @@ def mass_properties(
             + (triangles[:, 2, triangle_i] * g2[:, i])
         )
 
-    coefficients = 1.0 / np.array(
+    integrated = integral.sum(axis=1) / np.array(
         [6, 24, 24, 24, 60, 60, 60, 120, 120, 120], dtype=np.float64
     )
-    integrated = integral.sum(axis=1) * coefficients
 
     volume = integrated[0]
 
@@ -435,7 +439,7 @@ def extents(triangles, areas=None):
         raise ValueError("Triangles must be (n, 3, 3)!")
 
     if areas is None:
-        areas = area(triangles=triangles, sum=False)
+        areas = area(triangles=triangles)
 
     # the edge vectors which define the triangle
     a = triangles[:, 1] - triangles[:, 0]

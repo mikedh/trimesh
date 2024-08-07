@@ -91,7 +91,7 @@ def convex_hull(obj, qhull_options="QbB Pp Qt", repair=True):
     crosses = crosses[valid]
 
     # each triangle area and mean center
-    triangles_area = triangles.area(crosses=crosses, sum=False)
+    triangles_area = triangles.area(crosses=crosses)
     triangles_center = vertices[faces].mean(axis=1)
 
     # since the convex hull is (hopefully) convex, the vector from

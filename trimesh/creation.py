@@ -30,6 +30,7 @@ except BaseException as E:
 
 # get stored values for simple box and icosahedron primitives
 _data = get_json("creation.json")
+# check available triangulation engines without importing them
 _engines = [
     ("earcut", util.has_module("mapbox_earcut")),
     ("manifold", util.has_module("manifold3d")),

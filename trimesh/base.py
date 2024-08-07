@@ -2667,7 +2667,7 @@ class Trimesh(Geometry3D):
         area_faces : (n, ) float
           Area of each face
         """
-        return triangles.area(crosses=self.triangles_cross, sum=False)
+        return triangles.area(crosses=self.triangles_cross)
 
     @caching.cache_decorator
     def mass_properties(self) -> MassProperties:
