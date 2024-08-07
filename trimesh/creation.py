@@ -566,10 +566,7 @@ def triangulate_polygon(
         return [], []
 
     if engine == "earcut":
-        try:
-            from earcutx import triangulate_float64
-        except BaseException:
-            from mapbox_earcut import triangulate_float64
+        from mapbox_earcut import triangulate_float64
 
         # get vertices as sequence where exterior
         # is the first value
