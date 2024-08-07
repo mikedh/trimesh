@@ -5,8 +5,6 @@ from typing import (
     IO,
     Any,
     BinaryIO,
-    Callable,
-    Mapping,
     Optional,
     TextIO,
     Union,
@@ -22,9 +20,9 @@ if version_info >= (3, 9):
     List = list
     Tuple = tuple
     Dict = dict
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 else:
-    from typing import Dict, Iterable, List, Sequence, Tuple
+    from typing import Callable, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict

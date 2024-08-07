@@ -167,11 +167,19 @@ def boolean_manifold(
 
 def reduce_cascade(operation: Callable, items: Iterable):
     """
-    Call a function in a cascaded pairwise way against a
-    flat sequence of items. This should produce the same
-    result as `functools.reduce` but may be faster for some
-    functions that for example perform only as fast as their
-    largest input.
+    Call an operation function in a cascaded pairwise way against a
+    flat iterable of items.
+
+    This should produce the same result as `functools.reduce`
+    if `operation` is commutable like addition or multiplication.
+    This will may be faster for an `operation` that runs
+    with a speed proportional to its largest input which mesh
+    booleans appear to. The union of a large number of small meshes
+    appears to be "much faster" using this method.
+
+    This only differs from `functools.reduce` for commutative `operation`
+    in that it returns `None` on empty inputs rather than `functools.reduce`
+    which raises a `TypeError`.
 
     For example on `a b c d e f g` this function would run and return:
         a b
@@ -200,8 +208,11 @@ def reduce_cascade(operation: Callable, items: Iterable):
     """
     if len(items) == 0:
         return None
+    elif len(items) == 1:
+        # skip the loop overhead for a single item
+        return items[0]
     elif len(items) == 2:
-        # might as well skip the loop overhead
+        # skip the loop overhead for a single pair
         return operation(items[0], items[1])
 
     for _ in range(int(1 + np.log2(len(items)))):

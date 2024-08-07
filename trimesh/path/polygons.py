@@ -53,7 +53,9 @@ def enclosure_tree(polygons):
     # nodes are indexes in polygons
     contains = nx.DiGraph()
 
-    if len(polygons) == 1:
+    if len(polygons) == 0:
+        return np.array([], dtype=np.int64), contains
+    elif len(polygons) == 1:
         # add an early exit for only a single polygon
         contains.add_node(0)
         return np.array([0], dtype=np.int64), contains
