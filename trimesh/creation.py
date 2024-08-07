@@ -1226,7 +1226,7 @@ def axis(
         axis_length = origin_size * 10.0
 
     # generate a ball for the origin
-    axis_origin = uv_sphere(radius=origin_size, count=[10, 10])
+    axis_origin = icosphere(radius=origin_size)
     axis_origin.apply_transform(transform)
 
     # apply color to the origin ball
