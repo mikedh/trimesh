@@ -79,7 +79,7 @@ easy = [
     "pillow",
     "xatlas",
     "vhacdx; python_version>='3.9'",
-    "mapbox-earcut"
+    "earcutx; python_version>='3.9'",
 ]
 
 recommend = [
