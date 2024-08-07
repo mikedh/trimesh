@@ -1,0 +1,7 @@
+trimesh.visual.color module
+===========================
+
+.. automodule:: trimesh.visual.color
+   :members:
+   :undoc-members:
+   :show-inheritance:

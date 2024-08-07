@@ -1,0 +1,7 @@
+trimesh.resolvers module
+========================
+
+.. automodule:: trimesh.resolvers
+   :members:
+   :undoc-members:
+   :show-inheritance:

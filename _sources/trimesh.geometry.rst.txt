@@ -1,0 +1,7 @@
+trimesh.geometry module
+=======================
+
+.. automodule:: trimesh.geometry
+   :members:
+   :undoc-members:
+   :show-inheritance:

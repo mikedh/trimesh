@@ -1,0 +1,7 @@
+trimesh.path.simplify module
+============================
+
+.. automodule:: trimesh.path.simplify
+   :members:
+   :undoc-members:
+   :show-inheritance:

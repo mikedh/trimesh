@@ -1,0 +1,7 @@
+trimesh.path.entities module
+============================
+
+.. automodule:: trimesh.path.entities
+   :members:
+   :undoc-members:
+   :show-inheritance:

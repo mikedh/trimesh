@@ -1,0 +1,7 @@
+trimesh.registration module
+===========================
+
+.. automodule:: trimesh.registration
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.path.segments module
+============================
+
+.. automodule:: trimesh.path.segments
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.path.packing module
+===========================
+
+.. automodule:: trimesh.path.packing
+   :members:
+   :undoc-members:
+   :show-inheritance:

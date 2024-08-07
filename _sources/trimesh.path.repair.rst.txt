@@ -1,0 +1,7 @@
+trimesh.path.repair module
+==========================
+
+.. automodule:: trimesh.path.repair
+   :members:
+   :undoc-members:
+   :show-inheritance:

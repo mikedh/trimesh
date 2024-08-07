@@ -1,0 +1,7 @@
+trimesh.ray.ray\_util module
+============================
+
+.. automodule:: trimesh.ray.ray_util
+   :members:
+   :undoc-members:
+   :show-inheritance:

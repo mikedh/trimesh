@@ -1,0 +1,20 @@
+trimesh.ray package
+===================
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   trimesh.ray.ray_pyembree
+   trimesh.ray.ray_triangle
+   trimesh.ray.ray_util
+
+Module contents
+---------------
+
+.. automodule:: trimesh.ray
+   :members:
+   :undoc-members:
+   :show-inheritance:

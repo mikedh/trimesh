@@ -1,0 +1,7 @@
+trimesh.version module
+======================
+
+.. automodule:: trimesh.version
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,21 @@
+trimesh.scene package
+=====================
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   trimesh.scene.cameras
+   trimesh.scene.lighting
+   trimesh.scene.scene
+   trimesh.scene.transforms
+
+Module contents
+---------------
+
+.. automodule:: trimesh.scene
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.decomposition module
+============================
+
+.. automodule:: trimesh.decomposition
+   :members:
+   :undoc-members:
+   :show-inheritance:

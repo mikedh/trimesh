@@ -1,0 +1,7 @@
+trimesh.inertia module
+======================
+
+.. automodule:: trimesh.inertia
+   :members:
+   :undoc-members:
+   :show-inheritance:

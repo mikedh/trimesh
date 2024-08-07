@@ -1,0 +1,7 @@
+trimesh.exchange.xyz module
+===========================
+
+.. automodule:: trimesh.exchange.xyz
+   :members:
+   :undoc-members:
+   :show-inheritance:

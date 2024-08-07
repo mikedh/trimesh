@@ -1,0 +1,7 @@
+trimesh.path.creation module
+============================
+
+.. automodule:: trimesh.path.creation
+   :members:
+   :undoc-members:
+   :show-inheritance:

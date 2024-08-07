@@ -1,0 +1,7 @@
+trimesh.exchange.threemf module
+===============================
+
+.. automodule:: trimesh.exchange.threemf
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.constants module
+========================
+
+.. automodule:: trimesh.constants
+   :members:
+   :undoc-members:
+   :show-inheritance:

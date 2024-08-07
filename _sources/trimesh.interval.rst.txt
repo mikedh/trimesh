@@ -1,0 +1,7 @@
+trimesh.interval module
+=======================
+
+.. automodule:: trimesh.interval
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.voxel.base module
+=========================
+
+.. automodule:: trimesh.voxel.base
+   :members:
+   :undoc-members:
+   :show-inheritance:

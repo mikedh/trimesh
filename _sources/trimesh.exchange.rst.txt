@@ -1,0 +1,33 @@
+trimesh.exchange package
+========================
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   trimesh.exchange.binvox
+   trimesh.exchange.cascade
+   trimesh.exchange.dae
+   trimesh.exchange.export
+   trimesh.exchange.gltf
+   trimesh.exchange.load
+   trimesh.exchange.misc
+   trimesh.exchange.obj
+   trimesh.exchange.off
+   trimesh.exchange.ply
+   trimesh.exchange.stl
+   trimesh.exchange.threedxml
+   trimesh.exchange.threemf
+   trimesh.exchange.urdf
+   trimesh.exchange.xaml
+   trimesh.exchange.xyz
+
+Module contents
+---------------
+
+.. automodule:: trimesh.exchange
+   :members:
+   :undoc-members:
+   :show-inheritance:
