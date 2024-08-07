@@ -15,9 +15,9 @@ import numpy as np
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
-from ..resolvers import Resolver, ZipResolver
+from ..resolvers import ResolverLike, ZipResolver
 from ..scene.cameras import Camera
-from ..typed import Mapping, NDArray, Optional, Stream, Union
+from ..typed import NDArray, Optional, Stream
 from ..util import triangle_strips_to_faces, unique_name
 from ..visual.gloss import specular_to_pbr
 
@@ -49,9 +49,6 @@ _default_material = {
         "roughnessFactor": 0,
     }
 }
-
-# we can accept dict resolvers
-ResolverLike = Union[Resolver, Mapping]
 
 # GL geometry modes
 _GL_LINES = 1
