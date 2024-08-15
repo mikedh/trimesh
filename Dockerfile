@@ -27,10 +27,7 @@ COPY --chown=499 pyproject.toml /home/user/
 USER user
 
 # install trimesh into .local
-# then delete any included test directories
-# and remove Cython after all the building is complete
-RUN pip install --user /home/user[easy] && \
-    find /home/user/.local -type d -name tests -prune -exec rm -rf {} \;
+RUN pip install --user /home/user[easy]
 
 ####################################
 ### Build output image most things should run on

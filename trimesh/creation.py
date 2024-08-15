@@ -591,11 +591,13 @@ def triangulate_polygon(
 
         # the outer ring is wound counter-clockwise
         rings = [
-            np.array(polygon.exterior.coords)[:: (1 if polygon.exterior.is_ccw else -1)]
+            np.array(polygon.exterior.coords)[:: (1 if polygon.exterior.is_ccw else -1)][
+                :-1
+            ]
         ]
         # wind interiors
         rings.extend(
-            np.array(b.coords)[:: (-1 if b.is_ccw else 1)] for b in polygon.interiors
+            np.array(b.coords)[:: (-1 if b.is_ccw else 1)][:-1] for b in polygon.interiors
         )
         faces = manifold3d.triangulate(rings)
         vertices = np.vstack(rings)

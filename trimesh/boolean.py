@@ -74,7 +74,7 @@ def union(
     if check_volume and not all(m.is_volume for m in meshes):
         raise ValueError("Not all meshes are volumes!")
 
-    return  _engines[engine](meshes, operation="union", **kwargs)
+    return _engines[engine](meshes, operation="union", **kwargs)
 
 
 def intersection(
