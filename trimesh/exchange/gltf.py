@@ -885,6 +885,7 @@ def _append_mesh(
             buff=buffer_items,
             blob={
                 "componentType": 5121,
+                "normalized": True,
                 "type": "VEC4",
                 "byteOffset": 0,
             },
@@ -1157,6 +1158,7 @@ def _append_path(path, name, tree, buffer_items):
             buff=buffer_items,
             blob={
                 "componentType": 5121,
+                "normalized": True,
                 "type": "VEC4",
                 "byteOffset": 0,
             },
@@ -1227,6 +1229,7 @@ def _append_point(points, name, tree, buffer_items):
             blob={
                 "componentType": 5121,
                 "count": vxlist[0],
+                "normalized": True,
                 "type": kind,
                 "byteOffset": 0,
             },
