@@ -8,6 +8,12 @@ RUN trimesh-setup --install llvmpipe
 # go back to the unprivileged user
 USER user
 
+# Set environment variables for software rendering.
+ENV XVFB_WHD="1920x1080x24"\
+    DISPLAY=":99" \
+    LIBGL_ALWAYS_SOFTWARE="1" \
+    GALLIUM_DRIVER="llvmpipe"
+
 # copy our example file which renders a sphere
 COPY render.py .
 
