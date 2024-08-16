@@ -74,8 +74,7 @@ def union(
     if check_volume and not all(m.is_volume for m in meshes):
         raise ValueError("Not all meshes are volumes!")
 
-    result = _engines[engine](meshes, operation="union", **kwargs)
-    return result
+    return _engines[engine](meshes, operation="union", **kwargs)
 
 
 def intersection(
@@ -160,9 +159,7 @@ def boolean_manifold(
     from . import Trimesh
 
     result_mesh = result_manifold.to_mesh()
-    out_mesh = Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
-
-    return out_mesh
+    return Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
 
 
 def reduce_cascade(operation: Callable, items: ArrayLike):
@@ -172,10 +169,11 @@ def reduce_cascade(operation: Callable, items: ArrayLike):
 
     This should produce the same result as `functools.reduce`
     if `operation` is commutable like addition or multiplication.
-    This will may be faster for an `operation` that runs
-    with a speed proportional to its largest input which mesh
-    booleans appear to. The union of a large number of small meshes
-    appears to be "much faster" using this method.
+    This may be faster for an `operation` that runs with a speed
+    proportional to its largest input, which mesh booleans appear to.
+
+    The union of a large number of small meshes appears to be
+    "much faster" using this method.
 
     This only differs from `functools.reduce` for commutative `operation`
     in that it returns `None` on empty inputs rather than `functools.reduce`

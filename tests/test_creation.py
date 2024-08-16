@@ -168,6 +168,16 @@ class CreationTest(g.unittest.TestCase):
             mesh = g.trimesh.creation.sweep_polygon(poly, path_closed, engine=engine)
             assert mesh.is_volume
 
+    def test_simple_watertight(self):
+        # create a simple polygon
+        polygon = g.Polygon(((0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)))
+
+        for engine in self.engines:
+            mesh = g.trimesh.creation.extrude_polygon(
+                polygon=polygon, height=1, engine=engine
+            )
+            assert mesh.is_volume
+
     def test_annulus(self):
         """
         Basic tests of annular cylinder creation

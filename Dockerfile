@@ -27,16 +27,7 @@ COPY --chown=499 pyproject.toml /home/user/
 USER user
 
 # install trimesh into .local
-# then delete any included test directories
-# and remove Cython after all the building is complete
-
-
-# TODO
-# remove mapbox-earcut fork when this is merged:
-# https://github.com/skogler/mapbox_earcut_python/pull/15
-RUN pip install --user /home/user[easy] && \
-    pip install --user --force-reinstall git+https://github.com/mikedh/mapbox_earcut_python.git && \
-    find /home/user/.local -type d -name tests -prune -exec rm -rf {} \;
+RUN pip install --user /home/user[easy]
 
 ####################################
 ### Build output image most things should run on
@@ -73,7 +64,8 @@ RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest and make sure we're on Numpy 2.X
-RUN pip install .[all] && \
+# todo : imagio is forcing a downgrade of numpy 2 in-place
+RUN pip install .[all] && pip install --force-reinstall --upgrade "numpy>2" && \
     python -c "import numpy as n; assert(n.__version__.startswith('2'))"
 
 # check for lint problems

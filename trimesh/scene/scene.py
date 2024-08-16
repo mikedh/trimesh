@@ -1325,17 +1325,13 @@ def split_scene(geometry, **kwargs):
     scene: trimesh.Scene
     """
     # already a scene, so return it
-    if util.is_instance_named(geometry, "Scene"):
+    if isinstance(geometry, Scene):
         return geometry
 
     # a list of things
     if util.is_sequence(geometry):
         metadata = {}
-        for g in geometry:
-            try:
-                metadata.update(g.metadata)
-            except BaseException:
-                continue
+        [metadata.update(getattr(g, "metadata", {})) for g in geometry]
         return Scene(geometry, metadata=metadata)
 
     # a single geometry so we are going to split
