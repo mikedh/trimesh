@@ -1,50 +1,41 @@
-FROM python:3.12-slim-bookworm AS base
+# use a vanilla Debian base image
+FROM debian:trixie-slim AS base
 LABEL maintainer="mikedh@kerfed.com"
 
-# Install helper script to PATH.
-COPY --chmod=755 docker/trimesh-setup /usr/local/bin/
-
 # Create a non-root user with `uid=499`.
-RUN useradd -m -u 499 -s /bin/bash user
+RUN useradd -m -u 499 -s /bin/bash user && \
+    apt-get update && \
+    apt-get install --no-install-recommends -qq -y python3.12-venv && \
+    apt-get clean -y 
 
-# Required for Python to be able to find libembree.
-ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+USER user
+
+WORKDIR /home/user
+RUN python3.12 -m venv venv
 
 # So scripts installed from pip are in $PATH
-ENV PATH="/home/user/.local/bin:$PATH"
+ENV PATH="/home/user/venv/bin:$PATH"
 
+# Install helper script to PATH.
+COPY --chmod=755 docker/trimesh-setup /home/user/venv/bin
+
+#######################################
 ## install things that need building
 FROM base AS build
-
-# install build essentials for compiling stuff
-RUN trimesh-setup --install build
 
 # copy in essential files
 COPY --chown=499 trimesh/ /home/user/trimesh
 COPY --chown=499 pyproject.toml /home/user/
 
-# switch to non-root user
-USER user
-
 # install trimesh into .local
-RUN pip install --user /home/user[easy]
+RUN pip install /home/user[easy]
 
 ####################################
 ### Build output image most things should run on
 FROM base AS output
 
-# switch to non-root user
-USER user
-WORKDIR /home/user
-
 # just copy over the results of the compiled packages
-COPY --chown=499 --from=build /home/user/.local /home/user/.local
-
-# Set environment variables for software rendering.
-ENV XVFB_WHD="1920x1080x24"\
-    DISPLAY=":99" \
-    LIBGL_ALWAYS_SOFTWARE="1" \
-    GALLIUM_DRIVER="llvmpipe"
+COPY --chown=499 --from=build /home/user/venv /home/user/venv
 
 ###############################
 #### Run Unit Tests

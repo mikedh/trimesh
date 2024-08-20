@@ -35,7 +35,6 @@ config_json = """
       "pandoc"
     ],
     "llvmpipe": [
-      "libgl1-mesa-glx",
       "libgl1-mesa-dri",
       "xvfb",
       "xauth",
@@ -43,8 +42,6 @@ config_json = """
       "freeglut3-dev"
     ],
     "test": [
-      "blender",
-      "openscad",
       "curl",
       "git"
     ],
