@@ -90,7 +90,7 @@ recommend = [
     "pyglet<2",
     "psutil",
     "scikit-image",
-    "python-fcl", # do collision checks
+    # "python-fcl", # do collision checks # TODO : broken on numpy 2
     "openctm", # load `CTM` compressed models
     "cascadio", # load `STEP` files
     
@@ -158,7 +158,6 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"
 "numpy.empty".msg = "uninitialized arrays are haunted try numpy.zeros"
-
 
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"

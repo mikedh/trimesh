@@ -10,10 +10,13 @@ internal consistency.
 
 import numpy as np
 
-from trimesh import util
+from .typed import ArrayLike, NDArray, Number, Optional, float64
+from .util import multi_dot
 
 
-def cylinder_inertia(mass, radius, height, transform=None):
+def cylinder_inertia(
+    mass: Number, radius: Number, height: Number, transform: Optional[ArrayLike] = None
+) -> NDArray[float64]:
     """
     Return the inertia tensor of a cylinder.
 
@@ -49,7 +52,7 @@ def cylinder_inertia(mass, radius, height, transform=None):
     return inertia
 
 
-def sphere_inertia(mass, radius):
+def sphere_inertia(mass: Number, radius: Number) -> NDArray[float64]:
     """
     Return the inertia tensor of a sphere.
 
@@ -65,11 +68,10 @@ def sphere_inertia(mass, radius):
     inertia : (3, 3) float
       Inertia tensor
     """
-    inertia = (2.0 / 5.0) * (radius**2) * mass * np.eye(3)
-    return inertia
+    return (2.0 / 5.0) * (radius**2) * mass * np.eye(3)
 
 
-def principal_axis(inertia):
+def principal_axis(inertia: ArrayLike):
     """
     Find the principal components and principal axis
     of inertia from the inertia tensor.
@@ -103,7 +105,12 @@ def principal_axis(inertia):
     return components, vectors
 
 
-def transform_inertia(transform, inertia_tensor, parallel_axis=False, mass=None):
+def transform_inertia(
+    transform: ArrayLike,
+    inertia_tensor: ArrayLike,
+    parallel_axis: bool = False,
+    mass: Optional[Number] = None,
+):
     """
      Transform an inertia tensor to a new frame.
 
@@ -172,9 +179,9 @@ def transform_inertia(transform, inertia_tensor, parallel_axis=False, mass=None)
         )
         aligned_inertia = inertia_tensor + mass * M
 
-        return util.multi_dot([rotation.T, aligned_inertia, rotation])
+        return multi_dot([rotation.T, aligned_inertia, rotation])
 
-    return util.multi_dot([rotation, inertia_tensor, rotation.T])
+    return multi_dot([rotation, inertia_tensor, rotation.T])
 
 
 def radial_symmetry(mesh):
@@ -250,7 +257,7 @@ def radial_symmetry(mesh):
     return None, None, None
 
 
-def scene_inertia(scene, transform):
+def scene_inertia(scene, transform: Optional[ArrayLike] = None) -> NDArray[float64]:
     """
     Calculate the inertia of a scene about a specific frame.
 
@@ -260,6 +267,11 @@ def scene_inertia(scene, transform):
       Scene with geometry.
     transform : None or (4, 4) float
       Homogeneous transform to compute inertia at.
+
+    Returns
+    ----------
+    moment : (3, 3)
+      Inertia tensor about requested frame
     """
     # shortcuts for tight loop
     graph = scene.graph

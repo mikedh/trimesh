@@ -348,10 +348,11 @@ def parse_mtl(mtl, resolver=None):
                 # if there is only one value return that
                 if len(value) == 1:
                     value = value[0]
-                # store the key by mapped value
-                material[mapped[key]] = value
-                # also store key by OBJ name
-                material[key] = value
+                if material is not None:
+                    # store the key by mapped value
+                    material[mapped[key]] = value
+                    # also store key by OBJ name
+                    material[key] = value
             except BaseException:
                 log.debug("failed to convert color!", exc_info=True)
         # pass everything as kwargs to material constructor
