@@ -288,6 +288,7 @@ class Geometry3D(Geometry):
         from . import bounds, primitives
 
         kwargs = bounds.minimum_cylinder(self)
+        kwargs["sections"] = self.sections
         mincyl = primitives.Cylinder(mutable=False, **kwargs)
         return mincyl
 

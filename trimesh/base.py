@@ -88,6 +88,7 @@ class Trimesh(Geometry3D):
         use_embree: bool = True,
         initial_cache: Optional[Dict[str, ndarray]] = None,
         visual: Optional[Union[ColorVisuals, TextureVisuals]] = None,
+        sections: int = 32,
         **kwargs,
     ) -> None:
         """
@@ -155,6 +156,9 @@ class Trimesh(Geometry3D):
             )
         else:
             self.visual = visual
+
+        # number of sections to use for bounding_cylinder
+        self.sections = sections
 
         # normals are accessed through setters/properties and are regenerated
         # if dimensions are inconsistent, but can be set by the constructor
