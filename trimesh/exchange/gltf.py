@@ -1446,9 +1446,14 @@ def _read_buffers(
                     assert 0 <= start <= start + length <= len(data)
                     access[index] = np.array(
                         np.lib.stride_tricks.as_strided(
-                            np.frombuffer(data, dtype=np.uint8, offset=start, count=length),
-                            [count, per_row], [stride, 1]
-                        ).view(dtype).reshape(shape)
+                            np.frombuffer(
+                                data, dtype=np.uint8, offset=start, count=length
+                            ),
+                            [count, per_row],
+                            [stride, 1],
+                        )
+                        .view(dtype)
+                        .reshape(shape)
                     )
                 else:
                     # length is the number of bytes per item times total
