@@ -13,7 +13,6 @@ from numpy import float64, int64, ndarray
 
 from . import (
     boolean,
-    caching,
     comparison,
     convex,
     curvature,
@@ -36,7 +35,7 @@ from . import (
     units,
     util,
 )
-from .caching import TrackedArray
+from .caching import Cache, DataStore, TrackedArray, cache_decorator
 from .constants import log, tol
 from .exceptions import ExceptionWrapper
 from .exchange.export import export_mesh
@@ -130,13 +129,13 @@ class Trimesh(Geometry3D):
         # any data put into the store is converted to a TrackedArray
         # which is a subclass of np.ndarray that provides hash and crc
         # methods which can be used to detect changes in the array.
-        self._data = caching.DataStore()
+        self._data = DataStore()
 
         # self._cache stores information about the mesh which CAN be
         # regenerated from self._data, but may be slow to calculate.
         # In order to maintain consistency
         # the cache is cleared when self._data.__hash__() changes
-        self._cache = caching.Cache(id_function=self._data.__hash__, force_immutable=True)
+        self._cache = Cache(id_function=self._data.__hash__, force_immutable=True)
         if initial_cache is not None:
             self._cache.update(initial_cache)
 
@@ -325,7 +324,7 @@ class Trimesh(Geometry3D):
 
         self._data["faces"] = values
 
-    @caching.cache_decorator
+    @cache_decorator
     def faces_sparse(self) -> coo_matrix:
         """
         A sparse matrix representation of the faces.
@@ -464,7 +463,7 @@ class Trimesh(Geometry3D):
             values = np.zeros(shape=(0, 3), dtype=float64)
         self._data["vertices"] = np.asanyarray(values, order="C", dtype=float64)
 
-    @caching.cache_decorator
+    @cache_decorator
     def vertex_normals(self) -> NDArray[float64]:
         """
         The vertex normals of the mesh. If the normals were loaded
@@ -507,7 +506,7 @@ class Trimesh(Geometry3D):
                     log.debug("vertex_normals are all zero!")
                 self._cache["vertex_normals"] = values
 
-    @caching.cache_decorator
+    @cache_decorator
     def vertex_faces(self) -> NDArray[int64]:
         """
         A representation of the face indices that correspond to each vertex.
@@ -526,7 +525,7 @@ class Trimesh(Geometry3D):
         )
         return vertex_faces
 
-    @caching.cache_decorator
+    @cache_decorator
     def bounds(self) -> Optional[NDArray[float64]]:
         """
         The axis aligned bounds of the faces of the mesh.
@@ -545,7 +544,7 @@ class Trimesh(Geometry3D):
         # get mesh bounds with min and max
         return np.array([in_mesh.min(axis=0), in_mesh.max(axis=0)])
 
-    @caching.cache_decorator
+    @cache_decorator
     def extents(self) -> Optional[NDArray[float64]]:
         """
         The length, width, and height of the axis aligned
@@ -564,7 +563,7 @@ class Trimesh(Geometry3D):
 
         return extents
 
-    @caching.cache_decorator
+    @cache_decorator
     def centroid(self) -> NDArray[float64]:
         """
         The point in space which is the average of the triangle
@@ -725,7 +724,7 @@ class Trimesh(Geometry3D):
             parallel_axis=True,
         )
 
-    @caching.cache_decorator
+    @cache_decorator
     def principal_inertia_components(self) -> NDArray[float64]:
         """
         Return the principal components of inertia
@@ -759,7 +758,7 @@ class Trimesh(Geometry3D):
         _ = self.principal_inertia_components
         return self._cache["principal_inertia_vectors"]
 
-    @caching.cache_decorator
+    @cache_decorator
     def principal_inertia_transform(self) -> NDArray[float64]:
         """
         A transform which moves the current mesh so the principal
@@ -784,7 +783,7 @@ class Trimesh(Geometry3D):
 
         return transform
 
-    @caching.cache_decorator
+    @cache_decorator
     def symmetry(self) -> Optional[str]:
         """
         Check whether a mesh has rotational symmetry around
@@ -829,7 +828,7 @@ class Trimesh(Geometry3D):
             return None
         return self._cache["symmetry_section"]
 
-    @caching.cache_decorator
+    @cache_decorator
     def triangles(self) -> NDArray[float64]:
         """
         Actual triangles of the mesh (points, not indexes)
@@ -844,7 +843,7 @@ class Trimesh(Geometry3D):
         # recomputed. We can escape this check by viewing the array.
         return self.vertices.view(np.ndarray)[self.faces]
 
-    @caching.cache_decorator
+    @cache_decorator
     def triangles_tree(self) -> Index:
         """
         An R-tree containing each face of the mesh.
@@ -856,7 +855,7 @@ class Trimesh(Geometry3D):
         """
         return triangles.bounds_tree(self.triangles)
 
-    @caching.cache_decorator
+    @cache_decorator
     def triangles_center(self) -> NDArray[float64]:
         """
         The center of each triangle (barycentric [1/3, 1/3, 1/3])
@@ -868,7 +867,7 @@ class Trimesh(Geometry3D):
         """
         return self.triangles.mean(axis=1)
 
-    @caching.cache_decorator
+    @cache_decorator
     def triangles_cross(self) -> NDArray[float64]:
         """
         The cross product of two edges of each triangle.
@@ -881,7 +880,7 @@ class Trimesh(Geometry3D):
         crosses = triangles.cross(self.triangles)
         return crosses
 
-    @caching.cache_decorator
+    @cache_decorator
     def edges(self) -> NDArray[int64]:
         """
         Edges of the mesh (derived from faces).
@@ -897,7 +896,7 @@ class Trimesh(Geometry3D):
         self._cache["edges_face"] = index
         return edges
 
-    @caching.cache_decorator
+    @cache_decorator
     def edges_face(self) -> NDArray[int64]:
         """
         Which face does each edge belong to.
@@ -910,7 +909,7 @@ class Trimesh(Geometry3D):
         _ = self.edges
         return self._cache["edges_face"]
 
-    @caching.cache_decorator
+    @cache_decorator
     def edges_unique(self) -> NDArray[int64]:
         """
         The unique edges of the mesh.
@@ -928,7 +927,7 @@ class Trimesh(Geometry3D):
         self._cache["edges_unique_inverse"] = inverse
         return edges_unique
 
-    @caching.cache_decorator
+    @cache_decorator
     def edges_unique_length(self) -> NDArray[float64]:
         """
         How long is each unique edge.
@@ -942,7 +941,7 @@ class Trimesh(Geometry3D):
         length = util.row_norm(vector)
         return length
 
-    @caching.cache_decorator
+    @cache_decorator
     def edges_unique_inverse(self) -> NDArray[int64]:
         """
         Return the inverse required to reproduce
@@ -959,7 +958,7 @@ class Trimesh(Geometry3D):
         _ = self.edges_unique
         return self._cache["edges_unique_inverse"]
 
-    @caching.cache_decorator
+    @cache_decorator
     def edges_sorted(self) -> NDArray[int64]:
         """
         Edges sorted along axis 1
@@ -972,7 +971,7 @@ class Trimesh(Geometry3D):
         edges_sorted = np.sort(self.edges, axis=1)
         return edges_sorted
 
-    @caching.cache_decorator
+    @cache_decorator
     def edges_sorted_tree(self) -> cKDTree:
         """
         A KDTree for mapping edges back to edge index.
@@ -985,7 +984,7 @@ class Trimesh(Geometry3D):
         """
         return cKDTree(self.edges_sorted)
 
-    @caching.cache_decorator
+    @cache_decorator
     def edges_sparse(self) -> coo_matrix:
         """
         Edges in sparse bool COO graph format where connected
@@ -999,7 +998,7 @@ class Trimesh(Geometry3D):
         sparse = graph.edges_to_coo(self.edges, count=len(self.vertices))
         return sparse
 
-    @caching.cache_decorator
+    @cache_decorator
     def body_count(self) -> int:
         """
         How many connected groups of vertices exist in this mesh.
@@ -1018,7 +1017,7 @@ class Trimesh(Geometry3D):
         self._cache["vertices_component_label"] = labels
         return count
 
-    @caching.cache_decorator
+    @cache_decorator
     def faces_unique_edges(self) -> NDArray[int64]:
         """
         For each face return which indexes in mesh.unique_edges constructs
@@ -1052,7 +1051,7 @@ class Trimesh(Geometry3D):
         result = self._cache["edges_unique_inverse"].reshape((-1, 3))
         return result
 
-    @caching.cache_decorator
+    @cache_decorator
     def euler_number(self) -> int:
         """
         Return the Euler characteristic (a topological invariant) for the mesh
@@ -1068,7 +1067,7 @@ class Trimesh(Geometry3D):
             self.referenced_vertices.sum() - len(self.edges_unique) + len(self.faces)
         )
 
-    @caching.cache_decorator
+    @cache_decorator
     def referenced_vertices(self) -> NDArray[np.bool_]:
         """
         Which vertices in the current mesh are referenced by a face.
@@ -1326,7 +1325,7 @@ class Trimesh(Geometry3D):
         """
         return graph.split(self, **kwargs)
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency(self) -> NDArray[int64]:
         """
         Find faces that share an edge i.e. 'adjacent' faces.
@@ -1366,7 +1365,7 @@ class Trimesh(Geometry3D):
         self._cache["face_adjacency_edges"] = edges
         return adjacency
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_neighborhood(self) -> NDArray[int64]:
         """
         Find faces that share a vertex i.e. 'neighbors' faces.
@@ -1378,7 +1377,7 @@ class Trimesh(Geometry3D):
         """
         return graph.face_neighborhood(self)
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency_edges(self) -> NDArray[int64]:
         """
         Returns the edges that are shared by the adjacent faces.
@@ -1392,7 +1391,7 @@ class Trimesh(Geometry3D):
         _ = self.face_adjacency
         return self._cache["face_adjacency_edges"]
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency_edges_tree(self) -> cKDTree:
         """
         A KDTree for mapping edges back face adjacency index.
@@ -1405,7 +1404,7 @@ class Trimesh(Geometry3D):
         """
         return cKDTree(self.face_adjacency_edges)
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency_angles(self) -> NDArray[float64]:
         """
         Return the angle between adjacent faces
@@ -1422,7 +1421,7 @@ class Trimesh(Geometry3D):
         angles = geometry.vector_angle(pairs)
         return angles
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency_projections(self) -> NDArray[float64]:
         """
         The projection of the non-shared vertex of a triangle onto
@@ -1437,7 +1436,7 @@ class Trimesh(Geometry3D):
         projections = convex.adjacency_projections(self)
         return projections
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency_convex(self) -> NDArray[np.bool_]:
         """
         Return faces which are adjacent and locally convex.
@@ -1453,7 +1452,7 @@ class Trimesh(Geometry3D):
         """
         return self.face_adjacency_projections < tol.merge
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency_unshared(self) -> NDArray[int64]:
         """
         Return the vertex index of the two vertices not in the shared
@@ -1466,7 +1465,7 @@ class Trimesh(Geometry3D):
         """
         return graph.face_adjacency_unshared(self)
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency_radius(self) -> NDArray[float64]:
         """
         The approximate radius of a cylinder that fits inside adjacent faces.
@@ -1479,7 +1478,7 @@ class Trimesh(Geometry3D):
         radii, self._cache["face_adjacency_span"] = graph.face_adjacency_radius(mesh=self)
         return radii
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency_span(self) -> NDArray[float64]:
         """
         The approximate perpendicular projection of the non-shared
@@ -1494,7 +1493,7 @@ class Trimesh(Geometry3D):
         _ = self.face_adjacency_radius
         return self._cache["face_adjacency_span"]
 
-    @caching.cache_decorator
+    @cache_decorator
     def integral_mean_curvature(self) -> float64:
         """
         The integral mean curvature, or the surface integral of the mean curvature.
@@ -1509,7 +1508,7 @@ class Trimesh(Geometry3D):
         )
         return (self.face_adjacency_angles * edges_length).sum() * 0.5
 
-    @caching.cache_decorator
+    @cache_decorator
     def vertex_adjacency_graph(self) -> Graph:
         """
         Returns a networkx graph representing the vertices and their connections
@@ -1534,7 +1533,7 @@ class Trimesh(Geometry3D):
 
         return graph.vertex_adjacency_graph(mesh=self)
 
-    @caching.cache_decorator
+    @cache_decorator
     def vertex_neighbors(self) -> List[List[int64]]:
         """
         The vertex neighbors of each vertex of the mesh, determined from
@@ -1557,7 +1556,7 @@ class Trimesh(Geometry3D):
         """
         return graph.neighbors(edges=self.edges_unique, max_index=len(self.vertices))
 
-    @caching.cache_decorator
+    @cache_decorator
     def is_winding_consistent(self) -> bool:
         """
         Does the mesh have consistent winding or not.
@@ -1575,7 +1574,7 @@ class Trimesh(Geometry3D):
         _ = self.is_watertight
         return self._cache["is_winding_consistent"]
 
-    @caching.cache_decorator
+    @cache_decorator
     def is_watertight(self) -> bool:
         """
         Check if a mesh is watertight by making sure every edge is
@@ -1594,7 +1593,7 @@ class Trimesh(Geometry3D):
         self._cache["is_winding_consistent"] = winding
         return watertight
 
-    @caching.cache_decorator
+    @cache_decorator
     def is_volume(self) -> bool:
         """
         Check if a mesh has all the properties required to represent
@@ -1628,7 +1627,7 @@ class Trimesh(Geometry3D):
         """
         return self._data.is_empty()
 
-    @caching.cache_decorator
+    @cache_decorator
     def is_convex(self) -> bool:
         """
         Check if a mesh is convex or not.
@@ -1644,7 +1643,7 @@ class Trimesh(Geometry3D):
         is_convex = bool(convex.is_convex(self))
         return is_convex
 
-    @caching.cache_decorator
+    @cache_decorator
     def kdtree(self) -> cKDTree:
         """
         Return a scipy.spatial.cKDTree of the vertices of the mesh.
@@ -1699,7 +1698,7 @@ class Trimesh(Geometry3D):
             self.triangles, areas=self.area_faces, height=height
         )
 
-    @caching.cache_decorator
+    @cache_decorator
     def facets(self) -> List[NDArray[int64]]:
         """
         Return a list of face indices for coplanar adjacent faces.
@@ -1712,7 +1711,7 @@ class Trimesh(Geometry3D):
         facets = graph.facets(self)
         return facets
 
-    @caching.cache_decorator
+    @cache_decorator
     def facets_area(self) -> NDArray[float64]:
         """
         Return an array containing the area of each facet.
@@ -1731,7 +1730,7 @@ class Trimesh(Geometry3D):
         areas = np.array([sum(area_faces[i]) for i in self.facets], dtype=float64)
         return areas
 
-    @caching.cache_decorator
+    @cache_decorator
     def facets_normal(self) -> NDArray[float64]:
         """
         Return the normal of each facet
@@ -1757,7 +1756,7 @@ class Trimesh(Geometry3D):
 
         return normals
 
-    @caching.cache_decorator
+    @cache_decorator
     def facets_origin(self) -> NDArray[float64]:
         """
         Return a point on the facet plane.
@@ -1770,7 +1769,7 @@ class Trimesh(Geometry3D):
         _ = self.facets_normal
         return self._cache["facets_origin"]
 
-    @caching.cache_decorator
+    @cache_decorator
     def facets_boundary(self) -> List[NDArray[int64]]:
         """
         Return the edges which represent the boundary of each facet
@@ -1787,7 +1786,7 @@ class Trimesh(Geometry3D):
         edges_boundary = [i[grouping.group_rows(i, require_count=1)] for i in edges_facet]
         return edges_boundary
 
-    @caching.cache_decorator
+    @cache_decorator
     def facets_on_hull(self) -> NDArray[np.bool_]:
         """
         Find which facets of the mesh are on the convex hull.
@@ -2336,7 +2335,7 @@ class Trimesh(Geometry3D):
 
         return result
 
-    @caching.cache_decorator
+    @cache_decorator
     def convex_hull(self) -> "Trimesh":
         """
         Returns a Trimesh object representing the convex hull of
@@ -2527,7 +2526,7 @@ class Trimesh(Geometry3D):
 
         return creation.voxelize(mesh=self, pitch=pitch, method=method, **kwargs)
 
-    @caching.cache_decorator
+    @cache_decorator
     def as_open3d(self):
         """
         Return an `open3d.geometry.TriangleMesh` version of
@@ -2644,7 +2643,7 @@ class Trimesh(Geometry3D):
             return Path2D()
         return load_path(projection)
 
-    @caching.cache_decorator
+    @cache_decorator
     def area(self) -> float64:
         """
         Summed area of all triangles in the current mesh.
@@ -2657,7 +2656,7 @@ class Trimesh(Geometry3D):
         area = self.area_faces.sum()
         return area
 
-    @caching.cache_decorator
+    @cache_decorator
     def area_faces(self) -> NDArray[float64]:
         """
         The area of each face in the mesh.
@@ -2669,7 +2668,7 @@ class Trimesh(Geometry3D):
         """
         return triangles.area(crosses=self.triangles_cross)
 
-    @caching.cache_decorator
+    @cache_decorator
     def mass_properties(self) -> MassProperties:
         """
         Returns the mass properties of the current mesh.
@@ -2769,7 +2768,7 @@ class Trimesh(Geometry3D):
         """
         return util.submesh(mesh=self, faces_sequence=faces_sequence, **kwargs)
 
-    @caching.cache_decorator
+    @cache_decorator
     def identifier(self) -> NDArray[float64]:
         """
         Return a float vector which is unique to the mesh
@@ -2782,7 +2781,7 @@ class Trimesh(Geometry3D):
         """
         return comparison.identifier_simple(self)
 
-    @caching.cache_decorator
+    @cache_decorator
     def identifier_hash(self) -> str:
         """
         A hash of the rotation invariant identifier vector.
@@ -2977,7 +2976,7 @@ class Trimesh(Geometry3D):
         """
         return self.ray.contains_points(points)
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_angles(self) -> NDArray[float64]:
         """
         Returns the angle at each vertex of a face.
@@ -2989,7 +2988,7 @@ class Trimesh(Geometry3D):
         """
         return triangles.angles(self.triangles)
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_angles_sparse(self) -> coo_matrix:
         """
         A sparse matrix representation of the face angles.
@@ -3003,7 +3002,7 @@ class Trimesh(Geometry3D):
         angles = curvature.face_angles_sparse(self)
         return angles
 
-    @caching.cache_decorator
+    @cache_decorator
     def vertex_defects(self) -> NDArray[float64]:
         """
         Return the vertex defects, or (2*pi) minus the sum of the angles
@@ -3021,7 +3020,7 @@ class Trimesh(Geometry3D):
         defects = curvature.vertex_defects(self)
         return defects
 
-    @caching.cache_decorator
+    @cache_decorator
     def vertex_degree(self) -> NDArray[int64]:
         """
         Return the number of faces each vertex is included in.
@@ -3035,7 +3034,7 @@ class Trimesh(Geometry3D):
         degree = np.array(self.faces_sparse.sum(axis=1)).flatten()
         return degree
 
-    @caching.cache_decorator
+    @cache_decorator
     def face_adjacency_tree(self) -> Index:
         """
         An R-tree of face adjacencies.

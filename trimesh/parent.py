@@ -248,10 +248,9 @@ class Geometry3D(Geometry):
         from . import bounds, primitives
 
         to_origin, extents = bounds.oriented_bounds(self)
-        obb = primitives.Box(
+        return primitives.Box(
             transform=np.linalg.inv(to_origin), extents=extents, mutable=False
         )
-        return obb
 
     @caching.cache_decorator
     def bounding_sphere(self):
