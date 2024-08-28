@@ -11,6 +11,12 @@ RUN useradd -m -u 499 -s /bin/bash user && \
 USER user
 
 WORKDIR /home/user
+
+# install a python `venv`
+# this seems a little silly since we're already in a container
+# but if you use Debian methods like `update-alternatives`
+# it won't provide a `pip` which works easily and it isn't
+# easy to know how system packages interact with pip packages
 RUN python3.12 -m venv venv
 
 # So scripts installed from pip are in $PATH
@@ -23,12 +29,24 @@ COPY --chmod=755 docker/trimesh-setup /home/user/venv/bin
 ## install things that need building
 FROM base AS build
 
+USER root
+# install wget for fetching wheels
+RUN apt-get update && \
+    apt-get install --no-install-recommends -qq -y wget ca-certificates && \
+    apt-get clean -y 
+USER user
+
 # copy in essential files
 COPY --chown=499 trimesh/ /home/user/trimesh
 COPY --chown=499 pyproject.toml /home/user/
 
-# install trimesh into .local
+# install trimesh into the venv
 RUN pip install /home/user[easy]
+
+# install FCL, which currently has broken wheels on pypi
+RUN wget https://github.com/BerkeleyAutomation/python-fcl/releases/download/v0.7.0.7/python_fcl-0.7.0.7-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl && \
+    pip install python_fcl*.whl && \
+    rm python_fcl*.whl
 
 ####################################
 ### Build output image most things should run on
