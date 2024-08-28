@@ -2526,57 +2526,6 @@ class Trimesh(Geometry3D):
 
         return creation.voxelize(mesh=self, pitch=pitch, method=method, **kwargs)
 
-    @cache_decorator
-    def as_open3d(self):
-        """
-        Return an `open3d.geometry.TriangleMesh` version of
-        the current mesh.
-
-        Returns
-        ---------
-        open3d : open3d.geometry.TriangleMesh
-          Current mesh as an open3d object.
-        """
-        import open3d
-
-        # create from numpy arrays
-        return open3d.geometry.TriangleMesh(
-            vertices=open3d.utility.Vector3dVector(self.vertices.copy()),
-            triangles=open3d.utility.Vector3iVector(self.faces.copy()),
-        )
-
-    def simplify_quadratic_decimation(self, *args, **kwargs):
-        """
-        DERECATED MARCH 2024 REPLACE WITH:
-        `mesh.simplify_quadric_decimation`
-        """
-        warnings.warn(
-            "`simplify_quadratic_decimation` is deprecated "
-            + "as it was a typo and will be removed in March 2024: "
-            + "replace with `simplify_quadric_decimation`",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.simplify_quadric_decimation(*args, **kwargs)
-
-    def simplify_quadric_decimation(self, face_count: int) -> "Trimesh":
-        """
-        A thin wrapper around the `open3d` implementation of this:
-        `open3d.geometry.TriangleMesh.simplify_quadric_decimation`
-
-        Parameters
-        -----------
-        face_count : int
-          Number of faces desired in the resulting mesh.
-
-        Returns
-        ---------
-        simple : trimesh.Trimesh
-          Simplified version of mesh.
-        """
-        simple = self.as_open3d.simplify_quadric_decimation(int(face_count))
-        return Trimesh(vertices=simple.vertices, faces=simple.triangles)
-
     def outline(self, face_ids: Optional[NDArray[int64]] = None, **kwargs) -> Path3D:
         """
         Given a list of face indexes find the outline of those
@@ -3055,7 +3004,7 @@ class Trimesh(Geometry3D):
             )
         )
 
-    def copy(self, include_cache: bool = False) -> "Trimesh":
+    def copy(self, include_cache: bool = False, include_visual: bool = True) -> "Trimesh":
         """
         Safely return a copy of the current mesh.
 
@@ -3079,8 +3028,11 @@ class Trimesh(Geometry3D):
         copied = Trimesh()
         # always deepcopy vertex and face data
         copied._data.data = copy.deepcopy(self._data.data)
-        # copy visual information
-        copied.visual = self.visual.copy()
+
+        if include_visual:
+            # copy visual information
+            copied.visual = self.visual.copy()
+
         # get metadata
         copied.metadata = copy.deepcopy(self.metadata)
 
