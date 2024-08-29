@@ -5,6 +5,7 @@ from ..path import Path
 from . import misc
 from .dxf import _dxf_loaders
 from .svg_io import svg_to_path
+from .ply import load_ply
 
 
 def load_path(file_obj, file_type=None, **kwargs):
@@ -42,14 +43,22 @@ def load_path(file_obj, file_type=None, **kwargs):
         return file_obj
     elif util.is_file(file_obj):
         # for open file file_objects use loaders
-        kwargs.update(path_loaders[file_type](file_obj, file_type=file_type))
+        if file_type == "ply":
+            # we cannot register this exporter to path_loaders since this is already reserved by TriMesh in ply format in trimesh.load()
+            kwargs.update(load_ply(file_obj, file_type=file_type))
+        else:
+            kwargs.update(path_loaders[file_type](file_obj, file_type=file_type))
     elif util.is_string(file_obj):
         # strings passed are evaluated as file file_objects
         with open(file_obj, "rb") as f:
             # get the file type from the extension
             file_type = os.path.splitext(file_obj)[-1][1:].lower()
-            # call the loader
-            kwargs.update(path_loaders[file_type](f, file_type=file_type))
+            if file_type == "ply":
+                # we cannot register this exporter to path_loaders since this is already reserved by TriMesh in ply format in trimesh.load()
+                kwargs.update(load_ply(f, file_type=file_type))
+            else:
+                # call the loader
+                kwargs.update(path_loaders[file_type](f, file_type=file_type))
     elif util.is_instance_named(file_obj, ["Polygon", "MultiPolygon"]):
         # convert from shapely polygons to Path2D
         kwargs.update(misc.polygon_to_path(file_obj))

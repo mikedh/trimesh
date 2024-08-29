@@ -248,6 +248,20 @@ class ExportTest(g.unittest.TestCase):
         # the scene should be identical after export-> import cycle
         assert g.np.allclose(loaded.extents / source.extents, 1.0)
 
+    def test_ply_path(self):
+        """
+        Should be able to load a path and export it as a PLY
+        """
+        path3D = g.trimesh.load_path([(0, 0, 0), (1, 0, 0), (1, 1, 0)])
+        assert isinstance(path3D, g.trimesh.path.Path3D)
+
+        # export to an ply
+        ply = path3D.export(file_type="ply")
+        assert len(ply) > 0
+
+        loaded = g.trimesh.load_path(g.trimesh.util.wrap_as_stream(ply), file_type="ply")
+        assert g.np.allclose(loaded.vertices, path3D.vertices)
+
     def test_gltf_path(self):
         """
         Check to make sure GLTF exports of Path2D and Path3D

@@ -1,7 +1,7 @@
 import os
 
 from ... import util
-from . import dxf, svg_io
+from . import dxf, svg_io, ply
 
 
 def export_path(path, file_type=None, file_obj=None, **kwargs):
@@ -73,4 +73,4 @@ def _write_export(export, file_obj=None):
     return export
 
 
-_path_exporters = {"dxf": dxf.export_dxf, "svg": svg_io.export_svg, "dict": export_dict}
+_path_exporters = {"dxf": dxf.export_dxf, "svg": svg_io.export_svg, "ply": ply.export_ply, "dict": export_dict}
