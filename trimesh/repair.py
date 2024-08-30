@@ -359,8 +359,8 @@ def stitch(mesh, faces=None, insert_vertices=False):
 
     Parameters
     -----------
-    vertices : (n, 3) float
-      Vertices in space.
+    mesh : trimesh.Trimesh
+      Mesh to create fan stitch on.
     faces : (n,) int
       Face indexes to stitch with triangle fans.
     insert_vertices : bool
