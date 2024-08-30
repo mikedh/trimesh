@@ -37,6 +37,11 @@ Loadable = Union[str, Path, Stream, Dict, None]
 # these wrappers union numpy integers and python integers
 Integer = Union[int, integer, unsignedinteger]
 
+# Numbers which can only be floats and will not accept integers
+# > isinstance(np.ones(1, dtype=np.float32)[0], floating) # True
+# > isinstance(np.ones(1, dtype=np.float32)[0], float) # False
+Floating = Union[float, floating]
+
 # Many arguments take "any valid number."
 Number = Union[float, floating, Integer]
 
