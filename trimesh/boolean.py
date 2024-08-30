@@ -8,7 +8,7 @@ Do boolean operations on meshes using either Blender or Manifold.
 import numpy as np
 
 from . import exceptions, interfaces
-from .typed import Callable, Optional, Sequence
+from .typed import Callable, Optional, Sequence, Union
 
 try:
     from manifold3d import Manifold, Mesh
@@ -162,7 +162,7 @@ def boolean_manifold(
     return Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
 
 
-def reduce_cascade(operation: Callable, items: Sequence):
+def reduce_cascade(operation: Callable, items: Union[Sequence, ArrayLike]):
     """
     Call an operation function in a cascaded pairwise way against a
     flat list of items.
