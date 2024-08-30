@@ -2542,7 +2542,7 @@ class Trimesh(Geometry3D):
         self,
         percent: Optional[Floating] = None,
         face_count: Optional[Integer] = None,
-        aggression: Optional[Floating] = None,
+        aggression: Optional[Integer] = None,
     ) -> "Trimesh":
         """
         A thin wrapper around `pip install fast-simplification`.
