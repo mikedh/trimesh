@@ -13,7 +13,7 @@ from . import bounds, caching
 from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
-from .typed import Dict, Optional
+from .typed import Any, ArrayLike, Dict, Optional
 from .util import ABC
 
 
@@ -40,7 +40,7 @@ class Geometry(ABC):
         pass
 
     @abc.abstractmethod
-    def apply_transform(self, matrix):
+    def apply_transform(self, matrix: ArrayLike) -> Any:
         pass
 
     @property

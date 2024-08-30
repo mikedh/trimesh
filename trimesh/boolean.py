@@ -8,7 +8,7 @@ Do boolean operations on meshes using either Blender or Manifold.
 import numpy as np
 
 from . import exceptions, interfaces
-from .typed import ArrayLike, Callable, Optional
+from .typed import Callable, Optional, Sequence
 
 try:
     from manifold3d import Manifold, Mesh
@@ -18,7 +18,7 @@ except BaseException as E:
 
 
 def difference(
-    meshes: ArrayLike, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean difference between a mesh an n other meshes.
@@ -48,7 +48,7 @@ def difference(
 
 
 def union(
-    meshes: ArrayLike, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean union between a mesh an n other meshes.
@@ -78,7 +78,7 @@ def union(
 
 
 def intersection(
-    meshes: ArrayLike, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean intersection between a mesh and other meshes.
@@ -107,7 +107,7 @@ def intersection(
 
 
 def boolean_manifold(
-    meshes: ArrayLike,
+    meshes: Sequence,
     operation: str,
     check_volume: bool = True,
     **kwargs,
@@ -162,7 +162,7 @@ def boolean_manifold(
     return Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
 
 
-def reduce_cascade(operation: Callable, items: ArrayLike):
+def reduce_cascade(operation: Callable, items: Sequence):
     """
     Call an operation function in a cascaded pairwise way against a
     flat list of items.

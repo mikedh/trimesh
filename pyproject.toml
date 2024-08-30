@@ -169,4 +169,4 @@ python_version = "3.8"
 ignore_missing_imports = true
 disallow_untyped_defs = false
 disallow_untyped_calls = false
-disable_error_code = ["method-assign"]
+disable_error_code = ["method-assign", "var-annotated"]
