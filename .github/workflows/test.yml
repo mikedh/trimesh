@@ -10,9 +10,9 @@ jobs:
     name: Check Formatting
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.12"
     - name: Install
@@ -28,9 +28,9 @@ jobs:
         python-version: ["3.8", "3.12"]
         os: [ubuntu-latest, windows-latest, macos-13]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Test a minimal install
@@ -46,7 +46,7 @@ jobs:
     name: Run Tests In Docker
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Run Pytest In Docker
       run: make tests
 
@@ -54,15 +54,15 @@ jobs:
     runs-on: ubuntu-latest
     name: Check Corpus Loading
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Trimesh DiskCache
       id: cache-resolvers
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.trimesh-cache
         key: trimesh-cache
     - name: Set up Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
          python-version: "3.11"
     - name: Install Trimesh
