@@ -90,6 +90,7 @@ recommend = [
     "pyglet<2",
     "psutil",
     "scikit-image",
+    "fast-simplification",
     # "python-fcl", # do collision checks # TODO : broken on numpy 2
     "openctm", # load `CTM` compressed models
     "cascadio", # load `STEP` files

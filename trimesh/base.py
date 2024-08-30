@@ -42,7 +42,19 @@ from .exchange.export import export_mesh
 from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
-from .typed import Any, ArrayLike, Dict, List, NDArray, Number, Optional, Sequence, Union
+from .typed import (
+    Any,
+    ArrayLike,
+    Dict,
+    Floating,
+    Integer,
+    List,
+    NDArray,
+    Number,
+    Optional,
+    Sequence,
+    Union,
+)
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
 try:
@@ -2525,6 +2537,51 @@ class Trimesh(Geometry3D):
         from .voxel import creation
 
         return creation.voxelize(mesh=self, pitch=pitch, method=method, **kwargs)
+
+    def simplify_quadric_decimation(
+        self,
+        percent: Optional[Floating] = None,
+        face_count: Optional[Integer] = None,
+        aggression: Optional[Floating] = None,
+    ) -> "Trimesh":
+        """
+        A thin wrapper around `pip install fast-simplification`.
+
+        Parameters
+        -----------
+        percent
+          A number between 0.0 and 1.0 for how much
+        face_count
+          Target number of faces desired in the resulting mesh.
+        agression
+          An integer between `0` and `10`, the scale being roughly
+          `0` is "slow and good" and `10` being "fast and bad."
+
+        Returns
+        ---------
+        simple : trimesh.Trimesh
+          Simplified version of mesh.
+        """
+        from fast_simplification import simplify
+
+        # create keyword arguments as dict so we can filter out `None`
+        # values as the C wrapper as of writing is not happy with `None`
+        # and requires they be omitted from the constructor
+        kwargs = {
+            "target_count": face_count,
+            "target_reduction": percent,
+            "agg": aggression,
+        }
+
+        # todo : one could take the `return_collapses=True` array and use it to
+        # apply the same simplification to the visual info
+        vertices, faces = simplify(
+            points=self.vertices.view(np.ndarray),
+            triangles=self.faces.view(np.ndarray),
+            **{k: v for k, v in kwargs.items() if v is not None},
+        )
+
+        return Trimesh(vertices=vertices, faces=faces)
 
     def outline(self, face_ids: Optional[NDArray[int64]] = None, **kwargs) -> Path3D:
         """

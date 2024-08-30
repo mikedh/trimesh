@@ -73,8 +73,7 @@ RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox
 USER user
 
 # install things like pytest and make sure we're on Numpy 2.X
-# todo : imagio is forcing a downgrade of numpy 2 in-place
-RUN pip install .[all] && pip install --force-reinstall --upgrade "numpy>2" && \
+RUN pip install .[all] && \
     python -c "import numpy as n; assert(n.__version__.startswith('2'))"
 
 # check for lint problems
