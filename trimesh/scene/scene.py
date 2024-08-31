@@ -10,6 +10,7 @@ from ..parent import Geometry, Geometry3D
 from ..typed import (
     ArrayLike,
     Dict,
+    Floating,
     List,
     NDArray,
     Optional,
@@ -1096,7 +1097,7 @@ class Scene(Geometry3D):
             T_new[:3, 3] += offset
             self.graph[node_name] = T_new
 
-    def scaled(self, scale: Union[float, ArrayLike]) -> "Scene":
+    def scaled(self, scale: Union[Floating, ArrayLike]) -> "Scene":
         """
         Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.
@@ -1155,7 +1156,6 @@ class Scene(Geometry3D):
                 if result.geometry[geom_name].vertices.shape[1] == 2:
                     result.geometry[geom_name] = result.geometry[geom_name].to_3D()
 
-            # Scale all geometries by un-doing their local rotations first
             for key in result.graph.nodes_geometry:
                 T, geom_name = result.graph.get(key)
                 # transform from graph should be read-only
@@ -1222,6 +1222,10 @@ class Scene(Geometry3D):
                     result.graph.update(
                         frame_to=node, matrix=transform, geometry=geometry
                     )
+
+        # remove camera from copied
+        result._camera = None
+
         return result
 
     def copy(self) -> "Scene":
