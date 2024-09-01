@@ -11,6 +11,8 @@ from ..typed import (
     ArrayLike,
     Dict,
     Floating,
+    Integer,
+    Iterable,
     List,
     NDArray,
     Optional,
@@ -25,9 +27,7 @@ from . import cameras, lighting
 from .transforms import SceneGraph
 
 # the types of objects we can create a scene from
-GeometryInput = Union[
-    Geometry, Sequence[Geometry], NDArray[Geometry], Dict[str, Geometry]
-]
+GeometryInput = Union[Geometry, Iterable[Geometry], Dict[str, Geometry]]
 
 
 class Scene(Geometry3D):
@@ -165,7 +165,7 @@ class Scene(Geometry3D):
                     transform=transform,
                     metadata=metadata,
                 )
-                for value in geometry
+                for value in geometry  # type: ignore
             ]
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
@@ -261,6 +261,36 @@ class Scene(Geometry3D):
         for geometry in self.geometry.values():
             if util.is_instance_named(geometry, "Trimesh"):
                 geometry.visual = ColorVisuals(mesh=geometry)
+
+    def simplify_quadric_decimation(
+        self,
+        percent: Optional[Floating] = None,
+        face_count: Optional[Integer] = None,
+        aggression: Optional[Integer] = None,
+    ) -> None:
+        """
+        Apply in-place `mesh.simplify_quadric_decimation` to any meshes
+        in the scene.
+
+        Parameters
+        -----------
+        percent
+          A number between 0.0 and 1.0 for how much
+        face_count
+          Target number of faces desired in the resulting mesh.
+        agression
+          An integer between `0` and `10`, the scale being roughly
+          `0` is "slow and good" and `10` being "fast and bad."
+
+        """
+        # save the updates for after the loop
+        updates = {}
+        for k, v in self.geometry.items():
+            if hasattr(v, "simplify_quadric_decimation"):
+                updates[k] = v.simplify_quadric_decimation(
+                    percent=percent, face_count=face_count, aggression=aggression
+                )
+        self.geometry.update(updates)
 
     def __hash__(self) -> int:
         """

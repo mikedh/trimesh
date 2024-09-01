@@ -42,8 +42,9 @@ Integer = Union[int, integer, unsignedinteger]
 # > isinstance(np.ones(1, dtype=np.float32)[0], float) # False
 Floating = Union[float, floating]
 
-# Many arguments take "any valid number."
-Number = Union[float, floating, Integer]
+# Many arguments take "any valid number" and don't care if it
+# is an integer or a floating point input.
+Number = Union[Floating, Integer]
 
 __all__ = [
     "IO",
