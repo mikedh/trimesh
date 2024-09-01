@@ -14,24 +14,13 @@ from . import segments
 
 def fill_gaps(path, distance=0.025):
     """
-    For 3D line segments defined by two points, turn
-    them in to an origin defined as the closest point along
-    the line to the zero origin as well as a direction vector
-    and start and end parameter.
+    Find vertices without degree 2 and try to connect to
+    other vertices. Operations are done in-place.
 
     Parameters
     ------------
-    segments : (n, 2, 3) float
+    segments : trimesh.path.Path2D
        Line segments defined by start and end points
-
-    Returns
-    --------------
-    origins : (n, 3) float
-       Point on line closest to [0, 0, 0]
-    vectors : (n, 3) float
-       Unit line directions
-    parameters : (n, 2) float
-       Start and end distance pairs for each line
     """
 
     # find any vertex without degree 2 (connected to two things)
