@@ -124,7 +124,6 @@ class CameraTests(g.unittest.TestCase):
 
         # the camera node should have been removed on copy
         b = s.convert_units("m")
-        b.camera_transform
         assert b.camera_transform.shape == (4, 4)
 
 
