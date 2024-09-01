@@ -73,8 +73,8 @@ When you remove the embed and see the profile result you can then tweak the line
 ### Automatic Formatting
 Trimesh uses `ruff` for both linting and formatting which is configured in `pyproject.toml`, you can run with:
 ```
-ruff . --fix
-ruff format .
+ruff check --fix
+ruff format
 ```
 
 ## Docstrings
