@@ -6,7 +6,7 @@ import numpy as np
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
-from ..typed import Sequence, Union
+from ..typed import ArrayLike, NDArray, Sequence, Tuple, Union
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -504,11 +504,11 @@ class SceneGraph:
     def __contains__(self, key):
         return key in self.transforms.node_data
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Tuple[NDArray, str]:
         return self.get(key)
 
-    def __setitem__(self, key, value):
-        value = np.asanyarray(value)
+    def __setitem__(self, key: str, value: ArrayLike):
+        value = np.asanyarray(value, dtype=np.float64)
         if value.shape != (4, 4):
             raise ValueError("Matrix must be specified!")
         return self.update(key, matrix=value)
