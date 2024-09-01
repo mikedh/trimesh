@@ -30,6 +30,7 @@ except BaseException as E:
 
 # get stored values for simple box and icosahedron primitives
 _data = get_json("creation.json")
+# check available triangulation engines without importing them
 _engines = [
     ("earcut", util.has_module("mapbox_earcut")),
     ("manifold", util.has_module("manifold3d")),
@@ -590,11 +591,13 @@ def triangulate_polygon(
 
         # the outer ring is wound counter-clockwise
         rings = [
-            np.array(polygon.exterior.coords)[:: (1 if polygon.exterior.is_ccw else -1)]
+            np.array(polygon.exterior.coords)[:: (1 if polygon.exterior.is_ccw else -1)][
+                :-1
+            ]
         ]
         # wind interiors
         rings.extend(
-            np.array(b.coords)[:: (-1 if b.is_ccw else 1)] for b in polygon.interiors
+            np.array(b.coords)[:: (-1 if b.is_ccw else 1)][:-1] for b in polygon.interiors
         )
         faces = manifold3d.triangulate(rings)
         vertices = np.vstack(rings)
@@ -1225,7 +1228,7 @@ def axis(
         axis_length = origin_size * 10.0
 
     # generate a ball for the origin
-    axis_origin = uv_sphere(radius=origin_size, count=[10, 10])
+    axis_origin = icosphere(radius=origin_size)
     axis_origin.apply_transform(transform)
 
     # apply color to the origin ball

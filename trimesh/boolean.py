@@ -8,7 +8,7 @@ Do boolean operations on meshes using either Blender or Manifold.
 import numpy as np
 
 from . import exceptions, interfaces
-from .typed import Callable, Iterable, Optional
+from .typed import Callable, NDArray, Optional, Sequence, Union
 
 try:
     from manifold3d import Manifold, Mesh
@@ -18,7 +18,7 @@ except BaseException as E:
 
 
 def difference(
-    meshes: Iterable, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean difference between a mesh an n other meshes.
@@ -48,7 +48,7 @@ def difference(
 
 
 def union(
-    meshes: Iterable, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean union between a mesh an n other meshes.
@@ -74,12 +74,11 @@ def union(
     if check_volume and not all(m.is_volume for m in meshes):
         raise ValueError("Not all meshes are volumes!")
 
-    result = _engines[engine](meshes, operation="union", **kwargs)
-    return result
+    return _engines[engine](meshes, operation="union", **kwargs)
 
 
 def intersection(
-    meshes: Iterable, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
 ):
     """
     Compute the boolean intersection between a mesh and other meshes.
@@ -108,7 +107,7 @@ def intersection(
 
 
 def boolean_manifold(
-    meshes: Iterable,
+    meshes: Sequence,
     operation: str,
     check_volume: bool = True,
     **kwargs,
@@ -160,18 +159,25 @@ def boolean_manifold(
     from . import Trimesh
 
     result_mesh = result_manifold.to_mesh()
-    out_mesh = Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
-
-    return out_mesh
+    return Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
 
 
-def reduce_cascade(operation: Callable, items: Iterable):
+def reduce_cascade(operation: Callable, items: Union[Sequence, NDArray]):
     """
-    Call a function in a cascaded pairwise way against a
-    flat sequence of items. This should produce the same
-    result as `functools.reduce` but may be faster for some
-    functions that for example perform only as fast as their
-    largest input.
+    Call an operation function in a cascaded pairwise way against a
+    flat list of items.
+
+    This should produce the same result as `functools.reduce`
+    if `operation` is commutable like addition or multiplication.
+    This may be faster for an `operation` that runs with a speed
+    proportional to its largest input, which mesh booleans appear to.
+
+    The union of a large number of small meshes appears to be
+    "much faster" using this method.
+
+    This only differs from `functools.reduce` for commutative `operation`
+    in that it returns `None` on empty inputs rather than `functools.reduce`
+    which raises a `TypeError`.
 
     For example on `a b c d e f g` this function would run and return:
         a b
@@ -200,8 +206,11 @@ def reduce_cascade(operation: Callable, items: Iterable):
     """
     if len(items) == 0:
         return None
+    elif len(items) == 1:
+        # skip the loop overhead for a single item
+        return items[0]
     elif len(items) == 2:
-        # might as well skip the loop overhead
+        # skip the loop overhead for a single pair
         return operation(items[0], items[1])
 
     for _ in range(int(1 + np.log2(len(items)))):

@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.8"
-version = "4.4.2"
+version = "4.4.8"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -77,8 +77,10 @@ easy = [
     "scipy",
     "embreex; platform_machine=='x86_64'",
     "pillow",
-    "vhacdx",
     "xatlas",
+    "vhacdx; python_version>='3.9'",
+    # old versions of mapbox_earcut produce incorrect values on numpy 2.0
+    "mapbox_earcut >= 1.0.2; python_version>='3.9'",
 ]
 
 recommend = [
@@ -88,10 +90,10 @@ recommend = [
     "pyglet<2",
     "psutil",
     "scikit-image",
-    "python-fcl", # do collision checks
+    "fast-simplification",
+    # "python-fcl", # do collision checks # TODO : broken on numpy 2
     "openctm", # load `CTM` compressed models
     "cascadio", # load `STEP` files
-    "mapbox-earcut", # BLOCKED FOR NUMPY2
     
 ]
 
@@ -103,7 +105,7 @@ test = [
     "pyright",
     "ezdxf",
     "pytest",
-    #     "pymeshlab; python_version<='3.11'",
+    "pymeshlab; python_version<='3.11'",
     "pyinstrument",
     "matplotlib",
     "ruff",
@@ -158,7 +160,6 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"
 "numpy.empty".msg = "uninitialized arrays are haunted try numpy.zeros"
 
-
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"
 ignore-words-list = "nd,coo,whats,bu,childs,mis,filetests"
@@ -168,4 +169,4 @@ python_version = "3.8"
 ignore_missing_imports = true
 disallow_untyped_defs = false
 disallow_untyped_calls = false
-disable_error_code = ["method-assign"]
+disable_error_code = ["method-assign", "var-annotated"]

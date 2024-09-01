@@ -95,11 +95,10 @@ def union(intervals: ArrayLike, sort: bool = True) -> NDArray[float64]:
         intervals = intervals[intervals[:, 0].argsort()]
 
     # we know we will have at least one interval
-    unions = [intervals[0]]
+    unions = [intervals[0].tolist()]
 
     for begin, end in intervals[1:]:
         if unions[-1][1] >= begin:
-            #
             unions[-1][1] = max(unions[-1][1], end)
         else:
             unions.append([begin, end])

@@ -6,15 +6,7 @@ except BaseException:
 
 class CreationTest(g.unittest.TestCase):
     def setUp(self):
-        engines = []
-        if g.trimesh.util.has_module("triangle"):
-            engines.append("triangle")
-        if g.trimesh.util.has_module("mapbox_earcut"):
-            engines.append("earcut")
-        if g.trimesh.util.has_module("manifold3d"):
-            engines.append("manifold")
-
-        self.engines = engines
+        self.engines = [k for k, exists in g.trimesh.creation._engines if exists]
 
     def test_box(self):
         box = g.trimesh.creation.box
@@ -174,6 +166,16 @@ class CreationTest(g.unittest.TestCase):
         # Extrude
         for engine in self.engines:
             mesh = g.trimesh.creation.sweep_polygon(poly, path_closed, engine=engine)
+            assert mesh.is_volume
+
+    def test_simple_watertight(self):
+        # create a simple polygon
+        polygon = g.Polygon(((0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)))
+
+        for engine in self.engines:
+            mesh = g.trimesh.creation.extrude_polygon(
+                polygon=polygon, height=1, engine=engine
+            )
             assert mesh.is_volume
 
     def test_annulus(self):
