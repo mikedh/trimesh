@@ -6,7 +6,7 @@ import numpy as np
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
-from ..typed import ArrayLike, NDArray, Sequence, Tuple, Union
+from ..typed import ArrayLike, NDArray, Optional, Sequence, Tuple, Union
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -92,7 +92,9 @@ class SceneGraph:
         if "geometry" in kwargs:
             self.transforms.node_data[frame_to]["geometry"] = kwargs["geometry"]
 
-    def get(self, frame_to, frame_from=None):
+    def get(
+        self, frame_to: str, frame_from: Optional[str] = None
+    ) -> Tuple[NDArray[np.float64], Optional[str]]:
         """
         Get the transform from one frame to another.
 
@@ -108,6 +110,8 @@ class SceneGraph:
         ----------
         transform : (4, 4) float
           Homogeneous transformation matrix
+        geometry
+          The name of the geometry if it exists
 
         Raises
         -----------
@@ -501,10 +505,10 @@ class SceneGraph:
         self._cache.cache.pop("nodes_geometry", None)
         self.transforms._hash = None
 
-    def __contains__(self, key):
+    def __contains__(self, key: str) -> bool:
         return key in self.transforms.node_data
 
-    def __getitem__(self, key: str) -> Tuple[NDArray, str]:
+    def __getitem__(self, key: str) -> Tuple[NDArray[np.float64], Optional[str]]:
         return self.get(key)
 
     def __setitem__(self, key: str, value: ArrayLike):
