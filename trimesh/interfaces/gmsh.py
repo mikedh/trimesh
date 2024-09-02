@@ -23,7 +23,7 @@ _warning = " ".join(
 )
 
 
-def load_gmsh(file_name, gmsh_args=None):
+def load_gmsh(file_name, gmsh_args=None, interruptible=True):
     """
     Returns a surface mesh from CAD model in Open Cascade
     Breap (.brep), Step (.stp or .step) and Iges formats
@@ -45,6 +45,9 @@ def load_gmsh(file_name, gmsh_args=None):
       gmsh.option.setNumber
     max_element : float or None
       Maximum length of an element in the volume mesh
+    interruptible : bool
+      Allows load_gmsh to run outside of the main thread if False, 
+      default behaviour if set to True. Added in 4.12.0
 
     Returns
     ------------
@@ -115,7 +118,7 @@ def load_gmsh(file_name, gmsh_args=None):
         log.debug("gmsh unexpected", exc_info=True)
 
     if not init:
-        gmsh.initialize()
+        gmsh.initialize(interruptible=interruptible)
 
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh.model.add("Surface_Mesh_Generation")
