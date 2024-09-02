@@ -219,6 +219,9 @@ def hull_points(obj, qhull_options="QbB Pp"):
     """
     Try to extract a convex set of points from multiple input formats.
 
+    Details on qhull options:
+      http://www.qhull.org/html/qh-quick.htm#options
+
     Parameters
     ---------
     obj: Trimesh object
