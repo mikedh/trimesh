@@ -20,9 +20,9 @@ if version_info >= (3, 9):
     List = list
     Tuple = tuple
     Dict = dict
-    from collections.abc import Callable, Iterable, Mapping, Sequence
+    from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 else:
-    from typing import Callable, Dict, Iterable, List, Mapping, Sequence, Tuple
+    from typing import Callable, Dict, Hashable, Iterable, List, Mapping, Sequence, Tuple
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
@@ -66,4 +66,5 @@ __all__ = [
     "int64",
     "Mapping",
     "Callable",
+    "Hashable",
 ]
