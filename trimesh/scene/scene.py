@@ -7,6 +7,7 @@ from .. import caching, convex, grouping, inertia, transformations, units, util
 from ..constants import log
 from ..exchange import export
 from ..parent import Geometry, Geometry3D
+from ..registration import procrustes
 from ..typed import (
     ArrayLike,
     Dict,
@@ -682,6 +683,9 @@ class Scene(Geometry3D):
 
         return Scene(geometry)
 
+    def reconstruct_instances(self, cost_threshold: Floating = 1e-5) -> "Scene":
+        return reconstruct_instances(self, cost_threshold=cost_threshold)
+
     def set_camera(
         self, angles=None, distance=None, center=None, resolution=None, fov=None
     ) -> cameras.Camera:
@@ -924,6 +928,24 @@ class Scene(Geometry3D):
             return util.concatenate(result)
 
         return result
+
+    def to_mesh(self) -> "Trimesh":  # noqa: F821
+        """
+        Concatenate all mesh instances in the scene into a single mesh
+        which can be manipulated as a regular mesh.
+
+        Returns
+        ----------
+        mesh
+          All meshes in the scene concatenated into one.
+        """
+        from ..base import Trimesh
+
+        # dump the scene into a list of meshes
+        dump = self.dump()
+
+        # concatenate all meshes
+        return util.concatenate([d for d in dump if isinstance(d, Trimesh)])
 
     def subscene(self, node: str) -> "Scene":
         """
@@ -1496,3 +1518,72 @@ def append_scenes(iterable, common=None, base_frame="world"):
     result.geometry.update(geometry)
 
     return result
+
+
+def reconstruct_instances(scene: Scene, cost_threshold: Floating = 1e-6) -> Scene:
+    """
+    If a scene has been "baked" with meshes it means that
+    the duplicate nodes have *corresponding vertices* but are
+    rigidly transformed to different places.
+
+    This means the problem of finding ab instance transform can
+    use the `procrustes` analysis which is *very* fast relative
+    to more complicated registration problems that require ICP
+    and nearest-point-on-surface calculations.
+
+    TODO : construct a parent non-geometry node for containing every group.
+
+    Parameters
+    ----------
+    scene
+      The scene to handle.
+    cost_threshold
+      The maximum value for `procrustes
+
+    Returns
+    ---------
+    dedupe
+      A copy of the scene de-duplicated as much as possible.
+    """
+    # start with the original scene graph and modify in-loop
+    graph = scene.graph.copy()
+
+    for group in scene.duplicate_nodes:
+        # not sure if this ever includes
+        if len(group) < 2:
+            continue
+
+        # we are going to use one of the geometries and try to register the others to it
+        node_base = group[0]
+        # get the geometry name for this base node
+        _, geom_base = scene.graph[node_base]
+        # get the vertices of the base model
+        base: NDArray = scene.geometry[geom_base].vertices.view(np.ndarray)
+
+        for node in group[1:]:
+            # the original pose of this node in the scene
+            node_mat, node_geom = scene.graph[node]
+            # procrustes matches corresponding point arrays very quickly
+            # but we have to make sure that they actual correspond in shape
+            node_vertices = scene.geometry[node_geom].vertices.view(np.ndarray)
+
+            # procrustes only works on corresponding point clouds!
+            if node_vertices.shape != base.shape:
+                continue
+
+            # solve for a pose moving this instance into position
+            matrix, _p, cost = procrustes(
+                base, node_vertices, translation=True, scale=False, reflection=False
+            )
+            if cost < cost_threshold:
+                # add the transform we found
+                graph.update(node, matrix=np.dot(node_mat, matrix), geometry=geom_base)
+
+    # get from the new graph which geometry ends up with a reference
+    referenced = set(graph.geometry_nodes.keys())
+
+    # return a scene with the de-duplicated graph and a copy of any geometry
+    return Scene(
+        geometry={k: v.copy() for k, v in scene.geometry.items() if k in referenced},
+        graph=graph,
+    )

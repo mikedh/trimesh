@@ -307,6 +307,24 @@ class GraphTests(g.unittest.TestCase):
         s.apply_translation(-s.bounds[0])
         assert g.np.allclose(s.bounds[0], 0)
 
+    def test_reconstruct(self):
+        original = g.get_mesh("cycloidal.3DXML")
+        assert isinstance(original, g.trimesh.Scene)
+
+        # get the scene as "baked" meshes with no scene graph
+        dupe = g.trimesh.Scene(original.dump())
+        assert len(dupe.geometry) > len(original.geometry)
+
+        with g.Profiler() as P:
+            # reconstruct the instancing using `duplicate_nodes` and `procrustes`
+            rec = dupe.reconstruct_instances()
+        g.log.info(P.output_text())
+
+        assert len(rec.graph.nodes_geometry) == len(original.graph.nodes_geometry)
+        assert len(rec.geometry) == len(original.geometry)
+        assert g.np.allclose(rec.extents, original.extents, rtol=1e-8)
+        assert g.np.allclose(rec.center_mass, original.center_mass, rtol=1e-8)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
