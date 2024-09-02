@@ -161,6 +161,9 @@ class GraphTests(g.unittest.TestCase):
         assert not g.np.allclose(m.convex_hull.bounds, b)
 
     def test_simplify(self):
+        if not g.trimesh.util.has_module("fast_simplification"):
+            return
+
         # get a scene graph
         scene: g.trimesh.Scene = g.get_mesh("cycloidal.3DXML")
 
