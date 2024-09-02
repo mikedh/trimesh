@@ -1,5 +1,6 @@
 import collections
 import uuid
+import warnings
 
 import numpy as np
 
@@ -664,6 +665,8 @@ class Scene(Geometry3D):
 
     def deduplicated(self) -> "Scene":
         """
+        DEPRECATED: REMOVAL JANUARY 2025, this is one line and not that useful.
+
         Return a new scene where each unique geometry is only
         included once and transforms are discarded.
 
@@ -672,16 +675,17 @@ class Scene(Geometry3D):
         dedupe : Scene
           One copy of each unique geometry from scene
         """
-        # collect geometry
-        geometry = {}
-        # loop through groups of identical nodes
-        for group in self.duplicate_nodes:
-            # get the name of the geometry
-            name = self.graph[group[0]][1]
-            # collect our unique collection of geometry
-            geometry[name] = self.geometry[name]
 
-        return Scene(geometry)
+        warnings.warn(
+            "DEPRECATED: REMOVAL JANUARY 2025, this is one line and not that useful.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+
+        # keying by `identifier_hash` will mean every geometry is unique
+        return Scene(
+            list({g.identifier_hash: g for g in self.geometry.values()}.values())
+        )
 
     def reconstruct_instances(self, cost_threshold: Floating = 1e-5) -> "Scene":
         return reconstruct_instances(self, cost_threshold=cost_threshold)
