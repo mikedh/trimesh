@@ -46,7 +46,7 @@ def load_gmsh(file_name, gmsh_args=None, interruptible=True):
     max_element : float or None
       Maximum length of an element in the volume mesh
     interruptible : bool
-      Allows load_gmsh to run outside of the main thread if False, 
+      Allows load_gmsh to run outside of the main thread if False,
       default behaviour if set to True. Added in 4.12.0
 
     Returns
