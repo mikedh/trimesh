@@ -688,6 +688,32 @@ class Scene(Geometry3D):
         )
 
     def reconstruct_instances(self, cost_threshold: Floating = 1e-5) -> "Scene":
+        """
+        If a scene has been "baked" with meshes it means that
+        the duplicate nodes have *corresponding vertices* but are
+        rigidly transformed to different places.
+
+        This means the problem of finding ab instance transform can
+        use the `procrustes` analysis which is *very* fast relative
+        to more complicated registration problems that require ICP
+        and nearest-point-on-surface calculations.
+
+        TODO : construct a parent non-geometry node for containing every group.
+
+        Parameters
+        ----------
+        scene
+        The scene to handle.
+        cost_threshold
+        The maximum value for `procrustes` cost which is "squared mean
+        vertex distance between pair". If the fit is above this value
+        the instance will be left even if it is a duplicate.
+
+        Returns
+        ---------
+        dedupe
+        A copy of the scene de-duplicated as much as possible.
+        """
         return reconstruct_instances(self, cost_threshold=cost_threshold)
 
     def set_camera(
@@ -885,14 +911,17 @@ class Scene(Geometry3D):
         )
         self.graph.base_frame = new_base
 
-    def dump(self, concatenate: bool = False) -> Union[Geometry, List[Geometry]]:
+    def dump(self, concatenate: bool = False) -> List[Geometry]:
         """
         Append all meshes in scene freezing transforms.
 
         Parameters
         ------------
         concatenate
-          If True, concatenate results into single mesh
+          Concatenate results into single mesh. This keyword argument will
+          make the type hint incorrect and you should replace
+          `Scene.dump(concatenate=True)` with `Scene.to_mesh()`
+          DEPRECATED FOR REMOVAL APRIL 2025
 
         Returns
         ----------
@@ -928,15 +957,19 @@ class Scene(Geometry3D):
             result.append(current)
 
         if concatenate:
+            warnings.warn(
+                "`Scene.dump(concatenate=True)` DEPRECATED FOR REMOVAL APRIL 2025: replace with `Scene.to_mesh()`",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
             # if scene has mixed geometry this may drop some of it
-            return util.concatenate(result)
+            return util.concatenate(result)  # type: ignore
 
         return result
 
     def to_mesh(self) -> "Trimesh":  # noqa: F821
         """
-        Concatenate all mesh instances in the scene into a single mesh
-        which can be manipulated as a regular mesh.
+        Concatenate all mesh instances in the scene into a single mesh.
 
         Returns
         ----------
@@ -991,7 +1024,7 @@ class Scene(Geometry3D):
         hull : trimesh.Trimesh
           Trimesh object which is a convex hull of all meshes in scene
         """
-        points = util.vstack_empty([m.vertices for m in self.dump()])
+        points = util.vstack_empty([m.vertices for m in self.dump()])  # type: ignore
         return convex.convex_hull(points)
 
     def export(self, file_obj=None, file_type=None, **kwargs):
@@ -1542,7 +1575,9 @@ def reconstruct_instances(scene: Scene, cost_threshold: Floating = 1e-6) -> Scen
     scene
       The scene to handle.
     cost_threshold
-      The maximum value for `procrustes
+      The maximum value for `procrustes` cost which is "squared mean
+      vertex distance between pair". If the fit is above this value
+      the instance will be left even if it is a duplicate.
 
     Returns
     ---------
