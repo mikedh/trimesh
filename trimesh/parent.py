@@ -213,13 +213,6 @@ class Geometry3D(Geometry):
     and Scene objects.
     """
 
-    @property
-    @abc.abstractmethod
-    def vertices(self) -> NDArray[np.float64]:
-        """
-        The 3D vertices of the geometry.
-        """
-
     @caching.cache_decorator
     def bounding_box(self) -> NDArray[np.float64]:
         """
