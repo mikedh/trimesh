@@ -163,7 +163,7 @@ class VoxelGridTest(g.unittest.TestCase):
         voxel = g.trimesh.voxel
 
         pitch = 0.1
-        origin = (0, 0, 1)
+        origin = [0, 0, 1]
 
         matrix = g.np.eye(9, dtype=bool).reshape((-1, 3, 3))
         centers = g.trimesh.voxel.ops.matrix_to_points(
