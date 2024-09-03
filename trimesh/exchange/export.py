@@ -276,9 +276,9 @@ def export_scene(scene, file_obj, file_type=None, resolver=None, **kwargs):
 
         data = svg_io.export_svg(scene, **kwargs)
     elif file_type == "ply":
-        data = _mesh_exporters["ply"](scene.dump(concatenate=True), **kwargs)
+        data = _mesh_exporters["ply"](scene.to_mesh(), **kwargs)
     elif file_type == "stl":
-        data = export_stl(scene.dump(concatenate=True), **kwargs)
+        data = export_stl(scene.to_mesh(), **kwargs)
     elif file_type == "3mf":
         data = _mesh_exporters["3mf"](scene, **kwargs)
     else:

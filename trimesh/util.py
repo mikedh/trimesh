@@ -26,6 +26,7 @@ import zipfile
 # for type checking
 from collections.abc import Mapping
 from io import BytesIO, StringIO
+from typing import Union
 
 import numpy as np
 
@@ -1411,7 +1412,9 @@ def type_named(obj, name):
     raise ValueError("Unable to extract class of name " + name)
 
 
-def concatenate(a, b=None):
+def concatenate(
+    a, b=None
+) -> Union["trimesh.Trimesh", "trimesh.path.Path2D", "trimesh.path.Path3D"]:  # noqa: F821
     """
     Concatenate two or more meshes.
 

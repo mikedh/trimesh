@@ -913,21 +913,23 @@ class Scene(Geometry3D):
 
     def dump(self, concatenate: bool = False) -> List[Geometry]:
         """
-        Append all meshes in scene freezing transforms.
+        Get a list of every geometry moved to it's instance position,
+        i.e. freezing or "baking" transforms.
 
         Parameters
         ------------
         concatenate
-          Concatenate results into single mesh. This keyword argument will
-          make the type hint incorrect and you should replace
-          `Scene.dump(concatenate=True)` with `Scene.to_mesh()`
           DEPRECATED FOR REMOVAL APRIL 2025
+          Concatenate results into single geometry.
+          This keyword argument will make the type hint incorrect and
+          you should replace `Scene.dump(concatenate=True)` with:
+            - `Scene.concatenate()` for a Trimesh, Path2D or Path3D
+            - `Scene.to_mesh()` for only `Trimesh`.
 
         Returns
         ----------
-        dumped : (n,) Trimesh, Path2D, Path3D, PointCloud
-          Depending on what the scene contains. If `concatenate`
-          then some geometry may be dropped if it doesn't match.
+        dumped
+          Copies of `Scene.geometry` transformed to their instance position.
         """
 
         result = []
@@ -958,7 +960,7 @@ class Scene(Geometry3D):
 
         if concatenate:
             warnings.warn(
-                "`Scene.dump(concatenate=True)` DEPRECATED FOR REMOVAL APRIL 2025: replace with `Scene.to_mesh()`",
+                "`Scene.dump(concatenate=True)` DEPRECATED FOR REMOVAL APRIL 2025: replace with `Scene.concatenate()`",
                 category=DeprecationWarning,
                 stacklevel=2,
             )
@@ -967,9 +969,9 @@ class Scene(Geometry3D):
 
         return result
 
-    def to_mesh(self) -> "Trimesh":  # noqa: F821
+    def to_mesh(self) -> "trimesh.Trimesh":  # noqa: F821
         """
-        Concatenate all mesh instances in the scene into a single mesh.
+        Concatenate mesh instances in the scene into a single mesh.
 
         Returns
         ----------
@@ -978,11 +980,20 @@ class Scene(Geometry3D):
         """
         from ..base import Trimesh
 
-        # dump the scene into a list of meshes
-        dump = self.dump()
+        # concatenate only meshes
+        return util.concatenate([d for d in self.dump() if isinstance(d, Trimesh)])
 
-        # concatenate all meshes
-        return util.concatenate([d for d in dump if isinstance(d, Trimesh)])
+    def concatentate(self) -> Geometry:
+        """
+        Concatenate geometry in the scene into a single like-typed geometry.
+
+        Returns
+        ---------
+        concat
+          Either a Trimesh, Path2D, or Path3D depending on what is in the scene.
+        """
+        # concatenate everything and return the most-occurring type.
+        return util.concatenate(self.dump())
 
     def subscene(self, node: str) -> "Scene":
         """

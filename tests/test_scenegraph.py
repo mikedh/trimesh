@@ -142,7 +142,7 @@ class GraphTests(g.unittest.TestCase):
         # copy the original bounds of the scene's convex hull
         b = scene.convex_hull.bounds.tolist()
         # dump it into a single mesh
-        m = scene.dump(concatenate=True)
+        m = scene.to_mesh()
 
         # mesh bounds should match exactly
         assert g.np.allclose(m.bounds, b)
@@ -167,10 +167,10 @@ class GraphTests(g.unittest.TestCase):
         # get a scene graph
         scene: g.trimesh.Scene = g.get_mesh("cycloidal.3DXML")
 
-        original = scene.dump(concatenate=True)
+        original = scene.to_mesh()
 
         scene.simplify_quadric_decimation(percent=0.0, aggression=0)
-        assert len(scene.dump(concatenate=True).vertices) < len(original.vertices)
+        assert len(scene.to_mesh().vertices) < len(original.vertices)
 
     def test_reverse(self):
         tf = g.trimesh.transformations

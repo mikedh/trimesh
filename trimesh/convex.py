@@ -163,7 +163,7 @@ def convex_hull(
     obj: Union[Geometry3D, NDArray],
     qhull_options: Union[QhullOptions, str, None] = QHULL_DEFAULT,
     repair: bool = True,
-) -> "Trimesh":  # noqa: F821
+) -> "trimesh.Trimesh":  # noqa: F821
     """
     Get a new Trimesh object representing the convex hull of the
     current mesh attempting to return a watertight mesh with correct
