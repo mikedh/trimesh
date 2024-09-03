@@ -13,7 +13,7 @@ from . import bounds, caching
 from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
-from .typed import Any, ArrayLike, Dict, Optional
+from .typed import Any, ArrayLike, Dict, NDArray, Optional
 from .util import ABC
 
 
@@ -213,8 +213,15 @@ class Geometry3D(Geometry):
     and Scene objects.
     """
 
+    @property
+    @abc.abstractmethod
+    def vertices(self) -> NDArray[np.float64]:
+        """
+        The 3D vertices of the geometry.
+        """
+
     @caching.cache_decorator
-    def bounding_box(self):
+    def bounding_box(self) -> NDArray[np.float64]:
         """
         An axis aligned bounding box for the current mesh.
 

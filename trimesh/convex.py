@@ -15,7 +15,8 @@ import numpy as np
 
 from . import triangles, util
 from .constants import tol
-from .typed import Optional, Union
+from .parent import Geometry3D
+from .typed import NDArray, Optional, Union
 
 try:
     from scipy.spatial import ConvexHull
@@ -33,10 +34,10 @@ except BaseException:
 @dataclass
 class QhullOptions:
     """
-    A helper class for constructing correct Qhull option strings, with more
-    # details availble at: http://www.qhull.org/html/qh-quick.htm#options
+    A helper class for constructing correct Qhull option strings.
+    More details available at: http://www.qhull.org/html/qh-quick.htm#options
 
-    Currently only includes the boolean flag options which is most of them.
+    Currently only includes the boolean flag options, which is most of them.
 
     Parameters
     -----------
@@ -71,9 +72,8 @@ class QhullOptions:
     Qg
       only build good facets (needs 'QGn', 'QVn', or 'Pdk')
     Pp
-      Do not print statistics about precision problems,
-        and it remove some of the warnings.
-        It removes the narrow hull warning.
+      Do not print statistics about precision problems and remove
+      some of the warnings including the narrow hull warning.
     """
 
     Qa: Optional[bool] = None
@@ -121,12 +121,11 @@ class QhullOptions:
 
     # Select facets
     Qg: Optional[bool] = None
-    """ only build good facets (needs 'QGn', 'QVn', or 'Pdk') """
+    """ Only build good facets (needs 'QGn', 'QVn', or 'Pdk') """
 
     Pp: Optional[bool] = None
-    """ Do not print statistics about precision problems,
-        and it remove some of the warnings.
-        It removes the narrow hull warning. """
+    """ Do not print statistics about precision problems and remove
+      some of the warnings including the narrow hull warning. """
 
     # TODO : not included non-boolean options
     # QBk: Optional[Floating] = None
@@ -157,37 +156,39 @@ class QhullOptions:
         return " ".join(f.name for f in fields(self) if getattr(self, f.name, False))
 
 
-def convex_hull(obj, qhull_options: Union[QhullOptions, str, None] = None, repair=True):
+QHULL_DEFAULT = QhullOptions(QbB=True, Pp=True, Qt=True)
+
+
+def convex_hull(
+    obj: Union[Geometry3D, NDArray],
+    qhull_options: Union[QhullOptions, str, None] = QHULL_DEFAULT,
+    repair: bool = True,
+) -> "Trimesh":  # noqa: F821
     """
     Get a new Trimesh object representing the convex hull of the
     current mesh attempting to return a watertight mesh with correct
     normals.
 
-
-    Details on qhull options:
-      http://www.qhull.org/html/qh-quick.htm#options
-
-
     Arguments
     --------
-    obj : Trimesh, or (n,3) float
-      Mesh or cartesian points
+    obj
+      Mesh or `(n, 3)` points.
     qhull_options
       Options to pass to qhull.
 
     Returns
     --------
-    convex : Trimesh
-      Mesh of convex hull
+    convex
+      Mesh of convex hull.
     """
+    # would be a circular import at the module level
     from .base import Trimesh
 
+    # compose the
     if qhull_options is None:
-        # construct a default option set with suppressed warnings,
-        # triangulation, and scaling to a unit bounding box
-        qhull_options = QhullOptions(QbB=True, Pp=True, Qt=True)
-
-    if isinstance(qhull_options, QhullOptions):
+        qhull_str = None
+    elif isinstance(qhull_options, QhullOptions):
+        # use the __str__ method to compose this options string
         qhull_str = str(qhull_options)
     elif isinstance(qhull_options, str):
         qhull_str = qhull_options
@@ -281,8 +282,8 @@ def convex_hull(obj, qhull_options: Union[QhullOptions, str, None] = None, repai
     # sometimes the QbB option will cause precision issues
     # so try the hull again without it and
     # check for qhull_options is None to avoid infinite recursion
-    if len(qhull_str) > 0 and not convex.is_winding_consistent:
-        return convex_hull(convex, qhull_options=QhullOptions())
+    if qhull_options is None and not convex.is_winding_consistent:
+        return convex_hull(convex, qhull_options=None)
 
     return convex
 
