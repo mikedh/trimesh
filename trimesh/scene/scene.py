@@ -923,7 +923,7 @@ class Scene(Geometry3D):
           Concatenate results into single geometry.
           This keyword argument will make the type hint incorrect and
           you should replace `Scene.dump(concatenate=True)` with:
-            - `Scene.concatenate()` for a Trimesh, Path2D or Path3D
+            - `Scene.to_geometry()` for a Trimesh, Path2D or Path3D
             - `Scene.to_mesh()` for only `Trimesh` components.
 
         Returns
@@ -960,7 +960,7 @@ class Scene(Geometry3D):
 
         if concatenate:
             warnings.warn(
-                "`Scene.dump(concatenate=True)` DEPRECATED FOR REMOVAL APRIL 2025: replace with `Scene.concatenate()`",
+                "`Scene.dump(concatenate=True)` DEPRECATED FOR REMOVAL APRIL 2025: replace with `Scene.to_geometry()`",
                 category=DeprecationWarning,
                 stacklevel=2,
             )
@@ -971,7 +971,9 @@ class Scene(Geometry3D):
 
     def to_mesh(self) -> "trimesh.Trimesh":  # noqa: F821
         """
-        Concatenate mesh instances in the scene into a single mesh.
+        Concatenate every mesh instances in the scene into a single mesh,
+        applying transforms and "baking" the result. Will drop any geometry
+        in the scene that is not a `Trimesh` object.
 
         Returns
         ----------
@@ -983,9 +985,11 @@ class Scene(Geometry3D):
         # concatenate only meshes
         return util.concatenate([d for d in self.dump() if isinstance(d, Trimesh)])
 
-    def concatentate(self) -> Geometry:
+    def to_geometry(self) -> Geometry:
         """
-        Concatenate geometry in the scene into a single like-typed geometry.
+        Concatenate geometry in the scene into a single like-typed geometry,
+        applying the transforms and "baking" the result. May drop geometry
+        if the scene has mixed geometry.
 
         Returns
         ---------

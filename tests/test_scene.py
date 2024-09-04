@@ -502,7 +502,7 @@ class SceneTests(g.unittest.TestCase):
 
         # scene 2D
         scene_2D = g.trimesh.Scene(g.get_mesh("2D/250_cycloidal.DXF").split())
-        concat = scene_2D.concatentate()
+        concat = scene_2D.to_geometry()
         assert isinstance(concat, g.trimesh.path.Path2D)
 
         dump = scene_2D.dump(concatenate=False)
@@ -518,7 +518,7 @@ class SceneTests(g.unittest.TestCase):
         assert len(dump) >= 5
         assert all(isinstance(i, g.trimesh.path.Path3D) for i in dump)
 
-        concat = scene_3D.concatentate()
+        concat = scene_3D.to_geometry()
         assert isinstance(concat, g.trimesh.path.Path3D)
 
         mixed = list(scene_2D.geometry.values())
@@ -528,7 +528,7 @@ class SceneTests(g.unittest.TestCase):
         dump = scene_mixed.dump(concatenate=False)
         assert len(dump) == len(mixed)
 
-        concat = scene_mixed.concatentate()
+        concat = scene_mixed.to_geometry()
         assert isinstance(concat, g.trimesh.path.Path3D)
 
 
