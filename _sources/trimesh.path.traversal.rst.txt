@@ -1,0 +1,7 @@
+trimesh.path.traversal module
+=============================
+
+.. automodule:: trimesh.path.traversal
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.grouping module
+=======================
+
+.. automodule:: trimesh.grouping
+   :members:
+   :undoc-members:
+   :show-inheritance:

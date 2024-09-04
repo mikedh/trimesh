@@ -1,0 +1,7 @@
+trimesh.path.exchange.export module
+===================================
+
+.. automodule:: trimesh.path.exchange.export
+   :members:
+   :undoc-members:
+   :show-inheritance:

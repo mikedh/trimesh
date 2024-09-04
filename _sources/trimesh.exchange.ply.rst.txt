@@ -1,0 +1,7 @@
+trimesh.exchange.ply module
+===========================
+
+.. automodule:: trimesh.exchange.ply
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.triangles module
+========================
+
+.. automodule:: trimesh.triangles
+   :members:
+   :undoc-members:
+   :show-inheritance:

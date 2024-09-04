@@ -1,0 +1,7 @@
+trimesh.interfaces.blender module
+=================================
+
+.. automodule:: trimesh.interfaces.blender
+   :members:
+   :undoc-members:
+   :show-inheritance:

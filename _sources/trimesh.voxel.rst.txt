@@ -1,0 +1,24 @@
+trimesh.voxel package
+=====================
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   trimesh.voxel.base
+   trimesh.voxel.creation
+   trimesh.voxel.encoding
+   trimesh.voxel.morphology
+   trimesh.voxel.ops
+   trimesh.voxel.runlength
+   trimesh.voxel.transforms
+
+Module contents
+---------------
+
+.. automodule:: trimesh.voxel
+   :members:
+   :undoc-members:
+   :show-inheritance:

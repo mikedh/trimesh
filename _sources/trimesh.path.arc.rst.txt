@@ -1,0 +1,7 @@
+trimesh.path.arc module
+=======================
+
+.. automodule:: trimesh.path.arc
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.path.exchange.svg\_io module
+====================================
+
+.. automodule:: trimesh.path.exchange.svg_io
+   :members:
+   :undoc-members:
+   :show-inheritance:

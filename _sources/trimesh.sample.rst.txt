@@ -1,0 +1,7 @@
+trimesh.sample module
+=====================
+
+.. automodule:: trimesh.sample
+   :members:
+   :undoc-members:
+   :show-inheritance:

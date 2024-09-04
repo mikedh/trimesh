@@ -1,0 +1,20 @@
+trimesh.interfaces package
+==========================
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   trimesh.interfaces.blender
+   trimesh.interfaces.generic
+   trimesh.interfaces.gmsh
+
+Module contents
+---------------
+
+.. automodule:: trimesh.interfaces
+   :members:
+   :undoc-members:
+   :show-inheritance:

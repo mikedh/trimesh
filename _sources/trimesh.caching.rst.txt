@@ -1,0 +1,7 @@
+trimesh.caching module
+======================
+
+.. automodule:: trimesh.caching
+   :members:
+   :undoc-members:
+   :show-inheritance:

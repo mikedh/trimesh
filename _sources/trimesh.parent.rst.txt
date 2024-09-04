@@ -1,0 +1,7 @@
+trimesh.parent module
+=====================
+
+.. automodule:: trimesh.parent
+   :members:
+   :undoc-members:
+   :show-inheritance:

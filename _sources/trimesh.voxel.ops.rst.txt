@@ -1,0 +1,7 @@
+trimesh.voxel.ops module
+========================
+
+.. automodule:: trimesh.voxel.ops
+   :members:
+   :undoc-members:
+   :show-inheritance:

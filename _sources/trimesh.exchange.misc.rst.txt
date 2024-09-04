@@ -1,0 +1,7 @@
+trimesh.exchange.misc module
+============================
+
+.. automodule:: trimesh.exchange.misc
+   :members:
+   :undoc-members:
+   :show-inheritance:

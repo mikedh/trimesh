@@ -1,0 +1,7 @@
+trimesh.path.exchange.dxf module
+================================
+
+.. automodule:: trimesh.path.exchange.dxf
+   :members:
+   :undoc-members:
+   :show-inheritance:

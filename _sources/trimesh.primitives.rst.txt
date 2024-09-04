@@ -1,0 +1,7 @@
+trimesh.primitives module
+=========================
+
+.. automodule:: trimesh.primitives
+   :members:
+   :undoc-members:
+   :show-inheritance:

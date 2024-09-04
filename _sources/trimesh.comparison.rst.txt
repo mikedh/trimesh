@@ -1,0 +1,7 @@
+trimesh.comparison module
+=========================
+
+.. automodule:: trimesh.comparison
+   :members:
+   :undoc-members:
+   :show-inheritance:

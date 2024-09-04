@@ -1,0 +1,7 @@
+trimesh.poses module
+====================
+
+.. automodule:: trimesh.poses
+   :members:
+   :undoc-members:
+   :show-inheritance:

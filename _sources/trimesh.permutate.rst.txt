@@ -1,0 +1,7 @@
+trimesh.permutate module
+========================
+
+.. automodule:: trimesh.permutate
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.units module
+====================
+
+.. automodule:: trimesh.units
+   :members:
+   :undoc-members:
+   :show-inheritance:

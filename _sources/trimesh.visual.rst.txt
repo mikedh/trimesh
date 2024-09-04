@@ -1,0 +1,23 @@
+trimesh.visual package
+======================
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   trimesh.visual.base
+   trimesh.visual.color
+   trimesh.visual.gloss
+   trimesh.visual.material
+   trimesh.visual.objects
+   trimesh.visual.texture
+
+Module contents
+---------------
+
+.. automodule:: trimesh.visual
+   :members:
+   :undoc-members:
+   :show-inheritance:

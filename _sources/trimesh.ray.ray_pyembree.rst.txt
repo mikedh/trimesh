@@ -1,0 +1,7 @@
+trimesh.ray.ray\_pyembree module
+================================
+
+.. automodule:: trimesh.ray.ray_pyembree
+   :members:
+   :undoc-members:
+   :show-inheritance:

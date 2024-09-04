@@ -1,0 +1,7 @@
+trimesh.rendering module
+========================
+
+.. automodule:: trimesh.rendering
+   :members:
+   :undoc-members:
+   :show-inheritance:
