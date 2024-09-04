@@ -23,11 +23,11 @@ except BaseException as E:
 
 def merge_vertices(
     mesh,
-    merge_tex=None,
-    merge_norm=None,
-    digits_vertex=None,
-    digits_norm=None,
-    digits_uv=None,
+    merge_tex: Optional[bool] = None,
+    merge_norm: Optional[bool] = None,
+    digits_vertex: Optional[Integer] = None,
+    digits_norm: Optional[Integer] = None,
+    digits_uv: Optional[Integer] = None,
 ):
     """
     Removes duplicate vertices, grouped by position and
