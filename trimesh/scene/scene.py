@@ -919,12 +919,12 @@ class Scene(Geometry3D):
         Parameters
         ------------
         concatenate
-          DEPRECATED FOR REMOVAL APRIL 2025
+          KWARG IS DEPRECATED FOR REMOVAL APRIL 2025
           Concatenate results into single geometry.
           This keyword argument will make the type hint incorrect and
           you should replace `Scene.dump(concatenate=True)` with:
             - `Scene.concatenate()` for a Trimesh, Path2D or Path3D
-            - `Scene.to_mesh()` for only `Trimesh`.
+            - `Scene.to_mesh()` for only `Trimesh` components.
 
         Returns
         ----------
@@ -1147,11 +1147,8 @@ class Scene(Geometry3D):
         # find the float conversion
         scale = units.unit_conversion(current=current, desired=desired)
 
-        # exit early if our current units are the same as desired units
-        if np.isclose(scale, 1.0):
-            result = self.copy()
-        else:
-            result = self.scaled(scale=scale)
+        # apply scaling factor or exit early if scale ~= 1.0
+        result = self.scaled(scale=scale)
 
         # apply the units to every geometry of the scaled result
         result.units = desired
@@ -1212,6 +1209,12 @@ class Scene(Geometry3D):
         scaled : trimesh.Scene
           A copy of the current scene but scaled
         """
+        result = self.copy()
+
+        # a scale of 1.0 is a no-op
+        if np.allclose(scale, 1.0):
+            return result
+
         # convert 2D geometries to 3D for 3D scaling factors
         scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
 
@@ -1223,7 +1226,6 @@ class Scene(Geometry3D):
             scale = float(scale)
 
         # result is a copy
-        result = self.copy()
 
         if scale_is_3D:
             # Copy all geometries that appear multiple times in the scene,
