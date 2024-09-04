@@ -12,6 +12,7 @@ from .geometry import weighted_vertex_normals
 from .points import PointCloud, plane_fit
 from .transformations import transform_points
 from .triangles import angles, cross, normals
+from .typed import ArrayLike, Integer, Optional
 
 try:
     import scipy.sparse as sparse
@@ -26,7 +27,13 @@ except BaseException as E:
 
 
 def mesh_other(
-    mesh, other, samples=500, scale=False, icp_first=10, icp_final=50, **kwargs
+    mesh,
+    other,
+    samples: Integer = 500,
+    scale: bool = False,
+    icp_first: Integer = 10,
+    icp_final: Integer = 50,
+    **kwargs,
 ):
     """
     Align a mesh with another mesh or a PointCloud using
@@ -185,14 +192,25 @@ def mesh_other(
 
 
 def procrustes(
-    a, b, weights=None, reflection=True, translation=True, scale=True, return_cost=True
+    a: ArrayLike,
+    b: ArrayLike,
+    weights: Optional[ArrayLike] = None,
+    reflection: bool = True,
+    translation: bool = True,
+    scale: bool = True,
+    return_cost: bool = True,
 ):
     """
-    Perform Procrustes' analysis subject to constraints. Finds the
-    transformation T mapping a to b which minimizes the square sum
-    distances between Ta and b, also called the cost. Optionally
-    specify different weights for the points in a to minimize the
-    weighted square sum distances between Ta and b. This can
+    Perform Procrustes' analysis to quickly align two corresponding
+    point clouds subject to constraints. This is much cheaper than
+    any other registration method but only applies if the two inputs
+    correspond in order.
+
+    Finds the transformation T mapping a to b which minimizes the
+    square sum distances between Ta and b, also called the cost.
+
+    Optionally specify different weights for the points in a to minimize
+    the weighted square sum distances between Ta and b, which can
     improve transformation robustness on noisy data if the points'
     probability distribution is known.
 
@@ -207,7 +225,7 @@ def procrustes(
     reflection : bool
       If the transformation is allowed reflections
     translation : bool
-      If the transformation is allowed translations
+      If the transformation is allowed translation and rotation.
     scale : bool
       If the transformation is allowed scaling
     return_cost : bool
@@ -291,6 +309,7 @@ def procrustes(
 
     if return_cost:
         transformed = transform_points(a, matrix)
+        # return the mean euclidean distance squared as the cost
         cost = ((b - transformed) ** 2).mean()
         return matrix, transformed, cost
     else:

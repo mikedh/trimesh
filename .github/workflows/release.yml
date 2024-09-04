@@ -143,4 +143,5 @@ jobs:
           tag_name: ${{ steps.set_tag.outputs.tag_name }}
           release_name: Release ${{ steps.set_tag.outputs.tag_name }}
           draft: false
+          body: ${{ github.event.head_commit.message }}
           prerelease: false

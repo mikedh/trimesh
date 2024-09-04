@@ -743,7 +743,7 @@ class GLTFTest(g.unittest.TestCase):
     def test_same_name(self):
         s = g.get_mesh("TestScene.gltf")
         # hardcode correct bounds to check against
-        bounds = s.dump(concatenate=True).bounds
+        bounds = s.to_mesh().bounds
 
         # icosahedrons have two primitives each
         g.log.debug(len(s.geometry), len(s.graph.nodes_geometry))

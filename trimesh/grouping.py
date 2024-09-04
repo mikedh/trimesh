@@ -23,11 +23,11 @@ except BaseException as E:
 
 def merge_vertices(
     mesh,
-    merge_tex=None,
-    merge_norm=None,
-    digits_vertex=None,
-    digits_norm=None,
-    digits_uv=None,
+    merge_tex: Optional[bool] = None,
+    merge_norm: Optional[bool] = None,
+    digits_vertex: Optional[Integer] = None,
+    digits_norm: Optional[Integer] = None,
+    digits_uv: Optional[Integer] = None,
 ):
     """
     Removes duplicate vertices, grouped by position and
@@ -110,7 +110,7 @@ def merge_vertices(
     mesh.update_vertices(mask=mask, inverse=inverse)
 
 
-def group(values, min_len=0, max_len=np.inf):
+def group(values, min_len: Optional[Integer] = None, max_len: Optional[Integer] = None):
     """
     Return the indices of values that are identical
 
@@ -149,10 +149,20 @@ def group(values, min_len=0, max_len=np.inf):
         nondupe = values[1:] != values[:-1]
 
     dupe_idx = np.append(0, np.nonzero(nondupe)[0] + 1)
+
+    # start with a mask that marks everything as ok
+    dupe_ok = np.ones(len(dupe_idx), dtype=bool)
+
+    # calculate the length of each group from their index
     dupe_len = np.diff(np.concatenate((dupe_idx, [len(values)])))
-    dupe_ok = np.logical_and(
-        np.greater_equal(dupe_len, min_len), np.less_equal(dupe_len, max_len)
-    )
+
+    # cull by length if requested
+    if min_len is not None or max_len is not None:
+        if min_len is not None:
+            dupe_ok &= dupe_len >= min_len
+        if max_len is not None:
+            dupe_ok &= dupe_len <= max_len
+
     groups = [order[i : (i + j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
     return groups
 
@@ -264,7 +274,9 @@ def float_to_int(data, digits: Optional[Integer] = None) -> NDArray[np.int64]:
     return np.round((data * 10**digits) - 1e-6).astype(np.int64)
 
 
-def unique_ordered(data, return_index=False, return_inverse=False):
+def unique_ordered(
+    data: ArrayLike, return_index: bool = False, return_inverse: bool = False
+):
     """
     Returns the same as np.unique, but ordered as per the
     first occurrence of the unique value in data.
@@ -306,7 +318,12 @@ def unique_ordered(data, return_index=False, return_inverse=False):
     return result
 
 
-def unique_bincount(values, minlength=0, return_inverse=False, return_counts=False):
+def unique_bincount(
+    values: ArrayLike,
+    minlength: Integer = 0,
+    return_inverse: bool = False,
+    return_counts: bool = False,
+):
     """
     For arrays of integers find unique values using bin counting.
     Roughly 10x faster for correct input than np.unique
@@ -372,7 +389,7 @@ def unique_bincount(values, minlength=0, return_inverse=False, return_counts=Fal
     return ret
 
 
-def merge_runs(data, digits=None):
+def merge_runs(data: ArrayLike, digits: Optional[Integer] = None):
     """
     Merge duplicate sequential values. This differs from unique_ordered
     in that values can occur in multiple places in the sequence, but
@@ -397,15 +414,25 @@ def merge_runs(data, digits=None):
     In [2]: trimesh.grouping.merge_runs(a)
     Out[2]: array([-1,  0,  1,  2,  0,  3,  4,  5,  6,  7,  8,  9])
     """
+    if digits is None:
+        epsilon = tol.merge
+    else:
+        epsilon = 10 ** (-digits)
+
     data = np.asanyarray(data)
     mask = np.zeros(len(data), dtype=bool)
     mask[0] = True
-    mask[1:] = np.abs(data[1:] - data[:-1]) > tol.merge
+    mask[1:] = np.abs(data[1:] - data[:-1]) > epsilon
 
     return data[mask]
 
 
-def unique_float(data, return_index=False, return_inverse=False, digits=None):
+def unique_float(
+    data,
+    return_index: bool = False,
+    return_inverse: bool = False,
+    digits: Optional[Integer] = None,
+):
     """
     Identical to the numpy.unique command, except evaluates floating point
     numbers, using a specified number of digits.
