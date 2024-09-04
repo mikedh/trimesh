@@ -16,7 +16,7 @@ import numpy as np
 from . import triangles, util
 from .constants import tol
 from .parent import Geometry3D
-from .typed import NDArray, Optional, Union
+from .typed import NDArray, Union
 
 try:
     from scipy.spatial import ConvexHull
@@ -76,54 +76,54 @@ class QhullOptions:
       some of the warnings including the narrow hull warning.
     """
 
-    Qa: Optional[bool] = None
+    Qa: bool = False
     """ Allow input with fewer or more points than coordinates"""
 
-    Qc: Optional[bool] = None
+    Qc: bool = False
     """ Keep coplanar points with nearest facet"""
 
-    Qi: Optional[bool] = None
+    Qi: bool = False
     """ Keep interior points with nearest facet. """
 
-    QJ: Optional[bool] = None
+    QJ: bool = False
     """ Joggled input to avoid precision problems """
 
-    Qt: Optional[bool] = None
+    Qt: bool = False
     """ Triangulated output. """
 
-    Qu: Optional[bool] = None
+    Qu: bool = False
     """ Compute upper hull for furthest-site Delaunay triangulation """
 
-    Qw: Optional[bool] = None
+    Qw: bool = False
     """ Allow warnings about Qhull options """
 
     # Precision handling
-    Qbb: Optional[bool] = None
+    Qbb: bool = False
     """ Scale last coordinate to [0,m] for Delaunay """
 
-    Qs: Optional[bool] = None
+    Qs: bool = False
     """ Search all points for the initial simplex """
 
-    Qv: Optional[bool] = None
+    Qv: bool = False
     """ Test vertex neighbors for convexity """
 
-    Qx: Optional[bool] = None
+    Qx: bool = False
     """ Exact pre-merges (allows coplanar facets)  """
 
-    Qz: Optional[bool] = None
+    Qz: bool = False
     """ Add a point-at-infinity for Delaunay triangulations """
 
-    QbB: Optional[bool] = None
+    QbB: bool = False
     """ Scale input to fit the unit cube """
 
-    QR0: Optional[bool] = None
+    QR0: bool = False
     """ Random rotation (n=seed, n=0 time, n=-1 time/no rotate) """
 
     # Select facets
-    Qg: Optional[bool] = None
+    Qg: bool = False
     """ Only build good facets (needs 'QGn', 'QVn', or 'Pdk') """
 
-    Pp: Optional[bool] = None
+    Pp: bool = False
     """ Do not print statistics about precision problems and remove
       some of the warnings including the narrow hull warning. """
 
@@ -153,7 +153,7 @@ class QhullOptions:
         qhull_options
           Can be passed to `scipy.spatial.[ConvexHull,Delaunay,Voronoi]`
         """
-        return " ".join(f.name for f in fields(self) if getattr(self, f.name, False))
+        return " ".join(f.name for f in fields(self) if getattr(self, f.name))
 
 
 QHULL_DEFAULT = QhullOptions(QbB=True, Pp=True, Qt=True)
