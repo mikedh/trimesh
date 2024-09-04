@@ -1112,9 +1112,9 @@ class Trimesh(Geometry3D):
         self,
         merge_tex: Optional[bool] = None,
         merge_norm: Optional[bool] = None,
-        digits_vertex: Optional[bool] = None,
-        digits_norm: Optional[bool] = None,
-        digits_uv: Optional[bool] = None,
+        digits_vertex: Optional[int] = None,
+        digits_norm: Optional[int] = None,
+        digits_uv: Optional[int] = None,
     ) -> None:
         """
         Removes duplicate vertices grouped by position and
