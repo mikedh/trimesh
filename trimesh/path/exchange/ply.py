@@ -8,8 +8,8 @@ from .misc import edges_to_path
 
 
 def export_ply(
-        path: "Path3D",
-        encoding: Optional[str] = "binary",
+    path: "Path3D",
+    encoding: Optional[str] = "binary",
 ) -> bytes:
     """
     Export a path in the PLY format.
@@ -39,7 +39,9 @@ def export_ply(
 
     # get template strings in dict
     templates = resources.get_json("templates/ply.json")
-    templates["edge"] = "element edge $edge_count\nproperty int vertex1\nproperty int vertex2\n"
+    templates["edge"] = (
+        "element edge $edge_count\nproperty int vertex1\nproperty int vertex2\n"
+    )
     # start collecting elements into a string for the header
     header = [templates["intro"]]
 
@@ -82,13 +84,20 @@ def export_ply(
             export.append(edges.tobytes())
     elif encoding == "ascii":
         export.append(
-            util.structured_array_to_string(vertex, col_delim=" ", row_delim="\n").encode("utf-8"), )
+            util.structured_array_to_string(vertex, col_delim=" ", row_delim="\n").encode(
+                "utf-8"
+            ),
+        )
 
         if hasattr(path, "entities"):
-            export.extend([
-                b"\n",
-                util.structured_array_to_string(edges, col_delim=" ", row_delim="\n").encode("utf-8"),
-            ])
+            export.extend(
+                [
+                    b"\n",
+                    util.structured_array_to_string(
+                        edges, col_delim=" ", row_delim="\n"
+                    ).encode("utf-8"),
+                ]
+            )
         export.append(b"\n")
     else:
         raise ValueError("encoding must be ascii or binary!")
