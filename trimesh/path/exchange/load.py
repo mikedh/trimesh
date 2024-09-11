@@ -4,8 +4,8 @@ from ... import util
 from ..path import Path
 from . import misc
 from .dxf import _dxf_loaders
-from .svg_io import svg_to_path
 from .ply import load_ply
+from .svg_io import svg_to_path
 
 
 def load_path(file_obj, file_type=None, **kwargs):

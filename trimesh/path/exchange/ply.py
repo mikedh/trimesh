@@ -1,14 +1,15 @@
-import numpy as np
 from string import Template
+
+import numpy as np
+
 from ... import resources, util
-from ...exchange.ply import _parse_header, _ply_binary, _ply_ascii, _elements_to_kwargs
-from ...typed import Optional, Dict
-from ..entities import Line
+from ...exchange.ply import _elements_to_kwargs, _parse_header, _ply_ascii, _ply_binary
+from ...typed import Dict, Optional
 from .misc import edges_to_path
 
 
 def export_ply(
-    path: "Path3D",
+    path,
     encoding: Optional[str] = "binary",
 ) -> bytes:
     """
@@ -30,9 +31,6 @@ def export_ply(
     elif encoding not in ["binary_little_endian", "ascii"]:
         raise ValueError("encoding must be binary or ascii")
 
-    if path.vertices.shape[-1] != 3:
-        raise ValueError("only Path3D export is supported to ply")
-
     # custom numpy dtypes for exporting
     dtype_edge = [("index", "<i4", (2))]
     dtype_vertex = [("vertex", "<f4", (3))]
@@ -46,33 +44,38 @@ def export_ply(
     header = [templates["intro"]]
 
     # check if scene has geometry
-    if hasattr(path, "vertices"):
-        header.append(templates["vertex"])
-        num_vertices = len(path.vertices)
+    if hasattr(path, "vertices") and hasattr(path, "entities"):
 
-        # create and populate the custom dtype for vertices
-        vertex = np.zeros(num_vertices, dtype=dtype_vertex)
-        vertex["vertex"] = path.vertices.astype(np.float32)
-    else:
-        num_vertices = 0
-
-    header_params = {"vertex_count": num_vertices, "encoding": encoding}
-
-    if hasattr(path, "entities"):
-        header.append(templates["edge"])
+        if len(path.vertices) and path.vertices.shape[-1] != 3:
+            raise ValueError("only Path3D export is supported for ply")
 
         entities = []
+        vertices = []
         for e in path.entities:
-            if isinstance(e, Line):
-                for pp in range(len(e.points) - 1):
-                    entities.append((e.points[pp], e.points[pp + 1]))
-            else:
-                raise NotImplementedError(f"type {type(e)} not supported as entities")
+            entity_points = len(vertices)
+            discretized_path = e.discrete(path.vertices).tolist()
+            for pp in range(len(discretized_path) - 1):
+                entities.append((entity_points + pp, entity_points+pp + 1))
+            vertices.extend(discretized_path)
+
+        # create and populate the custom dtype for vertices
+        num_vertices = len(vertices)
+        vertex = np.zeros(num_vertices, dtype=dtype_vertex)
+        if num_vertices:
+            header.append(templates["vertex"])
+            vertex["vertex"] = np.asarray(vertices, dtype=np.float32)
 
         # put mesh edge data into custom dtype to export
-        edges = np.zeros(len(entities), dtype=dtype_edge)
-        edges["index"] = np.asarray(entities, dtype=np.int32)
-        header_params["edge_count"] = len(entities)
+        num_edges = len(entities)
+        edges = np.zeros(num_edges, dtype=dtype_edge)
+        if num_edges:
+            header.append(templates["edge"])
+            edges["index"] = np.asarray(entities, dtype=np.int32)
+    else:
+        num_vertices = 0
+        num_edges = 0
+
+    header_params = {"vertex_count": num_vertices, "edge_count": num_edges, "encoding": encoding}
 
     header.append(templates["outro"])
     export = [Template("".join(header)).substitute(header_params).encode("utf-8")]
@@ -83,7 +86,8 @@ def export_ply(
         if hasattr(path, "entities"):
             export.append(edges.tobytes())
     elif encoding == "ascii":
-        export.append(
+        if hasattr(path, "vertices"):
+            export.append(
             util.structured_array_to_string(vertex, col_delim=" ", row_delim="\n").encode(
                 "utf-8"
             ),
@@ -133,11 +137,15 @@ def load_ply(file_obj, **kwargs) -> Dict:
     try:
         v1 = kwargs["metadata"]["_ply_raw"]["edge"]["data"]["vertex1"]
         v2 = kwargs["metadata"]["_ply_raw"]["edge"]["data"]["vertex2"]
-        result = edges_to_path([v1, v2], kwargs["vertices"])
+        result = edges_to_path(np.column_stack((v1, v2)), kwargs["vertices"])
     except KeyError:
-        raise ValueError("Could not load entities!")
+        # special case for empty files
+        result = kwargs
+        result.update({"entities": [], "geometry": None})
+        if "vertices" not in kwargs:
+            result.update({"vertices": np.asarray([], dtype=np.float32)})
 
-    # return result as kwargs for Path2D constructor
+    # return result as kwargs for Path constructor
     result.update({"metadata": {}})
 
     return result
