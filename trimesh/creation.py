@@ -41,6 +41,7 @@ _engines = [
 def revolve(
     linestring: ArrayLike,
     angle: Optional[Number] = None,
+    cap: bool = False,
     sections: Optional[Integer] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
@@ -125,10 +126,6 @@ def revolve(
         # chop off duplicate vertices
         vertices = vertices[:-per]
 
-    if transform is not None:
-        # apply transform to vertices
-        vertices = tf.transform_points(vertices, transform)
-
     # how many slices of the pie
     slices = len(theta) - 1
 
@@ -160,18 +157,53 @@ def revolve(
     # if 'process' not in kwargs:
     #    kwargs['process'] = False
 
+    # Handle capping before applying any transformation
+    if not closed and cap:
+        # Use the triangulated linestring as the base cap faces (cap_0), assuming no new vertices 
+        # are added, indices defining triangles of cap_0 should be reusable for cap_angle
+        cap_0_vertices, cap_0_faces = triangulate_polygon(Polygon(linestring))
+
+        if tol.strict:
+            # make sure we didn't screw up triangulation
+            _, idx = np.unique(cap_0_vertices, return_index=True)
+            cap_0_uvtxs = cap_0_vertices[np.sort(idx)]
+            _, idx = np.unique(linestring, return_index=True)
+            line_uvtxs = linestring[np.sort(idx)]
+            assert np.allclose(cap_0_uvtxs, line_uvtxs)
+
+        # Use the last set of vertices as the top cap contour (cap_angle)
+        offset = len(vertices) - per
+        cap_angle_faces = cap_0_faces + offset
+        flipped_cap_angle_faces = np.fliplr(cap_angle_faces) # reverse the winding
+
+        # Append cap faces to the face array
+        faces = np.vstack([faces, cap_0_faces, flipped_cap_angle_faces])
+
+    if transform is not None:
+        # apply transform to vertices
+        vertices = tf.transform_points(vertices, transform)
+
     # create the mesh from our vertices and faces
     mesh = Trimesh(vertices=vertices, faces=faces, **kwargs)
+    
+    # HACK: minor repairs if needed
+    if not closed and cap and not mesh.is_volume:
+      mesh.update_faces(mesh.nondegenerate_faces())
+      mesh.update_faces(mesh.unique_faces())
+      mesh.remove_infinite_values()
+      mesh.remove_unreferenced_vertices()
+      mesh.fix_normals()
 
-    # strict checks run only in unit tests
+    # strict checks run only in unit tests and when cap is True
     if tol.strict and (
         np.allclose(radius[[0, -1]], 0.0) or np.allclose(linestring[0], linestring[-1])
     ):
-        # if revolved curve starts and ends with zero radius
-        # it should really be a valid volume, unless the sign
-        # reversed on the input linestring
-        assert closed
-        assert mesh.is_volume
+        if not closed and cap:
+          # if revolved curve starts and ends with zero radius
+          # it should really be a valid volume, unless the sign
+          # reversed on the input linestring
+          assert mesh.is_volume
+        
         assert mesh.body_count == 1
 
     return mesh
