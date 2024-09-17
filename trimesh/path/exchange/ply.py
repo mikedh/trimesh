@@ -45,7 +45,6 @@ def export_ply(
 
     # check if scene has geometry
     if hasattr(path, "vertices") and hasattr(path, "entities"):
-
         if len(path.vertices) and path.vertices.shape[-1] != 3:
             raise ValueError("only Path3D export is supported for ply")
 
@@ -55,7 +54,7 @@ def export_ply(
             entity_points = len(vertices)
             discretized_path = e.discrete(path.vertices).tolist()
             for pp in range(len(discretized_path) - 1):
-                entities.append((entity_points + pp, entity_points+pp + 1))
+                entities.append((entity_points + pp, entity_points + pp + 1))
             vertices.extend(discretized_path)
 
         # create and populate the custom dtype for vertices
@@ -75,7 +74,11 @@ def export_ply(
         num_vertices = 0
         num_edges = 0
 
-    header_params = {"vertex_count": num_vertices, "edge_count": num_edges, "encoding": encoding}
+    header_params = {
+        "vertex_count": num_vertices,
+        "edge_count": num_edges,
+        "encoding": encoding,
+    }
 
     header.append(templates["outro"])
     export = [Template("".join(header)).substitute(header_params).encode("utf-8")]
@@ -88,10 +91,10 @@ def export_ply(
     elif encoding == "ascii":
         if hasattr(path, "vertices"):
             export.append(
-            util.structured_array_to_string(vertex, col_delim=" ", row_delim="\n").encode(
-                "utf-8"
-            ),
-        )
+                util.structured_array_to_string(
+                    vertex, col_delim=" ", row_delim="\n"
+                ).encode("utf-8"),
+            )
 
         if hasattr(path, "entities"):
             export.extend(

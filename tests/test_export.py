@@ -283,9 +283,9 @@ class ExportTest(g.unittest.TestCase):
         path3D = g.trimesh.path.Path3D(
             [
                 g.trimesh.path.entities.Line([0, 1, 2]),
-                g.trimesh.path.entities.Line([2, 0, 1])
+                g.trimesh.path.entities.Line([2, 0, 1]),
             ],
-            [(0., 0., 0.), (1., 0., 0.), (1., 1., 0.)]
+            [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
         )
 
         # export to ply
@@ -302,7 +302,7 @@ class ExportTest(g.unittest.TestCase):
         """
         path3D = g.trimesh.path.Path3D(
             [g.trimesh.path.entities.Bezier([0, 1, 2])],
-            [(0., 0., 0.), (1., 0., 0.), (1., 1., 0.)]
+            [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
         )
 
         # export to ply

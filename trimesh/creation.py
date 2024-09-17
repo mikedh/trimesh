@@ -159,7 +159,7 @@ def revolve(
 
     # Handle capping before applying any transformation
     if not closed and cap:
-        # Use the triangulated linestring as the base cap faces (cap_0), assuming no new vertices 
+        # Use the triangulated linestring as the base cap faces (cap_0), assuming no new vertices
         # are added, indices defining triangles of cap_0 should be reusable for cap_angle
         cap_0_vertices, cap_0_faces = triangulate_polygon(Polygon(linestring))
 
@@ -174,7 +174,7 @@ def revolve(
         # Use the last set of vertices as the top cap contour (cap_angle)
         offset = len(vertices) - per
         cap_angle_faces = cap_0_faces + offset
-        flipped_cap_angle_faces = np.fliplr(cap_angle_faces) # reverse the winding
+        flipped_cap_angle_faces = np.fliplr(cap_angle_faces)  # reverse the winding
 
         # Append cap faces to the face array
         faces = np.vstack([faces, cap_0_faces, flipped_cap_angle_faces])
@@ -185,25 +185,25 @@ def revolve(
 
     # create the mesh from our vertices and faces
     mesh = Trimesh(vertices=vertices, faces=faces, **kwargs)
-    
+
     # HACK: minor repairs if needed
     if not closed and cap and not mesh.is_volume:
-      mesh.update_faces(mesh.nondegenerate_faces())
-      mesh.update_faces(mesh.unique_faces())
-      mesh.remove_infinite_values()
-      mesh.remove_unreferenced_vertices()
-      mesh.fix_normals()
+        mesh.update_faces(mesh.nondegenerate_faces())
+        mesh.update_faces(mesh.unique_faces())
+        mesh.remove_infinite_values()
+        mesh.remove_unreferenced_vertices()
+        mesh.fix_normals()
 
     # strict checks run only in unit tests and when cap is True
     if tol.strict and (
         np.allclose(radius[[0, -1]], 0.0) or np.allclose(linestring[0], linestring[-1])
     ):
         if not closed and cap:
-          # if revolved curve starts and ends with zero radius
-          # it should really be a valid volume, unless the sign
-          # reversed on the input linestring
-          assert mesh.is_volume
-        
+            # if revolved curve starts and ends with zero radius
+            # it should really be a valid volume, unless the sign
+            # reversed on the input linestring
+            assert mesh.is_volume
+
         assert mesh.body_count == 1
 
     return mesh
