@@ -616,7 +616,7 @@ def triangulate_polygon(
         return result["vertices"], result["triangles"]
 
     log.warning(
-        "try running `pip install manifold3d`"
+        "try running `pip install mapbox-earcut manifold3d`"
         + "or `triangle`, `mapbox_earcut`, then explicitly pass:\n"
         + '`triangulate_polygon(*args, engine="triangle")`\n'
         + "to use the non-FSF-approved-license triangle engine"
