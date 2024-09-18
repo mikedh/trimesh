@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Dict, Integer, NDArray, Number, Optional
+from .typed import ArrayLike, Dict, Integer, NDArray, Number, Optional, Tuple
 
 try:
     # shapely is a soft dependency
@@ -563,8 +563,12 @@ def extrude_triangulation(
 
 
 def triangulate_polygon(
-    polygon, triangle_args: Optional[str] = None, engine: Optional[str] = None, **kwargs
-):
+    polygon,
+    triangle_args: Optional[str] = None,
+    engine: Optional[str] = None,
+    force_vertices: bool = False,
+    **kwargs,
+) -> Tuple[NDArray[np.float64], NDArray[np.int64]]:
     """
     Given a shapely polygon create a triangulation using a
     python interface to the permissively licensed `mapbox-earcut`
@@ -577,10 +581,14 @@ def triangulate_polygon(
     ---------
     polygon : Shapely.geometry.Polygon
         Polygon object to be triangulated.
-    triangle_args : str or None
+    triangle_args
         Passed to triangle.triangulate i.e: 'p', 'pq30', 'pY'="don't insert vert"
-    engine : None or str
+    engine
       None or 'earcut' will use earcut, 'triangle' will use triangle
+    force_vertices
+      Many operations can't handle new vertices being inserted, so this will
+      attempt to generate a triangulation without new vertices and raise a
+      ValueError if it is unable to do so.
 
     Returns
     --------------
@@ -596,6 +604,8 @@ def triangulate_polygon(
 
     if polygon is None or polygon.is_empty:
         return [], []
+
+    vertices = None
 
     if engine == "earcut":
         from mapbox_earcut import triangulate_float64
@@ -616,8 +626,6 @@ def triangulate_polygon(
             .reshape((-1, 3))
         )
 
-        return vertices, faces
-
     elif engine == "manifold":
         import manifold3d
 
@@ -633,7 +641,6 @@ def triangulate_polygon(
         )
         faces = manifold3d.triangulate(rings)
         vertices = np.vstack(rings)
-        return vertices, faces
 
     elif engine == "triangle":
         from triangle import triangulate
@@ -644,16 +651,19 @@ def triangulate_polygon(
             # turn the polygon in to vertices, segments, and holes
         arg = _polygon_to_kwargs(polygon)
         # run the triangulation
-        result = triangulate(arg, triangle_args)
-        return result["vertices"], result["triangles"]
+        blob = triangulate(arg, triangle_args)
+        vertices, faces = blob["vertices"], blob["triangles"]
 
-    log.warning(
-        "try running `pip install mapbox-earcut manifold3d`"
-        + "or `triangle`, `mapbox_earcut`, then explicitly pass:\n"
-        + '`triangulate_polygon(*args, engine="triangle")`\n'
-        + "to use the non-FSF-approved-license triangle engine"
-    )
-    raise ValueError("No available triangulation engine!")
+    if vertices is None:
+        log.warning(
+            "try running `pip install mapbox-earcut manifold3d`"
+            + "or `triangle`, `mapbox_earcut`, then explicitly pass:\n"
+            + '`triangulate_polygon(*args, engine="triangle")`\n'
+            + "to use the non-FSF-approved-license triangle engine"
+        )
+        raise ValueError("No available triangulation engine!")
+
+    return vertices, faces
 
 
 def _polygon_to_kwargs(polygon) -> Dict:
