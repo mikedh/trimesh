@@ -639,8 +639,8 @@ def triangulate_polygon(
         rings.extend(
             np.array(b.coords)[:: (-1 if b.is_ccw else 1)][:-1] for b in polygon.interiors
         )
-        faces = manifold3d.triangulate(rings)
-        vertices = np.vstack(rings)
+        faces = manifold3d.triangulate(rings).astype(np.int64)
+        vertices = np.vstack(rings, dtype=np.float64)
 
     elif engine == "triangle":
         from triangle import triangulate
@@ -652,7 +652,7 @@ def triangulate_polygon(
         arg = _polygon_to_kwargs(polygon)
         # run the triangulation
         blob = triangulate(arg, triangle_args)
-        vertices, faces = blob["vertices"], blob["triangles"]
+        vertices, faces = blob["vertices"], blob["triangles"].astype(np.int64)
 
     if vertices is None:
         log.warning(

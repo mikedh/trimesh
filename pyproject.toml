@@ -84,7 +84,6 @@ easy = [
 ]
 
 recommend = [
-    "glooey",
     "sympy",
     "meshio",
     "pyglet<2",
@@ -94,7 +93,6 @@ recommend = [
     # "python-fcl", # do collision checks # TODO : broken on numpy 2
     "openctm", # load `CTM` compressed models
     "cascadio", # load `STEP` files
-    
 ]
 
 # stuff to run simple testing
@@ -115,7 +113,8 @@ test_more = [
     "ezdxf",
     "pytest-beartype; python_version>='3.10'",
     "matplotlib",
-    "pymeshlab"
+    "pymeshlab",
+    "triangle",
 ]
 
 # interfaces.gmsh will be dropped Jan 2025
