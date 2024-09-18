@@ -462,7 +462,7 @@ class GithubResolver(Resolver):
             """
             import httpx
 
-            response = httpx.get(self.url)
+            response = httpx.get(self.url, follow_redirects=True)
             response.raise_for_status()
             return response.content
 
