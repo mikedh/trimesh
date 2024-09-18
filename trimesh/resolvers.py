@@ -12,6 +12,7 @@ import itertools
 import os
 
 from . import caching, util
+from .typed import Union
 
 # URL parsing for remote resources via WebResolver
 try:
@@ -58,7 +59,7 @@ class FilePathResolver(Resolver):
     Resolve files from a source path on the file system.
     """
 
-    def __init__(self, source):
+    def __init__(self, source: str):
         """
         Resolve files based on a source path.
 
@@ -101,7 +102,7 @@ class FilePathResolver(Resolver):
             for name in names:
                 yield os.path.join(path, name)
 
-    def namespaced(self, namespace):
+    def namespaced(self, namespace: str) -> "FilePathResolver":
         """
         Return a resolver which changes the root of the
         resolver by an added namespace.
@@ -118,7 +119,7 @@ class FilePathResolver(Resolver):
         """
         return FilePathResolver(os.path.join(self.parent, namespace))
 
-    def get(self, name):
+    def get(self, name: str):
         """
         Get an asset.
 
@@ -140,7 +141,7 @@ class FilePathResolver(Resolver):
             data = f.read()
         return data
 
-    def write(self, name, data):
+    def write(self, name: str, data: Union[str, bytes]):
         """
         Write an asset to a file path.
 
@@ -204,7 +205,7 @@ class ZipResolver(Resolver):
             ]
         return self.archive.keys()
 
-    def write(self, key, value):
+    def write(self, key: str, value):
         """
         Store a value in the current archive.
 
@@ -219,7 +220,7 @@ class ZipResolver(Resolver):
             self.archive = {}
         self.archive[key] = value
 
-    def get(self, name):
+    def get(self, name: str):
         """
         Get an asset from the ZIP archive.
 
@@ -265,7 +266,7 @@ class ZipResolver(Resolver):
         obj.seek(0)
         return data
 
-    def namespaced(self, namespace):
+    def namespaced(self, namespace: str) -> "ZipResolver":
         """
         Return a "sub-resolver" with a root namespace.
 
@@ -283,7 +284,7 @@ class ZipResolver(Resolver):
         """
         return ZipResolver(archive=self.archive, namespace=namespace)
 
-    def export(self):
+    def export(self) -> bytes:
         """
         Export the contents of the current archive as
         a ZIP file.
@@ -447,7 +448,7 @@ class GithubResolver(Resolver):
         raise NotImplementedError("`write` not implemented!")
 
     @property
-    def zipped(self):
+    def zipped(self) -> ZipResolver:
         """
 
         - opened zip file
@@ -455,15 +456,14 @@ class GithubResolver(Resolver):
         - retrieve zip file and saved
         """
 
-        def fetch():
+        def fetch() -> bytes:
             """
             Fetch the remote zip file.
             """
-            import requests
+            import httpx
 
-            response = requests.get(self.url)
-            if not response.ok:
-                raise ValueError(response.content)
+            response = httpx.get(self.url)
+            response.raise_for_status()
             return response.content
 
         if hasattr(self, "_zip"):
