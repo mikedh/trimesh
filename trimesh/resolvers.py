@@ -12,7 +12,7 @@ import itertools
 import os
 
 from . import caching, util
-from .typed import Union
+from .typed import Optional, Union
 
 # URL parsing for remote resources via WebResolver
 try:
@@ -400,7 +400,13 @@ class WebResolver(Resolver):
 
 
 class GithubResolver(Resolver):
-    def __init__(self, repo, branch=None, commit=None, save=None):
+    def __init__(
+        self,
+        repo: str,
+        branch: Optional[str] = None,
+        commit: Optional[str] = None,
+        save: Optional[str] = None,
+    ):
         """
         Get files from a remote Github repository by
         downloading a zip file with the entire branch
@@ -408,25 +414,24 @@ class GithubResolver(Resolver):
 
         Parameters
         -------------
-        repo : str
+        repo
           In the format of `owner/repo`
-        branch : str
+        branch
           The remote branch you want to get files from.
-        commit : str
+        commit
           The full commit hash: pass either this OR branch.
-        save : None or str
+        save
           A path if you want to save results locally.
         """
-        # the github URL for the latest commit of a branch.
-        if commit is None:
-            self.url = (
-                "https://github.com/{repo}/archive/" + "refs/heads/{branch}.zip"
-            ).format(repo=repo, branch=branch)
+
+        if commit is not None:
+            # just get the exact commit
+            self.url = f"https://github.com/{repo}/archive/{commit}.zip"
+        elif branch is not None:
+            # gets the latest commit on the specified branch.
+            self.url = f"https://github.com/{repo}/archive/refs/heads/{branch}.zip"
         else:
-            # get a commit URL
-            self.url = ("https://github.com/{repo}/archive/" + "{commit}.zip").format(
-                repo=repo, commit=commit
-            )
+            raise ValueError("`commit` or `branch` must be passed!")
 
         if save is not None:
             self.cache = caching.DiskCache(save)
