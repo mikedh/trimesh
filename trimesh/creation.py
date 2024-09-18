@@ -166,7 +166,9 @@ def revolve(
     if not closed and cap:
         # Use the triangulated linestring as the base cap faces (cap_0), assuming no new vertices
         # are added, indices defining triangles of cap_0 should be reusable for cap_angle
-        cap_0_vertices, cap_0_faces = triangulate_polygon(Polygon(linestring))
+        cap_0_vertices, cap_0_faces = triangulate_polygon(
+            Polygon(linestring), force_vertices=True
+        )
 
         if tol.strict:
             # make sure we didn't screw up triangulation
@@ -649,6 +651,10 @@ def triangulate_polygon(
         # run the triangulation
         blob = triangulate(arg, triangle_args)
         vertices, faces = blob["vertices"], blob["triangles"].astype(np.int64)
+
+        # triangle may insert vertices
+        if force_vertices:
+            assert np.allclose(arg["vertices"], vertices)
 
     if vertices is None:
         log.warning(
