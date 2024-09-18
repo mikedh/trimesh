@@ -62,9 +62,13 @@ def revolve(
     -------------
     linestring : (n, 2) float
       Lines in 2D which will be revolved
-    angle : None or float
-      Angle in radians to revolve curve by
-    sections : None or int
+    angle
+      Angle in radians to revolve curve by or if not
+      passed will be a full revolution (`angle = 2*pi`)
+    cap
+      If not a full revolution (`0.0 < angle < 2 * pi`)
+      and cap is True attempt to add a tesselated cap.
+    sections
       Number of sections result should have
       If not specified default is 32 per revolution
     transform : None or (4, 4) float
@@ -105,6 +109,7 @@ def revolve(
 
     # how many points per slice
     per = len(linestring)
+
     # use the 2D X component as radius
     radius = linestring[:, 0]
     # use the 2D Y component as the height along revolution
@@ -186,24 +191,15 @@ def revolve(
     # create the mesh from our vertices and faces
     mesh = Trimesh(vertices=vertices, faces=faces, **kwargs)
 
-    # HACK: minor repairs if needed
-    if not closed and cap and not mesh.is_volume:
-        mesh.update_faces(mesh.nondegenerate_faces())
-        mesh.update_faces(mesh.unique_faces())
-        mesh.remove_infinite_values()
-        mesh.remove_unreferenced_vertices()
-        mesh.fix_normals()
-
     # strict checks run only in unit tests and when cap is True
     if tol.strict and (
         np.allclose(radius[[0, -1]], 0.0) or np.allclose(linestring[0], linestring[-1])
     ):
-        if not closed and cap:
+        if closed or cap:
             # if revolved curve starts and ends with zero radius
             # it should really be a valid volume, unless the sign
             # reversed on the input linestring
             assert mesh.is_volume
-
         assert mesh.body_count == 1
 
     return mesh
