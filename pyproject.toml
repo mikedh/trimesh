@@ -32,6 +32,9 @@ dependencies = ["numpy>=1.20"]
 file = "README.md"
 content-type = "text/markdown"
 
+[project.scripts]
+trimesh = "trimesh:__main__.main"
+
 [tool.setuptools]
 packages = [
     "trimesh",
