@@ -2887,9 +2887,8 @@ class Trimesh(Geometry3D):
         union : trimesh.Trimesh
           Union of self and other Trimesh objects
         """
-
         return boolean.union(
-            meshes=[self, other],
+            meshes=util.flat_append(self, other),
             engine=engine,
             check_volume=check_volume,
             **kwargs,
@@ -2925,7 +2924,10 @@ class Trimesh(Geometry3D):
            Difference between self and other Trimesh objects
         """
         return boolean.difference(
-            meshes=[self, other], engine=engine, check_volume=check_volume, **kwargs
+            meshes=util.flat_append(self, other),
+            engine=engine,
+            check_volume=check_volume,
+            **kwargs,
         )
 
     def intersection(
@@ -2958,7 +2960,7 @@ class Trimesh(Geometry3D):
            Mesh of the volume contained by all passed meshes
         """
         return boolean.intersection(
-            meshes=[self, other],
+            meshes=util.flat_append(self, other),
             engine=engine,
             check_volume=check_volume,
             **kwargs,

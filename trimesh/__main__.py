@@ -19,7 +19,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("file_name")
     args = parser.parse_args()
-    load(args.filename).show()
+    load(args.file_name).show()
 
 
 if __name__ == "__main__":
