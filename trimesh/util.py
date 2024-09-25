@@ -1389,11 +1389,14 @@ def type_named(obj, name):
     raise ValueError("Unable to extract class of name " + name)
 
 
-def chain(*args: Iterable[Union[Iterable[Any], Any]]) -> List[Any]:
+def chain(*args: Iterable[Union[Iterable[Any], Any, None]]) -> List[Any]:
     """
     A less principled version of `list(itertools.chain(*args))` that accepts
     non-iterable values and filters `None` and returns a list
     rather than yielding values.
+
+    If all passed values are iterables, this will return identical
+    results to `list(itertools.chain(*args))`:
 
     In [5]: list(itertools.chain([1,2], [3]))
     Out[5]: [1, 2, 3]
@@ -1407,7 +1410,6 @@ def chain(*args: Iterable[Union[Iterable[Any], Any]]) -> List[Any]:
     In [9]: list(itertools.chain([1,2], [3], 4))
       ----> 1 list(itertools.chain([1,2], [3], 4))
       TypeError: 'int' object is not iterable
-
 
     Parameters
     -----------
