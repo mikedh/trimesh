@@ -1389,22 +1389,41 @@ def type_named(obj, name):
     raise ValueError("Unable to extract class of name " + name)
 
 
-def flat_append(a: Union[Iterable[Any], Any], b: Union[Iterable[Any], Any]) -> List[Any]:
+def chain(*args: Iterable[Union[Iterable[Any], Any]]) -> List[Any]:
     """
-    Append two things together, concatenating a list.
+    A less principled version of `list(itertools.chain(*args))` that accepts
+    non-iterable values and filters `None` and returns a list
+    rather than yielding values.
+
+    In [5]: list(itertools.chain([1,2], [3]))
+    Out[5]: [1, 2, 3]
+
+    In [6]: trimesh.util.chain([1,2], [3])
+    Out[6]: [1, 2, 3]
+
+    In [8]: trimesh.util.chain([1,2], [3], 4)
+    Out[8]: [1, 2, 3, 4]
+
+    In [9]: list(itertools.chain([1,2], [3], 4))
+      ----> 1 list(itertools.chain([1,2], [3], 4))
+      TypeError: 'int' object is not iterable
+
+
+    Parameters
+    -----------
+    args
+      Will be individually checked to see if they're iterable
+      before either being appended or extended to a flat list.
+
+    Returns
+    ----------
+    chained
+      The values in a flat list.
     """
     # get a flat list of meshes
     flat = []
-    if a is not None:
-        if is_sequence(a):
-            flat.extend(a)
-        else:
-            flat.append(a)
-    if b is not None:
-        if is_sequence(b):
-            flat.extend(b)
-        else:
-            flat.append(b)
+    # extend if it's a sequence, otherwise append
+    [flat.extend(a) if is_sequence(a) else flat.append(a) for a in args if a is not None]
     return flat
 
 
@@ -1424,11 +1443,11 @@ def concatenate(
 
     Returns
     ----------
-    result : trimesh.Trimesh
+    result
       Concatenated mesh
     """
     dump = []
-    for i in flat_append(a, b):
+    for i in chain(a, b):
         if is_instance_named(i, "Scene"):
             # get every mesh in the final frame.
             dump.extend(i.dump())
