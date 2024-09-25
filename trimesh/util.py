@@ -1389,7 +1389,7 @@ def type_named(obj, name):
     raise ValueError("Unable to extract class of name " + name)
 
 
-def chain(*args: Iterable[Union[Iterable[Any], Any, None]]) -> List[Any]:
+def chain(*args: Union[Iterable[Any], Any, None]) -> List[Any]:
     """
     A less principled version of `list(itertools.chain(*args))` that accepts
     non-iterable values and filters `None` and returns a list
@@ -1422,11 +1422,15 @@ def chain(*args: Iterable[Union[Iterable[Any], Any, None]]) -> List[Any]:
     chained
       The values in a flat list.
     """
-    # get a flat list of meshes
-    flat = []
+    #
+    chained = []
     # extend if it's a sequence, otherwise append
-    [flat.extend(a) if is_sequence(a) else flat.append(a) for a in args if a is not None]
-    return flat
+    [
+        chained.extend(a) if is_sequence(a) else chained.append(a)
+        for a in args
+        if a is not None
+    ]
+    return chained
 
 
 def concatenate(
