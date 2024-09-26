@@ -23,7 +23,7 @@ def export_path(path, file_type=None, file_obj=None, **kwargs):
     """
     # if file object is a string it is probably a file path
     # so we can split the extension to set the file type
-    if util.is_string(file_obj):
+    if isinstance(file_obj, str):
         file_type = util.split_extension(file_obj)
 
     # run the export

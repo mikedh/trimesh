@@ -348,7 +348,7 @@ class Text(Entity):
         if align is None:
             # if not set make everything centered
             align = ["center", "center"]
-        elif util.is_string(align):
+        elif isinstance(align, str):
             # if only one is passed set for both
             # horizontal and vertical
             align = [align, align]

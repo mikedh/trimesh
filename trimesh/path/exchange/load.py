@@ -48,7 +48,7 @@ def load_path(file_obj, file_type=None, **kwargs):
             kwargs.update(load_ply(file_obj, file_type=file_type))
         else:
             kwargs.update(path_loaders[file_type](file_obj, file_type=file_type))
-    elif util.is_string(file_obj):
+    elif isinstance(file_obj, str):
         # strings passed are evaluated as file file_objects
         with open(file_obj, "rb") as f:
             # get the file type from the extension
