@@ -34,11 +34,20 @@ def main():
     else:
         scene = load(args.file_name)
 
+    summary(scene)
+
     if args.export is not None:
         scene.export(args.export)
 
     if args.interact:
         return interactive(scene)
+
+    scene.show()
+
+
+def summary(geom):
+    """ """
+    print(geom)
 
 
 def interactive(scene):
