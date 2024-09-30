@@ -2860,7 +2860,7 @@ class Trimesh(Geometry3D):
 
     def union(
         self,
-        other: "Trimesh",
+        other: Union["Trimesh", Sequence["Trimesh"]],
         engine: Optional[str] = None,
         check_volume: bool = True,
         **kwargs,
@@ -2896,18 +2896,18 @@ class Trimesh(Geometry3D):
 
     def difference(
         self,
-        other: "Trimesh",
+        other: Union["Trimesh", Sequence["Trimesh"]],
         engine: Optional[str] = None,
         check_volume: bool = True,
         **kwargs,
     ) -> "Trimesh":
         """
-         Boolean difference between this mesh and n other meshes
+         Boolean difference between this mesh and other meshes.
 
          Parameters
          ------------
-         other : trimesh.Trimesh, or list of trimesh.Trimesh objects
-           Meshes to difference
+         other
+           One or more meshes to difference with the current mesh.
          engine
            Which backend to use, the default
            recommendation is: `pip install manifold3d`.
@@ -2932,7 +2932,7 @@ class Trimesh(Geometry3D):
 
     def intersection(
         self,
-        other: "Trimesh",
+        other: Union["Trimesh", Sequence["Trimesh"]],
         engine: Optional[str] = None,
         check_volume: bool = True,
         **kwargs,
