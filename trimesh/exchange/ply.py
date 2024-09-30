@@ -283,6 +283,8 @@ def export_ply(
     # will be appended to main dtype if needed
     dtype_vertex_normal = ("normals", "<f4", (3))
     dtype_color = ("rgba", "<u1", (4))
+    # for Path objects.
+    dtype_edge = [("index", "<i4", (2))]
 
     # get template strings in dict
     templates = resources.get_json("templates/ply.json")
@@ -345,19 +347,19 @@ def export_ply(
         if include_attributes and hasattr(mesh, "face_attributes"):
             _add_attributes_to_data_array(faces, mesh.face_attributes)
 
-    # check if this is a Path object.
-    if hasattr(path, "entities"):
-        if len(path.vertices) and path.vertices.shape[-1] != 3:
-            raise ValueError("only Path3D export is supported for ply")
+    # check if this is a `trimesh.path.Path` object.
+    if hasattr(mesh, "entities"):
+        if len(mesh.vertices) and mesh.vertices.shape[-1] != 3:
+            raise ValueError("only Mesh3D export is supported for ply")
 
         entities = []
         vertices = []
-        for e in path.entities:
+        for e in mesh.entities:
             entity_points = len(vertices)
-            discretized_path = e.discrete(path.vertices).tolist()
-            for pp in range(len(discretized_path) - 1):
+            discretized_mesh = e.discrete(mesh.vertices).tolist()
+            for pp in range(len(discretized_mesh) - 1):
                 entities.append((entity_points + pp, entity_points + pp + 1))
-            vertices.extend(discretized_path)
+            vertices.extend(discretized_mesh)
 
         # create and populate the custom dtype for vertices
         num_vertices = len(vertices)
