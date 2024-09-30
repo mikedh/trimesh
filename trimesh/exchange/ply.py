@@ -345,6 +345,34 @@ def export_ply(
         if include_attributes and hasattr(mesh, "face_attributes"):
             _add_attributes_to_data_array(faces, mesh.face_attributes)
 
+    # check if this is a Path object.
+    if hasattr(path, "entities"):
+        if len(path.vertices) and path.vertices.shape[-1] != 3:
+            raise ValueError("only Path3D export is supported for ply")
+
+        entities = []
+        vertices = []
+        for e in path.entities:
+            entity_points = len(vertices)
+            discretized_path = e.discrete(path.vertices).tolist()
+            for pp in range(len(discretized_path) - 1):
+                entities.append((entity_points + pp, entity_points + pp + 1))
+            vertices.extend(discretized_path)
+
+        # create and populate the custom dtype for vertices
+        num_vertices = len(vertices)
+        vertex = np.zeros(num_vertices, dtype=dtype_vertex)
+        if num_vertices:
+            header.append(templates["vertex"])
+            vertex["vertex"] = np.asarray(vertices, dtype=np.float32)
+
+        # put mesh edge data into custom dtype to export
+        num_edges = len(entities)
+        edges = np.zeros(num_edges, dtype=dtype_edge)
+        if num_edges:
+            header.append(templates["edge"])
+            edges["index"] = np.asarray(entities, dtype=np.int32)
+
     header.append(templates["outro"])
     export = [Template("".join(header)).substitute(header_params).encode("utf-8")]
 
