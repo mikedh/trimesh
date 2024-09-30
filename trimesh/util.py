@@ -1,14 +1,6 @@
 """
-util.py
------------
-
-Standalone functions which require only imports from numpy and the
-standard library.
-
-Other libraries may be imported must be wrapped in try/except blocks
-or imported inside of a function
+"Grab bag" of utility functions.
 """
-
 import abc
 import base64
 import collections
@@ -26,9 +18,11 @@ import zipfile
 # for type checking
 from collections.abc import Mapping
 from io import BytesIO, StringIO
-from typing import Any, Iterable, List, Union
 
 import numpy as np
+
+# use our wrapped types for wider version compatibility
+from .typed import Any, Iterable, List, Union
 
 # create a default logger
 log = logging.getLogger("trimesh")
