@@ -1,10 +1,10 @@
 import os
 
 from ... import util
+from ...exchange.ply import load_ply
 from ..path import Path
 from . import misc
 from .dxf import _dxf_loaders
-from .ply import load_ply
 from .svg_io import svg_to_path
 
 

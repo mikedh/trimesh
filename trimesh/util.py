@@ -1,6 +1,7 @@
 """
 "Grab bag" of utility functions.
 """
+
 import abc
 import base64
 import collections

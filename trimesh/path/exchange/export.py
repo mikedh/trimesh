@@ -1,7 +1,8 @@
 import os
 
 from ... import util
-from . import dxf, ply, svg_io
+from ...exchange import ply
+from . import dxf, svg_io
 
 
 def export_path(path, file_type=None, file_obj=None, **kwargs):
