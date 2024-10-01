@@ -13,7 +13,7 @@ from . import bounds, caching
 from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
-from .typed import Dict, Optional
+from .typed import Any, ArrayLike, Dict, NDArray, Optional
 from .util import ABC
 
 
@@ -31,16 +31,16 @@ class Geometry(ABC):
 
     @property
     @abc.abstractmethod
-    def bounds(self):
+    def bounds(self) -> NDArray[np.float64]:
         pass
 
     @property
     @abc.abstractmethod
-    def extents(self):
+    def extents(self) -> NDArray[np.float64]:
         pass
 
     @abc.abstractmethod
-    def apply_transform(self, matrix):
+    def apply_transform(self, matrix: ArrayLike) -> Any:
         pass
 
     @property
@@ -57,7 +57,7 @@ class Geometry(ABC):
         hash : int
           Hash of current graph and geometry.
         """
-        return self._data.__hash__()
+        return self._data.__hash__()  # type: ignore
 
     @abc.abstractmethod
     def copy(self):
@@ -103,7 +103,7 @@ class Geometry(ABC):
             elements.append(f"name=`{display}`")
         return "<trimesh.{}({})>".format(type(self).__name__, ", ".join(elements))
 
-    def apply_translation(self, translation):
+    def apply_translation(self, translation: ArrayLike):
         """
         Translate the current mesh.
 
@@ -230,8 +230,7 @@ class Geometry3D(Geometry):
         # translate to center of axis aligned bounds
         transform[:3, 3] = self.bounds.mean(axis=0)
 
-        aabb = primitives.Box(transform=transform, extents=self.extents, mutable=False)
-        return aabb
+        return primitives.Box(transform=transform, extents=self.extents, mutable=False)
 
     @caching.cache_decorator
     def bounding_box_oriented(self):
@@ -248,10 +247,9 @@ class Geometry3D(Geometry):
         from . import bounds, primitives
 
         to_origin, extents = bounds.oriented_bounds(self)
-        obb = primitives.Box(
+        return primitives.Box(
             transform=np.linalg.inv(to_origin), extents=extents, mutable=False
         )
-        return obb
 
     @caching.cache_decorator
     def bounding_sphere(self):
@@ -272,8 +270,7 @@ class Geometry3D(Geometry):
         from . import nsphere, primitives
 
         center, radius = nsphere.minimum_nsphere(self)
-        minball = primitives.Sphere(center=center, radius=radius, mutable=False)
-        return minball
+        return primitives.Sphere(center=center, radius=radius, mutable=False)
 
     @caching.cache_decorator
     def bounding_cylinder(self):
@@ -288,8 +285,7 @@ class Geometry3D(Geometry):
         from . import bounds, primitives
 
         kwargs = bounds.minimum_cylinder(self)
-        mincyl = primitives.Cylinder(mutable=False, **kwargs)
-        return mincyl
+        return primitives.Cylinder(mutable=False, **kwargs)
 
     @caching.cache_decorator
     def bounding_primitive(self):
@@ -311,8 +307,7 @@ class Geometry3D(Geometry):
             self.bounding_cylinder,
         ]
         volume_min = np.argmin([i.volume for i in options])
-        bounding_primitive = options[volume_min]
-        return bounding_primitive
+        return options[volume_min]
 
     def apply_obb(self, **kwargs):
         """
@@ -343,7 +338,7 @@ class Geometry3D(Geometry):
 
         if tol.strict:
             # obb transform should not have changed volume
-            if hasattr(self, "volume"):
+            if hasattr(self, "volume") and getattr(self, "is_watertight", False):
                 assert np.isclose(self.volume, volume)
             # overall extents should match what we expected
             assert np.allclose(self.extents, extents)

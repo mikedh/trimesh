@@ -1299,12 +1299,10 @@ def _parse_materials(header, views, resolver=None):
                 result[k] = np.array(v, dtype=np.float64)
             elif not isinstance(v, dict):
                 result[k] = v
-            elif "index" in v:
-                # get the index of image for texture
-
+            elif images is not None and "index" in v:
                 try:
+                    # get the index of image for texture
                     texture = header["textures"][v["index"]]
-
                     # check to see if this is using a webp extension texture
                     # should this be case sensitive?
                     webp = (
@@ -1317,7 +1315,6 @@ def _parse_materials(header, views, resolver=None):
                     else:
                         # fallback (or primary, if extensions are not present)
                         idx = texture["source"]
-
                     # store the actual image as the value
                     result[k] = images[idx]
                 except BaseException:
@@ -1436,20 +1433,25 @@ def _read_buffers(
                 if "byteStride" in buffer_view:
                     # how many bytes for each chunk
                     stride = buffer_view["byteStride"]
-                    # the total block we're looking at
-                    length = count * stride
                     # we want to get the bytes for every row
                     per_row = per_count * dtype.itemsize
-                    # we have to offset the (already offset) buffer
-                    # and then pull chunks per-stride
-                    # do as a list comprehension as the numpy
-                    # buffer wangling was
-                    raw = b"".join(
-                        data[i : i + per_row]
-                        for i in range(start, start + length, stride)
+                    # the total block we're looking at
+                    length = (count - 1) * stride + per_row
+                    # apply as_strided for fast construction of strided array
+                    # and copy to ensure contiguous layout
+                    assert stride > 0, "byteStride should be positive"
+                    assert 0 <= start <= start + length <= len(data)
+                    access[index] = np.array(
+                        np.lib.stride_tricks.as_strided(
+                            np.frombuffer(
+                                data, dtype=np.uint8, offset=start, count=length
+                            ),
+                            [count, per_row],
+                            [stride, 1],
+                        )
+                        .view(dtype)
+                        .reshape(shape)
                     )
-                    # the reshape should fail if we screwed up
-                    access[index] = np.frombuffer(raw, dtype=dtype).reshape(shape)
                 else:
                     # length is the number of bytes per item times total
                     length = dtype.itemsize * count * per_count

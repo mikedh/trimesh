@@ -4,6 +4,7 @@ import tempfile
 from string import Template
 
 import numpy as np
+from numpy.lib.recfunctions import structured_to_unstructured, unstructured_to_structured
 
 from .. import grouping, resources, util, visual
 from ..constants import log
@@ -283,17 +284,67 @@ def export_ply(
     # will be appended to main dtype if needed
     dtype_vertex_normal = ("normals", "<f4", (3))
     dtype_color = ("rgba", "<u1", (4))
+    # for Path objects.
+    dtype_edge = [("index", "<i4", (2))]
 
     # get template strings in dict
     templates = resources.get_json("templates/ply.json")
     # start collecting elements into a string for the header
     header = [templates["intro"]]
+    header_params = {"encoding": encoding}
+
+    pack_edges = None
 
     # check if scene has geometry
-    if hasattr(mesh, "vertices"):
+    # check if this is a `trimesh.path.Path` object.
+    if hasattr(mesh, "entities"):
+        if len(mesh.vertices) and mesh.vertices.shape[-1] != 3:
+            raise ValueError("only Path3D export is supported for ply")
+
+        # run the discrete curve step for each entity
+        discrete = [e.discrete(mesh.vertices) for e in mesh.entities]
+
+        # how long was each discrete curve
+        discrete_len = np.array([d.shape[0] for d in discrete])
+        # what's the index offset based on these lengths
+        discrete_off = np.concatenate(([0], np.cumsum(discrete_len)[:-1]))
+
+        # pre-stack edges we can slice and offset
+        longest = discrete_len.max()
+        stack = np.column_stack((np.arange(0, longest - 1), np.arange(1, longest)))
+
+        # get the indexes that reconstruct the discrete curves when stacked
+        edges = np.vstack(
+            [
+                stack[:length] + offset
+                for length, offset in zip(discrete_len - 1, discrete_off)
+            ]
+        )
+
+        vertices = np.vstack(discrete)
+        # create and populate the custom dtype for vertices
+        num_vertices = len(vertices)
+        # put mesh edge data into custom dtype to export
+        num_edges = len(edges)
+
+        if num_edges > 0 and num_vertices > 0:
+            header.append(templates["vertex"])
+            vertex = np.zeros(num_vertices, dtype=dtype_vertex)
+            vertex["vertex"] = np.asarray(vertices, dtype=np.float32)
+
+            # add the edge info to the header
+            header.append(templates["edge"])
+            # pack edges into our dtype
+            pack_edges = unstructured_to_structured(edges, dtype=dtype_edge)
+
+            # add the values for the header
+            header_params.update({"edge_count": num_edges, "vertex_count": num_vertices})
+
+    elif hasattr(mesh, "vertices"):
         header.append(templates["vertex"])
 
         num_vertices = len(mesh.vertices)
+        header_params["vertex_count"] = num_vertices
         # if we're exporting vertex normals add them
         # to the header and dtype
         if vertex_normal:
@@ -301,7 +352,7 @@ def export_ply(
             dtype_vertex.append(dtype_vertex_normal)
 
         # if mesh has a vertex color add it to the header
-        if mesh.visual.kind == "vertex":
+        if hasattr("mesh", "visual") and mesh.visual.kind == "vertex":
             header.append(templates["color"])
             dtype_vertex.append(dtype_color)
 
@@ -314,15 +365,15 @@ def export_ply(
         vertex["vertex"] = mesh.vertices
         if vertex_normal:
             vertex["normals"] = mesh.vertex_normals
-        if mesh.visual.kind == "vertex" and len(mesh.visual.vertex_colors):
+        if (
+            hasattr(mesh, "visual")
+            and mesh.visual.kind == "vertex"
+            and len(mesh.visual.vertex_colors)
+        ):
             vertex["rgba"] = mesh.visual.vertex_colors
 
         if include_attributes and hasattr(mesh, "vertex_attributes"):
             _add_attributes_to_data_array(vertex, mesh.vertex_attributes)
-    else:
-        num_vertices = 0
-
-    header_params = {"vertex_count": num_vertices, "encoding": encoding}
 
     if hasattr(mesh, "faces"):
         header.append(templates["face"])
@@ -353,6 +404,8 @@ def export_ply(
             export.append(vertex.tobytes())
         if hasattr(mesh, "faces"):
             export.append(faces.tobytes())
+        if pack_edges is not None:
+            export.append(pack_edges.tobytes())
     elif encoding == "ascii":
         export.append(
             util.structured_array_to_string(vertex, col_delim=" ", row_delim="\n").encode(
@@ -630,6 +683,14 @@ def _elements_to_kwargs(elements, fix_texture, image, prefer_color=None):
         kwargs["face_colors"] = _element_colors(elements["face"])
     if "vertex" in elements:
         kwargs["vertex_colors"] = _element_colors(elements["vertex"])
+
+    if "edge" in elements:
+        # this is a Path element.
+
+        from ..path.exchange.misc import edges_to_path
+
+        edges = structured_to_unstructured(elements["edge"]["data"])
+        kwargs.update(edges_to_path(edges, kwargs["vertices"]))
 
     return kwargs
 

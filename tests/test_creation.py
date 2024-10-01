@@ -6,12 +6,7 @@ except BaseException:
 
 class CreationTest(g.unittest.TestCase):
     def setUp(self):
-        engines = []
-        if g.trimesh.util.has_module("triangle"):
-            engines.append("triangle")
-        if g.trimesh.util.has_module("mapbox_earcut"):
-            engines.append("earcut")
-        self.engines = engines
+        self.engines = [k for k, exists in g.trimesh.creation._engines if exists]
 
     def test_box(self):
         box = g.trimesh.creation.box
@@ -173,6 +168,16 @@ class CreationTest(g.unittest.TestCase):
             mesh = g.trimesh.creation.sweep_polygon(poly, path_closed, engine=engine)
             assert mesh.is_volume
 
+    def test_simple_watertight(self):
+        # create a simple polygon
+        polygon = g.Polygon(((0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)))
+
+        for engine in self.engines:
+            mesh = g.trimesh.creation.extrude_polygon(
+                polygon=polygon, height=1, engine=engine
+            )
+            assert mesh.is_volume
+
     def test_annulus(self):
         """
         Basic tests of annular cylinder creation
@@ -245,10 +250,13 @@ class CreationTest(g.unittest.TestCase):
         # make sure difference did what we think it should
         assert g.np.isclose(donut.area, bigger.area - smaller.area)
 
-        times = {"earcut": 0.0, "triangle": 0.0}
-        iterations = 50
+        times = {"earcut": 0.0, "triangle": 0.0, "manifold": 0.0}
+        iterations = 10
         # get a polygon to benchmark times with including interiors
         bench = [bigger, smaller, donut]
+        for path in g.get_2D(1):
+            bench.extend(path.polygons_full)
+
         bench.extend(g.get_mesh("2D/ChuteHolderPrint.DXF").polygons_full)
         bench.extend(g.get_mesh("2D/wrench.dxf").polygons_full)
 
@@ -284,9 +292,8 @@ class CreationTest(g.unittest.TestCase):
         g.log.info(f"benchmarked triangulation on {len(bench)} polygons: {times!s}")
 
     def test_triangulate_plumbing(self):
-        """
-        Check the plumbing of path triangulation
-        """
+        # @ Check the plumbing of path triangulation
+
         if len(self.engines) == 0:
             return
         p = g.get_mesh("2D/ChuteHolderPrint.DXF")
@@ -304,6 +311,24 @@ class CreationTest(g.unittest.TestCase):
         assert len(split) == count
         assert all(s.volume > 0 for s in split)
 
+    def test_revolve(self):
+        # create a cross section and revolve it to form some volumes
+        cross_section = [[0, 0], [10, 0], [10, 10], [0, 10]]
+
+        # high sections needed so volume is close to theoretical value for perfect revoulution
+        mesh360 = g.trimesh.creation.revolve(cross_section, 2 * g.np.pi, sections=360)
+        mesh360_volume = g.np.pi * 10**2 * 10
+        assert g.np.isclose(mesh360.volume, mesh360_volume, rtol=0.1)
+        assert mesh360.is_volume, "mesh360 should be a valid volume"
+
+        mesh180 = g.trimesh.creation.revolve(
+            cross_section, g.np.pi, sections=180, cap=True
+        )
+        assert g.np.isclose(
+            mesh180.volume, mesh360.volume / 2, rtol=0.1
+        ), "mesh180 should be half of mesh360 volume"
+        assert mesh180.is_volume, "mesh180 should be a valid volume"
+
 
 def check_triangulation(v, f, true_area):
     assert g.trimesh.util.is_shape(v, (-1, 2))
@@ -313,7 +338,7 @@ def check_triangulation(v, f, true_area):
 
     tri = g.trimesh.util.stack_3D(v)[f]
     area = g.trimesh.triangles.area(tri).sum()
-    assert g.np.isclose(area, true_area)
+    assert g.np.isclose(area, true_area, rtol=1e-7)
 
 
 def test_torus():

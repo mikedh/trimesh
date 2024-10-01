@@ -23,11 +23,11 @@ except BaseException as E:
 
 def merge_vertices(
     mesh,
-    merge_tex=None,
-    merge_norm=None,
-    digits_vertex=None,
-    digits_norm=None,
-    digits_uv=None,
+    merge_tex: Optional[bool] = None,
+    merge_norm: Optional[bool] = None,
+    digits_vertex: Optional[Integer] = None,
+    digits_norm: Optional[Integer] = None,
+    digits_uv: Optional[Integer] = None,
 ):
     """
     Removes duplicate vertices, grouped by position and
@@ -110,7 +110,7 @@ def merge_vertices(
     mesh.update_vertices(mask=mask, inverse=inverse)
 
 
-def group(values, min_len=0, max_len=np.inf):
+def group(values, min_len: Optional[Integer] = None, max_len: Optional[Integer] = None):
     """
     Return the indices of values that are identical
 
@@ -149,15 +149,27 @@ def group(values, min_len=0, max_len=np.inf):
         nondupe = values[1:] != values[:-1]
 
     dupe_idx = np.append(0, np.nonzero(nondupe)[0] + 1)
+
+    # start with a mask that marks everything as ok
+    dupe_ok = np.ones(len(dupe_idx), dtype=bool)
+
+    # calculate the length of each group from their index
     dupe_len = np.diff(np.concatenate((dupe_idx, [len(values)])))
-    dupe_ok = np.logical_and(
-        np.greater_equal(dupe_len, min_len), np.less_equal(dupe_len, max_len)
-    )
+
+    # cull by length if requested
+    if min_len is not None or max_len is not None:
+        if min_len is not None:
+            dupe_ok &= dupe_len >= min_len
+        if max_len is not None:
+            dupe_ok &= dupe_len <= max_len
+
     groups = [order[i : (i + j)] for i, j in zip(dupe_idx[dupe_ok], dupe_len[dupe_ok])]
     return groups
 
 
-def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
+def hashable_rows(
+    data: ArrayLike, digits: Optional[Integer] = None, allow_int: bool = True
+) -> NDArray:
     """
     We turn our array into integers based on the precision
     given by digits and then put them in a hashable format.
@@ -188,7 +200,7 @@ def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
 
     # if array is 2D and smallish, we can try bitbanging
     # this is significantly faster than the custom dtype
-    if len(as_int.shape) == 2 and as_int.shape[1] <= 4:
+    if allow_int and len(as_int.shape) == 2 and as_int.shape[1] <= 4:
         # can we pack the whole row into a single 64 bit integer
         precision = int(np.floor(64 / as_int.shape[1]))
 
@@ -196,7 +208,7 @@ def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
         d_min, d_max = as_int.min(), as_int.max()
         # since we are quantizing the data down we need every value
         # to fit in a partial integer so we have to check against extrema
-        threshold = 2 ** (precision - 1)
+        threshold = (2 ** (precision - 1)) - 1
 
         # if the data is within the range of our precision threshold
         if d_max < threshold and d_min > -threshold:
@@ -204,7 +216,7 @@ def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
             hashable = np.zeros(len(as_int), dtype=np.uint64)
             # offset to the middle of the unsigned integer range
             # this array should contain only positive values
-            bitbang = as_int.astype(np.uint64).T + threshold
+            bitbang = (as_int.T + (threshold + 1)).astype(np.uint64)
             # loop through each column and bitwise xor to combine
             # make sure as_int is int64 otherwise bit offset won't work
             for offset, column in enumerate(bitbang):
@@ -221,7 +233,7 @@ def hashable_rows(data: ArrayLike, digits=None) -> NDArray:
     return result
 
 
-def float_to_int(data, digits: Optional[Integer] = None):
+def float_to_int(data, digits: Optional[Integer] = None) -> NDArray[np.int64]:
     """
     Given a numpy array of float/bool/int, return as integers.
 
@@ -242,8 +254,10 @@ def float_to_int(data, digits: Optional[Integer] = None):
 
     # we can early-exit if we've been passed data that is already
     # an integer, unsigned integer, boolean, or empty
-    if data.dtype.kind in "iub" or data.size == 0:
+    if data.dtype == np.int64:
         return data
+    elif data.dtype.kind in "iub" or data.size == 0:
+        return data.astype(np.int64)
     elif data.dtype.kind != "f":
         # if it's not a floating point try to make it one
         data = data.astype(np.float64)
@@ -254,19 +268,15 @@ def float_to_int(data, digits: Optional[Integer] = None):
     elif not isinstance(digits, (int, np.integer)):
         raise TypeError("Digits must be `None` or `int`, not `{type(digits)}`")
 
-    # see if we can use a smaller integer
-    d_extrema = max(abs(data.min()), abs(data.max())) * 10**digits
-
-    # compare against `np.iinfo(np.int32).max`
-    dtype = [np.int32, np.int64][int(d_extrema > 2147483646)]
-
     # multiply by requested power of ten
     # then subtract small epsilon to avoid "go either way" rounding
     # then do the rounding and convert to integer
-    return np.round((data * 10**digits) - 1e-6).astype(dtype)
+    return np.round((data * 10**digits) - 1e-6).astype(np.int64)
 
 
-def unique_ordered(data, return_index=False, return_inverse=False):
+def unique_ordered(
+    data: ArrayLike, return_index: bool = False, return_inverse: bool = False
+):
     """
     Returns the same as np.unique, but ordered as per the
     first occurrence of the unique value in data.
@@ -308,7 +318,12 @@ def unique_ordered(data, return_index=False, return_inverse=False):
     return result
 
 
-def unique_bincount(values, minlength=0, return_inverse=False, return_counts=False):
+def unique_bincount(
+    values: ArrayLike,
+    minlength: Integer = 0,
+    return_inverse: bool = False,
+    return_counts: bool = False,
+):
     """
     For arrays of integers find unique values using bin counting.
     Roughly 10x faster for correct input than np.unique
@@ -374,7 +389,7 @@ def unique_bincount(values, minlength=0, return_inverse=False, return_counts=Fal
     return ret
 
 
-def merge_runs(data, digits=None):
+def merge_runs(data: ArrayLike, digits: Optional[Integer] = None):
     """
     Merge duplicate sequential values. This differs from unique_ordered
     in that values can occur in multiple places in the sequence, but
@@ -399,15 +414,25 @@ def merge_runs(data, digits=None):
     In [2]: trimesh.grouping.merge_runs(a)
     Out[2]: array([-1,  0,  1,  2,  0,  3,  4,  5,  6,  7,  8,  9])
     """
+    if digits is None:
+        epsilon = tol.merge
+    else:
+        epsilon = 10 ** (-digits)
+
     data = np.asanyarray(data)
-    mask = np.empty(len(data), dtype=bool)
+    mask = np.zeros(len(data), dtype=bool)
     mask[0] = True
-    mask[1:] = np.abs(data[1:] - data[:-1]) > tol.merge
+    mask[1:] = np.abs(data[1:] - data[:-1]) > epsilon
 
     return data[mask]
 
 
-def unique_float(data, return_index=False, return_inverse=False, digits=None):
+def unique_float(
+    data,
+    return_index: bool = False,
+    return_inverse: bool = False,
+    digits: Optional[Integer] = None,
+):
     """
     Identical to the numpy.unique command, except evaluates floating point
     numbers, using a specified number of digits.
@@ -603,9 +628,7 @@ def boolean_rows(a, b, operation=np.intersect1d):
 
     av = a.view([("", a.dtype)] * a.shape[1]).ravel()
     bv = b.view([("", b.dtype)] * b.shape[1]).ravel()
-    shared = operation(av, bv).view(a.dtype).reshape(-1, a.shape[1])
-
-    return shared
+    return operation(av, bv).view(a.dtype).reshape(-1, a.shape[1])
 
 
 def group_vectors(vectors, angle=1e-4, include_negative=False):
@@ -837,7 +860,7 @@ def group_min(groups, data):
     groups = groups[order]  # this is only needed if groups is unsorted
     data = data[order]
     # construct an index which marks borders between groups
-    index = np.empty(len(groups), "bool")
+    index = np.zeros(len(groups), "bool")
     index[0] = True
     index[1:] = groups[1:] != groups[:-1]
     return data[index]

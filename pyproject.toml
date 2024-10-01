@@ -4,8 +4,8 @@ requires = ["setuptools >= 61.0", "wheel"]
 
 [project]
 name = "trimesh"
-requires-python = ">=3.7"
-version = "4.4.1"
+requires-python = ">=3.8"
+version = "4.4.9"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -14,7 +14,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -32,6 +31,9 @@ dependencies = ["numpy>=1.20"]
 [project.readme]
 file = "README.md"
 content-type = "text/markdown"
+
+[project.scripts]
+trimesh = "trimesh:__main__.main"
 
 [tool.setuptools]
 packages = [
@@ -63,7 +65,7 @@ trimesh = [
 # this is the base extra most users will want
 easy = [
     "colorlog",
-    "mapbox-earcut",
+    "manifold3d>=2.3.0", # do boolean operations    
     "chardet",
     "lxml",
     "jsonschema",
@@ -76,38 +78,46 @@ easy = [
     "rtree",
     "httpx",
     "scipy",
-    "embreex",
+    "embreex; platform_machine=='x86_64'",
     "pillow",
-    "vhacdx",
     "xatlas",
+    "vhacdx; python_version>='3.9'",
+    # old versions of mapbox_earcut produce incorrect values on numpy 2.0
+    "mapbox_earcut >= 1.0.2; python_version>='3.9'",
 ]
 
 recommend = [
-    "glooey",
     "sympy",
     "meshio",
     "pyglet<2",
     "psutil",
     "scikit-image",
-    "python-fcl", # do collision checks
+    "fast-simplification",
+    # "python-fcl", # do collision checks # TODO : broken on numpy 2
     "openctm", # load `CTM` compressed models
     "cascadio", # load `STEP` files
-    "manifold3d>=2.3.0" # do boolean operations
+]
+
+# stuff to run simple testing
+test = [
+    "pytest-cov",
+    "pytest",
+    "pyinstrument",
+    "ruff",
 ]
 
 # this is the list of everything that is ever added anywhere
-# mostly useful for getting our test coverage up
-test = [
-    "pytest-cov",
+# mostly useful for getting our test coverage up but may not
+# be easy to install on all platforms and is only really
+# a good idea in our "cannonical docker images"
+test_more = [
     "coveralls",
     "pyright",
     "ezdxf",
-    "pytest",
-    #"pymeshlab",
-    "pyinstrument",
+    "pytest-beartype; python_version>='3.10'",
     "matplotlib",
-    "ruff",
-    "pytest-beartype; python_version>='3.10'"
+    "pymeshlab",
+    "triangle",
 ]
 
 # interfaces.gmsh will be dropped Jan 2025
@@ -115,10 +125,10 @@ deprecated = ["gmsh==4.12.2"]
 
 # requires pip >= 21.2
 # https://hynek.me/articles/python-recursive-optional-dependencies/
-all = ["trimesh[easy,recommend,test,deprecated]"]
+all = ["trimesh[easy,recommend,test,test_more,deprecated]"]
 
 [tool.ruff]
-target-version = "py37"
+target-version = "py38"
 line-length = 90
 
 
@@ -156,6 +166,7 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"
+"numpy.empty".msg = "uninitialized arrays are haunted try numpy.zeros"
 
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"
@@ -166,4 +177,4 @@ python_version = "3.8"
 ignore_missing_imports = true
 disallow_untyped_defs = false
 disallow_untyped_calls = false
-disable_error_code = ["method-assign"]
+disable_error_code = ["method-assign", "var-annotated"]

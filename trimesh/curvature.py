@@ -117,7 +117,7 @@ def discrete_mean_curvature_measure(mesh, points, radius):
     # line segments that intersect axis aligned bounding box
     candidates = [list(mesh.face_adjacency_tree.intersection(b)) for b in bounds]
 
-    mean_curv = np.empty(len(points))
+    mean_curv = np.zeros(len(points))
     for i, (x, x_candidates) in enumerate(zip(points, candidates)):
         endpoints = mesh.vertices[mesh.face_adjacency_edges[x_candidates]]
         lengths = line_ball_intersection(

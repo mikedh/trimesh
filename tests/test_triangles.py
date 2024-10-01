@@ -3,6 +3,8 @@ try:
 except BaseException:
     import generic as g
 
+from trimesh.triangles import barycentric_to_points, points_to_barycentric
+
 
 class TrianglesTest(g.unittest.TestCase):
     def test_barycentric(self):
@@ -13,17 +15,26 @@ class TrianglesTest(g.unittest.TestCase):
             #  are the same as the conversion and back
             for method in ["cross", "cramer"]:
                 for i in range(3):
-                    barycentric = g.trimesh.triangles.points_to_barycentric(
+                    barycentric = points_to_barycentric(
                         m.triangles, m.triangles[:, i], method=method
                     )
                     assert (
                         g.np.abs(barycentric - g.np.roll([1.0, 0, 0], i)) < 1e-8
                     ).all()
 
-                    points = g.trimesh.triangles.barycentric_to_points(
-                        m.triangles, barycentric
-                    )
+                    points = barycentric_to_points(m.triangles, barycentric)
                     assert (g.np.abs(points - m.triangles[:, i]) < 1e-8).all()
+
+    def test_barycentric_2D(self):
+        # points_to_barycentric should work in 2D and 3D
+        tri = g.np.array([[[0, 0], [1, 0], [0, 1]]], dtype=g.np.float64)
+        points = g.np.array([[0.25, 0.25]])
+        b = points_to_barycentric(tri, points)
+        assert ((b > 0) & (b < 1.0)).all()
+
+        r = barycentric_to_points(tri, b)
+
+        assert g.np.allclose(r, points)
 
     def test_closest(self):
         closest = g.trimesh.triangles.closest_point(

@@ -307,7 +307,8 @@ class GLTFTest(g.unittest.TestCase):
         )
         assert metallic_roughness.shape[0] == 84 and metallic_roughness.shape[1] == 71
 
-        metallic = metallic_roughness[:, :, 0]
+        # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
+        metallic = metallic_roughness[:, :, 2]
         roughness = metallic_roughness[:, :, 1]
 
         assert g.np.allclose(metallic[0, 0], 0.231, atol=0.004)
@@ -742,7 +743,7 @@ class GLTFTest(g.unittest.TestCase):
     def test_same_name(self):
         s = g.get_mesh("TestScene.gltf")
         # hardcode correct bounds to check against
-        bounds = s.dump(concatenate=True).bounds
+        bounds = s.to_mesh().bounds
 
         # icosahedrons have two primitives each
         g.log.debug(len(s.geometry), len(s.graph.nodes_geometry))
@@ -808,7 +809,7 @@ class GLTFTest(g.unittest.TestCase):
         assert hasattr(mesh.visual, "vertex_colors")
 
         # Loaded mesh should have all vertex colors filled with magenta color
-        magenta = g.np.array([255, 0, 255, 255])
+        magenta = g.np.array([255, 0, 255, 255], dtype=g.np.uint8)
         for color in mesh.visual.vertex_colors:
             is_magenta = g.np.array_equal(color, magenta)
             assert is_magenta, f"Imported vertex color is not of expected value: got {color}, expected {magenta}"

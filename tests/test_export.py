@@ -248,6 +248,72 @@ class ExportTest(g.unittest.TestCase):
         # the scene should be identical after export-> import cycle
         assert g.np.allclose(loaded.extents / source.extents, 1.0)
 
+    def test_ply_path_empty(self):
+        """
+        Test empty path export does not fail
+        """
+        path3D = g.trimesh.path.Path3D()
+
+        # export to ply
+        ply = path3D.export(file_type="ply")
+        assert len(ply) > 0
+
+        loaded = g.trimesh.load_path(g.trimesh.util.wrap_as_stream(ply), file_type="ply")
+        assert g.np.allclose(loaded.entities, path3D.entities)
+        assert g.np.allclose(loaded.vertices, path3D.vertices)
+
+    def test_ply_path_line(self):
+        """
+        Should be able to load a path and export simple line as a PLY
+        """
+        path3D = g.trimesh.load_path([(0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1)])
+        assert isinstance(path3D, g.trimesh.path.Path3D)
+
+        # export to ply
+        ply = path3D.export(file_type="ply")
+        assert len(ply) > 0
+
+        loaded = g.trimesh.load_path(g.trimesh.util.wrap_as_stream(ply), file_type="ply")
+        assert g.np.allclose(loaded.vertices, path3D.vertices)
+
+    def test_ply_path_multi(self):
+        """
+        Should be able to load a path and export multiple entities as a PLY
+        """
+        path3D = g.trimesh.path.Path3D(
+            [
+                g.trimesh.path.entities.Line([0, 1, 2]),
+                g.trimesh.path.entities.Line([2, 0, 1]),
+            ],
+            [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
+        )
+
+        # export to ply
+        ply = path3D.export(file_type="ply")
+        assert len(ply) > 0
+
+        loaded = g.trimesh.load_path(g.trimesh.util.wrap_as_stream(ply), file_type="ply")
+        assert len(loaded.entities) == len(path3D.entities)
+        assert len(loaded.vertices) > 0
+
+    def test_ply_path_bezier(self):
+        """
+        Should be able to load a path and export complex curve as a PLY
+        """
+        path3D = g.trimesh.path.Path3D(
+            [g.trimesh.path.entities.Bezier([0, 1, 2])],
+            [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
+        )
+
+        # export to ply
+        ply = path3D.export(file_type="ply")
+        assert len(ply) > 0
+
+        loaded = g.trimesh.load_path(g.trimesh.util.wrap_as_stream(ply), file_type="ply")
+        # note: we cannot recover the exact entities and vertices from the export since it is discretized for ply files
+        assert len(loaded.entities) > 0
+        assert len(loaded.vertices) > 0
+
     def test_gltf_path(self):
         """
         Check to make sure GLTF exports of Path2D and Path3D

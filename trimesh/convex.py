@@ -9,10 +9,14 @@ Convex is defined as:
 3) (of a polygon) having only interior angles measuring less than 180
 """
 
+from dataclasses import dataclass, fields
+
 import numpy as np
 
 from . import triangles, util
 from .constants import tol
+from .parent import Geometry3D
+from .typed import NDArray, Union
 
 try:
     from scipy.spatial import ConvexHull
@@ -27,30 +31,171 @@ except BaseException:
     QhullError = BaseException
 
 
-def convex_hull(obj, qhull_options="QbB Pp Qt", repair=True):
+@dataclass
+class QhullOptions:
+    """
+    A helper class for constructing correct Qhull option strings.
+    More details available at: http://www.qhull.org/html/qh-quick.htm#options
+
+    Currently only includes the boolean flag options, which is most of them.
+
+    Parameters
+    -----------
+    Qa
+      Allow input with fewer or more points than coordinates
+    Qc
+      Keep coplanar points with nearest facet
+    Qi
+      Keep interior points with nearest facet.
+    QJ
+      Joggled input to avoid precision problems
+    Qt
+      Triangulated output.
+    Qu
+      Compute upper hull for furthest-site Delaunay triangulation
+    Qw
+      Allow warnings about Qhull options
+    Qbb
+      Scale last coordinate to [0,m] for Delaunay
+    Qs
+      Search all points for the initial simplex
+    Qv
+      Test vertex neighbors for convexity
+    Qx
+      Exact pre-merges (allows coplanar facets)
+    Qz
+      Add a point-at-infinity for Delaunay triangulations
+    QbB
+      Scale input to fit the unit cube
+    QR0
+      Random rotation (n=seed, n=0 time, n=-1 time/no rotate)
+    Qg
+      only build good facets (needs 'QGn', 'QVn', or 'Pdk')
+    Pp
+      Do not print statistics about precision problems and remove
+      some of the warnings including the narrow hull warning.
+    """
+
+    Qa: bool = False
+    """ Allow input with fewer or more points than coordinates"""
+
+    Qc: bool = False
+    """ Keep coplanar points with nearest facet"""
+
+    Qi: bool = False
+    """ Keep interior points with nearest facet. """
+
+    QJ: bool = False
+    """ Joggled input to avoid precision problems """
+
+    Qt: bool = False
+    """ Triangulated output. """
+
+    Qu: bool = False
+    """ Compute upper hull for furthest-site Delaunay triangulation """
+
+    Qw: bool = False
+    """ Allow warnings about Qhull options """
+
+    # Precision handling
+    Qbb: bool = False
+    """ Scale last coordinate to [0,m] for Delaunay """
+
+    Qs: bool = False
+    """ Search all points for the initial simplex """
+
+    Qv: bool = False
+    """ Test vertex neighbors for convexity """
+
+    Qx: bool = False
+    """ Exact pre-merges (allows coplanar facets)  """
+
+    Qz: bool = False
+    """ Add a point-at-infinity for Delaunay triangulations """
+
+    QbB: bool = False
+    """ Scale input to fit the unit cube """
+
+    QR0: bool = False
+    """ Random rotation (n=seed, n=0 time, n=-1 time/no rotate) """
+
+    # Select facets
+    Qg: bool = False
+    """ Only build good facets (needs 'QGn', 'QVn', or 'Pdk') """
+
+    Pp: bool = False
+    """ Do not print statistics about precision problems and remove
+      some of the warnings including the narrow hull warning. """
+
+    # TODO : not included non-boolean options
+    # QBk: Optional[Floating] = None
+    # """ Scale coord[k] to upper bound of n (default 0.5) """
+
+    # Qbk: Optional[Floating] = None
+    # """ Scale coord[k] to low bound of n (default -0.5) """
+
+    # Qbk:0Bk:0
+    # """ drop dimension k from input """
+
+    # QGn
+    #    good facet if visible from point n, -n for not visible
+
+    # QVn
+    #    good facet if it includes point n, -n if not
+
+    def __str__(self) -> str:
+        """
+        Construct the `qhull_options` string used by `scipy.spatial`
+        objects and functions.
+
+        Returns
+        ----------
+        qhull_options
+          Can be passed to `scipy.spatial.[ConvexHull,Delaunay,Voronoi]`
+        """
+        return " ".join(f.name for f in fields(self) if getattr(self, f.name))
+
+
+QHULL_DEFAULT = QhullOptions(QbB=True, Pp=True, Qt=True)
+
+
+def convex_hull(
+    obj: Union[Geometry3D, NDArray],
+    qhull_options: Union[QhullOptions, str, None] = QHULL_DEFAULT,
+    repair: bool = True,
+) -> "trimesh.Trimesh":  # noqa: F821
     """
     Get a new Trimesh object representing the convex hull of the
     current mesh attempting to return a watertight mesh with correct
     normals.
 
-    Details on qhull options:
-      http://www.qhull.org/html/qh-quick.htm#options
-
     Arguments
     --------
-    obj : Trimesh, or (n,3) float
-      Mesh or cartesian points
-    qhull_options : str
+    obj
+      Mesh or `(n, 3)` points.
+    qhull_options
       Options to pass to qhull.
 
     Returns
     --------
-    convex : Trimesh
-      Mesh of convex hull
+    convex
+      Mesh of convex hull.
     """
+    # would be a circular import at the module level
     from .base import Trimesh
 
-    if isinstance(obj, Trimesh):
+    # compose the
+    if qhull_options is None:
+        qhull_str = None
+    elif isinstance(qhull_options, QhullOptions):
+        # use the __str__ method to compose this options string
+        qhull_str = str(qhull_options)
+    elif isinstance(qhull_options, str):
+        qhull_str = qhull_options
+    else:
+        raise TypeError(type(qhull_options))
+
+    if hasattr(obj, "vertices"):
         points = obj.vertices.view(np.ndarray)
     else:
         # will remove subclassing
@@ -59,7 +204,7 @@ def convex_hull(obj, qhull_options="QbB Pp Qt", repair=True):
             raise ValueError("Object must be Trimesh or (n,3) points!")
 
     try:
-        hull = ConvexHull(points, qhull_options=qhull_options)
+        hull = ConvexHull(points, qhull_options=qhull_str)
     except QhullError:
         util.log.debug("Failed to compute convex hull: retrying with `QJ`", exc_info=True)
         # try with "joggle" enabled
@@ -91,7 +236,7 @@ def convex_hull(obj, qhull_options="QbB Pp Qt", repair=True):
     crosses = crosses[valid]
 
     # each triangle area and mean center
-    triangles_area = triangles.area(crosses=crosses, sum=False)
+    triangles_area = triangles.area(crosses=crosses)
     triangles_center = vertices[faces].mean(axis=1)
 
     # since the convex hull is (hopefully) convex, the vector from
@@ -137,7 +282,7 @@ def convex_hull(obj, qhull_options="QbB Pp Qt", repair=True):
     # sometimes the QbB option will cause precision issues
     # so try the hull again without it and
     # check for qhull_options is None to avoid infinite recursion
-    if qhull_options is not None and not convex.is_winding_consistent:
+    if qhull_options is None and not convex.is_winding_consistent:
         return convex_hull(convex, qhull_options=None)
 
     return convex
@@ -218,6 +363,9 @@ def is_convex(mesh):
 def hull_points(obj, qhull_options="QbB Pp"):
     """
     Try to extract a convex set of points from multiple input formats.
+
+    Details on qhull options:
+      http://www.qhull.org/html/qh-quick.htm#options
 
     Parameters
     ---------

@@ -663,7 +663,6 @@ def slice_mesh_plane(
     plane_origin,
     face_index=None,
     cap=False,
-    cached_dots=None,
     engine=None,
     **kwargs,
 ):
@@ -783,14 +782,19 @@ def slice_mesh_plane(
             # collect new faces
             faces = [f]
             for p in polygons.edges_to_polygons(edges[unique_edge], vertices_2D[:, :2]):
-                vn, fn = triangulate_polygon(p, engine=engine)
+                # triangulate cap and raise an error if any new vertices were inserted
+                vn, fn = triangulate_polygon(p, engine=engine, force_vertices=True)
                 # collect the original index for the new vertices
                 vn3 = tf.transform_points(util.stack_3D(vn), to_3D)
                 distance, vid = tree.query(vn3)
                 if distance.max() > 1e-8:
                     util.log.debug("triangulate may have inserted vertex!")
                 # triangulation should not have inserted vertices
-                faces.append(vid[fn])
+                nf = vid[fn]
+                # hmm but it may have returned faces that are now degenerate
+                nf_ok = (nf[:, 1:] != nf[:, :1]).all(axis=1) & (nf[:, 1] != nf[:, 2])
+                faces.append(nf[nf_ok])
+
             faces = np.vstack(faces)
 
     visual = (

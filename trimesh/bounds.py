@@ -28,6 +28,9 @@ def oriented_bounds_2D(points, qhull_options="QbB"):
     """
     Find an oriented bounding box for an array of 2D points.
 
+    Details on qhull options:
+      http://www.qhull.org/html/qh-quick.htm#options
+
     Parameters
     ----------
     points : (n,2) float

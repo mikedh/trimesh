@@ -1,6 +1,7 @@
 import os
 
 from ... import util
+from ...exchange import ply
 from . import dxf, svg_io
 
 
@@ -23,7 +24,7 @@ def export_path(path, file_type=None, file_obj=None, **kwargs):
     """
     # if file object is a string it is probably a file path
     # so we can split the extension to set the file type
-    if util.is_string(file_obj):
+    if isinstance(file_obj, str):
         file_type = util.split_extension(file_obj)
 
     # run the export
@@ -73,4 +74,9 @@ def _write_export(export, file_obj=None):
     return export
 
 
-_path_exporters = {"dxf": dxf.export_dxf, "svg": svg_io.export_svg, "dict": export_dict}
+_path_exporters = {
+    "dxf": dxf.export_dxf,
+    "svg": svg_io.export_svg,
+    "ply": ply.export_ply,
+    "dict": export_dict,
+}

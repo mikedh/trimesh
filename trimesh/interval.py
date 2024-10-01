@@ -84,7 +84,7 @@ def union(intervals: ArrayLike, sort: bool = True) -> NDArray[float64]:
       New intervals where `m <= n`
     """
     if len(intervals) == 0:
-        return np.empty(0)
+        return np.zeros(0)
 
     # if the intervals have not been pre-sorted we should apply our sorting logic
     # you would only skip this if you are subsetting a larger list elsewhere.
@@ -95,11 +95,10 @@ def union(intervals: ArrayLike, sort: bool = True) -> NDArray[float64]:
         intervals = intervals[intervals[:, 0].argsort()]
 
     # we know we will have at least one interval
-    unions = [intervals[0]]
+    unions = [intervals[0].tolist()]
 
     for begin, end in intervals[1:]:
         if unions[-1][1] >= begin:
-            #
             unions[-1][1] = max(unions[-1][1], end)
         else:
             unions.append([begin, end])

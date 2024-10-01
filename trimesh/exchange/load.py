@@ -575,7 +575,7 @@ def _parse_file_args(
 
     if util.is_file(file_obj) and file_type is None:
         raise ValueError("file_type must be set for file objects!")
-    if util.is_string(file_obj):
+    if isinstance(file_obj, str):
         try:
             # os.path.isfile will return False incorrectly
             # if we don't give it an absolute path
@@ -614,7 +614,7 @@ def _parse_file_args(
     if file_type is None:
         file_type = file_obj.__class__.__name__
 
-    if util.is_string(file_type) and "." in file_type:
+    if isinstance(file_type, str) and "." in file_type:
         # if someone has passed the whole filename as the file_type
         # use the file extension as the file_type
         if "file_path" not in metadata:

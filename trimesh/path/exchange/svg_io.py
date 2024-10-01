@@ -8,6 +8,7 @@ import numpy as np
 from ... import exceptions, grouping, resources, util
 from ...constants import log, tol
 from ...transformations import planar_matrix, transform_points
+from ...typed import NDArray, Number
 from ...util import jsonify
 from ..arc import arc_center
 from ..entities import Arc, Bezier, Line
@@ -436,6 +437,12 @@ def _entities_to_str(entities, vertices, name=None, digits=None, only_layers=Non
         "DI", temp_digits
     )
 
+    def _cross_2d(a: NDArray, b: NDArray) -> Number:
+        """
+        Numpy 2.0 depreciated cross products of 2D arrays.
+        """
+        return a[0] * b[1] - a[1] * b[0]
+
     def svg_arc(arc):
         """
         arc string: (rx ry x-axis-rotation large-arc-flag sweep-flag x y)+
@@ -451,7 +458,7 @@ def _entities_to_str(entities, vertices, name=None, digits=None, only_layers=Non
         vertex_start, vertex_mid, vertex_end = vertices
         large_flag = int(angle > np.pi)
         sweep_flag = int(
-            np.cross(vertex_mid - vertex_start, vertex_end - vertex_start) > 0.0
+            _cross_2d(vertex_mid - vertex_start, vertex_end - vertex_start) > 0.0
         )
         return temp_arc.format(
             SX=vertex_start[0],
@@ -473,10 +480,9 @@ def _entities_to_str(entities, vertices, name=None, digits=None, only_layers=Non
         if len(discrete) == 0:
             return ""
         # the format string for the SVG path
-        result = (temp_move + (temp_line * (len(discrete) - 1))).format(
+        return (temp_move + (temp_line * (len(discrete) - 1))).format(
             *discrete.reshape(-1)
         )
-        return result
 
     # tuples of (metadata, path string)
     pairs = []
@@ -621,7 +627,7 @@ def _encode(stuff):
     encoded : str
       Packaged into url-safe b64 string
     """
-    if util.is_string(stuff) and '"' not in stuff:
+    if isinstance(stuff, str) and '"' not in stuff:
         return stuff
     pack = base64.urlsafe_b64encode(
         jsonify(
@@ -658,9 +664,8 @@ def _deep_same(original, other):
     # but otherwise types should be identical
     if isinstance(original, np.ndarray):
         assert isinstance(other, (list, np.ndarray))
-    elif util.is_string(original):
-        # handle python 2+3 unicode vs str
-        assert util.is_string(other)
+    elif isinstance(original, str):
+        assert isinstance(other, str)
     else:
         # otherwise they should be the same type
         assert isinstance(original, type(other))
