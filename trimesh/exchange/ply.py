@@ -352,7 +352,12 @@ def export_ply(
             dtype_vertex.append(dtype_vertex_normal)
 
         # if mesh has a vertex color add it to the header
-        if hasattr("mesh", "visual") and mesh.visual.kind == "vertex":
+        vertex_color = (
+            hasattr(mesh, "visual")
+            and mesh.visual.kind == "vertex"
+            and len(mesh.visual.vertex_colors) == len(mesh.vertices)
+        )
+        if vertex_color:
             header.append(templates["color"])
             dtype_vertex.append(dtype_color)
 
@@ -365,11 +370,7 @@ def export_ply(
         vertex["vertex"] = mesh.vertices
         if vertex_normal:
             vertex["normals"] = mesh.vertex_normals
-        if (
-            hasattr(mesh, "visual")
-            and mesh.visual.kind == "vertex"
-            and len(mesh.visual.vertex_colors)
-        ):
+        if vertex_color:
             vertex["rgba"] = mesh.visual.vertex_colors
 
         if include_attributes and hasattr(mesh, "vertex_attributes"):
