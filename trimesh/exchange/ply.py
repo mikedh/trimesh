@@ -10,7 +10,7 @@ from .. import grouping, resources, util, visual
 from ..constants import log
 from ..geometry import triangulate_quads
 from ..resolvers import Resolver
-from ..typed import Optional
+from ..typed import NDArray, Optional
 
 # from ply specification, and additional dtypes found in the wild
 _dtypes = {
@@ -293,8 +293,10 @@ def export_ply(
     header = [templates["intro"]]
     header_params = {"encoding": encoding}
 
+    # structured arrays for exports
     pack_edges: Optional[NDArray] = None
-    pack_vertex: Optional[NDarray] = None
+    pack_vertex: Optional[NDArray] = None
+    pack_faces: Optional[NDArray] = None
 
     # check if scene has geometry
     # check if this is a `trimesh.path.Path` object.
@@ -391,15 +393,15 @@ def export_ply(
             _add_attributes_to_dtype(dtype_face, mesh.face_attributes)
 
         # put mesh face data into custom dtype to export
-        faces = np.zeros(len(mesh.faces), dtype=dtype_face)
-        faces["count"] = 3
-        faces["index"] = mesh.faces
+        pack_faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+        pack_faces["count"] = 3
+        pack_faces["index"] = mesh.faces
         if mesh.visual.kind == "face" and encoding != "ascii":
-            faces["rgba"] = mesh.visual.face_colors
+            pack_faces["rgba"] = mesh.visual.face_colors
         header_params["face_count"] = len(mesh.faces)
 
         if include_attributes and hasattr(mesh, "face_attributes"):
-            _add_attributes_to_data_array(faces, mesh.face_attributes)
+            _add_attributes_to_data_array(pack_faces, mesh.face_attributes)
 
     header.append(templates["outro"])
     export = [Template("".join(header)).substitute(header_params).encode("utf-8")]
@@ -407,23 +409,34 @@ def export_ply(
     if encoding == "binary_little_endian":
         if pack_vertex is not None:
             export.append(pack_vertex.tobytes())
-        if hasattr(mesh, "faces"):
-            export.append(faces.tobytes())
+        if pack_faces is not None:
+            export.append(pack_faces.tobytes())
         if pack_edges is not None:
             export.append(pack_edges.tobytes())
     elif encoding == "ascii":
-        export.append(
-            util.structured_array_to_string(vertex, col_delim=" ", row_delim="\n").encode(
-                "utf-8"
-            ),
-        )
+        if pack_vertex is not None:
+            export.append(
+                util.structured_array_to_string(
+                    pack_vertex, col_delim=" ", row_delim="\n"
+                ).encode("utf-8"),
+            )
 
-        if hasattr(mesh, "faces"):
+        if pack_faces is not None:
             export.extend(
                 [
                     b"\n",
                     util.structured_array_to_string(
-                        faces, col_delim=" ", row_delim="\n"
+                        pack_faces, col_delim=" ", row_delim="\n"
+                    ).encode("utf-8"),
+                ]
+            )
+
+        if pack_edges is not None:
+            export.extend(
+                [
+                    b"\n",
+                    util.structured_array_to_string(
+                        pack_edges, col_delim=" ", row_delim="\n"
                     ).encode("utf-8"),
                 ]
             )
