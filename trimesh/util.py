@@ -1386,25 +1386,33 @@ def type_named(obj, name):
 
 def chain(*args: Union[Iterable[Any], Any, None]) -> List[Any]:
     """
-    A less principled version of `list(itertools.chain(*args))` that accepts
-    non-iterable values and filters `None` and returns a list
+    A less principled version of `list(itertools.chain(*args))` that
+    accepts non-iterable values, filters `None`, and returns a list
     rather than yielding values.
 
-    If all passed values are iterables, this will return identical
-    results to `list(itertools.chain(*args))`:
+    If all passed values are iterables this will return identical
+    results to `list(itertools.chain(*args))`.
 
-    In [5]: list(itertools.chain([1,2], [3]))
-    Out[5]: [1, 2, 3]
 
-    In [6]: trimesh.util.chain([1,2], [3])
-    Out[6]: [1, 2, 3]
+    Examples
+    ----------
 
-    In [8]: trimesh.util.chain([1,2], [3], 4)
-    Out[8]: [1, 2, 3, 4]
+    In [1]: list(itertools.chain([1,2], [3]))
+    Out[1]: [1, 2, 3]
 
-    In [9]: list(itertools.chain([1,2], [3], 4))
+    In [2]: trimesh.util.chain([1,2], [3])
+    Out[2]: [1, 2, 3]
+
+    In [3]: trimesh.util.chain([1,2], [3], 4)
+    Out[3]: [1, 2, 3, 4]
+
+    In [4]: list(itertools.chain([1,2], [3], 4))
       ----> 1 list(itertools.chain([1,2], [3], 4))
       TypeError: 'int' object is not iterable
+
+    In [5]: trimesh.util.chain([1,2], None, 3, None, [4], [], [], 5, [])
+    Out[5]: [1, 2, 3, 4, 5]
+
 
     Parameters
     -----------
@@ -1412,12 +1420,13 @@ def chain(*args: Union[Iterable[Any], Any, None]) -> List[Any]:
       Will be individually checked to see if they're iterable
       before either being appended or extended to a flat list.
 
+
     Returns
     ----------
     chained
       The values in a flat list.
     """
-    #
+    # collect values to a flat list
     chained = []
     # extend if it's a sequence, otherwise append
     [
