@@ -19,8 +19,17 @@ except BaseException as E:
     ImageDraw = _handle
     ImageChops = _handle
 
+from ..typed import ArrayLike, Floating, Optional, Union
 
-def rasterize(path, pitch=None, origin=None, resolution=None, fill=True, width=None):
+
+def rasterize(
+    path: "trimesh.path.Path2D",  # noqa
+    pitch: Union[Floating, ArrayLike, None] = None,
+    origin: Optional[ArrayLike] = None,
+    resolution=None,
+    fill=True,
+    width=None,
+):
     """
     Rasterize a Path2D object into a boolean image ("mode 1").
 

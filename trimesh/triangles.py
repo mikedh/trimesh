@@ -83,8 +83,10 @@ def normals(triangles=None, crosses=None):
     valid : (n,) bool
       Was the face nonzero area or not
     """
-    if triangles is not None and triangles.shape[-1] == 2:
-        return np.tile([0.0, 0.0, 1.0], (triangles.shape[0], 1))
+    if triangles is not None:
+        triangles = np.asanyarray(triangles, dtype=np.float64)
+        if triangles.shape[-1] == 2:
+            return np.tile([0.0, 0.0, 1.0], (triangles.shape[0], 1))
     if crosses is None:
         crosses = cross(triangles)
     # unitize the cross product vectors

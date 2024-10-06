@@ -34,7 +34,7 @@ def load_dict(data, **kwargs):
         raise ValueError("data passed to load_dict was None!")
     if util.is_instance_named(data, "Trimesh"):
         return data
-    if util.is_string(data):
+    if isinstance(data, str):
         if "{" not in data:
             raise ValueError("Object is not a JSON encoded dictionary!")
         data = json.loads(data.decode("utf-8"))

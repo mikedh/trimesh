@@ -1299,12 +1299,10 @@ def _parse_materials(header, views, resolver=None):
                 result[k] = np.array(v, dtype=np.float64)
             elif not isinstance(v, dict):
                 result[k] = v
-            elif "index" in v:
-                # get the index of image for texture
-
+            elif images is not None and "index" in v:
                 try:
+                    # get the index of image for texture
                     texture = header["textures"][v["index"]]
-
                     # check to see if this is using a webp extension texture
                     # should this be case sensitive?
                     webp = (
@@ -1317,7 +1315,6 @@ def _parse_materials(header, views, resolver=None):
                     else:
                         # fallback (or primary, if extensions are not present)
                         idx = texture["source"]
-
                     # store the actual image as the value
                     result[k] = images[idx]
                 except BaseException:
