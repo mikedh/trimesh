@@ -7,6 +7,7 @@ import numpy as np
 
 from .. import graph, util
 from ..constants import log
+from ..util import unique_name
 
 
 def load_3MF(file_obj, postprocess=True, **kwargs):
@@ -23,6 +24,30 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     kwargs : dict
       Constructor arguments for `trimesh.Scene`
     """
+
+    def read_mesh(mesh, index):
+        vertices = mesh.find("{*}vertices")
+        v_seq[index] = np.array(
+            [
+                [i.attrib["x"], i.attrib["y"], i.attrib["z"]]
+                for i in vertices.iter("{*}vertex")
+            ],
+            dtype=np.float64,
+        )
+        vertices.clear()
+        vertices.getparent().remove(vertices)
+
+        faces = mesh.find("{*}triangles")
+        f_seq[index] = np.array(
+            [
+                [i.attrib["v1"], i.attrib["v2"], i.attrib["v3"]]
+                for i in faces.iter("{*}triangle")
+            ],
+            dtype=np.int64,
+        )
+        faces.clear()
+        faces.getparent().remove(faces)
+
     # dict, {name in archive: BytesIo}
     archive = util.decompress(file_obj, file_type="zip")
     # get model with case-insensitive keys
@@ -61,44 +86,34 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
             index = obj.attrib["id"]
 
             # start with stored name
-            name = obj.attrib.get("name", str(index))
             # apparently some exporters name multiple meshes
             # the same thing so check to see if it's been used
-            if name in consumed_names:
-                name = name + str(index)
+            name = unique_name(obj.attrib.get("name", str(index)), consumed_names)
             consumed_names.add(name)
             # store name reference on the index
             id_name[index] = name
 
             # if the object has actual geometry data parse here
             for mesh in obj.iter("{*}mesh"):
-                vertices = mesh.find("{*}vertices")
-                v_seq[index] = np.array(
-                    [
-                        [i.attrib["x"], i.attrib["y"], i.attrib["z"]]
-                        for i in vertices.iter("{*}vertex")
-                    ],
-                    dtype=np.float64,
-                )
-                vertices.clear()
-                vertices.getparent().remove(vertices)
-
-                faces = mesh.find("{*}triangles")
-                f_seq[index] = np.array(
-                    [
-                        [i.attrib["v1"], i.attrib["v2"], i.attrib["v3"]]
-                        for i in faces.iter("{*}triangle")
-                    ],
-                    dtype=np.int64,
-                )
-                faces.clear()
-                faces.getparent().remove(faces)
+                read_mesh(mesh, index)
 
             # components are references to other geometries
             for c in obj.iter("{*}component"):
                 mesh_index = c.attrib["objectid"]
                 transform = _attrib_to_transform(c.attrib)
                 components[index].append((mesh_index, transform))
+
+                # if this references another file as the `path` attrib
+                path = next((v for k, v in c.attrib.items() if k.endswith("path")), None)
+                if path is not None:
+                    path = path.strip("/").strip()
+                    if path in archive:
+                        [
+                            read_mesh(m, mesh_index)
+                            for _, m in etree.iterparse(
+                                archive[path], tag=("{*}mesh"), events=("start",)
+                            )
+                        ]
 
         # parse build
         if "build" in obj.tag:
@@ -158,6 +173,9 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
         # if someone included an undefined component, skip it
         if last not in id_name:
             log.debug(f"id {last} included but not defined!")
+            from IPython import embed
+
+            embed()
             continue
         # frame names unique
         name = id_name[last] + util.unique_id()
