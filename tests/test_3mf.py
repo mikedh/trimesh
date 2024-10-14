@@ -60,7 +60,10 @@ class MFTest(g.unittest.TestCase):
             file_type="3mf",
         )
 
-        assert set(s.geometry.keys()) == set(r.geometry.keys()), (s.geometry.keys(), r.geometry.keys())
+        assert set(s.geometry.keys()) == set(r.geometry.keys()), (
+            s.geometry.keys(),
+            r.geometry.keys(),
+        )
         assert g.np.allclose(s.bounds, r.bounds)
         assert g.np.isclose(s.area, r.area, rtol=1e-3)
 

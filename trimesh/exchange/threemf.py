@@ -112,7 +112,7 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
                     (v.strip("/") for k, v in c.attrib.items() if k.endswith("path")),
                     None,
                 )
-                if path in archive:
+                if path is not None and path in archive:
                     archive[path].seek(0)
                     name = unique_name(
                         obj.attrib.get("name", str(mesh_index)), consumed_names
