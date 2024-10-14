@@ -782,7 +782,8 @@ def slice_mesh_plane(
             # collect new faces
             faces = [f]
             for p in polygons.edges_to_polygons(edges[unique_edge], vertices_2D[:, :2]):
-                vn, fn = triangulate_polygon(p, engine=engine)
+                # triangulate cap and raise an error if any new vertices were inserted
+                vn, fn = triangulate_polygon(p, engine=engine, force_vertices=True)
                 # collect the original index for the new vertices
                 vn3 = tf.transform_points(util.stack_3D(vn), to_3D)
                 distance, vid = tree.query(vn3)

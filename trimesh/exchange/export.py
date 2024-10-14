@@ -43,7 +43,7 @@ def export_mesh(mesh, file_obj, file_type=None, resolver=None, **kwargs):
         # handle `pathlib` objects by converting to string
         file_obj = str(file_obj.absolute())
 
-    if util.is_string(file_obj):
+    if isinstance(file_obj, str):
         if file_type is None:
             # get file type from file name
             file_type = (str(file_obj).split(".")[-1]).lower()
@@ -247,7 +247,7 @@ def export_scene(scene, file_obj, file_type=None, resolver=None, **kwargs):
 
     # if we weren't passed a file type extract from file_obj
     if file_type is None:
-        if util.is_string(file_obj):
+        if isinstance(file_obj, str):
             file_type = str(file_obj).split(".")[-1]
         else:
             raise ValueError("file_type not specified!")
@@ -266,7 +266,7 @@ def export_scene(scene, file_obj, file_type=None, resolver=None, **kwargs):
         # if we are exporting by name automatically create a
         # resolver which lets the exporter write assets like
         # the materials and textures next to the exported mesh
-        if resolver is None and util.is_string(file_obj):
+        if resolver is None and isinstance(file_obj, str):
             resolver = resolvers.FilePathResolver(file_obj)
         data = export_obj(scene, resolver=resolver, **kwargs)
     elif file_type == "dict64":
@@ -290,7 +290,7 @@ def export_scene(scene, file_obj, file_type=None, resolver=None, **kwargs):
         # represent multiple files so create a filepath
         # resolver and write the files if someone passed
         # a path we can write to.
-        if resolver is None and util.is_string(file_obj):
+        if resolver is None and isinstance(file_obj, str):
             resolver = resolvers.FilePathResolver(file_obj)
             # the requested "gltf"
             bare_path = os.path.split(file_obj)[-1]
@@ -306,7 +306,7 @@ def export_scene(scene, file_obj, file_type=None, resolver=None, **kwargs):
     if hasattr(file_obj, "write"):
         # if it's just a regular file object
         return util.write_encoded(file_obj, data)
-    elif util.is_string(file_obj):
+    elif isinstance(file_obj, str):
         # assume strings are file paths
         file_path = os.path.abspath(os.path.expanduser(file_obj))
         with open(file_path, "wb") as f:

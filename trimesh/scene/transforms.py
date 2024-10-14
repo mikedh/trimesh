@@ -489,7 +489,7 @@ class SceneGraph:
           Name of scene.geometry to dereference.
         """
         # make sure we have a set of geometries to remove
-        if util.is_string(geometries):
+        if isinstance(geometries, str):
             geometries = [geometries]
         geometries = set(geometries)
 

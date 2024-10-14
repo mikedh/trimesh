@@ -3,6 +3,7 @@ from shapely import ops
 from shapely.geometry import Polygon
 
 from .. import bounds, geometry, graph, grouping
+from ..boolean import reduce_cascade
 from ..constants import log
 from ..constants import tol_path as tol
 from ..transformations import transform_points
@@ -162,14 +163,14 @@ def edges_to_polygons(edges: NDArray[int64], vertices: NDArray[float64]):
     # find which polygons contain which other polygons
     roots, tree = enclosure_tree(polygons)
 
-    # generate list of polygons with proper interiors
-    complete = []
-    for root in roots:
-        interior = list(tree[root].keys())
-        shell = polygons[root].exterior.coords
-        holes = [polygons[i].exterior.coords for i in interior]
-        complete.append(Polygon(shell=shell, holes=holes))
-    return complete
+    # generate polygons with proper interiors
+    return [
+        Polygon(
+            shell=polygons[root].exterior,
+            holes=[polygons[i].exterior for i in tree[root].keys()],
+        )
+        for root in roots
+    ]
 
 
 def polygons_obb(polygons: Iterable[Polygon]):
@@ -864,17 +865,13 @@ def projected(
         return polygons[0]
     elif len(polygons) == 0:
         return None
-    # inflate each polygon before unioning to remove zero-size
-    # gaps then deflate the result after unioning by the same amount
-    # note the following provides a 25% speedup but needs
-    # more testing to see if it deflates to a decent looking
-    # result:
-    # polygon = ops.unary_union(
-    #    [p.buffer(padding,
-    #              join_style=2,
-    #              mitre_limit=1.5)
-    #     for p in polygons]).buffer(-padding)
-    return ops.unary_union([p.buffer(padding) for p in polygons]).buffer(-padding)
+
+    # in my tests this was substantially faster than `shapely.ops.unary_union`
+    reduced = reduce_cascade(lambda a, b: a.union(b), polygons)
+
+    # can be None
+    if reduced is not None:
+        return reduced.buffer(padding).buffer(-padding)
 
 
 def second_moments(polygon: Polygon, return_centered=False):

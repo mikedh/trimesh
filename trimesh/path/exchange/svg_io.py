@@ -627,7 +627,7 @@ def _encode(stuff):
     encoded : str
       Packaged into url-safe b64 string
     """
-    if util.is_string(stuff) and '"' not in stuff:
+    if isinstance(stuff, str) and '"' not in stuff:
         return stuff
     pack = base64.urlsafe_b64encode(
         jsonify(
@@ -664,9 +664,8 @@ def _deep_same(original, other):
     # but otherwise types should be identical
     if isinstance(original, np.ndarray):
         assert isinstance(other, (list, np.ndarray))
-    elif util.is_string(original):
-        # handle python 2+3 unicode vs str
-        assert util.is_string(other)
+    elif isinstance(original, str):
+        assert isinstance(other, str)
     else:
         # otherwise they should be the same type
         assert isinstance(original, type(other))

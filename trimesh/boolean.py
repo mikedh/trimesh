@@ -144,10 +144,16 @@ def boolean_manifold(
 
     # Perform operations
     if operation == "difference":
-        if len(meshes) != 2:
+        if len(meshes) < 2:
             raise ValueError("Difference only defined over two meshes.")
-
-        result_manifold = manifolds[0] - manifolds[1]
+        elif len(meshes) == 2:
+            # apply the single difference
+            result_manifold = manifolds[0] - manifolds[1]
+        elif len(meshes) > 2:
+            # union all the meshes to be subtracted from the final result
+            unioned = reduce_cascade(lambda a, b: a + b, manifolds[1:])
+            # apply the difference
+            result_manifold = manifolds[0] - unioned
     elif operation == "union":
         result_manifold = reduce_cascade(lambda a, b: a + b, manifolds)
     elif operation == "intersection":
