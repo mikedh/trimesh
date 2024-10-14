@@ -166,7 +166,7 @@ def edges_to_polygons(edges: NDArray[int64], vertices: NDArray[float64]):
     # generate polygons with proper interiors
     return [
         Polygon(
-            shell=polygons[root.exterior],
+            shell=polygons[root].exterior,
             holes=[polygons[i].exterior for i in tree[root].keys()],
         )
         for root in roots
@@ -867,9 +867,11 @@ def projected(
         return None
 
     # in my tests this was substantially faster than `shapely.ops.unary_union`
-    return (
-        reduce_cascade(lambda a, b: a.union(b), polygons).buffer(padding).buffer(-padding)
-    )
+    reduced = reduce_cascade(lambda a, b: a.union(b), polygons)
+
+    # can be None
+    if reduced is not None:
+        return reduced.buffer(padding).buffer(-padding)
 
 
 def second_moments(polygon: Polygon, return_centered=False):
