@@ -74,7 +74,10 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     # each instance is a single geometry
     build_items = []
 
+    # keep track of names we can use
+    consumed_counts = {}
     consumed_names = set()
+
     # iterate the XML object and build elements with an LXML iterator
     # loaded elements are cleared to avoid ballooning memory
     model.seek(0)
@@ -87,7 +90,9 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
             # start with stored name
             # apparently some exporters name multiple meshes
             # the same thing so check to see if it's been used
-            name = unique_name(obj.attrib.get("name", str(index)), consumed_names)
+            name = unique_name(
+                obj.attrib.get("name", str(index)), consumed_names, consumed_counts
+            )
             consumed_names.add(name)
             # store name reference on the index
             id_name[index] = name
@@ -101,9 +106,6 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
             # components are references to other geometries
             for c in obj.iter("{*}component"):
                 mesh_index = c.attrib["objectid"]
-                """
-                """
-
                 transform = _attrib_to_transform(c.attrib)
                 components[index].append((mesh_index, transform))
 
@@ -115,7 +117,9 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
                 if path is not None and path in archive:
                     archive[path].seek(0)
                     name = unique_name(
-                        obj.attrib.get("name", str(mesh_index)), consumed_names
+                        obj.attrib.get("name", str(mesh_index)),
+                        consumed_names,
+                        consumed_counts,
                     )
                     consumed_names.add(name)
                     # store name reference on the index
@@ -136,11 +140,6 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
                 transform = _attrib_to_transform(item.attrib)
                 # the index of the geometry this item instantiates
                 build_items.append((item.attrib["objectid"], transform))
-
-        # free resources
-        obj.clear()
-        obj.getparent().remove(obj)
-        del obj
 
     # have one mesh per 3MF object
     # one mesh per geometry ID, store as kwargs for the object
