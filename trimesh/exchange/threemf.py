@@ -37,15 +37,23 @@ def _read_mesh(mesh):
     # this is very sensitive as it is large, i.e. it is
     # much faster with the full list comprehension before
     # the `.join` as the giant string can be fully allocated
-    vs = ' '.join([f'{i.attrib["x"]} {i.attrib["y"]} {i.attrib["z"]}'
-                   for i in vertices.iter("{*}vertex")])
+    vs = " ".join(
+        [
+            f'{i.attrib["x"]} {i.attrib["y"]} {i.attrib["z"]}'
+            for i in vertices.iter("{*}vertex")
+        ]
+    )
     # convert every value to floating point in one-shot rather than in a loop
-    v_array = np.fromstring(vs, dtype=np.float64, sep=' ').reshape((-1, 3))
+    v_array = np.fromstring(vs, dtype=np.float64, sep=" ").reshape((-1, 3))
 
     # do the same behavior for faces but as an integer
-    fs = ' '.join([f'{i.attrib["v1"]} {i.attrib["v2"]} {i.attrib["v3"]}'
-                  for i in faces.iter("{*}triangle")])
-    f_array = np.fromstring(fs, dtype=np.int64, sep=' ').reshape((-1, 3))
+    fs = " ".join(
+        [
+            f'{i.attrib["v1"]} {i.attrib["v2"]} {i.attrib["v3"]}'
+            for i in faces.iter("{*}triangle")
+        ]
+    )
+    f_array = np.fromstring(fs, dtype=np.int64, sep=" ").reshape((-1, 3))
 
     return v_array, f_array
 
