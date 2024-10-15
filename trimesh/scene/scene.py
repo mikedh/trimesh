@@ -913,7 +913,7 @@ class Scene(Geometry3D):
 
     def dump(self, concatenate: bool = False) -> List[Geometry]:
         """
-        Get a list of every geometry moved to it's instance position,
+        Get a list of every geometry moved to its instance position,
         i.e. freezing or "baking" transforms.
 
         Parameters
