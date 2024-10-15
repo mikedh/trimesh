@@ -461,12 +461,11 @@ def slice_faces_plane(
         faces = faces[face_index]
 
     if cached_dots is not None:
-        dots = cached_dots
-    else:
-        # dot product of each vertex with the plane normal indexed by face
-        # so for each face the dot product of each vertex is a row
-        # shape is the same as faces (n,3)
-        dots = np.dot(vertices - plane_origin, plane_normal)
+        log.debug("`cached_dots` is deprecated!")
+    # dot product of each vertex with the plane normal indexed by face
+    # so for each face the dot product of each vertex is a row
+    # shape is the same as faces (n,3)
+    dots = np.dot(vertices - plane_origin, plane_normal)
 
     # Find vertex orientations w.r.t. faces for all triangles:
     #  -1 -> vertex "inside" plane (positive normal direction)
@@ -748,6 +747,7 @@ def slice_mesh_plane(
             plane_origin=origin,
             face_index=face_index,
         )
+
         # check if cap arg specified
         if cap:
             if face_index:
@@ -773,6 +773,7 @@ def slice_mesh_plane(
             on_plane = np.abs(vertices_2D[:, 2]) < 1e-8
             edges = edges[on_plane[edges].all(axis=1)]
             edges = edges[edges[:, 0] != edges[:, 1]]
+            edges.sort(axis=1)
 
             unique_edge = grouping.group_rows(edges, require_count=1)
             if len(unique) < 3:
@@ -781,7 +782,36 @@ def slice_mesh_plane(
             tree = cKDTree(vertices)
             # collect new faces
             faces = [f]
-            for p in polygons.edges_to_polygons(edges[unique_edge], vertices_2D[:, :2]):
+
+            ee = edges[unique_edge]
+
+            broken = np.bincount(ee.ravel()) == 1
+            if broken.any():
+                bid = np.nonzero(broken)[0]
+                v2 = vertices_2D[:, :2][bid]
+                t2d = cKDTree(v2)
+
+                _, pairs = t2d.query(v2, k=2)
+
+                pairs.sort(axis=1)
+
+                """
+                pc = np.vstack((pairs[:,[0,1]],
+                                pairs[:,[0,2]],
+                                pairs[:,[0,3]]))
+                pc.sort(axis=1)
+                import trimesh
+                infill = trimesh.grouping.boolean_rows(edges, pc)
+                """
+
+                pairs = pairs[grouping.unique_rows(pairs)[0]]
+
+                infill = bid[pairs]
+
+                if len(infill) > 0:
+                    ee = np.vstack((ee, infill))
+
+            for p in polygons.edges_to_polygons(ee, vertices_2D[:, :2]):
                 # triangulate cap and raise an error if any new vertices were inserted
                 vn, fn = triangulate_polygon(p, engine=engine, force_vertices=True)
                 # collect the original index for the new vertices
@@ -789,6 +819,7 @@ def slice_mesh_plane(
                 distance, vid = tree.query(vn3)
                 if distance.max() > 1e-8:
                     util.log.debug("triangulate may have inserted vertex!")
+
                 # triangulation should not have inserted vertices
                 nf = vid[fn]
                 # hmm but it may have returned faces that are now degenerate
