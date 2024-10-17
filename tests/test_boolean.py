@@ -219,14 +219,21 @@ def test_multiple_difference():
     spheres = [g.trimesh.creation.icosphere()]
     spheres.extend(g.trimesh.creation.icosphere().apply_translation(c) for c in center)
 
-    # compute using meshes method
-    diff_base = spheres[0].difference(spheres[1:])
-    # compute using function call (should be identical)
-    diff_meth = g.trimesh.boolean.difference(spheres)
+    for engine, exists in engines:
+        if not exists:
+            g.log.warning("skipping boolean engine %s", engine)
+            continue
 
-    # both methods should produce the same result
-    assert np.isclose(diff_base.volume, diff_meth.volume)
-    assert diff_base.volume < spheres[0].volume
+        g.log.info("Testing multiple difference with engine %s", engine)
 
-    # should have done the diff
-    assert np.allclose(diff_base.extents, [1.5, 1.5, 2.0], atol=1e-8)
+        # compute using meshes method
+        diff_base = spheres[0].difference(spheres[1:], engine=engine)
+        # compute using function call (should be identical)
+        diff_meth = g.trimesh.boolean.difference(spheres, engine=engine)
+
+        # both methods should produce the same result
+        assert np.isclose(diff_base.volume, diff_meth.volume)
+        assert diff_base.volume < spheres[0].volume
+
+        # should have done the diff
+        assert np.allclose(diff_base.extents, [1.5, 1.5, 2.0], atol=1e-8)

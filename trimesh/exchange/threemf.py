@@ -11,23 +11,49 @@ from ..util import unique_name
 
 
 def _read_mesh(mesh):
-    vertices = mesh.find("{*}vertices")
-    v_array = np.array(
-        [
-            [i.attrib["x"], i.attrib["y"], i.attrib["z"]]
-            for i in vertices.iter("{*}vertex")
-        ],
-        dtype=np.float64,
-    )
+    """
+    Read a `<mesh ` XML element into Numpy vertices and faces.
 
+    This is generally the most expensive operation in the load as it
+    has to operate in Python-space on every single vertex and face.
+
+    Parameters
+    ----------
+    mesh : lxml.etree.Element
+      Input mesh element with `vertex` and `triangle` children.
+
+    Returns
+    ----------
+    vertex_array : (n, 3) float64
+      Vertices
+    face_array : (n, 3) int64
+      Indexes of vertices forming triangles.
+    """
+    # get the XML elements for vertices and faces
+    vertices = mesh.find("{*}vertices")
     faces = mesh.find("{*}triangles")
-    f_array = np.array(
+
+    # get every value as a flat space-delimited string
+    # this is very sensitive as it is large, i.e. it is
+    # much faster with the full list comprehension before
+    # the `.join` as the giant string can be fully allocated
+    vs = " ".join(
         [
-            [i.attrib["v1"], i.attrib["v2"], i.attrib["v3"]]
-            for i in faces.iter("{*}triangle")
-        ],
-        dtype=np.int64,
+            f'{i.attrib["x"]} {i.attrib["y"]} {i.attrib["z"]}'
+            for i in vertices.iter("{*}vertex")
+        ]
     )
+    # convert every value to floating point in one-shot rather than in a loop
+    v_array = np.fromstring(vs, dtype=np.float64, sep=" ").reshape((-1, 3))
+
+    # do the same behavior for faces but as an integer
+    fs = " ".join(
+        [
+            f'{i.attrib["v1"]} {i.attrib["v2"]} {i.attrib["v3"]}'
+            for i in faces.iter("{*}triangle")
+        ]
+    )
+    f_array = np.fromstring(fs, dtype=np.int64, sep=" ").reshape((-1, 3))
 
     return v_array, f_array
 

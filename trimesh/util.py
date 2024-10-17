@@ -2015,17 +2015,20 @@ def triangle_strips_to_faces(strips):
     """
 
     # save the length of each list in the list of lists
-    lengths = np.array([len(i) for i in strips])
+    lengths = np.array([len(i) for i in strips], dtype=np.int64)
     # looping through a list of lists is extremely slow
     # combine all the sequences into a blob we can manipulate
-    blob = np.concatenate(strips)
+    blob = np.concatenate(strips, dtype=np.int64)
 
-    # preallocate and slice the blob into rough triangles
-    tri = np.zeros((len(blob) - 2, 3), dtype=np.int64)
-    for i in range(3):
-        tri[: len(blob) - 3, i] = blob[i : -3 + i]
-    # the last triangle is left off from the slicing, add it back
-    tri[-1] = blob[-3:]
+    # slice the blob into rough triangles
+    tri = np.array([blob[:-2], blob[1:-1], blob[2:]], dtype=np.int64).T
+
+    # if we only have one strip we can do a *lot* less work
+    # as we keep every triangle and flip every other one
+    if len(strips) == 1:
+        # flip in-place every other triangle
+        tri[1::2] = np.fliplr(tri[1::2])
+        return tri
 
     # remove the triangles which were implicit but not actually there
     # because we combined everything into one big array for speed
