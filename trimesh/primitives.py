@@ -133,7 +133,7 @@ class Primitive(Trimesh):
         if include_visual:
             # copy visual information
             primitive_copy.visual = self.visual.copy()
-        
+
         # copy metadata
         primitive_copy.metadata = self.metadata.copy()
 
