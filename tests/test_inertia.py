@@ -402,7 +402,7 @@ class InertiaTest(g.unittest.TestCase):
         s._cache.clear()
 
         with g.Profiler() as P:
-            ms = s.dump(concatenate=True)
+            ms = s.to_mesh()
             total_dump = ms.moment_inertia
         g.log.debug(P.output_text())
 

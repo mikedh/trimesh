@@ -1112,9 +1112,9 @@ class Trimesh(Geometry3D):
         self,
         merge_tex: Optional[bool] = None,
         merge_norm: Optional[bool] = None,
-        digits_vertex: Optional[bool] = None,
-        digits_norm: Optional[bool] = None,
-        digits_uv: Optional[bool] = None,
+        digits_vertex: Optional[Integer] = None,
+        digits_norm: Optional[Integer] = None,
+        digits_uv: Optional[Integer] = None,
     ) -> None:
         """
         Removes duplicate vertices grouped by position and
@@ -2860,7 +2860,7 @@ class Trimesh(Geometry3D):
 
     def union(
         self,
-        other: "Trimesh",
+        other: Union["Trimesh", Sequence["Trimesh"]],
         engine: Optional[str] = None,
         check_volume: bool = True,
         **kwargs,
@@ -2887,9 +2887,8 @@ class Trimesh(Geometry3D):
         union : trimesh.Trimesh
           Union of self and other Trimesh objects
         """
-
         return boolean.union(
-            meshes=[self, other],
+            meshes=util.chain(self, other),
             engine=engine,
             check_volume=check_volume,
             **kwargs,
@@ -2897,18 +2896,18 @@ class Trimesh(Geometry3D):
 
     def difference(
         self,
-        other: "Trimesh",
+        other: Union["Trimesh", Sequence["Trimesh"]],
         engine: Optional[str] = None,
         check_volume: bool = True,
         **kwargs,
     ) -> "Trimesh":
         """
-         Boolean difference between this mesh and n other meshes
+         Boolean difference between this mesh and other meshes.
 
          Parameters
          ------------
-         other : trimesh.Trimesh, or list of trimesh.Trimesh objects
-           Meshes to difference
+         other
+           One or more meshes to difference with the current mesh.
          engine
            Which backend to use, the default
            recommendation is: `pip install manifold3d`.
@@ -2925,12 +2924,15 @@ class Trimesh(Geometry3D):
            Difference between self and other Trimesh objects
         """
         return boolean.difference(
-            meshes=[self, other], engine=engine, check_volume=check_volume, **kwargs
+            meshes=util.chain(self, other),
+            engine=engine,
+            check_volume=check_volume,
+            **kwargs,
         )
 
     def intersection(
         self,
-        other: "Trimesh",
+        other: Union["Trimesh", Sequence["Trimesh"]],
         engine: Optional[str] = None,
         check_volume: bool = True,
         **kwargs,
@@ -2958,7 +2960,7 @@ class Trimesh(Geometry3D):
            Mesh of the volume contained by all passed meshes
         """
         return boolean.intersection(
-            meshes=[self, other],
+            meshes=util.chain(self, other),
             engine=engine,
             check_volume=check_volume,
             **kwargs,

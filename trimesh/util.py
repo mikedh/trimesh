@@ -1,12 +1,5 @@
 """
-util.py
------------
-
-Standalone functions which require only imports from numpy and the
-standard library.
-
-Other libraries may be imported must be wrapped in try/except blocks
-or imported inside of a function
+"Grab bag" of utility functions.
 """
 
 import abc
@@ -28,6 +21,9 @@ from collections.abc import Mapping
 from io import BytesIO, StringIO
 
 import numpy as np
+
+# use our wrapped types for wider version compatibility
+from .typed import Any, Iterable, List, Union
 
 # create a default logger
 log = logging.getLogger("trimesh")
@@ -185,42 +181,19 @@ def is_pathlib(obj):
 
 def is_string(obj) -> bool:
     """
-    Check if an object is a string.
+    DEPRECATED : this is not necessary since we dropped Python 2.
 
-    Parameters
-    ------------
-    obj : object
-       Any object type to be checked
-
-    Returns
-    ------------
-    is_string : bool
-        True if obj is a string
+    Replace with `isinstance(obj, str)`
     """
+    warnings.warn(
+        "`trimesh.util.is_string` is deprecated "
+        + "and will be removed in January 2025. "
+        + "replace with `isinstance(obj, str)`",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+
     return isinstance(obj, str)
-
-
-def is_none(obj) -> bool:
-    """
-    Check to see if an object is None or not.
-
-    Handles the case of np.array(None) as well.
-
-    Parameters
-    -------------
-    obj : object
-      Any object type to be checked
-
-    Returns
-    -------------
-    is_none : bool
-        True if obj is None or numpy None-like
-    """
-    if obj is None:
-        return True
-    if is_sequence(obj) and len(obj) == 1 and obj[0] is None:
-        return True
-    return False
 
 
 def is_sequence(obj) -> bool:
@@ -361,9 +334,9 @@ def make_sequence(obj):
        Contains input value
     """
     if is_sequence(obj):
-        return np.array(list(obj))
+        return list(obj)
     else:
-        return np.array([obj])
+        return [obj]
 
 
 def vector_hemisphere(vectors, return_sign=False):
@@ -1411,7 +1384,62 @@ def type_named(obj, name):
     raise ValueError("Unable to extract class of name " + name)
 
 
-def concatenate(a, b=None):
+def chain(*args: Union[Iterable[Any], Any, None]) -> List[Any]:
+    """
+    A less principled version of `list(itertools.chain(*args))` that
+    accepts non-iterable values, filters `None`, and returns a list
+    rather than yielding values.
+
+    If all passed values are iterables this will return identical
+    results to `list(itertools.chain(*args))`.
+
+
+    Examples
+    ----------
+
+    In [1]: list(itertools.chain([1,2], [3]))
+    Out[1]: [1, 2, 3]
+
+    In [2]: trimesh.util.chain([1,2], [3])
+    Out[2]: [1, 2, 3]
+
+    In [3]: trimesh.util.chain([1,2], [3], 4)
+    Out[3]: [1, 2, 3, 4]
+
+    In [4]: list(itertools.chain([1,2], [3], 4))
+      ----> 1 list(itertools.chain([1,2], [3], 4))
+      TypeError: 'int' object is not iterable
+
+    In [5]: trimesh.util.chain([1,2], None, 3, None, [4], [], [], 5, [])
+    Out[5]: [1, 2, 3, 4, 5]
+
+
+    Parameters
+    -----------
+    args
+      Will be individually checked to see if they're iterable
+      before either being appended or extended to a flat list.
+
+
+    Returns
+    ----------
+    chained
+      The values in a flat list.
+    """
+    # collect values to a flat list
+    chained = []
+    # extend if it's a sequence, otherwise append
+    [
+        chained.extend(a) if is_sequence(a) else chained.append(a)
+        for a in args
+        if a is not None
+    ]
+    return chained
+
+
+def concatenate(
+    a, b=None
+) -> Union["trimesh.Trimesh", "trimesh.path.Path2D", "trimesh.path.Path3D"]:  # noqa: F821
     """
     Concatenate two or more meshes.
 
@@ -1425,31 +1453,20 @@ def concatenate(a, b=None):
 
     Returns
     ----------
-    result : trimesh.Trimesh
+    result
       Concatenated mesh
     """
-
-    # get a flat list of meshes
-    flat = []
-    if a is not None:
-        if is_sequence(a):
-            flat.extend(a)
-        else:
-            flat.append(a)
-    if b is not None:
-        if is_sequence(b):
-            flat.extend(b)
-        else:
-            flat.append(b)
     dump = []
-    for i in flat:
+    for i in chain(a, b):
         if is_instance_named(i, "Scene"):
+            # get every mesh in the final frame.
             dump.extend(i.dump())
         else:
+            # just append to our flat list
             dump.append(i)
 
     if len(dump) == 1:
-        # if there is only one mesh just return the first
+        # if there is only one geometry just return the first
         return dump[0].copy()
     elif len(dump) == 0:
         # if there are no meshes return an empty mesh
@@ -1460,6 +1477,7 @@ def concatenate(a, b=None):
     is_mesh = [f for f in dump if is_instance_named(f, "Trimesh")]
     is_path = [f for f in dump if is_instance_named(f, "Path")]
 
+    # if we have more
     if len(is_path) > len(is_mesh):
         from .path.util import concatenate as concatenate_path
 
@@ -1713,7 +1731,7 @@ def convert_like(item, like):
         return np.asanyarray(item, dtype=like.dtype)
 
     # if it's already the desired type just return it
-    if isinstance(item, like.__class__) or is_none(like):
+    if isinstance(item, like.__class__) or like is None:
         return item
 
     # if it's an array with one item return it

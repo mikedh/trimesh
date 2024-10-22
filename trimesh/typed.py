@@ -20,9 +20,9 @@ if version_info >= (3, 9):
     List = list
     Tuple = tuple
     Dict = dict
-    from collections.abc import Callable, Iterable, Mapping, Sequence
+    from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 else:
-    from typing import Callable, Dict, Iterable, List, Mapping, Sequence, Tuple
+    from typing import Callable, Dict, Hashable, Iterable, List, Mapping, Sequence, Tuple
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
@@ -42,8 +42,9 @@ Integer = Union[int, integer, unsignedinteger]
 # > isinstance(np.ones(1, dtype=np.float32)[0], float) # False
 Floating = Union[float, floating]
 
-# Many arguments take "any valid number."
-Number = Union[float, floating, Integer]
+# Many arguments take "any valid number" and don't care if it
+# is an integer or a floating point input.
+Number = Union[Floating, Integer]
 
 __all__ = [
     "IO",
@@ -65,4 +66,5 @@ __all__ = [
     "int64",
     "Mapping",
     "Callable",
+    "Hashable",
 ]

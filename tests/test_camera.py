@@ -116,6 +116,16 @@ class CameraTests(g.unittest.TestCase):
             assert all(rid.min(axis=0) == 0)
             assert all(rid.max(axis=0) == current - 1)
 
+    def test_scaled_copy(self):
+        s = g.get_mesh("cycloidal.3DXML")
+
+        s.units = "mm"
+        assert s.camera_transform.shape == (4, 4)
+
+        # the camera node should have been removed on copy
+        b = s.convert_units("m")
+        assert b.camera_transform.shape == (4, 4)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

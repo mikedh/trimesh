@@ -142,7 +142,7 @@ class GraphTests(g.unittest.TestCase):
         # copy the original bounds of the scene's convex hull
         b = scene.convex_hull.bounds.tolist()
         # dump it into a single mesh
-        m = scene.dump(concatenate=True)
+        m = scene.to_mesh()
 
         # mesh bounds should match exactly
         assert g.np.allclose(m.bounds, b)
@@ -159,6 +159,18 @@ class GraphTests(g.unittest.TestCase):
         assert g.np.allclose(m.convex_hull.bounds, scene.convex_hull.bounds)
         # should have moved from original position
         assert not g.np.allclose(m.convex_hull.bounds, b)
+
+    def test_simplify(self):
+        if not g.trimesh.util.has_module("fast_simplification"):
+            return
+
+        # get a scene graph
+        scene: g.trimesh.Scene = g.get_mesh("cycloidal.3DXML")
+
+        original = scene.to_mesh()
+
+        scene.simplify_quadric_decimation(percent=0.0, aggression=0)
+        assert len(scene.to_mesh().vertices) < len(original.vertices)
 
     def test_reverse(self):
         tf = g.trimesh.transformations
@@ -297,6 +309,24 @@ class GraphTests(g.unittest.TestCase):
         # should move to the origin
         s.apply_translation(-s.bounds[0])
         assert g.np.allclose(s.bounds[0], 0)
+
+    def test_reconstruct(self):
+        original = g.get_mesh("cycloidal.3DXML")
+        assert isinstance(original, g.trimesh.Scene)
+
+        # get the scene as "baked" meshes with no scene graph
+        dupe = g.trimesh.Scene(original.dump())
+        assert len(dupe.geometry) > len(original.geometry)
+
+        with g.Profiler() as P:
+            # reconstruct the instancing using `duplicate_nodes` and `procrustes`
+            rec = dupe.reconstruct_instances()
+        g.log.info(P.output_text())
+
+        assert len(rec.graph.nodes_geometry) == len(original.graph.nodes_geometry)
+        assert len(rec.geometry) == len(original.geometry)
+        assert g.np.allclose(rec.extents, original.extents, rtol=1e-8)
+        assert g.np.allclose(rec.center_mass, original.center_mass, rtol=1e-8)
 
 
 if __name__ == "__main__":

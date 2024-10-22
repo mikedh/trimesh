@@ -75,8 +75,22 @@ class UtilTests(unittest.TestCase):
             # this is what should happen
             pass
 
+    def test_chain(self):
+        from trimesh.util import chain
+
+        # should work on iterables the same as `itertools.chain`
+        assert g.np.allclose(chain([1, 3], [4]), [1, 3, 4])
+        # should work with non-iterable single values
+        assert g.np.allclose(chain([1, 3], 4), [1, 3, 4])
+        # should filter out `None` arguments
+        assert g.np.allclose(chain([1, 3], None, 4, None), [1, 3, 4])
+
     def test_has_module(self):
+        # built-in
         assert g.trimesh.util.has_module("collections")
+        # required for everything
+        assert g.trimesh.util.has_module("numpy")
+        # not-a-thing
         assert not g.trimesh.util.has_module("foobarrionananan")
 
     def test_strips(self):

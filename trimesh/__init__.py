@@ -11,6 +11,7 @@ and analysis, in the style of the Polygon object in the Shapely library.
 # avoid a circular import in trimesh.base
 from . import (
     boolean,
+    bounds,
     caching,
     collision,
     comparison,
@@ -24,6 +25,7 @@ from . import (
     grouping,
     inertia,
     intersections,
+    nsphere,
     permutate,
     poses,
     primitives,
@@ -45,7 +47,13 @@ from .base import Trimesh
 from .constants import tol
 
 # loader functions
-from .exchange.load import available_formats, load, load_mesh, load_path
+from .exchange.load import (
+    available_formats,
+    load,
+    load_mesh,
+    load_path,
+    load_remote,
+)
 
 # geometry objects
 from .parent import Geometry
@@ -118,6 +126,5 @@ __all__ = [
     "unitize",
     "units",
     "util",
-    "utilScene",
     "voxel",
 ]

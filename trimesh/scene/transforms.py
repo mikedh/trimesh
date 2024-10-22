@@ -6,7 +6,7 @@ import numpy as np
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
-from ..typed import Sequence, Union
+from ..typed import ArrayLike, Hashable, NDArray, Optional, Sequence, Tuple, Union
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -92,7 +92,9 @@ class SceneGraph:
         if "geometry" in kwargs:
             self.transforms.node_data[frame_to]["geometry"] = kwargs["geometry"]
 
-    def get(self, frame_to, frame_from=None):
+    def get(
+        self, frame_to: Hashable, frame_from: Optional[Hashable] = None
+    ) -> Tuple[NDArray[np.float64], Optional[Hashable]]:
         """
         Get the transform from one frame to another.
 
@@ -108,6 +110,8 @@ class SceneGraph:
         ----------
         transform : (4, 4) float
           Homogeneous transformation matrix
+        geometry
+          The name of the geometry if it exists
 
         Raises
         -----------
@@ -485,7 +489,7 @@ class SceneGraph:
           Name of scene.geometry to dereference.
         """
         # make sure we have a set of geometries to remove
-        if util.is_string(geometries):
+        if isinstance(geometries, str):
             geometries = [geometries]
         geometries = set(geometries)
 
@@ -501,14 +505,16 @@ class SceneGraph:
         self._cache.cache.pop("nodes_geometry", None)
         self.transforms._hash = None
 
-    def __contains__(self, key):
+    def __contains__(self, key: Hashable) -> bool:
         return key in self.transforms.node_data
 
-    def __getitem__(self, key):
+    def __getitem__(
+        self, key: Hashable
+    ) -> Tuple[NDArray[np.float64], Optional[Hashable]]:
         return self.get(key)
 
-    def __setitem__(self, key, value):
-        value = np.asanyarray(value)
+    def __setitem__(self, key: Hashable, value: ArrayLike):
+        value = np.asanyarray(value, dtype=np.float64)
         if value.shape != (4, 4):
             raise ValueError("Matrix must be specified!")
         return self.update(key, matrix=value)

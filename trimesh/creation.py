@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Dict, Integer, NDArray, Number, Optional
+from .typed import ArrayLike, Dict, Integer, NDArray, Number, Optional, Tuple
 
 try:
     # shapely is a soft dependency
@@ -41,6 +41,7 @@ _engines = [
 def revolve(
     linestring: ArrayLike,
     angle: Optional[Number] = None,
+    cap: bool = False,
     sections: Optional[Integer] = None,
     transform: Optional[ArrayLike] = None,
     **kwargs,
@@ -61,9 +62,13 @@ def revolve(
     -------------
     linestring : (n, 2) float
       Lines in 2D which will be revolved
-    angle : None or float
-      Angle in radians to revolve curve by
-    sections : None or int
+    angle
+      Angle in radians to revolve curve by or if not
+      passed will be a full revolution (`angle = 2*pi`)
+    cap
+      If not a full revolution (`0.0 < angle < 2 * pi`)
+      and cap is True attempt to add a tesselated cap.
+    sections
       Number of sections result should have
       If not specified default is 32 per revolution
     transform : None or (4, 4) float
@@ -104,6 +109,7 @@ def revolve(
 
     # how many points per slice
     per = len(linestring)
+
     # use the 2D X component as radius
     radius = linestring[:, 0]
     # use the 2D Y component as the height along revolution
@@ -124,10 +130,6 @@ def revolve(
 
         # chop off duplicate vertices
         vertices = vertices[:-per]
-
-    if transform is not None:
-        # apply transform to vertices
-        vertices = tf.transform_points(vertices, transform)
 
     # how many slices of the pie
     slices = len(theta) - 1
@@ -160,18 +162,46 @@ def revolve(
     # if 'process' not in kwargs:
     #    kwargs['process'] = False
 
+    # Handle capping before applying any transformation
+    if not closed and cap:
+        # Use the triangulated linestring as the base cap faces (cap_0), assuming no new vertices
+        # are added, indices defining triangles of cap_0 should be reusable for cap_angle
+        cap_0_vertices, cap_0_faces = triangulate_polygon(
+            Polygon(linestring), force_vertices=True
+        )
+
+        if tol.strict:
+            # make sure we didn't screw up triangulation
+            _, idx = np.unique(cap_0_vertices, return_index=True)
+            cap_0_uvtxs = cap_0_vertices[np.sort(idx)]
+            _, idx = np.unique(linestring, return_index=True)
+            line_uvtxs = linestring[np.sort(idx)]
+            assert np.allclose(cap_0_uvtxs, line_uvtxs)
+
+        # Use the last set of vertices as the top cap contour (cap_angle)
+        offset = len(vertices) - per
+        cap_angle_faces = cap_0_faces + offset
+        flipped_cap_angle_faces = np.fliplr(cap_angle_faces)  # reverse the winding
+
+        # Append cap faces to the face array
+        faces = np.vstack([faces, cap_0_faces, flipped_cap_angle_faces])
+
+    if transform is not None:
+        # apply transform to vertices
+        vertices = tf.transform_points(vertices, transform)
+
     # create the mesh from our vertices and faces
     mesh = Trimesh(vertices=vertices, faces=faces, **kwargs)
 
-    # strict checks run only in unit tests
+    # strict checks run only in unit tests and when cap is True
     if tol.strict and (
         np.allclose(radius[[0, -1]], 0.0) or np.allclose(linestring[0], linestring[-1])
     ):
-        # if revolved curve starts and ends with zero radius
-        # it should really be a valid volume, unless the sign
-        # reversed on the input linestring
-        assert closed
-        assert mesh.is_volume
+        if closed or cap:
+            # if revolved curve starts and ends with zero radius
+            # it should really be a valid volume, unless the sign
+            # reversed on the input linestring
+            assert mesh.is_volume
         assert mesh.body_count == 1
 
     return mesh
@@ -531,8 +561,12 @@ def extrude_triangulation(
 
 
 def triangulate_polygon(
-    polygon, triangle_args: Optional[str] = None, engine: Optional[str] = None, **kwargs
-):
+    polygon,
+    triangle_args: Optional[str] = None,
+    engine: Optional[str] = None,
+    force_vertices: bool = False,
+    **kwargs,
+) -> Tuple[NDArray[np.float64], NDArray[np.int64]]:
     """
     Given a shapely polygon create a triangulation using a
     python interface to the permissively licensed `mapbox-earcut`
@@ -545,10 +579,14 @@ def triangulate_polygon(
     ---------
     polygon : Shapely.geometry.Polygon
         Polygon object to be triangulated.
-    triangle_args : str or None
+    triangle_args
         Passed to triangle.triangulate i.e: 'p', 'pq30', 'pY'="don't insert vert"
-    engine : None or str
+    engine
       None or 'earcut' will use earcut, 'triangle' will use triangle
+    force_vertices
+      Many operations can't handle new vertices being inserted, so this will
+      attempt to generate a triangulation without new vertices and raise a
+      ValueError if it is unable to do so.
 
     Returns
     --------------
@@ -564,6 +602,8 @@ def triangulate_polygon(
 
     if polygon is None or polygon.is_empty:
         return [], []
+
+    vertices = None
 
     if engine == "earcut":
         from mapbox_earcut import triangulate_float64
@@ -584,8 +624,6 @@ def triangulate_polygon(
             .reshape((-1, 3))
         )
 
-        return vertices, faces
-
     elif engine == "manifold":
         import manifold3d
 
@@ -599,9 +637,8 @@ def triangulate_polygon(
         rings.extend(
             np.array(b.coords)[:: (-1 if b.is_ccw else 1)][:-1] for b in polygon.interiors
         )
-        faces = manifold3d.triangulate(rings)
-        vertices = np.vstack(rings)
-        return vertices, faces
+        faces = manifold3d.triangulate(rings).astype(np.int64)
+        vertices = np.vstack(rings, dtype=np.float64)
 
     elif engine == "triangle":
         from triangle import triangulate
@@ -612,16 +649,23 @@ def triangulate_polygon(
             # turn the polygon in to vertices, segments, and holes
         arg = _polygon_to_kwargs(polygon)
         # run the triangulation
-        result = triangulate(arg, triangle_args)
-        return result["vertices"], result["triangles"]
+        blob = triangulate(arg, triangle_args)
+        vertices, faces = blob["vertices"], blob["triangles"].astype(np.int64)
 
-    log.warning(
-        "try running `pip install manifold3d`"
-        + "or `triangle`, `mapbox_earcut`, then explicitly pass:\n"
-        + '`triangulate_polygon(*args, engine="triangle")`\n'
-        + "to use the non-FSF-approved-license triangle engine"
-    )
-    raise ValueError("No available triangulation engine!")
+        # triangle may insert vertices
+        if force_vertices:
+            assert np.allclose(arg["vertices"], vertices)
+
+    if vertices is None:
+        log.warning(
+            "try running `pip install mapbox-earcut manifold3d`"
+            + "or `triangle`, `mapbox_earcut`, then explicitly pass:\n"
+            + '`triangulate_polygon(*args, engine="triangle")`\n'
+            + "to use the non-FSF-approved-license triangle engine"
+        )
+        raise ValueError("No available triangulation engine!")
+
+    return vertices, faces
 
 
 def _polygon_to_kwargs(polygon) -> Dict:

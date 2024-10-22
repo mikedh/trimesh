@@ -1,5 +1,6 @@
 import collections
 import uuid
+import warnings
 
 import numpy as np
 
@@ -7,9 +8,13 @@ from .. import caching, convex, grouping, inertia, transformations, units, util
 from ..constants import log
 from ..exchange import export
 from ..parent import Geometry, Geometry3D
+from ..registration import procrustes
 from ..typed import (
     ArrayLike,
     Dict,
+    Floating,
+    Integer,
+    Iterable,
     List,
     NDArray,
     Optional,
@@ -24,9 +29,7 @@ from . import cameras, lighting
 from .transforms import SceneGraph
 
 # the types of objects we can create a scene from
-GeometryInput = Union[
-    Geometry, Sequence[Geometry], NDArray[Geometry], Dict[str, Geometry]
-]
+GeometryInput = Union[Geometry, Iterable[Geometry], Dict[str, Geometry]]
 
 
 class Scene(Geometry3D):
@@ -164,7 +167,7 @@ class Scene(Geometry3D):
                     transform=transform,
                     metadata=metadata,
                 )
-                for value in geometry
+                for value in geometry  # type: ignore
             ]
         elif isinstance(geometry, dict):
             # if someone passed us a dict of geometry
@@ -241,7 +244,7 @@ class Scene(Geometry3D):
           Name that references self.geometry
         """
         # make sure we have a set we can check
-        if util.is_string(names):
+        if isinstance(names, str):
             names = [names]
         names = set(names)
 
@@ -260,6 +263,36 @@ class Scene(Geometry3D):
         for geometry in self.geometry.values():
             if util.is_instance_named(geometry, "Trimesh"):
                 geometry.visual = ColorVisuals(mesh=geometry)
+
+    def simplify_quadric_decimation(
+        self,
+        percent: Optional[Floating] = None,
+        face_count: Optional[Integer] = None,
+        aggression: Optional[Integer] = None,
+    ) -> None:
+        """
+        Apply in-place `mesh.simplify_quadric_decimation` to any meshes
+        in the scene.
+
+        Parameters
+        -----------
+        percent
+          A number between 0.0 and 1.0 for how much
+        face_count
+          Target number of faces desired in the resulting mesh.
+        agression
+          An integer between `0` and `10`, the scale being roughly
+          `0` is "slow and good" and `10` being "fast and bad."
+
+        """
+        # save the updates for after the loop
+        updates = {}
+        for k, v in self.geometry.items():
+            if hasattr(v, "simplify_quadric_decimation"):
+                updates[k] = v.simplify_quadric_decimation(
+                    percent=percent, face_count=face_count, aggression=aggression
+                )
+        self.geometry.update(updates)
 
     def __hash__(self) -> int:
         """
@@ -632,6 +665,8 @@ class Scene(Geometry3D):
 
     def deduplicated(self) -> "Scene":
         """
+        DEPRECATED: REMOVAL JANUARY 2025, this is one line and not that useful.
+
         Return a new scene where each unique geometry is only
         included once and transforms are discarded.
 
@@ -640,16 +675,46 @@ class Scene(Geometry3D):
         dedupe : Scene
           One copy of each unique geometry from scene
         """
-        # collect geometry
-        geometry = {}
-        # loop through groups of identical nodes
-        for group in self.duplicate_nodes:
-            # get the name of the geometry
-            name = self.graph[group[0]][1]
-            # collect our unique collection of geometry
-            geometry[name] = self.geometry[name]
 
-        return Scene(geometry)
+        warnings.warn(
+            "DEPRECATED: REMOVAL JANUARY 2025, this is one line and not that useful.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+
+        # keying by `identifier_hash` will mean every geometry is unique
+        return Scene(
+            list({g.identifier_hash: g for g in self.geometry.values()}.values())
+        )
+
+    def reconstruct_instances(self, cost_threshold: Floating = 1e-5) -> "Scene":
+        """
+        If a scene has been "baked" with meshes it means that
+        the duplicate nodes have *corresponding vertices* but are
+        rigidly transformed to different places.
+
+        This means the problem of finding ab instance transform can
+        use the `procrustes` analysis which is *very* fast relative
+        to more complicated registration problems that require ICP
+        and nearest-point-on-surface calculations.
+
+        TODO : construct a parent non-geometry node for containing every group.
+
+        Parameters
+        ----------
+        scene
+        The scene to handle.
+        cost_threshold
+        The maximum value for `procrustes` cost which is "squared mean
+        vertex distance between pair". If the fit is above this value
+        the instance will be left even if it is a duplicate.
+
+        Returns
+        ---------
+        dedupe
+        A copy of the scene de-duplicated as much as possible.
+        """
+        return reconstruct_instances(self, cost_threshold=cost_threshold)
 
     def set_camera(
         self, angles=None, distance=None, center=None, resolution=None, fov=None
@@ -846,24 +911,25 @@ class Scene(Geometry3D):
         )
         self.graph.base_frame = new_base
 
-    def dump_mesh(self):
-        """ """
-        return self.dump(concatenate=True)
-
-    def dump(self, concatenate: bool = False) -> Union[Geometry, List[Geometry]]:
+    def dump(self, concatenate: bool = False) -> List[Geometry]:
         """
-        Append all meshes in scene freezing transforms.
+        Get a list of every geometry moved to it's instance position,
+        i.e. freezing or "baking" transforms.
 
         Parameters
         ------------
         concatenate
-          If True, concatenate results into single mesh
+          KWARG IS DEPRECATED FOR REMOVAL APRIL 2025
+          Concatenate results into single geometry.
+          This keyword argument will make the type hint incorrect and
+          you should replace `Scene.dump(concatenate=True)` with:
+            - `Scene.to_geometry()` for a Trimesh, Path2D or Path3D
+            - `Scene.to_mesh()` for only `Trimesh` components.
 
         Returns
         ----------
-        dumped : (n,) Trimesh, Path2D, Path3D, PointCloud
-          Depending on what the scene contains. If `concatenate`
-          then some geometry may be dropped if it doesn't match.
+        dumped
+          Copies of `Scene.geometry` transformed to their instance position.
         """
 
         result = []
@@ -893,10 +959,45 @@ class Scene(Geometry3D):
             result.append(current)
 
         if concatenate:
+            warnings.warn(
+                "`Scene.dump(concatenate=True)` DEPRECATED FOR REMOVAL APRIL 2025: replace with `Scene.to_geometry()`",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
             # if scene has mixed geometry this may drop some of it
-            return util.concatenate(result)
+            return util.concatenate(result)  # type: ignore
 
         return result
+
+    def to_mesh(self) -> "trimesh.Trimesh":  # noqa: F821
+        """
+        Concatenate every mesh instances in the scene into a single mesh,
+        applying transforms and "baking" the result. Will drop any geometry
+        in the scene that is not a `Trimesh` object.
+
+        Returns
+        ----------
+        mesh
+          All meshes in the scene concatenated into one.
+        """
+        from ..base import Trimesh
+
+        # concatenate only meshes
+        return util.concatenate([d for d in self.dump() if isinstance(d, Trimesh)])
+
+    def to_geometry(self) -> Geometry:
+        """
+        Concatenate geometry in the scene into a single like-typed geometry,
+        applying the transforms and "baking" the result. May drop geometry
+        if the scene has mixed geometry.
+
+        Returns
+        ---------
+        concat
+          Either a Trimesh, Path2D, or Path3D depending on what is in the scene.
+        """
+        # concatenate everything and return the most-occurring type.
+        return util.concatenate(self.dump())
 
     def subscene(self, node: str) -> "Scene":
         """
@@ -938,7 +1039,7 @@ class Scene(Geometry3D):
         hull : trimesh.Trimesh
           Trimesh object which is a convex hull of all meshes in scene
         """
-        points = util.vstack_empty([m.vertices for m in self.dump()])
+        points = util.vstack_empty([m.vertices for m in self.dump()])  # type: ignore
         return convex.convex_hull(points)
 
     def export(self, file_obj=None, file_type=None, **kwargs):
@@ -1050,11 +1151,8 @@ class Scene(Geometry3D):
         # find the float conversion
         scale = units.unit_conversion(current=current, desired=desired)
 
-        # exit early if our current units are the same as desired units
-        if np.isclose(scale, 1.0):
-            result = self.copy()
-        else:
-            result = self.scaled(scale=scale)
+        # apply scaling factor or exit early if scale ~= 1.0
+        result = self.scaled(scale=scale)
 
         # apply the units to every geometry of the scaled result
         result.units = desired
@@ -1100,7 +1198,7 @@ class Scene(Geometry3D):
             T_new[:3, 3] += offset
             self.graph[node_name] = T_new
 
-    def scaled(self, scale: Union[float, ArrayLike]) -> "Scene":
+    def scaled(self, scale: Union[Floating, ArrayLike]) -> "Scene":
         """
         Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.
@@ -1115,6 +1213,12 @@ class Scene(Geometry3D):
         scaled : trimesh.Scene
           A copy of the current scene but scaled
         """
+        result = self.copy()
+
+        # a scale of 1.0 is a no-op
+        if np.allclose(scale, 1.0):
+            return result
+
         # convert 2D geometries to 3D for 3D scaling factors
         scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
 
@@ -1126,7 +1230,6 @@ class Scene(Geometry3D):
             scale = float(scale)
 
         # result is a copy
-        result = self.copy()
 
         if scale_is_3D:
             # Copy all geometries that appear multiple times in the scene,
@@ -1159,7 +1262,6 @@ class Scene(Geometry3D):
                 if result.geometry[geom_name].vertices.shape[1] == 2:
                     result.geometry[geom_name] = result.geometry[geom_name].to_3D()
 
-            # Scale all geometries by un-doing their local rotations first
             for key in result.graph.nodes_geometry:
                 T, geom_name = result.graph.get(key)
                 # transform from graph should be read-only
@@ -1226,6 +1328,10 @@ class Scene(Geometry3D):
                     result.graph.update(
                         frame_to=node, matrix=transform, geometry=geometry
                     )
+
+        # remove camera from copied
+        result._camera = None
+
         return result
 
     def copy(self) -> "Scene":
@@ -1466,3 +1572,74 @@ def append_scenes(iterable, common=None, base_frame="world"):
     result.geometry.update(geometry)
 
     return result
+
+
+def reconstruct_instances(scene: Scene, cost_threshold: Floating = 1e-6) -> Scene:
+    """
+    If a scene has been "baked" with meshes it means that
+    the duplicate nodes have *corresponding vertices* but are
+    rigidly transformed to different places.
+
+    This means the problem of finding ab instance transform can
+    use the `procrustes` analysis which is *very* fast relative
+    to more complicated registration problems that require ICP
+    and nearest-point-on-surface calculations.
+
+    TODO : construct a parent non-geometry node for containing every group.
+
+    Parameters
+    ----------
+    scene
+      The scene to handle.
+    cost_threshold
+      The maximum value for `procrustes` cost which is "squared mean
+      vertex distance between pair". If the fit is above this value
+      the instance will be left even if it is a duplicate.
+
+    Returns
+    ---------
+    dedupe
+      A copy of the scene de-duplicated as much as possible.
+    """
+    # start with the original scene graph and modify in-loop
+    graph = scene.graph.copy()
+
+    for group in scene.duplicate_nodes:
+        # not sure if this ever includes
+        if len(group) < 2:
+            continue
+
+        # we are going to use one of the geometries and try to register the others to it
+        node_base = group[0]
+        # get the geometry name for this base node
+        _, geom_base = scene.graph[node_base]
+        # get the vertices of the base model
+        base: NDArray = scene.geometry[geom_base].vertices.view(np.ndarray)
+
+        for node in group[1:]:
+            # the original pose of this node in the scene
+            node_mat, node_geom = scene.graph[node]
+            # procrustes matches corresponding point arrays very quickly
+            # but we have to make sure that they actual correspond in shape
+            node_vertices = scene.geometry[node_geom].vertices.view(np.ndarray)
+
+            # procrustes only works on corresponding point clouds!
+            if node_vertices.shape != base.shape:
+                continue
+
+            # solve for a pose moving this instance into position
+            matrix, _p, cost = procrustes(
+                base, node_vertices, translation=True, scale=False, reflection=False
+            )
+            if cost < cost_threshold:
+                # add the transform we found
+                graph.update(node, matrix=np.dot(node_mat, matrix), geometry=geom_base)
+
+    # get from the new graph which geometry ends up with a reference
+    referenced = set(graph.geometry_nodes.keys())
+
+    # return a scene with the de-duplicated graph and a copy of any geometry
+    return Scene(
+        geometry={k: v.copy() for k, v in scene.geometry.items() if k in referenced},
+        graph=graph,
+    )

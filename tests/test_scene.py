@@ -461,7 +461,7 @@ class SceneTests(g.unittest.TestCase):
         m = g.get_mesh("cycloidal.3DXML")
         assert isinstance(m, g.trimesh.Scene)
 
-        dump = m.dump(concatenate=True)
+        dump = m.to_mesh()
         assert isinstance(dump, g.trimesh.Trimesh)
 
         # scene bounds should exactly match mesh bounds
@@ -475,7 +475,7 @@ class SceneTests(g.unittest.TestCase):
             ]
         )
 
-        dump = scene.dump(concatenate=True)
+        dump = scene.to_mesh()
         assert isinstance(dump, g.trimesh.Trimesh)
 
     def test_append_scenes(self):
@@ -493,7 +493,7 @@ class SceneTests(g.unittest.TestCase):
         a = g.trimesh.Scene(
             [g.trimesh.primitives.Sphere(center=[5, 5, 5]), g.trimesh.primitives.Box()]
         )
-        c = a.dump(concatenate=True)
+        c = a.to_mesh()
         assert isinstance(c, g.trimesh.Trimesh)
         assert g.np.allclose(c.bounds, a.bounds)
 
@@ -502,7 +502,7 @@ class SceneTests(g.unittest.TestCase):
 
         # scene 2D
         scene_2D = g.trimesh.Scene(g.get_mesh("2D/250_cycloidal.DXF").split())
-        concat = scene_2D.dump(concatenate=True)
+        concat = scene_2D.to_geometry()
         assert isinstance(concat, g.trimesh.path.Path2D)
 
         dump = scene_2D.dump(concatenate=False)
@@ -518,7 +518,7 @@ class SceneTests(g.unittest.TestCase):
         assert len(dump) >= 5
         assert all(isinstance(i, g.trimesh.path.Path3D) for i in dump)
 
-        concat = scene_3D.dump(concatenate=True)
+        concat = scene_3D.to_geometry()
         assert isinstance(concat, g.trimesh.path.Path3D)
 
         mixed = list(scene_2D.geometry.values())
@@ -528,7 +528,7 @@ class SceneTests(g.unittest.TestCase):
         dump = scene_mixed.dump(concatenate=False)
         assert len(dump) == len(mixed)
 
-        concat = scene_mixed.dump(concatenate=True)
+        concat = scene_mixed.to_geometry()
         assert isinstance(concat, g.trimesh.path.Path3D)
 
 
