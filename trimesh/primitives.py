@@ -114,7 +114,7 @@ class Primitive(Trimesh):
         """
         raise NotImplementedError()
 
-    def copy(self, **kwargs):
+    def copy(self, include_visual=True, **kwargs):
         """
         Return a copy of the Primitive object.
 
@@ -129,6 +129,11 @@ class Primitive(Trimesh):
         kwargs.pop("kind")
         # create a new object with kwargs
         primitive_copy = type(self)(**kwargs)
+
+        if include_visual:
+            # copy visual information
+            primitive_copy.visual = self.visual.copy()
+
         # copy metadata
         primitive_copy.metadata = self.metadata.copy()
 
