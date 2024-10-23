@@ -108,7 +108,7 @@ def load(
             "trimesh.load called on %s returning input", file_obj.__class__.__name__
         )
         return file_obj
-
+ 
     # parse the file arguments into clean loadable form
     (
         file_obj,  # file- like object
@@ -119,7 +119,9 @@ def load(
         is_remote,  #  is this a URL
     ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
-    if is_remote and not allow_remote:
+    arg = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+    
+    if arg.is_remote and not allow_remote:
         raise ValueError("URL passed with `allow_remote=False`")
 
     try:
@@ -212,6 +214,44 @@ def load_scene(
     geometry : Trimesh, Path2D, Path3D, Scene
       Loaded geometry as trimesh classes
     """
+
+    
+    arg = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+    
+    if arg.is_remote and not allow_remote:
+        raise ValueError("URL passed with `allow_remote=False`")
+
+    try:
+        if arg.file_type in path_formats():
+            # path formats get loaded with path loader
+            loaded = load_path(file_obj, file_type=file_type, **kwargs)
+        elif arg.file_type in mesh_loaders:
+            # mesh loaders use mesh loader
+            loaded = _load_kwargs(
+                mesh_loaders[file_type](
+                    file_obj=file_obj, file_type=file_type, resolver=resolver, **kwargs
+                )
+            )
+        elif file_type in compressed_loaders:
+            # for archives, like ZIP files
+            loaded = _load_compressed(file_obj, file_type=file_type, **kwargs)
+        elif file_type in voxel_loaders:
+            loaded = voxel_loaders[file_type](
+                file_obj, file_type=file_type, resolver=resolver, **kwargs
+            )
+        else:
+            if file_type in ["svg", "dxf"]:
+                # call the dummy function to raise the import error
+                # this prevents the exception from being super opaque
+                load_path()
+            else:
+                raise ValueError(f"File type: {file_type} not supported")
+    finally:
+        # if we opened the file ourselves from a file name
+        # close any opened files even if we crashed out
+        if opened:
+            file_obj.close()
+
 
     loaded = load(
         file_obj=file_obj,
@@ -534,6 +574,14 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
 
     return handler()
 
+@dataclass
+class _FileArgs:
+    file_obj: Stream
+    file_type: str
+    metadata : dict
+    opened: bool
+    resolver: ResolverLike
+    is_remote: bool
 
 def _parse_file_args(
     file_obj: Loadable,
