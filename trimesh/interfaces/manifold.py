@@ -1,10 +1,9 @@
 import numpy as np
 
 from .. import exceptions
-from ..boolean import reduce_cascade
 from ..typed import Sequence
+from ..util import reduce_cascade
 
-name = "manifold"
 exists = False
 
 try:

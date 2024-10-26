@@ -8,7 +8,7 @@ import numpy as np
 
 # test only available engines by default
 engines = g.trimesh.boolean.available_engines
-# if we have all_dep set it means we should test all engines
+# test all engines if all_dep is set
 if g.all_dependencies:
     engines = g.trimesh.boolean.all_engines
 
@@ -86,54 +86,58 @@ def test_empty():
 def test_boolean_manifold():
     from trimesh.interfaces import manifold
 
-    times = {}
-    for operation in ["union", "intersection"]:
-        if operation == "union":
-            # chain of icospheres
-            meshes = [
-                g.trimesh.primitives.Sphere(center=[x / 2, 0, 0], subdivisions=0)
-                for x in range(100)
-            ]
-        else:
-            # closer icospheres for non-empty-intersection
-            meshes = [
-                g.trimesh.primitives.Sphere(center=[x, x, x], subdivisions=0)
-                for x in np.linspace(0, 0.5, 101)
-            ]
+    # run this test only when manifold3d is available when
+    # all_dep is enabled
+    if manifold.exists or g.all_dependencies:
 
-        # the old 'serial' manifold method
-        tic = g.time.time()
-        manifolds = [
-            manifold.manifold3d.Manifold(
-                mesh=manifold.manifold3d.Mesh(
-                    vert_properties=np.array(mesh.vertices, dtype=np.float32),
-                    tri_verts=np.array(mesh.faces, dtype=np.uint32),
-                )
-            )
-            for mesh in meshes
-        ]
-        result_manifold = manifolds[0]
-        for manifold in manifolds[1:]:
+        times = {}
+        for operation in ["union", "intersection"]:
             if operation == "union":
-                result_manifold = result_manifold + manifold
-            else:  # operation == "intersection":
-                result_manifold = result_manifold ^ manifold
-        result_mesh = result_manifold.to_mesh()
-        old_mesh = g.trimesh.Trimesh(
-            vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts
-        )
-        times["serial " + operation] = g.time.time() - tic
+                # chain of icospheres
+                meshes = [
+                    g.trimesh.primitives.Sphere(center=[x / 2, 0, 0], subdivisions=0)
+                    for x in range(100)
+                ]
+            else:
+                # closer icospheres for non-empty-intersection
+                meshes = [
+                    g.trimesh.primitives.Sphere(center=[x, x, x], subdivisions=0)
+                    for x in np.linspace(0, 0.5, 101)
+                ]
 
-        # new 'binary' method
-        tic = g.time.time()
-        new_mesh = manifold.boolean(meshes, operation)
-        times["binary " + operation] = g.time.time() - tic
+            # the old 'serial' manifold method
+            tic = g.time.time()
+            manifolds = [
+                manifold.manifold3d.Manifold(
+                    mesh=manifold.manifold3d.Mesh(
+                        vert_properties=np.array(mesh.vertices, dtype=np.float32),
+                        tri_verts=np.array(mesh.faces, dtype=np.uint32),
+                    )
+                )
+                for mesh in meshes
+            ]
+            result_manifold = manifolds[0]
+            for manifold in manifolds[1:]:
+                if operation == "union":
+                    result_manifold = result_manifold + manifold
+                else:  # operation == "intersection":
+                    result_manifold = result_manifold ^ manifold
+            result_mesh = result_manifold.to_mesh()
+            old_mesh = g.trimesh.Trimesh(
+                vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts
+            )
+            times["serial " + operation] = g.time.time() - tic
 
-        assert old_mesh.is_volume == new_mesh.is_volume
-        assert old_mesh.body_count == new_mesh.body_count
-        assert np.isclose(old_mesh.volume, new_mesh.volume)
+            # new 'binary' method
+            tic = g.time.time()
+            new_mesh = manifold.boolean(meshes, operation)
+            times["binary " + operation] = g.time.time() - tic
 
-    g.log.info(times)
+            assert old_mesh.is_volume == new_mesh.is_volume
+            assert old_mesh.body_count == new_mesh.body_count
+            assert np.isclose(old_mesh.volume, new_mesh.volume)
+
+        g.log.info(times)
 
 
 def test_reduce_cascade():
@@ -145,7 +149,7 @@ def test_reduce_cascade():
         Run our cascaded reduce and regular reduce.
         """
 
-        b = g.trimesh.boolean.reduce_cascade(operation, items)
+        b = g.trimesh.util.reduce_cascade(operation, items)
 
         if len(items) > 0:
             assert b == reduce(operation, items)

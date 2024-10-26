@@ -6,8 +6,6 @@ from ..constants import log
 from ..typed import Iterable
 from .generic import MeshScript
 
-name = "blender"
-
 if platform.system() == "Windows":
     # try to find Blender install on Windows
     # split existing path by delimiter
