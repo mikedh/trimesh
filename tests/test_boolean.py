@@ -140,14 +140,12 @@ def test_reduce_cascade():
     # the multiply will explode quickly past the integer maximum
     from functools import reduce
 
-    from trimesh.interfaces import manifold
-
     def both(operation, items):
         """
         Run our cascaded reduce and regular reduce.
         """
 
-        b = manifold.reduce_cascade(operation, items)
+        b = g.trimesh.boolean.reduce_cascade(operation, items)
 
         if len(items) > 0:
             assert b == reduce(operation, items)
