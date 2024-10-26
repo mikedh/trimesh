@@ -5,16 +5,12 @@ except BaseException:
 
 import numpy as np
 
-try:
-    import manifold3d
-except BaseException:
-    manifold3d = None
 
-
-engines = [
-    ("blender", g.trimesh.interfaces.blender.exists),
-    ("manifold", manifold3d is not None),
-]
+# test only available engines by default
+engines = g.trimesh.boolean.available_engines
+# if we have all_dep set it means we should test all engines
+if g.all_dependencies:
+    engines = g.trimesh.boolean.all_engines
 
 
 def test_boolean():
@@ -23,13 +19,7 @@ def test_boolean():
     truth = g.data["boolean"]
 
     times = {}
-    for engine, exists in engines:
-        # if we have all_dep set it means we should fail if
-        # engine is not installed so don't continue
-        if not exists:
-            g.log.warning("skipping boolean engine %s", engine)
-            continue
-
+    for engine in engines:
         g.log.info("Testing boolean ops with engine %s", engine)
 
         tic = g.time.time()
@@ -67,9 +57,9 @@ def test_multiple():
     """
     Make sure boolean operations work on multiple meshes.
     """
-    for engine, exists in engines:
-        if not exists:
-            continue
+    for engine in engines:
+        g.log.info("Testing multiple union with engine %s", engine)
+
         a = g.trimesh.primitives.Sphere(center=[0, 0, 0])
         b = g.trimesh.primitives.Sphere(center=[0, 0, 0.75])
         c = g.trimesh.primitives.Sphere(center=[0, 0, 1.5])
@@ -82,9 +72,8 @@ def test_multiple():
 
 
 def test_empty():
-    for engine, exists in engines:
-        if not exists:
-            continue
+    for engine in engines:
+        g.log.info("Testing empty intersection with engine %s", engine)
 
         a = g.trimesh.primitives.Sphere(center=[0, 0, 0])
         b = g.trimesh.primitives.Sphere(center=[5, 0, 0])
@@ -95,8 +84,7 @@ def test_empty():
 
 
 def test_boolean_manifold():
-    if manifold3d is None:
-        return
+    from trimesh.interfaces import manifold
 
     times = {}
     for operation in ["union", "intersection"]:
@@ -116,8 +104,8 @@ def test_boolean_manifold():
         # the old 'serial' manifold method
         tic = g.time.time()
         manifolds = [
-            manifold3d.Manifold(
-                mesh=manifold3d.Mesh(
+            manifold.manifold3d.Manifold(
+                mesh=manifold.manifold3d.Mesh(
                     vert_properties=np.array(mesh.vertices, dtype=np.float32),
                     tri_verts=np.array(mesh.faces, dtype=np.uint32),
                 )
@@ -138,7 +126,7 @@ def test_boolean_manifold():
 
         # new 'binary' method
         tic = g.time.time()
-        new_mesh = g.trimesh.boolean.boolean_manifold(meshes, operation)
+        new_mesh = manifold.boolean(meshes, operation)
         times["binary " + operation] = g.time.time() - tic
 
         assert old_mesh.is_volume == new_mesh.is_volume
@@ -150,17 +138,16 @@ def test_boolean_manifold():
 
 def test_reduce_cascade():
     # the multiply will explode quickly past the integer maximum
-
     from functools import reduce
 
-    from trimesh.boolean import reduce_cascade
+    from trimesh.interfaces import manifold
 
     def both(operation, items):
         """
         Run our cascaded reduce and regular reduce.
         """
 
-        b = reduce_cascade(operation, items)
+        b = manifold.reduce_cascade(operation, items)
 
         if len(items) > 0:
             assert b == reduce(operation, items)
@@ -219,11 +206,7 @@ def test_multiple_difference():
     spheres = [g.trimesh.creation.icosphere()]
     spheres.extend(g.trimesh.creation.icosphere().apply_translation(c) for c in center)
 
-    for engine, exists in engines:
-        if not exists:
-            g.log.warning("skipping boolean engine %s", engine)
-            continue
-
+    for engine in engines:
         g.log.info("Testing multiple difference with engine %s", engine)
 
         # compute using meshes method
