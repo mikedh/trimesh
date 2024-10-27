@@ -121,4 +121,4 @@ for name in all_engines:
 def set_default_engine(engine):
     if engine not in available_engines:
         raise ValueError(f"Engine {engine} is not available on this system")
-    _engines[None] = available_engines[engine].boolean
+    _engines[None] = _engines[engine]
