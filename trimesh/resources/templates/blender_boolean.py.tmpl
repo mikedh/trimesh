@@ -36,7 +36,7 @@ if __name__ == '__main__':
     bpy.ops.object.delete(use_global=True)
 
     # get temporary files from templated locations
-    mesh_pre = $MESH_PRE
+    mesh_pre = '$MESH_PRE'
     mesh_post = os.path.abspath(r'$MESH_POST')
 
     for filename in mesh_pre:  # use data.objects instead of context.scene.objects
