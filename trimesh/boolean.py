@@ -195,3 +195,7 @@ _engines[None] = next(
         ImportError("No boolean backend: `pip install manifold3d` or install `blender`")
     ),
 )
+
+engines_available = {
+    k for k, v in _engines.items() if not isinstance(v, ExceptionWrapper)
+}

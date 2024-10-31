@@ -6,7 +6,7 @@ except BaseException:
 import numpy as np
 
 # test only available engines by default
-engines = g.trimesh.boolean._engines.keys()
+engines = g.trimesh.boolean.engines_available
 # test all engines if all_dep is set
 if g.all_dependencies:
     engines = g.trimesh.boolean._engines.keys()
