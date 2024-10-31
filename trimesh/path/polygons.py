@@ -3,7 +3,7 @@ from shapely import ops
 from shapely.geometry import Polygon
 
 from .. import bounds, geometry, graph, grouping
-from ..boolean import reduce_cascade
+from ..util import reduce_cascade
 from ..constants import log
 from ..constants import tol_path as tol
 from ..transformations import transform_points
