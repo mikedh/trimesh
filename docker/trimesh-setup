@@ -44,8 +44,8 @@ config_json = """
     "test": [
       "curl",
       "git",
-      "blender",
-    ],
+      "blender"
+],
    "gmsh": ["libxft2", "libxinerama-dev", "libxcursor1","libgomp1"]
   },
   "fetch": {
