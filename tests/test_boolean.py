@@ -6,10 +6,10 @@ except BaseException:
 import numpy as np
 
 # test only available engines by default
-engines = g.trimesh.boolean.available_engines
+engines = g.trimesh.boolean._engines.keys()
 # test all engines if all_dep is set
 if g.all_dependencies:
-    engines = g.trimesh.boolean.all_engines
+    engines = g.trimesh.boolean._engines.keys()
 
 
 def test_boolean():
@@ -83,12 +83,15 @@ def test_empty():
 
 
 def test_boolean_manifold():
-    from trimesh.interfaces import manifold
+    from trimesh.boolean import _engines, boolean_manifold
 
-    # run this test only when manifold3d is available when
-    # all_dep is enabled
-    if manifold.exists or g.all_dependencies:
-        times = {}
+    times = {}
+    exists = not isinstance(_engines["manifold"], g.trimesh.exceptions.ExceptionWrapper)
+
+    # run this test only when manifold3d is available or `all_dep` is enabled
+    if exists or g.all_dependencies:
+        import manifold3d
+
         for operation in ["union", "intersection"]:
             if operation == "union":
                 # chain of icospheres
@@ -106,8 +109,8 @@ def test_boolean_manifold():
             # the old 'serial' manifold method
             tic = g.time.time()
             manifolds = [
-                manifold.manifold3d.Manifold(
-                    mesh=manifold.manifold3d.Mesh(
+                manifold3d.Manifold(
+                    mesh=manifold3d.Mesh(
                         vert_properties=np.array(mesh.vertices, dtype=np.float32),
                         tri_verts=np.array(mesh.faces, dtype=np.uint32),
                     )
@@ -128,7 +131,7 @@ def test_boolean_manifold():
 
             # new 'binary' method
             tic = g.time.time()
-            new_mesh = manifold.boolean(meshes, operation)
+            new_mesh = boolean_manifold(meshes, operation)
             times["binary " + operation] = g.time.time() - tic
 
             assert old_mesh.is_volume == new_mesh.is_volume
@@ -147,7 +150,7 @@ def test_reduce_cascade():
         Run our cascaded reduce and regular reduce.
         """
 
-        b = g.trimesh.util.reduce_cascade(operation, items)
+        b = g.trimesh.iteration.reduce_cascade(operation, items)
 
         if len(items) > 0:
             assert b == reduce(operation, items)

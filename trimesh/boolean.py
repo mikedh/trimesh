@@ -10,7 +10,7 @@ import numpy as np
 from . import interfaces
 from .exceptions import ExceptionWrapper
 from .iteration import reduce_cascade
-from .typed import Optional, Sequence
+from .typed import Callable, Dict, Optional, Sequence
 
 try:
     from manifold3d import Manifold, Mesh
@@ -170,20 +170,28 @@ def boolean_manifold(
     return Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
 
 
-# which backend boolean engines
-_engines = {
-    "manifold": boolean_manifold,
-    "blender": interfaces.blender.boolean,
-}
+# which backend boolean engines do we have
+_engines: Dict[str, Callable] = {}
 
-if not isinstance(boolean_manifold, ExceptionWrapper):
-    # if available, manifold3d is the preferred option
-    _engines[None] = boolean_manifold
-elif interfaces.blender.boolean.exists:
-    # otherwise we can call blender with subprocess
-    _engines[None] = interfaces.blender.boolean
+if isinstance(Manifold, ExceptionWrapper):
+    # manifold isn't available so use the import error
+    _engines["manifold"] = Manifold
+else:
+    # manifold3d is the preferred option
+    _engines["manifold"] = boolean_manifold
+
+
+if interfaces.blender.exists:
+    # we have `blender` in the path which  we can call with subprocess
+    _engines["blender"] = interfaces.blender.boolean
 else:
     # failing that add a helpful error message
-    _engines[None] = ExceptionWrapper(
-        ImportError("No boolean backend! `pip install manifold3d` or install blender")
-    )
+    _engines["blender"] = ExceptionWrapper(ImportError("`blender` is not in `PATH`"))
+
+# pick the first value that isn't an ExceptionWrapper.
+_engines[None] = next(
+    (v for v in _engines.values() if not isinstance(v, ExceptionWrapper)),
+    ExceptionWrapper(
+        ImportError("No boolean backend: `pip install manifold3d` or install `blender`")
+    ),
+)
