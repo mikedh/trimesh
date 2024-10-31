@@ -5,7 +5,6 @@ except BaseException:
 
 import numpy as np
 
-
 # test only available engines by default
 engines = g.trimesh.boolean.available_engines
 # test all engines if all_dep is set
@@ -89,7 +88,6 @@ def test_boolean_manifold():
     # run this test only when manifold3d is available when
     # all_dep is enabled
     if manifold.exists or g.all_dependencies:
-
         times = {}
         for operation in ["union", "intersection"]:
             if operation == "union":

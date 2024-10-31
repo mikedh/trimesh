@@ -5,10 +5,18 @@ boolean.py
 Do boolean operations on meshes using either Blender or Manifold.
 """
 
-# for dynamic module imports
-from importlib import import_module
+import numpy as np
 
+from . import interfaces
+from .exceptions import ExceptionWrapper
+from .iteration import reduce_cascade
 from .typed import Optional, Sequence
+
+try:
+    from manifold3d import Manifold, Mesh
+except BaseException as E:
+    Mesh = ExceptionWrapper(E)
+    Manifold = ExceptionWrapper(E)
 
 
 def difference(
@@ -100,27 +108,82 @@ def intersection(
     return _engines[engine](meshes, operation="intersection", **kwargs)
 
 
-# supported backend boolean engines
-# ordered by preference
-all_engines = [
-    "manifold",
-    "blender",
-]
+def boolean_manifold(
+    meshes: Sequence,
+    operation: str,
+    check_volume: bool = True,
+    **kwargs,
+):
+    """
+    Run an operation on a set of meshes using the Manifold engine.
 
-# test which engines are actually usable
-_engines = {}
-available_engines = []
-for name in all_engines:
-    engine = import_module("trimesh.interfaces." + name)
-    if engine.exists:
-        _engines[name] = engine.boolean
-        available_engines.append(name)
-        if None not in _engines:
-            # pick the first available engine as the default
-            _engines[None] = engine.boolean
+    Parameters
+    ----------
+    meshes : list of trimesh.Trimesh
+      Meshes to be processed
+    operation
+      Which boolean operation to do.
+    check_volume
+      Raise an error if not all meshes are watertight
+      positive volumes. Advanced users may want to ignore
+      this check as it is expensive.
+    kwargs
+      Passed through to the `engine`.
+    """
+    if check_volume and not all(m.is_volume for m in meshes):
+        raise ValueError("Not all meshes are volumes!")
+
+    # Convert to manifold meshes
+    manifolds = [
+        Manifold(
+            mesh=Mesh(
+                vert_properties=np.array(mesh.vertices, dtype=np.float32),
+                tri_verts=np.array(mesh.faces, dtype=np.uint32),
+            )
+        )
+        for mesh in meshes
+    ]
+
+    # Perform operations
+    if operation == "difference":
+        if len(meshes) < 2:
+            raise ValueError("Difference only defined over two meshes.")
+        elif len(meshes) == 2:
+            # apply the single difference
+            result_manifold = manifolds[0] - manifolds[1]
+        elif len(meshes) > 2:
+            # union all the meshes to be subtracted from the final result
+            unioned = reduce_cascade(lambda a, b: a + b, manifolds[1:])
+            # apply the difference
+            result_manifold = manifolds[0] - unioned
+    elif operation == "union":
+        result_manifold = reduce_cascade(lambda a, b: a + b, manifolds)
+    elif operation == "intersection":
+        result_manifold = reduce_cascade(lambda a, b: a ^ b, manifolds)
+    else:
+        raise ValueError(f"Invalid boolean operation: '{operation}'")
+
+    # Convert back to trimesh meshes
+    from . import Trimesh
+
+    result_mesh = result_manifold.to_mesh()
+    return Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
 
 
-def set_default_engine(engine):
-    if engine not in available_engines:
-        raise ValueError(f"Engine {engine} is not available on this system")
-    _engines[None] = _engines[engine]
+# which backend boolean engines
+_engines = {
+    "manifold": boolean_manifold,
+    "blender": interfaces.blender.boolean,
+}
+
+if not isinstance(boolean_manifold, ExceptionWrapper):
+    # if available, manifold3d is the preferred option
+    _engines[None] = boolean_manifold
+elif interfaces.blender.boolean.exists:
+    # otherwise we can call blender with subprocess
+    _engines[None] = interfaces.blender.boolean
+else:
+    # failing that add a helpful error message
+    _engines[None] = ExceptionWrapper(
+        ImportError("No boolean backend! `pip install manifold3d` or install blender")
+    )
