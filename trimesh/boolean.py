@@ -7,6 +7,7 @@ Do boolean operations on meshes using either Blender or Manifold.
 
 # for dynamic module imports
 from importlib import import_module
+
 from .typed import Optional, Sequence
 
 
@@ -117,6 +118,7 @@ for name in all_engines:
         if None not in _engines:
             # pick the first available engine as the default
             _engines[None] = engine.boolean
+
 
 def set_default_engine(engine):
     if engine not in available_engines:

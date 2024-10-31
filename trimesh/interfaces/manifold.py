@@ -8,6 +8,7 @@ exists = False
 
 try:
     from manifold3d import Manifold, Mesh
+
     exists = True
 except BaseException as E:
     Mesh = exceptions.ExceptionWrapper(E)
