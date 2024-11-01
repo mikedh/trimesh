@@ -64,6 +64,8 @@ USER root
 RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox,blender
 USER user
 
+RUN blender --version
+
 # install things like pytest and make sure we're on Numpy 2.X
 RUN pip install .[all] && \
     python -c "import numpy as n; assert(n.__version__.startswith('2'))"

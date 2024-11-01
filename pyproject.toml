@@ -24,9 +24,11 @@ classifiers = [
     "Topic :: Multimedia :: Graphics",
     "Topic :: Multimedia :: Graphics :: 3D Modeling"
 ]
-urls = {Homepage = "https://github.com/mikedh/trimesh"}
-
 dependencies = ["numpy>=1.20"]
+
+[project.urls]
+homepage = "https://github.com/mikedh/trimesh"
+documentation = "https://trimesh.org"
 
 [project.readme]
 file = "README.md"

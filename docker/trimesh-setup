@@ -42,7 +42,8 @@ config_json = """
     ],
     "test": [
       "curl",
-      "git"
+      "git",
+      "libxkbcommon0"
 ],
    "gmsh": ["libxft2", "libxinerama-dev", "libxcursor1","libgomp1"]
   },
@@ -75,7 +76,6 @@ config_json = """
       "target": "$PATH",
       "chmod": {"blender": 755},
       "strip_components": 1
-      
     }
   }
 }
@@ -363,8 +363,8 @@ if __name__ == "__main__":
     # collect `apt-get install`-able package
     apt_select = []
     handlers = {
-        "fetch": lambda x: handle_fetch(**x),
         "apt": lambda x: apt_select.extend(x),
+        "fetch": lambda x: handle_fetch(**x),
     }
 
     # allow comma delimiters and de-duplicate
@@ -372,7 +372,7 @@ if __name__ == "__main__":
         parser.print_help()
         exit()
     else:
-        select = set(" ".join(args.install).replace(",", " ").split())
+        select = " ".join(args.install).replace(",", " ").split()
 
     log.debug(f'installing metapackages: `{", ".join(select)}`')
 
