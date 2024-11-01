@@ -61,7 +61,7 @@ COPY --chown=499 pyproject.toml .
 COPY --chown=499 ./.git ./.git/
 
 USER root
-RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox
+RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox,blender
 USER user
 
 # install things like pytest and make sure we're on Numpy 2.X
