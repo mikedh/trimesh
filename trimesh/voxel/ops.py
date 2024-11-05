@@ -122,7 +122,6 @@ def matrix_to_marching_cubes(matrix, pitch=1.0, threshold=None):
     if isinstance(threshold, float) or isinstance(threshold, int) :
         matrix_as_array = np.asarray(matrix)
         matrix = np.where(matrix_as_array > threshold, True, False)
-        print(matrix.shape)
     else:
         matrix = np.asanyarray(matrix, dtype=bool)
 
