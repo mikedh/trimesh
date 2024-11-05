@@ -95,7 +95,7 @@ def fill_base(sparse_indices):
 fill_voxelization = fill_base
 
 
-def matrix_to_marching_cubes(matrix, pitch=1.0):
+def matrix_to_marching_cubes(matrix, pitch=1.0, threshold=None):
     """
     Convert an (n, m, p) matrix into a mesh, using marching_cubes.
 
@@ -103,6 +103,11 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
     -----------
     matrix : (n, m, p) bool
       Occupancy array
+    pitch : float or length-3 tuple of floats, optional
+      Voxel spacing in each dimension
+    threshold : float or None, optional
+      If specified, converts the input 'matrix' into a Boolean matrix by setting values above to 'threshold' to True and those below or equal to False
+
 
     Returns
     ----------
@@ -114,7 +119,12 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
 
     from ..base import Trimesh
 
-    matrix = np.asanyarray(matrix, dtype=bool)
+    if isinstance(threshold, float) or isinstance(threshold, int) :
+        matrix_as_array = np.asarray(matrix)
+        matrix = np.where(matrix_as_array > threshold, True, False)
+        print(matrix.shape)
+    else:
+        matrix = np.asanyarray(matrix, dtype=bool)
 
     rev_matrix = np.logical_not(matrix)  # Takes set about 0.
     # Add in padding so marching cubes can function properly with
