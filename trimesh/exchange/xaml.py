@@ -136,7 +136,7 @@ def load_XAML(file_obj, *args, **kwargs):
             normals.append(c_normals)
 
     # compile the results into clean numpy arrays
-    result = {}
+    result = {"units": "meters"}
     result["vertices"], result["faces"] = util.append_faces(vertices, faces)
     result["face_colors"] = np.vstack(colors)
     result["vertex_normals"] = np.vstack(normals)

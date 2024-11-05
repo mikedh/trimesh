@@ -22,8 +22,10 @@ from io import BytesIO, StringIO
 
 import numpy as np
 
+from .iteration import chain
+
 # use our wrapped types for wider version compatibility
-from .typed import Any, Iterable, List, Union
+from .typed import Union
 
 # create a default logger
 log = logging.getLogger("trimesh")
@@ -1382,59 +1384,6 @@ def type_named(obj, name):
         if base.__name__ == name:
             return base
     raise ValueError("Unable to extract class of name " + name)
-
-
-def chain(*args: Union[Iterable[Any], Any, None]) -> List[Any]:
-    """
-    A less principled version of `list(itertools.chain(*args))` that
-    accepts non-iterable values, filters `None`, and returns a list
-    rather than yielding values.
-
-    If all passed values are iterables this will return identical
-    results to `list(itertools.chain(*args))`.
-
-
-    Examples
-    ----------
-
-    In [1]: list(itertools.chain([1,2], [3]))
-    Out[1]: [1, 2, 3]
-
-    In [2]: trimesh.util.chain([1,2], [3])
-    Out[2]: [1, 2, 3]
-
-    In [3]: trimesh.util.chain([1,2], [3], 4)
-    Out[3]: [1, 2, 3, 4]
-
-    In [4]: list(itertools.chain([1,2], [3], 4))
-      ----> 1 list(itertools.chain([1,2], [3], 4))
-      TypeError: 'int' object is not iterable
-
-    In [5]: trimesh.util.chain([1,2], None, 3, None, [4], [], [], 5, [])
-    Out[5]: [1, 2, 3, 4, 5]
-
-
-    Parameters
-    -----------
-    args
-      Will be individually checked to see if they're iterable
-      before either being appended or extended to a flat list.
-
-
-    Returns
-    ----------
-    chained
-      The values in a flat list.
-    """
-    # collect values to a flat list
-    chained = []
-    # extend if it's a sequence, otherwise append
-    [
-        chained.extend(a) if is_sequence(a) else chained.append(a)
-        for a in args
-        if a is not None
-    ]
-    return chained
 
 
 def concatenate(
