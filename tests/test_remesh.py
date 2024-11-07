@@ -88,7 +88,7 @@ class SubDivideTest(g.unittest.TestCase):
         for m in meshes:
             # set vertex positions as attributes for trivial check after subdivision
             m.vertex_attributes = {"pos": m.vertices}
-            
+
             s = m.subdivide(face_index=[0, len(m.faces) - 1])
             # shouldn't have subdivided in-place
             assert len(s.faces) > len(m.faces)
