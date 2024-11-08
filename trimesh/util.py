@@ -25,7 +25,7 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import Union
+from .typed import Dict, List, Optional, Set, Union
 
 # create a default logger
 log = logging.getLogger("trimesh")
@@ -2359,7 +2359,9 @@ def is_ccw(points, return_all=False):
     return ccw, area, centroid
 
 
-def unique_name(start, contains, counts=None):
+def unique_name(
+    start: str, contains: Union[Dict, Set, List], counts: Optional[Dict] = None
+):
     """
     Deterministically generate a unique name not
     contained in a dict, set or other grouping with
