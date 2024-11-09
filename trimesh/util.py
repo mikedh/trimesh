@@ -1,5 +1,5 @@
 """
-"Grab bag" of utility functions.
+Grab bag of utility functions.
 """
 
 import abc
@@ -2360,7 +2360,9 @@ def is_ccw(points, return_all=False):
 
 
 def unique_name(
-    start: str, contains: Union[Dict, Set, Sequence], counts: Optional[Dict] = None
+    start: Optional[str],
+    contains: Union[Set, Mapping, Sequence],
+    counts: Optional[Dict] = None,
 ):
     """
     Deterministically generate a unique name not
