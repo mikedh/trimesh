@@ -62,6 +62,8 @@ def reduce_cascade(operation: Callable, items: Union[Sequence, NDArray]):
         for i in range(0, len(items) - items_mod, 2):
             results.append(operation(items[i], items[i + 1]))
 
+        # if we had a non-even number of items it will have been
+        # skipped by the loop so append it to our list
         if items_mod != 0:
             results.append(items[-1])
 
