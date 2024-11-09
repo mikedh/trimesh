@@ -25,7 +25,7 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import Dict, List, Optional, Set, Union
+from .typed import Dict, Optional, Sequence, Set, Union
 
 # create a default logger
 log = logging.getLogger("trimesh")
@@ -2360,7 +2360,7 @@ def is_ccw(points, return_all=False):
 
 
 def unique_name(
-    start: str, contains: Union[Dict, Set, List], counts: Optional[Dict] = None
+    start: str, contains: Union[Dict, Set, Sequence], counts: Optional[Dict] = None
 ):
     """
     Deterministically generate a unique name not
