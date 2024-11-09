@@ -31,6 +31,7 @@ else:
         List,
         Mapping,
         Sequence,
+        Set,
         Tuple,
     )
 
@@ -77,4 +78,5 @@ __all__ = [
     "Mapping",
     "Callable",
     "Hashable",
+    "Set",
 ]
