@@ -86,6 +86,9 @@ class SubDivideTest(g.unittest.TestCase):
         meshes = [g.trimesh.creation.box(), g.trimesh.creation.icosphere()]
 
         for m in meshes:
+            # set vertex positions as attributes for trivial check after subdivision
+            m.vertex_attributes = {"pos": m.vertices}
+
             s = m.subdivide(face_index=[0, len(m.faces) - 1])
             # shouldn't have subdivided in-place
             assert len(s.faces) > len(m.faces)
@@ -93,6 +96,8 @@ class SubDivideTest(g.unittest.TestCase):
             assert g.np.isclose(m.area, s.area)
             # volume should be the same
             assert g.np.isclose(m.volume, s.volume)
+            # position attributes and actual vertices should be the same
+            assert g.np.allclose(s.vertex_attributes["pos"], s.vertices)
 
             max_edge = m.scale / 50
             s = m.subdivide_to_size(max_edge=max_edge)
