@@ -87,7 +87,8 @@ class SubDivideTest(g.unittest.TestCase):
 
         for m in meshes:
             # set vertex positions as attributes for trivial check after subdivision
-            m.vertex_attributes = {"pos": m.vertices}
+            # make sure we're copying the array to avoid in-place check
+            m.vertex_attributes = {"pos": g.np.array(m.vertices) + 1.0}
 
             s = m.subdivide(face_index=[0, len(m.faces) - 1])
             # shouldn't have subdivided in-place
@@ -97,7 +98,7 @@ class SubDivideTest(g.unittest.TestCase):
             # volume should be the same
             assert g.np.isclose(m.volume, s.volume)
             # position attributes and actual vertices should be the same
-            assert g.np.allclose(s.vertex_attributes["pos"], s.vertices)
+            assert g.np.allclose(s.vertex_attributes["pos"], s.vertices + 1.0)
 
             max_edge = m.scale / 50
             s = m.subdivide_to_size(max_edge=max_edge)
