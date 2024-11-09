@@ -120,7 +120,7 @@ def chain(*args: Union[Iterable[Any], Any, None]) -> List[Any]:
     # extend if it's a sequence, otherwise append
     [
         chained.extend(a)
-        if (hasattr(a, "__iter__") and not isinstance(a, str))
+        if (hasattr(a, "__iter__") and not isinstance(a, (str, bytes)))
         else chained.append(a)
         for a in args
         if a is not None
