@@ -1906,7 +1906,7 @@ def compress(info, **kwargs):
     return compressed
 
 
-def split_extension(file_name, special=None):
+def split_extension(file_name, special=None) -> str:
     """
     Find the file extension of a file name, including support for
     special case multipart file extensions (like .tar.gz)

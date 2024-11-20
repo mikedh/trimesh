@@ -1,4 +1,3 @@
-import os
 
 from ... import util
 from ...exchange.ply import load_ply
@@ -34,8 +33,13 @@ def load_path(file_obj, file_type=None, **kwargs):
     # avoid a circular import
     from ...exchange.load import load_kwargs
 
+    if isinstance(file_type, str):
+        # get the file type from the extension
+        file_type = util.split_extension(file_type)
+
     # record how long we took
     tic = util.now()
+
 
     if isinstance(file_obj, Path):
         # we have been passed a Path file_object so
@@ -52,7 +56,7 @@ def load_path(file_obj, file_type=None, **kwargs):
         # strings passed are evaluated as file file_objects
         with open(file_obj, "rb") as f:
             # get the file type from the extension
-            file_type = os.path.splitext(file_obj)[-1][1:].lower()
+            file_type = util.split_extension(file_obj)
             if file_type == "ply":
                 # we cannot register this exporter to path_loaders since this is already reserved by TriMesh in ply format in trimesh.load()
                 kwargs.update(load_ply(f, file_type=file_type))
