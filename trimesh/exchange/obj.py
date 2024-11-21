@@ -456,10 +456,11 @@ def _parse_faces_fallback(lines):
     for line in lines:
         # remove leading newlines then
         # take first bit before newline then split by whitespace
-        split = line.strip().split("\n")[0].split()
+        split = line.strip().split("\n", 1)[0].split()
         # split into: ['76/558/76', '498/265/498', '456/267/456']
         len_split = len(split)
         if len_split == 3:
+            # just a triangle
             pass
         elif len_split == 4:
             # triangulate quad face
@@ -469,6 +470,9 @@ def _parse_faces_fallback(lines):
             collect = []
             # we need a flat list so append inside
             # a list comprehension
+
+            fans = util.triangle_fans_to_faces([np.arange(len(split))])
+            
             collect_append = collect.append
             [
                 [
@@ -476,9 +480,23 @@ def _parse_faces_fallback(lines):
                     collect_append(split[i + 1]),
                     collect_append(split[i + 2]),
                 ]
-                for i in range(len(split) - 2)
+                for i in range(len(split) -2)
             ]
-            split = collect
+
+            
+            # c2 = [[0, i+1, i+2] for i in range(len(split)-2)]
+             
+            # since we're not allowed to insert new vertices
+            # create a triangle fan for each boundary curve
+            #p = np.arange(len(split))
+            #fan = np.column_stack((np.ones(len(p) - 3, dtype=int) * p[0], p[1:-2], p[2:-1]))
+
+            #from IPython import embed
+            #embed()
+
+            
+            # split = collect
+            split = [split[i] for i in fans.reshape(-1)]
         else:
             log.debug(f"face needs more values 3>{len(split)} skipping!")
             continue
