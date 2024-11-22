@@ -8,7 +8,7 @@ Pack rectangular regions onto larger rectangular regions.
 import numpy as np
 
 from ..constants import log, tol
-from ..typed import Integer, Number, Optional
+from ..typed import ArrayLike, Integer, NDArray, Number, Optional, float64
 from ..util import allclose, bounds_tree
 
 # floating point zero
@@ -692,7 +692,7 @@ def visualize(extents, bounds):
     return Scene(meshes)
 
 
-def roll_transform(bounds, extents):
+def roll_transform(bounds: ArrayLike, extents: ArrayLike) -> NDArray[float64]:
     """
     Packing returns rotations with integer "roll" which
     needs to be converted into a homogeneous rotation matrix.
