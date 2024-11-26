@@ -86,7 +86,6 @@ __all__ = [
     "PointCloud",
     "Scene",
     "Trimesh",
-    "Trimesh",
     "__version__",
     "available_formats",
     "boolean",
