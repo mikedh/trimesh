@@ -1,50 +1,55 @@
-import os
-
 from ... import util
 from ...exchange.ply import load_ply
+from ...typed import Optional
 from ..path import Path
 from . import misc
 from .dxf import _dxf_loaders
 from .svg_io import svg_to_path
 
 
-def load_path(file_obj, file_type=None, **kwargs):
+def load_path(file_obj, file_type: Optional[str] = None, **kwargs):
     """
     Load a file to a Path file_object.
 
     Parameters
     -----------
-    file_obj : One of the following:
+    file_obj
+      Accepts many types:
          - Path, Path2D, or Path3D file_objects
          - open file file_object (dxf or svg)
          - file name (dxf or svg)
          - shapely.geometry.Polygon
          - shapely.geometry.MultiLineString
          - dict with kwargs for Path constructor
-         - (n,2,(2|3)) float, line segments
-    file_type : str
+         - `(n, 2, (2|3)) float` line segments
+    file_type
         Type of file is required if file
-        file_object passed.
+        object is passed.
 
     Returns
     ---------
     path : Path, Path2D, Path3D file_object
-        Data as a native trimesh Path file_object
+      Data as a native trimesh Path file_object
     """
     # avoid a circular import
     from ...exchange.load import load_kwargs
+
+    if isinstance(file_type, str):
+        # we accept full file names here so make sure we
+        file_type = util.split_extension(file_type).lower()
 
     # record how long we took
     tic = util.now()
 
     if isinstance(file_obj, Path):
-        # we have been passed a Path file_object so
-        # do nothing and return the passed file_object
+        # we have been passed a file object that is already a loaded
+        # trimesh.path.Path object so do nothing and return
         return file_obj
     elif util.is_file(file_obj):
         # for open file file_objects use loaders
         if file_type == "ply":
-            # we cannot register this exporter to path_loaders since this is already reserved by TriMesh in ply format in trimesh.load()
+            # we cannot register this exporter to path_loaders
+            # since this is already reserved for 3D values in `trimesh.load`
             kwargs.update(load_ply(file_obj, file_type=file_type))
         else:
             kwargs.update(path_loaders[file_type](file_obj, file_type=file_type))
@@ -52,7 +57,7 @@ def load_path(file_obj, file_type=None, **kwargs):
         # strings passed are evaluated as file file_objects
         with open(file_obj, "rb") as f:
             # get the file type from the extension
-            file_type = os.path.splitext(file_obj)[-1][1:].lower()
+            file_type = util.split_extension(file_obj).lower()
             if file_type == "ply":
                 # we cannot register this exporter to path_loaders since this is already reserved by TriMesh in ply format in trimesh.load()
                 kwargs.update(load_ply(f, file_type=file_type))

@@ -1,4 +1,4 @@
-import numpy as np
+from math import log2
 
 from .typed import Any, Callable, Iterable, List, NDArray, Sequence, Union
 
@@ -54,12 +54,17 @@ def reduce_cascade(operation: Callable, items: Union[Sequence, NDArray]):
         # skip the loop overhead for a single pair
         return operation(items[0], items[1])
 
-    for _ in range(int(1 + np.log2(len(items)))):
+    for _ in range(int(1 + log2(len(items)))):
         results = []
-        for i in np.arange(len(items) // 2) * 2:
+
+        # loop over pairs of items.
+        items_mod = len(items) % 2
+        for i in range(0, len(items) - items_mod, 2):
             results.append(operation(items[i], items[i + 1]))
 
-        if len(items) % 2:
+        # if we had a non-even number of items it will have been
+        # skipped by the loop so append it to our list
+        if items_mod != 0:
             results.append(items[-1])
 
         items = results
@@ -117,7 +122,7 @@ def chain(*args: Union[Iterable[Any], Any, None]) -> List[Any]:
     # extend if it's a sequence, otherwise append
     [
         chained.extend(a)
-        if (hasattr(a, "__iter__") and not isinstance(a, str))
+        if (hasattr(a, "__iter__") and not isinstance(a, (str, bytes)))
         else chained.append(a)
         for a in args
         if a is not None

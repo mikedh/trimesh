@@ -82,9 +82,8 @@ except BaseException as E:
 
 
 __all__ = [
-    "PointCloud",
     "Geometry",
-    "Trimesh",
+    "PointCloud",
     "Scene",
     "Trimesh",
     "__version__",
@@ -103,8 +102,8 @@ __all__ = [
     "graph",
     "grouping",
     "inertia",
-    "iteration",
     "intersections",
+    "iteration",
     "load",
     "load_mesh",
     "load_path",

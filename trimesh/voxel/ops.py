@@ -2,6 +2,7 @@ import numpy as np
 
 from .. import util
 from ..constants import log
+from ..typed import ArrayLike, Number, Optional, Union
 
 
 def fill_orthographic(dense):
@@ -95,7 +96,11 @@ def fill_base(sparse_indices):
 fill_voxelization = fill_base
 
 
-def matrix_to_marching_cubes(matrix, pitch=1.0):
+def matrix_to_marching_cubes(
+    matrix: ArrayLike,
+    pitch: Union[Number, ArrayLike] = 1.0,
+    threshold: Optional[Number] = None,
+):
     """
     Convert an (n, m, p) matrix into a mesh, using marching_cubes.
 
@@ -103,6 +108,12 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
     -----------
     matrix : (n, m, p) bool
       Occupancy array
+    pitch : float or length-3 tuple of floats, optional
+      Voxel spacing in each dimension
+    threshold : float or None, optional
+      If specified, converts the input into a boolean
+      matrix by considering values above `threshold` as True
+
 
     Returns
     ----------
@@ -114,7 +125,10 @@ def matrix_to_marching_cubes(matrix, pitch=1.0):
 
     from ..base import Trimesh
 
-    matrix = np.asanyarray(matrix, dtype=bool)
+    if threshold is not None:
+        matrix = np.asanyarray(matrix) > threshold
+    else:
+        matrix = np.asanyarray(matrix, dtype=bool)
 
     rev_matrix = np.logical_not(matrix)  # Takes set about 0.
     # Add in padding so marching cubes can function properly with
