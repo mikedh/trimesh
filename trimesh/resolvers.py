@@ -402,6 +402,9 @@ class WebResolver(Resolver):
     def write(self, key, value):
         raise NotImplementedError("`WebResolver` is read-only!")
 
+    def keys(self):
+        raise NotImplementedError("`WebResolver` can't list keys")
+
 
 class GithubResolver(Resolver):
     def __init__(

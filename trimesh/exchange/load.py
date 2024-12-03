@@ -113,7 +113,7 @@ def load(
     # combine a scene into a single mesh
     if force == "mesh":
         log.debug("hey in the future use `load_mesh` ;)")
-        return loaded.dump_mesh()
+        return loaded.to_mesh()
 
     if len(loaded.geometry) == 1:
         # matching old behavior, you should probably use `load_scene`
@@ -223,7 +223,7 @@ def load_mesh(*args, **kwargs) -> Trimesh:
     mesh
       Loaded geometry data.
     """
-    return load_scene(*args, **kwargs).dump_mesh()
+    return load_scene(*args, **kwargs).to_mesh()
 
 
 def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwargs):
@@ -248,86 +248,73 @@ def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwa
     """
 
     # parse the file arguments into clean loadable form
-    (
-        file_obj,  # file- like object
-        file_type,  # str, what kind of file
-        metadata,  # dict, any metadata from file name
-        opened,  # bool, did we open the file ourselves
-        resolver,  # object to load referenced resources
-    ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
+    arg = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
-    try:
-        # a dict of 'name' : file-like object
-        files = util.decompress(file_obj=file_obj, file_type=file_type)
-        # store loaded geometries as a list
-        geometries = []
+    # a dict of 'name' : file-like object
+    files = util.decompress(file_obj=arg.file_obj, file_type=arg.file_type)
+    # store loaded geometries as a list
+    geometries = []
 
-        # so loaders can access textures/etc
-        resolver = resolvers.ZipResolver(files)
+    # so loaders can access textures/etc
+    resolver = resolvers.ZipResolver(files)
 
-        # try to save the files with meaningful metadata
-        if "file_path" in metadata:
-            archive_name = metadata["file_path"]
+    # try to save the files with meaningful metadata
+    if "file_path" in arg.metadata:
+        archive_name = arg.metadata["file_path"]
+    else:
+        archive_name = "archive"
+
+    # populate our available formats
+    if mixed:
+        available = available_formats()
+    else:
+        # all types contained in ZIP archive
+        contains = {util.split_extension(n).lower() for n in files.keys()}
+        # if there are no mesh formats available
+        if contains.isdisjoint(mesh_formats()):
+            available = path_formats()
         else:
-            archive_name = "archive"
+            available = mesh_formats()
 
-        # populate our available formats
-        if mixed:
-            available = available_formats()
-        else:
-            # all types contained in ZIP archive
-            contains = {util.split_extension(n).lower() for n in files.keys()}
-            # if there are no mesh formats available
-            if contains.isdisjoint(mesh_formats()):
-                available = path_formats()
-            else:
-                available = mesh_formats()
+    meta_archive = {}
+    for name, data in files.items():
+        try:
+            # only load formats that we support
+            compressed_type = util.split_extension(name).lower()
 
-        meta_archive = {}
-        for name, data in files.items():
-            try:
-                # only load formats that we support
-                compressed_type = util.split_extension(name).lower()
+            # if file has metadata type include it
+            if compressed_type in "yaml":
+                import yaml
 
-                # if file has metadata type include it
-                if compressed_type in "yaml":
-                    import yaml
+                meta_archive[name] = yaml.safe_load(data)
+            elif compressed_type in "json":
+                import json
 
-                    meta_archive[name] = yaml.safe_load(data)
-                elif compressed_type in "json":
-                    import json
+                meta_archive[name] = json.loads(data)
 
-                    meta_archive[name] = json.loads(data)
-
-                if compressed_type not in available:
-                    # don't raise an exception, just try the next one
-                    continue
-                # store the file name relative to the archive
-                metadata["file_name"] = archive_name + "/" + os.path.basename(name)
-                # load the individual geometry
-                loaded = load(
+            if compressed_type not in available:
+                # don't raise an exception, just try the next one
+                continue
+            # store the file name relative to the archive
+            arg.metadata["file_name"] = archive_name + "/" + os.path.basename(name)
+            # load the individual geometry
+            geometries.append(
+                load_scene(
                     file_obj=data,
                     file_type=compressed_type,
-                    resolver=resolver,
-                    metadata=metadata,
+                    resolver=arg.resolver,
+                    metadata=arg.metadata,
                     **kwargs,
                 )
+            )
 
-                # some loaders return multiple geometries
-                if util.is_sequence(loaded):
-                    # if the loader has returned a list of meshes
-                    geometries.extend(loaded)
-                else:
-                    # if the loader has returned a single geometry
-                    geometries.append(loaded)
-            except BaseException:
-                log.debug("failed to load file in zip", exc_info=True)
+        except BaseException:
+            log.debug("failed to load file in zip", exc_info=True)
 
-    finally:
-        # if we opened the file in this function
-        # clean up after ourselves
-        if opened:
-            file_obj.close()
+    # if we opened the file in this function
+    # clean up after ourselves
+    if arg.was_opened:
+        file_obj.close()
 
     # append meshes or scenes into a single Scene object
     result = append_scenes(geometries)
@@ -514,11 +501,22 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
 
 @dataclass
 class _FileArgs:
+    # a file-like object that can be accessed
     file_obj: Stream
+
+    # a cleaned file type string, i.e. "stl"
     file_type: str
+
+    # any metadata generated from the file path
     metadata: dict
+
+    # did we open `file_obj` ourselves?
     was_opened: bool
+
+    # a resolver for loading assets next to the file
     resolver: resolvers.ResolverLike
+
+    # is this a remote url
     is_remote: bool
 
 
