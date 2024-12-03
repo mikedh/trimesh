@@ -1,5 +1,6 @@
 import json
 import os
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -9,7 +10,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Loadable, Optional
+from ..typed import Loadable, Optional, Stream
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -101,82 +102,22 @@ def load(
     geometry : Trimesh, Path2D, Path3D, Scene
       Loaded geometry as trimesh classes
     """
-    # check to see if we're trying to load something
-    # that is already a native trimesh Geometry subclass
-    if isinstance(file_obj, Geometry):
-        log.debug(
-            "trimesh.load called on %s returning input", file_obj.__class__.__name__
-        )
-        return file_obj
- 
-    # parse the file arguments into clean loadable form
-    (
-        file_obj,  # file- like object
-        file_type,  # str, what kind of file
-        metadata,  # dict, any metadata from file name
-        opened,  # bool, did we open the file ourselves
-        resolver,  # object to load referenced resources
-        is_remote,  #  is this a URL
-    ) = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
-    arg = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
-    
-    if arg.is_remote and not allow_remote:
-        raise ValueError("URL passed with `allow_remote=False`")
-
-    try:
-        if isinstance(file_obj, dict):
-            # if we've been passed a dict treat it as kwargs
-            kwargs.update(file_obj)
-            loaded = _load_kwargs(kwargs)
-        elif file_type in path_formats():
-            # path formats get loaded with path loader
-            loaded = load_path(file_obj, file_type=file_type, **kwargs)
-        elif file_type in mesh_loaders:
-            # mesh loaders use mesh loader
-            loaded = _load_kwargs(
-                mesh_loaders[file_type](
-                    file_obj=file_obj, file_type=file_type, resolver=resolver, **kwargs
-                )
-            )
-        elif file_type in compressed_loaders:
-            # for archives, like ZIP files
-            loaded = _load_compressed(file_obj, file_type=file_type, **kwargs)
-        elif file_type in voxel_loaders:
-            loaded = voxel_loaders[file_type](
-                file_obj, file_type=file_type, resolver=resolver, **kwargs
-            )
-        else:
-            if file_type in ["svg", "dxf"]:
-                # call the dummy function to raise the import error
-                # this prevents the exception from being super opaque
-                load_path()
-            else:
-                raise ValueError(f"File type: {file_type} not supported")
-    finally:
-        # if we opened the file ourselves from a file name
-        # close any opened files even if we crashed out
-        if opened:
-            file_obj.close()
-
-    # add load metadata ('file_name') to each loaded geometry
-    if isinstance(loaded, list):
-        [L.metadata.update(metadata) for L in loaded]
-        # make a scene from it
-        loaded = Scene(loaded)
-    elif isinstance(loaded, dict):
-        # wtf is this case?
-        [L.metadata.update(metadata) for L in loaded.values()]
-    elif isinstance(getattr(loaded, "metadata", None), dict):
-        loaded.metadata.update(metadata)
+    loaded = load_scene(
+        file_obj=file_obj,
+        file_type=file_type,
+        resolver=resolver,
+        allow_remote=allow_remote,
+    )
 
     # combine a scene into a single mesh
     if force == "mesh":
         log.debug("hey in the future use `load_mesh` ;)")
         return loaded.dump_mesh()
 
-    if not isinstance(loaded, Scene):
-        return Scene(loaded)
+    if len(loaded.geometry) == 1:
+        # matching old behavior, you should probably use `load_scene`
+        return next(iter(loaded.geometry.values()))
 
     return loaded
 
@@ -215,57 +156,53 @@ def load_scene(
       Loaded geometry as trimesh classes
     """
 
-    
     arg = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
-    
-    if arg.is_remote and not allow_remote:
-        raise ValueError("URL passed with `allow_remote=False`")
+
+    if arg.is_remote:
+        if not allow_remote:
+            raise ValueError("URL passed with `allow_remote=False`")
 
     try:
         if arg.file_type in path_formats():
             # path formats get loaded with path loader
-            loaded = load_path(file_obj, file_type=file_type, **kwargs)
+            loaded = load_path(file_obj=arg.file_obj, file_type=arg.file_type, **kwargs)
+        elif arg.file_type in ["svg", "dxf"]:
+            # call the dummy function to raise the import error
+            # this prevents the exception from being super opaque
+            load_path()
         elif arg.file_type in mesh_loaders:
             # mesh loaders use mesh loader
             loaded = _load_kwargs(
-                mesh_loaders[file_type](
-                    file_obj=file_obj, file_type=file_type, resolver=resolver, **kwargs
+                mesh_loaders[arg.file_type](
+                    file_obj=arg.file_obj,
+                    file_type=arg.file_type,
+                    resolver=arg.resolver,
+                    **kwargs,
                 )
             )
-        elif file_type in compressed_loaders:
+        elif arg.file_type in compressed_loaders:
             # for archives, like ZIP files
-            loaded = _load_compressed(file_obj, file_type=file_type, **kwargs)
-        elif file_type in voxel_loaders:
-            loaded = voxel_loaders[file_type](
-                file_obj, file_type=file_type, resolver=resolver, **kwargs
+            loaded = _load_compressed(arg.file_obj, file_type=arg.file_type, **kwargs)
+        elif arg.file_type in voxel_loaders:
+            loaded = voxel_loaders[arg.file_type](
+                file_obj=arg.file_obj,
+                file_type=arg.file_type,
+                resolver=arg.resolver,
+                **kwargs,
             )
         else:
-            if file_type in ["svg", "dxf"]:
-                # call the dummy function to raise the import error
-                # this prevents the exception from being super opaque
-                load_path()
-            else:
-                raise ValueError(f"File type: {file_type} not supported")
+            raise ValueError(f"File type: {arg.file_type} not supported")
+
     finally:
         # if we opened the file ourselves from a file name
         # close any opened files even if we crashed out
-        if opened:
-            file_obj.close()
-
-
-    loaded = load(
-        file_obj=file_obj,
-        file_type=file_type,
-        resolver=resolver,
-        allow_remote=allow_remote,
-    )
+        if arg.was_opened:
+            arg.file_obj.close()
 
     if not isinstance(loaded, Scene):
         return Scene(loaded)
 
     return loaded
-
-    """ """
 
 
 def load_mesh(*args, **kwargs) -> Trimesh:
@@ -402,7 +339,7 @@ def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwa
     return result
 
 
-def _load_remote(url, **kwargs):
+def load_remote(url, **kwargs):
     """
     Load a mesh at a remote URL into a local trimesh object.
 
@@ -574,21 +511,23 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
 
     return handler()
 
+
 @dataclass
 class _FileArgs:
     file_obj: Stream
     file_type: str
-    metadata : dict
-    opened: bool
-    resolver: ResolverLike
+    metadata: dict
+    was_opened: bool
+    resolver: resolvers.ResolverLike
     is_remote: bool
+
 
 def _parse_file_args(
     file_obj: Loadable,
     file_type: Optional[str],
     resolver: Optional[resolvers.ResolverLike] = None,
     **kwargs,
-):
+) -> _FileArgs:
     """
     Given a file_obj and a file_type try to magically convert
     arguments to a file-like object and a lowercase string of
@@ -713,7 +652,14 @@ def _parse_file_args(
     ):
         resolver = resolvers.FilePathResolver(file_obj.name)
 
-    return file_obj, file_type, metadata, opened, resolver, is_remote
+    return _FileArgs(
+        file_obj=file_obj,
+        file_type=file_type,
+        metadata=metadata,
+        was_opened=opened,
+        resolver=resolver,
+        is_remote=is_remote,
+    )
 
 
 # loader functions for compressed extensions
