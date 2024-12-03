@@ -36,7 +36,7 @@ class LoaderTest(g.unittest.TestCase):
         # check load_mesh
         file_obj = open(g.os.path.join(g.dir_models, "featuretype.STL"), "rb")
         assert not file_obj.closed
-        mesh = g.trimesh.load(file_obj=file_obj, file_type="stl")
+        mesh = g.trimesh.load_mesh(file_obj=file_obj, file_type="stl")
         # should have actually loaded the mesh
         assert len(mesh.faces) == 3476
         # should not close the file object
