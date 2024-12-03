@@ -156,11 +156,12 @@ def load_scene(
       Loaded geometry as trimesh classes
     """
 
-    arg = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
-
-    if arg.is_remote:
-        if not allow_remote:
-            raise ValueError("URL passed with `allow_remote=False`")
+    arg = _parse_file_args(
+        file_obj=file_obj,
+        file_type=file_type,
+        resolver=resolver,
+        allow_remote=allow_remote,
+    )
 
     try:
         if arg.file_type in path_formats():
@@ -326,7 +327,7 @@ def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwa
     return result
 
 
-def load_remote(url, **kwargs):
+def load_remote(url, **kwargs) -> Scene:
     """
     Load a mesh at a remote URL into a local trimesh object.
 
@@ -345,34 +346,7 @@ def load_remote(url, **kwargs):
     loaded : Trimesh, Path, Scene
       Loaded result
     """
-    # import here to keep requirement soft
-    import httpx
-
-    # download the mesh
-    response = httpx.get(url, follow_redirects=True)
-    response.raise_for_status()
-
-    # wrap as file object
-    file_obj = util.wrap_as_stream(response.content)
-
-    # so loaders can access textures/etc
-    resolver = resolvers.WebResolver(url)
-
-    try:
-        # if we have a bunch of query parameters the type
-        # will be wrong so try to clean up the URL
-        # urllib is Python 3 only
-        import urllib
-
-        # remove the url-safe encoding then split off query params
-        file_type = urllib.parse.unquote(url).split("?", 1)[0].split("/")[-1].strip()
-    except BaseException:
-        # otherwise just use the last chunk of URL
-        file_type = url.split("/")[-1].split("?", 1)[0]
-
-    # actually load the data from the retrieved bytes
-    loaded = load(file_obj=file_obj, file_type=file_type, resolver=resolver, **kwargs)
-    return loaded
+    return load_scene(file_obj=url, allow_remote=True, **kwargs)
 
 
 def _load_kwargs(*args, **kwargs) -> Geometry:
@@ -516,14 +490,12 @@ class _FileArgs:
     # a resolver for loading assets next to the file
     resolver: resolvers.ResolverLike
 
-    # is this a remote url
-    is_remote: bool
-
 
 def _parse_file_args(
     file_obj: Loadable,
     file_type: Optional[str],
     resolver: Optional[resolvers.ResolverLike] = None,
+    allow_remote: bool = False,
     **kwargs,
 ) -> _FileArgs:
     """
@@ -564,20 +536,12 @@ def _parse_file_args(
 
     Returns
     -----------
-    file_obj : file-like object
-      Contains data
-    file_type : str
-      Lower case of the type of file (eg 'stl', 'dae', etc)
-    metadata : dict
-      Any metadata gathered
-    opened : bool
-      Did we open the file or not
-    resolver : trimesh.visual.Resolver
-      Resolver to load other assets
+    args
+      Populated `_FileArg` message
     """
+
     metadata = {}
     opened = False
-    is_remote = False
 
     if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
         metadata.update(kwargs["metadata"])
@@ -593,8 +557,7 @@ def _parse_file_args(
         try:
             # os.path.isfile will return False incorrectly
             # if we don't give it an absolute path
-            file_path = os.path.expanduser(file_obj)
-            file_path = os.path.abspath(file_path)
+            file_path = os.path.abspath(os.path.expanduser(file_obj))
             exists = os.path.isfile(file_path)
         except BaseException:
             exists = False
@@ -615,13 +578,23 @@ def _parse_file_args(
             opened = True
         else:
             if "{" in file_obj:
-                # if a dict bracket is in the string, its probably a straight
-                # JSON
+                # if a bracket is in the string it's probably straight JSON
                 file_type = "json"
             elif "https://" in file_obj or "http://" in file_obj:
-                # we've been passed a URL, warn to use explicit function
-                # and don't do network calls via magical pipeline
-                raise ValueError(f"use load_remote to load URL: {file_obj}")
+                if not allow_remote:
+                    raise ValueError("unable to load URL with `allow_remote=False`")
+
+                import urllib
+
+                # remove the url-safe encoding and query params
+                file_type = util.split_extension(
+                    urllib.parse.unquote(file_obj).split("?", 1)[0].split("/")[-1].strip()
+                )
+                # create a web resolver to do the fetching and whatnot
+                resolver = resolvers.WebResolver(url=file_obj)
+                # fetch the base file
+                file_obj = util.wrap_as_stream(resolver.get_base())
+
             elif file_type is None:
                 raise ValueError(f"string is not a file: {file_obj}")
 
@@ -656,7 +629,6 @@ def _parse_file_args(
         metadata=metadata,
         was_opened=opened,
         resolver=resolver,
-        is_remote=is_remote,
     )
 
 

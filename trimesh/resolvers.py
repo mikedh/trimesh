@@ -335,6 +335,11 @@ class WebResolver(Resolver):
         else:
             # recombine into string ignoring any double slashes
             path = "/".join(split)
+
+        # save the URL we were created with, i.e.
+        # `https://stuff.com/models/thing.glb`
+        self.url = url
+        # save the root url, i.e. `https://stuff.com/models`
         self.base_url = (
             "/".join(
                 i
@@ -380,6 +385,24 @@ class WebResolver(Resolver):
         response.raise_for_status()
 
         # return the bytes of the response
+        return response.content
+
+    def get_base(self) -> bytes:
+        """
+        Fetch the data at the full URL this resolver was
+        instantiated with, i.e. `https://stuff.com/hi.glb`
+        this will return the response.
+
+        Returns
+        --------
+        content
+          The value at `self.url`
+        """
+        import httpx
+
+        # just fetch the url we were created with
+        response = httpx.get(self.url, follow_redirects=True)
+        response.raise_for_status()
         return response.content
 
     def namespaced(self, namespace: str) -> "WebResolver":
