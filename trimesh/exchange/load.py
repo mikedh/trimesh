@@ -113,9 +113,14 @@ def load(
 
     # combine a scene into a single mesh
     if force == "mesh":
-        log.debug("hey in the future use `load_mesh` ;)")
+        log.debug(
+            "`trimesh.load_mesh` does the same thing as `trimesh.load(force='mesh')`"
+        )
         return loaded.to_mesh()
 
+    # we are matching deprecated behavior here.
+    # gltf/glb always return a scene
+    # -
     if len(loaded.geometry) == 1:
         # matching old behavior, you should probably use `load_scene`
         return next(iter(loaded.geometry.values()))
@@ -163,6 +168,7 @@ def load_scene(
         file_type=file_type,
         resolver=resolver,
         allow_remote=allow_remote,
+        **kwargs,
     )
 
     try:
