@@ -246,9 +246,9 @@ def procrustes(
     a_original = np.asanyarray(a, dtype=np.float64)
     b_original = np.asanyarray(b, dtype=np.float64)
     if not util.is_shape(a_original, (-1, 3)) or not util.is_shape(b_original, (-1, 3)):
-        raise ValueError('points must be (n,3)!')
+        raise ValueError("points must be (n,3)!")
     if len(a_original) != len(b_original):
-        raise ValueError('a and b must contain same number of points!')
+        raise ValueError("a and b must contain same number of points!")
     # weights are set to uniform if not provided.
     if weights is None:
         weights = np.ones(len(a_original))
@@ -277,8 +277,8 @@ def procrustes(
     if scale:
         # scale is the square root of the (weighted) average of the
         # squared difference between each point and the center.
-        ascale = np.sqrt((((a_nonzero - acenter)**2) * w_norm).sum())
-        bscale = np.sqrt((((b_nonzero - bcenter)**2) * w_norm).sum())
+        ascale = np.sqrt((((a_nonzero - acenter) ** 2) * w_norm).sum())
+        bscale = np.sqrt((((b_nonzero - bcenter) ** 2) * w_norm).sum())
     else:
         ascale = 1
         bscale = 1
@@ -286,8 +286,7 @@ def procrustes(
     # Use SVD to find optimal orthogonal matrix R
     # constrained to det(R) = 1 if necessary.
 
-    target = np.dot(((b_nonzero - bcenter) / bscale).T,
-                    ((a_nonzero - acenter) / ascale))
+    target = np.dot(((b_nonzero - bcenter) / bscale).T, ((a_nonzero - acenter) / ascale))
 
     u, _s, vh = np.linalg.svd(target)
 
@@ -309,7 +308,7 @@ def procrustes(
         transformed = transform_points(a_original, matrix)
         # The cost is the (weighted) sum of the euclidean distances between
         # the transformed source points and the target points.
-        cost = (((b_nonzero - transformed[nonzero_weights])**2) * w_norm).sum()
+        cost = (((b_nonzero - transformed[nonzero_weights]) ** 2) * w_norm).sum()
         return matrix, transformed, cost
     else:
         return matrix
