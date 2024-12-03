@@ -222,7 +222,8 @@ def procrustes(
       List of floats representing how much weight is assigned to each point.
       Binary entries can be used to filter the arrays; normalization is not required.
       Translation and scaling are adjusted according to the weighting.
-      Note, however, that this method does not yield the optimal rotation for non-uniform weighting,
+      Note, however, that this method does not yield the optimal rotation for
+      non-uniform weighting,
       as this would require an iterative, nonlinear optimization approach.
     reflection : bool
       If the transformation is allowed reflections
@@ -258,7 +259,8 @@ def procrustes(
     w_norm = (w / w.sum()).reshape((-1, 1))
 
     # All zero entries are removed from further computations.
-    # If weights is a binary array, the optimal solution can still be found by simply removing the zero entries.
+    # If weights is a binary array, the optimal solution can still be found by
+    # simply removing the zero entries.
     nonzero_weights = w_norm[:, 0] > 0
     a_nonzero = a_original[nonzero_weights]
     b_nonzero = b_original[nonzero_weights]
