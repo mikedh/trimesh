@@ -768,17 +768,20 @@ class ShapedEncoding(LazyIndexMap):
             size = np.abs(size)
             if self._data.size % size != 0:
                 raise ValueError(
-                    "cannot reshape encoding of size %d into shape %s"
-                    % (self._data.size, str(self._shape))
+                    "cannot reshape encoding of size %d into shape %s",
+                    self._data.size,
+                    str(self._shape),
                 )
+
             rem = self._data.size // size
             self._shape = tuple(rem if s == -1 else s for s in self._shape)
         elif nn > 2:
             raise ValueError("shape cannot have more than one -1 value")
         elif np.prod(self._shape) != self._data.size:
             raise ValueError(
-                "cannot reshape encoding of size %d into shape %s"
-                % (self._data.size, str(self._shape))
+                "cannot reshape encoding of size %d into shape %s",
+                self._data.size,
+                str(self._shape),
             )
 
     def _from_base_indices(self, base_indices):
@@ -818,9 +821,11 @@ class TransposedEncoding(LazyIndexMap):
             raise ValueError(f"base_encoding must be an Encoding, got {base_encoding!s}")
         if len(base_encoding.shape) != len(perm):
             raise ValueError(
-                "base_encoding has %d ndims - cannot transpose with perm %s"
-                % (base_encoding.ndims, str(perm))
+                "base_encoding has %d ndims - cannot transpose with perm %s",
+                base_encoding.ndims,
+                str(perm),
             )
+
         super().__init__(base_encoding)
         perm = np.array(perm, dtype=np.int64)
         if not all(i in perm for i in range(base_encoding.ndims)):
@@ -898,7 +903,7 @@ class FlippedEncoding(LazyIndexMap):
         super().__init__(encoding)
         if not all(0 <= a < self._data.ndims for a in axes):
             raise ValueError(
-                "Invalid axes %s for %d-d encoding" % (str(axes), self._data.ndims)
+                "Invalid axes %s for %d-d encoding", str(axes), self._data.ndims
             )
 
     def _to_base_indices(self, indices):

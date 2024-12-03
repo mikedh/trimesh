@@ -201,7 +201,9 @@ def voxel_from_binvox(rle_data, shape, translate=None, scale=1.0, axis_order="xz
     elif axis_order is None or axis_order == "xyz":
         encoding = encoding.reshape(shape)
     else:
-        raise ValueError("Invalid axis_order '%s': must be None, 'xyz' or 'xzy'")
+        raise ValueError(
+            "Invalid axis_order '%s': must be None, 'xyz' or 'xzy'", axis_order
+        )
 
     assert encoding.shape == shape
 
@@ -423,7 +425,7 @@ class Binvoxer:
             )
 
         if dimension > 1024 and not exact:
-            raise ValueError("Maximum dimension using exact is 1024, got %d" % dimension)
+            raise ValueError("Maximum dimension using exact is 1024, got %d", dimension)
         if file_type not in Binvoxer.SUPPORTED_OUTPUT_TYPES:
             raise ValueError(
                 f"file_type {file_type} not in set of supported output types {Binvoxer.SUPPORTED_OUTPUT_TYPES!s}"
@@ -471,7 +473,7 @@ class Binvoxer:
             times = np.log2(downsample_factor)
             if int(times) != times:
                 raise ValueError(
-                    "downsample_factor must be a power of 2, got %d" % downsample_factor
+                    "downsample_factor must be a power of 2, got %d", downsample_factor
                 )
             args.extend(("-down",) * int(times))
         if downsample_threshold is not None:

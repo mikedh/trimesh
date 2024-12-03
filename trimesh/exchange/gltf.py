@@ -1026,14 +1026,14 @@ def _build_accessor(array):
         if vec_length > 4:
             raise ValueError("The GLTF spec does not support vectors larger than 4")
         if vec_length > 1:
-            data_type = "VEC%d" % vec_length
+            data_type = f"VEC{int(vec_length)}"
         else:
             data_type = "SCALAR"
 
     if len(shape) == 3:
         if shape[2] not in [2, 3, 4]:
             raise ValueError("Matrix types must have 4, 9 or 16 components")
-        data_type = "MAT%d" % shape[2]
+        data_type = f"MAT{int(shape[2])}"
 
     # get the array data type as a str stripping off endian
     lookup = array.dtype.str.lstrip("<>")

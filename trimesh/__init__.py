@@ -25,6 +25,7 @@ from . import (
     grouping,
     inertia,
     intersections,
+    iteration,
     nsphere,
     permutate,
     poses,
@@ -81,9 +82,8 @@ except BaseException as E:
 
 
 __all__ = [
-    "PointCloud",
     "Geometry",
-    "Trimesh",
+    "PointCloud",
     "Scene",
     "Trimesh",
     "__version__",
@@ -103,6 +103,7 @@ __all__ = [
     "grouping",
     "inertia",
     "intersections",
+    "iteration",
     "load",
     "load_mesh",
     "load_path",

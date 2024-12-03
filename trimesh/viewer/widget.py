@@ -14,7 +14,7 @@ from pyglet import gl
 
 from .. import rendering
 from .trackball import Trackball
-from .windowed import SceneViewer, geometry_hash
+from .windowed import SceneViewer, _geometry_hash
 
 
 class SceneGroup(pyglet.graphics.Group):
@@ -249,7 +249,7 @@ class SceneWidget(glooey.Widget):
         self._draw()
 
     def _update_node(self, node_name, geometry_name, geometry, transform):
-        geometry_hash_new = geometry_hash(geometry)
+        geometry_hash_new = _geometry_hash(geometry)
         if self.vertex_list_hash.get(geometry_name) != geometry_hash_new:
             # if geometry has texture defined convert it to opengl form
             if hasattr(geometry, "visual") and hasattr(geometry.visual, "material"):

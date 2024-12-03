@@ -1,5 +1,5 @@
 """
-"Grab bag" of utility functions.
+Grab bag of utility functions.
 """
 
 import abc
@@ -22,8 +22,10 @@ from io import BytesIO, StringIO
 
 import numpy as np
 
+from .iteration import chain
+
 # use our wrapped types for wider version compatibility
-from .typed import Any, Iterable, List, Union
+from .typed import Dict, Iterable, Optional, Set, Union
 
 # create a default logger
 log = logging.getLogger("trimesh")
@@ -1384,59 +1386,6 @@ def type_named(obj, name):
     raise ValueError("Unable to extract class of name " + name)
 
 
-def chain(*args: Union[Iterable[Any], Any, None]) -> List[Any]:
-    """
-    A less principled version of `list(itertools.chain(*args))` that
-    accepts non-iterable values, filters `None`, and returns a list
-    rather than yielding values.
-
-    If all passed values are iterables this will return identical
-    results to `list(itertools.chain(*args))`.
-
-
-    Examples
-    ----------
-
-    In [1]: list(itertools.chain([1,2], [3]))
-    Out[1]: [1, 2, 3]
-
-    In [2]: trimesh.util.chain([1,2], [3])
-    Out[2]: [1, 2, 3]
-
-    In [3]: trimesh.util.chain([1,2], [3], 4)
-    Out[3]: [1, 2, 3, 4]
-
-    In [4]: list(itertools.chain([1,2], [3], 4))
-      ----> 1 list(itertools.chain([1,2], [3], 4))
-      TypeError: 'int' object is not iterable
-
-    In [5]: trimesh.util.chain([1,2], None, 3, None, [4], [], [], 5, [])
-    Out[5]: [1, 2, 3, 4, 5]
-
-
-    Parameters
-    -----------
-    args
-      Will be individually checked to see if they're iterable
-      before either being appended or extended to a flat list.
-
-
-    Returns
-    ----------
-    chained
-      The values in a flat list.
-    """
-    # collect values to a flat list
-    chained = []
-    # extend if it's a sequence, otherwise append
-    [
-        chained.extend(a) if is_sequence(a) else chained.append(a)
-        for a in args
-        if a is not None
-    ]
-    return chained
-
-
 def concatenate(
     a, b=None
 ) -> Union["trimesh.Trimesh", "trimesh.path.Path2D", "trimesh.path.Path3D"]:  # noqa: F821
@@ -1957,7 +1906,7 @@ def compress(info, **kwargs):
     return compressed
 
 
-def split_extension(file_name, special=None):
+def split_extension(file_name, special=None) -> str:
     """
     Find the file extension of a file name, including support for
     special case multipart file extensions (like .tar.gz)
@@ -2015,17 +1964,20 @@ def triangle_strips_to_faces(strips):
     """
 
     # save the length of each list in the list of lists
-    lengths = np.array([len(i) for i in strips])
+    lengths = np.array([len(i) for i in strips], dtype=np.int64)
     # looping through a list of lists is extremely slow
     # combine all the sequences into a blob we can manipulate
-    blob = np.concatenate(strips)
+    blob = np.concatenate(strips, dtype=np.int64)
 
-    # preallocate and slice the blob into rough triangles
-    tri = np.zeros((len(blob) - 2, 3), dtype=np.int64)
-    for i in range(3):
-        tri[: len(blob) - 3, i] = blob[i : -3 + i]
-    # the last triangle is left off from the slicing, add it back
-    tri[-1] = blob[-3:]
+    # slice the blob into rough triangles
+    tri = np.array([blob[:-2], blob[1:-1], blob[2:]], dtype=np.int64).T
+
+    # if we only have one strip we can do a *lot* less work
+    # as we keep every triangle and flip every other one
+    if len(strips) == 1:
+        # flip in-place every other triangle
+        tri[1::2] = np.fliplr(tri[1::2])
+        return tri
 
     # remove the triangles which were implicit but not actually there
     # because we combined everything into one big array for speed
@@ -2407,7 +2359,11 @@ def is_ccw(points, return_all=False):
     return ccw, area, centroid
 
 
-def unique_name(start, contains, counts=None):
+def unique_name(
+    start: Optional[str],
+    contains: Union[Set, Mapping, Iterable],
+    counts: Optional[Dict] = None,
+):
     """
     Deterministically generate a unique name not
     contained in a dict, set or other grouping with

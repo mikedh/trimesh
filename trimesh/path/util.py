@@ -3,7 +3,7 @@ import numpy as np
 from ..util import is_ccw  # NOQA
 
 
-def concatenate(paths):
+def concatenate(paths, **kwargs):
     """
     Concatenate multiple paths into a single path.
 
@@ -11,6 +11,8 @@ def concatenate(paths):
     -------------
     paths : (n,) Path
       Path objects to concatenate
+    kwargs
+      Passed through to the path constructor
 
     Returns
     -------------
@@ -52,6 +54,6 @@ def concatenate(paths):
     # generate the single new concatenated path
     # use input types so we don't have circular imports
     concat = type(path)(
-        metadata=metadata, entities=entities, vertices=np.vstack(vertices)
+        metadata=metadata, entities=entities, vertices=np.vstack(vertices), **kwargs
     )
     return concat

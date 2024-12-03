@@ -42,7 +42,7 @@ def _sparse_indices(encoding, rank=None):
 
 def _assert_rank(value, rank):
     if len(value.shape) != rank:
-        raise ValueError("Expected rank %d, got shape %s" % (rank, str(value.shape)))
+        raise ValueError("Expected rank %d, got shape %s", rank, str(value.shape))
 
 
 def _assert_sparse_rank(value, rank=None):
@@ -51,7 +51,7 @@ def _assert_sparse_rank(value, rank=None):
     if rank is not None:
         if value.shape[-1] != rank:
             raise ValueError(
-                "sparse_indices.shape[1] must be %d, got %d" % (rank, value.shape[-1])
+                "sparse_indices.shape[1] must be %d, got %d", rank, value.shape[-1]
             )
 
 
