@@ -67,7 +67,7 @@ def revolve(
       passed will be a full revolution (`angle = 2*pi`)
     cap
       If not a full revolution (`0.0 < angle < 2 * pi`)
-      and cap is True attempt to add a tesselated cap.
+      and cap is True attempt to add a tessellated cap.
     sections
       Number of sections result should have
       If not specified default is 32 per revolution

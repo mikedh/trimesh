@@ -2553,7 +2553,7 @@ class Trimesh(Geometry3D):
           A number between 0.0 and 1.0 for how much
         face_count
           Target number of faces desired in the resulting mesh.
-        agression
+        aggression
           An integer between `0` and `10`, the scale being roughly
           `0` is "slow and good" and `10` being "fast and bad."
 
