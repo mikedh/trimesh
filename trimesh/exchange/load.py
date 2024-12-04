@@ -129,6 +129,7 @@ def load(
         "binvox",
         "xaml",
         "dxf",
+        "off",
     }:
         # matching old behavior, you should probably use `load_scene`
         return next(iter(loaded.geometry.values()))
