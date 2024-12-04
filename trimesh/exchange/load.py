@@ -118,21 +118,22 @@ def load(
         )
         return loaded.to_mesh()
 
-    # we are matching deprecated behavior here.
-    # gltf/glb always return a scene
-    file_type = loaded.metadata["file_type"]
-    if len(loaded.geometry) == 1 and file_type in {
-        "obj",
-        "stl",
-        "ply",
-        "svg",
-        "binvox",
-        "xaml",
-        "dxf",
-        "off",
-    }:
-        # matching old behavior, you should probably use `load_scene`
-        return next(iter(loaded.geometry.values()))
+    ###########################################
+    # we are matching deprecated behavior here!
+    # matching old behavior you should probably use `load_scene`
+    if len(loaded.geometry) == 1:
+        geom = next(iter(loaded.geometry.values()))
+        if isinstance(geom, PointCloud) or loaded.metadata["file_type"] in {
+            "obj",
+            "stl",
+            "ply",
+            "svg",
+            "binvox",
+            "xaml",
+            "dxf",
+            "off",
+        }:
+            return geom
 
     return loaded
 
