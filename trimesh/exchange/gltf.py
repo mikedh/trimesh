@@ -452,22 +452,22 @@ def load_glb(
     return kwargs
 
 
-def _uri_to_bytes(uri, resolver):
+def _uri_to_bytes(uri: str, resolver: ResolverLike) -> bytes:
     """
     Take a URI string and load it as a
     a filename or as base64.
 
     Parameters
     --------------
-    uri : string
+    uri
       Usually a filename or something like:
       "data:object/stuff,base64,AABA112A..."
-    resolver : trimesh.visual.Resolver
+    resolver
       A resolver to load referenced assets
 
     Returns
     ---------------
-    data : bytes
+    data
       Loaded data from URI
     """
     # see if the URI has base64 data

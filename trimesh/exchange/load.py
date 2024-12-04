@@ -328,7 +328,7 @@ def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwa
                 load_scene(
                     file_obj=data,
                     file_type=compressed_type,
-                    resolver=arg.resolver,
+                    resolver=resolver,
                     metadata=metadata,
                     **kwargs,
                 )
