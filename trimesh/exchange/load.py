@@ -211,8 +211,10 @@ def load_scene(
     if not isinstance(loaded, Scene):
         loaded = Scene(loaded)
 
-    # add any file path metadata
+    # add the "file_path" information to the overall scene metadata
     loaded.metadata.update(arg.metadata)
+    # add the load path metadata to every geometry
+    [g.metadata.update(arg.metadata) for g in loaded.geometry.values()]
 
     return loaded
 

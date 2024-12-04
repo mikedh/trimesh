@@ -321,7 +321,6 @@ class WebResolver(Resolver):
 
         # parse string into namedtuple
         parsed = urlparse(url)
-
         # we want a base url
         split = [i for i in parsed.path.split("/") if len(i) > 0]
 
@@ -485,7 +484,6 @@ class GithubResolver(Resolver):
     @property
     def zipped(self) -> ZipResolver:
         """
-
         - opened zip file
         - locally saved zip file
         - retrieve zip file and saved
