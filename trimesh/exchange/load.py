@@ -121,7 +121,8 @@ def load(
     # we are matching deprecated behavior here.
     # gltf/glb always return a scene
     # -
-    if len(loaded.geometry) == 1:
+    file_type = loaded.metadata["file_type"]
+    if len(loaded.geometry) == 1 and file_type in {"obj", "stl", "ply", "svg", "binvox"}:
         # matching old behavior, you should probably use `load_scene`
         return next(iter(loaded.geometry.values()))
 
@@ -556,7 +557,6 @@ def _parse_file_args(
     metadata = {}
     opened = False
     file_path = None
-
     if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
         metadata.update(kwargs["metadata"])
 
@@ -624,9 +624,11 @@ def _parse_file_args(
 
     # all our stored extensions reference in lower case
     file_type = file_type.lower()
+
     if file_path is not None:
         metadata["file_path"] = file_path
         metadata["file_name"] = os.path.basename(file_path)
+    metadata["file_type"] = file_type
 
     # if we still have no resolver try using file_obj name
     if (
