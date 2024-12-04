@@ -120,9 +120,16 @@ def load(
 
     # we are matching deprecated behavior here.
     # gltf/glb always return a scene
-    # -
     file_type = loaded.metadata["file_type"]
-    if len(loaded.geometry) == 1 and file_type in {"obj", "stl", "ply", "svg", "binvox"}:
+    if len(loaded.geometry) == 1 and file_type in {
+        "obj",
+        "stl",
+        "ply",
+        "svg",
+        "binvox",
+        "xaml",
+        "dxf",
+    }:
         # matching old behavior, you should probably use `load_scene`
         return next(iter(loaded.geometry.values()))
 

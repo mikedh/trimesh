@@ -53,6 +53,9 @@ def validate_glb(data, name=None):
         raise ValueError("gltf_validator failed")
 
 
+load_kwargs = g.trimesh.exchange.load._load_kwargs
+
+
 class GLTFTest(g.unittest.TestCase):
     def test_duck(self):
         scene = g.get_mesh("Duck.glb", process=False)
@@ -196,7 +199,7 @@ class GLTFTest(g.unittest.TestCase):
 
         kwargs = g.trimesh.exchange.gltf.load_glb(g.trimesh.util.wrap_as_stream(export))
         # roundtrip it
-        reloaded = g.trimesh.exchange.load.load_kwargs(kwargs)
+        reloaded = load_kwargs(kwargs)
         # make basic assertions
         g.scene_equal(original, reloaded)
 
@@ -264,7 +267,7 @@ class GLTFTest(g.unittest.TestCase):
         assert len(export.keys()) == 2
 
         # reload the export
-        reloaded = g.trimesh.exchange.load.load_kwargs(
+        reloaded = load_kwargs(
             g.trimesh.exchange.gltf.load_gltf(
                 file_obj=None, resolver=g.trimesh.visual.resolvers.ZipResolver(export)
             )
