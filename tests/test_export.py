@@ -336,8 +336,6 @@ class ExportTest(g.unittest.TestCase):
         # it's wordy
         f = g.trimesh.exchange.load._parse_file_args
 
-        RET_COUNT = 5
-
         # a path that doesn't exist
         nonexists = f"/banana{g.random()}"
         assert not g.os.path.exists(nonexists)
@@ -348,13 +346,11 @@ class ExportTest(g.unittest.TestCase):
 
         # should be able to extract type from passed filename
         args = f(file_obj=exists, file_type=None)
-        assert len(args) == RET_COUNT
-        assert args[1] == "obj"
+        assert args.file_type == "obj"
 
         # should be able to extract correct type from longer name
         args = f(file_obj=exists, file_type="YOYOMA.oBj")
-        assert len(args) == RET_COUNT
-        assert args[1] == "obj"
+        assert args.file_type == "obj"
 
         # with a nonexistent file and no extension it should raise
         try:
@@ -367,15 +363,13 @@ class ExportTest(g.unittest.TestCase):
         # nonexistent file with extension passed should return
         # file name anyway, maybe something else can handle it
         args = f(file_obj=nonexists, file_type=".ObJ")
-        assert len(args) == RET_COUNT
         # should have cleaned up case
-        assert args[1] == "obj"
+        assert args.file_type == "obj"
 
         # make sure overriding type works for string filenames
         args = f(file_obj=exists, file_type="STL")
-        assert len(args) == RET_COUNT
         # should have used manually passed type over .obj
-        assert args[1] == "stl"
+        assert args.file_type == "stl"
 
     def test_buffered_random(self):
         """Test writing to non-standard file"""

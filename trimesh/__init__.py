@@ -54,6 +54,7 @@ from .exchange.load import (
     load_mesh,
     load_path,
     load_remote,
+    load_scene,
 )
 
 # geometry objects
@@ -108,6 +109,7 @@ __all__ = [
     "load_mesh",
     "load_path",
     "load_remote",
+    "load_scene",
     "nsphere",
     "path",
     "permutate",
