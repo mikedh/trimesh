@@ -122,8 +122,9 @@ def load(
     # we are matching deprecated behavior here!
     # matching old behavior you should probably use `load_scene`
     if len(loaded.geometry) == 1:
+        kind = loaded.metadata["file_type"]
         geom = next(iter(loaded.geometry.values()))
-        if isinstance(geom, PointCloud) or loaded.metadata["file_type"] in {
+        if (kind not in {"glb", "gltf"} and isinstance(geom, PointCloud)) or kind in {
             "obj",
             "stl",
             "ply",
@@ -189,8 +190,11 @@ def load_scene(
             # call the dummy function to raise the import error
             # this prevents the exception from being super opaque
             load_path()
+        elif isinstance(arg.file_obj, dict):
+            loaded = _load_kwargs(arg.file_obj)
         elif arg.file_type in mesh_loaders:
             # mesh loaders use mesh loader
+
             loaded = _load_kwargs(
                 mesh_loaders[arg.file_type](
                     file_obj=arg.file_obj,
@@ -283,9 +287,8 @@ def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwa
     resolver = resolvers.ZipResolver(files)
 
     # try to save the files with meaningful metadata
-    if "file_path" in arg.metadata:
-        archive_name = arg.metadata["file_path"]
-    else:
+    archive_name = arg.metadata.get("file_path", None)
+    if archive_name is None:
         archive_name = "archive"
 
     # populate our available formats
@@ -319,6 +322,7 @@ def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwa
             if compressed_type not in available:
                 # don't raise an exception, just try the next one
                 continue
+
             # store the file name relative to the archive
             metadata = {
                 "file_name": os.path.basename(name),
@@ -566,8 +570,6 @@ def _parse_file_args(
     metadata = {}
     opened = False
     file_path = None
-    if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
-        metadata.update(kwargs["metadata"])
 
     if util.is_pathlib(file_obj):
         # convert pathlib objects to string
@@ -634,10 +636,15 @@ def _parse_file_args(
     # all our stored extensions reference in lower case
     file_type = file_type.lower()
 
-    if file_path is not None:
-        metadata["file_path"] = file_path
-        metadata["file_name"] = os.path.basename(file_path)
-    metadata["file_type"] = file_type
+    # if user passed in a metadata dict add it
+    if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
+        metadata.update(kwargs["metadata"])
+    else:
+        metadata["file_type"] = file_type
+        if file_path is not None:
+            metadata.update(
+                {"file_path": file_path, "file_name": os.path.basename(file_path)}
+            )
 
     # if we still have no resolver try using file_obj name
     if (
