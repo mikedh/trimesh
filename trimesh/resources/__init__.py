@@ -48,6 +48,7 @@ def _get(name: str, decode: bool, decode_json: bool, as_stream: bool):
     resource : str, bytes, or decoded JSON
       File data
     """
+
     # key by name and decode
     cache_key = (name, bool(decode), bool(decode_json), bool(as_stream))
     cached = _cache.get(cache_key)
@@ -57,7 +58,9 @@ def _get(name: str, decode: bool, decode_json: bool, as_stream: bool):
         return cached
 
     # get the resource using relative names
-    with open(os.path.join(_pwd, name), "rb") as f:
+    # all templates are using POSIX relative paths
+    # so fix them to be platform-specific
+    with open(os.path.join(_pwd, *name.split("/")), "rb") as f:
         resource = f.read()
 
     # make sure we return it as a string if asked

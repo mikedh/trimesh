@@ -110,6 +110,13 @@ def load(
         allow_remote=allow_remote,
         **kwargs,
     )
+    arg = _parse_file_args(
+        file_obj=file_obj,
+        file_type=file_type,
+        resolver=resolver,
+        allow_remote=allow_remote,
+        **kwargs,
+    )
 
     # combine a scene into a single mesh
     if force == "mesh":
@@ -122,7 +129,7 @@ def load(
     # we are matching deprecated behavior here!
     # matching old behavior you should probably use `load_scene`
     if len(loaded.geometry) == 1:
-        kind = loaded.metadata["file_type"]
+        kind = arg.file_type
         geom = next(iter(loaded.geometry.values()))
         if (kind not in {"glb", "gltf"} and isinstance(geom, PointCloud)) or kind in {
             "obj",
@@ -185,7 +192,12 @@ def load_scene(
     try:
         if arg.file_type in path_formats():
             # path formats get loaded with path loader
-            loaded = load_path(file_obj=arg.file_obj, file_type=arg.file_type, **kwargs)
+            loaded = load_path(
+                file_obj=arg.file_obj,
+                file_type=arg.file_type,
+                metadata=arg.metadata,
+                **kwargs,
+            )
         elif arg.file_type in ["svg", "dxf"]:
             # call the dummy function to raise the import error
             # this prevents the exception from being super opaque
@@ -200,6 +212,7 @@ def load_scene(
                     file_obj=arg.file_obj,
                     file_type=arg.file_type,
                     resolver=arg.resolver,
+                    metadata=arg.metadata,
                     **kwargs,
                 )
             )
@@ -226,9 +239,10 @@ def load_scene(
         loaded = Scene(loaded)
 
     # add the "file_path" information to the overall scene metadata
-    loaded.metadata.update(arg.metadata)
+    # if 'metadata' not in kwargs:
+    #    loaded.metadata.update(arg.metadata)
     # add the load path metadata to every geometry
-    [g.metadata.update(arg.metadata) for g in loaded.geometry.values()]
+    # [g.metadata.update(arg.metadata) for g in loaded.geometry.values()]
 
     return loaded
 
@@ -637,8 +651,8 @@ def _parse_file_args(
     file_type = file_type.lower()
 
     # if user passed in a metadata dict add it
-    if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
-        metadata.update(kwargs["metadata"])
+    if len(kwargs.get("metadata", {})) > 0:
+        metadata = kwargs["metadata"]
     else:
         metadata["file_type"] = file_type
         if file_path is not None:
