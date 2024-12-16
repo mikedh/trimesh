@@ -514,7 +514,7 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
 @dataclass
 class _FileArgs:
     # a file-like object that can be accessed
-    file_obj: Stream
+    file_obj: Optional[Stream]
 
     # a cleaned file type string, i.e. "stl"
     file_type: str
@@ -526,7 +526,7 @@ class _FileArgs:
     was_opened: bool
 
     # a resolver for loading assets next to the file
-    resolver: resolvers.ResolverLike
+    resolver: Optional[resolvers.ResolverLike]
 
 
 def _parse_file_args(
