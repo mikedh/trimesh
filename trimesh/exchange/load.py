@@ -292,64 +292,61 @@ def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwa
     # parse the file arguments into clean loadable form
     arg = _parse_file_args(file_obj=file_obj, file_type=file_type, resolver=resolver)
 
-    # a dict of 'name' : file-like object
-    files = util.decompress(file_obj=arg.file_obj, file_type=arg.file_type)
     # store loaded geometries as a list
     geometries = []
 
     # so loaders can access textures/etc
-    resolver = resolvers.ZipResolver(files)
+    archive = util.decompress(file_obj=arg.file_obj, file_type=arg.file_type)
+    resolver = resolvers.ZipResolver(archive)
 
     # try to save the files with meaningful metadata
-    archive_name = arg.metadata.get("file_path", None)
-    if archive_name is None:
-        archive_name = "archive"
+    archive_name = arg.metadata.get("file_path", "archive")
+    if archive_name is not None:
+        meta_archive = {
+            "file_name": os.path.basename(archive_name),
+            "file_path": os.path.join(archive_name),
+        }
+    else:
+        meta_archive = {}
 
     # populate our available formats
     if mixed:
         available = available_formats()
     else:
         # all types contained in ZIP archive
-        contains = {util.split_extension(n).lower() for n in files.keys()}
+        contains = {util.split_extension(n).lower() for n in resolver.keys()}
         # if there are no mesh formats available
         if contains.isdisjoint(mesh_formats()):
             available = path_formats()
         else:
             available = mesh_formats()
 
-    meta_archive = {}
-    for name, data in files.items():
+    for file_name, file_obj in archive.items():
         try:
             # only load formats that we support
-            compressed_type = util.split_extension(name).lower()
+            compressed_type = util.split_extension(file_name).lower()
 
             # if file has metadata type include it
             if compressed_type in ("yaml", "yml"):
                 import yaml
 
-                meta_archive[name] = yaml.safe_load(data)
+                continue
+                meta_archive[file_name] = yaml.safe_load(file_obj)
             elif compressed_type == "json":
                 import json
 
-                meta_archive[name] = json.loads(data)
-
-            if compressed_type not in available:
+                meta_archive[file_name] = json.loads(file_obj)
+                continue
+            elif compressed_type not in available:
                 # don't raise an exception, just try the next one
                 continue
-
-            # store the file name relative to the archive
-            metadata = {
-                "file_name": os.path.basename(name),
-                "file_path": os.path.join(archive_name, name),
-            }
 
             # load the individual geometry
             geometries.append(
                 load_scene(
-                    file_obj=data,
+                    file_obj=file_obj,
                     file_type=compressed_type,
                     resolver=resolver,
-                    metadata=metadata,
                     **kwargs,
                 )
             )
