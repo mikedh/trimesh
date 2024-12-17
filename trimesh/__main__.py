@@ -30,7 +30,8 @@ def main():
     args = parser.parse_args()
 
     if args.file_name is None:
-        scene = None
+        parser.print_help()
+        return
     else:
         scene = load(args.file_name)
 
