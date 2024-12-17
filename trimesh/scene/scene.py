@@ -186,10 +186,6 @@ class Scene(Geometry3D):
             self.graph.transforms = concat.graph.transforms
             return
 
-        if not hasattr(geometry, "vertices"):
-            util.log.debug(f"unknown type ({type(geometry).__name__}) added to scene!")
-            return
-
         # get or create a name to reference the geometry by
         if geom_name is not None:
             # if name is passed use it
@@ -363,9 +359,8 @@ class Scene(Geometry3D):
         corners = {}
         # collect vertices for every mesh
         vertices = {
-            k: m.vertices
+            k: m.vertices if hasattr(m, "vertices") and len(m.vertices) > 0 else m.bounds
             for k, m in self.geometry.items()
-            if hasattr(m, "vertices") and len(m.vertices) > 0
         }
         # handle 2D geometries
         vertices.update(

@@ -126,7 +126,6 @@ class ExportTest(g.unittest.TestCase):
                 assert g.np.isclose(a.area, b.area)
                 assert a.body_count == b.body_count
 
-
             # assert r.metadata["file_path"].endswith(fn[3:])
 
 

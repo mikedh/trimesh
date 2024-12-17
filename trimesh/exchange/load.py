@@ -110,13 +110,6 @@ def load(
         allow_remote=allow_remote,
         **kwargs,
     )
-    arg = _parse_file_args(
-        file_obj=file_obj,
-        file_type=file_type,
-        resolver=resolver,
-        allow_remote=allow_remote,
-        **kwargs,
-    )
 
     # combine a scene into a single mesh
     if force == "mesh":
@@ -129,7 +122,7 @@ def load(
     # we are matching deprecated behavior here!
     # matching old behavior you should probably use `load_scene`
     if len(loaded.geometry) == 1:
-        kind = arg.file_type
+        kind = loaded.metadata.get("file_type", file_type)
         geom = next(iter(loaded.geometry.values()))
         if (kind not in {"glb", "gltf"} and isinstance(geom, PointCloud)) or kind in {
             "obj",
@@ -227,7 +220,7 @@ def load_scene(
                 **kwargs,
             )
         else:
-            raise ValueError(f"File type: {arg.file_type} not supported")
+            raise ValueError(f"file_type: '{arg.file_type}' not supported")
 
     finally:
         # if we opened the file ourselves from a file name
