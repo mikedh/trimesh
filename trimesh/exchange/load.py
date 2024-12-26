@@ -78,8 +78,10 @@ def load(
     **kwargs,
 ) -> Geometry:
     """
-    Load a mesh or vectorized path into objects like
-    Trimesh, Path2D, Path3D, Scene
+
+    For new code the typed load functions `trimesh.load_scene` or `trimesh.load_mesh`
+    are recommended over `trimesh.load` which is a backwards-compatibility wrapper
+    that mimics the behavior of the old function and can return any geometry type.
 
     Parameters
     -----------
@@ -103,6 +105,7 @@ def load(
       Loaded geometry as trimesh classes
     """
 
+    # call the most general loading case into a `Scene`.
     loaded = load_scene(
         file_obj=file_obj,
         file_type=file_type,
@@ -111,12 +114,25 @@ def load(
         **kwargs,
     )
 
-    # combine a scene into a single mesh
     if force == "mesh":
+        # new code should use `load_mesh` for this
         log.debug(
-            "`trimesh.load_mesh` does the same thing as `trimesh.load(force='mesh')`"
+            "`trimesh.load(force='mesh')` is a compatibility wrapper for `trimesh.load_mesh`"
         )
         return loaded.to_mesh()
+    elif force == "scene":
+        # new code should use `load_scene` for this
+        log.debug(
+            "`trimesh.load(force='scene')` is a compatibility wrapper for `trimesh.load_scene`"
+        )
+        return loaded
+
+    # else:
+    #    log.debug(
+    #        "For new code the typed load functions `trimesh.load_scene` or `trimesh.load_mesh` "
+    #        + "are recommended over `trimesh.load` which is a backwards-compatibility wrapper "
+    #        + "that mimics the behavior of the old function and can return any geometry type."
+    #    )
 
     ###########################################
     # we are matching deprecated behavior here!
@@ -232,8 +248,8 @@ def load_scene(
         loaded = Scene(loaded)
 
     # add the "file_path" information to the overall scene metadata
-    # if 'metadata' not in kwargs:
-    #    loaded.metadata.update(arg.metadata)
+    if "metadata" not in kwargs:
+        loaded.metadata.update(arg.metadata)
     # add the load path metadata to every geometry
     # [g.metadata.update(arg.metadata) for g in loaded.geometry.values()]
 

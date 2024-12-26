@@ -28,6 +28,18 @@ class OBJTest(g.unittest.TestCase):
         rec = g.roundtrip(m.export(file_type="obj"), file_type="obj")
         assert g.np.isclose(m.area, rec.area)
 
+    def test_keep_unreferenced(self):
+        # try loading a short mesh with 2 vertices, one of which is referenced
+        m = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream("o mesh\nv 1 1 1\nv 1 1 2\nf 1 1 1"),
+            file_type="obj",
+            process=False,
+            maintain_order=True,
+        )
+
+        assert g.np.allclose(m.faces[0], [0, 0, 0])
+        assert g.np.allclose(m.vertices, [[1, 1, 1], [1, 1, 2]])
+
     def test_trailing(self):
         # test files with texture and trailing slashes
         m = g.get_mesh("jacked.obj")
@@ -335,6 +347,9 @@ class OBJTest(g.unittest.TestCase):
 
     def test_scene_export_material_name(self):
         s = g.get_mesh("fuze.obj", force="scene")
+
+        g.log.warning(s.geometry)
+
         dummy = "fuxx"
         s.geometry["fuze.obj"].visual.material.name = dummy
 
