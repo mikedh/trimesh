@@ -78,7 +78,6 @@ def load(
     **kwargs,
 ) -> Geometry:
     """
-
     For new code the typed load functions `trimesh.load_scene` or `trimesh.load_mesh`
     are recommended over `trimesh.load` which is a backwards-compatibility wrapper
     that mimics the behavior of the old function and can return any geometry type.
@@ -127,18 +126,11 @@ def load(
         )
         return loaded
 
-    # else:
-    #    log.debug(
-    #        "For new code the typed load functions `trimesh.load_scene` or `trimesh.load_mesh` "
-    #        + "are recommended over `trimesh.load` which is a backwards-compatibility wrapper "
-    #        + "that mimics the behavior of the old function and can return any geometry type."
-    #    )
-
     ###########################################
     # we are matching deprecated behavior here!
     # matching old behavior you should probably use `load_scene`
     if len(loaded.geometry) == 1:
-        kind = loaded.metadata.get("file_type", file_type)
+        kind = loaded._source.file_type
         geom = next(iter(loaded.geometry.values()))
         if (kind not in {"glb", "gltf"} and isinstance(geom, PointCloud)) or kind in {
             "obj",
@@ -247,9 +239,11 @@ def load_scene(
     if not isinstance(loaded, Scene):
         loaded = Scene(loaded)
 
-    # add the "file_path" information to the overall scene metadata
-    if "metadata" not in kwargs:
-        loaded.metadata.update(arg.metadata)
+    loaded._source = arg
+
+    ## add the "file_path" information to the overall scene metadata
+    # if "metadata" not in kwargs:
+    #    loaded.metadata.update(arg.metadata)
     # add the load path metadata to every geometry
     # [g.metadata.update(arg.metadata) for g in loaded.geometry.values()]
 
