@@ -866,7 +866,8 @@ def uv_to_color(uv, image):
     # access colors from pixel locations
     # make sure image is RGBA before getting values
     colors = np.asanyarray(image.convert("RGBA"))[
-        y.round().astype(np.int64), x.round().astype(np.int64)
+        y.round().astype(np.int64) % image.height, 
+        x.round().astype(np.int64) % image.width
     ]
 
     # conversion to RGBA should have corrected shape
