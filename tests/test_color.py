@@ -229,6 +229,10 @@ class VisualTest(g.unittest.TestCase):
         # every color should differ
         assert (colors[:-1] != colors[1:]).any(axis=1).all()
 
+        # make sure it handles zero range
+        colors = g.trimesh.visual.interpolate(g.np.zeros(100))
+        assert g.np.allclose(colors, [255, 0, 0, 255])
+
     def test_uv_to_color(self):
         try:
             import PIL.Image

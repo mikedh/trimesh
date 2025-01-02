@@ -829,8 +829,15 @@ def interpolate(values, color_map=None, dtype=np.uint8):
 
     # make input always float
     values = np.asanyarray(values, dtype=np.float64).ravel()
+    # offset to zero
+    values -= values.min()
+    # get the value range to avoid dividing by zero
+    values_ptp = np.ptp(values)
+    if values_ptp > 0.0:
+        values /= values_ptp
+
     # scale values to 0.0 - 1.0 and get colors
-    colors = cmap((values - values.min()) / np.ptp(values))
+    colors = cmap(values)
     # convert to 0-255 RGBA
     rgba = to_rgba(colors, dtype=dtype)
 
@@ -866,8 +873,8 @@ def uv_to_color(uv, image):
     # access colors from pixel locations
     # make sure image is RGBA before getting values
     colors = np.asanyarray(image.convert("RGBA"))[
-        y.round().astype(np.int64) % image.height, 
-        x.round().astype(np.int64) % image.width
+        y.round().astype(np.int64) % image.height,
+        x.round().astype(np.int64) % image.width,
     ]
 
     # conversion to RGBA should have corrected shape
