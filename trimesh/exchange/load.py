@@ -132,6 +132,7 @@ def load(
     if len(loaded.geometry) == 1:
         kind = loaded._source.file_type
         geom = next(iter(loaded.geometry.values()))
+        geom.metadata.update(loaded.metadata)
         if (kind not in {"glb", "gltf"} and isinstance(geom, PointCloud)) or kind in {
             "obj",
             "stl",
@@ -242,10 +243,8 @@ def load_scene(
     loaded._source = arg
 
     ## add the "file_path" information to the overall scene metadata
-    # if "metadata" not in kwargs:
-    #    loaded.metadata.update(arg.metadata)
-    # add the load path metadata to every geometry
-    # [g.metadata.update(arg.metadata) for g in loaded.geometry.values()]
+    if "metadata" not in kwargs:
+        loaded.metadata.update(arg.metadata)
 
     return loaded
 
