@@ -783,7 +783,7 @@ class Path3D(Path):
             category=DeprecationWarning,
             stacklevel=2,
         )
-        return self.to_3D(*args, **kwargs)
+        return self.to_2D(*args, **kwargs)
 
     def to_2D(
         self,
