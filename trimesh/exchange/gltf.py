@@ -9,6 +9,7 @@ as GL_TRIANGLES, and trimesh.Path2D/Path3D as GL_LINES
 import base64
 import json
 from collections import OrderedDict, defaultdict, deque
+from copy import deepcopy
 
 import numpy as np
 
@@ -17,7 +18,7 @@ from ..caching import hash_fast
 from ..constants import log, tol
 from ..resolvers import ResolverLike, ZipResolver
 from ..scene.cameras import Camera
-from ..typed import NDArray, Optional, Stream
+from ..typed import Dict, List, NDArray, Optional, Stream
 from ..util import triangle_strips_to_faces, unique_name
 from ..visual.gloss import specular_to_pbr
 
@@ -1347,9 +1348,9 @@ def _parse_materials(header, views, resolver=None):
 
 
 def _read_buffers(
-    header,
-    buffers,
-    mesh_kwargs,
+    header: Dict,
+    buffers: List[bytes],
+    mesh_kwargs: Dict,
     resolver: Optional[ResolverLike],
     ignore_broken: bool = False,
     merge_primitives: bool = False,
@@ -1476,19 +1477,23 @@ def _read_buffers(
     for index, m in enumerate(header.get("meshes", [])):
         try:
             # GLTF spec indicates implicit units are meters
-            metadata = {"units": "meters"}
+            metadata = {"units": "meters",
+                        "from_gltf_primitive": len(m["primitives"]) > 1}
+
             # try to load all mesh metadata
             if isinstance(m.get("extras"), dict):
                 metadata.update(m["extras"])
+
             # put any mesh extensions in a field of the metadata
             if "extensions" in m:
                 metadata["gltf_extensions"] = m["extensions"]
+
 
             for p in m["primitives"]:
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
                 kwargs = {"metadata": {}, "process": False}
-                kwargs.update(mesh_kwargs)
+                kwargs.update(deepcopy(mesh_kwargs))
                 kwargs["metadata"].update(metadata)
                 # i.e. GL_LINES, GL_TRIANGLES, etc
                 # specification says the default mode is GL_TRIANGLES
@@ -1569,14 +1574,6 @@ def _read_buffers(
                             log.debug("failed to load colors", exc_info=True)
                     if visuals is not None:
                         kwargs["visual"] = visuals
-
-                    # By default the created mesh is not from primitive,
-                    # in case it is the value will be updated
-                    # each primitive gets it's own Trimesh object
-                    if len(m["primitives"]) > 1:
-                        kwargs["metadata"]["from_gltf_primitive"] = True
-                    else:
-                        kwargs["metadata"]["from_gltf_primitive"] = False
 
                     # custom attributes starting with a `_`
                     custom = {
@@ -1811,18 +1808,18 @@ def _read_buffers(
         "base_frame": base_frame,
         "camera": camera,
         "camera_transform": camera_transform,
+        "metadata": {},
     }
+
     try:
         # load any scene extras into scene.metadata
         # use a try except to avoid nested key checks
-        result["metadata"] = header["scenes"][header["scene"]]["extras"]
+        result["metadata"].update(header["scenes"][header["scene"]]["extras"])
     except BaseException:
         pass
     try:
         # load any scene extensions into a field of scene.metadata
         # use a try except to avoid nested key checks
-        if "metadata" not in result:
-            result["metadata"] = {}
         result["metadata"]["gltf_extensions"] = header["extensions"]
     except BaseException:
         pass
