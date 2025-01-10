@@ -129,11 +129,13 @@ def load(
     ###########################################
     # we are matching deprecated behavior here!
     # matching old behavior you should probably use `load_scene`
-    if len(loaded.geometry) == 1:
-        kind = loaded._source.file_type
+    kind = loaded._source.file_type
+    always_scene = {"gltf", "glb", "zip", "3dxml", "tar.gz"}
+    if kind not in always_scene and len(loaded.geometry) == 1:
         geom = next(iter(loaded.geometry.values()))
         geom.metadata.update(loaded.metadata)
-        if (kind not in {"glb", "gltf"} and isinstance(geom, PointCloud)) or kind in {
+
+        if isinstance(geom, PointCloud) or kind in {
             "obj",
             "stl",
             "ply",

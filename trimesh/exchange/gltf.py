@@ -1477,8 +1477,10 @@ def _read_buffers(
     for index, m in enumerate(header.get("meshes", [])):
         try:
             # GLTF spec indicates implicit units are meters
-            metadata = {"units": "meters",
-                        "from_gltf_primitive": len(m["primitives"]) > 1}
+            metadata = {
+                "units": "meters",
+                "from_gltf_primitive": len(m["primitives"]) > 1,
+            }
 
             # try to load all mesh metadata
             if isinstance(m.get("extras"), dict):
@@ -1487,7 +1489,6 @@ def _read_buffers(
             # put any mesh extensions in a field of the metadata
             if "extensions" in m:
                 metadata["gltf_extensions"] = m["extensions"]
-
 
             for p in m["primitives"]:
                 # if we don't have a triangular mesh continue
