@@ -1256,8 +1256,12 @@ def _parse_textures(header, views, resolver=None):
             if "bufferView" in img:
                 blob = views[img["bufferView"]]
             elif "uri" in img:
-                # will get bytes from filesystem or base64 URI
-                blob = _uri_to_bytes(uri=img["uri"], resolver=resolver)
+                try:
+                    # will get bytes from filesystem or base64 URI
+                    blob = _uri_to_bytes(uri=img["uri"], resolver=resolver)
+                except BaseException:
+                    log.debug(f"unable to load image from: {img.keys()}", exc_info=True)
+                    continue
             else:
                 log.debug(f"unable to load image from: {img.keys()}")
                 continue
