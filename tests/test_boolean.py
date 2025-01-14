@@ -11,8 +11,7 @@ engines = g.trimesh.boolean.engines_available
 if g.all_dependencies:
     engines = g.trimesh.boolean._engines.keys()
 
-# TODO : fix blender booleans?
-engines.difference_update({"blender"})
+engines = set(engines)
 
 
 def test_boolean():
