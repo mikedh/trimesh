@@ -96,7 +96,7 @@ class RepairTests(g.unittest.TestCase):
             assert mesh.is_winding_consistent == winding
 
             # save timings
-            timing[mesh.metadata["file_name"]] = g.time.time() - tic
+            timing[mesh.source.file_name] = g.time.time() - tic
         # print timings as a warning
         g.log.warning(g.json.dumps(timing, indent=4))
 

@@ -88,8 +88,8 @@ class FilePathResolver(Resolver):
         if not os.path.isdir(self.parent):
             raise ValueError(f"path `{self.parent} `not a directory!")
 
-        self._source = source
-        self._file_name = os.path.basename(source)
+        self.file_path = source
+        self.file_name = os.path.basename(source)
 
     def keys(self):
         """
@@ -355,6 +355,8 @@ class WebResolver(Resolver):
         assert "//" not in self.base_url[len(parsed.scheme) + 3 :]
         # we should always have ended with a single slash
         assert self.base_url.endswith("/")
+
+        self.file_name = url.split("/")[-1]
 
     def get(self, name: str) -> bytes:
         """

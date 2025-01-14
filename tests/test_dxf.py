@@ -65,16 +65,14 @@ class DXFTest(g.unittest.TestCase):
             if ratio > 0.01:
                 g.log.error(
                     "perimeter ratio on export %s wrong! %f %f %f",
-                    p.metadata["file_name"],
+                    p.source.file_name,
                     p.length,
                     r.length,
                     ratio,
                 )
 
                 raise ValueError(
-                    "perimeter ratio too large ({}) on {}".format(
-                        ratio, p.metadata["file_name"]
-                    )
+                    f"perimeter ratio too large ({ratio}) on {p.source.file_name}"
                 )
 
     def test_spline(self):

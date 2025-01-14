@@ -33,7 +33,7 @@ class ExportTest(g.unittest.TestCase):
                 # if nothing returned log the message
                 if export is None or len(export) == 0:
                     raise ValueError(
-                        "No data exported %s to %s", mesh.metadata["file_name"], file_type
+                        "No data exported %s to %s", mesh.source.file_name, file_type
                     )
 
                 if mesh.visual.kind == "texture":
@@ -50,7 +50,7 @@ class ExportTest(g.unittest.TestCase):
                     g.log.warning("no native loaders implemented for collada!")
                     continue
 
-                g.log.info("Export/import testing on %s", mesh.metadata["file_name"])
+                g.log.info("Export/import testing on %s", mesh.source.file_name)
 
                 if isinstance(export, str):
                     assert export.endswith("\n"), f"{file_type} doesn't end with newline"
@@ -84,34 +84,24 @@ class ExportTest(g.unittest.TestCase):
                     g.log.error(
                         "Export -> import for %s on %s wrong shape!",
                         file_type,
-                        mesh.metadata["file_name"],
+                        mesh.source.file_name,
                     )
 
                 if loaded.vertices is None:
                     g.log.error(
                         "Export -> import for %s on %s gave None for vertices!",
                         file_type,
-                        mesh.metadata["file_name"],
+                        mesh.source.file_name,
                     )
 
                 if loaded.faces.shape != mesh.faces.shape:
                     raise ValueError(
-                        "export cycle {} on {} gave faces {}->{}!".format(
-                            file_type,
-                            mesh.metadata["file_name"],
-                            str(mesh.faces.shape),
-                            str(loaded.faces.shape),
-                        )
+                        f"export cycle {file_type} on {mesh.source.file_name} gave faces {mesh.faces.shape!s}->{loaded.faces.shape!s}!"
                     )
 
                 if loaded.vertices.shape != mesh.vertices.shape:
                     raise ValueError(
-                        "export cycle {} on {} gave vertices {}->{}!".format(
-                            file_type,
-                            mesh.metadata["file_name"],
-                            mesh.vertices.shape,
-                            loaded.vertices.shape,
-                        )
+                        f"export cycle {file_type} on {mesh.source.file_name} gave vertices {mesh.vertices.shape}->{loaded.vertices.shape}!"
                     )
 
                 # try exporting/importing certain file types by name

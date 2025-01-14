@@ -18,7 +18,7 @@ class MeshTests(g.unittest.TestCase):
 
         for mesh in g.get_meshes(raise_error=True):
             # log file name for debugging
-            file_name = mesh.metadata["file_name"]
+            file_name = mesh.source.file_name
 
             # ply files can return PointCloud objects
             if file_name.startswith("points_"):

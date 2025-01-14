@@ -129,7 +129,8 @@ def load(
     # we are matching deprecated behavior here!
     # matching old behavior you should probably use `load_scene`
     kind = loaded.source.file_type
-    always_scene = {"gltf", "glb", "zip", "3dxml", "tar.gz"}
+    always_scene = {"glb", "gltf", "zip", "3dxml", "tar.gz"}
+
     if kind not in always_scene and len(loaded.geometry) == 1:
         geom = next(iter(loaded.geometry.values()))
         geom.metadata.update(loaded.metadata)

@@ -367,7 +367,7 @@ class Scene(Geometry3D):
             {
                 k: np.column_stack((v, np.zeros(len(v))))
                 for k, v in vertices.items()
-                if v.shape[1] == 2
+                if v is not None and v.shape[1] == 2
             }
         )
 

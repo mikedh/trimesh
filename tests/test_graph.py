@@ -102,7 +102,7 @@ class GraphTest(g.unittest.TestCase):
 
             g.log.info(
                 "graph engine on %s (scale %f sec):\n%s",
-                mesh.metadata["file_name"],
+                mesh.source.file_name,
                 diff.min(),
                 str(g.np.column_stack((self.engines, diff))),
             )

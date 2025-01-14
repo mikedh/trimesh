@@ -171,19 +171,17 @@ def load_obj(
         elif current_object is not None:
             name = current_object
         else:
+            # try to use the file name from the resolver
+            # or file object if possible before defaulting
             name = next(
                 i
                 for i in (
-                    getattr(resolver, "_file_name", None),
+                    getattr(resolver, "file_name", None),
                     getattr(file_obj, "name", None),
                     "geometry",
                 )
                 if i is not None
             )
-
-            # if name == 'geometry':
-            #    from IPython import embed
-            #    embed()
 
         # ensure the name is always unique
         name = util.unique_name(name, geometry)

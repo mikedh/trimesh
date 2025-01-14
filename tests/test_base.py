@@ -87,11 +87,12 @@ class MeshTests(g.unittest.TestCase):
 
         # check methods in scene objects
         scene = mesh.scene()
-        # camera will be None unless set
-        blacklist = ["camera"]
+
+        # these properties can be None
+        allowed_to_be_none = ["camera", "source"]
         for method in dir(scene):
             # ignore private- ish methods
-            if method.startswith("_") or method in blacklist:
+            if method.startswith("_") or method in allowed_to_be_none:
                 continue
             # a string expression to evaluate
             expr = f"scene.{method}"

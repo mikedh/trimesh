@@ -12,7 +12,7 @@ class IdentifierTest(g.unittest.TestCase):
         )
         for mesh in meshes:
             if not mesh.is_volume or mesh.body_count != 1:
-                g.log.warning("Mesh %s is not watertight!", mesh.metadata["file_name"])
+                g.log.warning("Mesh %s is not watertight!", mesh.source.file_name)
                 continue
 
             g.log.info("Trying hash at %d random transforms", count)
@@ -30,7 +30,7 @@ class IdentifierTest(g.unittest.TestCase):
                 ptp = g.np.ptp(identifier, axis=0)
                 g.log.error(
                     "Hashes on %s differ after transform:\n %s\n",
-                    mesh.metadata["file_name"],
+                    mesh.source.file_name,
                     str(ptp),
                 )
                 raise ValueError("values differ after transform!")
@@ -40,7 +40,7 @@ class IdentifierTest(g.unittest.TestCase):
             if hashed[-1] == stretched.identifier_hash:
                 raise ValueError(
                     "Hashes on %s didn't change after stretching",
-                    mesh.metadata["file_name"],
+                    mesh.source.file_name,
                 )
 
     def test_scene_id(self):

@@ -100,12 +100,15 @@ def units_from_metadata(obj: Geometry, guess: bool = True) -> str:
      A guess of what the units might be
     """
 
+    hints = [obj.metadata.get("name", None)]
+    if obj.source is not None:
+        hints.append(obj.source.file_name)
+
     # try to guess from metadata
-    for key in ["file_name", "name"]:
-        if key not in obj.metadata:
+    for hint in hints:
+        if hint is None:
             continue
-        # get the string which might contain unit hints
-        hints = obj.metadata[key].lower()
+        hint = hint.lower()
         if "unit" in hints:
             # replace all delimiter options with white space
             for delim in "_-.":

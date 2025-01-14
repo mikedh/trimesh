@@ -55,7 +55,7 @@ class TextureTest(g.unittest.TestCase):
             # see if web resolvers work
             tex = g.trimesh.exchange.load.load_remote(
                 url=address + "/fuze.obj", process=False
-            )
+            ).geometry["fuze.obj"]
             g.check_fuze(tex)
 
             # see if web + zip resolvers work

@@ -48,6 +48,11 @@ class LoadSource:
             return None
         return os.path.basename(self.file_path)
 
+    def __getstate__(self):
+        # this overides the `pickle.dump` behavior for this class
+        # we cannot pickle a file object so return `file_obj: None` for pickles
+        return {k: v if k != "file_obj" else None for k, v in self.__dict__.items()}
+
 
 class Geometry(ABC):
     """

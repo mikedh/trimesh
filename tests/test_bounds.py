@@ -14,7 +14,7 @@ class BoundsTest(g.unittest.TestCase):
         Test the OBB functionality in attributes of Trimesh objects
         """
         for m in self.meshes:
-            g.log.info("Testing OBB of %s", m.metadata["file_name"])
+            g.log.info("Testing OBB of %s", m.source.file_name)
             for i in range(6):
                 # on the first run through don't transform the points to see
                 # if we succeed in the meshes original orientation
