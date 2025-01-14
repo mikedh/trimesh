@@ -13,7 +13,7 @@ class IdentifierTest(g.unittest.TestCase):
         for mesh in meshes:
             if not mesh.is_volume or mesh.body_count != 1:
                 g.log.warning(
-                    f"Mesh {getattr(mesh.source, "file_name", None)} is not watertight!"
+                    f"Mesh {getattr(mesh.source, 'file_name', None)} is not watertight!"
                 )
                 continue
 
