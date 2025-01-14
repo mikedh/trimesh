@@ -1511,6 +1511,24 @@ def _read_buffers(
                     kwargs["entities"] = [Line(points=np.arange(len(kwargs["vertices"])))]
                 elif mode == _GL_POINTS:
                     kwargs["vertices"] = access[attr["POSITION"]]
+                    visuals = None
+                    if "COLOR_0" in attr:
+                        try:
+                            # try to load vertex colors from the accessors
+                            colors = access[attr["COLOR_0"]]
+                            if len(colors) == len(kwargs["vertices"]):
+                                if visuals is None:
+                                    # just pass to mesh as vertex color
+                                    kwargs["vertex_colors"] = colors.copy()
+                                else:
+                                    # we ALSO have texture so save as vertex
+                                    # attribute
+                                    visuals.vertex_attributes["color"] = colors.copy()
+                        except BaseException:
+                            # survive failed colors
+                            log.debug("failed to load colors", exc_info=True)
+                    if visuals is not None:
+                        kwargs["visual"] = visuals
                 elif mode in (_GL_TRIANGLES, _GL_STRIP):
                     # get vertices from accessors
                     kwargs["vertices"] = access[attr["POSITION"]]
