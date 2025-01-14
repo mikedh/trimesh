@@ -1497,8 +1497,11 @@ def _read_buffers(
             for p in m["primitives"]:
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
-                kwargs = {"metadata": {}, "process": False}
-                kwargs.update(deepcopy(mesh_kwargs))
+                kwargs = deepcopy(mesh_kwargs)
+                if kwargs.get("metadata", None) is None:
+                    kwargs["metadata"] = {}
+                if "process" not in kwargs:
+                    kwargs["process"] = False
                 kwargs["metadata"].update(metadata)
                 # i.e. GL_LINES, GL_TRIANGLES, etc
                 # specification says the default mode is GL_TRIANGLES

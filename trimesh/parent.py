@@ -6,6 +6,8 @@ The base class for Trimesh, PointCloud, and Scene objects
 """
 
 import abc
+import os
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -13,8 +15,38 @@ from . import bounds, caching
 from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
-from .typed import Any, ArrayLike, Dict, NDArray, Optional
+from .resolvers import ResolverLike
+from .typed import Any, ArrayLike, Dict, NDArray, Optional, Stream
 from .util import ABC
+
+
+@dataclass
+class LoadSource:
+    """
+    Save information about where a particular object was loaded from.
+    """
+
+    # a file-like object that can be accessed
+    file_obj: Optional[Stream]
+
+    # a cleaned file type string, i.e. "stl"
+    file_type: str
+
+    # if this was originally loaded from a file path
+    # save it here so we can check it later.
+    file_path: Optional[str]
+
+    # did we open `file_obj` ourselves?
+    was_opened: bool
+
+    # a resolver for loading assets next to the file
+    resolver: Optional[ResolverLike]
+
+    @property
+    def file_name(self) -> Optional[str]:
+        if self.file_path is None:
+            return None
+        return os.path.basename(self.file_path)
 
 
 class Geometry(ABC):
@@ -28,6 +60,7 @@ class Geometry(ABC):
 
     # geometry should have a dict to store loose metadata
     metadata: Dict
+    source: Optional[LoadSource] = None
 
     @property
     @abc.abstractmethod

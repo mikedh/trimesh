@@ -16,17 +16,20 @@ except BaseException as E:
 
 from .. import util
 from ..constants import log, tol
+from ..resolvers import ResolverLike
+from ..typed import Dict, Loadable, Optional
 from ..visual.color import to_float
 from ..visual.material import SimpleMaterial
 from ..visual.texture import TextureVisuals, unmerge_faces
 
 
 def load_obj(
-    file_obj,
-    resolver=None,
-    group_material=True,
-    skip_materials=False,
-    maintain_order=False,
+    file_obj: Loadable,
+    resolver: Optional[ResolverLike] = None,
+    group_material: bool = True,
+    skip_materials: bool = False,
+    maintain_order: bool = False,
+    metadata: Optional[Dict] = None,
     **kwargs,
 ):
     """
@@ -168,7 +171,19 @@ def load_obj(
         elif current_object is not None:
             name = current_object
         else:
-            name = kwargs.get("metadata", {}).get("file_name", "geometry")
+            name = next(
+                i
+                for i in (
+                    getattr(resolver, "_file_name", None),
+                    getattr(file_obj, "name", None),
+                    "geometry",
+                )
+                if i is not None
+            )
+
+            # if name == 'geometry':
+            #    from IPython import embed
+            #    embed()
 
         # ensure the name is always unique
         name = util.unique_name(name, geometry)

@@ -1,16 +1,15 @@
 import json
 import os
-from dataclasses import dataclass
 
 import numpy as np
 
 from .. import resolvers, util
 from ..base import Trimesh
 from ..exceptions import ExceptionWrapper
-from ..parent import Geometry
+from ..parent import Geometry, LoadSource
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Loadable, Optional, Stream
+from ..typed import Dict, Loadable, Optional
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -129,7 +128,7 @@ def load(
     ###########################################
     # we are matching deprecated behavior here!
     # matching old behavior you should probably use `load_scene`
-    kind = loaded._source.file_type
+    kind = loaded.source.file_type
     always_scene = {"gltf", "glb", "zip", "3dxml", "tar.gz"}
     if kind not in always_scene and len(loaded.geometry) == 1:
         geom = next(iter(loaded.geometry.values()))
@@ -155,6 +154,7 @@ def load_scene(
     file_type: Optional[str] = None,
     resolver: Optional[resolvers.ResolverLike] = None,
     allow_remote: bool = False,
+    metadata: Optional[Dict] = None,
     **kwargs,
 ) -> Scene:
     """
@@ -190,7 +190,6 @@ def load_scene(
         file_type=file_type,
         resolver=resolver,
         allow_remote=allow_remote,
-        **kwargs,
     )
 
     try:
@@ -199,7 +198,7 @@ def load_scene(
             loaded = load_path(
                 file_obj=arg.file_obj,
                 file_type=arg.file_type,
-                metadata=arg.metadata,
+                metadata=metadata,
                 **kwargs,
             )
         elif arg.file_type in ["svg", "dxf"]:
@@ -216,7 +215,7 @@ def load_scene(
                     file_obj=arg.file_obj,
                     file_type=arg.file_type,
                     resolver=arg.resolver,
-                    metadata=arg.metadata,
+                    metadata=metadata,
                     **kwargs,
                 )
             )
@@ -242,11 +241,10 @@ def load_scene(
     if not isinstance(loaded, Scene):
         loaded = Scene(loaded)
 
-    loaded._source = arg
-
-    ## add the "file_path" information to the overall scene metadata
-    if "metadata" not in kwargs:
-        loaded.metadata.update(arg.metadata)
+    # tack that sumbitch on
+    loaded.source = arg
+    for g in loaded.geometry.values():
+        g.source = arg
 
     return loaded
 
@@ -304,14 +302,8 @@ def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwa
     resolver = resolvers.ZipResolver(archive)
 
     # try to save the files with meaningful metadata
-    archive_name = arg.metadata.get("file_path", "archive")
-    if archive_name is not None:
-        meta_archive = {
-            "file_name": os.path.basename(archive_name),
-            "file_path": os.path.join(archive_name),
-        }
-    else:
-        meta_archive = {}
+    # archive_name = arg.file_path or "archive"
+    meta_archive = {}
 
     # populate our available formats
     if mixed:
@@ -515,31 +507,13 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
     raise ValueError(f"unable to determine type: {kwargs.keys()}")
 
 
-@dataclass
-class _FileArgs:
-    # a file-like object that can be accessed
-    file_obj: Optional[Stream]
-
-    # a cleaned file type string, i.e. "stl"
-    file_type: str
-
-    # any metadata generated from the file path
-    metadata: dict
-
-    # did we open `file_obj` ourselves?
-    was_opened: bool
-
-    # a resolver for loading assets next to the file
-    resolver: Optional[resolvers.ResolverLike]
-
-
 def _parse_file_args(
     file_obj: Loadable,
     file_type: Optional[str],
     resolver: Optional[resolvers.ResolverLike] = None,
     allow_remote: bool = False,
     **kwargs,
-) -> _FileArgs:
+) -> LoadSource:
     """
     Given a file_obj and a file_type try to magically convert
     arguments to a file-like object and a lowercase string of
@@ -582,8 +556,10 @@ def _parse_file_args(
       Populated `_FileArg` message
     """
 
-    metadata = {}
-    opened = False
+    # keep track if we opened a file ourselves and thus are
+    # responsible for closing it at the end of loading
+    was_opened = False
+    # try to save a file path from various inputs
     file_path = None
 
     if util.is_pathlib(file_obj):
@@ -614,7 +590,7 @@ def _parse_file_args(
                 file_type = util.split_extension(file_path, special=["tar.gz", "tar.bz2"])
             # actually open the file
             file_obj = open(file_path, "rb")
-            opened = True
+            was_opened = True
         else:
             if "{" in file_obj:
                 # if a bracket is in the string it's probably straight JSON
@@ -652,14 +628,14 @@ def _parse_file_args(
     file_type = file_type.lower()
 
     # if user passed in a metadata dict add it
-    if len(kwargs.get("metadata", {})) > 0:
-        metadata = kwargs["metadata"]
-    else:
-        metadata["file_type"] = file_type
-        if file_path is not None:
-            metadata.update(
-                {"file_path": file_path, "file_name": os.path.basename(file_path)}
-            )
+    # if len(kwargs.get("metadata", {})) > 0:
+    #    metadata = kwargs["metadata"]
+    # else:
+    #    metadata["file_type"] = file_type
+    #    if file_path is not None:
+    #        metadata.update(
+    #            {"file_path": file_path, "file_name": os.path.basename(file_path)}
+    #        )
 
     # if we still have no resolver try using file_obj name
     if (
@@ -670,11 +646,11 @@ def _parse_file_args(
     ):
         resolver = resolvers.FilePathResolver(file_obj.name)
 
-    return _FileArgs(
+    return LoadSource(
         file_obj=file_obj,
         file_type=file_type,
-        metadata=metadata,
-        was_opened=opened,
+        file_path=file_path,
+        was_opened=was_opened,
         resolver=resolver,
     )
 

@@ -193,8 +193,8 @@ class Scene(Geometry3D):
         elif "name" in geometry.metadata:
             # if name is in metadata use it
             name = geometry.metadata["name"]
-        elif "file_name" in geometry.metadata:
-            name = geometry.metadata["file_name"]
+        elif geometry.source is not None and geometry.source.file_name is not None:
+            name = geometry.source.file_name
         else:
             # try to create a simple name
             name = "geometry_" + str(len(self.geometry))

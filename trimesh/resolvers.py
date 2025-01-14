@@ -88,6 +88,9 @@ class FilePathResolver(Resolver):
         if not os.path.isdir(self.parent):
             raise ValueError(f"path `{self.parent} `not a directory!")
 
+        self._source = source
+        self._file_name = os.path.basename(source)
+
     def keys(self):
         """
         List all files available to be loaded.
