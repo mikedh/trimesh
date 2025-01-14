@@ -6,29 +6,40 @@ Test loaders against large corpuses of test data from github:
 will download more than a gigabyte to your home directory!
 """
 
+from dataclasses import dataclass
+
 import numpy as np
 from pyinstrument import Profiler
 
 import trimesh
+from trimesh.typed import List, Optional, Tuple
 from trimesh.util import log, wrap_as_stream
 
-# get a set with available extension
-available = trimesh.available_formats()
 
-# remove loaders that are thin wrappers
-available.difference_update(
-    [
-        k
-        for k, v in trimesh.exchange.load.mesh_loaders.items()
-        if v in (trimesh.exchange.misc.load_meshio,)
-    ]
-)
-# remove loaders we don't care about
-available.difference_update({"json", "dae", "zae"})
-available.update({"dxf", "svg"})
+@dataclass
+class LoadReport:
+    # i.e. 'hi.glb'
+    file_name: str
+
+    # i.e 'glb'
+    file_type: str
+
+    # i.e. 'Scene'
+    type_load: Optional[str] = None
+
+    # what type was every geometry
+    type_geometry: Optional[Tuple[str]] = None
+
+    # what is the printed repr of the object, i.e. `<Trimesh ...>`
+    repr_load: Optional[str] = None
+
+    # if there was an exception save it here
+    exception: Optional[str] = None
 
 
-def on_repo(repo, commit):
+def on_repo(
+    repo: str, commit: str, available: set, root: Optional[str] = None
+) -> List[LoadReport]:
     """
     Try loading all supported files in a Github repo.
 
@@ -38,6 +49,10 @@ def on_repo(repo, commit):
       Github "slug" i.e. "assimp/assimp"
     commit : str
       Full hash of the commit to check.
+    available
+      Which `file_type` to check
+    root
+      If passed only consider files under this root directory.
     """
 
     # get a resolver for the specific commit
@@ -47,7 +62,11 @@ def on_repo(repo, commit):
     # list file names in the repo we can load
     paths = [i for i in repo.keys() if i.lower().split(".")[-1] in available]
 
-    report = {}
+    if root is not None:
+        # clip off any file not under the root path
+        paths = [p for p in paths if p.startswith(root)]
+
+    report = []
     for _i, path in enumerate(paths):
         namespace, name = path.rsplit("/", 1)
         # get a subresolver that has a root at
@@ -63,8 +82,8 @@ def on_repo(repo, commit):
         should_raise = any(b in check for b in broke)
         raised = False
 
-        # clip off the big old name from the archive
-        saveas = path[path.find(commit) + len(commit) :]
+        # start collecting data about the current load attempt
+        current = LoadReport(file_name=name, file_type=trimesh.util.split_extension(name))
 
         try:
             m = trimesh.load(
@@ -72,7 +91,16 @@ def on_repo(repo, commit):
                 file_type=name,
                 resolver=resolver,
             )
-            report[saveas] = str(m)
+
+            # save the load types
+            current.type_load = m.__class__.__name__
+            if isinstance(m, trimesh.Scene):
+                # save geometry types
+                current.type_geometry = tuple(
+                    [g.__class__.__name__ for g in m.geometry.values()]
+                )
+            # save the <Trimesh ...> repr
+            current.repr_load = str(m)
 
             # if our source was a GLTF we should be able to roundtrip without
             # dropping
@@ -104,19 +132,20 @@ def on_repo(repo, commit):
             # this is what unsupported formats
             # like GLTF 1.0 should raise
             log.debug(E)
-            report[saveas] = str(E)
+            current.exception = str(E)
         except BaseException as E:
             raised = True
             # we got an error on a file that should have passed
             if not should_raise:
                 log.debug(path, E)
                 raise E
-            report[saveas] = str(E)
+            current.exception = str(E)
 
         # if it worked when it didn't have to add a label
         if should_raise and not raised:
             # raise ValueError(name)
-            report[saveas] += " SHOULD HAVE RAISED"
+            current.exception = "SHOULD HAVE RAISED BUT DIDN'T!"
+        report.append(current)
 
     return report
 
@@ -168,30 +197,52 @@ def equal(a, b):
 if __name__ == "__main__":
     trimesh.util.attach_to_log()
 
+    # get a set with available extension
+    available = trimesh.available_formats()
+
+    """
+    # remove loaders that are thin wrappers
+    available.difference_update(
+        [
+            k
+            for k, v in trimesh.exchange.load.mesh_loaders.items()
+            if v in (trimesh.exchange.misc.load_meshio,)
+        ]
+    )
+    # remove loaders we don't care about
+    available.difference_update({"json", "dae", "zae"})
+    available.update({"dxf", "svg"})
+    """
+
     with Profiler() as P:
         # check the assimp corpus, about 50mb
+
         report = on_repo(
-            repo="assimp/assimp", commit="c2967cf79acdc4cd48ecb0729e2733bf45b38a6f"
-        )
-        # check the gltf-sample-models, about 1gb
-        report.update(
-            on_repo(
-                repo="KhronosGroup/glTF-Sample-Models",
-                commit="8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b",
-            )
+            repo="mikedh/trimesh",
+            commit="2fcb2b2ea8085d253e692ecd4f71b8f450890d51",
+            available=available,
+            root="models",
         )
 
-        # add back collada for this repo
-        available.update(["dae", "zae"])
-        report.update(
+        """
+        report.extend(on_repo(
+            repo="assimp/assimp", commit="c2967cf79acdc4cd48ecb0729e2733bf45b38a6f", available=available
+        ))
+        # check the gltf-sample-models, about 1gb
+        report.extend(
             on_repo(
-                repo="ros-industrial/universal_robot",
-                commit="8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe",
+                repo="KhronosGroup/glTF-Sample-Models",
+                commit="8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b"
+                , available=available
             )
         )
+        report.extend(
+            on_repo(
+                repo="ros-industrial/universal_robot",
+                commit="8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe", available=available
+            )
+        )
+        """
 
     # show all profiler lines
     log.info(P.output_text(show_all=True))
-
-    # print a formatted report of what we loaded
-    log.debug("\n".join(f"# {k}\n{v}\n" for k, v in report.items()))

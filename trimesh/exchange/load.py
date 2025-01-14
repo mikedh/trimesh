@@ -332,7 +332,7 @@ def _load_compressed(file_obj, file_type=None, resolver=None, mixed=False, **kwa
             elif compressed_type == "json":
                 import json
 
-                meta_archive[file_name] = json.loads(file_obj)
+                meta_archive[file_name] = json.load(file_obj)
                 continue
             elif compressed_type not in available:
                 # don't raise an exception, just try the next one

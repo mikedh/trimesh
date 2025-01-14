@@ -1867,7 +1867,9 @@ def decompress(file_obj, file_type):
     if file_type.endswith("bz2"):
         import bz2
 
-        return {file_obj.name[:-4]: wrap_as_stream(bz2.open(file_obj, mode="r").read())}
+        # get the file name if we have one otherwise default to "archive"
+        name = getattr(file_obj, "name", "archive")
+        return {name: wrap_as_stream(bz2.open(file_obj, mode="r").read())}
     if "tar" in file_type[-6:]:
         import tarfile
 

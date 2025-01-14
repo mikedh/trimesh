@@ -76,7 +76,7 @@ def load_dxf(file_obj, **kwargs):
         # do it by encoding sentinel to bytes and subset searching
         if raw[:22].find(b"AutoCAD Binary DXF") != -1:
             # no converter to ASCII DXF available
-            raise ValueError("binary DXF not supported!")
+            raise NotImplementedError("binary DXF not supported!")
         else:
             # we've been passed bytes that don't have the
             # header for binary DXF so try decoding as UTF-8

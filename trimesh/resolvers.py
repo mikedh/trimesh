@@ -509,8 +509,15 @@ class GithubResolver(Resolver):
         # download the archive or get from disc
         raw = self.cache.get(self.url, fetch)
         # create a zip resolver for the archive
+        # the root directory in the zip is the repo+commit so strip that off
+        # so the keys are usable, i.e. "models" instead of "trimesh-2232323/models"
         self._zip = ZipResolver(
-            util.decompress(util.wrap_as_stream(raw), file_type="zip")
+            {
+                k.split("/", 1)[1]: v
+                for k, v in util.decompress(
+                    util.wrap_as_stream(raw), file_type="zip"
+                ).items()
+            }
         )
 
         return self._zip
