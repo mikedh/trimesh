@@ -261,7 +261,7 @@ def procrustes(
     # All zero entries are removed from further computations.
     # If weights is a binary array, the optimal solution can still be found by
     # simply removing the zero entries.
-    nonzero_weights = w_norm[:, 0] > 0
+    nonzero_weights = w_norm[:, 0] > 0.0
     a_nonzero = a_original[nonzero_weights]
     b_nonzero = b_original[nonzero_weights]
     w_norm = w_norm[nonzero_weights]
@@ -312,8 +312,8 @@ def procrustes(
         # the transformed source points and the target points.
         cost = (((b_nonzero - transformed[nonzero_weights]) ** 2) * w_norm).sum()
         return matrix, transformed, cost
-    else:
-        return matrix
+
+    return matrix
 
 
 def icp(a, b, initial=None, threshold=1e-5, max_iterations=20, **kwargs):

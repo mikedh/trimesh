@@ -35,7 +35,8 @@ class RegistrationTest(g.unittest.TestCase):
 
             # weight points or not
             if weight:
-                weights = (g.random(len(points_a)) + 9) / 10
+                weights = g.np.zeros(len(points_a))
+                weights[:10] = 1.0
             else:
                 weights = None
 
@@ -61,7 +62,7 @@ class RegistrationTest(g.unittest.TestCase):
             if weight:
                 # weights should have changed the matrix
                 # todo : check something less silly here?
-                assert g.np.allclose(matrixN, matrixN_C)
+                assert not g.np.allclose(matrixN, matrixN_C)
             else:
                 # no weights so everything should be identical
                 assert g.np.allclose(matrixN, matrixN_C)
@@ -104,7 +105,42 @@ class RegistrationTest(g.unittest.TestCase):
             # procrustes is allowed to use reflection
             # and there is no scaling in the matrix
             if a_flip and reflection and not scale:
-                assert g.np.isclose(det, -1.0)
+                assert g.np.isclose(det, -1.0), det
+
+    def test_procrustes_float_weights():
+        # create two meshes that are a box and some arbitrary other stuff
+        a = g.trimesh.creation.box() + g.trimesh.load_mesh("models/featuretype.STL")
+        b = g.trimesh.creation.box() + g.trimesh.load_mesh("models/rabbit.obj")
+
+        # mangle the larger mesh to have the same number of vertices
+        a.vertices = a.vertices[: len(b.vertices)]
+        a.faces = a.faces[(a.faces < len(b.vertices)).all(axis=1)]
+        assert a.vertices.shape == b.vertices.shape
+        # the box should match exactly
+        assert g.np.allclose(a.vertices[:8], b.vertices[:8])
+
+        # move `b` to an arbitrary transform
+        transform = g.trimesh.transformations.rotation_matrix(
+            0.456456, [0.14586, 2.0, 0.8946513], [100.1456, 51456.123, 447.2]
+        )
+        b.apply_transform(transform)
+
+        # create weights that just consider the box
+        weights = g.np.zeros(len(a.vertices))
+        weights[:8] = 1.0
+
+        # the easy case with boolean weights that just consider the box
+        register, _, _ = procrustes(a.vertices, b.vertices, weights=weights)
+        assert g.np.allclose(register, transform)
+
+        # now try it with floating point weights that should still match exactly
+        weights[:8] = g.np.arange(8) / 7.0
+        register, _, _ = procrustes(a.vertices, b.vertices, weights=weights)
+        assert g.np.allclose(register, transform)
+
+        # no weights shouldn't match at all
+        register, _, _ = procrustes(a.vertices, b.vertices)
+        assert not g.np.allclose(register, transform)
 
     def test_icp_mesh(self):
         # see if ICP alignment works with meshes

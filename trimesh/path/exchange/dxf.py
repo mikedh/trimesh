@@ -76,7 +76,7 @@ def load_dxf(file_obj, **kwargs):
         # do it by encoding sentinel to bytes and subset searching
         if raw[:22].find(b"AutoCAD Binary DXF") != -1:
             # no converter to ASCII DXF available
-            raise NotImplementedError("binary DXF not supported!")
+            raise NotImplementedError("Binary DXF is not supported!")
         else:
             # we've been passed bytes that don't have the
             # header for binary DXF so try decoding as UTF-8
@@ -814,7 +814,7 @@ def export_dxf(path, only_layers=None):
 
 def bulge_to_arcs(lines, bulge, bulge_idx, is_closed=False, metadata=None):
     """
-    Polylines can have "vertex bulge," which means the polyline
+    Polylines can have "vertex bulge" which means the polyline
     has an arc tangent to segments, rather than meeting at a
     vertex.
 
