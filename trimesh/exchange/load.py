@@ -597,6 +597,7 @@ def _parse_file_args(
             if "{" in file_obj:
                 # if a bracket is in the string it's probably straight JSON
                 file_type = "json"
+                file_obj = util.wrap_as_stream(file_obj)
             elif "https://" in file_obj or "http://" in file_obj:
                 if not allow_remote:
                     raise ValueError("unable to load URL with `allow_remote=False`")
@@ -614,6 +615,11 @@ def _parse_file_args(
 
             elif file_type is None:
                 raise ValueError(f"string is not a file: {file_obj}")
+            else:
+                file_obj = None
+    elif isinstance(file_obj, dict):
+        file_obj = util.wrap_as_stream(json.dumps(file_obj))
+        file_type = "dict"
 
     if file_type is None:
         file_type = file_obj.__class__.__name__

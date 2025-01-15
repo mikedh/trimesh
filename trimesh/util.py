@@ -1279,13 +1279,13 @@ def comment_strip(text, starts_with="#", new_line="\n"):
     return result
 
 
-def encoded_to_array(encoded):
+def encoded_to_array(encoded: Dict) -> NDArray:
     """
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
     Parameters
     ------------
-    encoded : dict
+    encoded
       Has keys:
         dtype: string of dtype
         shape: int tuple of shape
@@ -1294,7 +1294,7 @@ def encoded_to_array(encoded):
 
     Returns
     ----------
-    array: numpy array
+    array
     """
 
     if not isinstance(encoded, dict):
