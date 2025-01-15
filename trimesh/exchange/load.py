@@ -144,6 +144,7 @@ def load(
             "xaml",
             "dxf",
             "off",
+            "msh",
         }:
             return geom
 
@@ -231,7 +232,7 @@ def load_scene(
                 **kwargs,
             )
         else:
-            raise ValueError(f"file_type: '{arg.file_type}' not supported")
+            raise NotImplementedError(f"file_type '{arg.file_type}' not supported")
 
     finally:
         # if we opened the file ourselves from a file name

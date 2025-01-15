@@ -114,7 +114,7 @@ class DXFTest(g.unittest.TestCase):
             ff = g.os.path.join(dir_versions, f)
             try:
                 paths[f] = g.trimesh.load(ff)
-            except ValueError as E:
+            except NotImplementedError as E:
                 # something like 'r14a' for ascii
                 # and 'r14b' for binary
                 version = f.split(".")[-2]

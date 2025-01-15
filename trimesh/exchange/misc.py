@@ -104,12 +104,17 @@ def load_meshio(file_obj, file_type=None, **kwargs):
         temp.write(file_obj.read())
         temp.flush()
 
-        for file_format in file_formats:
-            try:
-                mesh = meshio.read(temp.name, file_format=file_format)
-                break
-            except BaseException:
-                util.log.debug("failed to load", exc_info=True)
+        if file_type in file_formats:
+            # if we've been passed the file type and don't have to guess
+            mesh = meshio.read(temp.name, file_format=file_type)
+        else:
+            # try the loaders in order
+            for file_format in file_formats:
+                try:
+                    mesh = meshio.read(temp.name, file_format=file_format)
+                    break
+                except BaseException:
+                    util.log.debug("failed to load", exc_info=True)
         if mesh is None:
             raise ValueError("Failed to load file!")
 
@@ -129,7 +134,7 @@ def load_meshio(file_obj, file_type=None, **kwargs):
     return result
 
 
-_misc_loaders = {}
+_misc_loaders = {"dict": load_dict, "dict64": load_dict}
 
 try:
     import meshio

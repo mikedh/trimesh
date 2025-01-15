@@ -5,7 +5,6 @@ Grab bag of utility functions.
 import abc
 import base64
 import collections
-import copy
 import json
 import logging
 import random
@@ -15,9 +14,8 @@ import time
 import uuid
 import warnings
 import zipfile
-
-# for type checking
 from collections.abc import Mapping
+from copy import deepcopy
 from io import BytesIO, StringIO
 
 import numpy as np
@@ -1465,6 +1463,17 @@ def concatenate(
         if _STRICT:
             raise E
 
+    metadata = {}
+    try:
+        [metadata.update(deepcopy(m.metadata) for m in is_mesh)]
+    except BaseException:
+        pass
+
+    try:
+        source = deepcopy(is_mesh[0].source)
+    except BaseException:
+        source = None
+
     # create the mesh object
     return trimesh_type(
         vertices=vertices,
@@ -1472,6 +1481,8 @@ def concatenate(
         face_normals=face_normals,
         vertex_normals=vertex_normals,
         visual=visual,
+        metadata=metadata,
+        source=source,
         process=False,
     )
 
@@ -1569,8 +1580,11 @@ def submesh(
             faces=faces,
             face_normals=np.vstack(normals),
             visual=visual,
+            metadata=deepcopy(mesh.metadata),
+            source=deepcopy(mesh.source),
             process=False,
         )
+
         return appended
 
     if visuals is None:
@@ -1583,7 +1597,8 @@ def submesh(
             faces=f,
             face_normals=n,
             visual=c,
-            metadata=copy.deepcopy(mesh.metadata),
+            metadata=deepcopy(mesh.metadata),
+            source=deepcopy(mesh.source),
             process=False,
         )
         for v, f, n, c in zip(vertices, faces, normals, visuals)
@@ -1868,7 +1883,7 @@ def decompress(file_obj, file_type):
         import bz2
 
         # get the file name if we have one otherwise default to "archive"
-        name = getattr(file_obj, "name", "archive")
+        name = getattr(file_obj, "name", "archive1234")[:-4]
         return {name: wrap_as_stream(bz2.open(file_obj, mode="r").read())}
     if "tar" in file_type[-6:]:
         import tarfile

@@ -1,13 +1,14 @@
 import collections
 import uuid
 import warnings
+from copy import deepcopy
 
 import numpy as np
 
 from .. import caching, convex, grouping, inertia, transformations, units, util
 from ..constants import log
 from ..exchange import export
-from ..parent import Geometry, Geometry3D
+from ..parent import Geometry, Geometry3D, LoadSource
 from ..registration import procrustes
 from ..typed import (
     ArrayLike,
@@ -49,6 +50,7 @@ class Scene(Geometry3D):
         camera: Optional[cameras.Camera] = None,
         lights: Optional[Sequence[lighting.Light]] = None,
         camera_transform: Optional[NDArray] = None,
+        source: Optional[LoadSource] = None,
     ):
         """
         Create a new Scene object.
@@ -87,6 +89,7 @@ class Scene(Geometry3D):
         self.metadata = {}
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
+        self.source = source
 
         if graph is not None:
             # if we've been passed a graph override the default
@@ -1433,27 +1436,23 @@ def split_scene(geometry, **kwargs):
     if isinstance(geometry, Scene):
         return geometry
 
+    # save metadata
+    metadata = {}
+
     # a list of things
     if util.is_sequence(geometry):
-        metadata = {}
         [metadata.update(getattr(g, "metadata", {})) for g in geometry]
-        return Scene(geometry, metadata=metadata)
+
+        source = next((g.source for g in geometry if g.source is not None), None)
+
+        return Scene(geometry, metadata=metadata, source=source)
 
     # a single geometry so we are going to split
-    split = []
-    metadata = {}
-    for g in util.make_sequence(geometry):
-        split.extend(g.split(**kwargs))
-        metadata.update(g.metadata)
-
-    # if there is only one geometry in the mesh
-    # name it from the file name
-    if len(split) == 1 and "file_name" in metadata:
-        split = {metadata["file_name"]: split[0]}
-
-    scene = Scene(split, metadata=metadata)
-
-    return scene
+    return Scene(
+        geometry.split(**kwargs),
+        metadata=deepcopy(geometry.metadata),
+        source=deepcopy(geometry.source),
+    )
 
 
 def append_scenes(iterable, common=None, base_frame="world"):
