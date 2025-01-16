@@ -1252,6 +1252,9 @@ def _parse_textures(header, views, resolver=None):
         images = [None] * len(header["images"])
         # loop through images
         for i, img in enumerate(header["images"]):
+            if img.get("mimeType", "") == "image/ktx2":
+                log.debug("`image/ktx2` textures are unsupported, skipping!")
+                continue
             # get the bytes representing an image
             if "bufferView" in img:
                 blob = views[img["bufferView"]]
@@ -1271,7 +1274,7 @@ def _parse_textures(header, views, resolver=None):
                 # load the buffer into a PIL image
                 images[i] = PIL.Image.open(util.wrap_as_stream(blob))
             except BaseException:
-                log.error("failed to load image!", exc_info=True)
+                log.debug("failed to load image!", exc_info=True)
     return images
 
 
@@ -1314,9 +1317,12 @@ def _parse_materials(header, views, resolver=None):
                     )
                     if webp is not None:
                         idx = webp
-                    else:
+                    elif "source" in texture:
                         # fallback (or primary, if extensions are not present)
                         idx = texture["source"]
+                    else:
+                        # no source available
+                        continue
                     # store the actual image as the value
                     result[k] = images[idx]
                 except BaseException:

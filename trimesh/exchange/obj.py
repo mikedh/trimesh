@@ -597,15 +597,15 @@ def _parse_vertices(text):
             # we have a nice 2D array
             result[k] = array.reshape(shape)
         else:
-            # try to recover with a slightly more expensive loop
-            count = per_row[k]
-            try:
-                # try to get result through reshaping
-                result[k] = np.fromstring(
-                    " ".join(i.split()[:count] for i in value), sep=" ", dtype=np.float64
-                ).reshape(shape)
-            except BaseException:
-                pass
+            # we don't have a nice (n, d) array so fall back to a slow loop
+            # this is where mixed "some of the values but not all have vertex colors"
+            # problem is handled.
+            lines = []
+            [[lines.append(v.strip().split()) for v in str.splitlines(i)] for i in value]
+            # we need to make a 2D array so clip it to the shortest array
+            count = min(len(L) for L in lines)
+            # make a numpy array out of the cleaned up line data
+            result[k] = np.array([L[:count] for L in lines], dtype=np.float64)
 
     # vertices
     v = result["v"]
