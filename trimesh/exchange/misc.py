@@ -54,24 +54,25 @@ def load_dict(file_obj, **kwargs):
 
     # now go through file_obj structure and if anything is encoded as base64
     # pull it back into numpy arrays
-    if isinstance(file_obj, dict):
-        loaded = {}
-        file_obj = util.decode_keys(file_obj, "utf-8")
-        for key, shape in mesh_file_obj.items():
-            if key in file_obj:
-                loaded[key] = util.encoded_to_array(file_obj[key])
-                if not util.is_shape(loaded[key], shape):
-                    raise ValueError(
-                        "Shape of %s is %s, not %s!",
-                        key,
-                        str(loaded[key].shape),
-                        str(shape),
-                    )
-        if len(key) == 0:
-            raise ValueError("Unable to extract any mesh file_obj!")
-        return loaded
-    else:
-        raise ValueError("%s object passed to dict loader!", file_obj.__class__.__name__)
+    if not isinstance(file_obj, dict):
+        raise ValueError(f"`{type(file_obj)}` object passed to dict loader!")
+
+    loaded = {}
+    file_obj = util.decode_keys(file_obj, "utf-8")
+    for key, shape in mesh_file_obj.items():
+        if key in file_obj:
+            loaded[key] = util.encoded_to_array(file_obj[key])
+            if not util.is_shape(loaded[key], shape):
+                raise ValueError(
+                    "Shape of %s is %s, not %s!",
+                    key,
+                    str(loaded[key].shape),
+                    str(shape),
+                )
+    if len(loaded) == 0:
+        raise ValueError("Unable to extract a mesh from the dict!")
+
+    return loaded
 
 
 def load_meshio(file_obj, file_type=None, **kwargs):

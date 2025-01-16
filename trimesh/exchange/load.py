@@ -207,8 +207,8 @@ def load_scene(
             # call the dummy function to raise the import error
             # this prevents the exception from being super opaque
             load_path()
-        elif isinstance(arg.file_obj, dict):
-            loaded = _load_kwargs(arg.file_obj)
+        elif isinstance(file_obj, dict):
+            loaded = _load_kwargs(file_obj)
         elif arg.file_type in mesh_loaders:
             # mesh loaders use mesh loader
 

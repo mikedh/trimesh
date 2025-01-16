@@ -7,7 +7,6 @@ The base class for Trimesh, PointCloud, and Scene objects
 
 import abc
 import os
-from copy import deepcopy
 from dataclasses import dataclass
 
 import numpy as np
