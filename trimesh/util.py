@@ -23,7 +23,7 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import Dict, Iterable, Optional, Set, Union
+from .typed import Dict, Iterable, NDArray, Optional, Set, Union
 
 # create a default logger
 log = logging.getLogger("trimesh")
