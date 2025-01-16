@@ -23,7 +23,7 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import Dict, Iterable, NDArray, Optional, Set, Union
+from .typed import ArrayLike, Dict, Iterable, NDArray, Optional, Set, Union, float64
 
 # create a default logger
 log = logging.getLogger("trimesh")
@@ -441,7 +441,7 @@ def vector_to_spherical(cartesian):
     return spherical
 
 
-def spherical_to_vector(spherical):
+def spherical_to_vector(spherical: ArrayLike) -> NDArray[float64]:
     """
     Convert an array of `(n, 2)` spherical angles to `(n, 3)` unit vectors.
 
@@ -1279,7 +1279,7 @@ def comment_strip(text, starts_with="#", new_line="\n"):
     return result
 
 
-def encoded_to_array(encoded: Dict) -> NDArray:
+def encoded_to_array(encoded: Union[Dict, ArrayLike]) -> NDArray:
     """
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
