@@ -221,11 +221,9 @@ if __name__ == "__main__":
             if v in (trimesh.exchange.misc.load_meshio,)
         ]
     )
-    """
-    # remove loaders we don't care about
-    available.difference_update({"json", "dae", "zae"})
-    available.update({"dxf", "svg"})
-    """
+
+    # TODO : waiting on a release containing pycollada/pycollada/147
+    available.difference_update({"dae"})
 
     with Profiler() as P:
         # check against the small trimesh corpus
