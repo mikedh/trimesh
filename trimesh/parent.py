@@ -17,7 +17,7 @@ from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
 from .resolvers import ResolverLike
-from .typed import Any, ArrayLike, Dict, NDArray, Optional, Stream
+from .typed import Any, ArrayLike, Dict, NDArray, Optional, Stream, float64
 from .util import ABC
 
 
@@ -49,15 +49,13 @@ class LoadSource:
             return None
         return os.path.basename(self.file_path)
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict:
         # this overides the `pickle.dump` behavior for this class
         # we cannot pickle a file object so return `file_obj: None` for pickles
         return {k: v if k != "file_obj" else None for k, v in self.__dict__.items()}
 
-    def __deepcopy__(self):
-        copied = deepcopy(self)
-        copied.file_obj = None
-        return copied
+    def __deepcopy__(self, *args):
+        return LoadSource(**self.__getstate__())
 
 
 class Geometry(ABC):
@@ -98,7 +96,7 @@ class Geometry(ABC):
 
         Returns
         ---------
-        hash : int
+        hash
           Hash of current graph and geometry.
         """
         return self._data.__hash__()  # type: ignore
@@ -119,7 +117,7 @@ class Geometry(ABC):
     def export(self, file_obj, file_type=None):
         pass
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Print quick summary of the current geometry without
         computing properties.
@@ -353,7 +351,7 @@ class Geometry3D(Geometry):
         volume_min = np.argmin([i.volume for i in options])
         return options[volume_min]
 
-    def apply_obb(self, **kwargs):
+    def apply_obb(self, **kwargs) -> NDArray[float64]:
         """
         Apply the oriented bounding box transform to the current mesh.
 
