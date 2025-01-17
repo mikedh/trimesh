@@ -7,6 +7,7 @@ will download more than a gigabyte to your home directory!
 """
 
 import json
+import sys
 import time
 from dataclasses import asdict, dataclass
 
@@ -51,6 +52,34 @@ class Report:
     # what was the profiler output for this run
     # a pyinstrument.renderers.JSONRenderer output
     profile: str
+
+    def compare(self, other: "Report"):
+        """
+        Compare this load report to another.
+        """
+        # what files were loaded by both versions
+        ot = {o.file_name: o.type_load for o in self.load}
+        nt = {n.file_name: n.type_load for n in other.load}
+
+        both = set(ot.keys()).intersection(nt.keys())
+        matches = np.array([ot[k] == nt[k] for k in both])
+        percent = matches.sum() / len(matches)
+
+        print(f"Comparing `{self.version}` against `{other.version}`")
+        print(f"Return types matched {percent * 100.0:0.3f}% of the time")
+        print(f"Loaded {len(self.load)} vs Loaded {len(other.load)}")
+
+
+def from_dict(data: dict) -> Report:
+    """
+    Parse a `Report` which has been exported using `dataclasses.asdict`
+    into a Report object.
+    """
+    return Report(
+        load=[LoadReport(**r) for r in data.get("load", [])],
+        version=data.get("version"),
+        profile=data.get("profile"),
+    )
 
 
 def on_repo(
@@ -207,9 +236,15 @@ def equal(a, b):
     return a == b
 
 
-if __name__ == "__main__":
-    trimesh.util.attach_to_log()
+def run(save: bool = False):
+    """
+    Try to load and export every mesh we can get our hands on.
 
+    Parameters
+    -----------
+    save
+      If passed, save a JSON dump of the load report.
+    """
     # get a set with available extension
     available = trimesh.available_formats()
 
@@ -223,7 +258,7 @@ if __name__ == "__main__":
     )
 
     # TODO : waiting on a release containing pycollada/pycollada/147
-    available.difference_update({"dae"})
+    # available.difference_update({"dae"})
 
     with Profiler() as P:
         # check against the small trimesh corpus
@@ -269,5 +304,24 @@ if __name__ == "__main__":
     # compose the overall report
     report = Report(load=loads, version=trimesh.__version__, profile=profile)
 
-    with open(f"trimesh.{trimesh.__version__}.{int(time.time())}.json", "w") as F:
-        json.dump(asdict(report), F)
+    if save:
+        with open(f"trimesh.{trimesh.__version__}.{int(time.time())}.json", "w") as F:
+            json.dump(asdict(report), F)
+
+    return report
+
+
+if __name__ == "__main__":
+    trimesh.util.attach_to_log()
+
+    if "-run" in " ".join(sys.argv):
+        run()
+
+    if "-compare" in " ".join(sys.argv):
+        with open("trimesh.4.5.3.1737061410.json") as f:
+            old = from_dict(json.load(f))
+
+        with open("trimesh.4.6.0.1737060030.json") as f:
+            new = from_dict(json.load(f))
+
+        new.compare(old)

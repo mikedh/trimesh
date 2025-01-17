@@ -54,7 +54,7 @@ jobs:
 
   pypi:
     name: Release To PyPi
-    needs: [tests, containers]
+    needs: [tests, containers, corpus]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -118,13 +118,13 @@ jobs:
     - name: Install Trimesh
       run: pip install .[easy,test]
     - name: Run Corpus Check
-      run: python tests/corpus.py
+      run: python tests/corpus.py -run
 
   release:
     permissions:
       contents: write  # for actions/create-release
     name: Create GitHub Release
-    needs: [tests, containers]
+    needs: [tests, containers, corpus]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

@@ -2,7 +2,7 @@ import numpy as np
 
 from ... import graph, grouping, util
 from ...constants import tol_path
-from ...typed import ArrayLike, Dict
+from ...typed import ArrayLike, Dict, NDArray, Optional
 from ..entities import Arc, Line
 
 
@@ -37,7 +37,7 @@ def dict_to_path(as_dict):
     return result
 
 
-def lines_to_path(lines):
+def lines_to_path(lines: ArrayLike, index: Optional[NDArray[np.int64]] = None) -> Dict:
     """
     Turn line segments into a Path2D or Path3D object.
 
@@ -45,6 +45,8 @@ def lines_to_path(lines):
     ------------
     lines : (n, 2, dimension) or (n, dimension) float
       Line segments or connected polyline curve in 2D or 3D
+    index : (n,) int64
+      If passed save an index for each line segment.
 
     Returns
     -----------
@@ -52,6 +54,9 @@ def lines_to_path(lines):
       kwargs for Path constructor
     """
     lines = np.asanyarray(lines, dtype=np.float64)
+
+    if index is not None:
+        index = np.asanyarray(index, dtype=np.int64)
 
     if util.is_shape(lines, (-1, (2, 3))):
         # the case where we have a list of points
