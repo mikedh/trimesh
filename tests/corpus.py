@@ -258,7 +258,7 @@ def run(save: bool = False):
     )
 
     # TODO : waiting on a release containing pycollada/pycollada/147
-    # available.difference_update({"dae"})
+    available.difference_update({"dae"})
 
     with Profiler() as P:
         # check against the small trimesh corpus
