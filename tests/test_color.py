@@ -28,6 +28,36 @@ class VisualTest(g.unittest.TestCase):
         r = a + b
         assert any(g.np.ptp(r.visual.face_colors, axis=0) > 1)
 
+    def test_random_color(self):
+        from trimesh.visual.color import random_color
+
+        c = random_color()
+        assert c.shape == (4,)
+        assert c.dtype == g.np.uint8
+
+        c = random_color(count=10)
+        assert c.shape == (10, 4)
+        assert c.dtype == g.np.uint8
+
+    def test_hsv_rgba(self):
+        # our HSV -> RGBA function
+        # the non-vectorized stdlib HSV -> RGB function
+        from colorsys import hsv_to_rgb
+
+        from trimesh.visual.color import hsv_to_rgba
+
+        # create some random HSV values in the 0.0 - 1.0 range
+        hsv = g.random((100, 3))
+
+        # run our conversion
+        ours = hsv_to_rgba(hsv, dtype=g.np.float64)
+
+        # check the result from the standard library
+        truth = g.np.array([hsv_to_rgb(*v) for v in hsv])
+
+        # they should match
+        assert g.np.allclose(ours[:, :3], truth, atol=0.0001)
+
     def test_concatenate_empty_mesh(self):
         box = g.get_mesh("box.STL")
 

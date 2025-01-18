@@ -22,7 +22,6 @@ Goals
    and setting or altering a value should automatically change the mode.
 """
 
-import colorsys
 import copy
 
 import numpy as np
@@ -30,7 +29,7 @@ import numpy as np
 from .. import caching, util
 from ..constants import tol
 from ..grouping import unique_rows
-from ..typed import ArrayLike, NDArray
+from ..typed import ArrayLike, DTypeLike, Integer, NDArray, Optional
 from .base import Visuals
 
 
@@ -648,26 +647,97 @@ def hex_to_rgba(color):
     return rgba
 
 
-def random_color(dtype=np.uint8):
+def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
+    """
+    Convert an (n, 3) array of 0.0-1.0 HSV colors into an
+    array of RGBA colors.
+
+    A vectorized implementation that matches `colorsys.hsv_to_rgb`.
+
+    Parameters
+    -----------
+    hsv
+      Should be `(n, 3)` array of 0.0-1.0 values.
+
+    Returns
+    ------------
+    rgba
+      An (n, 4) array of RGBA colors.
+    """
+
+    hsv = np.array(hsv, dtype=np.float64)
+    if len(hsv.shape) != 2 or hsv.shape[1] != 3:
+        raise ValueError("(n, 3) values of HSV are required")
+
+    # expand into flat arrays for each of
+    # hue, saturation, and value
+    H, S, V = hsv.T
+
+    # chroma
+    C = S * V
+    # check which case we fall into
+    Hi = H * 6.0
+    X = C * (1.0 - np.abs((Hi % 2.0) - 1.0))
+    # use a lookup table for an integer to match the
+    # cases specified on the wikipedia article
+    # These are indexes of C = 0 , X = 1, 0 = 2
+    LUT = np.array(
+        [[0, 1, 2], [1, 0, 2], [2, 0, 1], [2, 1, 0], [1, 2, 0], [0, 2, 1]], dtype=np.int64
+    )
+
+    # stack values we need so we can access them with the lookup table
+    stacked = np.column_stack((C, X, np.zeros_like(X)))
+    # get the indexes per-row
+    indexes = LUT[Hi.astype(np.int64)]
+    # multiply them by the column count so we can use them on a flat array
+    indexes_flat = (np.arange(len(indexes)) * 3).reshape((-1, 1)) + indexes
+
+    # get the inermediate point along the bottom three faces of the RGB cube
+    RGBi = stacked.ravel()[indexes_flat]
+
+    # stack it into the final RGBA array
+    RGBA = np.column_stack((RGBi + (V - C).reshape((-1, 1)), np.ones(len(H))))
+
+    # now check the return type and do what's necessary
+    dtype = np.dtype(dtype)
+    if dtype.kind == "f":
+        return RGBA.astype(dtype)
+    elif dtype.kind in "iu":
+        return (RGBA * np.iinfo(dtype).max).round().astype(dtype)
+
+    raise ValueError(f"dtype `{dtype}` not supported")
+
+
+def random_color(dtype: DTypeLike = np.uint8, count: Optional[Integer] = None):
     """
     Return a random RGB color using datatype specified.
 
     Parameters
     ----------
-    dtype: numpy dtype of result
+    dtype
+      Color type of result.
+    count
+      If passed return (count, 4) colors instead of
+      a single (4,) color.
 
     Returns
     ----------
-    color: (4,) dtype, random color that looks OK
+    color : (4,) or (count, 4)
+      Random color or colors that look "OK"
+
     """
-    hue = np.random.random() + 0.61803
-    hue %= 1.0
-    color = np.array(colorsys.hsv_to_rgb(hue, 0.99, 0.99))
-    if np.dtype(dtype).kind in "iu":
-        max_value = (2 ** (np.dtype(dtype).itemsize * 8)) - 1
-        color *= max_value
-    color = np.append(color, max_value).astype(dtype)
-    return color
+    # generate a random hue
+    hue = (np.random.random(count or 1) + 0.61803) % 1.0
+
+    # saturation and "value" as constant
+    sv = np.ones_like(hue) * 0.99
+    # convert our random hue to RGBA
+    colors = hsv_to_rgba(np.column_stack((hue, sv, sv)))
+
+    # unspecified count is a single color
+    if count is None:
+        return colors[0]
+    return colors
 
 
 def vertex_to_face_color(vertex_colors, faces):
@@ -799,7 +869,9 @@ def linear_color_map(values, color_range=None):
     return colors
 
 
-def interpolate(values, color_map=None, dtype=np.uint8):
+def interpolate(
+    values: ArrayLike, color_map: Optional[str] = None, dtype: DTypeLike = np.uint8
+):
     """
     Given a 1D list of values, return interpolated colors
     for the range.
@@ -844,7 +916,7 @@ def interpolate(values, color_map=None, dtype=np.uint8):
     return rgba
 
 
-def uv_to_color(uv, image):
+def uv_to_color(uv, image) -> NDArray[np.uint8]:
     """
     Get the color in a texture image.
 
@@ -884,7 +956,7 @@ def uv_to_color(uv, image):
     return colors
 
 
-def uv_to_interpolated_color(uv, image):
+def uv_to_interpolated_color(uv, image) -> NDArray[np.uint8]:
     """
     Get the color from texture image using bilinear sampling.
 

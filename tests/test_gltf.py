@@ -866,11 +866,39 @@ class GLTFTest(g.unittest.TestCase):
     def test_points(self):
         # test a simple pointcloud export-import cycle
         points = g.np.arange(30).reshape((-1, 3))
-        export = g.trimesh.Scene(g.trimesh.PointCloud(points)).export(file_type="glb")
+
+        # get a pointcloud object
+        cloud = g.trimesh.PointCloud(points)
+
+        # export as gltf
+        export = g.trimesh.Scene(cloud).export(file_type="glb")
         validate_glb(export)
-        reloaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
+        reloaded = next(
+            iter(
+                g.trimesh.load_scene(
+                    g.trimesh.util.wrap_as_stream(export), file_type="glb"
+                ).geometry.values()
+            )
+        )
         # make sure points survived export and reload
-        assert g.np.allclose(next(iter(reloaded.geometry.values())).vertices, points)
+        assert g.np.allclose(reloaded.vertices, points)
+
+        # now try adding color
+        colors = g.trimesh.visual.color.random_color(count=len(points))
+        cloud.colors = colors
+        export = g.trimesh.Scene(cloud).export(file_type="glb")
+        validate_glb(export)
+        reloaded = next(
+            iter(
+                g.trimesh.load_scene(
+                    g.trimesh.util.wrap_as_stream(export), file_type="glb"
+                ).geometry.values()
+            )
+        )
+
+        # make sure points with color survived export and reload
+        assert g.np.allclose(reloaded.vertices, points)
+        assert g.np.allclose(reloaded.colors, colors)
 
     def test_bulk(self):
         # Try exporting every loadable model to GLTF and checking
