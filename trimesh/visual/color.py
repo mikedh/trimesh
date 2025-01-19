@@ -29,7 +29,16 @@ import numpy as np
 from .. import caching, util
 from ..constants import tol
 from ..grouping import unique_rows
-from ..typed import ArrayLike, DTypeLike, Integer, Iterable, NDArray, Optional, Union
+from ..typed import (
+    ArrayLike,
+    DTypeLike,
+    Integer,
+    Iterable,
+    NDArray,
+    Optional,
+    Tuple,
+    Union,
+)
 from .base import Visuals
 
 
@@ -562,7 +571,9 @@ class VertexColor(Visuals):
         return self._colors.__hash__()
 
 
-def to_rgba(colors: Optional[ArrayLike], dtype: DTypeLike = np.uint8) -> NDArray:
+def to_rgba(
+    colors: Union[ArrayLike, None, Tuple], dtype: DTypeLike = np.uint8
+) -> NDArray:
     """
     Convert a single or multiple RGB colors to RGBA colors.
 
