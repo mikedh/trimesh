@@ -56,7 +56,7 @@ class VisualTest(g.unittest.TestCase):
         truth = g.np.array([hsv_to_rgb(*v) for v in hsv])
 
         # they should match
-        assert g.np.allclose(ours[:, :3], truth, atol=0.0001), ours[:,:3] - truth
+        assert g.np.allclose(ours[:, :3], truth, atol=0.0001), ours[:, :3] - truth
 
     def test_concatenate_empty_mesh(self):
         box = g.get_mesh("box.STL")
