@@ -466,7 +466,7 @@ class ColorVisuals(Visuals):
 
     def concatenate(
         self, other: Union[Iterable[Visuals], Visuals], *args
-    ) -> "ColorVisuals":
+    ):
         """
         Concatenate two or more ColorVisuals objects
         into a single object.
