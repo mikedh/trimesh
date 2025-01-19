@@ -40,10 +40,10 @@ class VisualTest(g.unittest.TestCase):
         assert c.dtype == g.np.uint8
 
     def test_hsv_rgba(self):
-        # our HSV -> RGBA function
         # the non-vectorized stdlib HSV -> RGB function
         from colorsys import hsv_to_rgb
 
+        # our HSV -> RGBA function
         from trimesh.visual.color import hsv_to_rgba
 
         # create some random HSV values in the 0.0 - 1.0 range
