@@ -611,5 +611,5 @@ def nearby_names(name, namespace=None):
         yield "/".join(strip)
 
 
-# most loaders can use a mapping in additon to a resolver
+# most loaders can use a mapping in addition to a resolver
 ResolverLike = Union[Resolver, Mapping]

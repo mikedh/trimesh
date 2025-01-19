@@ -58,11 +58,11 @@ class Report:
         Compare this load report to another.
         """
         # what files were loaded by both versions
-        ot = {o.file_name: o.type_load for o in self.load}
-        nt = {n.file_name: n.type_load for n in other.load}
+        self_type = {o.file_name: o.type_load for o in self.load}
+        other_type = {n.file_name: n.type_load for n in other.load}
 
-        both = set(ot.keys()).intersection(nt.keys())
-        matches = np.array([ot[k] == nt[k] for k in both])
+        both = set(self_type.keys()).intersection(other_type.keys())
+        matches = np.array([self_type[k] == other_type[k] for k in both])
         percent = matches.sum() / len(matches)
 
         print(f"Comparing `{self.version}` against `{other.version}`")

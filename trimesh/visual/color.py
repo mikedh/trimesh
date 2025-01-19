@@ -555,7 +555,7 @@ class VertexColor(Visuals):
         return self._colors.__hash__()
 
 
-def to_rgba(colors, dtype=np.uint8) -> NDArray:
+def to_rgba(colors, dtype: DTypeLike = np.uint8) -> NDArray:
     """
     Convert a single or multiple RGB colors to RGBA colors.
 
@@ -673,32 +673,30 @@ def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
     # hue, saturation, and value
     H, S, V = hsv.T
 
-    # chroma
+    # chroma and other values for the equation
     C = S * V
-    # check which case we fall into
     Hi = H * 6.0
     X = C * (1.0 - np.abs((Hi % 2.0) - 1.0))
     # use a lookup table for an integer to match the
     # cases specified on the wikipedia article
-    # These are indexes of C = 0 , X = 1, 0 = 2
-    LUT = np.array(
+    # Where indexes 0=C, 1=X, 2=0.0
+    lookup = np.array(
         [[0, 1, 2], [1, 0, 2], [2, 0, 1], [2, 1, 0], [1, 2, 0], [0, 2, 1]], dtype=np.int64
     )
 
     # stack values we need so we can access them with the lookup table
     stacked = np.column_stack((C, X, np.zeros_like(X)))
-    # get the indexes per-row
-    indexes = LUT[Hi.astype(np.int64)]
-    # multiply them by the column count so we can use them on a flat array
-    indexes_flat = (np.arange(len(indexes)) * 3).reshape((-1, 1)) + indexes
+    # get the indexes per-row and then increment them so we can use them on the stack
+    indexes = lookup[Hi.astype(np.int64)] + (np.arange(len(H)) * 3).reshape((-1, 1))
 
-    # get the inermediate point along the bottom three faces of the RGB cube
-    RGBi = stacked.ravel()[indexes_flat]
+    # get the intermediate value, described by wikipedia as
+    # the point along the bottom three faces of the RGB cube
+    RGBi = stacked.ravel()[indexes]
 
     # stack it into the final RGBA array
     RGBA = np.column_stack((RGBi + (V - C).reshape((-1, 1)), np.ones(len(H))))
 
-    # now check the return type and do what's necessary
+    # now return the correct type of color
     dtype = np.dtype(dtype)
     if dtype.kind == "f":
         return RGBA.astype(dtype)
@@ -724,7 +722,6 @@ def random_color(dtype: DTypeLike = np.uint8, count: Optional[Integer] = None):
     ----------
     color : (4,) or (count, 4)
       Random color or colors that look "OK"
-
     """
     # generate a random hue
     hue = (np.random.random(count or 1) + 0.61803) % 1.0
@@ -758,19 +755,25 @@ def vertex_to_face_color(vertex_colors, faces):
     return face_colors.astype(np.uint8)
 
 
-def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
+def face_to_vertex_color(
+    mesh, face_colors: ArrayLike, dtype: DTypeLike = np.uint8
+) -> NDArray:
     """
     Convert face colors into vertex colors.
 
     Parameters
     -----------
-    mesh : trimesh.Trimesh object
-    face_colors: (n, (3,4)) int, face colors
-    dtype:       data type of output
+    mesh : trimesh.Trimesh
+      Mesh to convert colors for
+    face_colors : `(len(mesh.faces), (3 | 4))` int
+      The colors for each face of the mesh
+    dtype
+      What should colors be returned in.
 
     Returns
     -----------
-    vertex_colors: (m,4) dtype, colors for each vertex
+    vertex_colors : `(len(mesh.vertices), 4)`
+      Color for each vertex
     """
     rgba = to_rgba(face_colors)
     vertex = mesh.faces_sparse.dot(rgba.astype(np.float64))
@@ -786,7 +789,7 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
     return vertex.astype(dtype)
 
 
-def colors_to_materials(colors, count=None):
+def colors_to_materials(colors: ArrayLike, count: Optional[Integer] = None):
     """
     Convert a list of colors into a list of unique materials
     and material indexes.
@@ -871,7 +874,7 @@ def linear_color_map(values, color_range=None):
 
 def interpolate(
     values: ArrayLike, color_map: Optional[str] = None, dtype: DTypeLike = np.uint8
-):
+) -> NDArray:
     """
     Given a 1D list of values, return interpolated colors
     for the range.
