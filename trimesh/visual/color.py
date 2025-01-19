@@ -674,7 +674,7 @@ def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
     if len(hsv.shape) != 2 or hsv.shape[1] != 3:
         raise ValueError("(n, 3) values of HSV are required")
     # clip values in-place to 0.0-1.0 range
-    np.clip(hsv, a_min=0.0, a_max=0.0, out=hsv)
+    np.clip(hsv, a_min=0.0, a_max=1.0, out=hsv)
 
     # expand into flat arrays for each of
     # hue, saturation, and value
