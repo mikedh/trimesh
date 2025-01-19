@@ -77,7 +77,7 @@ class ColorVisuals(Visuals):
             util.log.warning("unable to convert colors!")
 
     @caching.cache_decorator
-    def transparency(self):
+    def transparency(self) -> bool:
         """
         Does the current object contain any transparency.
 
@@ -250,7 +250,7 @@ class ColorVisuals(Visuals):
         self._data["vertex_colors"] = colors
         self._cache.verify()
 
-    def _get_colors(self, name: str):
+    def _get_colors(self, name):
         """
         A magical function which maintains the sanity of vertex and face colors.
 
@@ -480,7 +480,7 @@ class ColorVisuals(Visuals):
         result = objects.concatenate(self, other, *args)
         return result
 
-    def _update_key(self, mask: ArrayLike, key):
+    def _update_key(self, mask, key):
         """
         Mask the value contained in the DataStore at a specified key.
 
