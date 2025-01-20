@@ -16,7 +16,7 @@ from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
 from .resolvers import ResolverLike
-from .typed import Any, ArrayLike, Dict, NDArray, Optional, Stream, float64
+from .typed import Any, ArrayLike, Dict, NDArray, Optional, float64
 from .util import ABC
 
 
@@ -27,7 +27,7 @@ class LoadSource:
     """
 
     # a file-like object that can be accessed
-    file_obj: Optional[Stream] = None
+    file_obj: Optional[Any] = None
 
     # a cleaned file type string, i.e. "stl"
     file_type: Optional[str] = None
@@ -44,6 +44,14 @@ class LoadSource:
 
     @property
     def file_name(self) -> Optional[str]:
+        """
+        Get just the file name from the path if available.
+
+        Returns
+        ---------
+        file_name
+          Just the file name, i.e. for file_path="/a/b/c.stl" -> "c.stl"
+        """
         if self.file_path is None:
             return None
         return os.path.basename(self.file_path)
