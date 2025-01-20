@@ -82,7 +82,7 @@ class Geometry(ABC):
         # this should have been tacked on by the loader
         # but we want to *always* be able to access
         # a value like `mesh.source.file_type` so add a default
-        current = getattr(self, "_source", None):
+        current = getattr(self, "_source", None)
         if current is not None:
             return current
         self._source = LoadSource()
