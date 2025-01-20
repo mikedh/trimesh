@@ -659,30 +659,6 @@ class Scene(Geometry3D):
         # we only care about the values keys are garbage
         return list(duplicates.values())
 
-    def deduplicated(self) -> "Scene":
-        """
-        DEPRECATED: REMOVAL JANUARY 2025, this is one line and not that useful.
-
-        Return a new scene where each unique geometry is only
-        included once and transforms are discarded.
-
-        Returns
-        -------------
-        dedupe : Scene
-          One copy of each unique geometry from scene
-        """
-
-        warnings.warn(
-            "DEPRECATED: REMOVAL JANUARY 2025, this is one line and not that useful.",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-
-        # keying by `identifier_hash` will mean every geometry is unique
-        return Scene(
-            list({g.identifier_hash: g for g in self.geometry.values()}.values())
-        )
-
     def reconstruct_instances(self, cost_threshold: Floating = 1e-5) -> "Scene":
         """
         If a scene has been "baked" with meshes it means that

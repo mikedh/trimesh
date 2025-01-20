@@ -512,7 +512,7 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
 
 
 def _parse_file_args(
-    file_obj: Loadable,
+    file_obj,
     file_type: Optional[str],
     resolver: Optional[resolvers.ResolverLike] = None,
     allow_remote: bool = False,
@@ -559,25 +559,27 @@ def _parse_file_args(
     args
       Populated `_FileArg` message
     """
+    # try to save a file path from various inputs
+    file_path = None
+    # try to extract a file-like object from input
+    stream = None
 
     # keep track if we opened a file ourselves and thus are
     # responsible for closing it at the end of loading
     was_opened = False
-    # try to save a file path from various inputs
-    file_path = None
 
     if util.is_pathlib(file_obj):
         # convert pathlib objects to string
-        file_obj = str(file_obj.absolute())
+        stream = str(file_obj.absolute())
 
     if util.is_file(file_obj) and file_type is None:
-        raise ValueError("file_type must be set for file objects!")
+        raise ValueError("`file_type` must be set for file objects!")
 
     if isinstance(file_obj, str):
         try:
-            # os.path.isfile will return False incorrectly
-            # if we don't give it an absolute path
+            # clean up file path to an absolute location
             file_path = os.path.abspath(os.path.expanduser(file_obj))
+            # check to see if this path exists
             exists = os.path.isfile(file_path)
         except BaseException:
             exists = False
@@ -593,13 +595,14 @@ def _parse_file_args(
             if file_type is None:
                 file_type = util.split_extension(file_path, special=["tar.gz", "tar.bz2"])
             # actually open the file
-            file_obj = open(file_path, "rb")
+            stream = open(file_path, "rb")
+            # save that we opened it so we can cleanup later
             was_opened = True
         else:
             if "{" in file_obj:
                 # if a bracket is in the string it's probably straight JSON
                 file_type = "json"
-                file_obj = util.wrap_as_stream(file_obj)
+                stream = util.wrap_as_stream(file_obj)
             elif "https://" in file_obj or "http://" in file_obj:
                 if not allow_remote:
                     raise ValueError("unable to load URL with `allow_remote=False`")
@@ -613,20 +616,22 @@ def _parse_file_args(
                 # create a web resolver to do the fetching and whatnot
                 resolver = resolvers.WebResolver(url=file_obj)
                 # fetch the base file
-                file_obj = util.wrap_as_stream(resolver.get_base())
+                stream = util.wrap_as_stream(resolver.get_base())
 
             elif file_type is None:
-                raise ValueError(f"string is not a file: {file_obj}")
+                raise ValueError(f"string is not a file: `{file_obj}`")
             else:
-                file_obj = None
+                stream = None
 
     if isinstance(file_type, str) and "." in file_type:
         # if someone has passed the whole filename as the file_type
         # use the file extension as the file_type
-        file_path = file_type
+        path = os.path.abspath(os.path.expanduser(file_type))
         file_type = util.split_extension(file_type)
-        if resolver is None and os.path.exists(file_type):
-            resolver = resolvers.FilePathResolver(file_type)
+        if os.path.exists(path):
+            file_path = path
+            if resolver is None:
+                resolver = resolvers.FilePathResolver(file_path)
 
     # all our stored extensions reference in lower case
     if file_type is not None:
@@ -642,7 +647,7 @@ def _parse_file_args(
         resolver = resolvers.FilePathResolver(file_obj.name)
 
     return LoadSource(
-        file_obj=file_obj,
+        file_obj=stream or file_obj,
         file_type=file_type,
         file_path=file_path,
         was_opened=was_opened,

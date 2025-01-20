@@ -37,7 +37,7 @@ class LoadSource:
     file_path: Optional[str] = None
 
     # did we open `file_obj` ourselves?
-    was_opened: bool = None
+    was_opened: bool = False
 
     # a resolver for loading assets next to the file
     resolver: Optional[ResolverLike] = None
