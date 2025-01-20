@@ -39,7 +39,7 @@ from .caching import Cache, DataStore, TrackedArray, cache_decorator
 from .constants import log, tol
 from .exceptions import ExceptionWrapper
 from .exchange.export import export_mesh
-from .parent import Geometry3D, LoadSource
+from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
 from .typed import (
@@ -99,7 +99,6 @@ class Trimesh(Geometry3D):
         use_embree: bool = True,
         initial_cache: Optional[Dict[str, ndarray]] = None,
         visual: Optional[Union[ColorVisuals, TextureVisuals]] = None,
-        source: Optional[LoadSource] = None,
         **kwargs,
     ) -> None:
         """
@@ -202,9 +201,6 @@ class Trimesh(Geometry3D):
             self.metadata.update(metadata)
         elif metadata is not None:
             raise ValueError(f"metadata should be a dict or None, got {metadata!s}")
-
-        # where was this loaded from
-        self.source = source
 
         # store per-face and per-vertex attributes which will
         # be updated when an update_faces call is made

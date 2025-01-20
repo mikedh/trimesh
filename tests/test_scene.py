@@ -91,7 +91,7 @@ class SceneTests(g.unittest.TestCase):
                     # then make sure json can serialize it
                     e = g.json.dumps(s.export(file_type=export_format))
                     # reconstitute the dict into a scene
-                    r = g.trimesh.load(g.json.loads(e), file_type="dict")
+                    r = g.trimesh.load(g.json.loads(e))
 
                     # make sure the extents are similar before and after
                     assert g.np.allclose(g.np.prod(s.extents), g.np.prod(r.extents))

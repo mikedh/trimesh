@@ -9,7 +9,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry, LoadSource
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Dict, Loadable, Optional
+from ..typed import Dict, Loadable, Optional, Set
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -37,29 +37,30 @@ except BaseException as E:
         return set()
 
 
-def mesh_formats() -> set:
+def mesh_formats() -> Set[str]:
     """
     Get a list of mesh formats available to load.
 
     Returns
     -----------
-    loaders : list
-      Extensions of available mesh loaders,
-      i.e. 'stl', 'ply', etc.
+    loaders
+      Extensions of available mesh loaders
+      i.e. `{'stl', 'ply'}`
     """
     # filter out exceptionmodule loaders
     return {k for k, v in mesh_loaders.items() if not isinstance(v, ExceptionWrapper)}
 
 
-def available_formats() -> set:
+def available_formats() -> Set[str]:
     """
     Get a list of all available loaders
 
+
     Returns
     -----------
-    loaders : list
-        Extensions of available loaders
-        i.e. 'stl', 'ply', 'dxf', etc.
+    loaders
+      Extensions of all available loaders
+      i.e. `{'stl', 'ply', 'dxf'}`
     """
     loaders = mesh_formats()
     loaders.update(path_formats())
@@ -77,6 +78,8 @@ def load(
     **kwargs,
 ) -> Geometry:
     """
+    THIS FUNCTION IS DEPRECATED but there are no current plans for it to be removed.
+
     For new code the typed load functions `trimesh.load_scene` or `trimesh.load_mesh`
     are recommended over `trimesh.load` which is a backwards-compatibility wrapper
     that mimics the behavior of the old function and can return any geometry type.
@@ -126,8 +129,7 @@ def load(
         return loaded
 
     ###########################################
-    # we are matching deprecated behavior here!
-    # matching old behavior you should probably use `load_scene`
+    # we are matching old, deprecated behavior here!
     kind = loaded.source.file_type
     always_scene = {"glb", "gltf", "zip", "3dxml", "tar.gz"}
 
@@ -195,23 +197,19 @@ def load_scene(
     )
 
     try:
-        if arg.file_type in path_formats():
-            # path formats get loaded with path loader
+        if isinstance(file_obj, dict):
+            # we've been passed a dictionary so treat them as keyword arguments
+            loaded = _load_kwargs(file_obj)
+        elif arg.file_type in path_formats():
+            # use path loader
             loaded = load_path(
                 file_obj=arg.file_obj,
                 file_type=arg.file_type,
                 metadata=metadata,
                 **kwargs,
             )
-        elif arg.file_type in ["svg", "dxf"]:
-            # call the dummy function to raise the import error
-            # this prevents the exception from being super opaque
-            load_path()
-        elif isinstance(file_obj, dict):
-            loaded = _load_kwargs(file_obj)
         elif arg.file_type in mesh_loaders:
-            # mesh loaders use mesh loader
-
+            # use mesh loader
             loaded = _load_kwargs(
                 mesh_loaders[arg.file_type](
                     file_obj=arg.file_obj,
@@ -241,12 +239,14 @@ def load_scene(
             arg.file_obj.close()
 
     if not isinstance(loaded, Scene):
+        # file name may be used for nodes
+        loaded._source = arg
         loaded = Scene(loaded)
 
-    # tack that sumbitch on
-    loaded.source = arg
+    # add on the loading information
+    loaded._source = arg
     for g in loaded.geometry.values():
-        g.source = arg
+        g._source = arg
 
     return loaded
 
@@ -462,10 +462,12 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
         Handle an exported mesh.
         """
         data, file_type = kwargs["data"], kwargs["file_type"]
-        if not isinstance(data, dict):
-            data = util.wrap_as_stream(data)
-        k = mesh_loaders[file_type](data, file_type=file_type)
-        return Trimesh(**k)
+        if isinstance(data, dict):
+            return _load_kwargs(data)
+        elif file_type in mesh_loaders:
+            return Trimesh(**mesh_loaders[file_type](data, file_type=file_type))
+
+        raise NotImplementedError(f"`{file_type}` is not supported")
 
     def handle_path():
         from ..path import Path2D, Path3D
@@ -617,12 +619,6 @@ def _parse_file_args(
                 raise ValueError(f"string is not a file: {file_obj}")
             else:
                 file_obj = None
-    elif isinstance(file_obj, dict):
-        file_obj = util.wrap_as_stream(json.dumps(file_obj))
-        file_type = "dict"
-
-    if file_type is None:
-        file_type = file_obj.__class__.__name__
 
     if isinstance(file_type, str) and "." in file_type:
         # if someone has passed the whole filename as the file_type
@@ -633,17 +629,8 @@ def _parse_file_args(
             resolver = resolvers.FilePathResolver(file_type)
 
     # all our stored extensions reference in lower case
-    file_type = file_type.lower()
-
-    # if user passed in a metadata dict add it
-    # if len(kwargs.get("metadata", {})) > 0:
-    #    metadata = kwargs["metadata"]
-    # else:
-    #    metadata["file_type"] = file_type
-    #    if file_path is not None:
-    #        metadata.update(
-    #            {"file_path": file_path, "file_name": os.path.basename(file_path)}
-    #        )
+    if file_type is not None:
+        file_type = file_type.lower()
 
     # if we still have no resolver try using file_obj name
     if (

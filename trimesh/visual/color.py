@@ -464,9 +464,7 @@ class ColorVisuals(Visuals):
         mat, uv = color_to_uv(vertex_colors=self.vertex_colors)
         return TextureVisuals(material=mat, uv=uv)
 
-    def concatenate(
-        self, other: Union[Iterable[Visuals], Visuals], *args
-    ):
+    def concatenate(self, other: Union[Iterable[Visuals], Visuals], *args):
         """
         Concatenate two or more ColorVisuals objects
         into a single object.

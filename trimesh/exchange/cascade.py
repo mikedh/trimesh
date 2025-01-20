@@ -1,6 +1,7 @@
 import os
 import tempfile
 
+from ..exceptions import ExceptionWrapper
 from ..typed import BinaryIO, Dict, Number, Optional
 
 # used as an intermediate format
@@ -68,5 +69,6 @@ try:
     import cascadio
 
     _cascade_loaders = {"stp": load_step, "step": load_step}
-except BaseException:
-    _cascade_loaders = {}
+except BaseException as E:
+    wrapper = ExceptionWrapper(E)
+    _cascade_loaders = {"stp": wrapper, "step": wrapper}

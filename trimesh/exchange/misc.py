@@ -2,6 +2,7 @@ import json
 from tempfile import NamedTemporaryFile
 
 from .. import util
+from ..exceptions import ExceptionWrapper
 
 
 def load_dict(file_obj, **kwargs):
@@ -75,7 +76,7 @@ def load_dict(file_obj, **kwargs):
     return loaded
 
 
-def load_meshio(file_obj, file_type=None, **kwargs):
+def load_meshio(file_obj, file_type: str, **kwargs):
     """
     Load a meshio-supported file into the kwargs for a Trimesh
     constructor.
@@ -94,30 +95,26 @@ def load_meshio(file_obj, file_type=None, **kwargs):
       kwargs for Trimesh constructor
     """
     # trimesh "file types" are really filename extensions
+    # meshio may return multiple answers for each file extension
     file_formats = meshio.extension_to_filetypes["." + file_type]
-    # load_meshio gets passed and io.BufferedReader
-    # not all readers can cope with that
-    # e.g., the ones that use h5m underneath
-    # in that case use the associated file name instead
-    mesh = None
 
+    mesh = None
+    exceptions = []
+
+    # meshio appears to only support loading by file name so use a tempfile
     with NamedTemporaryFile(suffix=f".{file_type}") as temp:
         temp.write(file_obj.read())
         temp.flush()
+        # try the loaders in order
+        for file_format in file_formats:
+            try:
+                mesh = meshio.read(temp.name, file_format=file_format)
+                break
+            except BaseException as E:
+                exceptions.append(str(E))
 
-        if file_type in file_formats:
-            # if we've been passed the file type and don't have to guess
-            mesh = meshio.read(temp.name, file_format=file_type)
-        else:
-            # try the loaders in order
-            for file_format in file_formats:
-                try:
-                    mesh = meshio.read(temp.name, file_format=file_format)
-                    break
-                except BaseException:
-                    util.log.debug("failed to load", exc_info=True)
-        if mesh is None:
-            raise ValueError("Failed to load file!")
+    if mesh is None:
+        raise ValueError("Failed to load file:" + "\n".join(exceptions))
 
     # save file_obj as kwargs for a trimesh.Trimesh
     result = {}
@@ -136,6 +133,8 @@ def load_meshio(file_obj, file_type=None, **kwargs):
 
 
 _misc_loaders = {"dict": load_dict, "dict64": load_dict}
+_misc_loaders = {}
+
 
 try:
     import meshio
@@ -150,5 +149,5 @@ try:
     import openctm
 
     _misc_loaders["ctm"] = openctm.load_ctm
-except BaseException:
-    pass
+except BaseException as E:
+    _misc_loaders["ctm"] = ExceptionWrapper(E)

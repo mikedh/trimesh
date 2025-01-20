@@ -27,20 +27,20 @@ class LoadSource:
     """
 
     # a file-like object that can be accessed
-    file_obj: Optional[Stream]
+    file_obj: Optional[Stream] = None
 
     # a cleaned file type string, i.e. "stl"
-    file_type: str
+    file_type: Optional[str] = None
 
     # if this was originally loaded from a file path
     # save it here so we can check it later.
-    file_path: Optional[str]
+    file_path: Optional[str] = None
 
     # did we open `file_obj` ourselves?
-    was_opened: bool
+    was_opened: bool = None
 
     # a resolver for loading assets next to the file
-    resolver: Optional[ResolverLike]
+    resolver: Optional[ResolverLike] = None
 
     @property
     def file_name(self) -> Optional[str]:
@@ -68,7 +68,25 @@ class Geometry(ABC):
 
     # geometry should have a dict to store loose metadata
     metadata: Dict
-    source: Optional[LoadSource] = None
+
+    @property
+    def source(self) -> LoadSource:
+        """
+        Where and what was this current geometry loaded from?
+
+        Returns
+        --------
+        source
+          If loaded from a file, has the path, type, etc.
+        """
+        # this should have been tacked on by the loader
+        # but we want to *always* be able to access
+        # a value like `mesh.source.file_type` so add a default
+        current = getattr(self, "_source", None):
+        if current is not None:
+            return current
+        self._source = LoadSource()
+        return self._source
 
     @property
     @abc.abstractmethod

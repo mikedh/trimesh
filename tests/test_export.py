@@ -222,7 +222,8 @@ class ExportTest(g.unittest.TestCase):
         assert mesh.visual.kind == "vertex"
 
         as_dict = mesh.to_dict()
-        back = g.trimesh.Trimesh(**as_dict)  # NOQA
+        back = g.trimesh.Trimesh(**as_dict, process=False)
+        assert g.np.allclose(back.vertices, mesh.vertices)
 
     def test_scene(self):
         # get a multi- mesh scene with a transform tree
