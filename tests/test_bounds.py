@@ -9,6 +9,19 @@ class BoundsTest(g.unittest.TestCase):
         meshes = [g.get_mesh(i) for i in ["large_block.STL", "featuretype.STL"]]
         self.meshes = g.np.append(meshes, list(g.get_meshes(5)))
 
+
+    def test_obb_mesh_large(self):
+        """Test the OBB functionality on really large sets of vertices."""
+
+        torus_mesh = g.trimesh.creation.torus(major_radius=5, minor_radius=1, major_sections=512, minor_sections=256)
+        start = g.timeit.default_timer()
+        g.trimesh.bounds.oriented_bounds(torus_mesh.vertices)
+        stop = g.timeit.default_timer()
+
+        # Make sure oriented bound estimation runs within 30 seconds.
+        assert stop - start < 30, f"Took {stop - start} seconds to estimate the oriented bounding box."
+
+
     def test_obb_mesh(self):
         """
         Test the OBB functionality in attributes of Trimesh objects
