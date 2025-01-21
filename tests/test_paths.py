@@ -42,7 +42,7 @@ class VectorTests(g.unittest.TestCase):
 
             # file_name should be populated, and if we have a DXF file
             # the layer field should be populated with layer names
-            if d.metadata["file_name"][-3:] == "dxf":
+            if d.source.file_name[-3:] == "dxf":
                 assert len(d.layers) == len(d.entities)
 
             for path, verts in zip(d.paths, d.discrete):
@@ -51,7 +51,7 @@ class VectorTests(g.unittest.TestCase):
 
                 if not g.np.all(dists > g.tol_path.zero):
                     raise ValueError(
-                        "{} had zero distance in discrete!", d.metadata["file_name"]
+                        "{} had zero distance in discrete!", d.source.file_name
                     )
 
                 circuit_dist = g.np.linalg.norm(verts[0] - verts[-1])
@@ -59,14 +59,14 @@ class VectorTests(g.unittest.TestCase):
                 if not circuit_test:
                     g.log.error(
                         "On file %s First and last vertex distance %f",
-                        d.metadata["file_name"],
+                        d.source.file_name,
                         circuit_dist,
                     )
                 assert circuit_test
 
                 is_ccw = g.trimesh.path.util.is_ccw(verts)
                 if not is_ccw:
-                    g.log.error("discrete %s not ccw!", d.metadata["file_name"])
+                    g.log.error("discrete %s not ccw!", d.source.file_name)
 
             for i in range(len(d.paths)):
                 assert d.polygons_closed[i].is_valid
@@ -82,7 +82,7 @@ class VectorTests(g.unittest.TestCase):
             split = d.split()
             g.log.info(
                 "Split %s into %d bodies, checking identifiers",
-                d.metadata["file_name"],
+                d.source.file_name,
                 len(split),
             )
             for body in split:
@@ -101,7 +101,7 @@ class VectorTests(g.unittest.TestCase):
             assert g.np.allclose(d.bounds[:, 1], ori[:, 1])
 
             if len(d.polygons_full) > 0 and len(d.vertices) < 150:
-                g.log.info("Checking medial axis on %s", d.metadata["file_name"])
+                g.log.info("Checking medial axis on %s", d.source.file_name)
                 m = d.medial_axis()
                 assert len(m.entities) > 0
 

@@ -8,13 +8,13 @@ class RayTests(g.unittest.TestCase):
     def test_rays(self):
         meshes = [g.get_mesh(**k) for k in g.data["ray_data"]["load_kwargs"]]
         rays = g.data["ray_data"]["rays"]
-        names = [m.metadata["file_name"] for m in meshes]
+        names = [m.source.file_name for m in meshes]
 
         hit_id = []
         hit_loc = []
         hit_any = []
         for m in meshes:
-            name = m.metadata["file_name"]
+            name = m.source.file_name
             hit_any.append(m.ray.intersects_any(**rays[name]))
             hit_loc.append(m.ray.intersects_location(**rays[name])[0])
             hit_id.append(m.ray.intersects_id(**rays[name]))

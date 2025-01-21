@@ -190,7 +190,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None, coplanar_tol
             if util.is_shape(points, (-1, 2)):
                 return oriented_bounds_2D(points)
             elif util.is_shape(points, (-1, 3)):
-                hull = convex.convex_hull(points, repair=False)
+                hull = convex.convex_hull(points, repair=True)
             else:
                 raise ValueError("Points are not (n,3) or (n,2)!")
         else:

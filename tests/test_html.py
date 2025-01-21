@@ -24,6 +24,12 @@ class ViewTest(g.unittest.TestCase):
         children = list(h.body.iterchildren())
         assert len(children) >= 2
 
+        try:
+            # make sure this is returning anything
+            assert js.scene_to_notebook(s) is not None
+        except ImportError:
+            g.log.debug("Probably no IPython to test", exc_info=True)
+
     def test_inNB(self):
         import trimesh.viewer.notebook as js
 

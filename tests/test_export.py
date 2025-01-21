@@ -33,7 +33,7 @@ class ExportTest(g.unittest.TestCase):
                 # if nothing returned log the message
                 if export is None or len(export) == 0:
                     raise ValueError(
-                        "No data exported %s to %s", mesh.metadata["file_name"], file_type
+                        "No data exported %s to %s", mesh.source.file_name, file_type
                     )
 
                 if mesh.visual.kind == "texture":
@@ -50,7 +50,7 @@ class ExportTest(g.unittest.TestCase):
                     g.log.warning("no native loaders implemented for collada!")
                     continue
 
-                g.log.info("Export/import testing on %s", mesh.metadata["file_name"])
+                g.log.info("Export/import testing on %s", mesh.source.file_name)
 
                 if isinstance(export, str):
                     assert export.endswith("\n"), f"{file_type} doesn't end with newline"
@@ -84,34 +84,24 @@ class ExportTest(g.unittest.TestCase):
                     g.log.error(
                         "Export -> import for %s on %s wrong shape!",
                         file_type,
-                        mesh.metadata["file_name"],
+                        mesh.source.file_name,
                     )
 
                 if loaded.vertices is None:
                     g.log.error(
                         "Export -> import for %s on %s gave None for vertices!",
                         file_type,
-                        mesh.metadata["file_name"],
+                        mesh.source.file_name,
                     )
 
                 if loaded.faces.shape != mesh.faces.shape:
                     raise ValueError(
-                        "export cycle {} on {} gave faces {}->{}!".format(
-                            file_type,
-                            mesh.metadata["file_name"],
-                            str(mesh.faces.shape),
-                            str(loaded.faces.shape),
-                        )
+                        f"export cycle {file_type} on {mesh.source.file_name} gave faces {mesh.faces.shape!s}->{loaded.faces.shape!s}!"
                     )
 
                 if loaded.vertices.shape != mesh.vertices.shape:
                     raise ValueError(
-                        "export cycle {} on {} gave vertices {}->{}!".format(
-                            file_type,
-                            mesh.metadata["file_name"],
-                            mesh.vertices.shape,
-                            loaded.vertices.shape,
-                        )
+                        f"export cycle {file_type} on {mesh.source.file_name} gave vertices {mesh.vertices.shape}->{loaded.vertices.shape}!"
                     )
 
                 # try exporting/importing certain file types by name
@@ -232,7 +222,8 @@ class ExportTest(g.unittest.TestCase):
         assert mesh.visual.kind == "vertex"
 
         as_dict = mesh.to_dict()
-        back = g.trimesh.Trimesh(**as_dict)  # NOQA
+        back = g.trimesh.Trimesh(**as_dict, process=False)
+        assert g.np.allclose(back.vertices, mesh.vertices)
 
     def test_scene(self):
         # get a multi- mesh scene with a transform tree
@@ -336,8 +327,6 @@ class ExportTest(g.unittest.TestCase):
         # it's wordy
         f = g.trimesh.exchange.load._parse_file_args
 
-        RET_COUNT = 5
-
         # a path that doesn't exist
         nonexists = f"/banana{g.random()}"
         assert not g.os.path.exists(nonexists)
@@ -348,13 +337,11 @@ class ExportTest(g.unittest.TestCase):
 
         # should be able to extract type from passed filename
         args = f(file_obj=exists, file_type=None)
-        assert len(args) == RET_COUNT
-        assert args[1] == "obj"
+        assert args.file_type == "obj"
 
         # should be able to extract correct type from longer name
         args = f(file_obj=exists, file_type="YOYOMA.oBj")
-        assert len(args) == RET_COUNT
-        assert args[1] == "obj"
+        assert args.file_type == "obj"
 
         # with a nonexistent file and no extension it should raise
         try:
@@ -367,15 +354,13 @@ class ExportTest(g.unittest.TestCase):
         # nonexistent file with extension passed should return
         # file name anyway, maybe something else can handle it
         args = f(file_obj=nonexists, file_type=".ObJ")
-        assert len(args) == RET_COUNT
         # should have cleaned up case
-        assert args[1] == "obj"
+        assert args.file_type == "obj"
 
         # make sure overriding type works for string filenames
         args = f(file_obj=exists, file_type="STL")
-        assert len(args) == RET_COUNT
         # should have used manually passed type over .obj
-        assert args[1] == "stl"
+        assert args.file_type == "stl"
 
     def test_buffered_random(self):
         """Test writing to non-standard file"""

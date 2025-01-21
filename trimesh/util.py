@@ -5,7 +5,6 @@ Grab bag of utility functions.
 import abc
 import base64
 import collections
-import copy
 import json
 import logging
 import random
@@ -15,9 +14,8 @@ import time
 import uuid
 import warnings
 import zipfile
-
-# for type checking
 from collections.abc import Mapping
+from copy import deepcopy
 from io import BytesIO, StringIO
 
 import numpy as np
@@ -25,7 +23,7 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import Dict, Iterable, Optional, Set, Union
+from .typed import ArrayLike, Dict, Iterable, NDArray, Optional, Set, Union, float64
 
 # create a default logger
 log = logging.getLogger("trimesh")
@@ -443,7 +441,7 @@ def vector_to_spherical(cartesian):
     return spherical
 
 
-def spherical_to_vector(spherical):
+def spherical_to_vector(spherical: ArrayLike) -> NDArray[float64]:
     """
     Convert an array of `(n, 2)` spherical angles to `(n, 3)` unit vectors.
 
@@ -1281,13 +1279,13 @@ def comment_strip(text, starts_with="#", new_line="\n"):
     return result
 
 
-def encoded_to_array(encoded):
+def encoded_to_array(encoded: Union[Dict, ArrayLike]) -> NDArray:
     """
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
     Parameters
     ------------
-    encoded : dict
+    encoded
       Has keys:
         dtype: string of dtype
         shape: int tuple of shape
@@ -1296,7 +1294,7 @@ def encoded_to_array(encoded):
 
     Returns
     ----------
-    array: numpy array
+    array
     """
 
     if not isinstance(encoded, dict):
@@ -1465,15 +1463,29 @@ def concatenate(
         if _STRICT:
             raise E
 
+    metadata = {}
+    try:
+        [metadata.update(deepcopy(m.metadata) for m in is_mesh)]
+    except BaseException:
+        pass
+
     # create the mesh object
-    return trimesh_type(
+    result = trimesh_type(
         vertices=vertices,
         faces=faces,
         face_normals=face_normals,
         vertex_normals=vertex_normals,
         visual=visual,
+        metadata=metadata,
         process=False,
     )
+
+    try:
+        result._source = deepcopy(is_mesh[0].source)
+    except BaseException:
+        pass
+
+    return result
 
 
 def submesh(
@@ -1569,8 +1581,11 @@ def submesh(
             faces=faces,
             face_normals=np.vstack(normals),
             visual=visual,
+            metadata=deepcopy(mesh.metadata),
             process=False,
         )
+        appended._source = deepcopy(mesh.source)
+
         return appended
 
     if visuals is None:
@@ -1583,11 +1598,13 @@ def submesh(
             faces=f,
             face_normals=n,
             visual=c,
-            metadata=copy.deepcopy(mesh.metadata),
+            metadata=deepcopy(mesh.metadata),
             process=False,
         )
         for v, f, n, c in zip(vertices, faces, normals, visuals)
     ]
+
+    [setattr(r, "_source", deepcopy(mesh.source)) for r in result]
 
     if only_watertight or repair:
         # fill_holes will attempt a repair and returns the
@@ -1867,7 +1884,9 @@ def decompress(file_obj, file_type):
     if file_type.endswith("bz2"):
         import bz2
 
-        return {file_obj.name[:-4]: wrap_as_stream(bz2.open(file_obj, mode="r").read())}
+        # get the file name if we have one otherwise default to "archive"
+        name = getattr(file_obj, "name", "archive1234")[:-4]
+        return {name: wrap_as_stream(bz2.open(file_obj, mode="r").read())}
     if "tar" in file_type[-6:]:
         import tarfile
 

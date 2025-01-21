@@ -68,7 +68,7 @@ class FileTests(g.unittest.TestCase):
             g.trimesh.load(f.name)
             # shouldn't make it to here
             raise AssertionError()
-        except ValueError:
+        except NotImplementedError:
             # should be raised
             pass
         # file shouldn't be open
@@ -78,7 +78,7 @@ class FileTests(g.unittest.TestCase):
             g.trimesh.load_mesh(f.name)
             # shouldn't make it to here
             raise AssertionError()
-        except KeyError:
+        except NotImplementedError:
             # should be raised
             pass
         not_open(f.name, proc)

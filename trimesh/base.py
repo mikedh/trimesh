@@ -2180,7 +2180,8 @@ class Trimesh(Geometry3D):
           Curve of intersection or None if it was not hit by plane.
         """
         # turn line segments into Path2D/Path3D objects
-        from .exchange.load import load_path
+        from .path.exchange.misc import lines_to_path
+        from .path.path import Path3D
 
         # return a single cross section in 3D
         lines, face_index = intersections.mesh_plane(
@@ -2195,13 +2196,14 @@ class Trimesh(Geometry3D):
         if len(lines) == 0:
             return None
 
-        # otherwise load the line segments into a Path3D object
-        path = load_path(lines)
+        # otherwise load the line segments into the keyword arguments
+        # for a Path3D object.
+        path = lines_to_path(lines)
 
         # add the face index info into metadata
-        path.metadata["face_index"] = face_index
+        # path.metadata["face_index"] = face_index
 
-        return path
+        return Path3D(**path)
 
     def section_multiplane(
         self,
@@ -2553,7 +2555,7 @@ class Trimesh(Geometry3D):
           A number between 0.0 and 1.0 for how much
         face_count
           Target number of faces desired in the resulting mesh.
-        agression
+        aggression
           An integer between `0` and `10`, the scale being roughly
           `0` is "slow and good" and `10` being "fast and bad."
 

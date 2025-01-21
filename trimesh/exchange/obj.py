@@ -1,3 +1,4 @@
+import os
 import re
 from collections import defaultdict, deque
 
@@ -16,17 +17,20 @@ except BaseException as E:
 
 from .. import util
 from ..constants import log, tol
+from ..resolvers import ResolverLike
+from ..typed import Dict, Loadable, Optional
 from ..visual.color import to_float
 from ..visual.material import SimpleMaterial
 from ..visual.texture import TextureVisuals, unmerge_faces
 
 
 def load_obj(
-    file_obj,
-    resolver=None,
-    group_material=True,
-    skip_materials=False,
-    maintain_order=False,
+    file_obj: Loadable,
+    resolver: Optional[ResolverLike] = None,
+    group_material: bool = True,
+    skip_materials: bool = False,
+    maintain_order: bool = False,
+    metadata: Optional[Dict] = None,
     **kwargs,
 ):
     """
@@ -163,10 +167,22 @@ def load_obj(
             log.debug("faces have mixed data: using slow fallback!")
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
-        if group_material:
+        if group_material and len(materials) > 1:
             name = material
-        else:
+        elif current_object is not None:
             name = current_object
+        else:
+            # try to use the file name from the resolver
+            # or file object if possible before defaulting
+            name = next(
+                i
+                for i in (
+                    getattr(resolver, "file_name", None),
+                    getattr(file_obj, "name", None),
+                    "geometry",
+                )
+                if i is not None
+            )
 
         # ensure the name is always unique
         name = util.unique_name(name, geometry)
@@ -218,9 +234,13 @@ def load_obj(
                     faces, faces_norm, maintain_faces=maintain_order
                 )
             else:
+                # face_tex is None and
                 # generate the mask so we only include
                 # referenced vertices in every new mesh
-                mask_v = np.zeros(len(v), dtype=bool)
+                if maintain_order:
+                    mask_v = np.ones(len(v), dtype=bool)
+                else:
+                    mask_v = np.zeros(len(v), dtype=bool)
                 mask_v[faces] = True
 
                 # reconstruct the faces with the new vertex indices
@@ -269,17 +289,11 @@ def load_obj(
         # store geometry by name
         geometry[name] = mesh
 
-    if len(geometry) == 1:
-        # TODO : should this be removed to always return a scene?
-        return next(iter(geometry.values()))
-
     # add an identity transform for every geometry
     graph = [{"geometry": k, "frame_to": k} for k in geometry.keys()]
 
     # convert to scene kwargs
-    result = {"geometry": geometry, "graph": graph}
-
-    return result
+    return {"geometry": geometry, "graph": graph}
 
 
 def parse_mtl(mtl, resolver=None):
@@ -338,6 +352,11 @@ def parse_mtl(mtl, resolver=None):
                 # load the bytes into a PIL image
                 # an image file name
                 material["image"] = Image.open(util.wrap_as_stream(file_data))
+                # also store the original map_kd file name
+                material["image"].info["file_path"] = os.path.abspath(
+                    os.path.join(getattr(resolver, "parent", ""), file_name)
+                )
+
             except BaseException:
                 log.debug("failed to load image", exc_info=True)
 
@@ -584,15 +603,15 @@ def _parse_vertices(text):
             # we have a nice 2D array
             result[k] = array.reshape(shape)
         else:
-            # try to recover with a slightly more expensive loop
-            count = per_row[k]
-            try:
-                # try to get result through reshaping
-                result[k] = np.fromstring(
-                    " ".join(i.split()[:count] for i in value), sep=" ", dtype=np.float64
-                ).reshape(shape)
-            except BaseException:
-                pass
+            # we don't have a nice (n, d) array so fall back to a slow loop
+            # this is where mixed "some of the values but not all have vertex colors"
+            # problem is handled.
+            lines = []
+            [[lines.append(v.strip().split()) for v in str.splitlines(i)] for i in value]
+            # we need to make a 2D array so clip it to the shortest array
+            count = min(len(L) for L in lines)
+            # make a numpy array out of the cleaned up line data
+            result[k] = np.array([L[:count] for L in lines], dtype=np.float64)
 
     # vertices
     v = result["v"]
