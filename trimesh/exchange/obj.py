@@ -1,3 +1,4 @@
+import os
 import re
 from collections import defaultdict, deque
 
@@ -352,7 +353,10 @@ def parse_mtl(mtl, resolver=None):
                 # an image file name
                 material["image"] = Image.open(util.wrap_as_stream(file_data))
                 # also store the original map_kd file name
-                material[key] = file_name
+                material["image"].info["file_path"] = os.path.abspath(
+                    os.path.join(getattr(resolver, "parent", ""), file_name)
+                )
+
             except BaseException:
                 log.debug("failed to load image", exc_info=True)
 
