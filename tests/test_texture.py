@@ -25,7 +25,7 @@ class TextureTest(g.unittest.TestCase):
         m = g.get_mesh("fuze.obj", force="mesh")
 
         # check that we saved the original file path
-        assert m.visual.material.image.info["file_path"].endswith("fuze uv.obj")
+        assert m.visual.material.image.info["file_path"].endswith("fuze uv.jpg")
 
         # add malformed UV coordinates
         m.visual.uv = m.visual.uv[:100]
