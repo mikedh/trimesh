@@ -561,8 +561,6 @@ def _parse_file_args(
     """
     # try to save a file path from various inputs
     file_path = None
-    # try to extract a file-like object from input
-    stream = None
 
     # keep track if we opened a file ourselves and thus are
     # responsible for closing it at the end of loading
@@ -570,7 +568,7 @@ def _parse_file_args(
 
     if util.is_pathlib(file_obj):
         # convert pathlib objects to string
-        stream = str(file_obj.absolute())
+        file_obj = str(file_obj.absolute())
 
     if util.is_file(file_obj) and file_type is None:
         raise ValueError("`file_type` must be set for file objects!")
@@ -595,14 +593,14 @@ def _parse_file_args(
             if file_type is None:
                 file_type = util.split_extension(file_path, special=["tar.gz", "tar.bz2"])
             # actually open the file
-            stream = open(file_path, "rb")
+            file_obj = open(file_path, "rb")
             # save that we opened it so we can cleanup later
             was_opened = True
         else:
             if "{" in file_obj:
                 # if a bracket is in the string it's probably straight JSON
                 file_type = "json"
-                stream = util.wrap_as_stream(file_obj)
+                file_obj = util.wrap_as_stream(file_obj)
             elif "https://" in file_obj or "http://" in file_obj:
                 if not allow_remote:
                     raise ValueError("unable to load URL with `allow_remote=False`")
@@ -616,12 +614,10 @@ def _parse_file_args(
                 # create a web resolver to do the fetching and whatnot
                 resolver = resolvers.WebResolver(url=file_obj)
                 # fetch the base file
-                stream = util.wrap_as_stream(resolver.get_base())
+                file_obj = util.wrap_as_stream(resolver.get_base())
 
             elif file_type is None:
                 raise ValueError(f"string is not a file: `{file_obj}`")
-            else:
-                stream = None
 
     if isinstance(file_type, str) and "." in file_type:
         # if someone has passed the whole filename as the file_type
@@ -647,7 +643,7 @@ def _parse_file_args(
         resolver = resolvers.FilePathResolver(file_obj.name)
 
     return LoadSource(
-        file_obj=stream or file_obj,
+        file_obj=file_obj,
         file_type=file_type,
         file_path=file_path,
         was_opened=was_opened,

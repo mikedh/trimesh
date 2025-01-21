@@ -1469,22 +1469,23 @@ def concatenate(
     except BaseException:
         pass
 
-    try:
-        source = deepcopy(is_mesh[0].source)
-    except BaseException:
-        source = None
-
     # create the mesh object
-    return trimesh_type(
+    result = trimesh_type(
         vertices=vertices,
         faces=faces,
         face_normals=face_normals,
         vertex_normals=vertex_normals,
         visual=visual,
         metadata=metadata,
-        source=source,
         process=False,
     )
+
+    try:
+        result._source = deepcopy(is_mesh[0].source)
+    except BaseException:
+        pass
+
+    return result
 
 
 def submesh(
@@ -1581,9 +1582,9 @@ def submesh(
             face_normals=np.vstack(normals),
             visual=visual,
             metadata=deepcopy(mesh.metadata),
-            source=deepcopy(mesh.source),
             process=False,
         )
+        appended._source = deepcopy(mesh.source)
 
         return appended
 
@@ -1598,11 +1599,12 @@ def submesh(
             face_normals=n,
             visual=c,
             metadata=deepcopy(mesh.metadata),
-            source=deepcopy(mesh.source),
             process=False,
         )
         for v, f, n, c in zip(vertices, faces, normals, visuals)
     ]
+
+    [setattr(r, "_source", deepcopy(mesh.source)) for r in result]
 
     if only_watertight or repair:
         # fill_holes will attempt a repair and returns the
