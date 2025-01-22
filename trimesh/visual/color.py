@@ -924,12 +924,12 @@ def interpolate(
 
     # make input always float
     values = np.asanyarray(values, dtype=np.float64).ravel()
+
+    v_min, v_max = values.min(), values.max()
     # offset to zero
-    values -= values.min()
-    # get the value range to avoid dividing by zero
-    values_ptp = np.ptp(values)
-    if values_ptp > 0.0:
-        values /= values_ptp
+    values -= v_min()
+    if v_min != v_max:
+        values /= v_max - v_min
 
     # scale values to 0.0 - 1.0 and get colors
     colors = cmap(values)
