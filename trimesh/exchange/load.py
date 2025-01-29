@@ -212,13 +212,15 @@ def load_scene(
         elif arg.file_type in mesh_loaders:
             # use mesh loader
             parsed = deepcopy(kwargs)
-            parsed.update(mesh_loaders[arg.file_type](
+            parsed.update(
+                mesh_loaders[arg.file_type](
                     file_obj=arg.file_obj,
                     file_type=arg.file_type,
                     resolver=arg.resolver,
                     metadata=metadata,
                     **kwargs,
-                ))
+                )
+            )
             loaded = _load_kwargs(**parsed)
 
         elif arg.file_type in compressed_loaders:

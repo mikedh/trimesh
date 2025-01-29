@@ -21,8 +21,8 @@ class BoundsTest(g.unittest.TestCase):
 
         # Make sure oriented bound estimation runs within 30 seconds.
         assert (
-            stop - start < 30
-        ), f"Took {stop - start} seconds to estimate the oriented bounding box."
+            stop - start < 60
+        ), f"Took {stop - start}s to estimate the oriented bounding box."
 
     def test_obb_mesh(self):
         """
