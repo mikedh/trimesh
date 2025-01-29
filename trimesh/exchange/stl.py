@@ -43,14 +43,14 @@ def load_stl(file_obj, **kwargs):
         # if that is true, it is almost certainly a binary STL file
         # if the header doesn't match the file length a HeaderError will be
         # raised
-        return {**load_stl_binary(file_obj), **kwargs}
+        return load_stl_binary(file_obj)
     except HeaderError:
         # move the file back to where it was initially
         file_obj.seek(file_pos)
         # try to load the file as an ASCII STL
         # if the header doesn't match the file length
         # HeaderError will be raised
-        return {**load_stl_ascii(file_obj), **kwargs}
+        return load_stl_ascii(file_obj)
 
 
 def load_stl_binary(file_obj):
