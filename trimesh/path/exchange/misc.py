@@ -1,4 +1,5 @@
 import numpy as np
+import shapely
 
 from ... import graph, grouping, util
 from ...constants import tol_path
@@ -138,7 +139,9 @@ def linestrings_to_path(multi):
     entities = []
     vertices = []
 
-    if not util.is_sequence(multi):
+    if hasattr(multi, "geoms"):
+        multi = list(multi.geoms)
+    else:
         multi = [multi]
 
     for line in multi:
