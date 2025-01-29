@@ -925,9 +925,11 @@ def interpolate(
     # make input always float
     values = np.asanyarray(values, dtype=np.float64).ravel()
 
+    # get both minumium and maximum values for range normalization
     v_min, v_max = values.min(), values.max()
     # offset to zero
-    values -= v_min()
+    values -= v_min
+    # normalize to the 0.0 - 1.0 range
     if v_min != v_max:
         values /= v_max - v_min
 
