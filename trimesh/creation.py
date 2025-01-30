@@ -849,7 +849,7 @@ def icosahedron(**kwargs) -> Trimesh:
 
 def icosphere(subdivisions: Integer = 3, radius: Number = 1.0, **kwargs):
     """
-    Create an isophere centered at the origin.
+    Create an icosphere centered at the origin.
 
     Parameters
     ----------
