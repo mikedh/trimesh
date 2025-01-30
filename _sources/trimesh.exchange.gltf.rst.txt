@@ -1,0 +1,7 @@
+trimesh.exchange.gltf
+=====================
+
+.. automodule:: trimesh.exchange.gltf
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.exchange.load
+=====================
+
+.. automodule:: trimesh.exchange.load
+   :members:
+   :undoc-members:
+   :show-inheritance:

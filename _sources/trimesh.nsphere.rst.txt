@@ -1,0 +1,7 @@
+trimesh.nsphere
+===============
+
+.. automodule:: trimesh.nsphere
+   :members:
+   :undoc-members:
+   :show-inheritance:

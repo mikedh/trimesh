@@ -1,0 +1,7 @@
+trimesh.scene.cameras
+=====================
+
+.. automodule:: trimesh.scene.cameras
+   :members:
+   :undoc-members:
+   :show-inheritance:

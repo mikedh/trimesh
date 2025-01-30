@@ -1,0 +1,7 @@
+trimesh.exchange.off
+====================
+
+.. automodule:: trimesh.exchange.off
+   :members:
+   :undoc-members:
+   :show-inheritance:

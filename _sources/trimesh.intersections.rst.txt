@@ -1,0 +1,7 @@
+trimesh.intersections
+=====================
+
+.. automodule:: trimesh.intersections
+   :members:
+   :undoc-members:
+   :show-inheritance:

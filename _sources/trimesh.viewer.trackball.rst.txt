@@ -1,0 +1,7 @@
+trimesh.viewer.trackball
+========================
+
+.. automodule:: trimesh.viewer.trackball
+   :members:
+   :undoc-members:
+   :show-inheritance:

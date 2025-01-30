@@ -1,0 +1,7 @@
+trimesh.ray.ray\_triangle
+=========================
+
+.. automodule:: trimesh.ray.ray_triangle
+   :members:
+   :undoc-members:
+   :show-inheritance:

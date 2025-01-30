@@ -1,0 +1,7 @@
+trimesh.path.curve
+==================
+
+.. automodule:: trimesh.path.curve
+   :members:
+   :undoc-members:
+   :show-inheritance:

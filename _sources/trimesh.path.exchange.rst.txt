@@ -1,0 +1,15 @@
+trimesh.path.exchange
+=====================
+
+.. toctree::
+
+   trimesh.path.exchange.dxf
+   trimesh.path.exchange.export
+   trimesh.path.exchange.load
+   trimesh.path.exchange.misc
+   trimesh.path.exchange.svg_io
+
+.. automodule:: trimesh.path.exchange
+   :members:
+   :undoc-members:
+   :show-inheritance:

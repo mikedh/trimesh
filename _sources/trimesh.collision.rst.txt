@@ -1,0 +1,7 @@
+trimesh.collision
+=================
+
+.. automodule:: trimesh.collision
+   :members:
+   :undoc-members:
+   :show-inheritance:

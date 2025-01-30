@@ -1,0 +1,25 @@
+trimesh.path
+============
+
+.. toctree::
+
+   trimesh.path.exchange
+   trimesh.path.arc
+   trimesh.path.creation
+   trimesh.path.curve
+   trimesh.path.entities
+   trimesh.path.intersections
+   trimesh.path.packing
+   trimesh.path.path
+   trimesh.path.polygons
+   trimesh.path.raster
+   trimesh.path.repair
+   trimesh.path.segments
+   trimesh.path.simplify
+   trimesh.path.traversal
+   trimesh.path.util
+
+.. automodule:: trimesh.path
+   :members:
+   :undoc-members:
+   :show-inheritance:

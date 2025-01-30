@@ -1,0 +1,7 @@
+trimesh.visual.texture
+======================
+
+.. automodule:: trimesh.visual.texture
+   :members:
+   :undoc-members:
+   :show-inheritance:

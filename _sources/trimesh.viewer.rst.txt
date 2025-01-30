@@ -1,0 +1,14 @@
+trimesh.viewer
+==============
+
+.. toctree::
+
+   trimesh.viewer.notebook
+   trimesh.viewer.trackball
+   trimesh.viewer.widget
+   trimesh.viewer.windowed
+
+.. automodule:: trimesh.viewer
+   :members:
+   :undoc-members:
+   :show-inheritance:

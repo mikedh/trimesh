@@ -1,0 +1,17 @@
+trimesh.voxel
+=============
+
+.. toctree::
+
+   trimesh.voxel.base
+   trimesh.voxel.creation
+   trimesh.voxel.encoding
+   trimesh.voxel.morphology
+   trimesh.voxel.ops
+   trimesh.voxel.runlength
+   trimesh.voxel.transforms
+
+.. automodule:: trimesh.voxel
+   :members:
+   :undoc-members:
+   :show-inheritance:

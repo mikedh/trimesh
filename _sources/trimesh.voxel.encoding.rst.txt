@@ -1,0 +1,7 @@
+trimesh.voxel.encoding
+======================
+
+.. automodule:: trimesh.voxel.encoding
+   :members:
+   :undoc-members:
+   :show-inheritance:

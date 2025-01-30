@@ -1,0 +1,14 @@
+trimesh.scene
+=============
+
+.. toctree::
+
+   trimesh.scene.cameras
+   trimesh.scene.lighting
+   trimesh.scene.scene
+   trimesh.scene.transforms
+
+.. automodule:: trimesh.scene
+   :members:
+   :undoc-members:
+   :show-inheritance:

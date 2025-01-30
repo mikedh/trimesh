@@ -1,0 +1,7 @@
+trimesh.transformations
+=======================
+
+.. automodule:: trimesh.transformations
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.exceptions
+==================
+
+.. automodule:: trimesh.exceptions
+   :members:
+   :undoc-members:
+   :show-inheritance:

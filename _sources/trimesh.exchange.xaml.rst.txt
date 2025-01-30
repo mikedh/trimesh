@@ -1,0 +1,7 @@
+trimesh.exchange.xaml
+=====================
+
+.. automodule:: trimesh.exchange.xaml
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,7 @@
+trimesh.scene.scene
+===================
+
+.. automodule:: trimesh.scene.scene
+   :members:
+   :undoc-members:
+   :show-inheritance:

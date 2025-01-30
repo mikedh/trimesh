@@ -1,0 +1,7 @@
+trimesh.boolean
+===============
+
+.. automodule:: trimesh.boolean
+   :members:
+   :undoc-members:
+   :show-inheritance:

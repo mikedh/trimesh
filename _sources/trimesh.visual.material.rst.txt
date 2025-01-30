@@ -1,0 +1,7 @@
+trimesh.visual.material
+=======================
+
+.. automodule:: trimesh.visual.material
+   :members:
+   :undoc-members:
+   :show-inheritance:

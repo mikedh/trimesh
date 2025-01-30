@@ -1,0 +1,7 @@
+trimesh.bounds
+==============
+
+.. automodule:: trimesh.bounds
+   :members:
+   :undoc-members:
+   :show-inheritance:

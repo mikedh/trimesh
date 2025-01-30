@@ -1,0 +1,7 @@
+trimesh.graph
+=============
+
+.. automodule:: trimesh.graph
+   :members:
+   :undoc-members:
+   :show-inheritance:

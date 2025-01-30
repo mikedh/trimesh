@@ -1,0 +1,7 @@
+trimesh.convex
+==============
+
+.. automodule:: trimesh.convex
+   :members:
+   :undoc-members:
+   :show-inheritance:

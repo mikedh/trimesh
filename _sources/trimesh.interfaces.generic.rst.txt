@@ -1,0 +1,7 @@
+trimesh.interfaces.generic
+==========================
+
+.. automodule:: trimesh.interfaces.generic
+   :members:
+   :undoc-members:
+   :show-inheritance:

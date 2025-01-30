@@ -1,0 +1,7 @@
+trimesh.curvature
+=================
+
+.. automodule:: trimesh.curvature
+   :members:
+   :undoc-members:
+   :show-inheritance:

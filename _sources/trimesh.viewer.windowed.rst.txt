@@ -1,0 +1,7 @@
+trimesh.viewer.windowed
+=======================
+
+.. automodule:: trimesh.viewer.windowed
+   :members:
+   :undoc-members:
+   :show-inheritance:

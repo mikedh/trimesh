@@ -1,0 +1,7 @@
+trimesh.viewer.widget
+=====================
+
+.. automodule:: trimesh.viewer.widget
+   :members:
+   :undoc-members:
+   :show-inheritance:

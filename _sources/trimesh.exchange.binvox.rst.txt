@@ -1,0 +1,7 @@
+trimesh.exchange.binvox
+=======================
+
+.. automodule:: trimesh.exchange.binvox
+   :members:
+   :undoc-members:
+   :show-inheritance:

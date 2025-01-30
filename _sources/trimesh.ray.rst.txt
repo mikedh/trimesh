@@ -1,0 +1,13 @@
+trimesh.ray
+===========
+
+.. toctree::
+
+   trimesh.ray.ray_pyembree
+   trimesh.ray.ray_triangle
+   trimesh.ray.ray_util
+
+.. automodule:: trimesh.ray
+   :members:
+   :undoc-members:
+   :show-inheritance:

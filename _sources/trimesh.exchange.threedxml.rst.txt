@@ -1,0 +1,7 @@
+trimesh.exchange.threedxml
+==========================
+
+.. automodule:: trimesh.exchange.threedxml
+   :members:
+   :undoc-members:
+   :show-inheritance:
