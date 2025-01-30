@@ -18,11 +18,6 @@ If you\'d like most soft dependencies which should install cleanly on Mac, Windo
 pip install trimesh[easy]
 ```
 
-Or if you want the full experience, you can try the `all` extra which includes all the testing and recommended packages:
-```
-pip install trimesh[all]
-```
-
 
 ## Conda Packages
 

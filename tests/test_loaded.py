@@ -31,6 +31,18 @@ class LoaderTest(g.unittest.TestCase):
         assert len(m.faces) > 0
         assert m.area > 1e-5
 
+    def test_load_mesh(self):
+        # test the influence of the parameter `process` for `load_mesh`
+        with open(g.os.path.join(g.dir_models, "featuretype.STL"), "rb") as file_obj:
+            mesh = g.trimesh.load_mesh(file_obj=file_obj, file_type="stl", process=False)
+            # check that number of vertices is not being reduced
+            assert len(mesh.vertices) == 10428
+
+        with open(g.os.path.join(g.dir_models, "featuretype.STL"), "rb") as file_obj:
+            mesh = g.trimesh.load_mesh(file_obj=file_obj, file_type="stl", process=True)
+            # check that number of vertices is being reduced
+            assert len(mesh.vertices) == 1722
+
     def test_fileobj(self):
         # make sure we don't close file objects that were passed
         # check load_mesh
