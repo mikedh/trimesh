@@ -1,5 +1,4 @@
 import numpy as np
-import shapely
 
 from ... import graph, grouping, util
 from ...constants import tol_path
@@ -121,7 +120,7 @@ def polygon_to_path(polygon):
     return kwargs
 
 
-def linestrings_to_path(multi: shapely.LineString | shapely.MultiLineString) -> Dict:
+def linestrings_to_path(multi) -> Dict:
     """
     Load shapely LineString objects into arguments to create a Path2D or Path3D.
 
@@ -135,6 +134,8 @@ def linestrings_to_path(multi: shapely.LineString | shapely.MultiLineString) -> 
     kwargs : Dict
       Keyword arguments for Path2D or Path3D constructor
     """
+    import shapely
+
     # append to result as we go
     entities = []
     vertices = []
