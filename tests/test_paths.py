@@ -110,6 +110,38 @@ def test_discrete():
         # run process manually
         d.process()
 
+    def test_vertex_attributes(self):
+        entities = [
+            g.trimesh.path.entities.Line(
+                points=[0, 1, 2, 3]
+            )
+        ]
+
+        vertices = [
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+        ]
+
+        # Test path without clean up
+        path = g.trimesh.path.Path3D(
+            entities=entities,
+            vertices=vertices,
+            vertex_attributes={
+                "test": [1, 2, 3, 4]
+            },
+            process=False,
+        )
+
+        assert len(path.vertices) == 4
+        assert len(path.vertex_attributes["test"]) == 4
+
+        path.process()
+
+        assert len(path.vertices) == 3
+        assert len(path.vertex_attributes["test"]) == 3
+
 
 def test_poly():
     p = g.get_mesh("2D/LM2.dxf")
