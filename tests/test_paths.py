@@ -124,10 +124,8 @@ def test_path():
         }
     )
 
-    gltf = g.trimesh.exchange.gltf.export_glb(path)
-
-    import io
-    loaded_scene = g.trimesh.exchange.load._load_kwargs(g.trimesh.exchange.gltf.load_glb(io.BytesIO(gltf)))
+    glb_data = g.to_glb_bytes(path)
+    loaded_scene = g.from_dlb_bytes(glb_data)
 
     loaded_path = loaded_scene.geometry["geometry_0"]
     loaded_path.process()

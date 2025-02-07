@@ -6,6 +6,7 @@ might need, to reduce the amount of boilerplate.
 
 import os
 import sys
+import io
 import json
 import copy
 import time
@@ -565,6 +566,47 @@ def roundtrip(exported, file_type, **kwargs):
     return trimesh.load(
         file_obj=trimesh.util.wrap_as_stream(exported), file_type=file_type, **kwargs
     )
+
+
+def to_glb_bytes(geom):
+    """
+    Returns the content of the binary glTF file for the given geometry.
+
+    Parameters
+    ----------
+    geom : trimesh.Geometry
+      Geometry to export
+
+    Returns
+    -------
+    data : bytes
+      Content of the binary glTF file
+    """
+    data = trimesh.exchange.gltf.export_glb(geom)
+
+    return data
+
+
+def from_dlb_bytes(data):
+    """
+    Returns the scene from the given binary glTF file content.
+
+    Parameters
+    ----------
+    data : bytes
+      Content of the binary glTF file
+
+    Returns
+    -------
+    scene : trimesh.Scene
+      Scene
+    """
+    bytes_stream = io.BytesIO(data)
+    kwargs = trimesh.exchange.gltf.load_glb(bytes_stream)
+
+    scene = trimesh.exchange.load._load_kwargs(kwargs)
+
+    return scene
 
 
 # all the JSON files with truth data
