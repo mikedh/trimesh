@@ -324,9 +324,9 @@ class CreationTest(g.unittest.TestCase):
         mesh180 = g.trimesh.creation.revolve(
             cross_section, g.np.pi, sections=180, cap=True
         )
-        assert g.np.isclose(
-            mesh180.volume, mesh360.volume / 2, rtol=0.1
-        ), "mesh180 should be half of mesh360 volume"
+        assert g.np.isclose(mesh180.volume, mesh360.volume / 2, rtol=0.1), (
+            "mesh180 should be half of mesh360 volume"
+        )
         assert mesh180.is_volume, "mesh180 should be a valid volume"
 
 

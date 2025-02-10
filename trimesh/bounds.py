@@ -2,6 +2,7 @@ import numpy as np
 
 from . import convex, geometry, grouping, nsphere, transformations, util
 from .constants import log, now
+from .typed import ArrayLike, NDArray
 
 try:
     # scipy is a soft dependency
@@ -548,9 +549,9 @@ def corners(bounds):
     return corners
 
 
-def contains(bounds, points):
+def contains(bounds: ArrayLike, points: ArrayLike) -> NDArray[np.bool_]:
     """
-    Do an axis aligned bounding box check on a list of points.
+    Do an axis aligned bounding box check on an array of points.
 
     Parameters
     -----------
