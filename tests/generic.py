@@ -568,7 +568,7 @@ def roundtrip(exported, file_type, **kwargs):
     )
 
 
-def to_glb_bytes(geom):
+def to_glb_bytes(geom: trimesh.Geometry) -> bytes:
     """
     Returns the content of the binary glTF file for the given geometry.
 
@@ -587,7 +587,7 @@ def to_glb_bytes(geom):
     return data
 
 
-def from_dlb_bytes(data):
+def from_glb_bytes(data: bytes) -> trimesh.Scene:
     """
     Returns the scene from the given binary glTF file content.
 
