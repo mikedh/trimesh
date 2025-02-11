@@ -68,7 +68,7 @@ trimesh = [
 easy = [
     "colorlog",
     "manifold3d>=2.3.0", # do boolean operations    
-    "chardet",
+    "charset-normalizer",
     "lxml",
     "jsonschema",
     "networkx",
