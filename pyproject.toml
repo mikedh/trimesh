@@ -149,6 +149,7 @@ select = [
     "UP", # upgrade
     "W", # style warnings
     "YTT", # sys.version
+    "ISC001",
     "ISC002",
     "NPY201",
     "TID251"
