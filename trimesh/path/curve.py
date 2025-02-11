@@ -2,6 +2,7 @@ import numpy as np
 
 from ..constants import res_path as res
 from ..constants import tol_path as tol
+from ..typed import Integer, List
 
 
 def discretize_bezier(points, count=None, scale=1.0):
@@ -46,10 +47,15 @@ def discretize_bezier(points, count=None, scale=1.0):
     ]
     result = np.sum(stacked, axis=0)
 
-    # test to make sure end points are correct
-    test = np.sum((result[[0, -1]] - points[[0, -1]]) ** 2, axis=1)
-    assert (test < tol.merge).all()
-    assert len(result) >= 2
+    # a bezier curve always starts and ends on control points
+    if tol.strict:
+        # test to make sure end points are correct
+        test = np.sum((result[[0, -1]] - points[[0, -1]]) ** 2, axis=1)
+        assert (test < tol.merge).all()
+        assert len(result) >= 2
+
+    # snap the first and last points to the exact control point
+    result[[0, -1]] = points[[0, -1]]
 
     return result
 
@@ -98,7 +104,7 @@ def discretize_bspline(control, knots, count=None, scale=1.0):
     return discrete
 
 
-def binomial(n):
+def binomial(n: Integer) -> List:
     """
     Return all binomial coefficients for a given order.
 
