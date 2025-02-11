@@ -176,7 +176,10 @@ def test_mesh_2D():
     # the face normals should be 3D (+Z)
     assert m.face_normals.shape == m.faces.shape
 
+    rend = g.trimesh.rendering.mesh_to_vertexlist(m)
+    assert len(rend) > 1
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
-    g.unittest.main()
+    test_mesh_2D()

@@ -104,22 +104,29 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
             # texcoord as (2,) float
             color_gl = ("t2f/static", uv.astype(np.float64).reshape(-1).tolist())
 
-    elif smooth and len(mesh.faces) < smooth_threshold:
+    is_2D = len(mesh.vertices.shape) == 2 and mesh.vertices.shape[1] == 2
+
+    if not is_2D and smooth and len(mesh.faces) < smooth_threshold:
         # if we have a small number of faces and colors defined
         # smooth the  mesh by merging vertices of faces below
         # the threshold angle
         mesh = mesh.smooth_shaded
-        vertex_count = len(mesh.vertices)
+        vertices = mesh.vertices
+        vertex_count = len(vertices)
         normals = mesh.vertex_normals.reshape(-1).tolist()
         faces = mesh.faces.reshape(-1).tolist()
-        vertices = mesh.vertices.reshape(-1).tolist()
+        vertices = vertices.reshape(-1).tolist()
         color_gl = colors_to_gl(mesh.visual.vertex_colors, vertex_count)
     else:
+        if is_2D:
+            vertices = np.column_stack((mesh.vertices, np.zeros(len(mesh.vertices))))
+        else:
+            vertices = mesh.vertices
         # we don't have textures or want to smooth so
         # send a polygon soup of disconnected triangles to opengl
-        vertex_count = len(mesh.triangles) * 3
+        vertex_count = len(mesh.faces) * 3
         normals = np.tile(mesh.face_normals, (1, 3)).reshape(-1).tolist()
-        vertices = mesh.triangles.reshape(-1).tolist()
+        vertices = vertices[mesh.faces].reshape(-1).tolist()
         faces = np.arange(vertex_count).tolist()
         colors = np.tile(mesh.visual.face_colors, (1, 3)).reshape((-1, 4))
         color_gl = colors_to_gl(colors, vertex_count)

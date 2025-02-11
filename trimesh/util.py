@@ -2035,7 +2035,7 @@ def triangle_fans_to_faces(fans):
         np.transpose([fan[0] * np.ones(len(fan) - 2, dtype=int), fan[1:-1], fan[2:]])
         for fan in fans
     ]
-    return np.concatenate(faces, axis=1)
+    return np.concatenate(faces)
 
 
 def vstack_empty(tup):
