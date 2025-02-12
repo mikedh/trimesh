@@ -125,7 +125,7 @@ def test_path():
     )
 
     glb_data = g.to_glb_bytes(path)
-    loaded_scene = g.from_dlb_bytes(glb_data)
+    loaded_scene = g.from_glb_bytes(glb_data)
 
     loaded_path = loaded_scene.geometry["geometry_0"]
     loaded_path.process()
