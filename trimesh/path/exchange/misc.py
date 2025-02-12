@@ -39,7 +39,7 @@ def dict_to_path(as_dict):
 
 def lines_to_path(lines: ArrayLike, index: Optional[NDArray[np.int64]] = None) -> Dict:
     """
-    Turn line segments into a Path2D or Path3D object.
+    Turn line segments into argument to be used for a Path2D or Path3D.
 
     Parameters
     ------------
@@ -50,7 +50,7 @@ def lines_to_path(lines: ArrayLike, index: Optional[NDArray[np.int64]] = None) -
 
     Returns
     -----------
-    kwargs : dict
+    kwargs : Dict
       kwargs for Path constructor
     """
     lines = np.asanyarray(lines, dtype=np.float64)
@@ -120,25 +120,29 @@ def polygon_to_path(polygon):
     return kwargs
 
 
-def linestrings_to_path(multi):
+def linestrings_to_path(multi) -> Dict:
     """
-    Load shapely LineString objects into a trimesh.path.Path2D object
+    Load shapely LineString objects into arguments to create a Path2D or Path3D.
 
     Parameters
     -------------
     multi : shapely.geometry.LineString or MultiLineString
-      Input 2D geometry
+      Input 2D or 3D geometry
 
     Returns
     -------------
-    kwargs : dict
-      Keyword arguments for Path2D constructor
+    kwargs : Dict
+      Keyword arguments for Path2D or Path3D constructor
     """
+    import shapely
+
     # append to result as we go
     entities = []
     vertices = []
 
-    if not util.is_sequence(multi):
+    if isinstance(multi, shapely.MultiLineString):
+        multi = list(multi.geoms)
+    else:
         multi = [multi]
 
     for line in multi:

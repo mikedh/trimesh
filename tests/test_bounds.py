@@ -20,9 +20,9 @@ class BoundsTest(g.unittest.TestCase):
         stop = g.timeit.default_timer()
 
         # Make sure oriented bound estimation runs within 30 seconds.
-        assert (
-            stop - start < 60
-        ), f"Took {stop - start}s to estimate the oriented bounding box."
+        assert stop - start < 60, (
+            f"Took {stop - start}s to estimate the oriented bounding box."
+        )
 
     def test_obb_mesh(self):
         """

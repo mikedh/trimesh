@@ -39,7 +39,7 @@ def _read_mesh(mesh):
     # the `.join` as the giant string can be fully allocated
     vs = " ".join(
         [
-            f'{i.attrib["x"]} {i.attrib["y"]} {i.attrib["z"]}'
+            f"{i.attrib['x']} {i.attrib['y']} {i.attrib['z']}"
             for i in vertices.iter("{*}vertex")
         ]
     )
@@ -49,7 +49,7 @@ def _read_mesh(mesh):
     # do the same behavior for faces but as an integer
     fs = " ".join(
         [
-            f'{i.attrib["v1"]} {i.attrib["v2"]} {i.attrib["v3"]}'
+            f"{i.attrib['v1']} {i.attrib['v2']} {i.attrib['v3']}"
             for i in faces.iter("{*}triangle")
         ]
     )
