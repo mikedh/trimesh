@@ -2272,7 +2272,7 @@ def decode_text(text, initial="utf-8"):
     Try to decode byte input as a string.
 
     Tries initial guess (UTF-8) then if that fails it
-    uses chardet to try another guess before failing.
+    uses charset_normalizer to try another guess before failing.
 
     Parameters
     ------------
@@ -2294,12 +2294,11 @@ def decode_text(text, initial="utf-8"):
         text = text.decode(initial)
     except UnicodeDecodeError:
         # detect different file encodings
-        import chardet
+        from charset_normalizer import detect as charset_normalizer_detect
 
         # try to detect the encoding of the file
-        # only look at the first 1000 characters otherwise
-        # for big files chardet looks at everything and is slow
-        detect = chardet.detect(text[:1000])
+        # only look at the first 1000 characters for speed
+        detect = charset_normalizer_detect(text[:1000])
         # warn on files that aren't UTF-8
         log.debug(
             "Data not {}! Trying {} (confidence {})".format(
