@@ -110,37 +110,33 @@ def test_discrete():
         # run process manually
         d.process()
 
-    def test_vertex_attributes(self):
-        entities = [
+
+def test_path():
+    path = g.trimesh.path.Path3D(
+        entities=[
             g.trimesh.path.entities.Line(
-                points=[0, 1, 2, 3]
+                points=[0, 1, 2]
             )
-        ]
+        ],
+        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0]],
+        vertex_attributes={
+            "_test": g.np.array([1, 2, 3], dtype=g.np.float32)
+        }
+    )
 
-        vertices = [
-            [0, 0, 0],
-            [1, 0, 0],
-            [1, 0, 0],
-            [1, 1, 0],
-        ]
+    gltf = g.trimesh.exchange.gltf.export_glb(path)
 
-        # Test path without clean up
-        path = g.trimesh.path.Path3D(
-            entities=entities,
-            vertices=vertices,
-            vertex_attributes={
-                "test": [1, 2, 3, 4]
-            },
-            process=False,
-        )
+    import io
+    loaded_scene = g.trimesh.exchange.load._load_kwargs(g.trimesh.exchange.gltf.load_glb(io.BytesIO(gltf)))
 
-        assert len(path.vertices) == 4
-        assert len(path.vertex_attributes["test"]) == 4
+    loaded_path = loaded_scene.geometry["geometry_0"]
+    loaded_path.process()
 
-        path.process()
+    assert isinstance(loaded_path, g.trimesh.path.Path3D)
 
-        assert len(path.vertices) == 3
-        assert len(path.vertex_attributes["test"]) == 3
+    assert loaded_path.vertices.shape == (3, 3)
+    assert len(loaded_path.entities) == 1
+    assert len(loaded_path.vertex_attributes["_test"]) == 3
 
 
 def test_poly():
