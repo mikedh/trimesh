@@ -1,0 +1,7 @@
+trimesh.exchange.urdf
+=====================
+
+.. automodule:: trimesh.exchange.urdf
+   :members:
+   :show-inheritance:
+   :undoc-members:
