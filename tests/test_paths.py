@@ -111,6 +111,26 @@ def test_discrete():
         d.process()
 
 
+def test_path():
+    path = g.trimesh.path.Path3D(
+        entities=[g.trimesh.path.entities.Line(points=[0, 1, 2])],
+        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0]],
+        vertex_attributes={"_test": g.np.array([1, 2, 3], dtype=g.np.float32)},
+    )
+
+    glb_data = g.to_glb_bytes(path)
+    loaded_scene = g.from_glb_bytes(glb_data)
+
+    loaded_path = loaded_scene.geometry["geometry_0"]
+    loaded_path.process()
+
+    assert isinstance(loaded_path, g.trimesh.path.Path3D)
+
+    assert loaded_path.vertices.shape == (3, 3)
+    assert len(loaded_path.entities) == 1
+    assert len(loaded_path.vertex_attributes["_test"]) == 3
+
+
 def test_poly():
     p = g.get_mesh("2D/LM2.dxf")
     assert p.is_closed
