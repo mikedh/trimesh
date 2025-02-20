@@ -113,15 +113,9 @@ def test_discrete():
 
 def test_path():
     path = g.trimesh.path.Path3D(
-        entities=[
-            g.trimesh.path.entities.Line(
-                points=[0, 1, 2]
-            )
-        ],
+        entities=[g.trimesh.path.entities.Line(points=[0, 1, 2])],
         vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0]],
-        vertex_attributes={
-            "_test": g.np.array([1, 2, 3], dtype=g.np.float32)
-        }
+        vertex_attributes={"_test": g.np.array([1, 2, 3], dtype=g.np.float32)},
     )
 
     glb_data = g.to_glb_bytes(path)
