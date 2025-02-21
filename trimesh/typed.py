@@ -13,16 +13,27 @@ from typing import (
 from numpy import float64, floating, int64, integer, unsignedinteger
 
 # requires numpy>=1.20
-from numpy.typing import ArrayLike, NDArray
+from numpy.typing import ArrayLike, DTypeLike, NDArray
 
 if version_info >= (3, 9):
     # use PEP585 hints on newer python
     List = list
     Tuple = tuple
     Dict = dict
+    Set = set
     from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 else:
-    from typing import Callable, Dict, Hashable, Iterable, List, Mapping, Sequence, Tuple
+    from typing import (
+        Callable,
+        Dict,
+        Hashable,
+        Iterable,
+        List,
+        Mapping,
+        Sequence,
+        Set,
+        Tuple,
+    )
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
@@ -51,20 +62,22 @@ __all__ = [
     "Any",
     "ArrayLike",
     "BinaryIO",
+    "Callable",
+    "DTypeLike",
     "Dict",
+    "Hashable",
     "Integer",
     "Iterable",
     "List",
     "Loadable",
+    "Mapping",
     "NDArray",
     "Number",
     "Optional",
     "Sequence",
+    "Set",
     "Stream",
     "Tuple",
     "float64",
     "int64",
-    "Mapping",
-    "Callable",
-    "Hashable",
 ]

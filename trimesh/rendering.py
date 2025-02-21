@@ -71,13 +71,17 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
       Args for vertex list constructor
 
     """
+    # nominally support 2D vertices
+    if len(mesh.vertices.shape) == 2 and mesh.vertices.shape[1] == 2:
+        vertices = np.column_stack((mesh.vertices, np.zeros(len(mesh.vertices))))
+    else:
+        vertices = mesh.vertices
 
     if hasattr(mesh.visual, "uv"):
         # if the mesh has texture defined pass it to pyglet
-        vertex_count = len(mesh.vertices)
-        normals = mesh.vertex_normals.reshape(-1).tolist()
-        faces = mesh.faces.reshape(-1).tolist()
-        vertices = mesh.vertices.reshape(-1).tolist()
+        vertex_count = len(vertices)
+        normals = mesh.vertex_normals
+        faces = mesh.faces
 
         # get the per-vertex UV coordinates
         uv = mesh.visual.uv
@@ -108,19 +112,20 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
         # if we have a small number of faces and colors defined
         # smooth the  mesh by merging vertices of faces below
         # the threshold angle
-        mesh = mesh.smooth_shaded
-        vertex_count = len(mesh.vertices)
-        normals = mesh.vertex_normals.reshape(-1).tolist()
-        faces = mesh.faces.reshape(-1).tolist()
-        vertices = mesh.vertices.reshape(-1).tolist()
+        smooth = mesh.smooth_shaded
+        vertices = smooth.vertices
+        vertex_count = len(vertices)
+        normals = smooth.vertex_normals
+        faces = smooth.faces
+        vertices = smooth.vertices
         color_gl = colors_to_gl(mesh.visual.vertex_colors, vertex_count)
     else:
         # we don't have textures or want to smooth so
         # send a polygon soup of disconnected triangles to opengl
-        vertex_count = len(mesh.triangles) * 3
-        normals = np.tile(mesh.face_normals, (1, 3)).reshape(-1).tolist()
-        vertices = mesh.triangles.reshape(-1).tolist()
-        faces = np.arange(vertex_count).tolist()
+        vertex_count = len(mesh.faces) * 3
+        normals = np.tile(mesh.face_normals, (1, 3))
+        vertices = vertices[mesh.faces]
+        faces = np.arange(vertex_count, dtype=np.int64)
         colors = np.tile(mesh.visual.face_colors, (1, 3)).reshape((-1, 4))
         color_gl = colors_to_gl(colors, vertex_count)
 
@@ -131,9 +136,9 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
         vertex_count,  # number of vertices
         GL_TRIANGLES,  # mode
         group,  # group
-        faces,  # indices
-        ("v3f/static", vertices),
-        ("n3f/static", normals),
+        faces.reshape(-1).tolist(),  # indices
+        ("v3f/static", vertices.reshape(-1).tolist()),
+        ("n3f/static", normals.reshape(-1).tolist()),
         color_gl,
     )
     """

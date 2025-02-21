@@ -18,11 +18,6 @@ If you\'d like most soft dependencies which should install cleanly on Mac, Windo
 pip install trimesh[easy]
 ```
 
-Or if you want the full experience, you can try the `all` extra which includes all the testing and recommended packages:
-```
-pip install trimesh[all]
-```
-
 
 ## Conda Packages
 
@@ -51,7 +46,7 @@ Trimesh has a lot of soft-required upstream packages, and we try to make sure th
 |`httpx`| Do network queries in `trimesh.exchange.load_remote`, will *only* make network requests when asked | `requests`, `aiohttp` | `easy`|
 |`sympy`| Evaluate symbolic algebra | | `recommend`|
 |`xxhash`| Quickly hash arrays, used for our cache checking | | `easy`|
-|`chardet`| When we fail to decode text as UTF-8 we then check with chardet which guesses an encoding,  letting us load files even with weird encodings. | | `easy`|
+|`charset-normalizer`| When we fail to decode text as UTF-8 we then check with charset-normalizer which guesses an encoding,  letting us load files even with weird encodings. | | `easy`|
 |`colorlog`| Printing logs with colors. | | `easy`|
 |`pillow`| Reading raster images for textures and render polygons into raster images. | | `easy`|
 |`svg.path`| Parsing SVG path strings. | | `easy`|

@@ -1,12 +1,61 @@
-import collections
 import io
 import uuid
 import zipfile
+from collections import defaultdict
 
 import numpy as np
 
 from .. import graph, util
 from ..constants import log
+from ..util import unique_name
+
+
+def _read_mesh(mesh):
+    """
+    Read a `<mesh ` XML element into Numpy vertices and faces.
+
+    This is generally the most expensive operation in the load as it
+    has to operate in Python-space on every single vertex and face.
+
+    Parameters
+    ----------
+    mesh : lxml.etree.Element
+      Input mesh element with `vertex` and `triangle` children.
+
+    Returns
+    ----------
+    vertex_array : (n, 3) float64
+      Vertices
+    face_array : (n, 3) int64
+      Indexes of vertices forming triangles.
+    """
+    # get the XML elements for vertices and faces
+    vertices = mesh.find("{*}vertices")
+    faces = mesh.find("{*}triangles")
+
+    # get every value as a flat space-delimited string
+    # this is very sensitive as it is large, i.e. it is
+    # much faster with the full list comprehension before
+    # the `.join` as the giant string can be fully allocated
+    vs = " ".join(
+        [
+            f"{i.attrib['x']} {i.attrib['y']} {i.attrib['z']}"
+            for i in vertices.iter("{*}vertex")
+        ]
+    )
+    # convert every value to floating point in one-shot rather than in a loop
+    v_array = np.fromstring(vs, dtype=np.float64, sep=" ").reshape((-1, 3))
+
+    # do the same behavior for faces but as an integer
+    fs = " ".join(
+        [
+            f"{i.attrib['v1']} {i.attrib['v2']} {i.attrib['v3']}"
+            for i in faces.iter("{*}triangle")
+        ]
+    )
+    f_array = np.fromstring(fs, dtype=np.int64, sep=" ").reshape((-1, 3))
+
+    return v_array, f_array
 
 
 def load_3MF(file_obj, postprocess=True, **kwargs):
@@ -23,6 +72,7 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     kwargs : dict
       Constructor arguments for `trimesh.Scene`
     """
+
     # dict, {name in archive: BytesIo}
     archive = util.decompress(file_obj, file_type="zip")
     # get model with case-insensitive keys
@@ -40,65 +90,73 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     # { mesh id : mesh name}
     id_name = {}
     # { mesh id: (n,3) float vertices}
-    v_seq = {}
+    v_seq = defaultdict(list)
     # { mesh id: (n,3) int faces}
-    f_seq = {}
+    f_seq = defaultdict(list)
     # components are objects that contain other objects
     # {id : [other ids]}
-    components = collections.defaultdict(list)
+    components = defaultdict(list)
     # load information about the scene graph
     # each instance is a single geometry
     build_items = []
 
+    # keep track of names we can use
+    consumed_counts = {}
     consumed_names = set()
+
     # iterate the XML object and build elements with an LXML iterator
     # loaded elements are cleared to avoid ballooning memory
     model.seek(0)
-    for _, obj in etree.iterparse(model, tag=("{*}object", "{*}build")):
+    for _, obj in etree.iterparse(model, tag=("{*}object", "{*}build"), events=("end",)):
         # parse objects
         if "object" in obj.tag:
             # id is mandatory
             index = obj.attrib["id"]
 
             # start with stored name
-            name = obj.attrib.get("name", str(index))
             # apparently some exporters name multiple meshes
             # the same thing so check to see if it's been used
-            if name in consumed_names:
-                name = name + str(index)
+            name = unique_name(
+                obj.attrib.get("name", str(index)), consumed_names, consumed_counts
+            )
             consumed_names.add(name)
             # store name reference on the index
             id_name[index] = name
 
             # if the object has actual geometry data parse here
             for mesh in obj.iter("{*}mesh"):
-                vertices = mesh.find("{*}vertices")
-                v_seq[index] = np.array(
-                    [
-                        [i.attrib["x"], i.attrib["y"], i.attrib["z"]]
-                        for i in vertices.iter("{*}vertex")
-                    ],
-                    dtype=np.float64,
-                )
-                vertices.clear()
-                vertices.getparent().remove(vertices)
-
-                faces = mesh.find("{*}triangles")
-                f_seq[index] = np.array(
-                    [
-                        [i.attrib["v1"], i.attrib["v2"], i.attrib["v3"]]
-                        for i in faces.iter("{*}triangle")
-                    ],
-                    dtype=np.int64,
-                )
-                faces.clear()
-                faces.getparent().remove(faces)
+                v, f = _read_mesh(mesh)
+                v_seq[index].append(v)
+                f_seq[index].append(f)
 
             # components are references to other geometries
             for c in obj.iter("{*}component"):
                 mesh_index = c.attrib["objectid"]
                 transform = _attrib_to_transform(c.attrib)
                 components[index].append((mesh_index, transform))
+
+                # if this references another file as the `path` attrib
+                path = next(
+                    (v.strip("/") for k, v in c.attrib.items() if k.endswith("path")),
+                    None,
+                )
+                if path is not None and path in archive:
+                    archive[path].seek(0)
+                    name = unique_name(
+                        obj.attrib.get("name", str(mesh_index)),
+                        consumed_names,
+                        consumed_counts,
+                    )
+                    consumed_names.add(name)
+                    # store name reference on the index
+                    id_name[mesh_index] = name
+
+                    for _, m in etree.iterparse(
+                        archive[path], tag=("{*}mesh"), events=("end",)
+                    ):
+                        v, f = _read_mesh(m)
+                        v_seq[mesh_index].append(v)
+                        f_seq[mesh_index].append(f)
 
         # parse build
         if "build" in obj.tag:
@@ -109,19 +167,15 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
                 # the index of the geometry this item instantiates
                 build_items.append((item.attrib["objectid"], transform))
 
-        # free resources
-        obj.clear()
-        obj.getparent().remove(obj)
-        del obj
-
     # have one mesh per 3MF object
     # one mesh per geometry ID, store as kwargs for the object
     meshes = {}
     for gid in v_seq.keys():
+        v, f = util.append_faces(v_seq[gid], f_seq[gid])
         name = id_name[gid]
         meshes[name] = {
-            "vertices": v_seq[gid],
-            "faces": f_seq[gid],
+            "vertices": v,
+            "faces": f,
             "metadata": metadata.copy(),
         }
         meshes[name].update(kwargs)
@@ -143,7 +197,7 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     # flatten the scene structure and simplify to
     # a single unique node per instance
     graph_args = []
-    parents = collections.defaultdict(set)
+    parents = defaultdict(set)
     for path in graph.multigraph_paths(G=g, source="world"):
         # collect all the transform on the path
         transforms = graph.multigraph_collect(G=g, traversal=path, attrib="matrix")
@@ -157,8 +211,9 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
         last = path[-1][0]
         # if someone included an undefined component, skip it
         if last not in id_name:
-            log.debug(f"id {last} included but not defined!")
+            log.warning(f"id {last} included but not defined!")
             continue
+
         # frame names unique
         name = id_name[last] + util.unique_id()
         # index in meshes

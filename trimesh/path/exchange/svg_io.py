@@ -13,21 +13,6 @@ from ...util import jsonify
 from ..arc import arc_center
 from ..entities import Arc, Bezier, Line
 
-try:
-    # pip install svg.path
-    from svg.path import parse_path
-except BaseException as E:
-    # will re-raise the import exception when
-    # someone tries to call `parse_path`
-    parse_path = exceptions.ExceptionWrapper(E)
-
-try:
-    from lxml import etree
-except BaseException as E:
-    # will re-raise the import exception when
-    # someone actually tries to use the module
-    etree = exceptions.ExceptionWrapper(E)
-
 # store any additional properties using a trimesh namespace
 _ns_name = "trimesh"
 _ns_url = "https://github.com/mikedh/trimesh"
@@ -719,3 +704,23 @@ def _decode(bag):
             base64.urlsafe_b64decode(text[7:].encode("utf-8")).decode("utf-8")
         )
     return text
+
+
+_svg_loaders = {"svg": svg_to_path}
+
+try:
+    # pip install svg.path
+    from svg.path import parse_path
+except BaseException as E:
+    # will re-raise the import exception when
+    # someone tries to call `parse_path`
+    parse_path = exceptions.ExceptionWrapper(E)
+    _svg_loaders["svg"] = parse_path
+
+try:
+    from lxml import etree
+except BaseException as E:
+    # will re-raise the import exception when
+    # someone actually tries to use the module
+    etree = exceptions.ExceptionWrapper(E)
+    _svg_loaders["svg"] = etree

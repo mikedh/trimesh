@@ -10,7 +10,7 @@ from .. import grouping, resources, util, visual
 from ..constants import log
 from ..geometry import triangulate_quads
 from ..resolvers import Resolver
-from ..typed import Optional
+from ..typed import NDArray, Optional
 
 # from ply specification, and additional dtypes found in the wild
 _dtypes = {
@@ -293,7 +293,10 @@ def export_ply(
     header = [templates["intro"]]
     header_params = {"encoding": encoding}
 
-    pack_edges = None
+    # structured arrays for exports
+    pack_edges: Optional[NDArray] = None
+    pack_vertex: Optional[NDArray] = None
+    pack_faces: Optional[NDArray] = None
 
     # check if scene has geometry
     # check if this is a `trimesh.path.Path` object.
@@ -301,44 +304,47 @@ def export_ply(
         if len(mesh.vertices) and mesh.vertices.shape[-1] != 3:
             raise ValueError("only Path3D export is supported for ply")
 
-        # run the discrete curve step for each entity
-        discrete = [e.discrete(mesh.vertices) for e in mesh.entities]
+        if len(mesh.vertices) > 0:
+            # run the discrete curve step for each entity
+            discrete = [e.discrete(mesh.vertices) for e in mesh.entities]
 
-        # how long was each discrete curve
-        discrete_len = np.array([d.shape[0] for d in discrete])
-        # what's the index offset based on these lengths
-        discrete_off = np.concatenate(([0], np.cumsum(discrete_len)[:-1]))
+            # how long was each discrete curve
+            discrete_len = np.array([d.shape[0] for d in discrete])
+            # what's the index offset based on these lengths
+            discrete_off = np.concatenate(([0], np.cumsum(discrete_len)[:-1]))
 
-        # pre-stack edges we can slice and offset
-        longest = discrete_len.max()
-        stack = np.column_stack((np.arange(0, longest - 1), np.arange(1, longest)))
+            # pre-stack edges we can slice and offset
+            longest = discrete_len.max()
+            stack = np.column_stack((np.arange(0, longest - 1), np.arange(1, longest)))
 
-        # get the indexes that reconstruct the discrete curves when stacked
-        edges = np.vstack(
-            [
-                stack[:length] + offset
-                for length, offset in zip(discrete_len - 1, discrete_off)
-            ]
-        )
+            # get the indexes that reconstruct the discrete curves when stacked
+            edges = np.vstack(
+                [
+                    stack[:length] + offset
+                    for length, offset in zip(discrete_len - 1, discrete_off)
+                ]
+            )
 
-        vertices = np.vstack(discrete)
-        # create and populate the custom dtype for vertices
-        num_vertices = len(vertices)
-        # put mesh edge data into custom dtype to export
-        num_edges = len(edges)
+            vertices = np.vstack(discrete)
+            # create and populate the custom dtype for vertices
+            num_vertices = len(vertices)
+            # put mesh edge data into custom dtype to export
+            num_edges = len(edges)
 
-        if num_edges > 0 and num_vertices > 0:
-            header.append(templates["vertex"])
-            vertex = np.zeros(num_vertices, dtype=dtype_vertex)
-            vertex["vertex"] = np.asarray(vertices, dtype=np.float32)
+            if num_edges > 0 and num_vertices > 0:
+                header.append(templates["vertex"])
+                pack_vertex = np.zeros(num_vertices, dtype=dtype_vertex)
+                pack_vertex["vertex"] = np.asarray(vertices, dtype=np.float32)
 
-            # add the edge info to the header
-            header.append(templates["edge"])
-            # pack edges into our dtype
-            pack_edges = unstructured_to_structured(edges, dtype=dtype_edge)
+                # add the edge info to the header
+                header.append(templates["edge"])
+                # pack edges into our dtype
+                pack_edges = unstructured_to_structured(edges, dtype=dtype_edge)
 
-            # add the values for the header
-            header_params.update({"edge_count": num_edges, "vertex_count": num_vertices})
+                # add the values for the header
+                header_params.update(
+                    {"edge_count": num_edges, "vertex_count": num_vertices}
+                )
 
     elif hasattr(mesh, "vertices"):
         header.append(templates["vertex"])
@@ -352,7 +358,12 @@ def export_ply(
             dtype_vertex.append(dtype_vertex_normal)
 
         # if mesh has a vertex color add it to the header
-        if hasattr("mesh", "visual") and mesh.visual.kind == "vertex":
+        vertex_color = (
+            hasattr(mesh, "visual")
+            and mesh.visual.kind == "vertex"
+            and len(mesh.visual.vertex_colors) == len(mesh.vertices)
+        )
+        if vertex_color:
             header.append(templates["color"])
             dtype_vertex.append(dtype_color)
 
@@ -361,19 +372,15 @@ def export_ply(
             _add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
 
         # create and populate the custom dtype for vertices
-        vertex = np.zeros(num_vertices, dtype=dtype_vertex)
-        vertex["vertex"] = mesh.vertices
+        pack_vertex = np.zeros(num_vertices, dtype=dtype_vertex)
+        pack_vertex["vertex"] = mesh.vertices
         if vertex_normal:
-            vertex["normals"] = mesh.vertex_normals
-        if (
-            hasattr(mesh, "visual")
-            and mesh.visual.kind == "vertex"
-            and len(mesh.visual.vertex_colors)
-        ):
-            vertex["rgba"] = mesh.visual.vertex_colors
+            pack_vertex["normals"] = mesh.vertex_normals
+        if vertex_color:
+            pack_vertex["rgba"] = mesh.visual.vertex_colors
 
         if include_attributes and hasattr(mesh, "vertex_attributes"):
-            _add_attributes_to_data_array(vertex, mesh.vertex_attributes)
+            _add_attributes_to_data_array(pack_vertex, mesh.vertex_attributes)
 
     if hasattr(mesh, "faces"):
         header.append(templates["face"])
@@ -386,39 +393,50 @@ def export_ply(
             _add_attributes_to_dtype(dtype_face, mesh.face_attributes)
 
         # put mesh face data into custom dtype to export
-        faces = np.zeros(len(mesh.faces), dtype=dtype_face)
-        faces["count"] = 3
-        faces["index"] = mesh.faces
+        pack_faces = np.zeros(len(mesh.faces), dtype=dtype_face)
+        pack_faces["count"] = 3
+        pack_faces["index"] = mesh.faces
         if mesh.visual.kind == "face" and encoding != "ascii":
-            faces["rgba"] = mesh.visual.face_colors
+            pack_faces["rgba"] = mesh.visual.face_colors
         header_params["face_count"] = len(mesh.faces)
 
         if include_attributes and hasattr(mesh, "face_attributes"):
-            _add_attributes_to_data_array(faces, mesh.face_attributes)
+            _add_attributes_to_data_array(pack_faces, mesh.face_attributes)
 
     header.append(templates["outro"])
     export = [Template("".join(header)).substitute(header_params).encode("utf-8")]
 
     if encoding == "binary_little_endian":
-        if hasattr(mesh, "vertices"):
-            export.append(vertex.tobytes())
-        if hasattr(mesh, "faces"):
-            export.append(faces.tobytes())
+        if pack_vertex is not None:
+            export.append(pack_vertex.tobytes())
+        if pack_faces is not None:
+            export.append(pack_faces.tobytes())
         if pack_edges is not None:
             export.append(pack_edges.tobytes())
     elif encoding == "ascii":
-        export.append(
-            util.structured_array_to_string(vertex, col_delim=" ", row_delim="\n").encode(
-                "utf-8"
-            ),
-        )
+        if pack_vertex is not None:
+            export.append(
+                util.structured_array_to_string(
+                    pack_vertex, col_delim=" ", row_delim="\n"
+                ).encode("utf-8"),
+            )
 
-        if hasattr(mesh, "faces"):
+        if pack_faces is not None:
             export.extend(
                 [
                     b"\n",
                     util.structured_array_to_string(
-                        faces, col_delim=" ", row_delim="\n"
+                        pack_faces, col_delim=" ", row_delim="\n"
+                    ).encode("utf-8"),
+                ]
+            )
+
+        if pack_edges is not None:
+            export.extend(
+                [
+                    b"\n",
+                    util.structured_array_to_string(
+                        pack_edges, col_delim=" ", row_delim="\n"
                     ).encode("utf-8"),
                 ]
             )

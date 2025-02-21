@@ -12,7 +12,7 @@ def typical_application():
     meshes = g.get_meshes(raise_error=True)
 
     for mesh in meshes:
-        g.log.info("Testing %s", mesh.metadata["file_name"])
+        g.log.info("Testing %s", mesh.source.file_name)
         assert len(mesh.faces) > 0
         assert len(mesh.vertices) > 0
 

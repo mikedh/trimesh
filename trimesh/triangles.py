@@ -62,6 +62,9 @@ def area(triangles=None, crosses=None):
     """
     if crosses is None:
         crosses = cross(np.asanyarray(triangles, dtype=np.float64))
+    if len(crosses.shape) == 1:
+        # support 2D triangles
+        return np.abs(crosses) / 2.0
     return np.sqrt((crosses**2).sum(axis=1)) / 2.0
 
 
@@ -86,7 +89,10 @@ def normals(triangles=None, crosses=None):
     if triangles is not None:
         triangles = np.asanyarray(triangles, dtype=np.float64)
         if triangles.shape[-1] == 2:
-            return np.tile([0.0, 0.0, 1.0], (triangles.shape[0], 1))
+            # 2D triangles return unit normal along Z
+            unit = np.tile([0.0, 0.0, 1.0], (triangles.shape[0], 1))
+            valid = np.ones(len(triangles), dtype=bool)
+            return unit, valid
     if crosses is None:
         crosses = cross(triangles)
     # unitize the cross product vectors
@@ -375,7 +381,7 @@ def bounds_tree(triangles):
       One node per triangle
     """
     triangles = np.asanyarray(triangles, dtype=np.float64)
-    if not util.is_shape(triangles, (-1, 3, 3)):
+    if not util.is_shape(triangles, (-1, 3, (2, 3))):
         raise ValueError("Triangles must be (n, 3, 3)!")
 
     # the (n,6) interleaved bounding box for every triangle

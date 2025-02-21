@@ -6,6 +6,8 @@ The base class for Trimesh, PointCloud, and Scene objects
 """
 
 import abc
+import os
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -13,8 +15,54 @@ from . import bounds, caching
 from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
-from .typed import Any, ArrayLike, Dict, NDArray, Optional
+from .resolvers import ResolverLike
+from .typed import Any, ArrayLike, Dict, NDArray, Optional, float64
 from .util import ABC
+
+
+@dataclass
+class LoadSource:
+    """
+    Save information about where a particular object was loaded from.
+    """
+
+    # a file-like object that can be accessed
+    file_obj: Optional[Any] = None
+
+    # a cleaned file type string, i.e. "stl"
+    file_type: Optional[str] = None
+
+    # if this was originally loaded from a file path
+    # save it here so we can check it later.
+    file_path: Optional[str] = None
+
+    # did we open `file_obj` ourselves?
+    was_opened: bool = False
+
+    # a resolver for loading assets next to the file
+    resolver: Optional[ResolverLike] = None
+
+    @property
+    def file_name(self) -> Optional[str]:
+        """
+        Get just the file name from the path if available.
+
+        Returns
+        ---------
+        file_name
+          Just the file name, i.e. for file_path="/a/b/c.stl" -> "c.stl"
+        """
+        if self.file_path is None:
+            return None
+        return os.path.basename(self.file_path)
+
+    def __getstate__(self) -> Dict:
+        # this overrides the `pickle.dump` behavior for this class
+        # we cannot pickle a file object so return `file_obj: None` for pickles
+        return {k: v if k != "file_obj" else None for k, v in self.__dict__.items()}
+
+    def __deepcopy__(self, *args):
+        return LoadSource(**self.__getstate__())
 
 
 class Geometry(ABC):
@@ -28,6 +76,25 @@ class Geometry(ABC):
 
     # geometry should have a dict to store loose metadata
     metadata: Dict
+
+    @property
+    def source(self) -> LoadSource:
+        """
+        Where and what was this current geometry loaded from?
+
+        Returns
+        --------
+        source
+          If loaded from a file, has the path, type, etc.
+        """
+        # this should have been tacked on by the loader
+        # but we want to *always* be able to access
+        # a value like `mesh.source.file_type` so add a default
+        current = getattr(self, "_source", None)
+        if current is not None:
+            return current
+        self._source = LoadSource()
+        return self._source
 
     @property
     @abc.abstractmethod
@@ -54,7 +121,7 @@ class Geometry(ABC):
 
         Returns
         ---------
-        hash : int
+        hash
           Hash of current graph and geometry.
         """
         return self._data.__hash__()  # type: ignore
@@ -75,7 +142,7 @@ class Geometry(ABC):
     def export(self, file_obj, file_type=None):
         pass
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Print quick summary of the current geometry without
         computing properties.
@@ -309,7 +376,7 @@ class Geometry3D(Geometry):
         volume_min = np.argmin([i.volume for i in options])
         return options[volume_min]
 
-    def apply_obb(self, **kwargs):
+    def apply_obb(self, **kwargs) -> NDArray[float64]:
         """
         Apply the oriented bounding box transform to the current mesh.
 

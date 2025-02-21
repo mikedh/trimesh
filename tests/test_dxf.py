@@ -65,16 +65,14 @@ class DXFTest(g.unittest.TestCase):
             if ratio > 0.01:
                 g.log.error(
                     "perimeter ratio on export %s wrong! %f %f %f",
-                    p.metadata["file_name"],
+                    p.source.file_name,
                     p.length,
                     r.length,
                     ratio,
                 )
 
                 raise ValueError(
-                    "perimeter ratio too large ({}) on {}".format(
-                        ratio, p.metadata["file_name"]
-                    )
+                    f"perimeter ratio too large ({ratio}) on {p.source.file_name}"
                 )
 
     def test_spline(self):
@@ -116,7 +114,7 @@ class DXFTest(g.unittest.TestCase):
             ff = g.os.path.join(dir_versions, f)
             try:
                 paths[f] = g.trimesh.load(ff)
-            except ValueError as E:
+            except NotImplementedError as E:
                 # something like 'r14a' for ascii
                 # and 'r14b' for binary
                 version = f.split(".")[-2]

@@ -10,12 +10,16 @@ class VoxelGridTest(g.unittest.TestCase):
         Test that voxels work at all
         """
         for m in [
-            g.get_mesh("featuretype.STL"),
+            g.get_mesh("featuretype.STL", force="mesh"),
             g.trimesh.primitives.Box(),
             g.trimesh.primitives.Sphere(),
         ]:
             for pitch in [0.1, 0.1 - g.tol.merge]:
                 surface = m.voxelized(pitch=pitch)
+
+                scene = g.trimesh.Scene(surface)
+                assert len(scene.geometry) == 1
+                assert g.np.allclose(scene.bounds, surface.bounds)
 
                 # make sure the voxelized pitch is similar to passed
                 assert g.np.allclose(surface.pitch, pitch)
@@ -67,15 +71,28 @@ class VoxelGridTest(g.unittest.TestCase):
             g.log.warning("no skimage, skipping marching cubes test")
             return
 
+        march = g.trimesh.voxel.ops.matrix_to_marching_cubes
+
         # make sure offset is correct
         matrix = g.np.ones((3, 3, 3), dtype=bool)
-        mesh = g.trimesh.voxel.ops.matrix_to_marching_cubes(matrix=matrix)
+        mesh = march(matrix=matrix)
         assert mesh.is_watertight
 
-        mesh = g.trimesh.voxel.ops.matrix_to_marching_cubes(matrix=matrix).apply_scale(
-            3.0
-        )
+        mesh = march(matrix=matrix).apply_scale(3.0)
         assert mesh.is_watertight
+
+        # try an array full of a small number
+        matrix = g.np.full((3, 3, 3), 0.01, dtype=g.np.float64)
+        # set some to zero
+        matrix[:2, :2, :2] = 0.0
+
+        a = march(matrix)
+        assert a.is_watertight
+
+        # but above the threshold it should be not empty
+        b = march(matrix, threshold=-0.001)
+        assert b.is_watertight
+        assert b.volume > a.volume
 
     def test_marching_points(self):
         """

@@ -1,9 +1,11 @@
 import json
+from tempfile import NamedTemporaryFile
 
 from .. import util
+from ..exceptions import ExceptionWrapper
 
 
-def load_dict(data, **kwargs):
+def load_dict(file_obj, **kwargs):
     """
     Load multiple input types into kwargs for a Trimesh constructor.
     Tries to extract keys:
@@ -14,7 +16,7 @@ def load_dict(data, **kwargs):
 
     Parameters
     ----------
-    data : dict
+    file_obj : dict
     accepts multiple forms
           -dict: has keys for vertices and faces as (n,3) numpy arrays
           -dict: has keys for vertices/faces (n,3) arrays encoded as dicts/base64
@@ -30,19 +32,19 @@ def load_dict(data, **kwargs):
             -faces:    (n,3) int
             -face_normals: (n,3) float (optional)
     """
-    if data is None:
-        raise ValueError("data passed to load_dict was None!")
-    if util.is_instance_named(data, "Trimesh"):
-        return data
-    if isinstance(data, str):
-        if "{" not in data:
+    if file_obj is None:
+        raise ValueError("file_obj passed to load_dict was None!")
+    if util.is_instance_named(file_obj, "Trimesh"):
+        return file_obj
+    if isinstance(file_obj, str):
+        if "{" not in file_obj:
             raise ValueError("Object is not a JSON encoded dictionary!")
-        data = json.loads(data.decode("utf-8"))
-    elif util.is_file(data):
-        data = json.load(data)
+        file_obj = json.loads(file_obj.decode("utf-8"))
+    elif util.is_file(file_obj):
+        file_obj = json.load(file_obj)
 
-    # what shape should the data be to be usable
-    mesh_data = {
+    # what shape should the file_obj be to be usable
+    mesh_file_obj = {
         "vertices": (-1, 3),
         "faces": (-1, (3, 4)),
         "face_normals": (-1, 3),
@@ -51,29 +53,30 @@ def load_dict(data, **kwargs):
         "vertex_colors": (-1, (3, 4)),
     }
 
-    # now go through data structure and if anything is encoded as base64
+    # now go through file_obj structure and if anything is encoded as base64
     # pull it back into numpy arrays
-    if isinstance(data, dict):
-        loaded = {}
-        data = util.decode_keys(data, "utf-8")
-        for key, shape in mesh_data.items():
-            if key in data:
-                loaded[key] = util.encoded_to_array(data[key])
-                if not util.is_shape(loaded[key], shape):
-                    raise ValueError(
-                        "Shape of %s is %s, not %s!",
-                        key,
-                        str(loaded[key].shape),
-                        str(shape),
-                    )
-        if len(key) == 0:
-            raise ValueError("Unable to extract any mesh data!")
-        return loaded
-    else:
-        raise ValueError("%s object passed to dict loader!", data.__class__.__name__)
+    if not isinstance(file_obj, dict):
+        raise ValueError(f"`{type(file_obj)}` object passed to dict loader!")
+
+    loaded = {}
+    file_obj = util.decode_keys(file_obj, "utf-8")
+    for key, shape in mesh_file_obj.items():
+        if key in file_obj:
+            loaded[key] = util.encoded_to_array(file_obj[key])
+            if not util.is_shape(loaded[key], shape):
+                raise ValueError(
+                    "Shape of %s is %s, not %s!",
+                    key,
+                    str(loaded[key].shape),
+                    str(shape),
+                )
+    if len(loaded) == 0:
+        raise ValueError("Unable to extract a mesh from the dict!")
+
+    return loaded
 
 
-def load_meshio(file_obj, file_type=None, **kwargs):
+def load_meshio(file_obj, file_type: str, **kwargs):
     """
     Load a meshio-supported file into the kwargs for a Trimesh
     constructor.
@@ -92,22 +95,28 @@ def load_meshio(file_obj, file_type=None, **kwargs):
       kwargs for Trimesh constructor
     """
     # trimesh "file types" are really filename extensions
+    # meshio may return multiple answers for each file extension
     file_formats = meshio.extension_to_filetypes["." + file_type]
-    # load_meshio gets passed and io.BufferedReader
-    # not all readers can cope with that
-    # e.g., the ones that use h5m underneath
-    # in that case use the associated file name instead
-    mesh = None
-    for file_format in file_formats:
-        try:
-            mesh = meshio.read(file_obj.name, file_format=file_format)
-            break
-        except BaseException:
-            util.log.debug("failed to load", exc_info=True)
-    if mesh is None:
-        raise ValueError("Failed to load file!")
 
-    # save data as kwargs for a trimesh.Trimesh
+    mesh = None
+    exceptions = []
+
+    # meshio appears to only support loading by file name so use a tempfile
+    with NamedTemporaryFile(suffix=f".{file_type}") as temp:
+        temp.write(file_obj.read())
+        temp.flush()
+        # try the loaders in order
+        for file_format in file_formats:
+            try:
+                mesh = meshio.read(temp.name, file_format=file_format)
+                break
+            except BaseException as E:
+                exceptions.append(str(E))
+
+    if mesh is None:
+        raise ValueError("Failed to load file:" + "\n".join(exceptions))
+
+    # save file_obj as kwargs for a trimesh.Trimesh
     result = {}
     # pass kwargs to mesh constructor
     result.update(kwargs)
@@ -123,7 +132,9 @@ def load_meshio(file_obj, file_type=None, **kwargs):
     return result
 
 
-_misc_loaders = {"dict": load_dict, "dict64": load_dict, "json": load_dict}
+_misc_loaders = {"dict": load_dict, "dict64": load_dict}
+_misc_loaders = {}
+
 
 try:
     import meshio
@@ -138,5 +149,5 @@ try:
     import openctm
 
     _misc_loaders["ctm"] = openctm.load_ctm
-except BaseException:
-    pass
+except BaseException as E:
+    _misc_loaders["ctm"] = ExceptionWrapper(E)

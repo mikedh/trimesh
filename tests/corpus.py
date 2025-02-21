@@ -6,29 +6,85 @@ Test loaders against large corpuses of test data from github:
 will download more than a gigabyte to your home directory!
 """
 
+import json
+import sys
+import time
+from dataclasses import asdict, dataclass
+
 import numpy as np
 from pyinstrument import Profiler
+from pyinstrument.renderers.jsonrenderer import JSONRenderer
 
 import trimesh
+from trimesh.typed import List, Optional, Tuple
 from trimesh.util import log, wrap_as_stream
 
-# get a set with available extension
-available = trimesh.available_formats()
 
-# remove loaders that are thin wrappers
-available.difference_update(
-    [
-        k
-        for k, v in trimesh.exchange.load.mesh_loaders.items()
-        if v in (trimesh.exchange.misc.load_meshio,)
-    ]
-)
-# remove loaders we don't care about
-available.difference_update({"json", "dae", "zae"})
-available.update({"dxf", "svg"})
+@dataclass
+class LoadReport:
+    # i.e. 'hi.glb'
+    file_name: str
+
+    # i.e 'glb'
+    file_type: str
+
+    # i.e. 'Scene'
+    type_load: Optional[str] = None
+
+    # what type was every geometry
+    type_geometry: Optional[Tuple[str]] = None
+
+    # what is the printed repr of the object, i.e. `<Trimesh ...>`
+    repr_load: Optional[str] = None
+
+    # if there was an exception save it here
+    exception: Optional[str] = None
 
 
-def on_repo(repo, commit):
+@dataclass
+class Report:
+    # what did we load
+    load: list[LoadReport]
+
+    # what version of trimesh was this produced on
+    version: str
+
+    # what was the profiler output for this run
+    # a pyinstrument.renderers.JSONRenderer output
+    profile: str
+
+    def compare(self, other: "Report"):
+        """
+        Compare this load report to another.
+        """
+        # what files were loaded by both versions
+        self_type = {o.file_name: o.type_load for o in self.load}
+        other_type = {n.file_name: n.type_load for n in other.load}
+
+        both = set(self_type.keys()).intersection(other_type.keys())
+        matches = np.array([self_type[k] == other_type[k] for k in both])
+        percent = matches.sum() / len(matches)
+
+        print(f"Comparing `{self.version}` against `{other.version}`")
+        print(f"Return types matched {percent * 100.0:0.3f}% of the time")
+        print(f"Loaded {len(self.load)} vs Loaded {len(other.load)}")
+
+
+def from_dict(data: dict) -> Report:
+    """
+    Parse a `Report` which has been exported using `dataclasses.asdict`
+    into a Report object.
+    """
+    return Report(
+        load=[LoadReport(**r) for r in data.get("load", [])],
+        version=data.get("version"),
+        profile=data.get("profile"),
+    )
+
+
+def on_repo(
+    repo: str, commit: str, available: set, root: Optional[str] = None
+) -> List[LoadReport]:
     """
     Try loading all supported files in a Github repo.
 
@@ -38,6 +94,10 @@ def on_repo(repo, commit):
       Github "slug" i.e. "assimp/assimp"
     commit : str
       Full hash of the commit to check.
+    available
+      Which `file_type` to check
+    root
+      If passed only consider files under this root directory.
     """
 
     # get a resolver for the specific commit
@@ -47,7 +107,11 @@ def on_repo(repo, commit):
     # list file names in the repo we can load
     paths = [i for i in repo.keys() if i.lower().split(".")[-1] in available]
 
-    report = {}
+    if root is not None:
+        # clip off any file not under the root path
+        paths = [p for p in paths if p.startswith(root)]
+
+    report = []
     for _i, path in enumerate(paths):
         namespace, name = path.rsplit("/", 1)
         # get a subresolver that has a root at
@@ -55,16 +119,14 @@ def on_repo(repo, commit):
         resolver = repo.namespaced(namespace)
 
         check = path.lower()
-        broke = (
-            "malformed empty outofmemory "
-            + "bad incorrect missing "
-            + "failures pond.0.ply"
-        ).split()
+        broke = "malformed outofmemory bad incorrect missing invalid failures".split()
         should_raise = any(b in check for b in broke)
         raised = False
 
-        # clip off the big old name from the archive
-        saveas = path[path.find(commit) + len(commit) :]
+        # start collecting data about the current load attempt
+        current = LoadReport(file_name=name, file_type=trimesh.util.split_extension(name))
+
+        print(f"Attempting: {name}")
 
         try:
             m = trimesh.load(
@@ -72,7 +134,16 @@ def on_repo(repo, commit):
                 file_type=name,
                 resolver=resolver,
             )
-            report[saveas] = str(m)
+
+            # save the load types
+            current.type_load = m.__class__.__name__
+            if isinstance(m, trimesh.Scene):
+                # save geometry types
+                current.type_geometry = tuple(
+                    [g.__class__.__name__ for g in m.geometry.values()]
+                )
+            # save the <Trimesh ...> repr
+            current.repr_load = str(m)
 
             # if our source was a GLTF we should be able to roundtrip without
             # dropping
@@ -104,19 +175,19 @@ def on_repo(repo, commit):
             # this is what unsupported formats
             # like GLTF 1.0 should raise
             log.debug(E)
-            report[saveas] = str(E)
+            current.exception = str(E)
         except BaseException as E:
             raised = True
             # we got an error on a file that should have passed
             if not should_raise:
                 log.debug(path, E)
                 raise E
-            report[saveas] = str(E)
+            current.exception = str(E)
 
         # if it worked when it didn't have to add a label
         if should_raise and not raised:
-            # raise ValueError(name)
-            report[saveas] += " SHOULD HAVE RAISED"
+            current.exception = "PROBABLY SHOULD HAVE RAISED BUT DIDN'T!"
+        report.append(current)
 
     return report
 
@@ -165,33 +236,92 @@ def equal(a, b):
     return a == b
 
 
-if __name__ == "__main__":
-    trimesh.util.attach_to_log()
+def run(save: bool = False):
+    """
+    Try to load and export every mesh we can get our hands on.
+
+    Parameters
+    -----------
+    save
+      If passed, save a JSON dump of the load report.
+    """
+    # get a set with available extension
+    available = trimesh.available_formats()
+
+    # remove meshio loaders because we're not testing meshio
+    available.difference_update(
+        [
+            k
+            for k, v in trimesh.exchange.load.mesh_loaders.items()
+            if v in (trimesh.exchange.misc.load_meshio,)
+        ]
+    )
+
+    # TODO : waiting on a release containing pycollada/pycollada/147
+    available.difference_update({"dae"})
 
     with Profiler() as P:
+        # check against the small trimesh corpus
+        loads = on_repo(
+            repo="mikedh/trimesh",
+            commit="2fcb2b2ea8085d253e692ecd4f71b8f450890d51",
+            available=available,
+            root="models",
+        )
+
         # check the assimp corpus, about 50mb
-        report = on_repo(
-            repo="assimp/assimp", commit="c2967cf79acdc4cd48ecb0729e2733bf45b38a6f"
+        loads.extend(
+            on_repo(
+                repo="assimp/assimp",
+                commit="1e44036c363f64d57e9f799beb9f06d4d3389a87",
+                available=available,
+                root="test",
+            )
         )
         # check the gltf-sample-models, about 1gb
-        report.update(
+        loads.extend(
             on_repo(
                 repo="KhronosGroup/glTF-Sample-Models",
                 commit="8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b",
+                available=available,
             )
         )
-
-        # add back collada for this repo
-        available.update(["dae", "zae"])
-        report.update(
+        # try on the universal robot models
+        loads.extend(
             on_repo(
                 repo="ros-industrial/universal_robot",
                 commit="8f01aa1934079e5a2c859ccaa9dd6623d4cfa2fe",
+                available=available,
             )
         )
 
     # show all profiler lines
     log.info(P.output_text(show_all=True))
 
-    # print a formatted report of what we loaded
-    log.debug("\n".join(f"# {k}\n{v}\n" for k, v in report.items()))
+    # save the profile for comparison loader
+    profile = P.output(JSONRenderer())
+
+    # compose the overall report
+    report = Report(load=loads, version=trimesh.__version__, profile=profile)
+
+    if save:
+        with open(f"trimesh.{trimesh.__version__}.{int(time.time())}.json", "w") as F:
+            json.dump(asdict(report), F)
+
+    return report
+
+
+if __name__ == "__main__":
+    trimesh.util.attach_to_log()
+
+    if "-run" in " ".join(sys.argv):
+        run()
+
+    if "-compare" in " ".join(sys.argv):
+        with open("trimesh.4.5.3.1737061410.json") as f:
+            old = from_dict(json.load(f))
+
+        with open("trimesh.4.6.0.1737060030.json") as f:
+            new = from_dict(json.load(f))
+
+        new.compare(old)

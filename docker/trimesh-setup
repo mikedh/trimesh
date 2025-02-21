@@ -6,15 +6,14 @@ environment for `trimesh` in a Debian Docker image.
 It probably isn't useful for most people unless you are running
 this exact configuration.
 """
+
 import argparse
 import json
 import logging
 import os
-import shutil
 import subprocess
 import sys
 import tarfile
-import tempfile
 from fnmatch import fnmatch
 from io import BytesIO
 
@@ -43,8 +42,9 @@ config_json = """
     ],
     "test": [
       "curl",
-      "git"
-    ],
+      "git",
+      "libxkbcommon0"
+],
    "gmsh": ["libxft2", "libxinerama-dev", "libxcursor1","libgomp1"]
   },
   "fetch": {
@@ -52,21 +52,30 @@ config_json = """
       "url": "https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.8/gltf_validator-2.0.0-dev.3.8-linux64.tar.xz",
       "sha256": "374c7807e28fe481b5075f3bb271f580ddfc0af3e930a0449be94ec2c1f6f49a",
       "target": "$PATH",
-      "chmod": 755,
+      "chmod": {"gltf_validator": 755},
       "extract_only": "gltf_validator"
     },
     "pandoc": {
       "url": "https://github.com/jgm/pandoc/releases/download/3.1.1/pandoc-3.1.1-linux-amd64.tar.gz",
       "sha256": "52b25f0115517e32047a06d821e63729108027bd06d9605fe8eac0fa83e0bf81",
       "target": "$PATH",
-      "chmod": 755,
+      "chmod": {"pandoc": 755},
       "extract_only": "pandoc"
     },
+
     "binvox": {
       "url": "https://trimesh.s3-us-west-1.amazonaws.com/binvox",
       "sha256": "82ee314a75986f67f1d2b5b3ccdfb3661fe57a6b428aa0e0f798fdb3e1734fe0",
       "target": "$PATH",
-      "chmod": 755
+      "chmod": {"binvox": 755}
+    },
+
+    "blender": {
+      "url": "https://mirrors.ocf.berkeley.edu/blender/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz",
+      "sha256": "3a64efd1982465395abab4259b4091d5c8c56054c7267e9633e4f702a71ea3f4",
+      "target": "$PATH",
+      "chmod": {"blender": 755},
+      "strip_components": 1
     }
   }
 }
@@ -154,7 +163,22 @@ def fetch(url, sha256):
     return data
 
 
-def copy_to_path(file_path, prefix="~"):
+def is_writable(path: str) -> bool:
+    if not os.path.isdir(path):
+        return False
+
+    test_fn = os.path.join(path, ".test_writeable_file")
+    try:
+        with open(test_fn, "w") as f:
+            f.write("can we write here?")
+        os.remove(test_fn)
+        return True
+    except BaseException as E:
+        print(path, E)
+        return False
+
+
+def choose_in_path(prefix="~") -> str:
     """
     Copy an executable file onto `PATH`, typically one of
     the options in the current user's home directory.
@@ -167,18 +191,6 @@ def copy_to_path(file_path, prefix="~"):
       The path prefix it is acceptable to copy into,
       typically `~` for `/home/{current_user}`.
     """
-    # get the full path of the requested file
-    source = os.path.abspath(os.path.expanduser(file_path))
-
-    # get the file name
-    file_name = os.path.split(source)[-1]
-
-    # make sure the source file is readable and not empty
-    with open(source, "rb") as f:
-        file_data = f.read()
-    # check for empty files
-    if len(file_data) == 0:
-        raise ValueError(f"empty file: {file_path}")
 
     # get all locations in PATH
     candidates = [
@@ -202,13 +214,9 @@ def copy_to_path(file_path, prefix="~"):
 
     # try writing to the shortest paths first
     for index in argsort(scores):
-        path = os.path.join(candidates[index], file_name)
-        try:
-            shutil.copy(source, path)
-            print(f"wrote `{path}`")
+        path = candidates[index]
+        if is_writable(path):
             return path
-        except BaseException:
-            pass
 
     # none of our candidates worked
     raise ValueError("unable to write to file")
@@ -259,17 +267,31 @@ def handle_fetch(
       A hex string for the hash of the remote resource.
     target : str
       Target location on the local file system.
-    chmod : None or int.
+    chmod : None or dict
       Change permissions for extracted files.
     extract_skip : None or iterable
-      Skip a certain member of the archive.
-    extract_only : None or str
-      Extract *only* a single file from the archive,
-      overrides `extract_skip`.
+      Skip a certain member of the archive using
+      an `fnmatch` pattern, i.e. "lib/*"
+    extract_only : None or iterable
+      Extract only whitelisted files from the archive
+      using an `fnmatch` pattern, i.e. "lib/*"
     strip_components : int
       Strip off this many components from the file path
       in the archive, i.e. at `1`, `a/b/c` is extracted to `target/b/c`
     """
+    if target.lower().strip() == "$path":
+        target = choose_in_path()
+        log.debug(f"identified destination as `{target}`")
+
+    if chmod is None:
+        chmod = {}
+        
+    if extract_skip is None:
+        extract_skip = []
+    # if passed a single string
+    if isinstance(extract_only, str):
+        extract_only = [extract_only]
+
     # get the raw bytes
     log.debug(f"fetching: `{url}`")
     raw = fetch(url=url, sha256=sha256)
@@ -284,10 +306,10 @@ def handle_fetch(
         # get the archive
         tar = tarfile.open(fileobj=BytesIO(raw), mode=mode)
 
-        if extract_skip is None:
-            extract_skip = []
-
         for member in tar.getmembers():
+            if member.isdir():
+                continue
+
             # final name after stripping components
             name = "/".join(member.name.split("/")[strip_components:])
 
@@ -296,44 +318,28 @@ def handle_fetch(
                 log.debug(f"skipping: `{name}`")
                 continue
 
-            if extract_only is None:
-                path = os.path.join(target, name)
-                log.debug(f"extracting: `{path}`")
-                extract(tar=tar, member=member, path=path, chmod=chmod)
-            else:
-                name = name.split("/")[-1]
-                if name == extract_only:
-                    if target.lower() == "$path":
-                        with tempfile.TemporaryDirectory() as D:
-                            path = os.path.join(D, name)
-                            log.debug(f"extracting `{path}`")
-                            extract(tar=tar, member=member, path=path, chmod=chmod)
-                            copy_to_path(path)
-                            return
+            if extract_only is not None and not any(
+                fnmatch(name, p) for p in extract_only
+            ):
+                log.debug(f"skipping: `{name}`")
+                continue
 
-                    path = os.path.join(target, name)
-                    log.debug(f"extracting `{path}`")
-                    extract(tar=tar, member=member, path=path, chmod=chmod)
-                    return
+            path = os.path.join(target, name)
+            log.debug(f"extracting: `{path}`")
+            extract(tar=tar, member=member, path=path, chmod=chmod.get(name, None))
+
     else:
         # a single file
         name = url.split("/")[-1].strip()
-        if target.lower() == "$path":
-            with tempfile.TemporaryDirectory() as D:
-                temp_path = os.path.join(D, name)
-                with open(temp_path, "wb") as f:
-                    f.write(raw)
-                # move the file somewhere on the path
-                path = copy_to_path(temp_path)
-        else:
-            path = target
-            with open(path, "wb") as f:
-                f.write(raw)
+        path = os.path.join(target, name)
+        with open(path, "wb") as f:
+            f.write(raw)
 
+        current = chmod.get(name, None)
         # apply chmod if requested
-        if chmod is not None:
+        if current is not None:
             # python os.chmod takes an octal value
-            os.chmod(path, int(str(chmod), base=8))
+            os.chmod(path, int(str(current), base=8))
 
 
 def load_config():
@@ -357,8 +363,8 @@ if __name__ == "__main__":
     # collect `apt-get install`-able package
     apt_select = []
     handlers = {
-        "fetch": lambda x: handle_fetch(**x),
         "apt": lambda x: apt_select.extend(x),
+        "fetch": lambda x: handle_fetch(**x),
     }
 
     # allow comma delimiters and de-duplicate
@@ -366,7 +372,7 @@ if __name__ == "__main__":
         parser.print_help()
         exit()
     else:
-        select = set(" ".join(args.install).replace(",", " ").split())
+        select = " ".join(args.install).replace(",", " ").split()
 
     log.debug(f'installing metapackages: `{", ".join(select)}`')
 

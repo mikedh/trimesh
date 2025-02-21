@@ -194,15 +194,22 @@ def discretize_arc(points, close=False, scale=1.0):
 
     # do an in-process check to make sure result endpoints
     # match the endpoints of the source arc
-    if tol.strict and not close:
-        arc_dist = util.row_norm(points[[0, -1]] - discrete[[0, -1]])
-        arc_ok = (arc_dist < tol.merge).all()
-        if not arc_ok:
-            log.warning(
-                "failed to discretize arc (endpoint_distance=%s R=%s)", str(arc_dist), R
-            )
-            log.warning("Failed arc points: %s", str(points))
-            raise ValueError("Arc endpoints diverging!")
+    if not close:
+        if tol.strict:
+            arc_dist = util.row_norm(points[[0, -1]] - discrete[[0, -1]])
+            arc_ok = (arc_dist < tol.merge).all()
+            if not arc_ok:
+                log.warning(
+                    "failed to discretize arc (endpoint_distance=%s R=%s)",
+                    str(arc_dist),
+                    R,
+                )
+                log.warning("Failed arc points: %s", str(points))
+                raise ValueError("Arc endpoints diverging!")
+        # snap the discrete result to exact control points
+        discrete[[0, -1]] = points[[0, -1]]
+
+    # clip to the dimension of input
     discrete = discrete[:, : (3 - is_2D)]
 
     return discrete

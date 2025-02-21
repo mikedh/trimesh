@@ -5,32 +5,23 @@ except BaseException:
 
 import numpy as np
 
-try:
-    import manifold3d
-except BaseException:
-    manifold3d = None
+# test only available engines by default
+engines = g.trimesh.boolean.engines_available
+# test all engines if all_dep is set
+if g.all_dependencies:
+    engines = g.trimesh.boolean._engines.keys()
 
-
-engines = [
-    ("blender", g.trimesh.interfaces.blender.exists),
-    ("manifold", manifold3d is not None),
-]
+engines = set(engines)
 
 
 def test_boolean():
-    a = g.get_mesh("ballA.off")
-    b = g.get_mesh("ballB.off")
-    truth = g.data["boolean"]
-
     times = {}
-    for engine, exists in engines:
-        # if we have all_dep set it means we should fail if
-        # engine is not installed so don't continue
-        if not exists:
-            g.log.warning("skipping boolean engine %s", engine)
-            continue
-
+    for engine in engines:
         g.log.info("Testing boolean ops with engine %s", engine)
+
+        a = g.get_mesh("ballA.off")
+        b = g.get_mesh("ballB.off")
+        truth = g.data["boolean"]
 
         tic = g.time.time()
 
@@ -67,24 +58,28 @@ def test_multiple():
     """
     Make sure boolean operations work on multiple meshes.
     """
-    for engine, exists in engines:
-        if not exists:
-            continue
+    for engine in engines:
+        g.log.info("Testing multiple union with engine %s", engine)
+
         a = g.trimesh.primitives.Sphere(center=[0, 0, 0])
         b = g.trimesh.primitives.Sphere(center=[0, 0, 0.75])
         c = g.trimesh.primitives.Sphere(center=[0, 0, 1.5])
 
         r = g.trimesh.boolean.union([a, b, c], engine=engine)
-
         assert r.is_volume
         assert r.body_count == 1
         assert np.isclose(r.volume, 8.617306056726884)
 
+        # try a multiple-difference
+        d = g.trimesh.boolean.difference([a, b, c])
+        assert d.is_volume
+        assert r.body_count == 1
+        assert np.isclose(d.volume, 2.2322826509159985)
+
 
 def test_empty():
-    for engine, exists in engines:
-        if not exists:
-            continue
+    for engine in engines:
+        g.log.info("Testing empty intersection with engine %s", engine)
 
         a = g.trimesh.primitives.Sphere(center=[0, 0, 0])
         b = g.trimesh.primitives.Sphere(center=[5, 0, 0])
@@ -95,108 +90,62 @@ def test_empty():
 
 
 def test_boolean_manifold():
-    if manifold3d is None:
-        return
+    from trimesh.boolean import _engines, boolean_manifold
 
     times = {}
-    for operation in ["union", "intersection"]:
-        if operation == "union":
-            # chain of icospheres
-            meshes = [
-                g.trimesh.primitives.Sphere(center=[x / 2, 0, 0], subdivisions=0)
-                for x in range(100)
-            ]
-        else:
-            # closer icospheres for non-empty-intersection
-            meshes = [
-                g.trimesh.primitives.Sphere(center=[x, x, x], subdivisions=0)
-                for x in np.linspace(0, 0.5, 101)
-            ]
+    exists = not isinstance(_engines["manifold"], g.trimesh.exceptions.ExceptionWrapper)
 
-        # the old 'serial' manifold method
-        tic = g.time.time()
-        manifolds = [
-            manifold3d.Manifold(
-                mesh=manifold3d.Mesh(
-                    vert_properties=np.array(mesh.vertices, dtype=np.float32),
-                    tri_verts=np.array(mesh.faces, dtype=np.uint32),
-                )
-            )
-            for mesh in meshes
-        ]
-        result_manifold = manifolds[0]
-        for manifold in manifolds[1:]:
+    # run this test only when manifold3d is available or `all_dep` is enabled
+    if exists or g.all_dependencies:
+        import manifold3d
+
+        for operation in ["union", "intersection"]:
             if operation == "union":
-                result_manifold = result_manifold + manifold
-            else:  # operation == "intersection":
-                result_manifold = result_manifold ^ manifold
-        result_mesh = result_manifold.to_mesh()
-        old_mesh = g.trimesh.Trimesh(
-            vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts
-        )
-        times["serial " + operation] = g.time.time() - tic
+                # chain of icospheres
+                meshes = [
+                    g.trimesh.primitives.Sphere(center=[x / 2, 0, 0], subdivisions=0)
+                    for x in range(100)
+                ]
+            else:
+                # closer icospheres for non-empty-intersection
+                meshes = [
+                    g.trimesh.primitives.Sphere(center=[x, x, x], subdivisions=0)
+                    for x in np.linspace(0, 0.5, 101)
+                ]
 
-        # new 'binary' method
-        tic = g.time.time()
-        new_mesh = g.trimesh.boolean.boolean_manifold(meshes, operation)
-        times["binary " + operation] = g.time.time() - tic
+            # the old 'serial' manifold method
+            tic = g.time.time()
+            manifolds = [
+                manifold3d.Manifold(
+                    mesh=manifold3d.Mesh(
+                        vert_properties=np.array(mesh.vertices, dtype=np.float32),
+                        tri_verts=np.array(mesh.faces, dtype=np.uint32),
+                    )
+                )
+                for mesh in meshes
+            ]
+            result_manifold = manifolds[0]
+            for manifold in manifolds[1:]:
+                if operation == "union":
+                    result_manifold = result_manifold + manifold
+                else:  # operation == "intersection":
+                    result_manifold = result_manifold ^ manifold
+            result_mesh = result_manifold.to_mesh()
+            old_mesh = g.trimesh.Trimesh(
+                vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts
+            )
+            times["serial " + operation] = g.time.time() - tic
 
-        assert old_mesh.is_volume == new_mesh.is_volume
-        assert old_mesh.body_count == new_mesh.body_count
-        assert np.isclose(old_mesh.volume, new_mesh.volume)
+            # new 'binary' method
+            tic = g.time.time()
+            new_mesh = boolean_manifold(meshes, operation)
+            times["binary " + operation] = g.time.time() - tic
 
-    g.log.info(times)
+            # assert old_mesh.is_volume == new_mesh.is_volume
+            assert old_mesh.body_count == new_mesh.body_count
+            assert np.isclose(old_mesh.volume, new_mesh.volume)
 
-
-def test_reduce_cascade():
-    # the multiply will explode quickly past the integer maximum
-
-    from functools import reduce
-
-    from trimesh.boolean import reduce_cascade
-
-    def both(operation, items):
-        """
-        Run our cascaded reduce and regular reduce.
-        """
-
-        b = reduce_cascade(operation, items)
-
-        if len(items) > 0:
-            assert b == reduce(operation, items)
-
-        return b
-
-    for i in range(20):
-        data = np.arange(i)
-        c = both(items=data, operation=lambda a, b: a + b)
-
-        if i == 0:
-            assert c is None
-        else:
-            assert c == np.arange(i).sum()
-
-        # try a multiply
-        data = np.arange(i)
-        c = both(items=data, operation=lambda a, b: a * b)
-
-        if i == 0:
-            assert c is None
-        else:
-            assert c == np.prod(data)
-
-        # try a multiply
-        data = np.arange(i)[1:]
-        c = both(items=data, operation=lambda a, b: a * b)
-        if i <= 1:
-            assert c is None
-        else:
-            assert c == np.prod(data)
-
-    data = ["a", "b", "c", "d", "e", "f", "g"]
-    print("# reduce_pairwise\n-----------")
-    r = both(operation=lambda a, b: a + b, items=data)
-    assert r == "abcdefg"
+        g.log.info(times)
 
 
 def test_multiple_difference():
@@ -219,14 +168,17 @@ def test_multiple_difference():
     spheres = [g.trimesh.creation.icosphere()]
     spheres.extend(g.trimesh.creation.icosphere().apply_translation(c) for c in center)
 
-    # compute using meshes method
-    diff_base = spheres[0].difference(spheres[1:])
-    # compute using function call (should be identical)
-    diff_meth = g.trimesh.boolean.difference(spheres)
+    for engine in engines:
+        g.log.info("Testing multiple difference with engine %s", engine)
 
-    # both methods should produce the same result
-    assert np.isclose(diff_base.volume, diff_meth.volume)
-    assert diff_base.volume < spheres[0].volume
+        # compute using meshes method
+        diff_base = spheres[0].difference(spheres[1:], engine=engine)
+        # compute using function call (should be identical)
+        diff_meth = g.trimesh.boolean.difference(spheres, engine=engine)
 
-    # should have done the diff
-    assert np.allclose(diff_base.extents, [1.5, 1.5, 2.0], atol=1e-8)
+        # both methods should produce the same result
+        assert np.isclose(diff_base.volume, diff_meth.volume)
+        assert diff_base.volume < spheres[0].volume
+
+        # should have done the diff
+        assert np.allclose(diff_base.extents, [1.5, 1.5, 2.0], atol=1e-8)

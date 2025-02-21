@@ -25,6 +25,7 @@ from . import (
     grouping,
     inertia,
     intersections,
+    iteration,
     nsphere,
     permutate,
     poses,
@@ -53,6 +54,7 @@ from .exchange.load import (
     load_mesh,
     load_path,
     load_remote,
+    load_scene,
 )
 
 # geometry objects
@@ -81,9 +83,8 @@ except BaseException as E:
 
 
 __all__ = [
-    "PointCloud",
     "Geometry",
-    "Trimesh",
+    "PointCloud",
     "Scene",
     "Trimesh",
     "__version__",
@@ -103,10 +104,12 @@ __all__ = [
     "grouping",
     "inertia",
     "intersections",
+    "iteration",
     "load",
     "load_mesh",
     "load_path",
     "load_remote",
+    "load_scene",
     "nsphere",
     "path",
     "permutate",
