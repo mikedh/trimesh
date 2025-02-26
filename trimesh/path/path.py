@@ -149,7 +149,7 @@ class Path(parent.Geometry):
         return self
 
     @property
-    def colors(self) -> NDArray:
+    def colors(self) -> Optional[NDArray]:
         """
         Colors are stored per-entity.
 
