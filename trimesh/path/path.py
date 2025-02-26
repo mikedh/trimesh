@@ -169,7 +169,7 @@ class Path(parent.Geometry):
         return colors
 
     @colors.setter
-    def colors(self, values: ArrayLike):
+    def colors(self, values: Optional[ArrayLike]):
         """
         Set the color for every entity in the Path.
 
