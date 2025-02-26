@@ -23,6 +23,10 @@ class TextureTest(g.unittest.TestCase):
     def test_bad_uv(self):
         # get a textured OBJ
         m = g.get_mesh("fuze.obj", force="mesh")
+
+        # check that we saved the original file path
+        assert m.visual.material.image.info["file_path"].endswith("fuze uv.jpg")
+
         # add malformed UV coordinates
         m.visual.uv = m.visual.uv[:100]
         m.merge_vertices()
@@ -55,7 +59,7 @@ class TextureTest(g.unittest.TestCase):
             # see if web resolvers work
             tex = g.trimesh.exchange.load.load_remote(
                 url=address + "/fuze.obj", process=False
-            )
+            ).geometry["fuze.obj"]
             g.check_fuze(tex)
 
             # see if web + zip resolvers work

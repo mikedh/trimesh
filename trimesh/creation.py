@@ -67,7 +67,7 @@ def revolve(
       passed will be a full revolution (`angle = 2*pi`)
     cap
       If not a full revolution (`0.0 < angle < 2 * pi`)
-      and cap is True attempt to add a tesselated cap.
+      and cap is True attempt to add a tessellated cap.
     sections
       Number of sections result should have
       If not specified default is 32 per revolution
@@ -849,7 +849,7 @@ def icosahedron(**kwargs) -> Trimesh:
 
 def icosphere(subdivisions: Integer = 3, radius: Number = 1.0, **kwargs):
     """
-    Create an isophere centered at the origin.
+    Create an icosphere centered at the origin.
 
     Parameters
     ----------

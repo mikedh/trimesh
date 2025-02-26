@@ -61,20 +61,18 @@ class ConvexTest(g.unittest.TestCase):
 
             if not close_ok:
                 g.log.error(f"volume inconsistent: {volume}")
-                raise ValueError(
-                    "volume is inconsistent on {}".format(mesh.metadata["file_name"])
-                )
+                raise ValueError(f"volume is inconsistent on {mesh.source.file_name}")
             assert min(volume) > 0.0
 
             if not all(i.is_winding_consistent for i in hulls):
                 raise ValueError(
                     "mesh %s reported bad winding on convex hull!",
-                    mesh.metadata["file_name"],
+                    mesh.source.file_name,
                 )
 
             if not all(i.is_convex for i in hulls):
                 raise ValueError(
-                    "mesh %s reported non-convex convex hull!", mesh.metadata["file_name"]
+                    "mesh %s reported non-convex convex hull!", mesh.source.file_name
                 )
 
     def test_primitives(self):

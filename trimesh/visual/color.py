@@ -22,7 +22,6 @@ Goals
    and setting or altering a value should automatically change the mode.
 """
 
-import colorsys
 import copy
 
 import numpy as np
@@ -30,7 +29,16 @@ import numpy as np
 from .. import caching, util
 from ..constants import tol
 from ..grouping import unique_rows
-from ..typed import ArrayLike, NDArray
+from ..typed import (
+    ArrayLike,
+    DTypeLike,
+    Integer,
+    Iterable,
+    NDArray,
+    Optional,
+    Tuple,
+    Union,
+)
 from .base import Visuals
 
 
@@ -39,7 +47,12 @@ class ColorVisuals(Visuals):
     Store color information about a mesh.
     """
 
-    def __init__(self, mesh=None, face_colors=None, vertex_colors=None):
+    def __init__(
+        self,
+        mesh=None,
+        face_colors: Optional[ArrayLike] = None,
+        vertex_colors: Optional[ArrayLike] = None,
+    ):
         """
         Store color information about a mesh.
 
@@ -57,13 +70,6 @@ class ColorVisuals(Visuals):
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.__hash__)
 
-        self.defaults = {
-            "material_diffuse": np.array([102, 102, 102, 255], dtype=np.uint8),
-            "material_ambient": np.array([64, 64, 64, 255], dtype=np.uint8),
-            "material_specular": np.array([197, 197, 197, 255], dtype=np.uint8),
-            "material_shine": 77.0,
-        }
-
         try:
             if face_colors is not None:
                 self.face_colors = face_colors
@@ -73,7 +79,7 @@ class ColorVisuals(Visuals):
             util.log.warning("unable to convert colors!")
 
     @caching.cache_decorator
-    def transparency(self):
+    def transparency(self) -> bool:
         """
         Does the current object contain any transparency.
 
@@ -91,7 +97,7 @@ class ColorVisuals(Visuals):
         return bool(a_min < 255)
 
     @property
-    def defined(self):
+    def defined(self) -> bool:
         """
         Are any colors defined for the current mesh.
 
@@ -103,7 +109,7 @@ class ColorVisuals(Visuals):
         return self.kind is not None
 
     @property
-    def kind(self):
+    def kind(self) -> Optional[str]:
         """
         What color mode has been set.
 
@@ -130,7 +136,7 @@ class ColorVisuals(Visuals):
     def __hash__(self):
         return self._data.__hash__()
 
-    def copy(self):
+    def copy(self) -> "ColorVisuals":
         """
         Return a copy of the current ColorVisuals object.
 
@@ -150,7 +156,7 @@ class ColorVisuals(Visuals):
         return copied
 
     @property
-    def face_colors(self):
+    def face_colors(self) -> NDArray[np.uint8]:
         """
         Colors defined for each face of a mesh.
 
@@ -164,7 +170,7 @@ class ColorVisuals(Visuals):
         return self._get_colors(name="face")
 
     @face_colors.setter
-    def face_colors(self, values):
+    def face_colors(self, values: ArrayLike):
         """
         Set the colors for each face of a mesh.
 
@@ -195,7 +201,7 @@ class ColorVisuals(Visuals):
         self._cache.verify()
 
     @property
-    def vertex_colors(self):
+    def vertex_colors(self) -> NDArray[np.uint8]:
         """
         Return the colors for each vertex of a mesh
 
@@ -206,7 +212,7 @@ class ColorVisuals(Visuals):
         return self._get_colors(name="vertex")
 
     @vertex_colors.setter
-    def vertex_colors(self, values):
+    def vertex_colors(self, values: ArrayLike):
         """
         Set the colors for each vertex of a mesh
 
@@ -313,7 +319,7 @@ class ColorVisuals(Visuals):
             if self.kind is None:
                 # no colors are defined, so create a (count, 4) tiled
                 # copy of the default color
-                colors = np.tile(self.defaults["material_diffuse"], (count, 1))
+                colors = np.tile(DEFAULT_MAT["material_diffuse"], (count, 1))
             elif self.kind == "vertex" and name == "face":
                 colors = vertex_to_face_color(
                     vertex_colors=self.vertex_colors, faces=self.mesh.faces
@@ -370,19 +376,19 @@ class ColorVisuals(Visuals):
                     raise ValueError("unsupported name!!!")
                 self._cache.verify()
 
-    def update_vertices(self, mask):
+    def update_vertices(self, mask: ArrayLike):
         """
         Apply a mask to remove or duplicate vertex properties.
         """
         self._update_key(mask, "vertex_colors")
 
-    def update_faces(self, mask):
+    def update_faces(self, mask: ArrayLike):
         """
         Apply a mask to remove or duplicate face properties
         """
         self._update_key(mask, "face_colors")
 
-    def face_subset(self, face_index):
+    def face_subset(self, face_index: ArrayLike):
         """
         Given a mask of face indices, return a sliced version.
 
@@ -410,7 +416,7 @@ class ColorVisuals(Visuals):
         return result
 
     @property
-    def main_color(self):
+    def main_color(self) -> NDArray[np.uint8]:
         """
         What is the most commonly occurring color.
 
@@ -451,7 +457,7 @@ class ColorVisuals(Visuals):
         mat, uv = color_to_uv(vertex_colors=self.vertex_colors)
         return TextureVisuals(material=mat, uv=uv)
 
-    def concatenate(self, other, *args):
+    def concatenate(self, other: Union[Iterable[Visuals], Visuals], *args):
         """
         Concatenate two or more ColorVisuals objects
         into a single object.
@@ -556,7 +562,9 @@ class VertexColor(Visuals):
         return self._colors.__hash__()
 
 
-def to_rgba(colors, dtype=np.uint8) -> NDArray:
+def to_rgba(
+    colors: Union[ArrayLike, None, Tuple], dtype: DTypeLike = np.uint8
+) -> NDArray:
     """
     Convert a single or multiple RGB colors to RGBA colors.
 
@@ -626,7 +634,7 @@ def to_float(colors: ArrayLike) -> NDArray[np.float64]:
         raise ValueError("only works on int or float colors!")
 
 
-def hex_to_rgba(color):
+def hex_to_rgba(color: str) -> NDArray[np.uint8]:
     """
     Turn a string hex color to a (4,) RGBA color.
 
@@ -648,29 +656,99 @@ def hex_to_rgba(color):
     return rgba
 
 
-def random_color(dtype=np.uint8):
+def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
+    """
+    Convert an (n, 3) array of 0.0-1.0 HSV colors into an
+    array of RGBA colors.
+
+    A vectorized implementation that matches `colorsys.hsv_to_rgb`.
+
+    Parameters
+    -----------
+    hsv
+      Should be `(n, 3)` array of 0.0-1.0 values.
+
+    Returns
+    ------------
+    rgba
+      An (n, 4) array of RGBA colors.
+    """
+
+    hsv = np.array(hsv, dtype=np.float64)
+    if len(hsv.shape) != 2 or hsv.shape[1] != 3:
+        raise ValueError("(n, 3) values of HSV are required")
+    # clip values in-place to 0.0-1.0 range
+    np.clip(hsv, a_min=0.0, a_max=1.0, out=hsv)
+
+    # expand into flat arrays for each of
+    # hue, saturation, and value
+    H, S, V = hsv.T
+
+    # chroma and other values for the equation
+    C = S * V
+    Hi = H * 6.0
+    X = C * (1.0 - np.abs((Hi % 2.0) - 1.0))
+    # use a lookup table for an integer to match the
+    # cases specified on the wikipedia article
+    # Where indexes 0=C, 1=X, 2=0.0
+    lookup = np.array(
+        [[0, 1, 2], [1, 0, 2], [2, 0, 1], [2, 1, 0], [1, 2, 0], [0, 2, 1]], dtype=np.int64
+    )
+
+    # stack values we need so we can access them with the lookup table
+    stacked = np.column_stack((C, X, np.zeros_like(X)))
+    # get the indexes per-row and then increment them so we can use them on the stack
+    indexes = lookup[Hi.astype(np.int64)] + (np.arange(len(H)) * 3).reshape((-1, 1))
+
+    # get the intermediate value, described by wikipedia as
+    # the point along the bottom three faces of the RGB cube
+    RGBi = stacked.ravel()[indexes]
+
+    # stack it into the final RGBA array
+    RGBA = np.column_stack((RGBi + (V - C).reshape((-1, 1)), np.ones(len(H))))
+
+    # now return the correct type of color
+    dtype = np.dtype(dtype)
+    if dtype.kind == "f":
+        return RGBA.astype(dtype)
+    elif dtype.kind in "iu":
+        return (RGBA * np.iinfo(dtype).max).round().astype(dtype)
+
+    raise ValueError(f"dtype `{dtype}` not supported")
+
+
+def random_color(dtype: DTypeLike = np.uint8, count: Optional[Integer] = None) -> NDArray:
     """
     Return a random RGB color using datatype specified.
 
     Parameters
     ----------
-    dtype: numpy dtype of result
+    dtype
+      Color type of result.
+    count
+      If passed return (count, 4) colors instead of
+      a single (4,) color.
 
     Returns
     ----------
-    color: (4,) dtype, random color that looks OK
+    color : (4,) or (count, 4)
+      Random color or colors that look "OK"
     """
-    hue = np.random.random() + 0.61803
-    hue %= 1.0
-    color = np.array(colorsys.hsv_to_rgb(hue, 0.99, 0.99))
-    if np.dtype(dtype).kind in "iu":
-        max_value = (2 ** (np.dtype(dtype).itemsize * 8)) - 1
-        color *= max_value
-    color = np.append(color, max_value).astype(dtype)
-    return color
+    # generate a random hue
+    hue = (np.random.random(count or 1) + 0.61803) % 1.0
+
+    # saturation and "value" as constant
+    sv = np.ones_like(hue) * 0.99
+    # convert our random hue to RGBA
+    colors = hsv_to_rgba(np.column_stack((hue, sv, sv)))
+
+    # unspecified count is a single color
+    if count is None:
+        return colors[0]
+    return colors
 
 
-def vertex_to_face_color(vertex_colors, faces):
+def vertex_to_face_color(vertex_colors: ArrayLike, faces: ArrayLike) -> NDArray[np.uint8]:
     """
     Convert a list of vertex colors to face colors.
 
@@ -688,19 +766,25 @@ def vertex_to_face_color(vertex_colors, faces):
     return face_colors.astype(np.uint8)
 
 
-def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
+def face_to_vertex_color(
+    mesh, face_colors: ArrayLike, dtype: DTypeLike = np.uint8
+) -> NDArray:
     """
     Convert face colors into vertex colors.
 
     Parameters
     -----------
-    mesh : trimesh.Trimesh object
-    face_colors: (n, (3,4)) int, face colors
-    dtype:       data type of output
+    mesh : trimesh.Trimesh
+      Mesh to convert colors for
+    face_colors : `(len(mesh.faces), (3 | 4))` int
+      The colors for each face of the mesh
+    dtype
+      What should colors be returned in.
 
     Returns
     -----------
-    vertex_colors: (m,4) dtype, colors for each vertex
+    vertex_colors : `(len(mesh.vertices), 4)`
+      Color for each vertex
     """
     rgba = to_rgba(face_colors)
     vertex = mesh.faces_sparse.dot(rgba.astype(np.float64))
@@ -716,7 +800,7 @@ def face_to_vertex_color(mesh, face_colors, dtype=np.uint8):
     return vertex.astype(dtype)
 
 
-def colors_to_materials(colors, count=None):
+def colors_to_materials(colors: ArrayLike, count: Optional[Integer] = None):
     """
     Convert a list of colors into a list of unique materials
     and material indexes.
@@ -754,7 +838,9 @@ def colors_to_materials(colors, count=None):
     return diffuse, index
 
 
-def linear_color_map(values, color_range=None):
+def linear_color_map(
+    values: ArrayLike, color_range: Optional[ArrayLike] = None
+) -> NDArray[np.uint8]:
     """
     Linearly interpolate between two colors.
 
@@ -799,7 +885,9 @@ def linear_color_map(values, color_range=None):
     return colors
 
 
-def interpolate(values, color_map=None, dtype=np.uint8):
+def interpolate(
+    values: ArrayLike, color_map: Optional[str] = None, dtype: DTypeLike = np.uint8
+) -> NDArray:
     """
     Given a 1D list of values, return interpolated colors
     for the range.
@@ -829,15 +917,24 @@ def interpolate(values, color_map=None, dtype=np.uint8):
 
     # make input always float
     values = np.asanyarray(values, dtype=np.float64).ravel()
+
+    # get both minumium and maximum values for range normalization
+    v_min, v_max = values.min(), values.max()
+    # offset to zero
+    values -= v_min
+    # normalize to the 0.0 - 1.0 range
+    if v_min != v_max:
+        values /= v_max - v_min
+
     # scale values to 0.0 - 1.0 and get colors
-    colors = cmap((values - values.min()) / np.ptp(values))
+    colors = cmap(values)
     # convert to 0-255 RGBA
     rgba = to_rgba(colors, dtype=dtype)
 
     return rgba
 
 
-def uv_to_color(uv, image):
+def uv_to_color(uv, image) -> NDArray[np.uint8]:
     """
     Get the color in a texture image.
 
@@ -866,7 +963,8 @@ def uv_to_color(uv, image):
     # access colors from pixel locations
     # make sure image is RGBA before getting values
     colors = np.asanyarray(image.convert("RGBA"))[
-        y.round().astype(np.int64), x.round().astype(np.int64)
+        y.round().astype(np.int64) % image.height,
+        x.round().astype(np.int64) % image.width,
     ]
 
     # conversion to RGBA should have corrected shape
@@ -876,7 +974,7 @@ def uv_to_color(uv, image):
     return colors
 
 
-def uv_to_interpolated_color(uv, image):
+def uv_to_interpolated_color(uv: ArrayLike, image) -> NDArray[np.uint8]:
     """
     Get the color from texture image using bilinear sampling.
 
@@ -942,7 +1040,7 @@ def uv_to_interpolated_color(uv, image):
     return colors
 
 
-def color_to_uv(vertex_colors):
+def color_to_uv(vertex_colors: ArrayLike):
     """
     Pack vertex colors into UV coordinates and a simple image material
 
@@ -1001,3 +1099,9 @@ def color_to_uv(vertex_colors):
 
 # set an arbitrary grey as the default color
 DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)
+DEFAULT_MAT = {
+    "material_diffuse": np.array([102, 102, 102, 255], dtype=np.uint8),
+    "material_ambient": np.array([64, 64, 64, 255], dtype=np.uint8),
+    "material_specular": np.array([197, 197, 197, 255], dtype=np.uint8),
+    "material_shine": 77.0,
+}

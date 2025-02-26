@@ -53,6 +53,9 @@ def validate_glb(data, name=None):
         raise ValueError("gltf_validator failed")
 
 
+load_kwargs = g.trimesh.exchange.load._load_kwargs
+
+
 class GLTFTest(g.unittest.TestCase):
     def test_duck(self):
         scene = g.get_mesh("Duck.glb", process=False)
@@ -196,7 +199,7 @@ class GLTFTest(g.unittest.TestCase):
 
         kwargs = g.trimesh.exchange.gltf.load_glb(g.trimesh.util.wrap_as_stream(export))
         # roundtrip it
-        reloaded = g.trimesh.exchange.load.load_kwargs(kwargs)
+        reloaded = load_kwargs(kwargs)
         # make basic assertions
         g.scene_equal(original, reloaded)
 
@@ -264,7 +267,7 @@ class GLTFTest(g.unittest.TestCase):
         assert len(export.keys()) == 2
 
         # reload the export
-        reloaded = g.trimesh.exchange.load.load_kwargs(
+        reloaded = load_kwargs(
             g.trimesh.exchange.gltf.load_gltf(
                 file_obj=None, resolver=g.trimesh.visual.resolvers.ZipResolver(export)
             )
@@ -812,7 +815,9 @@ class GLTFTest(g.unittest.TestCase):
         magenta = g.np.array([255, 0, 255, 255], dtype=g.np.uint8)
         for color in mesh.visual.vertex_colors:
             is_magenta = g.np.array_equal(color, magenta)
-            assert is_magenta, f"Imported vertex color is not of expected value: got {color}, expected {magenta}"
+            assert is_magenta, (
+                f"Imported vertex color is not of expected value: got {color}, expected {magenta}"
+            )
 
     def test_export_postprocess(self):
         scene = g.trimesh.Scene()
@@ -863,11 +868,39 @@ class GLTFTest(g.unittest.TestCase):
     def test_points(self):
         # test a simple pointcloud export-import cycle
         points = g.np.arange(30).reshape((-1, 3))
-        export = g.trimesh.Scene(g.trimesh.PointCloud(points)).export(file_type="glb")
+
+        # get a pointcloud object
+        cloud = g.trimesh.PointCloud(points)
+
+        # export as gltf
+        export = g.trimesh.Scene(cloud).export(file_type="glb")
         validate_glb(export)
-        reloaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
+        reloaded = next(
+            iter(
+                g.trimesh.load_scene(
+                    g.trimesh.util.wrap_as_stream(export), file_type="glb"
+                ).geometry.values()
+            )
+        )
         # make sure points survived export and reload
-        assert g.np.allclose(next(iter(reloaded.geometry.values())).vertices, points)
+        assert g.np.allclose(reloaded.vertices, points)
+
+        # now try adding color
+        colors = g.trimesh.visual.color.random_color(count=len(points))
+        cloud.colors = colors
+        export = g.trimesh.Scene(cloud).export(file_type="glb")
+        validate_glb(export)
+        reloaded = next(
+            iter(
+                g.trimesh.load_scene(
+                    g.trimesh.util.wrap_as_stream(export), file_type="glb"
+                ).geometry.values()
+            )
+        )
+
+        # make sure points with color survived export and reload
+        assert g.np.allclose(reloaded.vertices, points)
+        assert g.np.allclose(reloaded.colors, colors)
 
     def test_bulk(self):
         # Try exporting every loadable model to GLTF and checking

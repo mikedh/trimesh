@@ -37,8 +37,9 @@ COPY --chown=499 pyproject.toml /home/user/
 # install trimesh into the venv
 RUN pip install /home/user[easy]
 
-# install FCL which currently has broken wheels on PyPi
-RUN pip install https://github.com/BerkeleyAutomation/python-fcl/releases/download/v0.7.0.7/python_fcl-0.7.0.7-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+# install FCL from a hopefully temporary fork
+# as the original `python-fcl` currently has broken wheels on PyPi
+RUN pip install fclx
 
 ####################################
 ### Build output image most things should run on

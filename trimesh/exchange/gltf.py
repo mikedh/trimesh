@@ -9,15 +9,16 @@ as GL_TRIANGLES, and trimesh.Path2D/Path3D as GL_LINES
 import base64
 import json
 from collections import OrderedDict, defaultdict, deque
+from copy import deepcopy
 
 import numpy as np
 
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
-from ..resolvers import Resolver, ZipResolver
+from ..resolvers import ResolverLike, ZipResolver
 from ..scene.cameras import Camera
-from ..typed import Mapping, NDArray, Optional, Stream, Union
+from ..typed import Dict, List, NDArray, Optional, Stream
 from ..util import triangle_strips_to_faces, unique_name
 from ..visual.gloss import specular_to_pbr
 
@@ -49,9 +50,6 @@ _default_material = {
         "roughnessFactor": 0,
     }
 }
-
-# we can accept dict resolvers
-ResolverLike = Union[Resolver, Mapping]
 
 # GL geometry modes
 _GL_LINES = 1
@@ -455,22 +453,22 @@ def load_glb(
     return kwargs
 
 
-def _uri_to_bytes(uri, resolver):
+def _uri_to_bytes(uri: str, resolver: ResolverLike) -> bytes:
     """
     Take a URI string and load it as a
     a filename or as base64.
 
     Parameters
     --------------
-    uri : string
+    uri
       Usually a filename or something like:
       "data:object/stuff,base64,AABA112A..."
-    resolver : trimesh.visual.Resolver
+    resolver
       A resolver to load referenced assets
 
     Returns
     ---------------
-    data : bytes
+    data
       Loaded data from URI
     """
     # see if the URI has base64 data
@@ -1167,6 +1165,31 @@ def _append_path(path, name, tree, buffer_items):
         # add color to attributes
         current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
 
+    # for each attribute with a leading underscore, assign them to path
+    # vertex_attributes
+    for key, attrib in path.vertex_attributes.items():
+        # Application specific attributes must be
+        # prefixed with an underscore
+        if not key.startswith("_"):
+            key = "_" + key
+
+        # GLTF has no floating point type larger than 32 bits so clip
+        # any float64 or larger to float32
+        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
+            data = attrib.astype(np.float32)
+        else:
+            data = attrib
+
+        data = util.stack_lines(data).reshape((-1,))
+
+        # store custom vertex attributes
+        current["primitives"][0]["attributes"][key] = _data_append(
+            acc=tree["accessors"],
+            buff=buffer_items,
+            blob=_build_accessor(data),
+            data=data,
+        )
+
     tree["meshes"].append(current)
 
 
@@ -1254,12 +1277,19 @@ def _parse_textures(header, views, resolver=None):
         images = [None] * len(header["images"])
         # loop through images
         for i, img in enumerate(header["images"]):
+            if img.get("mimeType", "") == "image/ktx2":
+                log.debug("`image/ktx2` textures are unsupported, skipping!")
+                continue
             # get the bytes representing an image
             if "bufferView" in img:
                 blob = views[img["bufferView"]]
             elif "uri" in img:
-                # will get bytes from filesystem or base64 URI
-                blob = _uri_to_bytes(uri=img["uri"], resolver=resolver)
+                try:
+                    # will get bytes from filesystem or base64 URI
+                    blob = _uri_to_bytes(uri=img["uri"], resolver=resolver)
+                except BaseException:
+                    log.debug(f"unable to load image from: {img.keys()}", exc_info=True)
+                    continue
             else:
                 log.debug(f"unable to load image from: {img.keys()}")
                 continue
@@ -1269,7 +1299,7 @@ def _parse_textures(header, views, resolver=None):
                 # load the buffer into a PIL image
                 images[i] = PIL.Image.open(util.wrap_as_stream(blob))
             except BaseException:
-                log.error("failed to load image!", exc_info=True)
+                log.debug("failed to load image!", exc_info=True)
     return images
 
 
@@ -1312,9 +1342,12 @@ def _parse_materials(header, views, resolver=None):
                     )
                     if webp is not None:
                         idx = webp
-                    else:
+                    elif "source" in texture:
                         # fallback (or primary, if extensions are not present)
                         idx = texture["source"]
+                    else:
+                        # no source available
+                        continue
                     # store the actual image as the value
                     result[k] = images[idx]
                 except BaseException:
@@ -1350,9 +1383,9 @@ def _parse_materials(header, views, resolver=None):
 
 
 def _read_buffers(
-    header,
-    buffers,
-    mesh_kwargs,
+    header: Dict,
+    buffers: List[bytes],
+    mesh_kwargs: Dict,
     resolver: Optional[ResolverLike],
     ignore_broken: bool = False,
     merge_primitives: bool = False,
@@ -1479,10 +1512,15 @@ def _read_buffers(
     for index, m in enumerate(header.get("meshes", [])):
         try:
             # GLTF spec indicates implicit units are meters
-            metadata = {"units": "meters"}
+            metadata = {
+                "units": "meters",
+                "from_gltf_primitive": len(m["primitives"]) > 1,
+            }
+
             # try to load all mesh metadata
             if isinstance(m.get("extras"), dict):
                 metadata.update(m["extras"])
+
             # put any mesh extensions in a field of the metadata
             if "extensions" in m:
                 metadata["gltf_extensions"] = m["extensions"]
@@ -1490,8 +1528,11 @@ def _read_buffers(
             for p in m["primitives"]:
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
-                kwargs = {"metadata": {}, "process": False}
-                kwargs.update(mesh_kwargs)
+                kwargs = deepcopy(mesh_kwargs)
+                if kwargs.get("metadata", None) is None:
+                    kwargs["metadata"] = {}
+                if "process" not in kwargs:
+                    kwargs["process"] = False
                 kwargs["metadata"].update(metadata)
                 # i.e. GL_LINES, GL_TRIANGLES, etc
                 # specification says the default mode is GL_TRIANGLES
@@ -1509,8 +1550,33 @@ def _read_buffers(
 
                     kwargs["vertices"] = access[attr["POSITION"]]
                     kwargs["entities"] = [Line(points=np.arange(len(kwargs["vertices"])))]
+
+                    # custom attributes starting with a `_`
+                    custom = {
+                        a: access[attr[a]] for a in attr.keys() if a.startswith("_")
+                    }
+                    if len(custom) > 0:
+                        kwargs["vertex_attributes"] = custom
                 elif mode == _GL_POINTS:
                     kwargs["vertices"] = access[attr["POSITION"]]
+                    visuals = None
+                    if "COLOR_0" in attr:
+                        try:
+                            # try to load vertex colors from the accessors
+                            colors = access[attr["COLOR_0"]]
+                            if len(colors) == len(kwargs["vertices"]):
+                                if visuals is None:
+                                    # just pass to mesh as vertex color
+                                    kwargs["vertex_colors"] = colors.copy()
+                                else:
+                                    # we ALSO have texture so save as vertex
+                                    # attribute
+                                    visuals.vertex_attributes["color"] = colors.copy()
+                        except BaseException:
+                            # survive failed colors
+                            log.debug("failed to load colors", exc_info=True)
+                    if visuals is not None:
+                        kwargs["visual"] = visuals
                 elif mode in (_GL_TRIANGLES, _GL_STRIP):
                     # get vertices from accessors
                     kwargs["vertices"] = access[attr["POSITION"]]
@@ -1572,14 +1638,6 @@ def _read_buffers(
                             log.debug("failed to load colors", exc_info=True)
                     if visuals is not None:
                         kwargs["visual"] = visuals
-
-                    # By default the created mesh is not from primitive,
-                    # in case it is the value will be updated
-                    # each primitive gets it's own Trimesh object
-                    if len(m["primitives"]) > 1:
-                        kwargs["metadata"]["from_gltf_primitive"] = True
-                    else:
-                        kwargs["metadata"]["from_gltf_primitive"] = False
 
                     # custom attributes starting with a `_`
                     custom = {
@@ -1814,18 +1872,18 @@ def _read_buffers(
         "base_frame": base_frame,
         "camera": camera,
         "camera_transform": camera_transform,
+        "metadata": {},
     }
+
     try:
         # load any scene extras into scene.metadata
         # use a try except to avoid nested key checks
-        result["metadata"] = header["scenes"][header["scene"]]["extras"]
+        result["metadata"].update(header["scenes"][header["scene"]]["extras"])
     except BaseException:
         pass
     try:
         # load any scene extensions into a field of scene.metadata
         # use a try except to avoid nested key checks
-        if "metadata" not in result:
-            result["metadata"] = {}
         result["metadata"]["gltf_extensions"] = header["extensions"]
     except BaseException:
         pass

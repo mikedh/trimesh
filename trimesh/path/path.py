@@ -8,6 +8,7 @@ those stored in a DXF or SVG file.
 
 import collections
 import copy
+import warnings
 from hashlib import sha256
 
 import numpy as np
@@ -18,7 +19,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..geometry import plane_transform
 from ..points import plane_fit
-from ..typed import ArrayLike, Dict, Iterable, List, NDArray, Optional, float64
+from ..typed import ArrayLike, Dict, Iterable, List, NDArray, Optional, Tuple, float64
 from ..visual import to_rgba
 from . import (
     creation,  # NOQA
@@ -77,6 +78,7 @@ class Path(parent.Geometry):
         metadata: Optional[Dict] = None,
         process: bool = True,
         colors=None,
+        vertex_attributes: Optional[Dict] = None,
         **kwargs,
     ):
         """
@@ -103,6 +105,10 @@ class Path(parent.Geometry):
         self.metadata = {}
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
+
+        self.vertex_attributes = {}
+        if vertex_attributes is not None:
+            self.vertex_attributes.update(vertex_attributes)
 
         # cache will dump whenever self.crc changes
         self._cache = caching.Cache(id_function=self.__hash__)
@@ -522,6 +528,9 @@ class Path(parent.Geometry):
 
         unique, inverse = grouping.unique_rows(self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
+        self.vertex_attributes = {
+            key: np.array(value)[unique] for key, value in self.vertex_attributes.items()
+        }
 
         entities_ok = np.ones(len(self.entities), dtype=bool)
 
@@ -773,12 +782,23 @@ class Path3D(Path):
     Hold multiple vector curves (lines, arcs, splines, etc) in 3D.
     """
 
-    def to_planar(
+    def to_planar(self, *args, **kwargs):
+        """
+        DEPRECATED: replace `path.to_planar`->`path.to_2D), removal 1/1/2026
+        """
+        warnings.warn(
+            "DEPRECATED: replace `path.to_planar`->`path.to_2D), removal 1/1/2026",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.to_2D(*args, **kwargs)
+
+    def to_2D(
         self,
         to_2D: Optional[ArrayLike] = None,
         normal: Optional[ArrayLike] = None,
         check: bool = True,
-    ):
+    ) -> Tuple["Path2D", NDArray[float64]]:
         """
         Check to see if current vectors are all coplanar.
 
@@ -791,17 +811,17 @@ class Path3D(Path):
           Homogeneous transformation matrix to apply,
           if not passed a plane will be fitted to vertices.
         normal : (3,) float or None
-           Normal of direction of plane to use.
+          Normal of direction of plane to use.
         check
-         Raise a ValueError if points aren't coplanar
+          Raise a ValueError if points aren't coplanar.
 
         Returns
         -----------
-        planar : trimesh.path.Path2D
-                   Current path transformed onto plane
-        to_3D :  (4,4) float
-                   Homeogenous transformations to move planar
-                   back into 3D space
+        planar
+          Current path transformed onto plane
+        to_3D : (4, 4) float
+          Homeogenous transformations to move planar
+          back into the original 3D frame.
         """
         # which vertices are actually referenced
         referenced = self.referenced_vertices

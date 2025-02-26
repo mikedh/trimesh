@@ -12,7 +12,7 @@ import itertools
 import os
 
 from . import caching, util
-from .typed import Optional, Union
+from .typed import Dict, Mapping, Optional, Union
 
 # URL parsing for remote resources via WebResolver
 try:
@@ -37,20 +37,24 @@ class Resolver(util.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def write(self, name, data):
+    def write(self, name: str, data):
         raise NotImplementedError("`write` not implemented!")
 
     @abc.abstractmethod
-    def namespaced(self, namespace):
+    def namespaced(self, namespace: str):
         raise NotImplementedError("`namespaced` not implemented!")
 
-    def __getitem__(self, key):
+    @abc.abstractmethod
+    def keys(self):
+        raise NotImplementedError("`keys` not implemented!")
+
+    def __getitem__(self, key: str):
         return self.get(key)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value):
         return self.write(key, value)
 
-    def __contains__(self, key):
+    def __contains__(self, key: str) -> bool:
         return key in self.keys()
 
 
@@ -83,6 +87,9 @@ class FilePathResolver(Resolver):
         # exit if directory doesn't exist
         if not os.path.isdir(self.parent):
             raise ValueError(f"path `{self.parent} `not a directory!")
+
+        self.file_path = source
+        self.file_name = os.path.basename(source)
 
     def keys(self):
         """
@@ -163,7 +170,7 @@ class ZipResolver(Resolver):
     Resolve files inside a ZIP archive.
     """
 
-    def __init__(self, archive=None, namespace=None):
+    def __init__(self, archive: Optional[Dict] = None, namespace: Optional[str] = None):
         """
         Resolve files inside a ZIP archive as loaded by
         trimesh.util.decompress
@@ -205,7 +212,7 @@ class ZipResolver(Resolver):
             ]
         return self.archive.keys()
 
-    def write(self, key: str, value):
+    def write(self, key: str, value) -> None:
         """
         Store a value in the current archive.
 
@@ -220,7 +227,7 @@ class ZipResolver(Resolver):
             self.archive = {}
         self.archive[key] = value
 
-    def get(self, name: str):
+    def get(self, name: str) -> bytes:
         """
         Get an asset from the ZIP archive.
 
@@ -302,7 +309,7 @@ class WebResolver(Resolver):
     Resolve assets from a remote URL.
     """
 
-    def __init__(self, url):
+    def __init__(self, url: str):
         """
         Resolve assets from a base URL.
 
@@ -317,7 +324,6 @@ class WebResolver(Resolver):
 
         # parse string into namedtuple
         parsed = urlparse(url)
-
         # we want a base url
         split = [i for i in parsed.path.split("/") if len(i) > 0]
 
@@ -331,6 +337,11 @@ class WebResolver(Resolver):
         else:
             # recombine into string ignoring any double slashes
             path = "/".join(split)
+
+        # save the URL we were created with, i.e.
+        # `https://stuff.com/models/thing.glb`
+        self.url = url
+        # save the root url, i.e. `https://stuff.com/models`
         self.base_url = (
             "/".join(
                 i
@@ -345,7 +356,9 @@ class WebResolver(Resolver):
         # we should always have ended with a single slash
         assert self.base_url.endswith("/")
 
-    def get(self, name):
+        self.file_name = url.split("/")[-1]
+
+    def get(self, name: str) -> bytes:
         """
         Get a resource from the remote site.
 
@@ -378,7 +391,25 @@ class WebResolver(Resolver):
         # return the bytes of the response
         return response.content
 
-    def namespaced(self, namespace):
+    def get_base(self) -> bytes:
+        """
+        Fetch the data at the full URL this resolver was
+        instantiated with, i.e. `https://stuff.com/hi.glb`
+        this will return the response.
+
+        Returns
+        --------
+        content
+          The value at `self.url`
+        """
+        import httpx
+
+        # just fetch the url we were created with
+        response = httpx.get(self.url, follow_redirects=True)
+        response.raise_for_status()
+        return response.content
+
+    def namespaced(self, namespace: str) -> "WebResolver":
         """
         Return a namespaced version of current resolver.
 
@@ -396,7 +427,10 @@ class WebResolver(Resolver):
         return WebResolver(url=self.base_url + namespace)
 
     def write(self, key, value):
-        raise NotImplementedError("can't write to remote")
+        raise NotImplementedError("`WebResolver` is read-only!")
+
+    def keys(self):
+        raise NotImplementedError("`WebResolver` can't list keys")
 
 
 class GithubResolver(Resolver):
@@ -455,7 +489,6 @@ class GithubResolver(Resolver):
     @property
     def zipped(self) -> ZipResolver:
         """
-
         - opened zip file
         - locally saved zip file
         - retrieve zip file and saved
@@ -476,8 +509,15 @@ class GithubResolver(Resolver):
         # download the archive or get from disc
         raw = self.cache.get(self.url, fetch)
         # create a zip resolver for the archive
+        # the root directory in the zip is the repo+commit so strip that off
+        # so the keys are usable, i.e. "models" instead of "trimesh-2232323/models"
         self._zip = ZipResolver(
-            util.decompress(util.wrap_as_stream(raw), file_type="zip")
+            {
+                k.split("/", 1)[1]: v
+                for k, v in util.decompress(
+                    util.wrap_as_stream(raw), file_type="zip"
+                ).items()
+            }
         )
 
         return self._zip
@@ -569,3 +609,7 @@ def nearby_names(name, namespace=None):
         strip = namespace.strip("/").split("/")[: -name.count("..")]
         strip.extend(name.split("..")[-1].strip("/").split("/"))
         yield "/".join(strip)
+
+
+# most loaders can use a mapping in addition to a resolver
+ResolverLike = Union[Resolver, Mapping]

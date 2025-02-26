@@ -249,9 +249,7 @@ class MultiMaterial(Material):
         hash : int
           Xor hash of the contained materials.
         """
-        hashed = int(np.bitwise_xor.reduce([hash(m) for m in self.materials]))
-
-        return hashed
+        return int(np.bitwise_xor.reduce([hash(m) for m in self.materials]))
 
     def __iter__(self):
         return iter(self.materials)

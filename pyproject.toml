@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.8"
-version = "4.5.3"
+version = "4.6.3"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -68,13 +68,12 @@ trimesh = [
 easy = [
     "colorlog",
     "manifold3d>=2.3.0", # do boolean operations    
-    "chardet",
+    "charset-normalizer",
     "lxml",
     "jsonschema",
     "networkx",
     "svg.path",
     "pycollada",
-    "setuptools",
     "shapely",
     "xxhash",
     "rtree",
@@ -96,7 +95,7 @@ recommend = [
     "scikit-image",
     "fast-simplification",
     # "python-fcl", # do collision checks # TODO : broken on numpy 2
-    "openctm", # load `CTM` compressed models
+    "openctm; platform_machine=='x86_64'", # load `CTM` compressed models
     "cascadio", # load `STEP` files
 ]
 
@@ -120,6 +119,7 @@ test_more = [
     "matplotlib",
     "pymeshlab",
     "triangle",
+    "ipython",
 ]
 
 # interfaces.gmsh will be dropped Jan 2025
@@ -148,6 +148,7 @@ select = [
     "UP", # upgrade
     "W", # style warnings
     "YTT", # sys.version
+    "ISC001",
     "ISC002",
     "NPY201",
     "TID251"

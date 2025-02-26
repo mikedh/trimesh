@@ -100,26 +100,29 @@ def units_from_metadata(obj: Geometry, guess: bool = True) -> str:
      A guess of what the units might be
     """
 
+    hints = [obj.metadata.get("name", None)]
+    if obj.source is not None:
+        hints.append(obj.source.file_name)
+
     # try to guess from metadata
-    for key in ["file_name", "name"]:
-        if key not in obj.metadata:
+    for hint in hints:
+        if hint is None:
             continue
-        # get the string which might contain unit hints
-        hints = obj.metadata[key].lower()
-        if "unit" in hints:
+        hint = hint.lower()
+        if "unit" in hint:
             # replace all delimiter options with white space
             for delim in "_-.":
-                hints = hints.replace(delim, " ")
+                hint = hint.replace(delim, " ")
             # loop through each hint
-            for hint in hints.strip().split():
+            for h in hint.strip().split():
                 # get rid of keyword and whitespace
-                hint = hint.replace("units", "").replace("unit", "").strip()
+                h = h.replace("units", "").replace("unit", "").strip()
                 # if the hint is a valid unit return it
-                if hint in _lookup:
-                    return hint
+                if h in _lookup:
+                    return h
 
     if not guess:
-        raise ValueError("no units and not allowed to guess")
+        raise ValueError("No units and not allowed to guess!")
 
     # we made it to the wild ass guess section
     # if the scale is larger than 100 mystery units

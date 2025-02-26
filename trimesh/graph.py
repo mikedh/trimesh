@@ -9,7 +9,6 @@ Currently uses networkx or scipy.sparse.csgraph backend.
 """
 
 import collections
-import warnings
 
 import numpy as np
 
@@ -705,8 +704,7 @@ def edges_to_coo(edges, count=None, data=None):
     if data is None:
         data = np.ones(len(edges), dtype=bool)
 
-    matrix = coo_matrix((data, edges.T), dtype=data.dtype, shape=(count, count))
-    return matrix
+    return coo_matrix((data, edges.T), dtype=data.dtype, shape=(count, count))
 
 
 def neighbors(edges, max_index=None, directed=False):
@@ -741,19 +739,6 @@ def neighbors(edges, max_index=None, directed=False):
     array = [list(neighbors[i]) for i in range(max_index)]
 
     return array
-
-
-def smoothed(*args, **kwargs):
-    """
-    DEPRECATED: use `trimesh.graph.smooth_shade(mesh, ...)`
-    """
-    warnings.warn(
-        "`trimesh.graph.smoothed` is deprecated and will be removed in March 2024: "
-        + "use `trimesh.graph.smooth_shade(mesh, ...)`",
-        category=DeprecationWarning,
-        stacklevel=2,
-    )
-    return smooth_shade(*args, **kwargs)
 
 
 def smooth_shade(

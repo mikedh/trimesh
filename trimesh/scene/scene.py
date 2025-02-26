@@ -1,6 +1,7 @@
 import collections
 import uuid
 import warnings
+from copy import deepcopy
 
 import numpy as np
 
@@ -186,10 +187,6 @@ class Scene(Geometry3D):
             self.graph.transforms = concat.graph.transforms
             return
 
-        if not hasattr(geometry, "vertices"):
-            util.log.debug(f"unknown type ({type(geometry).__name__}) added to scene!")
-            return
-
         # get or create a name to reference the geometry by
         if geom_name is not None:
             # if name is passed use it
@@ -197,8 +194,8 @@ class Scene(Geometry3D):
         elif "name" in geometry.metadata:
             # if name is in metadata use it
             name = geometry.metadata["name"]
-        elif "file_name" in geometry.metadata:
-            name = geometry.metadata["file_name"]
+        elif geometry.source.file_name is not None:
+            name = geometry.source.file_name
         else:
             # try to create a simple name
             name = "geometry_" + str(len(self.geometry))
@@ -280,7 +277,7 @@ class Scene(Geometry3D):
           A number between 0.0 and 1.0 for how much
         face_count
           Target number of faces desired in the resulting mesh.
-        agression
+        aggression
           An integer between `0` and `10`, the scale being roughly
           `0` is "slow and good" and `10` being "fast and bad."
 
@@ -363,16 +360,15 @@ class Scene(Geometry3D):
         corners = {}
         # collect vertices for every mesh
         vertices = {
-            k: m.vertices
+            k: m.vertices if hasattr(m, "vertices") and len(m.vertices) > 0 else m.bounds
             for k, m in self.geometry.items()
-            if hasattr(m, "vertices") and len(m.vertices) > 0
         }
         # handle 2D geometries
         vertices.update(
             {
                 k: np.column_stack((v, np.zeros(len(v))))
                 for k, v in vertices.items()
-                if v.shape[1] == 2
+                if v is not None and v.shape[1] == 2
             }
         )
 
@@ -662,30 +658,6 @@ class Scene(Geometry3D):
 
         # we only care about the values keys are garbage
         return list(duplicates.values())
-
-    def deduplicated(self) -> "Scene":
-        """
-        DEPRECATED: REMOVAL JANUARY 2025, this is one line and not that useful.
-
-        Return a new scene where each unique geometry is only
-        included once and transforms are discarded.
-
-        Returns
-        -------------
-        dedupe : Scene
-          One copy of each unique geometry from scene
-        """
-
-        warnings.warn(
-            "DEPRECATED: REMOVAL JANUARY 2025, this is one line and not that useful.",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-
-        # keying by `identifier_hash` will mean every geometry is unique
-        return Scene(
-            list({g.identifier_hash: g for g in self.geometry.values()}.values())
-        )
 
     def reconstruct_instances(self, cost_threshold: Floating = 1e-5) -> "Scene":
         """
@@ -1438,25 +1410,22 @@ def split_scene(geometry, **kwargs):
     if isinstance(geometry, Scene):
         return geometry
 
+    # save metadata
+    metadata = {}
+
     # a list of things
     if util.is_sequence(geometry):
-        metadata = {}
         [metadata.update(getattr(g, "metadata", {})) for g in geometry]
-        return Scene(geometry, metadata=metadata)
 
-    # a single geometry so we are going to split
-    split = []
-    metadata = {}
-    for g in util.make_sequence(geometry):
-        split.extend(g.split(**kwargs))
-        metadata.update(g.metadata)
-
-    # if there is only one geometry in the mesh
-    # name it from the file name
-    if len(split) == 1 and "file_name" in metadata:
-        split = {metadata["file_name"]: split[0]}
-
-    scene = Scene(split, metadata=metadata)
+        scene = Scene(geometry, metadata=metadata)
+        scene._source = next((g.source for g in geometry if g.source is not None), None)
+    else:
+        # a single geometry so we are going to split
+        scene = Scene(
+            geometry.split(**kwargs),
+            metadata=deepcopy(geometry.metadata),
+        )
+        scene._source = deepcopy(geometry.source)
 
     return scene
 
