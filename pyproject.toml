@@ -74,7 +74,6 @@ easy = [
     "networkx",
     "svg.path",
     "pycollada",
-    "setuptools",
     "shapely",
     "xxhash",
     "rtree",

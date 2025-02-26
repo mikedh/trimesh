@@ -1165,6 +1165,31 @@ def _append_path(path, name, tree, buffer_items):
         # add color to attributes
         current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
 
+    # for each attribute with a leading underscore, assign them to path
+    # vertex_attributes
+    for key, attrib in path.vertex_attributes.items():
+        # Application specific attributes must be
+        # prefixed with an underscore
+        if not key.startswith("_"):
+            key = "_" + key
+
+        # GLTF has no floating point type larger than 32 bits so clip
+        # any float64 or larger to float32
+        if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
+            data = attrib.astype(np.float32)
+        else:
+            data = attrib
+
+        data = util.stack_lines(data).reshape((-1,))
+
+        # store custom vertex attributes
+        current["primitives"][0]["attributes"][key] = _data_append(
+            acc=tree["accessors"],
+            buff=buffer_items,
+            blob=_build_accessor(data),
+            data=data,
+        )
+
     tree["meshes"].append(current)
 
 
@@ -1525,6 +1550,13 @@ def _read_buffers(
 
                     kwargs["vertices"] = access[attr["POSITION"]]
                     kwargs["entities"] = [Line(points=np.arange(len(kwargs["vertices"])))]
+
+                    # custom attributes starting with a `_`
+                    custom = {
+                        a: access[attr[a]] for a in attr.keys() if a.startswith("_")
+                    }
+                    if len(custom) > 0:
+                        kwargs["vertex_attributes"] = custom
                 elif mode == _GL_POINTS:
                     kwargs["vertices"] = access[attr["POSITION"]]
                     visuals = None

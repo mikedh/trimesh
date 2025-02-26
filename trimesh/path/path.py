@@ -88,6 +88,7 @@ class Path(parent.Geometry):
         metadata: Optional[Mapping] = None,
         process: bool = True,
         colors=None,
+        vertex_attributes: Optional[Dict] = None,
         **kwargs,
     ):
         """
@@ -114,6 +115,10 @@ class Path(parent.Geometry):
         self.metadata = {}
         if isinstance(metadata, dict):
             self.metadata.update(metadata)
+
+        self.vertex_attributes = {}
+        if vertex_attributes is not None:
+            self.vertex_attributes.update(vertex_attributes)
 
         # cache will dump whenever self.crc changes
         self._cache = caching.Cache(id_function=self.__hash__)
@@ -533,6 +538,9 @@ class Path(parent.Geometry):
 
         unique, inverse = grouping.unique_rows(self.vertices, digits=digits)
         self.vertices = self.vertices[unique]
+        self.vertex_attributes = {
+            key: np.array(value)[unique] for key, value in self.vertex_attributes.items()
+        }
 
         entities_ok = np.ones(len(self.entities), dtype=bool)
 

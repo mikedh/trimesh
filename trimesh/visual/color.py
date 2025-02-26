@@ -70,13 +70,6 @@ class ColorVisuals(Visuals):
         self._data = caching.DataStore()
         self._cache = caching.Cache(id_function=self._data.__hash__)
 
-        self.defaults = {
-            "material_diffuse": np.array([102, 102, 102, 255], dtype=np.uint8),
-            "material_ambient": np.array([64, 64, 64, 255], dtype=np.uint8),
-            "material_specular": np.array([197, 197, 197, 255], dtype=np.uint8),
-            "material_shine": 77.0,
-        }
-
         try:
             if face_colors is not None:
                 self.face_colors = face_colors
@@ -326,7 +319,7 @@ class ColorVisuals(Visuals):
             if self.kind is None:
                 # no colors are defined, so create a (count, 4) tiled
                 # copy of the default color
-                colors = np.tile(self.defaults["material_diffuse"], (count, 1))
+                colors = np.tile(DEFAULT_MAT["material_diffuse"], (count, 1))
             elif self.kind == "vertex" and name == "face":
                 colors = vertex_to_face_color(
                     vertex_colors=self.vertex_colors, faces=self.mesh.faces
@@ -1106,3 +1099,9 @@ def color_to_uv(vertex_colors: ArrayLike):
 
 # set an arbitrary grey as the default color
 DEFAULT_COLOR = np.array([102, 102, 102, 255], dtype=np.uint8)
+DEFAULT_MAT = {
+    "material_diffuse": np.array([102, 102, 102, 255], dtype=np.uint8),
+    "material_ambient": np.array([64, 64, 64, 255], dtype=np.uint8),
+    "material_specular": np.array([197, 197, 197, 255], dtype=np.uint8),
+    "material_shine": 77.0,
+}
