@@ -85,7 +85,7 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
             ("{*}circle", "{*}rect", "{*}line", "{*}polyline", "{*}polygon")
         ):
             shapes.append(
-                (shape.tag.rsplit("}", 1)[-1], shape.attrib, element_transform(element))
+                (shape.tag.rsplit("}", 1)[-1], shape.attrib, element_transform(shape))
             )
 
         try:
