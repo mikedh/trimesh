@@ -454,10 +454,6 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
         # return a single Path2D
         kwargs = next(iter(geoms.values()))
 
-        from ..entities import Entity
-
-        assert all(isinstance(e, Entity) for e in kwargs["entities"])
-
     return kwargs
 
 

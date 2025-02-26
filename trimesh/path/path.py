@@ -208,7 +208,6 @@ class Path(parent.Geometry):
         if values is None:
             self._entities = np.array([])
         else:
-            assert all(isinstance(e, Entity) for e in values)
             self._entities = np.asanyarray(values)
 
     @property
