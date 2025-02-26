@@ -5,8 +5,11 @@ import numpy as np
 try:
     from scipy.sparse import coo_matrix, eye
     from scipy.sparse.linalg import spsolve
-except ImportError:
-    pass
+except ImportError as E:
+    from .exceptions import ExceptionWrapper
+
+    wrapper = ExceptionWrapper(E)
+    eye, spsolve, coo_matrix = wrapper, wrapper, wrapper
 
 from . import graph, triangles
 from .base import Trimesh
@@ -256,7 +259,7 @@ def laplacian_calculation(
     mesh: Trimesh,
     equal_weight: bool = True,
     pinned_vertices: Optional[List[int]] = None,
-) -> coo_matrix:
+):
     """
     Calculate a sparse matrix for laplacian operations.
 
