@@ -87,8 +87,8 @@ class Path(parent.Geometry):
         vertices: Optional[ArrayLike] = None,
         metadata: Optional[Mapping] = None,
         process: bool = True,
-        colors=None,
-        vertex_attributes: Optional[Dict] = None,
+        colors: Optional[ArrayLike] = None,
+        vertex_attributes: Optional[Mapping] = None,
         **kwargs,
     ):
         """
@@ -104,6 +104,10 @@ class Path(parent.Geometry):
           Any metadata about the path
         process :  bool
           Run simple cleanup or not
+        colors
+          Set any per-entity colors.
+        vertex_attributes
+          Set any per-vertex array data.
         """
 
         self.entities = entities
@@ -145,7 +149,7 @@ class Path(parent.Geometry):
         return self
 
     @property
-    def colors(self):
+    def colors(self) -> NDArray:
         """
         Colors are stored per-entity.
 
@@ -165,7 +169,7 @@ class Path(parent.Geometry):
         return colors
 
     @colors.setter
-    def colors(self, values):
+    def colors(self, values: ArrayLike):
         """
         Set the color for every entity in the Path.
 
