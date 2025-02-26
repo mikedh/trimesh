@@ -68,6 +68,7 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
             return util.multi_dot(matrices[::-1])
 
     force = None
+    tree = None
     if file_obj is not None:
         # first parse the XML
         tree = etree.fromstring(file_obj.read())
@@ -77,7 +78,6 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
         for element in tree.iter("{*}path"):
             # store every path element attributes and transform
             paths.append((element.attrib, element_transform(element)))
-
         try:
             # see if the SVG should be reproduced as a scene
             force = tree.attrib[_ns + "class"]
@@ -92,8 +92,9 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
 
     result = _svg_path_convert(paths=paths, force=force)
     try:
-        # get overall metadata from JSON string if it exists
-        result["metadata"] = _decode(tree.attrib[_ns + "metadata"])
+        if tree is not None:
+            # get overall metadata from JSON string if it exists
+            result["metadata"] = _decode(tree.attrib[_ns + "metadata"])
     except KeyError:
         # not in the trimesh ns
         pass
