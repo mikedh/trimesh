@@ -14,9 +14,9 @@ from copy import deepcopy
 import numpy as np
 
 from .. import rendering, resources, transformations, util, visual
-from ..path.entities import Line
 from ..caching import hash_fast
 from ..constants import log, tol
+from ..path.entities import Line
 from ..resolvers import ResolverLike, ZipResolver
 from ..scene.cameras import Camera
 from ..typed import Dict, List, NDArray, Optional, Stream
@@ -1181,7 +1181,7 @@ def _append_path(path, name, tree, buffer_items):
         else:
             data = attrib
 
-        if not all([isinstance(e, Line) for e in path.entities]):
+        if not all(isinstance(e, Line) for e in path.entities):
             raise ValueError("Vertex attributes are only supported for Line entities.")
 
         data_discretized = np.array([
