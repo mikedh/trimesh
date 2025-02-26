@@ -30,7 +30,7 @@ from . import cameras, lighting
 from .transforms import SceneGraph
 
 # the types of objects we can create a scene from
-GeometryInput = Union[Geometry, Iterable[Geometry], Dict[str, Geometry]]
+GeometryInput = Union[Geometry, Iterable[Geometry], Dict[str, Geometry], ArrayLike]
 
 
 class Scene(Geometry3D):

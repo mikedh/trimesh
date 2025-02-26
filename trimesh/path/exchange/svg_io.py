@@ -8,9 +8,9 @@ import numpy as np
 from ... import exceptions, grouping, resources, util
 from ...constants import log, tol
 from ...transformations import planar_matrix, transform_points
-from ...typed import NDArray, Number
+from ...typed import Dict, Iterable, Mapping, NDArray, Number
 from ...util import jsonify
-from ..arc import arc_center
+from ..arc import arc_center, to_threepoint
 from ..entities import Arc, Bezier, Line
 
 # store any additional properties using a trimesh namespace
@@ -68,32 +68,43 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
             return util.multi_dot(matrices[::-1])
 
     force = None
+    tree = None
+    paths = []
+    shapes = []
     if file_obj is not None:
         # first parse the XML
         tree = etree.fromstring(file_obj.read())
         # store paths and transforms as
         # (path string, 3x3 matrix)
-        paths = []
         for element in tree.iter("{*}path"):
             # store every path element attributes and transform
             paths.append((element.attrib, element_transform(element)))
+
+        # now try converting shapes
+        for shape in tree.iter(
+            ("{*}circle", "{*}rect", "{*}line", "{*}polyline", "{*}polygon")
+        ):
+            shapes.append(
+                (shape.tag.rsplit("}", 1)[-1], shape.attrib, element_transform(shape))
+            )
 
         try:
             # see if the SVG should be reproduced as a scene
             force = tree.attrib[_ns + "class"]
         except BaseException:
             pass
-
     elif path_string is not None:
         # parse a single SVG path string
-        paths = [({"d": path_string}, np.eye(3))]
+        paths.append(({"d": path_string}, _IDENTITY))
     else:
         raise ValueError("`file_obj` or `pathstring` required")
 
-    result = _svg_path_convert(paths=paths, force=force)
+    result = _svg_path_convert(paths=paths, shapes=shapes, force=force)
+
     try:
-        # get overall metadata from JSON string if it exists
-        result["metadata"] = _decode(tree.attrib[_ns + "metadata"])
+        if tree is not None:
+            # get overall metadata from JSON string if it exists
+            result["metadata"] = _decode(tree.attrib[_ns + "metadata"])
     except KeyError:
         # not in the trimesh ns
         pass
@@ -121,7 +132,19 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
     return result
 
 
-def transform_to_matrices(transform):
+def _attrib_metadata(attrib: Mapping) -> Dict:
+    try:
+        # try to retrieve any trimesh attributes as metadata
+        return {
+            k.lstrip(_ns): _decode(v)
+            for k, v in attrib.items()
+            if k[1:].startswith(_ns_url)
+        }
+    except BaseException:
+        return {}
+
+
+def transform_to_matrices(transform: str) -> NDArray[np.float64]:
     """
     Convert an SVG transform string to an array of matrices.
 
@@ -185,10 +208,10 @@ def transform_to_matrices(transform):
         else:
             log.debug(f"unknown SVG transform: {key}")
 
-    return matrices
+    return np.array(matrices, dtype=np.float64)
 
 
-def _svg_path_convert(paths, force=None):
+def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
     """
     Convert an SVG path string into a Path2D object
 
@@ -345,15 +368,8 @@ def _svg_path_convert(paths, force=None):
             else:
                 # otherwise just add the entities
                 parsed.extend(chunk)
-        try:
-            # try to retrieve any trimesh attributes as metadata
-            entity_meta = {
-                k.lstrip(_ns): _decode(v)
-                for k, v in attrib.items()
-                if k[1:].startswith(_ns_url)
-            }
-        except BaseException:
-            entity_meta = {}
+
+        entity_meta = _attrib_metadata(attrib=attrib)
 
         # loop through parsed entity objects
         for svg_entity in parsed:
@@ -368,6 +384,62 @@ def _svg_path_convert(paths, force=None):
                 # transform the vertices by the matrix and append
                 vertices[name].append(transform_points(v, matrix))
                 counts[name] += len(v)
+
+    # load simple shape geometry
+    for kind, attrib, matrix in shapes:
+        # get the geometry name (defaults to None)
+        name = _decode(attrib.get(_ns + "name"))
+
+        if kind == "circle":
+            points = to_threepoint(
+                [float(attrib["cx"]), float(attrib["cy"])], float(attrib["r"])
+            )
+            entity = Arc(points=np.arange(3) + counts[name], closed=True)
+
+        elif kind == "rect":
+            # todo : support rounded rectangle
+            origin = np.array([attrib["x"], attrib["y"]], dtype=np.float64)
+            w, h = np.array([attrib["width"], attrib["height"]], dtype=np.float64)
+
+            points = np.array(
+                [origin, origin + (w, 0), origin + (w, -h), origin + (0, -h), origin],
+                dtype=np.float64,
+            )
+            entity = Line(points=np.arange(len(points)) + counts[name])
+
+        elif kind == "polyline":
+            points = np.fromstring(
+                attrib["points"].strip().replace(",", " "), sep=" ", dtype=np.float64
+            ).reshape((-1, 2))
+            entity = Line(points=np.arange(len(points)) + counts[name])
+
+        elif kind == "polygon":
+            points = np.fromstring(
+                attrib["points"].strip().replace(",", " "), sep=" ", dtype=np.float64
+            ).reshape((-1, 2))
+
+            # polygon implies forced-closed so check to see if it
+            # is already closed and if not add the closing index
+            if (points[0] == points[-1]).all():
+                index = np.arange(len(points)) + counts[name]
+            else:
+                index = np.arange(len(points) + 1) + counts[name]
+                index[-1] = index[0]
+
+            entity = Line(points=index)
+
+        elif kind == "line":
+            points = np.array(
+                [attrib["x1"], attrib["y1"], attrib["x2"], attrib["y2"]], dtype=np.float64
+            ).reshape((2, 2))
+            entity = Line(points=np.arange(len(points)) + counts[name])
+        else:
+            log.debug(f"unsupported SVG shape: `{kind}`")
+            continue
+
+        entities[name].append(entity)
+        vertices[name].append(transform_points(points, matrix))
+        counts[name] += len(points)
 
     if len(vertices) == 0:
         return {"vertices": [], "entities": []}
