@@ -279,7 +279,6 @@ def laplacian_calculation(
     """
     if equal_weight:
         laplacian = graph.edges_to_coo(mesh.edges)
-        mesh.vertex_neighbors
 
         if pinned_vertices is not None:
             # Set pinned vertices to only have themselves as neighbours
