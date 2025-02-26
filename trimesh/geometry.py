@@ -392,53 +392,53 @@ def weighted_vertex_normals(
 
 def index_sparse(columns, indices, data=None, dtype=None):
     """
-        Return a sparse matrix for which vertices are contained in which faces.
-        A data vector can be passed which is then used instead of booleans
+    Return a sparse matrix for which vertices are contained in which faces.
+    A data vector can be passed which is then used instead of booleans
 
-        Parameters
-        ------------
-        columns : int
-          Number of columns, usually number of vertices
-        indices : (m, d) int
-          Usually mesh.faces
+    Parameters
+    ------------
+    columns : int
+      Number of columns, usually number of vertices
+    indices : (m, d) int
+      Usually mesh.faces
 
-        Returns
-        ---------
-        sparse: scipy.sparse.coo_matrix of shape (columns, len(faces))
-                dtype is boolean
+    Returns
+    ---------
+    sparse: scipy.sparse.coo_matrix of shape (columns, len(faces))
+            dtype is boolean
 
-        Examples
-         ----------
-        In [1]: sparse = faces_sparse(len(mesh.vertices), mesh.faces)
+    Examples
+     ----------
+    In [1]: sparse = faces_sparse(len(mesh.vertices), mesh.faces)
 
-        In [2]: sparse.shape
-        Out[2]: (12, 20)
+    In [2]: sparse.shape
+    Out[2]: (12, 20)
 
-        In [3]: mesh.faces.shape
-        Out[3]: (20, 3)
-    co
-        In [4]: mesh.vertices.shape
-        Out[4]: (12, 3)
+    In [3]: mesh.faces.shape
+    Out[3]: (20, 3)
 
-        In [5]: dense = sparse.toarray().astype(int)
+    In [4]: mesh.vertices.shape
+    Out[4]: (12, 3)
 
-        In [6]: dense
-        Out[6]:
-        array([[1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-               [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-               [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-               [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
-               [0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-               [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0],
-               [0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-               [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1],
-               [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0],
-               [0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
-               [0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1],
-               [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1]])
+    In [5]: dense = sparse.toarray().astype(int)
 
-        In [7]: dense.sum(axis=0)
-        Out[7]: array([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
+    In [6]: dense
+    Out[6]:
+    array([[1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+           [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+           [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+           [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+           [0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0],
+           [0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1],
+           [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0],
+           [0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
+           [0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1],
+           [0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1]])
+
+    In [7]: dense.sum(axis=0)
+    Out[7]: array([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
     """
     indices = np.asanyarray(indices)
     columns = int(columns)

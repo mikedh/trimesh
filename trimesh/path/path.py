@@ -59,10 +59,8 @@ except BaseException as E:
     cKDTree = exceptions.ExceptionWrapper(E)
 try:
     from shapely.geometry import Polygon
-    from shapely.prepared import prep
 except BaseException as E:
     Polygon = exceptions.ExceptionWrapper(E)
-    prep = exceptions.ExceptionWrapper(E)
 
 try:
     import networkx as nx
