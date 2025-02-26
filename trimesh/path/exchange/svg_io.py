@@ -8,7 +8,7 @@ import numpy as np
 from ... import exceptions, grouping, resources, util
 from ...constants import log, tol
 from ...transformations import planar_matrix, transform_points
-from ...typed import Dict, List, NDArray, Number
+from ...typed import Dict, Iterable, Mapping, NDArray, Number
 from ...util import jsonify
 from ..arc import arc_center, to_threepoint
 from ..entities import Arc, Bezier, Line
@@ -132,7 +132,7 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
     return result
 
 
-def _attrib_metadata(attrib: Dict) -> Dict:
+def _attrib_metadata(attrib: Mapping) -> Dict:
     try:
         # try to retrieve any trimesh attributes as metadata
         return {
@@ -144,7 +144,7 @@ def _attrib_metadata(attrib: Dict) -> Dict:
         return {}
 
 
-def transform_to_matrices(transform):
+def transform_to_matrices(transform: str) -> NDArray[np.float64]:
     """
     Convert an SVG transform string to an array of matrices.
 
@@ -208,10 +208,10 @@ def transform_to_matrices(transform):
         else:
             log.debug(f"unknown SVG transform: {key}")
 
-    return matrices
+    return np.array(matrices, dtype=np.float64)
 
 
-def _svg_path_convert(paths: List, shapes: List, force=None):
+def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
     """
     Convert an SVG path string into a Path2D object
 
@@ -453,6 +453,10 @@ def _svg_path_convert(paths: List, shapes: List, force=None):
     else:
         # return a single Path2D
         kwargs = next(iter(geoms.values()))
+
+        from ..entities import Entity
+
+        assert all(isinstance(e, Entity) for e in kwargs["entities"])
 
     return kwargs
 

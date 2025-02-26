@@ -19,7 +19,17 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..geometry import plane_transform
 from ..points import plane_fit
-from ..typed import ArrayLike, Dict, Iterable, List, NDArray, Optional, Tuple, float64
+from ..typed import (
+    ArrayLike,
+    Iterable,
+    List,
+    Mapping,
+    NDArray,
+    Optional,
+    Tuple,
+    Union,
+    float64,
+)
 from ..visual import to_rgba
 from . import (
     creation,  # NOQA
@@ -73,9 +83,9 @@ class Path(parent.Geometry):
 
     def __init__(
         self,
-        entities: Optional[Iterable[Entity]] = None,
+        entities: Union[ArrayLike, Iterable[Entity], None] = None,
         vertices: Optional[ArrayLike] = None,
-        metadata: Optional[Dict] = None,
+        metadata: Optional[Mapping] = None,
         process: bool = True,
         colors=None,
         **kwargs,
@@ -198,6 +208,7 @@ class Path(parent.Geometry):
         if values is None:
             self._entities = np.array([])
         else:
+            assert all(isinstance(e, Entity) for e in values)
             self._entities = np.asanyarray(values)
 
     @property
