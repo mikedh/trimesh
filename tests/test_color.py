@@ -185,11 +185,16 @@ class VisualTest(g.unittest.TestCase):
         # every color should be default color
         assert g.np.ptp(s.visual.face_colors, axis=0).max() == 0
 
+        hash_pre = hash(m.visual)
         # set one face to a different color
         m.visual.face_colors[0] = [255, 0, 0, 255]
 
         # cache should be dumped yo
         s1 = m.smooth_shaded
+
+        assert hash(m.visual) != hash_pre
+
+        assert g.np.ptp(m.visual.face_colors, axis=0).max() != 0
         assert g.np.ptp(s1.visual.face_colors, axis=0).max() != 0
 
         # do the same check on vertex color

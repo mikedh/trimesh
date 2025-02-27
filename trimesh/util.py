@@ -1558,7 +1558,8 @@ def submesh(
 
         try:
             visuals.append(mesh.visual.face_subset(index))
-        except BaseException:
+        except BaseException as E:
+            raise E
             visuals = None
 
     if len(vertices) == 0:
@@ -1573,7 +1574,7 @@ def submesh(
             visuals = np.array(visuals)
             visual = visuals[0].concatenate(visuals[1:])
         except BaseException:
-            pass
+            log.debug("failed to combine visuals", exc_info=True)
         # re-index faces and stack
         vertices, faces = append_faces(vertices, faces)
         appended = trimesh_type(
