@@ -234,13 +234,14 @@ def filter_mut_dif_laplacian(
         normals = get_vertices_normals(mesh)
         qi = laplacian_operator.dot(vertices)
         pi_qi = vertices - qi
+
         adil = np.abs((normals * pi_qi).dot(np.ones((3, 1))))
         adil = 1.0 / np.maximum(1e-12, adil)
         lamber = np.maximum(0.2 * lamb, np.minimum(1.0, lamb * adil / np.mean(adil)))
 
         # Filter
-        dot = laplacian_operator.dot(vertices) - vertices
-        vertices += lamber * dot
+        dot = laplacian_operator.dot(vertices)
+        vertices += lamber * (dot - vertices)
 
         # Volume constraint
         if volume_constraint:
@@ -292,7 +293,12 @@ def laplacian_calculation(
                 (laplacian.data, np.ones(len(pinned_vertices), dtype=bool))
             )
 
-        laplacian = laplacian / laplacian.sum(axis=1)
+        # using this instead of the line below
+        # laplacian = laplacian / laplacian.sum(axis=1)
+        # because on Python 3.8 that returns a `numpy.matrix`
+        # value instead of a `sparse.coo_matrix`
+        laplacian = laplacian.multiply(1.0 / laplacian.sum(axis=1))
+
     else:
         # get the vertex neighbors from the cache
         neighbors = mesh.vertex_neighbors
