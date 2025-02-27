@@ -4,7 +4,6 @@ except BaseException:
     import generic as g
 
 
-
 def explicit_laplacian_calculation(mesh, equal_weight=True, pinned_vertices=None):
     """
     Exact copy of non-sparse calculation of laplacian, for correctness testing.
@@ -48,7 +47,9 @@ def explicit_laplacian_calculation(mesh, equal_weight=True, pinned_vertices=None
         # the distance from verticesex to neighbors
         norms = [
             1.0
-            / g.np.maximum(1e-6, g.np.sqrt(g.np.dot((vertices[i] - vertices[n]) ** 2, ones)))
+            / g.np.maximum(
+                1e-6, g.np.sqrt(g.np.dot((vertices[i] - vertices[n]) ** 2, ones))
+            )
             for i, n in enumerate(neighbors)
         ]
         # normalize group and stack into single array
@@ -76,12 +77,18 @@ class SmoothTest(g.unittest.TestCase):
         assert g.np.allclose(explicit_laplacian.toarray(), laplacian.toarray())
 
         explicit_laplacian = explicit_laplacian_calculation(m, pinned_vertices=[0, 1, 4])
-        laplacian = g.trimesh.smoothing.laplacian_calculation(m, pinned_vertices=[0, 1, 4])
+        laplacian = g.trimesh.smoothing.laplacian_calculation(
+            m, pinned_vertices=[0, 1, 4]
+        )
 
         assert g.np.allclose(explicit_laplacian.toarray(), laplacian.toarray())
 
-        explicit_laplacian = explicit_laplacian_calculation(m, equal_weight=False, pinned_vertices=[0, 1, 4])
-        laplacian = g.trimesh.smoothing.laplacian_calculation(m, equal_weight=False, pinned_vertices=[0, 1, 4])
+        explicit_laplacian = explicit_laplacian_calculation(
+            m, equal_weight=False, pinned_vertices=[0, 1, 4]
+        )
+        laplacian = g.trimesh.smoothing.laplacian_calculation(
+            m, equal_weight=False, pinned_vertices=[0, 1, 4]
+        )
 
         assert g.np.allclose(explicit_laplacian.toarray(), laplacian.toarray())
 

@@ -122,7 +122,6 @@ class ColorVisuals(Visuals):
         if not (len(self._cache.cache) > 0 or len(self._data.data) > 0):
             return None
 
-        # do bookkeeping
         self._verify_hash()
 
         # check modes in data
@@ -457,7 +456,7 @@ class ColorVisuals(Visuals):
         mat, uv = color_to_uv(vertex_colors=self.vertex_colors)
         return TextureVisuals(material=mat, uv=uv)
 
-    def concatenate(self, other: Union[Iterable[Visuals], Visuals], *args):
+    def concatenate(self, other: Union[Iterable[Visuals], Visuals, ArrayLike], *args):
         """
         Concatenate two or more ColorVisuals objects
         into a single object.
