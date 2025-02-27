@@ -1,0 +1,7 @@
+trimesh.proximity
+=================
+
+.. automodule:: trimesh.proximity
+   :members:
+   :show-inheritance:
+   :undoc-members:

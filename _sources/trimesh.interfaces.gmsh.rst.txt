@@ -1,0 +1,7 @@
+trimesh.interfaces.gmsh
+=======================
+
+.. automodule:: trimesh.interfaces.gmsh
+   :members:
+   :show-inheritance:
+   :undoc-members:
