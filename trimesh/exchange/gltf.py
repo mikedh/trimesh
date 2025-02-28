@@ -13,7 +13,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from .. import rendering, resources, transformations, util, visual
+from .. import resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
 from ..resolvers import ResolverLike, ZipResolver

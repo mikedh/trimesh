@@ -7,14 +7,25 @@ A widget which can visualize trimesh.Scene objects in a glooey window.
 Check out an example in `examples/widget.py`
 """
 
+import warnings
+
 import glooey
 import numpy as np
 import pyglet
 from pyglet import gl
 
-from .. import rendering
 from .trackball import Trackball
-from .windowed import SceneViewer, _geometry_hash
+from .windowed.pyglet1 import SceneViewer, _geometry_hash, conversion
+
+warnings.warn(
+    """
+    `trimesh.viewer.widget` is going to be removed from the installed library
+    and moved into `examples/widget.py` on 3/1/2026.  If you are using it you
+    should copy ("vendor") `widget.py` into your own project structure before then.
+    """,
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class SceneGroup(pyglet.graphics.Group):
@@ -88,7 +99,7 @@ class SceneGroup(pyglet.graphics.Group):
         gl.glPushMatrix()
         gl.glLoadIdentity()
         gl.glMultMatrixf(
-            rendering.matrix_to_gl(np.linalg.inv(self.scene.camera_transform))
+            conversion.matrix_to_gl(np.linalg.inv(self.scene.camera_transform))
         )
 
     def unset_state(self):
@@ -109,7 +120,7 @@ class MeshGroup(pyglet.graphics.Group):
 
     def set_state(self):
         gl.glPushMatrix()
-        gl.glMultMatrixf(rendering.matrix_to_gl(self.transform))
+        gl.glMultMatrixf(conversion.matrix_to_gl(self.transform))
 
         if self.texture:
             gl.glEnable(self.texture.target)
@@ -253,7 +264,7 @@ class SceneWidget(glooey.Widget):
         if self.vertex_list_hash.get(geometry_name) != geometry_hash_new:
             # if geometry has texture defined convert it to opengl form
             if hasattr(geometry, "visual") and hasattr(geometry.visual, "material"):
-                tex = rendering.material_to_texture(geometry.visual.material)
+                tex = conversion.material_to_texture(geometry.visual.material)
                 if tex is not None:
                     self.textures[geometry_name] = tex
 
@@ -274,7 +285,7 @@ class SceneWidget(glooey.Widget):
                 self.vertex_list[geometry_name].delete()
 
             # convert geometry to constructor args
-            args = rendering.convert_to_vertexlist(
+            args = conversion.convert_to_vertexlist(
                 geometry, group=mesh_group, smooth=self._smooth
             )
             # create the indexed vertex list
