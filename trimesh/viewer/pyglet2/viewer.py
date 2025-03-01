@@ -80,10 +80,12 @@ class SceneViewer(pyglet.window.Window):
         # todo : is there a better way of altering this view in-place?
 
     def on_draw(self):
-        print(self._pose.trackball.pose)
-        self.projection = Mat4(*self._pose.trackball.pose.ravel())
+        self.view = Mat4(*self._pose.trackball.pose.ravel())
         self.clear()
         self._batch.draw()
+
+        print("projection\n", np.array(self.projection).reshape((4, 4)))
+        print("view\n", np.array(self.view).reshape((4, 4)))
 
     def on_resize(self, width: int, height: int) -> bool:
         """Update the viewport and projection matrix on window resize."""
@@ -91,9 +93,14 @@ class SceneViewer(pyglet.window.Window):
         # `width` and `height` are the new dimensions of the window
         # where `actual` is the actual size of the framebuffer in pixels
         actual = self.get_framebuffer_size()
-        self._poseport = (0, 0, *actual)
+        self.viewport = (0, 0, *actual)
 
+        actual = np.array(actual, dtype=np.float64)
+        actual *= 2.0 / actual.max()
+        self.scene.camera.resolution = actual
         self._pose.trackball.resize(actual)
+
+        self.projection = Mat4(*self.scene.camera.K.ravel())
 
         return pyglet.event.EVENT_HANDLED
 
