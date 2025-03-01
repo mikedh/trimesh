@@ -12,14 +12,12 @@ to your needs for first person games.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import degrees
 
 import numpy as np
 import pyglet
 from pyglet.gl import GL_CULL_FACE, GL_DEPTH_TEST, glEnable
 from pyglet.graphics.shader import ShaderProgram
-from pyglet.math import Vec2, Vec3
-from pyglet.window import key as _key
+from pyglet.math import Mat4
 
 from ...scene import Scene
 from ..trackball import Trackball
@@ -92,15 +90,23 @@ class SceneViewer(pyglet.window.Window):
         # Look forward from the new position
         # self._pose = Mat4.look_at(self.position, self.position + forward, self.UP)
 
+        # todo : is there a better way of altering this view in-place?
+
     def on_draw(self):
+        print(self._pose.trackball.pose)
+        self.view = Mat4(*self._pose.trackball.pose.ravel())
         self.clear()
         self._batch.draw()
 
     def on_resize(self, width: int, height: int) -> bool:
         """Update the viewport and projection matrix on window resize."""
-        self._poseport = (0, 0, *self.get_framebuffer_size())
 
-        self._pose.trackball.resize((width, height))
+        # `width` and `height` are the new dimensions of the window
+        # where `actual` is the actual size of the framebuffer in pixels
+        actual = self.get_framebuffer_size()
+        self._poseport = (0, 0, *actual)
+
+        self._pose.trackball.resize(actual)
 
         return pyglet.event.EVENT_HANDLED
 
@@ -140,56 +146,44 @@ class SceneViewer(pyglet.window.Window):
         self._pose.trackball.scroll(dy)
         self.scene.camera_transform = self._pose.trackball.pose
 
-    def on_deactivate(self) -> None:
-        """Reset the movement states when the window loses focus."""
-        self.controller_look = Vec2()
-        self.controller_move = Vec2()
-
-    def teleport(self, position: Vec3, target: Vec3 | None = None) -> None:
-        """Teleport the camera to a new position.
-
-        An optional new view target can be provided. If no target is
-        provided, the camera will look in the same direction as before.
+    def on_key_press(self, symbol, modifiers):
         """
-        if target is not None:
-            direction = (target - self.position).normalize()
-            pitch, yaw = direction.get_pitch_yaw()
-            self.yaw = degrees(yaw)
-            self.pitch = degrees(pitch)
+        Call appropriate functions given key presses.
+        """
+        magnitude = 10
+        if symbol == pyglet.window.key.W:
+            self.toggle_wireframe()
+        elif symbol == pyglet.window.key.Z:
+            self.reset_view()
+        elif symbol == pyglet.window.key.C:
+            self.toggle_culling()
+        elif symbol == pyglet.window.key.A:
+            self.toggle_axis()
+        elif symbol == pyglet.window.key.G:
+            self.toggle_grid()
+        elif symbol == pyglet.window.key.Q:
+            self.on_close()
+        elif symbol == pyglet.window.key.M:
+            self.maximize()
+        elif symbol == pyglet.window.key.F:
+            self.toggle_fullscreen()
 
-        self.position = position
-
-    # --- Mouse input ---
-
-    def on_mouse_motion(self, x: int, y: int, dx: int, dy: int) -> None:
-        """Read the mouse input and update the camera's yaw and pitch."""
-        if not self._exclusive_mouse:
-            return
-
-        self.mouse_look = Vec2(dx, dy)
-
-    def on_mouse_press(self, x: int, y: int, button, modifiers) -> None:
-        """Capture the mouse input when the window is clicked."""
-        if not self._exclusive_mouse:
-            self._exclusive_mouse = True
-            self.set_exclusive_mouse(True)
-
-    # --- Keyboard input ---
-
-    def on_key_press(self, symbol: int, mod: int) -> bool:
-        """Handle keyboard input."""
-
-        if symbol in (_key.Q, pyglet.window.key.ESCAPE):
-            self._exclusive_mouse = False
-
-            self.set_exclusive_mouse(False)
-
-            self.close()
-            pyglet.app.exit()
-
-            return pyglet.event.EVENT_HANDLED
-
-        return False
+        if symbol in [
+            pyglet.window.key.LEFT,
+            pyglet.window.key.RIGHT,
+            pyglet.window.key.DOWN,
+            pyglet.window.key.UP,
+        ]:
+            self._pose.trackball.down([0, 0])
+            if symbol == pyglet.window.key.LEFT:
+                self._pose.trackball.drag([-magnitude, 0])
+            elif symbol == pyglet.window.key.RIGHT:
+                self._pose.trackball.drag([magnitude, 0])
+            elif symbol == pyglet.window.key.DOWN:
+                self._pose.trackball.drag([0, -magnitude])
+            elif symbol == pyglet.window.key.UP:
+                self._pose.trackball.drag([0, magnitude])
+            self.scene.camera_transform = self._pose.trackball.pose
 
 
 def get_default_shader() -> ShaderProgram:
