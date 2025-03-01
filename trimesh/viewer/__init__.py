@@ -17,7 +17,8 @@ except ImportError as E:
         from .pyglet1 import SceneViewer, render_scene
         # if windowed failed to import only raise
         # the exception if someone tries to use them
-    except ImportError:
+    except ImportError as J:
+        print(J)
         SceneViewer = exceptions.ExceptionWrapper(E)
         render_scene = exceptions.ExceptionWrapper(E)
 

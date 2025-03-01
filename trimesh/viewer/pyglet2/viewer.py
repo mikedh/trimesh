@@ -1,16 +1,3 @@
-"""
-A basic first-person camera example.
-
-This is ideal for inspecting 3D models/scenes and can be adapted
-to your needs for first person games.
-
-* Supports mouse and keyboard input with WASD + QE for up/down.
-* Supports controller input for movement and rotation including left and right triggers
-  to move up and down,
-"""
-
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 import numpy as np
@@ -73,7 +60,7 @@ class SceneViewer(pyglet.window.Window):
 
         models = {}
         for name, geometry in scene.geometry.items():
-            models[name] = to_pyglet(geometry, batch=self._batch)
+            models[name] = mesh_to_pyglet(geometry, batch=self._batch)
 
         self.scene = scene
         self._initial_camera_transform = scene.camera_transform.copy()
@@ -94,7 +81,7 @@ class SceneViewer(pyglet.window.Window):
 
     def on_draw(self):
         print(self._pose.trackball.pose)
-        self.view = Mat4(*self._pose.trackball.pose.ravel())
+        self.projection = Mat4(*self._pose.trackball.pose.ravel())
         self.clear()
         self._batch.draw()
 
@@ -137,20 +124,19 @@ class SceneViewer(pyglet.window.Window):
         Pan or rotate the view.
         """
         self._pose.trackball.drag(np.array([x, y]))
-        self.scene.camera_transform = self._pose.trackball.pose
+        # self.scene.camera_transform = self._pose.trackball.pose
 
     def on_mouse_scroll(self, x, y, dx, dy):
         """
         Zoom the view.
         """
         self._pose.trackball.scroll(dy)
-        self.scene.camera_transform = self._pose.trackball.pose
+        # self.scene.camera_transform = self._pose.trackball.pose
 
     def on_key_press(self, symbol, modifiers):
         """
         Call appropriate functions given key presses.
         """
-        magnitude = 10
         if symbol == pyglet.window.key.W:
             self.toggle_wireframe()
         elif symbol == pyglet.window.key.Z:
@@ -174,6 +160,7 @@ class SceneViewer(pyglet.window.Window):
             pyglet.window.key.DOWN,
             pyglet.window.key.UP,
         ]:
+            magnitude = 10
             self._pose.trackball.down([0, 0])
             if symbol == pyglet.window.key.LEFT:
                 self._pose.trackball.drag([-magnitude, 0])
@@ -222,17 +209,28 @@ class View:
         )
 
 
-def to_pyglet(
-    mesh: Trimesh, batch: pyglet.graphics.Batch | None = None
+def mesh_to_pyglet(
+    mesh, batch: pyglet.graphics.Batch | None = None
 ) -> pyglet.model.Model:
     """
     Convert a Trimesh object into a Pyglet model.
 
+    Parameters
+    ------------
+    mesh
+      The Trimesh object to convert.
+    batch
+      The Pyglet batch to add the model to.
 
+    Returns
+    ------------
+    model
+      The Pyglet model reference.
     """
     if batch is None:
         batch = pyglet.graphics.Batch()
 
+    # todo : probably should be vendored in the future
     program = get_default_shader()
 
     idx = program.vertex_list_indexed(
@@ -247,10 +245,3 @@ def to_pyglet(
     )
 
     return pyglet.model.Model([idx], [], batch)
-
-
-if __name__ == "__main__":
-    m = trimesh.load("models/rabbit.obj")
-    m.visual = m.visual.to_color()
-
-    # w = Pyglet2Viewer(geometry=m, position=Vec3(0.0, 0.0, 5.0))
