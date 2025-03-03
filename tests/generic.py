@@ -26,6 +26,7 @@ import contextlib
 import subprocess
 import collections
 import numpy as np
+import pytest
 
 import trimesh
 
