@@ -474,6 +474,7 @@ def split(path):
                     metadata=metadata,
                 )
             )
+
             # add back expensive things to the cache
             split[-1]._cache.update(
                 {

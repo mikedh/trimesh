@@ -1,12 +1,18 @@
 import numpy as np
 
+from .typed import ArrayLike, Optional
+
 try:
     from scipy.sparse import coo_matrix, eye
     from scipy.sparse.linalg import spsolve
-except ImportError:
-    pass
+except ImportError as E:
+    from .exceptions import ExceptionWrapper
 
-from . import triangles
+    wrapper = ExceptionWrapper(E)
+    eye, spsolve, coo_matrix = wrapper, wrapper, wrapper
+
+from . import graph, triangles
+from .base import Trimesh
 from .geometry import index_sparse
 from .triangles import mass_properties
 from .util import unitize
@@ -228,13 +234,14 @@ def filter_mut_dif_laplacian(
         normals = get_vertices_normals(mesh)
         qi = laplacian_operator.dot(vertices)
         pi_qi = vertices - qi
+
         adil = np.abs((normals * pi_qi).dot(np.ones((3, 1))))
         adil = 1.0 / np.maximum(1e-12, adil)
         lamber = np.maximum(0.2 * lamb, np.minimum(1.0, lamb * adil / np.mean(adil)))
 
         # Filter
-        dot = laplacian_operator.dot(vertices) - vertices
-        vertices += lamber * dot
+        dot = laplacian_operator.dot(vertices)
+        vertices += lamber * (dot - vertices)
 
         # Volume constraint
         if volume_constraint:
@@ -249,9 +256,16 @@ def filter_mut_dif_laplacian(
     return mesh
 
 
-def laplacian_calculation(mesh, equal_weight=True, pinned_vertices=None):
+def laplacian_calculation(
+    mesh: Trimesh,
+    equal_weight: bool = True,
+    pinned_vertices: Optional[ArrayLike] = None,
+):
     """
     Calculate a sparse matrix for laplacian operations.
+
+    Note that setting equal_weight to False significantly hampers performance.
+
     Parameters
     -------------
     mesh : trimesh.Trimesh
@@ -259,31 +273,49 @@ def laplacian_calculation(mesh, equal_weight=True, pinned_vertices=None):
     equal_weight : bool
       If True, all neighbors will be considered equally
       If False, all neighbors will be weighted by inverse distance
+    pinned_vertices : None or list of ints
+      If None, no vertices are pinned
+      If list, vertices will be pinned, such that they will not be moved
     Returns
     ----------
     laplacian : scipy.sparse.coo.coo_matrix
       Laplacian operator
     """
-    # get the vertex neighbors from the cache
-    neighbors = mesh.vertex_neighbors
-
-    # if a node is pinned, it will average his coordinates by himself
-    # in practice it will not move
-    if pinned_vertices is not None:
-        for i in pinned_vertices:
-            neighbors[i] = [i]
-
-    # avoid hitting crc checks in loops
-    vertices = mesh.vertices.view(np.ndarray)
-
-    # stack neighbors to 1D arrays
-    col = np.concatenate(neighbors)
-    row = np.concatenate([[i] * len(n) for i, n in enumerate(neighbors)])
-
     if equal_weight:
-        # equal weights for each neighbor
-        data = np.concatenate([[1.0 / len(n)] * len(n) for n in neighbors])
+        laplacian = graph.edges_to_coo(mesh.edges)
+
+        if pinned_vertices is not None:
+            # Set pinned vertices to only have themselves as neighbours
+            laplacian.data[np.isin(laplacian.row, pinned_vertices)] = False
+            laplacian.row = np.concatenate((laplacian.row, pinned_vertices))
+            laplacian.col = np.concatenate((laplacian.col, pinned_vertices))
+            laplacian.data = np.concatenate(
+                (laplacian.data, np.ones(len(pinned_vertices), dtype=bool))
+            )
+
+        # using this instead of the line below
+        # laplacian = laplacian / laplacian.sum(axis=1)
+        # because on Python 3.8 that returns a `numpy.matrix`
+        # value instead of a `sparse.coo_matrix`
+        laplacian = laplacian.multiply(1.0 / laplacian.sum(axis=1))
+
     else:
+        # get the vertex neighbors from the cache
+        neighbors = mesh.vertex_neighbors
+
+        # if a node is pinned, it will average his coordinates by himself
+        # in practice it will not move
+        if pinned_vertices is not None:
+            for i in pinned_vertices:
+                neighbors[i] = [i]
+
+        # avoid hitting crc checks in loops
+        vertices = mesh.vertices.view(np.ndarray)
+
+        # stack neighbors to 1D arrays
+        col = np.concatenate(neighbors)
+        row = np.concatenate([[i] * len(n) for i, n in enumerate(neighbors)])
+
         # umbrella weights, distance-weighted
         # use dot product of ones to replace array.sum(axis=1)
         ones = np.ones(3)
@@ -296,10 +328,10 @@ def laplacian_calculation(mesh, equal_weight=True, pinned_vertices=None):
         # normalize group and stack into single array
         data = np.concatenate([i / i.sum() for i in norms])
 
-    # create the sparse matrix
-    matrix = coo_matrix((data, (row, col)), shape=[len(vertices)] * 2)
+        # create the sparse matrix
+        laplacian = coo_matrix((data, (row, col)), shape=[len(vertices)] * 2)
 
-    return matrix
+    return laplacian
 
 
 def get_vertices_normals(mesh):
