@@ -40,7 +40,7 @@ class SceneViewer(pyglet.window.Window):
                 pose=self._initial_camera_transform,
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
-                target=-self.scene.centroid,
+                target=self.scene.centroid,
             ),
         )
 
@@ -85,7 +85,7 @@ class SceneViewer(pyglet.window.Window):
 
         # todo : is there a better way of altering this view in-place?
 
-        self.view = Mat4(*self._pose.trackball.pose.T.ravel())
+        self.view = Mat4(*np.linalg.inv(self._pose.trackball.pose).T.ravel())
 
     def on_draw(self):
         self.clear()
@@ -103,13 +103,9 @@ class SceneViewer(pyglet.window.Window):
         self.viewport = (0, 0, *actual)
 
         actual = np.array(actual, dtype=np.float64)
-        actual *= 2.0 / actual.max()
+        # actual *= 2.0 / actual.max()
         self.scene.camera.resolution = actual
         self._pose.trackball.resize(actual)
-
-        self._scale_zoom = self._scale / actual.max()
-
-        self.projection = Mat4(*self.scene.camera.K.ravel())
 
         self.projection = Mat4.perspective_projection(
             width / height,
@@ -117,7 +113,6 @@ class SceneViewer(pyglet.window.Window):
             1000,
             self.scene.camera.fov.max(),
         )
-
         return pyglet.event.EVENT_HANDLED
 
     def on_mouse_press(self, x, y, buttons, modifiers):
@@ -147,14 +142,12 @@ class SceneViewer(pyglet.window.Window):
         Pan or rotate the view.
         """
         self._pose.trackball.drag(np.array([x, y]))
-        # self.scene.camera_transform = self._pose.trackball.pose
 
     def on_mouse_scroll(self, x, y, dx, dy):
         """
         Zoom the view.
         """
-        self._pose.trackball.scroll(dy * self._scale_zoom)
-        # self.scene.camera_transform = self._pose.trackball.pose
+        self._pose.trackball.scroll(dy)
 
     def on_key_press(self, symbol, modifiers):
         """
