@@ -40,7 +40,7 @@ class SceneViewer(pyglet.window.Window):
                 pose=self._initial_camera_transform,
                 size=self.scene.camera.resolution,
                 scale=self.scene.scale,
-                target=self.scene.centroid,
+                target=-self.scene.centroid,
             ),
         )
 
@@ -56,18 +56,15 @@ class SceneViewer(pyglet.window.Window):
         pyglet.app.run()
 
     def set_scene(self, scene: Scene):
+        """
+        Set the current viewer to a trimesh Scene.
+        """
         if not isinstance(scene, Scene):
             scene = Scene(scene)
 
         models = {}
         for name, geometry in scene.geometry.items():
             models[name] = mesh_to_pyglet(geometry, batch=self._batch)
-
-            # These .obj files only have a single model in the scene:
-            # model_logo = pyglet.resource.scene("models/rabbit.obj").create_models(batch=batch)[0]
-            # models[name] = pyglet.resource.scene(
-            #    f"models/{geometry.source.file_name}"
-            # ).create_models(batch=self._batch)[0]
 
         self.scene = scene
         self._scale = scene.scale
