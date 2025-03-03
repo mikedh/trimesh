@@ -5,6 +5,7 @@ import pyglet
 from pyglet.gl import GL_CULL_FACE, GL_DEPTH_TEST, glEnable
 from pyglet.graphics.shader import ShaderProgram
 from pyglet.math import Mat4
+from pyglet.model import MaterialGroup, SimpleMaterial
 
 from ...scene import Scene
 from ..trackball import Trackball
@@ -62,7 +63,15 @@ class SceneViewer(pyglet.window.Window):
         for name, geometry in scene.geometry.items():
             models[name] = mesh_to_pyglet(geometry, batch=self._batch)
 
+            # These .obj files only have a single model in the scene:
+            # model_logo = pyglet.resource.scene("models/rabbit.obj").create_models(batch=batch)[0]
+            # models[name] = pyglet.resource.scene(
+            #    f"models/{geometry.source.file_name}"
+            # ).create_models(batch=self._batch)[0]
+
         self.scene = scene
+        self._scale = scene.scale
+        self._models = models
         self._initial_camera_transform = scene.camera_transform.copy()
 
     def on_refresh(self, delta_time: float) -> None:
@@ -79,11 +88,12 @@ class SceneViewer(pyglet.window.Window):
 
         # todo : is there a better way of altering this view in-place?
 
+        self.view = Mat4(*self._pose.trackball.pose.T.ravel())
+
     def on_draw(self):
-        self.view = Mat4(*self._pose.trackball.pose.ravel())
         self.clear()
         self._batch.draw()
-
+        print("models\n", self._models)
         print("projection\n", np.array(self.projection).reshape((4, 4)))
         print("view\n", np.array(self.view).reshape((4, 4)))
 
@@ -100,7 +110,16 @@ class SceneViewer(pyglet.window.Window):
         self.scene.camera.resolution = actual
         self._pose.trackball.resize(actual)
 
+        self._scale_zoom = self._scale / actual.max()
+
         self.projection = Mat4(*self.scene.camera.K.ravel())
+
+        self.projection = Mat4.perspective_projection(
+            width / height,
+            0.1,
+            1000,
+            self.scene.camera.fov.max(),
+        )
 
         return pyglet.event.EVENT_HANDLED
 
@@ -137,7 +156,7 @@ class SceneViewer(pyglet.window.Window):
         """
         Zoom the view.
         """
-        self._pose.trackball.scroll(dy)
+        self._pose.trackball.scroll(dy * self._scale_zoom)
         # self.scene.camera_transform = self._pose.trackball.pose
 
     def on_key_press(self, symbol, modifiers):
@@ -180,13 +199,6 @@ class SceneViewer(pyglet.window.Window):
             self.scene.camera_transform = self._pose.trackball.pose
 
 
-def get_default_shader() -> ShaderProgram:
-    return pyglet.gl.current_context.create_program(
-        (pyglet.model.MaterialGroup.default_vert_src, "vertex"),
-        (pyglet.model.MaterialGroup.default_frag_src, "fragment"),
-    )
-
-
 @dataclass
 class View:
     # keep the pose of a trackball
@@ -217,7 +229,9 @@ class View:
 
 
 def mesh_to_pyglet(
-    mesh, batch: pyglet.graphics.Batch | None = None
+    mesh,
+    batch: pyglet.graphics.Batch | None = None,
+    group=None,
 ) -> pyglet.model.Model:
     """
     Convert a Trimesh object into a Pyglet model.
@@ -237,18 +251,32 @@ def mesh_to_pyglet(
     if batch is None:
         batch = pyglet.graphics.Batch()
 
-    # todo : probably should be vendored in the future
-    program = get_default_shader()
+    diffuse = [1.0, 1.0, 1.0, 1.0]
+    ambient = [1.0, 1.0, 1.0, 1.0]
+    specular = [1.0, 1.0, 1.0, 1.0]
+    emission = [0.0, 0.0, 0.0, 1.0]
+    shininess = 100.0
+
+    default_material = SimpleMaterial(
+        "Default", diffuse, ambient, specular, emission, shininess
+    )
+
+    program: ShaderProgram = pyglet.gl.current_context.create_program(
+        (pyglet.model.MaterialGroup.default_vert_src, "vertex"),
+        (pyglet.model.MaterialGroup.default_frag_src, "fragment"),
+    )
+
+    matgroup = MaterialGroup(default_material, program, order=0, parent=group)
 
     idx = program.vertex_list_indexed(
         len(mesh.vertices),
         pyglet.gl.GL_TRIANGLES,
         mesh.faces.ravel(),
         batch=batch,
-        group=None,
+        group=matgroup,
         POSITION=("f", mesh.vertices.ravel()),
         NORMAL=("f", mesh.vertex_normals.ravel()),
         COLOR_0=("f", np.ones(len(mesh.vertices) * 4)),
     )
 
-    return pyglet.model.Model([idx], [], batch)
+    return pyglet.model.Model([idx], [matgroup], batch)
