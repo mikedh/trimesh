@@ -77,11 +77,19 @@ class Primitive(Trimesh):
 
     @property
     def face_normals(self):
+        # if the mesh hasn't been created yet do that
+        # before checking to see if the mesh creation
+        # already populated the face normals
+        if "vertices" not in self._cache:
+            self._create_mesh()
+
         # we need to avoid the logic in the superclass that
         # is specific to the data model prioritizing faces
         stored = self._cache["face_normals"]
         if util.is_shape(stored, (-1, 3)):
             return stored
+
+        # if the creation did not populate normals we have to do it
         # just calculate if not stored
         unit, valid = triangles.normals(self.triangles)
         normals = np.zeros((len(valid), 3))
