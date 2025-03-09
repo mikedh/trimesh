@@ -79,6 +79,12 @@ except BaseException as E:
     Path2D = ExceptionWrapper(E)
     Path3D = ExceptionWrapper(E)
 
+# save immutable identity matrices for checks
+_IDENTITY3 = np.eye(3, dtype=np.float64)
+_IDENTITY3.flags.writeable = False
+_IDENTITY4 = np.eye(4, dtype=np.float64)
+_IDENTITY4.flags.writeable = False
+
 
 class Trimesh(Geometry3D):
     def __init__(
@@ -2446,7 +2452,7 @@ class Trimesh(Geometry3D):
 
         # exit early if we've been passed an identity matrix
         # np.allclose is surprisingly slow so do this test
-        elif util.allclose(matrix, np.eye(4), 1e-8):
+        elif util.allclose(matrix, _IDENTITY4, 1e-8):
             return self
 
         # new vertex positions
@@ -2454,7 +2460,7 @@ class Trimesh(Geometry3D):
 
         # check to see if the matrix has rotation
         # rather than just translation
-        has_rotation = not util.allclose(matrix[:3, :3], np.eye(3), atol=1e-6)
+        has_rotation = not util.allclose(matrix[:3, :3], _IDENTITY3, atol=1e-6)
 
         # transform overridden center of mass
         if "center_mass" in self._data:
