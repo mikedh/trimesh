@@ -6,7 +6,7 @@ LABEL maintainer="mikedh@kerfed.com"
 RUN useradd -m -u 499 -s /bin/bash user && \
     apt-get update && \
     apt-get install --no-install-recommends -qq -y python3.13-venv && \
-    apt-get clean -y 
+    apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 USER user
 
@@ -33,6 +33,11 @@ FROM base AS build
 # copy in essential files
 COPY --chown=499 trimesh/ /home/user/trimesh
 COPY --chown=499 pyproject.toml /home/user/
+
+# `xatlas` currently needs to compile on 3.13 from the sdist
+RUN apt-get update && \
+    apt-get install --no-install-recommends python3.13-dev build-essential && \
+    apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 # install trimesh into the venv
 RUN pip install /home/user[easy]
