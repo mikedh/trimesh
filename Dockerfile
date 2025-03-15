@@ -5,7 +5,7 @@ LABEL maintainer="mikedh@kerfed.com"
 # Create a non-root user with `uid=499`.
 RUN useradd -m -u 499 -s /bin/bash user && \
     apt-get update && \
-    apt-get install --no-install-recommends -qq -y python3.12-venv && \
+    apt-get install --no-install-recommends -qq -y python3.13-venv && \
     apt-get clean -y 
 
 USER user
