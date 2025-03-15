@@ -17,7 +17,7 @@ WORKDIR /home/user
 # but if you use Debian methods like `update-alternatives`
 # it won't provide a `pip` which works easily and it isn't
 # easy to know how system packages interact with pip packages
-RUN python3.12 -m venv venv
+RUN python3.13 -m venv venv
 
 # So scripts installed from pip are in $PATH
 ENV PATH="/home/user/venv/bin:$PATH"
