@@ -33,7 +33,7 @@ FROM base AS build
 USER root
 # `xatlas` currently needs to compile on 3.13 from the sdist
 RUN apt-get update && \
-    apt-get install --no-install-recommends -y python3.13-dev build-essential && \
+    apt-get install --no-install-recommends -y python3.13-dev build-essential g++ && \
     apt-get clean -y && rm -rf /var/lib/apt/lists/*
 USER user
 
@@ -43,10 +43,6 @@ COPY --chown=499 pyproject.toml /home/user/
 
 # install trimesh into the venv
 RUN pip install /home/user[easy]
-
-# install FCL from a hopefully temporary fork
-# as the original `python-fcl` currently has broken wheels on PyPi
-RUN pip install fclx
 
 ####################################
 ### Build output image most things should run on

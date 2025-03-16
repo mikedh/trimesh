@@ -94,7 +94,7 @@ recommend = [
     "psutil",
     "scikit-image",
     "fast-simplification",
-    # "python-fcl", # do collision checks # TODO : broken on numpy 2
+    "python-fcl", # do collision checks
     "openctm; platform_machine=='x86_64'", # load `CTM` compressed models
     "cascadio", # load `STEP` files
 ]
