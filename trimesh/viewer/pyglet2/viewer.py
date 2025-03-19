@@ -3,7 +3,7 @@ from typing import Literal
 
 import numpy as np
 import pyglet
-from pyglet.gl import GL_CULL_FACE, GL_DEPTH_TEST, glEnable
+from pyglet.gl import GL_CULL_FACE, GL_DEPTH_TEST, glClearColor, glEnable
 from pyglet.graphics.shader import ShaderProgram
 from pyglet.math import Mat4
 from pyglet.model import MaterialGroup, SimpleMaterial
@@ -28,6 +28,7 @@ class SceneViewer(pyglet.window.Window):
     def __init__(
         self,
         scene: Scene,
+        background=None,
     ) -> None:
         """Initialize the camera."""
 
@@ -54,6 +55,13 @@ class SceneViewer(pyglet.window.Window):
         # default GL settings
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_CULL_FACE)
+
+        if background is None:
+            background = np.ones(4)
+        glClearColor(*background)
+
+        # set a window caption
+        self.set_caption("trimesh viewer")
 
         # run the initial frame render
         self.on_refresh(0.0)
@@ -308,6 +316,7 @@ class View:
     # display meshes as a wireframe
     wireframe: bool = False
 
+    # display an axis marker
     axis: _AXIS_TYPE = None
 
     def __hash__(self) -> int:
