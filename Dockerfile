@@ -5,8 +5,8 @@ LABEL maintainer="mikedh@kerfed.com"
 # Create a non-root user with `uid=499`.
 RUN useradd -m -u 499 -s /bin/bash user && \
     apt-get update && \
-    apt-get install --no-install-recommends -qq -y python3.12-venv && \
-    apt-get clean -y 
+    apt-get install --no-install-recommends -qq -y python3.13-venv && \
+    apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 USER user
 
@@ -17,7 +17,7 @@ WORKDIR /home/user
 # but if you use Debian methods like `update-alternatives`
 # it won't provide a `pip` which works easily and it isn't
 # easy to know how system packages interact with pip packages
-RUN python3.12 -m venv venv
+RUN python3.13 -m venv venv
 
 # So scripts installed from pip are in $PATH
 ENV PATH="/home/user/venv/bin:$PATH"
@@ -30,16 +30,19 @@ COPY --chmod=755 docker/trimesh-setup /home/user/venv/bin
 ## install things that need building
 FROM base AS build
 
+USER root
+# `xatlas` currently needs to compile on 3.13 from the sdist
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y python3.13-dev build-essential g++ && \
+    apt-get clean -y && rm -rf /var/lib/apt/lists/*
+USER user
+
 # copy in essential files
 COPY --chown=499 trimesh/ /home/user/trimesh
 COPY --chown=499 pyproject.toml /home/user/
 
 # install trimesh into the venv
 RUN pip install /home/user[easy]
-
-# install FCL from a hopefully temporary fork
-# as the original `python-fcl` currently has broken wheels on PyPi
-RUN pip install fclx
 
 ####################################
 ### Build output image most things should run on
@@ -62,7 +65,7 @@ COPY --chown=499 pyproject.toml .
 COPY --chown=499 ./.git ./.git/
 
 USER root
-RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox,blender
+RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox,blender,build
 USER user
 
 RUN blender --version
