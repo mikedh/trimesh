@@ -1181,7 +1181,10 @@ def _append_path(path, name, tree, buffer_items):
             data = attrib
 
         if not all(util.is_instance_named(e, "Line") for e in path.entities):
-            raise ValueError("Vertex attributes are only supported for Line entities.")
+            log.warning(
+                f"Vertex attributes are only supported for Line entities, skipping `{key}`"
+            )
+            continue
 
         data_discretized = np.array(
             [util.stack_lines(e.discrete(data)) for e in path.entities]
