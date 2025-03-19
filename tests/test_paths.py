@@ -131,6 +131,62 @@ def test_path():
     assert len(loaded_path.vertex_attributes["_test"]) == 3
 
 
+def test_path_to_gltf_with_line():
+    path = g.trimesh.path.Path3D(
+        entities=[
+            g.trimesh.path.entities.Line(points=[0, 1, 2]),
+            g.trimesh.path.entities.Line(points=[3, 4, 5]),
+        ],
+        vertices=g.np.array(
+            [
+                [0, 0, 0],
+                [0, 1, 0],
+                [1, 1, 0],
+                [0, 0, 1],
+                [0, 1, 1],
+                [1, 1, 2],
+            ]
+        ),
+    )
+    path.vertex_attributes = {"_test": g.np.array([0, 0, 0, 1, 1, 1], dtype=g.np.float32)}
+
+    tree, _ = g.trimesh.exchange.gltf._create_gltf_structure(g.trimesh.Scene([path]))
+    # should have included the attribute by name
+    assert set(tree["meshes"][0]["primitives"][0]["attributes"].keys()) == {
+        "POSITION",
+        "_test",
+    }
+
+    assert len(tree["accessors"]) == 2
+    acc = tree["accessors"]
+    assert acc[0]["count"] == acc[1]["count"]
+
+
+def test_path_to_gltf_with_arc():
+    path = g.trimesh.path.Path3D(
+        entities=[
+            g.trimesh.path.entities.Line(points=[0, 1, 2]),
+            g.trimesh.path.entities.Arc(points=[3, 4, 5]),
+        ],
+        vertices=g.np.array(
+            [
+                [0, 0, 0],
+                [0, 1, 0],
+                [1, 1, 0],
+                [0, 0, 1],
+                [0, 1, 1],
+                [1, 1, 2],
+            ]
+        ),
+    )
+    path.vertex_attributes = {"_test": g.np.array([0, 0, 0, 1, 1, 1], dtype=g.np.float32)}
+
+    tree, _ = g.trimesh.exchange.gltf._create_gltf_structure(g.trimesh.Scene([path]))
+
+    # should have skipped the attribute rather than exporting a broken one
+    assert set(tree["meshes"][0]["primitives"][0]["attributes"].keys()) == {"POSITION"}
+
+
 def test_poly():
     p = g.get_mesh("2D/LM2.dxf")
     assert p.is_closed
@@ -357,4 +413,6 @@ def test_svg_arc_snap():
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
-    g.unittest.main()
+    # g.unittest.main()
+
+    test_path_to_gltf_with_arc()

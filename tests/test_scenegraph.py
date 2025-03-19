@@ -7,7 +7,7 @@ from trimesh.scene.transforms import EnforcedForest
 
 
 def random_chr():
-    return chr(ord("a") + int(round(g.random() * 25)))
+    return chr(ord("a") + round(g.random() * 25))
 
 
 def test_forest():

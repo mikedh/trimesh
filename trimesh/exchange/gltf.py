@@ -1180,14 +1180,23 @@ def _append_path(path, name, tree, buffer_items):
         else:
             data = attrib
 
-        data = util.stack_lines(data).reshape((-1,))
+        if not all(util.is_instance_named(e, "Line") for e in path.entities):
+            log.warning(
+                f"Vertex attributes are only supported for Line entities, skipping `{key}`"
+            )
+            continue
+
+        data_discretized = np.array(
+            [util.stack_lines(e.discrete(data)) for e in path.entities]
+        )
+        stacked_data = data_discretized.reshape((-1,))
 
         # store custom vertex attributes
         current["primitives"][0]["attributes"][key] = _data_append(
             acc=tree["accessors"],
             buff=buffer_items,
-            blob=_build_accessor(data),
-            data=data,
+            blob=_build_accessor(stacked_data),
+            data=stacked_data,
         )
 
     tree["meshes"].append(current)
