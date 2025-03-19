@@ -151,11 +151,14 @@ def test_path_to_gltf_with_line():
     path.vertex_attributes = {"_test": g.np.array([0, 0, 0, 1, 1, 1], dtype=g.np.float32)}
 
     tree, _ = g.trimesh.exchange.gltf._create_gltf_structure(g.trimesh.Scene([path]))
+    # should have included the attribute by name
+    assert set(tree["meshes"][0]["primitives"][0]["attributes"].keys()) == {
+        "POSITION",
+        "_test",
+    }
 
     assert len(tree["accessors"]) == 2
-
     acc = tree["accessors"]
-
     assert acc[0]["count"] == acc[1]["count"]
 
 
