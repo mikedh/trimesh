@@ -111,24 +111,75 @@ def test_discrete():
         d.process()
 
 
-def test_path():
-    path = g.trimesh.path.Path3D(
-        entities=[g.trimesh.path.entities.Line(points=[0, 1, 2])],
-        vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0]],
-        vertex_attributes={"_test": g.np.array([1, 2, 3], dtype=g.np.float32)},
-    )
+class TestPath(g.unittest.TestCase):
+    def test_path(self):
+        path = g.trimesh.path.Path3D(
+            entities=[g.trimesh.path.entities.Line(points=[0, 1, 2])],
+            vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0]],
+            vertex_attributes={"_test": g.np.array([1, 2, 3], dtype=g.np.float32)},
+        )
 
-    glb_data = g.to_glb_bytes(path)
-    loaded_scene = g.from_glb_bytes(glb_data)
+        glb_data = g.to_glb_bytes(path)
+        loaded_scene = g.from_glb_bytes(glb_data)
 
-    loaded_path = loaded_scene.geometry["geometry_0"]
-    loaded_path.process()
+        loaded_path = loaded_scene.geometry["geometry_0"]
+        loaded_path.process()
 
-    assert isinstance(loaded_path, g.trimesh.path.Path3D)
+        assert isinstance(loaded_path, g.trimesh.path.Path3D)
 
-    assert loaded_path.vertices.shape == (3, 3)
-    assert len(loaded_path.entities) == 1
-    assert len(loaded_path.vertex_attributes["_test"]) == 3
+        assert loaded_path.vertices.shape == (3, 3)
+        assert len(loaded_path.entities) == 1
+        assert len(loaded_path.vertex_attributes["_test"]) == 3
+
+
+    def test_path_to_gltf_with_line(self):
+        path = g.trimesh.path.Path3D(
+            entities=[
+                g.trimesh.path.entities.Line(points=[0, 1, 2]),
+                g.trimesh.path.entities.Line(points=[3, 4, 5]),
+            ],
+            vertices=g.np.array([
+                [0, 0, 0],
+                [0, 1, 0],
+                [1, 1, 0],
+                [0, 0, 1],
+                [0, 1, 1],
+                [1, 1, 2],
+            ])
+        )
+        path.vertex_attributes = {
+            "_test": g.np.array([0, 0, 0, 1, 1, 1], dtype=g.np.float32)
+        }
+
+        tree, _ = g.trimesh.exchange.gltf._create_gltf_structure(g.trimesh.Scene([path]))
+
+        assert len(tree["accessors"]) == 2
+
+        acc = tree["accessors"]
+
+        assert acc[0]["count"] == acc[1]["count"]
+
+    def test_path_to_gltf_with_arc(self):
+        path = g.trimesh.path.Path3D(
+            entities=[
+                g.trimesh.path.entities.Line(points=[0, 1, 2]),
+                g.trimesh.path.entities.Arc(points=[3, 4, 5]),
+            ],
+            vertices=g.np.array([
+                [0, 0, 0],
+                [0, 1, 0],
+                [1, 1, 0],
+                [0, 0, 1],
+                [0, 1, 1],
+                [1, 1, 2],
+            ])
+        )
+        path.vertex_attributes = {
+            "_test": g.np.array([0, 0, 0, 1, 1, 1], dtype=g.np.float32)
+        }
+
+        with g.pytest.raises(ValueError):
+            tree, _ = g.trimesh.exchange.gltf._create_gltf_structure(g.trimesh.Scene([path]))
 
 
 def test_poly():

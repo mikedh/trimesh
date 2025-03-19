@@ -16,6 +16,7 @@ import numpy as np
 from .. import rendering, resources, transformations, util, visual
 from ..caching import hash_fast
 from ..constants import log, tol
+from ..path.entities import Line
 from ..resolvers import ResolverLike, ZipResolver
 from ..scene.cameras import Camera
 from ..typed import Dict, List, NDArray, Optional, Stream
@@ -1180,14 +1181,21 @@ def _append_path(path, name, tree, buffer_items):
         else:
             data = attrib
 
-        data = util.stack_lines(data).reshape((-1,))
+        if not all(isinstance(e, Line) for e in path.entities):
+            raise ValueError("Vertex attributes are only supported for Line entities.")
+
+        data_discretized = np.array([
+            util.stack_lines(e.discrete(data))
+            for e in path.entities
+        ])
+        stacked_data = data_discretized.reshape((-1,))
 
         # store custom vertex attributes
         current["primitives"][0]["attributes"][key] = _data_append(
             acc=tree["accessors"],
             buff=buffer_items,
-            blob=_build_accessor(data),
-            data=data,
+            blob=_build_accessor(stacked_data),
+            data=stacked_data,
         )
 
     tree["meshes"].append(current)
