@@ -120,6 +120,7 @@ test_more = [
     "pymeshlab",
     "triangle",
     "ipython",
+    "marimo",
 ]
 
 # interfaces.gmsh will be dropped Jan 2025
