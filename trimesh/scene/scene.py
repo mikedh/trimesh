@@ -1343,7 +1343,7 @@ class Scene(Geometry3D):
         viewer : Union[str, callable, None]
           What kind of viewer to use, such as
           'gl' to open a pyglet window, 'notebook'
-          for a jupyter notebook, 'marimo' for 
+          for a jupyter notebook, 'marimo' for
           a marimo notebook or None
         kwargs : dict
           Includes `smooth`, which will turn
@@ -1352,7 +1352,7 @@ class Scene(Geometry3D):
 
         if viewer is None:
             # check to see if we are in a notebook or not
-            from ..viewer import in_notebook, in_marimo_notebook
+            from ..viewer import in_marimo_notebook, in_notebook
 
             if in_notebook():
                 viewer = "notebook"

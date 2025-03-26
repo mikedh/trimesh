@@ -6,7 +6,13 @@ View meshes and scenes via pyglet or inline HTML.
 """
 
 from .. import exceptions
-from .notebook import in_notebook, scene_to_html, scene_to_notebook, in_marimo_notebook, scene_to_mo_notebook
+from .notebook import (
+    in_marimo_notebook,
+    in_notebook,
+    scene_to_html,
+    scene_to_mo_notebook,
+    scene_to_notebook,
+)
 
 try:
     # try importing windowed which will fail
@@ -32,11 +38,10 @@ except BaseException as E:
 __all__ = [
     "SceneViewer",
     "SceneWidget",
-    "in_notebook",
     "in_marimo_notebook",
+    "in_notebook",
     "render_scene",
     "scene_to_html",
-    "scene_to_notebook",
-    "scene_to_mo_notebook"
-]
+    "scene_to_mo_notebook",
+    "scene_to_notebook"
 ]

@@ -143,7 +143,7 @@ def scene_to_mo_notebook(scene, height=500, **kwargs):
     # escape the quotes in the HTML
     srcdoc = as_html.replace('"', "&quot;")
 
-    # Embed as srcdoc attr of IFrame, using mo.iframe 
+    # Embed as srcdoc attr of IFrame, using mo.iframe
     # turns out displaying an empty image. Likely
     # similar to  display.IFrame
     embedded = mo.Html(" ".join(
