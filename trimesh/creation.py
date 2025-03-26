@@ -1356,7 +1356,7 @@ def camera_marker(
 
     # combine the points into the vertices of an FOV visualization
     points = np.array(
-        [(0, 0, 0), (-x, -y, z), (x, -y, z), (x, y, z), (-x, y, z)], dtype=float
+        [(0, 0, 0), (-x, -y, -z), (x, -y, -z), (x, y, -z), (-x, y, -z)], dtype=float
     )
 
     # create line segments for the FOV visualization
