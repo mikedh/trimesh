@@ -3,7 +3,7 @@ notebook.py
 -------------
 
 Render trimesh.Scene objects in HTML
-and jupyter notebooks using three.js
+and jupyter and marimo notebooks using three.js
 """
 
 import base64
@@ -115,5 +115,52 @@ def in_notebook():
 
         return notebook
 
+    except BaseException:
+        return False
+
+def scene_to_mo_notebook(scene, height=500, **kwargs):
+    """
+    Convert a scene to HTML containing embedded geometry
+    and a three.js viewer that will display nicely in
+    an Marimo notebook.
+
+    Parameters
+    -------------
+    scene : trimesh.Scene
+      Source geometry
+
+    Returns
+    -------------
+    html : mo.Html
+      Object containing rendered scene
+    """
+    # keep as soft dependency
+    import marimo as mo
+
+    # convert scene to a full HTML page
+    as_html = scene_to_html(scene=scene)
+
+    # escape the quotes in the HTML
+    srcdoc = as_html.replace('"', "&quot;")
+
+    # Embed as srcdoc attr of IFrame, using mo.iframe
+    # turns out displaying an empty image. Likely
+    # similar to  display.IFrame
+    embedded = mo.Html(" ".join(
+            [
+                '<div><iframe srcdoc="{srcdoc}"',
+                'width="100%" height="{height}px"',
+                'style="border:none;"></iframe></div>',
+            ]
+        ).format(srcdoc=srcdoc, height=height))
+
+    return embedded
+
+
+
+def in_marimo_notebook():
+    try:
+        import marimo as mo
+        return mo.running_in_notebook()
     except BaseException:
         return False
