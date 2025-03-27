@@ -1352,13 +1352,11 @@ class Scene(Geometry3D):
 
         if viewer is None:
             # check to see if we are in a notebook or not
-            from ..viewer import in_marimo_notebook, in_notebook
+            from ..viewer import in_notebook
 
-            if in_notebook():
-                viewer = "notebook"
-            elif in_marimo_notebook():
-                viewer = "marimo"
-            else:
+            # returns a literal for what kind of notebook, or False
+            viewer = in_notebook()
+            if not viewer:
                 viewer = "gl"
 
         if viewer == "gl":
@@ -1367,7 +1365,7 @@ class Scene(Geometry3D):
             from ..viewer import SceneViewer
 
             return SceneViewer(self, **kwargs)
-        elif viewer == "notebook":
+        elif viewer == "jupyter":
             from ..viewer import scene_to_notebook
 
             return scene_to_notebook(self, **kwargs)
