@@ -136,12 +136,13 @@ def scene_to_mo_notebook(scene, height=500, **kwargs):
 
 def in_notebook() -> Literal["jupyter", "marimo", False]:
     """
-    Check to see if we are in an IPython or Jypyter notebook.
+    Check to see if we are in a Jypyter or Marimo notebook.
 
     Returns
     -----------
-    in_notebook : bool
-      Returns True if we are in a notebook
+    in_notebook
+      Returns the type of notebook we're in or False if it
+      is running as terminal application.
     """
     try:
         # function returns IPython context, but only in IPython
