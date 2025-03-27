@@ -8,7 +8,7 @@ and jupyter and marimo notebooks using three.js
 
 import base64
 import os
-from typing import Literal, Union
+from typing import Literal
 
 # for our template
 from .. import resources, util
@@ -134,7 +134,7 @@ def scene_to_mo_notebook(scene, height=500, **kwargs):
     return embedded
 
 
-def in_notebook() -> Union[False, Literal["jupyter"], Literal["marimo"]]:
+def in_notebook() -> Literal["jupyter", "marimo", False]:
     """
     Check to see if we are in an IPython or Jypyter notebook.
 
