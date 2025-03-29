@@ -3,17 +3,18 @@ notebook.py
 -------------
 
 Render trimesh.Scene objects in HTML
-and jupyter notebooks using three.js
+and jupyter and marimo notebooks using three.js
 """
 
 import base64
 import os
+from typing import Literal
 
 # for our template
 from .. import resources, util
 
 
-def scene_to_html(scene):
+def scene_to_html(scene, escape_quotes: bool = False) -> str:
     """
     Return HTML that will render the scene using
     GLTF/GLB encoded to base64 loaded by three.js
@@ -22,6 +23,9 @@ def scene_to_html(scene):
     --------------
     scene : trimesh.Scene
       Source geometry
+    escape_quotes
+      If true, replaces quotes '"' with '&quot;' so that the
+      HTML is valid inside a `srcdoc` property.
 
     Returns
     --------------
@@ -44,9 +48,12 @@ def scene_to_html(scene):
     # encode as base64 string
     encoded = base64.b64encode(data).decode("utf-8")
     # replace keyword with our scene data
-    result = base.replace("$B64GLTF", encoded)
+    html = base.replace("$B64GLTF", encoded)
 
-    return result
+    if escape_quotes:
+        return html.replace('"', "&quot;")
+
+    return html
 
 
 def scene_to_notebook(scene, height=500, **kwargs):
@@ -69,10 +76,10 @@ def scene_to_notebook(scene, height=500, **kwargs):
     from IPython import display
 
     # convert scene to a full HTML page
-    as_html = scene_to_html(scene=scene)
+    as_html = scene_to_html(scene=scene, escape_quotes=True)
 
     # escape the quotes in the HTML
-    srcdoc = as_html.replace('"', "&quot;")
+    srcdoc = as_html
     # embed this puppy as the srcdoc attr of an IFframe
     # I tried this a dozen ways and this is the only one that works
     # display.IFrame/display.Javascript really, really don't work
@@ -89,14 +96,53 @@ def scene_to_notebook(scene, height=500, **kwargs):
     return embedded
 
 
-def in_notebook():
+def scene_to_mo_notebook(scene, height=500, **kwargs):
     """
-    Check to see if we are in an IPython or Jypyter notebook.
+    Convert a scene to HTML containing embedded geometry
+    and a three.js viewer that will display nicely in
+    an Marimo notebook.
+
+    Parameters
+    -------------
+    scene : trimesh.Scene
+      Source geometry
+
+    Returns
+    -------------
+    html : mo.Html
+      Object containing rendered scene
+    """
+    # keep as soft dependency
+    import marimo as mo
+
+    # convert scene to a full HTML page
+    srcdoc = scene_to_html(scene=scene, escape_quotes=True)
+
+    # Embed as srcdoc attr of IFrame, using mo.iframe
+    # turns out displaying an empty image. Likely
+    # similar to  display.IFrame
+    embedded = mo.Html(
+        " ".join(
+            [
+                '<div><iframe srcdoc="{srcdoc}"',
+                'width="100%" height="{height}px"',
+                'style="border:none;"></iframe></div>',
+            ]
+        ).format(srcdoc=srcdoc, height=height)
+    )
+
+    return embedded
+
+
+def in_notebook() -> Literal["jupyter", "marimo", False]:
+    """
+    Check to see if we are in a Jypyter or Marimo notebook.
 
     Returns
     -----------
-    in_notebook : bool
-      Returns True if we are in a notebook
+    in_notebook
+      Returns the type of notebook we're in or False if it
+      is running as terminal application.
     """
     try:
         # function returns IPython context, but only in IPython
@@ -111,9 +157,18 @@ def in_notebook():
 
         # assume we are in a notebook if we are not in
         # a terminal and we haven't been run by spyder
-        notebook = (not terminal) and (not spyder)
+        if (not terminal) and (not spyder):
+            return "jupyter"
+    except BaseException:
+        pass
 
-        return notebook
+    try:
+        import marimo as mo
+
+        if mo.running_in_notebook():
+            return "marimo"
 
     except BaseException:
-        return False
+        pass
+
+    return False

@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.8"
-version = "4.6.5"
+version = "4.6.6"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -81,7 +81,6 @@ easy = [
     "scipy",
     "embreex; platform_machine=='x86_64'",
     "pillow",
-    # "xatlas",
     "vhacdx; python_version>='3.9'",
     # old versions of mapbox_earcut produce incorrect values on numpy 2.0
     "mapbox_earcut >= 1.0.2; python_version>='3.9'",
@@ -90,6 +89,7 @@ easy = [
 recommend = [
     "sympy",
     "meshio",
+    "xatlas",
     "pyglet<2",
     "psutil",
     "scikit-image",
@@ -120,6 +120,7 @@ test_more = [
     "pymeshlab",
     "triangle",
     "ipython",
+    "marimo",
 ]
 
 # interfaces.gmsh will be dropped Jan 2025

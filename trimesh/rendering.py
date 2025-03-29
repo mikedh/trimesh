@@ -117,8 +117,7 @@ def mesh_to_vertexlist(mesh, group=None, smooth=True, smooth_threshold=60000):
         vertex_count = len(vertices)
         normals = smooth.vertex_normals
         faces = smooth.faces
-        vertices = smooth.vertices
-        color_gl = colors_to_gl(mesh.visual.vertex_colors, vertex_count)
+        color_gl = colors_to_gl(smooth.visual.vertex_colors, vertex_count)
     else:
         # we don't have textures or want to smooth so
         # send a polygon soup of disconnected triangles to opengl
