@@ -89,9 +89,9 @@ easy = [
 recommend = [
     "sympy",
     "meshio",
+    "xatlas",
     "pyglet<2",
     "psutil",
-    "xatlas",
     "scikit-image",
     "fast-simplification",
     "python-fcl", # do collision checks
