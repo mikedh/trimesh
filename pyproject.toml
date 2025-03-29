@@ -89,7 +89,7 @@ easy = [
 recommend = [
     "sympy",
     "meshio",
-    "xatlas",
+    # "xatlas",
     "pyglet<2",
     "psutil",
     "scikit-image",
