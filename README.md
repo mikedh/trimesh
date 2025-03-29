@@ -130,7 +130,7 @@ print(mesh.bounding_box_oriented.volume,
 * Import geometry files using the GMSH SDK if installed (BREP, STEP, IGES, INP, BDF, etc)
 * Export meshes as binary STL, binary PLY, ASCII OFF, OBJ, GLTF/GLB 2.0, COLLADA, etc.
 * Export meshes using the GMSH SDK if installed (Abaqus INP, Nastran BDF, etc)
-* Preview meshes using pyglet or in- line in jupyter notebooks using three.js
+* Preview meshes using pyglet or in- line in jupyter/marimo notebooks using three.js
 * Automatic hashing of numpy arrays for change tracking using MD5, zlib CRC, or xxhash
 * Internal caching of computed values validated from hashes
 * Calculate face adjacencies, face angles, vertex defects, etc.
@@ -154,7 +154,7 @@ print(mesh.bounding_box_oriented.volume,
 * Calculate nearest point on mesh surface and signed distance
 * Determine if a point lies inside or outside of a well constructed mesh using signed distance
 * Primitive objects (Box, Cylinder, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)
-* Simple scene graph and transform tree which can be rendered (pyglet window, three.js in a jupyter notebook, [pyrender](https://github.com/mmatl/pyrender)) or exported.
+* Simple scene graph and transform tree which can be rendered (pyglet window, three.js in a jupyter/marimo notebook, [pyrender](https://github.com/mmatl/pyrender)) or exported.
 * Many utility functions, like transforming points, unitizing vectors, aligning vectors, tracking numpy arrays for changes, grouping rows, etc.
 
 
@@ -174,7 +174,7 @@ Trimesh includes an optional `pyglet` based viewer for debugging and inspecting.
 * `m` maximizes the window
 * `q` closes the window
 
-If called from inside a `jupyter` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. For more complete rendering (PBR, better lighting, shaders, better off-screen support, etc) [pyrender](https://github.com/mmatl/pyrender) is designed to interoperate with `trimesh` objects.
+If called from inside a `jupyter` or `marimo` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. For more complete rendering (PBR, better lighting, shaders, better off-screen support, etc) [pyrender](https://github.com/mmatl/pyrender) is designed to interoperate with `trimesh` objects.
 
 ## Projects Using Trimesh
 
