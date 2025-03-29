@@ -81,7 +81,6 @@ easy = [
     "scipy",
     "embreex; platform_machine=='x86_64'",
     "pillow",
-    "xatlas",
     "vhacdx; python_version>='3.9'",
     # old versions of mapbox_earcut produce incorrect values on numpy 2.0
     "mapbox_earcut >= 1.0.2; python_version>='3.9'",
@@ -92,6 +91,7 @@ recommend = [
     "meshio",
     "pyglet<2",
     "psutil",
+    "xatlas",
     "scikit-image",
     "fast-simplification",
     "python-fcl", # do collision checks
