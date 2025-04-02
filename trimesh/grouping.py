@@ -92,6 +92,8 @@ def merge_vertices(
 
     # check to see if we have vertex normals
     normals = mesh._cache["vertex_normals"]
+    if normals is None:
+        normals = mesh.vertex_normals
     if not merge_norm and np.shape(normals) == mesh.vertices.shape:
         stacked.append(normals * (10**digits_norm))
 

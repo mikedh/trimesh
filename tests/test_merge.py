@@ -47,6 +47,26 @@ class MargeTest(g.unittest.TestCase):
         assert copied.euler_number == 2
         assert copied.referenced_vertices.sum() == 8
 
+    def test_caching(self):
+        box = g.trimesh.util.concatenate([g.trimesh.creation.box(), g.trimesh.creation.box().apply_translation([1.000002, 0, 0])])
+
+        # Check for consistent behavior
+        for n_vertices, merge_norm in ((16, False), (12, True)):
+            box_1 = box.copy()
+            box_1.merge_vertices(digits_vertex=5, merge_norm=merge_norm)
+            assert len(box_1.vertices) == n_vertices
+
+            box_2 = box.copy()
+            box_2.vertex_normals
+            box_2.merge_vertices(digits_vertex=5, merge_norm=merge_norm)
+            assert len(box_2.vertices) == n_vertices
+
+            box_3 = box.copy()
+            box_3.vertex_normals
+            box_3._cache.delete('vertex_normals')
+            box_3.merge_vertices(digits_vertex=5, merge_norm=merge_norm)
+            assert len(box_3.vertices) == n_vertices
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
