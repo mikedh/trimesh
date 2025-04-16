@@ -69,7 +69,7 @@ jobs:
     - name: Build
       run: pyproject-build --outdir dist .
     - name: Publish
-      uses: pypa/gh-action-pypi-publish@1.12.4
+      uses: pypa/gh-action-pypi-publish@v1.12.4
 
   containers:
     name: Build Docker Images
