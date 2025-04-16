@@ -362,7 +362,7 @@ def get_vertices_normals(mesh):
 
 def dilate_slope(vertices, faces, normals, v, eps):
     """
-    Get de derivate of dilation scalar by the volume variation by finite differences
+    Get the derivate of dilation scalar by the volume variation by finite differences
     Thus, Vertices += vertex_normals*dilate_slope*(Initial_Volume - Srinked_Volume)
     Parameters
       -------------
