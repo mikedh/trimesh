@@ -56,6 +56,11 @@ jobs:
     name: Release To PyPi
     needs: [tests, containers, corpus]
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/trimesh
+    permissions:
+      id-token: write
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
@@ -65,14 +70,12 @@ jobs:
     - name: Install publishing dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install build twine
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        pip install build
+    - name: Build
       run: |
         pyproject-build --outdir dist .
-        twine upload dist/*
+    - name: Publish
+      uses: pypa/gh-action-pypi-publish@release/v1
 
   containers:
     name: Build Docker Images
