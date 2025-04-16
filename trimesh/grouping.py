@@ -266,7 +266,7 @@ def float_to_int(data, digits: Optional[Integer] = None) -> NDArray[np.int64]:
         # get digits from `tol.merge`
         digits = util.decimal_to_digits(tol.merge)
     elif not isinstance(digits, (int, np.integer)):
-        raise TypeError("Digits must be `None` or `int`, not `{type(digits)}`")
+        raise TypeError(f"Digits must be `None` or `int`, not `{type(digits)}`")
 
     # multiply by requested power of ten
     # then subtract small epsilon to avoid "go either way" rounding
