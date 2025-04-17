@@ -1,0 +1,7 @@
+trimesh.voxel.morphology
+========================
+
+.. automodule:: trimesh.voxel.morphology
+   :members:
+   :show-inheritance:
+   :undoc-members:
