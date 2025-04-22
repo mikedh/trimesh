@@ -1053,7 +1053,7 @@ class Scene(Geometry3D):
         """
         from ..viewer.windowed import render_scene
 
-        return render_scene(scene=self, resolution=resolution, **kwargs)
+        return render_scene(scene=self, resolution=resolution, fullscreen=False, resizable=False, **kwargs)
 
     @property
     def units(self) -> Optional[str]:
