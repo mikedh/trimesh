@@ -42,7 +42,7 @@ class SceneViewer(pyglet.window.Window):
         visible=True,
         resolution=None,
         fullscreen=False,
-        resizable=True
+        resizable=True,
         start_loop=True,
         callback=None,
         callback_period=None,
