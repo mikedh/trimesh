@@ -221,8 +221,6 @@ def extrude_polygon(
       Distance to extrude polygon along Z
     transform : None or (4, 4) float
       Transform to apply to mesh after construction
-    triangle_args : str or None
-      Passed to triangle
     **kwargs : dict
       Passed to `triangulate_polygon`
 
@@ -465,11 +463,19 @@ def _cross_2d(a: NDArray, b: NDArray) -> NDArray:
     return a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]
 
 
+def _invert_permutation(a):
+    """Return indexes inv_a undoing permuting indexing by a, such that array[a][inv_a] == array"""
+    inv_a = np.empty_like(a)
+    inv_a[a] = np.arange(a.size)
+    return inv_a
+
+
 def extrude_triangulation(
     vertices: ArrayLike,
     faces: ArrayLike,
     height: Number,
     transform: Optional[ArrayLike] = None,
+    sidewall_angle: Optional[float] = 90.0,
     **kwargs,
 ) -> Trimesh:
     """
@@ -485,6 +491,8 @@ def extrude_triangulation(
       Distance to extrude triangulation
     transform : None or (4, 4) float
       Transform to apply to mesh after construction
+    sidewall_angle: float
+      Angle of extruded faces relative to original 2D plane (in degrees)
     **kwargs : dict
       Passed to Trimesh constructor
 
@@ -527,19 +535,58 @@ def extrude_triangulation(
 
     # we are creating two vertical  triangles for every 2D line segment
     # on the boundary of the 2D triangulation
-    vertical = np.tile(boundary.reshape((-1, 2)), 2).reshape((-1, 2))
-    vertical = np.column_stack((vertical, np.tile([0, height, 0, height], len(boundary))))
+    if sidewall_angle == 90:
+        vertical = np.tile(boundary.reshape((-1, 2)), 2).reshape((-1, 2))
+        vertical = np.column_stack(
+            (vertical, np.tile([0, height, 0, height], len(boundary)))
+        )
+    else:
+        # permute edges into consecutive edges
+        perm_idxs = np.zeros(len(boundary), dtype=int)
+        for i in range(1, len(boundary)):
+            end_pt = boundary[perm_idxs[i - 1]][1]
+            perm_idxs[i] = np.argwhere((boundary[:, 0, :] == end_pt).all(-1))
+        bndry = boundary[perm_idxs]  # boundary with sorted edges
+        # at each join of consecutive edges: get input/output angle
+        edge_vecs = bndry[:, 1, :] - bndry[:, 0, :]
+        e1, e2 = np.roll(edge_vecs, 1, 0), edge_vecs
+        e1_angle = np.arctan2(e1[:, 1], e1[:, 0])
+        e2_angle = np.arctan2(e2[:, 1], e2[:, 0])
+        angle_jumps = e2_angle - e1_angle
+        angle_jumps = (angle_jumps + np.pi) % (2 * np.pi) - np.pi
+        is_ccw = np.sign(height) > 0  # -> when ccw, poly is left of edge
+        in_ang = e1_angle + angle_jumps / 2 + (np.pi / 2 if is_ccw else -np.pi / 2)
+        # get inner_boundary: move vertices along inner half-angle of consecutive edges
+        dw = height / np.tan(np.deg2rad(sidewall_angle))  # parallel shift of edges
+        rs = dw / np.cos(angle_jumps / 2)  # radii at each join depend on angles
+        inner_pts = (
+            bndry[:, 0, :] + np.asarray([rs * np.cos(in_ang), rs * np.sin(in_ang)]).T
+        )
+        inner_boundary_ = np.stack([inner_pts, np.roll(inner_pts, -1, axis=0)], axis=1)
+        inner_boundary = inner_boundary_[_invert_permutation(perm_idxs)]
+        # construct vertical as above, but using inner_boundary at height
+        vertical = np.ones((len(boundary) * 4, 3))
+        vertical[::2, :2] = boundary.reshape(-1, 2)
+        vertical[1::2, :2] = inner_boundary.reshape(-1, 2)
+        vertical[::2, 2] = 0.0
+        vertical[1::2, 2] = height
     vertical_faces = np.tile([3, 1, 2, 2, 1, 0], (len(boundary), 1))
     vertical_faces += np.arange(len(boundary)).reshape((-1, 1)) * 4
     vertical_faces = vertical_faces.reshape((-1, 3))
 
     # stack the (n,2) vertices with zeros to make them (n, 3)
     vertices_3D = util.stack_3D(vertices)
+    if sidewall_angle == 90:
+        vertices_3D_top = vertices_3D.copy() + [0.0, 0.0, height]
+    else:
+        vertices_top = vertices.copy()
+        vertices_top[edges[edges_unique]] = inner_boundary
+        vertices_3D_top = util.stack_3D(vertices_top) + [0.0, 0.0, height]
 
-    # a sequence of zero- indexed faces, which will then be appended
+    # a sequence of zero-indexed faces, which will then be appended
     # with offsets to create the final mesh
     faces_seq = [faces[:, ::-1], faces.copy(), vertical_faces]
-    vertices_seq = [vertices_3D, vertices_3D.copy() + [0.0, 0, height], vertical]
+    vertices_seq = [vertices_3D, vertices_3D_top, vertical]
 
     # append sequences into flat nicely indexed arrays
     vertices, faces = util.append_faces(vertices_seq, faces_seq)
