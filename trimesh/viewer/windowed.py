@@ -42,7 +42,7 @@ class SceneViewer(pyglet.window.Window):
         visible=True,
         resolution=None,
         fullscreen=False,
-        resizable=True
+        resizable=True,
         start_loop=True,
         callback=None,
         callback_period=None,
@@ -870,7 +870,9 @@ def _geometry_hash(geometry):
     return h
 
 
-def render_scene(scene, resolution=None, visible=True, fullscreen=False, resizable=True, **kwargs):
+def render_scene(
+    scene, resolution=None, visible=True, fullscreen=False, resizable=True, **kwargs
+):
     """
     Render a preview of a scene to a PNG. Note that
     whether this works or not highly variable based on
@@ -902,7 +904,13 @@ def render_scene(scene, resolution=None, visible=True, fullscreen=False, resizab
       Image in PNG format
     """
     window = SceneViewer(
-        scene, start_loop=False, visible=visible, resolution=resolution, fullscreen=fullscreen, resizable=resizable, **kwargs
+        scene,
+        start_loop=False,
+        visible=visible,
+        resolution=resolution,
+        fullscreen=fullscreen,
+        resizable=resizable,
+        **kwargs,
     )
 
     from ..util import BytesIO
