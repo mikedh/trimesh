@@ -431,6 +431,11 @@ class InertiaTest(g.unittest.TestCase):
         # the two methods should return essentially identical results
         assert g.np.abs(diff).max() < 1e-3
 
+    def test_points_inertia(self):
+        # should be m * r**2 around XY, zero in Z
+        t = g.trimesh.inertia.points_inertia([[0, 0, 10]], weights=1.0)
+        assert g.np.allclose(t, [[100.0, 0.0, 0.0], [0.0, 100.0, 0.0], [0.0, 0.0, 0.0]])
+
 
 class MassTests(g.unittest.TestCase):
     def setUp(self):
