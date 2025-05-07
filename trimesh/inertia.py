@@ -72,7 +72,7 @@ def sphere_inertia(mass: Number, radius: Number) -> NDArray[float64]:
 
 
 def points_inertia(
-    points: NDArray[float64], weights: Union[None, NDArray, Number] = None
+    points: ArrayLike, weights: Union[None, ArrayLike, Number] = None
 ) -> NDArray[float64]:
     """
     Calculate an inertia tensor for an array of point masses.
@@ -97,7 +97,9 @@ def points_inertia(
     else:
         weights = np.array(weights)
         if len(weights) != len(points):
-            raise ValueError("Weights must correspond to points!")
+            raise ValueError(
+                f"Weights must correspond to points! {len(weights)} != {len(points)}"
+            )
 
     points = np.asanyarray(points, dtype=np.float64)
 
