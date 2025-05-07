@@ -402,7 +402,7 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
             w, h = np.array([attrib["width"], attrib["height"]], dtype=np.float64)
 
             points = np.array(
-                [origin, origin + (w, 0), origin + (w, -h), origin + (0, -h), origin],
+                [origin, origin + (w, 0), origin + (w, h), origin + (0, h), origin],
                 dtype=np.float64,
             )
             entity = Line(points=np.arange(len(points)) + counts[name])

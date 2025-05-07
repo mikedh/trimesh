@@ -9,8 +9,7 @@ def test_discrete():
         # store hash before requesting passive functions
         hash_val = d.__hash__()
 
-        assert isinstance(d.identifier, g.np.ndarray)
-        assert isinstance(d.identifier_hash, str)
+        g.check_path2D(d)
 
         # make sure various methods return
         # basically the same bounds

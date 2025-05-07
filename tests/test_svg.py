@@ -163,6 +163,46 @@ def test_shapes():
     assert len(p.entities) >= 8
 
 
+def test_rect_bounds():
+    """
+    Check to make sure we're handling rectangle scale correctly
+    """
+
+    def get_bounds(path) -> set:
+        # get the bounds of every entity as a set flat integer tuple
+        return {
+            tuple(e.bounds(path.vertices).ravel().astype(int).tolist())
+            for e in path.entities
+        }
+
+    # rectangles with scale, translation, etc
+    rect = g.trimesh.load_path(
+        g.trimesh.util.wrap_as_stream(
+            """<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <rect x="40" y="40" width="20" height="20" fill="none" stroke="black" stroke-width="1"/>
+<g  transform="translate(30, 30)">
+<rect x="40" y="40" width="20" height="20" fill="none" stroke="blue" stroke-width="1"/>
+</g>
+<g  transform="translate(0, 0) scale(0.5)">
+<rect x="40" y="40" width="20" height="20" fill="none" stroke="red" stroke-width="1"/>
+</g>
+</svg>"""
+        ),
+        file_type="svg",
+    )
+
+    # converted to a path string using inkscape, i.e. "truth"
+    a = g.trimesh.path.Path2D(
+        **g.trimesh.path.exchange.svg_io.svg_to_path(
+            path_string="M 20,20 H 30 V 30 H 20 Z M 70,70 H 90 V 90 H 70 Z M 40,40 H 60 V 60 H 40 Z"
+        )
+    )
+    truth = get_bounds(a)
+
+    assert get_bounds(rect) == truth
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
-    test_roundtrip()
+    # test_roundtrip()
+    test_rect_bounds()

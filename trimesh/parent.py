@@ -98,6 +98,11 @@ class Geometry(ABC):
 
     @property
     @abc.abstractmethod
+    def identifier_hash(self) -> str:
+        pass
+
+    @property
+    @abc.abstractmethod
     def bounds(self) -> NDArray[np.float64]:
         pass
 

@@ -454,6 +454,16 @@ def check_path2D(path):
     if any(e.color is not None for e in path.entities):
         assert path.colors.shape == (len(path.entities), 4)
 
+    # the reported paths should be unique
+    unique = set(map(lambda x: tuple(x), path.paths))
+    assert len(unique) == len(path.paths)
+
+    # the identifier should be a numpy array
+    assert isinstance(path.identifier, np.ndarray)
+    assert len(path.identifier) == 8, path
+    assert isinstance(path.identifier_hash, str)
+    assert len(path.identifier_hash) == 64, len(path.identifier_hash)
+
 
 def scene_equal(a, b):
     """
