@@ -5,6 +5,8 @@ voxel.py
 Convert meshes to a simple voxel data structure and back again.
 """
 
+from hashlib import sha256
+
 import numpy as np
 
 from .. import bounds as bounds_module
@@ -51,6 +53,10 @@ class VoxelGrid(Geometry):
           Hash of transformation matrix
         """
         return self._data.__hash__()
+
+    @property
+    def identifier_hash(self) -> str:
+        return sha256(hash(self).to_bytes()).hexdigest()
 
     @property
     def encoding(self):

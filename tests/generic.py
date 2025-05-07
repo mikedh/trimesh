@@ -460,7 +460,7 @@ def check_path2D(path):
 
     # the identifier should be a numpy array
     assert isinstance(path.identifier, np.ndarray)
-    assert len(path.identifier) == 8, path
+    assert len(path.identifier) >= 5, path.identifier
     assert isinstance(path.identifier_hash, str)
     assert len(path.identifier_hash) == 64, len(path.identifier_hash)
 

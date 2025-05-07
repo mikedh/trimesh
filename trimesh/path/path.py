@@ -1453,7 +1453,7 @@ class Path2D(Path):
             return hasher(self.polygons_full[0])
         elif len(target) == 0:
             return np.zeros(5)
-        return np.sum([hasher(p) for p in target], axis=1)
+        return np.sum([hasher(p) for p in target], axis=0)
 
     @property
     def path_valid(self):

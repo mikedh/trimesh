@@ -624,7 +624,7 @@ class Scene(Geometry3D):
         dump = "".join(g.identifier_hash for g in self.geometry.values()) + str(
             hash(self.graph)
         )
-        return sha256(dump).hexdigest()
+        return sha256(dump.encode()).hexdigest()
 
     @caching.cache_decorator
     def duplicate_nodes(self) -> List[List[str]]:
