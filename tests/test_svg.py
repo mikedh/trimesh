@@ -169,9 +169,9 @@ def test_rect_bounds():
     """
 
     def get_bounds(path) -> set:
-        # get the bounds of every entity as a set flat integer tuple
+        # get the bounds of every entity as a set of flat integer tuples
         return {
-            tuple(e.bounds(path.vertices).ravel().astype(int).tolist())
+            tuple(e.bounds(path.vertices).ravel().round().astype(int).tolist())
             for e in path.entities
         }
 
@@ -192,14 +192,14 @@ def test_rect_bounds():
     )
 
     # converted to a path string using inkscape, i.e. "truth"
-    a = g.trimesh.path.Path2D(
+    truth = g.trimesh.path.Path2D(
         **g.trimesh.path.exchange.svg_io.svg_to_path(
             path_string="M 20,20 H 30 V 30 H 20 Z M 70,70 H 90 V 90 H 70 Z M 40,40 H 60 V 60 H 40 Z"
         )
     )
-    truth = get_bounds(a)
 
-    assert get_bounds(rect) == truth
+    # the set of entity AABB should match inkscape's output exactly
+    assert get_bounds(rect) == get_bounds(truth)
 
 
 if __name__ == "__main__":
