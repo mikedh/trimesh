@@ -502,15 +502,24 @@ class PointCloud(Geometry3D):
         return self._data.__hash__()
 
     @property
-    def identifier(self):
+    def identifier(self) -> NDArray[float64]:
         """
-        pass
+        Return a simple array representing this PointCloud
+        that can be used to identify identical arrays.
 
+        Returns
+        ----------
+        identifier : (9,)
+          A flat array of data representing the cloud.
         """
         return self.moment_inertia.ravel()
 
     @property
-    def identifier_hash(self):
+    def identifier_hash(self) -> str:
+        """
+        A hash of the PointCloud's identifier that can be used
+        to detect duplicates.
+        """
         return sha256(
             (self.identifier * 1e5).round().astype(np.int64).tobytes()
         ).hexdigest()
