@@ -236,7 +236,7 @@ def points_to_marching_cubes(points, pitch=1.0):
     return mesh
 
 
-def multibox(centers, pitch=1.0, colors=None):
+def multibox(centers, pitch=1.0, colors=None, remove_internal_faces=False):
     """
     Return a Trimesh object with a box at every center.
 
@@ -250,6 +250,8 @@ def multibox(centers, pitch=1.0, colors=None):
       The edge length of a voxel
     colors : (3,) or (4,) or (n,3) or (n, 4) float
       Color of boxes
+    remove_internal_faces : bool
+      If True, removes internal faces shared between adjacent boxes
 
     Returns
     ---------
@@ -272,9 +274,31 @@ def multibox(centers, pitch=1.0, colors=None):
     v += np.tile(b.vertices, (len(centers), 1))
 
     f = np.tile(b.faces, (len(centers), 1))
-    f += np.tile(np.arange(len(centers)) * len(b.vertices), (len(b.faces), 1)).T.reshape(
-        (-1, 1)
-    )
+    f += np.repeat(np.arange(len(centers)) * len(b.vertices), len(b.faces))[:, None]
+
+    if remove_internal_faces:
+        # Get 12 unit normals (1 per triangle face) indicating face direction
+        base_normals = np.round(b.face_normals).astype(int)  # (12, 3)
+        # Expand those directions across all voxel boxes so as to check neighbor presence
+        face_normals = np.tile(base_normals, (len(centers), 1))  # (len(centers) * 12, 3)
+
+        # Maps each face to the voxel box it came from
+        face_voxel_idx = np.repeat(
+            np.arange(len(centers)), len(b.faces)
+        )  # (len(centers) * 12, )
+        # Converts voxel centers to discrete grid coordinates
+        voxel_coords = np.round(centers / pitch).astype(int)  # (len(centers), 3)
+        # Creates a fast lookup structure for checking voxel neighbors
+        voxel_set = set(map(tuple, voxel_coords))
+
+        # Gets the grid coordinate of the voxel that owns each face
+        voxel_face_coords = voxel_coords[face_voxel_idx]
+        # Computes the adjacent voxel coordinate in the face direction
+        neighbor_coords = voxel_face_coords + face_normals
+        # Keeps only faces whose neighboring voxel does not exist
+        keep_mask = np.array([tuple(c) not in voxel_set for c in neighbor_coords])
+    else:
+        keep_mask = np.ones(len(f), dtype=bool)
 
     face_colors = None
     if colors is not None:
@@ -282,9 +306,9 @@ def multibox(centers, pitch=1.0, colors=None):
         if colors.ndim == 1:
             colors = colors[None].repeat(len(centers), axis=0)
         if colors.ndim == 2 and len(colors) == len(centers):
-            face_colors = colors.repeat(12, axis=0)
+            face_colors = colors.repeat(12, axis=0)[keep_mask]
 
-    mesh = Trimesh(vertices=v, faces=f, face_colors=face_colors)
+    mesh = Trimesh(vertices=v, faces=f[keep_mask], face_colors=face_colors)
 
     return mesh
 
