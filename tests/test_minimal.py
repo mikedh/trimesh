@@ -56,6 +56,9 @@ class MinimalTest(unittest.TestCase):
                 assert len(m.face_adjacency.shape) == 2
                 assert len(m.vertices.shape) == 2
 
+                # make sure auto-generated vertex normals work without scipy
+                assert m.vertices.shape == m.vertex_normals.shape
+
                 # make sure hash changes
                 initial = hash(m)
                 m.faces += 0

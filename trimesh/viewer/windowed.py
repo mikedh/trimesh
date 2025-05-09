@@ -41,6 +41,8 @@ class SceneViewer(pyglet.window.Window):
         flags=None,
         visible=True,
         resolution=None,
+        fullscreen=False,
+        resizable=True,
         start_loop=True,
         callback=None,
         callback_period=None,
@@ -71,6 +73,10 @@ class SceneViewer(pyglet.window.Window):
           Display window or not
         resolution : (2,) int
           Initial resolution of window
+        fullscreen : bool
+            Determines whether the window is rendered in fullscreen mode.
+        resizable : bool
+            Determines whether the rendered window can be resized by the user.
         start_loop : bool
           Call pyglet.app.run() at the end of init
         callback : function
@@ -173,7 +179,8 @@ class SceneViewer(pyglet.window.Window):
                 super().__init__(
                     config=conf,
                     visible=visible,
-                    resizable=True,
+                    fullscreen=fullscreen,
+                    resizable=resizable,
                     width=resolution[0],
                     height=resolution[1],
                     caption=caption,
@@ -182,7 +189,8 @@ class SceneViewer(pyglet.window.Window):
                 conf = gl.Config(double_buffer=True)
                 super().__init__(
                     config=conf,
-                    resizable=True,
+                    fullscreen=fullscreen,
+                    resizable=resizable,
                     visible=visible,
                     width=resolution[0],
                     height=resolution[1],
@@ -192,7 +200,8 @@ class SceneViewer(pyglet.window.Window):
             # window config was manually passed
             super().__init__(
                 config=window_conf,
-                resizable=True,
+                fullscreen=fullscreen,
+                resizable=resizable,
                 visible=visible,
                 width=resolution[0],
                 height=resolution[1],
@@ -861,7 +870,9 @@ def _geometry_hash(geometry):
     return h
 
 
-def render_scene(scene, resolution=None, visible=True, **kwargs):
+def render_scene(
+    scene, resolution=None, visible=True, fullscreen=False, resizable=True, **kwargs
+):
     """
     Render a preview of a scene to a PNG. Note that
     whether this works or not highly variable based on
@@ -878,6 +889,12 @@ def render_scene(scene, resolution=None, visible=True, **kwargs):
       platforms refuse to render with hidden windows
       and will likely return a blank image; this is a
       platform issue and cannot be fixed in Python.
+    fullscreen : bool
+      Determines whether the window is rendered in fullscreen mode.
+      Defaults to False (windowed).
+    resizable : bool
+      Determines whether the rendered window can be resized by the user.
+      Defaults to True (resizable).
     kwargs : **
       Passed to SceneViewer
 
@@ -887,7 +904,13 @@ def render_scene(scene, resolution=None, visible=True, **kwargs):
       Image in PNG format
     """
     window = SceneViewer(
-        scene, start_loop=False, visible=visible, resolution=resolution, **kwargs
+        scene,
+        start_loop=False,
+        visible=visible,
+        resolution=resolution,
+        fullscreen=fullscreen,
+        resizable=resizable,
+        **kwargs,
     )
 
     from ..util import BytesIO

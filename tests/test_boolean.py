@@ -54,6 +54,30 @@ def test_boolean():
     g.log.info(times)
 
 
+def test_boolean_no_volume():
+    """
+    Check that boolean operations on non-volumes can be called by ignoring check_volume.
+    """
+    for engine in engines:
+        g.log.info("Testing boolean ops with engine %s", engine)
+
+        # create a sphere and an empty mesh
+        a = g.trimesh.primitives.Sphere(center=[0, 0, 0], radius=1)
+        b = g.trimesh.Trimesh()
+
+        assert not b.is_volume
+        assert a.is_volume
+
+        # ensure the boolean operations are functional on non-volume meshes
+        i = a.intersection(b, engine=engine, check_volume=False)
+        u = a.union(b, engine=engine, check_volume=False)
+        d = a.difference(b, engine=engine, check_volume=False)
+
+        assert not i.is_volume
+        assert u.is_volume
+        assert d.is_volume
+
+
 def test_multiple():
     """
     Make sure boolean operations work on multiple meshes.

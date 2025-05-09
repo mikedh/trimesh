@@ -39,6 +39,7 @@ def vertex_graph(entities):
         if entity.closed:
             closed.append(index)
         else:
+            # or `entity.end_points`
             graph.add_edges_from(entity.nodes, entity_index=index)
     return graph, np.array(closed)
 

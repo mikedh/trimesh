@@ -116,10 +116,10 @@ WORKDIR /home/user/docs
 RUN make
 
 ### Copy just the docs so we can output them
-FROM scratch as docs
+FROM scratch AS docs
 COPY --from=build_docs /home/user/docs/built/html/ ./
 
 ### Make sure the output stage is the last stage so a simple
 # "docker build ." still outputs an expected image
-FROM output as final
+FROM output AS final
 

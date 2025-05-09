@@ -431,6 +431,54 @@ class InertiaTest(g.unittest.TestCase):
         # the two methods should return essentially identical results
         assert g.np.abs(diff).max() < 1e-3
 
+    def test_points_inertia(self):
+        # function we're testing
+        inertia = g.trimesh.inertia.points_inertia
+
+        # should be m * r**2 around XY, zero in Z
+        t = inertia([[0, 0, 10]], weights=1.0, at_center_mass=False)
+        assert g.np.allclose(t, [[100.0, 0.0, 0.0], [0.0, 100.0, 0.0], [0.0, 0.0, 0.0]])
+
+        # by default should weight points as 1.0, and offset to the center of mass
+        t = inertia(g.np.eye(3) + 12342.234234)
+        assert g.np.allclose(
+            t,
+            [
+                [1.33333333, 0.33333333, 0.33333333],
+                [0.33333333, 1.33333333, 0.33333333],
+                [0.33333333, 0.33333333, 1.33333333],
+            ],
+        )
+
+        # check a few masses and radii
+        for mass in [0.5, 1.0, 12.12123]:
+            for radius in [0.00123, 10.0, 123.1232785]:
+                # a point along each of the XYZ axis
+                points = g.np.eye(3) * radius
+                collect = []
+
+                for axis in range(3):
+                    # weight just one point
+                    weights = g.np.zeros(3)
+                    weights[axis] = mass
+
+                    calc = inertia(points, weights=weights, at_center_mass=False)
+
+                    # should be mr^2 for every axis except our chosen one
+                    expected = g.np.eye(3) * mass * radius**2
+                    expected[axis][axis] = 0.0
+                    assert g.np.allclose(expected, calc)
+
+                    # collect to compare summed result
+                    collect.append(calc)
+
+                # try it with every point weighted
+                summed = inertia(
+                    points, weights=g.np.full(len(points), mass), at_center_mass=False
+                )
+                # should match the sum of the individual options
+                assert g.np.allclose(summed, g.np.sum(collect, axis=0))
+
 
 class MassTests(g.unittest.TestCase):
     def setUp(self):

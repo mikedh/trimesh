@@ -121,7 +121,7 @@ jobs:
     permissions:
       contents: write  # for actions/create-release
     name: Create GitHub Release
-    needs: [tests, containers, corpus]
+    needs: [pypi]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

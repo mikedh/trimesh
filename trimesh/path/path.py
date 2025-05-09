@@ -13,8 +13,19 @@ from hashlib import sha256
 
 import numpy as np
 
-from .. import bounds, caching, exceptions, grouping, parent, units, util
+from .. import (
+    bounds,
+    caching,
+    comparison,
+    convex,
+    exceptions,
+    grouping,
+    parent,
+    units,
+    util,
+)
 from .. import transformations as tf
+from ..caching import cache_decorator
 from ..constants import log
 from ..constants import tol_path as tol
 from ..geometry import plane_transform
@@ -246,7 +257,20 @@ class Path(parent.Geometry):
         # hash the combined result
         return caching.hash_fast(b"".join(hashable))
 
-    @caching.cache_decorator
+    @cache_decorator
+    def identifier_hash(self):
+        """
+        Return a hash of the identifier.
+
+        Returns
+        ----------
+        hashed : (64,) str
+          SHA256 hash of the identifier vector.
+        """
+        as_int = (self.identifier * 1e4).astype(np.int64)
+        return sha256(as_int.tobytes(order="C")).hexdigest()
+
+    @cache_decorator
     def paths(self):
         """
         Sequence of closed paths, encoded by entity index.
@@ -259,7 +283,7 @@ class Path(parent.Geometry):
         paths = traversal.closed_paths(self.entities, self.vertices)
         return paths
 
-    @caching.cache_decorator
+    @cache_decorator
     def dangling(self):
         """
         List of entities that aren't included in a closed path
@@ -274,7 +298,7 @@ class Path(parent.Geometry):
 
         return np.setdiff1d(np.arange(len(self.entities)), np.hstack(self.paths))
 
-    @caching.cache_decorator
+    @cache_decorator
     def kdtree(self):
         """
         A KDTree object holding the vertices of the path.
@@ -287,7 +311,7 @@ class Path(parent.Geometry):
         kdtree = cKDTree(self.vertices.view(np.ndarray))
         return kdtree
 
-    @caching.cache_decorator
+    @cache_decorator
     def length(self):
         """
         The total discretized length of every entity.
@@ -300,7 +324,7 @@ class Path(parent.Geometry):
         length = float(sum(i.length(self.vertices) for i in self.entities))
         return length
 
-    @caching.cache_decorator
+    @cache_decorator
     def bounds(self):
         """
         Return the axis aligned bounding box of the current path.
@@ -323,7 +347,7 @@ class Path(parent.Geometry):
         # get the max and min of all bounds
         return np.array([points.min(axis=0), points.max(axis=0)], dtype=np.float64)
 
-    @caching.cache_decorator
+    @cache_decorator
     def centroid(self):
         """
         Return the centroid of axis aligned bounding box enclosing
@@ -413,7 +437,7 @@ class Path(parent.Geometry):
         """
         return len(self.entities) == 0
 
-    @caching.cache_decorator
+    @cache_decorator
     def vertex_graph(self):
         """
         Return a networkx.Graph object for the entity connectivity
@@ -424,7 +448,7 @@ class Path(parent.Geometry):
         graph, _closed = traversal.vertex_graph(self.entities)
         return graph
 
-    @caching.cache_decorator
+    @cache_decorator
     def vertex_nodes(self):
         """
         Get a list of which vertex indices are nodes,
@@ -631,7 +655,7 @@ class Path(parent.Geometry):
         if len(unique) != len(self.entities):
             self.entities = self.entities[unique]
 
-    @caching.cache_decorator
+    @cache_decorator
     def referenced_vertices(self):
         """
         Which vertices are referenced by an entity.
@@ -643,10 +667,9 @@ class Path(parent.Geometry):
         # no entities no reference
         if len(self.entities) == 0:
             return np.array([], dtype=np.int64)
-        referenced = np.concatenate([e.points for e in self.entities])
-        referenced = np.unique(referenced.astype(np.int64))
-
-        return referenced
+        return np.unique(
+            np.concatenate([e.points for e in self.entities]).astype(np.int64)
+        )
 
     def remove_unreferenced_vertices(self):
         """
@@ -666,7 +689,7 @@ class Path(parent.Geometry):
         self.replace_vertex_references(mask=mask)
         self.vertices = self.vertices[unique]
 
-    @caching.cache_decorator
+    @cache_decorator
     def discrete(self) -> List[NDArray[float64]]:
         """
         A sequence of connected vertices in space, corresponding to
@@ -913,6 +936,27 @@ class Path3D(Path):
 
         return planar, to_3D
 
+    @cache_decorator
+    def identifier(self) -> NDArray[float64]:
+        """
+        Return a simple identifier for the 3D path.
+        """
+        return np.concatenate(
+            (comparison.identifier_simple(self.convex_hull), [self.length])
+        )
+
+    @cache_decorator
+    def convex_hull(self):
+        """
+        Return a convex hull of the 3D path.
+
+        Returns
+        --------
+        hull : trimesh.Trimesh
+          A mesh of the convex hull of the 3D path.
+        """
+        return convex.convex_hull(self.vertices[self.referenced_vertices])
+
     def show(self, **kwargs):
         """
         Show the current Path3D object.
@@ -962,7 +1006,7 @@ class Path2D(Path):
         matrix[:2, :2] *= scale
         return self.apply_transform(matrix)
 
-    @caching.cache_decorator
+    @cache_decorator
     def obb(self):
         """
         Get a transform that centers and aligns the OBB of the
@@ -1094,7 +1138,7 @@ class Path2D(Path):
         )
         return path_3D
 
-    @caching.cache_decorator
+    @cache_decorator
     def polygons_closed(self) -> NDArray:
         """
         Cycles in the vertex graph, as shapely.geometry.Polygons.
@@ -1110,7 +1154,7 @@ class Path2D(Path):
         # and will be None if geometry is unrecoverable
         return polygons.paths_to_polygons(self.discrete)
 
-    @caching.cache_decorator
+    @cache_decorator
     def polygons_full(self) -> List:
         """
         A list of shapely.geometry.Polygon objects with interiors created
@@ -1142,7 +1186,7 @@ class Path2D(Path):
 
         return full
 
-    @caching.cache_decorator
+    @cache_decorator
     def area(self):
         """
         Return the area of the polygons interior.
@@ -1409,21 +1453,7 @@ class Path2D(Path):
             return hasher(self.polygons_full[0])
         elif len(target) == 0:
             return np.zeros(5)
-
-        return np.sum([hasher(p) for p in target], axis=1)
-
-    @caching.cache_decorator
-    def identifier_hash(self):
-        """
-        Return a hash of the identifier.
-
-        Returns
-        ----------
-        hashed : (64,) str
-          SHA256 hash of the identifier vector.
-        """
-        as_int = (self.identifier * 1e4).astype(np.int64)
-        return sha256(as_int.tobytes(order="C")).hexdigest()
+        return np.sum([hasher(p) for p in target], axis=0)
 
     @property
     def path_valid(self):
@@ -1436,7 +1466,7 @@ class Path2D(Path):
         """
         return np.array([i is not None for i in self.polygons_closed], dtype=bool)
 
-    @caching.cache_decorator
+    @cache_decorator
     def root(self):
         """
         Which indexes of self.paths/self.polygons_closed
@@ -1450,7 +1480,7 @@ class Path2D(Path):
         populate = self.enclosure_directed  # NOQA
         return self._cache["root"]
 
-    @caching.cache_decorator
+    @cache_decorator
     def enclosure(self):
         """
         Undirected graph object of polygon enclosure.
@@ -1464,7 +1494,7 @@ class Path2D(Path):
             undirected = self.enclosure_directed.to_undirected()
         return undirected
 
-    @caching.cache_decorator
+    @cache_decorator
     def enclosure_directed(self):
         """
         Directed graph of polygon enclosure.
@@ -1479,7 +1509,7 @@ class Path2D(Path):
         self._cache["root"] = root
         return enclosure
 
-    @caching.cache_decorator
+    @cache_decorator
     def enclosure_shell(self):
         """
         A dictionary of path indexes which are 'shell' paths, and values

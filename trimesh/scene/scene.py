@@ -2,6 +2,7 @@ import collections
 import uuid
 import warnings
 from copy import deepcopy
+from hashlib import sha256
 
 import numpy as np
 
@@ -613,8 +614,17 @@ class Scene(Geometry3D):
         identifiers
           {Identifier hash: key in self.geometry}
         """
-        identifiers = {mesh.identifier_hash: name for name, mesh in self.geometry.items()}
-        return identifiers
+        return {mesh.identifier_hash: name for name, mesh in self.geometry.items()}
+
+    @caching.cache_decorator
+    def identifier_hash(self) -> str:
+        """
+        Get a unique identifier for the scene.
+        """
+        dump = "".join(g.identifier_hash for g in self.geometry.values()) + str(
+            hash(self.graph)
+        )
+        return sha256(dump.encode()).hexdigest()
 
     @caching.cache_decorator
     def duplicate_nodes(self) -> List[List[str]]:
@@ -1053,7 +1063,9 @@ class Scene(Geometry3D):
         """
         from ..viewer.windowed import render_scene
 
-        return render_scene(scene=self, resolution=resolution, **kwargs)
+        return render_scene(
+            scene=self, resolution=resolution, fullscreen=False, resizable=False, **kwargs
+        )
 
     @property
     def units(self) -> Optional[str]:

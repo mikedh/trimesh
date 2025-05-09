@@ -6,6 +6,7 @@ Functions dealing with (n, d) points.
 """
 
 import copy
+from hashlib import sha256
 
 import numpy as np
 from numpy import float64
@@ -13,7 +14,9 @@ from numpy import float64
 from . import caching, grouping, transformations, util
 from .constants import tol
 from .geometry import plane_transform
+from .inertia import points_inertia
 from .parent import Geometry3D
+from .typed import ArrayLike, NDArray
 from .visual.color import VertexColor
 
 
@@ -498,16 +501,28 @@ class PointCloud(Geometry3D):
         """
         return self._data.__hash__()
 
-    def crc(self):
+    @property
+    def identifier(self) -> NDArray[float64]:
         """
-        Get a CRC hash of the current vertices.
+        Return a simple array representing this PointCloud
+        that can be used to identify identical arrays.
 
         Returns
         ----------
-        crc : int
-          Hash of self.vertices
+        identifier : (9,)
+          A flat array of data representing the cloud.
         """
-        return self._data.crc()
+        return self.moment_inertia.ravel()
+
+    @property
+    def identifier_hash(self) -> str:
+        """
+        A hash of the PointCloud's identifier that can be used
+        to detect duplicates.
+        """
+        return sha256(
+            (self.identifier * 1e5).round().astype(np.int64).tobytes()
+        ).hexdigest()
 
     def merge_vertices(self):
         """
@@ -571,6 +586,43 @@ class PointCloud(Geometry3D):
           Mean vertex position
         """
         return self.vertices.mean(axis=0)
+
+    @caching.cache_decorator
+    def moment_inertia(self) -> NDArray[float64]:
+        return points_inertia(points=self.vertices, weights=self.weights)
+
+    @property
+    def weights(self) -> NDArray[float64]:
+        """
+        If each point has a specific weight assigned to it.
+
+        Returns
+        -----------
+        weights : (n,)
+          A per-vertex weight.
+        """
+        current = self._data.get("weights")
+        if current is None:
+            ones = np.ones(len(self.vertices), dtype=np.float64)
+            self._data["weights"] = ones
+            return ones
+
+        return current
+
+    @weights.setter
+    def weights(self, values: ArrayLike):
+        """
+        Assign a weight to each point for later computation.
+
+        Parameters
+        -----------
+        values : (n,)
+          Weights for each vertex.
+        """
+        values = np.asanyarray(values, dtype=np.float64)
+        if values.shape != (self.shape[0],):
+            raise ValueError("Weights must match vertices!")
+        self._data["weights"] = values
 
     @property
     def vertices(self):

@@ -43,6 +43,7 @@ def boolean(
     use_exact: bool = False,
     use_self: bool = False,
     debug: bool = False,
+    check_volume: bool = True,
 ):
     """
     Run a boolean operation with multiple meshes using Blender.
@@ -59,6 +60,10 @@ def boolean(
       Whether to consider self-intersections.
     debug
       Provide additional output for troubleshooting.
+    check_volume
+      Raise an error if not all meshes are watertight
+      positive volumes. Advanced users may want to ignore
+      this check as it is expensive.
 
     Returns
     ----------
@@ -67,6 +72,9 @@ def boolean(
     """
     if not exists:
         raise ValueError("No blender available!")
+    if check_volume and not all(m.is_volume for m in meshes):
+        raise ValueError("Not all meshes are volumes!")
+
     operation = str.upper(operation)
     if operation == "INTERSECTION":
         operation = "INTERSECT"
