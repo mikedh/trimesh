@@ -433,7 +433,7 @@ class InertiaTest(g.unittest.TestCase):
 
     def test_points_inertia(self):
         # function we're testing
-        inertia = g.trimesh.intertia.points_inertia
+        inertia = g.trimesh.inertia.points_inertia
 
         # should be m * r**2 around XY, zero in Z
         t = inertia([[0, 0, 10]], weights=1.0, at_center_mass=False)
@@ -462,9 +462,7 @@ class InertiaTest(g.unittest.TestCase):
                     weights = g.np.zeros(3)
                     weights[axis] = mass
 
-                    calc = g.trimesh.inertia.points_inertia(
-                        points, weights=weights, at_center_mass=False
-                    )
+                    calc = inertia(points, weights=weights, at_center_mass=False)
 
                     # should be mr^2 for every axis except our chosen one
                     expected = g.np.eye(3) * mass * radius**2
@@ -475,7 +473,7 @@ class InertiaTest(g.unittest.TestCase):
                     collect.append(calc)
 
                 # try it with every point weighted
-                summed = g.trimesh.inertia.points_inertia(
+                summed = inertia(
                     points, weights=g.np.full(len(points), mass), at_center_mass=False
                 )
                 # should match the sum of the individual options
