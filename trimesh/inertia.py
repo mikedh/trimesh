@@ -72,10 +72,13 @@ def sphere_inertia(mass: Number, radius: Number) -> NDArray[float64]:
 
 
 def points_inertia(
-    points: ArrayLike, weights: Union[None, ArrayLike, Number] = None
+    points: ArrayLike,
+    weights: Union[None, ArrayLike, Number] = None,
+    at_center_mass: bool = True,
 ) -> NDArray[float64]:
     """
-    Calculate an inertia tensor for an array of point masses.
+    Calculate an inertia tensor for an array of point masses
+    at the center of mass.
 
     Parameters
     ----------
@@ -83,6 +86,9 @@ def points_inertia(
       Points in space.
     weights : (n,) or number
       Per-point weight to use.
+    at_center_mass
+      Calculate at the center of mass of the points, or if False
+      at the original origin.
 
     Returns
     -----------
@@ -101,11 +107,23 @@ def points_inertia(
                 f"Weights must correspond to points! {len(weights)} != {len(points)}"
             )
 
+    # make sure the points are an array of correct shape
     points = np.asanyarray(points, dtype=np.float64)
+    if len(points.shape) != 2 or points.shape[1] != 3:
+        raise ValueError(f"Points must be `(n, 3)` not {points.shape}")
 
-    # shorthand for our expression
-    x, y, z = points.T
-    x2, y2, z2 = (points**2).T
+    if at_center_mass:
+        # get the center of mass of the points
+        center_mass = np.average(points, weights=weights, axis=0)
+        # get the points with the origin at their center of mass
+        points_com = points - center_mass
+    else:
+        # calculate at original origin
+        points_com = points
+
+    # expand into shorthand for the expressions
+    x, y, z = points_com.T
+    x2, y2, z2 = (points_com**2).T
 
     # calculate tensors per-point in a flattened (9, n) array
     # from physics.stackexchange.com/questions/614094
