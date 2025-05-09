@@ -61,11 +61,14 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
             if current is None:
                 break
         if len(matrices) == 0:
+            # no transforms is an identity matrix
             return _IDENTITY
         elif len(matrices) == 1:
             return matrices[0]
         else:
-            return util.multi_dot(matrices[::-1])
+            # evaluate the transforms in the order they were passed
+            # as this is what the SVG spec says you should do
+            return util.multi_dot(matrices)
 
     force = None
     tree = None
