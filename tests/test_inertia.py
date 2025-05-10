@@ -439,8 +439,9 @@ class InertiaTest(g.unittest.TestCase):
         t = inertia([[0, 0, 10]], weights=1.0, at_center_mass=False)
         assert g.np.allclose(t, [[100.0, 0.0, 0.0], [0.0, 100.0, 0.0], [0.0, 0.0, 0.0]])
 
-        # by default should weight points as 1.0, and offset to the center of mass
-        t = inertia(g.np.eye(3) + 12342.234234)
+        # run with every point assigned a weight of `1.0`
+        # by default should offset to the center of mass
+        t = inertia(g.np.eye(3) + 12342.234234, weights=1.0)
         assert g.np.allclose(
             t,
             [
@@ -478,6 +479,36 @@ class InertiaTest(g.unittest.TestCase):
                 )
                 # should match the sum of the individual options
                 assert g.np.allclose(summed, g.np.sum(collect, axis=0))
+
+    def test_points_inertia_sample(self):
+        # check to see that randomly sampled volume of a box
+        # moved somewhere in space is "about equal" with the
+        # approximate inertia of the points compared to the
+        # exact intertia tensor of the box primitive
+
+        # start with a random but deterministic rotation matrix
+        matrix = g.np.array(
+            [
+                [-0.4984, 0.20643, 0.84201, -377.39084],
+                [-0.3338, -0.94205, 0.03338, -348.96965],
+                [0.80011, -0.26442, 0.53843, 494.61203],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
+        box = g.trimesh.primitives.Box(transform=matrix)
+
+        # random points inside the box volume
+        samples = box.sample_volume(10000)
+
+        # calculate the inertia tensor of these points
+        check = g.trimesh.inertia.points_inertia(samples, weights=box.mass / len(samples))
+
+        # compare to the exact inertia tensor of the box primitive
+        truth = box.moment_inertia
+
+        # should be "about the same" but this will still be noisy
+        # but should asymptote to exactly equal as sample count goes up
+        assert g.np.allclose(check, truth, atol=0.01, rtol=0.01)
 
 
 class MassTests(g.unittest.TestCase):

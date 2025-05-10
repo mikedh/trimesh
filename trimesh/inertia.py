@@ -96,7 +96,11 @@ def points_inertia(
       Inertia tensor for point masses.
     """
     if weights is None:
-        weights = np.ones(len(points), dtype=np.float64)
+        # by default make the total weight 1.0 to match
+        # the default mass in other functions, and so that
+        # if a user didn't specify anything it doesn't blow
+        # up the scale depending on the number of points
+        weights = np.full(len(points), 1.0 / float(len(points)), dtype=np.float64)
     elif isinstance(weights, (float, np.integer, int)):
         # "is it a number" check
         weights = np.full(len(points), float(weights), dtype=np.float64)
