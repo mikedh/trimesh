@@ -459,6 +459,4 @@ def index_sparse(columns, indices, data=None, dtype=None):
         data = data.astype(dtype)
 
     # assemble into sparse matrix
-    matrix = scipy.sparse.coo_matrix((data, (row, col)), shape=shape, dtype=data.dtype)
-
-    return matrix
+    return scipy.sparse.coo_matrix((data, (row, col)), shape=shape, dtype=data.dtype)

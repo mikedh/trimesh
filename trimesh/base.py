@@ -498,7 +498,6 @@ class Trimesh(Geometry3D):
           Where n == len(self.vertices)
         """
         # make sure we have faces_sparse
-        assert hasattr(self.faces_sparse, "dot")
         return geometry.weighted_vertex_normals(
             vertex_count=len(self.vertices),
             faces=self.faces,

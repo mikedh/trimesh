@@ -61,11 +61,14 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
             if current is None:
                 break
         if len(matrices) == 0:
+            # no transforms is an identity matrix
             return _IDENTITY
         elif len(matrices) == 1:
             return matrices[0]
         else:
-            return util.multi_dot(matrices[::-1])
+            # evaluate the transforms in the order they were passed
+            # as this is what the SVG spec says you should do
+            return util.multi_dot(matrices)
 
     force = None
     tree = None
@@ -402,7 +405,7 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
             w, h = np.array([attrib["width"], attrib["height"]], dtype=np.float64)
 
             points = np.array(
-                [origin, origin + (w, 0), origin + (w, -h), origin + (0, -h), origin],
+                [origin, origin + (w, 0), origin + (w, h), origin + (0, h), origin],
                 dtype=np.float64,
             )
             entity = Line(points=np.arange(len(points)) + counts[name])
