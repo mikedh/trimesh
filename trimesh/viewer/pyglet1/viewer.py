@@ -18,12 +18,13 @@ import pyglet
 # new viewer `trimesh.viewer.shaders` and then basically keeping
 # `windowed` around for backwards-compatibility with no changes
 if int(pyglet.version.split(".")[0]) >= 2:
-    raise ImportError('`trimesh.viewer.windowed` requires `pip install "pyglet<2"`')
+    raise ImportError('`trimesh.viewer.pyglet1` requires `pip install "pyglet<2"`')
 
-from .. import rendering, util
-from ..transformations import translation_matrix
-from ..visual import to_rgba
-from .trackball import Trackball
+from ... import util
+from ...transformations import translation_matrix
+from ...visual import to_rgba
+from ..trackball import Trackball
+from . import conversion
 
 pyglet.options["shadow_window"] = False
 
@@ -261,11 +262,11 @@ class SceneViewer(pyglet.window.Window):
         geometry : Trimesh, Path2D, Path3D, PointCloud
           Geometry to display in the viewer window
         kwargs **
-          Passed to rendering.convert_to_vertexlist
+          Passed to conversion.convert_to_vertexlist
         """
         try:
             # convert geometry to constructor args
-            args = rendering.convert_to_vertexlist(geometry, **kwargs)
+            args = conversion.convert_to_vertexlist(geometry, **kwargs)
         except BaseException:
             util.log.warning(f"failed to add geometry `{name}`", exc_info=True)
             return
@@ -281,7 +282,7 @@ class SceneViewer(pyglet.window.Window):
         visual = getattr(geometry, "visual", None)
         if hasattr(visual, "uv") and hasattr(visual, "material"):
             try:
-                tex = rendering.material_to_texture(visual.material)
+                tex = conversion.material_to_texture(visual.material)
                 if tex is not None:
                     self.textures[name] = tex
             except BaseException:
@@ -417,17 +418,17 @@ class SceneViewer(pyglet.window.Window):
         gl.glMaterialfv(
             gl.GL_FRONT,
             gl.GL_AMBIENT,
-            rendering.vector_to_gl(0.192250, 0.192250, 0.192250),
+            conversion.vector_to_gl(0.192250, 0.192250, 0.192250),
         )
         gl.glMaterialfv(
             gl.GL_FRONT,
             gl.GL_DIFFUSE,
-            rendering.vector_to_gl(0.507540, 0.507540, 0.507540),
+            conversion.vector_to_gl(0.507540, 0.507540, 0.507540),
         )
         gl.glMaterialfv(
             gl.GL_FRONT,
             gl.GL_SPECULAR,
-            rendering.vector_to_gl(0.5082730, 0.5082730, 0.5082730),
+            conversion.vector_to_gl(0.5082730, 0.5082730, 0.5082730),
         )
 
         gl.glMaterialf(gl.GL_FRONT, gl.GL_SHININESS, 0.4 * 128.0)
@@ -464,7 +465,7 @@ class SceneViewer(pyglet.window.Window):
             matrix = scene.graph.get(light.name)[0]
 
             # convert light object to glLightfv calls
-            multiargs = rendering.light_to_gl(
+            multiargs = conversion.light_to_gl(
                 light=light, transform=matrix, lightN=lightN
             )
 
@@ -546,12 +547,12 @@ class SceneViewer(pyglet.window.Window):
         # case where we WANT an axis and NO vertexlist
         # is stored internally
         if self.view["axis"] and self._axis is None:
-            from .. import creation
+            from ... import creation
 
             # create an axis marker sized relative to the scene
             axis = creation.axis(origin_size=self.scene.scale / 100)
             # create ordered args for a vertex list
-            args = rendering.mesh_to_vertexlist(axis)
+            args = conversion.mesh_to_vertexlist(axis)
             # store the axis as a reference
             self._axis = self.batch.add_indexed(*args)
         # case where we DON'T want an axis but a vertexlist
@@ -565,7 +566,7 @@ class SceneViewer(pyglet.window.Window):
         if self.view["grid"] and self._grid is None:
             try:
                 # create a grid marker
-                from ..path.creation import grid
+                from ...path.creation import grid
 
                 bounds = self.scene.bounds
                 center = bounds.mean(axis=0)
@@ -577,7 +578,7 @@ class SceneViewer(pyglet.window.Window):
                 # create an axis marker sized relative to the scene
                 grid_mesh = grid(side=side, count=4, transform=translation_matrix(center))
                 # convert the path to vertexlist args
-                args = rendering.convert_to_vertexlist(grid_mesh)
+                args = conversion.convert_to_vertexlist(grid_mesh)
                 # create ordered args for a vertex list
                 self._grid = self.batch.add_indexed(*args)
             except BaseException:
@@ -712,7 +713,7 @@ class SceneViewer(pyglet.window.Window):
         transform_camera = np.linalg.inv(self.scene.camera_transform)
 
         # apply the camera transform to the matrix stack
-        gl.glMultMatrixf(rendering.matrix_to_gl(transform_camera))
+        gl.glMultMatrixf(conversion.matrix_to_gl(transform_camera))
 
         # we want to render fully opaque objects first,
         # followed by objects which have transparency
@@ -777,7 +778,7 @@ class SceneViewer(pyglet.window.Window):
             # add a new matrix to the model stack
             gl.glPushMatrix()
             # transform by the nodes transform
-            gl.glMultMatrixf(rendering.matrix_to_gl(transform))
+            gl.glMultMatrixf(conversion.matrix_to_gl(transform))
 
             # draw an axis marker for each mesh frame
             if self.view["axis"] == "all":
@@ -885,7 +886,7 @@ def render_scene(
     resolution : (2,) int or None
       Resolution in pixels or set from scene.camera
     visible : bool
-      Show a window during rendering. Note that MANY
+      Show a window during conversion. Note that MANY
       platforms refuse to render with hidden windows
       and will likely return a blank image; this is a
       platform issue and cannot be fixed in Python.
