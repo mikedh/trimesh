@@ -9,9 +9,10 @@ import numpy as np
 
 from . import transformations, util
 from . import triangles as triangles_module
+from .typed import Number
 
 
-def transform(mesh, translation_scale=1000.0):
+def transform(mesh, translation_scale: Number = 1000.0):
     """
     Return a permutated variant of a mesh by randomly reordering faces
     and rotatating + translating a mesh by a random matrix.

@@ -45,6 +45,7 @@ def difference(
     """
     if check_volume and not all(m.is_volume for m in meshes):
         raise ValueError("Not all meshes are volumes!")
+    kwargs.update({"check_volume": check_volume})
 
     return _engines[engine](meshes, operation="difference", **kwargs)
 
@@ -75,6 +76,7 @@ def union(
     """
     if check_volume and not all(m.is_volume for m in meshes):
         raise ValueError("Not all meshes are volumes!")
+    kwargs.update({"check_volume": check_volume})
 
     return _engines[engine](meshes, operation="union", **kwargs)
 
@@ -105,6 +107,8 @@ def intersection(
     """
     if check_volume and not all(m.is_volume for m in meshes):
         raise ValueError("Not all meshes are volumes!")
+    kwargs.update({"check_volume": check_volume})
+
     return _engines[engine](meshes, operation="intersection", **kwargs)
 
 

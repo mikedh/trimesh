@@ -10,7 +10,7 @@ internal consistency.
 
 import numpy as np
 
-from .typed import ArrayLike, NDArray, Number, Optional, float64
+from .typed import ArrayLike, NDArray, Number, Optional, Union, float64
 from .util import multi_dot
 
 
@@ -69,6 +69,77 @@ def sphere_inertia(mass: Number, radius: Number) -> NDArray[float64]:
       Inertia tensor
     """
     return (2.0 / 5.0) * (radius**2) * mass * np.eye(3)
+
+
+def points_inertia(
+    points: ArrayLike,
+    weights: Union[None, ArrayLike, Number] = None,
+    at_center_mass: bool = True,
+) -> NDArray[float64]:
+    """
+    Calculate an inertia tensor for an array of point masses
+    at the center of mass.
+
+    Parameters
+    ----------
+    points : (n, 3)
+      Points in space.
+    weights : (n,) or number
+      Per-point weight to use.
+    at_center_mass
+      Calculate at the center of mass of the points, or if False
+      at the original origin.
+
+    Returns
+    -----------
+    tensor : (3, 3)
+      Inertia tensor for point masses.
+    """
+    if weights is None:
+        # by default make the total weight 1.0 to match
+        # the default mass in other functions, and so that
+        # if a user didn't specify anything it doesn't blow
+        # up the scale depending on the number of points
+        weights = np.full(len(points), 1.0 / float(len(points)), dtype=np.float64)
+    elif isinstance(weights, (float, np.integer, int)):
+        # "is it a number" check
+        weights = np.full(len(points), float(weights), dtype=np.float64)
+    else:
+        weights = np.array(weights)
+        if len(weights) != len(points):
+            raise ValueError(
+                f"Weights must correspond to points! {len(weights)} != {len(points)}"
+            )
+
+    # make sure the points are an array of correct shape
+    points = np.asanyarray(points, dtype=np.float64)
+    if len(points.shape) != 2 or points.shape[1] != 3:
+        raise ValueError(f"Points must be `(n, 3)` not {points.shape}")
+
+    if at_center_mass:
+        # get the center of mass of the points
+        center_mass = np.average(points, weights=weights, axis=0)
+        # get the points with the origin at their center of mass
+        points_com = points - center_mass
+    else:
+        # calculate at original origin
+        points_com = points
+
+    # expand into shorthand for the expressions
+    x, y, z = points_com.T
+    x2, y2, z2 = (points_com**2).T
+
+    # calculate tensors per-point in a flattened (9, n) array
+    # from physics.stackexchange.com/questions/614094
+    tensors = np.array(
+        [y2 + z2, -x * y, -x * z, -x * y, x2 + z2, -y * z, -x * z, -y * z, x2 + y2],
+        dtype=np.float64,
+    )
+
+    # combine the weighted tensors and reshape
+    tensor = (tensors * weights).sum(axis=1).reshape((3, 3))
+
+    return tensor
 
 
 def principal_axis(inertia: ArrayLike):

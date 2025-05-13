@@ -56,23 +56,20 @@ jobs:
     name: Release To PyPi
     needs: [tests, containers, corpus]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.12'
     - name: Install publishing dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-      run: |
-        pyproject-build --outdir dist .
-        twine upload dist/*
+      run: pip install build
+    - name: Build
+      run: pyproject-build --outdir dist .
+    - name: Publish
+      uses: pypa/gh-action-pypi-publish@v1.12.4
 
   containers:
     name: Build Docker Images
@@ -124,7 +121,7 @@ jobs:
     permissions:
       contents: write  # for actions/create-release
     name: Create GitHub Release
-    needs: [tests, containers, corpus]
+    needs: [pypi]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

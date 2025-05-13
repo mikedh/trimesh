@@ -2,6 +2,7 @@ import collections
 import uuid
 import warnings
 from copy import deepcopy
+from hashlib import sha256
 
 import numpy as np
 
@@ -613,8 +614,17 @@ class Scene(Geometry3D):
         identifiers
           {Identifier hash: key in self.geometry}
         """
-        identifiers = {mesh.identifier_hash: name for name, mesh in self.geometry.items()}
-        return identifiers
+        return {mesh.identifier_hash: name for name, mesh in self.geometry.items()}
+
+    @caching.cache_decorator
+    def identifier_hash(self) -> str:
+        """
+        Get a unique identifier for the scene.
+        """
+        dump = "".join(g.identifier_hash for g in self.geometry.values()) + str(
+            hash(self.graph)
+        )
+        return sha256(dump.encode()).hexdigest()
 
     @caching.cache_decorator
     def duplicate_nodes(self) -> List[List[str]]:
@@ -1053,7 +1063,9 @@ class Scene(Geometry3D):
         """
         from ..viewer.windowed import render_scene
 
-        return render_scene(scene=self, resolution=resolution, **kwargs)
+        return render_scene(
+            scene=self, resolution=resolution, fullscreen=False, resizable=False, **kwargs
+        )
 
     @property
     def units(self) -> Optional[str]:
@@ -1343,7 +1355,8 @@ class Scene(Geometry3D):
         viewer : Union[str, callable, None]
           What kind of viewer to use, such as
           'gl' to open a pyglet window, 'notebook'
-          for a jupyter notebook or None
+          for a jupyter notebook, 'marimo' for
+          a marimo notebook or None
         kwargs : dict
           Includes `smooth`, which will turn
           on or off automatic smooth shading
@@ -1353,9 +1366,9 @@ class Scene(Geometry3D):
             # check to see if we are in a notebook or not
             from ..viewer import in_notebook
 
-            if in_notebook():
-                viewer = "notebook"
-            else:
+            # returns a literal for what kind of notebook, or False
+            viewer = in_notebook()
+            if not viewer:
                 viewer = "gl"
 
         if viewer == "gl":
@@ -1364,10 +1377,14 @@ class Scene(Geometry3D):
             from ..viewer import SceneViewer
 
             return SceneViewer(self, **kwargs)
-        elif viewer == "notebook":
+        elif viewer == "jupyter":
             from ..viewer import scene_to_notebook
 
             return scene_to_notebook(self, **kwargs)
+        elif viewer == "marimo":
+            from ..viewer import scene_to_mo_notebook
+
+            return scene_to_mo_notebook(self, **kwargs)
         elif callable(viewer):
             # if a callable method like a custom class
             # constructor was passed run using that
