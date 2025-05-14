@@ -195,7 +195,10 @@ def test_rect_bounds():
         assert len(ours.entities) > 0
 
         # the set of entity AABB should match inkscape's output exactly
-        assert get_bounds(ours) == get_bounds(truth)
+        bounds_ours = get_bounds(ours)
+        bounds_truth = get_bounds(truth)
+        if bounds_ours != bounds_truth:
+            raise ValueError(f"{bounds_ours} != {bounds_truth}\nfor:\n{pair['truth']}")
 
 
 if __name__ == "__main__":
