@@ -1,0 +1,30 @@
+[
+  {
+    "truth": "M 40,40 H 60 V 60 H 40 Z M 0,0 H 100 V 100 H 0 Z",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 100 100\"><rect x=\"0\" y=\"0\" width=\"100\" height=\"100\" fill=\"none\" stroke=\"black\" stroke-width=\"0.1\" /><rect x=\"40\" y=\"40\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"black\" stroke-width=\"1\" /></svg>"
+  },
+  {
+    "truth": "M 30,30 H 40 V 40 H 30 Z M 0,0 H 100 V 100 H 0 Z",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 100 100\"><rect x=\"0\" y=\"0\" width=\"100\" height=\"100\" fill=\"none\" stroke=\"black\" stroke-width=\"0.1\" />\n            <g  transform=\"translate(10, 10) scale(0.5)\">\n            <rect x=\"40\" y=\"40\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"black\" stroke-width=\"1\" />\n            </g>\n            </svg>"
+  },
+  {
+    "truth": "M 25,25 H 35 V 35 H 25 Z M 0,0 H 100 V 100 H 0 Z",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 100 100\"><rect x=\"0\" y=\"0\" width=\"100\" height=\"100\" fill=\"none\" stroke=\"black\" stroke-width=\"0.1\" />\n            <g  transform=\"scale(0.5) translate(10, 10)\">\n            <rect x=\"40\" y=\"40\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"black\" stroke-width=\"1\" />\n            </g>\n            </svg>"
+  },
+  {
+    "truth": "M 30,30 H 40 V 40 H 30 Z M 0,0 H 100 V 100 H 0 Z",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 100 100\"><rect x=\"0\" y=\"0\" width=\"100\" height=\"100\" fill=\"none\" stroke=\"black\" stroke-width=\"0.1\" />\n            <g  transform=\"translate(10, 10)\">\n            <g  transform=\"scale(0.5)\">\n            <rect x=\"40\" y=\"40\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"black\" stroke-width=\"1\" />\n            </g>\n            </g>\n            </svg>"
+  },
+  {
+    "truth": "M 25,25 H 35 V 35 H 25 Z M 0,0 H 100 V 100 H 0 Z",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 100 100\"><rect x=\"0\" y=\"0\" width=\"100\" height=\"100\" fill=\"none\" stroke=\"black\" stroke-width=\"0.1\" />\n            <g  transform=\"scale(0.5)\">\n            <g  transform=\"translate(10, 10)\">\n            <rect x=\"40\" y=\"40\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"black\" stroke-width=\"1\" />\n            </g>\n            </g>\n            </svg>"
+  },
+  {
+    "truth": "M 20,20 H 30 V 30 H 20 Z M 70,70 H 90 V 90 H 70 Z M 40,40 H 60 V 60 H 40 Z",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 100 100\">\n  <rect x=\"40\" y=\"40\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n<g  transform=\"translate(30, 30)\">\n<rect x=\"40\" y=\"40\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"blue\" stroke-width=\"1\"/>\n</g>\n<g  transform=\"translate(0, 0) scale(0.5)\">\n<rect x=\"40\" y=\"40\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"red\" stroke-width=\"1\"/>\n</g>\n</svg>"
+  },
+  {
+    "truth": "M 30,30 H 40 V 40 H 30 Z M 20,20 H 30 V 30 H 20 Z M 70,70 H 90 V 90 H 70 Z M 40,40 H 60 V 60 H 40 Z",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 100 100\">\n<path d=\"M40 40 H60 V60 H40 Z\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n<g  transform=\"translate(30, 30)\">\n<path d=\"M40 40 H60 V60 H40 Z\" fill=\"none\" stroke=\"blue\" stroke-width=\"1\"/>\n</g>\n<g  transform=\"translate(0, 0) scale(0.5)\">\n<path d=\"M40 40 H60 V60 H40 Z\" fill=\"none\" stroke=\"red\" stroke-width=\"1\"/>\n</g>\n<g  transform=\"translate(10, 10) scale(0.5)\">\n<path d=\"M40 40 H60 V60 H40 Z\" fill=\"none\" stroke=\"green\" stroke-width=\"1\"/>\n</g>\n</svg>"
+  }
+]
