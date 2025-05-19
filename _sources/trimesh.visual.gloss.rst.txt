@@ -1,0 +1,7 @@
+trimesh.visual.gloss
+====================
+
+.. automodule:: trimesh.visual.gloss
+   :members:
+   :show-inheritance:
+   :undoc-members:
