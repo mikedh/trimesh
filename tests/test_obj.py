@@ -499,6 +499,25 @@ def simple_load(text):
     return f, v, vt
 
 
+def test_material_name():
+    m = g.get_mesh("fuze.obj")
+
+    # check that the material used the name in the file
+    assert m.visual.material.name == "a-super-duper-material"
+
+    # roundtrip the OBJ through a file path
+    # this is easier than making a resolver ourself for the MTL file
+    # as it will automatically create the `FilePathResolver` on paths
+    with g.TemporaryDirectory() as temp:
+        path = g.os.path.join(temp, "mesh.obj")
+        m.export(file_obj=path)
+        roundtrip = g.trimesh.load_mesh(file_obj=path)
+
+    # material name should have survivied
+    assert roundtrip.visual.material.name == "a-super-duper-material"
+
+    g.check_fuze(roundtrip)
+
+
 if __name__ == "__main__":
-    g.trimesh.util.attach_to_log()
-    g.unittest.main()
+    test_material_name()

@@ -339,9 +339,10 @@ def parse_mtl(mtl, resolver=None):
             # newmtl material_0
             if material is not None:
                 # save the old material by old name and remove key
-                materials[material.pop("newmtl")] = material
+                materials[material["name"]] = material
             # start a fresh new material
-            material = {"newmtl": " ".join(split[1:])}
+            # do we really want to support material names with whitespace?
+            material = {"name": " ".join(split[1:])}
 
         elif key == "map_kd":
             # represents the file name of the texture image
@@ -380,7 +381,7 @@ def parse_mtl(mtl, resolver=None):
             material[key] = split[1:]
     # reached EOF so save any existing materials
     if material:
-        materials[material.pop("newmtl")] = material
+        materials[material["name"]] = material
 
     return materials
 

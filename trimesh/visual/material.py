@@ -52,7 +52,8 @@ class Material(util.ABC):
 
     @name.setter
     def name(self, value):
-        self._name = value
+        if value is not None:
+            self._name = value
 
     def copy(self):
         return copy.deepcopy(self)
@@ -70,11 +71,12 @@ class SimpleMaterial(Material):
         ambient=None,
         specular=None,
         glossiness=None,
+        name=None,
         **kwargs,
     ):
         # save image
         self.image = image
-
+        self.name = name
         # save material colors as RGBA
         self.ambient = color.to_rgba(ambient)
         self.diffuse = color.to_rgba(diffuse)
