@@ -175,51 +175,30 @@ def test_rect_bounds():
             for e in path.entities
         }
 
-    # pairs of (svg file with shapes and transforms, evaluated-by-inkscape path string)
-    pairs = [
-        (
-            """<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
-  <rect x="40" y="40" width="20" height="20" fill="none" stroke="black" stroke-width="1"/>
-<g  transform="translate(30, 30)">
-<rect x="40" y="40" width="20" height="20" fill="none" stroke="blue" stroke-width="1"/>
-</g>
-<g  transform="translate(0, 0) scale(0.5)">
-<rect x="40" y="40" width="20" height="20" fill="none" stroke="red" stroke-width="1"/>
-</g>
-</svg>""",
-            "M 20,20 H 30 V 30 H 20 Z M 70,70 H 90 V 90 H 70 Z M 40,40 H 60 V 60 H 40 Z",
-        ),
-        (
-            """<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
-<path d="M40 40 H60 V60 H40 Z" fill="none" stroke="black" stroke-width="1"/>
-<g  transform="translate(30, 30)">
-<path d="M40 40 H60 V60 H40 Z" fill="none" stroke="blue" stroke-width="1"/>
-</g>
-<g  transform="translate(0, 0) scale(0.5)">
-<path d="M40 40 H60 V60 H40 Z" fill="none" stroke="red" stroke-width="1"/>
-</g>
-<g  transform="translate(10, 10) scale(0.5)">
-<path d="M40 40 H60 V60 H40 Z" fill="none" stroke="green" stroke-width="1"/>
-</g>
-</svg>""",
-            "M 30,30 H 40 V 40 H 30 Z M 20,20 H 30 V 30 H 20 Z M 70,70 H 90 V 90 H 70 Z M 40,40 H 60 V 60 H 40 Z",
-        ),
-    ]
+    # pairs of svg file with shapes and transforms
+    # and an evaluated-by-inkscape path string with all transforms fully baked
+    truths = g.data["svg_transform_truth"]
+    assert len(truths) >= 7
 
-    for svg, path in pairs:
-        # rectangles with scale, translation, etc
-        rect = g.trimesh.load_path(
-            g.trimesh.util.wrap_as_stream(svg),
+    for pair in truths:
+        # shapes with scale, translation, etc
+        ours = g.trimesh.load_path(
+            g.trimesh.util.wrap_as_stream(pair["svg"]),
             file_type="svg",
         )
 
         # converted to a path string using inkscape, i.e. "truth"
         truth = g.trimesh.path.Path2D(
-            **g.trimesh.path.exchange.svg_io.svg_to_path(path_string=path)
+            **g.trimesh.path.exchange.svg_io.svg_to_path(path_string=pair["truth"])
         )
+        # make sure we don't accept empty results
+        assert len(ours.entities) > 0
 
         # the set of entity AABB should match inkscape's output exactly
-        assert get_bounds(rect) == get_bounds(truth)
+        bounds_ours = get_bounds(ours)
+        bounds_truth = get_bounds(truth)
+        if bounds_ours != bounds_truth:
+            raise ValueError(f"{bounds_ours} != {bounds_truth}\nfor:\n{pair['truth']}")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import base64
-import collections
 import json
+from collections import defaultdict, deque
 from copy import deepcopy
 
 import numpy as np
@@ -40,35 +40,6 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
     loaded : dict
       With kwargs for Path2D constructor
     """
-
-    def element_transform(e, max_depth=10):
-        """
-        Find a transformation matrix for an XML element.
-
-        Parameters
-        --------------
-        e : lxml.etree.Element
-          Element to search upwards from.
-        max_depth : int
-          Maximum depth to search for transforms.
-        """
-        matrices = []
-        current = e
-        for _ in range(max_depth):
-            if "transform" in current.attrib:
-                matrices.extend(transform_to_matrices(current.attrib["transform"]))
-            current = current.getparent()
-            if current is None:
-                break
-        if len(matrices) == 0:
-            # no transforms is an identity matrix
-            return _IDENTITY
-        elif len(matrices) == 1:
-            return matrices[0]
-        else:
-            # evaluate the transforms in the order they were passed
-            # as this is what the SVG spec says you should do
-            return util.multi_dot(matrices)
 
     force = None
     tree = None
@@ -145,6 +116,38 @@ def _attrib_metadata(attrib: Mapping) -> Dict:
         }
     except BaseException:
         return {}
+
+
+def element_transform(element, max_depth=10):
+    """
+    Find a transformation matrix for an XML element.
+
+    Parameters
+    --------------
+    e : lxml.etree.Element
+      Element to search upwards from.
+    max_depth : int
+      Maximum depth to search for transforms.
+    """
+    matrices = deque()
+    # start at the passed element
+    current = element
+    for _ in range(max_depth):
+        # get the transforms from a particular element
+        if "transform" in current.attrib:
+            matrices.extendleft(transform_to_matrices(current.attrib["transform"])[::-1])
+        current = current.getparent()
+        if current is None:
+            break
+    if len(matrices) == 0:
+        # no transforms is an identity matrix
+        return _IDENTITY
+    elif len(matrices) == 1:
+        return matrices[0]
+    else:
+        # evaluate the transforms in the order they were passed
+        # as this is what the SVG spec says you should do
+        return util.multi_dot(matrices)
 
 
 def transform_to_matrices(transform: str) -> NDArray[np.float64]:
@@ -288,9 +291,9 @@ def _svg_path_convert(paths: Iterable, shapes: Iterable, force=None):
         "QuadraticBezier": load_quadratic,
     }
 
-    entities = collections.defaultdict(list)
-    vertices = collections.defaultdict(list)
-    counts = collections.defaultdict(lambda: 0)
+    entities = defaultdict(list)
+    vertices = defaultdict(list)
+    counts = defaultdict(lambda: 0)
 
     for attrib, matrix in paths:
         # the path string is stored under `d`

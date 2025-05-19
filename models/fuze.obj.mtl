@@ -3,7 +3,7 @@
 # Converted by Meshlab Group
 #
 
-newmtl material_0
+newmtl	a-super-duper-material		
 Ka 0.200000 0.200000 0.200000
 Kd 1.000000 1.000000 1.000000
 Ks 1.000000 1.000000 1.000000
