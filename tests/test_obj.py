@@ -552,5 +552,14 @@ def test_material_name():
     g.check_fuze(roundtrip)
 
 
+def test_obj_quad_uv():
+    # check that the quads with UV's get translated
+    m = g.get_mesh("quadknot.obj")
+
+    assert m.visual.uv.shape[0] == len(m.vertices)
+    assert g.np.isclose(m.visual.uv.max(), 0.1)
+
+
 if __name__ == "__main__":
-    test_material_name()
+    # test_material_name()
+    test_obj_quad_uv()
