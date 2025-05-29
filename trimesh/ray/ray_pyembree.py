@@ -329,7 +329,7 @@ class RayMeshIntersector:
 
     def __copy__(self, *args):
         return RayMeshIntersector(
-            geometry=self.mesh.copy(), scale_to_box=self._scale_to_box
+            geometry=self.mesh, scale_to_box=self._scale_to_box
         )
 
 
