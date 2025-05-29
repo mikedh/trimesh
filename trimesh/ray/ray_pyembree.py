@@ -328,9 +328,7 @@ class RayMeshIntersector:
         return self.__copy__()
 
     def __copy__(self, *args):
-        return RayMeshIntersector(
-            geometry=self.mesh, scale_to_box=self._scale_to_box
-        )
+        return RayMeshIntersector(geometry=self.mesh, scale_to_box=self._scale_to_box)
 
 
 class _EmbreeWrap:
