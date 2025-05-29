@@ -68,15 +68,15 @@ def test_obj_groups():
 
 def test_obj_negative_indices():
     # a wavefront file with negative indices
-    mesh = g.get_mesh("negative_indices.obj")
+    mesh = g.get_mesh("negative_indices.obj", merge_tex=True, merge_norm=True)
 
     # make sure some data got loaded
-    assert g.trimesh.util.is_shape(mesh.faces, (12, 3))
-    assert g.trimesh.util.is_shape(mesh.vertices, (8, 3))
+    assert mesh.faces.shape == (12, 3)
+    assert mesh.vertices.shape == (8, 3)
 
 
 def test_obj_quad():
-    mesh = g.get_mesh("quadknot.obj")
+    mesh = g.get_mesh("quadknot.obj", merge_tex=True)
     # make sure some data got loaded
     assert g.trimesh.util.is_shape(mesh.faces, (-1, 3))
     assert g.trimesh.util.is_shape(mesh.vertices, (-1, 3))
