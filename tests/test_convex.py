@@ -9,7 +9,7 @@ class ConvexTest(g.unittest.TestCase):
         # store (true is_convex, mesh) tuples
         meshes = [
             (False, g.get_mesh("featuretype.STL")),
-            (False, g.get_mesh("quadknot.obj")),
+            (False, g.get_mesh("quadknot.obj", merge_tex=True)),
             (True, g.get_mesh("unit_cube.STL")),
             (False, g.get_mesh("1002_tray_bottom.STL")),
             (True, g.trimesh.creation.icosphere()),

@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.8"
-version = "4.6.10"
+version = "4.6.11"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -89,13 +89,11 @@ easy = [
 recommend = [
     "sympy",
     "meshio",
-    # "xatlas",
     "pyglet<2",
     "psutil",
     "scikit-image",
     "fast-simplification",
     "python-fcl", # do collision checks
-    "openctm; platform_machine=='x86_64'", # load `CTM` compressed models
     "cascadio", # load `STEP` files
 ]
 
@@ -115,6 +113,7 @@ test_more = [
     "coveralls",
     "pyright",
     "ezdxf",
+    "xatlas",
     "pytest-beartype; python_version>='3.10'",
     "matplotlib",
     "pymeshlab",
@@ -123,8 +122,9 @@ test_more = [
     "marimo",
 ]
 
-# interfaces.gmsh will be dropped Jan 2025
-deprecated = ["gmsh==4.12.2"]
+# interfaces.gmsh will be dropped sometime after January 2025
+# openctm will be fully removed sometime after June 2026
+deprecated = ["gmsh==4.12.2","openctm"]
 
 # requires pip >= 21.2
 # https://hynek.me/articles/python-recursive-optional-dependencies/

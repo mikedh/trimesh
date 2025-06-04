@@ -68,15 +68,15 @@ def test_obj_groups():
 
 def test_obj_negative_indices():
     # a wavefront file with negative indices
-    mesh = g.get_mesh("negative_indices.obj")
+    mesh = g.get_mesh("negative_indices.obj", merge_tex=True, merge_norm=True)
 
     # make sure some data got loaded
-    assert g.trimesh.util.is_shape(mesh.faces, (12, 3))
-    assert g.trimesh.util.is_shape(mesh.vertices, (8, 3))
+    assert mesh.faces.shape == (12, 3)
+    assert mesh.vertices.shape == (8, 3)
 
 
 def test_obj_quad():
-    mesh = g.get_mesh("quadknot.obj")
+    mesh = g.get_mesh("quadknot.obj", merge_tex=True)
     # make sure some data got loaded
     assert g.trimesh.util.is_shape(mesh.faces, (-1, 3))
     assert g.trimesh.util.is_shape(mesh.vertices, (-1, 3))
@@ -552,5 +552,14 @@ def test_material_name():
     g.check_fuze(roundtrip)
 
 
+def test_obj_quad_uv():
+    # check that the quads with UV's get translated
+    m = g.get_mesh("quadknot.obj")
+
+    assert m.visual.uv.shape[0] == len(m.vertices)
+    assert g.np.isclose(m.visual.uv.max(), 0.1)
+
+
 if __name__ == "__main__":
-    test_material_name()
+    # test_material_name()
+    test_obj_quad_uv()
