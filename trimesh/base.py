@@ -1437,6 +1437,21 @@ class Trimesh(Geometry3D):
         # find the angle between the pairs of vectors
         angles = geometry.vector_angle(pairs)
         return angles
+    
+    @cache_decorator
+    def face_adjacency_angles_with_sign(self) -> NDArray[float64]:
+        """
+        Return the signed angle between adjacent faces
+
+        Returns
+        --------
+        adjacency_angle : (n, ) float
+          Angle between adjacent faces
+          Each value corresponds with self.face_adjacency
+        """
+        # find the angle between the pairs of vectors
+        angles = geometry.vector_angle_with_sign(self)
+        return angles
 
     @cache_decorator
     def face_adjacency_projections(self) -> NDArray[float64]:
@@ -1523,7 +1538,7 @@ class Trimesh(Geometry3D):
         edges_length = np.linalg.norm(
             np.subtract(*self.vertices[self.face_adjacency_edges.T]), axis=1
         )
-        return (self.face_adjacency_angles * edges_length).sum() * 0.5
+        return (self.face_adjacency_angles_with_sign * edges_length).sum() * 0.5
 
     @cache_decorator
     def vertex_adjacency_graph(self) -> Graph:
