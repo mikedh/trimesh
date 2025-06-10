@@ -38,6 +38,19 @@ class IntegralMeanCurvatureTest(g.unittest.TestCase):
             ref = 4 * extent.sum() * g.np.pi / 2 * 0.5
             assert g.np.isclose(IMC, ref, rtol=tol)
 
+    def test_IMCtorus(self):
+        # how close do we need to be - relative tolerance
+        tol = 1e-2
+        r = 1.1
+        for aspect_ratio in [1.1, 2.1, 4.0, 10.0]:
+            R = r * aspect_ratio
+            m = g.trimesh.creation.torus(
+                major_radius=R, minor_radius=r, major_sections=100, minor_sections=100
+            )
+            IMC = m.integral_mean_curvature
+            ref = 2 * (g.np.pi**2) * R
+            assert g.np.isclose(IMC, ref, rtol=tol)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

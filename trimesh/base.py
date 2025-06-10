@@ -1437,7 +1437,7 @@ class Trimesh(Geometry3D):
         # find the angle between the pairs of vectors
         angles = geometry.vector_angle(pairs)
         return angles
-    
+
     @cache_decorator
     def face_adjacency_angles_with_sign(self) -> NDArray[float64]:
         """

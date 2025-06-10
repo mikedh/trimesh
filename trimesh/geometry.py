@@ -146,6 +146,7 @@ def vector_angle(pairs):
 
     return angles
 
+
 def vector_angle_with_sign(mesh):
     """
     Find the signed angles between between adjacent face normals in a mesh.
