@@ -731,9 +731,8 @@ class Path(parent.Geometry):
         """
         return export_path(self, file_type=file_type, file_obj=file_obj, **kwargs)
 
-    def to_dict(self):
-        export_dict = self.export(file_type="dict")
-        return export_dict
+    def to_dict(self) -> dict:
+        return self.export(file_type="dict")
 
     def copy(self):
         """
