@@ -147,59 +147,6 @@ def vector_angle(pairs):
     return angles
 
 
-def vector_angle_with_sign(mesh):
-    """
-    Find the signed angles between between adjacent face normals in a mesh.
-
-    Parameters
-    ----------
-    mesh : Trimesh
-      Source geometry to alter in-place.
-
-    Returns
-    ----------
-    angles : (n,) float
-      Angles with sign between vectors in radians
-    """
-    # Get adjacent face indices and shared edges
-    face_adjacency = mesh.face_adjacency
-
-    # Normals of adjacent triangles
-    normals = mesh.face_normals
-    pairs = normals[face_adjacency]
-    n1 = normals[face_adjacency[:, 0]]
-    n2 = normals[face_adjacency[:, 1]]
-
-    # COMs (centroids) of adjacent triangles
-    centers = mesh.triangles_center
-    c1 = centers[face_adjacency[:, 0]]
-    c2 = centers[face_adjacency[:, 1]]
-
-    pairs = np.asanyarray(pairs, dtype=np.float64)
-    if len(pairs) == 0:
-        return np.array([])
-    elif util.is_shape(pairs, (2, 3)):
-        pairs = pairs.reshape((-1, 2, 3))
-    elif not util.is_shape(pairs, (-1, 2, (2, 3))):
-        raise ValueError("pairs must be (n,2,(2|3))!")
-
-    # do the dot product between vectors
-    dots = util.diagonal_dot(pairs[:, 0], pairs[:, 1])
-    # clip for floating point error
-    dots = np.clip(dots, -1.0, 1.0)
-    # do cos and remove arbitrary sign
-    angles = np.abs(np.arccos(dots))
-
-    # Use geometric heuristic to determine sign
-    convex_vec = (c1 + n1) - (c2 + n2)
-    concave_vec = (c1 - n1) - (c2 - n2)
-
-    is_concave = np.linalg.norm(convex_vec, axis=1) < np.linalg.norm(concave_vec, axis=1)
-    angles[is_concave] *= -1  # Make angle negative for concave cases
-
-    return angles
-
-
 def triangulate_quads(quads, dtype=np.int64) -> NDArray:
     """
     Given an array of quad faces return them as triangle faces,
