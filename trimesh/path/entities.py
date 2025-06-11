@@ -78,7 +78,7 @@ class Entity(ABC):
         """
         self.metadata["layer"] = value
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """
         Returns a dictionary with all of the information
         about the entity.
@@ -566,6 +566,25 @@ class Line(Entity):
         else:
             return b"Line" + self.points[::-1].tobytes()
 
+    def to_dict(self) -> dict:
+        """
+        Returns a dictionary with all of the information
+        about the Line. `closed` is not additional information
+        for a Line like it is for Arc where the value determines
+        if it is a partial or complete circle. Rather it is a check
+        which indicates the first and last points are identical,
+        and thus should not be included in the export
+
+        Returns
+        -----------
+        as_dict
+          Has keys 'type', 'points'
+        """
+        return {
+            "type": self.__class__.__name__,
+            "points": self.points.tolist(),
+        }
+
 
 class Arc(Entity):
     @property
@@ -789,7 +808,7 @@ class BSpline(Curve):
         else:
             return b"BSpline" + self.knots[::-1].tobytes() + self.points[::-1].tobytes()
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """
         Returns a dictionary with all of the information
         about the entity.

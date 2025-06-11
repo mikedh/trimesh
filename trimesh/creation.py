@@ -1021,9 +1021,9 @@ def cone(
     Parameters
     ----------
     radius : float
-      The radius of the cylinder
+      The radius of the cone at the widest part.
     height : float
-      The height of the cylinder
+      The height of the cone.
     sections : int or None
       How many pie wedges per revolution
     transform : (4, 4) float or None
