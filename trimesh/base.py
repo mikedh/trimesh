@@ -1523,7 +1523,11 @@ class Trimesh(Geometry3D):
         edges_length = np.linalg.norm(
             np.subtract(*self.vertices[self.face_adjacency_edges.T]), axis=1
         )
-        return (self.face_adjacency_angles * edges_length).sum() * 0.5
+        # assign signs based on convex adjacency of face pairs
+        signs = np.array([-1.0, 1.0])[self.face_adjacency_convex.astype(np.int64)]
+        # adjust face adjacency angles with signs to reflect orientation
+        angles = self.face_adjacency_angles * signs
+        return (angles * edges_length).sum() * 0.5
 
     @cache_decorator
     def vertex_adjacency_graph(self) -> Graph:
