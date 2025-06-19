@@ -201,6 +201,17 @@ def test_poly():
     assert len(p.layers) == len(p.entities)
     assert len(set(p.layers)) > 1
 
+    # check copy with layer specified
+    unique = set(p.layers)
+    assert len(unique) > 1
+    for u in unique:
+        a = p.copy(layers={u})
+        assert len(a.entities) > 0
+        assert p.layers.count(u) == len(a.entities)
+        assert len(a.entities) < len(p.layers)
+        assert all(e.layer == u for e in a.entities)
+
+    # try exploding
     count = len(p.entities)
 
     p.explode()
@@ -450,4 +461,5 @@ if __name__ == "__main__":
     # g.unittest.main()
 
     # test_path_to_gltf_with_arc()
-    test_path_dict_export()
+    # test_path_dict_export()
+    test_poly()
