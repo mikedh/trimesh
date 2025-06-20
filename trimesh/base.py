@@ -1424,13 +1424,26 @@ class Trimesh(Geometry3D):
     @cache_decorator
     def face_adjacency_angles(self) -> NDArray[float64]:
         """
-        Return the angle between adjacent faces
+        Return the unsigned angle between adjacent faces
+        in radians.
+
+        Note that if you want a signed angle you can easily
+        use the `face_adjacency_convex` attribute to get a
+        signed angle with advanced indexing:
+
+        ```
+        # get a sign per face_adacency pair from the "is it convex" boolean
+        signs = np.array([-1.0, 1.0])[mesh.face_adjacency_convex.astype(np.int64)]
+
+        # apply the signs to the angles
+        angles = mesh.face_adjacency_angles * signs
+        ```
 
         Returns
         --------
-        adjacency_angle : (n, ) float
-          Angle between adjacent faces
-          Each value corresponds with self.face_adjacency
+        adjacency_angle : (len(self.face_adjacency), ) float
+          Unsigned angle between adjacent faces
+          corresponding with `self.face_adjacency`
         """
         # get pairs of unit vectors for adjacent faces
         pairs = self.face_normals[self.face_adjacency]
