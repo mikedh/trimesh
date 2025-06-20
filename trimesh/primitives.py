@@ -16,7 +16,7 @@ from . import caching, creation, inertia, sample, triangles, util
 from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
-from .typed import ArrayLike, Integer, Number, Optional
+from .typed import ArrayLike, Integer, NDArray, Number, Optional
 
 # immutable identity matrix for checks
 _IDENTITY = np.eye(4)
@@ -879,7 +879,14 @@ class Box(Primitive):
 
 
 class Extrusion(Primitive):
-    def __init__(self, polygon=None, transform=None, height=1.0, mutable=True):
+    def __init__(
+        self,
+        polygon=None,
+        transform: Optional[NDArray[np.float64]] = None,
+        height: Number = 1.0,
+        mutable: bool = True,
+        mid_plane: bool = False,
+    ):
         """
         Create an Extrusion primitive, which
         is a subclass of Trimesh.
@@ -906,6 +913,14 @@ class Extrusion(Primitive):
             "transform": np.eye(4),
             "height": 1.0,
         }
+
+        if mid_plane:
+            translation = np.eye(4)
+            translation[2, 3] = abs(float(height)) / -2.0
+            if transform is None:
+                transform = translation
+            else:
+                transform = np.dot(translation, transform)
 
         self.primitive = PrimitiveAttributes(
             self,
