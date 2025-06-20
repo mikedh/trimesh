@@ -734,9 +734,15 @@ class Path(parent.Geometry):
     def to_dict(self) -> dict:
         return self.export(file_type="dict")
 
-    def copy(self, layers: None | str | Iterable[str | None] = None):
+    def copy(self, layers=None):
         """
         Get a copy of the current mesh
+
+        Parameters
+        ------------
+        layers
+          If passed an iterable of layer names which will
+          only include those layers in the copy of the path.
 
         Returns
         ---------
