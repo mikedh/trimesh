@@ -4,7 +4,7 @@ except BaseException:
     import generic as g
 
 
-def generate_primitives() -> list[g.trimesh.primitives.Primitive]:
+def generate_primitives():
     primitives = []
 
     # do it with a flag in case there is more than one ImportError
