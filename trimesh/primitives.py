@@ -16,7 +16,7 @@ from . import caching, creation, inertia, sample, triangles, util
 from . import transformations as tf
 from .base import Trimesh
 from .constants import log, tol
-from .typed import ArrayLike, Integer, NDArray, Number, Optional
+from .typed import ArrayLike, Integer, Number, Optional
 
 # immutable identity matrix for checks
 _IDENTITY = np.eye(4)
@@ -882,7 +882,7 @@ class Extrusion(Primitive):
     def __init__(
         self,
         polygon=None,
-        transform: Optional[NDArray[np.float64]] = None,
+        transform: Optional[ArrayLike] = None,
         height: Number = 1.0,
         mutable: bool = True,
         mid_plane: bool = False,

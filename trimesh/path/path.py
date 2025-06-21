@@ -734,7 +734,7 @@ class Path(parent.Geometry):
     def to_dict(self) -> dict:
         return self.export(file_type="dict")
 
-    def copy(self, layers=None):
+    def copy(self, layers: Union[str, None, Iterable[Union[str, None]]] = None):
         """
         Get a copy of the current mesh
 
