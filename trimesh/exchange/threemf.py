@@ -178,7 +178,8 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
             "faces": f,
             "metadata": metadata.copy(),
         }
-        meshes[name].update(kwargs)
+        # apply any keyword arguments that aren't None
+        meshes[name].update({k: v for k, v in kwargs.items() if v is not None})
 
     # turn the item / component representation into
     # a MultiDiGraph to compound our pain
