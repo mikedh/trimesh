@@ -199,6 +199,9 @@ True
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
+from .typed import Integer, Number, Optional
+
+# a cached immutable identity matrix provides a speedup sometimes
 _IDENTITY = np.eye(4)
 _IDENTITY.flags["WRITEABLE"] = False
 
@@ -1594,12 +1597,22 @@ def random_quaternion(rand=None, num=1):
     ).T.squeeze()
 
 
-def random_rotation_matrix(rand=None, num=1, translate=False):
-    """Return uniform random rotation matrix.
+def random_rotation_matrix(
+    rand: Optional[ArrayLike] = None, num: Integer = 1, translate: Optional[Number] = None
+):
+    """
+    Return uniform random rotation matrix.
 
-    rand: array like
-        Three independent random variables that are uniformly distributed
-        between 0 and 1 for each returned quaternion.
+    Parameters
+    ------------
+    rand : (3,)
+      Three independent random variables that are uniformly distributed
+      between 0 and 1 for each returned quaternion.
+    num
+      Number of matrices to return.
+    translate
+      If passed the rotation matrix will include translation
+      that is random and between positive and negative half this value.
 
     >>> R = random_rotation_matrix()
     >>> np.allclose(np.dot(R.T, R), np.identity(4))
@@ -1611,8 +1624,9 @@ def random_rotation_matrix(rand=None, num=1, translate=False):
     """
     matrix = quaternion_matrix(random_quaternion(rand=rand, num=num))
     if translate:
-        scale = float(translate)
-        matrix[:3, 3] = (np.random.random(3) - 0.5) * scale
+        # apply random translation with the order of magnitude requested
+        matrix[:3, 3] = (np.random.random(3) - 0.5) * float(translate)
+
     return matrix
 
 

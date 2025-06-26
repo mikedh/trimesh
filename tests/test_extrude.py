@@ -91,6 +91,23 @@ class ExtrudeTest(g.unittest.TestCase):
         assert mesh.is_watertight
 
 
+def test_extrude_mid_plane():
+    # check to make sure a mid-plane extrusion
+    # is actually being done correctly.
+    from shapely.geometry import Point
+
+    for tf in g.random_transforms(100):
+        # extrude a cylinder with a random transform
+        m = g.trimesh.primitives.Extrusion(
+            polygon=Point([0, 0]).buffer(1.0), height=10.0, transform=tf, mid_plane=True
+        )
+
+        # the mesh center of mass should be independant
+        # of rotation and exactly at the translation
+        center = m.to_mesh().center_mass
+        translate = tf[:3, 3]
+        assert g.np.allclose(translate, center)
+
+
 if __name__ == "__main__":
-    g.trimesh.util.attach_to_log()
-    g.unittest.main()
+    test_extrude_mid_plane()

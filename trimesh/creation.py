@@ -208,7 +208,11 @@ def revolve(
 
 
 def extrude_polygon(
-    polygon: "Polygon", height: Number, transform: Optional[ArrayLike] = None, **kwargs
+    polygon: "Polygon",
+    height: Number,
+    transform: Optional[ArrayLike] = None,
+    mid_plane: bool = False,
+    **kwargs,
 ) -> Trimesh:
     """
     Extrude a 2D shapely polygon into a 3D mesh
@@ -233,6 +237,15 @@ def extrude_polygon(
     """
     # create a triangulation from the polygon
     vertices, faces = triangulate_polygon(polygon, **kwargs)
+
+    if mid_plane:
+        translation = np.eye(4)
+        translation[2, 3] = abs(float(height)) / -2.0
+        if transform is None:
+            transform = translation
+        else:
+            transform = np.dot(transform, translation)
+
     # extrude that triangulation along Z
     mesh = extrude_triangulation(
         vertices=vertices, faces=faces, height=height, transform=transform, **kwargs
