@@ -7,8 +7,8 @@ those stored in a DXF or SVG file.
 """
 
 import collections
-import copy
 import warnings
+from copy import deepcopy
 from hashlib import sha256
 
 import numpy as np
@@ -734,9 +734,15 @@ class Path(parent.Geometry):
     def to_dict(self) -> dict:
         return self.export(file_type="dict")
 
-    def copy(self):
+    def copy(self, layers: Union[str, None, Iterable[Union[str, None]]] = None):
         """
         Get a copy of the current mesh
+
+        Parameters
+        ------------
+        layers
+          If passed an iterable of layer names which will
+          only include those layers in the copy of the path.
 
         Returns
         ---------
@@ -749,18 +755,35 @@ class Path(parent.Geometry):
         # in another thread it probably doesn't stomp on our loop
         for key in list(self.metadata.keys()):
             try:
-                metadata[key] = copy.deepcopy(self.metadata[key])
+                metadata[key] = deepcopy(self.metadata[key])
             except RuntimeError:
                 # multiple threads
                 log.warning(f"key {key} changed during copy")
 
+        if layers is not None:
+            # get layers as a set for in-loop checks
+            if isinstance(layers, str):
+                # the `set` constructor would split in to char
+                layers = {layers}
+            else:
+                # a set of strings
+                layers = set(layers)
+            # cherry pick the entities we want
+            entities = [e for e in self.entities if e.layer in layers]
+        else:
+            entities = self.entities
+
         # copy the core data
         copied = type(self)(
-            entities=copy.deepcopy(self.entities),
-            vertices=copy.deepcopy(self.vertices),
+            entities=deepcopy(entities),
+            vertices=deepcopy(self.vertices),
             metadata=metadata,
             process=False,
         )
+
+        # skip the cache wangling for a subset copy
+        if layers is not None:
+            return copied
 
         cache = {}
         # try to copy the cache over to the new object
@@ -769,7 +792,7 @@ class Path(parent.Geometry):
             keys = list(self._cache.cache.keys())
             # run through each key and copy into new cache
             for k in keys:
-                cache[k] = copy.deepcopy(self._cache.cache[k])
+                cache[k] = deepcopy(self._cache.cache[k])
         except RuntimeError:
             # if we have multiple threads this may error and is NBD
             log.debug("unable to copy cache")
@@ -920,14 +943,14 @@ class Path3D(Path):
             to_3D = np.dot(to_3D, adjust)
 
         # copy metadata to new object
-        metadata = copy.deepcopy(self.metadata)
+        metadata = deepcopy(self.metadata)
         # store transform we used to move it onto the plane
         metadata["to_3D"] = to_3D
 
         # create the Path2D with the same entities
         # and XY values of vertices projected onto the plane
         planar = Path2D(
-            entities=copy.deepcopy(self.entities),
+            entities=deepcopy(self.entities),
             vertices=flat[:, :2],
             metadata=metadata,
             process=False,
@@ -1125,15 +1148,15 @@ class Path2D(Path):
 
         # copy vertices and stack with zeros from (n, 2) to (n, 3)
         vertices = np.column_stack(
-            (copy.deepcopy(self.vertices), np.zeros(len(self.vertices)))
+            (deepcopy(self.vertices), np.zeros(len(self.vertices)))
         )
         if transform is not None:
             vertices = tf.transform_points(vertices, transform)
         # make sure everything is deep copied
         path_3D = Path3D(
-            entities=copy.deepcopy(self.entities),
+            entities=deepcopy(self.entities),
             vertices=vertices,
-            metadata=copy.deepcopy(self.metadata),
+            metadata=deepcopy(self.metadata),
         )
         return path_3D
 

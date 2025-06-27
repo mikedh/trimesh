@@ -592,42 +592,6 @@ def _data_append(acc: OrderedDict, buff: OrderedDict, blob: dict, data: NDArray)
     return len(acc) - 1
 
 
-def _mesh_to_material(mesh, metallic=0.0, rough=0.0):
-    """
-    Create a simple GLTF material for a mesh using the most
-    commonly occurring color in that mesh.
-
-    Parameters
-    ------------
-    mesh: trimesh.Trimesh
-      Mesh to create a material from
-
-    Returns
-    ------------
-    material: dict
-      In GLTF material format
-    """
-
-    try:
-        # just get the most commonly occurring color
-        color = mesh.visual.main_color
-    except BaseException:
-        color = np.array([100, 100, 100, 255], dtype=np.uint8)
-
-    # convert uint color to 0.0-1.0 float color
-    color = color.astype(float32) / np.iinfo(color.dtype).max
-
-    material = {
-        "pbrMetallicRoughness": {
-            "baseColorFactor": color.tolist(),
-            "metallicFactor": metallic,
-            "roughnessFactor": rough,
-        }
-    }
-
-    return material
-
-
 def _jsonify(blob):
     """
     Roundtrip a blob through json export-import cycle
