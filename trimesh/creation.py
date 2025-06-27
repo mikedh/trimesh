@@ -973,7 +973,8 @@ def capsule(
     radius: Number = 1.0,
     count: Optional[ArrayLike] = None,
     transform: Optional[ArrayLike] = None,
-):
+    **kwargs,
+) -> Trimesh:
     """
     Create a mesh of a capsule, or a cylinder with hemispheric ends.
 
@@ -1018,6 +1019,7 @@ def capsule(
         sections=count[1],
         transform=transform,
         metadata={"shape": "capsule", "height": height, "radius": radius},
+        **kwargs,
     )
 
 
