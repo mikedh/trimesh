@@ -73,6 +73,7 @@ easy = [
     "jsonschema",
     "networkx",
     "svg.path",
+    "pycollada <= 0.9.0; python_version<'3.9'",
     "pycollada; python_version>='3.9'",
     "shapely",
     "xxhash",
