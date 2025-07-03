@@ -1,4 +1,3 @@
-from . import blender, gmsh
+from . import blender
 
-# add to __all__ as per pep8
-__all__ = ["blender", "gmsh"]
+__all__ = ["blender"]
