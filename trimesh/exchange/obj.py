@@ -425,7 +425,7 @@ def _parse_faces_vectorized(array, columns, sample_line):
     # TODO: probably need to support 8 and 12 columns for quads
     # or do something more general
     faces_tex, faces_norm = None, None
-    if columns == 6:
+    if columns == group_count * 2:
         # if we have two values per vertex the second
         # one is index of texture coordinate (`vt`)
         # count how many delimiters are in the first face line
@@ -444,24 +444,11 @@ def _parse_faces_vectorized(array, columns, sample_line):
             faces_tex = array[:, index + 1]
         else:
             log.debug(f"face lines are weird: {sample_line}")
-    elif columns == 9:
+    elif columns == group_count * 3:
         # if we have three values per vertex
         # second value is always texture
         faces_tex = array[:, index + 1]
         # third value is reference to vertex normal (`vn`)
-        faces_norm = array[:, index + 2]
-    elif columns == 8:
-        # handle quad faces with vertex/texture format
-        # case where each face line looks like:
-        # '75/139 76/141 77/141 78/142'
-        # which is vertex/texture for quads
-        faces_tex = array[:, index + 1]
-    elif columns == 12:
-        # handle quad faces with vertex/texture/normal format
-        # case where each face line looks like:
-        # '75/139/1 76/141/2 77/141/3 78/142/4'
-        # which is vertex/texture/normal for quads
-        faces_tex = array[:, index + 1]
         faces_norm = array[:, index + 2]
     return faces, faces_tex, faces_norm
 
