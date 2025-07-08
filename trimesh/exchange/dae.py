@@ -327,7 +327,13 @@ def _parse_material(effect, resolver):
         not isinstance(effect.shininess, collada.material.Map)
         and effect.shininess is not None
     ):
-        roughnessFactor = np.sqrt(2.0 / (2.0 + effect.shininess))
+        try:
+            shininess_value = float(effect.shininess)
+            roughnessFactor = np.sqrt(2.0 / (2.0 + shininess_value))
+        except (TypeError, ValueError):
+            log.warning(
+                f"Invalid shininess value: {effect.shininess}, using default roughness"
+            )
 
     # Compute metallic factor
     metallicFactor = 0.0

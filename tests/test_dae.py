@@ -88,6 +88,14 @@ class DAETest(g.unittest.TestCase):
         # this will compare everything in `material._data`
         assert hash(m.visual.material) == hash(r.visual.material)
 
+    def test_invalid_shininess(self):
+        s = g.get_mesh("cube_invalid_shininess.dae")
+        assert len(s.geometry) == 1
+        m = next(iter(s.geometry.values()))
+
+        # test fallback to default roughness
+        assert m.visual.material.roughnessFactor == 1.0
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
