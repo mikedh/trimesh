@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.8"
-version = "4.6.13"
+version = "4.7.0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -73,7 +73,8 @@ easy = [
     "jsonschema",
     "networkx",
     "svg.path",
-    "pycollada",
+    "pycollada <= 0.9.0; python_version<'3.9'",
+    "pycollada; python_version>='3.9'",
     "shapely",
     "xxhash",
     "rtree",
@@ -122,9 +123,8 @@ test_more = [
     "marimo",
 ]
 
-# interfaces.gmsh will be dropped sometime after January 2025
 # openctm will be fully removed sometime after June 2026
-deprecated = ["gmsh==4.12.2","openctm"]
+deprecated = ["openctm"]
 
 # requires pip >= 21.2
 # https://hynek.me/articles/python-recursive-optional-dependencies/
@@ -175,10 +175,3 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"
 ignore-words-list = "nd,coo,whats,bu,childs,mis,filetests"
-
-[tool.mypy]
-python_version = "3.8"
-ignore_missing_imports = true
-disallow_untyped_defs = false
-disallow_untyped_calls = false
-disable_error_code = ["method-assign", "var-annotated"]
