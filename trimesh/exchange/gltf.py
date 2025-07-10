@@ -1692,17 +1692,16 @@ def _read_buffers(
     # the mutated dict in every loop
     name_index = {}
     name_counts = {}
+
+    # make sure we have a unique base frame name
+    base_frame = "world"
+    name_index[base_frame] = base_frame
+
     for i, n in enumerate(nodes):
         name_index[unique_name(n.get("name", str(i)), name_index, counts=name_counts)] = i
     # invert the dict so we can look up by index
     # node index (int) : name (str)
     names = {v: k for k, v in name_index.items()}
-
-    # make sure we have a unique base frame name
-    base_frame = "world"
-    if base_frame in names:
-        base_frame = str(int(np.random.random() * 1e10))
-    names[base_frame] = base_frame
 
     # visited, kwargs for scene.graph.update
     graph = deque()
