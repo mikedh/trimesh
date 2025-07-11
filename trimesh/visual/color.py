@@ -577,6 +577,9 @@ def to_rgba(colors: Any, dtype: DTypeLike = np.uint8) -> NDArray:
     """
     if colors is None:
         return DEFAULT_COLOR
+    # if MTL uses 0 as None
+    if isinstance(colors, (int, float)) and colors == 0:
+        return DEFAULT_COLOR
 
     # colors as numpy array
     colors = np.asanyarray(colors)
