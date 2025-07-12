@@ -54,6 +54,7 @@ from .typed import (
     Optional,
     Sequence,
     Union,
+    ViewerType,
 )
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
@@ -2757,7 +2758,7 @@ class Trimesh(Geometry3D):
 
     def show(
         self,
-        viewer=None,
+        viewer: ViewerType = None,
         **kwargs,
     ):
         """

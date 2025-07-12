@@ -58,6 +58,9 @@ Floating = Union[float, floating]
 # is an integer or a floating point input.
 Number = Union[Floating, Integer]
 
+# the literals for specifying what viewer to use
+ViewerType = Union[None, Callable, Literal["gl", "jupyter", "marimo"]]
+
 __all__ = [
     "IO",
     "Any",
@@ -80,6 +83,7 @@ __all__ = [
     "Set",
     "Stream",
     "Tuple",
+    "ViewerType",
     "float64",
     "int64",
 ]

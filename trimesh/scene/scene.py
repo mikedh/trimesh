@@ -5,8 +5,6 @@ from copy import deepcopy
 from hashlib import sha256
 
 # ruff doesn't recognize this correctly when we re-import it from trimesh.typed -_-
-from typing import Literal
-
 import numpy as np
 
 from .. import caching, convex, grouping, inertia, transformations, units, util
@@ -16,7 +14,6 @@ from ..parent import Geometry, Geometry3D
 from ..registration import procrustes
 from ..typed import (
     ArrayLike,
-    Callable,
     Dict,
     Floating,
     Integer,
@@ -27,6 +24,7 @@ from ..typed import (
     Sequence,
     Tuple,
     Union,
+    ViewerType,
     float64,
     int64,
 )
@@ -1352,7 +1350,7 @@ class Scene(Geometry3D):
 
     def show(
         self,
-        viewer: Union[None, Callable, Literal["gl", "jupyter", "marimo"]] = None,
+        viewer: ViewerType = None,
         **kwargs,
     ):
         """
