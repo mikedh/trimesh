@@ -19,8 +19,13 @@ try:
     # Python 3
     from urllib.parse import urlparse
 except ImportError:
-    # Python 2
-    from urlparse import urlparse
+    # Python 2 - should not happen in modern Python
+    try:
+        from urlparse import urlparse  # type: ignore
+    except ImportError:
+        # fallback if urlparse doesn't exist
+        def urlparse(url):  # type: ignore
+            return None
 
 
 class Resolver(util.ABC):
@@ -227,7 +232,7 @@ class ZipResolver(Resolver):
             self.archive = {}
         self.archive[key] = value
 
-    def get(self, name: str) -> bytes:
+    def get(self, name: str) -> Optional[bytes]:
         """
         Get an asset from the ZIP archive.
 

@@ -5,7 +5,12 @@ raster.py
 Turn 2D vector paths into raster images using `pillow`
 """
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from .path import Path2D
 
 try:
     # keep pillow as a soft dependency
@@ -23,7 +28,7 @@ from ..typed import ArrayLike, Floating, Optional, Union
 
 
 def rasterize(
-    path: "trimesh.path.Path2D",  # noqa
+    path: "Path2D",  # noqa
     pitch: Union[Floating, ArrayLike, None] = None,
     origin: Optional[ArrayLike] = None,
     resolution=None,

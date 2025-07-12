@@ -9,7 +9,9 @@ except ImportError as E:
     from .exceptions import ExceptionWrapper
 
     wrapper = ExceptionWrapper(E)
-    eye, spsolve, coo_matrix = wrapper, wrapper, wrapper
+    eye: type = wrapper  # type: ignore
+    spsolve: type = wrapper  # type: ignore
+    coo_matrix: type = wrapper  # type: ignore
 
 from . import graph, triangles
 from .base import Trimesh

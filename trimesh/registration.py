@@ -22,8 +22,8 @@ except BaseException as E:
     # will raise the error when someone tries to use KDtree
     from . import exceptions
 
-    cKDTree = exceptions.ExceptionWrapper(E)
-    sparse = exceptions.ExceptionWrapper(E)
+    cKDTree: type = exceptions.ExceptionWrapper(E)  # type: ignore
+    sparse: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 
 def mesh_other(

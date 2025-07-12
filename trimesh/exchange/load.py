@@ -31,7 +31,7 @@ try:
     from ..path.exchange.load import load_path, path_formats
 except BaseException as E:
     # save a traceback to see why path didn't import
-    load_path = ExceptionWrapper(E)
+    load_path: type = ExceptionWrapper(E)  # type: ignore
 
     # no path formats available
     def path_formats() -> set:

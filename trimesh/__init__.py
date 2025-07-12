@@ -72,14 +72,14 @@ try:
     from . import path
 except BaseException as E:
     # raise a useful error if path hasn't loaded
-    path = exceptions.ExceptionWrapper(E)
+    path: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 
 try:
     from . import voxel
 except BaseException as E:
     # requires non-minimal imports
-    voxel = exceptions.ExceptionWrapper(E)
+    voxel: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 
 __all__ = [

@@ -7,6 +7,7 @@ Library for importing, exporting and doing simple operations on triangular meshe
 
 import copy
 import warnings
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy import float64, int64, ndarray
@@ -58,27 +59,41 @@ from .typed import (
 )
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
+if TYPE_CHECKING:
+    from scipy.sparse import coo_matrix as COOMatrix
+    from scipy.spatial import KDTree
+    from networkx import Graph as NetworkXGraph
+    from rtree.index import Index as RTreeIndex
+    from .path.path import Path2D, Path3D
+else:
+    COOMatrix = "COOMatrix"
+    KDTree = "KDTree"
+    NetworkXGraph = "NetworkXGraph"
+    RTreeIndex = "RTreeIndex"
+    Path2D = "Path2D"
+    Path3D = "Path3D"
+
 try:
     from scipy.sparse import coo_matrix
-    from scipy.spatial import cKDTree
+    from scipy.spatial import KDTree as cKDTree
 except BaseException as E:
-    cKDTree = ExceptionWrapper(E)
-    coo_matrix = ExceptionWrapper(E)
+    cKDTree: type = ExceptionWrapper(E)  # type: ignore
+    coo_matrix: type = ExceptionWrapper(E)  # type: ignore
 try:
     from networkx import Graph
 except BaseException as E:
-    Graph = ExceptionWrapper(E)
+    Graph: type = ExceptionWrapper(E)  # type: ignore
 
 try:
     from rtree.index import Index
 except BaseException as E:
-    Index = ExceptionWrapper(E)
+    Index: type = ExceptionWrapper(E)  # type: ignore
 
 try:
     from .path import Path2D, Path3D
 except BaseException as E:
-    Path2D = ExceptionWrapper(E)
-    Path3D = ExceptionWrapper(E)
+    Path2D: type = ExceptionWrapper(E)  # type: ignore
+    Path3D: type = ExceptionWrapper(E)  # type: ignore
 
 # save immutable identity matrices for checks
 _IDENTITY3 = np.eye(3, dtype=np.float64)
@@ -344,7 +359,7 @@ class Trimesh(Geometry3D):
         self._data["faces"] = values
 
     @cache_decorator
-    def faces_sparse(self) -> coo_matrix:
+    def faces_sparse(self) -> "COOMatrix":
         """
         A sparse matrix representation of the faces.
 
@@ -790,7 +805,7 @@ class Trimesh(Geometry3D):
         """
         order = np.argsort(self.principal_inertia_components)[1:][::-1]
         vectors = self.principal_inertia_vectors[order]
-        vectors = np.vstack((vectors, np.cross(*vectors)))
+        vectors = np.vstack((vectors, np.cross(vectors[0], vectors[1])))
 
         transform = np.eye(4)
         transform[:3, :3] = vectors
@@ -862,7 +877,7 @@ class Trimesh(Geometry3D):
         return self.vertices.view(np.ndarray)[self.faces]
 
     @cache_decorator
-    def triangles_tree(self) -> Index:
+    def triangles_tree(self) -> "RTreeIndex":
         """
         An R-tree containing each face of the mesh.
 
@@ -955,7 +970,9 @@ class Trimesh(Geometry3D):
         length : (len(self.edges_unique), ) float
           Length of each unique edge
         """
-        vector = np.subtract(*self.vertices[self.edges_unique.T])
+        vector = np.subtract(
+            self.vertices[self.edges_unique.T[1]], self.vertices[self.edges_unique.T[0]]
+        )
         length = util.row_norm(vector)
         return length
 
@@ -990,7 +1007,7 @@ class Trimesh(Geometry3D):
         return edges_sorted
 
     @cache_decorator
-    def edges_sorted_tree(self) -> cKDTree:
+    def edges_sorted_tree(self) -> "KDTree":
         """
         A KDTree for mapping edges back to edge index.
 
@@ -1003,7 +1020,7 @@ class Trimesh(Geometry3D):
         return cKDTree(self.edges_sorted)
 
     @cache_decorator
-    def edges_sparse(self) -> coo_matrix:
+    def edges_sparse(self) -> "COOMatrix":
         """
         Edges in sparse bool COO graph format where connected
         vertices are True.
@@ -1410,7 +1427,7 @@ class Trimesh(Geometry3D):
         return self._cache["face_adjacency_edges"]
 
     @cache_decorator
-    def face_adjacency_edges_tree(self) -> cKDTree:
+    def face_adjacency_edges_tree(self) -> "KDTree":
         """
         A KDTree for mapping edges back face adjacency index.
 
@@ -1535,7 +1552,11 @@ class Trimesh(Geometry3D):
           Integral mean curvature of mesh
         """
         edges_length = np.linalg.norm(
-            np.subtract(*self.vertices[self.face_adjacency_edges.T]), axis=1
+            np.subtract(
+                self.vertices[self.face_adjacency_edges.T[1]],
+                self.vertices[self.face_adjacency_edges.T[0]],
+            ),
+            axis=1,
         )
         # assign signs based on convex adjacency of face pairs
         signs = np.array([-1.0, 1.0])[self.face_adjacency_convex.astype(np.int64)]
@@ -1544,7 +1565,7 @@ class Trimesh(Geometry3D):
         return (angles * edges_length).sum() * 0.5
 
     @cache_decorator
-    def vertex_adjacency_graph(self) -> Graph:
+    def vertex_adjacency_graph(self) -> "NetworkXGraph":
         """
         Returns a networkx graph representing the vertices and their connections
         in the mesh.
@@ -1679,7 +1700,7 @@ class Trimesh(Geometry3D):
         return is_convex
 
     @cache_decorator
-    def kdtree(self) -> cKDTree:
+    def kdtree(self) -> "KDTree":
         """
         Return a scipy.spatial.cKDTree of the vertices of the mesh.
         Not cached as this lead to observed memory issues and segfaults.
@@ -2183,7 +2204,7 @@ class Trimesh(Geometry3D):
 
     def section(
         self, plane_normal: ArrayLike, plane_origin: ArrayLike, **kwargs
-    ) -> Optional[Path3D]:
+    ) -> Optional[Any]:
         """
         Returns a 3D cross section of the current mesh and a plane
         defined by origin and normal.
@@ -2231,7 +2252,7 @@ class Trimesh(Geometry3D):
         plane_origin: ArrayLike,
         plane_normal: ArrayLike,
         heights: ArrayLike,
-    ) -> List[Optional[Path2D]]:
+    ) -> List[Optional[Any]]:
         """
         Return multiple parallel cross sections of the current
         mesh in 2D.
@@ -2606,7 +2627,7 @@ class Trimesh(Geometry3D):
 
         return Trimesh(vertices=vertices, faces=faces)
 
-    def outline(self, face_ids: Optional[NDArray[int64]] = None, **kwargs) -> Path3D:
+    def outline(self, face_ids: Optional[NDArray[int64]] = None, **kwargs) -> Any:
         """
         Given a list of face indexes find the outline of those
         faces and return it as a Path3D.
@@ -2633,7 +2654,7 @@ class Trimesh(Geometry3D):
 
         return Path3D(**faces_to_path(self, face_ids, **kwargs))
 
-    def projected(self, normal, **kwargs) -> Path2D:
+    def projected(self, normal, **kwargs) -> Any:
         """
         Project a mesh onto a plane and then extract the
         polygon that outlines the mesh projection on that
@@ -3024,7 +3045,7 @@ class Trimesh(Geometry3D):
         return triangles.angles(self.triangles)
 
     @cache_decorator
-    def face_angles_sparse(self) -> coo_matrix:
+    def face_angles_sparse(self) -> "COOMatrix":
         """
         A sparse matrix representation of the face angles.
 
@@ -3070,7 +3091,7 @@ class Trimesh(Geometry3D):
         return degree
 
     @cache_decorator
-    def face_adjacency_tree(self) -> Index:
+    def face_adjacency_tree(self) -> "RTreeIndex":
         """
         An R-tree of face adjacencies.
 

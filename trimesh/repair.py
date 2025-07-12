@@ -19,14 +19,14 @@ except BaseException as E:
     # or other exception only when someone tries to use networkx
     from .exceptions import ExceptionWrapper
 
-    nx = ExceptionWrapper(E)
+    nx: type = ExceptionWrapper(E)  # type: ignore
 
 try:
     from .path.exchange.misc import faces_to_path
 except BaseException as E:
     from .exceptions import ExceptionWrapper
 
-    faces_to_path = ExceptionWrapper(E)
+    faces_to_path: type = ExceptionWrapper(E)  # type: ignore
 
 
 def fix_winding(mesh):

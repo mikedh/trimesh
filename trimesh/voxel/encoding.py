@@ -13,7 +13,7 @@ try:
 except BaseException as E:
     from ..exceptions import ExceptionWrapper
 
-    sp = ExceptionWrapper(E)
+    sp: type = ExceptionWrapper(E)  # type: ignore
 
 
 def _empty_stripped(shape):

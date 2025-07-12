@@ -20,14 +20,14 @@ try:
 except BaseException as E:
     # if windowed failed to import only raise
     # the exception if someone tries to use them
-    SceneViewer = exceptions.ExceptionWrapper(E)
-    render_scene = exceptions.ExceptionWrapper(E)
+    SceneViewer: type = exceptions.ExceptionWrapper(E)  # type: ignore
+    render_scene: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 
 try:
     from .widget import SceneWidget
 except BaseException as E:
-    SceneWidget = exceptions.ExceptionWrapper(E)
+    SceneWidget: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 
 # this is only standard library imports

@@ -2,11 +2,13 @@ import collections
 
 import numpy as np
 
+from .exceptions import ExceptionWrapper
+
 try:
     # pip install python-fcl
     import fcl
-except BaseException:
-    fcl = None
+except BaseException as E:
+    fcl: type = ExceptionWrapper(E)  # type: ignore
 
 
 class ContactData:

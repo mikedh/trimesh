@@ -10,8 +10,12 @@ Convex is defined as:
 """
 
 from dataclasses import dataclass, fields
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from . import Trimesh
 
 from . import triangles, util
 from .constants import tol
@@ -23,12 +27,13 @@ try:
 except ImportError as E:
     from .exceptions import ExceptionWrapper
 
-    ConvexHull = ExceptionWrapper(E)
+    ConvexHull: type = ExceptionWrapper(E)  # type: ignore
 
 try:
     from scipy.spatial import QhullError
 except BaseException:
-    QhullError = BaseException
+    class QhullError(BaseException):  # type: ignore
+        pass
 
 
 @dataclass
@@ -163,7 +168,7 @@ def convex_hull(
     obj: Union[Geometry3D, NDArray],
     qhull_options: Union[QhullOptions, str, None] = QHULL_DEFAULT,
     repair: bool = True,
-) -> "trimesh.Trimesh":  # noqa: F821
+) -> "Trimesh":  # noqa: F821
     """
     Get a new Trimesh object representing the convex hull of the
     current mesh attempting to return a watertight mesh with correct

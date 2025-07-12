@@ -303,6 +303,8 @@ def load_gltf(
         tree = json.loads(util.decode_text(file_obj.read()))
     except BaseException:
         # otherwise header should be in 'model.gltf'
+        if resolver is None:
+            raise ValueError("resolver is required when file_obj is not valid")
         data = resolver["model.gltf"]
         # old versions of python/json need strings
         tree = json.loads(util.decode_text(data))

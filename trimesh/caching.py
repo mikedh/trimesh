@@ -67,7 +67,7 @@ except BaseException:
             + "hashing: `pip install xxhash`"
             + "for 50x faster cache checks"
         )
-        hash_fast = hash_fallback
+        hash_fast: type = hash_fallback  # type: ignore
 
 
 def tracked_array(array, dtype=None):

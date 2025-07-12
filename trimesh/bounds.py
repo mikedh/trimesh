@@ -12,13 +12,14 @@ except BaseException as E:
     # raise the exception when someone tries to use it
     from . import exceptions
 
-    ConvexHull = exceptions.ExceptionWrapper(E)
-    optimize = exceptions.ExceptionWrapper(E)
+    ConvexHull: type = exceptions.ExceptionWrapper(E)  # type: ignore
+    optimize: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 try:
     from scipy.spatial import QhullError
 except BaseException:
-    QhullError = BaseException
+    class QhullError(BaseException):  # type: ignore
+        pass
 
 # a 90 degree rotation
 _flip = transformations.planar_matrix(theta=np.pi / 2)
@@ -89,7 +90,7 @@ def oriented_bounds_2D(points, qhull_options="QbB"):
     # find the (3,3) homogeneous transformation which moves the input
     # points to have a bounding box centered at the origin
     offset = -bounds[area_min][:2] - (rectangle * 0.5)
-    theta = np.arctan2(*edge_vectors[area_min][::-1])
+    theta = np.arctan2(edge_vectors[area_min][1], edge_vectors[area_min][0])
     transform = transformations.planar_matrix(offset, theta)
 
     # we would like to consistently return an OBB with
@@ -223,7 +224,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None, coplanar_tol
         # inside the loop by converting to angles ahead of time
         spherical_unique = grouping.unique_rows(spherical_coords, digits=angle_digits)[0]
         matrices = [
-            transformations.spherical_matrix(*s).T
+            transformations.spherical_matrix(s[0], s[1]).T
             for s in spherical_coords[spherical_unique]
         ]
         normals = util.spherical_to_vector(spherical_coords[spherical_unique])
@@ -250,7 +251,7 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None, coplanar_tol
         # this line is a heavy lift as it is finding the pairs of
         # adjacent faces where *exactly one* out of two of the faces
         # is visible (xor) and then using the index to get the edge
-        edges = hull_edge[np.bitwise_xor(*side[hull_adj])]
+        edges = hull_edge[np.bitwise_xor(side[hull_adj][0], side[hull_adj][1])]
 
         # project the 3D convex hull vertices onto the plane
         projected = np.dot(to_2D[:3, :3], vertices.T).T[:, :3]
@@ -376,7 +377,7 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=0.001):
         else:
             volume (float)
         """
-        to_2D = transformations.spherical_matrix(*spherical, axes="rxyz")
+        to_2D = transformations.spherical_matrix(spherical[0], spherical[1], axes="rxyz")
         projected = transformations.transform_points(hull, matrix=to_2D)
         height = np.ptp(projected[:, 2])
 
@@ -450,7 +451,7 @@ def minimum_cylinder(obj, sample_count=6, angle_tol=0.001):
     step = 2 * np.pi / sample_count
     bounds = [(best[0] - step, best[0] + step), (best[1] - step, best[1] + step)]
     # run the local optimization
-    r = optimize.minimize(
+    r = optimize.minimize(  # type: ignore
         volume_from_angles, best, tol=angle_tol, method="SLSQP", bounds=bounds
     )
 

@@ -14,7 +14,7 @@ try:
 except ImportError as E:
     from . import exceptions
 
-    coo_matrix = exceptions.ExceptionWrapper(E)
+    coo_matrix: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 
 def face_angles_sparse(mesh):

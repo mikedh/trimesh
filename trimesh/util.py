@@ -17,6 +17,11 @@ import zipfile
 from collections.abc import Mapping
 from copy import deepcopy
 from io import BytesIO, StringIO
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from . import Trimesh
+    from .path import Path2D, Path3D
 
 import numpy as np
 
@@ -668,7 +673,7 @@ def grid_arange(bounds, step):
     if step.shape == ():
         step = np.tile(step, bounds.shape[1])
 
-    grid_elements = [np.arange(*b, step=s) for b, s in zip(bounds.T, step)]
+    grid_elements = [np.arange(b[0], b[1], step=s) for b, s in zip(bounds.T, step)]
     grid = (
         np.vstack(np.meshgrid(*grid_elements, indexing="ij"))
         .reshape(bounds.shape[1], -1)
@@ -698,7 +703,7 @@ def grid_linspace(bounds, count):
     if count.shape == ():
         count = np.tile(count, bounds.shape[1])
 
-    grid_elements = [np.linspace(*b, num=c) for b, c in zip(bounds.T, count)]
+    grid_elements = [np.linspace(b[0], b[1], num=c) for b, c in zip(bounds.T, count)]
     grid = (
         np.vstack(np.meshgrid(*grid_elements, indexing="ij"))
         .reshape(bounds.shape[1], -1)
@@ -1384,9 +1389,7 @@ def type_named(obj, name):
     raise ValueError("Unable to extract class of name " + name)
 
 
-def concatenate(
-    a, b=None
-) -> Union["trimesh.Trimesh", "trimesh.path.Path2D", "trimesh.path.Path3D"]:  # noqa: F821
+def concatenate(a, b=None) -> Union["Trimesh", "Path2D", "Path3D"]:
     """
     Concatenate two or more meshes.
 
@@ -2361,7 +2364,8 @@ def is_ccw(points, return_all=False):
         raise ValueError("only defined for `(n, 2)` points")
 
     # the "shoelace formula"
-    product = np.subtract(*(points[:-1, [1, 0]] * points[1:]).T)
+    left_product = (points[:-1, [1, 0]] * points[1:]).T
+    product = np.subtract(left_product[0], left_product[1])
     # the area of the polygon
     area = product.sum() / 2.0
     # check the sign of the area

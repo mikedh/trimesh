@@ -18,7 +18,7 @@ from . import color
 try:
     from PIL import Image
 except BaseException as E:
-    Image = exceptions.ExceptionWrapper(E)
+    Image: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 # epsilon for comparing floating point
 _eps = 1e-5

@@ -3,6 +3,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from hashlib import sha256
+from typing import TYPE_CHECKING
 
 # ruff doesn't recognize this correctly when we re-import it from trimesh.typed -_-
 import numpy as np
@@ -28,6 +29,9 @@ from ..typed import (
     float64,
     int64,
 )
+
+if TYPE_CHECKING:
+    from ..base import Trimesh
 from ..util import unique_name
 from . import cameras, lighting
 from .transforms import SceneGraph
@@ -554,10 +558,13 @@ class Scene(Geometry3D):
           Summed area of every instanced geometry
         """
         # get the area of every geometry that has a volume attribute
-        volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "area")}
+        volume = {n: g.volume for n, g in self.geometry.items() if hasattr(g, "volume")}
         # sum the area including instancing
-        return sum(
-            (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry), 0.0
+        return float(
+            sum(
+                (volume.get(self.graph[n][1], 0.0) for n in self.graph.nodes_geometry),
+                0.0,
+            )
         )
 
     @caching.cache_decorator
@@ -734,7 +741,7 @@ class Scene(Geometry3D):
         if angles is None:
             angles = np.zeros(3)
 
-        rotation = transformations.euler_matrix(*angles)
+        rotation = transformations.euler_matrix(angles[0], angles[1], angles[2])
         transform = cameras.look_at(
             self.bounds, fov=fov, rotation=rotation, distance=distance, center=center
         )
@@ -953,7 +960,7 @@ class Scene(Geometry3D):
 
         return result
 
-    def to_mesh(self) -> "trimesh.Trimesh":  # noqa: F821
+    def to_mesh(self) -> "Trimesh":
         """
         Concatenate every mesh instances in the scene into a single mesh,
         applying transforms and "baking" the result. Will drop any geometry

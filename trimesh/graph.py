@@ -24,7 +24,7 @@ except BaseException as E:
     # re-raise exception when used
     cKDTree = exceptions.ExceptionWrapper(E)
     csgraph = exceptions.ExceptionWrapper(E)
-    coo_matrix = exceptions.ExceptionWrapper(E)
+    coo_matrix: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 try:
     import networkx as nx

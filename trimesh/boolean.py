@@ -10,13 +10,13 @@ import numpy as np
 from . import interfaces
 from .exceptions import ExceptionWrapper
 from .iteration import reduce_cascade
-from .typed import Callable, Dict, Optional, Sequence
+from .typed import Any, Callable, Dict, Optional, Sequence
 
 try:
     from manifold3d import Manifold, Mesh
 except BaseException as E:
-    Mesh = ExceptionWrapper(E)
-    Manifold = ExceptionWrapper(E)
+    Mesh: type = ExceptionWrapper(E)  # type: ignore
+    Manifold: type = ExceptionWrapper(E)  # type: ignore
 
 
 def difference(
@@ -47,7 +47,7 @@ def difference(
         raise ValueError("Not all meshes are volumes!")
     kwargs.update({"check_volume": check_volume})
 
-    return _engines[engine](meshes, operation="difference", **kwargs)
+    return _engines[engine](meshes, operation="difference", **kwargs)  # type: ignore
 
 
 def union(
@@ -78,7 +78,7 @@ def union(
         raise ValueError("Not all meshes are volumes!")
     kwargs.update({"check_volume": check_volume})
 
-    return _engines[engine](meshes, operation="union", **kwargs)
+    return _engines[engine](meshes, operation="union", **kwargs)  # type: ignore
 
 
 def intersection(
@@ -109,7 +109,7 @@ def intersection(
         raise ValueError("Not all meshes are volumes!")
     kwargs.update({"check_volume": check_volume})
 
-    return _engines[engine](meshes, operation="intersection", **kwargs)
+    return _engines[engine](meshes, operation="intersection", **kwargs)  # type: ignore
 
 
 def boolean_manifold(
@@ -175,7 +175,7 @@ def boolean_manifold(
 
 
 # which backend boolean engines do we have
-_engines: Dict[str, Callable] = {}
+_engines: Dict[str, Any] = {}  # type: ignore
 
 if isinstance(Manifold, ExceptionWrapper):
     # manifold isn't available so use the import error

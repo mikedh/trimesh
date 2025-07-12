@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Dict, Integer, NDArray, Number, Optional, Tuple
+from .typed import Any, ArrayLike, Dict, Integer, NDArray, Number, Optional, Tuple
 
 try:
     # shapely is a soft dependency
@@ -25,8 +25,8 @@ try:
 except BaseException as E:
     # re-raise the exception when someone tries
     # to use the module that they don't have
-    Polygon = exceptions.ExceptionWrapper(E)
-    load_wkb = exceptions.ExceptionWrapper(E)
+    Polygon: type = exceptions.ExceptionWrapper(E)  # type: ignore
+    load_wkb: type = exceptions.ExceptionWrapper(E)  # type: ignore
 
 # get stored values for simple box and icosahedron primitives
 _data = get_json("creation.json")
@@ -208,7 +208,7 @@ def revolve(
 
 
 def extrude_polygon(
-    polygon: "Polygon",
+    polygon: Any,
     height: Number,
     transform: Optional[ArrayLike] = None,
     mid_plane: bool = False,
@@ -254,7 +254,7 @@ def extrude_polygon(
 
 
 def sweep_polygon(
-    polygon: "Polygon",
+    polygon: Any,
     path: ArrayLike,
     angles: Optional[ArrayLike] = None,
     cap: bool = True,
@@ -518,8 +518,10 @@ def extrude_triangulation(
         raise ValueError("Height must be nonzero!")
 
     # check the winding of the first few triangles
+    v1 = vertices[faces[:10, :2].T]
+    v2 = vertices[faces[:10, 1:].T]
     signs = _cross_2d(
-        np.subtract(*vertices[faces[:10, :2].T]), np.subtract(*vertices[faces[:10, 1:].T])
+        np.subtract(v1[0], v1[1]), np.subtract(v2[0], v2[1])
     )
 
     # make sure the triangulation is aligned with the sign of

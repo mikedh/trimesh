@@ -157,7 +157,10 @@ def _convert_units(obj: Geometry, desired: str, guess=False) -> None:
 
     log.debug("converting units from %s to %s", obj.units, desired)
     # float, conversion factor
-    conversion = unit_conversion(obj.units, desired)
+    current_units = obj.units
+    if current_units is None:
+        raise ValueError("Object has no units defined")
+    conversion = unit_conversion(current_units, desired)
 
     # apply scale uses transforms which preserve
     # cached properties rather than just multiplying vertices

@@ -13,7 +13,7 @@ except BaseException as E:
     # scipy is a soft dependency
     from ..exceptions import ExceptionWrapper
 
-    ndimage = ExceptionWrapper(E)
+    ndimage: type = ExceptionWrapper(E)  # type: ignore
 
 
 def _dense(encoding, rank=None):

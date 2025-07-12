@@ -1,21 +1,27 @@
 import numpy as np
+from typing import TYPE_CHECKING
 
 from ..constants import log
 from ..exceptions import ExceptionWrapper
 from ..typed import ArrayLike, Number, Optional
 
+if TYPE_CHECKING:
+    from PIL.Image import Image as PILImage
+else:
+    PILImage = "PILImage"
+
 try:
     from PIL.Image import Image, fromarray
 except BaseException as E:
-    Image = ExceptionWrapper(E)
-    fromarray = ExceptionWrapper(E)
+    Image: type = ExceptionWrapper(E)  # type: ignore
+    fromarray: type = ExceptionWrapper(E)  # type: ignore
 
 
 def specular_to_pbr(
     specularFactor: Optional[ArrayLike] = None,
     glossinessFactor: Optional[Number] = None,
-    specularGlossinessTexture: Optional["Image"] = None,
-    diffuseTexture: Optional["Image"] = None,
+    specularGlossinessTexture: Optional[PILImage] = None,
+    diffuseTexture: Optional[PILImage] = None,
     diffuseFactor: Optional[ArrayLike] = None,
     **kwargs,
 ) -> dict:
