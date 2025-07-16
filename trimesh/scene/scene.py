@@ -4,6 +4,7 @@ import warnings
 from copy import deepcopy
 from hashlib import sha256
 
+# ruff doesn't recognize this correctly when we re-import it from trimesh.typed -_-
 import numpy as np
 
 from .. import caching, convex, grouping, inertia, transformations, units, util
@@ -23,6 +24,7 @@ from ..typed import (
     Sequence,
     Tuple,
     Union,
+    ViewerType,
     float64,
     int64,
 )
@@ -1346,20 +1348,25 @@ class Scene(Geometry3D):
         )
         return copied
 
-    def show(self, viewer=None, **kwargs):
+    def show(
+        self,
+        viewer: ViewerType = None,
+        **kwargs,
+    ):
         """
         Display the current scene.
 
         Parameters
         -----------
-        viewer : Union[str, callable, None]
+        viewer
           What kind of viewer to use, such as
-          'gl' to open a pyglet window, 'notebook'
-          for a jupyter notebook, 'marimo' for
-          a marimo notebook or None
-        kwargs : dict
-          Includes `smooth`, which will turn
-          on or off automatic smooth shading
+          `gl` to open a pyglet window
+          `jupyter` for a jupyter notebook
+          `marimo'` for a marimo notebook
+          None for a "best guess"
+        kwargs
+          Passed to viewer, such as `smooth=False` which will turn
+          off automatic smooth shading
         """
 
         if viewer is None:
@@ -1390,7 +1397,9 @@ class Scene(Geometry3D):
             # constructor was passed run using that
             return viewer(self, **kwargs)
         else:
-            raise ValueError('viewer must be "gl", "notebook", callable, or None')
+            raise ValueError(
+                "Invalid value for viewer: not 'gl', 'jupyter', 'marimo', callable, or None"
+            )
 
     def __add__(self, other):
         """

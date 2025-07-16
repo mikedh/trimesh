@@ -54,6 +54,7 @@ from .typed import (
     Optional,
     Sequence,
     Union,
+    ViewerType,
 )
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
@@ -2755,7 +2756,11 @@ class Trimesh(Geometry3D):
         """
         return Scene(self, **kwargs)
 
-    def show(self, **kwargs):
+    def show(
+        self,
+        viewer: ViewerType = None,
+        **kwargs,
+    ):
         """
         Render the mesh in an opengl window. Requires pyglet.
 
@@ -2771,7 +2776,7 @@ class Trimesh(Geometry3D):
           Scene with current mesh in it
         """
         scene = self.scene()
-        return scene.show(**kwargs)
+        return scene.show(viewer=viewer, **kwargs)
 
     def submesh(
         self, faces_sequence: Sequence[ArrayLike], **kwargs
