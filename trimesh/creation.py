@@ -212,6 +212,7 @@ def extrude_polygon(
     height: Number,
     transform: Optional[ArrayLike] = None,
     mid_plane: bool = False,
+    taper_angle: Optional[Number] = None,
     **kwargs,
 ) -> Trimesh:
     """
@@ -248,7 +249,12 @@ def extrude_polygon(
 
     # extrude that triangulation along Z
     mesh = extrude_triangulation(
-        vertices=vertices, faces=faces, height=height, transform=transform, **kwargs
+        vertices=vertices,
+        faces=faces,
+        height=height,
+        transform=transform,
+        taper_angle=taper_angle,
+        **kwargs,
     )
     return mesh
 
@@ -483,6 +489,7 @@ def extrude_triangulation(
     faces: ArrayLike,
     height: Number,
     transform: Optional[ArrayLike] = None,
+    taper_angle: Optional[Number] = None,
     **kwargs,
 ) -> Trimesh:
     """
@@ -538,6 +545,8 @@ def extrude_triangulation(
     # (n, 2, 2) set of line segments (positions, not references)
     boundary = vertices[edges[edges_unique]]
 
+    boundary_vert = vertices[np.unique(edges[edges_unique])]
+
     # we are creating two vertical  triangles for every 2D line segment
     # on the boundary of the 2D triangulation
     vertical = np.tile(boundary.reshape((-1, 2)), 2).reshape((-1, 2))
@@ -569,6 +578,63 @@ def extrude_triangulation(
     # only check in strict mode (unit tests)
     if tol.strict:
         assert mesh.volume > 0.0
+
+    if taper_angle is not None:
+        # tapering an extrusion is actually fairly complex since
+        # it may change the topology as interiors may disappear
+        # partway along the extrusion, and sharp exterior angles
+        # turn into cones. A simple way to do this is:
+        # - put a cone at every vertex in the boundary
+        # - put a wedge at every edge in the boundary
+        # - union the wedges and cones with the extrusion
+
+        from .boolean import union
+
+        # the radius of the top of the cone and half the wedge height
+        top_radius = np.tan(taper_angle) * height
+        flip = tf.rotation_matrix(
+            angle=np.pi, direction=[1, 0, 0], point=[0, 0, height / 2]
+        )
+        cone_base = cone(radius=top_radius, height=height, transform=flip)
+
+        # todo : probably faster to do this moving vertices manually and then making a mesh with `process=False`
+        conez = [
+            cone_base.copy().apply_translation([origin[0], origin[1], 0.0])
+            for origin in boundary_vert
+        ]
+
+        # get a vector for each edge in the boundary that is perpendicular to the edge
+        # and of length top_radius so we can construct our wedge
+        normals_edge = np.fliplr(boundary[:, 0] - boundary[:, 1]) * np.array([-1, 1])
+        normals_edge /= np.linalg.norm(normals_edge, axis=1, keepdims=True) / top_radius
+
+        # stack the boundary into wedge vertices
+        F = np.column_stack((normals_edge, np.full(len(normals_edge), height)))
+        R = np.column_stack((normals_edge * -1.0, np.full(len(normals_edge), height)))
+        A, B = (
+            np.column_stack((boundary[:, 0], np.zeros(len(boundary)))),
+            np.column_stack((boundary[:, 1], np.zeros(len(boundary)))),
+        )
+        wedge = np.column_stack((A, B, A + F, B + F, A + R, B + R)).reshape((-1, 6, 3))
+        # faces for the wedge, these are the same for every wedge
+        wedge_faces = np.array(
+            [
+                [5, 3, 1],
+                [2, 4, 0],
+                [4, 2, 5],
+                [5, 2, 3],
+                [0, 3, 2],
+                [1, 3, 0],
+                [4, 5, 0],
+                [0, 5, 1],
+            ]
+        )
+        # create a mesh for each wedge
+        wedges = [Trimesh(vertices=w, faces=wedge_faces, process=False) for w in wedge]
+        # union all the wedges together
+        unions = [mesh] + wedges + conez
+
+        return union(unions)
 
     return mesh
 
