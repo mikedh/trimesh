@@ -906,28 +906,13 @@ def attach_to_log(
     }
 
     if only_parent:
-        # if we have loggers `kerfed`, `kerfed.sub1`, `kerfed.sub2`
-        # this will only attach to `kerfed` and not the sub-loggers
-
         # create a new dict to store only parent loggers
         parent_loggers = {}
-
         # sort logger names to process in hierarchical order
-        sorted_names = sorted(loggers.keys())
-
-        for name in sorted_names:
-            logger = loggers[name]
-            # check if this logger is a child of any existing parent logger
-            is_child = False
-            for parent_name in parent_loggers.keys():
-                if name.startswith(parent_name + "."):
-                    is_child = True
-                    break
-
+        for name in sorted(loggers.keys()):
             # if it's not a child of any existing parent, add it as a parent
-            if not is_child:
-                parent_loggers[name] = logger
-
+            if not any(name.startswith(f"{p}.") for p in parent_loggers.keys()):
+                parent_loggers[name] = loggers[name]
         # replace loggers dict with only parent loggers
         loggers = parent_loggers
 
