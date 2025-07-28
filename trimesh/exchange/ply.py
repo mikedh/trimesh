@@ -367,9 +367,18 @@ def export_ply(
             header.append(templates["color"])
             dtype_vertex.append(dtype_color)
 
-        if include_attributes and hasattr(mesh, "vertex_attributes"):
-            _add_attributes_to_header(header, mesh.vertex_attributes)
-            _add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
+        if include_attributes:
+            if hasattr(mesh, "vertex_attributes"):
+                vertex_count = len(mesh.vertices)
+                vertex_attributes = {
+                    k: v
+                    for k, v in mesh.vertex_attributes.items()
+                    if hasattr(v, "__len__") and len(v) == vertex_count
+                }
+                _add_attributes_to_header(header, vertex_attributes)
+                _add_attributes_to_dtype(dtype_vertex, vertex_attributes)
+            else:
+                vertex_attributes = None
 
         # create and populate the custom dtype for vertices
         pack_vertex = np.zeros(num_vertices, dtype=dtype_vertex)
@@ -379,8 +388,8 @@ def export_ply(
         if vertex_color:
             pack_vertex["rgba"] = mesh.visual.vertex_colors
 
-        if include_attributes and hasattr(mesh, "vertex_attributes"):
-            _add_attributes_to_data_array(pack_vertex, mesh.vertex_attributes)
+        if include_attributes and vertex_attributes is not None:
+            _add_attributes_to_data_array(pack_vertex, vertex_attributes)
 
     if hasattr(mesh, "faces"):
         header.append(templates["face"])
