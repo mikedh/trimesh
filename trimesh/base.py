@@ -5,8 +5,8 @@ github.com/mikedh/trimesh
 Library for importing, exporting and doing simple operations on triangular meshes.
 """
 
-import copy
 import warnings
+from copy import deepcopy
 
 import numpy as np
 from numpy import float64, int64, ndarray
@@ -166,6 +166,11 @@ class Trimesh(Geometry3D):
         # (m, 3) int of triangle faces that references self.vertices
         self.faces = faces
 
+        # store per-face and per-vertex attributes which will
+        # be updated when an update_faces call is made
+        self.face_attributes = {}
+        self.vertex_attributes = {}
+
         # hold visual information about the mesh (vertex and face colors)
         if visual is None:
             self.visual = create_visual(
@@ -173,6 +178,12 @@ class Trimesh(Geometry3D):
             )
         else:
             self.visual = visual
+
+            # if we've been passed a visual object
+            if vertex_colors is not None:
+                self.vertex_attributes["color"] = vertex_colors
+            if face_colors is not None:
+                self.face_attributes["color"] = face_colors
 
         # normals are accessed through setters/properties and are regenerated
         # if dimensions are inconsistent, but can be set by the constructor
@@ -209,10 +220,6 @@ class Trimesh(Geometry3D):
         elif metadata is not None:
             raise ValueError(f"metadata should be a dict or None, got {metadata!s}")
 
-        # store per-face and per-vertex attributes which will
-        # be updated when an update_faces call is made
-        self.face_attributes = {}
-        self.vertex_attributes = {}
         # use update to copy items
         if face_attributes is not None:
             self.face_attributes.update(face_attributes)
@@ -3113,14 +3120,21 @@ class Trimesh(Geometry3D):
         # start with an empty mesh
         copied = Trimesh()
         # always deepcopy vertex and face data
-        copied._data.data = copy.deepcopy(self._data.data)
+        copied._data.data = deepcopy(self._data.data)
 
         if include_visual:
             # copy visual information
             copied.visual = self.visual.copy()
 
+            copied.vertex_attributes.update(
+                {k: deepcopy(v) for k, v in self.vertex_attributes.items()}
+            )
+            copied.face_attributes.update(
+                {k: deepcopy(v) for k, v in self.face_attributes.items()}
+            )
+
         # get metadata
-        copied.metadata = copy.deepcopy(self.metadata)
+        copied.metadata = deepcopy(self.metadata)
 
         # make sure cache ID is set initially
         copied._cache.verify()

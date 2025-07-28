@@ -12,6 +12,13 @@ class PlyTest(g.unittest.TestCase):
             # will raise if dtype string not valid
             g.np.dtype(d)
 
+    def test_multi(self):
+        # check to make sure we don't throw away perfectly good vertex colors
+        m = g.get_mesh("multi.ply")
+
+        assert len(m.vertex_attributes["color"]) == len(m.vertices)
+        assert len(m.visual.uv) == len(m.vertices)
+
     def test_ply(self):
         m = g.get_mesh("machinist.XAML")
 
