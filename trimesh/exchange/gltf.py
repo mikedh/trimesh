@@ -31,6 +31,7 @@ _dtypes = {5120: "<i1", 5121: "<u1", 5122: "<i2", 5123: "<u2", 5125: "<u4", 5126
 # a string we can use to look up numpy dtype : GLTF dtype
 _dtypes_lookup = {v[1:]: k for k, v in _dtypes.items()}
 
+
 # GLTF data formats: numpy shapes
 _shapes = {
     "SCALAR": 1,
@@ -1001,7 +1002,7 @@ def _build_accessor(array):
         data_type = f"MAT{int(shape[2])}"
 
     # get the array data type as a str stripping off endian
-    lookup = array.dtype.str.lstrip("<>")
+    lookup = array.dtype.str.lstrip("<>|")
 
     if lookup == "u4":
         # spec: UNSIGNED_INT is only allowed when the accessor
