@@ -842,21 +842,26 @@ def _append_mesh(
         vertex_colors = None
 
     if vertex_colors is not None:
-        # convert color data to bytes and append
-        acc_color = _data_append(
-            acc=tree["accessors"],
-            buff=buffer_items,
-            blob={
-                "componentType": 5121,
-                "normalized": True,
-                "type": "VEC4",
-                "byteOffset": 0,
-            },
-            data=vertex_colors.astype(uint8),
-        )
+        if len(vertex_colors) == len(mesh.vertices):
+            # convert color data to bytes and append
+            acc_color = _data_append(
+                acc=tree["accessors"],
+                buff=buffer_items,
+                blob={
+                    "componentType": 5121,
+                    "normalized": True,
+                    "type": "VEC4",
+                    "byteOffset": 0,
+                },
+                data=vertex_colors.astype(uint8),
+            )
 
-        # add the reference for vertex color
-        current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+            # add the reference for vertex color
+            current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+        else:
+            log.warning(
+                "Vertex colors have different length than mesh vertices, dropping!"
+            )
 
     if hasattr(mesh.visual, "material"):
         # append the material and then set from returned index
