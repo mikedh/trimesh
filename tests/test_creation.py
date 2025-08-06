@@ -6,7 +6,7 @@ except BaseException:
 existing_engines = [k for k, exists in g.trimesh.creation._engines if exists]
 
 
-def test_box(self):
+def test_box():
     box = g.trimesh.creation.box
 
     # should create a unit cube with origin centroid
@@ -24,7 +24,7 @@ def test_box(self):
     assert g.np.allclose(m.bounds, bounds)
 
 
-def test_cone(self):
+def test_cone():
     c = g.trimesh.creation.cone(radius=0.5, height=1.0)
     assert c.is_volume
     assert c.body_count == 1
@@ -32,7 +32,7 @@ def test_cone(self):
     assert c.metadata["shape"] == "cone"
 
 
-def test_cylinder(self):
+def test_cylinder():
     # tolerance for cylinders
     atol = 0.03
 
@@ -66,7 +66,7 @@ def test_cylinder(self):
     assert g.np.allclose(c.bounds, bounds, atol=atol)
 
 
-def test_soup(self):
+def test_soup():
     count = 100
     mesh = g.trimesh.creation.random_soup(face_count=count)
     assert len(mesh.faces) == count
@@ -75,14 +75,14 @@ def test_soup(self):
     assert len(mesh.split(only_watertight=False)) == count
 
 
-def test_capsule(self):
+def test_capsule():
     mesh = g.trimesh.creation.capsule(radius=1.0, height=2.0)
     assert mesh.is_volume
     assert mesh.body_count == 1
     assert g.np.allclose(mesh.extents, [2, 2, 4], atol=0.05)
 
 
-def test_spheres(self):
+def test_spheres():
     # test generation of UV spheres and icospheres
     for sphere in [g.trimesh.creation.uv_sphere(), g.trimesh.creation.icosphere()]:
         assert sphere.is_volume
@@ -103,7 +103,7 @@ def test_spheres(self):
     g.np.testing.assert_allclose(red_sphere.visual.face_colors, expected)
 
 
-def test_camera_marker(self):
+def test_camera_marker():
     """
     Create a marker including FOV for a camera object
     """
@@ -116,7 +116,7 @@ def test_camera_marker(self):
         assert isinstance(mesh, (g.trimesh.Trimesh, g.trimesh.path.Path3D))
 
 
-def test_axis(self):
+def test_axis():
     # specify the size of the origin radius
     origin_size = 0.04
     # specify the length of the cylinders
@@ -131,7 +131,7 @@ def test_axis(self):
     )
 
 
-def test_path_sweep(self):
+def test_path_sweep():
     if len(existing_engines) == 0:
         return
 
@@ -175,7 +175,7 @@ def test_path_sweep(self):
         assert mesh.is_volume
 
 
-def test_simple_watertight(self):
+def test_simple_watertight():
     # create a simple polygon
     polygon = g.Polygon(((0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)))
 
@@ -186,7 +186,7 @@ def test_simple_watertight(self):
         assert mesh.is_volume
 
 
-def test_annulus(self):
+def test_annulus():
     """
     Basic tests of annular cylinder creation
     """
@@ -241,7 +241,7 @@ def test_annulus(self):
     assert g.np.allclose(a.bounds, c.bounds)
 
 
-def test_triangulate(self):
+def test_triangulate():
     """
     Test triangulate using meshpy and triangle
     """
@@ -299,7 +299,7 @@ def test_triangulate(self):
     g.log.info(f"benchmarked triangulation on {len(bench)} polygons: {times!s}")
 
 
-def test_triangulate_plumbing(self):
+def test_triangulate_plumbing():
     # @ Check the plumbing of path triangulation
 
     if len(existing_engines) == 0:
@@ -310,7 +310,7 @@ def test_triangulate_plumbing(self):
         check_triangulation(v, f, p.area)
 
 
-def test_truncated(self, count=10):
+def test_truncated(count=10):
     # create some random triangles
     tri = g.random((count, 3, 3))
 
@@ -321,7 +321,7 @@ def test_truncated(self, count=10):
     assert all(s.volume > 0 for s in split)
 
 
-def test_revolve(self):
+def test_revolve():
     # create a cross section and revolve it to form some volumes
     cross_section = [[0, 0], [10, 0], [10, 10], [0, 10]]
 
