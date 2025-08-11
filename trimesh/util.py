@@ -2326,8 +2326,9 @@ def decode_text(text, initial="utf-8"):
                 initial, detect["encoding"], detect["confidence"]
             )
         )
-        # try to decode again, unwrap in try
-        text = text.decode(detect["encoding"], errors="ignore")
+        # try to decode again ignoring errors
+        # if detect returned nothing just use the initial guess
+        text = text.decode(detect["encoding"] or initial, errors="ignore")
     return text
 
 
