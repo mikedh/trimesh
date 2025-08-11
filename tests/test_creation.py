@@ -370,7 +370,7 @@ def test_torus():
     p = torus(major_radius=major_radius, minor_radius=minor_radius, angle=angle)
 
     # check to make sure the partial angle is actually spanning requested angle
-    vertex_angles = g.np.atan2(*p.vertices[:, :2].T[::-1])
+    vertex_angles = g.np.arctan2(*p.vertices[:, :2].T[::-1])
     assert g.np.isclose(vertex_angles.min(), 0.0)
     assert g.np.isclose(vertex_angles.max(), angle)
 
