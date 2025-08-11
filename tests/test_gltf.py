@@ -590,10 +590,13 @@ class GLTFTest(g.unittest.TestCase):
                 sphere.vertex_attributes.keys()
             )
             for key in val.vertex_attributes:
-                is_same = g.np.array_equal(
-                    val.vertex_attributes[key], sphere.vertex_attributes[key]
-                )
-                assert is_same is True
+                # the vertex attribute before round-tripping
+                ori = sphere.vertex_attributes[key]
+
+                # non 4-byte aligned attributes would have been padded
+                check = val.vertex_attributes[key][:, : ori.shape[1]]
+
+                assert g.np.allclose(ori, check), key
 
     def test_extras(self):
         # if GLTF extras are defined, make sure they survive a round trip

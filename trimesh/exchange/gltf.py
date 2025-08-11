@@ -31,6 +31,7 @@ _dtypes = {5120: "<i1", 5121: "<u1", 5122: "<i2", 5123: "<u2", 5125: "<u4", 5126
 # a string we can use to look up numpy dtype : GLTF dtype
 _dtypes_lookup = {v[1:]: k for k, v in _dtypes.items()}
 
+
 # GLTF data formats: numpy shapes
 _shapes = {
     "SCALAR": 1,
@@ -841,21 +842,26 @@ def _append_mesh(
         vertex_colors = None
 
     if vertex_colors is not None:
-        # convert color data to bytes and append
-        acc_color = _data_append(
-            acc=tree["accessors"],
-            buff=buffer_items,
-            blob={
-                "componentType": 5121,
-                "normalized": True,
-                "type": "VEC4",
-                "byteOffset": 0,
-            },
-            data=vertex_colors.astype(uint8),
-        )
+        if len(vertex_colors) == len(mesh.vertices):
+            # convert color data to bytes and append
+            acc_color = _data_append(
+                acc=tree["accessors"],
+                buff=buffer_items,
+                blob={
+                    "componentType": 5121,
+                    "normalized": True,
+                    "type": "VEC4",
+                    "byteOffset": 0,
+                },
+                data=vertex_colors.astype(uint8),
+            )
 
-        # add the reference for vertex color
-        current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+            # add the reference for vertex color
+            current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+        else:
+            log.warning(
+                "Vertex colors have different length than mesh vertices, dropping!"
+            )
 
     if hasattr(mesh.visual, "material"):
         # append the material and then set from returned index
@@ -919,8 +925,14 @@ def _append_mesh(
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
     for key, attrib in mesh.vertex_attributes.items():
-        # Application specific attributes must be
-        # prefixed with an underscore
+        # make sure vertex attribute length matches vertices
+        if len(attrib) != len(mesh.vertices):
+            log.warning(
+                f"Vertex attribute `{key}` has different length than mesh vertices skipping!"
+            )
+            continue
+
+        # application specific attributes must be prefixed with an underscore
         if not key.startswith("_"):
             key = "_" + key
 
@@ -930,6 +942,18 @@ def _append_mesh(
             data = attrib.astype(np.float32)
         else:
             data = attrib
+
+        if len(data.shape) == 1:
+            data = data[:, np.newaxis]
+
+        # every accessor VALUE must be 4-byte aligned
+        row_mod = (data.shape[1] * data.dtype.itemsize) % 4
+        # if the row size is not a multiple of 4, pad it
+        if row_mod != 0:
+            # how many columns of padding for this value
+            pad_columns = (4 - row_mod) // data.dtype.itemsize
+            # pad this custom attribute with zeros -_-
+            data = np.pad(data, ((0, 0), (0, pad_columns)), mode="constant")
 
         # store custom vertex attributes
         current["primitives"][0]["attributes"][key] = _data_append(
@@ -1001,7 +1025,7 @@ def _build_accessor(array):
         data_type = f"MAT{int(shape[2])}"
 
     # get the array data type as a str stripping off endian
-    lookup = array.dtype.str.lstrip("<>")
+    lookup = array.dtype.str.lstrip("<>|")
 
     if lookup == "u4":
         # spec: UNSIGNED_INT is only allowed when the accessor
@@ -1692,16 +1716,19 @@ def _read_buffers(
     # the mutated dict in every loop
     name_index = {}
     name_counts = {}
+
+    # store the mapping of node name to index and the inverse
+    # name_index: {name: index}
     for i, n in enumerate(nodes):
         name_index[unique_name(n.get("name", str(i)), name_index, counts=name_counts)] = i
-    # invert the dict so we can look up by index
-    # node index (int) : name (str)
+    # names: {index: name}
     names = {v: k for k, v in name_index.items()}
 
-    # make sure we have a unique base frame name
+    # the GLTF is allowed to declare a base frame, should we have used that?
     base_frame = "world"
-    if base_frame in names:
-        base_frame = str(int(np.random.random() * 1e10))
+    if base_frame in name_index:
+        # todo : handle this?
+        log.warning("file contains a `world` node, we may stomp on it")
     names[base_frame] = base_frame
 
     # visited, kwargs for scene.graph.update
@@ -1720,6 +1747,7 @@ def _read_buffers(
         # otherwise just use the first index
         scene_index = 0
 
+    base_frame = "world"
     if "scenes" in header:
         # start the traversal from the base frame to the roots
         for root in header["scenes"][scene_index].get("nodes", []):

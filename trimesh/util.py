@@ -810,10 +810,11 @@ def decimal_to_digits(decimal, min_digits=None) -> int:
 def attach_to_log(
     level=logging.DEBUG,
     handler=None,
-    loggers=None,
-    colors=True,
-    capture_warnings=True,
-    blacklist=None,
+    loggers: Optional[Iterable[logging.Logger]] = None,
+    colors: bool = True,
+    capture_warnings: bool = True,
+    blacklist: Optional[Iterable] = None,
+    only_parent: bool = False,
 ):
     """
     Attach a stream handler to all loggers.
@@ -830,6 +831,9 @@ def attach_to_log(
       If True try to use colorlog formatter
     blacklist : (n,) str
       Names of loggers NOT to attach to
+    only_parent
+      Only attach to parent loggers, i.e. `trimesh`, `trimesh.sub1`, `trimesh.sub2`
+      will only attach to `trimesh` and not the sub-loggers
     """
 
     # default blacklist includes ipython debugging stuff
@@ -885,19 +889,35 @@ def attach_to_log(
     if loggers is None:
         # de-duplicate loggers using a set
         loggers = set(logging.Logger.manager.loggerDict.values())
+
     # add the warnings logging
     loggers.add(logging.getLogger("py.warnings"))
 
     # disable pyembree warnings
     logging.getLogger("pyembree").disabled = True
 
+    # cull loggers that are not actually loggers or are on the blacklist
+    loggers = {
+        L.name: L
+        for L in loggers
+        if hasattr(L, "name")
+        and isinstance(L, logging.Logger)
+        and L.name not in blacklist
+    }
+
+    if only_parent:
+        # create a new dict to store only parent loggers
+        parent_loggers = {}
+        # sort logger names to process in hierarchical order
+        for name in sorted(loggers.keys()):
+            # if it's not a child of any existing parent, add it as a parent
+            if not any(name.startswith(f"{p}.") for p in parent_loggers.keys()):
+                parent_loggers[name] = loggers[name]
+        # replace loggers dict with only parent loggers
+        loggers = parent_loggers
+
     # loop through all available loggers
-    for logger in loggers:
-        # skip loggers on the blacklist
-        if logger.__class__.__name__ != "Logger" or any(
-            logger.name.startswith(b) for b in blacklist
-        ):
-            continue
+    for logger in loggers.values():
         logger.addHandler(handler)
         logger.setLevel(level)
 
@@ -2306,8 +2326,9 @@ def decode_text(text, initial="utf-8"):
                 initial, detect["encoding"], detect["confidence"]
             )
         )
-        # try to decode again, unwrap in try
-        text = text.decode(detect["encoding"], errors="ignore")
+        # try to decode again ignoring errors
+        # if detect returned nothing just use the initial guess
+        text = text.decode(detect["encoding"] or initial, errors="ignore")
     return text
 
 

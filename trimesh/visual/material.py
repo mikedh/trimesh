@@ -809,7 +809,7 @@ def pack(
             .round()
             .astype(np.uint8)
         )
-        return Image.fromarray(img, mode=mode)
+        return Image.fromarray(img)
 
     def get_base_color_texture(mat):
         """
@@ -837,7 +837,7 @@ def pack(
                 elif mat.alphaMode == "OPAQUE" or mat.alphaMode is None:
                     if "A" in mode:
                         img[..., 3] = 255
-                img = Image.fromarray(img, mode)
+                img = Image.fromarray(img)
         elif getattr(mat, "image", None) is not None:
             img = mat.image
         elif np.shape(getattr(mat, "diffuse", [])) == (4,):
@@ -884,16 +884,14 @@ def pack(
                     img[..., 1] = np.round(
                         img[..., 1].astype(np.float64) * mat.roughnessFactor
                     ).astype(np.uint8)
-                img = Image.fromarray(img, mode="RGB")
+                img = Image.fromarray(img)
             else:
                 metallic = 0.0 if mat.metallicFactor is None else mat.metallicFactor
                 roughness = 1.0 if mat.roughnessFactor is None else mat.roughnessFactor
                 metallic_roughnesss = np.round(
                     np.array([metallic, roughness, 0.0], dtype=np.float64) * 255
                 )
-                img = Image.fromarray(
-                    metallic_roughnesss[None, None].astype(np.uint8), mode="RGB"
-                )
+                img = Image.fromarray(metallic_roughnesss[None, None].astype(np.uint8))
         return img
 
     def get_emissive_texture(mat):

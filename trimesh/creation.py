@@ -1488,7 +1488,7 @@ def torus(
     geometry : trimesh.Trimesh
       Mesh of a torus
     """
-    phi = np.linspace(0, 2 * np.pi, minor_sections, endpoint=False)
+    phi = np.linspace(0, 2 * np.pi, minor_sections + 1, endpoint=True)
     linestring = np.column_stack(
         (minor_radius * np.cos(phi), minor_radius * np.sin(phi))
     ) + [major_radius, 0]
