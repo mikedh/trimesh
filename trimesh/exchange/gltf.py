@@ -925,8 +925,14 @@ def _append_mesh(
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
     for key, attrib in mesh.vertex_attributes.items():
-        # Application specific attributes must be
-        # prefixed with an underscore
+        # make sure vertex attribute length matches vertices
+        if len(attrib) != len(mesh.vertices):
+            log.warning(
+                f"Vertex attribute `{key}` has different length than mesh vertices skipping!"
+            )
+            continue
+
+        # application specific attributes must be prefixed with an underscore
         if not key.startswith("_"):
             key = "_" + key
 
@@ -936,6 +942,18 @@ def _append_mesh(
             data = attrib.astype(np.float32)
         else:
             data = attrib
+
+        if len(data.shape) == 1:
+            data = data[:, np.newaxis]
+
+        # every accessor VALUE must be 4-byte aligned
+        row_mod = (data.shape[1] * data.dtype.itemsize) % 4
+        # if the row size is not a multiple of 4, pad it
+        if row_mod != 0:
+            # how many columns of padding for this value
+            pad_columns = (4 - row_mod) // data.dtype.itemsize
+            # pad this custom attribute with zeros -_-
+            data = np.pad(data, ((0, 0), (0, pad_columns)), mode="constant")
 
         # store custom vertex attributes
         current["primitives"][0]["attributes"][key] = _data_append(
