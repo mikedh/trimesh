@@ -1717,15 +1717,18 @@ def _read_buffers(
     name_index = {}
     name_counts = {}
 
+    # store the mapping of node name to index and the inverse
+    # name_index: {name: index}
     for i, n in enumerate(nodes):
         name_index[unique_name(n.get("name", str(i)), name_index, counts=name_counts)] = i
-    # invert the dict so we can look up by index
-    # node index (int) : name (str)
+    # names: {index: name}
     names = {v: k for k, v in name_index.items()}
 
-    # use a hardcoded base frame. if this already exists in the file
-    # we should be able to re-use it.
+    # the GLTF is allowed to declare a base frame, should we have used that?
     base_frame = "world"
+    if base_frame in name_index:
+        # todo : handle this?
+        log.warning("file contains a `world` node, we may stomp on it")
     names[base_frame] = base_frame
 
     # visited, kwargs for scene.graph.update
@@ -1744,6 +1747,7 @@ def _read_buffers(
         # otherwise just use the first index
         scene_index = 0
 
+    base_frame = "world"
     if "scenes" in header:
         # start the traversal from the base frame to the roots
         for root in header["scenes"][scene_index].get("nodes", []):
