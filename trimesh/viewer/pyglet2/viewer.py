@@ -102,7 +102,8 @@ class SceneViewer(pyglet.window.Window):
 
         # Improve camera clipping planes for better depth precision
         scene_scale = scene.scale
-        scene.camera.z_near = max(scene_scale * 0.001, 0.0001)  # Very close near plane
+
+        scene.camera.z_near = 0.00001 #-scene_scale * 100
         scene.camera.z_far = scene_scale * 100.0  # Far plane based on scene size
 
         models = {}
@@ -124,8 +125,17 @@ class SceneViewer(pyglet.window.Window):
         """
         # Update camera matrices
         view_matrix = np.linalg.inv(self._pose.trackball.pose).astype(np.float32)
-        self.view = Mat4(*view_matrix.T.ravel())
-        
+
+
+        # save the first and last view matrices
+        if getattr(self, "_view_initial", None) is None:
+            self._view_initial = view_matrix.copy()
+        self._view_last = view_matrix.copy()
+
+        if getattr(self, "_projection_initial", None) is None:
+            self._projection_initial = self.scene.camera.projection.copy()
+        self._projection_last = self.scene.camera.projection.copy()
+
         # Setup shader uniforms for PBR
         pbr_shader = self._shader_manager.get_shader('pbr')
         pbr_shader.use()
@@ -303,6 +313,19 @@ class SceneViewer(pyglet.window.Window):
         # perform gl actions
         self._update_flags()
 
+    def on_close(self):
+        """
+        Handle the window close event.
+        """
+        print('Window closed')
+        print("View initial", self._view_initial)
+        print("View last", self._view_last)
+
+        print("Projection initial",    self._projection_initial)    
+        print("Projection last", self._projection_last)
+
+        super().on_close()
+
     def on_key_press(self, symbol, modifiers):
         """
         Call appropriate functions given key presses.
@@ -359,58 +382,6 @@ class SceneViewer(pyglet.window.Window):
 
         # set fullscreen or windowed
         self.set_fullscreen(fullscreen=self._pose.fullscreen)
-
-        """
-        # backface culling on or off
-        if self.view.cull:
-            gl.glEnable(gl.GL_CULL_FACE)
-        else:
-            gl.glDisable(gl.GL_CULL_FACE)
-
-        # case where we WANT an axis and NO vertexlist
-        # is stored internally
-        if self.view["axis"] and self._axis is None:
-            from ... import creation
-
-            # create an axis marker sized relative to the scene
-            axis = creation.axis(origin_size=self.scene.scale / 100)
-            # create ordered args for a vertex list
-            args = conversion.mesh_to_vertexlist(axis)
-            # store the axis as a reference
-            self._axis = self.batch.add_indexed(*args)
-        # case where we DON'T want an axis but a vertexlist
-        # IS stored internally
-        elif not self.view["axis"] and self._axis is not None:
-            # remove the axis from the rendering batch
-            self._axis.delete()
-            # set the reference to None
-            self._axis = None
-
-        if self.view["grid"] and self._grid is None:
-            try:
-                # create a grid marker
-                from ...path.creation import grid
-
-                bounds = self.scene.bounds
-                center = bounds.mean(axis=0)
-                # set the grid to the lowest Z position
-                # also offset by the scale to avoid interference
-                center[2] = bounds[0][2] - (np.ptp(bounds[:, 2]) / 100)
-                # choose the side length by maximum XY length
-                side = np.ptp(bounds, axis=0)[:2].max()
-                # create an axis marker sized relative to the scene
-                grid_mesh = grid(side=side, count=4, transform=translation_matrix(center))
-                # convert the path to vertexlist args
-                args = conversion.convert_to_vertexlist(grid_mesh)
-                # create ordered args for a vertex list
-                self._grid = self.batch.add_indexed(*args)
-            except BaseException:
-                util.log.warning("failed to create grid!", exc_info=True)
-        elif not self.view["grid"] and self._grid is not None:
-            self._grid.delete()
-            self._grid = None
-
-        """
 
 
 @dataclass

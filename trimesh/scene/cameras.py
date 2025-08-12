@@ -8,7 +8,7 @@ from ..typed import NDArray
 
 class Camera:
     def __init__(
-        self, name=None, resolution=None, focal=None, fov=None, z_near=0.01, z_far=1000.0
+        self, name=None, resolution=None, focal=None, fov=None, z_near=-1000, z_far=1000.0
     ):
         """
         Create a new Camera object that stores camera intrinsic
@@ -236,6 +236,7 @@ class Camera:
         """
         z_near, z_far, fov_y = self.z_near, self.z_far, self.fov[1]
 
+        print(z_near, z_far, fov_y)
         aspect = np.divide(*self.resolution)
 
         f = 1.0 / np.tan(fov_y / 2.0)
