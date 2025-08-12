@@ -201,6 +201,17 @@ def test_poly():
     assert len(p.layers) == len(p.entities)
     assert len(set(p.layers)) > 1
 
+    # check copy with layer specified
+    unique = set(p.layers)
+    assert len(unique) > 1
+    for u in unique:
+        a = p.copy(layers={u})
+        assert len(a.entities) > 0
+        assert p.layers.count(u) == len(a.entities)
+        assert len(a.entities) < len(p.layers)
+        assert all(e.layer == u for e in a.entities)
+
+    # try exploding
     count = len(p.entities)
 
     p.explode()
@@ -410,8 +421,45 @@ def test_svg_arc_snap():
     assert p.extrude(10.0).is_volume
 
 
+def test_path_dict_export():
+    x, y = 2, 3
+
+    # define incorrectly
+    as_dict = {
+        "entities": [
+            {"type": "Line", "points": [0, 1, 2, 3, 0], "closed": False},
+        ],
+        "vertices": [
+            [-x / 2, y / 2],
+            [x / 2, y / 2],
+            [x / 2, -y / 2],
+            [-x / 2, -y / 2],
+        ],
+    }
+
+    # try loading with the incorrect `closed` value for the line
+    path = g.trimesh.path.exchange.load.load_path(
+        g.trimesh.path.exchange.misc.dict_to_path(as_dict)
+    )
+
+    # export to a dict again
+    exp = path.export(file_type="dict")
+    assert len(exp["entities"]) == 1
+    assert "closed" not in exp["entities"][0]
+
+    # do a roundtrip
+    rt = g.trimesh.path.exchange.load.load_path(
+        g.trimesh.path.exchange.misc.dict_to_path(exp)
+    )
+
+    # should have the same area
+    assert g.np.isclose(rt.area, path.area)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     # g.unittest.main()
 
-    test_path_to_gltf_with_arc()
+    # test_path_to_gltf_with_arc()
+    # test_path_dict_export()
+    test_poly()

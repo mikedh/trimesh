@@ -324,6 +324,12 @@ class RayMeshIntersector:
         # Add cache back since it doesn't exist in the pickle
         self._cache = caching.Cache(id_function=self.mesh.__hash__)
 
+    def __deepcopy__(self, *args):
+        return self.__copy__()
+
+    def __copy__(self, *args):
+        return RayMeshIntersector(geometry=self.mesh, scale_to_box=self._scale_to_box)
+
 
 class _EmbreeWrap:
     """

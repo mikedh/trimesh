@@ -879,7 +879,14 @@ class Box(Primitive):
 
 
 class Extrusion(Primitive):
-    def __init__(self, polygon=None, transform=None, height=1.0, mutable=True):
+    def __init__(
+        self,
+        polygon=None,
+        transform: Optional[ArrayLike] = None,
+        height: Number = 1.0,
+        mutable: bool = True,
+        mid_plane: bool = False,
+    ):
         """
         Create an Extrusion primitive, which
         is a subclass of Trimesh.
@@ -905,12 +912,18 @@ class Extrusion(Primitive):
             "polygon": Point([0, 0]).buffer(1.0),
             "transform": np.eye(4),
             "height": 1.0,
+            "mid_plane": False,
         }
 
         self.primitive = PrimitiveAttributes(
             self,
             defaults=defaults,
-            kwargs={"transform": transform, "polygon": polygon, "height": height},
+            kwargs={
+                "transform": transform,
+                "polygon": polygon,
+                "height": height,
+                "mid_plane": mid_plane,
+            },
             mutable=mutable,
         )
 
@@ -996,8 +1009,7 @@ class Extrusion(Primitive):
         rotation_Z[2, 3] = self.primitive.height / 2.0
         # combine the 2D OBB transformation with the 2D projection transform
         to_3D = np.dot(self.primitive.transform, rotation_Z)
-        obb = Box(transform=to_3D, extents=extents, mutable=False)
-        return obb
+        return Box(transform=to_3D, extents=extents, mutable=False)
 
     def slide(self, distance):
         """
@@ -1083,6 +1095,7 @@ class Extrusion(Primitive):
             polygon=self.primitive.polygon,
             height=self.primitive.height,
             transform=self.primitive.transform,
+            mid_plane=self.primitive.mid_plane,
         )
 
         # check volume here in unit tests

@@ -90,6 +90,8 @@ def subdivide(
     if vertex_attributes is not None:
         new_attributes = {}
         for key, values in vertex_attributes.items():
+            if len(values) != len(vertices):
+                continue
             attr_mid = values[edges[unique]].mean(axis=1)
             new_attributes[key] = np.vstack((values, attr_mid))
         return new_vertices, new_faces, new_attributes

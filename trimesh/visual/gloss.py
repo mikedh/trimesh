@@ -96,7 +96,7 @@ def specular_to_pbr(
             return img
         if img.dtype == np.float32 or img.dtype == np.float64:
             img = (np.clip(img, 0.0, 1.0) * 255.0).astype(np.uint8)
-        return fromarray(img, mode=mode)
+        return fromarray(img)
 
     def get_float(val):
         if isinstance(val, float):

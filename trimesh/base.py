@@ -5,8 +5,8 @@ github.com/mikedh/trimesh
 Library for importing, exporting and doing simple operations on triangular meshes.
 """
 
-import copy
 import warnings
+from copy import deepcopy
 
 import numpy as np
 from numpy import float64, int64, ndarray
@@ -54,6 +54,7 @@ from .typed import (
     Optional,
     Sequence,
     Union,
+    ViewerType,
 )
 from .visual import ColorVisuals, TextureVisuals, create_visual
 
@@ -165,6 +166,11 @@ class Trimesh(Geometry3D):
         # (m, 3) int of triangle faces that references self.vertices
         self.faces = faces
 
+        # store per-face and per-vertex attributes which will
+        # be updated when an update_faces call is made
+        self.face_attributes = {}
+        self.vertex_attributes = {}
+
         # hold visual information about the mesh (vertex and face colors)
         if visual is None:
             self.visual = create_visual(
@@ -172,6 +178,12 @@ class Trimesh(Geometry3D):
             )
         else:
             self.visual = visual
+
+            # if we've been passed a visual object
+            if vertex_colors is not None:
+                self.vertex_attributes["color"] = vertex_colors
+            if face_colors is not None:
+                self.face_attributes["color"] = face_colors
 
         # normals are accessed through setters/properties and are regenerated
         # if dimensions are inconsistent, but can be set by the constructor
@@ -208,10 +220,6 @@ class Trimesh(Geometry3D):
         elif metadata is not None:
             raise ValueError(f"metadata should be a dict or None, got {metadata!s}")
 
-        # store per-face and per-vertex attributes which will
-        # be updated when an update_faces call is made
-        self.face_attributes = {}
-        self.vertex_attributes = {}
         # use update to copy items
         if face_attributes is not None:
             self.face_attributes.update(face_attributes)
@@ -1424,13 +1432,26 @@ class Trimesh(Geometry3D):
     @cache_decorator
     def face_adjacency_angles(self) -> NDArray[float64]:
         """
-        Return the angle between adjacent faces
+        Return the unsigned angle between adjacent faces
+        in radians.
+
+        Note that if you want a signed angle you can easily
+        use the `face_adjacency_convex` attribute to get a
+        signed angle with advanced indexing:
+
+        ```
+        # get a sign per face_adacency pair from the "is it convex" boolean
+        signs = np.array([-1.0, 1.0])[mesh.face_adjacency_convex.astype(np.int64)]
+
+        # apply the signs to the angles
+        angles = mesh.face_adjacency_angles * signs
+        ```
 
         Returns
         --------
-        adjacency_angle : (n, ) float
-          Angle between adjacent faces
-          Each value corresponds with self.face_adjacency
+        adjacency_angle : (len(self.face_adjacency), ) float
+          Unsigned angle between adjacent faces
+          corresponding with `self.face_adjacency`
         """
         # get pairs of unit vectors for adjacent faces
         pairs = self.face_normals[self.face_adjacency]
@@ -1523,7 +1544,11 @@ class Trimesh(Geometry3D):
         edges_length = np.linalg.norm(
             np.subtract(*self.vertices[self.face_adjacency_edges.T]), axis=1
         )
-        return (self.face_adjacency_angles * edges_length).sum() * 0.5
+        # assign signs based on convex adjacency of face pairs
+        signs = np.array([-1.0, 1.0])[self.face_adjacency_convex.astype(np.int64)]
+        # adjust face adjacency angles with signs to reflect orientation
+        angles = self.face_adjacency_angles * signs
+        return (angles * edges_length).sum() * 0.5
 
     @cache_decorator
     def vertex_adjacency_graph(self) -> Graph:
@@ -2738,7 +2763,11 @@ class Trimesh(Geometry3D):
         """
         return Scene(self, **kwargs)
 
-    def show(self, **kwargs):
+    def show(
+        self,
+        viewer: ViewerType = None,
+        **kwargs,
+    ):
         """
         Render the mesh in an opengl window. Requires pyglet.
 
@@ -2754,7 +2783,7 @@ class Trimesh(Geometry3D):
           Scene with current mesh in it
         """
         scene = self.scene()
-        return scene.show(**kwargs)
+        return scene.show(viewer=viewer, **kwargs)
 
     def submesh(
         self, faces_sequence: Sequence[ArrayLike], **kwargs
@@ -3091,14 +3120,21 @@ class Trimesh(Geometry3D):
         # start with an empty mesh
         copied = Trimesh()
         # always deepcopy vertex and face data
-        copied._data.data = copy.deepcopy(self._data.data)
+        copied._data.data = deepcopy(self._data.data)
 
         if include_visual:
             # copy visual information
             copied.visual = self.visual.copy()
 
+            copied.vertex_attributes.update(
+                {k: deepcopy(v) for k, v in self.vertex_attributes.items()}
+            )
+            copied.face_attributes.update(
+                {k: deepcopy(v) for k, v in self.face_attributes.items()}
+            )
+
         # get metadata
-        copied.metadata = copy.deepcopy(self.metadata)
+        copied.metadata = deepcopy(self.metadata)
 
         # make sure cache ID is set initially
         copied._cache.verify()

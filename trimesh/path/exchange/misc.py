@@ -29,9 +29,12 @@ def dict_to_path(as_dict):
     entities = [None] * len(as_dict["entities"])
     # run constructor for dict kwargs
     for entity_index, entity in enumerate(as_dict["entities"]):
-        entities[entity_index] = loaders[entity["type"]](
-            points=entity["points"], closed=entity["closed"]
-        )
+        if entity["type"] == "Line":
+            entities[entity_index] = loaders[entity["type"]](points=entity["points"])
+        else:
+            entities[entity_index] = loaders[entity["type"]](
+                points=entity["points"], closed=entity["closed"]
+            )
     result["entities"] = entities
 
     return result

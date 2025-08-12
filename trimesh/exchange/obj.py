@@ -339,9 +339,10 @@ def parse_mtl(mtl, resolver=None):
             # newmtl material_0
             if material is not None:
                 # save the old material by old name and remove key
-                materials[material.pop("newmtl")] = material
+                materials[material["name"]] = material
             # start a fresh new material
-            material = {"newmtl": " ".join(split[1:])}
+            # do we really want to support material names with whitespace?
+            material = {"name": " ".join(split[1:])}
 
         elif key == "map_kd":
             # represents the file name of the texture image
@@ -380,7 +381,7 @@ def parse_mtl(mtl, resolver=None):
             material[key] = split[1:]
     # reached EOF so save any existing materials
     if material:
-        materials[material.pop("newmtl")] = material
+        materials[material["name"]] = material
 
     return materials
 
@@ -424,7 +425,7 @@ def _parse_faces_vectorized(array, columns, sample_line):
     # TODO: probably need to support 8 and 12 columns for quads
     # or do something more general
     faces_tex, faces_norm = None, None
-    if columns == 6:
+    if columns == group_count * 2:
         # if we have two values per vertex the second
         # one is index of texture coordinate (`vt`)
         # count how many delimiters are in the first face line
@@ -443,7 +444,7 @@ def _parse_faces_vectorized(array, columns, sample_line):
             faces_tex = array[:, index + 1]
         else:
             log.debug(f"face lines are weird: {sample_line}")
-    elif columns == 9:
+    elif columns == group_count * 3:
         # if we have three values per vertex
         # second value is always texture
         faces_tex = array[:, index + 1]

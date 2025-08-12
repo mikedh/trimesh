@@ -30,6 +30,12 @@ class MFTest(g.unittest.TestCase):
         # check conversion factor for all valid 3MF units
         assert all(converter(u, "inches") > 1e-12 for u in units)
 
+    def test_more_units(self):
+        # make sure that units survive down to the mesh
+        s = g.trimesh.load_scene(g.os.path.join(g.dir_models, "featuretype.3MF"))
+        m = next(iter(s.geometry.values()))
+        assert m.units is not None, m.metadata
+
     def test_kwargs(self):
         # check if kwargs are properly passed to geometries
         s = g.get_mesh("P_XPM_0331_01.3mf")

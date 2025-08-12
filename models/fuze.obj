@@ -1018,7 +1018,7 @@ v -0.023590 -0.024429 0.113014
 # 502 vertices, 0 vertices normals
 
 
-usemtl material_0
+usemtl a-super-duper-material
 vt 0.629012 0.417026
 vt 0.599829 0.426753
 vt 0.629012 0.442966

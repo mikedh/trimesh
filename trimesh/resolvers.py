@@ -143,6 +143,8 @@ class FilePathResolver(Resolver):
         # load the file by path name
         path = os.path.join(self.parent, name.strip())
         if not os.path.exists(path):
+            path = os.path.join(self.parent, name.strip().lstrip("/"))
+        if not os.path.exists(path):
             path = os.path.join(self.parent, os.path.split(name)[-1])
         with open(path, "rb") as f:
             data = f.read()
