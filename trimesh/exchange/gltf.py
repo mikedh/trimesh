@@ -1728,7 +1728,7 @@ def _read_buffers(
     base_frame = "world"
     if base_frame in name_index:
         # todo : handle this?
-        log.warning("file contains a `world` node, we may stomp on it")
+        log.debug("file contains a `world` node, we may stomp on it")
     names[base_frame] = base_frame
 
     # visited, kwargs for scene.graph.update
