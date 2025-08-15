@@ -155,6 +155,8 @@ class UtilTests(unittest.TestCase):
         meshes = []
         for _i in range(count):
             m = a.copy()
+            m.vertex_attributes["test"] = np.arange(len(m.vertices))
+            m.face_attributes["test"] = np.arange(len(m.faces))
             m.apply_translation([a.scale, 0, 0])
             meshes.append(m)
 
@@ -162,6 +164,8 @@ class UtilTests(unittest.TestCase):
         r = g.trimesh.util.concatenate(meshes)
         assert g.np.isclose(r.volume, a.volume * count)
         assert a.__hash__() == hA
+        assert r.vertex_attributes["test"].shape[0] == len(r.vertices)
+        assert r.face_attributes["test"].shape[0] == len(r.faces)
 
     def test_concat_vertex_normals(self):
         # vertex normals should only be included if they already exist
