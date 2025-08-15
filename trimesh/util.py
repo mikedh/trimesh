@@ -2243,7 +2243,6 @@ def allclose(a, b, atol: float = 1e-8):
     -----------
     bool indicating if all elements are within `atol`.
     """
-    #
     return float(np.ptp(a - b)) < atol
 
 

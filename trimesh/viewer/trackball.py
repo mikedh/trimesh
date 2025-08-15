@@ -25,9 +25,12 @@
 
 """Trackball class for 3D manipulation of viewpoints."""
 
+from typing import Literal
+
 import numpy as np
 
 from .. import transformations
+from ..typed import ArrayLike, Floating, NDArray, Optional
 
 
 class Trackball:
@@ -38,17 +41,23 @@ class Trackball:
     STATE_ROLL = 2
     STATE_ZOOM = 3
 
-    def __init__(self, pose, size, scale, target=None):
+    def __init__(
+        self,
+        pose: ArrayLike,
+        size: ArrayLike,
+        scale: Floating,
+        target: Optional[ArrayLike] = None,
+    ):
         """Initialize a trackball with an initial camera-to-world pose
         and the given parameters.
 
         Parameters
         ----------
         pose : [4,4]
-            An initial camera-to-world pose for the trackball.
+          An initial camera-to-world pose for the trackball.
 
         size : (float, float)
-            The width and height of the camera image in pixels.
+          The width and height of the camera image in pixels.
 
         scale : float
             The diagonal of the scene's bounding box --
@@ -75,12 +84,20 @@ class Trackball:
         self._state = Trackball.STATE_ROTATE
 
     @property
-    def pose(self):
-        """autolab_core.RigidTransform : The current camera-to-world pose."""
+    def pose(self) -> NDArray[np.float64]:
+        """
+        The current camera-to-world pose.
+
+        Returns
+        ---------
+        pose : (4, 4)
+          The transformation from camera to world coordinates.
+        """
         return self._n_pose
 
-    def set_state(self, state):
-        """Set the state of the trackball in order to change the effect of
+    def set_state(self, state: Literal[0, 1, 2, 3]):
+        """
+        Set the state of the trackball in order to change the effect of
         dragging motions.
 
         Parameters
