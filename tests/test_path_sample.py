@@ -39,7 +39,7 @@ def test_resample_original_case():
 
     # the sample path includes points that didn't exist in the original
     # so we need to check that every index has at least one zero-radius
-    radius_ok = np.zeros(len(test_path), dtype=np.bool)
+    radius_ok = np.zeros(len(test_path), dtype=bool)
     radius_ok[index[radius < 1e-12]] = True
     assert radius_ok.all(), "not every point was inserted!"
 
