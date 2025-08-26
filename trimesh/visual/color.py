@@ -911,9 +911,12 @@ def interpolate(
     if color_map is None:
         cmap = linear_color_map
     else:
-        from matplotlib.pyplot import get_cmap
-
-        cmap = get_cmap(color_map)
+        try:
+            from matplotlib.pyplot import get_cmap
+            cmap = get_cmap(color_map)
+        except BaseException:
+            util.log.warning("matplotlib not available, falling back to linear_color_map")
+            cmap = linear_color_map
 
     # make input always float
     values = np.asanyarray(values, dtype=np.float64).ravel()
