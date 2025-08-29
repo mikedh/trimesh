@@ -41,6 +41,14 @@ from ..typed import (
 )
 from .base import Visuals
 
+# Save a lookup table for an integer to match the
+# cases for HSV conversion specified on the wikipedia article
+# Where indexes 0=C, 1=X, 2=0.0
+_HSV_LOOKUP = np.array(
+    [[0, 1, 2], [1, 0, 2], [2, 0, 1], [2, 1, 0], [1, 2, 0], [0, 2, 1]], dtype=np.int64
+)
+_HSV_LOOKUP.flags.writeable = False
+
 
 class ColorVisuals(Visuals):
     """
@@ -583,17 +591,22 @@ def to_rgba(colors: Any, dtype: DTypeLike = np.uint8) -> NDArray:
 
     # colors as numpy array
     colors = np.asanyarray(colors)
+    dtype = np.dtype(dtype)
 
-    # integer value for opaque alpha given our datatype
-    opaque = np.iinfo(dtype).max
+    # what is the output dtype opaque value
+    if dtype.kind in 'iu':
+        opaque = np.iinfo(dtype).max
+    elif dtype.kind == 'f':
+        opaque = 1.0
+    else:
+        raise ValueError(f"Unknown dtype: `{dtype}`")
 
     if colors.dtype.kind == "f":
         # replace any `nan` or `inf` values with zero
         colors[~np.isfinite(colors)] = 0.0
 
-        # if we've been passed float colors they better be
-        # 0.0-1.0
-        colors = np.clip((colors * opaque).round(), 0, opaque)
+        # if we've been passed float colors make sure to clip
+        colors = np.clip(colors * opaque, 0.0, opaque)
 
     if util.is_shape(colors, (-1, 3)):
         # add an opaque alpha for RGB colors
@@ -674,7 +687,7 @@ def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
       An (n, 4) array of RGBA colors.
     """
 
-    hsv = np.array(hsv, dtype=np.float64)
+    hsv = np.asanyarray(hsv, dtype=np.float64)
     if len(hsv.shape) != 2 or hsv.shape[1] != 3:
         raise ValueError("(n, 3) values of HSV are required")
     # clip values in-place to 0.0-1.0 range
@@ -688,17 +701,11 @@ def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
     C = S * V
     Hi = H * 6.0
     X = C * (1.0 - np.abs((Hi % 2.0) - 1.0))
-    # use a lookup table for an integer to match the
-    # cases specified on the wikipedia article
-    # Where indexes 0=C, 1=X, 2=0.0
-    lookup = np.array(
-        [[0, 1, 2], [1, 0, 2], [2, 0, 1], [2, 1, 0], [1, 2, 0], [0, 2, 1]], dtype=np.int64
-    )
 
     # stack values we need so we can access them with the lookup table
     stacked = np.column_stack((C, X, np.zeros_like(X)))
     # get the indexes per-row and then increment them so we can use them on the stack
-    indexes = lookup[Hi.astype(np.int64)] + (np.arange(len(H)) * 3).reshape((-1, 1))
+    indexes = _HSV_LOOKUP[Hi.astype(np.int64)] + (np.arange(len(H)) * 3).reshape((-1, 1))
 
     # get the intermediate value, described by wikipedia as
     # the point along the bottom three faces of the RGB cube
