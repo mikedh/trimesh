@@ -594,9 +594,9 @@ def to_rgba(colors: Any, dtype: DTypeLike = np.uint8) -> NDArray:
     dtype = np.dtype(dtype)
 
     # what is the output dtype opaque value
-    if dtype.kind in 'iu':
+    if dtype.kind in "iu":
         opaque = np.iinfo(dtype).max
-    elif dtype.kind == 'f':
+    elif dtype.kind == "f":
         opaque = 1.0
     else:
         raise ValueError(f"Unknown dtype: `{dtype}`")
@@ -935,6 +935,7 @@ def interpolate(
 
     # scale values to 0.0 - 1.0 and get colors
     colors = cmap(values)
+
     # convert to 0-255 RGBA
     rgba = to_rgba(colors, dtype=dtype)
 
