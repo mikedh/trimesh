@@ -29,6 +29,7 @@ import numpy as np
 from .. import caching, util
 from ..constants import tol
 from ..grouping import unique_rows
+from ..resources import get_json
 from ..typed import (
     Any,
     ArrayLike,
@@ -40,6 +41,13 @@ from ..typed import (
     Union,
 )
 from .base import Visuals
+
+try:
+    from scipy.interpolate import splev
+except BaseException as E:
+    from ..exceptions import ExceptionWrapper
+
+    splev = ExceptionWrapper(E)
 
 # Save a lookup table for an integer to match the
 # cases for HSV conversion specified on the wikipedia article
@@ -892,6 +900,130 @@ def linear_color_map(
     return colors
 
 
+class SplineColorMap:
+    def __init__(self, channel_parameters: list):
+        self._spline = channel_parameters
+
+    def __call__(self, values: ArrayLike) -> NDArray[np.float64]:
+        """
+        Evaluate the spline parameters for a flat array of
+        normalized (0.0 - 1.0) values and return RGB floating
+        point colors.
+
+        Parameters
+        ----------
+        values
+          Normalized values to evaluate a color map on.
+
+        Returns
+        -----------
+        rgb : (len(values), 3)
+          RGB floating point colors evaluated against
+          the fit B-spline of the color channels.
+        """
+        return np.column_stack([splev(values, c) for c in self._spline])
+
+    @staticmethod
+    def from_name(name: str) -> "SplineColorMap":
+        return SplineColorMap(get_json("spline_colormap.json")[name])
+
+    @staticmethod
+    def _fit_colormap(
+        name: str, smooth: float = 0.00001, plot: bool = False
+    ) -> "SplineColorMap":
+        """
+        Fit a B-spline to the colormaps described by Matplotlib
+        so they can be evaluated continuously as opposed to the
+        8-bit discretized samples returned by `get_cmap`.
+
+        Note that this is an internal method used to fit the splines
+        and `matplotlib` is *not* a runtime dependency for `trimesh`.
+
+        Parameters
+        ----------
+        name
+          The color map name, i.e. 'viridis'
+        smooth
+          How much smoothing to allow when fitting the spline
+          to the color map's control points.
+        plot
+          Plot the fit of the color map compared to the
+          original 8-bit discrete copy.
+
+        Returns
+        ---------
+        map
+          A color map fit to the matplotlib data.
+        """
+        import matplotlib.pyplot as plt
+        from matplotlib.pyplot import get_cmap
+        from scipy.interpolate import make_splrep
+
+        # start with a lot of samples
+        samples = np.linspace(0.0, 1.0, 10000)
+        # use color map
+        v = get_cmap(name)(samples)
+
+        # matplotlib is returning actually identical values as
+        # it's actually a low-resolution lookup table under the hood
+        duplicate = (v[:-1] == v[1:]).all(axis=1)
+        unique = np.append(0, np.nonzero(~duplicate)[0])
+
+        # get just the control points
+        samples = samples[unique]
+        v = v[unique]
+
+        print(f"\n\nColor Map `{name}`")
+
+        channel_parameters = []
+        for i, channel in enumerate(v.T[:3]):
+            # fit a spline
+            spline = make_splrep(samples, channel, s=smooth, k=3)
+
+            print(f"Channel {'RGB'[i]} Spline parameters:", spline.tck[0].shape)
+
+            # evaluate the B-spline at the control parameters
+            error = np.abs(channel - spline(samples))
+
+            # save the spline control parameters
+            channel_parameters.append(spline.tck)
+
+            print(
+                f"Channel {'RGB'[i]} Control Error: Max {error.max():0.5f}, Mean {error.mean():0.5f}+/-{error.std():0.5f}"
+            )
+
+            if plot:
+                # plot our spline fit continuously
+                smooth_sample = np.linspace(0.0, 1.0, 10000)
+                smoothed = spline(smooth_sample)
+                plt.plot(smooth_sample, smoothed, color="rgb"[i], linestyle="dotted")
+
+                # plot the control points
+                plt.plot(samples, channel, color="rgb"[i])
+
+        if plot:
+            plt.title(f"Color Map: `{name}`")
+            plt.show()
+
+        return SplineColorMap(channel_parameters)
+
+    @staticmethod
+    def _generate_maps(plot: bool = False) -> dict:
+        """ """
+        from matplotlib.pyplot import _colormaps
+
+        colormaps = {}
+
+        for name in _colormaps.keys():
+            if name not in ("viridis", "magma", "jet", "gnuplot", "gnuplot2"):
+                continue
+            s = SplineColorMap._fit_colormap(name, plot=plot)._spline
+            s = [[j.tolist() if hasattr(j, "tolist") else j for j in q] for q in s]
+            colormaps[name] = s
+
+        return colormaps
+
+
 def interpolate(
     values: ArrayLike, color_map: Optional[str] = None, dtype: DTypeLike = np.uint8
 ) -> NDArray:
@@ -918,9 +1050,7 @@ def interpolate(
     if color_map is None:
         cmap = linear_color_map
     else:
-        from matplotlib.pyplot import get_cmap
-
-        cmap = get_cmap(color_map)
+        cmap = SplineColorMap.from_name(color_map)
 
     # make input always float
     values = np.asanyarray(values, dtype=np.float64).ravel()
