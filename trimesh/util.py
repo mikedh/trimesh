@@ -1489,6 +1489,28 @@ def concatenate(
     except BaseException:
         pass
 
+    vertex_attributes = {}
+    # concatenate vertex attributes
+    keys = is_mesh[0].vertex_attributes.keys()
+    # if all meshes have the same vertex attributes
+    if len(keys) > 0 and all(
+        all(key in mesh.vertex_attributes for key in keys) for mesh in is_mesh[1:]
+    ):
+        for key in keys:
+            vertex_attributes[key] = np.concatenate(
+                [mesh.vertex_attributes[key] for mesh in is_mesh], axis=0
+            )
+
+    face_attributes = {}
+    # concatenate face attributes
+    keys = is_mesh[0].face_attributes.keys()
+    # if all meshes have the same face attributes
+    if all(all(key in mesh.face_attributes for key in keys) for mesh in is_mesh[1:]):
+        for key in keys:
+            face_attributes[key] = np.concatenate(
+                [mesh.face_attributes[key] for mesh in is_mesh], axis=0
+            )
+
     # create the mesh object
     result = trimesh_type(
         vertices=vertices,
@@ -1496,6 +1518,8 @@ def concatenate(
         face_normals=face_normals,
         vertex_normals=vertex_normals,
         visual=visual,
+        vertex_attributes=vertex_attributes,
+        face_attributes=face_attributes,
         metadata=metadata,
         process=False,
     )
