@@ -270,7 +270,9 @@ def test_interpolate():
     assert g.np.allclose(colors[3], [0, 255, 0, 255])
 
     # should scale to range
-    colors = g.trimesh.visual.interpolate(values)
+    colors = g.trimesh.visual.interpolate(
+        values, color_map=g.trimesh.visual.linear_color_map
+    )
     assert g.np.allclose(colors[0], [255, 0, 0, 255])
     # scaled to range not clamped
     assert not g.np.allclose(colors[1], [255, 0, 0, 255])
@@ -279,11 +281,9 @@ def test_interpolate():
     assert g.np.allclose(colors[3], [0, 255, 0, 255])
 
     # try interpolating with matplotlib color maps
-    try:
-        colors = g.trimesh.visual.interpolate(values, "viridis")
-    except ImportError:
-        # if matplotlib isn't installed
-        return
+
+    colors = g.trimesh.visual.interpolate(values, "viridis")
+
     # check shape and type for matplotlib cmaps
     assert colors.shape == (len(values), 4)
     assert colors.dtype == g.np.uint8
@@ -291,8 +291,31 @@ def test_interpolate():
     assert (colors[:-1] != colors[1:]).any(axis=1).all()
 
     # make sure it handles zero range
-    colors = g.trimesh.visual.interpolate(g.np.zeros(100))
+    # use the base linear_color_map which assigns 0 -> red
+    colors = g.trimesh.visual.interpolate(
+        g.np.zeros(100), color_map=g.trimesh.visual.color.linear_color_map
+    )
     assert g.np.allclose(colors, [255, 0, 0, 255])
+
+    # now make a box with viridis vertex colors that you can
+    # add a `box.show()` to if you want to see if it actually does something
+    box = g.trimesh.creation.box().subdivide(iterations=3)
+    radii = g.np.linalg.norm(box.vertices, axis=1)
+    box.visual.vertex_colors = g.trimesh.visual.interpolate(radii, "viridis")
+    # make sure colors aren't all the same
+    assert g.np.ptp(box.visual.vertex_colors, axis=0).max() > 0
+
+    try:
+        from matplotlib.pyplot import get_cmap
+    except ImportError:
+        return
+
+    # make sure a `callable` works
+    check = g.trimesh.visual.interpolate(radii, color_map=get_cmap("viridis"))
+
+    # `get_cmap` doesn't interpolate linearly but otherwise "their viridis"
+    # and "our viridis" should be decently close
+    assert g.np.allclose(box.visual.vertex_colors, check, atol=2)
 
 
 def test_uv_to_color():
@@ -362,3 +385,4 @@ def test_copy():
 
 if __name__ == "__main__":
     test_to_rgba_float()
+    test_interpolate()
