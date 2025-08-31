@@ -29,9 +29,12 @@ import numpy as np
 from .. import caching, util
 from ..constants import tol
 from ..grouping import unique_rows
+from ..resources import get_json
 from ..typed import (
     Any,
     ArrayLike,
+    Callable,
+    ColorMapType,
     DTypeLike,
     Integer,
     Iterable,
@@ -847,7 +850,7 @@ def colors_to_materials(colors: ArrayLike, count: Optional[Integer] = None):
 
 def linear_color_map(
     values: ArrayLike, color_range: Optional[ArrayLike] = None
-) -> NDArray[np.uint8]:
+) -> NDArray:
     """
     Linearly interpolate between two colors.
 
@@ -857,43 +860,58 @@ def linear_color_map(
     Parameters
     --------------
     values : (n, ) float
-      Values to interpolate
-    color_range : None, or (2, 4) uint8
-      What colors should extrema be set to
+      Normalized to 0.0 - 1.0 values to interpolate
+    color_range : None, or (n, 4)
+      Evenly spaced colors to interpolate through
+      where `n >= 2`.
 
     Returns
     ---------------
-    colors : (n, 4) uint8
+    colors : (n, 4) color_range.dtype
       RGBA colors for interpolated values
     """
 
     if color_range is None:
+        # do a very unimaginate "red to blue" linear scale
         color_range = np.array([[255, 0, 0, 255], [0, 255, 0, 255]], dtype=np.uint8)
     else:
-        color_range = np.asanyarray(color_range, dtype=np.uint8)
+        # make sure we have a numpy array
+        color_range = np.asanyarray(color_range)
 
-    if color_range.shape != (2, 4):
-        raise ValueError("color_range must be RGBA (2, 4)")
+    # do simple checks on the color range shape
+    if color_range.shape[0] < 2 or color_range.shape[1] < 3:
+        raise ValueError(
+            "color_range must be RGBA convertable and have more than 2 values!"
+        )
 
     # float 1D array clamped to 0.0 - 1.0
     values = np.clip(np.asanyarray(values, dtype=np.float64).ravel(), 0.0, 1.0).reshape(
         (-1, 1)
     )
 
-    # the stacked component colors
-    color = [np.ones((len(values), 4)) * c for c in color_range.astype(np.float64)]
+    # what is the maximum index of our colors
+    max_index = len(color_range) - 1
+    # convert our normalized values into a fractional index
+    index = values.ravel() * max_index
 
-    # interpolated colors
-    colors = (color[1] * values) + (color[0] * (1.0 - values))
+    # get the left and right indexes
+    # clipping should be a no-op based on above normalization but
+    # be extra sure ceil isn't pushing us out of our array range
+    bounds = np.clip(np.column_stack((np.floor(index), np.ceil(index))), 0.0, max_index)
 
-    # rounded and set to correct data type
-    colors = np.round(colors).astype(np.uint8)
+    # get the factor of how far each point is between `bounds` pair
+    factor = index - bounds[:, 0]
+    # reshape the factor into an interpolation
+    multiplier = np.column_stack((factor, 1.0 - factor)).reshape((-1, 2, 1))
 
-    return colors
+    # get both colors, multiply them by the interpolation multiplier, and sum
+    return (color_range[bounds.astype(np.int64)] * multiplier).sum(axis=1)
 
 
 def interpolate(
-    values: ArrayLike, color_map: Optional[str] = None, dtype: DTypeLike = np.uint8
+    values: ArrayLike,
+    color_map: Union[None, ColorMapType, Callable] = None,
+    dtype: DTypeLike = np.uint8,
 ) -> NDArray:
     """
     Given a 1D list of values, return interpolated colors
@@ -903,10 +921,11 @@ def interpolate(
     ---------------
     values : (n, ) float
       Values to be interpolated over
-    color_map : None, or str
-      Key to a colormap contained in:
-      matplotlib.pyplot.colormaps()
-      e.g: 'viridis'
+    color_map
+      One of the four included color maps:
+      ("viridis", "inferno", "plasma", "magma")
+      Or a function, `matplotlib.pyplot.get_cmap
+
 
     Returns
     -------------
@@ -914,16 +933,31 @@ def interpolate(
       Interpolated RGBA colors
     """
 
-    # get a color interpolation function
+    # make `viridis` the default just like everyone else
     if color_map is None:
-        cmap = linear_color_map
+        color_map = "viridis"
+
+    if callable(color_map):
+        # should be a `matplotlib.pyplot.get_cmap` callable
+        cmap = color_map
+    elif isinstance(color_map, str):
+        # color map is a named key in our packaged color maps
+        available = get_json("color_map.json.gzip")
+        if color_map not in available:
+            # we could have added a fallback to matplotlib:
+            # `from matplotlib.pyplot import get_cmap; cmap = get_cmap(name)`
+            # but we don't want trimesh to depend on matplotlib as it is quite heavy
+            raise ValueError(
+                f"Included color maps are: {available.keys()}.\n\n"
+                + "If you want to use a `matplotlib` color map you can "
+                + "pass it as `color_map=matplotlib.pyplot.get_cmap(name)`"
+            )
+
+        # pass in the retrieved color map values to linear_color_map
+        def cmap(x):
+            return linear_color_map(x, np.array(available[color_map]))
     else:
-        try:
-            from matplotlib.pyplot import get_cmap
-            cmap = get_cmap(color_map)
-        except BaseException:
-            util.log.warning("matplotlib not available, falling back to linear_color_map")
-            cmap = linear_color_map
+        raise TypeError(f"Unknown color map: `{type(color_map)}`")
 
     # make input always float
     values = np.asanyarray(values, dtype=np.float64).ravel()

@@ -1976,7 +1976,9 @@ class Trimesh(Geometry3D):
             threshold=threshold,
         )
 
-    def subdivide(self, face_index: Optional[ArrayLike] = None) -> "Trimesh":
+    def subdivide(
+        self, face_index: Optional[ArrayLike] = None, iterations: Optional[Integer] = None
+    ) -> "Trimesh":
         """
         Subdivide a mesh with each subdivided face replaced
         with four smaller faces. Will return a copy of current
@@ -1993,6 +1995,15 @@ class Trimesh(Geometry3D):
           and an additional postprocessing step will be required to
           make resulting mesh watertight
         """
+
+        # check values for multiple iterations
+        if iterations is not None:
+            if face_index is not None:
+                raise ValueError("Unable to subdivide a subset with multiple iterations!")
+            next_iteration = iterations - 1
+            if next_iteration <= 0:
+                next_iteration = None
+
         visual = None
         if hasattr(self.visual, "uv") and np.shape(self.visual.uv) == (
             len(self.vertices),
@@ -2029,6 +2040,10 @@ class Trimesh(Geometry3D):
             vertex_attributes=attr,
             process=False,
         )
+
+        if iterations is not None:
+            return result.subdivide(iterations=next_iteration)
+
         return result
 
     def subdivide_to_size(self, max_edge, max_iter=10, return_index=False):
