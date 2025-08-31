@@ -1994,13 +1994,18 @@ class Trimesh(Geometry3D):
           will not be used by the adjacent faces to the faces specified,
           and an additional postprocessing step will be required to
           make resulting mesh watertight
+        iterations
+          If passed will run subdivisions multiple times recursively.
+          NOT COMPATIBLE with `face_index` and will raise a `ValueError`
+          if both arguments are passed.
         """
-
-        # check values for multiple iterations
         if iterations is not None:
+            # check that our arguments are executable
             if face_index is not None:
                 raise ValueError("Unable to subdivide a subset with multiple iterations!")
+            # decrement the next iteration
             next_iteration = iterations - 1
+            # if we've reached zero exit
             if next_iteration <= 0:
                 next_iteration = None
 
