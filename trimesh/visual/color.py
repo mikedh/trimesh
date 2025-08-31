@@ -608,8 +608,15 @@ def to_rgba(colors: Any, dtype: DTypeLike = np.uint8) -> NDArray:
         # replace any `nan` or `inf` values with zero
         colors[~np.isfinite(colors)] = 0.0
 
-        # if we've been passed float colors make sure to clip
+        # multiple the 0.0 - 1.0 colors by the opaque value
+        # to scale them to the output data type's proper range
         colors = np.clip(colors * opaque, 0.0, opaque)
+
+        # if the requested output type is integer-like
+        # make sure to round the multiplied floats
+        # before the `astype` on the return
+        if dtype.kind in "iu":
+            colors = colors.round()
 
     if util.is_shape(colors, (-1, 3)):
         # add an opaque alpha for RGB colors

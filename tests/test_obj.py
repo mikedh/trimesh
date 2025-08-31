@@ -167,6 +167,7 @@ def test_vertex_color():
     rec = g.trimesh.load(
         g.trimesh.util.wrap_as_stream(mesh.export(file_type="obj")), file_type="obj"
     )
+
     # assert colors have survived the export cycle
     assert (mesh.visual.vertex_colors == rec.visual.vertex_colors).all()
 
@@ -562,4 +563,4 @@ def test_obj_quad_uv():
 
 if __name__ == "__main__":
     # test_material_name()
-    test_obj_quad_uv()
+    test_vertex_color()
