@@ -1491,22 +1491,20 @@ def concatenate(
 
     vertex_attributes = {}
     # concatenate vertex attributes
-    keys = is_mesh[0].vertex_attributes.keys()
-    # if all meshes have the same vertex attributes
-    if len(keys) > 0 and all(
-        all(key in mesh.vertex_attributes for key in keys) for mesh in is_mesh[1:]
-    ):
-        for key in keys:
+    for key in is_mesh[0].vertex_attributes.keys():
+        # make sure every mesh has the attribute
+        # and that the attribute is valid for that mesh
+        if all(len(m.vertex_attributes.get(key), []) == len(m.vertices) for m in is_mesh):
             vertex_attributes[key] = np.concatenate(
                 [mesh.vertex_attributes[key] for mesh in is_mesh], axis=0
             )
 
     face_attributes = {}
-    # concatenate face attributes
-    keys = is_mesh[0].face_attributes.keys()
-    # if all meshes have the same face attributes
-    if all(all(key in mesh.face_attributes for key in keys) for mesh in is_mesh[1:]):
-        for key in keys:
+    # concatenate valid face attributes
+    for key in is_mesh[0].face_attributes.keys():
+        # an attribute can only be concatenated if
+        # if is valid on every mesh we're concatenating
+        if all(len(m.face_attributes.get(key), []) == len(m.faces) for m in is_mesh):
             face_attributes[key] = np.concatenate(
                 [mesh.face_attributes[key] for mesh in is_mesh], axis=0
             )

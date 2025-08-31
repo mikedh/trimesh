@@ -93,4 +93,4 @@ def test_extrude_mid_plane():
 
 
 if __name__ == "__main__":
-    test_extrude_mid_plane()
+    test_extrusion()
