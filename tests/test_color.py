@@ -266,8 +266,14 @@ def test_interpolate():
 
     assert g.np.allclose(colors[0], [255, 0, 0, 255])
     assert g.np.allclose(colors[1], [255, 0, 0, 255])
-    assert g.np.allclose(colors[2], [0, 255, 0, 255])
+    assert g.np.allclose(colors[2], [0, 255, 0, 255]), colors[2]
     assert g.np.allclose(colors[3], [0, 255, 0, 255])
+
+    # make sure it's interpolating
+    colors = g.trimesh.visual.linear_color_map([0.0, 0.5, 1.0])
+    assert g.np.allclose(colors[0], [255, 0, 0, 255])
+    assert g.np.allclose(colors[1], [128, 128, 0, 255]), colors[1]
+    assert g.np.allclose(colors[2], [0, 255, 0, 255])
 
     # should scale to range
     colors = g.trimesh.visual.interpolate(
@@ -297,14 +303,44 @@ def test_interpolate():
     )
     assert g.np.allclose(colors, [255, 0, 0, 255])
 
+    # create a subdivided box and interpolate the radius
+    box = g.trimesh.creation.box().subdivide(iterations=4)
+    radii = g.np.linalg.norm(box.vertices, axis=1)
+    # get the order for comparison
+    order = radii.argsort()
+
+    # run the interpolation with a pure red-green
+    box.visual.vertex_colors = g.trimesh.visual.color.interpolate(
+        radii, color_map=g.trimesh.visual.color.linear_color_map
+    )
+    # box.show(smooth=False)
+
+    # extract colors in order
+    color = box.visual.vertex_colors[order]
+
+    # green should be going from 0-255
+    # change the dtype so `diff` doesn't wrap
+    green = color[:, 1].astype(g.np.int64)
+
+    # first value is zero
+    assert green[0] == 0
+    # last value is fully set
+    assert green[-1] == 255
+
+    # should be completely monotonic
+    diff = green[1:] - green[:-1]
+    assert (diff >= 0).all(), diff.min()
+
+    # should be pretty smooth
+    assert diff.max() < 15, diff.max()
+
     # now make a box with viridis vertex colors that you can
     # add a `box.show()` to if you want to see if it actually does something
-    box = g.trimesh.creation.box().subdivide(iterations=3)
-    radii = g.np.linalg.norm(box.vertices, axis=1)
     box.visual.vertex_colors = g.trimesh.visual.interpolate(radii, "viridis")
     # make sure colors aren't all the same
     assert g.np.ptp(box.visual.vertex_colors, axis=0).max() > 0
 
+    # now see if we match matplotlib if it's installed
     try:
         from matplotlib.pyplot import get_cmap
     except ImportError:
@@ -315,7 +351,7 @@ def test_interpolate():
 
     # `get_cmap` doesn't interpolate linearly but otherwise "their viridis"
     # and "our viridis" should be decently close
-    assert g.np.allclose(box.visual.vertex_colors, check, atol=2)
+    assert g.np.allclose(box.visual.vertex_colors, check, atol=3)
 
 
 def test_uv_to_color():

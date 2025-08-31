@@ -904,15 +904,24 @@ def linear_color_map(
     # get the left and right indexes
     # clipping should be a no-op based on above normalization but
     # be extra sure ceil isn't pushing us out of our array range
-    bounds = np.clip(np.column_stack((np.floor(index), np.ceil(index))), 0.0, max_index)
+    bounds = np.clip(
+        np.column_stack((np.floor(index), np.ceil(index))), 0.0, max_index
+    ).astype(np.int64)
 
     # get the factor of how far each point is between `bounds` pair
     factor = index - bounds[:, 0]
+
     # reshape the factor into an interpolation
-    multiplier = np.column_stack((factor, 1.0 - factor)).reshape((-1, 2, 1))
+    multiplier = np.column_stack((1.0 - factor, factor)).reshape((-1, 2, 1))
 
     # get both colors, multiply them by the interpolation multiplier, and sum
-    return (color_range[bounds.astype(np.int64)] * multiplier).sum(axis=1)
+    interpolated = (color_range.astype(np.float64)[bounds] * multiplier).sum(axis=1)
+
+    # if we're returning integers make sure to round first
+    if color_range.dtype.kind in "iu":
+        return interpolated.round().astype(color_range.dtype)
+
+    return interpolated.astype(color_range.dtype)
 
 
 def interpolate(
