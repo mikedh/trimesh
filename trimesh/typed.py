@@ -61,6 +61,10 @@ Number = Union[Floating, Integer]
 # the literals for specifying what viewer to use
 ViewerType = Union[None, Callable, Literal["gl", "jupyter", "marimo"]]
 
+# literal for color maps we include in the library
+ColorMapType = Literal["viridis", "magma", "inferno", "plasma"]
+
+
 __all__ = [
     "IO",
     "Any",

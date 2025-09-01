@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.8"
-version = "4.7.4"
+version = "4.8.0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -56,7 +56,7 @@ include-package-data = false
 [tool.setuptools.package-data]
 trimesh = [
     "resources/templates/*",
-    "resources/*.json",
+    "resources/*.json*",
     "resources/schema/*",
     "resources/schema/primitive/*.json",
     "resources/*.zip",

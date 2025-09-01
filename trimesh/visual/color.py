@@ -29,9 +29,12 @@ import numpy as np
 from .. import caching, util
 from ..constants import tol
 from ..grouping import unique_rows
+from ..resources import get_json
 from ..typed import (
     Any,
     ArrayLike,
+    Callable,
+    ColorMapType,
     DTypeLike,
     Integer,
     Iterable,
@@ -40,6 +43,14 @@ from ..typed import (
     Union,
 )
 from .base import Visuals
+
+# Save a lookup table for an integer to match the
+# cases for HSV conversion specified on the wikipedia article
+# Where indexes 0=C, 1=X, 2=0.0
+_HSV_LOOKUP = np.array(
+    [[0, 1, 2], [1, 0, 2], [2, 0, 1], [2, 1, 0], [1, 2, 0], [0, 2, 1]], dtype=np.int64
+)
+_HSV_LOOKUP.flags.writeable = False
 
 
 class ColorVisuals(Visuals):
@@ -583,17 +594,29 @@ def to_rgba(colors: Any, dtype: DTypeLike = np.uint8) -> NDArray:
 
     # colors as numpy array
     colors = np.asanyarray(colors)
+    dtype = np.dtype(dtype)
 
-    # integer value for opaque alpha given our datatype
-    opaque = np.iinfo(dtype).max
+    # what is the output dtype opaque value
+    if dtype.kind in "iu":
+        opaque = np.iinfo(dtype).max
+    elif dtype.kind == "f":
+        opaque = 1.0
+    else:
+        raise ValueError(f"Unknown dtype: `{dtype}`")
 
     if colors.dtype.kind == "f":
         # replace any `nan` or `inf` values with zero
         colors[~np.isfinite(colors)] = 0.0
 
-        # if we've been passed float colors they better be
-        # 0.0-1.0
-        colors = np.clip((colors * opaque).round(), 0, opaque)
+        # multiple the 0.0 - 1.0 colors by the opaque value
+        # to scale them to the output data type's proper range
+        colors = np.clip(colors * opaque, 0.0, opaque)
+
+        # if the requested output type is integer-like
+        # make sure to round the multiplied floats
+        # before the `astype` on the return
+        if dtype.kind in "iu":
+            colors = colors.round()
 
     if util.is_shape(colors, (-1, 3)):
         # add an opaque alpha for RGB colors
@@ -674,7 +697,7 @@ def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
       An (n, 4) array of RGBA colors.
     """
 
-    hsv = np.array(hsv, dtype=np.float64)
+    hsv = np.asanyarray(hsv, dtype=np.float64)
     if len(hsv.shape) != 2 or hsv.shape[1] != 3:
         raise ValueError("(n, 3) values of HSV are required")
     # clip values in-place to 0.0-1.0 range
@@ -688,17 +711,11 @@ def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
     C = S * V
     Hi = H * 6.0
     X = C * (1.0 - np.abs((Hi % 2.0) - 1.0))
-    # use a lookup table for an integer to match the
-    # cases specified on the wikipedia article
-    # Where indexes 0=C, 1=X, 2=0.0
-    lookup = np.array(
-        [[0, 1, 2], [1, 0, 2], [2, 0, 1], [2, 1, 0], [1, 2, 0], [0, 2, 1]], dtype=np.int64
-    )
 
     # stack values we need so we can access them with the lookup table
     stacked = np.column_stack((C, X, np.zeros_like(X)))
     # get the indexes per-row and then increment them so we can use them on the stack
-    indexes = lookup[Hi.astype(np.int64)] + (np.arange(len(H)) * 3).reshape((-1, 1))
+    indexes = _HSV_LOOKUP[Hi.astype(np.int64)] + (np.arange(len(H)) * 3).reshape((-1, 1))
 
     # get the intermediate value, described by wikipedia as
     # the point along the bottom three faces of the RGB cube
@@ -840,53 +857,77 @@ def colors_to_materials(colors: ArrayLike, count: Optional[Integer] = None):
 
 def linear_color_map(
     values: ArrayLike, color_range: Optional[ArrayLike] = None
-) -> NDArray[np.uint8]:
+) -> NDArray:
     """
     Linearly interpolate between two colors.
 
-    If colors are not specified the function will
-    interpolate between  0.0 values as red and 1.0 as green.
+    If colors are not specified the function will interpolate
+    between 0.0 values as red and 1.0 as green.
 
     Parameters
     --------------
     values : (n, ) float
-      Values to interpolate
-    color_range : None, or (2, 4) uint8
-      What colors should extrema be set to
+      Normalized to 0.0 - 1.0 values to interpolate
+    color_range : None, or (n, 4)
+      Evenly spaced colors to interpolate through
+      where `n >= 2`.
 
     Returns
     ---------------
-    colors : (n, 4) uint8
+    colors : (n, 4) color_range.dtype
       RGBA colors for interpolated values
     """
 
     if color_range is None:
+        # do a very unimaginate "red to blue" linear scale
         color_range = np.array([[255, 0, 0, 255], [0, 255, 0, 255]], dtype=np.uint8)
     else:
-        color_range = np.asanyarray(color_range, dtype=np.uint8)
+        # make sure we have a numpy array
+        color_range = np.asanyarray(color_range)
 
-    if color_range.shape != (2, 4):
-        raise ValueError("color_range must be RGBA (2, 4)")
+    # do simple checks on the color range shape
+    if color_range.shape[0] < 2 or color_range.shape[1] < 3:
+        raise ValueError(
+            "color_range must be RGBA convertable and have more than 2 values!"
+        )
 
     # float 1D array clamped to 0.0 - 1.0
     values = np.clip(np.asanyarray(values, dtype=np.float64).ravel(), 0.0, 1.0).reshape(
         (-1, 1)
     )
 
-    # the stacked component colors
-    color = [np.ones((len(values), 4)) * c for c in color_range.astype(np.float64)]
+    # what is the maximum index of our colors
+    max_index = len(color_range) - 1
+    # convert our normalized values into a fractional index
+    index = values.ravel() * max_index
 
-    # interpolated colors
-    colors = (color[1] * values) + (color[0] * (1.0 - values))
+    # get the left and right indexes
+    # clipping should be a no-op based on above normalization but
+    # be extra sure ceil isn't pushing us out of our array range
+    bounds = np.clip(
+        np.column_stack((np.floor(index), np.ceil(index))), 0.0, max_index
+    ).astype(np.int64)
 
-    # rounded and set to correct data type
-    colors = np.round(colors).astype(np.uint8)
+    # get the factor of how far each point is between `bounds` pair
+    factor = index - bounds[:, 0]
 
-    return colors
+    # reshape the factor into an interpolation
+    multiplier = np.column_stack((1.0 - factor, factor)).reshape((-1, 2, 1))
+
+    # get both colors, multiply them by the interpolation multiplier, and sum
+    interpolated = (color_range.astype(np.float64)[bounds] * multiplier).sum(axis=1)
+
+    # if we're returning integers make sure to round first
+    if color_range.dtype.kind in "iu":
+        return interpolated.round().astype(color_range.dtype)
+
+    return interpolated.astype(color_range.dtype)
 
 
 def interpolate(
-    values: ArrayLike, color_map: Optional[str] = None, dtype: DTypeLike = np.uint8
+    values: ArrayLike,
+    color_map: Union[None, ColorMapType, Callable] = None,
+    dtype: DTypeLike = np.uint8,
 ) -> NDArray:
     """
     Given a 1D list of values, return interpolated colors
@@ -896,10 +937,11 @@ def interpolate(
     ---------------
     values : (n, ) float
       Values to be interpolated over
-    color_map : None, or str
-      Key to a colormap contained in:
-      matplotlib.pyplot.colormaps()
-      e.g: 'viridis'
+    color_map
+      One of the four included color maps:
+      ("viridis", "inferno", "plasma", "magma")
+      Or a function, `matplotlib.pyplot.get_cmap
+
 
     Returns
     -------------
@@ -907,13 +949,31 @@ def interpolate(
       Interpolated RGBA colors
     """
 
-    # get a color interpolation function
+    # make `viridis` the default just like everyone else
     if color_map is None:
-        cmap = linear_color_map
-    else:
-        from matplotlib.pyplot import get_cmap
+        color_map = "viridis"
 
-        cmap = get_cmap(color_map)
+    if callable(color_map):
+        # should be a `matplotlib.pyplot.get_cmap` callable
+        cmap = color_map
+    elif isinstance(color_map, str):
+        # color map is a named key in our packaged color maps
+        available = get_json("color_map.json.gzip")
+        if color_map not in available:
+            # we could have added a fallback to matplotlib:
+            # `from matplotlib.pyplot import get_cmap; cmap = get_cmap(name)`
+            # but we don't want trimesh to depend on matplotlib as it is quite heavy
+            raise ValueError(
+                f"Included color maps are: {available.keys()}.\n\n"
+                + "If you want to use a `matplotlib` color map you can "
+                + "pass it as `color_map=matplotlib.pyplot.get_cmap(name)`"
+            )
+
+        # pass in the retrieved color map values to linear_color_map
+        def cmap(x):
+            return linear_color_map(x, np.array(available[color_map]))
+    else:
+        raise TypeError(f"Unknown color map: `{type(color_map)}`")
 
     # make input always float
     values = np.asanyarray(values, dtype=np.float64).ravel()
@@ -928,6 +988,7 @@ def interpolate(
 
     # scale values to 0.0 - 1.0 and get colors
     colors = cmap(values)
+
     # convert to 0-255 RGBA
     rgba = to_rgba(colors, dtype=dtype)
 
