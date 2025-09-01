@@ -26,7 +26,7 @@ from .iteration import chain
 from .typed import ArrayLike, Dict, Iterable, NDArray, Optional, Set, Union, float64
 
 # create a default logger
-log = logging.getLogger("trimesh")
+log = logging.getLogger(__name__)
 
 ABC = abc.ABC
 now = time.time
@@ -1489,25 +1489,35 @@ def concatenate(
     except BaseException:
         pass
 
+    # concatenate vertex attributes that are valid for every mesh
     vertex_attributes = {}
-    # concatenate vertex attributes
     for key in is_mesh[0].vertex_attributes.keys():
-        # make sure every mesh has the attribute
-        # and that the attribute is valid for that mesh
+        # make sure every mesh has a valid attribute
         if all(len(m.vertex_attributes.get(key, [])) == len(m.vertices) for m in is_mesh):
-            vertex_attributes[key] = np.concatenate(
-                [mesh.vertex_attributes.get(key, []) for mesh in is_mesh], axis=0
-            )
+            try:
+                vertex_attributes[key] = np.concatenate(
+                    [mesh.vertex_attributes.get(key, []) for mesh in is_mesh], axis=0
+                )
+            except BaseException:
+                log.warning(
+                    f"Failed to concatenate `vertex_attribute['{key}']`", exc_info=True
+                )
 
+    # concatenate face attributes that are valid for every mesh
     face_attributes = {}
-    # concatenate valid face attributes
     for key in is_mesh[0].face_attributes.keys():
-        # an attribute can only be concatenated if
-        # if is valid on every mesh we're concatenating
+        # an attribute can only be concatenated if it's valid for every mesh
         if all(len(m.face_attributes.get(key, [])) == len(m.faces) for m in is_mesh):
-            face_attributes[key] = np.concatenate(
-                [mesh.face_attributes.get(key, []) for mesh in is_mesh], axis=0
-            )
+            try:
+                # stack along axis 0
+                face_attributes[key] = np.concatenate(
+                    [mesh.face_attributes.get(key, []) for mesh in is_mesh], axis=0
+                )
+            except BaseException:
+                # could have failed because attribute had different shapes
+                log.warning(
+                    f"Failed to concatenate `face_attribute['{key}']`", exc_info=True
+                )
 
     # create the mesh object
     result = trimesh_type(
