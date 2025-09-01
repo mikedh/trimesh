@@ -304,7 +304,7 @@ def test_interpolate():
     assert g.np.allclose(colors, [255, 0, 0, 255])
 
     # create a subdivided box and interpolate the radius
-    box = g.trimesh.creation.box().subdivide(iterations=4)
+    box = g.trimesh.creation.box().subdivide(iterations=5)
     radii = g.np.linalg.norm(box.vertices, axis=1)
     # get the order for comparison
     order = radii.argsort()
@@ -352,6 +352,8 @@ def test_interpolate():
     # `get_cmap` doesn't interpolate linearly but otherwise "their viridis"
     # and "our viridis" should be decently close
     assert g.np.allclose(box.visual.vertex_colors, check, atol=3)
+
+    # box.show()
 
 
 def test_uv_to_color():

@@ -861,8 +861,8 @@ def linear_color_map(
     """
     Linearly interpolate between two colors.
 
-    If colors are not specified the function will
-    interpolate between  0.0 values as red and 1.0 as green.
+    If colors are not specified the function will interpolate
+    between 0.0 values as red and 1.0 as green.
 
     Parameters
     --------------
