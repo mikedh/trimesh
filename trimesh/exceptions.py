@@ -17,7 +17,10 @@ class ExceptionWrapper:
     actually requested so the user gets an easily debuggable message.
     """
 
-    def __init__(self, exception):
+    def __init__(self, exception: BaseException):
+        # store the exception type and the args rather than the whole thing
+        # this prevents the locals from the time of the exception
+        # from being stored as well.
         self.exception = (type(exception), exception.args)
 
     def __getattribute__(self, *args, **kwargs):
@@ -26,11 +29,12 @@ class ExceptionWrapper:
         # this allows isinstance() checks to not re-raise
         if args[0] == "__class__":
             return None.__class__
-        # otherwise raise our original exception
-        exc_ty, exc_args = super().__getattribute__("exception")
-        raise exc_ty(*exc_args)
+
+        # re-create our original exception from the type and arguments
+        exc_type, exc_args = super().__getattribute__("exception")
+        raise exc_type(*exc_args)
 
     def __call__(self, *args, **kwargs):
-        # will raise when this object is called like a function
-        exc_ty, exc_args = super().__getattribute__("exception")
-        raise exc_ty(*exc_args)
+        # behave the same when this object is called like a function
+        # as when someone tries to access an attribute like a module
+        self.__getattribute__("exception")
