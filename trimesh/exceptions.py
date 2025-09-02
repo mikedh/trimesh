@@ -18,7 +18,7 @@ class ExceptionWrapper:
     """
 
     def __init__(self, exception):
-        self.exception = exception
+        self.exception = (type(exception), exception.args)
 
     def __getattribute__(self, *args, **kwargs):
         # will raise when this object is accessed like an object
@@ -27,8 +27,10 @@ class ExceptionWrapper:
         if args[0] == "__class__":
             return None.__class__
         # otherwise raise our original exception
-        raise super().__getattribute__("exception")
+        exc_ty, exc_args = super().__getattribute__("exception")
+        raise exc_ty(*exc_args)
 
     def __call__(self, *args, **kwargs):
         # will raise when this object is called like a function
-        raise super().__getattribute__("exception")
+        exc_ty, exc_args = super().__getattribute__("exception")
+        raise exc_ty(*exc_args)
