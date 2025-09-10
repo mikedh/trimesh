@@ -2232,7 +2232,7 @@ class Trimesh(Geometry3D):
         from .path.path import Path3D
 
         # return a single cross section in 3D
-        lines, face_index = intersections.mesh_plane(
+        lines, _face_index = intersections.mesh_plane(
             mesh=self,
             plane_normal=plane_normal,
             plane_origin=plane_origin,

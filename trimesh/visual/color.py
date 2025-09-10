@@ -859,15 +859,20 @@ def linear_color_map(
     values: ArrayLike, color_range: Optional[ArrayLike] = None
 ) -> NDArray:
     """
-    Linearly interpolate between two colors.
+    Linearly interpolate a color lookup table from normalized
+    values.
 
-    If colors are not specified the function will interpolate
-    between 0.0 values as red and 1.0 as green.
+    For example if `color_range` has two values [`a`, `b`]
+    `values` is `[0.0, 0.5, 1.0]`, this function will return
+    [`a`, `(a+b)/2`, `b`].
+
+    The default value for `color_range` is red-green, or you
+    can pass in a full lookup table for a color map.
 
     Parameters
     --------------
     values : (n, ) float
-      Normalized to 0.0 - 1.0 values to interpolate
+      Normalized to 0.0-1.0 values to interpolate
     color_range : None, or (n, 4)
       Evenly spaced colors to interpolate through
       where `n >= 2`.
@@ -888,7 +893,7 @@ def linear_color_map(
     # do simple checks on the color range shape
     if color_range.shape[0] < 2 or color_range.shape[1] < 3:
         raise ValueError(
-            "color_range must be RGBA convertable and have more than 2 values!"
+            "color_range must be RGBA convertible and have more than 2 values!"
         )
 
     # float 1D array clamped to 0.0 - 1.0
