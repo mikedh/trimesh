@@ -3,11 +3,11 @@ recommonmark==0.7.1
 jupyter==1.1.1
 
 # get sphinx version range from furo install
-furo==2024.8.6
+furo==2025.7.19
 myst-parser==4.0.1
-pyopenssl==25.0.0
+pyopenssl==25.1.0
 autodocsumm==0.2.14
 jinja2==3.1.6
-matplotlib==3.10.1
+matplotlib==3.10.6
 nbconvert==7.16.6
 

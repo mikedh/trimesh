@@ -26,7 +26,7 @@ def test_projection_already_2D():
     assert path_3D.vertices.shape[1] == 2
     check, to_3D = path_3D.to_planar()
     assert g.np.isclose(check.area, path_2D.area)
-
+    assert to_3D.shape == (4, 4)
 
 if __name__ == "__main__":
     test_projection_already_2D()
