@@ -1,13 +1,19 @@
+
+# Stage 1: Build uv
+FROM ghcr.io/astral-sh/uv:0.8.16 AS uv
+
 # use a vanilla Debian base image
 FROM debian:trixie-slim AS base
 LABEL maintainer="mikedh@kerfed.com"
 
-# Create a non-root user with `uid=499`.
+# Copy uv binary from the builder stage
+COPY --from=uv uv /usr/local/bin/uv
+
+# Create a non-root user with `uid=499` and switch to it.
 RUN useradd -m -u 499 -s /bin/bash user && \
     apt-get update && \
-    apt-get install --no-install-recommends -qq -y python3.13-venv && \
+    apt-get install --no-install-recommends -qq -y ca-certificates && \
     apt-get clean -y && rm -rf /var/lib/apt/lists/*
-
 USER user
 
 WORKDIR /home/user
@@ -17,11 +23,14 @@ WORKDIR /home/user
 # but if you use Debian methods like `update-alternatives`
 # it won't provide a `pip` which works easily and it isn't
 # easy to know how system packages interact with pip packages
-RUN python3.13 -m venv venv
+RUN uv venv --python=python3.13 venv
 
-# So scripts installed from pip are in $PATH
+# Add `pip` script install location to $PATH
 ENV PATH="/home/user/venv/bin:$PATH"
 ENV VIRTUAL_ENV="/home/user/venv"
+# bash script that redirects `pip install X`->`uv pip install X`
+RUN echo "uv pip \$*" > /home/user/venv/bin/pip && \
+    chmod +x /home/user/venv/bin/pip
 
 # Install helper script to PATH.
 COPY --chmod=755 docker/trimesh-setup /home/user/venv/bin
@@ -29,13 +38,6 @@ COPY --chmod=755 docker/trimesh-setup /home/user/venv/bin
 #######################################
 ## install things that need building
 FROM base AS build
-
-USER root
-# `xatlas` currently needs to compile on 3.13 from the sdist
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y python3.13-dev build-essential g++ && \
-    apt-get clean -y && rm -rf /var/lib/apt/lists/*
-USER user
 
 # copy in essential files
 COPY --chown=499 trimesh/ /home/user/trimesh
@@ -76,10 +78,6 @@ RUN pip install .[all] && \
 
 # check for lint problems
 RUN ruff check trimesh
-
-# run a limited array of static type checks
-# TODO : get this to pass on base
-RUN pyright trimesh/base.py || true
 
 # run pytest wrapped with xvfb for simple viewer tests
 # print more columns so the short summary is usable

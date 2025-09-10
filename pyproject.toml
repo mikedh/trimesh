@@ -112,7 +112,6 @@ test = [
 # a good idea in our "cannonical docker images"
 test_more = [
     "coveralls",
-    "pyright",
     "ezdxf",
     "xatlas",
     "pytest-beartype; python_version>='3.10'",
