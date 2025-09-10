@@ -28,5 +28,6 @@ def test_projection_already_2D():
     assert g.np.isclose(check.area, path_2D.area)
     assert to_3D.shape == (4, 4)
 
+
 if __name__ == "__main__":
     test_projection_already_2D()
