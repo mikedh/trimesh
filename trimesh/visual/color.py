@@ -867,13 +867,18 @@ def linear_color_map(
     [`a`, `(a+b)/2`, `b`].
 
     The default value for `color_range` is red-green, or you
-    can pass in a full lookup table for a color map.
+    can pass in a full lookup table for a color map, i.e. a
+    `(256, 3) float64` array of RGB colors such as our defaults:
+    `trimesh.resources.get_json('color_map.json.gzip')['viridis']`
+
+
+
 
     Parameters
     --------------
     values : (n, ) float
       Normalized to 0.0-1.0 values to interpolate
-    color_range : None, or (n, 4)
+    color_range : None or (n, 3|4)
       Evenly spaced colors to interpolate through
       where `n >= 2`.
 
