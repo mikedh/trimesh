@@ -712,28 +712,31 @@ def _elements_to_kwargs(elements, fix_texture, image, prefer_color=None):
         kwargs["vertex_colors"] = _element_colors(elements["vertex"])
 
     # check if we have gotten path elements
-    edge = elements.get("edge", {}).get("data", None)
-    if edge is not None:
+    edge_data = elements.get("edge", {}).get("data", None)
+    if edge_data is not None:
+        # try to convert the data in the PLY file to (n, 2) edge indexes
         edges = None
-        if isinstance(edge, dict):
+        if isinstance(edge_data, dict):
             try:
-                edges = np.column_stack((edge["vertex1"], edge["vertex2"]))
+                edges = np.column_stack((edge_data["vertex1"], edge_data["vertex2"]))
             except BaseException:
                 log.debug(
-                    f"failed to convert PLY edges from keys: {edge.keys()}", exc_info=True
+                    f"failed to convert PLY edges from keys: {edge_data.keys()}",
+                    exc_info=True,
                 )
-        elif isinstance(edge, np.ndarray):
+        elif isinstance(edge_data, np.ndarray):
             # is this the best way to check for a structured dtype?
-            if edge.dtype.kind == "O":
-                edges = structured_to_unstructured(elements["edge"]["data"])
-            if len(edge.shape) == 2 and edge.shape[1] == 2:
-                edges = edge
+            if len(edge_data.shape) == 2 and edge_data.shape[1] == 2:
+                edges = edge_data
+            else:
+                # we could also check `edge_data.dtype.kind in 'OV'`
+                # but its not clear that that handles all the possiblities
+                edges = structured_to_unstructured(edge_data)
 
         if edges is not None:
             from ..path.exchange.misc import edges_to_path
 
             kwargs.update(edges_to_path(edges, kwargs["vertices"]))
-
     return kwargs
 
 
