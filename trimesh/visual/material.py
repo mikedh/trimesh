@@ -888,8 +888,10 @@ def pack(
             else:
                 metallic = 0.0 if mat.metallicFactor is None else mat.metallicFactor
                 roughness = 1.0 if mat.roughnessFactor is None else mat.roughnessFactor
+                # glTF expects B=metallic, G=roughness, R=unused
+                # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
                 metallic_roughnesss = np.round(
-                    np.array([metallic, roughness, 0.0], dtype=np.float64) * 255
+                    np.array([0.0, roughness, metallic], dtype=np.float64) * 255
                 )
                 img = Image.fromarray(metallic_roughnesss[None, None].astype(np.uint8))
         return img
@@ -937,9 +939,8 @@ def pack(
 
     def pack_images(images):
         # run image packing with our material-specific settings
-        # which including deduplicating by hash, upsizing to the
-        # nearest power of two, returning deterministically by seeding
-        # and padding every side of the image by 1 pixel
+        # Note: deduplication is disabled to ensure consistent packing
+        # across different texture types (base color, metallic/roughness, etc)
 
         # see if we've already run this packing image
         key = hash(tuple(sorted([id(i) for i in images])))
@@ -950,7 +951,7 @@ def pack(
         # otherwise run packing now
         result = packing.images(
             images,
-            deduplicate=True,
+            deduplicate=False,  # Disabled to ensure consistent texture layouts
             power_resize=True,
             seed=42,
             iterations=10,
@@ -975,7 +976,6 @@ def pack(
 
     assert set(np.concatenate(mat_idx).ravel()) == set(range(len(uvs)))
     assert len(uvs) == len(materials)
-
     use_pbr = any(isinstance(m, PBRMaterial) for m in materials)
 
     # in some cases, the fused scene results in huge trimsheets
