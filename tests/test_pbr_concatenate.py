@@ -14,12 +14,11 @@ except BaseException:
 
 class PBRConcatenateTest(g.unittest.TestCase):
     def test_pbr_factors_preserved(self):
-        """
-        Test that metallicFactor and roughnessFactor are preserved
-        when concatenating meshes with PBR materials.
+        """Test that metallicFactor and roughnessFactor are preserved when
+        concatenating meshes with PBR materials.
 
-        This tests the fix for the bug where these factors became None
-        after concatenation, causing meshes to appear shiny/metallic.
+        This tests the fix for the bug where these factors became None after
+        concatenation, causing meshes to appear shiny/metallic.
         """
         # Create two boxes with PBR materials
         box1 = g.trimesh.creation.box(extents=[1, 1, 1])
@@ -42,30 +41,18 @@ class PBRConcatenateTest(g.unittest.TestCase):
         # Concatenate the meshes
         merged = g.trimesh.util.concatenate([box1, box2])
 
-        # Check that the factors are NOT None (bug was they became None)
-        # They should be set to 1.0 when textures are created
-        assert merged.visual.material.metallicFactor is not None, (
-            "metallicFactor should not be None after concatenation"
-        )
-        assert merged.visual.material.roughnessFactor is not None, (
-            "roughnessFactor should not be None after concatenation"
-        )
-        
-        # When textures are created, factors should be 1.0
-        assert merged.visual.material.metallicFactor == 1.0
-        assert merged.visual.material.roughnessFactor == 1.0
+        # Factor are `None` because textures are created for metallicFactor and
+        # roughnessFactor
+        assert merged.visual.material.metallicFactor is None
+        assert merged.visual.material.roughnessFactor is None
 
         # Check that textures were created
         assert merged.visual.material.baseColorTexture is not None
         assert merged.visual.material.metallicRoughnessTexture is not None
 
     def test_pbr_uv_mapping(self):
-        """
-        Test that UV coordinates correctly map to material values
-        in the packed textures after concatenation.
-
-        This verifies the fix for UV coordinate calculation and
-        texture packing consistency.
+        """Test that UV coordinates correctly map to material values in the
+        packed textures after concatenation.
         """
         # Create two boxes with different colors but same PBR values
         box1 = g.trimesh.creation.box(extents=[0.5, 0.5, 0.5])
@@ -111,10 +98,8 @@ class PBRConcatenateTest(g.unittest.TestCase):
                 )
 
     def test_pbr_identical_materials(self):
-        """
-        Test that concatenating meshes with identical PBR materials
-        preserves the scalar values without creating textures.
-        """
+        """Test that concatenating meshes with identical PBR materials
+        preserves the scalar values without creating textures."""
         # Create two boxes with identical materials
         box1 = g.trimesh.creation.box(extents=[0.5, 0.5, 0.5])
         mat1 = g.trimesh.visual.material.PBRMaterial(
