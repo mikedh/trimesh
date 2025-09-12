@@ -711,13 +711,28 @@ def _elements_to_kwargs(elements, fix_texture, image, prefer_color=None):
     if "vertex" in elements:
         kwargs["vertex_colors"] = _element_colors(elements["vertex"])
 
-    if "edge" in elements:
-        # this is a Path element.
+    # check if we have gotten path elements
+    edge = elements.get("edge", {}).get("data", None)
+    if edge is not None:
+        edges = None
+        if isinstance(edge, dict):
+            try:
+                edges = np.column_stack((edge["vertex1"], edge["vertex2"]))
+            except BaseException:
+                log.debug(
+                    f"failed to convert PLY edges from keys: {edge.keys()}", exc_info=True
+                )
+        elif isinstance(edge, np.ndarray):
+            # is this the best way to check for a structured dtype?
+            if edge.dtype.kind == "O":
+                edges = structured_to_unstructured(elements["edge"]["data"])
+            if len(edge.shape) == 2 and edge.shape[1] == 2:
+                edges = edge
 
-        from ..path.exchange.misc import edges_to_path
+        if edges is not None:
+            from ..path.exchange.misc import edges_to_path
 
-        edges = structured_to_unstructured(elements["edge"]["data"])
-        kwargs.update(edges_to_path(edges, kwargs["vertices"]))
+            kwargs.update(edges_to_path(edges, kwargs["vertices"]))
 
     return kwargs
 
