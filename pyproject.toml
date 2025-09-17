@@ -170,6 +170,7 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"
 "numpy.empty".msg = "uninitialized arrays are haunted try numpy.zeros"
+"numpy.empty_like".msg = "uninitialized arrays are haunted try numpy.zeros"
 
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"

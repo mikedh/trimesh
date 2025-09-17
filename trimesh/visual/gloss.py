@@ -3,7 +3,7 @@ import numpy as np
 from ..constants import log
 from ..exceptions import ExceptionWrapper
 from ..typed import ArrayLike, Number, Optional
-from .color import linear_to_srgb
+from .color import linear_to_srgb, srgb_to_linear
 
 try:
     from PIL.Image import Image, fromarray
@@ -241,18 +241,6 @@ def specular_to_pbr(
         ):
             specularGlossinessTexture = specularGlossinessTexture.resize(max_shape)
 
-    def srgb2lin(s):
-        """
-        Converts sRGB color values to linear color values.
-        See: https://entropymine.com/imageworsener/srgbformula/
-        """
-
-        mask = s <= 0.0404482362771082
-        lin = np.empty_like(s)
-        lin[mask] = s[mask] / 12.92
-        lin[~mask] = np.power(((s[~mask] + 0.055) / 1.055), 2.4)
-        return lin
-
     def convert_texture_srgb2lin(texture):
         """
         Wrapper for srgb2lin that converts color values from sRGB to linear.
@@ -263,7 +251,7 @@ def specular_to_pbr(
         # only scale the color channels, not the alpha channel
         if color_channels == 4 or color_channels == 2:
             color_channels -= 1
-        result[..., :color_channels] = srgb2lin(result[..., :color_channels])
+        result[..., :color_channels] = srgb_to_linear(result[..., :color_channels])
         return result
 
     def convert_texture_lin2srgb(texture):

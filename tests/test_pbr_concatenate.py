@@ -82,8 +82,8 @@ class PBRConcatenateTest(g.unittest.TestCase):
         # In glTF: Blue channel = metallic, Green channel = roughness
         for u, v in merged.visual.uv:
             # Convert UV to pixel coordinates
-            px = int(round(u * (tex.shape[1] - 1)))
-            py = int(round((1 - v) * (tex.shape[0] - 1)))
+            px = round(u * (tex.shape[1] - 1))
+            py = round((1 - v) * (tex.shape[0] - 1))
 
             if 0 <= px < tex.shape[1] and 0 <= py < tex.shape[0]:
                 roughness = tex[py, px, 1]  # Green channel

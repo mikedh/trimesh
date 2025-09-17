@@ -761,6 +761,23 @@ def linear_to_srgb(linear: ArrayLike) -> NDArray[np.float64]:
     return srgb
 
 
+def srgb_to_linear(srgb: ArrayLike) -> NDArray[np.float64]:
+    """
+    Converts sRGB color values to linear color values.
+    See: https://entropymine.com/imageworsener/srgbformula/
+    """
+
+    # make sure the color values are floating point scaled
+    srgb = to_float(srgb)
+
+    mask = srgb <= 0.0404482362771082
+    linear = np.zeros(srgb.shape, dtype=np.float64)
+    linear[mask] = srgb[mask] / 12.92
+    linear[~mask] = np.power(((srgb[~mask] + 0.055) / 1.055), 2.4)
+
+    return linear
+
+
 def random_color(dtype: DTypeLike = np.uint8, count: Optional[Integer] = None) -> NDArray:
     """
     Return a random RGB color using datatype specified.

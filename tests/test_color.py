@@ -4,6 +4,29 @@ except BaseException:
     import generic as g
 
 
+def test_linear_srgb():
+    from trimesh.visual.color import linear_to_srgb, srgb_to_linear, to_rgba
+
+    # deterministically create some colors
+    original = g.np.arange(255, dtype=g.np.uint8).reshape((-1, 3))
+
+    # convert them to linear form
+    linear = srgb_to_linear(original)
+
+    assert linear.shape == original.shape
+    assert g.np.ptp(linear) > 0.0
+    assert linear.dtype == g.np.float64
+
+    # convert them back to srgb float colors
+    srgb = linear_to_srgb(linear)
+
+    # will convert float -> uint8 and clip off the alpha
+    roundtrip = to_rgba(srgb)[:, :3]
+
+    # we should have roundtripped exactly
+    assert g.np.allclose(roundtrip, original)
+
+
 def test_visual():
     mesh = g.get_mesh("featuretype.STL")
 
@@ -422,5 +445,6 @@ def test_copy():
 
 
 if __name__ == "__main__":
-    test_to_rgba_float()
-    test_interpolate()
+    # test_to_rgba_float()
+    # test_interpolate()
+    test_linear_srgb()
