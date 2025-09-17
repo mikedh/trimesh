@@ -3,6 +3,7 @@ import copy
 import numpy as np
 
 from .. import util
+from ..typed import NDArray
 
 
 class Camera:
@@ -222,6 +223,31 @@ class Camera:
             self._fov = values
             # fov overrides focal
             self._focal = None
+
+    @property
+    def projection(self) -> NDArray[np.float64]:
+        """
+        Get the (4, 4) projection matrix for this perspective camera.
+
+        Returns
+        --------------
+        projection_matrix : (4, 4) float
+          Projection matrix for the camera
+        """
+        z_near, z_far, fov_y = self.z_near, self.z_far, self.fov[1]
+
+        aspect = np.divide(*self.resolution)
+
+        f = 1.0 / np.tan(fov_y / 2.0)
+        projection_matrix = np.eye(4)
+
+        projection_matrix[0, 0] = f / aspect
+        projection_matrix[1, 1] = f
+        projection_matrix[2, 2] = (z_far + z_near) / (z_near - z_far)
+        projection_matrix[2, 3] = (2 * z_far * z_near) / (z_near - z_far)
+        projection_matrix[3, 2] = -1.0
+
+        return projection_matrix
 
     def to_rays(self):
         """
