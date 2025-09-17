@@ -730,7 +730,7 @@ def _elements_to_kwargs(elements, fix_texture, image, prefer_color=None):
                 edges = edge_data
             else:
                 # we could also check `edge_data.dtype.kind in 'OV'`
-                # but its not clear that that handles all the possiblities
+                # but its not clear that that handles all the possibilities
                 edges = structured_to_unstructured(edge_data)
 
         if edges is not None:

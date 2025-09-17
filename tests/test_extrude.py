@@ -85,7 +85,7 @@ def test_extrude_mid_plane():
             polygon=Point([0, 0]).buffer(1.0), height=10.0, transform=tf, mid_plane=True
         )
 
-        # the mesh center of mass should be independant
+        # the mesh center of mass should be independent
         # of rotation and exactly at the translation
         center = m.to_mesh().center_mass
         translate = tf[:3, 3]
