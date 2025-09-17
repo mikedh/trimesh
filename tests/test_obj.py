@@ -547,7 +547,7 @@ def test_material_name():
         m.export(file_obj=path)
         roundtrip = g.trimesh.load_mesh(file_obj=path)
 
-    # material name should have survivied
+    # material name should have survived
     assert roundtrip.visual.material.name == "a-super-duper-material"
 
     g.check_fuze(roundtrip)

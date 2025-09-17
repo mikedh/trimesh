@@ -734,6 +734,50 @@ def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
     raise ValueError(f"dtype `{dtype}` not supported")
 
 
+def linear_to_srgb(linear: ArrayLike) -> NDArray[np.float64]:
+    """
+    Converts linear color values to sRGB color values.
+
+    See: https://entropymine.com/imageworsener/srgbformula/
+
+    Parameters
+    ----------
+    linear
+      Linear color values of any shape since this
+      is a per-element transformation
+
+    Returns
+    ---------
+    srgb
+      Values scaled to an sRGB scale.
+    """
+    linear = np.asanyarray(linear, dtype=np.float64)
+
+    mask = linear > 0.00313066844250063
+    srgb = np.zeros(linear.shape, dtype=np.float64)
+    srgb[mask] = 1.055 * np.power(linear[mask], (1.0 / 2.4)) - 0.055
+    srgb[~mask] = 12.92 * linear[~mask]
+
+    return srgb
+
+
+def srgb_to_linear(srgb: ArrayLike) -> NDArray[np.float64]:
+    """
+    Converts sRGB color values to linear color values.
+    See: https://entropymine.com/imageworsener/srgbformula/
+    """
+
+    # make sure the color values are floating point scaled
+    srgb = to_float(srgb)
+
+    mask = srgb <= 0.0404482362771082
+    linear = np.zeros(srgb.shape, dtype=np.float64)
+    linear[mask] = srgb[mask] / 12.92
+    linear[~mask] = np.power(((srgb[~mask] + 0.055) / 1.055), 2.4)
+
+    return linear
+
+
 def random_color(dtype: DTypeLike = np.uint8, count: Optional[Integer] = None) -> NDArray:
     """
     Return a random RGB color using datatype specified.
@@ -859,16 +903,26 @@ def linear_color_map(
     values: ArrayLike, color_range: Optional[ArrayLike] = None
 ) -> NDArray:
     """
-    Linearly interpolate between two colors.
+    Linearly interpolate a color lookup table from normalized
+    values.
 
-    If colors are not specified the function will interpolate
-    between 0.0 values as red and 1.0 as green.
+    For example if `color_range` has two values [`a`, `b`]
+    `values` is `[0.0, 0.5, 1.0]`, this function will return
+    [`a`, `(a+b)/2`, `b`].
+
+    The default value for `color_range` is red-green, or you
+    can pass in a full lookup table for a color map, i.e. a
+    `(256, 3) float64` array of RGB colors such as our defaults:
+    `trimesh.resources.get_json('color_map.json.gzip')['viridis']`
+
+
+
 
     Parameters
     --------------
     values : (n, ) float
-      Normalized to 0.0 - 1.0 values to interpolate
-    color_range : None, or (n, 4)
+      Normalized to 0.0-1.0 values to interpolate
+    color_range : None or (n, 3|4)
       Evenly spaced colors to interpolate through
       where `n >= 2`.
 
@@ -888,7 +942,7 @@ def linear_color_map(
     # do simple checks on the color range shape
     if color_range.shape[0] < 2 or color_range.shape[1] < 3:
         raise ValueError(
-            "color_range must be RGBA convertable and have more than 2 values!"
+            "color_range must be RGBA convertible and have more than 2 values!"
         )
 
     # float 1D array clamped to 0.0 - 1.0

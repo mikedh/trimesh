@@ -2135,22 +2135,7 @@ class Trimesh(Geometry3D):
         new_vertices, new_faces = remesh.subdivide_loop(
             vertices=self.vertices, faces=self.faces, iterations=iterations
         )
-        # create new mesh
-        result = Trimesh(vertices=new_vertices, faces=new_faces, process=False)
-        return result
-
-    def smoothed(self, **kwargs):
-        """
-        DEPRECATED: use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`
-        """
-        warnings.warn(
-            "`mesh.smoothed()` is deprecated and will be removed in March 2024: "
-            + "use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-        # run smoothing
-        return self.smooth_shaded
+        return Trimesh(vertices=new_vertices, faces=new_faces, process=False)
 
     @property
     def smooth_shaded(self):
@@ -2205,6 +2190,8 @@ class Trimesh(Geometry3D):
         visual : ColorVisuals or TextureVisuals
           Contains visual information about the mesh
         """
+        if value is None:
+            value = ColorVisuals()
         value.mesh = self
         self._visual = value
 
@@ -2232,7 +2219,7 @@ class Trimesh(Geometry3D):
         from .path.path import Path3D
 
         # return a single cross section in 3D
-        lines, face_index = intersections.mesh_plane(
+        lines, _face_index = intersections.mesh_plane(
             mesh=self,
             plane_normal=plane_normal,
             plane_origin=plane_origin,

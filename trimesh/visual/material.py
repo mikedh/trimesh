@@ -823,9 +823,22 @@ def pack(
                     mat.baseColorTexture, factor=mat.baseColorFactor, mode="RGBA"
                 )
             elif mat.baseColorFactor is not None:
-                c = color.to_rgba(mat.baseColorFactor)
+                # Per glTF 2.0 spec (https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html):
+                # - baseColorFactor: "defines linear multipliers for the sampled texels"
+                # - baseColorTexture: "RGB components MUST be encoded with the sRGB transfer function"
+                #
+                # Therefore when creating a texture from baseColorFactor values,
+                # we need to convert from linear to sRGB space
+                c_linear = color.to_float(mat.baseColorFactor).reshape(4)
+
+                # Apply proper sRGB gamma correction to RGB channels
+                c_srgb = np.concatenate(
+                    [color.linear_to_srgb(c_linear[:3]), c_linear[3:4]]
+                )
+
+                # Convert to uint8
+                c = np.round(c_srgb * 255).astype(np.uint8)
                 assert c.shape == (4,)
-                assert c.dtype == np.uint8
                 img = color_image(c)
 
             if img is not None and mat.alphaMode != "BLEND":
@@ -888,8 +901,10 @@ def pack(
             else:
                 metallic = 0.0 if mat.metallicFactor is None else mat.metallicFactor
                 roughness = 1.0 if mat.roughnessFactor is None else mat.roughnessFactor
+                # glTF expects B=metallic, G=roughness, R=unused
+                # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
                 metallic_roughnesss = np.round(
-                    np.array([metallic, roughness, 0.0], dtype=np.float64) * 255
+                    np.array([0.0, roughness, metallic], dtype=np.float64) * 255
                 )
                 img = Image.fromarray(metallic_roughnesss[None, None].astype(np.uint8))
         return img
@@ -937,9 +952,8 @@ def pack(
 
     def pack_images(images):
         # run image packing with our material-specific settings
-        # which including deduplicating by hash, upsizing to the
-        # nearest power of two, returning deterministically by seeding
-        # and padding every side of the image by 1 pixel
+        # Note: deduplication is disabled to ensure consistent packing
+        # across different texture types (base color, metallic/roughness, etc)
 
         # see if we've already run this packing image
         key = hash(tuple(sorted([id(i) for i in images])))
@@ -950,7 +964,7 @@ def pack(
         # otherwise run packing now
         result = packing.images(
             images,
-            deduplicate=True,
+            deduplicate=False,  # Disabled to ensure consistent texture layouts
             power_resize=True,
             seed=42,
             iterations=10,
@@ -975,7 +989,6 @@ def pack(
 
     assert set(np.concatenate(mat_idx).ravel()) == set(range(len(uvs)))
     assert len(uvs) == len(materials)
-
     use_pbr = any(isinstance(m, PBRMaterial) for m in materials)
 
     # in some cases, the fused scene results in huge trimsheets
