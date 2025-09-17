@@ -734,6 +734,33 @@ def hsv_to_rgba(hsv: ArrayLike, dtype: DTypeLike = np.uint8) -> NDArray:
     raise ValueError(f"dtype `{dtype}` not supported")
 
 
+def linear_to_srgb(linear: ArrayLike) -> NDArray[np.float64]:
+    """
+    Converts linear color values to sRGB color values.
+
+    See: https://entropymine.com/imageworsener/srgbformula/
+
+    Parameters
+    ----------
+    linear
+      Linear color values of any shape since this
+      is a per-element transformation
+
+    Returns
+    ---------
+    srgb
+      Values scaled to an sRGB scale.
+    """
+    linear = np.asanyarray(linear, dtype=np.float64)
+
+    mask = linear > 0.00313066844250063
+    srgb = np.zeros(linear.shape, dtype=np.float64)
+    srgb[mask] = 1.055 * np.power(linear[mask], (1.0 / 2.4)) - 0.055
+    srgb[~mask] = 12.92 * linear[~mask]
+
+    return srgb
+
+
 def random_color(dtype: DTypeLike = np.uint8, count: Optional[Integer] = None) -> NDArray:
     """
     Return a random RGB color using datatype specified.

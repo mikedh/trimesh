@@ -811,17 +811,6 @@ def pack(
         )
         return Image.fromarray(img)
 
-    def lin2srgb(lin):
-        """
-        Converts linear color values to sRGB color values.
-        See: https://entropymine.com/imageworsener/srgbformula/
-        """
-        s = np.empty_like(lin)
-        mask = lin > 0.00313066844250063
-        s[mask] = 1.055 * np.power(lin[mask], (1.0 / 2.4)) - 0.055
-        s[~mask] = 12.92 * lin[~mask]
-        return s
-
     def get_base_color_texture(mat):
         """
         Logic for extracting a simple image from each material.
@@ -843,7 +832,9 @@ def pack(
                 c_linear = color.to_float(mat.baseColorFactor).reshape(4)
 
                 # Apply proper sRGB gamma correction to RGB channels
-                c_srgb = np.concatenate([lin2srgb(c_linear[:3]), c_linear[3:4]])
+                c_srgb = np.concatenate(
+                    [color.linear_to_srgb(c_linear[:3]), c_linear[3:4]]
+                )
 
                 # Convert to uint8
                 c = np.round(c_srgb * 255).astype(np.uint8)
