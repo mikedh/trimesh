@@ -387,7 +387,9 @@ def split(
     components = connected_components(
         edges=adjacency, nodes=np.arange(len(mesh.faces)), min_len=min_len, engine=engine
     )
-    return mesh.submesh(components, only_watertight=only_watertight, repair=repair, **kwargs)
+    return mesh.submesh(
+        components, only_watertight=only_watertight, repair=repair, **kwargs
+    )
 
 
 def connected_components(

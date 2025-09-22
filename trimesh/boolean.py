@@ -10,7 +10,7 @@ import numpy as np
 from . import interfaces
 from .exceptions import ExceptionWrapper
 from .iteration import reduce_cascade
-from .typed import BooleanEngineType, Callable, Dict, Optional, Sequence
+from .typed import BooleanEngineType, Callable, Dict, Sequence
 
 try:
     from manifold3d import Manifold, Mesh
@@ -88,7 +88,10 @@ def union(
 
 
 def intersection(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence,
+    engine: BooleanEngineType = None,
+    check_volume: bool = True,
+    **kwargs,
 ):
     """
     Compute the boolean intersection between a mesh and other meshes.
