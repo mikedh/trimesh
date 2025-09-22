@@ -24,12 +24,6 @@ except BaseException as E:
     render_scene = exceptions.ExceptionWrapper(E)
 
 
-try:
-    from .widget import SceneWidget
-except BaseException as E:
-    SceneWidget = exceptions.ExceptionWrapper(E)
-
-
 # this is only standard library imports
 
 # explicitly list imports in __all__

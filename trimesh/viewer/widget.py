@@ -7,14 +7,25 @@ A widget which can visualize trimesh.Scene objects in a glooey window.
 Check out an example in `examples/widget.py`
 """
 
+import warnings
+
 import glooey
 import numpy as np
 import pyglet
 from pyglet import gl
 
-from .. import rendering
-from .trackball import Trackball
-from .windowed import SceneViewer, _geometry_hash
+from trimesh import rendering
+from trimesh.viewer.trackball import Trackball
+from trimesh.viewer.windowed import SceneViewer, _geometry_hash
+
+warnings.warn(
+    "`trimesh.viewer.widget` is deprecated and will "
+    + "be removed in January 2026, please vendor `widget.py` "
+    + "into your own project. It will be moved to the `examples` "
+    + "of trimesh and will no longer be importable!",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class SceneGroup(pyglet.graphics.Group):
