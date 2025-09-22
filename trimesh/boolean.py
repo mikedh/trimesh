@@ -10,7 +10,7 @@ import numpy as np
 from . import interfaces
 from .exceptions import ExceptionWrapper
 from .iteration import reduce_cascade
-from .typed import Callable, Dict, Optional, Sequence
+from .typed import BooleanEngineType, Callable, Dict, Optional, Sequence
 
 try:
     from manifold3d import Manifold, Mesh
@@ -20,7 +20,10 @@ except BaseException as E:
 
 
 def difference(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence,
+    engine: BooleanEngineType = None,
+    check_volume: bool = True,
+    **kwargs,
 ):
     """
     Compute the boolean difference between a mesh an n other meshes.
@@ -51,7 +54,10 @@ def difference(
 
 
 def union(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence,
+    engine: BooleanEngineType = None,
+    check_volume: bool = True,
+    **kwargs,
 ):
     """
     Compute the boolean union between a mesh an n other meshes.

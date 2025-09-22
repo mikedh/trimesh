@@ -64,6 +64,12 @@ ViewerType = Union[None, Callable, Literal["gl", "jupyter", "marimo"]]
 # literal for color maps we include in the library
 ColorMapType = Literal["viridis", "magma", "inferno", "plasma"]
 
+# the literal for what graph backend engines are available
+GraphEngineType = Literal["networkx", "scipy", None]
+
+# what 3D boolean engines are available
+BooleanEngineType = Literal["manifold", "blender", None]
+
 
 __all__ = [
     "IO",

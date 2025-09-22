@@ -45,6 +45,7 @@ from .triangles import MassProperties
 from .typed import (
     Any,
     ArrayLike,
+    BooleanEngineType,
     Dict,
     Floating,
     Integer,
@@ -2793,7 +2794,11 @@ class Trimesh(Geometry3D):
         return scene.show(viewer=viewer, **kwargs)
 
     def submesh(
-        self, faces_sequence: Sequence[ArrayLike], **kwargs
+        self,
+        faces_sequence: Sequence[ArrayLike],
+        only_watertight: bool = False,
+        repair: bool = False,
+        **kwargs,
     ) -> Union["Trimesh", List["Trimesh"]]:
         """
         Return a subset of the mesh.
@@ -2804,6 +2809,8 @@ class Trimesh(Geometry3D):
           Face indices of mesh
         only_watertight : bool
           Only return submeshes which are watertight
+        repair
+          Try to repair the submesh if it is not watertight
         append : bool
           Return a single mesh which has the faces appended.
           if this flag is set, only_watertight is ignored
@@ -2813,7 +2820,13 @@ class Trimesh(Geometry3D):
         submesh : Trimesh or (n,) Trimesh
           Single mesh if `append` or list of submeshes
         """
-        return util.submesh(mesh=self, faces_sequence=faces_sequence, **kwargs)
+        return util.submesh(
+            mesh=self,
+            faces_sequence=faces_sequence,
+            only_watertight=only_watertight,
+            repair=repair,
+            **kwargs,
+        )
 
     @cache_decorator
     def identifier(self) -> NDArray[float64]:
@@ -2902,7 +2915,7 @@ class Trimesh(Geometry3D):
     def union(
         self,
         other: Union["Trimesh", Sequence["Trimesh"]],
-        engine: Optional[str] = None,
+        engine: BooleanEngineType = None,
         check_volume: bool = True,
         **kwargs,
     ) -> "Trimesh":
@@ -2938,7 +2951,7 @@ class Trimesh(Geometry3D):
     def difference(
         self,
         other: Union["Trimesh", Sequence["Trimesh"]],
-        engine: Optional[str] = None,
+        engine: BooleanEngineType = None,
         check_volume: bool = True,
         **kwargs,
     ) -> "Trimesh":
@@ -2974,7 +2987,7 @@ class Trimesh(Geometry3D):
     def intersection(
         self,
         other: Union["Trimesh", Sequence["Trimesh"]],
-        engine: Optional[str] = None,
+        engine: BooleanEngineType = None,
         check_volume: bool = True,
         **kwargs,
     ) -> "Trimesh":

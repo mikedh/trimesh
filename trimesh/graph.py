@@ -15,7 +15,18 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import ArrayLike, List, NDArray, Number, Optional, Sequence, Union, int64
+from .typed import (
+    ArrayLike,
+    GraphEngineType,
+    Integer,
+    List,
+    NDArray,
+    Number,
+    Optional,
+    Sequence,
+    Union,
+    int64,
+)
 
 try:
     from scipy.sparse import coo_matrix, csgraph
@@ -282,16 +293,17 @@ def shared_edges(faces_a, faces_b):
     return shared
 
 
-def facets(mesh, engine=None, facet_threshold: Optional[Number] = None):
+def facets(
+    mesh, engine: GraphEngineType = None, facet_threshold: Optional[Number] = None
+):
     """
     Find the list of parallel adjacent faces.
 
     Parameters
     -----------
     mesh : trimesh.Trimesh
-    engine : str
-      Which graph engine to use:
-      ('scipy', 'networkx')
+    engine
+      Which graph engine to use
     facet_threshold : float
       Threshold for two facets to be considered coplanar
 
@@ -332,7 +344,14 @@ def facets(mesh, engine=None, facet_threshold: Optional[Number] = None):
     return components
 
 
-def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs) -> List:
+def split(
+    mesh,
+    only_watertight: bool = True,
+    repair: bool = True,
+    adjacency: Optional[ArrayLike] = None,
+    engine: GraphEngineType = None,
+    **kwargs,
+) -> List:
     """
     Split a mesh into multiple meshes from face
     connectivity.
@@ -348,7 +367,7 @@ def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs) -> 
       Only return watertight components
     adjacency : (n, 2) int
       Face adjacency to override full mesh
-    engine : str or None
+    engine
       Which graph engine to use
 
     Returns
@@ -368,11 +387,12 @@ def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs) -> 
     components = connected_components(
         edges=adjacency, nodes=np.arange(len(mesh.faces)), min_len=min_len, engine=engine
     )
-    meshes = mesh.submesh(components, only_watertight=only_watertight, **kwargs)
-    return meshes
+    return mesh.submesh(components, only_watertight=only_watertight, repair=repair, **kwargs)
 
 
-def connected_components(edges, min_len=1, nodes=None, engine=None):
+def connected_components(
+    edges, min_len: Integer = 1, nodes=None, engine: GraphEngineType = None
+):
     """
     Find groups of connected nodes from an edge list.
 
