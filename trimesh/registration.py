@@ -452,14 +452,14 @@ def nricp_amberg(
     at the end of page 3 of the paper.
 
     Comparison between nricp_amberg and nricp_sumner:
-    * nricp_amberg fits to the target mesh in less steps
-    * nricp_amberg can generate sharp edges
-      * only vertices and their neighbors are considered
-    * nricp_sumner tend to preserve more the original shape
-    * nricp_sumner parameters are easier to tune
-    * nricp_sumner solves for triangle positions whereas
-      nricp_amberg solves for vertex transforms
-    * nricp_sumner is less optimized when wn > 0
+      * nricp_amberg fits to the target mesh in less steps
+      * nricp_amberg can generate sharp edges
+          * only vertices and their neighbors are considered
+      * nricp_sumner tend to preserve more the original shape
+      * nricp_sumner parameters are easier to tune
+      * nricp_sumner solves for triangle positions whereas
+        nricp_amberg solves for vertex transforms
+      * nricp_sumner is less optimized when wn > 0
 
     Parameters
     ----------
@@ -850,14 +850,14 @@ def nricp_sumner(
     Allows to register non-rigidly a mesh on another geometry.
 
     Comparison between nricp_amberg and nricp_sumner:
-    * nricp_amberg fits to the target mesh in less steps
-    * nricp_amberg can generate sharp edges (only vertices and their
-        neighbors are considered)
-    * nricp_sumner tend to preserve more the original shape
-    * nricp_sumner parameters are easier to tune
-    * nricp_sumner solves for triangle positions whereas nricp_amberg solves for
-        vertex transforms
-    * nricp_sumner is less optimized when wn > 0
+      * nricp_amberg fits to the target mesh in less steps
+      * nricp_amberg can generate sharp edges
+          * only vertices and their neighbors are considered
+      * nricp_sumner tend to preserve more the original shape
+      * nricp_sumner parameters are easier to tune
+      * nricp_sumner solves for triangle positions whereas
+        nricp_amberg solves for vertex transforms
+      * nricp_sumner is less optimized when wn > 0
 
     Parameters
     ----------
