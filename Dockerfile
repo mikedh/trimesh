@@ -29,7 +29,8 @@ RUN uv venv --python=python3.13 venv
 ENV PATH="/home/user/venv/bin:$PATH"
 ENV VIRTUAL_ENV="/home/user/venv"
 # bash script that redirects `pip install X`->`uv pip install X`
-RUN echo "uv pip \$*" > /home/user/venv/bin/pip && \
+RUN echo '#!/bin/sh' > /home/user/venv/bin/pip && \
+    echo 'exec uv pip "$@"' >> /home/user/venv/bin/pip && \
     chmod +x /home/user/venv/bin/pip
 
 # Install helper script to PATH.
