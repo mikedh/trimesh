@@ -10,7 +10,7 @@ import numpy as np
 from . import interfaces
 from .exceptions import ExceptionWrapper
 from .iteration import reduce_cascade
-from .typed import BooleanEngineType, Callable, Dict, Sequence
+from .typed import BooleanEngineType, BooleanOperationType, Callable, Dict, Sequence
 
 try:
     from manifold3d import Manifold, Mesh
@@ -123,7 +123,7 @@ def intersection(
 
 def boolean_manifold(
     meshes: Sequence,
-    operation: str,
+    operation: BooleanOperationType,
     check_volume: bool = True,
     **kwargs,
 ):
@@ -180,7 +180,10 @@ def boolean_manifold(
     from . import Trimesh
 
     result_mesh = result_manifold.to_mesh()
-    return Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
+
+    return Trimesh(
+        vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts, process=False
+    )
 
 
 # which backend boolean engines do we have
