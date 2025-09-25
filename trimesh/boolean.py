@@ -46,11 +46,10 @@ def difference(
     difference
       A `Trimesh` that contains `meshes[0] - meshes[1:]`
     """
-    if check_volume and not all(m.is_volume for m in meshes):
-        raise ValueError("Not all meshes are volumes!")
-    kwargs.update({"check_volume": check_volume})
 
-    return _engines[engine](meshes, operation="difference", **kwargs)
+    return _engines[engine](
+        meshes, operation="difference", check_volume=check_volume, **kwargs
+    )
 
 
 def union(
@@ -80,11 +79,9 @@ def union(
     union
       A `Trimesh` that contains the union of all passed meshes.
     """
-    if check_volume and not all(m.is_volume for m in meshes):
-        raise ValueError("Not all meshes are volumes!")
-    kwargs.update({"check_volume": check_volume})
-
-    return _engines[engine](meshes, operation="union", **kwargs)
+    return _engines[engine](
+        meshes, operation="union", check_volume=check_volume, **kwargs
+    )
 
 
 def intersection(
@@ -114,11 +111,9 @@ def intersection(
     intersection
       A `Trimesh` that contains the intersection geometry.
     """
-    if check_volume and not all(m.is_volume for m in meshes):
-        raise ValueError("Not all meshes are volumes!")
-    kwargs.update({"check_volume": check_volume})
-
-    return _engines[engine](meshes, operation="intersection", **kwargs)
+    return _engines[engine](
+        meshes, operation="intersection", check_volume=check_volume, **kwargs
+    )
 
 
 def boolean_manifold(

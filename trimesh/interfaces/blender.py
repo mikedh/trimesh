@@ -3,7 +3,7 @@ import platform
 
 from .. import resources, util
 from ..constants import log
-from ..typed import Iterable
+from ..typed import BooleanOperationType, Iterable
 from .generic import MeshScript
 
 if platform.system() == "Windows":
@@ -39,7 +39,7 @@ exists = _blender_executable is not None
 
 def boolean(
     meshes: Iterable,
-    operation: str = "difference",
+    operation: BooleanOperationType = "difference",
     use_exact: bool = False,
     use_self: bool = False,
     debug: bool = False,
@@ -75,9 +75,19 @@ def boolean(
     if check_volume and not all(m.is_volume for m in meshes):
         raise ValueError("Not all meshes are volumes!")
 
-    operation = str.upper(operation)
-    if operation == "INTERSECTION":
-        operation = "INTERSECT"
+    # conversions from the trimesh `BooleanOperationType` to the blender option
+    key = operation.lower().strip()
+    blender_keys = {
+        "union": "UNION",
+        "difference": "DIFFERENCE",
+        "intersection": "INTERSECT",
+    }
+    operation = blender_keys.get(key, None)
+
+    if key is None:
+        raise ValueError(
+            f"`{key}` is not a valid blender boolean: `{blender_keys.values()}`"
+        )
 
     if use_exact:
         solver_options = "EXACT"
