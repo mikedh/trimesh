@@ -1647,16 +1647,15 @@ class Trimesh(Geometry3D):
 
         Returns
         ---------
-        valid : bool
+        valid
           Does the mesh represent a volume
         """
-        valid = bool(
+        return bool(
             self.is_watertight
             and self.is_winding_consistent
             and np.isfinite(self.center_mass).all()
             and self.volume > 0.0
         )
-        return valid
 
     @property
     def is_empty(self) -> bool:

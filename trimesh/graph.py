@@ -24,6 +24,7 @@ from .typed import (
     Number,
     Optional,
     Sequence,
+    Tuple,
     Union,
     int64,
 )
@@ -852,7 +853,9 @@ def smooth_shade(
     return smooth
 
 
-def is_watertight(edges, edges_sorted=None):
+def is_watertight(
+    edges: ArrayLike, edges_sorted: Optional[ArrayLike] = None
+) -> Tuple[bool, bool]:
     """
     Parameters
     -----------
@@ -873,13 +876,15 @@ def is_watertight(edges, edges_sorted=None):
     if edges_sorted is None:
         edges_sorted = np.sort(edges, axis=1)
 
-    # group sorted edges
+    # group sorted edges throwing away any edge
+    # that doesn't appear exactly twice
     groups = grouping.group_rows(edges_sorted, require_count=2)
+    # if we didn't throw away any edges that means
+    # every edge shows up exactly twice
     watertight = bool((len(groups) * 2) == len(edges))
 
-    # are opposing edges reversed
+    # check that the un-sorted duplicate edges are reversed
     opposing = edges[groups].reshape((-1, 4))[:, 1:3].T
-    # wrap the weird numpy bool
     winding = bool(np.equal(*opposing).all())
 
     return watertight, winding
