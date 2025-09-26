@@ -77,25 +77,23 @@ def boolean(
 
     # conversions from the trimesh `BooleanOperationType` to the blender option
     key = operation.lower().strip()
-    blender_keys = {
+    blender_bool = {
         "union": "UNION",
         "difference": "DIFFERENCE",
         "intersection": "INTERSECT",
     }
-    operation = blender_keys.get(key, None)
 
-    if key is None:
-        raise ValueError(
-            f"`{key}` is not a valid blender boolean: `{blender_keys.values()}`"
-        )
+    if key not in blender_bool:
+        raise ValueError(f"`{operation}` is not a valid boolean: `{blender_bool.keys()}`")
 
     if use_exact:
         solver_options = "EXACT"
     else:
         solver_options = "FAST"
+
     # get the template from our resources folder
     template = resources.get_string("templates/blender_boolean.py.tmpl")
-    script = template.replace("$OPERATION", operation)
+    script = template.replace("$OPERATION", blender_bool[key])
     script = script.replace("$SOLVER_OPTIONS", solver_options)
     script = script.replace("$USE_SELF", f"{use_self}")
 
