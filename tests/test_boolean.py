@@ -207,5 +207,6 @@ def test_multiple_difference():
         # should have done the diff
         assert np.allclose(diff_base.extents, [1.5, 1.5, 2.0], atol=1e-8)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     test_boolean()
