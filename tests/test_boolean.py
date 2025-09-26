@@ -33,7 +33,7 @@ def test_boolean():
 
         times[engine] = g.time.time() - tic
 
-        assert ab.is_volume
+        assert ab.is_volume, ab.volume
         assert np.isclose(ab.volume, truth["difference"])
 
         assert np.allclose(ab.bounds[0], a.bounds[0])
@@ -206,3 +206,6 @@ def test_multiple_difference():
 
         # should have done the diff
         assert np.allclose(diff_base.extents, [1.5, 1.5, 2.0], atol=1e-8)
+
+if __name__ == '__main__':
+    test_boolean()

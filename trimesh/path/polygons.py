@@ -578,7 +578,9 @@ def paths_to_polygons(paths, scale=None):
 def sample(polygon, count, factor=1.5, max_iter=10):
     """
     Use rejection sampling to generate random points inside a
-    polygon.
+    polygon. Note that this function may return fewer or no
+    points, in particular if the polygon as very little area
+    compared to the area of the axis-aligned bounding box.
 
     Parameters
     -----------
@@ -601,6 +603,10 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     # do batch point-in-polygon queries
     from shapely import vectorized
 
+    # TODO : this should probably have some option to
+    # sample from the *oriented* bounding box which would
+    # make certain cases much, much more efficent.
+
     # get size of bounding box
     bounds = np.reshape(polygon.bounds, (2, 2))
     extents = np.ptp(bounds, axis=0)
@@ -621,8 +627,7 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     # if we have to do iterations loop here slowly
     for _ in range(max_iter):
         # generate points inside polygons AABB
-        points = np.random.random((per_loop, 2))
-        points = (points * extents) + bounds[0]
+        points = (np.random.random((per_loop, 2)) * extents) + bounds[0]
         # do the point in polygon test and append resulting hits
         mask = vectorized.contains(polygon, *points.T)
         hit.append(points[mask])
