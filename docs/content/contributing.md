@@ -19,6 +19,7 @@ Then when you open a new terminal you can verify it got the right environment wi
 ```
 mikedh@orion:trimesh$ which python
 /home/mikedh/venv/bin/python
+
 mikedh@orion:trimesh$ which pip
 /home/mikedh/venv/bin/pip
 ```
