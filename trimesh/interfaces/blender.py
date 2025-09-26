@@ -1,8 +1,9 @@
 import os
 import platform
 
-from .. import resources, util
+from .. import util
 from ..constants import log
+from ..resources import get_string
 from ..typed import BooleanOperationType, Iterable
 from .generic import MeshScript
 
@@ -36,11 +37,19 @@ else:
 _blender_executable = util.which("blender", path=_search_path)
 exists = _blender_executable is not None
 
+# a map that translates:
+# `trimesh.BooleanOperationType` -> blender value
+_blender_bool = {
+    "union": "UNION",
+    "difference": "DIFFERENCE",
+    "intersection": "INTERSECT",
+}
+
 
 def boolean(
     meshes: Iterable,
     operation: BooleanOperationType = "difference",
-    use_exact: bool = False,
+    use_exact: bool = True,
     use_self: bool = False,
     debug: bool = False,
     check_volume: bool = True,
@@ -77,14 +86,10 @@ def boolean(
 
     # conversions from the trimesh `BooleanOperationType` to the blender option
     key = operation.lower().strip()
-    blender_bool = {
-        "union": "UNION",
-        "difference": "DIFFERENCE",
-        "intersection": "INTERSECT",
-    }
-
-    if key not in blender_bool:
-        raise ValueError(f"`{operation}` is not a valid boolean: `{blender_bool.keys()}`")
+    if key not in _blender_bool:
+        raise ValueError(
+            f"`{operation}` is not a valid boolean: `{_blender_bool.keys()}`"
+        )
 
     if use_exact:
         solver_options = "EXACT"
@@ -92,11 +97,15 @@ def boolean(
         solver_options = "FAST"
 
     # get the template from our resources folder
-    template = resources.get_string("templates/blender_boolean.py.tmpl")
-    script = template.replace("$OPERATION", blender_bool[key])
-    script = script.replace("$SOLVER_OPTIONS", solver_options)
-    script = script.replace("$USE_SELF", f"{use_self}")
-
+    template = get_string("templates/blender_boolean.py.tmpl")
+    # use string substitutions rather than `string.Template` as we aren't going
+    # to be filling in all the values here, `MeshScript` is going to be
+    # the source of `$MESH_PRE`, etc.
+    script = (
+        template.replace("$OPERATION", _blender_bool[key])
+        .replace("$SOLVER_OPTIONS", solver_options)
+        .replace("$USE_SELF", f"{use_self}")
+    )
     with MeshScript(meshes=meshes, script=script, debug=debug) as blend:
         result = blend.run(_blender_executable + " --background --python $SCRIPT")
 
@@ -118,7 +127,7 @@ def unwrap(
         raise ValueError("No blender available!")
 
     # get the template from our resources folder
-    template = resources.get_string("templates/blender_unwrap.py.template")
+    template = get_string("templates/blender_unwrap.py.template")
     script = template.replace("$ANGLE_LIMIT", f"{angle_limit:.6f}").replace(
         "$ISLAND_MARGIN", f"{island_margin:.6f}"
     )
