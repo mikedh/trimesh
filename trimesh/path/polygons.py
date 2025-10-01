@@ -605,7 +605,7 @@ def sample(polygon, count, factor=1.5, max_iter=10):
 
     # TODO : this should probably have some option to
     # sample from the *oriented* bounding box which would
-    # make certain cases much, much more efficent.
+    # make certain cases much, much more efficient.
 
     # get size of bounding box
     bounds = np.reshape(polygon.bounds, (2, 2))
