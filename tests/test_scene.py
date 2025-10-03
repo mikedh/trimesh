@@ -340,6 +340,8 @@ class SceneTests(g.unittest.TestCase):
         n = s.duplicate_nodes
         assert len(n) == 0
 
+        assert len(s.lights) == 0
+
     def test_zipped(self):
         # Make sure a zip file with multiple file types
         # is returned as a single scene.
