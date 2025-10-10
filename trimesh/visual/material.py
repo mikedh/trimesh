@@ -683,7 +683,7 @@ class PBRMaterial(Material):
           Contains material information in a simple manner
         """
 
-        return SimpleMaterial(image=self.baseColorTexture, diffuse=self.baseColorFactor)
+        return SimpleMaterial(image=self.baseColorTexture, diffuse=self.baseColorFactor, name=self.name)
 
     @property
     def main_color(self):
