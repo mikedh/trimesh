@@ -1122,6 +1122,18 @@ class GLTFTest(g.unittest.TestCase):
         mesh = g.get_mesh("Mesh_PrimitiveMode_04.gltf")
         assert len(mesh.triangles) == 2
 
+    def test_simple_material_conversion(self):
+        # make sure the name is preserved for a material
+        mesh = next(iter(g.get_mesh("Duck.glb").geometry.values()))
+
+        mat = mesh.visual.material
+        assert isinstance(mat, g.trimesh.visual.material.PBRMaterial)
+        assert isinstance(mat.name, str)
+        assert len(mat.name) > 0
+
+        simple = mesh.visual.material.to_simple()
+        assert simple.name == mesh.visual.material.name
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

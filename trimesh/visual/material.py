@@ -683,7 +683,16 @@ class PBRMaterial(Material):
           Contains material information in a simple manner
         """
 
-        return SimpleMaterial(image=self.baseColorTexture, diffuse=self.baseColorFactor, name=self.name)
+        if self.baseColorFactor is not None:
+            diffuse = color.linear_to_srgb(self.baseColorFactor)
+        else:
+            diffuse = None
+
+        return SimpleMaterial(
+            image=self.baseColorTexture,
+            diffuse=diffuse,
+            name=self.name,
+        )
 
     @property
     def main_color(self):
