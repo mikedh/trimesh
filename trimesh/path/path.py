@@ -1042,6 +1042,41 @@ class Path2D(Path):
         matrix = bounds.oriented_bounds_2D(self.vertices[self.referenced_vertices])[0]
         return matrix
 
+    @cache_decorator
+    def convex_hull(self) -> "Path2D":
+        """
+        Return a convex hull of the 2D path.
+
+        Returns
+        --------
+        hull
+          A convex hull of included vertices from this path.
+        """
+        from scipy.spatial import ConvexHull
+
+        from .exchange.misc import edges_to_path
+
+        # include referenced vertices
+        candidates = [self.vertices[self.referenced_vertices]]
+        # include all points from discretized closed curves
+        # this prevents arcs from being collapsed past the
+        # discretization parameters set globally
+        candidates.extend(self.discrete)
+
+        # caclulate a 2D convex hull for our candidate vertices
+        hull = ConvexHull(np.vstack(candidates))
+
+        # map edges to throw away unused vertices
+        # as `hull.points` includes all input points
+        remap = np.arange(len(hull.points))
+        remap[hull.vertices] = np.arange(len(hull.vertices))
+
+        # get zero-indexed edges and only included vertices
+        edges = remap[hull.simplices]
+        vertices = hull.points[hull.vertices]
+
+        return Path2D(**edges_to_path(edges=edges, vertices=vertices))
+
     def rasterize(
         self, pitch=None, origin=None, resolution=None, fill=True, width=None, **kwargs
     ):

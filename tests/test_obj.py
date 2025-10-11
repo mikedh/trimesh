@@ -342,6 +342,7 @@ def test_multi_nodupe():
         for L in mtl["material.mtl"].decode("utf-8").split("\n")
         if "newmtl" in L
     ]
+
     # there should be 5 unique material names
     assert len(set(mtl_names)) == 5
 
@@ -563,4 +564,4 @@ def test_obj_quad_uv():
 
 if __name__ == "__main__":
     # test_material_name()
-    test_vertex_color()
+    test_multi_nodupe()

@@ -690,7 +690,7 @@ class PBRMaterial(Material):
 
         return SimpleMaterial(
             image=self.baseColorTexture,
-            diffuse=diffuse,
+            diffuse=self.baseColorFactor,  # diffuse,
             name=self.name,
         )
 
