@@ -682,15 +682,16 @@ class PBRMaterial(Material):
         simple : SimpleMaterial
           Contains material information in a simple manner
         """
-
-        if self.baseColorFactor is not None:
-            diffuse = color.linear_to_srgb(self.baseColorFactor)
-        else:
-            diffuse = None
-
+        # `self.baseColorFactor` is really a linear value
+        # so the "right" thing to do here would probably be:
+        #  `diffuse = color.to_rgba(color.linear_to_srgb(self.baseColorFactor))`
+        # however that subtle transformation seems like it would confuse
+        # the absolute heck out of people looking at this. If someone wants
+        # this and has opinions happy to accept that change but otherwise
+        # we'll just keep passing it through as "probably-RGBA-like"
         return SimpleMaterial(
             image=self.baseColorTexture,
-            diffuse=self.baseColorFactor,  # diffuse,
+            diffuse=self.baseColorFactor,
             name=self.name,
         )
 

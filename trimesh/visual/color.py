@@ -751,7 +751,7 @@ def linear_to_srgb(linear: ArrayLike) -> NDArray[np.float64]:
     srgb
       Values scaled to an sRGB scale.
     """
-    linear = np.asanyarray(linear, dtype=np.float64)
+    linear = to_float(linear)
 
     mask = linear > 0.00313066844250063
     srgb = np.zeros(linear.shape, dtype=np.float64)
