@@ -60,7 +60,6 @@ from .typed import (
     ViewerType,
 )
 from .visual import ColorVisuals, TextureVisuals, create_visual
-from .voxel import VoxelGrid
 
 try:
     from scipy.sparse import coo_matrix
@@ -2595,7 +2594,7 @@ class Trimesh(Geometry3D):
         self._cache.id_set()
         return self
 
-    def voxelized(self, pitch: float, method: str = "subdivide", **kwargs) -> VoxelGrid:
+    def voxelized(self, pitch: float, method: str = "subdivide", **kwargs):
         """
         Return a VoxelGrid object representing the current mesh
         discretized into voxels at the specified pitch
