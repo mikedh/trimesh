@@ -43,7 +43,6 @@ from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
 from .typed import (
-    IO,
     Any,
     ArrayLike,
     BooleanEngineType,
@@ -51,6 +50,7 @@ from .typed import (
     Floating,
     Integer,
     List,
+    Loadable,
     NDArray,
     Number,
     Optional,
@@ -2086,7 +2086,12 @@ class Trimesh(Geometry3D):
 
         return result
 
-    def subdivide_to_size(self, max_edge: float, max_iter: int = 10, return_index: bool=False) -> "Trimesh":
+    def subdivide_to_size(
+            self,
+            max_edge: float,
+            max_iter: int = 10,
+            return_index: bool = False
+    ) -> Union["Trimesh", Tuple["Trimesh", NDArray[int64]]]:
         """
         Subdivide a mesh until every edge is shorter than a
         specified length.
@@ -2335,14 +2340,14 @@ class Trimesh(Geometry3D):
         plane_origin: ArrayLike,
         plane_normal: ArrayLike,
         cap: bool = False,
-        face_index: Optional[List[int]] = None,
+        face_index: Optional[ArrayLike] = None,
         **kwargs,
     ) -> "Trimesh":
         """
         Slice the mesh with a plane, returning a new mesh that is the
         portion of the original mesh to the positive normal side of the plane
 
-        plane_origin :  (3,) float
+        plane_origin : (3,) float
           Point on plane to intersect with mesh
         plane_normal : (3,) float
           Normal vector of plane to intersect with mesh
@@ -2899,10 +2904,10 @@ class Trimesh(Geometry3D):
 
     def export(
         self,
-        file_obj: Union[str, IO[str]]  = None,
+        file_obj: Loadable = None,
         file_type: Optional[str] = None,
         **kwargs,
-    ) -> Union[Dict[str, bytes], bytes, str]:
+    ) -> Union[Dict, bytes, str]:
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
