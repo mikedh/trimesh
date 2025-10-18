@@ -2599,7 +2599,7 @@ class Trimesh(Geometry3D):
         self._cache.id_set()
         return self
 
-    def voxelized(self, pitch: float, method: str = "subdivide", **kwargs):
+    def voxelized(self, pitch: Optional[float], method: str = "subdivide", **kwargs):
         """
         Return a VoxelGrid object representing the current mesh
         discretized into voxels at the specified pitch
