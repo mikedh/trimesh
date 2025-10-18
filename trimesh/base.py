@@ -43,6 +43,7 @@ from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
 from .typed import (
+    IO,
     Any,
     ArrayLike,
     BooleanEngineType,
@@ -2687,7 +2688,7 @@ class Trimesh(Geometry3D):
 
         return Path3D(**faces_to_path(self, face_ids, **kwargs))
 
-    def projected(self, normal, **kwargs) -> Path2D:
+    def projected(self, normal: ArrayLike, **kwargs) -> Path2D:
         """
         Project a mesh onto a plane and then extract the
         polygon that outlines the mesh projection on that
@@ -2812,12 +2813,18 @@ class Trimesh(Geometry3D):
         self,
         viewer: ViewerType = None,
         **kwargs,
-    ):
+    ) -> Scene:
         """
         Render the mesh in an opengl window. Requires pyglet.
 
         Parameters
         ------------
+        viewer : ViewerType
+          What kind of viewer to use, such as
+          `gl` to open a pyglet window
+          `jupyter` for a jupyter notebook
+          `marimo'` for a marimo notebook
+          None for a "best guess"
         smooth : bool
           Run smooth shading on mesh or not,
           large meshes will be slow
@@ -2893,10 +2900,10 @@ class Trimesh(Geometry3D):
 
     def export(
         self,
-        file_obj=None,
+        file_obj: Union[str, IO[str]]  = None,
         file_type: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> Union[Dict[str, bytes], bytes, str]:
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
@@ -2912,6 +2919,11 @@ class Trimesh(Geometry3D):
         file_type : str
           Which file type to export as, if `file_name`
           is passed this is not required.
+
+        Returns
+        ----------
+        exported : bytes or str
+          Result of exporter
         """
         return export_mesh(mesh=self, file_obj=file_obj, file_type=file_type, **kwargs)
 
@@ -2993,26 +3005,26 @@ class Trimesh(Geometry3D):
         **kwargs,
     ) -> "Trimesh":
         """
-         Boolean difference between this mesh and other meshes.
+        Boolean difference between this mesh and other meshes.
 
-         Parameters
-         ------------
-         other
-           One or more meshes to difference with the current mesh.
-         engine
-           Which backend to use, the default
-           recommendation is: `pip install manifold3d`.
+        Parameters
+        ------------
+        other
+          One or more meshes to difference with the current mesh.
+        engine
+          Which backend to use, the default
+          recommendation is: `pip install manifold3d`.
         check_volume
-           Raise an error if not all meshes are watertight
-           positive volumes. Advanced users may want to ignore
-           this check as it is expensive.
-         kwargs
-           Passed through to the `engine`.
+          Raise an error if not all meshes are watertight
+          positive volumes. Advanced users may want to ignore
+          this check as it is expensive.
+        kwargs
+          Passed through to the `engine`.
 
-         Returns
-         ---------
-         difference : trimesh.Trimesh
-           Difference between self and other Trimesh objects
+        Returns
+        ---------
+        difference : trimesh.Trimesh
+          Difference between self and other Trimesh objects
         """
         return boolean.difference(
             meshes=util.chain(self, other),
@@ -3029,26 +3041,26 @@ class Trimesh(Geometry3D):
         **kwargs,
     ) -> "Trimesh":
         """
-         Boolean intersection between this mesh and other meshes.
+        Boolean intersection between this mesh and other meshes.
 
-         Parameters
-         ------------
-         other : trimesh.Trimesh, or list of trimesh.Trimesh objects
-           Meshes to calculate intersections with
-         engine
-           Which backend to use, the default
-           recommendation is: `pip install manifold3d`.
+        Parameters
+        ------------
+        other : trimesh.Trimesh, or list of trimesh.Trimesh objects
+          Meshes to calculate intersections with
+        engine
+          Which backend to use, the default
+          recommendation is: `pip install manifold3d`.
         check_volume
-           Raise an error if not all meshes are watertight
-           positive volumes. Advanced users may want to ignore
-           this check as it is expensive.
-         kwargs
-           Passed through to the `engine`.
+          Raise an error if not all meshes are watertight
+          positive volumes. Advanced users may want to ignore
+          this check as it is expensive.
+        kwargs
+          Passed through to the `engine`.
 
-         Returns
-         ---------
-         intersection : trimesh.Trimesh
-           Mesh of the volume contained by all passed meshes
+        Returns
+        ---------
+        intersection : trimesh.Trimesh
+          Mesh of the volume contained by all passed meshes
         """
         return boolean.intersection(
             meshes=util.chain(self, other),
@@ -3168,6 +3180,8 @@ class Trimesh(Geometry3D):
         ------------
         include_cache : bool
           If True, will shallow copy cached data to new mesh
+        include_visual : bool
+          If True, will copy visual information
 
         Returns
         ---------
@@ -3214,7 +3228,7 @@ class Trimesh(Geometry3D):
         # interpret shallow copy as "keep cached data"
         return self.copy(include_cache=True)
 
-    def eval_cached(self, statement: str, *args):
+    def eval_cached(self, statement: str, *args) -> Any:
         """
         Evaluate a statement and cache the result before returning.
 
@@ -3235,7 +3249,6 @@ class Trimesh(Geometry3D):
         -----------
         r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0, 0, 1])
         """
-
         # store this by the combined hash of statement and args
         hashable = [hash(statement)]
         hashable.extend(hash(a) for a in args)
