@@ -5,10 +5,13 @@ from .. import transformations as tr
 from ..constants import log_time
 from . import base
 from . import encoding as enc
+from .typed import ArrayLike, Integer, Number, Optional, VoxelizationMethodsType
 
 
 @log_time
-def voxelize_subdivide(mesh, pitch: float, max_iter: int = 10, edge_factor: float = 2.0):
+def voxelize_subdivide(
+    mesh, pitch: Number, max_iter: Optional[Integer] = 10, edge_factor: Number = 2.0
+) -> base.VoxelGrid:
     """
     Voxelize a surface by subdividing a mesh until every edge is
     shorter than: (pitch / edge_factor)
@@ -17,11 +20,11 @@ def voxelize_subdivide(mesh, pitch: float, max_iter: int = 10, edge_factor: floa
     -----------
     mesh : trimesh.Trimesh
       Source mesh
-    pitch : float
+    pitch
       Side length of a single voxel cube
-    max_iter : int
+    max_iter
       Cap maximum subdivisions or None for no limit.
-    edge_factor : float
+    edge_factor
       Proportion of pitch maximum edge length.
 
     Returns
@@ -62,7 +65,14 @@ def voxelize_subdivide(mesh, pitch: float, max_iter: int = 10, edge_factor: floa
     )
 
 
-def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
+def local_voxelize(
+    mesh,
+    point: ArrayLike,
+    pitch: Number,
+    radius: Number,
+    fill: bool = True,
+    **kwargs,
+) -> Optional[base.VoxelGrid]:
     """
     Voxelize a mesh in the region of a cube around a point. When fill=True,
     uses proximity.contains to fill the resulting voxels so may be meaningless
@@ -75,11 +85,12 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
       Source geometry
     point : (3, ) float
       Point in space to voxelize around
-    pitch :  float
+    pitch
       Side length of a single voxel cube
-    radius : int
+    radius
       Number of voxel cubes to return in each direction.
-    kwargs : parameters to pass to voxelize_subdivide
+    kwargs
+      Parameters to pass to voxelize_subdivide
 
     Returns
     -----------
@@ -152,22 +163,25 @@ def local_voxelize(mesh, point, pitch, radius, fill=True, **kwargs):
 
 
 @log_time
-def voxelize_ray(mesh, pitch, per_cell=None):
+def voxelize_ray(
+    mesh, pitch: Number, per_cell: Optional[ArrayLike] = None
+) -> base.VoxelGrid:
     """
     Voxelize a mesh using ray queries.
 
     Parameters
     -------------
-    mesh     : Trimesh object
-                 Mesh to be voxelized
-    pitch    : float
-                 Length of voxel cube
+    mesh
+      Mesh to be voxelized
+    pitch
+      Length of voxel cube
     per_cell : (2,) int
-                 How many ray queries to make per cell
+      How many ray queries to make per cell
 
     Returns
     -------------
-    VoxelGrid instance representing the voxelized mesh.
+    grid
+      VoxelGrid instance representing the voxelized mesh.
     """
     if per_cell is None:
         # how many rays per cell
@@ -211,7 +225,13 @@ def voxelize_ray(mesh, pitch, per_cell=None):
 
 
 @log_time
-def voxelize_binvox(mesh, pitch=None, dimension=None, bounds=None, **binvoxer_kwargs):
+def voxelize_binvox(
+    mesh,
+    pitch: Optional[Number] = None,
+    dimension: Optional[Integer] = None,
+    bounds: Optional[ArrayLike] = None,
+    **binvoxer_kwargs,
+) -> base.VoxelGrid:
     """
     Voxelize via binvox tool.
 
@@ -233,7 +253,8 @@ def voxelize_binvox(mesh, pitch=None, dimension=None, bounds=None, **binvoxer_kw
 
     Returns
     --------------
-    `VoxelGrid` instance
+    grid
+      `VoxelGrid` instance
 
     Raises
     --------------
@@ -263,7 +284,12 @@ voxelizers = util.FunctionRegistry(
 )
 
 
-def voxelize(mesh, pitch, method="subdivide", **kwargs):
+def voxelize(
+    mesh,
+    pitch: Number,
+    method: VoxelizationMethodsType = "subdivide",
+    **kwargs,
+) -> Optional[base.VoxelGrid]:
     """
     Voxelize the given mesh using the specified implementation.
 
@@ -275,13 +301,18 @@ def voxelize(mesh, pitch, method="subdivide", **kwargs):
 
     Parameters
     --------------
-    mesh: Trimesh object (left unchanged).
-    pitch: float, side length of each voxel.
-    method: implementation method. Must be in `fillers`.
-    **kwargs: additional kwargs passed to the specified implementation.
+    mesh
+      Geometry to voxelize
+    pitch
+      Side length of each voxel.
+    method
+      Which voxelization method to use.
+    kwargs
+      Passed through to the specified implementation.
 
     Returns
     --------------
-    A VoxelGrid instance.
+    grid
+      A VoxelGrid instance.
     """
     return voxelizers(method, mesh=mesh, pitch=pitch, **kwargs)
