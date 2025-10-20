@@ -3,9 +3,9 @@ import numpy as np
 from .. import grouping, remesh, util
 from .. import transformations as tr
 from ..constants import log_time
+from ..typed import ArrayLike, Integer, Number, Optional, VoxelizationMethodsType
 from . import base
 from . import encoding as enc
-from .typed import ArrayLike, Integer, Number, Optional, VoxelizationMethodsType
 
 
 @log_time

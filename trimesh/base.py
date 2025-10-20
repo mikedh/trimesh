@@ -1921,7 +1921,9 @@ class Trimesh(Geometry3D):
         """
         return repair.fill_holes(self)
 
-    def register(self, other: Union[Geometry3D, NDArray], **kwargs) -> Tuple[NDArray[float64], float64]:
+    def register(
+        self, other: Union[Geometry3D, NDArray], **kwargs
+    ) -> Tuple[NDArray[float64], float64]:
         """
         Align a mesh with another mesh or a PointCloud using
         the principal axes of inertia as a starting point which
@@ -2087,10 +2089,7 @@ class Trimesh(Geometry3D):
         return result
 
     def subdivide_to_size(
-        self,
-        max_edge: Floating,
-        max_iter: Integer = 10,
-        return_index: bool = False
+        self, max_edge: Floating, max_iter: Integer = 10, return_index: bool = False
     ) -> Union["Trimesh", Tuple["Trimesh", NDArray[int64]]]:
         """
         Subdivide a mesh until every edge is shorter than a
