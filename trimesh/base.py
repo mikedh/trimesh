@@ -1728,7 +1728,7 @@ class Trimesh(Geometry3D):
         """
         return cKDTree(self.vertices.view(np.ndarray))
 
-    def remove_degenerate_faces(self, height: float = tol.merge) -> None:
+    def remove_degenerate_faces(self, height: Floating = tol.merge) -> None:
         """
         DERECATED MARCH 2024 REPLACE WITH:
         `self.update_faces(self.nondegenerate_faces(height=height))`
@@ -1742,7 +1742,7 @@ class Trimesh(Geometry3D):
         )
         self.update_faces(self.nondegenerate_faces(height=height))
 
-    def nondegenerate_faces(self, height: float = tol.merge) -> NDArray[np.bool_]:
+    def nondegenerate_faces(self, height: Floating = tol.merge) -> NDArray[np.bool_]:
         """
         Identify degenerate faces (faces without 3 unique vertex indices)
         in the current mesh.
@@ -1953,9 +1953,9 @@ class Trimesh(Geometry3D):
     def compute_stable_poses(
         self,
         center_mass: Optional[NDArray[float64]] = None,
-        sigma: float = 0.0,
-        n_samples: int = 1,
-        threshold: float = 0.0,
+        sigma: Floating = 0.0,
+        n_samples: Integer = 1,
+        threshold: Floating = 0.0,
     ) -> Tuple[NDArray[float64], NDArray[float64]]:
         """
         Computes stable orientations of a mesh and their quasi-static probabilities.
@@ -2087,10 +2087,10 @@ class Trimesh(Geometry3D):
         return result
 
     def subdivide_to_size(
-            self,
-            max_edge: float,
-            max_iter: int = 10,
-            return_index: bool = False
+        self,
+        max_edge: Floating,
+        max_iter: Integer = 10,
+        return_index: bool = False
     ) -> Union["Trimesh", Tuple["Trimesh", NDArray[int64]]]:
         """
         Subdivide a mesh until every edge is shorter than a
@@ -2161,7 +2161,7 @@ class Trimesh(Geometry3D):
 
         return result
 
-    def subdivide_loop(self, iterations: Optional[int] = None) -> "Trimesh":
+    def subdivide_loop(self, iterations: Optional[Integer] = None) -> "Trimesh":
         """
         Subdivide a mesh by dividing each triangle into four
         triangles and approximating their smoothed surface
@@ -2444,7 +2444,7 @@ class Trimesh(Geometry3D):
 
     def sample(
         self,
-        count: int,
+        count: Integer,
         return_index: bool = False,
         face_weight: Optional[NDArray[float64]] = None,
     ):
@@ -2599,7 +2599,7 @@ class Trimesh(Geometry3D):
         self._cache.id_set()
         return self
 
-    def voxelized(self, pitch: Optional[float], method: str = "subdivide", **kwargs):
+    def voxelized(self, pitch: Optional[Floating], method: str = "subdivide", **kwargs):
         """
         Return a VoxelGrid object representing the current mesh
         discretized into voxels at the specified pitch
