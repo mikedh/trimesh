@@ -57,21 +57,23 @@ class MFTest(g.unittest.TestCase):
 
         # test a scene round-tripped through the
         # 3MF exporter and importer
-        s = g.get_mesh("pyramids.3mf")
-        assert len(s.geometry) == 6
 
-        # export and reload
-        r = g.trimesh.load(
-            file_obj=g.trimesh.util.wrap_as_stream(s.export(file_type="3mf")),
-            file_type="3mf",
-        )
+        for name, count in [("cycloidal.3DXML", 13), ("pyramids.3mf", 6)]:
+            s = g.get_mesh(name)
+            assert len(s.geometry) == count
 
-        assert set(s.geometry.keys()) == set(r.geometry.keys()), (
-            s.geometry.keys(),
-            r.geometry.keys(),
-        )
-        assert g.np.allclose(s.bounds, r.bounds)
-        assert g.np.isclose(s.area, r.area, rtol=1e-3)
+            # export and reload
+            r = g.trimesh.load(
+                file_obj=g.trimesh.util.wrap_as_stream(s.export(file_type="3mf")),
+                file_type="3mf",
+            )
+
+            assert set(s.geometry.keys()) == set(r.geometry.keys()), (
+                s.geometry.keys(),
+                r.geometry.keys(),
+            )
+            assert g.np.allclose(s.bounds, r.bounds)
+            assert g.np.isclose(s.area, r.area, rtol=1e-3)
 
 
 if __name__ == "__main__":
