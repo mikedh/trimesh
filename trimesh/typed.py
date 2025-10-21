@@ -72,7 +72,8 @@ BooleanEngineType = Literal["manifold", "blender", None]
 # what are the substrings for each operation
 BooleanOperationType = Literal["difference", "union", "intersection"]
 
-VoxelizationMethodType = Literal["subdivide", "ray", "binvox"]
+# what are the supported methods for converting a mesh into voxels.
+VoxelizationMethodsType = Literal["subdivide", "ray", "binvox"]
 
 __all__ = [
     "IO",
