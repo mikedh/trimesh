@@ -286,7 +286,7 @@ voxelizers = util.FunctionRegistry(
 
 def voxelize(
     mesh,
-    pitch: Number,
+    pitch: Optional[Number],
     method: VoxelizationMethodsType = "subdivide",
     **kwargs,
 ) -> Optional[base.VoxelGrid]:
