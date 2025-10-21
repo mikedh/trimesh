@@ -57,8 +57,8 @@ class MFTest(g.unittest.TestCase):
 
         # test a scene round-tripped through the
         # 3MF exporter and importer
-        s = g.get_mesh("cycloidal.3DXML")
-        assert len(s.geometry) == 13
+        s = g.get_mesh("pyramids.3mf")
+        assert len(s.geometry) == 6
 
         # export and reload
         r = g.trimesh.load(
