@@ -1,4 +1,4 @@
-from io import BytesIO, StringIO
+from io import BufferedRandom, BytesIO, StringIO
 from pathlib import Path
 from sys import version_info
 from typing import (
@@ -39,7 +39,7 @@ else:
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
 
-Stream = Union[IO, BytesIO, StringIO, BinaryIO, TextIO]
+Stream = Union[IO, BytesIO, StringIO, BinaryIO, TextIO, BufferedRandom]
 Loadable = Union[str, Path, Stream, Dict, None]
 
 # numpy integers do not inherit from python integers, i.e.
@@ -69,7 +69,11 @@ GraphEngineType = Literal["networkx", "scipy", None]
 
 # what 3D boolean engines are available
 BooleanEngineType = Literal["manifold", "blender", None]
+# what are the substrings for each operation
 BooleanOperationType = Literal["difference", "union", "intersection"]
+
+# what are the supported methods for converting a mesh into voxels.
+VoxelizationMethodsType = Literal["subdivide", "ray", "binvox"]
 
 __all__ = [
     "IO",
