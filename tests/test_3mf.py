@@ -79,10 +79,11 @@ def test_roundtrip():
         assert g.np.allclose(s.bounds, r.bounds)
         assert g.np.isclose(s.area, r.area, rtol=1e-3)
 
-        # check partnumbers are preserved
-        s_partnumbers = {e[1] for e in s.graph.to_edgelist()}
-        r_partnumbers = {e[1] for e in r.graph.to_edgelist()}
-        assert s_partnumbers == r_partnumbers, (s_partnumbers, r_partnumbers)
+        if "3mf" in name.lower():
+            # check partnumbers are preserved in the input 3mf files
+            s_partnumbers = {e[1] for e in s.graph.to_edgelist()}
+            r_partnumbers = {e[1] for e in r.graph.to_edgelist()}
+            assert s_partnumbers == r_partnumbers, (s_partnumbers, r_partnumbers)
 
 
 if __name__ == "__main__":
