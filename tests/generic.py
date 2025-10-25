@@ -464,6 +464,8 @@ def check_path2D(path):
     assert isinstance(path.identifier_hash, str)
     assert len(path.identifier_hash) == 64, len(path.identifier_hash)
 
+    assert path.convex_hull is not None
+
 
 def scene_equal(a, b):
     """

@@ -751,7 +751,7 @@ def linear_to_srgb(linear: ArrayLike) -> NDArray[np.float64]:
     srgb
       Values scaled to an sRGB scale.
     """
-    linear = np.asanyarray(linear, dtype=np.float64)
+    linear = to_float(linear)
 
     mask = linear > 0.00313066844250063
     srgb = np.zeros(linear.shape, dtype=np.float64)
@@ -915,9 +915,6 @@ def linear_color_map(
     `(256, 3) float64` array of RGB colors such as our defaults:
     `trimesh.resources.get_json('color_map.json.gzip')['viridis']`
 
-
-
-
     Parameters
     --------------
     values : (n, ) float
@@ -933,7 +930,7 @@ def linear_color_map(
     """
 
     if color_range is None:
-        # do a very unimaginate "red to blue" linear scale
+        # do a very unimaginative "red to green" linear scale
         color_range = np.array([[255, 0, 0, 255], [0, 255, 0, 255]], dtype=np.uint8)
     else:
         # make sure we have a numpy array
