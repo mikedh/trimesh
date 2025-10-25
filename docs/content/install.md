@@ -10,7 +10,7 @@ All other dependencies are \"soft,\"or `trimesh` will raise the import exception
 pip install trimesh
 ```
 
-This will enable you to load most [formats](/formats) into numpy arrays: STL, PLY, OBJ, GLB, GLTF.
+This will enable you to load most [formats](/formats.html) into numpy arrays: STL, PLY, OBJ, GLB, GLTF.
 
 To install `trimesh` with the soft dependencies that generally install cleanly on Linux (x86_64), MacOS (ARM), and Windows (x86_64), you can use the `easy` install extra using `pip`:
 ```
@@ -60,8 +60,8 @@ Trimesh has a lot of soft-required upstream packages, and we try to make sure th
 | `lxml` | Parse XML documents. We use this over the built-in ones as it was slightly faster, and there was a format implemented which was extremely annoying to handle without the ability to get parent nodes (which `lxml` has but built-in XML doesn't). | Standard library's XML | `easy` |
 | `networkx` | Pure Python graph library that's reasonably fast and has a nice API. `scipy.sparse.csgraph` is way faster in most cases but is hard to understand and doesn't implement as many algorithms. | `graph-tool`, `scipy.sparse.csgraph` | `easy` |
 | `shapely` | Bindings to `GEOS` for 2D spatial stuff: "set-theoretic analysis and manipulation of planar features" which lets you offset, union, and query polygons. | `clipper` | `easy` | 
-| `rtree` | Query ND rectangles with a spatial tree for a "broad phase" intersection. Used in polygon generation ("given N closed curves which curve contains the other curve?") and as the broad-phase for the built-in-numpy slow ray query engine. | `fcl` maybe? | `easy` |
-|`httpx`| Do network queries in `trimesh.exchange.load_remote`, will *only* make network requests when asked | `requests`, `aiohttp` | `easy`|
+| `rtree` | Query ND rectangles with a spatial tree for a "broad phase" intersection. Used in polygon generation ("given N closed curves which curve contains the other curve?") and as the broad-phase for the built-in-numpy slow ray query engine. |  | `easy` |
+|`httpx`| Do network queries in `trimesh.exchange.load_remote`, we will *only* make network requests when asked | `requests`, `aiohttp` | `easy`|
 |`sympy`| Evaluate symbolic algebra | | `recommend`|
 |`xxhash`| Quickly hash arrays, used for our cache checking | | `easy`|
 |`charset-normalizer`| When we fail to decode text as UTF-8 we then check with charset-normalizer which guesses an encoding,  letting us load files even with weird encodings. | | `easy`|

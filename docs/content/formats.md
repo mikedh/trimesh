@@ -8,8 +8,7 @@ There's lots of mesh formats out there!
 
 Quick recommendation: `GLB` or `PLY`. If you're looking for "the simplest possible format because I have to write an importer in another language" you should take a look at `OFF`. 
 
-Wavefront `OBJ` is also widely used and supported across many tools. However, OBJ lacks a specification, which can lead to compatibility issues between different importers and exporters. The format supports features like arbitrary polygon sizes and material references that can add complexity, and parsing performance may be slower compared to binary formats. 
-
+Wavefront `OBJ` is also widely used and supported across many tools, although it lacks a specification and has a slightly unusual internal data structure, which can lead to compatibility and indexing issues. Parsing is much slower than binary formats. 
 
 ## What Formats Does Trimesh Support?
 
