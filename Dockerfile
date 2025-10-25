@@ -42,6 +42,13 @@ COPY --chmod=755 docker/trimesh-setup /home/user/venv/bin
 ## install things that need building
 FROM base AS build
 
+# the `easy` extra shouldn't need a build chain unless we're on a brand new Python release
+ARG NEEDS_BUILDCHAIN="true"
+USER root
+# install build dependencies
+RUN if [ "$NEEDS_BUILDCHAIN" = "true" ]; then trimesh-setup --install build; fi
+USER user
+
 # copy in essential files
 COPY --chown=499 trimesh/ /home/user/trimesh
 COPY --chown=499 pyproject.toml /home/user/

@@ -25,7 +25,6 @@ config_json = """
   "apt": {
     "build": [
       "build-essential",
-      "python3.13-dev",
       "g++",
       "make",
       "git"
