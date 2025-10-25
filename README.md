@@ -6,20 +6,20 @@
 
 Trimesh is a pure Python 3.8+ library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on watertight surfaces. The goal of the library is to provide a full featured and well tested Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the [Shapely library](https://github.com/Toblerity/Shapely).
 
-The API is mostly stable, but this should not be relied on and is not guaranteed: install a specific version if you plan on deploying something using trimesh.
+The API is mostly stable, but this should not be relied on and is not guaranteed: install a specific version if you plan on deploying something using `trimesh`.
 
 Pull requests are appreciated and responded to promptly! If you'd like to contribute, here a quick [development and contributing guide.](https://trimesh.org/contributing.html)
 
 
 ## Basic Installation
 
-Keeping `trimesh` easy to install is a core goal, thus the *only* hard dependency is [numpy](http://www.numpy.org/). Installing other packages adds functionality but is not required. For the easiest install with just `numpy`, use `pip`:
+Keeping `trimesh` easy to install is a core goal, thus the *only* hard dependency is [`numpy`](http://www.numpy.org/). Installing other packages adds functionality but is not required. For the easiest install with just `numpy`:
 
 ```bash
 pip install trimesh
 ```
 
-The minimal install can load many supported formats (STL, PLY, GLTF/GLB) into numpy arrays. More functionality is available when soft dependencies are installed. This includes things like convex hulls (`scipy`), graph operations (`networkx`), faster ray queries (`embreex`), vector path handling (`shapely` and `rtree`), XML formats like 3DXML/XAML/3MF (`lxml`), preview windows (`pyglet`), faster cache checks (`xxhash`), etc.
+The minimal install can load many supported formats (STL, PLY, OBJ, GLTF/GLB) into `numpy.ndarray` values. More functionality is available when soft dependencies are installed, like convex hulls (`scipy`), graph operations (`networkx`), faster ray queries (`embreex`), vector path handling (`shapely` and `rtree`), XML formats like 3DXML/XAML/3MF (`lxml`), preview windows (`pyglet`), faster cache checks (`xxhash`), etc.
 
 To install `trimesh` with the soft dependencies that generally install cleanly on Linux x86_64, MacOS ARM, and Windows x86_64 using `pip`:
 ```bash
@@ -30,8 +30,7 @@ If you are supporting a different platform or are freezing your dependencies we 
 
 ## Quick Start
 
-Here is an example of loading a mesh from file and colorizing its faces. Here is a nicely formatted
-[ipython notebook version](https://trimesh.org/quick_start.html) of this example. Also check out the [cross section example](https://trimesh.org/section.html).
+Here is an example of loading a mesh from file and colorizing its faces ([nicely formatted notebook version](https://trimesh.org/quick_start.html) of this example.
 
 ```python
 import numpy as np
@@ -51,11 +50,10 @@ mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
                        faces=[[0, 1, 2]],
                        process=False)
 
-# some formats represent multiple meshes with multiple instances
-# the loader tries to return the datatype which makes the most sense
-# which will for scene-like files will return a `trimesh.Scene` object.
-# if you *always* want a straight `trimesh.Trimesh` you can ask the
-# loader to "force" the result into a mesh through concatenation
+# some formats like `glb` represent multiple meshes with multiple instances
+# and `load_mesh` will concatenate irreversibly, load it as a Scene
+# if you need instance information:
+#   `scene = trimesh.load_scene('models/CesiumMilkTruck.glb')`
 mesh = trimesh.load_mesh('models/CesiumMilkTruck.glb')
 
 # is the current mesh watertight?
@@ -119,7 +117,4 @@ print(mesh.bounding_box_oriented.volume,
 
 ## Which Mesh Format Should I Use?
 
-Quick recommendation is to use `GLB`, and to avoid `OBJ` if possible. More discussion and a list of supported formats  is in the [`documention`](https://trimesh.org/formats)
-
-
-
+Quick recommendation: use `GLB` for new work. More discussion and a list of supported formats  is in the [`documention`](https://trimesh.org/formats)

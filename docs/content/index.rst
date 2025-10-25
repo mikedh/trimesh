@@ -24,7 +24,7 @@ Geometry Formats
 .. toctree::
    :maxdepth: 1
 	      
-   Examples <formats.md>
+   Geometry Formats <formats.md>
    
 Contributing
 ==========  

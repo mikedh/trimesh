@@ -1,7 +1,7 @@
 Contributing To Trimesh
 =======================
 
-Pull requests are always super welcome! Trimesh is a relatively small open source project and really benefits from the bugfixes, features, and other stuff the 100+ contributors have PR'd, so thanks!
+Pull requests are always super welcome! Trimesh is a relatively small open source project and really benefits from the bugfixes, features, and other stuff the 200+ contributors have PR'd, so thanks!
 
 
 ## Developer Quick Start
@@ -82,6 +82,20 @@ ruff format
 
 Trimesh uses the [Sphinx Numpy-style](https://www.sphinx-doc.org/en/master/usage/extensions/example_numpy.html#example-numpy) docstrings which get parsed into the API reference page. 
 
+
+## Deprecations
+
+We try to add a somewhat helpful `DeprecationWarning` one year in advance of a major API change:
+
+```python
+    warnings.warn(
+        "`remove_duplicate_faces` is deprecated "
+        + "and will be removed in March 2024: "
+            + "replace with `mesh.update_faces(mesh.unique_faces())`",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+```
 
 ## General Tips
 

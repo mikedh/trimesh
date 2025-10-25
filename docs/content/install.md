@@ -18,11 +18,23 @@ pip install trimesh[easy]
 ```
 
 
+## What makes a dependency `easy`?
+
+"`pip install` always works." What this translates to has changed over time (specifically since MacOS went ARM). The current definition is:
+
+- Using a [current](https://devguide.python.org/versions/) version of CPython.
+- Without a build toolchain installed. So `sdist` that requires compilation is not `easy`: binary wheels are required. 
+- On the latest version of your operating system:
+  - MacOS ARM. ARM took a long time to support because upstream Github Actions runners and `cibuildwheel` had to support it first, but after a few years it has stabilized. MacOS x86_64 wheels will be continued to be built for most projects until [Github turn the lights out in August 2027](https://github.com/actions/runner-images/issues/13045)
+  - Windows x86_64
+  - Linux x86_64 non-MUSL. 
+
+
 ## Freezing Dependencies
 
-If you are freezing your dependencies with one of the many methods (`requirements.txt`, `uv.lock`, etc), we recommend that you do not use the extra.
+If you are freezing your dependencies with one of the many methods (version range in `pyproject.toml`, `requirements.txt`, `uv.lock`, etc), we recommend that you do not hard-code extras: i.e. depend on `trimesh scipy` versus `trimesh[easy]`. 
 
-It is more reliable and maintainable to freeze `trimesh scipy` versus `trimesh[easy]`, as trimesh itself will install on anything `numpy` supports. And if you're relying on one of the smaller more specialized dependencies (`vhacdx`, etc) it is much easier to diagnose a fault with the specific package.
+Trimesh's test matrix runs with the latest version of the packages, so you may get functionality mis-matches by using the extra. And if you're relying on one of the smaller more specialized dependencies (`vhacdx`, etc) it is much easier to diagnose a fault with the specific package.
 
 
 ## Conda Packages
