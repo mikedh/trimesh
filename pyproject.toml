@@ -116,7 +116,7 @@ test_more = [
     "xatlas",
     "pytest-beartype; python_version>='3.10'",
     "matplotlib",
-    "pymeshlab",
+    "pymeshlab; python_version<'3.14'",
     "triangle",
     "ipython",
     "marimo",
