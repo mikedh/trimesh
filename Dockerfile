@@ -24,7 +24,7 @@ WORKDIR /home/user
 # it won't provide a `pip` which works easily and it isn't
 # easy to know how system packages interact with pip packages
 
-ARG PYTHON_VERSION="3.14"
+ARG PYTHON_VERSION="3.14.0"
 RUN uv venv --python=python${PYTHON_VERSION} venv
 
 # Add `pip` script install location to $PATH
