@@ -32,8 +32,8 @@ def load_obj(
     maintain_order: bool = False,
     metadata: Optional[Dict] = None,
     # https://github.com/mikedh/trimesh/issues/2413
-    split_groups:  bool = False,
     split_objects: bool = False,
+    split_groups:  bool = False,
     **kwargs,
 ):
     """
@@ -55,10 +55,10 @@ def load_obj(
     maintain_order : bool or None
       Do not reorder faces or vertices which may result
       in visual artifacts.
-    split_groups : bool
-      Split the scene into multiple meshes per group
     split_objects : bool
       Split the scene into multiple meshes per object
+    split_groups : bool
+      Split the scene into multiple meshes per group
 
     Returns
     -------------
@@ -103,7 +103,7 @@ def load_obj(
 
     # get relevant chunks that have face data
     # in the form of (material, object, chunk)
-    face_tuples = _preprocess_faces(text=text)
+    face_tuples = _preprocess_faces(text, split_objects, split_groups)
 
     # combine chunks that have the same material
     # some meshes end up with a LOT of components
@@ -176,11 +176,21 @@ def load_obj(
             log.debug("faces have mixed data: using slow fallback!")
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
+        name = ""
+        if split_objects:
+          name = current_object
+        if split_groups:
+          if len(name) > 0:
+            name += "_"
+          name += current_group
         if group_material and len(materials) > 1:
-            name = material
-        elif current_object is not None:
+            if len(name) > 0:
+              name += "_"
+            name += material
+
+        if current_object is not None and name == "":
             name = current_object
-        else:
+        if name == "":
             # try to use the file name from the resolver
             # or file object if possible before defaulting
             name = next(
@@ -672,14 +682,16 @@ def _group_by(face_tuples, mtl, use_obj, grp):
     grouped : (m,) list of (material, obj, chunk)
       Grouped by material
     """
-    def key(m, o, g):
-      return (m if mtl else None, o if use_obj else None, g if grp else None)
 
     # store the chunks grouped by material
     grouped = defaultdict(lambda: ["", "", "", []])
     # loop through existring
     for material, obj, group, chunk in face_tuples:
-        k = key(material, obj, group)
+        k = (
+          material if mtl else None,
+          obj if use_obj else None,
+          group if grp else None
+        )
         grouped[k][0] = material
         grouped[k][1] = obj
         grouped[k][2] = group
@@ -692,7 +704,7 @@ def _group_by(face_tuples, mtl, use_obj, grp):
     return list(grouped.values())
 
 
-def _preprocess_faces(text):
+def _preprocess_faces(text, use_obj=False, use_groups=False):
     """
     Pre-Process Face Text
 
@@ -744,12 +756,17 @@ def _preprocess_faces(text):
     # find the index of every material change
     idx_mtl = np.array([m.start(0) for m in re.finditer("usemtl ", f_chunk)], dtype=int)
     # find the index of every new object
-    idx_obj = np.array([m.start(0) for m in re.finditer("\no ", f_chunk)], dtype=int)
+    split_idxs = [[0, len(f_chunk)], idx_mtl]
 
-    idx_group = np.array([m.start(0) for m in re.finditer("\ng ", f_chunk)], dtype=int)
+    # NOTE: This used to split objects on every run, but now it does not
+    if use_obj:
+      split_idxs.append(np.array([m.start(0) for m in re.finditer("\no ", f_chunk)], dtype=int))
+
+    if use_groups:
+      split_idxs.append(np.array([m.start(0) for m in re.finditer("\ng ", f_chunk)], dtype=int))
 
     # find all the indexes where we want to split
-    splits = np.unique(np.concatenate(([0, len(f_chunk)], idx_mtl, idx_obj, idx_group)))
+    splits = np.unique(np.concatenate(tuple(split_idxs)))
 
     # track the current material and object ID
     current_obj = None
