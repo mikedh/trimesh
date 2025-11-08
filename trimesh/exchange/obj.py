@@ -31,6 +31,9 @@ def load_obj(
     skip_materials: bool = False,
     maintain_order: bool = False,
     metadata: Optional[Dict] = None,
+    # https://github.com/mikedh/trimesh/issues/2413
+    split_groups:  bool = False,
+    split_objects: bool = False,
     **kwargs,
 ):
     """
@@ -52,6 +55,10 @@ def load_obj(
     maintain_order : bool or None
       Do not reorder faces or vertices which may result
       in visual artifacts.
+    split_groups : bool
+      Split the scene into multiple meshes per group
+    split_objects : bool
+      Split the scene into multiple meshes per object
 
     Returns
     -------------
@@ -101,8 +108,10 @@ def load_obj(
     # combine chunks that have the same material
     # some meshes end up with a LOT of components
     # and will be much slower if you don't do this
-    if group_material:
-        face_tuples = _group_by_material(face_tuples)
+    if group_material or split_objects or split_groups:
+        face_tuples = _group_by(
+          face_tuples, group_material, split_objects, split_groups
+        )
 
     # no faces but points given
     # return point cloud
@@ -121,7 +130,7 @@ def load_obj(
     geometry = {}
     while len(face_tuples) > 0:
         # consume the next chunk of text
-        material, current_object, chunk = face_tuples.pop()
+        material, current_object, current_group, chunk = face_tuples.pop()
         # do wangling in string form
         # we need to only take the face line before a newline
         # using builtin functions in a list comprehension
@@ -648,7 +657,7 @@ def _parse_vertices(text):
     return v, vn, vt, vc
 
 
-def _group_by_material(face_tuples):
+def _group_by(face_tuples, mtl, use_obj, grp):
     """
     For chunks of faces split by material group
     the chunks that share the same material.
@@ -663,18 +672,22 @@ def _group_by_material(face_tuples):
     grouped : (m,) list of (material, obj, chunk)
       Grouped by material
     """
+    def key(m, o, g):
+      return (m if mtl else None, o if use_obj else None, g if grp else None)
 
     # store the chunks grouped by material
-    grouped = defaultdict(lambda: ["", "", []])
+    grouped = defaultdict(lambda: ["", "", "", []])
     # loop through existring
-    for material, obj, chunk in face_tuples:
-        grouped[material][0] = material
-        grouped[material][1] = obj
+    for material, obj, group, chunk in face_tuples:
+        k = key(material, obj, group)
+        grouped[k][0] = material
+        grouped[k][1] = obj
+        grouped[k][2] = group
         # don't do a million string concatenations in loop
-        grouped[material][2].append(chunk)
+        grouped[k][3].append(chunk)
     # go back and do a join to make a single string
     for k in grouped.keys():
-        grouped[k][2] = "\n".join(grouped[k][2])
+        grouped[k][3] = "\n".join(grouped[k][3])
     # return as list
     return list(grouped.values())
 
@@ -685,7 +698,7 @@ def _preprocess_faces(text):
 
     Rather than looking at each line in a loop we're
     going to split lines by directives which indicate
-    a new mesh, specifically 'usemtl' and 'o' keys
+    a new mesh, specifically 'usemtl', 'o', and 'g' keys
     search for materials, objects, faces, or groups
 
     Parameters
@@ -733,13 +746,16 @@ def _preprocess_faces(text):
     # find the index of every new object
     idx_obj = np.array([m.start(0) for m in re.finditer("\no ", f_chunk)], dtype=int)
 
+    idx_group = np.array([m.start(0) for m in re.finditer("\ng ", f_chunk)], dtype=int)
+
     # find all the indexes where we want to split
-    splits = np.unique(np.concatenate(([0, len(f_chunk)], idx_mtl, idx_obj)))
+    splits = np.unique(np.concatenate(([0, len(f_chunk)], idx_mtl, idx_obj, idx_group)))
 
     # track the current material and object ID
     current_obj = None
     current_mtl = None
-    # store (material, object, face lines)
+    current_group = None
+    # store (material, object, group, face lines)
     face_tuples = []
 
     for start, end in zip(splits[:-1], splits[1:]):
@@ -753,11 +769,12 @@ def _preprocess_faces(text):
             current_mtl = current_mtl[6:].strip()
         # Discard the g tag line in the list of faces
         elif chunk.startswith("g "):
-            _, chunk = chunk.split("\n", 1)
+            current_group, chunk = chunk.split("\n", 1)
+            current_group = current_group[2:].strip()
         # If we have an f at the beginning of a line
         # then add it to the list of faces chunks
         if chunk.startswith("f ") or "\nf" in chunk:
-            face_tuples.append((current_mtl, current_obj, chunk))
+            face_tuples.append((current_mtl, current_obj, current_group, chunk))
     return face_tuples
 
 
