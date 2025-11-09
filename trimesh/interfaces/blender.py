@@ -2,40 +2,74 @@ import os
 import platform
 
 from .. import util
-from ..constants import log
 from ..resources import get_string
-from ..typed import BooleanOperationType, Iterable
+from ..typed import BooleanOperationType, Callable, Iterable, Union
 from .generic import MeshScript
 
-if platform.system() == "Windows":
-    # try to find Blender install on Windows
-    # split existing path by delimiter
-    _search_path = [i for i in os.environ.get("PATH", "").split(";") if len(i) > 0]
-    for pf in [r"C:\Program Files", r"C:\Program Files (x86)"]:
-        pf = os.path.join(pf, "Blender Foundation")
-        if os.path.exists(pf):
-            for p in os.listdir(pf):
-                if "Blender" in p:
-                    _search_path.append(os.path.join(pf, p))
-    _search_path = ";".join(set(_search_path))
-    log.debug("searching for blender in: %s", _search_path)
-elif platform.system() == "Darwin":
-    # try to find Blender on Mac OSX
-    _search_path = [i for i in os.environ.get("PATH", "").split(":") if len(i) > 0]
-    _search_path.extend(
-        [
-            "/Applications/blender.app/Contents/MacOS",
-            "/Applications/Blender.app/Contents/MacOS",
-            "/Applications/Blender/blender.app/Contents/MacOS",
-        ]
-    )
-    _search_path = ":".join(set(_search_path))
-    log.debug("searching for blender in: %s", _search_path)
-else:
-    _search_path = os.environ.get("PATH", "")
 
-_blender_executable = util.which("blender", path=_search_path)
-exists = _blender_executable is not None
+def _search_path() -> str:
+    """
+    Construct the search path for places Blender might be located.
+    """
+    if platform.system() == "Windows":
+        # try to find Blender install on Windows
+        # split existing path by delimiter
+        values = [i for i in os.environ.get("PATH", "").split(";") if len(i) > 0]
+        for pf in [r"C:\Program Files", r"C:\Program Files (x86)"]:
+            pf = os.path.join(pf, "Blender Foundation")
+            if os.path.exists(pf):
+                for p in os.listdir(pf):
+                    if "Blender" in p:
+                        values.append(os.path.join(pf, p))
+        return ";".join(set(values))
+
+    elif platform.system() == "Darwin":
+        # try to find Blender on Mac OSX
+        values = [i for i in os.environ.get("PATH", "").split(":") if len(i) > 0]
+        values.extend(
+            [
+                "/Applications/blender.app/Contents/MacOS",
+                "/Applications/Blender.app/Contents/MacOS",
+                "/Applications/Blender/blender.app/Contents/MacOS",
+            ]
+        )
+        return ":".join(set(values))
+
+    return os.environ.get("PATH", "")
+
+
+class LazyWhich:
+    def __init__(self, name: str, path: Union[str, None, Callable] = None):
+        """
+        Construct a lazy evaluator for `shutil.which(name, path=path)`.
+        """
+        self.name = name
+        self.path = path
+
+        self._evaluated = None
+        self._evaluated_once = False
+
+    def _value(self):
+        if not self._evaluated_once:
+            if callable(self.path):
+                # path may be a lazy evaluated function
+                path = self.path()
+            else:
+                path = self.path
+
+            self._evaluated_once = True
+            self._evaluated = util.which(self.name, path=path)
+        return self._evaluated
+
+    def __bool__(self) -> bool:
+        return self._value() is not None
+
+    def __str__(self) -> str:
+        return self._value()
+
+
+_blender_executable = LazyWhich(name="blender", path=_search_path)
+exists = _blender_executable
 
 # a map that translates:
 # `trimesh.BooleanOperationType` -> blender value
