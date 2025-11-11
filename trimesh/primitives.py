@@ -11,11 +11,11 @@ and then use trimesh operations on them at any point.
 import abc
 
 import numpy as np
-from caching import cache_decorator
 
 from . import creation, inertia, sample, triangles, util
 from . import transformations as tf
 from .base import Trimesh
+from .caching import cache_decorator
 from .constants import log, tol
 from .typed import ArrayLike, Integer, Number, Optional
 
