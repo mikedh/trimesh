@@ -86,8 +86,8 @@ RUN blender --version
 RUN pip install .[all] && \
     python -c "import numpy as n; assert(n.__version__.startswith('2'))"
 
-# check for lint problems
-RUN ruff check trimesh
+# check for lint problems and print the current python version
+RUN ruff check trimesh && python --version
 
 # run pytest wrapped with xvfb for simple viewer tests
 # print more columns so the short summary is usable
