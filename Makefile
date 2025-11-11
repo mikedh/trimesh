@@ -57,6 +57,7 @@ tests: ## Run unit tests inside docker images.
 	docker build \
 		--target tests \
 		--progress=plain \
+		--file $(DOCKERFILE) \
 		--secret id=codecov_token,env=CODECOV_TOKEN \
 		.
 
