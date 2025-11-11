@@ -19,6 +19,9 @@ NAME=trimesh/trimesh
 REPO=docker.io
 IMAGE=$(REPO)/$(NAME)
 
+# the dockerfile location
+DOCKERFILE=helpers/Dockerfile
+
 # the tags we'll be applying
 TAG_LATEST=$(IMAGE):latest
 TAG_GIT_SHA=$(IMAGE):$(GIT_SHA)
@@ -44,6 +47,7 @@ build: ## Build the docker images
 		--tag $(TAG_LATEST) \
 		--tag $(TAG_VERSION) \
 		--tag $(TAG_GIT_SHA) \
+		--file $(DOCKERFILE) \
 		.
 
 # build the tests stage of the image
@@ -54,6 +58,7 @@ tests: ## Run unit tests inside docker images.
 		--target tests \
 		--progress=plain \
 		--build-arg "CODECOV_TOKEN=$(CODECOV_TOKEN)" \
+		--file $(DOCKERFILE) \
 		.
 
 # build the docs inside our image and eject the contents
@@ -65,6 +70,7 @@ docs: ## Build trimesh's sphinx docs
 		--target docs \
 		--progress=plain \
 		--output html \
+		--file $(DOCKERFILE) \
 		.
 
 .PHONY: bash

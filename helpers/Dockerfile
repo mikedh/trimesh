@@ -34,7 +34,7 @@ RUN echo '#!/bin/sh' > /home/user/venv/bin/pip && \
     chmod +x /home/user/venv/bin/pip
 
 # Install helper script to PATH.
-COPY --chmod=755 docker/trimesh-setup /home/user/venv/bin
+COPY --chmod=755 helpers/trimesh-setup /home/user/venv/bin
 
 #######################################
 ## install things that need building
