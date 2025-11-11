@@ -3,7 +3,7 @@ try:
 except BaseException:
     import generic as g
 
-from trimesh.primitives import Box, Capsule, Cylinder, Sphere, Extrusion
+from trimesh.primitives import Capsule, Cylinder, Sphere
 
 
 def generate_primitives():
