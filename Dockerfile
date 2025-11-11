@@ -1,6 +1,6 @@
 
 # Stage 1: Build uv
-FROM ghcr.io/astral-sh/uv:0.8.16 AS uv
+FROM ghcr.io/astral-sh/uv:0.9.8 AS uv
 
 # use a vanilla Debian base image
 FROM debian:trixie-slim AS base
