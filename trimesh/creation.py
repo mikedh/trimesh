@@ -138,9 +138,9 @@ def revolve(
     # this is a superset which will then be reduced
     quad = np.array([0, per, 1, 1, per, per + 1])
     # stack the faces for a single slice of the revolution
-    single = np.tile(quad, per).reshape((-1, 3))
+    single = np.tile(quad, per - 1).reshape((-1, 3))
     # `per` is basically the stride of the vertices
-    single += np.tile(np.arange(per), (2, 1)).T.reshape((-1, 1))
+    single += np.tile(np.arange(per - 1), (2, 1)).T.reshape((-1, 1))
     # remove any zero-area triangle
     # this covers many cases without having to think too much
     single = single[triangles.area(vertices[single]) > tol.merge]
