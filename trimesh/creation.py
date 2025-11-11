@@ -159,9 +159,6 @@ def revolve(
     # offset stacked and wrap vertices
     faces = (stacked + offset) % len(vertices)
 
-    # if 'process' not in kwargs:
-    #    kwargs['process'] = False
-
     # Handle capping before applying any transformation
     if not closed and cap:
         # Use the triangulated linestring as the base cap faces (cap_0), assuming no new vertices
@@ -172,11 +169,10 @@ def revolve(
 
         if tol.strict:
             # make sure we didn't screw up triangulation
-            _, idx = np.unique(cap_0_vertices, return_index=True)
-            cap_0_uvtxs = cap_0_vertices[np.sort(idx)]
-            _, idx = np.unique(linestring, return_index=True)
-            line_uvtxs = linestring[np.sort(idx)]
-            assert np.allclose(cap_0_uvtxs, line_uvtxs)
+            unique = grouping.unique_rows(cap_0_vertices)[0]
+            assert set(unique) == set(range(len(linestring))), (
+                "Triangulation added vertices!"
+            )
 
         # Use the last set of vertices as the top cap contour (cap_angle)
         offset = len(vertices) - per
