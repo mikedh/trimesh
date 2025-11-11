@@ -57,8 +57,7 @@ tests: ## Run unit tests inside docker images.
 	docker build \
 		--target tests \
 		--progress=plain \
-		--build-arg "CODECOV_TOKEN=$(CODECOV_TOKEN)" \
-		--file $(DOCKERFILE) \
+		--secret id=codecov_token,env=CODECOV_TOKEN \
 		.
 
 # build the docs inside our image and eject the contents

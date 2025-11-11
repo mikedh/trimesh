@@ -90,11 +90,11 @@ RUN COLUMNS=240 xvfb-run pytest \
     -p no:cacheprovider tests
 
 
-# set codecov token as a build arg to upload
-ARG CODECOV_TOKEN=""
-RUN curl -Os https://uploader.codecov.io/latest/linux/codecov && \
-    	 chmod +x codecov && \
-        ./codecov -t ${CODECOV_TOKEN} 
+# use BuildKit secrets to access codecov token securely
+RUN --mount=type=secret,id=codecov_token \
+    curl -Os https://uploader.codecov.io/latest/linux/codecov && \
+    chmod +x codecov && \
+    ./codecov -t $(cat /run/secrets/codecov_token || echo "") 
 
 ################################
 ### Build Sphinx Docs
