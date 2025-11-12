@@ -1,6 +1,6 @@
 
 # Stage 1: Build uv
-FROM ghcr.io/astral-sh/uv:0.8.16 AS uv
+FROM ghcr.io/astral-sh/uv:0.9.8 AS uv
 
 # use a vanilla Debian base image
 FROM debian:trixie-slim AS base
@@ -23,7 +23,9 @@ WORKDIR /home/user
 # but if you use Debian methods like `update-alternatives`
 # it won't provide a `pip` which works easily and it isn't
 # easy to know how system packages interact with pip packages
-RUN uv venv --python=python3.13 venv
+
+ARG PYTHON_VERSION="3.14.0"
+RUN uv venv --python=python${PYTHON_VERSION} venv
 
 # Add `pip` script install location to $PATH
 ENV PATH="/home/user/venv/bin:$PATH"
@@ -39,6 +41,13 @@ COPY --chmod=755 helpers/trimesh-setup /home/user/venv/bin
 #######################################
 ## install things that need building
 FROM base AS build
+
+# the `easy` extra shouldn't need a build chain unless we're on a brand new Python release
+ARG NEEDS_BUILDCHAIN="true"
+USER root
+# install build dependencies
+RUN if [ "$NEEDS_BUILDCHAIN" = "true" ]; then trimesh-setup --install build; fi
+USER user
 
 # copy in essential files
 COPY --chown=499 trimesh/ /home/user/trimesh
@@ -83,8 +92,10 @@ RUN blender --version
 RUN pip install .[all] && \
     python -c "import numpy as n; assert(n.__version__.startswith('2'))"
 
-# check for lint problems
-RUN ruff check trimesh
+# check for lint problems and print the current python version
+RUN ruff check trimesh && \
+    python --version && \
+    python -c "from beartype import __version__ as v; print(v)"
 
 # run pytest wrapped with xvfb for simple viewer tests
 # print more columns so the short summary is usable
