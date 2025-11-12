@@ -36,7 +36,7 @@ RUN echo '#!/bin/sh' > /home/user/venv/bin/pip && \
     chmod +x /home/user/venv/bin/pip
 
 # Install helper script to PATH.
-COPY --chmod=755 docker/trimesh-setup /home/user/venv/bin
+COPY --chmod=755 helpers/trimesh-setup /home/user/venv/bin
 
 #######################################
 ## install things that need building
@@ -55,6 +55,12 @@ COPY --chown=499 pyproject.toml /home/user/
 
 # install trimesh into the venv
 RUN pip install /home/user[easy]
+
+# recursively delete tests installed with libraries
+# these are about 30mb for no particular reason, and
+# if we break something we are doing this BEFORE tests
+RUN cd /home/user/venv && \
+    find . -type d -name tests -exec rm -rf {} + || true
 
 ####################################
 ### Build output image most things should run on
@@ -101,11 +107,11 @@ RUN COLUMNS=240 xvfb-run pytest \
     -p no:cacheprovider tests
 
 
-# set codecov token as a build arg to upload
-ARG CODECOV_TOKEN=""
-RUN curl -Os https://uploader.codecov.io/latest/linux/codecov && \
-    	 chmod +x codecov && \
-        ./codecov -t ${CODECOV_TOKEN} 
+# use BuildKit secrets to access codecov token securely
+RUN --mount=type=secret,id=codecov_token \
+    curl -Os https://uploader.codecov.io/latest/linux/codecov && \
+    chmod +x codecov && \
+    ./codecov -t $(cat /run/secrets/codecov_token || echo "") 
 
 ################################
 ### Build Sphinx Docs

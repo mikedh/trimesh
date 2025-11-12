@@ -69,7 +69,7 @@ GraphEngineType = Literal["networkx", "scipy", None]
 
 # what 3D boolean engines are available
 BooleanEngineType = Literal["manifold", "blender", None]
-# what are the substrings for each operation
+# what 3D boolean operations can be passed to boolean functions
 BooleanOperationType = Literal["difference", "union", "intersection"]
 
 # what are the supported methods for converting a mesh into voxels.

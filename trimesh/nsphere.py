@@ -22,19 +22,6 @@ except BaseException as E:
     leastsq = exceptions.ExceptionWrapper(E)
     spatial = exceptions.ExceptionWrapper(E)
 
-try:
-    import psutil
-
-    def _MAX_MEMORY():
-        # if we have psutil check actual free memory when called
-        return psutil.virtual_memory().free / 2.0
-
-except BaseException:
-
-    def _MAX_MEMORY():
-        # use a hardcoded best guess estimate
-        return 1e9
-
 
 def minimum_nsphere(obj):
     """
@@ -94,11 +81,13 @@ def minimum_nsphere(obj):
     # we are doing comparisons on the radius squared then rooting once
     try:
         # cdist is massivly faster than looping or tiling methods
-        # although it does create a very large intermediate array
+        # although it does create an extremely large intermediate array
         # first, get an order of magnitude memory size estimate
         # a float64 would be 8 bytes per entry plus overhead
         memory_estimate = len(voronoi.vertices) * len(points) * 9
-        if memory_estimate > _MAX_MEMORY():
+        # if this `cdist` would require more than 4gb of memory fall
+        # back to the more memory-efficent but much slower loop
+        if memory_estimate > 4e9:
             raise MemoryError
         radii_2 = spatial.distance.cdist(
             voronoi.vertices, points, metric="sqeuclidean"

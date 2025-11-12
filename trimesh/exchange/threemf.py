@@ -164,8 +164,9 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
             for item in obj.iter("{*}item"):
                 # get a transform from the item's attributes
                 transform = _attrib_to_transform(item.attrib)
+                partnumber = item.attrib.get("partnumber", None)
                 # the index of the geometry this item instantiates
-                build_items.append((item.attrib["objectid"], transform))
+                build_items.append((item.attrib["objectid"], transform, partnumber))
 
     # have one mesh per 3MF object
     # one mesh per geometry ID, store as kwargs for the object
@@ -186,8 +187,9 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     g = nx.MultiDiGraph()
     # build items are the only things that exist according to 3MF
     # so we accomplish that by linking them to the base frame
-    for gid, tf in build_items:
-        g.add_edge("world", gid, matrix=tf)
+    # if partnumbers are None, the key will be an int
+    for gid, tf, partnumber in build_items:
+        g.add_edge("world", gid, key=partnumber, matrix=tf)
     # components are instances which need to be linked to base
     # frame by a build_item
     for start, group in components.items():
@@ -199,6 +201,7 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     # a single unique node per instance
     graph_args = []
     parents = defaultdict(set)
+    used_names = set()
     for path in graph.multigraph_paths(G=g, source="world"):
         # collect all the transform on the path
         transforms = graph.multigraph_collect(G=g, traversal=path, attrib="matrix")
@@ -215,8 +218,18 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
             log.warning(f"id {last} included but not defined!")
             continue
 
-        # frame names unique
-        name = id_name[last] + util.unique_id()
+        name = id_name[last]
+
+        # use build item partnumber if available
+        # else use the object name
+        partnumber = path[-1][1]
+        if isinstance(partnumber, str):
+            name = partnumber
+
+        # make the name unique
+        name = unique_name(name, used_names)
+        used_names.add(name)
+
         # index in meshes
         geom = id_name[last]
 
@@ -420,9 +433,10 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                             etree.Element(
                                 "item",
                                 {
-                                    "objectid": model_id(data.get('geometry', node)),
+                                    "objectid": model_id(data.get("geometry", node)),
                                     "transform": transform,
                                     uuid_tag: str(uuid.uuid4()),
+                                    "partnumber": node,
                                 },
                                 nsmap=model_nsmap,
                             )

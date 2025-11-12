@@ -12,6 +12,20 @@ Install
 	      
    install.md
 
+Examples
+==========
+.. toctree::
+   :maxdepth: 1
+	      
+   Examples <examples.rst>
+
+Geometry Formats
+==========
+.. toctree::
+   :maxdepth: 1
+	      
+   Geometry Formats <formats.md>
+   
 Contributing
 ==========  
 .. toctree::
@@ -25,13 +39,6 @@ Docker
    :maxdepth: 1
 
    Docker <docker.md>
-   
-Examples
-==========
-.. toctree::
-   :maxdepth: 1
-	      
-   Examples <examples.rst>
 
 API Reference
 =============
