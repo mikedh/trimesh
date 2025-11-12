@@ -177,10 +177,10 @@ def load_obj(
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
         name = ""
-        if split_objects:
+        if split_objects and current_object is not None:
           name = current_object
         if split_groups:
-          if len(name) > 0:
+          if len(name) > 0 and current_group is not None:
             name += "_"
           name += current_group
         if group_material and len(materials) > 1:
