@@ -47,6 +47,12 @@ COPY --chown=499 pyproject.toml /home/user/
 # install trimesh into the venv
 RUN pip install /home/user[easy]
 
+# recursively delete tests installed with libraries
+# these are about 30mb for no particular reason, and
+# if we break something we are doing this BEFORE tests
+RUN cd /home/user/venv && \
+    find . -type d -name tests -exec rm -rf {} + || true
+
 ####################################
 ### Build output image most things should run on
 FROM base AS output
