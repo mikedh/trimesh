@@ -91,7 +91,6 @@ recommend = [
     "sympy",
     "meshio",
     "pyglet<2",
-    "psutil",
     "scikit-image",
     "fast-simplification",
     "python-fcl", # do collision checks

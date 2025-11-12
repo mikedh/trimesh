@@ -181,6 +181,10 @@ class CollisionTest(g.unittest.TestCase):
         assert g.np.isclose(dist, 2.0)
         assert names == ("cube2", "cube3")
 
+        dist, names = m.min_distance_internal(name="cube1", return_names=True)
+        assert g.np.isclose(dist, 6.0)
+        assert names == ("cube1", "cube3")
+
         # Test manager-to-manager distance checking
         m = g.trimesh.collision.CollisionManager()
         m.add_object("cube0", cube)

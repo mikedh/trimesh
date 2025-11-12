@@ -321,18 +321,37 @@ def test_truncated(count=10):
     assert all(s.volume > 0 for s in split)
 
 
-def test_revolve():
-    # create a cross section and revolve it to form some volumes
-    cross_section = [[0, 0], [10, 0], [10, 10], [0, 10]]
+def test_revolve_lowres():
+    line = g.np.array([[1.0, 0.0], [1.0, 1.0], [1.0, 2.0], [1.0, 3.0]])
+    t = g.trimesh.creation.revolve(line, cap=False, sections=6)
+    assert t.vertices.shape == (24, 3)
+    assert t.faces.shape == (36, 3)
 
-    # high sections needed so volume is close to theoretical value for perfect revoulution
-    mesh360 = g.trimesh.creation.revolve(cross_section, 2 * g.np.pi, sections=360)
-    mesh360_volume = g.np.pi * 10**2 * 10
-    assert g.np.isclose(mesh360.volume, mesh360_volume, rtol=0.1)
-    assert mesh360.is_volume, "mesh360 should be a valid volume"
+
+def test_revolve():
+    # create a cross section of a cylinder and revolve it
+    r = 10.0
+    h = 20.0
+    cross_section = [[0, 0], [r, 0], [r, h], [0, h]]
+
+    # use a fine-grained revolution so the area and volume are closer
+    mesh = g.trimesh.creation.revolve(cross_section, sections=100)
+
+    # area of one end-cap
+    area_cap = g.np.pi * r**2
+    # area of a cylinder
+    area = g.np.pi * 2 * r * h + (area_cap * 2)
+
+    # volume should match a theoretical cylinder
+    assert g.np.isclose(mesh.volume, area_cap * h, rtol=0.01)
+    # area should match a theoretical cylinder
+    assert g.np.isclose(mesh.area, area, rtol=0.1), f"{mesh.area} != {area}"
+
+    # should be a watertight solid
+    assert mesh.is_volume, "mesh360 should be a valid volume"
 
     mesh180 = g.trimesh.creation.revolve(cross_section, g.np.pi, sections=180, cap=True)
-    assert g.np.isclose(mesh180.volume, mesh360.volume / 2, rtol=0.1), (
+    assert g.np.isclose(mesh180.volume, mesh.volume / 2, rtol=0.1), (
         "mesh180 should be half of mesh360 volume"
     )
     assert mesh180.is_volume, "mesh180 should be a valid volume"
@@ -388,4 +407,5 @@ def test_torus():
 
 
 if __name__ == "__main__":
-    test_torus()
+    # test_torus()
+    test_revolve()
