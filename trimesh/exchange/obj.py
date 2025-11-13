@@ -707,7 +707,7 @@ def _group_by(face_tuples, use_mtl: bool, use_obj: bool, use_group: bool):
         # don't do a million string concatenations in loop
         grouped[key][3].append(chunk)
     # go back and do a join to make a single string
-    for k in grouped.keys():
+    for key in grouped.keys():
         grouped[key][3] = "\n".join(grouped[key][3])
     # return as list
     return list(grouped.values())

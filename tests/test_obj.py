@@ -65,6 +65,7 @@ def test_obj_groups():
     # check to make sure there is signal not just zeros
     # assert g.np.ptp(mesh.metadata['face_groups']) > 0
 
+
 def test_obj_groups_split():
     # a wavefront file with groups defined
     mesh = g.get_mesh("groups.obj", split_groups=True)
