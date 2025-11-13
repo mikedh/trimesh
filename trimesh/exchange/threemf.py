@@ -218,13 +218,12 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
             log.warning(f"id {last} included but not defined!")
             continue
 
-        name = id_name[last]
-
-        # use build item partnumber if available
-        # else use the object name
-        partnumber = path[-1][1]
-        if isinstance(partnumber, str):
-            name = partnumber
+        if len(path[-1]) > 1 and isinstance(path[-1][1], str):
+            # use the `partnumber` as the name
+            name = path[-1][1]
+        else:
+            # use the name from the id
+            name = id_name[last]
 
         # make the name unique
         name = unique_name(name, used_names)
