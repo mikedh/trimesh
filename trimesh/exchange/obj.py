@@ -31,11 +31,10 @@ def load_obj(
     skip_materials: bool = False,
     maintain_order: bool = False,
     metadata: Optional[Dict] = None,
-    # https://github.com/mikedh/trimesh/issues/2413
     split_objects: bool = False,
-    split_groups:  bool = False,
+    split_groups: bool = False,
     **kwargs,
-):
+) -> Dict:
     """
     Load a Wavefront OBJ file into kwargs for a trimesh.Scene
     object.
@@ -50,15 +49,20 @@ def load_obj(
     group_material : bool
       Group faces that share the same material
       into the same mesh.
-    skip_materials : bool
+    skip_materials
       Don't load any materials.
-    maintain_order : bool or None
-      Do not reorder faces or vertices which may result
-      in visual artifacts.
-    split_objects : bool
-      Split the scene into multiple meshes per object
-    split_groups : bool
-      Split the scene into multiple meshes per group
+    maintain_order
+      Make the strongest attempt possible to not reorder faces
+      or vertices which may result in visual artifacts and other
+      odd behavior. The OBJ data structure is quite different than
+      the "flat matching array" used by Trimesh and GLTF so this may
+      not be completely possible.
+    split_objects
+      Whenever the loader encounters an `o` directive in the OBJ
+      file, split the loaded result into a new Trimesh object.
+    split_groups
+        Whenever the loader encounters a `g` directive in the OBJ
+        file, split the loaded result into a new Trimesh object.
 
     Returns
     -------------
@@ -109,9 +113,7 @@ def load_obj(
     # some meshes end up with a LOT of components
     # and will be much slower if you don't do this
     if group_material or split_objects or split_groups:
-        face_tuples = _group_by(
-          face_tuples, group_material, split_objects, split_groups
-        )
+        face_tuples = _group_by(face_tuples, group_material, split_objects, split_groups)
 
     # no faces but points given
     # return point cloud
@@ -176,21 +178,21 @@ def load_obj(
             log.debug("faces have mixed data: using slow fallback!")
             faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
 
-        name = ""
+        # build name from components
+        name_parts = []
         if split_objects and current_object is not None:
-          name = current_object
-        if split_groups:
-          if len(name) > 0 and current_group is not None:
-            name += "_"
-          name += current_group
-        if group_material and len(materials) > 1:
-            if len(name) > 0:
-              name += "_"
-            name += material
+            name_parts.append(current_object)
+        if split_groups and current_group is not None:
+            name_parts.append(current_group)
+        if group_material and len(materials) > 1 and material is not None:
+            name_parts.append(str(material))
 
-        if current_object is not None and name == "":
+        # join parts or fall back to defaults
+        if name_parts:
+            name = "_".join(name_parts)
+        elif current_object is not None:
             name = current_object
-        if name == "":
+        else:
             # try to use the file name from the resolver
             # or file object if possible before defaulting
             name = next(
@@ -203,7 +205,7 @@ def load_obj(
                 if i is not None
             )
 
-        # ensure the name is always unique
+        # ensure the name is always unique in the geometry dict
         name = util.unique_name(name, geometry)
 
         # try to get usable texture
@@ -667,7 +669,7 @@ def _parse_vertices(text):
     return v, vn, vt, vc
 
 
-def _group_by(face_tuples, mtl, use_obj, grp):
+def _group_by(face_tuples, use_mtl: bool, use_obj: bool, use_group: bool):
     """
     For chunks of faces split by material group
     the chunks that share the same material.
@@ -676,30 +678,37 @@ def _group_by(face_tuples, mtl, use_obj, grp):
     ------------
     face_tuples : (n,) list of (material, obj, chunk)
       The data containing faces
+    use_mtl
+      Group tuples by `usemtl` commands
+    use_obj
+      Group tuples by `o` commands
+    use_group
+      Group tuples by `g` commands
 
     Returns
     ------------
-    grouped : (m,) list of (material, obj, chunk)
-      Grouped by material
+    grouped : (m,) list of tuples containing:
+              `(material name, objectname, group name, raw chunk)`
     """
 
     # store the chunks grouped by material
     grouped = defaultdict(lambda: ["", "", "", []])
     # loop through existring
     for material, obj, group, chunk in face_tuples:
-        k = (
-          material if mtl else None,
-          obj if use_obj else None,
-          group if grp else None
+        # tuple key for the dict
+        key = (
+            material if use_mtl else None,
+            obj if use_obj else None,
+            group if use_group else None,
         )
-        grouped[k][0] = material
-        grouped[k][1] = obj
-        grouped[k][2] = group
+        grouped[key][0] = material
+        grouped[key][1] = obj
+        grouped[key][2] = group
         # don't do a million string concatenations in loop
-        grouped[k][3].append(chunk)
+        grouped[key][3].append(chunk)
     # go back and do a join to make a single string
     for k in grouped.keys():
-        grouped[k][3] = "\n".join(grouped[k][3])
+        grouped[key][3] = "\n".join(grouped[key][3])
     # return as list
     return list(grouped.values())
 
@@ -760,10 +769,14 @@ def _preprocess_faces(text, use_obj=False, use_groups=False):
 
     # NOTE: This used to split objects on every run, but now it does not
     if use_obj:
-      split_idxs.append(np.array([m.start(0) for m in re.finditer("\no ", f_chunk)], dtype=int))
+        split_idxs.append(
+            np.array([m.start(0) for m in re.finditer("\no ", f_chunk)], dtype=int)
+        )
 
     if use_groups:
-      split_idxs.append(np.array([m.start(0) for m in re.finditer("\ng ", f_chunk)], dtype=int))
+        split_idxs.append(
+            np.array([m.start(0) for m in re.finditer("\ng ", f_chunk)], dtype=int)
+        )
 
     # find all the indexes where we want to split
     splits = np.unique(np.concatenate(tuple(split_idxs)))
