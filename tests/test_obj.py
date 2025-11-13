@@ -65,6 +65,18 @@ def test_obj_groups():
     # check to make sure there is signal not just zeros
     # assert g.np.ptp(mesh.metadata['face_groups']) > 0
 
+def test_obj_groups_split():
+    # a wavefront file with groups defined
+    mesh = g.get_mesh("groups.obj", split_groups=True)
+
+    # make sure the right number of meshes are split
+    assert len(mesh.geometry) == 14
+
+    mesh = g.get_mesh("groups.obj", split_objects=True, split_groups=True)
+
+    # make sure the right number of meshes are split
+    assert len(mesh.geometry) == 14
+
 
 def test_obj_negative_indices():
     # a wavefront file with negative indices
@@ -89,7 +101,7 @@ def test_obj_quad():
 
 def test_obj_multiobj():
     # test a wavefront file with multiple objects in the same file
-    scene = g.get_mesh("two_objects.obj", split_object=True, group_material=False)
+    scene = g.get_mesh("two_objects.obj", split_objects=True, group_material=False)
     assert len(scene.geometry) == 2
 
     for mesh in scene.geometry.values():
@@ -108,7 +120,7 @@ def test_obj_split_attributes():
     scene = g.get_mesh(
         "joined_tetrahedra.obj",
         process=False,
-        split_object=True,
+        split_objects=True,
         group_material=False,
     )
 
