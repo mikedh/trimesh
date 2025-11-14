@@ -97,11 +97,15 @@ def fix_inversion(mesh, multibody=False):
     multibody : bool
       If True will try to fix normals on every body
     """
-    if not mesh.is_watertight:
-        # this will make things worse for non-watertight meshes
-        return
+    if not multibody:
+        if not mesh.is_watertight:
+            # this will make things worse for non-watertight meshes
+            return
 
-    if multibody:
+        elif mesh.volume < 0.0:
+            mesh.invert()
+
+    else: # multibody
         groups = graph.connected_components(mesh.face_adjacency)
         # escape early for single body
         if len(groups) == 1:
@@ -115,14 +119,15 @@ def fix_inversion(mesh, multibody=False):
         cross = mesh.triangles_cross
         # indexes of mesh.faces, not actual faces
         for faces in groups:
-            # calculate the volume of the submesh faces
-            volume = triangles.mass_properties(
-                tri[faces], crosses=cross[faces], skip_inertia=True
-            )["volume"]
-            # if that volume is negative it is either
-            # inverted or just total garbage
-            if volume < 0.0:
-                flip[faces] = True
+            if mesh.is_watertight or graph.is_watertight(faces_to_edges(mesh.faces[faces])):
+                # calculate the volume of the submesh faces
+                volume = triangles.mass_properties(
+                    tri[faces], crosses=cross[faces], skip_inertia=True
+                )["volume"]
+                # if that volume is negative it is either
+                # inverted or just total garbage
+                if volume < 0.0:
+                    flip[faces] = True
         # one or more faces needs flipping
         if flip.any():
             # flip normals of necessary faces
@@ -135,9 +140,6 @@ def fix_inversion(mesh, multibody=False):
             mesh.faces[flip] = np.fliplr(mesh.faces[flip])
             if normals is not None:
                 mesh.face_normals = normals
-
-    elif mesh.volume < 0.0:
-        mesh.invert()
 
 
 def fix_normals(mesh, multibody=False):
