@@ -1,6 +1,8 @@
 """
-github.com/mikedh/trimesh
-----------------------------
+# trimesh
+
+https://github.com/mikedh/trimesh
+---------------------------------
 
 Library for importing, exporting and doing simple operations on triangular meshes.
 """
@@ -54,6 +56,7 @@ from .typed import (
     NDArray,
     Number,
     Optional,
+    Self,
     Sequence,
     Tuple,
     Union,
@@ -258,7 +261,7 @@ class Trimesh(Geometry3D):
         validate: bool = False,
         merge_tex: Optional[bool] = None,
         merge_norm: Optional[bool] = None,
-    ) -> "Trimesh":
+    ) -> Self:
         """
         Do processing to make a mesh useful.
 
@@ -1134,7 +1137,7 @@ class Trimesh(Geometry3D):
         referenced[self.faces] = True
         return referenced
 
-    def convert_units(self, desired: str, guess: bool = False) -> "Trimesh":
+    def convert_units(self, desired: str, guess: bool = False) -> Self:
         """
         Convert the units of the mesh into a specified unit.
 
@@ -2505,7 +2508,7 @@ class Trimesh(Geometry3D):
         # keep face normals as the haven't changed
         self._cache.clear(exclude=["face_normals"])
 
-    def apply_transform(self, matrix: ArrayLike) -> "Trimesh":
+    def apply_transform(self, matrix: ArrayLike) -> Self:
         """
         Transform mesh by a homogeneous transformation matrix.
 
@@ -2783,7 +2786,7 @@ class Trimesh(Geometry3D):
             skip_inertia=False,
         )
 
-    def invert(self) -> None:
+    def invert(self) -> Self:
         """
         Invert the mesh in-place by reversing the winding of every
         face and negating normals without dumping the cache.
@@ -2800,6 +2803,8 @@ class Trimesh(Geometry3D):
             self.faces = np.ascontiguousarray(np.fliplr(self.faces))
         # save our normals
         self._cache.clear(exclude=["face_normals", "vertex_normals"])
+
+        return self
 
     def scene(self, **kwargs) -> Scene:
         """

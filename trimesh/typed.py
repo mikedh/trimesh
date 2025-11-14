@@ -7,6 +7,7 @@ from typing import (
     BinaryIO,
     Literal,
     Optional,
+    Self,
     TextIO,
     Union,
 )
@@ -93,6 +94,7 @@ __all__ = [
     "NDArray",
     "Number",
     "Optional",
+    "Self",
     "Sequence",
     "Set",
     "Stream",
