@@ -39,9 +39,7 @@ else:
 if version_info >= (3, 11):
     from typing import Self
 else:
-    from typing import TypeAlias
-
-    Self: TypeAlias = Any
+    Self = Any
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict

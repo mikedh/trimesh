@@ -19,14 +19,14 @@ Keeping `trimesh` easy to install is a core goal, thus the *only* hard dependenc
 pip install trimesh
 ```
 
-The minimal install can load many supported formats (STL, PLY, OBJ, GLTF/GLB) into `numpy.ndarray` values. More functionality is available when soft dependencies are installed, like convex hulls (`scipy`), graph operations (`networkx`), faster ray queries (`embreex`), vector path handling (`shapely` and `rtree`), XML formats like 3DXML/XAML/3MF (`lxml`), preview windows (`pyglet`), faster cache checks (`xxhash`), etc.
+The minimal install can load many supported formats (STL, PLY, OBJ, GLTF/GLB) into `numpy.ndarray` values. More functionality is available when [soft dependencies are installed](https://trimesh.org/install#dependency-overview), including convex hulls (`scipy`), graph operations (`networkx`), fast ray queries (`embreex`), vector path handling (`shapely` and `rtree`), XML formats like 3DXML/XAML/3MF (`lxml`), preview windows (`pyglet`), faster cache checks (`xxhash`), etc.
 
-To install `trimesh` with the soft dependencies that generally install cleanly on Linux x86_64, MacOS ARM, and Windows x86_64 using `pip`:
+To install `trimesh` with the soft dependencies that generally install cleanly from binaries on Linux x86_64, MacOS ARM, and Windows x86_64 using `pip`:
 ```bash
 pip install trimesh[easy]
 ```
 
-If you are supporting a different platform or are freezing your dependencies we recommend you do not use extras: depend on `trimesh scipy` versus `trimesh[easy]`. Further information is available in the [advanced installation documentation](https://trimesh.org/install.html).
+If you are supporting a different platform or are freezing dependencies for an application we recommend you do not use extras, i.e. depend on `trimesh scipy` versus `trimesh[easy]`. Further information is available in the [advanced installation documentation](https://trimesh.org/install.html).
 
 ## Quick Start
 
@@ -66,11 +66,18 @@ mesh.euler_number
 # lets compare the volume of our mesh with the volume of its convex hull
 print(mesh.volume / mesh.convex_hull.volume)
 
-# since the mesh is watertight, it means there is a
-# volumetric center of mass which we can set as the origin for our mesh
-mesh.vertices -= mesh.center_mass
+# since the mesh is watertight it means there is a volume
+# with a center of mass calculated from a surface integral approach
+# which we can set as the origin for our mesh. It's perfectly fine to
+# alter the vertices directly:
+#   mesh.vertices -= mesh.center_mass
+# although this will completely clear the cache including face normals
+# as we don't know that they're still valid. Using the translation
+# method will try to save cached values that are still valid:
+mesh.apply_translation(-mesh.center_mass)
 
-# what's the moment of inertia for the mesh?
+
+# what's the (3, 3) moment of inertia for the mesh?
 mesh.moment_inertia
 
 # if there are multiple bodies in the mesh we can split the mesh by
@@ -115,6 +122,54 @@ print(mesh.bounding_box_oriented.volume,
 
 ```
 
-## Which Mesh Format Should I Use?
+## Features
 
-Quick recommendation: use `GLB` for new work. More discussion and a list of supported formats  is in the [`documention`](https://trimesh.org/formats)
+* Import meshes from binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
+* Export meshes as GLB/GLTF, binary STL, binary PLY, ASCII OFF, OBJ, COLLADA, etc.
+* Import and export 2D or 3D vector paths with DXF or SVG files
+* Preview meshes using pyglet or in-line in jupyter/marimo notebooks using three.js
+* Automatic hashing from a subclassed numpy array for change tracking using MD5, zlib CRC, or xxhash, and internal caching of expensive values.
+* Calculate face adjacencies, face angles, vertex defects, etc.
+* Calculate cross sections for a 2D outline, or slice a mesh for a 3D remainder mesh, i.e. slicing for 3D-printing.
+* Split mesh based on face connectivity using networkx, or scipy.sparse
+* Calculate mass properties, including volume, center of mass, moment of inertia, principal components of inertia, etc. 
+* Repair simple problems with triangle winding, normals, and quad/triangle holes
+* Convex hulls of meshes
+* Compute rotation/translation/tessellation invariant identifier and find duplicate meshes
+* Check if a mesh is watertight, convex, etc.
+* Uniformly sample the surface of a mesh
+* Ray-mesh queries including location, triangle index, etc.
+* Boolean operations on meshes (intersection, union, difference) using Manifold3D or Blender.
+* Voxelize watertight meshes
+* Smooth watertight meshes using laplacian smoothing algorithms (Classic, Taubin, Humphrey)
+* Subdivide faces of a mesh
+* Approximate minimum volume oriented bounding boxes and spheres for meshes.
+* Calculate nearest point on mesh surface and signed distance
+* Primitive objects (Box, Cylinder, Sphere, Extrusion) which are subclassed Trimesh objects and have all the same features (inertia, viewers, etc)
+* Simple scene graph and transform tree which can be rendered (pyglet window, three.js in a jupyter/marimo notebook or exported.
+* Many utility functions, like transforming points, unitizing vectors, aligning vectors, tracking numpy arrays for changes, grouping rows, etc.
+
+
+## Viewer
+
+Trimesh includes an optional `pyglet<2` based viewer for debugging and inspecting. In the mesh view window, opened with `mesh.show()`, the following commands can be used:
+
+* `mouse click + drag` rotates the view
+* `ctl + mouse click + drag` pans the view
+* `mouse wheel` zooms
+* `z` returns to the base view
+* `w` toggles wireframe mode
+* `c` toggles backface culling
+* `g` toggles an XY grid with Z set to lowest point
+* `a` toggles an XYZ-RGB axis marker between: off, at world frame, or at every frame and world, and at every frame
+* `f` toggles between fullscreen and windowed mode
+* `m` maximizes the window
+* `q` closes the window
+
+If called from inside a `jupyter` or `marimo` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. For more complete rendering (PBR, better lighting, shaders, better off-screen support, etc) [pyrender](https://github.com/mmatl/pyrender) is designed to interoperate with `trimesh` objects.
+
+## Q&A
+
+- What formats are supported?
+  - https://trimesh.org/formats
+- 
