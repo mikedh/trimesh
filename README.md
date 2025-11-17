@@ -137,7 +137,7 @@ print(mesh.bounding_box_oriented.volume,
 * Convex hulls of meshes
 * Compute rotation/translation/tessellation invariant identifier and find duplicate meshes
 * Check if a mesh is watertight, convex, etc.
-* Uniformly sample the surface of a mesh
+* Sample the surface of a mesh
 * Ray-mesh queries including location, triangle index, etc.
 * Boolean operations on meshes (intersection, union, difference) using Manifold3D or Blender.
 * Voxelize watertight meshes
@@ -167,9 +167,3 @@ Trimesh includes an optional `pyglet<2` based viewer for debugging and inspectin
 * `q` closes the window
 
 If called from inside a `jupyter` or `marimo` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. For more complete rendering (PBR, better lighting, shaders, better off-screen support, etc) [pyrender](https://github.com/mmatl/pyrender) is designed to interoperate with `trimesh` objects.
-
-## Q&A
-
-- What formats are supported?
-  - https://trimesh.org/formats
-- 

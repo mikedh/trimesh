@@ -37,17 +37,20 @@ help: ## Print usage help
 # force amd64 builds on non-amd64 hosts (e.g. Apple Silicon)
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
 
+# docker build arguments common to all build paths
+# NEEDS_BUILDCHAIN can probably be false once 3.14 matures a little more
+DOCKER_BUILD_ARGS=--progress=plain --file $(DOCKERFILE) --build-arg=NEEDS_BUILDCHAIN=true
+
 # build the output stage image using buildkit
 .PHONY: build
 build: ## Build the docker images
 	DOCKER_BUILDKIT=1 \
 	docker build \
-		--progress=plain \
+		$(DOCKER_BUILD_ARGS) \
 		--target output \
 		--tag $(TAG_LATEST) \
 		--tag $(TAG_VERSION) \
 		--tag $(TAG_GIT_SHA) \
-		--file $(DOCKERFILE) \
 		.
 
 # build the tests stage of the image
@@ -55,9 +58,8 @@ build: ## Build the docker images
 tests: ## Run unit tests inside docker images.
 	DOCKER_BUILDKIT=1 \
 	docker build \
+		$(DOCKER_BUILD_ARGS) \
 		--target tests \
-		--progress=plain \
-		--file $(DOCKERFILE) \
 		--secret id=codecov_token,env=CODECOV_TOKEN \
 		.
 
@@ -67,10 +69,9 @@ tests: ## Run unit tests inside docker images.
 docs: ## Build trimesh's sphinx docs
 	DOCKER_BUILDKIT=1 \
 	docker build \
+		$(DOCKER_BUILD_ARGS) \
 		--target docs \
-		--progress=plain \
 		--output html \
-		--file $(DOCKERFILE) \
 		.
 
 .PHONY: bash
