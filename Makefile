@@ -39,7 +39,9 @@ export DOCKER_DEFAULT_PLATFORM=linux/amd64
 
 # docker build arguments common to all build paths
 # NEEDS_BUILDCHAIN can probably be false once 3.14 matures a little more
-DOCKER_BUILD_ARGS=--progress=plain --file $(DOCKERFILE) --build-arg=NEEDS_BUILDCHAIN=true
+# `--build-arg=NEEDS_BUILDCHAIN=true`
+
+DOCKER_BUILD_ARGS=--progress=plain --file $(DOCKERFILE) 
 
 # build the output stage image using buildkit
 .PHONY: build

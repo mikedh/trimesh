@@ -67,7 +67,7 @@ trimesh = [
 # this is the base extra most users will want
 easy = [
     "colorlog",
-    "manifold3d>=2.3.0", # do boolean operations    
+    "manifold3d>=2.3.0; python_version<'3.14'", # TODO : waiting on 314 wheels
     "charset-normalizer",
     "lxml",
     "jsonschema",
@@ -95,6 +95,7 @@ recommend = [
     "fast-simplification",
     "python-fcl", # do collision checks
     "cascadio", # load `STEP` files
+    "manifold3d>=2.3.0; python_version>='3.14'", # TODO : waiting on 314 wheels
 ]
 
 # stuff to run simple testing

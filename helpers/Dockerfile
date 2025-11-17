@@ -42,8 +42,9 @@ COPY --chmod=755 helpers/trimesh-setup /home/user/venv/bin
 ## install things that need building
 FROM base AS build
 
-# the `easy` extra shouldn't need a build chain unless we're on a brand new Python release
-ARG NEEDS_BUILDCHAIN="true"
+# the `easy` extra shouldn't need a build chain
+# unless we're on a brand new Python release
+ARG NEEDS_BUILDCHAIN="false"
 USER root
 # install build dependencies
 RUN if [ "$NEEDS_BUILDCHAIN" = "true" ]; then trimesh-setup --install build; fi
@@ -86,7 +87,7 @@ USER root
 RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox,blender,build
 USER user
 
-RUN blender --version
+RUN bash -c "ldconfig & blender --version"
 
 # install things like pytest and make sure we're on Numpy 2.X
 RUN pip install .[all] && \
