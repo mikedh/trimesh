@@ -89,7 +89,6 @@ easy = [
 
 recommend = [
     "sympy",
-    "meshio",
     "pyglet<2",
     "scikit-image",
     "fast-simplification",
@@ -111,18 +110,21 @@ test = [
 # be easy to install on all platforms and is only really
 # a good idea in our "cannonical docker images"
 test_more = [
-    "coveralls",
-    "ezdxf",
-    "xatlas",
-    "pytest-beartype; python_version>='3.10'",
-    "matplotlib",
-    "pymeshlab; python_version<'3.14'",
-    "triangle; python_version<'3.14'",
-    "ipython",
-    "marimo",
+    "coveralls",  # report test coverage
+    "ezdxf",      # compare our DXF loading with theirs
+    "meshio",     # load some FEA-adjacent format s
+    "xatlas",     # provide unwrapping for texturing
+    "pytest-beartype; python_version>='3.10'", # fail on bad type hints
+    "matplotlib", # compare our color maps with theirs
+    "pymeshlab; python_version<'3.14'", # compare our vertex counts
+    "triangle; python_version<'3.14'",  # polygon tesselator
+    "ipython",  # check the notebook stuff
+    "marimo",   # different notebook stuff
 ]
 
 # openctm will be fully removed sometime after June 2026
+# as it is unmaintained, wasn't used widely and was inflicting
+# a support burden on upstream package management
 deprecated = ["openctm"]
 
 # requires pip >= 21.2
@@ -133,12 +135,8 @@ all = ["trimesh[easy,recommend,test,test_more,deprecated]"]
 target-version = "py38"
 line-length = 90
 
-
-# See https://github.com/charliermarsh/ruff#rules for error code definitions.
-
 [tool.ruff.lint]
 select = [
-    # "ANN", # annotations
     "B", # bugbear
     "C", # comprehensions
     "E", # style errors
@@ -167,10 +165,12 @@ ignore = [
 # don't allow implicit string concatenation
 flake8-implicit-str-concat = {"allow-multiline" = false}
 
+# disallow things that have caused problems
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"
-"numpy.empty".msg = "uninitialized arrays are haunted try numpy.zeros"
-"numpy.empty_like".msg = "uninitialized arrays are haunted try numpy.zeros"
+# "matplotlib".msg = "you forgot to remove a debug plot"
+"numpy.empty".msg = "uninitialized arrays are haunted: try numpy.zeros"
+"numpy.empty_like".msg = "uninitialized arrays are haunted: try numpy.zeros"
 
 [tool.codespell]
 skip = "*.js*,./docs/built/*,./docs/generate/*,./models*,*.toml"

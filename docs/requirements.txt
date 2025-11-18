@@ -1,4 +1,4 @@
-pypandoc==1.15
+pypandoc==1.16.2
 recommonmark==0.7.1
 jupyter==1.1.1
 
