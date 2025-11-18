@@ -1069,7 +1069,7 @@ class Path2D(Path):
             return Path2D()
 
         try:
-            # caclulate a 2D convex hull for our candidate vertices
+            # calculate a 2D convex hull for our candidate vertices
             hull = ConvexHull(candidates)
         except BaseException:
             # this may raise if the geometry is colinear in
