@@ -364,17 +364,22 @@ def split(
     Parameters
     ----------
     mesh : trimesh.Trimesh
-    only_watertight: bool
-      Only return watertight components
+      The source multibody mesh to split
+    only_watertight
+      Only return watertight components and discard
+      any connected component that isn't fully watertight.
+    repair
+      If set try to fill small holes in a mesh, before the
+      discard step in `only_watertight.
     adjacency : (n, 2) int
-      Face adjacency to override full mesh
+      If passed will be used instead of `mesh.face_adjacency`
     engine
-      Which graph engine to use
+      Which graph engine to use for the connected components.
 
     Returns
     ----------
     meshes : (m,) trimesh.Trimesh
-      Results of splitting
+      Results of splitting based on parameters.
     """
     if adjacency is None:
         adjacency = mesh.face_adjacency
