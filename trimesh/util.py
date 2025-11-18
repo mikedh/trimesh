@@ -1657,14 +1657,20 @@ def submesh(
         for v, f, n, c in zip(vertices, faces, normals, visuals)
     ]
 
+    # assign the "source" information summarizing where a mesh was
+    # loaded from (i.e. file name) to each submesh of the result
     [setattr(r, "_source", deepcopy(mesh.source)) for r in result]
 
-    if only_watertight or repair:
+    if repair:
         # fill_holes will attempt a repair and returns the
         # watertight status at the end of the repair attempt
-        watertight = [i.fill_holes() and len(i.faces) >= 4 for i in result]
+        watertight = [len(i.faces) >= 4 and i.fill_holes() for i in result]
+    elif only_watertight:
+        # calculate watertightness without repairing
+        watertight = [i.is_watertight for i in result]
+
     if only_watertight:
-        # remove unrepairable meshes
+        # return only the watertight meshes
         return [i for i, w in zip(result, watertight) if w]
 
     return result

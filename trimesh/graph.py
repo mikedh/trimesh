@@ -384,10 +384,11 @@ def split(
     if adjacency is None:
         adjacency = mesh.face_adjacency
 
-    # if only watertight the shortest thing we can split has 3 triangles
     if only_watertight:
+        # the smallest watertight mesh has 4 faces
         min_len = 4
     else:
+        # allow any size of connected component
         min_len = 1
 
     components = connected_components(
