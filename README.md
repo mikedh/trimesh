@@ -127,21 +127,20 @@ print(mesh.bounding_box_oriented.volume,
 * Import meshes from binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
 * Export meshes as GLB/GLTF, binary STL, binary PLY, ASCII OFF, OBJ, COLLADA, etc.
 * Import and export 2D or 3D vector paths with DXF or SVG files
-* Preview meshes using pyglet or in-line in jupyter/marimo notebooks using three.js
+* Preview meshes using an OpenGL `pyglet` window, or in-line in jupyter/marimo notebooks using three.js
 * Automatic hashing from a subclassed numpy array for change tracking using MD5, zlib CRC, or xxhash, and internal caching of expensive values.
-* Calculate face adjacencies, face angles, vertex defects, etc.
+* Calculate face adjacencies, face angles, vertex defects, convex hulls, etc.
 * Calculate cross sections for a 2D outline, or slice a mesh for a 3D remainder mesh, i.e. slicing for 3D-printing.
 * Split mesh based on face connectivity using networkx, or scipy.sparse
 * Calculate mass properties, including volume, center of mass, moment of inertia, principal components of inertia, etc. 
 * Repair simple problems with triangle winding, normals, and quad/triangle holes
-* Convex hulls of meshes
 * Compute rotation/translation/tessellation invariant identifier and find duplicate meshes
 * Check if a mesh is watertight, convex, etc.
 * Sample the surface of a mesh
 * Ray-mesh queries including location, triangle index, etc.
 * Boolean operations on meshes (intersection, union, difference) using Manifold3D or Blender.
 * Voxelize watertight meshes
-* Smooth watertight meshes using laplacian smoothing algorithms (Classic, Taubin, Humphrey)
+* Smooth watertight meshes using Laplacian smoothing algorithms (Classic, Taubin, Humphrey)
 * Subdivide faces of a mesh
 * Approximate minimum volume oriented bounding boxes and spheres for meshes.
 * Calculate nearest point on mesh surface and signed distance
@@ -166,4 +165,4 @@ Trimesh includes an optional `pyglet<2` based viewer for debugging and inspectin
 * `m` maximizes the window
 * `q` closes the window
 
-If called from inside a `jupyter` or `marimo` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. For more complete rendering (PBR, better lighting, shaders, better off-screen support, etc) [pyrender](https://github.com/mmatl/pyrender) is designed to interoperate with `trimesh` objects.
+If called from inside a `jupyter` or `marimo` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. 
