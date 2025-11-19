@@ -203,6 +203,57 @@ def test_fan():
     assert repair.is_winding_consistent
 
 
+def test_fix_normals_mixed_multibox():
+    from trimesh.creation import box
+    # a test for multibody meshes with some watertight, some not
+
+    # create a multibody mesh with two cubes, one of which is inverted
+    a = box()
+    b = box().apply_translation([4, 0, 0]).invert()
+    c = a + b
+
+    # inverted should sum to zero volume
+    assert g.np.isclose(c.volume, 0.0)
+    # area isn't signed so should be correct
+    assert g.np.isclose(c.area, 12.0)
+
+    # fix_normals should repair the disconnected meshes
+    r = c.copy().fix_normals()
+    assert g.np.allclose(r.volume, 2.0)
+
+    # create a non-watertight cube
+    frag = box().apply_translation([8, 0, 0])
+    frag.faces = frag.faces[:-1]
+    assert not frag.is_watertight
+
+    # append on the non-watertight cube
+    c += frag
+
+    # exactly half of one 1x1 square face is missing
+    assert g.np.isclose(c.area, 17.5), c.area
+
+    # run the fix_normals call with:
+    # - 1 good cube
+    # - 1 inverted cube
+    # - 1 cube missing a face
+    # this should fix the inverted and ignore the one with holes in it
+    c.fix_normals()
+
+    # split without repairing the hole, but culling the non-watertight result
+    split = c.split(only_watertight=True, repair=False)
+    assert len(split) == 2, len(split)
+    assert all(s.is_volume for s in split)
+    assert all(g.np.isclose(s.volume, 1.0) for s in split)
+
+    # split WITH repairing the hole and culling anything non-watertight
+    split = c.split(only_watertight=True, repair=True)
+    assert len(split) == 3, len(split)
+
+    # the non-watertight mesh should have been repaired but not inverted?
+    assert sum(s.is_volume for s in split) == 2
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()
+    test_fix_normals_mixed_multibox()
