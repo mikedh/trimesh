@@ -86,7 +86,7 @@ def fix_winding(mesh):
     log.debug("flipped %d/%d edges", flipped, len(mesh.faces) * 3)
 
 
-def fix_inversion(mesh, multibody=False):
+def fix_inversion(mesh, multibody: bool = False):
     """
     Check to see if a mesh has normals pointing "out."
 
@@ -97,49 +97,54 @@ def fix_inversion(mesh, multibody=False):
     multibody : bool
       If True will try to fix normals on every body
     """
+
+    # we are not considering multiple bodies so we only need to
+    # do anything if the mesh is watertight and the volume is negative
     if not multibody:
-        if not mesh.is_watertight:
+        if mesh.is_watertight and mesh.volume < 0.0:
             # this will make things worse for non-watertight meshes
-            return
-
-        elif mesh.volume < 0.0:
             mesh.invert()
+        return
 
-    else: # multibody
-        groups = graph.connected_components(mesh.face_adjacency)
-        # escape early for single body
-        if len(groups) == 1:
-            if mesh.volume < 0.0:
-                mesh.invert()
-            return
-        # mask of faces to flip
-        flip = np.zeros(len(mesh.faces), dtype=bool)
-        # save these to avoid thrashing cache
-        tri = mesh.triangles
-        cross = mesh.triangles_cross
-        # indexes of mesh.faces, not actual faces
-        for faces in groups:
-            if mesh.is_watertight or graph.is_watertight(faces_to_edges(mesh.faces[faces])):
-                # calculate the volume of the submesh faces
-                volume = triangles.mass_properties(
-                    tri[faces], crosses=cross[faces], skip_inertia=True
-                )["volume"]
-                # if that volume is negative it is either
-                # inverted or just total garbage
-                if volume < 0.0:
-                    flip[faces] = True
-        # one or more faces needs flipping
-        if flip.any():
+    # get groups of connected faces
+    groups = graph.connected_components(mesh.face_adjacency)
+
+    # mask of faces to flip
+    flip = np.zeros(len(mesh.faces), dtype=bool)
+
+    # save these to avoid thrashing cache in a loop
+    tri = mesh.triangles
+    cross = mesh.triangles_cross
+    # get the edges indexable as faces
+    face_edges = mesh.edges.reshape((-1, 6))
+
+    # loop through indexes of `mesh.faces`
+    for face_index in groups:
+        # only do anything if we have a watertight body
+        if not graph.is_watertight(face_edges[face_index].reshape((-1, 2))):
+            continue
+        # check the volume for just this body
+        volume = triangles.mass_properties(
+            tri[face_index], crosses=cross[face_index], skip_inertia=True
+        ).volume
+        # if that volume is negative it is either
+        # inverted or just total garbage
+        if volume < 0.0:
+            flip[face_index] = True
+
+    # one or more faces needs flipping
+    if flip.any():
+        if "face_normals" in mesh._cache:
             # flip normals of necessary faces
-            if "face_normals" in mesh._cache:
-                normals = mesh.face_normals.copy()
-                normals[flip] *= -1.0
-            else:
-                normals = None
-            # flip faces
-            mesh.faces[flip] = np.fliplr(mesh.faces[flip])
-            if normals is not None:
-                mesh.face_normals = normals
+            normals = mesh.face_normals.copy()
+            normals[flip] *= -1.0
+        else:
+            normals = None
+        # flip faces
+        mesh.faces[flip] = np.fliplr(mesh.faces[flip])
+        # assign corrected normals
+        if normals is not None:
+            mesh.face_normals = normals
 
 
 def fix_normals(mesh, multibody=False):

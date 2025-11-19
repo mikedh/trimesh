@@ -23,7 +23,17 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import ArrayLike, Dict, Iterable, NDArray, Optional, Set, Union, float64
+from .typed import (
+    ArrayLike,
+    Dict,
+    Integer,
+    Iterable,
+    NDArray,
+    Optional,
+    Set,
+    Union,
+    float64,
+)
 
 # create a default logger
 log = logging.getLogger(__name__)
@@ -1541,7 +1551,12 @@ def concatenate(
 
 
 def submesh(
-    mesh, faces_sequence, repair=True, only_watertight=False, min_faces=None, append=False
+    mesh,
+    faces_sequence,
+    repair: bool = True,
+    only_watertight: bool = False,
+    min_faces: Optional[Integer] = None,
+    append: bool = False,
 ):
     """
     Return a subset of a mesh.
@@ -1552,18 +1567,20 @@ def submesh(
         Source mesh to take geometry from
     faces_sequence : sequence (p,) int
         Indexes of mesh.faces
-    repair : bool
+    repair
         Try to make submeshes watertight
-    only_watertight : bool
+    only_watertight
         Only return submeshes which are watertight
+    min_faces
+      Minimum number of faces allowed in a submesh.
     append : bool
         Return a single mesh which has the faces appended,
         if this flag is set, only_watertight is ignored
 
     Returns
     ---------
-    if append : Trimesh object
-    else        list of Trimesh objects
+    result : Trimesh | list[Trimesh]
+      Depending on if `append` is true or not.
     """
     # evaluate generators so we can escape early
     faces_sequence = list(faces_sequence)
