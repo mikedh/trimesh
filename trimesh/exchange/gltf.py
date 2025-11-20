@@ -768,7 +768,6 @@ def _append_mesh(
     unitize_normals : bool
       Transform normals into unit vectors.
       May be undesirable but will fail validators without this.
-
     mat_hashes : dict
       Which materials have already been added
     extension_webp : bool
@@ -1531,6 +1530,18 @@ def _read_buffers(
                 if "process" not in kwargs:
                     kwargs["process"] = False
                 kwargs["metadata"].update(metadata)
+
+                if "KHR_draco_mesh_compression" in p.get("extensions", {}):
+                    try:
+                        from dracox import handle_draco_primitive
+
+                        # will edit the accessors in-place
+                        handle_draco_primitive(p, views, access)
+                    except ImportError:
+                        # skip the draco compressed accessor
+                        log.debug("skipping draco-compressed data", exc_info=True)
+                        pass
+
                 # i.e. GL_LINES, GL_TRIANGLES, etc
                 # specification says the default mode is GL_TRIANGLES
                 mode = p.get("mode", _GL_TRIANGLES)

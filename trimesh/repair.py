@@ -48,7 +48,6 @@ def fix_winding(mesh):
     flipped = 0
 
     faces = mesh.faces.view(np.ndarray).copy()
-
     # we are going to traverse the graph using BFS
     # start a traversal for every connected component
     for components in nx.connected_components(graph_all):
