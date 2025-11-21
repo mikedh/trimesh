@@ -165,4 +165,14 @@ Trimesh includes an optional `pyglet<2` based viewer for debugging and inspectin
 * `m` maximizes the window
 * `q` closes the window
 
-If called from inside a `jupyter` or `marimo` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene. 
+If called from inside a `jupyter` or `marimo` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene.
+
+## Additional Notes
+
+- Check out some cool stuff people have done in the [GitHub network](https://github.com/mikedh/trimesh/network/dependents)
+- Generally API changes should have a one-year period of [printing a `warnings.DeprecationWarning`](https://trimesh.org/contributing.html#deprecations) unless it's not possible for some reason.
+- Docker containers are available on Docker Hub as [`trimesh/trimesh`](https://hub.docker.com/r/trimesh/trimesh/tags) and there's a [container guide](https://trimesh.org/docker.html) in the docs.
+- If you're choosing which format to use, you may want to try [GLB](https://trimesh.org/formats.html) as a fast modern option.
+
+
+
