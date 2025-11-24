@@ -22,6 +22,7 @@ if int(pyglet.version.split(".")[0]) >= 2:
 
 from .. import rendering, util
 from ..transformations import translation_matrix
+from ..typed import ArrayLike, Callable, Dict, Iterable, Number, Optional
 from ..visual import to_rgba
 from .trackball import Trackball
 
@@ -46,6 +47,7 @@ _HELP_MESSAGE = """
 |                            | at world frame, or at every frame and world,  |
 |                            | and at every frame                            |
 | `f`                        | Toggles between fullscreen and windowed mode  |
+| `h`                        | Prints this help message                      |
 | `m`                        | Maximizes the window                          |
 | `q`                        | Closes the window                             |
 |----------------------------|-----------------------------------------------|
@@ -56,24 +58,23 @@ class SceneViewer(pyglet.window.Window):
     def __init__(
         self,
         scene,
-        smooth=True,
-        flags=None,
-        visible=True,
-        resolution=None,
-        fullscreen=False,
-        resizable=True,
-        start_loop=True,
-        callback=None,
-        callback_period=None,
-        caption=None,
-        fixed=None,
-        offset_lines=True,
-        line_settings=None,
+        smooth: bool = True,
+        flags: Optional[Dict] = None,
+        visible: bool = True,
+        resolution: Optional[ArrayLike] = None,
+        fullscreen: bool = False,
+        resizable: bool = True,
+        start_loop: bool = True,
+        callback: Optional[Callable] = None,
+        callback_period: Optional[Number] = None,
+        caption: Optional[str] = None,
+        fixed: Optional[Iterable] = None,
+        offset_lines: bool = True,
+        line_settings: Optional[Dict] = None,
         background=None,
         window_conf=None,
-        profile=False,
-        record=False,
-        print_help: bool = False,
+        profile: bool = False,
+        record: bool = False,
         **kwargs,
     ):
         """
@@ -84,43 +85,48 @@ class SceneViewer(pyglet.window.Window):
         ---------------
         scene : trimesh.scene.Scene
           Scene with geometry and transforms
-        smooth : bool
+        smooth
           If True try to smooth shade things
-        flags : dict
+        flags
           If passed apply keys to self.view:
           ['cull', 'wireframe', etc]
-        visible : bool
+        visible
           Display window or not
-        resolution : (2,) int
+        resolution
           Initial resolution of window
-        fullscreen : bool
-            Determines whether the window is rendered in fullscreen mode.
-        resizable : bool
-            Determines whether the rendered window can be resized by the user.
-        start_loop : bool
+        fullscreen
+          Determines whether the window is rendered in fullscreen mode.
+        resizable
+          Determines whether the rendered window can be resized by the user.
+        start_loop
           Call pyglet.app.run() at the end of init
-        callback : function
+        callback
           A function which can be called periodically to
           update things in the scene
-        callback_period : float
+        callback_period
           How often to call the callback, in seconds
-        fixed : None or iterable
+        caption
+          Caption for the window title
+        fixed
           List of keys in scene.geometry to skip view
           transform on to keep fixed relative to camera
-        offset_lines : bool
+        offset_lines
           If True, will offset lines slightly so if drawn
           coplanar with mesh geometry they will be visible
-        background : None or (4,) uint8
+        line_settings
+          Override default line width and point size with keys
+          'line_width' and 'point_size' in pixels
+        background
           Color for background
-        window_conf : None, or gl.Config
+        window_conf
           Passed to window init
-        profile : bool
+        profile
           If set will run a `pyinstrument` profile for
           every call to `on_draw` and print the output.
-        record : bool
+        record
           If True, will save a list of `png` bytes to
           a list located in `scene.metadata['recording']`
-        kwargs : dict
+        kwargs
           Additional arguments to pass, including
           'background' for to set background color
         """
@@ -180,6 +186,9 @@ class SceneViewer(pyglet.window.Window):
         else:
             scene.camera.resolution = resolution
 
+        if caption is None:
+            caption = "Trimesh SceneViewer (`h` for help)"
+
         # set the default line settings to a fraction
         # of our resolution so the points aren't tiny
         scale = max(resolution)
@@ -237,9 +246,6 @@ class SceneViewer(pyglet.window.Window):
         if flags is not None:
             self.reset_view(flags=flags)
         self.update_flags()
-
-        if print_help:
-            print(_HELP_MESSAGE)
 
         # someone has passed a callback to be called periodically
         if self.callback is not None:
@@ -700,6 +706,8 @@ class SceneViewer(pyglet.window.Window):
             self.maximize()
         elif symbol == pyglet.window.key.F:
             self.toggle_fullscreen()
+        elif symbol == pyglet.window.key.H:
+            print(_HELP_MESSAGE)
 
         if symbol in [
             pyglet.window.key.LEFT,
