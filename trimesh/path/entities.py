@@ -436,7 +436,7 @@ class Text(Entity):
         if vertices.shape[1] != 2:
             raise ValueError("only for 2D points!")
 
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa
 
         # get rotation angle in degrees
         angle = np.degrees(self.angle(vertices))

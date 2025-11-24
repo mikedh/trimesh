@@ -206,7 +206,7 @@ class MassProperties:
     # the (3, 3) inertia tensor
     inertia: Optional[NDArray[float64]] = None
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str):
         # add for backwards compatibility
         return getattr(self, item)
 

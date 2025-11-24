@@ -19,6 +19,9 @@ NAME=trimesh/trimesh
 REPO=docker.io
 IMAGE=$(REPO)/$(NAME)
 
+# the dockerfile location
+DOCKERFILE=helpers/Dockerfile
+
 # the tags we'll be applying
 TAG_LATEST=$(IMAGE):latest
 TAG_GIT_SHA=$(IMAGE):$(GIT_SHA)
@@ -34,12 +37,18 @@ help: ## Print usage help
 # force amd64 builds on non-amd64 hosts (e.g. Apple Silicon)
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
 
+# docker build arguments common to all build paths
+# NEEDS_BUILDCHAIN can probably be false once 3.14 matures a little more
+# `--build-arg=NEEDS_BUILDCHAIN=true`
+
+DOCKER_BUILD_ARGS=--progress=plain --file $(DOCKERFILE) 
+
 # build the output stage image using buildkit
 .PHONY: build
 build: ## Build the docker images
 	DOCKER_BUILDKIT=1 \
 	docker build \
-		--progress=plain \
+		$(DOCKER_BUILD_ARGS) \
 		--target output \
 		--tag $(TAG_LATEST) \
 		--tag $(TAG_VERSION) \
@@ -51,9 +60,9 @@ build: ## Build the docker images
 tests: ## Run unit tests inside docker images.
 	DOCKER_BUILDKIT=1 \
 	docker build \
+		$(DOCKER_BUILD_ARGS) \
 		--target tests \
-		--progress=plain \
-		--build-arg "CODECOV_TOKEN=$(CODECOV_TOKEN)" \
+		--secret id=codecov_token,env=CODECOV_TOKEN \
 		.
 
 # build the docs inside our image and eject the contents
@@ -62,8 +71,8 @@ tests: ## Run unit tests inside docker images.
 docs: ## Build trimesh's sphinx docs
 	DOCKER_BUILDKIT=1 \
 	docker build \
+		$(DOCKER_BUILD_ARGS) \
 		--target docs \
-		--progress=plain \
 		--output html \
 		.
 

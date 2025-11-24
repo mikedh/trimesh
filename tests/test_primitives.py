@@ -3,6 +3,8 @@ try:
 except BaseException:
     import generic as g
 
+from trimesh.primitives import Capsule, Cylinder, Sphere
+
 
 def generate_primitives():
     primitives = []
@@ -194,6 +196,12 @@ def test_primitives():
 
         assert g.np.allclose(primitive.extents, as_mesh.extents)
         assert g.np.allclose(primitive.bounds, as_mesh.bounds)
+
+        if isinstance(primitive, (Capsule, Cylinder, Sphere)):
+            # if the area or volume is EXACTLY equal for a curved primitive
+            # it means our primitive did not override the volume or area
+            assert float(primitive.volume) != float(as_mesh.volume), primitive
+            assert float(primitive.area) != float(as_mesh.area), primitive
 
         assert g.np.isclose(primitive.volume, as_mesh.volume, rtol=0.05)
         assert g.np.isclose(primitive.area, as_mesh.area, rtol=0.05)

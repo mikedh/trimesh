@@ -36,6 +36,11 @@ else:
         Tuple,
     )
 
+if version_info >= (3, 11):
+    from typing import Self
+else:
+    Self = Any
+
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
 
@@ -69,7 +74,7 @@ GraphEngineType = Literal["networkx", "scipy", None]
 
 # what 3D boolean engines are available
 BooleanEngineType = Literal["manifold", "blender", None]
-# what are the substrings for each operation
+# what 3D boolean operations can be passed to boolean functions
 BooleanOperationType = Literal["difference", "union", "intersection"]
 
 # what are the supported methods for converting a mesh into voxels.
@@ -93,6 +98,7 @@ __all__ = [
     "NDArray",
     "Number",
     "Optional",
+    "Self",
     "Sequence",
     "Set",
     "Stream",

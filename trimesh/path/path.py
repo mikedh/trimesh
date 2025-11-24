@@ -37,6 +37,7 @@ from ..typed import (
     Mapping,
     NDArray,
     Optional,
+    Self,
     Tuple,
     Union,
     float64,
@@ -147,7 +148,7 @@ class Path(parent.Geometry):
         """
         return f"<trimesh.{type(self).__name__}(vertices.shape={self.vertices.shape}, len(entities)={len(self.entities)})>"
 
-    def process(self):
+    def process(self) -> Self:
         """
         Apply basic cleaning functions to the Path object in-place.
         """
@@ -348,7 +349,7 @@ class Path(parent.Geometry):
         return np.array([points.min(axis=0), points.max(axis=0)], dtype=np.float64)
 
     @cache_decorator
-    def centroid(self):
+    def centroid(self) -> NDArray[float64]:
         """
         Return the centroid of axis aligned bounding box enclosing
         all entities of the path object.
@@ -361,7 +362,7 @@ class Path(parent.Geometry):
         return self.bounds.mean(axis=0)
 
     @property
-    def extents(self):
+    def extents(self) -> NDArray[float64]:
         """
         The size of the axis aligned bounding box.
 
@@ -463,7 +464,7 @@ class Path(parent.Geometry):
         nodes = np.vstack([e.nodes for e in self.entities])
         return nodes
 
-    def apply_transform(self, transform):
+    def apply_transform(self, transform: ArrayLike) -> Self:
         """
         Apply a transformation matrix to the current path in- place
 
@@ -517,7 +518,7 @@ class Path(parent.Geometry):
         self._cache.cache.update(cache)
         return self
 
-    def apply_layer(self, name):
+    def apply_layer(self, name: str) -> None:
         """
         Apply a layer name to every entity in the path.
 
@@ -1069,7 +1070,7 @@ class Path2D(Path):
             return Path2D()
 
         try:
-            # caclulate a 2D convex hull for our candidate vertices
+            # calculate a 2D convex hull for our candidate vertices
             hull = ConvexHull(candidates)
         except BaseException:
             # this may raise if the geometry is colinear in
@@ -1436,7 +1437,7 @@ class Path2D(Path):
         """
         Plot the closed curves of the path.
         """
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa
 
         axis = plt.gca()
         axis.set_aspect("equal", "datalim")
@@ -1468,7 +1469,7 @@ class Path2D(Path):
         color : str
           Override entity colors and make them all this color.
         """
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa
 
         # keep plot axis scaled the same
         axis = plt.gca()
@@ -1535,7 +1536,7 @@ class Path2D(Path):
         return np.array([i is not None for i in self.polygons_closed], dtype=bool)
 
     @cache_decorator
-    def root(self):
+    def root(self) -> NDArray[np.int64]:
         """
         Which indexes of self.paths/self.polygons_closed
         are root curves, also known as 'shell' or 'exterior.

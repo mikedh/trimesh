@@ -16,13 +16,14 @@ import numpy as np
 
 from .. import util
 from ..base import Trimesh
+from ..util import comment_strip, decode_text
 
 # find the executable for binvox in PATH
 binvox_encoder = util.which("binvox")
 Binvox = collections.namedtuple("Binvox", ["rle_data", "shape", "translate", "scale"])
 
 
-def parse_binvox_header(fp):
+def _parse_binvox_header(file_obj):
     """
     Read the header from a binvox file.
     Spec available:
@@ -48,20 +49,48 @@ def parse_binvox_header(fp):
       If invalid binvox file.
     """
 
-    line = fp.readline().strip()
-    if hasattr(line, "decode"):
-        binvox = b"#binvox"
-        space = b" "
-    else:
-        binvox = "#binvox"
-        space = " "
-    if not line.startswith(binvox):
-        raise OSError("Not a binvox file")
-    shape = tuple(int(s) for s in fp.readline().strip().split(space)[1:])
-    translate = tuple(float(s) for s in fp.readline().strip().split(space)[1:])
-    scale = float(fp.readline().strip().split(space)[1])
-    fp.readline()
-    return shape, translate, scale
+    # check for the magic string in the first line
+    first = decode_text(file_obj.readline()).strip()
+    if "binvox" not in first.lower():
+        raise ValueError("File is not in the binvox format!")
+
+    header = {}
+    reached_data = False
+    # do a capped iteration
+    for _ in range(100):
+        # get the line as a lower-case, comment-stripped split list
+        line = (
+            comment_strip(decode_text(file_obj.readline()).lower(), "#").strip().split()
+        )
+        # if the line was a comment or whitespace don't include it
+        if len(line) == 0:
+            continue
+
+        elif line[0] == "data":
+            # we need to read up until we see "data" so the
+            # read-the-rest-of-the-payload operation is correct
+            reached_data = True
+            break
+
+        # save the keyed header data
+        header[line[0]] = line[1:]
+
+    if not reached_data:
+        raise ValueError("Didn't reach header termination magic word `data`")
+
+    if "dim" not in header.keys():
+        raise ValueError(
+            f"Malformed binvox header: `dim` is required, only received `{header.keys()}`"
+        )
+
+    # dimension of voxel array is required
+    shape = np.array(header["dim"], dtype=np.int64)
+
+    # provide default values for translation and scale
+    translate = np.array(header.get("translate", [0, 0, 0]), np.float64)
+    scale = np.array(header.get("scale", [1]), dtype=np.float64)
+
+    return shape, translate, scale[0]
 
 
 def parse_binvox(fp, writeable=False):
@@ -87,22 +116,15 @@ def parse_binvox(fp, writeable=False):
       If invalid binvox file
     """
     # get the header info
-    shape, translate, scale = parse_binvox_header(fp)
+    shape, translate, scale = _parse_binvox_header(fp)
     # get the rest of the file
     data = fp.read()
     # convert to numpy array
     rle_data = np.frombuffer(data, dtype=np.uint8)
+
     if writeable:
         rle_data = rle_data.copy()
     return Binvox(rle_data, shape, translate, scale)
-
-
-_binvox_header = """#binvox 1
-dim {sx} {sy} {sz}
-translate {tx} {ty} {tz}
-scale {scale}
-data
-"""
 
 
 def binvox_header(shape, translate, scale):
@@ -121,7 +143,14 @@ def binvox_header(shape, translate, scale):
     """
     sx, sy, sz = (int(s) for s in shape)
     tx, ty, tz = translate
-    return _binvox_header.format(sx=sx, sy=sy, sz=sz, tx=tx, ty=ty, tz=tz, scale=scale)
+
+    return f"""#binvox 1
+# generated in `trimesh`
+dim {sx} {sy} {sz}
+translate {tx} {ty} {tz}
+scale {scale}
+data
+"""
 
 
 def binvox_bytes(rle_data, shape, translate=(0, 0, 0), scale=1):

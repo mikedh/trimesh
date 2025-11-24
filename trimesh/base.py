@@ -1,11 +1,12 @@
 """
-github.com/mikedh/trimesh
-----------------------------
+# trimesh
+
+https://github.com/mikedh/trimesh
+---------------------------------
 
 Library for importing, exporting and doing simple operations on triangular meshes.
 """
 
-import warnings
 from copy import deepcopy
 
 import numpy as np
@@ -54,6 +55,7 @@ from .typed import (
     NDArray,
     Number,
     Optional,
+    Self,
     Sequence,
     Tuple,
     Union,
@@ -258,7 +260,7 @@ class Trimesh(Geometry3D):
         validate: bool = False,
         merge_tex: Optional[bool] = None,
         merge_norm: Optional[bool] = None,
-    ) -> "Trimesh":
+    ) -> Self:
         """
         Do processing to make a mesh useful.
 
@@ -1134,7 +1136,7 @@ class Trimesh(Geometry3D):
         referenced[self.faces] = True
         return referenced
 
-    def convert_units(self, desired: str, guess: bool = False) -> "Trimesh":
+    def convert_units(self, desired: str, guess: bool = False) -> Self:
         """
         Convert the units of the mesh into a specified unit.
 
@@ -1340,23 +1342,10 @@ class Trimesh(Geometry3D):
         mask[grouping.unique_rows(np.sort(self.faces, axis=1))[0]] = True
         return mask
 
-    def remove_duplicate_faces(self) -> None:
-        """
-        DERECATED MARCH 2024 REPLACE WITH:
-        `mesh.update_faces(mesh.unique_faces())`
-        """
-        warnings.warn(
-            "`remove_duplicate_faces` is deprecated "
-            + "and will be removed in March 2024: "
-            + "replace with `mesh.update_faces(mesh.unique_faces())`",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-        self.update_faces(self.unique_faces())
-
     def rezero(self) -> None:
         """
-        Translate the mesh so that all vertex vertices are positive.
+        Translate the mesh so that all vertex vertices are positive
+        and the lower bound of `self.bounds` will be exactly zero.
 
         Alters `self.vertices`.
         """
@@ -1364,20 +1353,34 @@ class Trimesh(Geometry3D):
 
     def split(self, **kwargs) -> List["Trimesh"]:
         """
-        Returns a list of Trimesh objects, based on face connectivity.
-        Splits into individual components, sometimes referred to as 'bodies'
+        Split a mesh into multiple meshes from face
+        connectivity.
+
+        If only_watertight is true it will only return
+        watertight meshes and will attempt to repair
+        single triangle or quad holes.
 
         Parameters
-        ------------
-        only_watertight : bool
-          Only return watertight meshes and discard remainder
-        adjacency : None or (n, 2) int
-          Override face adjacency with custom values
+        ----------
+        mesh : trimesh.Trimesh
+          The source multibody mesh to split
+        only_watertight
+          Only return watertight components and discard
+          any connected component that isn't fully watertight.
+        repair
+          If set try to fill small holes in a mesh, before the
+          discard step in `only_watertight.
+        adjacency : (n, 2) int
+          If passed will be used instead of `mesh.face_adjacency`
+        engine
+          Which graph engine to use for the connected components.
+        kwargs
+          Will be passed to `mesh.submesh`
 
         Returns
-        ---------
-        meshes : (n, ) trimesh.Trimesh
-          Separate bodies from original mesh
+        ----------
+        meshes : (m,) trimesh.Trimesh
+          Results of splitting based on parameters.
         """
         return graph.split(self, **kwargs)
 
@@ -1728,20 +1731,6 @@ class Trimesh(Geometry3D):
         """
         return cKDTree(self.vertices.view(np.ndarray))
 
-    def remove_degenerate_faces(self, height: Floating = tol.merge) -> None:
-        """
-        DERECATED MARCH 2024 REPLACE WITH:
-        `self.update_faces(self.nondegenerate_faces(height=height))`
-        """
-        warnings.warn(
-            "`remove_degenerate_faces` is deprecated "
-            + "and will be removed in March 2024 replace with "
-            + "`self.update_faces(self.nondegenerate_faces(height=height))`",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-        self.update_faces(self.nondegenerate_faces(height=height))
-
     def nondegenerate_faces(self, height: Floating = tol.merge) -> NDArray[np.bool_]:
         """
         Identify degenerate faces (faces without 3 unique vertex indices)
@@ -1891,7 +1880,7 @@ class Trimesh(Geometry3D):
 
         return on_hull
 
-    def fix_normals(self, multibody: Optional[bool] = None) -> None:
+    def fix_normals(self, multibody: Optional[bool] = None) -> Self:
         """
         Find and fix problems with self.face_normals and self.faces
         winding direction.
@@ -1903,12 +1892,13 @@ class Trimesh(Geometry3D):
         Parameters
         -------------
         multibody : None or bool
-          Fix normals across multiple bodies
-          if None automatically pick from body_count
+          Fix normals across multiple bodies or if unspecified
+          check the current `Trimesh.body_count`.
         """
         if multibody is None:
             multibody = self.body_count > 1
         repair.fix_normals(self, multibody=multibody)
+        return self
 
     def fill_holes(self) -> bool:
         """
@@ -2505,7 +2495,7 @@ class Trimesh(Geometry3D):
         # keep face normals as the haven't changed
         self._cache.clear(exclude=["face_normals"])
 
-    def apply_transform(self, matrix: ArrayLike) -> "Trimesh":
+    def apply_transform(self, matrix: ArrayLike) -> Self:
         """
         Transform mesh by a homogeneous transformation matrix.
 
@@ -2783,7 +2773,7 @@ class Trimesh(Geometry3D):
             skip_inertia=False,
         )
 
-    def invert(self) -> None:
+    def invert(self) -> Self:
         """
         Invert the mesh in-place by reversing the winding of every
         face and negating normals without dumping the cache.
@@ -2800,6 +2790,8 @@ class Trimesh(Geometry3D):
             self.faces = np.ascontiguousarray(np.fliplr(self.faces))
         # save our normals
         self._cache.clear(exclude=["face_normals", "vertex_normals"])
+
+        return self
 
     def scene(self, **kwargs) -> Scene:
         """
