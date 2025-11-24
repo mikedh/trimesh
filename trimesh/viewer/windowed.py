@@ -29,8 +29,27 @@ pyglet.options["shadow_window"] = False
 
 import pyglet.gl as gl  # NOQA
 
-# smooth only when fewer faces than this
-_SMOOTH_MAX_FACES = 100000
+# help message for the viewer
+_HELP_MESSAGE = """
+# SceneViewer Controls
+
+| Input                      | Action                                        |
+|----------------------------|-----------------------------------------------|
+| `mouse click + drag`       | Rotates the view                              |
+| `ctl + mouse click + drag` | Pans the view                                 |
+| `mouse wheel`              | Zooms the view                                |
+| `z`                        | Resets to the initial view                    |
+| `w`                        | Toggles wireframe mode                        |
+| `c`                        | Toggles backface culling                      |
+| `g`                        | Toggles an XY grid with Z set to lowest point |
+| `a`                        | Toggles an XYZ-RGB axis marker between: off,  |
+|                            | at world frame, or at every frame and world,  |
+|                            | and at every frame                            |
+| `f`                        | Toggles between fullscreen and windowed mode  |
+| `m`                        | Maximizes the window                          |
+| `q`                        | Closes the window                             |
+|----------------------------|-----------------------------------------------|
+"""
 
 
 class SceneViewer(pyglet.window.Window):
@@ -54,6 +73,7 @@ class SceneViewer(pyglet.window.Window):
         window_conf=None,
         profile=False,
         record=False,
+        print_help: bool = False,
         **kwargs,
     ):
         """
@@ -217,6 +237,9 @@ class SceneViewer(pyglet.window.Window):
         if flags is not None:
             self.reset_view(flags=flags)
         self.update_flags()
+
+        if print_help:
+            print(_HELP_MESSAGE)
 
         # someone has passed a callback to be called periodically
         if self.callback is not None:

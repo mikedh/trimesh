@@ -127,7 +127,7 @@ print(mesh.bounding_box_oriented.volume,
 * Import meshes from binary/ASCII STL, Wavefront OBJ, ASCII OFF, binary/ASCII PLY, GLTF/GLB 2.0, 3MF, XAML, 3DXML, etc.
 * Export meshes as GLB/GLTF, binary STL, binary PLY, ASCII OFF, OBJ, COLLADA, etc.
 * Import and export 2D or 3D vector paths with DXF or SVG files
-* Preview meshes using an OpenGL `pyglet` window, or in-line in jupyter/marimo notebooks using three.js
+* Preview meshes using an OpenGL `pyglet` window, or in-line in jupyter or marimo notebooks using `three.js`
 * Automatic hashing from a subclassed numpy array for change tracking using MD5, zlib CRC, or xxhash, and internal caching of expensive values.
 * Calculate face adjacencies, face angles, vertex defects, convex hulls, etc.
 * Calculate cross sections for a 2D outline, or slice a mesh for a 3D remainder mesh, i.e. slicing for 3D-printing.
@@ -148,32 +148,9 @@ print(mesh.bounding_box_oriented.volume,
 * Simple scene graph and transform tree which can be rendered (pyglet window, three.js in a jupyter/marimo notebook or exported.
 * Many utility functions, like transforming points, unitizing vectors, aligning vectors, tracking numpy arrays for changes, grouping rows, etc.
 
-
-## Viewer
-
-Trimesh includes an optional `pyglet<2` based viewer for debugging and inspecting. In the mesh view window, opened with `mesh.show()`, the following commands can be used:
-
-* `mouse click + drag` rotates the view
-* `ctl + mouse click + drag` pans the view
-* `mouse wheel` zooms
-* `z` returns to the base view
-* `w` toggles wireframe mode
-* `c` toggles backface culling
-* `g` toggles an XY grid with Z set to lowest point
-* `a` toggles an XYZ-RGB axis marker between: off, at world frame, or at every frame and world, and at every frame
-* `f` toggles between fullscreen and windowed mode
-* `m` maximizes the window
-* `q` closes the window
-
-If called from inside a `jupyter` or `marimo` notebook, `mesh.show()` displays an in-line preview using `three.js` to display the mesh or scene.
-
 ## Additional Notes
 
 - Check out some cool stuff people have done in the [GitHub network](https://github.com/mikedh/trimesh/network/dependents).
 - Generally `trimesh` API changes should have a one-year period of [printing a `warnings.DeprecationWarning`](https://trimesh.org/contributing.html#deprecations) although that's not always possible (i.e. the pyglet2 viewer rewrite that's been back-burnered for several years.) 
 - Docker containers are available on Docker Hub as [`trimesh/trimesh`](https://hub.docker.com/r/trimesh/trimesh/tags) and there's a [container guide](https://trimesh.org/docker.html) in the docs.
 - If you're choosing which format to use, you may want to try [GLB](https://trimesh.org/formats.html) as a fast modern option.
-
-
-
-
