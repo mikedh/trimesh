@@ -165,7 +165,11 @@ ignore = [
 # don't allow implicit string concatenation
 flake8-implicit-str-concat = {"allow-multiline" = false}
 
-# disallow things that have caused problems
+# ban debug and usually-a-bug imports in `trimesh` core library
+[tool.ruff.lint.per-file-ignores]
+"examples/*" = ["TID251"]
+"tests/*" = ["TID251"]
+
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"
 "matplotlib".msg = "you forgot to remove a debug plot"
