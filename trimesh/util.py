@@ -23,7 +23,17 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import ArrayLike, Dict, Iterable, NDArray, Optional, Set, Union, float64
+from .typed import (
+    ArrayLike,
+    Dict,
+    Integer,
+    Iterable,
+    NDArray,
+    Optional,
+    Set,
+    Union,
+    float64,
+)
 
 # create a default logger
 log = logging.getLogger(__name__)
@@ -1541,7 +1551,12 @@ def concatenate(
 
 
 def submesh(
-    mesh, faces_sequence, repair=True, only_watertight=False, min_faces=None, append=False
+    mesh,
+    faces_sequence,
+    repair: bool = True,
+    only_watertight: bool = False,
+    min_faces: Optional[Integer] = None,
+    append: bool = False,
 ):
     """
     Return a subset of a mesh.
@@ -1552,18 +1567,20 @@ def submesh(
         Source mesh to take geometry from
     faces_sequence : sequence (p,) int
         Indexes of mesh.faces
-    repair : bool
+    repair
         Try to make submeshes watertight
-    only_watertight : bool
+    only_watertight
         Only return submeshes which are watertight
+    min_faces
+      Minimum number of faces allowed in a submesh.
     append : bool
         Return a single mesh which has the faces appended,
         if this flag is set, only_watertight is ignored
 
     Returns
     ---------
-    if append : Trimesh object
-    else        list of Trimesh objects
+    result : Trimesh | list[Trimesh]
+      Depending on if `append` is true or not.
     """
     # evaluate generators so we can escape early
     faces_sequence = list(faces_sequence)
@@ -1657,14 +1674,20 @@ def submesh(
         for v, f, n, c in zip(vertices, faces, normals, visuals)
     ]
 
+    # assign the "source" information summarizing where a mesh was
+    # loaded from (i.e. file name) to each submesh of the result
     [setattr(r, "_source", deepcopy(mesh.source)) for r in result]
 
-    if only_watertight or repair:
+    if repair:
         # fill_holes will attempt a repair and returns the
         # watertight status at the end of the repair attempt
-        watertight = [i.fill_holes() and len(i.faces) >= 4 for i in result]
+        watertight = [len(i.faces) >= 4 and i.fill_holes() for i in result]
+    elif only_watertight:
+        # calculate watertightness without repairing
+        watertight = [i.is_watertight for i in result]
+
     if only_watertight:
-        # remove unrepairable meshes
+        # return only the watertight meshes
         return [i for i, w in zip(result, watertight) if w]
 
     return result

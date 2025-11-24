@@ -67,16 +67,21 @@ def test_obj_groups():
 
 
 def test_obj_groups_split():
-    # a wavefront file with groups defined
+    # a wavefront file with 14 groups and 2 objects defined
     mesh = g.get_mesh("groups.obj", split_groups=True)
-
     # make sure the right number of meshes are split
     assert len(mesh.geometry) == 14
 
-    mesh = g.get_mesh("groups.obj", split_objects=True, split_groups=True)
+    # keys of (split_object, split_groups) arguments
+    # values of how many meshes should be output for `groups.obj`
+    checks = {(True, True): 15, (True, False): 2, (False, True): 14, (False, False): 1}
 
-    # make sure the right number of meshes are split
-    assert len(mesh.geometry) == 14
+    for (split_objects, split_groups), truth in checks.items():
+        scene = g.get_scene(
+            "groups.obj", split_objects=split_objects, split_groups=split_groups
+        )
+        # make sure we produced the expected number of geometries
+        assert len(scene.geometry) == truth
 
 
 def test_obj_negative_indices():
@@ -576,5 +581,4 @@ def test_obj_quad_uv():
 
 
 if __name__ == "__main__":
-    # test_material_name()
-    test_multi_nodupe()
+    test_obj_groups_split()

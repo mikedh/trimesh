@@ -261,6 +261,13 @@ def get_mesh(file_name, *args, **kwargs):
     return list(meshes)
 
 
+def get_scene(file_name: str, **kwargs) -> trimesh.Scene:
+    """
+    Return the results of trimesh.load_scene
+    """
+    return trimesh.load_scene(get_path(file_name), **kwargs)
+
+
 def get_path(file_name):
     """
     Get the absolute location of a referenced model file.

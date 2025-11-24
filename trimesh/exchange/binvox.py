@@ -22,8 +22,6 @@ from ..util import comment_strip, decode_text
 binvox_encoder = util.which("binvox")
 Binvox = collections.namedtuple("Binvox", ["rle_data", "shape", "translate", "scale"])
 
-_header_required = {"dim", "translate", "scale"}
-
 
 def _parse_binvox_header(file_obj):
     """
@@ -57,6 +55,7 @@ def _parse_binvox_header(file_obj):
         raise ValueError("File is not in the binvox format!")
 
     header = {}
+    reached_data = False
     # do a capped iteration
     for _ in range(100):
         # get the line as a lower-case, comment-stripped split list
@@ -70,19 +69,26 @@ def _parse_binvox_header(file_obj):
         elif line[0] == "data":
             # we need to read up until we see "data" so the
             # read-the-rest-of-the-payload operation is correct
+            reached_data = True
             break
 
         # save the keyed header data
         header[line[0]] = line[1:]
 
-    if set(header.keys()) != _header_required:
+    if not reached_data:
+        raise ValueError("Didn't reach header termination magic word `data`")
+
+    if "dim" not in header.keys():
         raise ValueError(
-            f"Malformed binvox header: `{header.keys()}` != `{_header_required}`"
+            f"Malformed binvox header: `dim` is required, only received `{header.keys()}`"
         )
 
+    # dimension of voxel array is required
     shape = np.array(header["dim"], dtype=np.int64)
-    translate = np.array(header["translate"], np.float64)
-    scale = np.array(header["scale"], dtype=np.float64)
+
+    # provide default values for translation and scale
+    translate = np.array(header.get("translate", [0, 0, 0]), np.float64)
+    scale = np.array(header.get("scale", [1]), dtype=np.float64)
 
     return shape, translate, scale[0]
 
