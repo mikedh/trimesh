@@ -1437,7 +1437,7 @@ class Path2D(Path):
         """
         Plot the closed curves of the path.
         """
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa
 
         axis = plt.gca()
         axis.set_aspect("equal", "datalim")
@@ -1469,7 +1469,7 @@ class Path2D(Path):
         color : str
           Override entity colors and make them all this color.
         """
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa
 
         # keep plot axis scaled the same
         axis = plt.gca()

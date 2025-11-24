@@ -365,7 +365,7 @@ def test_interpolate():
 
     # now see if we match matplotlib if it's installed
     try:
-        from matplotlib.pyplot import get_cmap
+        from matplotlib.pyplot import get_cmap  # noqa
     except ImportError:
         return
 
