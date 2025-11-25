@@ -294,7 +294,7 @@ def plot(polygon=None, show=True, axes=None, **kwargs):
     **kwargs
       Passed to plt.plot
     """
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # noqa
 
     def plot_single(single):
         axes.plot(*single.exterior.xy, **kwargs)

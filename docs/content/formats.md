@@ -6,15 +6,15 @@ There's lots of mesh formats out there!
 
 ## Which Mesh Format Should I Use?
 
-Quick recommendation: `GLB`. If you're looking for "the simplest possible format because I have to write an importer in another language" you should take a look at `OFF`. 
+Quick recommendation: `GLB`. If you're looking for "the simplest possible ASCII format because I have to write an importer in another language" you should take a look at `OFF`. 
 
-The GLTF is nice because it has a [well defined specification](https://github.com/KhronosGroup/glTF/tree/main/specification/2.0), supports most things people would want, and is very fast to load. The format has a JSON header which defines the layout of a binary blob, which allows the large arrays to be loaded with `numpy.frombuffer` which is extremely fast.
+GLTF is nice because it has a [well defined specification](https://github.com/KhronosGroup/glTF/tree/main/specification/2.0), supports most things people would want, and is very fast to load. It's fast because the format has a small JSON header which defines the layout of a packed binary blob, so the arrays can be loaded with `numpy.frombuffer` which is extremely fast. As a counterpoint a format like `3MF` defines each vertex as an `<vertex><x>"1.0123312"</x> ...`, which is almost as far from fast as it is possible to get.
 
-Wavefront `OBJ` is also widely used and supported across many tools, although it lacks a specification and has a slightly unusual internal data structure, which can lead to compatibility and indexing issues.
+A very popular format is Wavefront `OBJ`. It's supported across many tools, although it lacks a specification and has an internal data structure that requires some pretty heavy conversion to the `trimesh` flat-array format which can lead to some confusion: for example `f 1/2/3 4/5/6 7//7 9/9/9` is a valid face. It's not a bad choice, but going with GLB is probably advisable in most cases.
 
 ## Supported Formats
 
-No dependencies indicates a minimal install of just `trimesh` and `numpy` can load the format.
+No dependencies indicates a minimal install of just `trimesh` and `numpy` can load the format. If you are working with the textures, images are handled using `pip install pillow`.
 
 | Format | Dependencies | Notes | 
 | ------ | ------------ | ----- |
@@ -29,5 +29,5 @@ No dependencies indicates a minimal install of just `trimesh` and `numpy` can lo
 | `STEP`/`STP` | `cascadio` | The only boundary representation format with open-source loaders available. `cascadio` uses OpenCASCADE to convert to GLB before loading. |
 | `XAML` | `lxml` | Microsoft's 3D XAML format which exports from Solidworks |
 | `DXF` | | AutoCAD's drawing format, we only support the ASCII version with 2D geometry. |
-| `SVG` | | We import 2D paths as `trimesh.Path2D` from these, discarding pretty much all visual information other than the curves. |
+| `SVG` | `svg.path` | We import 2D paths as `trimesh.Path2D` from these, discarding pretty much all visual information other than the curves. |
 | `XYZ` | | Simple ASCII point cloud format with just one coordinate per line. |

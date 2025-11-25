@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.8"
-version = "4.9.0"
+version = "4.10.0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -165,10 +165,14 @@ ignore = [
 # don't allow implicit string concatenation
 flake8-implicit-str-concat = {"allow-multiline" = false}
 
-# disallow things that have caused problems
+# ban debug and usually-a-bug imports in `trimesh` core library
+[tool.ruff.lint.per-file-ignores]
+"examples/*" = ["TID251"]
+"tests/*" = ["TID251"]
+
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"
-# "matplotlib".msg = "you forgot to remove a debug plot"
+"matplotlib".msg = "you forgot to remove a debug plot"
 "numpy.empty".msg = "uninitialized arrays are haunted: try numpy.zeros"
 "numpy.empty_like".msg = "uninitialized arrays are haunted: try numpy.zeros"
 

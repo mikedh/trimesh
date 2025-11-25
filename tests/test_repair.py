@@ -249,11 +249,11 @@ def test_fix_normals_mixed_multibox():
     split = c.split(only_watertight=True, repair=True)
     assert len(split) == 3, len(split)
 
-    # the non-watertight mesh should have been repaired but not inverted?
-    assert sum(s.is_volume for s in split) == 2
+    # everything should be a volume
+    assert all(s.is_volume for s in split)
+    assert all(g.np.isclose(s.volume, 1.0) for s in split)
 
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
-    g.unittest.main()
     test_fix_normals_mixed_multibox()

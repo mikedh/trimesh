@@ -119,9 +119,17 @@ def fix_inversion(mesh, multibody: bool = False):
 
     # loop through indexes of `mesh.faces`
     for face_index in groups:
-        # only do anything if we have a watertight body
-        if not graph.is_watertight(face_edges[face_index].reshape((-1, 2))):
+        # we need watertight bodies to do anything so immediatly
+        # skip anything smaller than 4 faces (tetrahedron)
+        if len(face_index) < 4:
             continue
+        # check the watertightness and winding of this group
+        is_tight, is_wound = graph.is_watertight(face_edges[face_index].reshape((-1, 2)))
+
+        # if we're not completely correct skip it as flipping faces will make it worse
+        if not (is_tight and is_wound):
+            continue
+
         # check the volume for just this body
         volume = triangles.mass_properties(
             tri[face_index], crosses=cross[face_index], skip_inertia=True
