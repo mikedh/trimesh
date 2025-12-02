@@ -2700,20 +2700,28 @@ class Trimesh(Geometry3D):
 
         Parameters
         ----------
-        check : bool
-          If True make sure is flat
         normal : (3,) float
           Normal to extract flat pattern along
         origin : None or (3,) float
           Origin of plane to project mesh onto
-        pad : float
+        ignore_sign : bool
+          Allow a projection from the normal vector in
+          either direction: this provides a substantial speedup
+          on watertight meshes where the direction is irrelevant
+          but if you have a triangle soup and want to discard
+          backfaces you should set this to False.
+        rpad : float
           Proportion to pad polygons by before unioning
+          and then de-padding result by to avoid zero-width gaps.
+        apad : float
+          Absolute padding to pad polygons by before unioning
           and then de-padding result by to avoid zero-width gaps.
         tol_dot : float
           Tolerance for discarding on-edge triangles.
-        max_regions : int
-          Raise an exception if the mesh has more than this
-          number of disconnected regions to fail quickly before unioning.
+        precise : bool
+          Use the precise projection computation using shapely.
+        precise_eps : float
+          Tolerance for precise triangle checks.
 
         Returns
         ----------
