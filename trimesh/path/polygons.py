@@ -828,14 +828,29 @@ def projected(
     vertices_2D = transform_points(mesh.vertices, to_2D)[:, :2]
 
     if precise:
+        # precise mode just unions triangles as one shapely
+        # polygon per triangle which historically has been very slow
+        # but it is more defensible intellectually
         faces = mesh.faces[side]
-        # Cleanup vertices
-        vertices_2D_rounded = np.round(vertices_2D, int(np.abs(np.round(np.log10(precise_eps))) + 1))
-        triangles = vertices_2D_rounded[np.column_stack((faces, faces[:, :1]))]
-        valid = ~(triangles[:,[0,0,2]] == triangles[:,[1,2,1]]).all(axis=2).any(axis=1)
-        triangles = triangles[valid]
-        # Union all the polygons
-        return ops.unary_union([Polygon(f) for f in triangles]).buffer(precise_eps).buffer(-precise_eps)
+        # round the 2D vertices with slightly more precision
+        # than our final dilate-erode cleanup
+        digits = int(np.abs(np.log10(precise_eps)) + 2)
+        rounded = np.round(vertices_2D, digits)
+        # get the triangles as closed 4-vertex polygons
+        triangles = rounded[np.column_stack((faces, faces[:, :1]))]
+        # do a check for exactly-degenerate triangles where any two
+        # vertices are exactly identical which means the triangle has
+        # zero area
+        valid = ~(triangles[:, [0, 0, 2]] == triangles[:, [1, 2, 1]]).all(axis=2).any(
+            axis=1
+        )
+        # union the valid triangles and then dilate-erode to clean up
+        # any holes or defects smaller than precise_eps
+        return (
+            ops.unary_union([Polygon(f) for f in triangles[valid]])
+            .buffer(precise_eps)
+            .buffer(-precise_eps)
+        )
 
     # a sequence of face indexes that are connected
     face_groups = graph.connected_components(adjacency, nodes=np.nonzero(side)[0])
