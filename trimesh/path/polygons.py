@@ -735,6 +735,7 @@ def projected(
     apad=None,
     tol_dot=1e-10,
     precise: bool = False,
+    precise_eps: float = 1e-10,
 ):
     """
     Project a mesh onto a plane and then extract the polygon
@@ -753,8 +754,6 @@ def projected(
     ----------
     mesh : trimesh.Trimesh
       Source geometry
-    check : bool
-      If True make sure is flat
     normal : (3,) float
       Normal to extract flat pattern along
     origin : None or (3,) float
@@ -773,10 +772,10 @@ def projected(
       and then de-padding result by to avoid zero-width gaps.
     tol_dot : float
       Tolerance for discarding on-edge triangles.
-    max_regions : int
-      Raise an exception if the mesh has more than this
-      number of disconnected regions to fail quickly before
-      unioning.
+    precise : bool
+      Use the precise projection computation using shapely.
+    precise_eps : float
+      Tolerance for precise triangle checks.
 
     Returns
     ----------
@@ -829,16 +828,14 @@ def projected(
     vertices_2D = transform_points(mesh.vertices, to_2D)[:, :2]
 
     if precise:
-        eps = 1e-10
         faces = mesh.faces[side]
-        # just union all the polygons
-        return (
-            ops.unary_union(
-                [Polygon(f) for f in vertices_2D[np.column_stack((faces, faces[:, :1]))]]
-            )
-            .buffer(eps)
-            .buffer(-eps)
-        )
+        # Cleanup vertices
+        vertices_2D_rounded = np.round(vertices_2D, int(np.abs(np.round(np.log10(precise_eps))) + 1))
+        triangles = vertices_2D_rounded[np.column_stack((faces, faces[:, :1]))]
+        valid = ~(triangles[:,[0,0,2]] == triangles[:,[1,2,1]]).all(axis=2).any(axis=1)
+        triangles = triangles[valid]
+        # Union all the polygons
+        return ops.unary_union([Polygon(f) for f in triangles]).buffer(precise_eps).buffer(-precise_eps)
 
     # a sequence of face indexes that are connected
     face_groups = graph.connected_components(adjacency, nodes=np.nonzero(side)[0])
