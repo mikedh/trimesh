@@ -43,7 +43,6 @@ else:
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
-
 Stream = Union[IO, BytesIO, StringIO, BinaryIO, TextIO, BufferedRandom]
 Loadable = Union[str, Path, Stream, Dict, None]
 
