@@ -9,7 +9,7 @@ import numpy as np
 
 from . import util
 from .constants import log, tol
-from .typed import ArrayLike, Integer, NDArray, Optional
+from .typed import ArrayLike, Integer, NDArray, Number, Optional, Sequence, Tuple
 
 try:
     from scipy.spatial import cKDTree
@@ -666,14 +666,16 @@ def group_vectors(vectors, angle=1e-4, include_negative=False):
     return new_vectors, groups
 
 
-def group_distance(values, distance):
+def group_distance(
+    values: ArrayLike, distance: Number
+) -> Tuple[NDArray[np.float64], Sequence]:
     """
-    Find groups of points which have neighbours closer than radius,
-    where no two points in a group are farther than distance apart.
+    Find non-overlapping groups of points where no two points in a
+    group are farther than 2*distance apart.
 
     Parameters
     ---------
-    points :   (n, d) float
+    values : (n, d) float
         Points of dimension d
     distance : float
         Max distance between points in a cluster
@@ -700,6 +702,7 @@ def group_distance(values, distance):
         if consumed[index]:
             continue
         group = np.array(tree.query_ball_point(value, distance), dtype=np.int64)
+        group = group[~consumed[group]]
         consumed[group] = True
         unique.append(np.median(values[group], axis=0))
         groups.append(group)
