@@ -292,8 +292,8 @@ def mass_properties(
 
     if center_mass is None:
         if np.abs(volume) < tol.zero:
-            # if there is no volume set center of mass to the origin
-            center_mass = np.zeros(3, dtype=np.float64)
+            # if there is no volume set center of mass to the centroid
+            center_mass = np.average(f1 / 3.0, weights=area(triangles, crosses), axis=0)
         else:
             # otherwise get it from the integration
             center_mass = integrated[1:4] / volume
