@@ -117,14 +117,15 @@ def test_project_backface():
 
 
 def test_project_multi():
-    mesh = g.trimesh.creation.box() + g.trimesh.creation.box().apply_translation(
-        [3, 0, 0]
-    )
-    proj = mesh.projected(normal=[0, 0, 1])
+    for ignore_sign, precise in g.itertools.combinations([True, False] * 2, 2):
+        mesh = g.trimesh.creation.box() + g.trimesh.creation.box().apply_translation(
+            [3, 0, 0]
+        )
+        proj = mesh.projected(normal=[0, 0, 1], ignore_sign=ignore_sign, precise=precise)
 
-    assert mesh.body_count == 2
-    assert len(proj.root) == 2
-    assert g.np.isclose(proj.area, 2.0)
+        assert mesh.body_count == 2
+        assert len(proj.root) == 2
+        assert g.np.isclose(proj.area, 2.0)
 
 
 def test_second_moment():
