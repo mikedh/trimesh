@@ -13,14 +13,14 @@ from copy import deepcopy
 
 import numpy as np
 
-from .. import rendering, resources, transformations, util, visual
-from ..caching import hash_fast
-from ..constants import log, tol
-from ..resolvers import ResolverLike, ZipResolver
-from ..scene.cameras import Camera
-from ..typed import Dict, List, NDArray, Optional, Stream
-from ..util import triangle_strips_to_faces, unique_name
-from ..visual.gloss import specular_to_pbr
+from ... import rendering, resources, transformations, util, visual
+from ...caching import hash_fast
+from ...constants import log, tol
+from ...resolvers import ResolverLike, ZipResolver
+from ...scene.cameras import Camera
+from ...typed import Dict, List, NDArray, Optional, Stream
+from ...util import triangle_strips_to_faces, unique_name
+from .extensions import handle_extensions
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -1328,25 +1328,16 @@ def _parse_materials(header, views, resolver=None):
                 result[k] = v
             elif images is not None and "index" in v:
                 try:
-                    # get the index of image for texture
                     texture = header["textures"][v["index"]]
-                    # check to see if this is using a webp extension texture
-                    # should this be case sensitive?
-                    webp = (
-                        texture.get("extensions", {})
-                        .get("EXT_texture_webp", {})
-                        .get("source")
-                    )
-                    if webp is not None:
-                        idx = webp
-                    elif "source" in texture:
-                        # fallback (or primary, if extensions are not present)
-                        idx = texture["source"]
+                    tex_ext = texture.get("extensions")
+                    if tex_ext is not None:
+                        idx = handle_extensions(tex_ext, scope="texture_source")
                     else:
-                        # no source available
-                        continue
-                    # store the actual image as the value
-                    result[k] = images[idx]
+                        idx = None
+                    if idx is None:
+                        idx = texture.get("source")
+                    if idx is not None:
+                        result[k] = images[idx]
                 except BaseException:
                     log.debug("unable to store texture", exc_info=True)
         return result
@@ -1364,12 +1355,19 @@ def _parse_materials(header, views, resolver=None):
                 # add keys of keys to top level dict
                 loopable.update(loopable.pop("pbrMetallicRoughness"))
 
-            ext = mat.get("extensions", {}).get(
-                "KHR_materials_pbrSpecularGlossiness", None
-            )
-            if isinstance(ext, dict):
-                ext_params = parse_values_and_textures(ext)
-                loopable.update(specular_to_pbr(**ext_params))
+            # Handle material extensions through registry
+            mat_extensions = mat.get("extensions")
+            if mat_extensions:
+                ext_results = handle_extensions(
+                    mat_extensions,
+                    scope="material",
+                    parse_values_and_textures=parse_values_and_textures,
+                    images=images,
+                )
+                # Flatten extension results into the material parameters
+                for ext_result in ext_results.values():
+                    if isinstance(ext_result, dict):
+                        loopable.update(ext_result)
 
             # save flattened keys we can use for kwargs
             pbr = parse_values_and_textures(loopable)
@@ -1523,6 +1521,18 @@ def _read_buffers(
                 metadata["gltf_extensions"] = m["extensions"]
 
             for p in m["primitives"]:
+                # Handle primitive preprocessing extensions (e.g. Draco decompression)
+                # These run before reading accessors since they may modify them
+                prim_extensions = p.get("extensions")
+                if prim_extensions is not None:
+                    handle_extensions(
+                        prim_extensions,
+                        scope="primitive_preprocess",
+                        views=views,
+                        access=access,
+                        primitive=p,
+                    )
+
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
                 kwargs = deepcopy(mesh_kwargs)
@@ -1543,7 +1553,7 @@ def _read_buffers(
 
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
-                    from ..path.entities import Line
+                    from ...path.entities import Line
 
                     kwargs["vertices"] = access[attr["POSITION"]]
                     kwargs["entities"] = [Line(points=np.arange(len(kwargs["vertices"])))]
@@ -1642,6 +1652,34 @@ def _read_buffers(
                     }
                     if len(custom) > 0:
                         kwargs["vertex_attributes"] = custom
+
+                    # Process primitive-level extensions through registry
+                    prim_extensions = p.get("extensions")
+                    if prim_extensions:
+                        ext_results = handle_extensions(
+                            prim_extensions, scope="primitive", accessors=access
+                        )
+                        # Apply extension results using standard keys
+                        for _ext_name, ext_result in ext_results.items():
+                            if not isinstance(ext_result, dict):
+                                continue
+                            # Extensions can provide face_attributes
+                            if "face_attributes" in ext_result:
+                                if "face_attributes" not in kwargs:
+                                    kwargs["face_attributes"] = {}
+                                kwargs["face_attributes"].update(
+                                    ext_result["face_attributes"]
+                                )
+                            # Extensions can provide vertex_attributes
+                            if "vertex_attributes" in ext_result:
+                                if "vertex_attributes" not in kwargs:
+                                    kwargs["vertex_attributes"] = {}
+                                kwargs["vertex_attributes"].update(
+                                    ext_result["vertex_attributes"]
+                                )
+                            # Extensions can provide metadata
+                            if "metadata" in ext_result:
+                                kwargs["metadata"].update(ext_result["metadata"])
                 else:
                     log.debug("skipping primitive with mode %s!", mode)
                     continue
@@ -2098,7 +2136,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
             # add a reference to the base color texture
             result[key] = {"index": len(tree["textures"])}
 
-            # add an object for the texture according to the WebP extension
+            # add texture object, optionally using EXT_texture_webp
             if extension_webp:
                 tree["textures"].append(
                     {"extensions": {"EXT_texture_webp": {"source": index}}}
@@ -2174,7 +2212,7 @@ def get_schema():
     """
     # replace references
     # get zip resolver to access referenced assets
-    from ..schemas import resolve
+    from ...schemas import resolve
 
     # get a blob of a zip file including the GLTF 2.0 schema
     stream = resources.get_stream("schema/gltf2.schema.zip")
