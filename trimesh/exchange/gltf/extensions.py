@@ -81,6 +81,7 @@ def handle_extensions(
     results
       Dict of {extension_name: result} for most scopes.
       For scopes ending in "_source", returns first non-None result.
+      For "primitive" scope, automatically merges results into mesh_kwargs.
     """
     if not extensions or scope not in _handlers:
         return {} if not scope.endswith("_source") else None
@@ -98,6 +99,22 @@ def handle_extensions(
     # for _source scopes return first result, otherwise return all results
     if scope.endswith("_source"):
         return next(iter(results.values()), None)
+
+    # for primitive scope, automatically merge results into mesh_kwargs
+    if scope == "primitive" and "mesh_kwargs" in kwargs:
+        mesh_kwargs = kwargs["mesh_kwargs"]
+        for ext_result in results.values():
+            if not isinstance(ext_result, dict):
+                continue
+            # merge extension results, trusting extensions to provide appropriate data
+            for key, value in ext_result.items():
+                if isinstance(value, dict):
+                    # merge dict values, like metadata
+                    mesh_kwargs.setdefault(key, {}).update(value)
+                else:
+                    # overwrite non-dict values
+                    mesh_kwargs[key] = value
+
     return results
 
 

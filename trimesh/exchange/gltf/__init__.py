@@ -1328,18 +1328,19 @@ def _parse_materials(header, views, resolver=None):
                 result[k] = v
             elif images is not None and "index" in v:
                 try:
+                    index = None
                     texture = header["textures"][v["index"]]
-                    tex_ext = texture.get("extensions")
-                    if tex_ext is not None:
-                        idx = handle_extensions(
+                    # Handle texture extensions through registry
+                    if tex_ext := texture.get("extensions"):
+                        index = handle_extensions(
                             extensions=tex_ext, scope="texture_source"
                         )
-                    else:
-                        idx = None
-                    if idx is None:
-                        idx = texture.get("source")
-                    if idx is not None:
-                        result[k] = images[idx]
+
+                    if index is None:
+                        # fall back to standard source key
+                        index = texture.get("source")
+                    if index is not None:
+                        result[k] = images[index]
                 except BaseException:
                     log.debug("unable to store texture", exc_info=True)
         return result
@@ -1358,8 +1359,7 @@ def _parse_materials(header, views, resolver=None):
                 loopable.update(loopable.pop("pbrMetallicRoughness"))
 
             # Handle material extensions through registry
-            mat_extensions = mat.get("extensions")
-            if mat_extensions:
+            if mat_extensions := mat.get("extensions"):
                 ext_results = handle_extensions(
                     extensions=mat_extensions,
                     scope="material",
@@ -1525,8 +1525,7 @@ def _read_buffers(
             for p in m["primitives"]:
                 # Handle primitive preprocessing extensions (e.g. Draco decompression)
                 # These run before reading accessors since they may modify them
-                prim_extensions = p.get("extensions")
-                if prim_extensions is not None:
+                if prim_extensions := p.get("extensions"):
                     handle_extensions(
                         extensions=prim_extensions,
                         scope="primitive_preprocess",
@@ -1655,36 +1654,14 @@ def _read_buffers(
                         kwargs["vertex_attributes"] = custom
 
                     # Process primitive-level extensions through registry
-                    prim_extensions = p.get("extensions")
-                    if prim_extensions:
-                        ext_results = handle_extensions(
+                    if prim_extensions := p.get("extensions"):
+                        handle_extensions(
                             extensions=prim_extensions,
                             scope="primitive",
                             primitive=p,
                             mesh_kwargs=kwargs,
                             accessors=access,
                         )
-                        # Apply extension results using standard keys
-                        for _ext_name, ext_result in ext_results.items():
-                            if not isinstance(ext_result, dict):
-                                continue
-                            # Extensions can provide face_attributes
-                            if "face_attributes" in ext_result:
-                                if "face_attributes" not in kwargs:
-                                    kwargs["face_attributes"] = {}
-                                kwargs["face_attributes"].update(
-                                    ext_result["face_attributes"]
-                                )
-                            # Extensions can provide vertex_attributes
-                            if "vertex_attributes" in ext_result:
-                                if "vertex_attributes" not in kwargs:
-                                    kwargs["vertex_attributes"] = {}
-                                kwargs["vertex_attributes"].update(
-                                    ext_result["vertex_attributes"]
-                                )
-                            # Extensions can provide metadata
-                            if "metadata" in ext_result:
-                                kwargs["metadata"].update(ext_result["metadata"])
                 else:
                     log.debug("skipping primitive with mode %s!", mode)
                     continue
