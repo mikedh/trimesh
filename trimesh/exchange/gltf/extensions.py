@@ -28,6 +28,26 @@ ParseTextures = Callable[..., Dict[str, Any]]
 _handlers: Dict[str, Dict[str, Handler]] = {}
 
 
+def _deep_merge(target: Dict, source: Dict) -> None:
+    """
+    Recursively merge source dict into target dict.
+
+    Parameters
+    ----------
+    target
+      Dict to merge into (modified in place)
+    source
+      Dict to merge from
+    """
+    for key, value in source.items():
+        if isinstance(value, dict) and key in target and isinstance(target[key], dict):
+            # Both are dicts - recurse
+            _deep_merge(target[key], value)
+        else:
+            # Overwrite or set new key
+            target[key] = value
+
+
 def register_handler(name: str, scope: Scope) -> Callable[[Handler], Handler]:
     """
     Decorator to register a handler for a glTF extension.
@@ -106,13 +126,13 @@ def handle_extensions(
         for ext_result in results.values():
             if not isinstance(ext_result, dict):
                 continue
-            # merge extension results, trusting extensions to provide appropriate data
+            # merge extension results, recursively merging nested dicts
             for key, value in ext_result.items():
                 if isinstance(value, dict):
-                    # merge dict values, like metadata
-                    mesh_kwargs.setdefault(key, {}).update(value)
+                    if key not in mesh_kwargs:
+                        mesh_kwargs[key] = {}
+                    _deep_merge(mesh_kwargs[key], value)
                 else:
-                    # overwrite non-dict values
                     mesh_kwargs[key] = value
 
     return results
