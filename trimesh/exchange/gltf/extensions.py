@@ -5,9 +5,10 @@ gltf_extensions.py
 Extension registry for glTF import/export with scope-based handlers.
 """
 
-from typing import Any, Callable, Dict, List, Literal, Optional
+from typing import Any, Callable
 
 from ...constants import log
+from ...typed import Dict, List, Literal, Optional
 
 # Scopes define where in the glTF load process handlers run:
 #   material            - after parsing material, can override PBR values
@@ -16,8 +17,12 @@ from ...constants import log
 #   primitive_preprocess - before accessor reads, can modify accessors in-place
 Scope = Literal["material", "texture_source", "primitive", "primitive_preprocess"]
 
-# Handler signatures for each scope - handlers MUST use these exact signatures
-Handler = Callable[..., Optional[Any]]
+# Handler type aliases for each scope
+Handler = Callable[..., Any]
+
+# callback to parse material dict and resolve texture references
+# signature: (*, data: Dict) -> Dict
+ParseTextures = Callable[..., Dict[str, Any]]
 
 # Registry: {scope: {extension_name: handler}}
 _handlers: Dict[str, Dict[str, Handler]] = {}
@@ -49,7 +54,16 @@ def register_handler(name: str, scope: Scope) -> Callable[[Handler], Handler]:
     return decorator
 
 
-def handle_extensions(extensions: Optional[Dict[str, Any]], scope: Scope, **kwargs) -> Any:
+def handle_extensions(
+    *,
+    extensions: Optional[Dict[str, Any]],
+    scope: Scope,
+    parse_textures: Optional[ParseTextures] = None,
+    images: Optional[List[Any]] = None,
+    primitive: Optional[Dict[str, Any]] = None,
+    mesh_kwargs: Optional[Dict[str, Any]] = None,
+    accessors: Optional[List[Dict[str, Any]]] = None,
+) -> Any:
     """
     Process extensions dict for a given scope, calling registered handlers.
 
@@ -59,8 +73,16 @@ def handle_extensions(extensions: Optional[Dict[str, Any]], scope: Scope, **kwar
       The "extensions" dict from a glTF element, or None.
     scope
       Handler scope to invoke, e.g. "material", "texture_source".
-    **kwargs
-      Additional arguments passed to each handler.
+    parse_textures
+      Function to parse material values (required for "material" scope).
+    images
+      List of parsed texture images (required for "material" scope).
+    primitive
+      The primitive dict (required for "primitive" and "primitive_preprocess" scopes).
+    mesh_kwargs
+      Mesh keyword arguments (required for "primitive" scope).
+    accessors
+      List of accessors (required for "primitive_preprocess" scope).
 
     Returns
     -------
@@ -71,36 +93,55 @@ def handle_extensions(extensions: Optional[Dict[str, Any]], scope: Scope, **kwar
     if not extensions or scope not in _handlers:
         return {} if not scope.endswith("_source") else None
 
-    results = {}
-    for ext_name, ext_data in extensions.items():
-        if ext_name in _handlers[scope]:
-            try:
-                result = _handlers[scope][ext_name](ext_data, **kwargs)
-                if result is not None:
-                    # for _source scopes, return first match immediately
-                    if scope.endswith("_source"):
-                        return result
-                    results[ext_name] = result
-            except Exception as e:
-                log.warning(f"failed to process extension {ext_name}: {e}")
+    # kwargs for each scope
+    scope_kwargs = {
+        "material": {
+            "parse_textures": parse_textures,
+            "images": images,
+        },
+        "texture_source": {},
+        "primitive": {
+            "primitive": primitive,
+            "mesh_kwargs": mesh_kwargs,
+            "accessors": accessors,
+        },
+        "primitive_preprocess": {
+            "primitive": primitive,
+            "accessors": accessors,
+        },
+    }
 
-    return results if not scope.endswith("_source") else None
+    results = {}
+    for ext_name, data in extensions.items():
+        if ext_name not in _handlers[scope]:
+            continue
+        try:
+            if result := _handlers[scope][ext_name](data=data, **scope_kwargs[scope]):
+                results[ext_name] = result
+        except Exception as e:
+            log.warning(f"failed to process extension {ext_name}: {e}")
+
+    # for _source scopes return first result, otherwise return all results
+    if scope.endswith("_source"):
+        return next(iter(results.values()), None)
+    return results
 
 
 @register_handler("KHR_materials_pbrSpecularGlossiness", scope="material")
 def _specular_glossiness(
-    ext_data: Dict,
-    parse_values_and_textures: Callable[[Dict], Dict],
+    *,
+    data: Dict[str, Any],
+    parse_textures: ParseTextures,
     images: List,
-) -> Optional[Dict]:
+) -> Optional[Dict[str, Any]]:
     """
     Convert specular-glossiness material to PBR metallic-roughness.
 
     Parameters
     ----------
-    ext_data
+    data
       KHR_materials_pbrSpecularGlossiness extension data.
-    parse_values_and_textures
+    parse_textures
       Function to parse material values and resolve texture references.
     images
       List of parsed texture images.
@@ -113,20 +154,20 @@ def _specular_glossiness(
     try:
         from ...visual.gloss import specular_to_pbr
 
-        return specular_to_pbr(**parse_values_and_textures(ext_data))
+        return specular_to_pbr(**parse_textures(data=data))
     except Exception:
         log.debug("failed to convert specular-glossiness", exc_info=True)
         return None
 
 
 @register_handler("EXT_texture_webp", scope="texture_source")
-def _texture_webp_source(ext_data: Dict) -> Optional[int]:
+def _texture_webp_source(*, data: Dict[str, Any]) -> Optional[int]:
     """
     Return image source index from EXT_texture_webp.
 
     Parameters
     ----------
-    ext_data
+    data
       EXT_texture_webp extension data with "source" key.
 
     Returns
@@ -134,4 +175,4 @@ def _texture_webp_source(ext_data: Dict) -> Optional[int]:
     source_index
       Index into glTF images array, or None if not present.
     """
-    return ext_data.get("source")
+    return data.get("source")

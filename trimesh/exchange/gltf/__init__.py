@@ -1318,9 +1318,9 @@ def _parse_materials(header, views, resolver=None):
       List of trimesh.visual.texture.Material objects
     """
 
-    def parse_values_and_textures(input_dict):
+    def parse_textures(*, data):
         result = {}
-        for k, v in input_dict.items():
+        for k, v in data.items():
             if isinstance(v, (list, tuple)):
                 # colors are always float 0.0 - 1.0 in GLTF
                 result[k] = np.array(v, dtype=np.float64)
@@ -1331,7 +1331,9 @@ def _parse_materials(header, views, resolver=None):
                     texture = header["textures"][v["index"]]
                     tex_ext = texture.get("extensions")
                     if tex_ext is not None:
-                        idx = handle_extensions(tex_ext, scope="texture_source")
+                        idx = handle_extensions(
+                            extensions=tex_ext, scope="texture_source"
+                        )
                     else:
                         idx = None
                     if idx is None:
@@ -1359,9 +1361,9 @@ def _parse_materials(header, views, resolver=None):
             mat_extensions = mat.get("extensions")
             if mat_extensions:
                 ext_results = handle_extensions(
-                    mat_extensions,
+                    extensions=mat_extensions,
                     scope="material",
-                    parse_values_and_textures=parse_values_and_textures,
+                    parse_textures=parse_textures,
                     images=images,
                 )
                 # Flatten extension results into the material parameters
@@ -1370,7 +1372,7 @@ def _parse_materials(header, views, resolver=None):
                         loopable.update(ext_result)
 
             # save flattened keys we can use for kwargs
-            pbr = parse_values_and_textures(loopable)
+            pbr = parse_textures(data=loopable)
             # create a PBR material object for the GLTF material
             materials.append(visual.material.PBRMaterial(**pbr))
 
@@ -1526,11 +1528,10 @@ def _read_buffers(
                 prim_extensions = p.get("extensions")
                 if prim_extensions is not None:
                     handle_extensions(
-                        prim_extensions,
+                        extensions=prim_extensions,
                         scope="primitive_preprocess",
-                        views=views,
-                        access=access,
                         primitive=p,
+                        accessors=access,
                     )
 
                 # if we don't have a triangular mesh continue
@@ -1657,7 +1658,11 @@ def _read_buffers(
                     prim_extensions = p.get("extensions")
                     if prim_extensions:
                         ext_results = handle_extensions(
-                            prim_extensions, scope="primitive", accessors=access
+                            extensions=prim_extensions,
+                            scope="primitive",
+                            primitive=p,
+                            mesh_kwargs=kwargs,
+                            accessors=access,
                         )
                         # Apply extension results using standard keys
                         for _ext_name, ext_result in ext_results.items():
