@@ -58,11 +58,7 @@ def handle_extensions(
     *,
     extensions: Optional[Dict[str, Any]],
     scope: Scope,
-    parse_textures: Optional[ParseTextures] = None,
-    images: Optional[List[Any]] = None,
-    primitive: Optional[Dict[str, Any]] = None,
-    mesh_kwargs: Optional[Dict[str, Any]] = None,
-    accessors: Optional[List[Dict[str, Any]]] = None,
+    **kwargs,
 ) -> Any:
     """
     Process extensions dict for a given scope, calling registered handlers.
@@ -73,16 +69,12 @@ def handle_extensions(
       The "extensions" dict from a glTF element, or None.
     scope
       Handler scope to invoke, e.g. "material", "texture_source".
-    parse_textures
-      Function to parse material values (required for "material" scope).
-    images
-      List of parsed texture images (required for "material" scope).
-    primitive
-      The primitive dict (required for "primitive" and "primitive_preprocess" scopes).
-    mesh_kwargs
-      Mesh keyword arguments (required for "primitive" scope).
-    accessors
-      List of accessors (required for "primitive_preprocess" scope).
+    **kwargs
+      Additional arguments to pass to handlers. Required kwargs by scope:
+        - material: parse_textures, images
+        - texture_source: (none)
+        - primitive: primitive, mesh_kwargs, accessors
+        - primitive_preprocess: primitive, accessors
 
     Returns
     -------
@@ -93,30 +85,12 @@ def handle_extensions(
     if not extensions or scope not in _handlers:
         return {} if not scope.endswith("_source") else None
 
-    # kwargs for each scope
-    scope_kwargs = {
-        "material": {
-            "parse_textures": parse_textures,
-            "images": images,
-        },
-        "texture_source": {},
-        "primitive": {
-            "primitive": primitive,
-            "mesh_kwargs": mesh_kwargs,
-            "accessors": accessors,
-        },
-        "primitive_preprocess": {
-            "primitive": primitive,
-            "accessors": accessors,
-        },
-    }
-
     results = {}
     for ext_name, data in extensions.items():
         if ext_name not in _handlers[scope]:
             continue
         try:
-            if result := _handlers[scope][ext_name](data=data, **scope_kwargs[scope]):
+            if result := _handlers[scope][ext_name](data=data, **kwargs):
                 results[ext_name] = result
         except Exception as e:
             log.warning(f"failed to process extension {ext_name}: {e}")
