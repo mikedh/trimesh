@@ -553,7 +553,7 @@ class Binvoxer:
 
         # generalizes to python2 and python3
         # will capture terminal output into variable rather than printing
-        verbosity = subprocess.check_output(self._args)
+        verbosity = subprocess.check_output(self._args, stderr=subprocess.STDOUT)
 
         # if requested print ourselves
         if self.verbose:
@@ -598,6 +598,7 @@ def voxelize_mesh(mesh, binvoxer=None, export_type="off", **binvoxer_kwargs):
         out_path = binvoxer(model_path)
         with open(out_path, "rb") as fp:
             out_model = load_binvox(fp)
+
     return out_model
 
 
