@@ -48,6 +48,7 @@ packages = [
     "trimesh.visual",
     "trimesh.viewer",
     "trimesh.exchange",
+    "trimesh.exchange.gltf",
     "trimesh.resources",
     "trimesh.interfaces",
 ]
