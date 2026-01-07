@@ -1,5 +1,5 @@
 """
-gltf.py
+gltf/__init__.py
 ------------
 
 Provides GLTF 2.0 exports of trimesh.Trimesh objects
