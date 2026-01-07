@@ -75,6 +75,7 @@ def export_gltf(
     tree_postprocessor=None,
     embed_buffers=False,
     extension_webp=False,
+    extension_draco=False,
 ):
     """
     Export a scene object as a GLTF directory.
@@ -101,6 +102,9 @@ def export_gltf(
       Embed the buffer into JSON file as a base64 string in the URI
     extension_webp : bool
       Export textures as webP (using glTF's EXT_texture_webp extension).
+    extension_draco : bool
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
+      Requires the `dracox` package to be installed.
 
     Returns
     ----------
@@ -117,6 +121,7 @@ def export_gltf(
         unitize_normals=unitize_normals,
         include_normals=include_normals,
         extension_webp=extension_webp,
+        extension_draco=extension_draco,
     )
 
     # allow custom postprocessing
@@ -172,6 +177,7 @@ def export_glb(
     tree_postprocessor=None,
     buffer_postprocessor=None,
     extension_webp=False,
+    extension_draco=False,
 ):
     """
     Export a scene as a binary GLTF (GLB) file.
@@ -189,6 +195,9 @@ def export_glb(
       before exporting.
     extension_webp : bool
       Export textures as webP using EXT_texture_webp extension.
+    extension_draco : bool
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
+      Requires the `dracox` package to be installed.
 
     Returns
     ----------
@@ -206,6 +215,7 @@ def export_glb(
         include_normals=include_normals,
         buffer_postprocessor=buffer_postprocessor,
         extension_webp=extension_webp,
+        extension_draco=extension_draco,
     )
 
     # A bufferView is a slice of a file
@@ -610,6 +620,7 @@ def _create_gltf_structure(
     unitize_normals=None,
     buffer_postprocessor=None,
     extension_webp=False,
+    extension_draco=False,
 ):
     """
     Generate a GLTF header.
@@ -626,6 +637,8 @@ def _create_gltf_structure(
       Unitize all exported normals so as to pass GLTF validation
     extension_webp : bool
       Export textures as webP using EXT_texture_webp extension.
+    extension_draco : bool
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
 
     Returns
     ---------------
@@ -683,6 +696,7 @@ def _create_gltf_structure(
                 unitize_normals=unitize_normals,
                 mat_hashes=mat_hashes,
                 extension_webp=extension_webp,
+                extension_draco=extension_draco,
             )
         elif util.is_instance_named(geometry, "Path"):
             # add Path2D and Path3D objects
@@ -703,6 +717,7 @@ def _create_gltf_structure(
     tree.update(nodes)
 
     extensions_used = set()
+    extensions_required = set()
     # Add any scene extensions used
     if "extensions" in tree:
         extensions_used = extensions_used.union(set(tree["extensions"].keys()))
@@ -710,19 +725,25 @@ def _create_gltf_structure(
     for mesh in tree["meshes"]:
         if "extensions" in mesh:
             extensions_used = extensions_used.union(set(mesh["extensions"].keys()))
+        # Check primitives for extensions too
+        for prim in mesh.get("primitives", []):
+            if "extensions" in prim:
+                extensions_used = extensions_used.union(set(prim["extensions"].keys()))
     # Add any extensions already in the tree (e.g. node extensions)
     if "extensionsUsed" in tree:
         extensions_used = extensions_used.union(set(tree["extensionsUsed"]))
     # Add WebP if used
     if extension_webp:
         extensions_used.add("EXT_texture_webp")
+        extensions_required.add("EXT_texture_webp")
+    # Add Draco if used (no fallback, so required)
+    if extension_draco:
+        extensions_used.add("KHR_draco_mesh_compression")
+        extensions_required.add("KHR_draco_mesh_compression")
     if len(extensions_used) > 0:
         tree["extensionsUsed"] = list(extensions_used)
-
-    # Also add WebP to required (no fallback currently implemented)
-    # 'extensionsRequired' aren't currently used so this doesn't overwrite
-    if extension_webp:
-        tree["extensionsRequired"] = ["EXT_texture_webp"]
+    if len(extensions_required) > 0:
+        tree["extensionsRequired"] = list(extensions_required)
 
     if buffer_postprocessor is not None:
         buffer_postprocessor(buffer_items, tree)
@@ -748,6 +769,7 @@ def _append_mesh(
     unitize_normals: bool,
     mat_hashes: dict,
     extension_webp: bool,
+    extension_draco: bool = False,
 ):
     """
     Append a mesh to the scene structure and put the
@@ -773,6 +795,8 @@ def _append_mesh(
       Which materials have already been added
     extension_webp : bool
       Export textures as webP (using glTF's EXT_texture_webp extension).
+    extension_draco : bool
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
     """
     # return early from empty meshes to avoid crashing later
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
@@ -961,6 +985,24 @@ def _append_mesh(
             buff=buffer_items,
             blob=_build_accessor(data),
             data=data,
+        )
+
+    # Handle Draco compression via extension handler
+    if extension_draco:
+        # Determine if normals should be included
+        should_include_normals = include_normals or (
+            include_normals is None and "vertex_normals" in mesh._cache.cache
+        )
+        # Call primitive_export handlers
+        handle_extensions(
+            extensions={"KHR_draco_mesh_compression": {}},
+            scope="primitive_export",
+            mesh=mesh,
+            name=name,
+            tree=tree,
+            buffer_items=buffer_items,
+            primitive=current["primitives"][0],
+            include_normals=should_include_normals,
         )
 
     tree["meshes"].append(current)
@@ -1531,6 +1573,7 @@ def _read_buffers(
                         scope="primitive_preprocess",
                         primitive=p,
                         accessors=access,
+                        views=views,
                     )
 
                 # if we don't have a triangular mesh continue
