@@ -6,6 +6,7 @@ Functions for dealing with triangle soups in (n, 3, 3) float form.
 """
 
 from dataclasses import dataclass
+from logging import getLogger
 
 import numpy as np
 
@@ -14,6 +15,8 @@ from .constants import tol
 from .points import point_plane_distance
 from .typed import NDArray, Optional, float64
 from .util import diagonal_dot, unitize
+
+log = getLogger(__name__)
 
 
 def cross(triangles: NDArray) -> NDArray:
@@ -290,13 +293,13 @@ def mass_properties(
 
     volume = integrated[0]
 
+    # we allow center of mass to be overridden
     if center_mass is None:
         if np.abs(volume) < tol.zero:
-            # if there is no volume set center of mass to the origin
-            center_mass = np.zeros(3, dtype=np.float64)
-        else:
-            # otherwise get it from the integration
-            center_mass = integrated[1:4] / volume
+            # if there is no volume set center of mass to the centroid
+            log.debug("volume is negative center of mass is almost certain to be wrong!")
+        # otherwise get it from the integration
+        center_mass = integrated[1:4] / volume
 
     result = MassProperties(
         density=density,
