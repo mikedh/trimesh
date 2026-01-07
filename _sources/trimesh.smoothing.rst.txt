@@ -1,0 +1,7 @@
+trimesh.smoothing
+=================
+
+.. automodule:: trimesh.smoothing
+   :members:
+   :show-inheritance:
+   :undoc-members:
