@@ -194,7 +194,7 @@ def handle_extensions(
         try:
             # Build context dict with data + all kwargs
             context = {"data": data, **kwargs}
-            if result := _handlers[scope][ext_name](context):
+            if (result := _handlers[scope][ext_name](context)) is not None:
                 results[ext_name] = result
         except Exception as e:
             log.warning(f"failed to process extension {ext_name}: {e}")
