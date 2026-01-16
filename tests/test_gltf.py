@@ -1135,7 +1135,7 @@ class GLTFTest(g.unittest.TestCase):
         assert simple.name == mesh.visual.material.name
 
     def test_webp_roundtrip(self):
-        m = g.get_mesh("models/fuze.obj")
+        m = g.get_mesh("fuze.obj")
         e = m.export(file_type="glb", extension_webp=True)
         r = g.trimesh.load_mesh(g.trimesh.util.wrap_as_stream(e), file_type="glb")
 
