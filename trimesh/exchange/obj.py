@@ -877,7 +877,7 @@ def export_obj(
         raise ValueError("must be Trimesh or Scene!")
 
     # collect lines to export
-    objects = deque([])
+    objects = deque()
     # keep track of the number of each export element
     counts = {"v": 0, "vn": 0, "vt": 0}
     # collect materials as we go
