@@ -1,0 +1,16 @@
+trimesh.visual
+==============
+
+.. toctree::
+
+   trimesh.visual.base
+   trimesh.visual.color
+   trimesh.visual.gloss
+   trimesh.visual.material
+   trimesh.visual.objects
+   trimesh.visual.texture
+
+.. automodule:: trimesh.visual
+   :members:
+   :show-inheritance:
+   :undoc-members:

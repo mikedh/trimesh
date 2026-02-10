@@ -1,0 +1,1349 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="trimesh.path.exchange" href="trimesh.path.exchange.html"><link rel="prev" title="trimesh.interfaces.generic" href="trimesh.interfaces.generic.html">
+        <link rel="prefetch" href="_static/trimesh-logo.png" as="image">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>trimesh.path - trimesh 4.11.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">trimesh 4.11.2 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="_static/trimesh-logo.png" alt="Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">trimesh 4.11.2 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference external" href="http://github.com/mikedh/trimesh">Github</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="examples.html">Examples</a><input aria-label="Toggle navigation of Examples" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="texture.html">Texture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="curvature.html">Curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="colors.html">Colors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nearest.html">Nearest</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ray.html">Ray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="section.html">Section</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shortest.html">Shortest</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Geometry Formats</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="docker.html">Docker</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="trimesh.html">API Reference</a><input aria-label="Toggle navigation of API Reference" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.exchange.html">trimesh.exchange</a><input aria-label="Toggle navigation of trimesh.exchange" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="trimesh.exchange.gltf.html">trimesh.exchange.gltf</a><input aria-label="Toggle navigation of trimesh.exchange.gltf" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.exchange.gltf.extensions.html">trimesh.exchange.gltf.extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.binvox.html">trimesh.exchange.binvox</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.cascade.html">trimesh.exchange.cascade</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.dae.html">trimesh.exchange.dae</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.export.html">trimesh.exchange.export</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.load.html">trimesh.exchange.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.misc.html">trimesh.exchange.misc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.obj.html">trimesh.exchange.obj</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.off.html">trimesh.exchange.off</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.ply.html">trimesh.exchange.ply</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.stl.html">trimesh.exchange.stl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.threedxml.html">trimesh.exchange.threedxml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.threemf.html">trimesh.exchange.threemf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.urdf.html">trimesh.exchange.urdf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.xaml.html">trimesh.exchange.xaml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.xyz.html">trimesh.exchange.xyz</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.interfaces.html">trimesh.interfaces</a><input aria-label="Toggle navigation of trimesh.interfaces" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.interfaces.blender.html">trimesh.interfaces.blender</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.interfaces.generic.html">trimesh.interfaces.generic</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current has-children current-page"><a class="current reference internal" href="#">trimesh.path</a><input aria-label="Toggle navigation of trimesh.path" checked="" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="trimesh.path.exchange.html">trimesh.path.exchange</a><input aria-label="Toggle navigation of trimesh.path.exchange" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.dxf.html">trimesh.path.exchange.dxf</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.export.html">trimesh.path.exchange.export</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.load.html">trimesh.path.exchange.load</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.misc.html">trimesh.path.exchange.misc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.svg_io.html">trimesh.path.exchange.svg_io</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html">trimesh.path.arc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.creation.html">trimesh.path.creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.curve.html">trimesh.path.curve</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html">trimesh.path.entities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.intersections.html">trimesh.path.intersections</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.packing.html">trimesh.path.packing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html">trimesh.path.path</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.polygons.html">trimesh.path.polygons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.raster.html">trimesh.path.raster</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.repair.html">trimesh.path.repair</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.segments.html">trimesh.path.segments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.simplify.html">trimesh.path.simplify</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.traversal.html">trimesh.path.traversal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.util.html">trimesh.path.util</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.ray.html">trimesh.ray</a><input aria-label="Toggle navigation of trimesh.ray" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_pyembree.html">trimesh.ray.ray_pyembree</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_triangle.html">trimesh.ray.ray_triangle</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_util.html">trimesh.ray.ray_util</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.resources.html">trimesh.resources</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.scene.html">trimesh.scene</a><input aria-label="Toggle navigation of trimesh.scene" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.cameras.html">trimesh.scene.cameras</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.lighting.html">trimesh.scene.lighting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.scene.html">trimesh.scene.scene</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.transforms.html">trimesh.scene.transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.viewer.html">trimesh.viewer</a><input aria-label="Toggle navigation of trimesh.viewer" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.notebook.html">trimesh.viewer.notebook</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.trackball.html">trimesh.viewer.trackball</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.widget.html">trimesh.viewer.widget</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.windowed.html">trimesh.viewer.windowed</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.visual.html">trimesh.visual</a><input aria-label="Toggle navigation of trimesh.visual" class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.base.html">trimesh.visual.base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.color.html">trimesh.visual.color</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.gloss.html">trimesh.visual.gloss</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.material.html">trimesh.visual.material</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.objects.html">trimesh.visual.objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.texture.html">trimesh.visual.texture</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.voxel.html">trimesh.voxel</a><input aria-label="Toggle navigation of trimesh.voxel" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.base.html">trimesh.voxel.base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.creation.html">trimesh.voxel.creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.encoding.html">trimesh.voxel.encoding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.morphology.html">trimesh.voxel.morphology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.ops.html">trimesh.voxel.ops</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.runlength.html">trimesh.voxel.runlength</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.transforms.html">trimesh.voxel.transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.base.html">trimesh.base</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.boolean.html">trimesh.boolean</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.bounds.html">trimesh.bounds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.caching.html">trimesh.caching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.collision.html">trimesh.collision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.comparison.html">trimesh.comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.constants.html">trimesh.constants</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.convex.html">trimesh.convex</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.creation.html">trimesh.creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.curvature.html">trimesh.curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.decomposition.html">trimesh.decomposition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.exceptions.html">trimesh.exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.geometry.html">trimesh.geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.graph.html">trimesh.graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.grouping.html">trimesh.grouping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.inertia.html">trimesh.inertia</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.intersections.html">trimesh.intersections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.interval.html">trimesh.interval</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.iteration.html">trimesh.iteration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.nsphere.html">trimesh.nsphere</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.parent.html">trimesh.parent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.permutate.html">trimesh.permutate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.points.html">trimesh.points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.poses.html">trimesh.poses</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.primitives.html">trimesh.primitives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.proximity.html">trimesh.proximity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.registration.html">trimesh.registration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.remesh.html">trimesh.remesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.rendering.html">trimesh.rendering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.repair.html">trimesh.repair</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.resolvers.html">trimesh.resolvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.sample.html">trimesh.sample</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.schemas.html">trimesh.schemas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.smoothing.html">trimesh.smoothing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.transformations.html">trimesh.transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.triangles.html">trimesh.triangles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.typed.html">trimesh.typed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.units.html">trimesh.units</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.util.html">trimesh.util</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.version.html">trimesh.version</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/trimesh.path.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="trimesh-path">
+<h1>trimesh.path<a class="headerlink" href="#trimesh-path" title="Link to this heading">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.exchange.html">trimesh.path.exchange</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.exchange.dxf.html">trimesh.path.exchange.dxf</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.dxf.html#trimesh.path.exchange.dxf.bulge_to_arcs"><code class="docutils literal notranslate"><span class="pre">bulge_to_arcs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.dxf.html#trimesh.path.exchange.dxf.convert_entities"><code class="docutils literal notranslate"><span class="pre">convert_entities()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.dxf.html#trimesh.path.exchange.dxf.export_dxf"><code class="docutils literal notranslate"><span class="pre">export_dxf()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.dxf.html#trimesh.path.exchange.dxf.get_key"><code class="docutils literal notranslate"><span class="pre">get_key()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.dxf.html#trimesh.path.exchange.dxf.load_dxf"><code class="docutils literal notranslate"><span class="pre">load_dxf()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.exchange.export.html">trimesh.path.exchange.export</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.export.html#trimesh.path.exchange.export.export_dict"><code class="docutils literal notranslate"><span class="pre">export_dict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.export.html#trimesh.path.exchange.export.export_path"><code class="docutils literal notranslate"><span class="pre">export_path()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.exchange.load.html">trimesh.path.exchange.load</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.load.html#trimesh.path.exchange.load.load_path"><code class="docutils literal notranslate"><span class="pre">load_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.load.html#trimesh.path.exchange.load.path_formats"><code class="docutils literal notranslate"><span class="pre">path_formats()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.exchange.misc.html">trimesh.path.exchange.misc</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.misc.html#trimesh.path.exchange.misc.dict_to_path"><code class="docutils literal notranslate"><span class="pre">dict_to_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.misc.html#trimesh.path.exchange.misc.edges_to_path"><code class="docutils literal notranslate"><span class="pre">edges_to_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.misc.html#trimesh.path.exchange.misc.faces_to_path"><code class="docutils literal notranslate"><span class="pre">faces_to_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.misc.html#trimesh.path.exchange.misc.lines_to_path"><code class="docutils literal notranslate"><span class="pre">lines_to_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.misc.html#trimesh.path.exchange.misc.linestrings_to_path"><code class="docutils literal notranslate"><span class="pre">linestrings_to_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.misc.html#trimesh.path.exchange.misc.polygon_to_path"><code class="docutils literal notranslate"><span class="pre">polygon_to_path()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.exchange.svg_io.html">trimesh.path.exchange.svg_io</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.svg_io.html#trimesh.path.exchange.svg_io.element_transform"><code class="docutils literal notranslate"><span class="pre">element_transform()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.svg_io.html#trimesh.path.exchange.svg_io.export_svg"><code class="docutils literal notranslate"><span class="pre">export_svg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.svg_io.html#trimesh.path.exchange.svg_io.svg_to_path"><code class="docutils literal notranslate"><span class="pre">svg_to_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.exchange.svg_io.html#trimesh.path.exchange.svg_io.transform_to_matrices"><code class="docutils literal notranslate"><span class="pre">transform_to_matrices()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.arc.html">trimesh.path.arc</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.ArcInfo"><code class="docutils literal notranslate"><span class="pre">ArcInfo</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.ArcInfo.__init__"><code class="docutils literal notranslate"><span class="pre">ArcInfo.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.ArcInfo.angles"><code class="docutils literal notranslate"><span class="pre">ArcInfo.angles</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.ArcInfo.center"><code class="docutils literal notranslate"><span class="pre">ArcInfo.center</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.ArcInfo.normal"><code class="docutils literal notranslate"><span class="pre">ArcInfo.normal</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.ArcInfo.radius"><code class="docutils literal notranslate"><span class="pre">ArcInfo.radius</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.ArcInfo.span"><code class="docutils literal notranslate"><span class="pre">ArcInfo.span</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.arc_center"><code class="docutils literal notranslate"><span class="pre">arc_center()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.discretize_arc"><code class="docutils literal notranslate"><span class="pre">discretize_arc()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.arc.html#trimesh.path.arc.to_threepoint"><code class="docutils literal notranslate"><span class="pre">to_threepoint()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.creation.html">trimesh.path.creation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.creation.html#trimesh.path.creation.box_outline"><code class="docutils literal notranslate"><span class="pre">box_outline()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.creation.html#trimesh.path.creation.circle"><code class="docutils literal notranslate"><span class="pre">circle()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.creation.html#trimesh.path.creation.circle_pattern"><code class="docutils literal notranslate"><span class="pre">circle_pattern()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.creation.html#trimesh.path.creation.grid"><code class="docutils literal notranslate"><span class="pre">grid()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.creation.html#trimesh.path.creation.rectangle"><code class="docutils literal notranslate"><span class="pre">rectangle()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.curve.html">trimesh.path.curve</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.curve.html#trimesh.path.curve.binomial"><code class="docutils literal notranslate"><span class="pre">binomial()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.curve.html#trimesh.path.curve.discretize_bezier"><code class="docutils literal notranslate"><span class="pre">discretize_bezier()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.curve.html#trimesh.path.curve.discretize_bspline"><code class="docutils literal notranslate"><span class="pre">discretize_bspline()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.entities.html">trimesh.path.entities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.entities.html#entities-py">entities.py</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Arc"><code class="docutils literal notranslate"><span class="pre">Arc</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Arc.bounds"><code class="docutils literal notranslate"><span class="pre">Arc.bounds()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Arc.center"><code class="docutils literal notranslate"><span class="pre">Arc.center()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Arc.closed"><code class="docutils literal notranslate"><span class="pre">Arc.closed</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Arc.discrete"><code class="docutils literal notranslate"><span class="pre">Arc.discrete()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Arc.is_valid"><code class="docutils literal notranslate"><span class="pre">Arc.is_valid</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Arc.length"><code class="docutils literal notranslate"><span class="pre">Arc.length()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.BSpline"><code class="docutils literal notranslate"><span class="pre">BSpline</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.BSpline.__init__"><code class="docutils literal notranslate"><span class="pre">BSpline.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.BSpline.discrete"><code class="docutils literal notranslate"><span class="pre">BSpline.discrete()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.BSpline.to_dict"><code class="docutils literal notranslate"><span class="pre">BSpline.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Bezier"><code class="docutils literal notranslate"><span class="pre">Bezier</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Bezier.discrete"><code class="docutils literal notranslate"><span class="pre">Bezier.discrete()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Curve"><code class="docutils literal notranslate"><span class="pre">Curve</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Curve.nodes"><code class="docutils literal notranslate"><span class="pre">Curve.nodes</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity"><code class="docutils literal notranslate"><span class="pre">Entity</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.__init__"><code class="docutils literal notranslate"><span class="pre">Entity.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.bounds"><code class="docutils literal notranslate"><span class="pre">Entity.bounds()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.closed"><code class="docutils literal notranslate"><span class="pre">Entity.closed</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.copy"><code class="docutils literal notranslate"><span class="pre">Entity.copy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.end_points"><code class="docutils literal notranslate"><span class="pre">Entity.end_points</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.explode"><code class="docutils literal notranslate"><span class="pre">Entity.explode()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.is_valid"><code class="docutils literal notranslate"><span class="pre">Entity.is_valid</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.layer"><code class="docutils literal notranslate"><span class="pre">Entity.layer</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.length"><code class="docutils literal notranslate"><span class="pre">Entity.length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.metadata"><code class="docutils literal notranslate"><span class="pre">Entity.metadata</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.nodes"><code class="docutils literal notranslate"><span class="pre">Entity.nodes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.reverse"><code class="docutils literal notranslate"><span class="pre">Entity.reverse()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity.to_dict"><code class="docutils literal notranslate"><span class="pre">Entity.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Line"><code class="docutils literal notranslate"><span class="pre">Line</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Line.discrete"><code class="docutils literal notranslate"><span class="pre">Line.discrete()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Line.explode"><code class="docutils literal notranslate"><span class="pre">Line.explode()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Line.is_valid"><code class="docutils literal notranslate"><span class="pre">Line.is_valid</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Line.to_dict"><code class="docutils literal notranslate"><span class="pre">Line.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text"><code class="docutils literal notranslate"><span class="pre">Text</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.__init__"><code class="docutils literal notranslate"><span class="pre">Text.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.angle"><code class="docutils literal notranslate"><span class="pre">Text.angle()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.closed"><code class="docutils literal notranslate"><span class="pre">Text.closed</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.discrete"><code class="docutils literal notranslate"><span class="pre">Text.discrete()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.end_points"><code class="docutils literal notranslate"><span class="pre">Text.end_points</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.is_valid"><code class="docutils literal notranslate"><span class="pre">Text.is_valid</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.length"><code class="docutils literal notranslate"><span class="pre">Text.length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.nodes"><code class="docutils literal notranslate"><span class="pre">Text.nodes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.normal"><code class="docutils literal notranslate"><span class="pre">Text.normal</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.origin"><code class="docutils literal notranslate"><span class="pre">Text.origin</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.plot"><code class="docutils literal notranslate"><span class="pre">Text.plot()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Text.vector"><code class="docutils literal notranslate"><span class="pre">Text.vector</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.intersections.html">trimesh.path.intersections</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.intersections.html#trimesh.path.intersections.line_line"><code class="docutils literal notranslate"><span class="pre">line_line()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.packing.html">trimesh.path.packing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#packing-py">packing.py</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.RectangleBin"><code class="docutils literal notranslate"><span class="pre">RectangleBin</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.RectangleBin.__init__"><code class="docutils literal notranslate"><span class="pre">RectangleBin.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.RectangleBin.extents"><code class="docutils literal notranslate"><span class="pre">RectangleBin.extents</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.RectangleBin.insert"><code class="docutils literal notranslate"><span class="pre">RectangleBin.insert()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.bounds_overlap"><code class="docutils literal notranslate"><span class="pre">bounds_overlap()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.images"><code class="docutils literal notranslate"><span class="pre">images()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.meshes"><code class="docutils literal notranslate"><span class="pre">meshes()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.paths"><code class="docutils literal notranslate"><span class="pre">paths()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.polygons"><code class="docutils literal notranslate"><span class="pre">polygons()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.rectangles"><code class="docutils literal notranslate"><span class="pre">rectangles()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.rectangles_single"><code class="docutils literal notranslate"><span class="pre">rectangles_single()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.roll_transform"><code class="docutils literal notranslate"><span class="pre">roll_transform()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.packing.html#trimesh.path.packing.visualize"><code class="docutils literal notranslate"><span class="pre">visualize()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.path.html">trimesh.path.path</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.path.html#path-py">path.py</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path"><code class="docutils literal notranslate"><span class="pre">Path</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.__init__"><code class="docutils literal notranslate"><span class="pre">Path.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.apply_layer"><code class="docutils literal notranslate"><span class="pre">Path.apply_layer()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.apply_transform"><code class="docutils literal notranslate"><span class="pre">Path.apply_transform()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.bounds"><code class="docutils literal notranslate"><span class="pre">Path.bounds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.centroid"><code class="docutils literal notranslate"><span class="pre">Path.centroid</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.colors"><code class="docutils literal notranslate"><span class="pre">Path.colors</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.convert_units"><code class="docutils literal notranslate"><span class="pre">Path.convert_units()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.copy"><code class="docutils literal notranslate"><span class="pre">Path.copy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.dangling"><code class="docutils literal notranslate"><span class="pre">Path.dangling</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.discrete"><code class="docutils literal notranslate"><span class="pre">Path.discrete</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.entities"><code class="docutils literal notranslate"><span class="pre">Path.entities</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.explode"><code class="docutils literal notranslate"><span class="pre">Path.explode()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.export"><code class="docutils literal notranslate"><span class="pre">Path.export()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.extents"><code class="docutils literal notranslate"><span class="pre">Path.extents</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.fill_gaps"><code class="docutils literal notranslate"><span class="pre">Path.fill_gaps()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.identifier_hash"><code class="docutils literal notranslate"><span class="pre">Path.identifier_hash</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.is_closed"><code class="docutils literal notranslate"><span class="pre">Path.is_closed</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.is_empty"><code class="docutils literal notranslate"><span class="pre">Path.is_empty</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.kdtree"><code class="docutils literal notranslate"><span class="pre">Path.kdtree</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.layers"><code class="docutils literal notranslate"><span class="pre">Path.layers</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.length"><code class="docutils literal notranslate"><span class="pre">Path.length</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.merge_vertices"><code class="docutils literal notranslate"><span class="pre">Path.merge_vertices()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.paths"><code class="docutils literal notranslate"><span class="pre">Path.paths</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.process"><code class="docutils literal notranslate"><span class="pre">Path.process()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.referenced_vertices"><code class="docutils literal notranslate"><span class="pre">Path.referenced_vertices</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.remove_duplicate_entities"><code class="docutils literal notranslate"><span class="pre">Path.remove_duplicate_entities()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.remove_entities"><code class="docutils literal notranslate"><span class="pre">Path.remove_entities()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.remove_invalid"><code class="docutils literal notranslate"><span class="pre">Path.remove_invalid()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.remove_unreferenced_vertices"><code class="docutils literal notranslate"><span class="pre">Path.remove_unreferenced_vertices()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.replace_vertex_references"><code class="docutils literal notranslate"><span class="pre">Path.replace_vertex_references()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.rezero"><code class="docutils literal notranslate"><span class="pre">Path.rezero()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.scene"><code class="docutils literal notranslate"><span class="pre">Path.scene()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.to_dict"><code class="docutils literal notranslate"><span class="pre">Path.to_dict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.vertex_graph"><code class="docutils literal notranslate"><span class="pre">Path.vertex_graph</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.vertex_nodes"><code class="docutils literal notranslate"><span class="pre">Path.vertex_nodes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path.vertices"><code class="docutils literal notranslate"><span class="pre">Path.vertices</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D"><code class="docutils literal notranslate"><span class="pre">Path2D</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.apply_obb"><code class="docutils literal notranslate"><span class="pre">Path2D.apply_obb()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.apply_scale"><code class="docutils literal notranslate"><span class="pre">Path2D.apply_scale()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.area"><code class="docutils literal notranslate"><span class="pre">Path2D.area</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.body_count"><code class="docutils literal notranslate"><span class="pre">Path2D.body_count</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.connected_paths"><code class="docutils literal notranslate"><span class="pre">Path2D.connected_paths()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.convex_hull"><code class="docutils literal notranslate"><span class="pre">Path2D.convex_hull</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.enclosure"><code class="docutils literal notranslate"><span class="pre">Path2D.enclosure</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.enclosure_directed"><code class="docutils literal notranslate"><span class="pre">Path2D.enclosure_directed</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.enclosure_shell"><code class="docutils literal notranslate"><span class="pre">Path2D.enclosure_shell</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.extrude"><code class="docutils literal notranslate"><span class="pre">Path2D.extrude()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.identifier"><code class="docutils literal notranslate"><span class="pre">Path2D.identifier</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.medial_axis"><code class="docutils literal notranslate"><span class="pre">Path2D.medial_axis()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.obb"><code class="docutils literal notranslate"><span class="pre">Path2D.obb</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.path_valid"><code class="docutils literal notranslate"><span class="pre">Path2D.path_valid</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.plot_discrete"><code class="docutils literal notranslate"><span class="pre">Path2D.plot_discrete()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.plot_entities"><code class="docutils literal notranslate"><span class="pre">Path2D.plot_entities()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.polygons_closed"><code class="docutils literal notranslate"><span class="pre">Path2D.polygons_closed</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.polygons_full"><code class="docutils literal notranslate"><span class="pre">Path2D.polygons_full</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.rasterize"><code class="docutils literal notranslate"><span class="pre">Path2D.rasterize()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.root"><code class="docutils literal notranslate"><span class="pre">Path2D.root</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.sample"><code class="docutils literal notranslate"><span class="pre">Path2D.sample()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.show"><code class="docutils literal notranslate"><span class="pre">Path2D.show()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.simplify"><code class="docutils literal notranslate"><span class="pre">Path2D.simplify()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.simplify_spline"><code class="docutils literal notranslate"><span class="pre">Path2D.simplify_spline()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.split"><code class="docutils literal notranslate"><span class="pre">Path2D.split()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.to_3D"><code class="docutils literal notranslate"><span class="pre">Path2D.to_3D()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D.triangulate"><code class="docutils literal notranslate"><span class="pre">Path2D.triangulate()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path3D"><code class="docutils literal notranslate"><span class="pre">Path3D</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path3D.convex_hull"><code class="docutils literal notranslate"><span class="pre">Path3D.convex_hull</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path3D.identifier"><code class="docutils literal notranslate"><span class="pre">Path3D.identifier</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path3D.show"><code class="docutils literal notranslate"><span class="pre">Path3D.show()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path3D.to_2D"><code class="docutils literal notranslate"><span class="pre">Path3D.to_2D()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path3D.to_planar"><code class="docutils literal notranslate"><span class="pre">Path3D.to_planar()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.polygons.html">trimesh.path.polygons</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.edges_to_polygons"><code class="docutils literal notranslate"><span class="pre">edges_to_polygons()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.enclosure_tree"><code class="docutils literal notranslate"><span class="pre">enclosure_tree()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.identifier"><code class="docutils literal notranslate"><span class="pre">identifier()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.medial_axis"><code class="docutils literal notranslate"><span class="pre">medial_axis()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.paths_to_polygons"><code class="docutils literal notranslate"><span class="pre">paths_to_polygons()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.plot"><code class="docutils literal notranslate"><span class="pre">plot()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.polygon_bounds"><code class="docutils literal notranslate"><span class="pre">polygon_bounds()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.polygon_obb"><code class="docutils literal notranslate"><span class="pre">polygon_obb()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.polygon_scale"><code class="docutils literal notranslate"><span class="pre">polygon_scale()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.polygons_obb"><code class="docutils literal notranslate"><span class="pre">polygons_obb()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.projected"><code class="docutils literal notranslate"><span class="pre">projected()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.random_polygon"><code class="docutils literal notranslate"><span class="pre">random_polygon()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.repair_invalid"><code class="docutils literal notranslate"><span class="pre">repair_invalid()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.resample_boundaries"><code class="docutils literal notranslate"><span class="pre">resample_boundaries()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.sample"><code class="docutils literal notranslate"><span class="pre">sample()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.second_moments"><code class="docutils literal notranslate"><span class="pre">second_moments()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.stack_boundaries"><code class="docutils literal notranslate"><span class="pre">stack_boundaries()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.polygons.html#trimesh.path.polygons.transform_polygon"><code class="docutils literal notranslate"><span class="pre">transform_polygon()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.raster.html">trimesh.path.raster</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.raster.html#raster-py">raster.py</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.raster.html#trimesh.path.raster.rasterize"><code class="docutils literal notranslate"><span class="pre">rasterize()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.repair.html">trimesh.path.repair</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.repair.html#repair-py">repair.py</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.repair.html#trimesh.path.repair.fill_gaps"><code class="docutils literal notranslate"><span class="pre">fill_gaps()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.segments.html">trimesh.path.segments</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#segments-py">segments.py</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.clean"><code class="docutils literal notranslate"><span class="pre">clean()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.colinear_pairs"><code class="docutils literal notranslate"><span class="pre">colinear_pairs()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.extrude"><code class="docutils literal notranslate"><span class="pre">extrude()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.length"><code class="docutils literal notranslate"><span class="pre">length()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.parameters_to_segments"><code class="docutils literal notranslate"><span class="pre">parameters_to_segments()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.resample"><code class="docutils literal notranslate"><span class="pre">resample()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.segments_to_parameters"><code class="docutils literal notranslate"><span class="pre">segments_to_parameters()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.split"><code class="docutils literal notranslate"><span class="pre">split()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.to_svg"><code class="docutils literal notranslate"><span class="pre">to_svg()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.segments.html#trimesh.path.segments.unique"><code class="docutils literal notranslate"><span class="pre">unique()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.simplify.html">trimesh.path.simplify</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.simplify.html#trimesh.path.simplify.fit_circle_check"><code class="docutils literal notranslate"><span class="pre">fit_circle_check()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.simplify.html#trimesh.path.simplify.is_circle"><code class="docutils literal notranslate"><span class="pre">is_circle()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.simplify.html#trimesh.path.simplify.merge_colinear"><code class="docutils literal notranslate"><span class="pre">merge_colinear()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.simplify.html#trimesh.path.simplify.points_to_spline_entity"><code class="docutils literal notranslate"><span class="pre">points_to_spline_entity()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.simplify.html#trimesh.path.simplify.resample_spline"><code class="docutils literal notranslate"><span class="pre">resample_spline()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.simplify.html#trimesh.path.simplify.simplify_basic"><code class="docutils literal notranslate"><span class="pre">simplify_basic()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.simplify.html#trimesh.path.simplify.simplify_spline"><code class="docutils literal notranslate"><span class="pre">simplify_spline()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.traversal.html">trimesh.path.traversal</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.PathSample"><code class="docutils literal notranslate"><span class="pre">PathSample</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.PathSample.__init__"><code class="docutils literal notranslate"><span class="pre">PathSample.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.PathSample.sample"><code class="docutils literal notranslate"><span class="pre">PathSample.sample()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.PathSample.truncate"><code class="docutils literal notranslate"><span class="pre">PathSample.truncate()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.closed_paths"><code class="docutils literal notranslate"><span class="pre">closed_paths()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.discretize_path"><code class="docutils literal notranslate"><span class="pre">discretize_path()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.resample_path"><code class="docutils literal notranslate"><span class="pre">resample_path()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.split"><code class="docutils literal notranslate"><span class="pre">split()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.vertex_graph"><code class="docutils literal notranslate"><span class="pre">vertex_graph()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.traversal.html#trimesh.path.traversal.vertex_to_entity_path"><code class="docutils literal notranslate"><span class="pre">vertex_to_entity_path()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trimesh.path.util.html">trimesh.path.util</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.path.util.html#trimesh.path.util.concatenate"><code class="docutils literal notranslate"><span class="pre">concatenate()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+<section id="module-trimesh.path">
+<span id="id1"></span><h2>trimesh.path<a class="headerlink" href="#module-trimesh.path" title="Link to this heading">¶</a></h2>
+<p>Handle 2D and 3D vector paths such as those contained in an
+SVG or DXF file.</p>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.path.Path2D">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.path.</span></span><span class="sig-name descname"><span class="pre">Path2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entities</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Iterable" title="collections.abc.Iterable"><span class="pre">Iterable</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity" title="trimesh.path.entities.Entity"><span class="pre">Entity</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Mapping" title="collections.abc.Mapping"><span class="pre">Mapping</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">process</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertex_attributes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Mapping" title="collections.abc.Mapping"><span class="pre">Mapping</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path" title="trimesh.path.path.Path"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></p>
+<p>Hold multiple vector curves (lines, arcs, splines, etc) in 3D.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.apply_obb">
+<span class="sig-name descname"><span class="pre">apply_obb</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.apply_obb" title="Link to this definition">¶</a></dt>
+<dd><p>Transform the current path so that its OBB is axis aligned
+and OBB center is at the origin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>obb</strong> – Homogeneous transformation matrix</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(3, 3) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.apply_scale">
+<span class="sig-name descname"><span class="pre">apply_scale</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scale</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.apply_scale" title="Link to this definition">¶</a></dt>
+<dd><p>Apply a 2D scale to the current Path2D.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>scale</strong> (<em>float</em><em> or </em><em>(</em><em>2</em><em>,</em><em>) </em><em>float</em>) – Scale to apply in-place.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.area">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">area</span></span><a class="headerlink" href="#trimesh.path.Path2D.area" title="Link to this definition">¶</a></dt>
+<dd><p>Return the area of the polygons interior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>area</strong> – Total area of polygons minus interiors</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.body_count">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">body_count</span></span><a class="headerlink" href="#trimesh.path.Path2D.body_count" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a count of the number of unconnected polygons that
+may contain other curves but aren’t contained themselves.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>body_count</strong> – Number of unconnected independent polygons.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.connected_paths">
+<span class="sig-name descname"><span class="pre">connected_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_self</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.connected_paths" title="Link to this definition">¶</a></dt>
+<dd><p>Given an index of self.paths find other paths which
+overlap with that path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path_id</strong> (<em>int</em>) – Index of self.paths</p></li>
+<li><p><strong>include_self</strong> (<em>bool</em>) – Should the result include path_id or not</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>path_ids</strong> – Indexes of self.paths that overlap input path_id</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(n, ) int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.convex_hull">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">convex_hull</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D" title="trimesh.path.path.Path2D"><span class="pre">Path2D</span></a></em><a class="headerlink" href="#trimesh.path.Path2D.convex_hull" title="Link to this definition">¶</a></dt>
+<dd><p>Return a convex hull of the 2D path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A convex hull of included vertices from this path.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>hull</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.enclosure">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">enclosure</span></span><a class="headerlink" href="#trimesh.path.Path2D.enclosure" title="Link to this definition">¶</a></dt>
+<dd><p>Undirected graph object of polygon enclosure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>enclosure</strong> – Enclosure graph of self.polygons by index.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>networkx.Graph</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.enclosure_directed">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">enclosure_directed</span></span><a class="headerlink" href="#trimesh.path.Path2D.enclosure_directed" title="Link to this definition">¶</a></dt>
+<dd><p>Directed graph of polygon enclosure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>enclosure_directed</strong> – Directed graph: child nodes are fully
+contained by their parent node.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>networkx.DiGraph</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.enclosure_shell">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">enclosure_shell</span></span><a class="headerlink" href="#trimesh.path.Path2D.enclosure_shell" title="Link to this definition">¶</a></dt>
+<dd><p>A dictionary of path indexes which are ‘shell’ paths, and values
+of ‘hole’ paths.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>corresponding</strong> – {index of self.paths of shell : [indexes of holes]}</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.extrude">
+<span class="sig-name descname"><span class="pre">extrude</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">height</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.extrude" title="Link to this definition">¶</a></dt>
+<dd><p>Extrude the current 2D path into a 3D mesh.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>height</strong> (<em>float</em><em>, </em><em>how far to extrude the profile</em>)</p></li>
+<li><p><strong>kwargs</strong> (<em>passed directly to meshpy.triangle.build:</em>) – <dl class="simple">
+<dt>triangle.build(mesh_info,</dt><dd><p>verbose=False,
+refinement_func=None,
+attributes=False,
+volume_constraints=True,
+max_volume=None,
+allow_boundary_steiner=True,
+allow_volume_steiner=True,
+quality_meshing=True,
+generate_edges=None,
+generate_faces=False,
+min_angle=None)</p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>mesh</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>trimesh object representing extruded polygon</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.identifier">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">identifier</span></span><a class="headerlink" href="#trimesh.path.Path2D.identifier" title="Link to this definition">¶</a></dt>
+<dd><p>A unique identifier for the path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>identifier</strong> – Unique identifier</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(5,) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.medial_axis">
+<span class="sig-name descname"><span class="pre">medial_axis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.medial_axis" title="Link to this definition">¶</a></dt>
+<dd><p>Find the approximate medial axis based
+on a voronoi diagram of evenly spaced points on the
+boundary of the polygon.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>resolution</strong> (<em>None</em><em> or </em><em>float</em>) – Distance between each sample on the polygon boundary</p></li>
+<li><p><strong>clip</strong> (<em>None</em><em>, or </em><em>(</em><em>2</em><em>,</em><em>) </em><em>float</em>) – Min, max number of samples</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>medial</strong> – Contains only medial axis of Path</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Path2D object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.obb">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">obb</span></span><a class="headerlink" href="#trimesh.path.Path2D.obb" title="Link to this definition">¶</a></dt>
+<dd><p>Get a transform that centers and aligns the OBB of the
+referenced vertices with the XY axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>obb</strong> – Homogeneous transformation matrix</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(3, 3) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.path_valid">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">path_valid</span></span><a class="headerlink" href="#trimesh.path.Path2D.path_valid" title="Link to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>returns: <strong>path_valid</strong> – Indexes of self.paths self.polygons_closed</dt><dd><p>which are valid polygons.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(n,) bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.plot_discrete">
+<span class="sig-name descname"><span class="pre">plot_discrete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">show</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.plot_discrete" title="Link to this definition">¶</a></dt>
+<dd><p>Plot the closed curves of the path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.plot_entities">
+<span class="sig-name descname"><span class="pre">plot_entities</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">show</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.plot_entities" title="Link to this definition">¶</a></dt>
+<dd><p>Plot the entities of the path with no notion of topology.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>show</strong> (<em>bool</em>) – Open a window immediately or not</p></li>
+<li><p><strong>annotations</strong> (<em>bool</em>) – Call an entities custom plot function.</p></li>
+<li><p><strong>color</strong> (<em>str</em>) – Override entity colors and make them all this color.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.polygons_closed">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">polygons_closed</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Any" title="typing.Any"><span class="pre">Any</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">_ScalarT</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#trimesh.path.Path2D.polygons_closed" title="Link to this definition">¶</a></dt>
+<dd><p>Cycles in the vertex graph, as shapely.geometry.Polygons.
+These are polygon objects for every closed circuit, with no notion
+of whether a polygon is a hole or an area. Every polygon in this
+list will have an exterior, but NO interiors.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>polygons_closed</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(n,) list of shapely.geometry.Polygon objects</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.polygons_full">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">polygons_full</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span></em><a class="headerlink" href="#trimesh.path.Path2D.polygons_full" title="Link to this definition">¶</a></dt>
+<dd><p>A list of shapely.geometry.Polygon objects with interiors created
+by checking which closed polygons enclose which other polygons.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>full</strong> – Polygons containing interiors</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(len(self.root),) shapely.geometry.Polygon</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.rasterize">
+<span class="sig-name descname"><span class="pre">rasterize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pitch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fill</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.rasterize" title="Link to this definition">¶</a></dt>
+<dd><p>Rasterize a Path2D object into a boolean image (“mode 1”).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pitch</strong> (<em>float</em><em> or </em><em>(</em><em>2</em><em>,</em><em>) </em><em>float</em>) – Length(s) in model space of pixel edges</p></li>
+<li><p><strong>origin</strong> (<em>(</em><em>2</em><em>,</em><em>) </em><em>float</em>) – Origin position in model space</p></li>
+<li><p><strong>resolution</strong> (<em>(</em><em>2</em><em>,</em><em>) </em><em>int</em>) – Resolution in pixel space</p></li>
+<li><p><strong>fill</strong> (<em>bool</em>) – If True will return closed regions as filled</p></li>
+<li><p><strong>width</strong> (<em>int</em>) – If not None will draw outline this wide (pixels)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>raster</strong> – Rasterized version of closed regions.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>PIL.Image object, mode 1</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.root">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">root</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Any" title="typing.Any"><span class="pre">Any</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.typed.html#trimesh.typed.int64" title="numpy.int64"><span class="pre">int64</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#trimesh.path.Path2D.root" title="Link to this definition">¶</a></dt>
+<dd><p>Which indexes of self.paths/self.polygons_closed
+are root curves, also known as ‘shell’ or ‘exterior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>root</strong> – List of indexes</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(n,) int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">count</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.sample" title="Link to this definition">¶</a></dt>
+<dd><p>Use rejection sampling to generate random points inside a
+polygon.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>count</strong> (<em>int</em>) – Number of points to return
+If there are multiple bodies, there will
+be up to count * bodies points returned</p></li>
+<li><p><strong>factor</strong> (<em>float</em>) – How many points to test per loop
+IE, count * factor</p></li>
+<li><p><strong>max_iter</strong> (<em>int</em><em>,</em>) – Maximum number of intersection loops
+to run, total points sampled is
+count * factor * max_iter</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>hit</strong> – Random points inside polygon</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(n, 2) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.show">
+<span class="sig-name descname"><span class="pre">show</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.show" title="Link to this definition">¶</a></dt>
+<dd><p>Plot the current Path2D object using matplotlib.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.simplify">
+<span class="sig-name descname"><span class="pre">simplify</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.simplify" title="Link to this definition">¶</a></dt>
+<dd><p>Return a version of the current path with colinear segments
+merged, and circles entities replacing segmented circular paths.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>simplified</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Path2D object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.simplify_spline">
+<span class="sig-name descname"><span class="pre">simplify_spline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smooth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0002</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.simplify_spline" title="Link to this definition">¶</a></dt>
+<dd><p>Convert paths into b-splines.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>smooth</strong> (<em>float</em>) – How much the spline should smooth the curve</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – Print detailed log messages</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>simplified</strong> – Discrete curves replaced with splines</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#trimesh.path.Path2D" title="trimesh.path.Path2D">Path2D</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.split">
+<span class="sig-name descname"><span class="pre">split</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.split" title="Link to this definition">¶</a></dt>
+<dd><p>If the current Path2D consists of n ‘root’ curves,
+split them into a list of n Path2D objects</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>split</strong> – Each connected region and interiors</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(n,) list of Path2D objects</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.to_3D">
+<span class="sig-name descname"><span class="pre">to_3D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.to_3D" title="Link to this definition">¶</a></dt>
+<dd><p>Convert 2D path to 3D path on the XY plane.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>transform</strong> (<em>(</em><em>4</em><em>, </em><em>4</em><em>) </em><em>float</em>) – If passed, will transform vertices.
+If not passed and ‘to_3D’ is in self.metadata
+that transform will be used.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>path_3D</strong> – 3D version of current path</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#trimesh.path.Path3D" title="trimesh.path.Path3D">Path3D</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path2D.triangulate">
+<span class="sig-name descname"><span class="pre">triangulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path2D.triangulate" title="Link to this definition">¶</a></dt>
+<dd><p>Create a region- aware triangulation of the 2D path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**kwargs</strong> (<em>dict</em>) – Passed to <cite>trimesh.creation.triangulate_polygon</cite></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>vertices</strong> (<em>(n, 2) float</em>) – 2D vertices of triangulation</p></li>
+<li><p><strong>faces</strong> (<em>(n, 3) int</em>) – Indexes of vertices for triangles</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.path.Path3D">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.path.</span></span><span class="sig-name descname"><span class="pre">Path3D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entities</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Iterable" title="collections.abc.Iterable"><span class="pre">Iterable</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.path.entities.html#trimesh.path.entities.Entity" title="trimesh.path.entities.Entity"><span class="pre">Entity</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Mapping" title="collections.abc.Mapping"><span class="pre">Mapping</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">process</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertex_attributes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Mapping" title="collections.abc.Mapping"><span class="pre">Mapping</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path3D" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path" title="trimesh.path.path.Path"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></p>
+<p>Hold multiple vector curves (lines, arcs, splines, etc) in 3D.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path3D.convex_hull">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">convex_hull</span></span><a class="headerlink" href="#trimesh.path.Path3D.convex_hull" title="Link to this definition">¶</a></dt>
+<dd><p>Return a convex hull of the 3D path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>hull</strong> – A mesh of the convex hull of the 3D path.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="trimesh.html#trimesh.Trimesh" title="trimesh.Trimesh">trimesh.Trimesh</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.Path3D.identifier">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">identifier</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Any" title="typing.Any"><span class="pre">Any</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.typed.html#trimesh.typed.float64" title="numpy.float64"><span class="pre">float64</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#trimesh.path.Path3D.identifier" title="Link to this definition">¶</a></dt>
+<dd><p>Return a simple identifier for the 3D path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path3D.show">
+<span class="sig-name descname"><span class="pre">show</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path3D.show" title="Link to this definition">¶</a></dt>
+<dd><p>Show the current Path3D object.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path3D.to_2D">
+<span class="sig-name descname"><span class="pre">to_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">to_2D</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ArrayLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">check</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.path.path.html#trimesh.path.path.Path2D" title="trimesh.path.path.Path2D"><span class="pre">Path2D</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.typed.html#trimesh.typed.Any" title="typing.Any"><span class="pre">Any</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="trimesh.typed.html#trimesh.typed.float64" title="numpy.float64"><span class="pre">float64</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#trimesh.path.Path3D.to_2D" title="Link to this definition">¶</a></dt>
+<dd><p>Check to see if current vectors are all coplanar.</p>
+<p>If they are, return a Path2D and a transform which will
+transform the 2D representation back into 3 dimensions</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>to_2D</strong> (<em>(</em><em>4</em><em>, </em><em>4</em><em>) </em><em>float</em>) – Homogeneous transformation matrix to apply,
+if not passed a plane will be fitted to vertices.</p></li>
+<li><p><strong>normal</strong> (<em>(</em><em>3</em><em>,</em><em>) </em><em>float</em><em> or </em><em>None</em>) – Normal of direction of plane to use.</p></li>
+<li><p><strong>check</strong> – Raise a ValueError if points aren’t coplanar.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>planar</em> – Current path transformed onto plane</p></li>
+<li><p><strong>to_3D</strong> (<em>(4, 4) float</em>) – Homeogenous transformations to move planar
+back into the original 3D frame.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.Path3D.to_planar">
+<span class="sig-name descname"><span class="pre">to_planar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.Path3D.to_planar" title="Link to this definition">¶</a></dt>
+<dd><p>DEPRECATED: replace <cite>path.to_planar</cite>-&gt;`path.to_2D), removal 1/1/2026</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="trimesh.path.exchange.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">trimesh.path.exchange</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="trimesh.interfaces.generic.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">trimesh.interfaces.generic</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, Michael Dawson-Haggerty
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">trimesh.path</a><ul>
+<li><a class="reference internal" href="#module-trimesh.path">trimesh.path</a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D"><code class="docutils literal notranslate"><span class="pre">Path2D</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.path.Path2D.apply_obb"><code class="docutils literal notranslate"><span class="pre">Path2D.apply_obb()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.apply_scale"><code class="docutils literal notranslate"><span class="pre">Path2D.apply_scale()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.area"><code class="docutils literal notranslate"><span class="pre">Path2D.area</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.body_count"><code class="docutils literal notranslate"><span class="pre">Path2D.body_count</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.connected_paths"><code class="docutils literal notranslate"><span class="pre">Path2D.connected_paths()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.convex_hull"><code class="docutils literal notranslate"><span class="pre">Path2D.convex_hull</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.enclosure"><code class="docutils literal notranslate"><span class="pre">Path2D.enclosure</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.enclosure_directed"><code class="docutils literal notranslate"><span class="pre">Path2D.enclosure_directed</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.enclosure_shell"><code class="docutils literal notranslate"><span class="pre">Path2D.enclosure_shell</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.extrude"><code class="docutils literal notranslate"><span class="pre">Path2D.extrude()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.identifier"><code class="docutils literal notranslate"><span class="pre">Path2D.identifier</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.medial_axis"><code class="docutils literal notranslate"><span class="pre">Path2D.medial_axis()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.obb"><code class="docutils literal notranslate"><span class="pre">Path2D.obb</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.path_valid"><code class="docutils literal notranslate"><span class="pre">Path2D.path_valid</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.plot_discrete"><code class="docutils literal notranslate"><span class="pre">Path2D.plot_discrete()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.plot_entities"><code class="docutils literal notranslate"><span class="pre">Path2D.plot_entities()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.polygons_closed"><code class="docutils literal notranslate"><span class="pre">Path2D.polygons_closed</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.polygons_full"><code class="docutils literal notranslate"><span class="pre">Path2D.polygons_full</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.rasterize"><code class="docutils literal notranslate"><span class="pre">Path2D.rasterize()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.root"><code class="docutils literal notranslate"><span class="pre">Path2D.root</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.sample"><code class="docutils literal notranslate"><span class="pre">Path2D.sample()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.show"><code class="docutils literal notranslate"><span class="pre">Path2D.show()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.simplify"><code class="docutils literal notranslate"><span class="pre">Path2D.simplify()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.simplify_spline"><code class="docutils literal notranslate"><span class="pre">Path2D.simplify_spline()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.split"><code class="docutils literal notranslate"><span class="pre">Path2D.split()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.to_3D"><code class="docutils literal notranslate"><span class="pre">Path2D.to_3D()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path2D.triangulate"><code class="docutils literal notranslate"><span class="pre">Path2D.triangulate()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.path.Path3D"><code class="docutils literal notranslate"><span class="pre">Path3D</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.path.Path3D.convex_hull"><code class="docutils literal notranslate"><span class="pre">Path3D.convex_hull</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path3D.identifier"><code class="docutils literal notranslate"><span class="pre">Path3D.identifier</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path3D.show"><code class="docutils literal notranslate"><span class="pre">Path3D.show()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path3D.to_2D"><code class="docutils literal notranslate"><span class="pre">Path3D.to_2D()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.Path3D.to_planar"><code class="docutils literal notranslate"><span class="pre">Path3D.to_planar()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=70aa39c2"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

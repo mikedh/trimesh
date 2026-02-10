@@ -1,0 +1,59 @@
+trimesh
+=======
+
+.. toctree::
+
+   trimesh.exchange
+   trimesh.interfaces
+   trimesh.path
+   trimesh.ray
+   trimesh.resources
+   trimesh.scene
+   trimesh.viewer
+   trimesh.visual
+   trimesh.voxel
+   trimesh.base
+   trimesh.boolean
+   trimesh.bounds
+   trimesh.caching
+   trimesh.collision
+   trimesh.comparison
+   trimesh.constants
+   trimesh.convex
+   trimesh.creation
+   trimesh.curvature
+   trimesh.decomposition
+   trimesh.exceptions
+   trimesh.geometry
+   trimesh.graph
+   trimesh.grouping
+   trimesh.inertia
+   trimesh.intersections
+   trimesh.interval
+   trimesh.iteration
+   trimesh.nsphere
+   trimesh.parent
+   trimesh.permutate
+   trimesh.points
+   trimesh.poses
+   trimesh.primitives
+   trimesh.proximity
+   trimesh.registration
+   trimesh.remesh
+   trimesh.rendering
+   trimesh.repair
+   trimesh.resolvers
+   trimesh.sample
+   trimesh.schemas
+   trimesh.smoothing
+   trimesh.transformations
+   trimesh.triangles
+   trimesh.typed
+   trimesh.units
+   trimesh.util
+   trimesh.version
+
+.. automodule:: trimesh
+   :members:
+   :show-inheritance:
+   :undoc-members:

@@ -1,0 +1,7 @@
+trimesh.visual.base
+===================
+
+.. automodule:: trimesh.visual.base
+   :members:
+   :show-inheritance:
+   :undoc-members:

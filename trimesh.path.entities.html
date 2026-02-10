@@ -1,0 +1,1211 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="trimesh.path.intersections" href="trimesh.path.intersections.html"><link rel="prev" title="trimesh.path.curve" href="trimesh.path.curve.html">
+        <link rel="prefetch" href="_static/trimesh-logo.png" as="image">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>trimesh.path.entities - trimesh 4.11.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">trimesh 4.11.2 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="_static/trimesh-logo.png" alt="Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">trimesh 4.11.2 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference external" href="http://github.com/mikedh/trimesh">Github</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="examples.html">Examples</a><input aria-label="Toggle navigation of Examples" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="texture.html">Texture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="curvature.html">Curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="colors.html">Colors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nearest.html">Nearest</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ray.html">Ray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="section.html">Section</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shortest.html">Shortest</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Geometry Formats</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="docker.html">Docker</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="trimesh.html">API Reference</a><input aria-label="Toggle navigation of API Reference" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.exchange.html">trimesh.exchange</a><input aria-label="Toggle navigation of trimesh.exchange" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="trimesh.exchange.gltf.html">trimesh.exchange.gltf</a><input aria-label="Toggle navigation of trimesh.exchange.gltf" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.exchange.gltf.extensions.html">trimesh.exchange.gltf.extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.binvox.html">trimesh.exchange.binvox</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.cascade.html">trimesh.exchange.cascade</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.dae.html">trimesh.exchange.dae</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.export.html">trimesh.exchange.export</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.load.html">trimesh.exchange.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.misc.html">trimesh.exchange.misc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.obj.html">trimesh.exchange.obj</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.off.html">trimesh.exchange.off</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.ply.html">trimesh.exchange.ply</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.stl.html">trimesh.exchange.stl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.threedxml.html">trimesh.exchange.threedxml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.threemf.html">trimesh.exchange.threemf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.urdf.html">trimesh.exchange.urdf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.xaml.html">trimesh.exchange.xaml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.xyz.html">trimesh.exchange.xyz</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.interfaces.html">trimesh.interfaces</a><input aria-label="Toggle navigation of trimesh.interfaces" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.interfaces.blender.html">trimesh.interfaces.blender</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.interfaces.generic.html">trimesh.interfaces.generic</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="trimesh.path.html">trimesh.path</a><input aria-label="Toggle navigation of trimesh.path" checked="" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l3 has-children"><a class="reference internal" href="trimesh.path.exchange.html">trimesh.path.exchange</a><input aria-label="Toggle navigation of trimesh.path.exchange" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.dxf.html">trimesh.path.exchange.dxf</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.export.html">trimesh.path.exchange.export</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.load.html">trimesh.path.exchange.load</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.misc.html">trimesh.path.exchange.misc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.svg_io.html">trimesh.path.exchange.svg_io</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html">trimesh.path.arc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.creation.html">trimesh.path.creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.curve.html">trimesh.path.curve</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">trimesh.path.entities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.intersections.html">trimesh.path.intersections</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.packing.html">trimesh.path.packing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html">trimesh.path.path</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.polygons.html">trimesh.path.polygons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.raster.html">trimesh.path.raster</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.repair.html">trimesh.path.repair</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.segments.html">trimesh.path.segments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.simplify.html">trimesh.path.simplify</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.traversal.html">trimesh.path.traversal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.util.html">trimesh.path.util</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.ray.html">trimesh.ray</a><input aria-label="Toggle navigation of trimesh.ray" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_pyembree.html">trimesh.ray.ray_pyembree</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_triangle.html">trimesh.ray.ray_triangle</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_util.html">trimesh.ray.ray_util</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.resources.html">trimesh.resources</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.scene.html">trimesh.scene</a><input aria-label="Toggle navigation of trimesh.scene" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.cameras.html">trimesh.scene.cameras</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.lighting.html">trimesh.scene.lighting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.scene.html">trimesh.scene.scene</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.transforms.html">trimesh.scene.transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.viewer.html">trimesh.viewer</a><input aria-label="Toggle navigation of trimesh.viewer" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.notebook.html">trimesh.viewer.notebook</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.trackball.html">trimesh.viewer.trackball</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.widget.html">trimesh.viewer.widget</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.windowed.html">trimesh.viewer.windowed</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.visual.html">trimesh.visual</a><input aria-label="Toggle navigation of trimesh.visual" class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.base.html">trimesh.visual.base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.color.html">trimesh.visual.color</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.gloss.html">trimesh.visual.gloss</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.material.html">trimesh.visual.material</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.objects.html">trimesh.visual.objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.texture.html">trimesh.visual.texture</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.voxel.html">trimesh.voxel</a><input aria-label="Toggle navigation of trimesh.voxel" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.base.html">trimesh.voxel.base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.creation.html">trimesh.voxel.creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.encoding.html">trimesh.voxel.encoding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.morphology.html">trimesh.voxel.morphology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.ops.html">trimesh.voxel.ops</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.runlength.html">trimesh.voxel.runlength</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.transforms.html">trimesh.voxel.transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.base.html">trimesh.base</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.boolean.html">trimesh.boolean</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.bounds.html">trimesh.bounds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.caching.html">trimesh.caching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.collision.html">trimesh.collision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.comparison.html">trimesh.comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.constants.html">trimesh.constants</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.convex.html">trimesh.convex</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.creation.html">trimesh.creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.curvature.html">trimesh.curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.decomposition.html">trimesh.decomposition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.exceptions.html">trimesh.exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.geometry.html">trimesh.geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.graph.html">trimesh.graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.grouping.html">trimesh.grouping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.inertia.html">trimesh.inertia</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.intersections.html">trimesh.intersections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.interval.html">trimesh.interval</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.iteration.html">trimesh.iteration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.nsphere.html">trimesh.nsphere</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.parent.html">trimesh.parent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.permutate.html">trimesh.permutate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.points.html">trimesh.points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.poses.html">trimesh.poses</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.primitives.html">trimesh.primitives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.proximity.html">trimesh.proximity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.registration.html">trimesh.registration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.remesh.html">trimesh.remesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.rendering.html">trimesh.rendering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.repair.html">trimesh.repair</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.resolvers.html">trimesh.resolvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.sample.html">trimesh.sample</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.schemas.html">trimesh.schemas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.smoothing.html">trimesh.smoothing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.transformations.html">trimesh.transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.triangles.html">trimesh.triangles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.typed.html">trimesh.typed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.units.html">trimesh.units</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.util.html">trimesh.util</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.version.html">trimesh.version</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/trimesh.path.entities.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="module-trimesh.path.entities">
+<span id="trimesh-path-entities"></span><h1>trimesh.path.entities<a class="headerlink" href="#module-trimesh.path.entities" title="Link to this heading">¶</a></h1>
+<section id="entities-py">
+<h2>entities.py<a class="headerlink" href="#entities-py" title="Link to this heading">¶</a></h2>
+<p>Basic geometric primitives which only store references to
+vertex indices rather than vertices themselves.</p>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.path.entities.Arc">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.path.entities.</span></span><span class="sig-name descname"><span class="pre">Arc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Arc" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#trimesh.path.entities.Entity" title="trimesh.path.entities.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">Entity</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Arc.bounds">
+<span class="sig-name descname"><span class="pre">bounds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Arc.bounds" title="Link to this definition">¶</a></dt>
+<dd><p>Return the AABB of the arc entity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>dimension</em><em>) </em><em>float</em>) – Vertices in space</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>bounds</strong> – Coordinates of AABB in (min, max) form</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(2, dimension) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Arc.center">
+<span class="sig-name descname"><span class="pre">center</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Arc.center" title="Link to this definition">¶</a></dt>
+<dd><p>Return the center information about the arc entity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>dimension</em><em>) </em><em>float</em>) – Vertices in space</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>info</strong> – With keys: ‘radius’, ‘center’</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Arc.closed">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">closed</span></span><a class="headerlink" href="#trimesh.path.entities.Arc.closed" title="Link to this definition">¶</a></dt>
+<dd><p>A boolean flag for whether the arc is closed (a circle) or not.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>closed</strong> – If set True, Arc will be a closed circle</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Arc.discrete">
+<span class="sig-name descname"><span class="pre">discrete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Arc.discrete" title="Link to this definition">¶</a></dt>
+<dd><p>Discretize the arc entity into line sections.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>dimension</em><em>) </em><em>float</em>) – Points in space</p></li>
+<li><p><strong>scale</strong> (<em>float</em>) – Size of overall scene for numerical comparisons</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>discrete</strong> – Path in space made up of line segments</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(m, dimension) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Arc.is_valid">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_valid</span></span><a class="headerlink" href="#trimesh.path.entities.Arc.is_valid" title="Link to this definition">¶</a></dt>
+<dd><p>Is the current Arc entity valid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>valid</strong> – Does the current Arc have exactly 3 control points</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Arc.length">
+<span class="sig-name descname"><span class="pre">length</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Arc.length" title="Link to this definition">¶</a></dt>
+<dd><p>Return the arc length of the 3-point arc.</p>
+<section id="parameter">
+<h2>Parameter<a class="headerlink" href="#parameter" title="Link to this heading">¶</a></h2>
+<dl class="simple">
+<dt>vertices<span class="classifier">(n, d) float</span></dt><dd><p>Vertices for overall drawing.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>length</strong> – Length of arc.</p>
+</dd>
+<dt class="field-even">rtype<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.path.entities.BSpline">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.path.entities.</span></span><span class="sig-name descname"><span class="pre">BSpline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">knots</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.BSpline" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#trimesh.path.entities.Curve" title="trimesh.path.entities.Curve"><code class="xref py py-class docutils literal notranslate"><span class="pre">Curve</span></code></a></p>
+<p>An open or closed B- Spline.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.BSpline.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">knots</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.BSpline.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.BSpline.discrete">
+<span class="sig-name descname"><span class="pre">discrete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.BSpline.discrete" title="Link to this definition">¶</a></dt>
+<dd><p>Discretize the B-Spline curve.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>2</em><em>) or </em><em>(</em><em>n</em><em>, </em><em>3</em><em>) </em><em>float</em>) – Points in space</p></li>
+<li><p><strong>scale</strong> (<em>float</em>) – Scale of overall drawings (for precision)</p></li>
+<li><p><strong>count</strong> (<em>int</em>) – Number of segments to return</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>discrete</strong> – Curve as line segments</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(m, 2) or (m, 3) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.BSpline.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#trimesh.path.entities.BSpline.to_dict" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a dictionary with all of the information
+about the entity.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.path.entities.Bezier">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.path.entities.</span></span><span class="sig-name descname"><span class="pre">Bezier</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Bezier" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#trimesh.path.entities.Curve" title="trimesh.path.entities.Curve"><code class="xref py py-class docutils literal notranslate"><span class="pre">Curve</span></code></a></p>
+<p>An open or closed Bezier curve</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Bezier.discrete">
+<span class="sig-name descname"><span class="pre">discrete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Bezier.discrete" title="Link to this definition">¶</a></dt>
+<dd><p>Discretize the Bezier curve.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>2</em><em>) or </em><em>(</em><em>n</em><em>, </em><em>3</em><em>) </em><em>float</em>) – Points in space</p></li>
+<li><p><strong>scale</strong> (<em>float</em>) – Scale of overall drawings (for precision)</p></li>
+<li><p><strong>count</strong> (<em>int</em>) – Number of segments to return</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>discrete</strong> – Curve as line segments</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(m, 2) or (m, 3) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.path.entities.Curve">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.path.entities.</span></span><span class="sig-name descname"><span class="pre">Curve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Curve" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#trimesh.path.entities.Entity" title="trimesh.path.entities.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">Entity</span></code></a></p>
+<p>The parent class for all wild curves in space.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Curve.nodes">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nodes</span></span><a class="headerlink" href="#trimesh.path.entities.Curve.nodes" title="Link to this definition">¶</a></dt>
+<dd><p>Returns an (n,2) list of nodes, or vertices on the path.
+Note that this generic class function assumes that all of the
+reference points are on the path which is true for lines and
+three point arcs.</p>
+<p>If you were to define another class where that wasn’t the case
+(for example, the control points of a bezier curve),
+you would need to implement an entity- specific version of this
+function.</p>
+<p>The purpose of having a list of nodes is so that they can then be
+added as edges to a graph so we can use functions to check
+connectivity, extract paths, etc.</p>
+<p>The slicing on this function is essentially just tiling points
+so the first and last vertices aren’t repeated. Example:</p>
+<p>self.points = [0,1,2]
+returns:      [[0,1], [1,2]]</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.path.entities.</span></span><span class="sig-name descname"><span class="pre">Entity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Entity" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Entity.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.bounds">
+<span class="sig-name descname"><span class="pre">bounds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Entity.bounds" title="Link to this definition">¶</a></dt>
+<dd><p>Return the AABB of the current entity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>dimension</em><em>) </em><em>float</em>) – Vertices in space</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>bounds</strong> – Coordinates of AABB, in (min, max) form</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(2, dimension) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.closed">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">closed</span></span><a class="headerlink" href="#trimesh.path.entities.Entity.closed" title="Link to this definition">¶</a></dt>
+<dd><p>If the first point is the same as the end point
+the entity is closed</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>closed</strong> – Is the entity closed or not?</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Entity.copy" title="Link to this definition">¶</a></dt>
+<dd><p>Return a copy of the current entity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>copied</strong> – Copy of current entity</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#trimesh.path.entities.Entity" title="trimesh.path.entities.Entity">Entity</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.end_points">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">end_points</span></span><a class="headerlink" href="#trimesh.path.entities.Entity.end_points" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the first and last points. Also note that if you
+define a new entity class where the first and last vertices
+in self.points aren’t the endpoints of the curve you need to
+implement this function for your class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ends</strong> – Indices of the two end points of the entity</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(2,) int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.explode">
+<span class="sig-name descname"><span class="pre">explode</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Entity.explode" title="Link to this definition">¶</a></dt>
+<dd><p>Split the entity into multiple entities.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>explode</strong> – Current entity split into multiple entities.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list of <a class="reference internal" href="#trimesh.path.entities.Entity" title="trimesh.path.entities.Entity">Entity</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.is_valid">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_valid</span></span><a class="headerlink" href="#trimesh.path.entities.Entity.is_valid" title="Link to this definition">¶</a></dt>
+<dd><p>Is the current entity valid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>valid</strong> – Is the current entity well formed</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.layer">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">layer</span></span><a class="headerlink" href="#trimesh.path.entities.Entity.layer" title="Link to this definition">¶</a></dt>
+<dd><p>Set the layer the entity resides on as a shortcut
+to putting it in the entity metadata.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>layer</strong> – Hashable layer identifier.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>any</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.length">
+<span class="sig-name descname"><span class="pre">length</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Entity.length" title="Link to this definition">¶</a></dt>
+<dd><p>Return the total length of the entity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>dimension</em><em>) </em><em>float</em>) – Vertices in space</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>length</strong> – Total length of entity</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.metadata">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">metadata</span></span><a class="headerlink" href="#trimesh.path.entities.Entity.metadata" title="Link to this definition">¶</a></dt>
+<dd><p>Get any metadata about the entity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>metadata</strong> – Bag of properties.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.nodes">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nodes</span></span><a class="headerlink" href="#trimesh.path.entities.Entity.nodes" title="Link to this definition">¶</a></dt>
+<dd><p>Returns an (n,2) list of nodes, or vertices on the path.
+Note that this generic class function assumes that all of the
+reference points are on the path which is true for lines and
+three point arcs.</p>
+<p>If you were to define another class where that wasn’t the case
+(for example, the control points of a bezier curve),
+you would need to implement an entity- specific version of this
+function.</p>
+<p>The purpose of having a list of nodes is so that they can then be
+added as edges to a graph so we can use functions to check
+connectivity, extract paths, etc.</p>
+<p>The slicing on this function is essentially just tiling points
+so the first and last vertices aren’t repeated. Example:</p>
+<p>self.points = [0,1,2]
+returns:      [[0,1], [1,2]]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.reverse">
+<span class="sig-name descname"><span class="pre">reverse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">direction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Entity.reverse" title="Link to this definition">¶</a></dt>
+<dd><p>Reverse the current entity in place.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>direction</strong> (<em>int</em>) – If positive will not touch direction
+If negative will reverse self.points</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Entity.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#trimesh.path.entities.Entity.to_dict" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a dictionary with all of the information
+about the entity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>as_dict</strong> – Has keys ‘type’, ‘points’, ‘closed’</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.path.entities.Line">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.path.entities.</span></span><span class="sig-name descname"><span class="pre">Line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Line" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#trimesh.path.entities.Entity" title="trimesh.path.entities.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">Entity</span></code></a></p>
+<p>A line or poly-line entity</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Line.discrete">
+<span class="sig-name descname"><span class="pre">discrete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Line.discrete" title="Link to this definition">¶</a></dt>
+<dd><p>Discretize into a world- space path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>dimension</em><em>) </em><em>float</em>) – Points in space</p></li>
+<li><p><strong>scale</strong> (<em>float</em>) – Size of overall scene for numerical comparisons</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>discrete</strong> – Path in space composed of line segments</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(m, dimension) float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Line.explode">
+<span class="sig-name descname"><span class="pre">explode</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Line.explode" title="Link to this definition">¶</a></dt>
+<dd><p>If the current Line entity consists of multiple line
+break it up into n Line entities.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>exploded</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(n,) Line entities</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Line.is_valid">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_valid</span></span><a class="headerlink" href="#trimesh.path.entities.Line.is_valid" title="Link to this definition">¶</a></dt>
+<dd><p>Is the current entity valid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>valid</strong> – Is the current entity well formed</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Line.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#trimesh.path.entities.Line.to_dict" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a dictionary with all of the information
+about the Line. <cite>closed</cite> is not additional information
+for a Line like it is for Arc where the value determines
+if it is a partial or complete circle. Rather it is a check
+which indicates the first and last points are identical,
+and thus should not be included in the export</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Has keys ‘type’, ‘points’</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>as_dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.path.entities.</span></span><span class="sig-name descname"><span class="pre">Text</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">origin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vector</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">align</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Text" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#trimesh.path.entities.Entity" title="trimesh.path.entities.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">Entity</span></code></a></p>
+<p>Text to annotate a 2D or 3D path.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">origin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vector</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">align</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Text.__init__" title="Link to this definition">¶</a></dt>
+<dd><p>An entity for text labels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>origin</strong> (<em>int</em>) – Index of a single vertex for text origin</p></li>
+<li><p><strong>text</strong> (<em>str</em>) – The text to label</p></li>
+<li><p><strong>height</strong> (<em>float</em><em> or </em><em>None</em>) – The height of text</p></li>
+<li><p><strong>vector</strong> (<em>int</em><em> or </em><em>None</em>) – An vertex index for which direction text
+is written along unitized: vector - origin</p></li>
+<li><p><strong>normal</strong> (<em>int</em><em> or </em><em>None</em>) – A vertex index for the plane normal:
+vector is along unitized: normal - origin</p></li>
+<li><p><strong>align</strong> (<em>(</em><em>2</em><em>,</em><em>) </em><em>str</em><em> or </em><em>None</em>) – <dl class="simple">
+<dt>Where to draw from for [horizontal, vertical]:</dt><dd><p>’center’, ‘left’, ‘right’</p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.angle">
+<span class="sig-name descname"><span class="pre">angle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Text.angle" title="Link to this definition">¶</a></dt>
+<dd><p>If Text is 2D, get the rotation angle in radians.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>2</em><em>) </em><em>float</em>) – Vertices in space referenced by self.points</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>angle</strong> – Rotation angle in radians</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.closed">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">closed</span></span><a class="headerlink" href="#trimesh.path.entities.Text.closed" title="Link to this definition">¶</a></dt>
+<dd><p>If the first point is the same as the end point
+the entity is closed</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>closed</strong> – Is the entity closed or not?</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.discrete">
+<span class="sig-name descname"><span class="pre">discrete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Text.discrete" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.end_points">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">end_points</span></span><a class="headerlink" href="#trimesh.path.entities.Text.end_points" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the first and last points. Also note that if you
+define a new entity class where the first and last vertices
+in self.points aren’t the endpoints of the curve you need to
+implement this function for your class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ends</strong> – Indices of the two end points of the entity</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>(2,) int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.is_valid">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_valid</span></span><a class="headerlink" href="#trimesh.path.entities.Text.is_valid" title="Link to this definition">¶</a></dt>
+<dd><p>Is the current entity valid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>valid</strong> – Is the current entity well formed</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.length">
+<span class="sig-name descname"><span class="pre">length</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Text.length" title="Link to this definition">¶</a></dt>
+<dd><p>Return the total length of the entity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>dimension</em><em>) </em><em>float</em>) – Vertices in space</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>length</strong> – Total length of entity</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.nodes">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nodes</span></span><a class="headerlink" href="#trimesh.path.entities.Text.nodes" title="Link to this definition">¶</a></dt>
+<dd><p>Returns an (n,2) list of nodes, or vertices on the path.
+Note that this generic class function assumes that all of the
+reference points are on the path which is true for lines and
+three point arcs.</p>
+<p>If you were to define another class where that wasn’t the case
+(for example, the control points of a bezier curve),
+you would need to implement an entity- specific version of this
+function.</p>
+<p>The purpose of having a list of nodes is so that they can then be
+added as edges to a graph so we can use functions to check
+connectivity, extract paths, etc.</p>
+<p>The slicing on this function is essentially just tiling points
+so the first and last vertices aren’t repeated. Example:</p>
+<p>self.points = [0,1,2]
+returns:      [[0,1], [1,2]]</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.normal">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">normal</span></span><a class="headerlink" href="#trimesh.path.entities.Text.normal" title="Link to this definition">¶</a></dt>
+<dd><p>A point representing the plane normal along the
+vector: vertices[normal] - vertices[origin]</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>normal</strong> – Index of vertex</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.origin">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">origin</span></span><a class="headerlink" href="#trimesh.path.entities.Text.origin" title="Link to this definition">¶</a></dt>
+<dd><p>The origin point of the text.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>origin</strong> – Index of vertices</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.path.entities.Text.plot" title="Link to this definition">¶</a></dt>
+<dd><p>Plot the text using matplotlib.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vertices</strong> (<em>(</em><em>n</em><em>, </em><em>2</em><em>) </em><em>float</em>) – Vertices in space</p></li>
+<li><p><strong>show</strong> (<em>bool</em>) – If True, call plt.show()</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.path.entities.Text.vector">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">vector</span></span><a class="headerlink" href="#trimesh.path.entities.Text.vector" title="Link to this definition">¶</a></dt>
+<dd><p>A point representing the text direction
+along the vector: vertices[vector] - vertices[origin]</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>vector</strong> – Index of vertex</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="trimesh.path.intersections.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">trimesh.path.intersections</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="trimesh.path.curve.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">trimesh.path.curve</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, Michael Dawson-Haggerty
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">trimesh.path.entities</a><ul>
+<li><a class="reference internal" href="#entities-py">entities.py</a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Arc"><code class="docutils literal notranslate"><span class="pre">Arc</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.path.entities.Arc.bounds"><code class="docutils literal notranslate"><span class="pre">Arc.bounds()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Arc.center"><code class="docutils literal notranslate"><span class="pre">Arc.center()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Arc.closed"><code class="docutils literal notranslate"><span class="pre">Arc.closed</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Arc.discrete"><code class="docutils literal notranslate"><span class="pre">Arc.discrete()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Arc.is_valid"><code class="docutils literal notranslate"><span class="pre">Arc.is_valid</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Arc.length"><code class="docutils literal notranslate"><span class="pre">Arc.length()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.path.entities.BSpline"><code class="docutils literal notranslate"><span class="pre">BSpline</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.path.entities.BSpline.__init__"><code class="docutils literal notranslate"><span class="pre">BSpline.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.BSpline.discrete"><code class="docutils literal notranslate"><span class="pre">BSpline.discrete()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.BSpline.to_dict"><code class="docutils literal notranslate"><span class="pre">BSpline.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.path.entities.Bezier"><code class="docutils literal notranslate"><span class="pre">Bezier</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.path.entities.Bezier.discrete"><code class="docutils literal notranslate"><span class="pre">Bezier.discrete()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.path.entities.Curve"><code class="docutils literal notranslate"><span class="pre">Curve</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.path.entities.Curve.nodes"><code class="docutils literal notranslate"><span class="pre">Curve.nodes</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity"><code class="docutils literal notranslate"><span class="pre">Entity</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.__init__"><code class="docutils literal notranslate"><span class="pre">Entity.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.bounds"><code class="docutils literal notranslate"><span class="pre">Entity.bounds()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.closed"><code class="docutils literal notranslate"><span class="pre">Entity.closed</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.copy"><code class="docutils literal notranslate"><span class="pre">Entity.copy()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.end_points"><code class="docutils literal notranslate"><span class="pre">Entity.end_points</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.explode"><code class="docutils literal notranslate"><span class="pre">Entity.explode()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.is_valid"><code class="docutils literal notranslate"><span class="pre">Entity.is_valid</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.layer"><code class="docutils literal notranslate"><span class="pre">Entity.layer</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.length"><code class="docutils literal notranslate"><span class="pre">Entity.length()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.metadata"><code class="docutils literal notranslate"><span class="pre">Entity.metadata</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.nodes"><code class="docutils literal notranslate"><span class="pre">Entity.nodes</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.reverse"><code class="docutils literal notranslate"><span class="pre">Entity.reverse()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Entity.to_dict"><code class="docutils literal notranslate"><span class="pre">Entity.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.path.entities.Line"><code class="docutils literal notranslate"><span class="pre">Line</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.path.entities.Line.discrete"><code class="docutils literal notranslate"><span class="pre">Line.discrete()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Line.explode"><code class="docutils literal notranslate"><span class="pre">Line.explode()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Line.is_valid"><code class="docutils literal notranslate"><span class="pre">Line.is_valid</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Line.to_dict"><code class="docutils literal notranslate"><span class="pre">Line.to_dict()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text"><code class="docutils literal notranslate"><span class="pre">Text</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.__init__"><code class="docutils literal notranslate"><span class="pre">Text.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.angle"><code class="docutils literal notranslate"><span class="pre">Text.angle()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.closed"><code class="docutils literal notranslate"><span class="pre">Text.closed</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.discrete"><code class="docutils literal notranslate"><span class="pre">Text.discrete()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.end_points"><code class="docutils literal notranslate"><span class="pre">Text.end_points</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.is_valid"><code class="docutils literal notranslate"><span class="pre">Text.is_valid</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.length"><code class="docutils literal notranslate"><span class="pre">Text.length()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.nodes"><code class="docutils literal notranslate"><span class="pre">Text.nodes</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.normal"><code class="docutils literal notranslate"><span class="pre">Text.normal</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.origin"><code class="docutils literal notranslate"><span class="pre">Text.origin</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.plot"><code class="docutils literal notranslate"><span class="pre">Text.plot()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.path.entities.Text.vector"><code class="docutils literal notranslate"><span class="pre">Text.vector</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=70aa39c2"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

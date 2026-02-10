@@ -1,0 +1,1078 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="trimesh.collision" href="trimesh.collision.html"><link rel="prev" title="trimesh.bounds" href="trimesh.bounds.html">
+        <link rel="prefetch" href="_static/trimesh-logo.png" as="image">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>trimesh.caching - trimesh 4.11.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">trimesh 4.11.2 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="_static/trimesh-logo.png" alt="Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">trimesh 4.11.2 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference external" href="http://github.com/mikedh/trimesh">Github</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="examples.html">Examples</a><input aria-label="Toggle navigation of Examples" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="texture.html">Texture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="curvature.html">Curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="colors.html">Colors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nearest.html">Nearest</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ray.html">Ray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="section.html">Section</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shortest.html">Shortest</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Geometry Formats</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="docker.html">Docker</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="trimesh.html">API Reference</a><input aria-label="Toggle navigation of API Reference" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.exchange.html">trimesh.exchange</a><input aria-label="Toggle navigation of trimesh.exchange" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="trimesh.exchange.gltf.html">trimesh.exchange.gltf</a><input aria-label="Toggle navigation of trimesh.exchange.gltf" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.exchange.gltf.extensions.html">trimesh.exchange.gltf.extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.binvox.html">trimesh.exchange.binvox</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.cascade.html">trimesh.exchange.cascade</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.dae.html">trimesh.exchange.dae</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.export.html">trimesh.exchange.export</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.load.html">trimesh.exchange.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.misc.html">trimesh.exchange.misc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.obj.html">trimesh.exchange.obj</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.off.html">trimesh.exchange.off</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.ply.html">trimesh.exchange.ply</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.stl.html">trimesh.exchange.stl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.threedxml.html">trimesh.exchange.threedxml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.threemf.html">trimesh.exchange.threemf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.urdf.html">trimesh.exchange.urdf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.xaml.html">trimesh.exchange.xaml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.xyz.html">trimesh.exchange.xyz</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.interfaces.html">trimesh.interfaces</a><input aria-label="Toggle navigation of trimesh.interfaces" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.interfaces.blender.html">trimesh.interfaces.blender</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.interfaces.generic.html">trimesh.interfaces.generic</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.path.html">trimesh.path</a><input aria-label="Toggle navigation of trimesh.path" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="trimesh.path.exchange.html">trimesh.path.exchange</a><input aria-label="Toggle navigation of trimesh.path.exchange" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.dxf.html">trimesh.path.exchange.dxf</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.export.html">trimesh.path.exchange.export</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.load.html">trimesh.path.exchange.load</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.misc.html">trimesh.path.exchange.misc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.svg_io.html">trimesh.path.exchange.svg_io</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html">trimesh.path.arc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.creation.html">trimesh.path.creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.curve.html">trimesh.path.curve</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html">trimesh.path.entities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.intersections.html">trimesh.path.intersections</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.packing.html">trimesh.path.packing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html">trimesh.path.path</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.polygons.html">trimesh.path.polygons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.raster.html">trimesh.path.raster</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.repair.html">trimesh.path.repair</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.segments.html">trimesh.path.segments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.simplify.html">trimesh.path.simplify</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.traversal.html">trimesh.path.traversal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.util.html">trimesh.path.util</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.ray.html">trimesh.ray</a><input aria-label="Toggle navigation of trimesh.ray" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_pyembree.html">trimesh.ray.ray_pyembree</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_triangle.html">trimesh.ray.ray_triangle</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_util.html">trimesh.ray.ray_util</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.resources.html">trimesh.resources</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.scene.html">trimesh.scene</a><input aria-label="Toggle navigation of trimesh.scene" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.cameras.html">trimesh.scene.cameras</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.lighting.html">trimesh.scene.lighting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.scene.html">trimesh.scene.scene</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.transforms.html">trimesh.scene.transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.viewer.html">trimesh.viewer</a><input aria-label="Toggle navigation of trimesh.viewer" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.notebook.html">trimesh.viewer.notebook</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.trackball.html">trimesh.viewer.trackball</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.widget.html">trimesh.viewer.widget</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.windowed.html">trimesh.viewer.windowed</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.visual.html">trimesh.visual</a><input aria-label="Toggle navigation of trimesh.visual" class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.base.html">trimesh.visual.base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.color.html">trimesh.visual.color</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.gloss.html">trimesh.visual.gloss</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.material.html">trimesh.visual.material</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.objects.html">trimesh.visual.objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.texture.html">trimesh.visual.texture</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.voxel.html">trimesh.voxel</a><input aria-label="Toggle navigation of trimesh.voxel" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.base.html">trimesh.voxel.base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.creation.html">trimesh.voxel.creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.encoding.html">trimesh.voxel.encoding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.morphology.html">trimesh.voxel.morphology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.ops.html">trimesh.voxel.ops</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.runlength.html">trimesh.voxel.runlength</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.transforms.html">trimesh.voxel.transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.base.html">trimesh.base</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.boolean.html">trimesh.boolean</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.bounds.html">trimesh.bounds</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">trimesh.caching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.collision.html">trimesh.collision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.comparison.html">trimesh.comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.constants.html">trimesh.constants</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.convex.html">trimesh.convex</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.creation.html">trimesh.creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.curvature.html">trimesh.curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.decomposition.html">trimesh.decomposition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.exceptions.html">trimesh.exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.geometry.html">trimesh.geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.graph.html">trimesh.graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.grouping.html">trimesh.grouping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.inertia.html">trimesh.inertia</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.intersections.html">trimesh.intersections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.interval.html">trimesh.interval</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.iteration.html">trimesh.iteration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.nsphere.html">trimesh.nsphere</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.parent.html">trimesh.parent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.permutate.html">trimesh.permutate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.points.html">trimesh.points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.poses.html">trimesh.poses</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.primitives.html">trimesh.primitives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.proximity.html">trimesh.proximity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.registration.html">trimesh.registration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.remesh.html">trimesh.remesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.rendering.html">trimesh.rendering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.repair.html">trimesh.repair</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.resolvers.html">trimesh.resolvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.sample.html">trimesh.sample</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.schemas.html">trimesh.schemas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.smoothing.html">trimesh.smoothing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.transformations.html">trimesh.transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.triangles.html">trimesh.triangles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.typed.html">trimesh.typed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.units.html">trimesh.units</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.util.html">trimesh.util</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.version.html">trimesh.version</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/trimesh.caching.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="module-trimesh.caching">
+<span id="trimesh-caching"></span><h1>trimesh.caching<a class="headerlink" href="#module-trimesh.caching" title="Link to this heading">¶</a></h1>
+<section id="caching-py">
+<h2>caching.py<a class="headerlink" href="#caching-py" title="Link to this heading">¶</a></h2>
+<p>Functions and classes that help with tracking changes
+in <cite>numpy.ndarray</cite> and clearing cached values based
+on those changes.</p>
+<p>You should really <cite>pip install xxhash</cite>:</p>
+<p><a href="#id1"><span class="problematic" id="id2">``</span></a>`
+In [23]: %timeit int(blake2b(d).hexdigest(), 16)
+102 us +/- 684 ns per loop</p>
+<p>In [24]: %timeit int(sha256(d).hexdigest(), 16)
+142 us +/- 3.73 us</p>
+<p>In [25]: %timeit xxh3_64_intdigest(d)
+3.37 us +/- 116 ns per loop
+<a href="#id3"><span class="problematic" id="id4">``</span></a><a href="#id5"><span class="problematic" id="id6">`</span></a></p>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.caching.Cache">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.caching.</span></span><span class="sig-name descname"><span class="pre">Cache</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id_function</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_immutable</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.Cache" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class to cache values which will be stored until the
+result of an ID function changes.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.Cache.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id_function</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_immutable</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.Cache.__init__" title="Link to this definition">¶</a></dt>
+<dd><p>Create a cache object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id_function</strong> (<em>function</em>) – Returns hashable value</p></li>
+<li><p><strong>force_immutable</strong> (<em>bool</em>) – If set will make all numpy arrays read-only</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.Cache.clear">
+<span class="sig-name descname"><span class="pre">clear</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exclude</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.Cache.clear" title="Link to this definition">¶</a></dt>
+<dd><p>Remove elements in the cache.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>exclude</strong> (<em>list</em>) – List of keys in cache to not clear.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.Cache.delete">
+<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.Cache.delete" title="Link to this definition">¶</a></dt>
+<dd><p>Remove a key from the cache.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.Cache.id_set">
+<span class="sig-name descname"><span class="pre">id_set</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.Cache.id_set" title="Link to this definition">¶</a></dt>
+<dd><p>Set the current ID to the value of the ID function.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.Cache.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.Cache.update" title="Link to this definition">¶</a></dt>
+<dd><p>Update the cache with a set of key, value pairs without
+checking id_function.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.Cache.verify">
+<span class="sig-name descname"><span class="pre">verify</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.Cache.verify" title="Link to this definition">¶</a></dt>
+<dd><p>Verify that the cached values are still for the same
+value of id_function and delete all stored items if
+the value of id_function has changed.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.caching.DataStore">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.caching.</span></span><span class="sig-name descname"><span class="pre">DataStore</span></span><a class="headerlink" href="#trimesh.caching.DataStore" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="trimesh.typed.html#trimesh.typed.Mapping" title="collections.abc.Mapping"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a></p>
+<p>A class to store multiple numpy arrays and track them all
+for changes.</p>
+<p>Operates like a dict that only stores numpy.ndarray</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.DataStore.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.DataStore.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.DataStore.clear">
+<span class="sig-name descname"><span class="pre">clear</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.DataStore.clear" title="Link to this definition">¶</a></dt>
+<dd><p>Remove all data from the DataStore.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.DataStore.is_empty">
+<span class="sig-name descname"><span class="pre">is_empty</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.DataStore.is_empty" title="Link to this definition">¶</a></dt>
+<dd><p>Is the current DataStore empty or not.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>empty</strong> – False if there are items in the DataStore</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.caching.DataStore.mutable">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mutable</span></span><a class="headerlink" href="#trimesh.caching.DataStore.mutable" title="Link to this definition">¶</a></dt>
+<dd><p>Is data allowed to be altered or not.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>is_mutable</strong> – Can data be altered in the DataStore</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.DataStore.pop">
+<span class="sig-name descname"><span class="pre">pop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.DataStore.pop" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.DataStore.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.DataStore.update" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.caching.DiskCache">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.caching.</span></span><span class="sig-name descname"><span class="pre">DiskCache</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expire_days</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.DiskCache" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Store results of expensive operations on disk
+with an option to expire the results. This is used
+to cache the multi-gigabyte test corpuses in
+<cite>tests/corpus.py</cite></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.DiskCache.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expire_days</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.DiskCache.__init__" title="Link to this definition">¶</a></dt>
+<dd><p>Create a cache on disk for storing expensive results.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<em>str</em>) – A writeable location on the current file path.</p></li>
+<li><p><strong>expire_days</strong> (<em>int</em><em> or </em><em>float</em>) – How old should results be considered expired.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.DiskCache.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fetch</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.DiskCache.get" title="Link to this definition">¶</a></dt>
+<dd><p>Get a key from the cache or run a calculation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> (<em>str</em>) – Key to reference item with</p></li>
+<li><p><strong>fetch</strong> (<em>function</em>) – If key isn’t stored and recent run this
+function and store its result on disk.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="trimesh.caching.TrackedArray">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">trimesh.caching.</span></span><span class="sig-name descname"><span class="pre">TrackedArray</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">shape</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strides</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.TrackedArray" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></p>
+<p>Subclass of numpy.ndarray that provides hash methods
+to track changes.</p>
+<p>General method is to aggressively set ‘modified’ flags
+on operations which might (but don’t necessarily) alter
+the array, ideally we sometimes compute hashes when we
+don’t need to, but we don’t return wrong hashes ever.</p>
+<p>We store boolean modified flag for each hash type to
+make checks fast even for queries of different hashes.</p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">__hash__</span> <span class="pre">:</span> <span class="pre">int</span></span></dt>
+<dd><dl class="simple">
+<dt>Runs the fastest available hash in this order:</dt><dd><p><cite>xxh3_64, xxh_64, blake2b, sha256</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.TrackedArray.byteswap">
+<span class="sig-name descname"><span class="pre">byteswap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.TrackedArray.byteswap" title="Link to this definition">¶</a></dt>
+<dd><p>Swap the bytes of the array elements</p>
+<p>Toggle between low-endian and big-endian data representation by
+returning a byteswapped array, optionally swapped in-place.
+Arrays of byte-strings are not swapped. The real and imaginary
+parts of a complex number are swapped individually.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>inplace</strong> (<em>bool</em><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, swap bytes in-place, default is <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>out</strong> – The byteswapped array. If <cite>inplace</cite> is <code class="docutils literal notranslate"><span class="pre">True</span></code>, this is
+a view to self.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>ndarray</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">8755</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">hex</span><span class="p">,</span> <span class="n">A</span><span class="p">))</span>
+<span class="go">[&#39;0x1&#39;, &#39;0x100&#39;, &#39;0x2233&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">A</span><span class="o">.</span><span class="n">byteswap</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="go">array([  256,     1, 13090], dtype=int16)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">hex</span><span class="p">,</span> <span class="n">A</span><span class="p">))</span>
+<span class="go">[&#39;0x100&#39;, &#39;0x1&#39;, &#39;0x3322&#39;]</span>
+</pre></div>
+</div>
+<p>Arrays of byte-strings are not swapped</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="sa">b</span><span class="s1">&#39;ceg&#39;</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;fac&#39;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">A</span><span class="o">.</span><span class="n">byteswap</span><span class="p">()</span>
+<span class="go">array([b&#39;ceg&#39;, b&#39;fac&#39;], dtype=&#39;|S3&#39;)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">A.view(A.dtype.newbyteorder()).byteswap()</span></code> produces an array with
+the same values but different representation in memory</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">A</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+<span class="go">array([1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0,</span>
+<span class="go">       0, 0], dtype=uint8)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">A</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">newbyteorder</span><span class="p">())</span><span class="o">.</span><span class="n">byteswap</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="go">array([1, 2, 3], dtype=&#39;&gt;i8&#39;)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">A</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+<span class="go">array([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0,</span>
+<span class="go">       0, 3], dtype=uint8)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.TrackedArray.fill">
+<span class="sig-name descname"><span class="pre">fill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.TrackedArray.fill" title="Link to this definition">¶</a></dt>
+<dd><p>Fill the array with a scalar value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>value</strong> (<em>scalar</em>) – All elements of <cite>a</cite> will be assigned this value.</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([0, 0])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([1.,  1.])</span>
+</pre></div>
+</div>
+<p>Fill expects a scalar value and always behaves the same as assigning
+to a single array element.  The following is a rare example where this
+distinction is important:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([array(3), None], dtype=object)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([array(3), array(3)], dtype=object)</span>
+</pre></div>
+</div>
+<p>Where other forms of assignments will unpack the array being assigned:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([3, 3], dtype=object)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.TrackedArray.itemset">
+<span class="sig-name descname"><span class="pre">itemset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.TrackedArray.itemset" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="trimesh.caching.TrackedArray.mutable">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mutable</span></span><a class="headerlink" href="#trimesh.caching.TrackedArray.mutable" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.TrackedArray.partition">
+<span class="sig-name descname"><span class="pre">partition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'introselect'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.TrackedArray.partition" title="Link to this definition">¶</a></dt>
+<dd><p>Partially sorts the elements in the array in such a way that the value of
+the element in k-th position is in the position it would be in a sorted
+array. In the output array, all elements smaller than the k-th element
+are located to the left of this element and all equal or greater are
+located to its right. The ordering of the elements in the two partitions
+on the either side of the k-th element in the output array is undefined.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kth</strong> (<em>int</em><em> or </em><em>sequence</em><em> of </em><em>ints</em>) – <p>Element index to partition by. The kth element value will be in its
+final sorted position and all smaller elements will be moved before it
+and all equal or greater elements behind it.
+The order of all elements in the partitions is undefined.
+If provided with a sequence of kth it will partition all elements
+indexed by kth of them into their sorted position at once.</p>
+<div class="deprecated">
+<p><span class="versionmodified deprecated">Deprecated since version 1.22.0: </span>Passing booleans as index is deprecated.</p>
+</div>
+</p></li>
+<li><p><strong>axis</strong> (<em>int</em><em>, </em><em>optional</em>) – Axis along which to sort. Default is -1, which means sort along the
+last axis.</p></li>
+<li><p><strong>kind</strong> (<em>{'introselect'}</em><em>, </em><em>optional</em>) – Selection algorithm. Default is ‘introselect’.</p></li>
+<li><p><strong>order</strong> (<em>str</em><em> or </em><em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – When <cite>a</cite> is an array with fields defined, this argument specifies
+which fields to compare first, second, etc. A single field can
+be specified as a string, and not all fields need to be specified,
+but unspecified fields will still be used, in the order in which
+they come up in the dtype, to break ties.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.partition</span></code></dt><dd><p>Return a partitioned copy of an array.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">argpartition</span></code></dt><dd><p>Indirect partition.</p>
+</dd>
+<dt><a class="reference internal" href="#trimesh.caching.TrackedArray.sort" title="trimesh.caching.TrackedArray.sort"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sort</span></code></a></dt><dd><p>Full sort.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>See <code class="docutils literal notranslate"><span class="pre">np.partition</span></code> for notes on the different algorithms.</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([2, 1, 3, 4]) # may vary</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">partition</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([1, 2, 3, 4])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.TrackedArray.put">
+<span class="sig-name descname"><span class="pre">put</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'raise'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.TrackedArray.put" title="Link to this definition">¶</a></dt>
+<dd><p>Set <code class="docutils literal notranslate"><span class="pre">a.flat[n]</span> <span class="pre">=</span> <span class="pre">values[n]</span></code> for all <code class="docutils literal notranslate"><span class="pre">n</span></code> in indices.</p>
+<p>Refer to <cite>numpy.put</cite> for full documentation.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.put</span></code></dt><dd><p>equivalent function</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.TrackedArray.setflags">
+<span class="sig-name descname"><span class="pre">setflags</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">write</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">align</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.TrackedArray.setflags" title="Link to this definition">¶</a></dt>
+<dd><p>Set array flags WRITEABLE, ALIGNED, WRITEBACKIFCOPY,
+respectively.</p>
+<p>These Boolean-valued flags affect how numpy interprets the memory
+area used by <cite>a</cite> (see Notes below). The ALIGNED flag can only
+be set to True if the data is actually aligned according to the type.
+The WRITEBACKIFCOPY flag can never be set
+to True. The flag WRITEABLE can only be set to True if the array owns its
+own memory, or the ultimate owner of the memory exposes a writeable buffer
+interface, or is a string. (The exception for string is made so that
+unpickling can be done without copying memory.)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>write</strong> (<em>bool</em><em>, </em><em>optional</em>) – Describes whether or not <cite>a</cite> can be written to.</p></li>
+<li><p><strong>align</strong> (<em>bool</em><em>, </em><em>optional</em>) – Describes whether or not <cite>a</cite> is aligned properly for its type.</p></li>
+<li><p><strong>uic</strong> (<em>bool</em><em>, </em><em>optional</em>) – Describes whether or not <cite>a</cite> is a copy of another “base” array.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Array flags provide information about how the memory area used
+for the array is to be interpreted. There are 7 Boolean flags
+in use, only three of which can be changed by the user:
+WRITEBACKIFCOPY, WRITEABLE, and ALIGNED.</p>
+<p>WRITEABLE (W) the data area can be written to;</p>
+<p>ALIGNED (A) the data and strides are aligned appropriately for the hardware
+(as determined by the compiler);</p>
+<p>WRITEBACKIFCOPY (X) this array is a copy of some other array (referenced
+by .base). When the C-API function PyArray_ResolveWritebackIfCopy is
+called, the base array will be updated with the contents of this array.</p>
+<p>All flags can be accessed using the single (upper case) letter as well
+as the full name.</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span>
+<span class="gp">... </span>              <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+<span class="gp">... </span>              <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">9</span><span class="p">]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span>
+<span class="go">array([[3, 1, 7],</span>
+<span class="go">       [2, 0, 0],</span>
+<span class="go">       [8, 5, 9]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span><span class="o">.</span><span class="n">flags</span>
+<span class="go">  C_CONTIGUOUS : True</span>
+<span class="go">  F_CONTIGUOUS : False</span>
+<span class="go">  OWNDATA : True</span>
+<span class="go">  WRITEABLE : True</span>
+<span class="go">  ALIGNED : True</span>
+<span class="go">  WRITEBACKIFCOPY : False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span><span class="o">.</span><span class="n">setflags</span><span class="p">(</span><span class="n">write</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">align</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span><span class="o">.</span><span class="n">flags</span>
+<span class="go">  C_CONTIGUOUS : True</span>
+<span class="go">  F_CONTIGUOUS : False</span>
+<span class="go">  OWNDATA : True</span>
+<span class="go">  WRITEABLE : False</span>
+<span class="go">  ALIGNED : False</span>
+<span class="go">  WRITEBACKIFCOPY : False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span><span class="o">.</span><span class="n">setflags</span><span class="p">(</span><span class="n">uic</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+<span class="gr">ValueError</span>: <span class="n">cannot set WRITEBACKIFCOPY flag to True</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="trimesh.caching.TrackedArray.sort">
+<span class="sig-name descname"><span class="pre">sort</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">stable</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.TrackedArray.sort" title="Link to this definition">¶</a></dt>
+<dd><p>Sort an array in-place. Refer to <cite>numpy.sort</cite> for full documentation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>axis</strong> (<em>int</em><em>, </em><em>optional</em>) – Axis along which to sort. Default is -1, which means sort along the
+last axis.</p></li>
+<li><p><strong>kind</strong> (<em>{'quicksort'</em><em>, </em><em>'mergesort'</em><em>, </em><em>'heapsort'</em><em>, </em><em>'stable'}</em><em>, </em><em>optional</em>) – Sorting algorithm. The default is ‘quicksort’. Note that both ‘stable’
+and ‘mergesort’ use timsort under the covers and, in general, the
+actual implementation will vary with datatype. The ‘mergesort’ option
+is retained for backwards compatibility.</p></li>
+<li><p><strong>order</strong> (<em>str</em><em> or </em><em>list</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – When <cite>a</cite> is an array with fields defined, this argument specifies
+which fields to compare first, second, etc.  A single field can
+be specified as a string, and not all fields need be specified,
+but unspecified fields will still be used, in the order in which
+they come up in the dtype, to break ties.</p></li>
+<li><p><strong>stable</strong> (<em>bool</em><em>, </em><em>optional</em>) – <p>Sort stability. If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the returned array will maintain
+the relative order of <code class="docutils literal notranslate"><span class="pre">a</span></code> values which compare as equal.
+If <code class="docutils literal notranslate"><span class="pre">False</span></code> or <code class="docutils literal notranslate"><span class="pre">None</span></code>, this is not guaranteed. Internally,
+this option selects <code class="docutils literal notranslate"><span class="pre">kind='stable'</span></code>. Default: <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 2.0.0.</span></p>
+</div>
+</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.sort</span></code></dt><dd><p>Return a sorted copy of an array.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.argsort</span></code></dt><dd><p>Indirect sort.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.lexsort</span></code></dt><dd><p>Indirect stable sort on multiple keys.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.searchsorted</span></code></dt><dd><p>Find elements in sorted array.</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.partition</span></code></dt><dd><p>Partial sort.</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Notes</p>
+<p>See <cite>numpy.sort</cite> for notes on the different sorting algorithms.</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span><span class="mi">4</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([[1, 4],</span>
+<span class="go">       [1, 3]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([[1, 3],</span>
+<span class="go">       [1, 4]])</span>
+</pre></div>
+</div>
+<p>Use the <cite>order</cite> keyword to specify a field to use when sorting a
+structured array:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)],</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;S1&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([(b&#39;c&#39;, 1), (b&#39;a&#39;, 2)],</span>
+<span class="go">      dtype=[(&#39;x&#39;, &#39;S1&#39;), (&#39;y&#39;, &#39;&lt;i8&#39;)])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="trimesh.caching.cache_decorator">
+<span class="sig-prename descclassname"><span class="pre">trimesh.caching.</span></span><span class="sig-name descname"><span class="pre">cache_decorator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">function</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.cache_decorator" title="Link to this definition">¶</a></dt>
+<dd><p>A decorator for class methods, replaces &#64;property
+but will store and retrieve function return values
+in object cache.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>function</strong> (<em>method</em>) – <p>This is used as a decorator:
+<a href="#id7"><span class="problematic" id="id8">``</span></a>`
+&#64;cache_decorator
+def foo(self, things):</p>
+<blockquote>
+<div><p>return ‘happy days’</p>
+</div></blockquote>
+<p><a href="#id9"><span class="problematic" id="id10">``</span></a><a href="#id11"><span class="problematic" id="id12">`</span></a></p>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="trimesh.caching.hash_fallback">
+<span class="sig-prename descclassname"><span class="pre">trimesh.caching.</span></span><span class="sig-name descname"><span class="pre">hash_fallback</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.hash_fallback" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="trimesh.caching.sha256">
+<span class="sig-prename descclassname"><span class="pre">trimesh.caching.</span></span><span class="sig-name descname"><span class="pre">sha256</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#trimesh.caching.sha256" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="trimesh.caching.tracked_array">
+<span class="sig-prename descclassname"><span class="pre">trimesh.caching.</span></span><span class="sig-name descname"><span class="pre">tracked_array</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#trimesh.caching.tracked_array" title="Link to this definition">¶</a></dt>
+<dd><p>Properly subclass a numpy ndarray to track changes.</p>
+<p>Avoids some pitfalls of subclassing by forcing contiguous
+arrays and does a view into a TrackedArray.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>array</strong> (<em>array- like object</em>) – To be turned into a TrackedArray</p></li>
+<li><p><strong>dtype</strong> (<em>np.dtype</em>) – Which dtype to use for the array</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tracked</strong> – Contains input array data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#trimesh.caching.TrackedArray" title="trimesh.caching.TrackedArray">TrackedArray</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="trimesh.collision.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">trimesh.collision</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="trimesh.bounds.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">trimesh.bounds</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, Michael Dawson-Haggerty
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">trimesh.caching</a><ul>
+<li><a class="reference internal" href="#caching-py">caching.py</a></li>
+<li><a class="reference internal" href="#trimesh.caching.Cache"><code class="docutils literal notranslate"><span class="pre">Cache</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.caching.Cache.__init__"><code class="docutils literal notranslate"><span class="pre">Cache.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.Cache.clear"><code class="docutils literal notranslate"><span class="pre">Cache.clear()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.Cache.delete"><code class="docutils literal notranslate"><span class="pre">Cache.delete()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.Cache.id_set"><code class="docutils literal notranslate"><span class="pre">Cache.id_set()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.Cache.update"><code class="docutils literal notranslate"><span class="pre">Cache.update()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.Cache.verify"><code class="docutils literal notranslate"><span class="pre">Cache.verify()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.caching.DataStore"><code class="docutils literal notranslate"><span class="pre">DataStore</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.caching.DataStore.__init__"><code class="docutils literal notranslate"><span class="pre">DataStore.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.DataStore.clear"><code class="docutils literal notranslate"><span class="pre">DataStore.clear()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.DataStore.is_empty"><code class="docutils literal notranslate"><span class="pre">DataStore.is_empty()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.DataStore.mutable"><code class="docutils literal notranslate"><span class="pre">DataStore.mutable</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.DataStore.pop"><code class="docutils literal notranslate"><span class="pre">DataStore.pop()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.DataStore.update"><code class="docutils literal notranslate"><span class="pre">DataStore.update()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.caching.DiskCache"><code class="docutils literal notranslate"><span class="pre">DiskCache</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.caching.DiskCache.__init__"><code class="docutils literal notranslate"><span class="pre">DiskCache.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.DiskCache.get"><code class="docutils literal notranslate"><span class="pre">DiskCache.get()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.caching.TrackedArray"><code class="docutils literal notranslate"><span class="pre">TrackedArray</span></code></a><ul>
+<li><a class="reference internal" href="#trimesh.caching.TrackedArray.byteswap"><code class="docutils literal notranslate"><span class="pre">TrackedArray.byteswap()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.TrackedArray.fill"><code class="docutils literal notranslate"><span class="pre">TrackedArray.fill()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.TrackedArray.itemset"><code class="docutils literal notranslate"><span class="pre">TrackedArray.itemset()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.TrackedArray.mutable"><code class="docutils literal notranslate"><span class="pre">TrackedArray.mutable</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.TrackedArray.partition"><code class="docutils literal notranslate"><span class="pre">TrackedArray.partition()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.TrackedArray.put"><code class="docutils literal notranslate"><span class="pre">TrackedArray.put()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.TrackedArray.setflags"><code class="docutils literal notranslate"><span class="pre">TrackedArray.setflags()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.TrackedArray.sort"><code class="docutils literal notranslate"><span class="pre">TrackedArray.sort()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#trimesh.caching.cache_decorator"><code class="docutils literal notranslate"><span class="pre">cache_decorator()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.hash_fallback"><code class="docutils literal notranslate"><span class="pre">hash_fallback()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.sha256"><code class="docutils literal notranslate"><span class="pre">sha256()</span></code></a></li>
+<li><a class="reference internal" href="#trimesh.caching.tracked_array"><code class="docutils literal notranslate"><span class="pre">tracked_array()</span></code></a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=70aa39c2"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

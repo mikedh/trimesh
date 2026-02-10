@@ -1,0 +1,11 @@
+trimesh.exchange.gltf
+=====================
+
+.. toctree::
+
+   trimesh.exchange.gltf.extensions
+
+.. automodule:: trimesh.exchange.gltf
+   :members:
+   :show-inheritance:
+   :undoc-members:

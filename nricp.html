@@ -1,0 +1,713 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html">
+        <link rel="prefetch" href="_static/trimesh-logo.png" as="image">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>Non-Rigid Registration - trimesh 4.11.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">trimesh 4.11.2 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="_static/trimesh-logo.png" alt="Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">trimesh 4.11.2 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference external" href="http://github.com/mikedh/trimesh">Github</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="examples.html">Examples</a><input aria-label="Toggle navigation of Examples" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="texture.html">Texture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="curvature.html">Curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="colors.html">Colors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nearest.html">Nearest</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ray.html">Ray</a></li>
+<li class="toctree-l2"><a class="reference internal" href="section.html">Section</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shortest.html">Shortest</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="formats.html">Geometry Formats</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="docker.html">Docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="trimesh.html">API Reference</a><input aria-label="Toggle navigation of API Reference" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.exchange.html">trimesh.exchange</a><input aria-label="Toggle navigation of trimesh.exchange" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="trimesh.exchange.gltf.html">trimesh.exchange.gltf</a><input aria-label="Toggle navigation of trimesh.exchange.gltf" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.exchange.gltf.extensions.html">trimesh.exchange.gltf.extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.binvox.html">trimesh.exchange.binvox</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.cascade.html">trimesh.exchange.cascade</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.dae.html">trimesh.exchange.dae</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.export.html">trimesh.exchange.export</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.load.html">trimesh.exchange.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.misc.html">trimesh.exchange.misc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.obj.html">trimesh.exchange.obj</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.off.html">trimesh.exchange.off</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.ply.html">trimesh.exchange.ply</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.stl.html">trimesh.exchange.stl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.threedxml.html">trimesh.exchange.threedxml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.threemf.html">trimesh.exchange.threemf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.urdf.html">trimesh.exchange.urdf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.xaml.html">trimesh.exchange.xaml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.exchange.xyz.html">trimesh.exchange.xyz</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.interfaces.html">trimesh.interfaces</a><input aria-label="Toggle navigation of trimesh.interfaces" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.interfaces.blender.html">trimesh.interfaces.blender</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.interfaces.generic.html">trimesh.interfaces.generic</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.path.html">trimesh.path</a><input aria-label="Toggle navigation of trimesh.path" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="trimesh.path.exchange.html">trimesh.path.exchange</a><input aria-label="Toggle navigation of trimesh.path.exchange" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.dxf.html">trimesh.path.exchange.dxf</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.export.html">trimesh.path.exchange.export</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.load.html">trimesh.path.exchange.load</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.misc.html">trimesh.path.exchange.misc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="trimesh.path.exchange.svg_io.html">trimesh.path.exchange.svg_io</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.arc.html">trimesh.path.arc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.creation.html">trimesh.path.creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.curve.html">trimesh.path.curve</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.entities.html">trimesh.path.entities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.intersections.html">trimesh.path.intersections</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.packing.html">trimesh.path.packing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.path.html">trimesh.path.path</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.polygons.html">trimesh.path.polygons</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.raster.html">trimesh.path.raster</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.repair.html">trimesh.path.repair</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.segments.html">trimesh.path.segments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.simplify.html">trimesh.path.simplify</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.traversal.html">trimesh.path.traversal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.path.util.html">trimesh.path.util</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.ray.html">trimesh.ray</a><input aria-label="Toggle navigation of trimesh.ray" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_pyembree.html">trimesh.ray.ray_pyembree</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_triangle.html">trimesh.ray.ray_triangle</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.ray.ray_util.html">trimesh.ray.ray_util</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.resources.html">trimesh.resources</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.scene.html">trimesh.scene</a><input aria-label="Toggle navigation of trimesh.scene" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.cameras.html">trimesh.scene.cameras</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.lighting.html">trimesh.scene.lighting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.scene.html">trimesh.scene.scene</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.scene.transforms.html">trimesh.scene.transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.viewer.html">trimesh.viewer</a><input aria-label="Toggle navigation of trimesh.viewer" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.notebook.html">trimesh.viewer.notebook</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.trackball.html">trimesh.viewer.trackball</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.widget.html">trimesh.viewer.widget</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.viewer.windowed.html">trimesh.viewer.windowed</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.visual.html">trimesh.visual</a><input aria-label="Toggle navigation of trimesh.visual" class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.base.html">trimesh.visual.base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.color.html">trimesh.visual.color</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.gloss.html">trimesh.visual.gloss</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.material.html">trimesh.visual.material</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.objects.html">trimesh.visual.objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.visual.texture.html">trimesh.visual.texture</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="trimesh.voxel.html">trimesh.voxel</a><input aria-label="Toggle navigation of trimesh.voxel" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.base.html">trimesh.voxel.base</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.creation.html">trimesh.voxel.creation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.encoding.html">trimesh.voxel.encoding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.morphology.html">trimesh.voxel.morphology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.ops.html">trimesh.voxel.ops</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.runlength.html">trimesh.voxel.runlength</a></li>
+<li class="toctree-l3"><a class="reference internal" href="trimesh.voxel.transforms.html">trimesh.voxel.transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.base.html">trimesh.base</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.boolean.html">trimesh.boolean</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.bounds.html">trimesh.bounds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.caching.html">trimesh.caching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.collision.html">trimesh.collision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.comparison.html">trimesh.comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.constants.html">trimesh.constants</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.convex.html">trimesh.convex</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.creation.html">trimesh.creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.curvature.html">trimesh.curvature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.decomposition.html">trimesh.decomposition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.exceptions.html">trimesh.exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.geometry.html">trimesh.geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.graph.html">trimesh.graph</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.grouping.html">trimesh.grouping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.inertia.html">trimesh.inertia</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.intersections.html">trimesh.intersections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.interval.html">trimesh.interval</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.iteration.html">trimesh.iteration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.nsphere.html">trimesh.nsphere</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.parent.html">trimesh.parent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.permutate.html">trimesh.permutate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.points.html">trimesh.points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.poses.html">trimesh.poses</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.primitives.html">trimesh.primitives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.proximity.html">trimesh.proximity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.registration.html">trimesh.registration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.remesh.html">trimesh.remesh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.rendering.html">trimesh.rendering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.repair.html">trimesh.repair</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.resolvers.html">trimesh.resolvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.sample.html">trimesh.sample</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.schemas.html">trimesh.schemas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.smoothing.html">trimesh.smoothing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.transformations.html">trimesh.transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.triangles.html">trimesh.triangles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.typed.html">trimesh.typed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.units.html">trimesh.units</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.util.html">trimesh.util</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trimesh.version.html">trimesh.version</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/nricp.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="non-rigid-registration">
+<h1>Non-Rigid Registration<a class="headerlink" href="#non-rigid-registration" title="Link to this heading">¶</a></h1>
+<p>Mesh non-rigid registration methods are capable of aligning (<em>i.e.</em> superimposing) a <em>source mesh</em> on a <em>target geometry</em> which can be any 3D structure that enables nearest point query. In Trimesh, the target geometry can either be a mesh <code class="docutils literal notranslate"><span class="pre">trimesh.Trimesh</span></code> or a point cloud <code class="docutils literal notranslate"><span class="pre">trimesh.PointCloud</span></code>. This process is often used to build dense correspondence, needed for the creation of <a class="reference external" href="https://www.face-rec.org/algorithms/3d_morph/morphmod2.pdf">3D Morphable Models</a>.
+The “non-rigid” part means that the vertices of the source mesh are not scaled, rotated and translated together to match the target geometry as with <a class="reference external" href="https://en.wikipedia.org/wiki/Iterative_closest_point">Iterative Closest Points</a> (ICP) methods. Instead, they are allowed to move <em>more or less independently</em> to land on the target geometry.</p>
+<p>Trimesh implements two mesh non-rigid registrations algorithms which are both extensions of ICP. They are called Non-Rigid ICP methods :</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>NRICP method</p></th>
+<th class="head"><p>associated Trimesh function</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Correspondence part of <a class="reference external" href="https://people.csail.mit.edu/sumner/research/deftransfer/Sumner2004DTF.pdf">Deformation Transfer for Triangle Meshes</a><br /> Sumner and Popovic (2004)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="http://vigir.missouri.edu/~gdesouza/Research/Conference_CDs/IEEE_CVPR_2007/data/papers/0197.pdf">Optimal Step Nonrigid ICP Algorithms for Surface Registration</a> <br />Amberg <em>et al.</em> (2007)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">nricp_amberg</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="deformation-transfer-nricp-nricp-sumner">
+<h2>Deformation Transfer NRICP (<code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code>)<a class="headerlink" href="#deformation-transfer-nricp-nricp-sumner" title="Link to this heading">¶</a></h2>
+<p>This method was first introduced by <a class="reference external" href="https://grail.cs.washington.edu/projects/digital-human/pub/allen03space-submit.pdf">Allen and colleagues in 2003</a> then modified and adapted by <a class="reference external" href="https://people.csail.mit.edu/sumner/research/deftransfer/Sumner2004DTF.pdf">Sumner and Popovic in 2004</a>.</p>
+<section id="how-it-works">
+<h3>How it works<a class="headerlink" href="#how-it-works" title="Link to this heading">¶</a></h3>
+<p>Let’s define the source mesh $\mathcal{S} = {\mathbf{v}, \mathbf{f}}$ with $\mathbf{v} \in \mathbb{R}^{n\times3}$ being its vertices positions (<code class="docutils literal notranslate"><span class="pre">Trimesh.vertices</span></code>) and $\mathbf{f} \in \mathbb{N}^{m\times3}$ its triangles vertex indices (<code class="docutils literal notranslate"><span class="pre">Trimesh.faces</span></code>). From these we also derive its triangles vertex positions $\mathbf{t} \in \mathbb{R}^{m\times3\times3}$ (<code class="docutils literal notranslate"><span class="pre">Trimesh.triangles</span></code> or <code class="docutils literal notranslate"><span class="pre">Trimesh.vertices[Trimesh.faces]</span></code>).<br></p>
+<blockquote>
+<div><p>This method is an iterative algorithm where we seek for deformed vertices $\tilde{\mathbf{v}}$ from underformed vertices $\mathbf{v}$ via affine transformations. At each step, we solve for $\tilde{\mathbf{v}}$ given some constraints and $\mathbf{v}$ is replaced by $\tilde{\mathbf{v}}$ for the next iteration. Set <code class="docutils literal notranslate"><span class="pre">return_records=True</span></code> to get the deformed vertices at each step.</p>
+</div></blockquote>
+<p>To each triangle $\mathbf{t}_i = [\mathbf{x}_1, \mathbf{x}_2, \mathbf{x}_3]_i \in \mathbb{R}^{3\times3}$ of the source mesh, a new 3D point $\mathbf{x}_4$ is added to form a tetrahedron $\mathbf{t}’_i = [\mathbf{x}_1, \mathbf{x}_2, \mathbf{x}_3, \mathbf{x}_4]_i \in \mathbb{R}^{3\times4}$, with :
+$$\mathbf{x}_4= \mathbf{x}_1+ \frac{(\mathbf{x}_2 −\mathbf{x}_1)×(\mathbf{x}_3 −\mathbf{x}_1)}{\sqrt{\lvert(\mathbf{x}_2 −\mathbf{x}_1)×(\mathbf{x}_3 −\mathbf{x}_1)\rvert}}$$</p>
+<p>$\mathbf{x}_4$ is basically the point at the tip of the triangle normal starting from $\mathbf{x}_1$</p>
+<p>Each deformed vertex $\tilde{\mathbf{v}}_i$ is computed from the vertex $\mathbf{v}_i$ via an affine transformation ${\mathbf{T}, \mathbf{d}}_i$ with $\mathbf{T}_i \in \mathbb{R}^{3\times3}$ being its scaling/rotational part and $\mathbf{d}_i$ being its translational part.
+We get $\tilde{\mathbf{v}}_i = \mathbf{T}_i\mathbf{v}_i + \mathbf{d}_i$.</p>
+<p>The main idea is to subtract $\mathbf{d}$ from the previous equation. To do this, we subtract $\mathbf{x}_1$ from each tetrahedron to obtain frames $\mathbf{V}_i$ and $\tilde{\mathbf{V}}_i \in \mathbb{R}^{3\times3}$ :</p>
+<p>$$
+\begin{matrix}
+\mathbf{V}_i = [\mathbf{x}_2 - \mathbf{x}_1, \mathbf{x}_3 - \mathbf{x}_1, \mathbf{x}_4 - \mathbf{x}_1]_i \
+\tilde{\mathbf{V}}_i = [\tilde{\mathbf{x}}_2 - \tilde{\mathbf{x}}_1, \tilde{\mathbf{x}}_3 - \tilde{\mathbf{x}}_1, \tilde{\mathbf{x}}_4 - \tilde{\mathbf{x}}_1]_i
+\end{matrix}
+$$</p>
+<p>Thus,
+$$\tilde{\mathbf{V}}_i = \mathbf{T}_i\mathbf{V}_i \implies \mathbf{T}_i = \tilde{\mathbf{V}}_i\mathbf{V}_i^{-1}$$</p>
+<p>Now, several energies are defined to solve directly for the deformed vertices $\tilde{\mathbf{v}}$ :</p>
+<ul class="simple">
+<li><p>The <strong>closest valid point term</strong> (data term) $E_C$ indicates that the position of each vertex $\tilde{\mathbf{v}}_i$ of the deformed source mesh should be equal to the closest valid point $\mathbf{c}_i$ on the target geometry. This error is weighted by the <a class="reference external" href="#robustness-to-outliers"><em>closest point validity weights</em></a> $\boldsymbol{\alpha}$.</p></li>
+</ul>
+<p>$$E_C = \sum\limits^n_{i=1} \boldsymbol{\alpha}_i \lVert \tilde{\mathbf{v}}_i - \mathbf{c}_i \rVert^2$$</p>
+<ul class="simple">
+<li><p>The <strong>deformation identity term</strong>  $E_I$ is minimized when all the transformations $\mathbf{T}$ are equal to the identity matrix :</p></li>
+</ul>
+<p>$$E_I = \sum\limits^{\lvert T\rvert}_{i=1} \lVert \mathbf{T}<em>i - \mathbf{I}\rVert^2</em>\text{F}$$</p>
+<ul class="simple">
+<li><p>The <strong>deformation smoothness term</strong> (stiffness term) $E_S$ indicates that the transformations for adjacent triangles should be equal :</p></li>
+</ul>
+<p>$$E_S=\sum\limits^{\lvert T\rvert}<em>i\sum\limits</em>{j\in \text{adj}(i)} \lVert \mathbf{T}_i - \mathbf{T}<em>j\rVert^2</em>\text{F}$$</p>
+<blockquote>
+<div><p>The type of face adjacency is determined by the argument <code class="docutils literal notranslate"><span class="pre">face_pairs_type</span></code>, options being <code class="docutils literal notranslate"><span class="pre">'vertex'</span></code> and <code class="docutils literal notranslate"><span class="pre">'edge'</span></code>. With <code class="docutils literal notranslate"><span class="pre">face_pairs_type='edge'</span></code>, only the faces sharing an edge are considered adjacents, whereas with <code class="docutils literal notranslate"><span class="pre">face_pairs_type='vertex'</span></code>, all the faces sharing at least one vertex are considered adjacents, resulting in a stronger smoothness constraint.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>The <strong>landmark consistency term</strong> $E_L$ indicates that the $q$ landmarks ${f, \mathbf{b}}$ on the deformed source mesh surface should be on their corresponding position $\mathbf{p}$ on the target geometry. $\mathbf{b}$ are the barycentric coordinates of the landmarks in their respective triangles of indices $f$.</p></li>
+</ul>
+<p>$$E_L = \sum\limits^q_{i=1} \lVert \tilde{\mathbf{t}}_{f_i} \cdot \mathbf{b}_i^\text{T} - \mathbf{p}_i \rVert^2$$</p>
+<blockquote>
+<div><p>In the original paper, the landmark target positions are a hard constraint. Here the user can decide how important the landmarks are, so an extra energy $E_L$ is added.</p>
+</div></blockquote>
+<blockquote>
+<div><p>The source landmarks <code class="docutils literal notranslate"><span class="pre">source_landmarks</span></code> can come either as an array of vertex indices or a tuple of an array of triangle indices and an array of barycentric coordinates.</p>
+</div></blockquote>
+<p>The energies $E_I$ and $E_S$ depend not only on the deformed vertices $\tilde{\mathbf{v}}$ but also on the deformed frames $\tilde{\mathbf{V}}$. So we simultaneously solve for both $\tilde{\mathbf{v}}$ and the fourth vertex $\tilde{\mathbf{x}}_4$ of the deformed tetrahedrons :</p>
+<p>$$\min\limits_{\tilde{\mathbf{v}}, \tilde{\mathbf{x}}_4} E = w_CE_C + w_IE_I + w_SE_S + w_LE_L$$
+Where $w_C, w_I, w_S$ and $w_L$ are weighting factors used to determine what energies are more important to minimize. The solution to this optimization is the solution to a system of linear equations :</p>
+<p>$$
+\min\limits_{\tilde{\mathbf{v}}, \tilde{\mathbf{x}}_4}
+\begin{Vmatrix}
+\begin{bmatrix}
+w_C\mathbf{A}_C\
+w_I\mathbf{A}_I\
+w_S\mathbf{A}_S\
+w_L\mathbf{A}_L\
+\end{bmatrix}
+\mathbf{y}^\text{T}-
+\begin{bmatrix}
+w_C\mathbf{b}_C\
+w_I\mathbf{b}_I\
+w_S\mathbf{b}<em>S\
+w_L\mathbf{b}<em>L\
+\end{bmatrix}
+\end{Vmatrix}^2</em>\text{F} =
+\min\limits</em>{\tilde{\mathbf{v}}, \tilde{\mathbf{x}}<em>4}
+\lVert\mathbf{A}\mathbf{y}^\text{T} - \mathbf{b}\rVert^2</em>\text{F}
+$$</p>
+<p>Where $\mathbf{y} \in \mathbb{R}^{(n+m)\times3}$ is the concatenated deformed vertices $\tilde{\mathbf{v}}$ and deformed fourth tetrahedron vertices $\tilde{\mathbf{x}}_4$, $\mathbf{A}$ is the sparse matrix that relates $\tilde{\mathbf{v}}$ to $\mathbf{c}$ and $\tilde{\mathbf{V}}$ to $\mathbf{T}$. The right hand side $\mathbf{b}$ contains the ideal vertex positions and frame transformations corresponding to each energy.</p>
+<p>This linear system is solved using LU factorization of $\mathbf{A}^\text{T}\mathbf{A}$. The deformed vertices are just the $\text{n}^\text{th}$ first rows of the solution :
+$$\tilde{\mathbf{v}} = \mathbf{y}_{:n}$$
+Then we either start the next iteration or return the result.</p>
+</section>
+<section id="number-of-iterations">
+<h3>Number of iterations<a class="headerlink" href="#number-of-iterations" title="Link to this heading">¶</a></h3>
+<p>The number of iterations is determined by the length of the <code class="docutils literal notranslate"><span class="pre">steps</span></code> argument. <code class="docutils literal notranslate"><span class="pre">steps</span></code> should be an iterable of five floats iterables  <code class="docutils literal notranslate"><span class="pre">[[wc_1,</span> <span class="pre">wi_1,</span> <span class="pre">ws_1,</span> <span class="pre">wl_1,</span> <span class="pre">wn_1],</span> <span class="pre">...,</span> <span class="pre">[wc_n,</span> <span class="pre">wi_n,</span> <span class="pre">ws_n,</span> <span class="pre">wl_n,</span> <span class="pre">wn_n]]</span></code>. The floats should correspond to $w_C, w_I, w_S, w_L$ and $w_N$. The extra weight $w_N$ is related to outlier robustness.</p>
+</section>
+<section id="robustness-to-outliers">
+<h3>Robustness to outliers<a class="headerlink" href="#robustness-to-outliers" title="Link to this heading">¶</a></h3>
+<p>The target geometry can be noisy or incomplete which can lead to bad closest points $\mathbf{c}$. To remedy this issue, the linear equations related to $E_C$ are also weighted by <em>closest point validity weights</em>. First, if the distance to the closest point greater than the user specified threshold <code class="docutils literal notranslate"><span class="pre">distance_threshold</span></code>, the corresponding linear equations are multiplied by 0 (<em>i.e.</em> removed). Second, one may need the normals at the source mesh vertices and the normals at target geometry closest points to coincide. We use the dot product to the power $w_N$ to determine if normals are well aligned and use it to weight the linear equations. Eventually, the <em>closest point validity weights</em> are :</p>
+<p>$$
+\boldsymbol{\alpha}=\left[
+\begin{array}{ll}
+0 &amp; \text{where }\lVert\mathbf{v} - \mathbf{c}\rVert^2 &gt; d_{max}\
+\max(0, (\mathbf{n}_v^\text{T}\cdot\mathbf{n}_c)^{w_N}) &amp; \text{everywhere else}\
+\end{array}
+\right]
+$$</p>
+<p>With $d_{max}$ being the threshold given with the argument <code class="docutils literal notranslate"><span class="pre">distance_threshold</span></code>, and $\mathbf{n}_v$ and $\mathbf{n}_c$ the normals mentioned above.</p>
+</section>
+<section id="summary">
+<h3>Summary<a class="headerlink" href="#summary" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>For $w_C^i, w_I^i, w_S^i, w_L^i, w_N^i, \text{ } i \in [1, \text{nbsteps}]$</p>
+<ul>
+<li><p>Compute the closest points $\mathbf{c}$</p></li>
+<li><p>Build $\mathbf{A}_C$ and $\boldsymbol{\alpha}$</p></li>
+<li><p>Solve for the deformed vertices $\tilde{\mathbf{v}}$</p></li>
+<li><p>$\mathbf{v} ← \tilde{\mathbf{v}}$</p></li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="optimal-step-nricp-nricp-amberg">
+<h2>Optimal Step NRICP (<code class="docutils literal notranslate"><span class="pre">nricp_amberg</span></code>)<a class="headerlink" href="#optimal-step-nricp-nricp-amberg" title="Link to this heading">¶</a></h2>
+<p><em>Some notations and details are described in <a class="reference external" href="#deformation-transfer-nricp-nricp_sumner">Deformation Transfer NRICP section</a></em></p>
+<p>Unlike Deformation Transfer where we solve directly for deformed tetrahedrons, this methods solves for affine transformations $\mathbf{X}_i$ that map each $\mathbf{v}_i$ to $\tilde{\mathbf{v}}_i$.</p>
+<section id="id1">
+<h3>How it works<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<p>The vertices $\mathbf{v}$ are expressed in their homogeneous form $\mathbf{w}$:</p>
+<p>$$
+\begin{matrix}
+\mathbf{w}_i = [x, y, z, 1]_i^\text{T} \
+\end{matrix}
+$$</p>
+<p>With this formulation, the deformed vertices are $\tilde{\mathbf{v}}_i = \mathbf{w}_i^\text{T}\mathbf{X}_i$, where $\mathbf{X}_i$ are $4\times3$ matrices, enabling translation.</p>
+<p>Three energies are minimized :</p>
+<ul class="simple">
+<li><p>The <strong>closest valid point term</strong> (data term) $E_C$ :</p></li>
+</ul>
+<p>$$E_C = \sum\limits^n_{i=1} \boldsymbol{\alpha}_i \lVert \mathbf{w}_i^\text{T}\mathbf{X}_i - \mathbf{c}_i \rVert^2$$</p>
+<ul class="simple">
+<li><p>The <strong>deformation smoothness term</strong> (stiffness term) $E_S$. In the following, $\mathbf{G}=[1,1,1,\gamma]$ is used to weights differences in the rotational and skew part of the deformation, and can be accessed via the argument <code class="docutils literal notranslate"><span class="pre">gamma</span></code>. Two vertices are adjacent if they share an edge.</p></li>
+</ul>
+<p>$$E_S = \sum\limits^n_{j\in\text{adj}(i)} \lVert (\mathbf{X}_i - \mathbf{X}_j) \mathbf{G} \rVert^2$$</p>
+<ul class="simple">
+<li><p>The <strong>landmarks consistency term</strong> $E_L :$</p></li>
+</ul>
+<p>$$E_L = \sum\limits^q_{i=1} \lVert (\tilde{\mathbf{t}}_{f_i} \cdot \mathbf{b}_i^\text{T})^\text{T}\mathbf{X}_i - \mathbf{p}_i \rVert^2$$</p>
+<p>The resulting optimization is :</p>
+<p>$$\min\limits_{\mathbf{X}} E = E_C + w_SE_S + w_LE_L$$</p>
+<blockquote>
+<div><p>Note the absence of weight for $E_C$. This is just to match how the framework is described in the paper.</p>
+</div></blockquote>
+<p>Optimization that be rewritten in matrix form (this is well explained in the <a class="reference external" href="http://vigir.missouri.edu/~gdesouza/Research/Conference_CDs/IEEE_CVPR_2007/data/papers/0197.pdf">paper</a>) :</p>
+<p>$$
+\min\limits_{\mathbf{X}}
+\begin{Vmatrix}
+\begin{bmatrix}
+\mathbf{A}_C\
+w_S\mathbf{A}_S\
+w_L\mathbf{A}<em>L\
+\end{bmatrix}
+\mathbf{X}-
+\begin{bmatrix}
+\mathbf{b}<em>C\
+0\
+w_L\mathbf{b}<em>L\
+\end{bmatrix}
+\end{Vmatrix}^2</em>\text{F} =
+\min\limits</em>{\mathbf{X}}
+\lVert\mathbf{A}\mathbf{X} - \mathbf{b}\rVert^2</em>\text{F}
+$$</p>
+<p>Where $\mathbf{A}$ is the sparse matrix that links the current vertex positions to the ideal deformed vertex positions subject to the smoothness and landmarks constraints. The system $\mathbf{A}^\text{T}\mathbf{A} = \mathbf{A}^\text{T}\mathbf{b}$ is solved for $\mathbf{X}$ and deformed vertices are computed : $\tilde{\mathbf{v}}_i = \mathbf{w}_i^\text{T}\mathbf{X}_i$. Unlike, <code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code>, the vertices are not replaced by the deformed vertices yet the deformed vertices are used to find new correspondences $\mathbf{c}$ on the target geometry.</p>
+<p>The algorithm contains one outer loop and one inner loop. The outer loop is similar to <code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code> <em>i.e.</em> an iteration over a set of weights sets. The inner loop is performed until convergence of $\mathbf{X}$ or until a max iterations threshold  $N$ is reached.</p>
+</section>
+<section id="id2">
+<h3>Number of iterations<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<p>As with <code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code>, the <code class="docutils literal notranslate"><span class="pre">steps</span></code> arguments dictates the number of outer loop iterations performed. <code class="docutils literal notranslate"><span class="pre">steps</span></code> should be in the form <code class="docutils literal notranslate"><span class="pre">[[ws_1,</span> <span class="pre">wl_1,</span> <span class="pre">wn_1,</span> <span class="pre">max_iter_1],</span> <span class="pre">...,</span> <span class="pre">[ws_n,</span> <span class="pre">wl_n,</span> <span class="pre">wn_n,</span> <span class="pre">max_iter_n]]</span></code>. The values should correspond to $w_S, w_L$ and $w_N$. The extra weight $w_N$ is related to outlier robustness. The last number is an integer specifying $N_i$, the number of maximum iterations in the inner loop.</p>
+</section>
+<section id="id3">
+<h3>Robustness to outliers<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<p>The <a class="reference external" href="#robustness-to-outliers">same implementation</a> than <code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code> is used, with maximum distance threshold and normal weighting.</p>
+</section>
+<section id="id4">
+<h3>Summary<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Initialize the transformations $\mathbf{X^0}$ to the $4\times3$ identity</p></li>
+<li><p>For $w_S^i, w_L^i, w_N^i, N_i \text{ } i \in [1, \text{nbsteps}]$ :</p>
+<ul>
+<li><p>$j ← 0$</p></li>
+<li><p>While $\lVert\mathbf{X}^j - \mathbf{X}^{j-1}\rVert^2_\text{F} &gt; \epsilon$ and $j &lt; N_i$ :</p>
+<ul>
+<li><p>Compute the closest points $\mathbf{c}$ to the source vertices deformed by transformations $\mathbf{X}^{j-1}$</p></li>
+<li><p>Compute $\boldsymbol{\alpha}$</p></li>
+<li><p>Solve for the current transformations $\mathbf{X}^j$</p></li>
+<li><p>$j ← j + 1$</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<div><p>In contrast to <code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code>, the matrix $\mathbf{A}_C$ is built only once at initialization.</p>
+</div></blockquote>
+</section>
+</section>
+<section id="comparison-of-the-two-methods">
+<h2>Comparison of the two methods<a class="headerlink" href="#comparison-of-the-two-methods" title="Link to this heading">¶</a></h2>
+<p>The main difference between <code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code> and <code class="docutils literal notranslate"><span class="pre">nricp_amberg</span></code> is the kind of transformations that is optimized. <code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code> involves frames with an extra vertex representing the orientation of the triangles, and solves implicitly for transformations that act on these frames. In <code class="docutils literal notranslate"><span class="pre">nricp_amberg</span></code>, per-vertex transformations are explicitly solved for which allows to construct the correspondence cost matrix $\mathbf{A}_C$ only once. As a result, <code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code> tends to output smoother results with less high frequencies. The users are advised to try both algorithms with different parameter sets, especially different <code class="docutils literal notranslate"><span class="pre">steps</span></code> arguments, and find which suits better their problem.  <code class="docutils literal notranslate"><span class="pre">nricp_amberg</span></code> appears to be easier to tune, though.</p>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h2>
+<p>An example of each method can be found in <code class="docutils literal notranslate"><span class="pre">examples/nricp.py</span></code>.</p>
+</section>
+<section id="acknowledgments">
+<h2>Acknowledgments<a class="headerlink" href="#acknowledgments" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Some implementation details of <code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code> are borrowed, adapted and optimized from the <a class="reference external" href="https://github.com/mickare/Deformation-Transfer-for-Triangle-Meshes">Deformation-Transfer-for-Triangle-Meshes github repository</a> from the user mickare.</p></li>
+<li><p>Some implementation details of <code class="docutils literal notranslate"><span class="pre">nricp_amberg</span></code> are borrowed, adapted and optimized from the <a class="reference external" href="https://github.com/saikiran321/nonrigid_icp">nonrigid_icp github repository</a> from the user saikiran321.</p></li>
+</ul>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.face-rec.org/algorithms/3d_morph/morphmod2.pdf">[1999, Blanz and Vetter] A Morphable Model For The Synthesis Of 3D Faces</a></p></li>
+<li><p><a class="reference external" href="https://grail.cs.washington.edu/projects/digital-human/pub/allen03space-submit.pdf">[2003, Allen et al.] The space of human body shapes:
+reconstruction and parameterization from range scans</a></p></li>
+<li><p><a class="reference external" href="https://people.csail.mit.edu/sumner/research/deftransfer/Sumner2004DTF.pdf">[2004, Sumner and Popovic] Deformation Transfer for Triangle Meshes</a></p></li>
+<li><p><a class="reference external" href="http://vigir.missouri.edu/~gdesouza/Research/Conference_CDs/IEEE_CVPR_2007/data/papers/0197.pdf">[2007, Amberg et al.] Optimal Step Nonrigid ICP Algorithms for Surface Registration</a></p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, Michael Dawson-Haggerty
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Non-Rigid Registration</a><ul>
+<li><a class="reference internal" href="#deformation-transfer-nricp-nricp-sumner">Deformation Transfer NRICP (<code class="docutils literal notranslate"><span class="pre">nricp_sumner</span></code>)</a><ul>
+<li><a class="reference internal" href="#how-it-works">How it works</a></li>
+<li><a class="reference internal" href="#number-of-iterations">Number of iterations</a></li>
+<li><a class="reference internal" href="#robustness-to-outliers">Robustness to outliers</a></li>
+<li><a class="reference internal" href="#summary">Summary</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#optimal-step-nricp-nricp-amberg">Optimal Step NRICP (<code class="docutils literal notranslate"><span class="pre">nricp_amberg</span></code>)</a><ul>
+<li><a class="reference internal" href="#id1">How it works</a></li>
+<li><a class="reference internal" href="#id2">Number of iterations</a></li>
+<li><a class="reference internal" href="#id3">Robustness to outliers</a></li>
+<li><a class="reference internal" href="#id4">Summary</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#comparison-of-the-two-methods">Comparison of the two methods</a></li>
+<li><a class="reference internal" href="#examples">Examples</a></li>
+<li><a class="reference internal" href="#acknowledgments">Acknowledgments</a></li>
+<li><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=70aa39c2"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

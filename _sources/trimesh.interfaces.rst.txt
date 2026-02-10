@@ -1,0 +1,12 @@
+trimesh.interfaces
+==================
+
+.. toctree::
+
+   trimesh.interfaces.blender
+   trimesh.interfaces.generic
+
+.. automodule:: trimesh.interfaces
+   :members:
+   :show-inheritance:
+   :undoc-members:

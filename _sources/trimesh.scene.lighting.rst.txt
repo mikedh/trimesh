@@ -1,0 +1,7 @@
+trimesh.scene.lighting
+======================
+
+.. automodule:: trimesh.scene.lighting
+   :members:
+   :show-inheritance:
+   :undoc-members:

@@ -1,0 +1,7 @@
+trimesh.viewer.notebook
+=======================
+
+.. automodule:: trimesh.viewer.notebook
+   :members:
+   :show-inheritance:
+   :undoc-members:

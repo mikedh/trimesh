@@ -1,0 +1,7 @@
+trimesh.path.polygons
+=====================
+
+.. automodule:: trimesh.path.polygons
+   :members:
+   :show-inheritance:
+   :undoc-members:
