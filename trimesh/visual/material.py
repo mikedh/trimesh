@@ -381,8 +381,8 @@ class PBRMaterial(Material):
         else:
             # non-None values must be a floating point
             emissive = np.array(value, dtype=np.float64).reshape(3)
-            if emissive.min() < -_eps or emissive.max() > (1 + _eps):
-                raise ValueError("all factors must be between 0.0-1.0")
+            if emissive.min() < -_eps :
+                raise ValueError("all factors must be greater than 0.0")
             self._data["emissiveFactor"] = emissive
 
     @property
