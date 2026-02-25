@@ -679,12 +679,24 @@ def traversals(edges, mode="bfs"):
     # coo_matrix for csgraph routines
     graph = edges_to_coo(edges)
 
+    # compute node degrees so we can prefer starting traversals
+    # from endpoints (degree-1 nodes). Starting DFS from an
+    # interior node of an open path causes backtracking, which
+    # produces non-edge consecutive pairs that fill_traversals
+    # then splits on, fragmenting a single path into pieces.
+    degree = np.bincount(edges.ravel())
+    endpoints = {n for n in nodes if degree[n] == 1}
+
     # we're going to make a sequence of traversals
     traversals = []
 
     while len(nodes) > 0:
-        # starting at any node
-        start = nodes.pop()
+        # prefer endpoints to avoid DFS backtracking on open paths
+        if endpoints:
+            start = endpoints.pop()
+            nodes.discard(start)
+        else:
+            start = nodes.pop()
         # get an (n,) ordered traversal
         ordered = func(
             graph, i_start=start, return_predecessors=False, directed=False
@@ -693,6 +705,7 @@ def traversals(edges, mode="bfs"):
         traversals.append(ordered)
         # remove the nodes we've consumed
         nodes.difference_update(ordered)
+        endpoints.difference_update(ordered)
 
     return traversals
 
