@@ -9,6 +9,7 @@ Currently uses networkx or scipy.sparse.csgraph backend.
 """
 
 import collections
+from itertools import chain
 
 import numpy as np
 
@@ -679,33 +680,31 @@ def traversals(edges, mode="bfs"):
     # coo_matrix for csgraph routines
     graph = edges_to_coo(edges)
 
-    # compute node degrees so we can prefer starting traversals
-    # from endpoints (degree-1 nodes). Starting DFS from an
+    # compute leaf nodes so we can prefer starting traversals
+    # from end points (degree-1 nodes). Starting DFS from an
     # interior node of an open path causes backtracking, which
     # produces non-edge consecutive pairs that fill_traversals
-    # then splits on, fragmenting a single path into pieces.
-    degree = np.bincount(edges.ravel())
-    endpoints = {n for n in nodes if degree[n] == 1}
+    # then splits on fragmenting a single path into pieces.
+    leaf_nodes = set(np.nonzero(np.bincount(edges.ravel()) == 1)[0])
 
-    # we're going to make a sequence of traversals
+    # collect traversals
     traversals = []
+    # keep track of which nodes have been visited
+    visited = np.zeros(edges.max() + 1, dtype=np.bool_)
 
-    while len(nodes) > 0:
-        # prefer endpoints to avoid DFS backtracking on open paths
-        if endpoints:
-            start = endpoints.pop()
-            nodes.discard(start)
-        else:
-            start = nodes.pop()
+    # process leaf nodes first to avoid DFS backtracking on open paths
+    for start in chain(leaf_nodes, nodes - leaf_nodes):
+        if visited[start]:
+            continue
+
         # get an (n,) ordered traversal
         ordered = func(
             graph, i_start=start, return_predecessors=False, directed=False
         ).astype(np.int64)
 
+        # store the traversal and mark all nodes as visited
         traversals.append(ordered)
-        # remove the nodes we've consumed
-        nodes.difference_update(ordered)
-        endpoints.difference_update(ordered)
+        visited[ordered] = True
 
     return traversals
 

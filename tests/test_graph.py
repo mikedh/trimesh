@@ -205,9 +205,7 @@ class GraphTest(g.unittest.TestCase):
         produced non-edge consecutive pairs, fragmenting the path.
         """
         # simple open chain: 0-1-2-3-4-5-6-7
-        chain = g.np.column_stack([g.np.arange(7), g.np.arange(1, 8)]).astype(
-            g.np.int64
-        )
+        chain = g.np.column_stack([g.np.arange(7), g.np.arange(1, 8)]).astype(g.np.int64)
 
         dfs = g.trimesh.graph.traversals(chain, mode="dfs")
         filled = g.trimesh.graph.fill_traversals(dfs, chain)
