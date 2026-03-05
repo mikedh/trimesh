@@ -120,7 +120,7 @@ def fix_inversion(mesh, multibody: bool = False):
 
     # loop through indexes of `mesh.faces`
     for face_index in groups:
-        # we need watertight bodies to do anything so immediatly
+        # we need watertight bodies to do anything so immediately
         # skip anything smaller than 4 faces (tetrahedron)
         if len(face_index) < 4:
             continue
