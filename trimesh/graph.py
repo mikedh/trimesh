@@ -674,25 +674,38 @@ def traversals(edges, mode="bfs"):
     # make sure edges are sorted so we can query
     # an ordered pair later
     edges.sort(axis=1)
-    # set of nodes to make sure we get every node
-    nodes = set(edges.reshape(-1))
     # coo_matrix for csgraph routines
     graph = edges_to_coo(edges)
 
-    # we're going to make a sequence of traversals
-    traversals = []
+    # get unique nodes AND leaf node info from bincount
+    bincount = np.bincount(edges.ravel())
 
-    while len(nodes) > 0:
-        # starting at any node
-        start = nodes.pop()
-        # get an (n,) ordered traversal
+    # a leaf node occurs exactly once
+    nodes_leaf = np.nonzero(bincount == 1)[0]
+    # a non-leaf node occurs more than once
+    nodes = np.nonzero(bincount > 1)[0]
+
+    # collect traversals
+    traversals = []
+    # keep track of which nodes have been visited
+    visited = np.zeros(len(bincount) + 1, dtype=np.bool_)
+
+    # process leaf nodes first to avoid DFS backtracking
+    # starting DFS from an interior node of an open path causes
+    # backtracking, which produces non-edge consecutive pairs that
+    # fill_traversals then splits a single path into pieces
+    for start in np.concatenate((nodes_leaf, nodes)):
+        if visited[start]:
+            continue
+
+        # get an (n,) ordered traversal from this start
         ordered = func(
             graph, i_start=start, return_predecessors=False, directed=False
         ).astype(np.int64)
 
+        # store the traversal and mark all nodes as visited
         traversals.append(ordered)
-        # remove the nodes we've consumed
-        nodes.difference_update(ordered)
+        visited[ordered] = True
 
     return traversals
 

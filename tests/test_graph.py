@@ -197,6 +197,40 @@ class GraphTest(g.unittest.TestCase):
                 # check all return dtypes
                 assert all(i.dtype == g.np.int64 for i in dfs)
 
+    def test_traversal_no_fragmentation(self):
+        """
+        A DFS traversal of an open chain should not be split
+        into fragments by fill_traversals. Previously, starting
+        DFS from an interior node caused backtracking which
+        produced non-edge consecutive pairs, fragmenting the path.
+        """
+        # simple open chain: 0-1-2-3-4-5-6-7
+        chain = g.np.column_stack([g.np.arange(7), g.np.arange(1, 8)]).astype(g.np.int64)
+
+        dfs = g.trimesh.graph.traversals(chain, mode="dfs")
+        filled = g.trimesh.graph.fill_traversals(dfs, chain)
+
+        # a single connected open chain must produce exactly 1 traversal
+        assert len(filled) == 1
+        # that traversal must contain all 8 nodes
+        assert len(filled[0]) == 8
+
+        # two disjoint chains should produce exactly 2 traversals
+        chain2 = g.np.vstack(
+            [
+                chain,
+                g.np.column_stack(
+                    [
+                        g.np.arange(100, 104),
+                        g.np.arange(101, 105),
+                    ]
+                ).astype(g.np.int64),
+            ]
+        )
+        dfs2 = g.trimesh.graph.traversals(chain2, mode="dfs")
+        filled2 = g.trimesh.graph.fill_traversals(dfs2, chain2)
+        assert len(filled2) == 2
+
     def test_adjacency(self):
         for add_degen in [False, True]:
             for name in ["featuretype.STL", "soup.stl"]:
