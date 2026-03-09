@@ -105,8 +105,24 @@ class Entity(ABC):
         closed : bool
           Is the entity closed or not?
         """
+        # if a closed value was explicitly set, return that
+        if hasattr(self, "_closed"):
+            return self._closed
+        # otherwise compute from points
         closed = len(self.points) > 2 and self.points[0] == self.points[-1]
         return closed
+
+    @closed.setter
+    def closed(self, value):
+        """
+        Set the closed state of the entity.
+
+        Parameters
+        -------------
+        value : bool
+          Is the entity closed or not?
+        """
+        self._closed = bool(value)
 
     @property
     def nodes(self):
