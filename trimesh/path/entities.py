@@ -105,10 +105,6 @@ class Entity(ABC):
         closed : bool
           Is the entity closed or not?
         """
-        # if a closed value was explicitly set, return that
-        if hasattr(self, "_closed"):
-            return self._closed
-        # otherwise compute from points
         closed = len(self.points) > 2 and self.points[0] == self.points[-1]
         return closed
 
@@ -122,7 +118,11 @@ class Entity(ABC):
         value : bool
           Is the entity closed or not?
         """
-        self._closed = bool(value)
+        value = bool(value)
+        if value and not self.closed:
+            self.points = np.append(self.points, self.points[0])
+        elif not value and self.closed:
+            self.points = self.points[:-1]
 
     @property
     def nodes(self):
