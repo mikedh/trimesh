@@ -108,6 +108,22 @@ class Entity(ABC):
         closed = len(self.points) > 2 and self.points[0] == self.points[-1]
         return closed
 
+    @closed.setter
+    def closed(self, value):
+        """
+        Set the closed state of the entity.
+
+        Parameters
+        -------------
+        value : bool
+          Is the entity closed or not?
+        """
+        value = bool(value)
+        if value and not self.closed:
+            self.points = np.append(self.points, self.points[0])
+        elif not value and self.closed:
+            self.points = self.points[:-1]
+
     @property
     def nodes(self):
         """
