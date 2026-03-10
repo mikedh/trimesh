@@ -86,7 +86,7 @@ test-endian: ## Run PLY tests on big-endian s390x via QEMU emulation.
 		-v $(CURDIR):/trimesh \
 		-w /trimesh \
 		debian:trixie-slim \
-		bash -c "apt-get update -qq && apt-get install -y -qq python3-numpy python3-pytest > /dev/null && python3 -m pytest tests/test_ply.py -v"
+		bash -c "apt-get update -qq && apt-get install -y -qq python3-numpy python3-pytest python3-pil python3-shapely python3-scipy python3-lxml python3-networkx python3-jsonschema python3-httpx python3-collada > /dev/null && python3 -m pytest tests/test_ply.py tests/test_gltf.py tests/test_voxel.py tests/test_stl.py tests/test_dae.py tests/test_obj.py -v"
 
 .PHONY: publish-docker
 publish-docker: build ## Publish Docker images.
