@@ -50,6 +50,15 @@ jobs:
     - name: Run Pytest In Docker
       run: make tests
 
+  endian:
+    name: Big-Endian s390x Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: docker/setup-qemu-action@v3
+    - name: Run PLY Tests On s390x
+      run: make test-endian
+
   corpus:
     runs-on: ubuntu-latest
     name: Check Corpus Loading

@@ -80,6 +80,14 @@ docs: ## Build trimesh's sphinx docs
 bash: build ## Start a bash terminal in the image.
 	docker run -it $(TAG_LATEST) /bin/bash
 
+.PHONY: test-endian
+test-endian: ## Run PLY tests on big-endian s390x via QEMU emulation.
+	docker run --rm --platform linux/s390x \
+		-v $(CURDIR):/trimesh \
+		-w /trimesh \
+		debian:trixie-slim \
+		bash -c "apt-get update -qq && apt-get install -y -qq python3-numpy python3-pytest > /dev/null && python3 -m pytest tests/test_ply.py -v"
+
 .PHONY: publish-docker
 publish-docker: build ## Publish Docker images.
 	docker push $(TAG_LATEST)
