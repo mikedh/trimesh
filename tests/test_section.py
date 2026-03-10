@@ -111,6 +111,31 @@ class SectionTest(g.unittest.TestCase):
                 # make sure reconstruction is at z of frame
                 assert g.np.isclose(back_3D.vertices[:, 2].mean(), z_levels[index])
 
+    def test_section_entity_count(self):
+        """
+        A cross-section of a convex shape should produce exactly
+        one entity per connected component. Previously, starting
+        DFS from an interior node fragmented single paths into
+        multiple entities.
+        """
+        # box section at z=0 should be a single closed rectangle
+        box = g.trimesh.creation.box()
+        section = box.section(
+            plane_origin=[0, 0, 0],
+            plane_normal=[0, 0, 1],
+        )
+        assert section is not None
+        assert len(section.entities) == 1
+
+        # cylinder section at z=0 should be a single closed ellipse
+        cyl = g.trimesh.creation.cylinder(radius=1.0, height=2.0)
+        section = cyl.section(
+            plane_origin=[0, 0, 0],
+            plane_normal=[0, 0, 1],
+        )
+        assert section is not None
+        assert len(section.entities) == 1
+
     def test_multi_index(self):
         # make sure returned face indexes on a section are correct
         mesh = g.trimesh.creation.box()

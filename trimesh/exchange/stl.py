@@ -1,6 +1,7 @@
 import numpy as np
 
 from .. import util
+from ..typed import Dict, Stream
 
 
 class HeaderError(Exception):
@@ -19,22 +20,20 @@ _stl_dtype = np.dtype(
 _stl_dtype_header = np.dtype([("header", np.void, 80), ("face_count", "<u4")])
 
 
-def load_stl(file_obj, **kwargs):
+def load_stl(file_obj: Stream, **kwargs) -> Dict:
     """
-    Load an STL file from a file object.
+    Load a binary or an ASCII STL file from a file object.
 
     Parameters
     ----------
-    file_obj : open file-like object
+    file_obj
       Containing STL data
 
     Returns
     ----------
-    loaded : dict
-      kwargs for a Trimesh constructor with keys:
-      vertices:     (n,3) float, vertices
-      faces:        (m,3) int, indexes of vertices
-      face_normals: (m,3) float, normal vector of each face
+    loaded
+      Keyword arguments for a Trimesh constructor with
+      data loaded into properly shaped numpy arrays.
     """
     # save start of file obj
     file_pos = file_obj.tell()
@@ -53,7 +52,7 @@ def load_stl(file_obj, **kwargs):
         return load_stl_ascii(file_obj)
 
 
-def load_stl_binary(file_obj):
+def load_stl_binary(file_obj: Stream) -> Dict:
     """
     Load a binary STL file from a file object.
 
@@ -64,10 +63,9 @@ def load_stl_binary(file_obj):
 
     Returns
     ----------
-    loaded: kwargs for a Trimesh constructor with keys:
-              vertices:     (n,3) float, vertices
-              faces:        (m,3) int, indexes of vertices
-              face_normals: (m,3) float, normal vector of each face
+    loaded
+      Keyword arguments for a Trimesh constructor with data
+      loaded into properly shaped numpy arrays.
     """
     # the header is always 84 bytes long, we just reference the dtype.itemsize
     # to be explicit about where that magical number comes from
@@ -136,7 +134,7 @@ def load_stl_binary(file_obj):
     return result
 
 
-def load_stl_ascii(file_obj):
+def load_stl_ascii(file_obj: Stream) -> Dict:
     """
     Load an ASCII STL file from a file object.
 
@@ -147,11 +145,9 @@ def load_stl_ascii(file_obj):
 
     Returns
     ----------
-    loaded : dict
-      kwargs for a Trimesh constructor with keys:
-      vertices:     (n, 3) float, vertices
-      faces:        (m, 3) int, indexes of vertices
-      face_normals: (m, 3) float, normal vector of each face
+    loaded
+      Keyword arguments for a Trimesh constructor with
+      data loaded into properly shaped numpy arrays.
     """
 
     # read all text into one string

@@ -81,7 +81,7 @@ def generate_index(source: str, target: str) -> str:
             continue
 
         with open(convert) as f:
-            doc, post = postprocess(f.read(), title=title)
+            _doc, post = postprocess(f.read(), title=title)
         with open(convert, "w") as f:
             f.write(post)
 

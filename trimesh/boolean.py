@@ -10,7 +10,7 @@ import numpy as np
 from . import interfaces
 from .exceptions import ExceptionWrapper
 from .iteration import reduce_cascade
-from .typed import Callable, Dict, Optional, Sequence
+from .typed import BooleanEngineType, BooleanOperationType, Callable, Dict, Sequence
 
 try:
     from manifold3d import Manifold, Mesh
@@ -20,7 +20,10 @@ except BaseException as E:
 
 
 def difference(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence,
+    engine: BooleanEngineType = None,
+    check_volume: bool = True,
+    **kwargs,
 ):
     """
     Compute the boolean difference between a mesh an n other meshes.
@@ -43,15 +46,17 @@ def difference(
     difference
       A `Trimesh` that contains `meshes[0] - meshes[1:]`
     """
-    if check_volume and not all(m.is_volume for m in meshes):
-        raise ValueError("Not all meshes are volumes!")
-    kwargs.update({"check_volume": check_volume})
 
-    return _engines[engine](meshes, operation="difference", **kwargs)
+    return _engines[engine](
+        meshes, operation="difference", check_volume=check_volume, **kwargs
+    )
 
 
 def union(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence,
+    engine: BooleanEngineType = None,
+    check_volume: bool = True,
+    **kwargs,
 ):
     """
     Compute the boolean union between a mesh an n other meshes.
@@ -74,15 +79,16 @@ def union(
     union
       A `Trimesh` that contains the union of all passed meshes.
     """
-    if check_volume and not all(m.is_volume for m in meshes):
-        raise ValueError("Not all meshes are volumes!")
-    kwargs.update({"check_volume": check_volume})
-
-    return _engines[engine](meshes, operation="union", **kwargs)
+    return _engines[engine](
+        meshes, operation="union", check_volume=check_volume, **kwargs
+    )
 
 
 def intersection(
-    meshes: Sequence, engine: Optional[str] = None, check_volume: bool = True, **kwargs
+    meshes: Sequence,
+    engine: BooleanEngineType = None,
+    check_volume: bool = True,
+    **kwargs,
 ):
     """
     Compute the boolean intersection between a mesh and other meshes.
@@ -105,16 +111,14 @@ def intersection(
     intersection
       A `Trimesh` that contains the intersection geometry.
     """
-    if check_volume and not all(m.is_volume for m in meshes):
-        raise ValueError("Not all meshes are volumes!")
-    kwargs.update({"check_volume": check_volume})
-
-    return _engines[engine](meshes, operation="intersection", **kwargs)
+    return _engines[engine](
+        meshes, operation="intersection", check_volume=check_volume, **kwargs
+    )
 
 
 def boolean_manifold(
     meshes: Sequence,
-    operation: str,
+    operation: BooleanOperationType,
     check_volume: bool = True,
     **kwargs,
 ):
@@ -171,7 +175,10 @@ def boolean_manifold(
     from . import Trimesh
 
     result_mesh = result_manifold.to_mesh()
-    return Trimesh(vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts)
+
+    return Trimesh(
+        vertices=result_mesh.vert_properties, faces=result_mesh.tri_verts, process=False
+    )
 
 
 # which backend boolean engines do we have

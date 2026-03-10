@@ -15,7 +15,8 @@ import pyglet
 from pyglet import gl
 
 from .trackball import Trackball
-from .windowed.pyglet1 import SceneViewer, _geometry_hash, conversion
+from .pyglet1 import conversion
+from .pyglet1.viewer import SceneViewer, _geometry_hash
 
 warnings.warn(
     """

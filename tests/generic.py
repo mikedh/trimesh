@@ -261,6 +261,13 @@ def get_mesh(file_name, *args, **kwargs):
     return list(meshes)
 
 
+def get_scene(file_name: str, **kwargs) -> trimesh.Scene:
+    """
+    Return the results of trimesh.load_scene
+    """
+    return trimesh.load_scene(get_path(file_name), **kwargs)
+
+
 def get_path(file_name):
     """
     Get the absolute location of a referenced model file.
@@ -463,6 +470,8 @@ def check_path2D(path):
     assert len(path.identifier) >= 5, path.identifier
     assert isinstance(path.identifier_hash, str)
     assert len(path.identifier_hash) == 64, len(path.identifier_hash)
+
+    assert path.convex_hull is not None
 
 
 def scene_equal(a, b):

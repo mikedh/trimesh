@@ -15,7 +15,19 @@ import numpy as np
 from . import exceptions, grouping, util
 from .constants import log, tol
 from .geometry import faces_to_edges
-from .typed import ArrayLike, List, NDArray, Number, Optional, Sequence, Union, int64
+from .typed import (
+    ArrayLike,
+    GraphEngineType,
+    Integer,
+    List,
+    NDArray,
+    Number,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    int64,
+)
 
 try:
     from scipy.sparse import coo_matrix, csgraph
@@ -282,16 +294,17 @@ def shared_edges(faces_a, faces_b):
     return shared
 
 
-def facets(mesh, engine=None, facet_threshold: Optional[Number] = None):
+def facets(
+    mesh, engine: GraphEngineType = None, facet_threshold: Optional[Number] = None
+):
     """
     Find the list of parallel adjacent faces.
 
     Parameters
     -----------
     mesh : trimesh.Trimesh
-    engine : str
-      Which graph engine to use:
-      ('scipy', 'networkx')
+    engine
+      Which graph engine to use
     facet_threshold : float
       Threshold for two facets to be considered coplanar
 
@@ -332,7 +345,14 @@ def facets(mesh, engine=None, facet_threshold: Optional[Number] = None):
     return components
 
 
-def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs) -> List:
+def split(
+    mesh,
+    only_watertight: bool = True,
+    repair: bool = True,
+    adjacency: Optional[ArrayLike] = None,
+    engine: GraphEngineType = None,
+    **kwargs,
+) -> List:
     """
     Split a mesh into multiple meshes from face
     connectivity.
@@ -344,35 +364,44 @@ def split(mesh, only_watertight=True, adjacency=None, engine=None, **kwargs) -> 
     Parameters
     ----------
     mesh : trimesh.Trimesh
-    only_watertight: bool
-      Only return watertight components
+      The source multibody mesh to split
+    only_watertight
+      Only return watertight components and discard
+      any connected component that isn't fully watertight.
+    repair
+      If set try to fill small holes in a mesh, before the
+      discard step in `only_watertight.
     adjacency : (n, 2) int
-      Face adjacency to override full mesh
-    engine : str or None
-      Which graph engine to use
+      If passed will be used instead of `mesh.face_adjacency`
+    engine
+      Which graph engine to use for the connected components.
 
     Returns
     ----------
     meshes : (m,) trimesh.Trimesh
-      Results of splitting
+      Results of splitting based on parameters.
     """
     if adjacency is None:
         adjacency = mesh.face_adjacency
 
-    # if only watertight the shortest thing we can split has 3 triangles
     if only_watertight:
+        # the smallest watertight mesh has 4 faces
         min_len = 4
     else:
+        # allow any size of connected component
         min_len = 1
 
     components = connected_components(
         edges=adjacency, nodes=np.arange(len(mesh.faces)), min_len=min_len, engine=engine
     )
-    meshes = mesh.submesh(components, only_watertight=only_watertight, **kwargs)
-    return meshes
+    return mesh.submesh(
+        components, only_watertight=only_watertight, repair=repair, **kwargs
+    )
 
 
-def connected_components(edges, min_len=1, nodes=None, engine=None):
+def connected_components(
+    edges, min_len: Integer = 1, nodes=None, engine: GraphEngineType = None
+):
     """
     Find groups of connected nodes from an edge list.
 
@@ -645,25 +674,38 @@ def traversals(edges, mode="bfs"):
     # make sure edges are sorted so we can query
     # an ordered pair later
     edges.sort(axis=1)
-    # set of nodes to make sure we get every node
-    nodes = set(edges.reshape(-1))
     # coo_matrix for csgraph routines
     graph = edges_to_coo(edges)
 
-    # we're going to make a sequence of traversals
-    traversals = []
+    # get unique nodes AND leaf node info from bincount
+    bincount = np.bincount(edges.ravel())
 
-    while len(nodes) > 0:
-        # starting at any node
-        start = nodes.pop()
-        # get an (n,) ordered traversal
+    # a leaf node occurs exactly once
+    nodes_leaf = np.nonzero(bincount == 1)[0]
+    # a non-leaf node occurs more than once
+    nodes = np.nonzero(bincount > 1)[0]
+
+    # collect traversals
+    traversals = []
+    # keep track of which nodes have been visited
+    visited = np.zeros(len(bincount) + 1, dtype=np.bool_)
+
+    # process leaf nodes first to avoid DFS backtracking
+    # starting DFS from an interior node of an open path causes
+    # backtracking, which produces non-edge consecutive pairs that
+    # fill_traversals then splits a single path into pieces
+    for start in np.concatenate((nodes_leaf, nodes)):
+        if visited[start]:
+            continue
+
+        # get an (n,) ordered traversal from this start
         ordered = func(
             graph, i_start=start, return_predecessors=False, directed=False
         ).astype(np.int64)
 
+        # store the traversal and mark all nodes as visited
         traversals.append(ordered)
-        # remove the nodes we've consumed
-        nodes.difference_update(ordered)
+        visited[ordered] = True
 
     return traversals
 
@@ -830,7 +872,9 @@ def smooth_shade(
     return smooth
 
 
-def is_watertight(edges, edges_sorted=None):
+def is_watertight(
+    edges: ArrayLike, edges_sorted: Optional[ArrayLike] = None
+) -> Tuple[bool, bool]:
     """
     Parameters
     -----------
@@ -851,13 +895,15 @@ def is_watertight(edges, edges_sorted=None):
     if edges_sorted is None:
         edges_sorted = np.sort(edges, axis=1)
 
-    # group sorted edges
+    # group sorted edges throwing away any edge
+    # that doesn't appear exactly twice
     groups = grouping.group_rows(edges_sorted, require_count=2)
+    # if we didn't throw away any edges that means
+    # every edge shows up exactly twice
     watertight = bool((len(groups) * 2) == len(edges))
 
-    # are opposing edges reversed
+    # check that the un-sorted duplicate edges are reversed
     opposing = edges[groups].reshape((-1, 4))[:, 1:3].T
-    # wrap the weird numpy bool
     winding = bool(np.equal(*opposing).all())
 
     return watertight, winding

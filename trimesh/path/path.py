@@ -37,6 +37,7 @@ from ..typed import (
     Mapping,
     NDArray,
     Optional,
+    Self,
     Tuple,
     Union,
     float64,
@@ -147,7 +148,7 @@ class Path(parent.Geometry):
         """
         return f"<trimesh.{type(self).__name__}(vertices.shape={self.vertices.shape}, len(entities)={len(self.entities)})>"
 
-    def process(self):
+    def process(self) -> Self:
         """
         Apply basic cleaning functions to the Path object in-place.
         """
@@ -348,7 +349,7 @@ class Path(parent.Geometry):
         return np.array([points.min(axis=0), points.max(axis=0)], dtype=np.float64)
 
     @cache_decorator
-    def centroid(self):
+    def centroid(self) -> NDArray[float64]:
         """
         Return the centroid of axis aligned bounding box enclosing
         all entities of the path object.
@@ -361,7 +362,7 @@ class Path(parent.Geometry):
         return self.bounds.mean(axis=0)
 
     @property
-    def extents(self):
+    def extents(self) -> NDArray[float64]:
         """
         The size of the axis aligned bounding box.
 
@@ -463,7 +464,7 @@ class Path(parent.Geometry):
         nodes = np.vstack([e.nodes for e in self.entities])
         return nodes
 
-    def apply_transform(self, transform):
+    def apply_transform(self, transform: ArrayLike) -> Self:
         """
         Apply a transformation matrix to the current path in- place
 
@@ -517,7 +518,7 @@ class Path(parent.Geometry):
         self._cache.cache.update(cache)
         return self
 
-    def apply_layer(self, name):
+    def apply_layer(self, name: str) -> None:
         """
         Apply a layer name to every entity in the path.
 
@@ -1042,6 +1043,52 @@ class Path2D(Path):
         matrix = bounds.oriented_bounds_2D(self.vertices[self.referenced_vertices])[0]
         return matrix
 
+    @cache_decorator
+    def convex_hull(self) -> "Path2D":
+        """
+        Return a convex hull of the 2D path.
+
+        Returns
+        --------
+        hull
+          A convex hull of included vertices from this path.
+        """
+        from scipy.spatial import ConvexHull
+
+        from .exchange.misc import edges_to_path
+
+        # include referenced vertices
+        candidates = [self.vertices[self.referenced_vertices]]
+        # include all points from discretized closed curves
+        # this prevents arcs from being collapsed past the
+        # discretization parameters set globally
+        candidates.extend(self.discrete)
+        candidates = np.vstack(candidates)
+
+        # if there's only 2 points this is a zero-area hull
+        if len(candidates) < 3:
+            return Path2D()
+
+        try:
+            # calculate a 2D convex hull for our candidate vertices
+            hull = ConvexHull(candidates)
+        except BaseException:
+            # this may raise if the geometry is colinear in
+            # which case an empty path is correct
+            log.debug("Failed to construct convex hull", exc_info=True)
+            return Path2D()
+
+        # map edges to throw away unused vertices
+        # as `hull.points` includes all input points
+        remap = np.arange(len(hull.points))
+        remap[hull.vertices] = np.arange(len(hull.vertices))
+
+        # get zero-indexed edges and only included vertices
+        edges = remap[hull.simplices]
+        vertices = hull.points[hull.vertices]
+
+        return Path2D(**edges_to_path(edges=edges, vertices=vertices))
+
     def rasterize(
         self, pitch=None, origin=None, resolution=None, fill=True, width=None, **kwargs
     ):
@@ -1390,7 +1437,7 @@ class Path2D(Path):
         """
         Plot the closed curves of the path.
         """
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa
 
         axis = plt.gca()
         axis.set_aspect("equal", "datalim")
@@ -1422,7 +1469,7 @@ class Path2D(Path):
         color : str
           Override entity colors and make them all this color.
         """
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa
 
         # keep plot axis scaled the same
         axis = plt.gca()
@@ -1489,7 +1536,7 @@ class Path2D(Path):
         return np.array([i is not None for i in self.polygons_closed], dtype=bool)
 
     @cache_decorator
-    def root(self):
+    def root(self) -> NDArray[np.int64]:
         """
         Which indexes of self.paths/self.polygons_closed
         are root curves, also known as 'shell' or 'exterior.

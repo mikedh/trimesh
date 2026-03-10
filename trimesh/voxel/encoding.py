@@ -830,7 +830,7 @@ class TransposedEncoding(LazyIndexMap):
         perm = np.array(perm, dtype=np.int64)
         if not all(i in perm for i in range(base_encoding.ndims)):
             raise ValueError(f"perm {perm!s} is not a valid permutation")
-        inv_perm = np.empty_like(perm)
+        inv_perm = np.zeros_like(perm)
         inv_perm[perm] = np.arange(base_encoding.ndims)
         self._perm = perm
         self._inv_perm = inv_perm

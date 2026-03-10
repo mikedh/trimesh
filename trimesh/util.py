@@ -23,10 +23,20 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import ArrayLike, Dict, Iterable, NDArray, Optional, Set, Union, float64
+from .typed import (
+    ArrayLike,
+    Dict,
+    Integer,
+    Iterable,
+    NDArray,
+    Optional,
+    Set,
+    Union,
+    float64,
+)
 
 # create a default logger
-log = logging.getLogger("trimesh")
+log = logging.getLogger(__name__)
 
 ABC = abc.ABC
 now = time.time
@@ -1489,6 +1499,36 @@ def concatenate(
     except BaseException:
         pass
 
+    # concatenate vertex attributes that are valid for every mesh
+    vertex_attributes = {}
+    for key in is_mesh[0].vertex_attributes.keys():
+        # make sure every mesh has a valid attribute
+        if all(len(m.vertex_attributes.get(key, [])) == len(m.vertices) for m in is_mesh):
+            try:
+                vertex_attributes[key] = np.concatenate(
+                    [mesh.vertex_attributes.get(key, []) for mesh in is_mesh], axis=0
+                )
+            except BaseException:
+                log.warning(
+                    f"Failed to concatenate `vertex_attribute['{key}']`", exc_info=True
+                )
+
+    # concatenate face attributes that are valid for every mesh
+    face_attributes = {}
+    for key in is_mesh[0].face_attributes.keys():
+        # an attribute can only be concatenated if it's valid for every mesh
+        if all(len(m.face_attributes.get(key, [])) == len(m.faces) for m in is_mesh):
+            try:
+                # stack along axis 0
+                face_attributes[key] = np.concatenate(
+                    [mesh.face_attributes.get(key, []) for mesh in is_mesh], axis=0
+                )
+            except BaseException:
+                # could have failed because attribute had different shapes
+                log.warning(
+                    f"Failed to concatenate `face_attribute['{key}']`", exc_info=True
+                )
+
     # create the mesh object
     result = trimesh_type(
         vertices=vertices,
@@ -1496,6 +1536,8 @@ def concatenate(
         face_normals=face_normals,
         vertex_normals=vertex_normals,
         visual=visual,
+        vertex_attributes=vertex_attributes,
+        face_attributes=face_attributes,
         metadata=metadata,
         process=False,
     )
@@ -1509,7 +1551,12 @@ def concatenate(
 
 
 def submesh(
-    mesh, faces_sequence, repair=True, only_watertight=False, min_faces=None, append=False
+    mesh,
+    faces_sequence,
+    repair: bool = True,
+    only_watertight: bool = False,
+    min_faces: Optional[Integer] = None,
+    append: bool = False,
 ):
     """
     Return a subset of a mesh.
@@ -1520,18 +1567,20 @@ def submesh(
         Source mesh to take geometry from
     faces_sequence : sequence (p,) int
         Indexes of mesh.faces
-    repair : bool
+    repair
         Try to make submeshes watertight
-    only_watertight : bool
+    only_watertight
         Only return submeshes which are watertight
+    min_faces
+      Minimum number of faces allowed in a submesh.
     append : bool
         Return a single mesh which has the faces appended,
         if this flag is set, only_watertight is ignored
 
     Returns
     ---------
-    if append : Trimesh object
-    else        list of Trimesh objects
+    result : Trimesh | list[Trimesh]
+      Depending on if `append` is true or not.
     """
     # evaluate generators so we can escape early
     faces_sequence = list(faces_sequence)
@@ -1625,14 +1674,20 @@ def submesh(
         for v, f, n, c in zip(vertices, faces, normals, visuals)
     ]
 
+    # assign the "source" information summarizing where a mesh was
+    # loaded from (i.e. file name) to each submesh of the result
     [setattr(r, "_source", deepcopy(mesh.source)) for r in result]
 
-    if only_watertight or repair:
+    if repair:
         # fill_holes will attempt a repair and returns the
         # watertight status at the end of the repair attempt
-        watertight = [i.fill_holes() and len(i.faces) >= 4 for i in result]
+        watertight = [len(i.faces) >= 4 and i.fill_holes() for i in result]
+    elif only_watertight:
+        # calculate watertightness without repairing
+        watertight = [i.is_watertight for i in result]
+
     if only_watertight:
-        # remove unrepairable meshes
+        # return only the watertight meshes
         return [i for i, w in zip(result, watertight) if w]
 
     return result

@@ -66,6 +66,24 @@ def test_obj_groups():
     # assert g.np.ptp(mesh.metadata['face_groups']) > 0
 
 
+def test_obj_groups_split():
+    # a wavefront file with 14 groups and 2 objects defined
+    mesh = g.get_mesh("groups.obj", split_groups=True)
+    # make sure the right number of meshes are split
+    assert len(mesh.geometry) == 14
+
+    # keys of (split_object, split_groups) arguments
+    # values of how many meshes should be output for `groups.obj`
+    checks = {(True, True): 15, (True, False): 2, (False, True): 14, (False, False): 1}
+
+    for (split_objects, split_groups), truth in checks.items():
+        scene = g.get_scene(
+            "groups.obj", split_objects=split_objects, split_groups=split_groups
+        )
+        # make sure we produced the expected number of geometries
+        assert len(scene.geometry) == truth
+
+
 def test_obj_negative_indices():
     # a wavefront file with negative indices
     mesh = g.get_mesh("negative_indices.obj", merge_tex=True, merge_norm=True)
@@ -89,7 +107,7 @@ def test_obj_quad():
 
 def test_obj_multiobj():
     # test a wavefront file with multiple objects in the same file
-    scene = g.get_mesh("two_objects.obj", split_object=True, group_material=False)
+    scene = g.get_mesh("two_objects.obj", split_objects=True, group_material=False)
     assert len(scene.geometry) == 2
 
     for mesh in scene.geometry.values():
@@ -108,7 +126,7 @@ def test_obj_split_attributes():
     scene = g.get_mesh(
         "joined_tetrahedra.obj",
         process=False,
-        split_object=True,
+        split_objects=True,
         group_material=False,
     )
 
@@ -167,6 +185,7 @@ def test_vertex_color():
     rec = g.trimesh.load(
         g.trimesh.util.wrap_as_stream(mesh.export(file_type="obj")), file_type="obj"
     )
+
     # assert colors have survived the export cycle
     assert (mesh.visual.vertex_colors == rec.visual.vertex_colors).all()
 
@@ -341,6 +360,7 @@ def test_multi_nodupe():
         for L in mtl["material.mtl"].decode("utf-8").split("\n")
         if "newmtl" in L
     ]
+
     # there should be 5 unique material names
     assert len(set(mtl_names)) == 5
 
@@ -546,7 +566,7 @@ def test_material_name():
         m.export(file_obj=path)
         roundtrip = g.trimesh.load_mesh(file_obj=path)
 
-    # material name should have survivied
+    # material name should have survived
     assert roundtrip.visual.material.name == "a-super-duper-material"
 
     g.check_fuze(roundtrip)
@@ -561,5 +581,4 @@ def test_obj_quad_uv():
 
 
 if __name__ == "__main__":
-    # test_material_name()
-    test_obj_quad_uv()
+    test_obj_groups_split()

@@ -6,9 +6,11 @@ Test loaders against large corpuses of test data from github:
 will download more than a gigabyte to your home directory!
 """
 
+import argparse
 import json
 import sys
 import time
+from collections import defaultdict
 from dataclasses import asdict, dataclass
 
 import numpy as np
@@ -27,6 +29,12 @@ class LoadReport:
 
     # i.e 'glb'
     file_type: str
+
+    # how long did this take
+    duration: float
+
+    # how many bytes was this file?
+    file_size: float
 
     # i.e. 'Scene'
     type_load: Optional[str] = None
@@ -53,33 +61,111 @@ class Report:
     # a pyinstrument.renderers.JSONRenderer output
     profile: str
 
-    def compare(self, other: "Report"):
+    def summary(self) -> str:
         """
-        Compare this load report to another.
+        Prints a nice markdown table of load results including both overall
+        and per-format statistics.
         """
-        # what files were loaded by both versions
-        self_type = {o.file_name: o.type_load for o in self.load}
-        other_type = {n.file_name: n.type_load for n in other.load}
+        # Group loads by file type and split success/failure
+        by_type = defaultdict(list)
+        for load in self.load:
+            by_type[load.file_type].append(load)
 
-        both = set(self_type.keys()).intersection(other_type.keys())
-        matches = np.array([self_type[k] == other_type[k] for k in both])
-        percent = matches.sum() / len(matches)
+        # Count exceptions per type
+        exc_counts = defaultdict(lambda: defaultdict(int))
+        for load in self.load:
+            if load.exception:
+                exc_counts[load.file_type][load.exception] += 1
 
-        print(f"Comparing `{self.version}` against `{other.version}`")
-        print(f"Return types matched {percent * 100.0:0.3f}% of the time")
-        print(f"Loaded {len(self.load)} vs Loaded {len(other.load)}")
+        # Extract successful load metrics for overall stats
+        successful = [load for load in self.load if load.exception is None]
+        duration = np.array([load.duration for load in successful])
+        size = np.array([load.file_size for load in successful])
+
+        lines = []
+
+        # Build exception table if there are any exceptions
+        if exc_counts:
+            lines.append("Exceptions\n=================\n")
+            exc_rows = [
+                (ftype.upper(), count, str(exc)[:70])
+                for ftype in sorted(exc_counts.keys())
+                for exc, count in exc_counts[ftype].items()
+            ]
+            lines.append(markdown_table(("Format", "Count", "Exception"), exc_rows))
+            lines.append("")
+
+        # Build main results table
+        rows = []
+        # Add overall row
+        success = float(len(successful)) / len(self.load) if len(self.load) > 0 else 0.0
+        rows.append(
+            (
+                "Overall",
+                f"{len(successful)}/{len(self.load)} ({success * 100.0:.2f}%)",
+                f"{duration.mean():.3f} ± {duration.std():.3f}",
+                f"{size.mean() / 1e6:.2f} ± {size.std() / 1e6:.2f}",
+            )
+        )
+
+        # Add per-format rows
+        for ftype in sorted(by_type.keys()):
+            loads = by_type[ftype]
+            ok = [load for load in loads if load.exception is None]
+            if ok:
+                dur = np.array([load.duration for load in ok])
+                sz = np.array([load.file_size for load in ok])
+                success = float(len(ok)) / len(loads) if len(loads) > 0 else 0.0
+                rows.append(
+                    (
+                        ftype.upper(),
+                        f"{len(ok)}/{len(loads)} ({success * 100.0:.2f}%)",
+                        f"{dur.mean():.3f} ± {dur.std():.3f}",
+                        f"{sz.mean() / 1e6:.2f} ± {sz.std() / 1e6:.2f}",
+                    )
+                )
+
+        lines.append("\nLoad Results\n=================\n")
+        lines.append(markdown_table(("Format", "Loaded", "Time (s)", "Size (MB)"), rows))
+
+        return "\n".join(lines)
 
 
-def from_dict(data: dict) -> Report:
+def markdown_table(headers: tuple[str, ...], rows: list[tuple]) -> str:
     """
-    Parse a `Report` which has been exported using `dataclasses.asdict`
-    into a Report object.
+    Print a markdown-formatted table.
+
+    Parameters
+    ----------
+    headers
+        Column headers as a tuple of strings.
+    rows
+        List of tuples, where each tuple represents a row of data.
+
+    Returns
+    -------
+    table
+        A string containing the markdown-formatted table.
     """
-    return Report(
-        load=[LoadReport(**r) for r in data.get("load", [])],
-        version=data.get("version"),
-        profile=data.get("profile"),
+    # set column widths based on the longest item in each column
+    col_widths = [
+        max(len(h), max(len(str(row[i])) for row in rows)) for i, h in enumerate(headers)
+    ]
+    # start with header row and separator row
+    lines = [
+        "| " + " | ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers)) + " |",
+        "| " + " | ".join("-" * w for w in col_widths) + " |",
+    ]
+
+    # extend with data rows
+    lines.extend(
+        "| "
+        + " | ".join(str(cell).ljust(col_widths[i]) for i, cell in enumerate(row))
+        + " |"
+        for row in rows
     )
+
+    return "\n".join(lines)
 
 
 def on_repo(
@@ -123,25 +209,31 @@ def on_repo(
         should_raise = any(b in check for b in broke)
         raised = False
 
+        blob = resolver.get(name)
+
         # start collecting data about the current load attempt
-        current = LoadReport(file_name=name, file_type=trimesh.util.split_extension(name))
+        current = LoadReport(
+            file_name=name,
+            duration=0.0,
+            file_size=len(blob),
+            file_type=trimesh.util.split_extension(name),
+        )
 
         print(f"Attempting: {name}")
 
         try:
-            m = trimesh.load(
+            tic = time.time()
+            m = trimesh.load_scene(
                 file_obj=wrap_as_stream(resolver.get(name)),
                 file_type=name,
                 resolver=resolver,
             )
-
-            # save the load types
-            current.type_load = m.__class__.__name__
-            if isinstance(m, trimesh.Scene):
-                # save geometry types
-                current.type_geometry = tuple(
-                    [g.__class__.__name__ for g in m.geometry.values()]
-                )
+            toc = time.time()
+            # save geometry types
+            current.type_geometry = tuple(
+                {g.__class__.__name__ for g in m.geometry.values()}
+            )
+            current.duration = toc - tic
             # save the <Trimesh ...> repr
             current.repr_load = str(m)
 
@@ -149,7 +241,7 @@ def on_repo(
             # dropping
             if name.lower().split(".")[-1] in ("gltf", "glb") and len(m.geometry) > 0:
                 # try round-tripping the file
-                e = trimesh.load(
+                e = trimesh.load_scene(
                     file_obj=wrap_as_stream(m.export(file_type="glb")),
                     file_type="glb",
                     process=False,
@@ -236,7 +328,7 @@ def equal(a, b):
     return a == b
 
 
-def run(save: bool = False):
+def run(save: bool = False) -> Report:
     """
     Try to load and export every mesh we can get our hands on.
 
@@ -257,14 +349,11 @@ def run(save: bool = False):
         ]
     )
 
-    # TODO : waiting on a release containing pycollada/pycollada/147
-    available.difference_update({"dae"})
-
     with Profiler() as P:
         # check against the small trimesh corpus
         loads = on_repo(
             repo="mikedh/trimesh",
-            commit="2fcb2b2ea8085d253e692ecd4f71b8f450890d51",
+            commit="76b6dd1a2f552673b3b38ffd44ce4342d4e95273",
             available=available,
             root="models",
         )
@@ -273,7 +362,7 @@ def run(save: bool = False):
         loads.extend(
             on_repo(
                 repo="assimp/assimp",
-                commit="1e44036c363f64d57e9f799beb9f06d4d3389a87",
+                commit="ab28db52f022a7268ffff499cd85bbabf84c4271",
                 available=available,
                 root="test",
             )
@@ -312,16 +401,19 @@ def run(save: bool = False):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Test trimesh loaders against large corpuses (downloads >1GB to ~/.trimesh-cache)"
+    )
+    parser.add_argument("-run", action="store_true", help="Run the corpus test")
+    parser.add_argument("-save", action="store_true", help="Save JSON report")
+
+    args = parser.parse_args()
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+
     trimesh.util.attach_to_log()
 
-    if "-run" in " ".join(sys.argv):
-        run()
-
-    if "-compare" in " ".join(sys.argv):
-        with open("trimesh.4.5.3.1737061410.json") as f:
-            old = from_dict(json.load(f))
-
-        with open("trimesh.4.6.0.1737060030.json") as f:
-            new = from_dict(json.load(f))
-
-        new.compare(old)
+    if args.run:
+        report = run(save=args.save)
+        print(report.summary())

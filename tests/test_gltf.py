@@ -1122,6 +1122,35 @@ class GLTFTest(g.unittest.TestCase):
         mesh = g.get_mesh("Mesh_PrimitiveMode_04.gltf")
         assert len(mesh.triangles) == 2
 
+    def test_simple_material_conversion(self):
+        # make sure the name is preserved for a material
+        mesh = next(iter(g.get_mesh("Duck.glb").geometry.values()))
+
+        mat = mesh.visual.material
+        assert isinstance(mat, g.trimesh.visual.material.PBRMaterial)
+        assert isinstance(mat.name, str)
+        assert len(mat.name) > 0
+
+        simple = mesh.visual.material.to_simple()
+        assert simple.name == mesh.visual.material.name
+
+    def test_webp_roundtrip(self):
+        m = g.get_mesh("fuze.obj")
+        e = m.export(file_type="glb", extension_webp=True)
+        r = g.trimesh.load_mesh(g.trimesh.util.wrap_as_stream(e), file_type="glb")
+
+        # compare RGBA images for the roundtripped texture
+        # make sure the webp roundtrip wasn't crazy
+        a = g.np.array(m.visual.material.image)
+        b = g.np.array(r.visual.material.baseColorTexture)
+
+        assert a.shape == b.shape
+
+        # roundtrip with a codec produces artifacts
+        # if they are much different this number will be absolutely huge
+        mean_squared_error = ((a - b) ** 2).sum() / g.np.prod(a.shape)
+        assert mean_squared_error < 10.0
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

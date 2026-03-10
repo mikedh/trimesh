@@ -303,13 +303,15 @@ class PathSample:
         resampled = origin + (direction * projection.reshape((-1, 1)))
 
         if include_original:
-            # find the insertion index of the original positions
-            unique, index = np.unique(positions, return_index=True)
-            # see if we already have this point
-            ok = projection[index] > 1e-12
+            # find the original positions that were not inserted
+            # note that this checks *exact float equal*
+            uninserted = ~np.isin(np.append(self._cum_norm, 0.0), projection)
 
-            # insert the original vertices into the resampled array
-            resampled = np.insert(resampled, index[ok], self._points[unique[ok]], axis=0)
+            if uninserted.any():
+                # find the index of the uninserted original points in the new sampling
+                index = np.searchsorted(positions, np.nonzero(uninserted)[0])
+                # insert the original points at the index
+                resampled = np.insert(resampled, index, self._points[uninserted], axis=0)
 
         return resampled
 

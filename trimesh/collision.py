@@ -529,12 +529,21 @@ class CollisionManager:
         else:
             return distance
 
-    def min_distance_internal(self, return_names=False, return_data=False):
+    def min_distance_internal(self, name=None, return_names=False, return_data=False):
         """
-        Get the minimum distance between any pair of objects in the manager.
+        Get the minimum distance between objects in the manager.
+
+        If name is provided, computes the minimum distance between the
+        specified object and any other object in the manager.
+        If name is None, computes the minimum distance between any pair
+        of objects in the manager.
 
         Parameters
         -------------
+        name : str or None
+          If provided, the identifier for the object already in the manager
+          to compute distances from. If None, computes distances between
+          all pairs of objects.
         return_names : bool
           If true, a 2-tuple is returned containing the names
           of the closest objects.
@@ -544,7 +553,7 @@ class CollisionManager:
         Returns
         -----------
         distance : float
-          Min distance between any two managed objects
+          Min distance between objects
         names : (2,) str
           The names of the closest objects
         data : DistanceData
@@ -560,7 +569,25 @@ class CollisionManager:
                 fcl.DistanceResult(),
             )
 
-        self._manager.distance(ddata, fcl.defaultDistanceCallback)
+        # If name is provided, compute distance from that object to others
+        if name is not None:
+            if name not in self._objs:
+                raise ValueError(f"{name} not in collision manager!")
+            obj = self._objs[name]["obj"]
+            # remove object from manager temporarily
+            self._manager.unregisterObject(obj)
+            self._manager.update(obj)
+
+            # compute distance
+            self._manager.distance(obj, ddata, fcl.defaultDistanceCallback)
+
+            # add it back to the manager
+            self._manager.registerObject(obj)
+            self._manager.update()
+
+        else:
+            # Compute distance between any pair of objects
+            self._manager.distance(ddata, fcl.defaultDistanceCallback)
 
         distance = ddata.result.min_distance
 

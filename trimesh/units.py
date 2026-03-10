@@ -108,18 +108,16 @@ def units_from_metadata(obj: Geometry, guess: bool = True) -> str:
     for hint in hints:
         if hint is None:
             continue
-        hint = hint.lower()
-        if "unit" in hint:
-            # replace all delimiter options with white space
-            for delim in "_-.":
-                hint = hint.replace(delim, " ")
-            # loop through each hint
-            for h in hint.strip().split():
-                # get rid of keyword and whitespace
-                h = h.replace("units", "").replace("unit", "").strip()
-                # if the hint is a valid unit return it
-                if h in _lookup:
-                    return h
+        hint = hint.lower().replace("units", " ").replace("unit", " ")
+        # replace all delimiter options with white space
+        for delim in "_-.":
+            hint = hint.replace(delim, " ")
+        hint = "".join(c for c in hint if c not in "0123456789")
+        # loop through each hint
+        for h in hint.strip().split():
+            # if the hint is a valid unit return it
+            if h in _lookup:
+                return h
 
     if not guess:
         raise ValueError("No units and not allowed to guess!")

@@ -374,8 +374,9 @@ def plot_points(points, show=True):
     show : bool
       If False, will not show until plt.show() is called
     """
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # NOQA
+    # TODO : should this just use SceneViewer?
+    import matplotlib.pyplot as plt  # noqa
+    from mpl_toolkits.mplot3d import Axes3D  # noqa
 
     points = np.asanyarray(points, dtype=float64)
 
