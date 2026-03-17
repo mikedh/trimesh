@@ -594,14 +594,14 @@ def row_norm(data):
     """
     Compute the norm per-row of a numpy array.
 
-    This is identical to np.linalg.norm(data, axis=1) but roughly
-    three times faster due to being less general.
+    This is identical to np.linalg.norm(data, axis=1) but
+    2-3 times faster due to being less general.
 
     In [3]: %timeit trimesh.util.row_norm(a)
-    76.3 us +/- 651 ns per loop
+    28.3 μs ± 102 ns per loop
 
     In [4]: %timeit np.linalg.norm(a, axis=1)
-    220 us +/- 5.41 us per loop
+    55.9 μs ± 826 ns per loop
 
     Parameters
     -------------
@@ -613,7 +613,12 @@ def row_norm(data):
     norm : (n,) float
       Norm of each row of input array
     """
-    return np.sqrt(np.dot(data**2, [1] * data.shape[1]))
+    # Note that in previos versions we used np.dot:
+    # np.sqrt(np.dot(a**2, [1] * a.shape[1]))
+    # While this is ~2x faster than np.einsum,
+    # it can cause deadlocks when used in certain
+    # multi-process contexts.
+    return np.sqrt(np.einsum('ij->i', data**2))
 
 
 def stack_3D(points, return_2D=False):
