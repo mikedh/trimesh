@@ -8,11 +8,11 @@ Query mesh- point proximity.
 import numpy as np
 
 from . import util
-from .util import diagonal_dot
 from .constants import log_time, tol
 from .grouping import group_min
 from .triangles import closest_point as _corresponding
 from .triangles import points_to_barycentric
+from .util import diagonal_dot
 
 try:
     from scipy.spatial import cKDTree
