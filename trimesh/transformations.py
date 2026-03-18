@@ -200,6 +200,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from .typed import Integer, Number, Optional
+from .util import diagonal_dot
 
 # a cached immutable identity matrix provides a speedup sometimes
 _IDENTITY = np.eye(4)
@@ -1339,12 +1340,12 @@ def quaternion_matrix(quaternion):
 
     """
     q = np.array(quaternion, dtype=np.float64).reshape((-1, 4))
-    n = np.einsum("ij,ij->i", q, q)
+    n = diagonal_dot(q, q)
     # how many entries do we have
     num_qs = len(n)
     identities = n < _EPS
     q[~identities, :] *= np.sqrt(2.0 / n[~identities, None])
-    q = np.einsum("ij,ik->ikj", q, q)
+    q = q[:, None, :] * q[:, :, None]
 
     # store the result
     ret = np.zeros((num_qs, 4, 4))
