@@ -1,0 +1,7 @@
+trimesh.exchange.stl
+====================
+
+.. automodule:: trimesh.exchange.stl
+   :members:
+   :show-inheritance:
+   :undoc-members:

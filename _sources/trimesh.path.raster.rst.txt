@@ -1,0 +1,7 @@
+trimesh.path.raster
+===================
+
+.. automodule:: trimesh.path.raster
+   :members:
+   :show-inheritance:
+   :undoc-members:

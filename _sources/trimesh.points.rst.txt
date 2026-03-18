@@ -1,0 +1,7 @@
+trimesh.points
+==============
+
+.. automodule:: trimesh.points
+   :members:
+   :show-inheritance:
+   :undoc-members:
