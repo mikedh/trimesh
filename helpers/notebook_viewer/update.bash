@@ -2,7 +2,7 @@
 set -xe
 
 # version of three.js to pull files from
-VERSION=115
+VERSION=140
 
 rm three.min.js | true
 wget https://raw.githubusercontent.com/mrdoob/three.js/r${VERSION}/build/three.min.js

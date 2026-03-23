@@ -1,3 +1,4 @@
+import gzip
 import json
 import os
 from io import BytesIO
@@ -47,7 +48,12 @@ def get_json(name: str) -> Dict:
     resource
       File data decoded from JSON.
     """
-    return json.loads(get_bytes(name).decode("utf-8"))
+    raw = get_bytes(name)
+    if name.endswith(".gzip"):
+        raw = gzip.decompress(raw)
+    else:
+        raw = raw.decode("utf-8")
+    return json.loads(raw)
 
 
 def get_string(name: str) -> str:

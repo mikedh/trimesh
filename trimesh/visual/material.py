@@ -381,8 +381,8 @@ class PBRMaterial(Material):
         else:
             # non-None values must be a floating point
             emissive = np.array(value, dtype=np.float64).reshape(3)
-            if emissive.min() < -_eps or emissive.max() > (1 + _eps):
-                raise ValueError("all factors must be between 0.0-1.0")
+            if emissive.min() < -_eps:
+                raise ValueError("all factors must be greater than 0.0")
             self._data["emissiveFactor"] = emissive
 
     @property
@@ -682,8 +682,18 @@ class PBRMaterial(Material):
         simple : SimpleMaterial
           Contains material information in a simple manner
         """
-
-        return SimpleMaterial(image=self.baseColorTexture, diffuse=self.baseColorFactor)
+        # `self.baseColorFactor` is really a linear value
+        # so the "right" thing to do here would probably be:
+        #  `diffuse = color.to_rgba(color.linear_to_srgb(self.baseColorFactor))`
+        # however that subtle transformation seems like it would confuse
+        # the absolute heck out of people looking at this. If someone wants
+        # this and has opinions happy to accept that change but otherwise
+        # we'll just keep passing it through as "probably-RGBA-like"
+        return SimpleMaterial(
+            image=self.baseColorTexture,
+            diffuse=self.baseColorFactor,
+            name=self.name,
+        )
 
     @property
     def main_color(self):
@@ -809,7 +819,7 @@ def pack(
             .round()
             .astype(np.uint8)
         )
-        return Image.fromarray(img, mode=mode)
+        return Image.fromarray(img)
 
     def get_base_color_texture(mat):
         """
@@ -823,9 +833,22 @@ def pack(
                     mat.baseColorTexture, factor=mat.baseColorFactor, mode="RGBA"
                 )
             elif mat.baseColorFactor is not None:
-                c = color.to_rgba(mat.baseColorFactor)
+                # Per glTF 2.0 spec (https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html):
+                # - baseColorFactor: "defines linear multipliers for the sampled texels"
+                # - baseColorTexture: "RGB components MUST be encoded with the sRGB transfer function"
+                #
+                # Therefore when creating a texture from baseColorFactor values,
+                # we need to convert from linear to sRGB space
+                c_linear = color.to_float(mat.baseColorFactor).reshape(4)
+
+                # Apply proper sRGB gamma correction to RGB channels
+                c_srgb = np.concatenate(
+                    [color.linear_to_srgb(c_linear[:3]), c_linear[3:4]]
+                )
+
+                # Convert to uint8
+                c = np.round(c_srgb * 255).astype(np.uint8)
                 assert c.shape == (4,)
-                assert c.dtype == np.uint8
                 img = color_image(c)
 
             if img is not None and mat.alphaMode != "BLEND":
@@ -837,7 +860,7 @@ def pack(
                 elif mat.alphaMode == "OPAQUE" or mat.alphaMode is None:
                     if "A" in mode:
                         img[..., 3] = 255
-                img = Image.fromarray(img, mode)
+                img = Image.fromarray(img)
         elif getattr(mat, "image", None) is not None:
             img = mat.image
         elif np.shape(getattr(mat, "diffuse", [])) == (4,):
@@ -884,16 +907,16 @@ def pack(
                     img[..., 1] = np.round(
                         img[..., 1].astype(np.float64) * mat.roughnessFactor
                     ).astype(np.uint8)
-                img = Image.fromarray(img, mode="RGB")
+                img = Image.fromarray(img)
             else:
                 metallic = 0.0 if mat.metallicFactor is None else mat.metallicFactor
                 roughness = 1.0 if mat.roughnessFactor is None else mat.roughnessFactor
+                # glTF expects B=metallic, G=roughness, R=unused
+                # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
                 metallic_roughnesss = np.round(
-                    np.array([metallic, roughness, 0.0], dtype=np.float64) * 255
+                    np.array([0.0, roughness, metallic], dtype=np.float64) * 255
                 )
-                img = Image.fromarray(
-                    metallic_roughnesss[None, None].astype(np.uint8), mode="RGB"
-                )
+                img = Image.fromarray(metallic_roughnesss[None, None].astype(np.uint8))
         return img
 
     def get_emissive_texture(mat):
@@ -939,9 +962,8 @@ def pack(
 
     def pack_images(images):
         # run image packing with our material-specific settings
-        # which including deduplicating by hash, upsizing to the
-        # nearest power of two, returning deterministically by seeding
-        # and padding every side of the image by 1 pixel
+        # Note: deduplication is disabled to ensure consistent packing
+        # across different texture types (base color, metallic/roughness, etc)
 
         # see if we've already run this packing image
         key = hash(tuple(sorted([id(i) for i in images])))
@@ -952,7 +974,7 @@ def pack(
         # otherwise run packing now
         result = packing.images(
             images,
-            deduplicate=True,
+            deduplicate=False,  # Disabled to ensure consistent texture layouts
             power_resize=True,
             seed=42,
             iterations=10,
@@ -977,7 +999,6 @@ def pack(
 
     assert set(np.concatenate(mat_idx).ravel()) == set(range(len(uvs)))
     assert len(uvs) == len(materials)
-
     use_pbr = any(isinstance(m, PBRMaterial) for m in materials)
 
     # in some cases, the fused scene results in huge trimsheets

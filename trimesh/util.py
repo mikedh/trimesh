@@ -23,10 +23,20 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import ArrayLike, Dict, Iterable, NDArray, Optional, Set, Union, float64
+from .typed import (
+    ArrayLike,
+    Dict,
+    Integer,
+    Iterable,
+    NDArray,
+    Optional,
+    Set,
+    Union,
+    float64,
+)
 
 # create a default logger
-log = logging.getLogger("trimesh")
+log = logging.getLogger(__name__)
 
 ABC = abc.ABC
 now = time.time
@@ -810,10 +820,11 @@ def decimal_to_digits(decimal, min_digits=None) -> int:
 def attach_to_log(
     level=logging.DEBUG,
     handler=None,
-    loggers=None,
-    colors=True,
-    capture_warnings=True,
-    blacklist=None,
+    loggers: Optional[Iterable[logging.Logger]] = None,
+    colors: bool = True,
+    capture_warnings: bool = True,
+    blacklist: Optional[Iterable] = None,
+    only_parent: bool = True,
 ):
     """
     Attach a stream handler to all loggers.
@@ -830,6 +841,9 @@ def attach_to_log(
       If True try to use colorlog formatter
     blacklist : (n,) str
       Names of loggers NOT to attach to
+    only_parent
+      Only attach to parent loggers, i.e. `trimesh`, `trimesh.sub1`, `trimesh.sub2`
+      will only attach to `trimesh` and not the sub-loggers
     """
 
     # default blacklist includes ipython debugging stuff
@@ -840,7 +854,11 @@ def attach_to_log(
             "pyembree",
             "shapely",
             "matplotlib",
+            "parso.cache",
             "parso",
+            "parso.python.diff",
+            "asyncio",
+            "prompt_toolkit.buffer",
         ]
 
     # make sure we log warnings from the warnings module
@@ -885,19 +903,35 @@ def attach_to_log(
     if loggers is None:
         # de-duplicate loggers using a set
         loggers = set(logging.Logger.manager.loggerDict.values())
+
     # add the warnings logging
     loggers.add(logging.getLogger("py.warnings"))
 
     # disable pyembree warnings
     logging.getLogger("pyembree").disabled = True
 
+    # cull loggers that are not actually loggers or are on the blacklist
+    loggers = {
+        L.name: L
+        for L in loggers
+        if hasattr(L, "name")
+        and isinstance(L, logging.Logger)
+        and L.name not in blacklist
+    }
+
+    if only_parent:
+        # create a new dict to store only parent loggers
+        parent_loggers = {}
+        # sort logger names to process in hierarchical order
+        for name in sorted(loggers.keys()):
+            # if it's not a child of any existing parent, add it as a parent
+            if not any(name.startswith(f"{p}.") for p in parent_loggers.keys()):
+                parent_loggers[name] = loggers[name]
+        # replace loggers dict with only parent loggers
+        loggers = parent_loggers
+
     # loop through all available loggers
-    for logger in loggers:
-        # skip loggers on the blacklist
-        if logger.__class__.__name__ != "Logger" or any(
-            logger.name.startswith(b) for b in blacklist
-        ):
-            continue
+    for logger in loggers.values():
         logger.addHandler(handler)
         logger.setLevel(level)
 
@@ -1469,6 +1503,36 @@ def concatenate(
     except BaseException:
         pass
 
+    # concatenate vertex attributes that are valid for every mesh
+    vertex_attributes = {}
+    for key in is_mesh[0].vertex_attributes.keys():
+        # make sure every mesh has a valid attribute
+        if all(len(m.vertex_attributes.get(key, [])) == len(m.vertices) for m in is_mesh):
+            try:
+                vertex_attributes[key] = np.concatenate(
+                    [mesh.vertex_attributes.get(key, []) for mesh in is_mesh], axis=0
+                )
+            except BaseException:
+                log.warning(
+                    f"Failed to concatenate `vertex_attribute['{key}']`", exc_info=True
+                )
+
+    # concatenate face attributes that are valid for every mesh
+    face_attributes = {}
+    for key in is_mesh[0].face_attributes.keys():
+        # an attribute can only be concatenated if it's valid for every mesh
+        if all(len(m.face_attributes.get(key, [])) == len(m.faces) for m in is_mesh):
+            try:
+                # stack along axis 0
+                face_attributes[key] = np.concatenate(
+                    [mesh.face_attributes.get(key, []) for mesh in is_mesh], axis=0
+                )
+            except BaseException:
+                # could have failed because attribute had different shapes
+                log.warning(
+                    f"Failed to concatenate `face_attribute['{key}']`", exc_info=True
+                )
+
     # create the mesh object
     result = trimesh_type(
         vertices=vertices,
@@ -1476,6 +1540,8 @@ def concatenate(
         face_normals=face_normals,
         vertex_normals=vertex_normals,
         visual=visual,
+        vertex_attributes=vertex_attributes,
+        face_attributes=face_attributes,
         metadata=metadata,
         process=False,
     )
@@ -1489,7 +1555,12 @@ def concatenate(
 
 
 def submesh(
-    mesh, faces_sequence, repair=True, only_watertight=False, min_faces=None, append=False
+    mesh,
+    faces_sequence,
+    repair: bool = True,
+    only_watertight: bool = False,
+    min_faces: Optional[Integer] = None,
+    append: bool = False,
 ):
     """
     Return a subset of a mesh.
@@ -1500,18 +1571,20 @@ def submesh(
         Source mesh to take geometry from
     faces_sequence : sequence (p,) int
         Indexes of mesh.faces
-    repair : bool
+    repair
         Try to make submeshes watertight
-    only_watertight : bool
+    only_watertight
         Only return submeshes which are watertight
+    min_faces
+      Minimum number of faces allowed in a submesh.
     append : bool
         Return a single mesh which has the faces appended,
         if this flag is set, only_watertight is ignored
 
     Returns
     ---------
-    if append : Trimesh object
-    else        list of Trimesh objects
+    result : Trimesh | list[Trimesh]
+      Depending on if `append` is true or not.
     """
     # evaluate generators so we can escape early
     faces_sequence = list(faces_sequence)
@@ -1605,14 +1678,20 @@ def submesh(
         for v, f, n, c in zip(vertices, faces, normals, visuals)
     ]
 
+    # assign the "source" information summarizing where a mesh was
+    # loaded from (i.e. file name) to each submesh of the result
     [setattr(r, "_source", deepcopy(mesh.source)) for r in result]
 
-    if only_watertight or repair:
+    if repair:
         # fill_holes will attempt a repair and returns the
         # watertight status at the end of the repair attempt
-        watertight = [i.fill_holes() and len(i.faces) >= 4 for i in result]
+        watertight = [len(i.faces) >= 4 and i.fill_holes() for i in result]
+    elif only_watertight:
+        # calculate watertightness without repairing
+        watertight = [i.is_watertight for i in result]
+
     if only_watertight:
-        # remove unrepairable meshes
+        # return only the watertight meshes
         return [i for i, w in zip(result, watertight) if w]
 
     return result
@@ -2306,8 +2385,9 @@ def decode_text(text, initial="utf-8"):
                 initial, detect["encoding"], detect["confidence"]
             )
         )
-        # try to decode again, unwrap in try
-        text = text.decode(detect["encoding"], errors="ignore")
+        # try to decode again ignoring errors
+        # if detect returned nothing just use the initial guess
+        text = text.decode(detect["encoding"] or initial, errors="ignore")
     return text
 
 

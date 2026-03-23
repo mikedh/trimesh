@@ -11,6 +11,7 @@ https://github.com/mmatl/pyrender
 import numpy as np
 
 from .. import transformations, util, visual
+from ..typed import List, NDArray, Tuple, float64
 
 # default light color
 _DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
@@ -222,7 +223,7 @@ class SpotLight(Light):
         self._outerConeAngle = float(value)
 
 
-def autolight(scene):
+def autolight(scene) -> Tuple[List[Light], List[NDArray[float64]]]:
     """
     Generate a list of lights for a scene that looks decent.
 
@@ -239,10 +240,15 @@ def autolight(scene):
       Transformation matrices for light positions.
     """
 
-    # create two default point lights
-    lights = [PointLight(), PointLight()]
+    # start with empty lights and transforms
+    lights = []
+    transforms = []
 
-    # create two translation matrices for bounds corners
-    transforms = [transformations.translation_matrix(b) for b in scene.bounds]
+    # if there are no objects in the scene don't crash
+    bounds = scene.bounds
+    if bounds is not None:
+        # create two translation matrices for bounds corners
+        transforms.extend(transformations.translation_matrix(b) for b in bounds)
+        lights.extend(PointLight() for _ in range(2))
 
     return lights, transforms

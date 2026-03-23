@@ -1,4 +1,4 @@
-from io import BytesIO, StringIO
+from io import BufferedRandom, BytesIO, StringIO
 from pathlib import Path
 from sys import version_info
 from typing import (
@@ -36,10 +36,14 @@ else:
         Tuple,
     )
 
+if version_info >= (3, 11):
+    from typing import Self
+else:
+    Self = Any
+
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
-
-Stream = Union[IO, BytesIO, StringIO, BinaryIO, TextIO]
+Stream = Union[IO, BytesIO, StringIO, BinaryIO, TextIO, BufferedRandom]
 Loadable = Union[str, Path, Stream, Dict, None]
 
 # numpy integers do not inherit from python integers, i.e.
@@ -61,6 +65,20 @@ Number = Union[Floating, Integer]
 # the literals for specifying what viewer to use
 ViewerType = Union[None, Callable, Literal["gl", "jupyter", "marimo"]]
 
+# literal for color maps we include in the library
+ColorMapType = Literal["viridis", "magma", "inferno", "plasma"]
+
+# the literal for what graph backend engines are available
+GraphEngineType = Literal["networkx", "scipy", None]
+
+# what 3D boolean engines are available
+BooleanEngineType = Literal["manifold", "blender", None]
+# what 3D boolean operations can be passed to boolean functions
+BooleanOperationType = Literal["difference", "union", "intersection"]
+
+# what are the supported methods for converting a mesh into voxels.
+VoxelizationMethodsType = Literal["subdivide", "ray", "binvox"]
+
 __all__ = [
     "IO",
     "Any",
@@ -79,6 +97,7 @@ __all__ = [
     "NDArray",
     "Number",
     "Optional",
+    "Self",
     "Sequence",
     "Set",
     "Stream",

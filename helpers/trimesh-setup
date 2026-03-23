@@ -25,7 +25,6 @@ config_json = """
   "apt": {
     "build": [
       "build-essential",
-      "python3.13-dev",
       "g++",
       "make",
       "git"
@@ -44,9 +43,10 @@ config_json = """
     "test": [
       "curl",
       "git",
-      "libxkbcommon0"
-],
-   "gmsh": ["libxft2", "libxinerama-dev", "libxcursor1","libgomp1"]
+      "libxkbcommon0",
+      "libtbb-dev",
+      "blender"
+]
   },
   "fetch": {
     "gltf_validator": {
@@ -69,14 +69,6 @@ config_json = """
       "sha256": "82ee314a75986f67f1d2b5b3ccdfb3661fe57a6b428aa0e0f798fdb3e1734fe0",
       "target": "$PATH",
       "chmod": {"binvox": 755}
-    },
-
-    "blender": {
-      "url": "https://mirrors.ocf.berkeley.edu/blender/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz",
-      "sha256": "3a64efd1982465395abab4259b4091d5c8c56054c7267e9633e4f702a71ea3f4",
-      "target": "$PATH",
-      "chmod": {"blender": 755},
-      "strip_components": 1
     }
   }
 }

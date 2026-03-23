@@ -102,7 +102,7 @@ def plane_fit(points):
         # points offset by the plane origin
         x = points - C[:, None, :]
         # create a (p, 3, 3) matrix
-        M = np.einsum("pnd, pnm->pdm", x, x)
+        M = x.swapaxes(1, 2) @ x
     # run SVD
     N = np.linalg.svd(M)[0][..., -1]
     # return the centroid(s) and normal(s)
@@ -374,8 +374,9 @@ def plot_points(points, show=True):
     show : bool
       If False, will not show until plt.show() is called
     """
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # NOQA
+    # TODO : should this just use SceneViewer?
+    import matplotlib.pyplot as plt  # noqa
+    from mpl_toolkits.mplot3d import Axes3D  # noqa
 
     points = np.asanyarray(points, dtype=float64)
 

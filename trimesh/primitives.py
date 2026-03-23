@@ -12,9 +12,10 @@ import abc
 
 import numpy as np
 
-from . import caching, creation, inertia, sample, triangles, util
+from . import creation, inertia, sample, triangles, util
 from . import transformations as tf
 from .base import Trimesh
+from .caching import cache_decorator
 from .constants import log, tol
 from .typed import ArrayLike, Integer, Number, Optional
 
@@ -361,7 +362,7 @@ class Cylinder(Primitive):
             mutable=mutable,
         )
 
-    @caching.cache_decorator
+    @cache_decorator
     def volume(self):
         """
         The analytic volume of the cylinder primitive.
@@ -371,10 +372,18 @@ class Cylinder(Primitive):
         volume : float
           Volume of the cylinder
         """
-        volume = (np.pi * self.primitive.radius**2) * self.primitive.height
-        return volume
+        return (np.pi * self.primitive.radius**2) * self.primitive.height
 
-    @caching.cache_decorator
+    @cache_decorator
+    def area(self) -> float:
+        """
+        The analytical area of the cylinder primitive
+        """
+        # circumfrence * height + end-cap-area
+        radius, height = self.primitive.radius, self.primitive.height
+        return (np.pi * 2 * radius * height) + (2 * np.pi * radius**2)
+
+    @cache_decorator
     def moment_inertia(self):
         """
         The analytic inertia tensor of the cylinder primitive.
@@ -393,7 +402,7 @@ class Cylinder(Primitive):
         )
         return tensor
 
-    @caching.cache_decorator
+    @cache_decorator
     def direction(self):
         """
         The direction of the cylinder's axis.
@@ -519,6 +528,32 @@ class Capsule(Primitive):
     def transform(self):
         return self.primitive.transform
 
+    @cache_decorator
+    def volume(self) -> float:
+        """
+        The analytic volume of the capsule primitive.
+
+        Returns
+        ---------
+        volume : float
+          Volume of the capsule
+        """
+        radius, height = self.primitive.radius, self.primitive.height
+        return (np.pi * radius**2) * ((4.0 / 3.0) * radius + height)
+
+    @cache_decorator
+    def area(self) -> float:
+        """
+        The analytic area of the capsule primitive.
+
+        Returns
+        ---------
+        area : float
+          Area of the capsule
+        """
+        radius, height = self.primitive.radius, self.primitive.height
+        return (2 * np.pi * radius * height) + (4 * np.pi * radius**2)
+
     def to_dict(self):
         """
         Get a copy of the current Capsule primitive as
@@ -537,7 +572,7 @@ class Capsule(Primitive):
             "radius": float(self.primitive.radius),
         }
 
-    @caching.cache_decorator
+    @cache_decorator
     def direction(self):
         """
         The direction of the capsule's axis.
@@ -657,7 +692,7 @@ class Sphere(Primitive):
         # be checked
         return self.bounding_box
 
-    @caching.cache_decorator
+    @cache_decorator
     def area(self):
         """
         Surface area of the current sphere primitive.
@@ -670,7 +705,7 @@ class Sphere(Primitive):
         area = 4.0 * np.pi * (self.primitive.radius**2)
         return area
 
-    @caching.cache_decorator
+    @cache_decorator
     def volume(self):
         """
         Volume of the current sphere primitive.
@@ -683,7 +718,7 @@ class Sphere(Primitive):
         volume = (4.0 * np.pi * (self.primitive.radius**3)) / 3.0
         return volume
 
-    @caching.cache_decorator
+    @cache_decorator
     def moment_inertia(self):
         """
         The analytic inertia tensor of the sphere primitive.
@@ -836,7 +871,7 @@ class Box(Primitive):
         else:
             return False
 
-    @caching.cache_decorator
+    @cache_decorator
     def volume(self):
         """
         Volume of the box Primitive.
@@ -927,7 +962,7 @@ class Extrusion(Primitive):
             mutable=mutable,
         )
 
-    @caching.cache_decorator
+    @cache_decorator
     def area(self):
         """
         The surface area of the primitive extrusion.
@@ -945,7 +980,7 @@ class Extrusion(Primitive):
         area += self.primitive.polygon.area * 2
         return area
 
-    @caching.cache_decorator
+    @cache_decorator
     def volume(self):
         """
         The volume of the Extrusion primitive.
@@ -960,7 +995,7 @@ class Extrusion(Primitive):
         volume = abs(self.primitive.polygon.area * self.primitive.height)
         return volume
 
-    @caching.cache_decorator
+    @cache_decorator
     def direction(self):
         """
         Based on the extrudes transform what is the
@@ -994,7 +1029,7 @@ class Extrusion(Primitive):
     def transform(self):
         return self.primitive.transform
 
-    @caching.cache_decorator
+    @cache_decorator
     def bounding_box_oriented(self):
         # no docstring for inheritance
         # calculate OBB using 2D polygon and known axis

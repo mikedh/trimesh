@@ -7,6 +7,7 @@ vertex indices rather than vertices themselves.
 """
 
 from copy import deepcopy
+from logging import getLogger
 
 import numpy as np
 
@@ -14,6 +15,8 @@ from .. import util
 from ..util import ABC
 from .arc import arc_center, discretize_arc
 from .curve import discretize_bezier, discretize_bspline
+
+log = getLogger(__name__)
 
 
 class Entity(ABC):
@@ -105,8 +108,7 @@ class Entity(ABC):
         closed : bool
           Is the entity closed or not?
         """
-        closed = len(self.points) > 2 and self.points[0] == self.points[-1]
-        return closed
+        return len(self.points) > 2 and self.points[0] == self.points[-1]
 
     @property
     def nodes(self):
@@ -436,7 +438,7 @@ class Text(Entity):
         if vertices.shape[1] != 2:
             raise ValueError("only for 2D points!")
 
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa
 
         # get rotation angle in degrees
         angle = np.degrees(self.angle(vertices))
@@ -528,6 +530,21 @@ class Line(Entity):
           Path in space composed of line segments
         """
         return self._orient(vertices[self.points])
+
+    @property
+    def closed(self):
+        return len(self.points) > 2 and self.points[0] == self.points[-1]
+
+    @closed.setter
+    def closed(self, value: bool):
+        current = self.points[0] == self.points[-1]
+        if value and not current:
+            # case where we've been asked to close the line
+            # this seems pretty obvious that we should just append the first pointOB
+            self.points = np.concatenate((self.points, [self.points[0]]))
+        elif not value and current:
+            # case where we've been asked to *disconnect* a closed path
+            log.debug("ignoring `Line.closed = False`")
 
     @property
     def is_valid(self):

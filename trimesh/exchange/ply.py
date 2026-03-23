@@ -150,12 +150,12 @@ def _add_attributes_to_dtype(dtype, attributes):
     dtype : list of numpy datatypes
     """
     for name, data in attributes.items():
-        if data.ndim == 1:
-            dtype.append((name, data.dtype))
+        # force little-endian to match PLY binary format
+        field_dtype = data.dtype.newbyteorder("<")
+        if data.ndim > 1:
+            dtype.extend([(f"{name}_count", "<u1"), (name, field_dtype, data.shape[1])])
         else:
-            attribute_dtype = data.dtype if len(data.dtype) == 0 else data.dtype[0]
-            dtype.append((f"{name}_count", "<u1"))
-            dtype.append((name, attribute_dtype, data.shape[1]))
+            dtype.append((name, field_dtype))
     return dtype
 
 
@@ -367,9 +367,18 @@ def export_ply(
             header.append(templates["color"])
             dtype_vertex.append(dtype_color)
 
-        if include_attributes and hasattr(mesh, "vertex_attributes"):
-            _add_attributes_to_header(header, mesh.vertex_attributes)
-            _add_attributes_to_dtype(dtype_vertex, mesh.vertex_attributes)
+        if include_attributes:
+            if hasattr(mesh, "vertex_attributes"):
+                vertex_count = len(mesh.vertices)
+                vertex_attributes = {
+                    k: v
+                    for k, v in mesh.vertex_attributes.items()
+                    if hasattr(v, "__len__") and len(v) == vertex_count
+                }
+                _add_attributes_to_header(header, vertex_attributes)
+                _add_attributes_to_dtype(dtype_vertex, vertex_attributes)
+            else:
+                vertex_attributes = None
 
         # create and populate the custom dtype for vertices
         pack_vertex = np.zeros(num_vertices, dtype=dtype_vertex)
@@ -379,8 +388,8 @@ def export_ply(
         if vertex_color:
             pack_vertex["rgba"] = mesh.visual.vertex_colors
 
-        if include_attributes and hasattr(mesh, "vertex_attributes"):
-            _add_attributes_to_data_array(pack_vertex, mesh.vertex_attributes)
+        if include_attributes and vertex_attributes is not None:
+            _add_attributes_to_data_array(pack_vertex, vertex_attributes)
 
     if hasattr(mesh, "faces"):
         header.append(templates["face"])
@@ -702,14 +711,32 @@ def _elements_to_kwargs(elements, fix_texture, image, prefer_color=None):
     if "vertex" in elements:
         kwargs["vertex_colors"] = _element_colors(elements["vertex"])
 
-    if "edge" in elements:
-        # this is a Path element.
+    # check if we have gotten path elements
+    edge_data = elements.get("edge", {}).get("data", None)
+    if edge_data is not None:
+        # try to convert the data in the PLY file to (n, 2) edge indexes
+        edges = None
+        if isinstance(edge_data, dict):
+            try:
+                edges = np.column_stack((edge_data["vertex1"], edge_data["vertex2"]))
+            except BaseException:
+                log.debug(
+                    f"failed to convert PLY edges from keys: {edge_data.keys()}",
+                    exc_info=True,
+                )
+        elif isinstance(edge_data, np.ndarray):
+            # is this the best way to check for a structured dtype?
+            if len(edge_data.shape) == 2 and edge_data.shape[1] == 2:
+                edges = edge_data
+            else:
+                # we could also check `edge_data.dtype.kind in 'OV'`
+                # but its not clear that that handles all the possibilities
+                edges = structured_to_unstructured(edge_data)
 
-        from ..path.exchange.misc import edges_to_path
+        if edges is not None:
+            from ..path.exchange.misc import edges_to_path
 
-        edges = structured_to_unstructured(elements["edge"]["data"])
-        kwargs.update(edges_to_path(edges, kwargs["vertices"]))
-
+            kwargs.update(edges_to_path(edges, kwargs["vertices"]))
     return kwargs
 
 

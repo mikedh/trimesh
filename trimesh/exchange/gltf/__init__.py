@@ -1,5 +1,5 @@
 """
-gltf.py
+gltf/__init__.py
 ------------
 
 Provides GLTF 2.0 exports of trimesh.Trimesh objects
@@ -13,14 +13,14 @@ from copy import deepcopy
 
 import numpy as np
 
-from .. import rendering, resources, transformations, util, visual
-from ..caching import hash_fast
-from ..constants import log, tol
-from ..resolvers import ResolverLike, ZipResolver
-from ..scene.cameras import Camera
-from ..typed import Dict, List, NDArray, Optional, Stream
-from ..util import triangle_strips_to_faces, unique_name
-from ..visual.gloss import specular_to_pbr
+from ... import rendering, resources, transformations, util, visual
+from ...caching import hash_fast
+from ...constants import log, tol
+from ...resolvers import ResolverLike, ZipResolver
+from ...scene.cameras import Camera
+from ...typed import Dict, List, NDArray, Optional, Stream
+from ...util import triangle_strips_to_faces, unique_name
+from .extensions import handle_extensions
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -30,6 +30,7 @@ _magic = {"gltf": 1179937895, "json": 1313821514, "bin": 5130562}
 _dtypes = {5120: "<i1", 5121: "<u1", 5122: "<i2", 5123: "<u2", 5125: "<u4", 5126: "<f4"}
 # a string we can use to look up numpy dtype : GLTF dtype
 _dtypes_lookup = {v[1:]: k for k, v in _dtypes.items()}
+
 
 # GLTF data formats: numpy shapes
 _shapes = {
@@ -74,6 +75,7 @@ def export_gltf(
     tree_postprocessor=None,
     embed_buffers=False,
     extension_webp=False,
+    extension_draco=False,
 ):
     """
     Export a scene object as a GLTF directory.
@@ -100,6 +102,9 @@ def export_gltf(
       Embed the buffer into JSON file as a base64 string in the URI
     extension_webp : bool
       Export textures as webP (using glTF's EXT_texture_webp extension).
+    extension_draco : bool
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
+      Requires the `dracox` package to be installed.
 
     Returns
     ----------
@@ -116,6 +121,7 @@ def export_gltf(
         unitize_normals=unitize_normals,
         include_normals=include_normals,
         extension_webp=extension_webp,
+        extension_draco=extension_draco,
     )
 
     # allow custom postprocessing
@@ -171,6 +177,7 @@ def export_glb(
     tree_postprocessor=None,
     buffer_postprocessor=None,
     extension_webp=False,
+    extension_draco=False,
 ):
     """
     Export a scene as a binary GLTF (GLB) file.
@@ -188,6 +195,9 @@ def export_glb(
       before exporting.
     extension_webp : bool
       Export textures as webP using EXT_texture_webp extension.
+    extension_draco : bool
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
+      Requires the `dracox` package to be installed.
 
     Returns
     ----------
@@ -205,6 +215,7 @@ def export_glb(
         include_normals=include_normals,
         buffer_postprocessor=buffer_postprocessor,
         extension_webp=extension_webp,
+        extension_draco=extension_draco,
     )
 
     # A bufferView is a slice of a file
@@ -609,6 +620,7 @@ def _create_gltf_structure(
     unitize_normals=None,
     buffer_postprocessor=None,
     extension_webp=False,
+    extension_draco=False,
 ):
     """
     Generate a GLTF header.
@@ -625,6 +637,8 @@ def _create_gltf_structure(
       Unitize all exported normals so as to pass GLTF validation
     extension_webp : bool
       Export textures as webP using EXT_texture_webp extension.
+    extension_draco : bool
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
 
     Returns
     ---------------
@@ -682,6 +696,7 @@ def _create_gltf_structure(
                 unitize_normals=unitize_normals,
                 mat_hashes=mat_hashes,
                 extension_webp=extension_webp,
+                extension_draco=extension_draco,
             )
         elif util.is_instance_named(geometry, "Path"):
             # add Path2D and Path3D objects
@@ -702,6 +717,7 @@ def _create_gltf_structure(
     tree.update(nodes)
 
     extensions_used = set()
+    extensions_required = set()
     # Add any scene extensions used
     if "extensions" in tree:
         extensions_used = extensions_used.union(set(tree["extensions"].keys()))
@@ -709,19 +725,25 @@ def _create_gltf_structure(
     for mesh in tree["meshes"]:
         if "extensions" in mesh:
             extensions_used = extensions_used.union(set(mesh["extensions"].keys()))
+        # Check primitives for extensions too
+        for prim in mesh.get("primitives", []):
+            if "extensions" in prim:
+                extensions_used = extensions_used.union(set(prim["extensions"].keys()))
     # Add any extensions already in the tree (e.g. node extensions)
     if "extensionsUsed" in tree:
         extensions_used = extensions_used.union(set(tree["extensionsUsed"]))
     # Add WebP if used
     if extension_webp:
         extensions_used.add("EXT_texture_webp")
+        extensions_required.add("EXT_texture_webp")
+    # Add Draco if used (no fallback, so required)
+    if extension_draco:
+        extensions_used.add("KHR_draco_mesh_compression")
+        extensions_required.add("KHR_draco_mesh_compression")
     if len(extensions_used) > 0:
         tree["extensionsUsed"] = list(extensions_used)
-
-    # Also add WebP to required (no fallback currently implemented)
-    # 'extensionsRequired' aren't currently used so this doesn't overwrite
-    if extension_webp:
-        tree["extensionsRequired"] = ["EXT_texture_webp"]
+    if len(extensions_required) > 0:
+        tree["extensionsRequired"] = list(extensions_required)
 
     if buffer_postprocessor is not None:
         buffer_postprocessor(buffer_items, tree)
@@ -747,6 +769,7 @@ def _append_mesh(
     unitize_normals: bool,
     mat_hashes: dict,
     extension_webp: bool,
+    extension_draco: bool = False,
 ):
     """
     Append a mesh to the scene structure and put the
@@ -772,6 +795,8 @@ def _append_mesh(
       Which materials have already been added
     extension_webp : bool
       Export textures as webP (using glTF's EXT_texture_webp extension).
+    extension_draco : bool
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
     """
     # return early from empty meshes to avoid crashing later
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
@@ -841,21 +866,26 @@ def _append_mesh(
         vertex_colors = None
 
     if vertex_colors is not None:
-        # convert color data to bytes and append
-        acc_color = _data_append(
-            acc=tree["accessors"],
-            buff=buffer_items,
-            blob={
-                "componentType": 5121,
-                "normalized": True,
-                "type": "VEC4",
-                "byteOffset": 0,
-            },
-            data=vertex_colors.astype(uint8),
-        )
+        if len(vertex_colors) == len(mesh.vertices):
+            # convert color data to bytes and append
+            acc_color = _data_append(
+                acc=tree["accessors"],
+                buff=buffer_items,
+                blob={
+                    "componentType": 5121,
+                    "normalized": True,
+                    "type": "VEC4",
+                    "byteOffset": 0,
+                },
+                data=vertex_colors.astype(uint8),
+            )
 
-        # add the reference for vertex color
-        current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+            # add the reference for vertex color
+            current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
+        else:
+            log.warning(
+                "Vertex colors have different length than mesh vertices, dropping!"
+            )
 
     if hasattr(mesh.visual, "material"):
         # append the material and then set from returned index
@@ -919,17 +949,36 @@ def _append_mesh(
     # for each attribute with a leading underscore, assign them to trimesh
     # vertex_attributes
     for key, attrib in mesh.vertex_attributes.items():
-        # Application specific attributes must be
-        # prefixed with an underscore
+        # make sure vertex attribute length matches vertices
+        if len(attrib) != len(mesh.vertices):
+            log.warning(
+                f"Vertex attribute `{key}` has different length than mesh vertices skipping!"
+            )
+            continue
+
+        # application specific attributes must be prefixed with an underscore
         if not key.startswith("_"):
             key = "_" + key
 
         # GLTF has no floating point type larger than 32 bits so clip
         # any float64 or larger to float32
         if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
-            data = attrib.astype(np.float32)
+            data = attrib.astype(float32)
         else:
-            data = attrib
+            # force little-endian to match GLTF binary format
+            data = attrib.astype(attrib.dtype.newbyteorder("<"), copy=False)
+
+        if len(data.shape) == 1:
+            data = data[:, np.newaxis]
+
+        # every accessor VALUE must be 4-byte aligned
+        row_mod = (data.shape[1] * data.dtype.itemsize) % 4
+        # if the row size is not a multiple of 4, pad it
+        if row_mod != 0:
+            # how many columns of padding for this value
+            pad_columns = (4 - row_mod) // data.dtype.itemsize
+            # pad this custom attribute with zeros -_-
+            data = np.pad(data, ((0, 0), (0, pad_columns)), mode="constant")
 
         # store custom vertex attributes
         current["primitives"][0]["attributes"][key] = _data_append(
@@ -937,6 +986,24 @@ def _append_mesh(
             buff=buffer_items,
             blob=_build_accessor(data),
             data=data,
+        )
+
+    # Handle Draco compression via extension handler
+    if extension_draco:
+        # Determine if normals should be included
+        should_include_normals = include_normals or (
+            include_normals is None and "vertex_normals" in mesh._cache.cache
+        )
+        # Call primitive_export handlers
+        handle_extensions(
+            extensions={"KHR_draco_mesh_compression": {}},
+            scope="primitive_export",
+            mesh=mesh,
+            name=name,
+            tree=tree,
+            buffer_items=buffer_items,
+            primitive=current["primitives"][0],
+            include_normals=should_include_normals,
         )
 
     tree["meshes"].append(current)
@@ -1001,7 +1068,7 @@ def _build_accessor(array):
         data_type = f"MAT{int(shape[2])}"
 
     # get the array data type as a str stripping off endian
-    lookup = array.dtype.str.lstrip("<>")
+    lookup = array.dtype.str.lstrip("<>|")
 
     if lookup == "u4":
         # spec: UNSIGNED_INT is only allowed when the accessor
@@ -1140,9 +1207,10 @@ def _append_path(path, name, tree, buffer_items):
         # GLTF has no floating point type larger than 32 bits so clip
         # any float64 or larger to float32
         if attrib.dtype.kind == "f" and attrib.dtype.itemsize > 4:
-            data = attrib.astype(np.float32)
+            data = attrib.astype(float32)
         else:
-            data = attrib
+            # force little-endian to match GLTF binary format
+            data = attrib.astype(attrib.dtype.newbyteorder("<"), copy=False)
 
         if not all(util.is_instance_named(e, "Line") for e in path.entities):
             log.warning(
@@ -1294,9 +1362,9 @@ def _parse_materials(header, views, resolver=None):
       List of trimesh.visual.texture.Material objects
     """
 
-    def parse_values_and_textures(input_dict):
+    def parse_textures(*, data):
         result = {}
-        for k, v in input_dict.items():
+        for k, v in data.items():
             if isinstance(v, (list, tuple)):
                 # colors are always float 0.0 - 1.0 in GLTF
                 result[k] = np.array(v, dtype=np.float64)
@@ -1304,25 +1372,19 @@ def _parse_materials(header, views, resolver=None):
                 result[k] = v
             elif images is not None and "index" in v:
                 try:
-                    # get the index of image for texture
+                    index = None
                     texture = header["textures"][v["index"]]
-                    # check to see if this is using a webp extension texture
-                    # should this be case sensitive?
-                    webp = (
-                        texture.get("extensions", {})
-                        .get("EXT_texture_webp", {})
-                        .get("source")
-                    )
-                    if webp is not None:
-                        idx = webp
-                    elif "source" in texture:
-                        # fallback (or primary, if extensions are not present)
-                        idx = texture["source"]
-                    else:
-                        # no source available
-                        continue
-                    # store the actual image as the value
-                    result[k] = images[idx]
+                    # Handle texture extensions through registry
+                    if tex_ext := texture.get("extensions"):
+                        index = handle_extensions(
+                            extensions=tex_ext, scope="texture_source"
+                        )
+
+                    if index is None:
+                        # fall back to standard source key
+                        index = texture.get("source")
+                    if index is not None:
+                        result[k] = images[index]
                 except BaseException:
                     log.debug("unable to store texture", exc_info=True)
         return result
@@ -1340,15 +1402,21 @@ def _parse_materials(header, views, resolver=None):
                 # add keys of keys to top level dict
                 loopable.update(loopable.pop("pbrMetallicRoughness"))
 
-            ext = mat.get("extensions", {}).get(
-                "KHR_materials_pbrSpecularGlossiness", None
-            )
-            if isinstance(ext, dict):
-                ext_params = parse_values_and_textures(ext)
-                loopable.update(specular_to_pbr(**ext_params))
+            # Handle material extensions through registry
+            if mat_extensions := mat.get("extensions"):
+                ext_results = handle_extensions(
+                    extensions=mat_extensions,
+                    scope="material",
+                    parse_textures=parse_textures,
+                    images=images,
+                )
+                # Flatten extension results into the material parameters
+                for ext_result in ext_results.values():
+                    if isinstance(ext_result, dict):
+                        loopable.update(ext_result)
 
             # save flattened keys we can use for kwargs
-            pbr = parse_values_and_textures(loopable)
+            pbr = parse_textures(data=loopable)
             # create a PBR material object for the GLTF material
             materials.append(visual.material.PBRMaterial(**pbr))
 
@@ -1499,6 +1567,17 @@ def _read_buffers(
                 metadata["gltf_extensions"] = m["extensions"]
 
             for p in m["primitives"]:
+                # Handle primitive preprocessing extensions (e.g. Draco decompression)
+                # These run before reading accessors since they may modify them
+                if prim_extensions := p.get("extensions"):
+                    handle_extensions(
+                        extensions=prim_extensions,
+                        scope="primitive_preprocess",
+                        primitive=p,
+                        accessors=access,
+                        views=views,
+                    )
+
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
                 kwargs = deepcopy(mesh_kwargs)
@@ -1519,7 +1598,7 @@ def _read_buffers(
 
                 if mode == _GL_LINES:
                     # load GL_LINES into a Path object
-                    from ..path.entities import Line
+                    from ...path.entities import Line
 
                     kwargs["vertices"] = access[attr["POSITION"]]
                     kwargs["entities"] = [Line(points=np.arange(len(kwargs["vertices"])))]
@@ -1618,6 +1697,16 @@ def _read_buffers(
                     }
                     if len(custom) > 0:
                         kwargs["vertex_attributes"] = custom
+
+                    # Process primitive-level extensions through registry
+                    if prim_extensions := p.get("extensions"):
+                        handle_extensions(
+                            extensions=prim_extensions,
+                            scope="primitive",
+                            primitive=p,
+                            mesh_kwargs=kwargs,
+                            accessors=access,
+                        )
                 else:
                     log.debug("skipping primitive with mode %s!", mode)
                     continue
@@ -1692,16 +1781,19 @@ def _read_buffers(
     # the mutated dict in every loop
     name_index = {}
     name_counts = {}
+
+    # store the mapping of node name to index and the inverse
+    # name_index: {name: index}
     for i, n in enumerate(nodes):
         name_index[unique_name(n.get("name", str(i)), name_index, counts=name_counts)] = i
-    # invert the dict so we can look up by index
-    # node index (int) : name (str)
+    # names: {index: name}
     names = {v: k for k, v in name_index.items()}
 
-    # make sure we have a unique base frame name
+    # the GLTF is allowed to declare a base frame, should we have used that?
     base_frame = "world"
-    if base_frame in names:
-        base_frame = str(int(np.random.random() * 1e10))
+    if base_frame in name_index:
+        # todo : handle this?
+        log.debug("file contains a `world` node, we may stomp on it")
     names[base_frame] = base_frame
 
     # visited, kwargs for scene.graph.update
@@ -1720,6 +1812,7 @@ def _read_buffers(
         # otherwise just use the first index
         scene_index = 0
 
+    base_frame = "world"
     if "scenes" in header:
         # start the traversal from the base frame to the roots
         for root in header["scenes"][scene_index].get("nodes", []):
@@ -2070,7 +2163,7 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
             # add a reference to the base color texture
             result[key] = {"index": len(tree["textures"])}
 
-            # add an object for the texture according to the WebP extension
+            # add texture object, optionally using EXT_texture_webp
             if extension_webp:
                 tree["textures"].append(
                     {"extensions": {"EXT_texture_webp": {"source": index}}}
@@ -2146,7 +2239,7 @@ def get_schema():
     """
     # replace references
     # get zip resolver to access referenced assets
-    from ..schemas import resolve
+    from ...schemas import resolve
 
     # get a blob of a zip file including the GLTF 2.0 schema
     stream = resources.get_stream("schema/gltf2.schema.zip")

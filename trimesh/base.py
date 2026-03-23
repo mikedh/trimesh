@@ -1,12 +1,13 @@
 """
-github.com/mikedh/trimesh
-----------------------------
+# trimesh
+
+https://github.com/mikedh/trimesh
+---------------------------------
 
 Library for importing, exporting and doing simple operations on triangular meshes.
 """
 
-import copy
-import warnings
+from copy import deepcopy
 
 import numpy as np
 from numpy import float64, int64, ndarray
@@ -45,14 +46,18 @@ from .triangles import MassProperties
 from .typed import (
     Any,
     ArrayLike,
+    BooleanEngineType,
     Dict,
     Floating,
     Integer,
     List,
+    Loadable,
     NDArray,
     Number,
     Optional,
+    Self,
     Sequence,
+    Tuple,
     Union,
     ViewerType,
 )
@@ -68,6 +73,11 @@ try:
     from networkx import Graph
 except BaseException as E:
     Graph = ExceptionWrapper(E)
+
+try:
+    from PIL import Image
+except BaseException as E:
+    Image = ExceptionWrapper(E)
 
 try:
     from rtree.index import Index
@@ -121,6 +131,14 @@ class Trimesh(Geometry3D):
           Array of normal vectors corresponding to faces
         vertex_normals : (n, 3) float
           Array of normal vectors for vertices
+        face_colors : (n, 3|4) uint8
+          Array of colors for faces
+        vertex_colors : (n, 3|4) uint8
+          Array of colors for vertices
+        face_attributes : dict
+          Attributes corresponding to faces
+        vertex_attributes : dict
+          Attributes corresponding to vertices
         metadata : dict
           Any metadata about the mesh
         process : bool
@@ -130,6 +148,12 @@ class Trimesh(Geometry3D):
           If True, degenerate and duplicate faces will be
           removed immediately, and some functions will alter
           the mesh to ensure consistent results.
+        merge_tex : bool
+          If True textured meshes with UV coordinates will
+          have vertices merged regardless of UV coordinates
+        merge_norm : bool
+          If True, meshes with vertex normals will have
+          vertices merged ignoring different normals
         use_embree : bool
           If True try to use pyembree raytracer.
           If pyembree is not available it will automatically fall
@@ -166,6 +190,11 @@ class Trimesh(Geometry3D):
         # (m, 3) int of triangle faces that references self.vertices
         self.faces = faces
 
+        # store per-face and per-vertex attributes which will
+        # be updated when an update_faces call is made
+        self.face_attributes = {}
+        self.vertex_attributes = {}
+
         # hold visual information about the mesh (vertex and face colors)
         if visual is None:
             self.visual = create_visual(
@@ -173,6 +202,12 @@ class Trimesh(Geometry3D):
             )
         else:
             self.visual = visual
+
+            # if we've been passed a visual object
+            if vertex_colors is not None:
+                self.vertex_attributes["color"] = vertex_colors
+            if face_colors is not None:
+                self.face_attributes["color"] = face_colors
 
         # normals are accessed through setters/properties and are regenerated
         # if dimensions are inconsistent, but can be set by the constructor
@@ -209,10 +244,6 @@ class Trimesh(Geometry3D):
         elif metadata is not None:
             raise ValueError(f"metadata should be a dict or None, got {metadata!s}")
 
-        # store per-face and per-vertex attributes which will
-        # be updated when an update_faces call is made
-        self.face_attributes = {}
-        self.vertex_attributes = {}
         # use update to copy items
         if face_attributes is not None:
             self.face_attributes.update(face_attributes)
@@ -229,7 +260,7 @@ class Trimesh(Geometry3D):
         validate: bool = False,
         merge_tex: Optional[bool] = None,
         merge_norm: Optional[bool] = None,
-    ) -> "Trimesh":
+    ) -> Self:
         """
         Do processing to make a mesh useful.
 
@@ -248,6 +279,12 @@ class Trimesh(Geometry3D):
         ------------
         validate : bool
           Remove degenerate and duplicate faces.
+        merge_tex : bool
+          If True textured meshes with UV coordinates will
+          have vertices merged regardless of UV coordinates
+        merge_norm : bool
+          If True, meshes with vertex normals will have
+          vertices merged ignoring different normals
 
         Returns
         ------------
@@ -468,7 +505,7 @@ class Trimesh(Geometry3D):
         return self._data["vertices"]
 
     @vertices.setter
-    def vertices(self, values: Optional[ArrayLike]):
+    def vertices(self, values: Optional[ArrayLike]) -> None:
         """
         Assign vertex values to the mesh.
 
@@ -1099,7 +1136,7 @@ class Trimesh(Geometry3D):
         referenced[self.faces] = True
         return referenced
 
-    def convert_units(self, desired: str, guess: bool = False) -> "Trimesh":
+    def convert_units(self, desired: str, guess: bool = False) -> Self:
         """
         Convert the units of the mesh into a specified unit.
 
@@ -1110,6 +1147,11 @@ class Trimesh(Geometry3D):
         guess : boolean
           If self.units are not defined should we
           guess the current units of the document and then convert?
+
+        Returns
+        ------------
+        self: trimesh.Trimesh
+          Current mesh
         """
         units._convert_units(self, desired, guess)
         return self
@@ -1128,8 +1170,6 @@ class Trimesh(Geometry3D):
 
         Parameters
         -------------
-        mesh : Trimesh object
-          Mesh to merge vertices on
         merge_tex : bool
           If True textured meshes with UV coordinates will
           have vertices merged regardless of UV coordinates
@@ -1162,7 +1202,7 @@ class Trimesh(Geometry3D):
 
         Parameters
         ------------
-        vertex_mask : (len(self.vertices)) bool
+        mask : (len(self.vertices)) bool
           Array of which vertices to keep
         inverse : (len(self.vertices)) int
           Array to reconstruct vertex references
@@ -1229,7 +1269,7 @@ class Trimesh(Geometry3D):
 
         Parameters
         ------------
-        valid : (m) int or (len(self.faces)) bool
+        mask : (m) int or (len(self.faces)) bool
           Mask to remove faces
         """
         # if the mesh is already empty we can't remove anything
@@ -1302,23 +1342,10 @@ class Trimesh(Geometry3D):
         mask[grouping.unique_rows(np.sort(self.faces, axis=1))[0]] = True
         return mask
 
-    def remove_duplicate_faces(self) -> None:
-        """
-        DERECATED MARCH 2024 REPLACE WITH:
-        `mesh.update_faces(mesh.unique_faces())`
-        """
-        warnings.warn(
-            "`remove_duplicate_faces` is deprecated "
-            + "and will be removed in March 2024: "
-            + "replace with `mesh.update_faces(mesh.unique_faces())`",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-        self.update_faces(self.unique_faces())
-
     def rezero(self) -> None:
         """
-        Translate the mesh so that all vertex vertices are positive.
+        Translate the mesh so that all vertex vertices are positive
+        and the lower bound of `self.bounds` will be exactly zero.
 
         Alters `self.vertices`.
         """
@@ -1326,20 +1353,34 @@ class Trimesh(Geometry3D):
 
     def split(self, **kwargs) -> List["Trimesh"]:
         """
-        Returns a list of Trimesh objects, based on face connectivity.
-        Splits into individual components, sometimes referred to as 'bodies'
+        Split a mesh into multiple meshes from face
+        connectivity.
+
+        If only_watertight is true it will only return
+        watertight meshes and will attempt to repair
+        single triangle or quad holes.
 
         Parameters
-        ------------
-        only_watertight : bool
-          Only return watertight meshes and discard remainder
-        adjacency : None or (n, 2) int
-          Override face adjacency with custom values
+        ----------
+        mesh : trimesh.Trimesh
+          The source multibody mesh to split
+        only_watertight
+          Only return watertight components and discard
+          any connected component that isn't fully watertight.
+        repair
+          If set try to fill small holes in a mesh, before the
+          discard step in `only_watertight.
+        adjacency : (n, 2) int
+          If passed will be used instead of `mesh.face_adjacency`
+        engine
+          Which graph engine to use for the connected components.
+        kwargs
+          Will be passed to `mesh.submesh`
 
         Returns
-        ---------
-        meshes : (n, ) trimesh.Trimesh
-          Separate bodies from original mesh
+        ----------
+        meshes : (m,) trimesh.Trimesh
+          Results of splitting based on parameters.
         """
         return graph.split(self, **kwargs)
 
@@ -1639,16 +1680,15 @@ class Trimesh(Geometry3D):
 
         Returns
         ---------
-        valid : bool
+        valid
           Does the mesh represent a volume
         """
-        valid = bool(
+        return bool(
             self.is_watertight
             and self.is_winding_consistent
             and np.isfinite(self.center_mass).all()
             and self.volume > 0.0
         )
-        return valid
 
     @property
     def is_empty(self) -> bool:
@@ -1691,21 +1731,7 @@ class Trimesh(Geometry3D):
         """
         return cKDTree(self.vertices.view(np.ndarray))
 
-    def remove_degenerate_faces(self, height: float = tol.merge) -> None:
-        """
-        DERECATED MARCH 2024 REPLACE WITH:
-        `self.update_faces(self.nondegenerate_faces(height=height))`
-        """
-        warnings.warn(
-            "`remove_degenerate_faces` is deprecated "
-            + "and will be removed in March 2024 replace with "
-            + "`self.update_faces(self.nondegenerate_faces(height=height))`",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-        self.update_faces(self.nondegenerate_faces(height=height))
-
-    def nondegenerate_faces(self, height: float = tol.merge) -> NDArray[np.bool_]:
+    def nondegenerate_faces(self, height: Floating = tol.merge) -> NDArray[np.bool_]:
         """
         Identify degenerate faces (faces without 3 unique vertex indices)
         in the current mesh.
@@ -1854,7 +1880,7 @@ class Trimesh(Geometry3D):
 
         return on_hull
 
-    def fix_normals(self, multibody: Optional[bool] = None) -> None:
+    def fix_normals(self, multibody: Optional[bool] = None) -> Self:
         """
         Find and fix problems with self.face_normals and self.faces
         winding direction.
@@ -1866,12 +1892,13 @@ class Trimesh(Geometry3D):
         Parameters
         -------------
         multibody : None or bool
-          Fix normals across multiple bodies
-          if None automatically pick from body_count
+          Fix normals across multiple bodies or if unspecified
+          check the current `Trimesh.body_count`.
         """
         if multibody is None:
             multibody = self.body_count > 1
         repair.fix_normals(self, multibody=multibody)
+        return self
 
     def fill_holes(self) -> bool:
         """
@@ -1884,7 +1911,9 @@ class Trimesh(Geometry3D):
         """
         return repair.fill_holes(self)
 
-    def register(self, other: Union[Geometry3D, NDArray], **kwargs):
+    def register(
+        self, other: Union[Geometry3D, NDArray], **kwargs
+    ) -> Tuple[NDArray[float64], float64]:
         """
         Align a mesh with another mesh or a PointCloud using
         the principal axes of inertia as a starting point which
@@ -1916,10 +1945,10 @@ class Trimesh(Geometry3D):
     def compute_stable_poses(
         self,
         center_mass: Optional[NDArray[float64]] = None,
-        sigma: float = 0.0,
-        n_samples: int = 1,
-        threshold: float = 0.0,
-    ):
+        sigma: Floating = 0.0,
+        n_samples: Integer = 1,
+        threshold: Floating = 0.0,
+    ) -> Tuple[NDArray[float64], NDArray[float64]]:
         """
         Computes stable orientations of a mesh and their quasi-static probabilities.
 
@@ -1969,7 +1998,9 @@ class Trimesh(Geometry3D):
             threshold=threshold,
         )
 
-    def subdivide(self, face_index: Optional[ArrayLike] = None) -> "Trimesh":
+    def subdivide(
+        self, face_index: Optional[ArrayLike] = None, iterations: Optional[Integer] = None
+    ) -> "Trimesh":
         """
         Subdivide a mesh with each subdivided face replaced
         with four smaller faces. Will return a copy of current
@@ -1985,7 +2016,26 @@ class Trimesh(Geometry3D):
           will not be used by the adjacent faces to the faces specified,
           and an additional postprocessing step will be required to
           make resulting mesh watertight
+        iterations : int
+          If passed will run subdivisions multiple times recursively.
+          NOT COMPATIBLE with `face_index` and will raise a `ValueError`
+          if both arguments are passed.
+
+        Returns
+        ------------
+        mesh: trimesh.Trimesh
+          The copy of current mesh with subdivided faces.
         """
+        if iterations is not None:
+            # check that our arguments are executable
+            if face_index is not None:
+                raise ValueError("Unable to subdivide a subset with multiple iterations!")
+            # decrement the next iteration
+            next_iteration = iterations - 1
+            # if we've reached zero exit
+            if next_iteration <= 0:
+                next_iteration = None
+
         visual = None
         if hasattr(self.visual, "uv") and np.shape(self.visual.uv) == (
             len(self.vertices),
@@ -2022,9 +2072,15 @@ class Trimesh(Geometry3D):
             vertex_attributes=attr,
             process=False,
         )
+
+        if iterations is not None:
+            return result.subdivide(iterations=next_iteration)
+
         return result
 
-    def subdivide_to_size(self, max_edge, max_iter=10, return_index=False):
+    def subdivide_to_size(
+        self, max_edge: Floating, max_iter: Integer = 10, return_index: bool = False
+    ) -> Union["Trimesh", Tuple["Trimesh", NDArray[int64]]]:
         """
         Subdivide a mesh until every edge is shorter than a
         specified length.
@@ -2039,6 +2095,11 @@ class Trimesh(Geometry3D):
             The maximum number of times to run subdivision
         return_index : bool
             If True, return index of original face for new faces
+
+        Returns
+        ------------
+        mesh: trimesh.Trimesh
+          The copy of current mesh with subdivided faces.
         """
         # subdivide vertex attributes
         visual = None
@@ -2089,7 +2150,7 @@ class Trimesh(Geometry3D):
 
         return result
 
-    def subdivide_loop(self, iterations=None):
+    def subdivide_loop(self, iterations: Optional[Integer] = None) -> "Trimesh":
         """
         Subdivide a mesh by dividing each triangle into four
         triangles and approximating their smoothed surface
@@ -2103,30 +2164,20 @@ class Trimesh(Geometry3D):
           Number of iterations to run subdivision.
         multibody : bool
           If True will try to subdivide for each submesh
+
+        Returns
+        ------------
+        mesh: trimesh.Trimesh
+          The copy of current mesh with subdivided faces.
         """
         # perform subdivision for one mesh
         new_vertices, new_faces = remesh.subdivide_loop(
             vertices=self.vertices, faces=self.faces, iterations=iterations
         )
-        # create new mesh
-        result = Trimesh(vertices=new_vertices, faces=new_faces, process=False)
-        return result
-
-    def smoothed(self, **kwargs):
-        """
-        DEPRECATED: use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`
-        """
-        warnings.warn(
-            "`mesh.smoothed()` is deprecated and will be removed in March 2024: "
-            + "use `mesh.smooth_shaded` or `trimesh.graph.smooth_shade(mesh)`",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-        # run smoothing
-        return self.smooth_shaded
+        return Trimesh(vertices=new_vertices, faces=new_faces, process=False)
 
     @property
-    def smooth_shaded(self):
+    def smooth_shaded(self) -> "Trimesh":
         """
         Smooth shading in OpenGL relies on which vertices are shared,
         this function will disconnect regions above an angle threshold
@@ -2154,7 +2205,7 @@ class Trimesh(Geometry3D):
         return smooth
 
     @property
-    def visual(self):
+    def visual(self) -> Optional[Union[ColorVisuals, TextureVisuals]]:
         """
         Get the stored visuals for the current mesh.
 
@@ -2168,7 +2219,7 @@ class Trimesh(Geometry3D):
         return None
 
     @visual.setter
-    def visual(self, value):
+    def visual(self, value: Optional[Union[ColorVisuals, TextureVisuals]]) -> None:
         """
         When setting a visual object, always make sure
         that `visual.mesh` points back to the source mesh.
@@ -2178,6 +2229,8 @@ class Trimesh(Geometry3D):
         visual : ColorVisuals or TextureVisuals
           Contains visual information about the mesh
         """
+        if value is None:
+            value = ColorVisuals()
         value.mesh = self
         self._visual = value
 
@@ -2205,7 +2258,7 @@ class Trimesh(Geometry3D):
         from .path.path import Path3D
 
         # return a single cross section in 3D
-        lines, face_index = intersections.mesh_plane(
+        lines, _face_index = intersections.mesh_plane(
             mesh=self,
             plane_normal=plane_normal,
             plane_origin=plane_origin,
@@ -2273,18 +2326,17 @@ class Trimesh(Geometry3D):
 
     def slice_plane(
         self,
-        plane_origin,
-        plane_normal,
-        cap=False,
-        face_index=None,
-        cached_dots=None,
+        plane_origin: ArrayLike,
+        plane_normal: ArrayLike,
+        cap: bool = False,
+        face_index: Optional[ArrayLike] = None,
         **kwargs,
-    ):
+    ) -> "Trimesh":
         """
         Slice the mesh with a plane, returning a new mesh that is the
         portion of the original mesh to the positive normal side of the plane
 
-        plane_origin :  (3,) float
+        plane_origin : (3,) float
           Point on plane to intersect with mesh
         plane_normal : (3,) float
           Normal vector of plane to intersect with mesh
@@ -2293,9 +2345,6 @@ class Trimesh(Geometry3D):
         face_index : ((m,) int)
             Indexes of mesh.faces to slice. When no mask is
             provided, the default is to slice all faces.
-        cached_dots : (n, 3) float
-            If an external function has stored dot
-            products pass them here to avoid recomputing
 
         Returns
         ---------
@@ -2311,13 +2360,12 @@ class Trimesh(Geometry3D):
             plane_origin=plane_origin,
             cap=cap,
             face_index=face_index,
-            cached_dots=cached_dots,
             **kwargs,
         )
 
         return new_mesh
 
-    def unwrap(self, image=None):
+    def unwrap(self, image: Image = None) -> "Trimesh":
         """
         Returns a Trimesh object equivalent to the current mesh where
         the vertices have been assigned uv texture coordinates. Vertices
@@ -2385,7 +2433,7 @@ class Trimesh(Geometry3D):
 
     def sample(
         self,
-        count: int,
+        count: Integer,
         return_index: bool = False,
         face_weight: Optional[NDArray[float64]] = None,
     ):
@@ -2447,7 +2495,7 @@ class Trimesh(Geometry3D):
         # keep face normals as the haven't changed
         self._cache.clear(exclude=["face_normals"])
 
-    def apply_transform(self, matrix: ArrayLike) -> "Trimesh":
+    def apply_transform(self, matrix: ArrayLike) -> Self:
         """
         Transform mesh by a homogeneous transformation matrix.
 
@@ -2540,7 +2588,7 @@ class Trimesh(Geometry3D):
         self._cache.id_set()
         return self
 
-    def voxelized(self, pitch, method="subdivide", **kwargs):
+    def voxelized(self, pitch: Optional[Floating], method: str = "subdivide", **kwargs):
         """
         Return a VoxelGrid object representing the current mesh
         discretized into voxels at the specified pitch
@@ -2633,7 +2681,7 @@ class Trimesh(Geometry3D):
 
         return Path3D(**faces_to_path(self, face_ids, **kwargs))
 
-    def projected(self, normal, **kwargs) -> Path2D:
+    def projected(self, normal: ArrayLike, **kwargs) -> Path2D:
         """
         Project a mesh onto a plane and then extract the
         polygon that outlines the mesh projection on that
@@ -2641,22 +2689,28 @@ class Trimesh(Geometry3D):
 
         Parameters
         ----------
-        mesh : trimesh.Trimesh
-          Source geometry
-        check : bool
-          If True make sure is flat
         normal : (3,) float
           Normal to extract flat pattern along
         origin : None or (3,) float
           Origin of plane to project mesh onto
-        pad : float
+        ignore_sign : bool
+          Allow a projection from the normal vector in
+          either direction: this provides a substantial speedup
+          on watertight meshes where the direction is irrelevant
+          but if you have a triangle soup and want to discard
+          backfaces you should set this to False.
+        rpad : float
           Proportion to pad polygons by before unioning
+          and then de-padding result by to avoid zero-width gaps.
+        apad : float
+          Absolute padding to pad polygons by before unioning
           and then de-padding result by to avoid zero-width gaps.
         tol_dot : float
           Tolerance for discarding on-edge triangles.
-        max_regions : int
-          Raise an exception if the mesh has more than this
-          number of disconnected regions to fail quickly before unioning.
+        precise : bool
+          Use the precise projection computation using shapely.
+        precise_eps : float
+          Tolerance for precise triangle checks.
 
         Returns
         ----------
@@ -2727,7 +2781,7 @@ class Trimesh(Geometry3D):
             skip_inertia=False,
         )
 
-    def invert(self) -> None:
+    def invert(self) -> Self:
         """
         Invert the mesh in-place by reversing the winding of every
         face and negating normals without dumping the cache.
@@ -2745,6 +2799,8 @@ class Trimesh(Geometry3D):
         # save our normals
         self._cache.clear(exclude=["face_normals", "vertex_normals"])
 
+        return self
+
     def scene(self, **kwargs) -> Scene:
         """
         Returns a Scene object containing the current mesh.
@@ -2760,12 +2816,18 @@ class Trimesh(Geometry3D):
         self,
         viewer: ViewerType = None,
         **kwargs,
-    ):
+    ) -> Scene:
         """
         Render the mesh in an opengl window. Requires pyglet.
 
         Parameters
         ------------
+        viewer : ViewerType
+          What kind of viewer to use, such as
+          `gl` to open a pyglet window
+          `jupyter` for a jupyter notebook
+          `marimo'` for a marimo notebook
+          None for a "best guess"
         smooth : bool
           Run smooth shading on mesh or not,
           large meshes will be slow
@@ -2779,7 +2841,11 @@ class Trimesh(Geometry3D):
         return scene.show(viewer=viewer, **kwargs)
 
     def submesh(
-        self, faces_sequence: Sequence[ArrayLike], **kwargs
+        self,
+        faces_sequence: Sequence[ArrayLike],
+        only_watertight: bool = False,
+        repair: bool = False,
+        **kwargs,
     ) -> Union["Trimesh", List["Trimesh"]]:
         """
         Return a subset of the mesh.
@@ -2790,6 +2856,8 @@ class Trimesh(Geometry3D):
           Face indices of mesh
         only_watertight : bool
           Only return submeshes which are watertight
+        repair
+          Try to repair the submesh if it is not watertight
         append : bool
           Return a single mesh which has the faces appended.
           if this flag is set, only_watertight is ignored
@@ -2799,7 +2867,13 @@ class Trimesh(Geometry3D):
         submesh : Trimesh or (n,) Trimesh
           Single mesh if `append` or list of submeshes
         """
-        return util.submesh(mesh=self, faces_sequence=faces_sequence, **kwargs)
+        return util.submesh(
+            mesh=self,
+            faces_sequence=faces_sequence,
+            only_watertight=only_watertight,
+            repair=repair,
+            **kwargs,
+        )
 
     @cache_decorator
     def identifier(self) -> NDArray[float64]:
@@ -2829,10 +2903,10 @@ class Trimesh(Geometry3D):
 
     def export(
         self,
-        file_obj=None,
+        file_obj: Loadable = None,
         file_type: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> Union[Dict, bytes, str]:
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
@@ -2848,6 +2922,11 @@ class Trimesh(Geometry3D):
         file_type : str
           Which file type to export as, if `file_name`
           is passed this is not required.
+
+        Returns
+        ----------
+        exported : bytes or str
+          Result of exporter
         """
         return export_mesh(mesh=self, file_obj=file_obj, file_type=file_type, **kwargs)
 
@@ -2888,7 +2967,7 @@ class Trimesh(Geometry3D):
     def union(
         self,
         other: Union["Trimesh", Sequence["Trimesh"]],
-        engine: Optional[str] = None,
+        engine: BooleanEngineType = None,
         check_volume: bool = True,
         **kwargs,
     ) -> "Trimesh":
@@ -2924,31 +3003,31 @@ class Trimesh(Geometry3D):
     def difference(
         self,
         other: Union["Trimesh", Sequence["Trimesh"]],
-        engine: Optional[str] = None,
+        engine: BooleanEngineType = None,
         check_volume: bool = True,
         **kwargs,
     ) -> "Trimesh":
         """
-         Boolean difference between this mesh and other meshes.
+        Boolean difference between this mesh and other meshes.
 
-         Parameters
-         ------------
-         other
-           One or more meshes to difference with the current mesh.
-         engine
-           Which backend to use, the default
-           recommendation is: `pip install manifold3d`.
+        Parameters
+        ------------
+        other
+          One or more meshes to difference with the current mesh.
+        engine
+          Which backend to use, the default
+          recommendation is: `pip install manifold3d`.
         check_volume
-           Raise an error if not all meshes are watertight
-           positive volumes. Advanced users may want to ignore
-           this check as it is expensive.
-         kwargs
-           Passed through to the `engine`.
+          Raise an error if not all meshes are watertight
+          positive volumes. Advanced users may want to ignore
+          this check as it is expensive.
+        kwargs
+          Passed through to the `engine`.
 
-         Returns
-         ---------
-         difference : trimesh.Trimesh
-           Difference between self and other Trimesh objects
+        Returns
+        ---------
+        difference : trimesh.Trimesh
+          Difference between self and other Trimesh objects
         """
         return boolean.difference(
             meshes=util.chain(self, other),
@@ -2960,31 +3039,31 @@ class Trimesh(Geometry3D):
     def intersection(
         self,
         other: Union["Trimesh", Sequence["Trimesh"]],
-        engine: Optional[str] = None,
+        engine: BooleanEngineType = None,
         check_volume: bool = True,
         **kwargs,
     ) -> "Trimesh":
         """
-         Boolean intersection between this mesh and other meshes.
+        Boolean intersection between this mesh and other meshes.
 
-         Parameters
-         ------------
-         other : trimesh.Trimesh, or list of trimesh.Trimesh objects
-           Meshes to calculate intersections with
-         engine
-           Which backend to use, the default
-           recommendation is: `pip install manifold3d`.
+        Parameters
+        ------------
+        other : trimesh.Trimesh, or list of trimesh.Trimesh objects
+          Meshes to calculate intersections with
+        engine
+          Which backend to use, the default
+          recommendation is: `pip install manifold3d`.
         check_volume
-           Raise an error if not all meshes are watertight
-           positive volumes. Advanced users may want to ignore
-           this check as it is expensive.
-         kwargs
-           Passed through to the `engine`.
+          Raise an error if not all meshes are watertight
+          positive volumes. Advanced users may want to ignore
+          this check as it is expensive.
+        kwargs
+          Passed through to the `engine`.
 
-         Returns
-         ---------
-         intersection : trimesh.Trimesh
-           Mesh of the volume contained by all passed meshes
+        Returns
+        ---------
+        intersection : trimesh.Trimesh
+          Mesh of the volume contained by all passed meshes
         """
         return boolean.intersection(
             meshes=util.chain(self, other),
@@ -3104,6 +3183,8 @@ class Trimesh(Geometry3D):
         ------------
         include_cache : bool
           If True, will shallow copy cached data to new mesh
+        include_visual : bool
+          If True, will copy visual information
 
         Returns
         ---------
@@ -3113,14 +3194,21 @@ class Trimesh(Geometry3D):
         # start with an empty mesh
         copied = Trimesh()
         # always deepcopy vertex and face data
-        copied._data.data = copy.deepcopy(self._data.data)
+        copied._data.data = deepcopy(self._data.data)
 
         if include_visual:
             # copy visual information
             copied.visual = self.visual.copy()
 
+            copied.vertex_attributes.update(
+                {k: deepcopy(v) for k, v in self.vertex_attributes.items()}
+            )
+            copied.face_attributes.update(
+                {k: deepcopy(v) for k, v in self.face_attributes.items()}
+            )
+
         # get metadata
-        copied.metadata = copy.deepcopy(self.metadata)
+        copied.metadata = deepcopy(self.metadata)
 
         # make sure cache ID is set initially
         copied._cache.verify()
@@ -3143,7 +3231,7 @@ class Trimesh(Geometry3D):
         # interpret shallow copy as "keep cached data"
         return self.copy(include_cache=True)
 
-    def eval_cached(self, statement: str, *args):
+    def eval_cached(self, statement: str, *args) -> Any:
         """
         Evaluate a statement and cache the result before returning.
 
@@ -3164,7 +3252,6 @@ class Trimesh(Geometry3D):
         -----------
         r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0, 0, 1])
         """
-
         # store this by the combined hash of statement and args
         hashable = [hash(statement)]
         hashable.extend(hash(a) for a in args)

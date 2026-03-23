@@ -480,7 +480,7 @@ def test_points_inertia_sample():
     # check to see that randomly sampled volume of a box
     # moved somewhere in space is "about equal" with the
     # approximate inertia of the points compared to the
-    # exact intertia tensor of the box primitive
+    # exact inertia tensor of the box primitive
 
     # start with a random but deterministic rotation matrix
     matrix = g.np.array(

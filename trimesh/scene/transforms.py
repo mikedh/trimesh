@@ -414,7 +414,7 @@ class SceneGraph:
         kwargs : dict
           Passed to `networkx.draw_networkx`
         """
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa
         import networkx
 
         # default kwargs will only be set if not

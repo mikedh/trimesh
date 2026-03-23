@@ -5,6 +5,8 @@ remesh.py
 Deal with re- triangulation of existing meshes.
 """
 
+from itertools import zip_longest
+
 import numpy as np
 
 from . import graph, grouping, util
@@ -90,6 +92,8 @@ def subdivide(
     if vertex_attributes is not None:
         new_attributes = {}
         for key, values in vertex_attributes.items():
+            if len(values) != len(vertices):
+                continue
             attr_mid = values[edges[unique]].mean(axis=1)
             new_attributes[key] = np.vstack((values, attr_mid))
         return new_vertices, new_faces, new_attributes
@@ -248,12 +252,6 @@ def subdivide_loop(vertices, faces, iterations=None):
     iterations : int
           Number of iterations to run subdivision
     """
-    try:
-        from itertools import zip_longest
-    except BaseException:
-        # python2
-        from itertools import izip_longest as zip_longest
-
     if iterations is None:
         iterations = 1
 

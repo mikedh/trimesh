@@ -9,10 +9,16 @@ generate the template used in the trimesh viewer.
 """
 
 import os
+import subprocess
 
 import jsmin
 import requests
 from lxml import html
+
+cwd = os.path.abspath(os.path.expanduser(os.path.dirname(__file__)))
+target = os.path.abspath(
+    os.path.join(cwd, "..", "..", "trimesh", "resources", "templates", "viewer.zip")
+)
 
 
 def minify(path):
@@ -81,12 +87,9 @@ if __name__ == "__main__":
     result = html.tostring(h, pretty_print=False).decode("utf-8")
     # result = result.replace('<body>', '').replace('</body>', '')
 
-    with open("../viewer.html.template", "w") as f:
+    uncompressed = os.path.join(cwd, "viewer.html.template")
+    with open(uncompressed, "w") as f:
         f.write(result)
 
-    import subprocess
-
-    subprocess.check_call(
-        ["zip", "-9", "-j", "../viewer.template.zip", "../viewer.html.template"]
-    )
-    os.remove("../viewer.html.template")
+    subprocess.check_call(["zip", "-9", "-j", target, uncompressed])
+    # os.remove("../viewer.html.template")
