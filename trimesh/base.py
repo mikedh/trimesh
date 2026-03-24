@@ -1372,23 +1372,16 @@ class Trimesh(Geometry3D):
         if extend_colors is not None:
             self.visual.face_colors = extend_colors
 
-        def sentinel_pad(dtype):
-            # given a numpy dtype return the scalar value
-            # we are padding and extending face attributes with
-            if dtype.kind == "i":
-                return -1
-            return np.zeros(1, dtype=dtype)[0]
-
         # collect new, padded face attributes
         new_attribs = {}
         for name, attrib in self.face_attributes.items():
             shape = np.shape(attrib)
             if len(shape) == 0 or shape[0] != original_length:
                 continue
-            # handle padding of both 1D and 2D face attributes
-            pad_shape = (len(new_faces),) + shape[1:]
             # pad integers with -1 and everything else with zeros
-            pad = np.full(pad_shape, sentinel_pad(attrib.dtype), dtype=attrib.dtype)
+            fill = -1 if attrib.dtype.kind == "i" else 0
+            pad_shape = (len(new_faces),) + shape[1:]
+            pad = np.full(pad_shape, fill, dtype=attrib.dtype)
             new_attribs[name] = np.concatenate((attrib, pad))
         # update outside the loop with new values
         self.face_attributes.update(new_attribs)
