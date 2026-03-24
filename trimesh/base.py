@@ -1339,20 +1339,17 @@ class Trimesh(Geometry3D):
         # if we manage to extend colors and normals
         extend_normals, extend_colors = None, None
 
-        # now we can willy-nilly check
+        # always filter degenerate triangles
+        new_normals, valid = triangles.normals(self.vertices[new_faces])
+        new_faces = new_faces[valid]
+        if len(new_faces) == 0:
+            return
+
+        # save cached normals if available to avoid a full recompute
         if "face_normals" in self._cache.cache:
             cached_normals = self._cache.cache["face_normals"]
-
-            # calculate just the normals for the new faces
-            new_normals, valid = triangles.normals(self.vertices[new_faces])
-            # mask out any zero triangles we created
-            new_faces = new_faces[valid]
-
-            if len(new_faces) == 0 or len(cached_normals) == 0:
-                return
-
-            # save previous expensive dot-products
-            extend_normals = util.vstack_empty((cached_normals, new_normals))
+            if len(cached_normals) > 0:
+                extend_normals = util.vstack_empty((cached_normals, new_normals))
 
         if self.visual.defined and self.visual.kind == "face":
             extend_colors = util.vstack_empty(
