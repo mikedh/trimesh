@@ -160,7 +160,7 @@ def triangulate_quads(quads, dtype=np.int64) -> NDArray:
     Returns
     -----------
     faces : (m, 3) int
-      Vertex indices of triangular faces.c
+      Vertex indices of triangular faces.
     """
 
     if len(quads) == 0:
@@ -183,25 +183,26 @@ def triangulate_quads(quads, dtype=np.int64) -> NDArray:
         pass
 
     # we made it here so we have mixed tris/quads/polygons
-    # filter into the three cases
-    tri = np.array([i for i in quads if len(i) == 3])
-    quad = np.array([i for i in quads if len(i) == 4])
-    # triangulate arbitrary polygons as triangle fans
-    # this isn't guaranteed to be sane if the polygons
-    # aren't convex but that would require a real maniac
-    poly = [
-        [[f[0], f[i + 1], f[i + 2]] for i in range(len(f) - 2)]
-        for f in quads
-        if len(f) > 4
-    ]
+    # do one pass to get the lengths
+    lengths = np.array([len(i) for i in quads], dtype=np.int64)
+
+    # get triangles and quads as clean constant-row numpy arrays
+    tri = np.array([quads[i] for i in np.nonzero(lengths == 3)[0]], dtype=np.int64)
+    quad = np.array([quads[i] for i in np.nonzero(lengths == 4)[0]], dtype=np.int64)
+
+    # get arbitrary polygons as a ragged sequence
+    poly = [quads[i] for i in np.nonzero(lengths > 4)[0]]
 
     if len(quad) == 0 and len(poly) == 0:
+        # only triangles, return triangles
         return tri.astype(dtype)
     if len(poly) > 0:
-        poly = np.vstack(poly)
+        # use numpy slicing to triangulate ragged-sequence polygons
+        poly = util.triangle_fans_to_faces(poly)
     if len(quad) > 0:
+        # trivially tesselate quads
         quad = np.vstack((quad[:, [0, 1, 2]], quad[:, [2, 3, 0]]))
-    # combine triangulated quads with triangles
+    # stack triangles from all three cases
     return util.vstack_empty([tri, quad, poly]).astype(dtype)
 
 

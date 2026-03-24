@@ -13,10 +13,15 @@ def test_fill_holes():
         "teapot.stl",
         "soup.stl",
         "featuretype.STL",
+        "featuretype.STEP",
         "angle_block.STL",
         "quadknot.obj",
     ]:
         mesh = g.get_mesh(mesh_name)
+        # handle scene lazily
+        if hasattr(mesh, "geometry"):
+            mesh = next(iter(mesh.geometry.values()))
+
         if not mesh.is_watertight:
             # output of fill_holes should match watertight status
             returned = mesh.fill_holes()
@@ -25,9 +30,17 @@ def test_fill_holes():
 
         hashes = [{mesh._data.__hash__(), hash(mesh)}]
 
-        mesh.faces = mesh.faces[1:-1]
+        # clip off the first and last few faces
+        mask = g.np.ones(len(mesh.faces), dtype=g.np.bool)
+        mask[[0, -1]] = False
+        mesh.update_faces(mask)
+
         assert not mesh.is_watertight
         assert not mesh.is_volume
+
+        # assert face attributes match faces
+        for attrib in mesh.face_attributes.values():
+            assert len(attrib) == len(mesh.faces)
 
         # color some faces
         g.trimesh.repair.broken_faces(mesh, color=[255, 0, 0, 255])
@@ -45,6 +58,11 @@ def test_fill_holes():
 
         hashes.append({mesh._data.__hash__(), hash(mesh)})
         assert hashes[1] != hashes[2]
+
+        # assert the filled holes padded attributes
+        # this is also the test for `mesh.extend_faces`
+        for attrib in mesh.face_attributes.values():
+            assert len(attrib) == len(mesh.faces)
 
         # try broken faces on a watertight mesh
         g.trimesh.repair.broken_faces(mesh, color=[255, 255, 0, 255])
@@ -256,4 +274,4 @@ def test_fix_normals_mixed_multibox():
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
-    test_fix_normals_mixed_multibox()
+    test_fill_holes()
