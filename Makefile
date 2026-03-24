@@ -91,7 +91,8 @@ test-arch: ## Run tests on big-endian s390x and 32-bit i386 via QEMU emulation.
 	python3-networkx python3-jsonschema python3-httpx python3-collada python3-rtree \
 	 && python3 -m pytest \
 	tests/test_ply.py tests/test_gltf.py tests/test_voxel.py \
-	tests/test_stl.py tests/test_dae.py tests/test_obj.py -v"
+	tests/test_stl.py tests/test_dae.py tests/test_obj.py \
+	tests/test_runlength.py tests/test_encoding.py -v"
 	docker run --rm --platform linux/386 \
 		-v $(CURDIR):/trimesh \
 		-w /trimesh \
@@ -99,7 +100,7 @@ test-arch: ## Run tests on big-endian s390x and 32-bit i386 via QEMU emulation.
 		bash -c "apt-get update -qq && apt-get install -y -qq \
 	python3-numpy python3-pytest python3-scipy python3-rtree \
 	 && python3 -m pytest \
-	tests/test_voxel.py -v"
+	tests/test_voxel.py tests/test_runlength.py tests/test_encoding.py -v"
 
 .PHONY: publish-docker
 publish-docker: build ## Publish Docker images.
