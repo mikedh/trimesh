@@ -31,7 +31,7 @@ def test_fill_holes():
         hashes = [{mesh._data.__hash__(), hash(mesh)}]
 
         # clip off the first and last few faces
-        mask = g.np.ones(len(mesh.faces), dtype=g.np.bool)
+        mask = g.np.ones(len(mesh.faces), dtype=bool)
         mask[[0, -1]] = False
         mesh.update_faces(mask)
 
@@ -63,6 +63,8 @@ def test_fill_holes():
         # this is also the test for `mesh.extend_faces`
         for attrib in mesh.face_attributes.values():
             assert len(attrib) == len(mesh.faces)
+        # face colors should have been padded to match
+        assert len(mesh.visual.face_colors) == len(mesh.faces)
 
         # try broken faces on a watertight mesh
         g.trimesh.repair.broken_faces(mesh, color=[255, 255, 0, 255])

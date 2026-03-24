@@ -1354,13 +1354,12 @@ class Trimesh(Geometry3D):
             # save previous expensive dot-products
             extend_normals = util.vstack_empty((cached_normals, new_normals))
 
-        # this is usually the case where two vertices of a triangle are just
-        # over tol.merge apart, but the normal calculation is screwed up
-        # these could be fixed by merging the vertices in question here:
-        # if not valid.all():
         if self.visual.defined and self.visual.kind == "face":
             extend_colors = util.vstack_empty(
-                (self.visual.face_colors, np.tile(visual.DEFAULT_COLOR, (4, 1)))
+                (
+                    self.visual.face_colors,
+                    np.tile(visual.DEFAULT_COLOR, (len(new_faces), 1)),
+                )
             )
 
         ##########
@@ -1378,7 +1377,7 @@ class Trimesh(Geometry3D):
 
         def sentinel_pad(dtype):
             # given a numpy dtype return the scalar value
-            # we are padding and extending face attributes withOB
+            # we are padding and extending face attributes with
             if dtype.kind == "i":
                 return -1
             return np.zeros(1, dtype=dtype)[0]
@@ -1386,12 +1385,14 @@ class Trimesh(Geometry3D):
         # collect new, padded face attributes
         new_attribs = {}
         for name, attrib in self.face_attributes.items():
-            if np.shape(attrib) == (original_length,):
-                # pad integers with -1 and everything else with zeros
-                pad = np.full(
-                    len(new_faces), sentinel_pad(attrib.dtype), dtype=attrib.dtype
-                )
-                new_attribs[name] = np.concatenate((attrib, pad))
+            shape = np.shape(attrib)
+            if len(shape) == 0 or shape[0] != original_length:
+                continue
+            # handle padding of both 1D and 2D face attributes
+            pad_shape = (len(new_faces),) + shape[1:]
+            # pad integers with -1 and everything else with zeros
+            pad = np.full(pad_shape, sentinel_pad(attrib.dtype), dtype=attrib.dtype)
+            new_attribs[name] = np.concatenate((attrib, pad))
         # update outside the loop with new values
         self.face_attributes.update(new_attribs)
 

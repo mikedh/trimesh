@@ -200,7 +200,7 @@ def triangulate_quads(quads, dtype=np.int64) -> NDArray:
         # use numpy slicing to triangulate ragged-sequence polygons
         poly = util.triangle_fans_to_faces(poly)
     if len(quad) > 0:
-        # trivially tesselate quads
+        # trivially tessellate quads
         quad = np.vstack((quad[:, [0, 1, 2]], quad[:, [2, 3, 0]]))
     # stack triangles from all three cases
     return util.vstack_empty([tri, quad, poly]).astype(dtype)

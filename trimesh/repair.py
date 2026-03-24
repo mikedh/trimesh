@@ -225,14 +225,16 @@ def fill_holes(mesh):
     mesh : trimesh.Trimesh
         Mesh will be repaired in-place.
     """
-    if len(mesh.faces) < 3 or mesh.is_watertight:
-        return
+    if len(mesh.faces) < 3:
+        return False
+    if mesh.is_watertight:
+        return True
 
     # any edge that occurs once is on the boundary
     boundary_groups = group_rows(mesh.edges_sorted, require_count=1)
     # either watertight or broken in a weird way
     if len(boundary_groups) < 3:
-        return
+        return False
 
     # ordered edges on the boundary
     boundary = mesh.edges[boundary_groups]
@@ -243,12 +245,12 @@ def fill_holes(mesh):
     # this handles mixed tris, quads, and arbitrary polygons
     new_faces = triangulate_quads(holes)
     if len(new_faces) == 0:
-        return
+        return False
 
     # now we need to fix the winding for every new face
     new_edges = faces_to_edges(new_faces)
 
-    # the hashable rows for the mesh bouundary edges
+    # the hashable rows for the mesh boundary edges
     # and the boundary of the original hole in the mesh
     # a well-constructed mesh has edges that are REVERSED
     # so we're going to try a cheap indexing operation
