@@ -5,7 +5,7 @@ except BaseException:
 
 
 def test_fill_holes():
-    for mesh_name in [
+    meshes = [
         "unit_cube.STL",
         "machinist.XAML",
         "round.stl",
@@ -13,11 +13,19 @@ def test_fill_holes():
         "teapot.stl",
         "soup.stl",
         "featuretype.STL",
-        "featuretype.STEP",
         "angle_block.STL",
         "quadknot.obj",
-    ]:
-        mesh = g.get_mesh(mesh_name)
+    ]
+
+    try:
+        import cascadio  # noqa
+        # if we have cascadio test against a STEP file
+        meshes.append("featuretype.STEP")
+    except ImportError:
+        pass
+
+    for name in meshes:
+        mesh = g.get_mesh(name)
         # handle scene lazily
         if hasattr(mesh, "geometry"):
             mesh = next(iter(mesh.geometry.values()))
@@ -49,12 +57,24 @@ def test_fill_holes():
 
         assert hashes[0] != hashes[1]
 
+        # put face_normals in cache then corrupt one
+        # so we can verify extend_faces preserves cached normals
+        _ = mesh.face_normals
+        mesh._cache.cache["face_normals"].flags.writeable = True
+        mesh._cache.cache["face_normals"][3, :] += 10
+        mesh._cache.cache["face_normals"].flags.writeable = False
+        cached_marker = mesh.face_normals[3].copy()
+        assert (cached_marker >= 9).all()
+
         # run the fill holes operation should succeed
         assert mesh.fill_holes()
         # should be a superset of the last two
         assert mesh.is_volume
         assert mesh.is_watertight
         assert mesh.is_winding_consistent
+
+        # the corrupted normal should have survived from cache
+        assert g.np.allclose(mesh.face_normals[3], cached_marker)
 
         hashes.append({mesh._data.__hash__(), hash(mesh)})
         assert hashes[1] != hashes[2]

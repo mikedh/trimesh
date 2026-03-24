@@ -604,7 +604,9 @@ def group_rows(data, require_count=None, digits=None):
     return groups_idx
 
 
-def boolean_rows(a: NDArray[np.int64], b: NDArray[np.int64], operation=np.intersect1d):
+def boolean_rows(
+    a: ArrayLike, b: ArrayLike, operation=np.intersect1d
+) -> NDArray[np.int64]:
     """
     Find the rows in two arrays which occur in both rows.
 

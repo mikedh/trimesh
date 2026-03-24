@@ -1368,7 +1368,7 @@ class Trimesh(Geometry3D):
         self._cache.verify()
         # save us a normals recompute if we can
         if extend_normals is not None:
-            self.face_normals = extend_normals
+            self._cache["face_normals"] = extend_normals
         if extend_colors is not None:
             self.visual.face_colors = extend_colors
 
