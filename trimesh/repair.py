@@ -212,7 +212,7 @@ def broken_faces(mesh, color=None):
     return broken
 
 
-def fill_holes(mesh):
+def fill_holes(mesh, use_fan: bool = False):
     """
     Fill boundary holes in-place using fans, which may result
     in bad answers if the holes are non convex!
@@ -224,6 +224,9 @@ def fill_holes(mesh):
     ----------
     mesh : trimesh.Trimesh
         Mesh will be repaired in-place.
+    use_fan
+      If passed, holes larger than quads will be triangulated
+      using fans which are only valid for non-convex holes.
     """
     if len(mesh.faces) < 3:
         return False
@@ -243,7 +246,7 @@ def fill_holes(mesh):
     holes = nx.cycle_basis(nx.from_edgelist(boundary))
 
     # this handles mixed tris, quads, and arbitrary polygons
-    new_faces = triangulate_quads(holes)
+    new_faces = triangulate_quads(holes, use_fan=use_fan)
     if len(new_faces) == 0:
         return False
 

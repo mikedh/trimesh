@@ -147,7 +147,7 @@ def vector_angle(pairs):
     return angles
 
 
-def triangulate_quads(quads, dtype=np.int64) -> NDArray:
+def triangulate_quads(quads, dtype=np.int64, use_fan: bool = True) -> NDArray:
     """
     Given an array of quad faces return them as triangle faces,
     also handles pure triangles and mixed triangles and quads.
@@ -156,6 +156,11 @@ def triangulate_quads(quads, dtype=np.int64) -> NDArray:
     -----------
     quads: (n, 4) int
       Vertex indices of quad faces.
+    dtype
+      Data type requested for the return
+    use_fan
+      Triangulate holes larger than quads with fans,
+      which may be wrong if the holes are non-convex
 
     Returns
     -----------
@@ -190,8 +195,12 @@ def triangulate_quads(quads, dtype=np.int64) -> NDArray:
     tri = np.array([quads[i] for i in np.nonzero(lengths == 3)[0]], dtype=np.int64)
     quad = np.array([quads[i] for i in np.nonzero(lengths == 4)[0]], dtype=np.int64)
 
-    # get arbitrary polygons as a ragged sequence
-    poly = [quads[i] for i in np.nonzero(lengths > 4)[0]]
+    if use_fan:
+        # get arbitrary polygons as a ragged sequence
+        poly = [quads[i] for i in np.nonzero(lengths > 4)[0]]
+    else:
+        # skip any hole larger than a quad
+        poly = []
 
     if len(quad) == 0 and len(poly) == 0:
         # only triangles, return triangles
