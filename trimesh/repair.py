@@ -9,8 +9,9 @@ import numpy as np
 
 from . import graph, triangles
 from .constants import log
-from .geometry import faces_to_edges
-from .grouping import group_rows
+from .geometry import faces_to_edges, triangulate_quads
+from .graph import connected_components
+from .grouping import group_rows, hashable_rows
 
 try:
     import networkx as nx
@@ -107,7 +108,7 @@ def fix_inversion(mesh, multibody: bool = False):
         return
 
     # get groups of connected faces
-    groups = graph.connected_components(mesh.face_adjacency)
+    groups = connected_components(mesh.face_adjacency)
 
     # mask of faces to flip
     flip = np.zeros(len(mesh.faces), dtype=bool)
@@ -211,158 +212,67 @@ def broken_faces(mesh, color=None):
     return broken
 
 
-def fill_holes(mesh):
+def fill_holes(mesh, use_fan: bool = False):
     """
-    Fill single- triangle holes on triangular meshes by adding
-    new triangles to fill the holes. New triangles will have
-    proper winding and normals, and if face colors exist the color
-    of the last face will be assigned to the new triangles.
+    Fill boundary holes in-place using fans, which may result
+    in bad answers if the holes are non convex!
+
+    Face colors and attributes will be padded with default values
+    so shapes match.
 
     Parameters
-    ------------
+    ----------
     mesh : trimesh.Trimesh
-      Mesh will be repaired in- place
+        Mesh will be repaired in-place.
+    use_fan
+      If passed, holes larger than quads will be triangulated
+      using fans which are only valid for non-convex holes.
     """
-
-    def hole_to_faces(hole):
-        """
-        Given a loop of vertex indices  representing a hole
-        turn it into triangular faces.
-        If unable to do so, return None
-
-        Parameters
-        -----------
-        hole : (n,) int
-          Ordered loop of vertex indices
-
-        Returns
-        ---------
-        faces : (n, 3) int
-          New faces
-        vertices : (m, 3) float
-          New vertices
-        """
-        hole = np.asanyarray(hole)
-        # the case where the hole is just a single missing triangle
-        if len(hole) == 3:
-            return [hole], []
-        # the hole is a quad, which we fill with two triangles
-        if len(hole) == 4:
-            face_A = hole[[0, 1, 2]]
-            face_B = hole[[2, 3, 0]]
-            return [face_A, face_B], []
-        return [], []
-
     if len(mesh.faces) < 3:
         return False
-
     if mesh.is_watertight:
         return True
 
-    # we know that in a watertight mesh every edge will be included twice
-    # thus every edge which appears only once is part of a hole boundary
+    # any edge that occurs once is on the boundary
     boundary_groups = group_rows(mesh.edges_sorted, require_count=1)
-
-    # mesh is not watertight and we have too few edges
-    # edges to do a repair
-    # since we haven't changed anything return False
+    # either watertight or broken in a weird way
     if len(boundary_groups) < 3:
         return False
 
-    boundary_edges = mesh.edges[boundary_groups]
-    index_as_dict = [{"index": i} for i in boundary_groups]
+    # ordered edges on the boundary
+    boundary = mesh.edges[boundary_groups]
 
-    # we create a graph of the boundary edges, and find cycles.
-    g = nx.from_edgelist(np.column_stack((boundary_edges, index_as_dict)))
-    new_faces = []
-    new_vertex = []
-    for hole in nx.cycle_basis(g):
-        # convert the hole, which is a polygon of vertex indices
-        # to triangles and new vertices
-        faces, vertex = hole_to_faces(hole=hole)
-        if len(faces) == 0:
-            continue
-        # remeshing returns new vertices as negative indices, so change those
-        # to absolute indices which won't be screwed up by the later appends
-        faces = np.array(faces)
-        faces[faces < 0] += len(new_vertex) + len(mesh.vertices) + len(vertex)
-        new_vertex.extend(vertex)
-        new_faces.extend(faces)
-    new_faces = np.array(new_faces)
-    new_vertex = np.array(new_vertex)
+    # use networkx to find cycles of boundary edges
+    holes = nx.cycle_basis(nx.from_edgelist(boundary))
 
+    # this handles mixed tris, quads, and arbitrary polygons
+    new_faces = triangulate_quads(holes, use_fan=use_fan)
     if len(new_faces) == 0:
-        # no new faces have been added, so nothing further to do
-        # the mesh is NOT watertight, as boundary groups exist
-        # but we didn't add any new faces to fill them in
         return False
 
-    for face_index, face in enumerate(new_faces):
-        # we compare the edge from the new face with
-        # the boundary edge from the source mesh
-        edge_test = face[:2]
-        edge_boundary = mesh.edges[g.get_edge_data(*edge_test)["index"]]
+    # now we need to fix the winding for every new face
+    new_edges = faces_to_edges(new_faces)
 
-        # in a well constructed mesh, the winding is such that adjacent triangles
-        # have reversed edges to each other. Here we check to make sure the
-        # edges are reversed, and if they aren't we simply reverse the face
-        reversed = edge_test[0] == edge_boundary[1]
-        if not reversed:
-            new_faces[face_index] = face[::-1]
+    # the hashable rows for the mesh boundary edges
+    # and the boundary of the original hole in the mesh
+    # a well-constructed mesh has edges that are REVERSED
+    # so we're going to try a cheap indexing operation
+    hashable_new = hashable_rows(new_edges)
+    hashable_old = hashable_rows(boundary)
 
-    # stack vertices into clean (n, 3) float
-    if len(new_vertex) != 0:
-        new_vertices = np.vstack((mesh.vertices, new_vertex))
-    else:
-        new_vertices = mesh.vertices
+    # the magic trick: if any ordered edge of the NEW face is contained
+    # in the OLD boundary edges, it means the new face has edges that
+    # are in the same order as the boundary, and that new face
+    # needs to be reversed and since new_edges has exactly three
+    # edges per triangle we can compact indexes back to triangles
+    needs_reverse = np.isin(hashable_new, hashable_old).reshape((-1, 3)).any(axis=1)
 
-    # try to save face normals if we can
-    if "face_normals" in mesh._cache.cache:
-        cached_normals = mesh._cache.cache["face_normals"]
-    else:
-        cached_normals = None
+    # now we have some shiny new faces that might even be wound correctly!
+    new_faces[needs_reverse] = np.fliplr(new_faces[needs_reverse])
 
-    # also we can remove any zero are triangles by masking here
-    new_normals, valid = triangles.normals(new_vertices[new_faces])
-    # all the added faces were broken
-    if not valid.any():
-        return False
+    # do the bookkeeping to preserve face normals and pad attributes
+    mesh.extend_faces(new_faces)
 
-    # this is usually the case where two vertices of a triangle are just
-    # over tol.merge apart, but the normal calculation is screwed up
-    # these could be fixed by merging the vertices in question here:
-    # if not valid.all():
-    if mesh.visual.defined and mesh.visual.kind == "face":
-        color = mesh.visual.face_colors
-    else:
-        color = None
-
-    # apply the new faces and vertices
-    mesh.faces = np.vstack((mesh._data["faces"], new_faces[valid]))
-    mesh.vertices = new_vertices
-
-    # dump the cache and set id to the new hash
-    mesh._cache.verify()
-
-    # save us a normals recompute if we can
-    if cached_normals is not None:
-        mesh.face_normals = np.vstack((cached_normals, new_normals))
-
-    # this is usually the case where two vertices of a triangle are just
-    # over tol.merge apart, but the normal calculation is screwed up
-    # these could be fixed by merging the vertices in question here:
-    # if not valid.all():
-    if color is not None:
-        # if face colors exist, assign the last face color to the new faces
-        # note that this is a little cheesey, but it is very inexpensive and
-        # is the right thing to do if the mesh is a single color.
-        color_shape = np.shape(color)
-        if len(color_shape) == 2:
-            new_colors = np.tile(color[-1], (np.sum(valid), 1))
-            new_colors = np.vstack((color, new_colors))
-            mesh.visual.face_colors = new_colors
-
-    log.debug("Filled in mesh with %i triangles", np.sum(valid))
     return mesh.is_watertight
 
 

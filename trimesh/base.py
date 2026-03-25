@@ -35,6 +35,7 @@ from . import (
     triangles,
     units,
     util,
+    visual,
 )
 from .caching import Cache, DataStore, TrackedArray, cache_decorator
 from .constants import log, tol
@@ -1311,6 +1312,79 @@ class Trimesh(Geometry3D):
         # if our normals were the correct shape apply them
         if util.is_shape(cached_normals, (-1, 3)):
             self.face_normals = cached_normals[mask]
+
+    def extend_faces(self, new_faces: ArrayLike):
+        """
+        Extend `mesh.faces` in-place with new triangles.
+
+        This does substantial bookkeeping: padding face colors
+        and face attributes with default values, and preserving cached
+        face normals to avoid recomputing every normal.
+
+        Parameters
+        ------------
+        new_faces : (n, 3) integer
+          The new faces as indexes of `self.vertices`
+        """
+        new_faces = np.asanyarray(new_faces, dtype=np.int64)
+        if len(new_faces.shape) != 2 or new_faces.shape[1] != 3:
+            raise ValueError(f"Faces must be triangular, not `{new_faces.shape}`!")
+
+        if len(new_faces) == 0:
+            return
+
+        # make sure the cache is up-to-date
+        self._cache.verify()
+
+        # if we manage to extend colors and normals
+        extend_normals, extend_colors = None, None
+
+        # always filter degenerate triangles
+        new_normals, valid = triangles.normals(self.vertices[new_faces])
+        new_faces = new_faces[valid]
+        if len(new_faces) == 0:
+            return
+
+        # save cached normals if available to avoid a full recompute
+        if "face_normals" in self._cache.cache:
+            cached_normals = self._cache.cache["face_normals"]
+            if len(cached_normals) > 0:
+                extend_normals = util.vstack_empty((cached_normals, new_normals))
+
+        if self.visual.defined and self.visual.kind == "face":
+            extend_colors = util.vstack_empty(
+                (
+                    self.visual.face_colors,
+                    np.tile(visual.DEFAULT_COLOR, (len(new_faces), 1)),
+                )
+            )
+
+        ##########
+        # DO ALL MUTATION AT THE END HERE
+        # apply the new faces
+        original_length = len(self._data["faces"])
+        self.faces = util.vstack_empty((self._data["faces"], new_faces))
+        # dump the cache to set the new hash to the stacked faces
+        self._cache.verify()
+        # save us a normals recompute if we can
+        if extend_normals is not None:
+            self._cache["face_normals"] = extend_normals
+        if extend_colors is not None:
+            self.visual.face_colors = extend_colors
+
+        # collect new, padded face attributes
+        new_attribs = {}
+        for name, attrib in self.face_attributes.items():
+            shape = np.shape(attrib)
+            if len(shape) == 0 or shape[0] != original_length:
+                continue
+            # pad integers with -1 and everything else with zeros
+            fill = -1 if attrib.dtype.kind == "i" else 0
+            pad_shape = (len(new_faces),) + shape[1:]
+            pad = np.full(pad_shape, fill, dtype=attrib.dtype)
+            new_attribs[name] = np.concatenate((attrib, pad))
+        # update outside the loop with new values
+        self.face_attributes.update(new_attribs)
 
     def remove_infinite_values(self) -> None:
         """

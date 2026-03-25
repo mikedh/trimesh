@@ -242,12 +242,14 @@ def rle_to_dense(rle_data, dtype=np.int64):
     if dtype is not None:
         values = np.asanyarray(values, dtype=dtype)
     try:
-        result = np.repeat(np.squeeze(values, axis=-1), np.squeeze(counts, axis=-1))
+        result = np.repeat(
+            np.squeeze(values, axis=-1), np.squeeze(counts, axis=-1).astype(int)
+        )
     except TypeError:
         # on windows it sometimes fails to cast data type
         result = np.repeat(
             np.squeeze(values.astype(np.int64), axis=-1),
-            np.squeeze(counts.astype(np.int64), axis=-1),
+            np.squeeze(counts.astype(int), axis=-1),
         )
     return result
 
@@ -286,8 +288,8 @@ def split_long_rle_lengths(values, lengths, dtype=np.int64):
     max_length = np.iinfo(dtype).max
     lengths = np.asarray(lengths, dtype=np.int64)
     repeats = lengths // max_length
-    if np.any(repeats):
-        repeats += 1
+    if repeats.any():
+        repeats = (repeats + 1).astype(int)
         remainder = lengths % max_length
         values = np.repeat(values, repeats)
         lengths = np.zeros(len(repeats), dtype=dtype)
