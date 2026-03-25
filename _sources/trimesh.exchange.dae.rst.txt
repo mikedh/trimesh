@@ -1,0 +1,7 @@
+trimesh.exchange.dae
+====================
+
+.. automodule:: trimesh.exchange.dae
+   :members:
+   :show-inheritance:
+   :undoc-members:
