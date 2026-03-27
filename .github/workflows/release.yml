@@ -6,14 +6,17 @@ on:
       - main
       - release-candidate
 
+permissions:
+  contents: read
+
 jobs:
   formatting:
     name: Check Code Formatting
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
         python-version: "3.13"
     - name: Install Formatting
@@ -38,9 +41,9 @@ jobs:
           - os: macos-13
             python-version: 3.9
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
         python-version: ${{ matrix.python-version }}
     - name: Test a minimal install
@@ -59,9 +62,9 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
         python-version: '3.13'
     - name: Install publishing dependencies
@@ -69,16 +72,20 @@ jobs:
     - name: Build
       run: pyproject-build --outdir dist .
     - name: Publish
-      uses: pypa/gh-action-pypi-publish@v1.13.0
+      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
 
   containers:
     name: Build Docker Images
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # for gh-pages deployment
     steps:
     - name: Log In to Docker Hub
-      run: echo ${{ secrets.DH_PASS }} | docker login --username mikedh --password-stdin
+      env:
+        DH_PASS: ${{ secrets.DH_PASS }}
+      run: echo "$DH_PASS" | docker login --username mikedh --password-stdin
     - name: Checkout trimesh
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Build Images And Docs
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -87,9 +94,8 @@ jobs:
         make publish-docker # push images to docker hub
         make docs # build sphinx docs
     - name: Deploy Github Pages
-      uses: peaceiris/actions-gh-pages@v3
+      uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./html
         force_orphan: true
     - name: Logout of registries
@@ -101,15 +107,15 @@ jobs:
     runs-on: ubuntu-latest
     name: Check Corpus Loading
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Trimesh DiskCache
       id: cache-resolvers
-      uses: actions/cache@v4
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
       with:
         path: ~/.trimesh-cache
         key: trimesh-cache
     - name: Set up Python 3.10
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
          python-version: "3.10"
     - name: Install Trimesh
@@ -119,26 +125,22 @@ jobs:
 
   release:
     permissions:
-      contents: write  # for actions/create-release
+      contents: write  # for creating releases
     name: Create GitHub Release
     needs: [pypi]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Tag Version
         id: set_tag
         run: |
           export VER=$(python trimesh/version.py)
-          echo "::set-output name=tag_name::${VER}"
+          echo "tag_name=${VER}" >> "$GITHUB_OUTPUT"
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:
           tag_name: ${{ steps.set_tag.outputs.tag_name }}
-          release_name: Release ${{ steps.set_tag.outputs.tag_name }}
+          name: Release ${{ steps.set_tag.outputs.tag_name }}
           draft: false
-          body: ${{ github.event.head_commit.message }}
           prerelease: false
