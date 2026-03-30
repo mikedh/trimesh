@@ -554,7 +554,7 @@ def slice_faces_plane(
     denom[denom == 0.0] = 1e-12  # prevent division by zero
     dist = np.divide(num, denom)
     # intersection points for each segment
-    int_points = np.einsum("ij,ijk->ijk", dist, d) + o
+    int_points = dist[:, :, None] * d + o
 
     # Initialize the array of new vertices with the current vertices
     new_vertices = vertices

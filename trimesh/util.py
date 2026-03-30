@@ -824,7 +824,7 @@ def attach_to_log(
     colors: bool = True,
     capture_warnings: bool = True,
     blacklist: Optional[Iterable] = None,
-    only_parent: bool = False,
+    only_parent: bool = True,
 ):
     """
     Attach a stream handler to all loggers.
@@ -854,7 +854,11 @@ def attach_to_log(
             "pyembree",
             "shapely",
             "matplotlib",
+            "parso.cache",
             "parso",
+            "parso.python.diff",
+            "asyncio",
+            "prompt_toolkit.buffer",
         ]
 
     # make sure we log warnings from the warnings module

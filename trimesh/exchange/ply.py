@@ -150,12 +150,12 @@ def _add_attributes_to_dtype(dtype, attributes):
     dtype : list of numpy datatypes
     """
     for name, data in attributes.items():
-        if data.ndim == 1:
-            dtype.append((name, data.dtype))
+        # force little-endian to match PLY binary format
+        field_dtype = data.dtype.newbyteorder("<")
+        if data.ndim > 1:
+            dtype.extend([(f"{name}_count", "<u1"), (name, field_dtype, data.shape[1])])
         else:
-            attribute_dtype = data.dtype if len(data.dtype) == 0 else data.dtype[0]
-            dtype.append((f"{name}_count", "<u1"))
-            dtype.append((name, attribute_dtype, data.shape[1]))
+            dtype.append((name, field_dtype))
     return dtype
 
 

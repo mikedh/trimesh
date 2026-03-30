@@ -162,7 +162,7 @@ class EncodingTest(g.unittest.TestCase):
         box = g.trimesh.primitives.Box()
         box.apply_translation([0.5, 0.5, 0.5])  # center at origin
         box.apply_scale(5)  # 0 -> 5
-        expected_sparse_indices = np.array(box.vertices)
+        expected_sparse_indices = np.array(box.vertices, dtype=int)
         box.apply_translation([2, 2, 2])  # 2 -> 7
         sparse = np.array(box.vertices, dtype=int)
         encoding = enc.SparseBinaryEncoding(sparse, shape=(9, 9, 9))

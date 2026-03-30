@@ -8,6 +8,7 @@ Find stable orientations of meshes.
 import numpy as np
 
 from .triangles import points_to_barycentric
+from .util import diagonal_dot
 
 try:
     import networkx as nx
@@ -78,7 +79,7 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
         remaining = n_samples - len(sample_coms)
         coms = np.random.multivariate_normal(center_mass, sigma * np.eye(3), remaining)
         for c in coms:
-            dots = np.einsum("ij,ij->i", c - cvh.triangles_center, cvh.face_normals)
+            dots = diagonal_dot(c - cvh.triangles_center, cvh.face_normals)
             if np.all(dots < 0):
                 sample_coms.append(c)
 
@@ -289,10 +290,8 @@ def _create_topple_graph(cvh_mesh, com):
         topple_graph.add_node(i, prob=prob)
 
     # Compute COM projections onto planes of each triangle in cvh_mesh
-    proj_dists = np.einsum(
-        "ij,ij->i", cvh_mesh.face_normals, com - cvh_mesh.triangles[:, 0]
-    )
-    proj_coms = com - np.einsum("i,ij->ij", proj_dists, cvh_mesh.face_normals)
+    proj_dists = diagonal_dot(cvh_mesh.face_normals, com - cvh_mesh.triangles[:, 0])
+    proj_coms = com - proj_dists[:, None] * cvh_mesh.face_normals
     barys = points_to_barycentric(cvh_mesh.triangles, proj_coms)
     unstable_face_indices = np.where(np.any(barys < 0, axis=1))[0]
 
