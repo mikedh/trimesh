@@ -171,6 +171,10 @@ class RayMeshIntersector:
             plane_origins = self.mesh.triangles[:, 0, :]
             plane_normals = self.mesh.face_normals
 
+        # Proposed FIX
+        # NEW CODE: Track the last triangle hit by each ray to prevent logging duplicates
+        last_hit_triangles = np.full(len(ray_origins), -1, dtype=np.int64)
+
         # use a for loop rather than a while to ensure this exits
         # if a ray is offset from a triangle and then is reported
         # hitting itself this could get stuck on that one triangle
@@ -192,9 +196,16 @@ class RayMeshIntersector:
             current_index_hit = current_index[hit]
             current[current_index_no_hit] = False
 
-            # append the triangle and ray index to the results
-            result_triangle.append(hit_triangle)
-            result_ray_idx.append(current_index_hit)
+            # PROPOSED FIX
+            # Check if these rays hit the exact same triangle as the previous loop
+            is_duplicate = last_hit_triangles[current_index_hit] == hit_triangle
+            is_new_hit = ~is_duplicate
+
+            last_hit_triangles[current_index_hit] = hit_triangle
+
+            if is_new_hit.any():
+                result_triangle.append(hit_triangle[is_new_hit])
+                result_ray_idx.append(current_index_hit[is_new_hit])
 
             # if we don't need all of the hits, return the first one
             if (not multiple_hits and not return_locations) or not hit.any():
