@@ -223,7 +223,7 @@ class RayTests(g.unittest.TestCase):
                 ray_directions,
                 multiple_hits=True
             )
-            
+
             # The ray should hit exactly one face as it exits the cube
             assert len(index_tri) == 1
 
