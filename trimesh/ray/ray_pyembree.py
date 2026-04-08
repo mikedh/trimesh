@@ -184,9 +184,12 @@ class RayMeshIntersector:
             # ray, which is bizzarely slower than our calculation
 
             query = self._scene.run(ray_origins[current], ray_directions[current])
+
+            current_index = np.nonzero(current)[0]
             # basically we need to reduce the rays to the ones that hit
             # something
-            hit = query != -1
+            hit = (query != -1) & (query != last_hit_triangles[current_index])
+            last_hit_triangles[current_index[hit]] = query[hit]
             # which triangle indexes were hit
             hit_triangle = query[hit]
 
@@ -197,15 +200,13 @@ class RayMeshIntersector:
             current[current_index_no_hit] = False
 
             # PROPOSED FIX
-            # Check if these rays hit the exact same triangle as the previous loop
-            is_duplicate = last_hit_triangles[current_index_hit] == hit_triangle
-            is_new_hit = ~is_duplicate
+            current_index_no_hit = current_index[~hit]
+            current_index_hit = current_index[hit]
+            current[current_index_no_hit] = False
 
-            last_hit_triangles[current_index_hit] = hit_triangle
-
-            if is_new_hit.any():
-                result_triangle.append(hit_triangle[is_new_hit])
-                result_ray_idx.append(current_index_hit[is_new_hit])
+            # always append to avoid np.hstack concatenation crashes
+            result_triangle.append(hit_triangle)
+            result_ray_idx.append(current_index_hit)
 
             # if we don't need all of the hits, return the first one
             if (not multiple_hits and not return_locations) or not hit.any():
