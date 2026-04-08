@@ -290,7 +290,7 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
     compression : zipfile.ZIP_*
       Type of zip compression to use in this export.
     compresslevel : int
-      For Python > 3.7 specify the 0-9 compression level.
+      Specify the 0-9 compression level.
 
     Returns
     ---------
@@ -331,9 +331,7 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
     file_obj = io.BytesIO()
 
     # specify the parameters for the zip container
-    zip_kwargs = {"compression": compression}
-    # compresslevel was added in Python 3.7
-    zip_kwargs["compresslevel"] = compresslevel
+    zip_kwargs = {"compression": compression, "compresslevel": compresslevel}
 
     with zipfile.ZipFile(file_obj, mode="w", **zip_kwargs) as z:
         # 3dmodel.model

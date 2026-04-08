@@ -11,16 +11,11 @@ import abc
 import itertools
 import os
 
+# URL parsing for remote resources via WebResolver
+from urllib.parse import urlparse
+
 from . import caching, util
 from .typed import Dict, Mapping, Optional, Union
-
-# URL parsing for remote resources via WebResolver
-try:
-    # Python 3
-    from urllib.parse import urlparse
-except ImportError:
-    # Python 2
-    from urlparse import urlparse
 
 
 class Resolver(util.ABC):
