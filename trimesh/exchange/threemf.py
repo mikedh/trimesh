@@ -335,9 +335,10 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
 
     with zipfile.ZipFile(file_obj, mode="w", **zip_kwargs) as z:
         # 3dmodel.model
-        with z.open("3D/3dmodel.model", mode="w") as f, etree.xmlfile(
-            f, encoding="utf-8"
-        ) as xf:
+        with (
+            z.open("3D/3dmodel.model", mode="w") as f,
+            etree.xmlfile(f, encoding="utf-8") as xf,
+        ):
             xf.write_declaration()
 
             # stream elements
@@ -455,9 +456,10 @@ def export_3MF(mesh, batch_size=4096, compression=zipfile.ZIP_DEFLATED, compress
                 )
 
         # [Content_Types].xml
-        with z.open("[Content_Types].xml", "w") as f, etree.xmlfile(
-            f, encoding="utf-8"
-        ) as xf:
+        with (
+            z.open("[Content_Types].xml", "w") as f,
+            etree.xmlfile(f, encoding="utf-8") as xf,
+        ):
             xf.write_declaration()
             # xml namespaces
             nsmap = {None: "http://schemas.openxmlformats.org/package/2006/content-types"}

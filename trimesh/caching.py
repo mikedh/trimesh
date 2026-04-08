@@ -40,8 +40,10 @@ except BaseException:
 def sha256(item) -> int:
     return int(_sha256(item).hexdigest(), 16)
 
+
 def hash_fallback(item):
     return int(_blake2b(item, usedforsecurity=False).hexdigest(), 16)
+
 
 # xxhash is up to 30x faster than sha256:
 # `pip install xxhash`
