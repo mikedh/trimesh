@@ -1,4 +1,5 @@
 import collections
+import itertools
 from copy import deepcopy
 
 import numpy as np
@@ -152,7 +153,7 @@ class SceneGraph:
 
             # loop through pairs of the path
             matrices = []
-            for u, v in zip(path[:-1], path[1:]):
+            for u, v in itertools.pairwise(path):
                 forward = data.get((u, v))
                 if forward is not None:
                     if "matrix" in forward:

@@ -1,3 +1,4 @@
+import itertools
 import os
 import re
 from collections import defaultdict, deque
@@ -788,7 +789,7 @@ def _preprocess_faces(text, use_obj=False, use_groups=False):
     # store (material, object, group, face lines)
     face_tuples = []
 
-    for start, end in zip(splits[:-1], splits[1:]):
+    for start, end in itertools.pairwise(splits):
         # ensure there's always a trailing newline
         chunk = f_chunk[start:end].strip() + "\n"
         if chunk.startswith("o "):
