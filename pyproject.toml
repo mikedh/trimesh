@@ -81,7 +81,7 @@ easy = [
     "rtree",
     "httpx",
     "scipy",
-    "embreex; platform_machine=='x86_64'",
+    "embreex>=4.4.0rc1; platform_machine=='x86_64'",
     "pillow",
     "vhacdx; python_version>='3.9'",
     # old versions of mapbox_earcut produce incorrect values on numpy 2.0
