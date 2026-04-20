@@ -171,8 +171,8 @@ class RayMeshIntersector:
             plane_origins = self.mesh.triangles[:, 0, :]
             plane_normals = self.mesh.face_normals
 
-        # Proposed FIX
-        # NEW CODE: Track the last triangle hit by each ray to prevent logging duplicates
+        # save the last hit by each ray in case the offsetting and precision
+        # issue result in a duplicate being returned.
         last_hit_triangles = np.full(len(ray_origins), -1, dtype=np.int64)
 
         # use a for loop rather than a while to ensure this exits
@@ -186,10 +186,12 @@ class RayMeshIntersector:
             query = self._scene.run(ray_origins[current], ray_directions[current])
 
             current_index = np.nonzero(current)[0]
-            # basically we need to reduce the rays to the ones that hit
-            # something
+            # reduce hits to "hit anything" and "not the same hit as the last hit"
             hit = (query != -1) & (query != last_hit_triangles[current_index])
+
+            # save our hits for next query in the iteration chain
             last_hit_triangles[current_index[hit]] = query[hit]
+
             # which triangle indexes were hit
             hit_triangle = query[hit]
 
@@ -200,9 +202,9 @@ class RayMeshIntersector:
             current[current_index_no_hit] = False
 
             # PROPOSED FIX
-            current_index_no_hit = current_index[~hit]
-            current_index_hit = current_index[hit]
-            current[current_index_no_hit] = False
+            # current_index_no_hit = current_index[~hit]
+            # current_index_hit = current_index[hit]
+            # current[current_index_no_hit] = False
 
             # always append to avoid np.hstack concatenation crashes
             result_triangle.append(hit_triangle)

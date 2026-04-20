@@ -217,11 +217,9 @@ class RayTests(g.unittest.TestCase):
         ray_directions = g.np.array([[0.0, 0.0, -1.0]])
 
         # if pyembree is available, this will test our new mask logic
-        if hasattr(mesh.ray, '_scene'):
+        if hasattr(mesh.ray, "_scene"):
             index_tri, _ = mesh.ray.intersects_id(
-                ray_origins,
-                ray_directions,
-                multiple_hits=True
+                ray_origins, ray_directions, multiple_hits=True
             )
 
             # The ray should hit exactly one face as it exits the cube

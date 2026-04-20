@@ -39,9 +39,7 @@ class GeomTests(g.unittest.TestCase):
         from trimesh.triangles import area, normals
 
         # unit square on XY plane
-        vertices = g.np.array(
-            [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=float
-        )
+        vertices = g.np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=float)
 
         # quad path: produces 2 triangles
         quad_faces = triangulate_quads([[0, 1, 2, 3]])
