@@ -5,41 +5,27 @@ API wrapped to match our native raytracer.
 
 import numpy as np
 
+# `pip install embreex` installs from wheels
+from embreex import rtcore_scene
+from embreex.mesh_construction import TriangleMesh
+
 from .. import caching, intersections, util
 from ..constants import log_time
+from ..typed import ArrayLike, Integer
 from .ray_util import contains_points
 
-# the factor of geometry.scale to offset a ray from a triangle
-# to reliably not hit its origin triangle
-_ray_offset_factor = 1e-4
-# we want to clip our offset to a sane distance
-_ray_offset_floor = 1e-8
+# embree operates on float32 values
+_embree_dtype = np.float32
 
-
-try:
-    # try the preferred wrapper which installs from wheels
-    from embreex import rtcore_scene
-    from embreex.mesh_construction import TriangleMesh
-
-    # pass embree floats as 32 bit
-    _embree_dtype = np.float32
-except BaseException as E:
-    try:
-        # this will be deprecated at some point hopefully soon
-        from pyembree import __version__, rtcore_scene
-        from pyembree.mesh_construction import TriangleMesh
-
-        # see if we're using a newer version of the pyembree wrapper
-        _embree_new = tuple([int(i) for i in __version__.split(".")]) >= (0, 1, 4)
-        # both old and new versions require exact but different type
-        _embree_dtype = [np.float64, np.float32][int(_embree_new)]
-    except BaseException:
-        # raise the embreex error for better log message
-        raise E
+# when calculating multiple hits we offset the hit to
+# advance the ray past the plane of the triangle we hit
+# hardcode offset for rays larger than our resolution:
+#   np.finfo(_embree_dtype).resolution * 10
+_ray_offset = 1e-5
 
 
 class RayMeshIntersector:
-    def __init__(self, geometry, scale_to_box=True):
+    def __init__(self, geometry, scale_to_box: bool = True):
         """
         Do ray- mesh queries.
 
@@ -78,7 +64,12 @@ class RayMeshIntersector:
             vertices=self.mesh.vertices, faces=self.mesh.faces, scale=self._scale
         )
 
-    def intersects_location(self, ray_origins, ray_directions, multiple_hits=True):
+    def intersects_location(
+        self,
+        ray_origins: ArrayLike,
+        ray_directions: ArrayLike,
+        multiple_hits: bool = True,
+    ):
         """
         Return the location of where a ray hits a surface.
 
@@ -110,11 +101,11 @@ class RayMeshIntersector:
     @log_time
     def intersects_id(
         self,
-        ray_origins,
-        ray_directions,
-        multiple_hits=True,
-        max_hits=20,
-        return_locations=False,
+        ray_origins: ArrayLike,
+        ray_directions: ArrayLike,
+        multiple_hits: bool = True,
+        max_hits: Integer = 20,
+        return_locations: bool = False,
     ):
         """
         Find the triangles hit by a list of rays, including
@@ -144,6 +135,7 @@ class RayMeshIntersector:
         locations : (m) sequence of (p, 3) float
           Intersection points, only returned if return_locations
         """
+
         # make sure input is _dtype for embree
         ray_origins = np.array(ray_origins, dtype=np.float64)
         ray_directions = np.array(ray_directions, dtype=np.float64)
@@ -157,15 +149,9 @@ class RayMeshIntersector:
         result_ray_idx = []
         result_locations = []
 
-        # the mask for which rays are still active
-        current = np.ones(len(ray_origins), dtype=bool)
-
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of face
-            distance = np.clip(
-                _ray_offset_factor * self._scale, _ray_offset_floor, np.inf
-            )
-            ray_offsets = ray_directions * distance
+            ray_offsets = ray_directions * _ray_offset
 
             # grab the planes from triangles
             plane_origins = self.mesh.triangles[:, 0, :]
@@ -173,7 +159,14 @@ class RayMeshIntersector:
 
         # save the last hit by each ray in case the offsetting and precision
         # issue result in a duplicate being returned.
-        last_hit_triangles = np.full(len(ray_origins), -1, dtype=np.int64)
+        last_hit = np.full(len(ray_origins), -1, dtype=np.int64)
+
+        # if we're stuck on on triangle we need to offset more
+        count_tri = np.zeros(len(mesh.faces), dtype=np.int64)
+        # for translating boolean masks into indexes in the loop
+        range_mask = np.arange(len(ray_origins))
+        # the mask for which rays are still active
+        current = np.ones(len(ray_origins), dtype=bool)
 
         # use a for loop rather than a while to ensure this exits
         # if a ray is offset from a triangle and then is reported
@@ -181,40 +174,44 @@ class RayMeshIntersector:
         for _ in range(max_hits):
             # run the embreex query
             # if you set output=1 it will calculate distance along
-            # ray, which is bizzarely slower than our calculation
-
+            # ray which is bizzarely slower than our calculation
+            # TODO : FIXED IN embreex>=4.4.0rc1 ;)
+            # when that's settled for a while we should probably
+            # switch out our python hit location with theirs
             query = self._scene.run(ray_origins[current], ray_directions[current])
 
-            current_index = np.nonzero(current)[0]
-            # reduce hits to "hit anything" and "not the same hit as the last hit"
-            hit = (query != -1) & (query != last_hit_triangles[current_index])
+            # a ray that hit nothing will be -1
+            hit = query != -1
 
-            # save our hits for next query in the iteration chain
-            last_hit_triangles[current_index[hit]] = query[hit]
-
-            # which triangle indexes were hit
-            hit_triangle = query[hit]
-
-            # eliminate rays that didn't hit anything from future queries
-            current_index = np.nonzero(current)[0]
-            current_index_no_hit = current_index[np.logical_not(hit)]
-            current_index_hit = current_index[hit]
-            current[current_index_no_hit] = False
-
-            # PROPOSED FIX
-            # current_index_no_hit = current_index[~hit]
-            # current_index_hit = current_index[hit]
-            # current[current_index_no_hit] = False
-
-            # always append to avoid np.hstack concatenation crashes
-            result_triangle.append(hit_triangle)
-            result_ray_idx.append(current_index_hit)
-
-            # if we don't need all of the hits, return the first one
-            if (not multiple_hits and not return_locations) or not hit.any():
+            # we didn't hit anything so we can exit immediately
+            if not hit.any():
                 break
 
-            # find the location of where the ray hit the triangle plane
+            # check for duplicates in case we're stuck
+            hit_dupe = hit & (last_hit[current] == query)
+
+            # save the index of the triangle this hit
+            last_hit[current] = query
+
+            # keep track of how many times we've hit something
+            count_tri[query[hit]] += 1
+
+            # it hit something and is unique
+            hit_ok = hit & ~hit_dupe
+
+            # if we don't need all of the hits return
+            if not multiple_hits and not return_locations:
+                # append the index of the triangle hit
+                result_triangle.append(query[hit_ok])
+                # append the index of the ray that hit
+                result_ray_idx.append(range_mask[current][hit_ok])
+
+                break
+
+            # TODO : when embreex>=4.4.1rc1 has stabalized
+            # we can use the `run(... output=True)` to get this
+            # find the location of where the ray hit the triangle
+            hit_triangle = query[hit]
             new_origins, valid = intersections.planes_lines(
                 plane_origins=plane_origins[hit_triangle],
                 plane_normals=plane_normals[hit_triangle],
@@ -222,7 +219,10 @@ class RayMeshIntersector:
                 line_directions=ray_directions[current],
             )
 
+            hit[ok] &= valid
+
             if not valid.all():
+                assert 0
                 # since a plane intersection was invalid we have to go back and
                 # fix some stuff, we pop the ray index and triangle index,
                 # apply the valid mask then append it right back to keep our
@@ -241,6 +241,7 @@ class RayMeshIntersector:
             if multiple_hits:
                 # move the ray origin to the other side of the triangle
                 ray_origins[current] = new_origins + ray_offsets[current]
+                print(ray_origins[current])
             else:
                 break
 
@@ -276,15 +277,14 @@ class RayMeshIntersector:
         triangle_index : (n,) int
           Index of triangle ray hit, or -1 if not hit
         """
-
-        ray_origins = np.array(ray_origins, dtype=np.float64)
-        ray_directions = np.array(ray_directions, dtype=np.float64)
+        # make sure our arrays are in the `embree` dtype
+        ray_origins = np.array(ray_origins, dtype=_embree_dtype)
+        ray_directions = np.array(ray_directions, dtype=_embree_dtype)
         if ray_origins.shape != ray_directions.shape:
             raise ValueError("Ray origin and direction don't match!")
         ray_directions = util.unitize(ray_directions)
 
-        triangle_index = self._scene.run(ray_origins, ray_directions)
-        return triangle_index
+        return self._scene.run(ray_origins, ray_directions)
 
     def intersects_any(self, ray_origins, ray_directions):
         """

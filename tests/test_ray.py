@@ -233,22 +233,29 @@ def test_embree_duplicate_hits():
     Test that multiple_hits=True does not get stuck in a float32 precision
     loop when coordinates are extremely large
     """
-    # create a massive box to trigger the floating-point precision bug
-    mesh = g.trimesh.creation.box()
-    mesh.apply_scale(10000.0)
+    from trimesh.ray.ray_pyembree import RayMeshIntersector
 
-    # Fire a ray straight from the center
-    ray_origins = g.np.array([[0.0, 0.0, 5000.0]])
-    ray_directions = g.np.array([[0.0, 0.0, -1.0]])
+    for scale in [1e-4, 0.1, 1.0, 10, 1e4, 1e8]:
+        # create box at different scales to test
+        # our behavior with floating-point precision bug
+        mesh = g.trimesh.creation.box().subdivide().subdivide()
+        mesh.apply_scale(scale)
 
-    # if pyembree is available, this will test our new mask logic
-    if hasattr(mesh.ray, "_scene"):
+        # make sure this is using embree
+        # and disable unit scaling to test numeric behavior
+        mesh.ray = RayMeshIntersector(mesh, scale_to_box=False)
+
+        # Fire a ray straight from exactly on the box surface
+        ray_origins = g.np.array([[0.0, 0.0, scale / 2.0]])
+        ray_directions = g.np.array([[0.0, 0.0, -1.0]])
+
+        # do the ray query
         index_tri, _ = mesh.ray.intersects_id(
             ray_origins, ray_directions, multiple_hits=True
         )
 
         # The ray should hit exactly one face as it exits the cube
-        assert len(index_tri) == 1
+        assert len(index_tri) == 2, (scale, index_tri)
 
 
 if __name__ == "__main__":
