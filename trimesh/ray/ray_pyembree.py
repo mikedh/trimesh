@@ -143,11 +143,10 @@ class RayMeshIntersector:
             raise ValueError("Ray origin and direction don't match!")
         ray_directions = util.unitize(ray_directions)
 
-        # since we are constructing all hits, save them to a deque then
-        # stack into (depth, len(rays)) at the end
-        result_triangle = [np.empty(0, dtype=np.int64)]
-        result_ray_idx = [np.empty(0, dtype=np.int64)]
-        result_locations = [np.empty((0, 3), dtype=np.float64)]
+        # stack results for multiple hits into a sequence
+        result_triangle = [np.zeros(0, dtype=np.int64)]
+        result_ray_idx = [np.zeros(0, dtype=np.int64)]
+        result_locations = [np.zeros((0, 3), dtype=np.float64)]
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of face
@@ -169,8 +168,8 @@ class RayMeshIntersector:
         # hitting itself this could get stuck on that one triangle
         for _depth in range(max_hits):
             # if you set output=1 embreex returns distance along the ray
-            # which is bizarrely slower than our own plane-line calc;
-            # TODO: switch to embreex output once embreex>=4.4.0rc1 is stable
+            # which is bizarrely slower than our own plane-line calc
+            # TODO: switch `run(..., output=True)` once embreex>=4.4.0rc1 is stable
             query = self._scene.run(ray_origins[live], ray_directions[live])
             hit = query != -1
             if not hit.any():
@@ -188,8 +187,11 @@ class RayMeshIntersector:
 
             # rays that hit the same triangle as last iteration are stuck
             dupe = last_hit[hit_rays] == hit_tris
+            # store the last hit so we can track duplicates
             last_hit[hit_rays] = hit_tris
-            ok_rays, ok_tris = hit_rays[~dupe], hit_tris[~dupe]
+            # subset to separate duplicates and non-duplicates
+            ok_rays = hit_rays[~dupe]
+            ok_tris = hit_tris[~dupe]
             dupe_rays = hit_rays[dupe]
 
             # compute where clean hits actually land on their triangle;
