@@ -88,9 +88,7 @@ def test_issue_1496_edge_vertex_hits_any_vs_id():
     directions = outer.vertices
 
     any_hit = inner.ray.intersects_any(origins, directions)
-    _tri, id_hit_rays = inner.ray.intersects_id(
-        origins, directions, multiple_hits=False
-    )
+    _tri, id_hit_rays = inner.ray.intersects_id(origins, directions, multiple_hits=False)
 
     # convert the sparse index_ray output into a boolean mask over rays
     id_hit_mask = np.zeros(len(origins), dtype=bool)
@@ -113,8 +111,14 @@ def test_issue_2317_robust_edge_hits():
     # exactly through an edge or vertex of the mesh
     origins = np.array(
         [
-            [1, 0, 5], [-1, 0, 5], [0, 1, 5], [0, -1, 5],  # edge centers
-            [1, 1, 5], [-1, -1, 5], [1, -1, 5], [-1, 1, 5],  # corners
+            [1, 0, 5],
+            [-1, 0, 5],
+            [0, 1, 5],
+            [0, -1, 5],  # edge centers
+            [1, 1, 5],
+            [-1, -1, 5],
+            [1, -1, 5],
+            [-1, 1, 5],  # corners
         ],
         dtype=np.float64,
     )
@@ -308,9 +312,7 @@ def test_issue_48_large_coordinate_ray_offset():
         )
     )
     # origin 0.01 OUTSIDE the surface along the face normal, cast AWAY
-    origin = (
-        np.mean(mesh.vertices[[0, 2]], axis=0) + [0, 0, 1] + 0.01 * face_normal
-    )
+    origin = np.mean(mesh.vertices[[0, 2]], axis=0) + [0, 0, 1] + 0.01 * face_normal
 
     # positive-regression assertion: the SAME scenario at unit scale
     # works correctly, so the workaround is to transform to a local
@@ -348,9 +350,7 @@ def test_issue_331_surface_origin_no_self_hit():
     assert not mesh.ray.intersects_any(nudged, outward_directions).any()
 
     # log the raw surface-origin case; callers have to back off themselves
-    raw_hit_rate = mesh.ray.intersects_any(
-        surface_points, outward_directions
-    ).mean()
+    raw_hit_rate = mesh.ray.intersects_any(surface_points, outward_directions).mean()
     if raw_hit_rate >= 0.1:
         log.debug(
             "issue 331: surface-origin self-hit rate %.3f (known limitation)",
@@ -388,9 +388,7 @@ def test_issue_457_multihit_cylinder_count():
     origins = np.array([[x, y, -5.0] for x in xy for y in xy])
     directions = np.tile([[0.0, 0.0, 1.0]], (len(origins), 1))
 
-    _tri, index_ray = mesh.ray.intersects_id(
-        origins, directions, multiple_hits=True
-    )
+    _tri, index_ray = mesh.ray.intersects_id(origins, directions, multiple_hits=True)
 
     # histogram hits-per-ray; every ray must have exactly 2 hits
     hits_per_ray = np.bincount(index_ray, minlength=len(origins))
@@ -430,9 +428,7 @@ def test_issue_1180_first_hit_arrays_aligned():
         origins = np.tile([[0.0, 0.0, -5.0]], (ray_count, 1))
         rng = np.random.default_rng(ray_count)
         # direction jitter offset so the mean is roughly +z toward sphere
-        directions = trimesh.unitize(
-            rng.random((ray_count, 3)) - [0.5, 0.5, -0.2]
-        )
+        directions = trimesh.unitize(rng.random((ray_count, 3)) - [0.5, 0.5, -0.2])
 
         locations, index_ray, index_tri = mesh.ray.intersects_location(
             origins, directions, multiple_hits=False
@@ -484,4 +480,3 @@ def test_issue_2462_coplanar_ray_no_error():
     assert locations.shape == (0, 3)
     assert len(index_ray) == 0
     assert len(index_tri) == 0
-

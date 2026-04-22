@@ -169,9 +169,8 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 
 # ban debug and usually-a-bug imports in `trimesh` core library
 [tool.ruff.lint.per-file-ignores]
-# examples and tests are allowed to print demo / diagnostic output
-"examples/*" = ["T20", "TID251"]
-"tests/*" = ["T20", "TID251"]
+# examples/tests/helpers/docs are allowed to print demo / diagnostic output
+"{examples,tests,helpers,docs}/*" = ["T20", "TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"
