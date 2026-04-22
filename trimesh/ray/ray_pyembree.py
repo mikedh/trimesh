@@ -157,107 +157,77 @@ class RayMeshIntersector:
             plane_origins = self.mesh.triangles[:, 0, :]
             plane_normals = self.mesh.face_normals
 
-        # save the last hit by each ray in case the offsetting and precision
-        # issue result in a duplicate being returned.
+        # what each ray hit last iteration; -1 means nothing, used to
+        # detect a ray stuck on the same face due to precision issues
         last_hit = np.full(len(ray_origins), -1, dtype=np.int64)
-        # for translating boolean masks into indexes in the loop
-        range_mask = np.arange(len(ray_origins))
-        # the mask for which rays are still active
-        # so we don't keep querying rays that have exited
-        current = np.ones(len(ray_origins), dtype=bool)
-
-        # multiple subsetting levels:
-        # - current : per ray
-        # - hit     : per-ray-current
+        # absolute indices of rays still being queried; shrinks each
+        # iteration as rays miss, escape, or get culled
+        live = np.arange(len(ray_origins))
 
         # use a for loop rather than a while to ensure this exits
         # if a ray is offset from a triangle and then is reported
         # hitting itself this could get stuck on that one triangle
         for _depth in range(max_hits):
-            # run the embreex query
-            # if you set output=1 it will calculate distance along
-            # ray which is bizzarely slower than our calculation
-            # TODO : FIXED IN embreex>=4.4.0rc1 ;)
-            # when that's settled for a while we should probably
-            # switch out our python hit location with theirs
-            query = self._scene.run(ray_origins[current], ray_directions[current])
-
-            # a ray that hit nothing will be -1
+            # if you set output=1 embreex returns distance along the ray
+            # which is bizarrely slower than our own plane-line calc;
+            # TODO: switch to embreex output once embreex>=4.4.0rc1 is stable
+            query = self._scene.run(ray_origins[live], ray_directions[live])
             hit = query != -1
-
-            # we didn't hit anything so we can exit immediately
             if not hit.any():
                 break
 
-            # if we don't need all of the hits return
-            # there is no possibility of duplicates on the
-            # first iteration under these circumstances
+            # absolute indices and triangle indices for rays that hit
+            hit_rays = live[hit]
+            hit_tris = query[hit]
+
+            # first-hit-only fast path: no duplicates or locations to track
             if not multiple_hits and not return_locations:
-                # append the index of the triangle hit
-                result_triangle.append(query[hit])
-                # append the index of the ray that hit
-                result_ray_idx.append(range_mask[current][hit])
+                result_triangle.append(hit_tris)
+                result_ray_idx.append(hit_rays)
                 break
 
-            # check for duplicates in case we're stuck
-            hit_dupe = hit & (last_hit[current] == query)
-            # it hit something and is unique
-            hit_ok = hit & ~hit_dupe
+            # rays that hit the same triangle as last iteration are stuck
+            dupe = last_hit[hit_rays] == hit_tris
+            last_hit[hit_rays] = hit_tris
+            ok_rays, ok_tris = hit_rays[~dupe], hit_tris[~dupe]
+            dupe_rays = hit_rays[dupe]
 
-            ## do the bookkeeping to track duplicate hits
-            # save the index of the triangle this hit
-            last_hit[current] = query
-
-            # a mask that can be applied directly to rays
-            # for rays that were 100% ok: new face, clean hit
-            mask_ok = range_mask[current][hit_ok]
-            # a mask that can be applied directly to rays
-            # for rays that were duplicates and need to
-            # be re-queried at a larger displacement
-            mask_dupe = range_mask[current][hit_dupe]
-
-            # TODO : when embreex>=4.4.1rc1 has stabalized
-            # we can use the `run(... output=True)` to get this
-            # find the location of where the ray hit the triangle
-            hit_triangle = query[hit_ok]
+            # compute where clean hits actually land on their triangle;
+            # planes_lines silently drops near-parallel rays, so `valid`
+            # shortens new_origins — we must trim ok_rays / ok_tris to match
             new_origins, valid = intersections.planes_lines(
-                plane_origins=plane_origins[hit_triangle],
-                plane_normals=plane_normals[hit_triangle],
-                line_origins=ray_origins[current],
-                line_directions=ray_directions[current],
+                plane_origins=plane_origins[ok_tris],
+                plane_normals=plane_normals[ok_tris],
+                line_origins=ray_origins[ok_rays],
+                line_directions=ray_directions[ok_rays],
             )
+            ok_rays, ok_tris = ok_rays[valid], ok_tris[valid]
 
-            # TODO : restore the ray-culling here for bad planes
-            assert len(valid) == hit_ok.sum()
-
-            # even if we're not going to return it
             result_locations.extend(new_origins)
-            # append the index of the triangle hit
-            result_triangle.append(hit_triangle)
-            # append the index of the ray that hit
-            result_ray_idx.append(range_mask[current][hit_ok])
+            result_triangle.append(ok_tris)
+            result_ray_idx.append(ok_rays)
 
             if not multiple_hits:
                 break
 
-            # rays that hit a non-duplicate triangle start from
-            # the new plane, but offset by one floating point offset
-            ray_origins[mask_ok] = new_origins + ray_offsets[mask_ok]
-            # with duplicate hits at large scales we may get "stuck"
-            # since we have already applied *one* offset to the hit
-            # since it's a duplicate, double the offset in-place so
-            # we get a scale-invariant exponentially increasing offset
-            ray_offsets[mask_dupe] *= 2.0
-            ray_origins[mask_dupe] += ray_offsets[mask_dupe]
+            # clean hits step onto the new face with a fresh base offset
+            ray_origins[ok_rays] = new_origins + ray_offsets[ok_rays]
+            ray_offsets[ok_rays] = ray_directions[ok_rays] * _ray_offset
+            # stuck rays double their offset and step further to try to clear
+            ray_offsets[dupe_rays] *= 2.0
+            ray_origins[dupe_rays] += ray_offsets[dupe_rays]
 
-            # save the "liveness" of rays to any-hit including duplicates
-            current[current] = hit
+            # carry forward only rays we successfully advanced;
+            # dropped rays (misses, near-parallel planes) die here
+            live = np.concatenate([ok_rays, dupe_rays])
 
-            print(current, mask_dupe, ray_origins, _depth)
-
-        # stack the listsinto nice 1D numpy arrays
-        index_tri = np.concatenate(result_triangle)
-        index_ray = np.concatenate(result_ray_idx)
+        # stack the lists into nice 1D numpy arrays
+        if result_triangle:
+            index_tri = np.concatenate(result_triangle)
+            index_ray = np.concatenate(result_ray_idx)
+        else:
+            index_tri = np.array([], dtype=np.int64)
+            index_ray = np.array([], dtype=np.int64)
 
         if return_locations:
             locations = (
