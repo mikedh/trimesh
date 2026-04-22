@@ -145,9 +145,9 @@ class RayMeshIntersector:
 
         # since we are constructing all hits, save them to a deque then
         # stack into (depth, len(rays)) at the end
-        result_triangle = []
-        result_ray_idx = []
-        result_locations = []
+        result_triangle = [np.empty(0, dtype=np.int64)]
+        result_ray_idx = [np.empty(0, dtype=np.int64)]
+        result_locations = [np.empty((0, 3), dtype=np.float64)]
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of face
@@ -203,7 +203,7 @@ class RayMeshIntersector:
             )
             ok_rays, ok_tris = ok_rays[valid], ok_tris[valid]
 
-            result_locations.extend(new_origins)
+            result_locations.append(new_origins)
             result_triangle.append(ok_tris)
             result_ray_idx.append(ok_rays)
 
@@ -221,22 +221,10 @@ class RayMeshIntersector:
             # dropped rays (misses, near-parallel planes) die here
             live = np.concatenate([ok_rays, dupe_rays])
 
-        # stack the lists into nice 1D numpy arrays
-        if result_triangle:
-            index_tri = np.concatenate(result_triangle)
-            index_ray = np.concatenate(result_ray_idx)
-        else:
-            index_tri = np.array([], dtype=np.int64)
-            index_ray = np.array([], dtype=np.int64)
-
+        index_tri = np.concatenate(result_triangle)
+        index_ray = np.concatenate(result_ray_idx)
         if return_locations:
-            locations = (
-                np.zeros((0, 3), float)
-                if len(result_locations) == 0
-                else np.array(result_locations)
-            )
-
-            return index_tri, index_ray, locations
+            return index_tri, index_ray, np.concatenate(result_locations)
         return index_tri, index_ray
 
     @log_time
