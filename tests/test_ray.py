@@ -233,6 +233,15 @@ def test_embree_duplicate_hits():
     Test that multiple_hits=True does not get stuck in a float32 precision
     loop when coordinates are extremely large
     """
+    try:
+        from embreex import __version__
+    except ImportError:
+        g.log.warning("no embree to test")
+        return
+
+    if int(__version__.split(".", 1)[0]) < 4:
+        g.log.warning(f"only testing duplicate hits on embreex>4: got `{__version__}`")
+        return
     from trimesh.ray.ray_pyembree import RayMeshIntersector
 
     for scale in [1e-4, 0.1, 1.0, 10, 1e4, 1e8]:
@@ -258,7 +267,7 @@ def test_embree_duplicate_hits():
             ray_origins, ray_directions, multiple_hits=True
         )
 
-        # The ray should hit exactly one face as it exits the cube
+        # The ray should hit exactly two faces through the cube
         assert len(index_tri) == 2, (scale, index_tri)
 
 
