@@ -160,14 +160,17 @@ class RayMeshIntersector:
         # save the last hit by each ray in case the offsetting and precision
         # issue result in a duplicate being returned.
         last_hit = np.full(len(ray_origins), -1, dtype=np.int64)
-
-        # if we're stuck on on triangle we need to offset more
-        count_tri = np.zeros(len(mesh.faces), dtype=np.int64)
         # for translating boolean masks into indexes in the loop
         range_mask = np.arange(len(ray_origins))
         # the mask for which rays are still active
+        # so we don't keep querying rays that have exited
         current = np.ones(len(ray_origins), dtype=bool)
 
+
+        # multiple subsetting levels:
+        # - current : per ray
+        # - hit     : per-ray-current
+        
         # use a for loop rather than a while to ensure this exits
         # if a ray is offset from a triangle and then is reported
         # hitting itself this could get stuck on that one triangle
@@ -178,7 +181,8 @@ class RayMeshIntersector:
             # TODO : FIXED IN embreex>=4.4.0rc1 ;)
             # when that's settled for a while we should probably
             # switch out our python hit location with theirs
-            query = self._scene.run(ray_origins[current], ray_directions[current])
+            query = self._scene.run(ray_origins[current],
+                                    ray_directions[current])
 
             # a ray that hit nothing will be -1
             hit = query != -1
@@ -187,31 +191,36 @@ class RayMeshIntersector:
             if not hit.any():
                 break
 
-            # check for duplicates in case we're stuck
-            hit_dupe = hit & (last_hit[current] == query)
+            # if we don't need all of the hits return
+            # there is no possibility of duplicates on the
+            # first iteration under these circumstances
+            if not multiple_hits and not return_locations:
+                # append the index of the triangle hit
+                result_triangle.append(query[hit])
+                # append the index of the ray that hit
+                result_ray_idx.append(range_mask[current][hit])
+                break
 
+            ## do the bookkeeping to track duplicate hits
             # save the index of the triangle this hit
             last_hit[current] = query
-
-            # keep track of how many times we've hit something
-            count_tri[query[hit]] += 1
-
+            # check for duplicates in case we're stuck
+            hit_dupe = hit & (last_hit[current] == query)
             # it hit something and is unique
             hit_ok = hit & ~hit_dupe
 
-            # if we don't need all of the hits return
-            if not multiple_hits and not return_locations:
-                # append the index of the triangle hit
-                result_triangle.append(query[hit_ok])
-                # append the index of the ray that hit
-                result_ray_idx.append(range_mask[current][hit_ok])
-
-                break
+            # a mask that can be applied directly to rays
+            # for rays that were 100% ok: new face, clean hit
+            mask_ok = range_mask[current][hit_ok]
+            # a mask that can be applied directly to rays
+            # for rays that were duplicates and need to
+            # be re-queried at a larger displacement
+            mask_dupe = range_mask[current][hit_dupe]
 
             # TODO : when embreex>=4.4.1rc1 has stabalized
             # we can use the `run(... output=True)` to get this
             # find the location of where the ray hit the triangle
-            hit_triangle = query[hit]
+            hit_triangle = query[hit_ok]
             new_origins, valid = intersections.planes_lines(
                 plane_origins=plane_origins[hit_triangle],
                 plane_normals=plane_normals[hit_triangle],
@@ -219,35 +228,36 @@ class RayMeshIntersector:
                 line_directions=ray_directions[current],
             )
 
-            hit[ok] &= valid
-
-            if not valid.all():
-                assert 0
-                # since a plane intersection was invalid we have to go back and
-                # fix some stuff, we pop the ray index and triangle index,
-                # apply the valid mask then append it right back to keep our
-                # indexes intact
-                result_ray_idx.append(result_ray_idx.pop()[valid])
-                result_triangle.append(result_triangle.pop()[valid])
-
-                # update the current rays to reflect that we couldn't find a
-                # new origin
-                current[current_index_hit[np.logical_not(valid)]] = False
-
-            # since we had to find the intersection point anyway we save it
+            # TODO : restore the ray-culling here for bad planes
+            assert len(valid) == hit_ok.sum()
+            
             # even if we're not going to return it
             result_locations.extend(new_origins)
+            # append the index of the triangle hit
+            result_triangle.append(hit_triangle)
+            # append the index of the ray that hit
+            result_ray_idx.append(range_mask[current][hit_ok])
 
-            if multiple_hits:
-                # move the ray origin to the other side of the triangle
-                ray_origins[current] = new_origins + ray_offsets[current]
-                print(ray_origins[current])
-            else:
+            if not multiple_hits:
                 break
+            
+            # rays that hit a non-duplicate triangle start from
+            # the new plane, but offset by one floating point
+            ray_origins[mask_ok] = new_origins + ray_offsets[mask_ok]
+            # duplicate hits get additively offset until they
+            # clear the plane and either hit a different face
+            # or reach free space or query depth exhaustion
+            ray_origins[mask_dupe] += ray_offsets[mask_dupe]
 
-        # stack the dequeues into nice 1D numpy arrays
-        index_tri = np.hstack(result_triangle)
-        index_ray = np.hstack(result_ray_idx)
+            # save the "liveness" of any hit including dupes
+            current[current] = hit
+
+            print(result_triangle)
+            print(ray_origins[mask_dupe])
+            
+        # stack the listsinto nice 1D numpy arrays
+        index_tri = np.concatenate(result_triangle)
+        index_ray = np.concatenate(result_ray_idx)
 
         if return_locations:
             locations = (
