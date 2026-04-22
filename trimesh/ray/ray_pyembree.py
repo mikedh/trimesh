@@ -104,7 +104,7 @@ class RayMeshIntersector:
         ray_origins: ArrayLike,
         ray_directions: ArrayLike,
         multiple_hits: bool = True,
-        max_hits: Integer = 20,
+        max_hits: Integer = 100,
         return_locations: bool = False,
     ):
         """
@@ -166,23 +166,21 @@ class RayMeshIntersector:
         # so we don't keep querying rays that have exited
         current = np.ones(len(ray_origins), dtype=bool)
 
-
         # multiple subsetting levels:
         # - current : per ray
         # - hit     : per-ray-current
-        
+
         # use a for loop rather than a while to ensure this exits
         # if a ray is offset from a triangle and then is reported
         # hitting itself this could get stuck on that one triangle
-        for _ in range(max_hits):
+        for _depth in range(max_hits):
             # run the embreex query
             # if you set output=1 it will calculate distance along
             # ray which is bizzarely slower than our calculation
             # TODO : FIXED IN embreex>=4.4.0rc1 ;)
             # when that's settled for a while we should probably
             # switch out our python hit location with theirs
-            query = self._scene.run(ray_origins[current],
-                                    ray_directions[current])
+            query = self._scene.run(ray_origins[current], ray_directions[current])
 
             # a ray that hit nothing will be -1
             hit = query != -1
@@ -201,13 +199,14 @@ class RayMeshIntersector:
                 result_ray_idx.append(range_mask[current][hit])
                 break
 
-            ## do the bookkeeping to track duplicate hits
-            # save the index of the triangle this hit
-            last_hit[current] = query
             # check for duplicates in case we're stuck
             hit_dupe = hit & (last_hit[current] == query)
             # it hit something and is unique
             hit_ok = hit & ~hit_dupe
+
+            ## do the bookkeeping to track duplicate hits
+            # save the index of the triangle this hit
+            last_hit[current] = query
 
             # a mask that can be applied directly to rays
             # for rays that were 100% ok: new face, clean hit
@@ -230,7 +229,7 @@ class RayMeshIntersector:
 
             # TODO : restore the ray-culling here for bad planes
             assert len(valid) == hit_ok.sum()
-            
+
             # even if we're not going to return it
             result_locations.extend(new_origins)
             # append the index of the triangle hit
@@ -240,21 +239,24 @@ class RayMeshIntersector:
 
             if not multiple_hits:
                 break
-            
+
             # rays that hit a non-duplicate triangle start from
             # the new plane, but offset by one floating point
             ray_origins[mask_ok] = new_origins + ray_offsets[mask_ok]
-            # duplicate hits get additively offset until they
+            # duplicate hits offset until they
             # clear the plane and either hit a different face
             # or reach free space or query depth exhaustion
+            # double the offset for each duplicate so if we
+            # are "stuck" on a face we keep doubling until we
+            # pass it in a scale-invariant way
+            ray_offsets[mask_dupe] *= 2.0
             ray_origins[mask_dupe] += ray_offsets[mask_dupe]
 
             # save the "liveness" of any hit including dupes
             current[current] = hit
 
-            print(result_triangle)
-            print(ray_origins[mask_dupe])
-            
+            print(current, mask_dupe, ray_origins, _depth)
+
         # stack the listsinto nice 1D numpy arrays
         index_tri = np.concatenate(result_triangle)
         index_ray = np.concatenate(result_ray_idx)
