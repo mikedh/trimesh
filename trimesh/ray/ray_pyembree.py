@@ -241,18 +241,16 @@ class RayMeshIntersector:
                 break
 
             # rays that hit a non-duplicate triangle start from
-            # the new plane, but offset by one floating point
+            # the new plane, but offset by one floating point offset
             ray_origins[mask_ok] = new_origins + ray_offsets[mask_ok]
-            # duplicate hits offset until they
-            # clear the plane and either hit a different face
-            # or reach free space or query depth exhaustion
-            # double the offset for each duplicate so if we
-            # are "stuck" on a face we keep doubling until we
-            # pass it in a scale-invariant way
+            # with duplicate hits at large scales we may get "stuck"
+            # since we have already applied *one* offset to the hit
+            # since it's a duplicate, double the offset in-place so
+            # we get a scale-invariant exponentially increasing offset
             ray_offsets[mask_dupe] *= 2.0
             ray_origins[mask_dupe] += ray_offsets[mask_dupe]
 
-            # save the "liveness" of any hit including dupes
+            # save the "liveness" of rays to any-hit including duplicates
             current[current] = hit
 
             print(current, mask_dupe, ray_origins, _depth)

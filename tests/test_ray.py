@@ -243,6 +243,10 @@ def test_embree_duplicate_hits():
 
         # make sure this is using embree
         # and disable unit scaling to test numeric behavior
+        # scale_to_box will make MOST floating point things go away
+        # but the logic in the intersector, particularly for multi-hit
+        # requires "exponential offset" when f32 gets "stuck" on a triangle
+        # so our tests here should be correct even at small or large scales
         mesh.ray = RayMeshIntersector(mesh, scale_to_box=False)
 
         # Fire a ray straight from exactly on the box surface
