@@ -1,0 +1,8 @@
+docs/.deps
+docs/built/
+docs/generate/
+docs/_build/
+docs/_static/examples/
+docs/trimesh*.rst
+docs/examples.*.rst
+docs/README.rst
