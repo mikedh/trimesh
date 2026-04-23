@@ -57,4 +57,4 @@ __version__ = _get_version()
 
 if __name__ == "__main__":
     # print version if run directly i.e. in a CI script
-    print(__version__)
+    print(__version__)  # noqa: T201

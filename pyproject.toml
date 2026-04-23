@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.8"
-version = "4.11.5"
+version = "4.12.0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -81,7 +81,7 @@ easy = [
     "rtree",
     "httpx",
     "scipy",
-    "embreex; platform_machine=='x86_64'",
+    "embreex",
     "pillow",
     "vhacdx; python_version>='3.9'",
     # old versions of mapbox_earcut produce incorrect values on numpy 2.0
@@ -150,6 +150,7 @@ select = [
     "ISC001",
     "ISC002",
     "NPY201",
+    "T20", # flake8-print: catches stray `print`/`pprint` debug calls
     "TID251"
 ]
 
@@ -168,8 +169,8 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 
 # ban debug and usually-a-bug imports in `trimesh` core library
 [tool.ruff.lint.per-file-ignores]
-"examples/*" = ["TID251"]
-"tests/*" = ["TID251"]
+# examples/tests/helpers/docs are allowed to print demo / diagnostic output
+"{examples,tests,helpers,docs}/*" = ["T20", "TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"

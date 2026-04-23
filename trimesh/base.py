@@ -2153,7 +2153,7 @@ class Trimesh(Geometry3D):
         return result
 
     def subdivide_to_size(
-        self, max_edge: Floating, max_iter: Integer = 10, return_index: bool = False
+        self, max_edge: Number, max_iter: Integer = 10, return_index: bool = False
     ) -> Union["Trimesh", Tuple["Trimesh", NDArray[int64]]]:
         """
         Subdivide a mesh until every edge is shorter than a
@@ -2163,7 +2163,7 @@ class Trimesh(Geometry3D):
 
         Parameters
         ------------
-        max_edge : float
+        max_edge
             Maximum length of any edge in the result
         max_iter : int
             The maximum number of times to run subdivision
