@@ -78,7 +78,12 @@ jobs:
     name: Build Docker Images
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # for gh-pages deployment
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
     - name: Log In to Docker Hub
       env:
@@ -93,11 +98,15 @@ jobs:
         make tests # build docker images and run unit tests
         make publish-docker # push images to docker hub
         make docs # build sphinx docs
-    - name: Deploy Github Pages
-      uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
+    - name: Configure Pages
+      uses: actions/configure-pages@v5
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        publish_dir: ./html
-        force_orphan: true
+        path: ./html
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
     - name: Logout of registries
       if: always()
       run: |
