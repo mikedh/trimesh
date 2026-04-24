@@ -27,7 +27,7 @@ def test_rays():
 def test_rps():
     from trimesh import ray as ray_mod
 
-    for use_embree in [True, False]:
+    for use_embree in [True, False] if ray_mod.has_embree else [False]:
         dimension = (10000, 3)
         sphere = g.get_mesh("unit_sphere.STL")
 
