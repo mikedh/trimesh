@@ -18,7 +18,6 @@ RawFile ->           # a raw loadable file
 
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 import trimesh
 
@@ -34,7 +33,7 @@ class RawFile:
 
     # the units of the file if it is in a format
     # that does not include units (i.e. STL files)
-    units: Optional[str] = None
+    units: str | None = None
 
 
 @dataclass

@@ -1,7 +1,10 @@
 try:
     from . import generic as g
-except BaseException:
-    import generic as g
+except ImportError:
+    try:
+        import generic as g
+    except ImportError:
+        from tests import generic as g
 
 
 class VoxelGridTest(g.unittest.TestCase):

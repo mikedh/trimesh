@@ -4,7 +4,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 
 [project]
 name = "trimesh"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 version = "4.12.1"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
@@ -14,17 +14,16 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Natural Language :: English",
     "Topic :: Scientific/Engineering",
     "Topic :: Multimedia :: Graphics",
     "Topic :: Multimedia :: Graphics :: 3D Modeling"
 ]
-dependencies = ["numpy>=1.20"]
+dependencies = ["numpy>=1.21"]
 
 [project.urls]
 homepage = "https://github.com/mikedh/trimesh"
@@ -74,8 +73,7 @@ easy = [
     "jsonschema",
     "networkx",
     "svg.path",
-    "pycollada <= 0.9.0; python_version<'3.9'",
-    "pycollada; python_version>='3.9'",
+    "pycollada",
     "shapely",
     "xxhash",
     "rtree",
@@ -83,9 +81,9 @@ easy = [
     "scipy",
     "embreex",
     "pillow",
-    "vhacdx; python_version>='3.9'",
+    "vhacdx",
     # old versions of mapbox_earcut produce incorrect values on numpy 2.0
-    "mapbox_earcut >= 1.0.2; python_version>='3.9'",
+    "mapbox_earcut >= 1.0.2",
 ]
 
 recommend = [
@@ -115,7 +113,7 @@ test_more = [
     "ezdxf",      # compare our DXF loading with theirs
     "meshio",     # load some FEA-adjacent format s
     "xatlas",     # provide unwrapping for texturing
-    "pytest-beartype; python_version>='3.10'", # fail on bad type hints
+    "pytest-beartype", # fail on bad type hints
     "matplotlib", # compare our color maps with theirs
     "pymeshlab; python_version<'3.14'", # compare our vertex counts
     "triangle; python_version<'3.14'",  # polygon tesselator
@@ -133,7 +131,7 @@ deprecated = ["openctm"]
 all = ["trimesh[easy,recommend,test,test_more,deprecated]"]
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py310"
 line-length = 90
 
 [tool.ruff.lint]
