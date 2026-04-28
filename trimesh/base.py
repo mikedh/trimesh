@@ -296,20 +296,19 @@ class Trimesh(Geometry3D):
         if self.is_empty:
             return self
 
-        # avoid clearing the cache during operations
-        with self._cache:
-            # if we're cleaning remove duplicate
-            # and degenerate faces
-            if validate:
-                # get a mask with only unique and non-degenerate faces
-                mask = self.unique_faces() & self.nondegenerate_faces()
-                self.update_faces(mask)
-                self.fix_normals()
+        # if we're cleaning remove duplicate and degenerate faces. this
+        # mutates face count so it must run OUTSIDE the cache lock — locking
+        # across a face-count change leaves derived caches (face_adjacency,
+        # edges, ...) stale, which fix_normals would then read and blow up on.
+        if validate:
+            # get a mask with only unique and non-degenerate faces
+            mask = self.unique_faces() & self.nondegenerate_faces()
+            self.update_faces(mask)
+            self.fix_normals()
 
-            # since none of our process operations moved vertices or faces
-            # we can keep face and vertex normals in the cache without recomputing
-            # if faces or vertices have been removed, normals are validated before
-            # being returned so there is no danger of inconsistent dimensions
+        # the remaining ops do not change face/vertex count so we can hold
+        # the cache lock to preserve face_normals/vertex_normals across them
+        with self._cache:
             self.remove_infinite_values()
             self.merge_vertices(merge_tex=merge_tex, merge_norm=merge_norm)
             self._cache.clear(exclude={"face_normals", "vertex_normals"})
@@ -2153,7 +2152,7 @@ class Trimesh(Geometry3D):
         return result
 
     def subdivide_to_size(
-        self, max_edge: Floating, max_iter: Integer = 10, return_index: bool = False
+        self, max_edge: Number, max_iter: Integer = 10, return_index: bool = False
     ) -> Union["Trimesh", Tuple["Trimesh", NDArray[int64]]]:
         """
         Subdivide a mesh until every edge is shorter than a
@@ -2163,7 +2162,7 @@ class Trimesh(Geometry3D):
 
         Parameters
         ------------
-        max_edge : float
+        max_edge
             Maximum length of any edge in the result
         max_iter : int
             The maximum number of times to run subdivision

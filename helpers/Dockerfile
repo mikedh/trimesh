@@ -124,13 +124,17 @@ RUN trimesh-setup --install docs
 USER user
 
 COPY --chown=499 README.md .
+COPY --chown=499 pyproject.toml .
 COPY --chown=499 docs ./docs/
 COPY --chown=499 examples ./examples/
 COPY --chown=499 models ./models/
 COPY --chown=499 trimesh ./trimesh/
 
+# autodoc walks trimesh modules that import optional deps
+RUN pip install /home/user[easy,recommend]
+
 WORKDIR /home/user/docs
-RUN make
+RUN make clean && make
 
 ### Copy just the docs so we can output them
 FROM scratch AS docs

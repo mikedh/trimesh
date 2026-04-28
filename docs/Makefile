@@ -5,7 +5,7 @@ SPHINXBUILD   ?= sphinx-build
 SPHINXGEN     ?= sphinx-apidoc
 NBCONVERT     ?= jupyter
 PYTHON        ?= python
-PIP           ?= pip
+PIP           ?= uv pip
 BUILDDIR      = built
 TEMPLATESDIR  = templates
 # where to put generated RST files

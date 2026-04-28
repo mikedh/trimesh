@@ -48,7 +48,7 @@ def main():
 
 def summary(geom):
     """ """
-    print(geom)
+    print(geom)  # noqa: T201
 
 
 def interactive(scene):

@@ -11,7 +11,7 @@ from .. import geometry, transformations, util
 from ..constants import tol
 from ..grouping import group_rows, unique_rows
 from ..interval import union
-from ..typed import ArrayLike, NDArray, float64
+from ..typed import ArrayLike, Integer, NDArray, Number, Optional, Union, float64
 
 
 def segments_to_parameters(segments: ArrayLike):
@@ -93,7 +93,12 @@ def parameters_to_segments(
     return segments.reshape((-1, 2, origins.shape[1]))
 
 
-def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
+def colinear_pairs(
+    segments: ArrayLike,
+    radius: Number = 0.01,
+    angle: Number = 0.01,
+    length: Optional[Number] = None,
+) -> NDArray[np.int64]:
     """
     Find pairs of segments which are colinear.
 
@@ -101,13 +106,13 @@ def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
     -------------
     segments : (n, 2, (2, 3)) float
       Two or three dimensional line segments
-    radius : float
+    radius
       Maximum radius line origins can differ
       and be considered colinear
-    angle : float
+    angle
       Maximum angle in radians segments can
       differ and still be considered colinear
-    length : None or float
+    length
       If specified, will additionally require
       that pairs have a *vertex* within this distance.
 
@@ -161,7 +166,7 @@ def colinear_pairs(segments, radius=0.01, angle=0.01, length=None):
     return colinear
 
 
-def clean(segments: ArrayLike, digits: int = 10) -> NDArray[float64]:
+def clean(segments: ArrayLike, digits: Integer = 10) -> NDArray[float64]:
     """
     Clean up line segments by unioning the ranges of colinear segments.
 
@@ -199,7 +204,7 @@ def clean(segments: ArrayLike, digits: int = 10) -> NDArray[float64]:
     )
 
 
-def split(segments, points, atol=1e-5):
+def split(segments: ArrayLike, points: ArrayLike, atol: Number = 1e-5):
     """
     Find any points that lie on a segment (not an endpoint)
     and then split that segment into two segments.
@@ -265,7 +270,7 @@ def split(segments, points, atol=1e-5):
         return segments
 
 
-def unique(segments, digits=5):
+def unique(segments: ArrayLike, digits: Integer = 5):
     """
     Find unique non-zero line segments.
 
@@ -301,7 +306,7 @@ def unique(segments, digits=5):
     return unique
 
 
-def extrude(segments, height, double_sided=False):
+def extrude(segments: ArrayLike, height: Number, double_sided: bool = False):
     """
     Extrude 2D line segments into 3D triangles.
 
@@ -345,34 +350,37 @@ def extrude(segments, height, double_sided=False):
     return vertices, faces
 
 
-def length(segments, summed=True):
+def length(
+    segments: ArrayLike, summed: bool = True
+) -> Union[np.float64, NDArray[np.float64]]:
     """
-    Extrude 2D line segments into 3D triangles.
+    Return the lengths of an array of line segments.
 
     Parameters
     -------------
     segments : (n, 2, 2) float
       2D line segments
-    height : float
-      Distance to extrude along Z
-    double_sided : bool
-      If true, return 4 triangles per segment
+    summed
+      Return the total length, not the per-segment length.
 
     Returns
     -------------
-    vertices : (n, 3) float
-      Vertices in space
-    faces : (n, 3) int
-      Indices of vertices forming triangles
+    length
+      Either total length or per-segment length.
     """
-    segments = np.asanyarray(segments)
+    segments = np.asanyarray(segments, dtype=np.float64)
     norms = util.row_norm(segments[:, 0, :] - segments[:, 1, :])
     if summed:
         return norms.sum()
     return norms
 
 
-def resample(segments, maxlen, return_index=False, return_count=False):
+def resample(
+    segments: ArrayLike,
+    maxlen: Number,
+    return_index: bool = False,
+    return_count: bool = False,
+):
     """
     Resample line segments until no segment
     is longer than maxlen.
@@ -483,7 +491,12 @@ def resample(segments, maxlen, return_index=False, return_count=False):
     return result
 
 
-def to_svg(segments, digits=4, matrix=None, merge=True):
+def to_svg(
+    segments: ArrayLike,
+    digits: Integer = 4,
+    matrix: Optional[ArrayLike] = None,
+    merge: bool = True,
+) -> str:
     """
     Convert (n, 2, 2) line segments to an SVG path string.
 

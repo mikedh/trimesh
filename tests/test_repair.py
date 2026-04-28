@@ -19,6 +19,7 @@ def test_fill_holes():
 
     try:
         import cascadio  # noqa
+
         # if we have cascadio test against a STEP file
         meshes.append("featuretype.STEP")
     except ImportError:
