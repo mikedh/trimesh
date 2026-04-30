@@ -234,20 +234,33 @@ class Camera:
         projection_matrix : (4, 4) float
           Projection matrix for the camera
         """
-        z_near, z_far, fov_y = self.z_near, self.z_far, self.fov[1]
+        z_near, z_far = self.z_near, self.z_far
+        # trimesh stores fov as `[horizontal, vertical]` in degrees, and
+        # `Camera.look_at` uses both axes independently when sizing the
+        # camera distance. honoring both here keeps the projection
+        # consistent with the framing — derive `fov_x` from `fov_y` and
+        # the window aspect and you get a different framing than what
+        # `look_at` planned for.
+        f_x = 1.0 / np.tan(np.radians(self.fov[0]) / 2.0)
+        f_y = 1.0 / np.tan(np.radians(self.fov[1]) / 2.0)
 
-        aspect = np.divide(*self.resolution)
-
-        f = 1.0 / np.tan(fov_y / 2.0)
-        projection_matrix = np.eye(4)
-
-        projection_matrix[0, 0] = f / aspect
-        projection_matrix[1, 1] = f
-        projection_matrix[2, 2] = (z_far + z_near) / (z_near - z_far)
-        projection_matrix[2, 3] = (2 * z_far * z_near) / (z_near - z_far)
-        projection_matrix[3, 2] = -1.0
-
-        return projection_matrix
+        # standard `gluPerspective` matrix; the bottom-right is 0, NOT
+        # the 1 you'd get from `np.eye(4)`, so the perspective divide
+        # uses `-z` and ignores the input `w`.
+        return np.array(
+            [
+                [f_x, 0.0, 0.0, 0.0],
+                [0.0, f_y, 0.0, 0.0],
+                [
+                    0.0,
+                    0.0,
+                    (z_far + z_near) / (z_near - z_far),
+                    (2.0 * z_far * z_near) / (z_near - z_far),
+                ],
+                [0.0, 0.0, -1.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
 
     def to_rays(self):
         """

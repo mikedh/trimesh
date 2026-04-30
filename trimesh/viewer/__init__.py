@@ -14,16 +14,14 @@ from .notebook import (
 )
 
 try:
-    # try importing windowed which will fail
-    # if we can't create an openGL context
-    from .pyglet2 import SceneViewer, render_scene
+    # the modern shader-based viewer for `pyglet>=2`
+    from .pyglet2.viewer import SceneViewer, render_scene
 except ImportError as E:
     try:
-        from .pyglet1 import SceneViewer, render_scene
-        # if windowed failed to import only raise
-        # the exception if someone tries to use them
-    except ImportError as J:
-        print(J)
+        # fall back to the legacy fixed-function viewer for `pyglet<2`
+        from .pyglet1.viewer import SceneViewer, render_scene
+    except ImportError:
+        # neither pyglet was importable: defer the error until use
         SceneViewer = exceptions.ExceptionWrapper(E)
         render_scene = exceptions.ExceptionWrapper(E)
 

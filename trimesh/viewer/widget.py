@@ -14,9 +14,9 @@ import numpy as np
 import pyglet
 from pyglet import gl
 
-from .trackball import Trackball
 from .pyglet1 import conversion
 from .pyglet1.viewer import SceneViewer, _geometry_hash
+from .trackball import Trackball
 
 warnings.warn(
     """
