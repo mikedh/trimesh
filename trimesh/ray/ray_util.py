@@ -54,10 +54,11 @@ def contains_points(
         )
 
     # cast a ray both forwards and backwards
+    # need multiple_hits=True so the parity test counts cavity walls
     _location, index_ray, _c = intersector.intersects_location(
         np.vstack((points[inside_aabb], points[inside_aabb])),
         np.vstack((ray_directions, -ray_directions)),
-        multiple_hits=False,
+        multiple_hits=True,
     )
 
     # if we hit nothing in either direction just return with no hits

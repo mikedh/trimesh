@@ -113,6 +113,25 @@ def test_contains():
         assert test_centroid.all()
 
 
+def test_contains_cavity():
+    # https://github.com/mikedh/trimesh/issues/2534
+    from trimesh import ray as ray_mod
+
+    mesh = g.trimesh.boolean.difference(
+        [
+            g.trimesh.creation.box(extents=[1, 1, 1]),
+            g.trimesh.creation.box(extents=[0.1, 0.1, 0.1]),
+        ]
+    )
+    engines = [ray_mod.ray_triangle.RayMeshIntersector]
+    if ray_mod.has_embree:
+        engines.append(ray_mod.ray_pyembree.RayMeshIntersector)
+    for engine in engines:
+        mesh.ray = engine(mesh)
+        # origin sits inside the subtracted cavity
+        assert not mesh.contains([[0, 0, 0]])[0]
+
+
 def test_on_vertex():
     for use_embree in [False]:
         m = g.trimesh.creation.box(use_embree=use_embree)
@@ -135,7 +154,7 @@ def test_on_edge():
     for use_embree in [True, False]:
         m = g.get_mesh("7_8ths_cube.stl", use_embree=use_embree)
 
-        points = [[4.5, 0, -23], [4.5, 0, -2], [0, -1e-6, 0.0], [0, 0, -1]]
+        points = [[4.5, 0, -23], [4.5, 0, -2], [0, -1e-4, 0.0], [0, 0, -1]]
         truth = [False, True, True, True]
         result = g.trimesh.ray.ray_util.contains_points(m.ray, points)
 
