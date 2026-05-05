@@ -4,7 +4,7 @@
 [![Github Actions](https://github.com/mikedh/trimesh/workflows/Release%20Trimesh/badge.svg)](https://github.com/mikedh/trimesh/actions) [![codecov](https://codecov.io/gh/mikedh/trimesh/branch/main/graph/badge.svg?token=4PVRQXyl2h)](https://codecov.io/gh/mikedh/trimesh)  [![Docker Image Version (latest by date)](https://img.shields.io/docker/v/trimesh/trimesh?label=docker&sort=semver)](https://hub.docker.com/r/trimesh/trimesh/tags) [![PyPI version](https://badge.fury.io/py/trimesh.svg)](https://badge.fury.io/py/trimesh)
 
 
-Trimesh is a pure Python 3.8+ library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on watertight surfaces. The goal of the library is to provide a full featured and well tested Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the [Shapely library](https://github.com/Toblerity/Shapely).
+Trimesh is a pure Python 3.10+ library for loading and using [triangular meshes](https://en.wikipedia.org/wiki/Triangle_mesh) with an emphasis on watertight surfaces. The goal of the library is to provide a full featured and well tested Trimesh object which allows for easy manipulation and analysis, in the style of the Polygon object in the [Shapely library](https://github.com/Toblerity/Shapely).
 
 The API is mostly stable, but this should not be relied on and is not guaranteed: install a specific version if you plan on deploying something using `trimesh`.
 
@@ -132,7 +132,7 @@ print(mesh.bounding_box_oriented.volume,
 * Calculate face adjacencies, face angles, vertex defects, convex hulls, etc.
 * Calculate cross sections for a 2D outline, or slice a mesh for a 3D remainder mesh, i.e. slicing for 3D-printing.
 * Split mesh based on face connectivity using networkx, or scipy.sparse
-* Calculate mass properties, including volume, center of mass, moment of inertia, principal components of inertia, etc. 
+* Calculate mass properties, including volume, center of mass, moment of inertia, principal components of inertia, etc.
 * Repair simple problems with triangle winding, normals, and quad/triangle holes
 * Compute rotation/translation/tessellation invariant identifier and find duplicate meshes
 * Check if a mesh is watertight, convex, etc.
@@ -151,6 +151,6 @@ print(mesh.bounding_box_oriented.volume,
 ## Additional Notes
 
 - Check out some cool stuff people have done in the [GitHub network](https://github.com/mikedh/trimesh/network/dependents).
-- Generally `trimesh` API changes should have a one-year period of [printing a `warnings.DeprecationWarning`](https://trimesh.org/contributing.html#deprecations) although that's not always possible (i.e. the pyglet2 viewer rewrite that's been back-burnered for several years.) 
+- Generally `trimesh` API changes should have a one-year period of [printing a `warnings.DeprecationWarning`](https://trimesh.org/contributing.html#deprecations) although that's not always possible (i.e. the pyglet2 viewer rewrite that's been back-burnered for several years.)
 - Docker containers are available on Docker Hub as [`trimesh/trimesh`](https://hub.docker.com/r/trimesh/trimesh/tags) and there's a [container guide](https://trimesh.org/docker.html) in the docs.
 - If you're choosing which format to use, you may want to try [GLB](https://trimesh.org/formats.html) as a fast modern option.

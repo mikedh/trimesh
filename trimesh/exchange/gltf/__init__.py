@@ -1110,8 +1110,7 @@ def _byte_pad(data, bound=4):
     if len(data) % bound != 0:
         # extra bytes to pad with
         count = bound - (len(data) % bound)
-        # bytes(count) only works on Python 3
-        pad = (" " * count).encode("utf-8")
+        pad = bytes(count)
         # combine the padding and data
         result = b"".join([data, pad])
         # we should always divide evenly

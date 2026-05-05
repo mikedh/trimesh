@@ -9,7 +9,6 @@ import json
 import logging
 import random
 import shutil
-import sys
 import time
 import uuid
 import warnings
@@ -71,12 +70,7 @@ def has_module(name: str) -> bool:
     installed : bool
       True if module is installed
     """
-    if sys.version_info >= (3, 10):
-        # pkgutil was deprecated
-        from importlib.util import find_spec
-    else:
-        # this should work on Python 2.7 and 3.4+
-        from pkgutil import find_loader as find_spec
+    from importlib.util import find_spec
 
     return find_spec(name) is not None
 
@@ -761,7 +755,6 @@ def tolist(data):
 def is_binary_file(file_obj):
     """
     Returns True if file has non-ASCII characters (> 0x7F, or 127)
-    Should work in both Python 2 and 3
     """
     start = file_obj.tell()
     fbytes = file_obj.read(1024)

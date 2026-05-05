@@ -55,10 +55,6 @@ def test_names():
 
 
 def test_roundtrip():
-    if g.sys.version_info < (3, 6):
-        g.log.warning("relies on > Python 3.5")
-        return
-
     # test a scene round-tripped through the
     # 3MF exporter and importer
 

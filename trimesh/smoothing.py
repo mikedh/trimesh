@@ -293,11 +293,7 @@ def laplacian_calculation(
                 (laplacian.data, np.ones(len(pinned_vertices), dtype=bool))
             )
 
-        # using this instead of the line below
-        # laplacian = laplacian / laplacian.sum(axis=1)
-        # because on Python 3.8 that returns a `numpy.matrix`
-        # value instead of a `sparse.coo_matrix`
-        laplacian = laplacian.multiply(1.0 / laplacian.sum(axis=1))
+        laplacian = laplacian / laplacian.sum(axis=1)
 
     else:
         # get the vertex neighbors from the cache

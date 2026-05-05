@@ -6,7 +6,9 @@ Extension registry for glTF import/export with scope-based handlers.
 Each scope has a TypedDict defining the context passed to handlers.
 """
 
-from typing import Any, Callable, OrderedDict, TypedDict
+from collections import OrderedDict
+from collections.abc import Callable
+from typing import Any, TypedDict
 
 from ...constants import log
 from ...typed import Dict, List, Literal, Optional

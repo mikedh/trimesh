@@ -1,4 +1,5 @@
 import copy
+import itertools
 
 import numpy as np
 
@@ -142,7 +143,7 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
     # traverse the entity path and reverse entities in place to
     # align with this path ordering
     round_trip = np.append(entity_path, entity_path[0])
-    round_trip = zip(round_trip[:-1], round_trip[1:])
+    round_trip = itertools.pairwise(round_trip)
     for ea, eb in round_trip:
         da, db = edge_direction(entities[ea].end_points, entities[eb].end_points)
         if da is not None:
