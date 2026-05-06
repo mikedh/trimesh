@@ -56,7 +56,6 @@ from .typed import (
     Number,
     Self,
     Sequence,
-    Tuple,
     ViewerType,
 )
 from .visual import ColorVisuals, TextureVisuals, create_visual
@@ -1983,7 +1982,7 @@ class Trimesh(Geometry3D):
 
     def register(
         self, other: Geometry3D | NDArray, **kwargs
-    ) -> Tuple[NDArray[float64], float64]:
+    ) -> tuple[NDArray[float64], float64]:
         """
         Align a mesh with another mesh or a PointCloud using
         the principal axes of inertia as a starting point which
@@ -2018,7 +2017,7 @@ class Trimesh(Geometry3D):
         sigma: Floating = 0.0,
         n_samples: Integer = 1,
         threshold: Floating = 0.0,
-    ) -> Tuple[NDArray[float64], NDArray[float64]]:
+    ) -> tuple[NDArray[float64], NDArray[float64]]:
         """
         Computes stable orientations of a mesh and their quasi-static probabilities.
 

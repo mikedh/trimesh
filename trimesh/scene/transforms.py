@@ -7,7 +7,7 @@ import numpy as np
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
-from ..typed import ArrayLike, Hashable, NDArray, Sequence, Tuple
+from ..typed import ArrayLike, Hashable, NDArray, Sequence
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -95,7 +95,7 @@ class SceneGraph:
 
     def get(
         self, frame_to: Hashable, frame_from: Hashable | None = None
-    ) -> Tuple[NDArray[np.float64], Hashable | None]:
+    ) -> tuple[NDArray[np.float64], Hashable | None]:
         """
         Get the transform from one frame to another.
 
@@ -509,9 +509,7 @@ class SceneGraph:
     def __contains__(self, key: Hashable) -> bool:
         return key in self.transforms.node_data
 
-    def __getitem__(
-        self, key: Hashable
-    ) -> Tuple[NDArray[np.float64], Hashable | None]:
+    def __getitem__(self, key: Hashable) -> tuple[NDArray[np.float64], Hashable | None]:
         return self.get(key)
 
     def __setitem__(self, key: Hashable, value: ArrayLike):

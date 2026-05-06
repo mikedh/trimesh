@@ -36,7 +36,6 @@ from ..typed import (
     Mapping,
     NDArray,
     Self,
-    Tuple,
     float64,
 )
 from ..visual import to_rgba
@@ -853,7 +852,7 @@ class Path3D(Path):
         to_2D: ArrayLike | None = None,
         normal: ArrayLike | None = None,
         check: bool = True,
-    ) -> Tuple["Path2D", NDArray[float64]]:
+    ) -> tuple["Path2D", NDArray[float64]]:
         """
         Check to see if current vectors are all coplanar.
 

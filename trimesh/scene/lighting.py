@@ -11,7 +11,7 @@ https://github.com/mmatl/pyrender
 import numpy as np
 
 from .. import transformations, util, visual
-from ..typed import NDArray, Tuple, float64
+from ..typed import NDArray, float64
 
 # default light color
 _DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
@@ -223,7 +223,7 @@ class SpotLight(Light):
         self._outerConeAngle = float(value)
 
 
-def autolight(scene) -> Tuple[list[Light], list[NDArray[float64]]]:
+def autolight(scene) -> tuple[list[Light], list[NDArray[float64]]]:
     """
     Generate a list of lights for a scene that looks decent.
 

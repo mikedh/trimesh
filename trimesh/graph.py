@@ -22,7 +22,6 @@ from .typed import (
     NDArray,
     Number,
     Sequence,
-    Tuple,
     int64,
 )
 
@@ -871,7 +870,7 @@ def smooth_shade(
 
 def is_watertight(
     edges: ArrayLike, edges_sorted: ArrayLike | None = None
-) -> Tuple[bool, bool]:
+) -> tuple[bool, bool]:
     """
     Parameters
     -----------

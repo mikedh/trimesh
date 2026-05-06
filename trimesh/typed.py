@@ -7,7 +7,6 @@ from typing import IO, Any, BinaryIO, Literal, Optional, TextIO
 from numpy import float64, floating, int64, integer
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
-Tuple = tuple
 Dict = dict
 Set = set
 
@@ -75,7 +74,6 @@ __all__ = [
     "Sequence",
     "Set",
     "Stream",
-    "Tuple",
     "ViewerType",
     "float64",
     "int64",

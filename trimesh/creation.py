@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Dict, Integer, NDArray, Number, Tuple
+from .typed import ArrayLike, Dict, Integer, NDArray, Number
 
 try:
     # shapely is a soft dependency
@@ -575,7 +575,7 @@ def triangulate_polygon(
     engine: str | None = None,
     force_vertices: bool = False,
     **kwargs,
-) -> Tuple[NDArray[np.float64], NDArray[np.int64]]:
+) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
     """
     Given a shapely polygon create a triangulation using a
     python interface to the permissively licensed `mapbox-earcut`

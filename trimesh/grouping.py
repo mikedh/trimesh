@@ -9,7 +9,7 @@ import numpy as np
 
 from . import util
 from .constants import log, tol
-from .typed import ArrayLike, Integer, NDArray, Number, Sequence, Tuple
+from .typed import ArrayLike, Integer, NDArray, Number, Sequence
 
 try:
     from scipy.spatial import cKDTree
@@ -671,7 +671,7 @@ def group_vectors(vectors, angle=1e-4, include_negative=False):
 
 def group_distance(
     values: ArrayLike, distance: Number
-) -> Tuple[NDArray[np.float64], Sequence]:
+) -> tuple[NDArray[np.float64], Sequence]:
     """
     Find non-overlapping groups of points where no two points in a
     group are farther than 2*distance apart.

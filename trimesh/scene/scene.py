@@ -21,7 +21,6 @@ from ..typed import (
     Iterable,
     NDArray,
     Sequence,
-    Tuple,
     ViewerType,
     float64,
     int64,
@@ -773,7 +772,7 @@ class Scene(Geometry3D):
         """
         self.graph[self.camera.name] = matrix
 
-    def camera_rays(self) -> Tuple[NDArray[float64], NDArray[float64], NDArray[int64]]:
+    def camera_rays(self) -> tuple[NDArray[float64], NDArray[float64], NDArray[int64]]:
         """
         Calculate the trimesh.scene.Camera origin and ray
         direction vectors. Returns one ray per pixel as set

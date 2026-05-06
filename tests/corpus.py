@@ -18,7 +18,6 @@ from pyinstrument import Profiler
 from pyinstrument.renderers.jsonrenderer import JSONRenderer
 
 import trimesh
-from trimesh.typed import Tuple
 from trimesh.util import log, wrap_as_stream
 
 
@@ -40,7 +39,7 @@ class LoadReport:
     type_load: str | None = None
 
     # what type was every geometry
-    type_geometry: Tuple[str] | None = None
+    type_geometry: tuple[str, ...] | None = None
 
     # what is the printed repr of the object, i.e. `<Trimesh ...>`
     repr_load: str | None = None
