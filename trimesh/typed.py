@@ -3,12 +3,10 @@ from io import BufferedRandom, BytesIO, StringIO
 from pathlib import Path
 from sys import version_info
 from typing import IO, Any, BinaryIO, Literal, Optional, TextIO
-from typing import Union as Union
 
 from numpy import float64, floating, int64, integer
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
-List = list
 Tuple = tuple
 Dict = dict
 Set = set
@@ -67,7 +65,6 @@ __all__ = [
     "Hashable",
     "Integer",
     "Iterable",
-    "List",
     "Literal",
     "Loadable",
     "Mapping",

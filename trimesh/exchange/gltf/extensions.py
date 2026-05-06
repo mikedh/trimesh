@@ -11,7 +11,7 @@ from collections.abc import Callable
 from typing import Any, TypedDict
 
 from ...constants import log
-from ...typed import Dict, List, Literal
+from ...typed import Dict, Literal
 
 # Scopes define where in the glTF load/export process handlers run:
 #   material            - after parsing material, can override PBR values
@@ -52,7 +52,7 @@ class MaterialContext(TypedDict):
 
     data: Dict[str, Any]
     parse_textures: Callable[..., Dict[str, Any]]
-    images: List
+    images: list
 
 
 class TextureSourceContext(TypedDict):
@@ -67,7 +67,7 @@ class PrimitiveContext(TypedDict):
     data: Dict[str, Any]
     primitive: Dict
     mesh_kwargs: Dict
-    accessors: List
+    accessors: list
 
 
 class PrimitivePreprocessContext(TypedDict):
@@ -75,8 +75,8 @@ class PrimitivePreprocessContext(TypedDict):
 
     data: Dict[str, Any]
     primitive: Dict
-    accessors: List
-    views: List
+    accessors: list
+    views: list
 
 
 class PrimitiveExportContext(TypedDict):

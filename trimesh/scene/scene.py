@@ -19,7 +19,6 @@ from ..typed import (
     Floating,
     Integer,
     Iterable,
-    List,
     NDArray,
     Sequence,
     Tuple,
@@ -628,7 +627,7 @@ class Scene(Geometry3D):
         return sha256(dump.encode()).hexdigest()
 
     @caching.cache_decorator
-    def duplicate_nodes(self) -> List[List[str]]:
+    def duplicate_nodes(self) -> list[list[str]]:
         """
         Return a sequence of node keys of identical meshes.
 
@@ -839,7 +838,7 @@ class Scene(Geometry3D):
         return hasattr(self, "_camera") and self._camera is not None
 
     @property
-    def lights(self) -> List[lighting.Light]:
+    def lights(self) -> list[lighting.Light]:
         """
         Get a list of the lights in the scene. If nothing is
         set it will generate some automatically.
@@ -894,7 +893,7 @@ class Scene(Geometry3D):
         )
         self.graph.base_frame = new_base
 
-    def dump(self, concatenate: bool = False) -> List[Geometry]:
+    def dump(self, concatenate: bool = False) -> list[Geometry]:
         """
         Get a list of every geometry moved to its instance position,
         i.e. freezing or "baking" transforms.

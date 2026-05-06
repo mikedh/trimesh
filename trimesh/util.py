@@ -29,7 +29,6 @@ from .typed import (
     Iterable,
     NDArray,
     Set,
-    Union,
     float64,
 )
 
@@ -1412,7 +1411,7 @@ def type_named(obj, name):
 
 def concatenate(
     a, b=None
-) -> Union["trimesh.Trimesh", "trimesh.path.Path2D", "trimesh.path.Path3D"]:  # noqa: F821
+) -> "trimesh.Trimesh | trimesh.path.Path2D | trimesh.path.Path3D":  # noqa: F821
     """
     Concatenate two or more meshes.
 

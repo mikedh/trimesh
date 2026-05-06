@@ -33,7 +33,6 @@ from ..points import plane_fit
 from ..typed import (
     ArrayLike,
     Iterable,
-    List,
     Mapping,
     NDArray,
     Self,
@@ -689,7 +688,7 @@ class Path(parent.Geometry):
         self.vertices = self.vertices[unique]
 
     @cache_decorator
-    def discrete(self) -> List[NDArray[float64]]:
+    def discrete(self) -> list[NDArray[float64]]:
         """
         A sequence of connected vertices in space, corresponding to
         self.paths.
@@ -1222,7 +1221,7 @@ class Path2D(Path):
         return polygons.paths_to_polygons(self.discrete)
 
     @cache_decorator
-    def polygons_full(self) -> List:
+    def polygons_full(self) -> list:
         """
         A list of shapely.geometry.Polygon objects with interiors created
         by checking which closed polygons enclose which other polygons.

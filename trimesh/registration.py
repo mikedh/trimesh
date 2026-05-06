@@ -501,7 +501,7 @@ def nricp_amberg(
 
     Returns
     ----------
-    result : (n, 3) float or List[(n, 3) float]
+    result : (n, 3) float or list[(n, 3) float]
         The vertices positions of source_mesh such that it is registered non-rigidly
         onto the target geometry.
         If return_records is True, it returns the list of the vertex positions at each
@@ -899,7 +899,7 @@ def nricp_sumner(
 
     Returns
     ----------
-    result : (n, 3) float or List[(n, 3) float]
+    result : (n, 3) float or list[(n, 3) float]
         The vertices positions of source_mesh such that it is registered non-rigidly
         onto the target geometry.
         If return_records is True, it returns the list of the vertex positions at each

@@ -1,6 +1,6 @@
 from math import log2
 
-from .typed import Any, Callable, Iterable, List, NDArray, Sequence
+from .typed import Any, Callable, Iterable, NDArray, Sequence
 
 
 def reduce_cascade(operation: Callable, items: Sequence | NDArray):
@@ -75,7 +75,7 @@ def reduce_cascade(operation: Callable, items: Sequence | NDArray):
     return results[0]
 
 
-def chain(*args: Iterable[Any] | Any | None) -> List[Any]:
+def chain(*args: Iterable[Any] | Any | None) -> list[Any]:
     """
     A less principled version of `list(itertools.chain(*args))` that
     accepts non-iterable values, filters `None`, and returns a list

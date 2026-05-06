@@ -19,7 +19,6 @@ from .typed import (
     ArrayLike,
     GraphEngineType,
     Integer,
-    List,
     NDArray,
     Number,
     Sequence,
@@ -350,7 +349,7 @@ def split(
     adjacency: ArrayLike | None = None,
     engine: GraphEngineType = None,
     **kwargs,
-) -> List:
+) -> list:
     """
     Split a mesh into multiple meshes from face
     connectivity.
@@ -527,7 +526,7 @@ def connected_component_labels(edges, node_count=None):
     return labels
 
 
-def _split_traversal(traversal: NDArray, edges_tree) -> List[NDArray]:
+def _split_traversal(traversal: NDArray, edges_tree) -> list[NDArray]:
     """
     Given a traversal as a list of nodes split the traversal
     if a sequential index pair is not in the given edges.

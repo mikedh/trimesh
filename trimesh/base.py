@@ -51,14 +51,12 @@ from .typed import (
     Dict,
     Floating,
     Integer,
-    List,
     Loadable,
     NDArray,
     Number,
     Self,
     Sequence,
     Tuple,
-    Union,
     ViewerType,
 )
 from .visual import ColorVisuals, TextureVisuals, create_visual
@@ -1423,7 +1421,7 @@ class Trimesh(Geometry3D):
         """
         self.apply_translation(self.bounds[0] * -1.0)
 
-    def split(self, **kwargs) -> List["Trimesh"]:
+    def split(self, **kwargs) -> list["Trimesh"]:
         """
         Split a mesh into multiple meshes from face
         connectivity.
@@ -1682,7 +1680,7 @@ class Trimesh(Geometry3D):
         return graph.vertex_adjacency_graph(mesh=self)
 
     @cache_decorator
-    def vertex_neighbors(self) -> List[List[int64]]:
+    def vertex_neighbors(self) -> list[list[int64]]:
         """
         The vertex neighbors of each vertex of the mesh, determined from
         the cached vertex_adjacency_graph, if already existent.
@@ -1832,7 +1830,7 @@ class Trimesh(Geometry3D):
         )
 
     @cache_decorator
-    def facets(self) -> List[NDArray[int64]]:
+    def facets(self) -> list[NDArray[int64]]:
         """
         Return a list of face indices for coplanar adjacent faces.
 
@@ -1903,7 +1901,7 @@ class Trimesh(Geometry3D):
         return self._cache["facets_origin"]
 
     @cache_decorator
-    def facets_boundary(self) -> List[NDArray[int64]]:
+    def facets_boundary(self) -> list[NDArray[int64]]:
         """
         Return the edges which represent the boundary of each facet
 
@@ -2152,7 +2150,7 @@ class Trimesh(Geometry3D):
 
     def subdivide_to_size(
         self, max_edge: Number, max_iter: Integer = 10, return_index: bool = False
-    ) -> Union["Trimesh", Tuple["Trimesh", NDArray[int64]]]:
+    ) -> "Trimesh | tuple[Trimesh, NDArray[int64]]":
         """
         Subdivide a mesh until every edge is shorter than a
         specified length.
@@ -2356,7 +2354,7 @@ class Trimesh(Geometry3D):
         plane_origin: ArrayLike,
         plane_normal: ArrayLike,
         heights: ArrayLike,
-    ) -> List[Path2D | None]:
+    ) -> list[Path2D | None]:
         """
         Return multiple parallel cross sections of the current
         mesh in 2D.
@@ -2918,7 +2916,7 @@ class Trimesh(Geometry3D):
         only_watertight: bool = False,
         repair: bool = False,
         **kwargs,
-    ) -> Union["Trimesh", List["Trimesh"]]:
+    ) -> "Trimesh | list[Trimesh]":
         """
         Return a subset of the mesh.
 
@@ -3002,7 +3000,7 @@ class Trimesh(Geometry3D):
         """
         return export_mesh(mesh=self, file_obj=file_obj, file_type=file_type, **kwargs)
 
-    def to_dict(self) -> Dict[str, str | List[List[float]] | List[List[int]]]:
+    def to_dict(self) -> Dict[str, str | list[list[float]] | list[list[int]]]:
         """
         Return a dictionary representation of the current mesh
         with keys that can be used as the kwargs for the
@@ -3020,7 +3018,7 @@ class Trimesh(Geometry3D):
             "faces": self.faces.tolist(),
         }
 
-    def convex_decomposition(self, **kwargs) -> List["Trimesh"]:
+    def convex_decomposition(self, **kwargs) -> list["Trimesh"]:
         """
         Compute an approximate convex decomposition of a mesh
         using `pip install pyVHACD`.
@@ -3038,7 +3036,7 @@ class Trimesh(Geometry3D):
 
     def union(
         self,
-        other: Union["Trimesh", Sequence["Trimesh"]],
+        other: "Trimesh | Sequence[Trimesh]",
         engine: BooleanEngineType = None,
         check_volume: bool = True,
         **kwargs,
@@ -3074,7 +3072,7 @@ class Trimesh(Geometry3D):
 
     def difference(
         self,
-        other: Union["Trimesh", Sequence["Trimesh"]],
+        other: "Trimesh | Sequence[Trimesh]",
         engine: BooleanEngineType = None,
         check_volume: bool = True,
         **kwargs,
@@ -3110,7 +3108,7 @@ class Trimesh(Geometry3D):
 
     def intersection(
         self,
-        other: Union["Trimesh", Sequence["Trimesh"]],
+        other: "Trimesh | Sequence[Trimesh]",
         engine: BooleanEngineType = None,
         check_volume: bool = True,
         **kwargs,

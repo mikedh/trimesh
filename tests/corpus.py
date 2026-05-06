@@ -18,7 +18,7 @@ from pyinstrument import Profiler
 from pyinstrument.renderers.jsonrenderer import JSONRenderer
 
 import trimesh
-from trimesh.typed import List, Tuple
+from trimesh.typed import Tuple
 from trimesh.util import log, wrap_as_stream
 
 
@@ -170,7 +170,7 @@ def markdown_table(headers: tuple[str, ...], rows: list[tuple]) -> str:
 
 def on_repo(
     repo: str, commit: str, available: set, root: str | None = None
-) -> List[LoadReport]:
+) -> list[LoadReport]:
     """
     Try loading all supported files in a Github repo.
 

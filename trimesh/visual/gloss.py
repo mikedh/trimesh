@@ -2,7 +2,7 @@ import numpy as np
 
 from ..constants import log
 from ..exceptions import ExceptionWrapper
-from ..typed import ArrayLike, Number, Optional
+from ..typed import ArrayLike, Number
 from .color import linear_to_srgb, srgb_to_linear
 
 try:

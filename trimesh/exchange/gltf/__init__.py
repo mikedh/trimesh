@@ -18,7 +18,7 @@ from ...caching import hash_fast
 from ...constants import log, tol
 from ...resolvers import ResolverLike, ZipResolver
 from ...scene.cameras import Camera
-from ...typed import Dict, List, NDArray, Stream
+from ...typed import Dict, NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
 from .extensions import handle_extensions
 
@@ -1424,7 +1424,7 @@ def _parse_materials(header, views, resolver=None):
 
 def _read_buffers(
     header: Dict,
-    buffers: List[bytes],
+    buffers: list[bytes],
     mesh_kwargs: Dict,
     resolver: ResolverLike | None,
     ignore_broken: bool = False,
