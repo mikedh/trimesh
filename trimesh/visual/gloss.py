@@ -13,11 +13,11 @@ except BaseException as E:
 
 
 def specular_to_pbr(
-    specularFactor: Optional[ArrayLike] = None,
-    glossinessFactor: Optional[Number] = None,
+    specularFactor: ArrayLike | None = None,
+    glossinessFactor: Number | None = None,
     specularGlossinessTexture: Optional["Image"] = None,
     diffuseTexture: Optional["Image"] = None,
-    diffuseFactor: Optional[ArrayLike] = None,
+    diffuseFactor: ArrayLike | None = None,
     **kwargs,
 ) -> dict:
     """

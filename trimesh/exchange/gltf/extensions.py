@@ -11,7 +11,7 @@ from collections.abc import Callable
 from typing import Any, TypedDict
 
 from ...constants import log
-from ...typed import Dict, List, Literal, Optional
+from ...typed import Dict, List, Literal
 
 # Scopes define where in the glTF load/export process handlers run:
 #   material            - after parsing material, can override PBR values
@@ -157,7 +157,7 @@ def register_handler(name: str, scope: Scope) -> Callable[[Handler], Handler]:
 
 def handle_extensions(
     *,
-    extensions: Optional[Dict[str, Any]],
+    extensions: Dict[str, Any] | None,
     scope: Scope,
     **kwargs,
 ) -> Any:
@@ -229,7 +229,7 @@ def handle_extensions(
 
 
 @register_handler("KHR_materials_pbrSpecularGlossiness", scope="material")
-def _specular_glossiness(context: MaterialContext) -> Optional[Dict[str, Any]]:
+def _specular_glossiness(context: MaterialContext) -> Dict[str, Any] | None:
     """
     Convert specular-glossiness material to PBR metallic-roughness.
 
@@ -253,7 +253,7 @@ def _specular_glossiness(context: MaterialContext) -> Optional[Dict[str, Any]]:
 
 
 @register_handler("EXT_texture_webp", scope="texture_source")
-def _texture_webp_source(context: TextureSourceContext) -> Optional[int]:
+def _texture_webp_source(context: TextureSourceContext) -> int | None:
     """
     Return image source index from EXT_texture_webp.
 

@@ -12,7 +12,7 @@ from .geometry import weighted_vertex_normals
 from .points import PointCloud, plane_fit
 from .transformations import transform_points
 from .triangles import angles, cross, normals
-from .typed import ArrayLike, Integer, Optional
+from .typed import ArrayLike, Integer
 
 try:
     import scipy.sparse as sparse
@@ -194,7 +194,7 @@ def mesh_other(
 def procrustes(
     a: ArrayLike,
     b: ArrayLike,
-    weights: Optional[ArrayLike] = None,
+    weights: ArrayLike | None = None,
     reflection: bool = True,
     translation: bool = True,
     scale: bool = True,

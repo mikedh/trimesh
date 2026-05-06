@@ -19,7 +19,7 @@ except BaseException as E:
 from .. import util
 from ..constants import log, tol
 from ..resolvers import ResolverLike
-from ..typed import Dict, Loadable, Optional
+from ..typed import Dict, Loadable
 from ..visual.color import to_float
 from ..visual.material import SimpleMaterial
 from ..visual.texture import TextureVisuals, unmerge_faces
@@ -27,11 +27,11 @@ from ..visual.texture import TextureVisuals, unmerge_faces
 
 def load_obj(
     file_obj: Loadable,
-    resolver: Optional[ResolverLike] = None,
+    resolver: ResolverLike | None = None,
     group_material: bool = True,
     skip_materials: bool = False,
     maintain_order: bool = False,
-    metadata: Optional[Dict] = None,
+    metadata: Dict | None = None,
     split_objects: bool = False,
     split_groups: bool = False,
     **kwargs,

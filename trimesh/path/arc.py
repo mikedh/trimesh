@@ -6,7 +6,7 @@ from .. import util
 from ..constants import log
 from ..constants import res_path as res
 from ..constants import tol_path as tol
-from ..typed import ArrayLike, NDArray, Number, Optional, float64
+from ..typed import ArrayLike, NDArray, Number, float64
 
 # floating point zero
 _TOL_ZERO = 1e-12
@@ -22,13 +22,13 @@ class ArcInfo:
     center: NDArray[float64]
 
     # what is the 3D normal vector of the plane the arc lies on
-    normal: Optional[NDArray[float64]] = None
+    normal: NDArray[float64] | None = None
 
     # what is the starting and ending angle of the arc.
-    angles: Optional[NDArray[float64]] = None
+    angles: NDArray[float64] | None = None
 
     # what is the angular span of this circular arc.
-    span: Optional[Number] = None
+    span: Number | None = None
 
     def __getitem__(self, item):
         # add for backwards compatibility

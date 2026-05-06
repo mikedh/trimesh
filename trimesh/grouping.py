@@ -9,7 +9,7 @@ import numpy as np
 
 from . import util
 from .constants import log, tol
-from .typed import ArrayLike, Integer, NDArray, Number, Optional, Sequence, Tuple
+from .typed import ArrayLike, Integer, NDArray, Number, Sequence, Tuple
 
 try:
     from scipy.spatial import cKDTree
@@ -23,11 +23,11 @@ except BaseException as E:
 
 def merge_vertices(
     mesh,
-    merge_tex: Optional[bool] = None,
-    merge_norm: Optional[bool] = None,
-    digits_vertex: Optional[Integer] = None,
-    digits_norm: Optional[Integer] = None,
-    digits_uv: Optional[Integer] = None,
+    merge_tex: bool | None = None,
+    merge_norm: bool | None = None,
+    digits_vertex: Integer | None = None,
+    digits_norm: Integer | None = None,
+    digits_uv: Integer | None = None,
 ):
     """
     Removes duplicate vertices, grouped by position and
@@ -110,7 +110,7 @@ def merge_vertices(
     mesh.update_vertices(mask=mask, inverse=inverse)
 
 
-def group(values, min_len: Optional[Integer] = None, max_len: Optional[Integer] = None):
+def group(values, min_len: Integer | None = None, max_len: Integer | None = None):
     """
     Return the indices of values that are identical
 
@@ -168,7 +168,7 @@ def group(values, min_len: Optional[Integer] = None, max_len: Optional[Integer] 
 
 
 def hashable_rows(
-    data: ArrayLike, digits: Optional[Integer] = None, allow_int: bool = True
+    data: ArrayLike, digits: Integer | None = None, allow_int: bool = True
 ) -> NDArray:
     """
     We turn our array into integers based on the precision
@@ -233,7 +233,7 @@ def hashable_rows(
     return result
 
 
-def float_to_int(data, digits: Optional[Integer] = None) -> NDArray[np.int64]:
+def float_to_int(data, digits: Integer | None = None) -> NDArray[np.int64]:
     """
     Given a numpy array of float/bool/int, return as integers.
 
@@ -389,7 +389,7 @@ def unique_bincount(
     return ret
 
 
-def merge_runs(data: ArrayLike, digits: Optional[Integer] = None):
+def merge_runs(data: ArrayLike, digits: Integer | None = None):
     """
     Merge duplicate sequential values. This differs from unique_ordered
     in that values can occur in multiple places in the sequence, but
@@ -431,7 +431,7 @@ def unique_float(
     data,
     return_index: bool = False,
     return_inverse: bool = False,
-    digits: Optional[Integer] = None,
+    digits: Integer | None = None,
 ):
     """
     Identical to the numpy.unique command, except evaluates floating point

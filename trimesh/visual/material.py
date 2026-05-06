@@ -12,7 +12,7 @@ import numpy as np
 
 from .. import exceptions, util
 from ..constants import tol
-from ..typed import NDArray, Optional
+from ..typed import NDArray
 from . import color
 
 try:
@@ -718,7 +718,7 @@ class PBRMaterial(Material):
         )
 
 
-def empty_material(color: Optional[NDArray[np.uint8]] = None) -> SimpleMaterial:
+def empty_material(color: NDArray[np.uint8] | None = None) -> SimpleMaterial:
     """
     Return an empty material set to a single color
 
@@ -737,7 +737,7 @@ def empty_material(color: Optional[NDArray[np.uint8]] = None) -> SimpleMaterial:
     return SimpleMaterial(image=color_image(color=color))
 
 
-def color_image(color: Optional[NDArray[np.uint8]] = None):
+def color_image(color: NDArray[np.uint8] | None = None):
     """
     Generate an image with one color.
 

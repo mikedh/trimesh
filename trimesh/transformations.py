@@ -199,7 +199,7 @@ True
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from .typed import Integer, Number, Optional
+from .typed import Integer, Number
 from .util import diagonal_dot
 
 # a cached immutable identity matrix provides a speedup sometimes
@@ -1599,7 +1599,7 @@ def random_quaternion(rand=None, num=1):
 
 
 def random_rotation_matrix(
-    rand: Optional[ArrayLike] = None, num: Integer = 1, translate: Optional[Number] = None
+    rand: ArrayLike | None = None, num: Integer = 1, translate: Number | None = None
 ):
     """
     Return uniform random rotation matrix.

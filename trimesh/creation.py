@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Dict, Integer, NDArray, Number, Optional, Tuple
+from .typed import ArrayLike, Dict, Integer, NDArray, Number, Tuple
 
 try:
     # shapely is a soft dependency
@@ -40,10 +40,10 @@ _engines = [
 
 def revolve(
     linestring: ArrayLike,
-    angle: Optional[Number] = None,
+    angle: Number | None = None,
     cap: bool = False,
-    sections: Optional[Integer] = None,
-    transform: Optional[ArrayLike] = None,
+    sections: Integer | None = None,
+    transform: ArrayLike | None = None,
     **kwargs,
 ) -> Trimesh:
     """
@@ -206,7 +206,7 @@ def revolve(
 def extrude_polygon(
     polygon: "Polygon",
     height: Number,
-    transform: Optional[ArrayLike] = None,
+    transform: ArrayLike | None = None,
     mid_plane: bool = False,
     **kwargs,
 ) -> Trimesh:
@@ -252,10 +252,10 @@ def extrude_polygon(
 def sweep_polygon(
     polygon: "Polygon",
     path: ArrayLike,
-    angles: Optional[ArrayLike] = None,
+    angles: ArrayLike | None = None,
     cap: bool = True,
     connect: bool = True,
-    kwargs: Optional[Dict] = None,
+    kwargs: Dict | None = None,
     **triangulation,
 ) -> Trimesh:
     """
@@ -478,7 +478,7 @@ def extrude_triangulation(
     vertices: ArrayLike,
     faces: ArrayLike,
     height: Number,
-    transform: Optional[ArrayLike] = None,
+    transform: ArrayLike | None = None,
     **kwargs,
 ) -> Trimesh:
     """
@@ -571,8 +571,8 @@ def extrude_triangulation(
 
 def triangulate_polygon(
     polygon,
-    triangle_args: Optional[str] = None,
-    engine: Optional[str] = None,
+    triangle_args: str | None = None,
+    engine: str | None = None,
     force_vertices: bool = False,
     **kwargs,
 ) -> Tuple[NDArray[np.float64], NDArray[np.int64]]:
@@ -770,9 +770,9 @@ def _polygon_to_kwargs(polygon) -> Dict:
 
 
 def box(
-    extents: Optional[ArrayLike] = None,
-    transform: Optional[ArrayLike] = None,
-    bounds: Optional[ArrayLike] = None,
+    extents: ArrayLike | None = None,
+    transform: ArrayLike | None = None,
+    bounds: ArrayLike | None = None,
     **kwargs,
 ):
     """
@@ -917,8 +917,8 @@ def icosphere(subdivisions: Integer = 3, radius: Number = 1.0, **kwargs):
 
 def uv_sphere(
     radius: Number = 1.0,
-    count: Optional[ArrayLike] = None,
-    transform: Optional[ArrayLike] = None,
+    count: ArrayLike | None = None,
+    transform: ArrayLike | None = None,
     **kwargs,
 ) -> Trimesh:
     """
@@ -967,8 +967,8 @@ def uv_sphere(
 def capsule(
     height: Number = 1.0,
     radius: Number = 1.0,
-    count: Optional[ArrayLike] = None,
-    transform: Optional[ArrayLike] = None,
+    count: ArrayLike | None = None,
+    transform: ArrayLike | None = None,
     **kwargs,
 ) -> Trimesh:
     """
@@ -1022,8 +1022,8 @@ def capsule(
 def cone(
     radius: Number,
     height: Number,
-    sections: Optional[Integer] = None,
-    transform: Optional[ArrayLike] = None,
+    sections: Integer | None = None,
+    transform: ArrayLike | None = None,
     **kwargs,
 ) -> Trimesh:
     """
@@ -1062,10 +1062,10 @@ def cone(
 
 def cylinder(
     radius: Number,
-    height: Optional[Number] = None,
-    sections: Optional[Integer] = None,
-    segment: Optional[ArrayLike] = None,
-    transform: Optional[ArrayLike] = None,
+    height: Number | None = None,
+    sections: Integer | None = None,
+    segment: ArrayLike | None = None,
+    transform: ArrayLike | None = None,
     **kwargs,
 ):
     """
@@ -1114,10 +1114,10 @@ def cylinder(
 def annulus(
     r_min: Number,
     r_max: Number,
-    height: Optional[Number] = None,
-    sections: Optional[Integer] = None,
-    transform: Optional[ArrayLike] = None,
-    segment: Optional[ArrayLike] = None,
+    height: Number | None = None,
+    sections: Integer | None = None,
+    transform: ArrayLike | None = None,
+    segment: ArrayLike | None = None,
     **kwargs,
 ):
     """
@@ -1240,10 +1240,10 @@ def random_soup(face_count: Integer = 100):
 
 def axis(
     origin_size: Number = 0.04,
-    transform: Optional[ArrayLike] = None,
-    origin_color: Optional[ArrayLike] = None,
-    axis_radius: Optional[Number] = None,
-    axis_length: Optional[Number] = None,
+    transform: ArrayLike | None = None,
+    origin_color: ArrayLike | None = None,
+    axis_radius: Number | None = None,
+    axis_length: Number | None = None,
 ):
     """
     Return an XYZ axis marker as a  Trimesh, which represents position
@@ -1325,7 +1325,7 @@ def axis(
 
 
 def camera_marker(
-    camera, marker_height: Number = 0.4, origin_size: Optional[Number] = None
+    camera, marker_height: Number = 0.4, origin_size: Number | None = None
 ):
     """
     Create a visual marker for a camera object, including an axis and FOV.
@@ -1386,8 +1386,8 @@ def camera_marker(
 
 def truncated_prisms(
     tris: ArrayLike,
-    origin: Optional[ArrayLike] = None,
-    normal: Optional[ArrayLike] = None,
+    origin: ArrayLike | None = None,
+    normal: ArrayLike | None = None,
 ):
     """
     Return a mesh consisting of multiple watertight prisms below
@@ -1456,7 +1456,7 @@ def torus(
     minor_radius: Number,
     major_sections: Integer = 32,
     minor_sections: Integer = 32,
-    transform: Optional[ArrayLike] = None,
+    transform: ArrayLike | None = None,
     **kwargs,
 ):
     """Create a mesh of a torus around Z centered at the origin.

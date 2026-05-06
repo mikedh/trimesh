@@ -3,6 +3,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from hashlib import sha256
+from typing import TypeAlias
 
 # ruff doesn't recognize this correctly when we re-import it from trimesh.typed -_-
 import numpy as np
@@ -20,10 +21,8 @@ from ..typed import (
     Iterable,
     List,
     NDArray,
-    Optional,
     Sequence,
     Tuple,
-    Union,
     ViewerType,
     float64,
     int64,
@@ -33,7 +32,7 @@ from . import cameras, lighting
 from .transforms import SceneGraph
 
 # the types of objects we can create a scene from
-GeometryInput = Union[Geometry, Iterable[Geometry], Dict[str, Geometry], ArrayLike]
+GeometryInput: TypeAlias = Geometry | Iterable[Geometry] | Dict[str, Geometry] | ArrayLike
 
 
 class Scene(Geometry3D):
@@ -46,13 +45,13 @@ class Scene(Geometry3D):
 
     def __init__(
         self,
-        geometry: Optional[GeometryInput] = None,
+        geometry: GeometryInput | None = None,
         base_frame: str = "world",
-        metadata: Optional[Dict] = None,
-        graph: Optional[SceneGraph] = None,
-        camera: Optional[cameras.Camera] = None,
-        lights: Optional[Sequence[lighting.Light]] = None,
-        camera_transform: Optional[NDArray] = None,
+        metadata: Dict | None = None,
+        graph: SceneGraph | None = None,
+        camera: cameras.Camera | None = None,
+        lights: Sequence[lighting.Light] | None = None,
+        camera_transform: NDArray | None = None,
     ):
         """
         Create a new Scene object.
@@ -122,11 +121,11 @@ class Scene(Geometry3D):
     def add_geometry(
         self,
         geometry: GeometryInput,
-        node_name: Optional[str] = None,
-        geom_name: Optional[str] = None,
-        parent_node_name: Optional[str] = None,
-        transform: Optional[NDArray] = None,
-        metadata: Optional[Dict] = None,
+        node_name: str | None = None,
+        geom_name: str | None = None,
+        parent_node_name: str | None = None,
+        transform: NDArray | None = None,
+        metadata: Dict | None = None,
     ):
         """
         Add a geometry to the scene.
@@ -233,7 +232,7 @@ class Scene(Geometry3D):
 
         return node_name
 
-    def delete_geometry(self, names: Union[set, str, Sequence]) -> None:
+    def delete_geometry(self, names: set | str | Sequence) -> None:
         """
         Delete one more multiple geometries from the scene and also
         remove any node in the transform graph which references it.
@@ -266,9 +265,9 @@ class Scene(Geometry3D):
 
     def simplify_quadric_decimation(
         self,
-        percent: Optional[Floating] = None,
-        face_count: Optional[Integer] = None,
-        aggression: Optional[Integer] = None,
+        percent: Floating | None = None,
+        face_count: Integer | None = None,
+        aggression: Integer | None = None,
     ) -> None:
         """
         Apply in-place `mesh.simplify_quadric_decimation` to any meshes
@@ -393,7 +392,7 @@ class Scene(Geometry3D):
         return corners
 
     @caching.cache_decorator
-    def bounds(self) -> Optional[NDArray[float64]]:
+    def bounds(self) -> NDArray[float64] | None:
         """
         Return the overall bounding box of the scene.
 
@@ -411,7 +410,7 @@ class Scene(Geometry3D):
         return np.array([corners.min(axis=0), corners.max(axis=0)], dtype=np.float64)
 
     @caching.cache_decorator
-    def extents(self) -> Optional[NDArray[float64]]:
+    def extents(self) -> NDArray[float64] | None:
         """
         Return the axis aligned box size of the current scene
         or None if the scene is empty.
@@ -442,7 +441,7 @@ class Scene(Geometry3D):
         return float((extents**2).sum() ** 0.5)
 
     @caching.cache_decorator
-    def centroid(self) -> Optional[NDArray[float64]]:
+    def centroid(self) -> NDArray[float64] | None:
         """
         Return the center of the bounding box for the scene.
 
@@ -822,7 +821,7 @@ class Scene(Geometry3D):
         return self._camera
 
     @camera.setter
-    def camera(self, camera: Optional[cameras.Camera]):
+    def camera(self, camera: cameras.Camera | None):
         """
         Set a camera object for the Scene.
 
@@ -1070,7 +1069,7 @@ class Scene(Geometry3D):
         )
 
     @property
-    def units(self) -> Optional[str]:
+    def units(self) -> str | None:
         """
         Get the units for every model in the scene. If the scene has
         mixed units or no units this will return None.
@@ -1184,7 +1183,7 @@ class Scene(Geometry3D):
             T_new[:3, 3] += offset
             self.graph[node_name] = T_new
 
-    def scaled(self, scale: Union[Floating, ArrayLike]) -> "Scene":
+    def scaled(self, scale: Floating | ArrayLike) -> "Scene":
         """
         Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.

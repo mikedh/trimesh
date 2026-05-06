@@ -12,10 +12,11 @@ import itertools
 import os
 
 # URL parsing for remote resources via WebResolver
+from typing import TypeAlias
 from urllib.parse import urlparse
 
 from . import caching, util
-from .typed import Dict, Mapping, Optional, Union
+from .typed import Dict, Mapping
 
 
 class Resolver(util.ABC):
@@ -145,7 +146,7 @@ class FilePathResolver(Resolver):
             data = f.read()
         return data
 
-    def write(self, name: str, data: Union[str, bytes]):
+    def write(self, name: str, data: str | bytes):
         """
         Write an asset to a file path.
 
@@ -167,7 +168,7 @@ class ZipResolver(Resolver):
     Resolve files inside a ZIP archive.
     """
 
-    def __init__(self, archive: Optional[Dict] = None, namespace: Optional[str] = None):
+    def __init__(self, archive: Dict | None = None, namespace: str | None = None):
         """
         Resolve files inside a ZIP archive as loaded by
         trimesh.util.decompress
@@ -434,9 +435,9 @@ class GithubResolver(Resolver):
     def __init__(
         self,
         repo: str,
-        branch: Optional[str] = None,
-        commit: Optional[str] = None,
-        save: Optional[str] = None,
+        branch: str | None = None,
+        commit: str | None = None,
+        save: str | None = None,
     ):
         """
         Get files from a remote Github repository by
@@ -609,4 +610,4 @@ def nearby_names(name, namespace=None):
 
 
 # most loaders can use a mapping in addition to a resolver
-ResolverLike = Union[Resolver, Mapping]
+ResolverLike: TypeAlias = Resolver | Mapping

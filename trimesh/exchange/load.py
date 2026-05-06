@@ -10,7 +10,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry, LoadSource
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Dict, Loadable, Optional, Set
+from ..typed import Dict, Loadable, Set
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -72,9 +72,9 @@ def available_formats() -> Set[str]:
 
 def load(
     file_obj: Loadable,
-    file_type: Optional[str] = None,
-    resolver: Optional[resolvers.ResolverLike] = None,
-    force: Optional[str] = None,
+    file_type: str | None = None,
+    resolver: resolvers.ResolverLike | None = None,
+    force: str | None = None,
     allow_remote: bool = False,
     **kwargs,
 ) -> Geometry:
@@ -156,10 +156,10 @@ def load(
 
 def load_scene(
     file_obj: Loadable,
-    file_type: Optional[str] = None,
-    resolver: Optional[resolvers.ResolverLike] = None,
+    file_type: str | None = None,
+    resolver: resolvers.ResolverLike | None = None,
     allow_remote: bool = False,
-    metadata: Optional[Dict] = None,
+    metadata: Dict | None = None,
     **kwargs,
 ) -> Scene:
     """
@@ -517,8 +517,8 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
 
 def _parse_file_args(
     file_obj,
-    file_type: Optional[str],
-    resolver: Optional[resolvers.ResolverLike] = None,
+    file_type: str | None,
+    resolver: resolvers.ResolverLike | None = None,
     allow_remote: bool = False,
     **kwargs,
 ) -> LoadSource:

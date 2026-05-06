@@ -55,7 +55,6 @@ from .typed import (
     Loadable,
     NDArray,
     Number,
-    Optional,
     Self,
     Sequence,
     Tuple,
@@ -101,22 +100,22 @@ _IDENTITY4.flags.writeable = False
 class Trimesh(Geometry3D):
     def __init__(
         self,
-        vertices: Optional[ArrayLike] = None,
-        faces: Optional[ArrayLike] = None,
-        face_normals: Optional[ArrayLike] = None,
-        vertex_normals: Optional[ArrayLike] = None,
-        face_colors: Optional[ArrayLike] = None,
-        vertex_colors: Optional[ArrayLike] = None,
-        face_attributes: Optional[Dict[str, ArrayLike]] = None,
-        vertex_attributes: Optional[Dict[str, ArrayLike]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        vertices: ArrayLike | None = None,
+        faces: ArrayLike | None = None,
+        face_normals: ArrayLike | None = None,
+        vertex_normals: ArrayLike | None = None,
+        face_colors: ArrayLike | None = None,
+        vertex_colors: ArrayLike | None = None,
+        face_attributes: Dict[str, ArrayLike] | None = None,
+        vertex_attributes: Dict[str, ArrayLike] | None = None,
+        metadata: Dict[str, Any] | None = None,
         process: bool = True,
         validate: bool = False,
-        merge_tex: Optional[bool] = None,
-        merge_norm: Optional[bool] = None,
+        merge_tex: bool | None = None,
+        merge_norm: bool | None = None,
         use_embree: bool = True,
-        initial_cache: Optional[Dict[str, ndarray]] = None,
-        visual: Optional[Union[ColorVisuals, TextureVisuals]] = None,
+        initial_cache: Dict[str, ndarray] | None = None,
+        visual: ColorVisuals | TextureVisuals | None = None,
         **kwargs,
     ) -> None:
         """
@@ -259,8 +258,8 @@ class Trimesh(Geometry3D):
     def process(
         self,
         validate: bool = False,
-        merge_tex: Optional[bool] = None,
-        merge_norm: Optional[bool] = None,
+        merge_tex: bool | None = None,
+        merge_norm: bool | None = None,
     ) -> Self:
         """
         Do processing to make a mesh useful.
@@ -358,7 +357,7 @@ class Trimesh(Geometry3D):
         return self._data["faces"]
 
     @faces.setter
-    def faces(self, values: Optional[ArrayLike]) -> None:
+    def faces(self, values: ArrayLike | None) -> None:
         """
         Set the vertex indexes that make up triangular faces.
 
@@ -447,7 +446,7 @@ class Trimesh(Geometry3D):
         return padded
 
     @face_normals.setter
-    def face_normals(self, values: Optional[ArrayLike]) -> None:
+    def face_normals(self, values: ArrayLike | None) -> None:
         """
         Assign values to face normals.
 
@@ -505,7 +504,7 @@ class Trimesh(Geometry3D):
         return self._data["vertices"]
 
     @vertices.setter
-    def vertices(self, values: Optional[ArrayLike]) -> None:
+    def vertices(self, values: ArrayLike | None) -> None:
         """
         Assign vertex values to the mesh.
 
@@ -581,7 +580,7 @@ class Trimesh(Geometry3D):
         return vertex_faces
 
     @cache_decorator
-    def bounds(self) -> Optional[NDArray[float64]]:
+    def bounds(self) -> NDArray[float64] | None:
         """
         The axis aligned bounds of the faces of the mesh.
 
@@ -600,7 +599,7 @@ class Trimesh(Geometry3D):
         return np.array([in_mesh.min(axis=0), in_mesh.max(axis=0)])
 
     @cache_decorator
-    def extents(self) -> Optional[NDArray[float64]]:
+    def extents(self) -> NDArray[float64] | None:
         """
         The length, width, and height of the axis aligned
         bounding box of the mesh.
@@ -839,7 +838,7 @@ class Trimesh(Geometry3D):
         return transform
 
     @cache_decorator
-    def symmetry(self) -> Optional[str]:
+    def symmetry(self) -> str | None:
         """
         Check whether a mesh has rotational symmetry around
         an axis (radial) or point (spherical).
@@ -855,7 +854,7 @@ class Trimesh(Geometry3D):
         return symmetry
 
     @property
-    def symmetry_axis(self) -> Optional[NDArray[float64]]:
+    def symmetry_axis(self) -> NDArray[float64] | None:
         """
         If a mesh has rotational symmetry, return the axis.
 
@@ -869,7 +868,7 @@ class Trimesh(Geometry3D):
         return self._cache["symmetry_axis"]
 
     @property
-    def symmetry_section(self) -> Optional[NDArray[float64]]:
+    def symmetry_section(self) -> NDArray[float64] | None:
         """
         If a mesh has rotational symmetry return the two
         vectors which make up a section coordinate frame.
@@ -1158,11 +1157,11 @@ class Trimesh(Geometry3D):
 
     def merge_vertices(
         self,
-        merge_tex: Optional[bool] = None,
-        merge_norm: Optional[bool] = None,
-        digits_vertex: Optional[Integer] = None,
-        digits_norm: Optional[Integer] = None,
-        digits_uv: Optional[Integer] = None,
+        merge_tex: bool | None = None,
+        merge_norm: bool | None = None,
+        digits_vertex: Integer | None = None,
+        digits_norm: Integer | None = None,
+        digits_uv: Integer | None = None,
     ) -> None:
         """
         Removes duplicate vertices grouped by position and
@@ -1195,7 +1194,7 @@ class Trimesh(Geometry3D):
     def update_vertices(
         self,
         mask: ArrayLike,
-        inverse: Optional[ArrayLike] = None,
+        inverse: ArrayLike | None = None,
     ) -> None:
         """
         Update vertices with a mask.
@@ -1953,7 +1952,7 @@ class Trimesh(Geometry3D):
 
         return on_hull
 
-    def fix_normals(self, multibody: Optional[bool] = None) -> Self:
+    def fix_normals(self, multibody: bool | None = None) -> Self:
         """
         Find and fix problems with self.face_normals and self.faces
         winding direction.
@@ -1985,7 +1984,7 @@ class Trimesh(Geometry3D):
         return repair.fill_holes(self)
 
     def register(
-        self, other: Union[Geometry3D, NDArray], **kwargs
+        self, other: Geometry3D | NDArray, **kwargs
     ) -> Tuple[NDArray[float64], float64]:
         """
         Align a mesh with another mesh or a PointCloud using
@@ -2017,7 +2016,7 @@ class Trimesh(Geometry3D):
 
     def compute_stable_poses(
         self,
-        center_mass: Optional[NDArray[float64]] = None,
+        center_mass: NDArray[float64] | None = None,
         sigma: Floating = 0.0,
         n_samples: Integer = 1,
         threshold: Floating = 0.0,
@@ -2072,7 +2071,7 @@ class Trimesh(Geometry3D):
         )
 
     def subdivide(
-        self, face_index: Optional[ArrayLike] = None, iterations: Optional[Integer] = None
+        self, face_index: ArrayLike | None = None, iterations: Integer | None = None
     ) -> "Trimesh":
         """
         Subdivide a mesh with each subdivided face replaced
@@ -2223,7 +2222,7 @@ class Trimesh(Geometry3D):
 
         return result
 
-    def subdivide_loop(self, iterations: Optional[Integer] = None) -> "Trimesh":
+    def subdivide_loop(self, iterations: Integer | None = None) -> "Trimesh":
         """
         Subdivide a mesh by dividing each triangle into four
         triangles and approximating their smoothed surface
@@ -2278,7 +2277,7 @@ class Trimesh(Geometry3D):
         return smooth
 
     @property
-    def visual(self) -> Optional[Union[ColorVisuals, TextureVisuals]]:
+    def visual(self) -> ColorVisuals | TextureVisuals | None:
         """
         Get the stored visuals for the current mesh.
 
@@ -2292,7 +2291,7 @@ class Trimesh(Geometry3D):
         return None
 
     @visual.setter
-    def visual(self, value: Optional[Union[ColorVisuals, TextureVisuals]]) -> None:
+    def visual(self, value: ColorVisuals | TextureVisuals | None) -> None:
         """
         When setting a visual object, always make sure
         that `visual.mesh` points back to the source mesh.
@@ -2309,7 +2308,7 @@ class Trimesh(Geometry3D):
 
     def section(
         self, plane_normal: ArrayLike, plane_origin: ArrayLike, **kwargs
-    ) -> Optional[Path3D]:
+    ) -> Path3D | None:
         """
         Returns a 3D cross section of the current mesh and a plane
         defined by origin and normal.
@@ -2357,7 +2356,7 @@ class Trimesh(Geometry3D):
         plane_origin: ArrayLike,
         plane_normal: ArrayLike,
         heights: ArrayLike,
-    ) -> List[Optional[Path2D]]:
+    ) -> List[Path2D | None]:
         """
         Return multiple parallel cross sections of the current
         mesh in 2D.
@@ -2402,7 +2401,7 @@ class Trimesh(Geometry3D):
         plane_origin: ArrayLike,
         plane_normal: ArrayLike,
         cap: bool = False,
-        face_index: Optional[ArrayLike] = None,
+        face_index: ArrayLike | None = None,
         **kwargs,
     ) -> "Trimesh":
         """
@@ -2508,7 +2507,7 @@ class Trimesh(Geometry3D):
         self,
         count: Integer,
         return_index: bool = False,
-        face_weight: Optional[NDArray[float64]] = None,
+        face_weight: NDArray[float64] | None = None,
     ):
         """
         Return random samples distributed across the
@@ -2661,7 +2660,7 @@ class Trimesh(Geometry3D):
         self._cache.id_set()
         return self
 
-    def voxelized(self, pitch: Optional[Floating], method: str = "subdivide", **kwargs):
+    def voxelized(self, pitch: Floating | None, method: str = "subdivide", **kwargs):
         """
         Return a VoxelGrid object representing the current mesh
         discretized into voxels at the specified pitch
@@ -2684,9 +2683,9 @@ class Trimesh(Geometry3D):
 
     def simplify_quadric_decimation(
         self,
-        percent: Optional[Floating] = None,
-        face_count: Optional[Integer] = None,
-        aggression: Optional[Integer] = None,
+        percent: Floating | None = None,
+        face_count: Integer | None = None,
+        aggression: Integer | None = None,
     ) -> "Trimesh":
         """
         A thin wrapper around `pip install fast-simplification`.
@@ -2727,7 +2726,7 @@ class Trimesh(Geometry3D):
 
         return Trimesh(vertices=vertices, faces=faces)
 
-    def outline(self, face_ids: Optional[NDArray[int64]] = None, **kwargs) -> Path3D:
+    def outline(self, face_ids: NDArray[int64] | None = None, **kwargs) -> Path3D:
         """
         Given a list of face indexes find the outline of those
         faces and return it as a Path3D.
@@ -2977,9 +2976,9 @@ class Trimesh(Geometry3D):
     def export(
         self,
         file_obj: Loadable = None,
-        file_type: Optional[str] = None,
+        file_type: str | None = None,
         **kwargs,
-    ) -> Union[Dict, bytes, str]:
+    ) -> Dict | bytes | str:
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
@@ -3003,7 +3002,7 @@ class Trimesh(Geometry3D):
         """
         return export_mesh(mesh=self, file_obj=file_obj, file_type=file_type, **kwargs)
 
-    def to_dict(self) -> Dict[str, Union[str, List[List[float]], List[List[int]]]]:
+    def to_dict(self) -> Dict[str, str | List[List[float]] | List[List[int]]]:
         """
         Return a dictionary representation of the current mesh
         with keys that can be used as the kwargs for the

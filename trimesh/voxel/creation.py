@@ -3,14 +3,14 @@ import numpy as np
 from .. import grouping, remesh, util
 from .. import transformations as tr
 from ..constants import log_time
-from ..typed import ArrayLike, Integer, Number, Optional, VoxelizationMethodsType
+from ..typed import ArrayLike, Integer, Number, VoxelizationMethodsType
 from . import base
 from . import encoding as enc
 
 
 @log_time
 def voxelize_subdivide(
-    mesh, pitch: Number, max_iter: Optional[Integer] = 10, edge_factor: Number = 2.0
+    mesh, pitch: Number, max_iter: Integer | None = 10, edge_factor: Number = 2.0
 ) -> base.VoxelGrid:
     """
     Voxelize a surface by subdividing a mesh until every edge is
@@ -72,7 +72,7 @@ def local_voxelize(
     radius: Number,
     fill: bool = True,
     **kwargs,
-) -> Optional[base.VoxelGrid]:
+) -> base.VoxelGrid | None:
     """
     Voxelize a mesh in the region of a cube around a point. When fill=True,
     uses proximity.contains to fill the resulting voxels so may be meaningless
@@ -164,7 +164,7 @@ def local_voxelize(
 
 @log_time
 def voxelize_ray(
-    mesh, pitch: Number, per_cell: Optional[ArrayLike] = None
+    mesh, pitch: Number, per_cell: ArrayLike | None = None
 ) -> base.VoxelGrid:
     """
     Voxelize a mesh using ray queries.
@@ -227,9 +227,9 @@ def voxelize_ray(
 @log_time
 def voxelize_binvox(
     mesh,
-    pitch: Optional[Number] = None,
-    dimension: Optional[Integer] = None,
-    bounds: Optional[ArrayLike] = None,
+    pitch: Number | None = None,
+    dimension: Integer | None = None,
+    bounds: ArrayLike | None = None,
     **binvoxer_kwargs,
 ) -> base.VoxelGrid:
     """
@@ -286,10 +286,10 @@ voxelizers = util.FunctionRegistry(
 
 def voxelize(
     mesh,
-    pitch: Optional[Number],
+    pitch: Number | None,
     method: VoxelizationMethodsType = "subdivide",
     **kwargs,
-) -> Optional[base.VoxelGrid]:
+) -> base.VoxelGrid | None:
     """
     Voxelize the given mesh using the specified implementation.
 

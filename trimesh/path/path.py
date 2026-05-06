@@ -36,10 +36,8 @@ from ..typed import (
     List,
     Mapping,
     NDArray,
-    Optional,
     Self,
     Tuple,
-    Union,
     float64,
 )
 from ..visual import to_rgba
@@ -93,12 +91,12 @@ class Path(parent.Geometry):
 
     def __init__(
         self,
-        entities: Union[ArrayLike, Iterable[Entity], None] = None,
-        vertices: Optional[ArrayLike] = None,
-        metadata: Optional[Mapping] = None,
+        entities: ArrayLike | Iterable[Entity] | None = None,
+        vertices: ArrayLike | None = None,
+        metadata: Mapping | None = None,
         process: bool = True,
-        colors: Optional[ArrayLike] = None,
-        vertex_attributes: Optional[Mapping] = None,
+        colors: ArrayLike | None = None,
+        vertex_attributes: Mapping | None = None,
         **kwargs,
     ):
         """
@@ -159,7 +157,7 @@ class Path(parent.Geometry):
         return self
 
     @property
-    def colors(self) -> Optional[NDArray]:
+    def colors(self) -> NDArray | None:
         """
         Colors are stored per-entity.
 
@@ -179,7 +177,7 @@ class Path(parent.Geometry):
         return colors
 
     @colors.setter
-    def colors(self, values: Optional[ArrayLike]):
+    def colors(self, values: ArrayLike | None):
         """
         Set the color for every entity in the Path.
 
@@ -204,7 +202,7 @@ class Path(parent.Geometry):
         return self._vertices
 
     @vertices.setter
-    def vertices(self, values: Optional[ArrayLike]):
+    def vertices(self, values: ArrayLike | None):
         if values is None:
             self._vertices = caching.tracked_array([], dtype=np.float64)
         else:
@@ -735,7 +733,7 @@ class Path(parent.Geometry):
     def to_dict(self) -> dict:
         return self.export(file_type="dict")
 
-    def copy(self, layers: Union[str, None, Iterable[Union[str, None]]] = None):
+    def copy(self, layers: str | None | Iterable[str | None] = None):
         """
         Get a copy of the current mesh
 
@@ -853,8 +851,8 @@ class Path3D(Path):
 
     def to_2D(
         self,
-        to_2D: Optional[ArrayLike] = None,
-        normal: Optional[ArrayLike] = None,
+        to_2D: ArrayLike | None = None,
+        normal: ArrayLike | None = None,
         check: bool = True,
     ) -> Tuple["Path2D", NDArray[float64]]:
         """

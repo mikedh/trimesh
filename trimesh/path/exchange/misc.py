@@ -2,7 +2,7 @@ import numpy as np
 
 from ... import graph, grouping, util
 from ...constants import tol_path
-from ...typed import ArrayLike, Dict, NDArray, Optional
+from ...typed import ArrayLike, Dict, NDArray
 from ..entities import Arc, Line
 
 
@@ -40,7 +40,7 @@ def dict_to_path(as_dict):
     return result
 
 
-def lines_to_path(lines: ArrayLike, index: Optional[NDArray[np.int64]] = None) -> Dict:
+def lines_to_path(lines: ArrayLike, index: NDArray[np.int64] | None = None) -> Dict:
     """
     Turn line segments into argument to be used for a Path2D or Path3D.
 

@@ -16,7 +16,7 @@ import numpy as np
 from . import triangles, util
 from .constants import tol
 from .parent import Geometry3D
-from .typed import NDArray, Union
+from .typed import NDArray
 
 try:
     from scipy.spatial import ConvexHull
@@ -160,8 +160,8 @@ QHULL_DEFAULT = QhullOptions(QbB=True, Pp=True, Qt=True)
 
 
 def convex_hull(
-    obj: Union[Geometry3D, NDArray],
-    qhull_options: Union[QhullOptions, str, None] = QHULL_DEFAULT,
+    obj: Geometry3D | NDArray,
+    qhull_options: QhullOptions | str | None = QHULL_DEFAULT,
     repair: bool = True,
 ) -> "trimesh.Trimesh":  # noqa: F821
     """

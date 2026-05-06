@@ -1,6 +1,6 @@
 import numpy as np
 
-from .typed import ArrayLike, Optional
+from .typed import ArrayLike
 
 try:
     from scipy.sparse import coo_matrix, eye
@@ -259,7 +259,7 @@ def filter_mut_dif_laplacian(
 def laplacian_calculation(
     mesh: Trimesh,
     equal_weight: bool = True,
-    pinned_vertices: Optional[ArrayLike] = None,
+    pinned_vertices: ArrayLike | None = None,
 ):
     """
     Calculate a sparse matrix for laplacian operations.
