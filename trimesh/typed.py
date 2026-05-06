@@ -1,7 +1,7 @@
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from pathlib import Path
 from sys import version_info
-from typing import IO, Any, BinaryIO, Literal, Optional
+from typing import IO, Any, BinaryIO, Literal
 
 from numpy import float64, floating, int64, integer
 from numpy.typing import ArrayLike, DTypeLike, NDArray
@@ -64,7 +64,6 @@ __all__ = [
     "Mapping",
     "NDArray",
     "Number",
-    "Optional",
     "Self",
     "Sequence",
     "Stream",
