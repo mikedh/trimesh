@@ -8,7 +8,7 @@ Each scope has a TypedDict defining the context passed to handlers.
 
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Any, TypedDict
+from typing import Any, TypeAlias, TypedDict
 
 from ...constants import log
 from ...typed import Literal
@@ -19,7 +19,7 @@ from ...typed import Literal
 #   primitive           - after loading primitive, can add face_attributes
 #   primitive_preprocess - before accessor reads, can modify accessors in-place
 #   primitive_export    - during mesh export, can compress/modify primitive data
-Scope = Literal[
+Scope: TypeAlias = Literal[
     "material", "texture_source", "primitive", "primitive_preprocess", "primitive_export"
 ]
 
@@ -91,11 +91,11 @@ class PrimitiveExportContext(TypedDict):
 
 
 # Handler type alias - handlers receive a context dict
-Handler = Callable[[Any], Any]
+Handler: TypeAlias = Callable[[Any], Any]
 
 # callback to parse material dict and resolve texture references
 # signature: (*, data: dict) -> dict
-ParseTextures = Callable[..., dict[str, Any]]
+ParseTextures: TypeAlias = Callable[..., dict[str, Any]]
 
 # Registry: {scope: {extension_name: handler}}
 _handlers: dict[str, dict[str, Handler]] = {}
