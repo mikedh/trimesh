@@ -8,6 +8,7 @@ Library for importing, exporting and doing simple operations on triangular meshe
 """
 
 from copy import deepcopy
+from typing import Any
 
 import numpy as np
 from numpy import float64, int64, ndarray
@@ -45,7 +46,6 @@ from .parent import Geometry3D
 from .scene import Scene
 from .triangles import MassProperties
 from .typed import (
-    Any,
     ArrayLike,
     BooleanEngineType,
     Floating,

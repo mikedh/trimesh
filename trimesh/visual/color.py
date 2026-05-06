@@ -23,6 +23,7 @@ Goals
 """
 
 import copy
+from typing import Any
 
 import numpy as np
 
@@ -31,7 +32,6 @@ from ..constants import tol
 from ..grouping import unique_rows
 from ..resources import get_json
 from ..typed import (
-    Any,
     ArrayLike,
     Callable,
     ColorMapType,

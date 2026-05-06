@@ -51,7 +51,6 @@ VoxelizationMethodsType: TypeAlias = Literal["subdivide", "ray", "binvox"]
 
 __all__ = [
     "IO",
-    "Any",
     "ArrayLike",
     "BinaryIO",
     "Callable",

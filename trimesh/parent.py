@@ -8,6 +8,7 @@ The base class for Trimesh, PointCloud, and Scene objects
 import abc
 import os
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -16,7 +17,7 @@ from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
 from .resolvers import ResolverLike
-from .typed import Any, ArrayLike, NDArray, float64
+from .typed import ArrayLike, NDArray, float64
 from .util import ABC
 
 

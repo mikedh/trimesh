@@ -1,6 +1,7 @@
 from math import log2
+from typing import Any
 
-from .typed import Any, Callable, Iterable, NDArray, Sequence
+from .typed import Callable, Iterable, NDArray, Sequence
 
 
 def reduce_cascade(operation: Callable, items: Sequence | NDArray):
