@@ -59,7 +59,6 @@ __all__ = [
     "Hashable",
     "Integer",
     "Iterable",
-    "Literal",
     "Loadable",
     "Mapping",
     "NDArray",

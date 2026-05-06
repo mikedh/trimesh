@@ -8,10 +8,9 @@ Each scope has a TypedDict defining the context passed to handlers.
 
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Any, TypeAlias, TypedDict
+from typing import Any, Literal, TypeAlias, TypedDict
 
 from ...constants import log
-from ...typed import Literal
 
 # Scopes define where in the glTF load/export process handlers run:
 #   material            - after parsing material, can override PBR values
