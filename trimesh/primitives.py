@@ -749,11 +749,11 @@ class Box(Primitive):
 
         Parameters
         ----------
-        extents : Optional[ndarray] (3,) float
+        extents : ndarray (3,) float or None
           Length of each side of the 3D box.
-        transform : Optional[ndarray] (4, 4) float
+        transform : ndarray (4, 4) float or None
           Homogeneous transformation matrix for box center.
-        bounds : Optional[ndarray] (2, 3) float
+        bounds : ndarray (2, 3) float or None
           Axis aligned bounding box, if passed extents and
           transform will be derived from this.
         mutable : bool

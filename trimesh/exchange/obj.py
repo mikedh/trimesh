@@ -829,7 +829,7 @@ def export_obj(
     -----------
     mesh : trimesh.Trimesh
       Mesh to be exported
-    include_normals : Optional[bool]
+    include_normals : bool or None
       Include vertex normals in export. If None
       will only be included if vertex normals are in cache.
     include_color : bool

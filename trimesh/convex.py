@@ -128,10 +128,10 @@ class QhullOptions:
       some of the warnings including the narrow hull warning. """
 
     # TODO : not included non-boolean options
-    # QBk: Optional[Floating] = None
+    # QBk: Floating | None = None
     # """ Scale coord[k] to upper bound of n (default 0.5) """
 
-    # Qbk: Optional[Floating] = None
+    # Qbk: Floating | None = None
     # """ Scale coord[k] to low bound of n (default -0.5) """
 
     # Qbk:0Bk:0

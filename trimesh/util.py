@@ -1397,8 +1397,8 @@ def type_named(obj, name):
 
     Returns
     ----------
-    class : Optional[Callable]
-      Camed class, or None
+    class : Callable | None
+      Named class, or None
     """
     # if obj is a member of the named class, return True
     name = str(name)

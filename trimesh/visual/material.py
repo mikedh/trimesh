@@ -224,7 +224,7 @@ class MultiMaterial(Material):
 
         Parameters
         ----------
-        materials : Optional[List[Material]]
+        materials : list[Material] | None
             List of materials with which the container to be initialized.
         """
         if materials is None:

@@ -38,7 +38,7 @@ Scope = Literal[
 #
 # Example handler pattern:
 #
-#     def my_handler(context: MaterialContext) -> Optional[Dict]:
+#     def my_handler(context: MaterialContext) -> dict | None:
 #         # Access only what you need - additional fields won't break this
 #         data = context["data"]
 #         images = context["images"]
@@ -140,7 +140,7 @@ def register_handler(name: str, scope: Scope) -> Callable[[Handler], Handler]:
     Example
     -------
     >>> @register_handler("MY_extension", scope="material")
-    ... def my_handler(context: MaterialContext) -> Optional[Dict]:
+    ... def my_handler(context: MaterialContext) -> dict | None:
     ...     data = context["data"]
     ...     images = context["images"]
     ...     return {"baseColorFactor": [1, 0, 0, 1]}

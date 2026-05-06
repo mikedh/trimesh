@@ -15,8 +15,8 @@ except BaseException as E:
 def specular_to_pbr(
     specularFactor: ArrayLike | None = None,
     glossinessFactor: Number | None = None,
-    specularGlossinessTexture: Optional["Image"] = None,
-    diffuseTexture: Optional["Image"] = None,
+    specularGlossinessTexture: "Image | None" = None,
+    diffuseTexture: "Image | None" = None,
     diffuseFactor: ArrayLike | None = None,
     **kwargs,
 ) -> dict:
