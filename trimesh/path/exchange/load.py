@@ -1,7 +1,6 @@
 from ... import util
 from ...exceptions import ExceptionWrapper
 from ...exchange.ply import load_ply
-from ...typed import Set
 from ..path import Path
 from . import misc
 from .dxf import _dxf_loaders
@@ -74,7 +73,7 @@ def load_path(file_obj, file_type: str | None = None, **kwargs):
     return result
 
 
-def path_formats() -> Set[str]:
+def path_formats() -> set[str]:
     """
     Get a list of supported path formats.
 

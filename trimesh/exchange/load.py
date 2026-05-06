@@ -10,7 +10,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry, LoadSource
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Loadable, Set
+from ..typed import Loadable
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -38,7 +38,7 @@ except BaseException as E:
         return set()
 
 
-def mesh_formats() -> Set[str]:
+def mesh_formats() -> set[str]:
     """
     Get a list of mesh formats available to load.
 
@@ -52,7 +52,7 @@ def mesh_formats() -> Set[str]:
     return {k for k, v in mesh_loaders.items() if not isinstance(v, ExceptionWrapper)}
 
 
-def available_formats() -> Set[str]:
+def available_formats() -> set[str]:
     """
     Get a list of all available loaders
 

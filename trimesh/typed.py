@@ -7,8 +7,6 @@ from typing import IO, Any, BinaryIO, Literal, Optional, TextIO
 from numpy import float64, floating, int64, integer
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
-Set = set
-
 if version_info >= (3, 11):
     from typing import Self
 else:
@@ -70,7 +68,6 @@ __all__ = [
     "Optional",
     "Self",
     "Sequence",
-    "Set",
     "Stream",
     "ViewerType",
     "float64",

@@ -22,14 +22,7 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import (
-    ArrayLike,
-    Integer,
-    Iterable,
-    NDArray,
-    Set,
-    float64,
-)
+from .typed import ArrayLike, Integer, Iterable, NDArray, float64
 
 # create a default logger
 log = logging.getLogger(__name__)
@@ -2450,7 +2443,7 @@ def is_ccw(points, return_all=False):
 
 def unique_name(
     start: str | None,
-    contains: Set | Mapping | Iterable,
+    contains: set | Mapping | Iterable,
     counts: dict | None = None,
 ):
     """
