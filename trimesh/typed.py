@@ -1,8 +1,7 @@
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
-from io import BufferedRandom, BytesIO, StringIO
 from pathlib import Path
 from sys import version_info
-from typing import IO, Any, BinaryIO, Literal, Optional, TextIO
+from typing import IO, Any, BinaryIO, Literal, Optional
 
 from numpy import float64, floating, int64, integer
 from numpy.typing import ArrayLike, DTypeLike, NDArray
@@ -14,7 +13,7 @@ else:
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
-Stream = IO | BytesIO | StringIO | BinaryIO | TextIO | BufferedRandom
+Stream = IO[str] | IO[bytes]
 Loadable = str | Path | Stream | dict | None
 
 # numpy integers do not inherit from python integers, i.e.
