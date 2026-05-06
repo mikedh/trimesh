@@ -7,7 +7,6 @@ from typing import IO, Any, BinaryIO, Literal, Optional, TextIO
 from numpy import float64, floating, int64, integer
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
-Dict = dict
 Set = set
 
 if version_info >= (3, 11):
@@ -18,7 +17,7 @@ else:
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
 Stream = IO | BytesIO | StringIO | BinaryIO | TextIO | BufferedRandom
-Loadable = str | Path | Stream | Dict | None
+Loadable = str | Path | Stream | dict | None
 
 # numpy integers do not inherit from python integers, i.e.
 # if you type a function argument as an `int` and then pass
@@ -60,7 +59,6 @@ __all__ = [
     "BinaryIO",
     "Callable",
     "DTypeLike",
-    "Dict",
     "Hashable",
     "Integer",
     "Iterable",

@@ -48,7 +48,6 @@ from .typed import (
     Any,
     ArrayLike,
     BooleanEngineType,
-    Dict,
     Floating,
     Integer,
     Loadable,
@@ -103,15 +102,15 @@ class Trimesh(Geometry3D):
         vertex_normals: ArrayLike | None = None,
         face_colors: ArrayLike | None = None,
         vertex_colors: ArrayLike | None = None,
-        face_attributes: Dict[str, ArrayLike] | None = None,
-        vertex_attributes: Dict[str, ArrayLike] | None = None,
-        metadata: Dict[str, Any] | None = None,
+        face_attributes: dict[str, ArrayLike] | None = None,
+        vertex_attributes: dict[str, ArrayLike] | None = None,
+        metadata: dict[str, Any] | None = None,
         process: bool = True,
         validate: bool = False,
         merge_tex: bool | None = None,
         merge_norm: bool | None = None,
         use_embree: bool = True,
-        initial_cache: Dict[str, ndarray] | None = None,
+        initial_cache: dict[str, ndarray] | None = None,
         visual: ColorVisuals | TextureVisuals | None = None,
         **kwargs,
     ) -> None:
@@ -2975,7 +2974,7 @@ class Trimesh(Geometry3D):
         file_obj: Loadable = None,
         file_type: str | None = None,
         **kwargs,
-    ) -> Dict | bytes | str:
+    ) -> dict | bytes | str:
         """
         Export the current mesh to a file object.
         If file_obj is a filename, file will be written there.
@@ -2999,7 +2998,7 @@ class Trimesh(Geometry3D):
         """
         return export_mesh(mesh=self, file_obj=file_obj, file_type=file_type, **kwargs)
 
-    def to_dict(self) -> Dict[str, str | list[list[float]] | list[list[int]]]:
+    def to_dict(self) -> dict[str, str | list[list[float]] | list[list[int]]]:
         """
         Return a dictionary representation of the current mesh
         with keys that can be used as the kwargs for the

@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Dict, Integer, NDArray, Number
+from .typed import ArrayLike, Integer, NDArray, Number
 
 try:
     # shapely is a soft dependency
@@ -255,7 +255,7 @@ def sweep_polygon(
     angles: ArrayLike | None = None,
     cap: bool = True,
     connect: bool = True,
-    kwargs: Dict | None = None,
+    kwargs: dict | None = None,
     **triangulation,
 ) -> Trimesh:
     """
@@ -677,7 +677,7 @@ def triangulate_polygon(
     return vertices, faces
 
 
-def _polygon_to_kwargs(polygon) -> Dict:
+def _polygon_to_kwargs(polygon) -> dict:
     """
     Given a shapely polygon generate the data to pass to
     the triangle mesh generator

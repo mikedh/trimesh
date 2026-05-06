@@ -10,13 +10,13 @@ archives, web assets, or a local file path.
 import abc
 import itertools
 import os
+from typing import TypeAlias
 
 # URL parsing for remote resources via WebResolver
-from typing import TypeAlias
 from urllib.parse import urlparse
 
 from . import caching, util
-from .typed import Dict, Mapping
+from .typed import Mapping
 
 
 class Resolver(util.ABC):
@@ -168,7 +168,7 @@ class ZipResolver(Resolver):
     Resolve files inside a ZIP archive.
     """
 
-    def __init__(self, archive: Dict | None = None, namespace: str | None = None):
+    def __init__(self, archive: dict | None = None, namespace: str | None = None):
         """
         Resolve files inside a ZIP archive as loaded by
         trimesh.util.decompress

@@ -724,7 +724,7 @@ def _from_mesh(
         Dict to accept other key word arguments (not used)
     Returns
     ----------
-    qres : Dict
+    qres : dict
       Dictionary containing :
        - nearest points (m, 3) with key 'nearest'
        - distances to nearest point (m,) with key 'distances'
@@ -799,7 +799,7 @@ def _from_points(
 
     Returns
     ----------
-    qres : Dict
+    qres : dict
       Dictionary containing :
        - nearest points (m, 3) with key 'nearest'
        - distances to nearest point (m,) with key 'distances'

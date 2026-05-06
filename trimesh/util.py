@@ -24,7 +24,6 @@ from .iteration import chain
 # use our wrapped types for wider version compatibility
 from .typed import (
     ArrayLike,
-    Dict,
     Integer,
     Iterable,
     NDArray,
@@ -1304,7 +1303,7 @@ def comment_strip(text, starts_with="#", new_line="\n"):
     return result
 
 
-def encoded_to_array(encoded: Dict | ArrayLike) -> NDArray:
+def encoded_to_array(encoded: dict | ArrayLike) -> NDArray:
     """
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
@@ -2452,7 +2451,7 @@ def is_ccw(points, return_all=False):
 def unique_name(
     start: str | None,
     contains: Set | Mapping | Iterable,
-    counts: Dict | None = None,
+    counts: dict | None = None,
 ):
     """
     Deterministically generate a unique name not

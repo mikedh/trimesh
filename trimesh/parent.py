@@ -16,7 +16,7 @@ from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
 from .resolvers import ResolverLike
-from .typed import Any, ArrayLike, Dict, NDArray, float64
+from .typed import Any, ArrayLike, NDArray, float64
 from .util import ABC
 
 
@@ -56,7 +56,7 @@ class LoadSource:
             return None
         return os.path.basename(self.file_path)
 
-    def __getstate__(self) -> Dict:
+    def __getstate__(self) -> dict[str, Any]:
         # this overrides the `pickle.dump` behavior for this class
         # we cannot pickle a file object so return `file_obj: None` for pickles
         return {k: v if k != "file_obj" else None for k, v in self.__dict__.items()}
@@ -75,7 +75,7 @@ class Geometry(ABC):
     """
 
     # geometry should have a dict to store loose metadata
-    metadata: Dict
+    metadata: dict[str, Any]
 
     @property
     def source(self) -> LoadSource:

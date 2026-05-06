@@ -11,7 +11,7 @@ from collections.abc import Callable
 from typing import Any, TypedDict
 
 from ...constants import log
-from ...typed import Dict, Literal
+from ...typed import Literal
 
 # Scopes define where in the glTF load/export process handlers run:
 #   material            - after parsing material, can override PBR values
@@ -50,31 +50,31 @@ Scope = Literal[
 class MaterialContext(TypedDict):
     """Context for material scope handlers."""
 
-    data: Dict[str, Any]
-    parse_textures: Callable[..., Dict[str, Any]]
+    data: dict[str, Any]
+    parse_textures: Callable[..., dict[str, Any]]
     images: list
 
 
 class TextureSourceContext(TypedDict):
     """Context for texture_source scope handlers."""
 
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
 
 class PrimitiveContext(TypedDict):
     """Context for primitive scope handlers (post-load)."""
 
-    data: Dict[str, Any]
-    primitive: Dict
-    mesh_kwargs: Dict
+    data: dict[str, Any]
+    primitive: dict
+    mesh_kwargs: dict
     accessors: list
 
 
 class PrimitivePreprocessContext(TypedDict):
     """Context for primitive_preprocess scope handlers (pre-load)."""
 
-    data: Dict[str, Any]
-    primitive: Dict
+    data: dict[str, Any]
+    primitive: dict
     accessors: list
     views: list
 
@@ -84,9 +84,9 @@ class PrimitiveExportContext(TypedDict):
 
     mesh: Any
     name: str
-    tree: Dict
+    tree: dict
     buffer_items: OrderedDict
-    primitive: Dict
+    primitive: dict
     include_normals: bool
 
 
@@ -94,14 +94,14 @@ class PrimitiveExportContext(TypedDict):
 Handler = Callable[[Any], Any]
 
 # callback to parse material dict and resolve texture references
-# signature: (*, data: Dict) -> Dict
-ParseTextures = Callable[..., Dict[str, Any]]
+# signature: (*, data: dict) -> dict
+ParseTextures = Callable[..., dict[str, Any]]
 
 # Registry: {scope: {extension_name: handler}}
-_handlers: Dict[str, Dict[str, Handler]] = {}
+_handlers: dict[str, dict[str, Handler]] = {}
 
 
-def _deep_merge(target: Dict, source: Dict) -> None:
+def _deep_merge(target: dict, source: dict) -> None:
     """
     Recursively merge source dict into target dict.
 
@@ -157,7 +157,7 @@ def register_handler(name: str, scope: Scope) -> Callable[[Handler], Handler]:
 
 def handle_extensions(
     *,
-    extensions: Dict[str, Any] | None,
+    extensions: dict[str, Any] | None,
     scope: Scope,
     **kwargs,
 ) -> Any:
@@ -229,7 +229,7 @@ def handle_extensions(
 
 
 @register_handler("KHR_materials_pbrSpecularGlossiness", scope="material")
-def _specular_glossiness(context: MaterialContext) -> Dict[str, Any] | None:
+def _specular_glossiness(context: MaterialContext) -> dict[str, Any] | None:
     """
     Convert specular-glossiness material to PBR metallic-roughness.
 

@@ -10,7 +10,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry, LoadSource
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Dict, Loadable, Set
+from ..typed import Loadable, Set
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -159,7 +159,7 @@ def load_scene(
     file_type: str | None = None,
     resolver: resolvers.ResolverLike | None = None,
     allow_remote: bool = False,
-    metadata: Dict | None = None,
+    metadata: dict | None = None,
     **kwargs,
 ) -> Scene:
     """

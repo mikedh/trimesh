@@ -22,7 +22,7 @@ if int(pyglet.version.split(".")[0]) >= 2:
 
 from .. import rendering, util
 from ..transformations import translation_matrix
-from ..typed import ArrayLike, Callable, Dict, Iterable, Number
+from ..typed import ArrayLike, Callable, Iterable, Number
 from ..visual import to_rgba
 from .trackball import Trackball
 
@@ -59,7 +59,7 @@ class SceneViewer(pyglet.window.Window):
         self,
         scene,
         smooth: bool = True,
-        flags: Dict | None = None,
+        flags: dict | None = None,
         visible: bool = True,
         resolution: ArrayLike | None = None,
         fullscreen: bool = False,
@@ -70,7 +70,7 @@ class SceneViewer(pyglet.window.Window):
         caption: str | None = None,
         fixed: Iterable | None = None,
         offset_lines: bool = True,
-        line_settings: Dict | None = None,
+        line_settings: dict | None = None,
         background=None,
         window_conf=None,
         profile: bool = False,

@@ -2,7 +2,7 @@ import numpy as np
 
 from ... import graph, grouping, util
 from ...constants import tol_path
-from ...typed import ArrayLike, Dict, NDArray
+from ...typed import ArrayLike, NDArray
 from ..entities import Arc, Line
 
 
@@ -40,7 +40,7 @@ def dict_to_path(as_dict):
     return result
 
 
-def lines_to_path(lines: ArrayLike, index: NDArray[np.int64] | None = None) -> Dict:
+def lines_to_path(lines: ArrayLike, index: NDArray[np.int64] | None = None) -> dict:
     """
     Turn line segments into argument to be used for a Path2D or Path3D.
 
@@ -53,7 +53,7 @@ def lines_to_path(lines: ArrayLike, index: NDArray[np.int64] | None = None) -> D
 
     Returns
     -----------
-    kwargs : Dict
+    kwargs : dict
       kwargs for Path constructor
     """
     lines = np.asanyarray(lines, dtype=np.float64)
@@ -123,7 +123,7 @@ def polygon_to_path(polygon):
     return kwargs
 
 
-def linestrings_to_path(multi) -> Dict:
+def linestrings_to_path(multi) -> dict:
     """
     Load shapely LineString objects into arguments to create a Path2D or Path3D.
 
@@ -134,7 +134,7 @@ def linestrings_to_path(multi) -> Dict:
 
     Returns
     -------------
-    kwargs : Dict
+    kwargs : dict
       Keyword arguments for Path2D or Path3D constructor
     """
     import shapely
@@ -191,7 +191,7 @@ def faces_to_path(mesh, face_ids=None, **kwargs):
     return kwargs
 
 
-def edges_to_path(edges: ArrayLike, vertices: ArrayLike, **kwargs) -> Dict:
+def edges_to_path(edges: ArrayLike, vertices: ArrayLike, **kwargs) -> dict:
     """
     Given an edge list of indices and associated vertices
     representing lines, generate kwargs for a Path object.

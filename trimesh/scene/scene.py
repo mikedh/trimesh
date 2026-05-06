@@ -15,7 +15,6 @@ from ..parent import Geometry, Geometry3D
 from ..registration import procrustes
 from ..typed import (
     ArrayLike,
-    Dict,
     Floating,
     Integer,
     Iterable,
@@ -30,7 +29,7 @@ from . import cameras, lighting
 from .transforms import SceneGraph
 
 # the types of objects we can create a scene from
-GeometryInput: TypeAlias = Geometry | Iterable[Geometry] | Dict[str, Geometry] | ArrayLike
+GeometryInput: TypeAlias = Geometry | Iterable[Geometry] | dict[str, Geometry] | ArrayLike
 
 
 class Scene(Geometry3D):
@@ -45,7 +44,7 @@ class Scene(Geometry3D):
         self,
         geometry: GeometryInput | None = None,
         base_frame: str = "world",
-        metadata: Dict | None = None,
+        metadata: dict | None = None,
         graph: SceneGraph | None = None,
         camera: cameras.Camera | None = None,
         lights: Sequence[lighting.Light] | None = None,
@@ -123,7 +122,7 @@ class Scene(Geometry3D):
         geom_name: str | None = None,
         parent_node_name: str | None = None,
         transform: NDArray | None = None,
-        metadata: Dict | None = None,
+        metadata: dict | None = None,
     ):
         """
         Add a geometry to the scene.
@@ -345,7 +344,7 @@ class Scene(Geometry3D):
         return referenced == set(self.geometry.keys())
 
     @caching.cache_decorator
-    def bounds_corners(self) -> Dict[str, NDArray[float64]]:
+    def bounds_corners(self) -> dict[str, NDArray[float64]]:
         """
         Get the post-transform AABB for each node
         which has geometry defined.
@@ -604,7 +603,7 @@ class Scene(Geometry3D):
         return self._cache["triangles_node"]
 
     @caching.cache_decorator
-    def geometry_identifiers(self) -> Dict[str, str]:
+    def geometry_identifiers(self) -> dict[str, str]:
         """
         Look up geometries by identifier hash.
 
