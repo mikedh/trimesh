@@ -899,9 +899,7 @@ def colors_to_materials(colors: ArrayLike, count: Integer | None = None):
     return diffuse, index
 
 
-def linear_color_map(
-    values: ArrayLike, color_range: ArrayLike | None = None
-) -> NDArray:
+def linear_color_map(values: ArrayLike, color_range: ArrayLike | None = None) -> NDArray:
     """
     Linearly interpolate a color lookup table from normalized
     values.

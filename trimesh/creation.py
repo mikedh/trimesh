@@ -1324,9 +1324,7 @@ def axis(
     return marker
 
 
-def camera_marker(
-    camera, marker_height: Number = 0.4, origin_size: Number | None = None
-):
+def camera_marker(camera, marker_height: Number = 0.4, origin_size: Number | None = None):
     """
     Create a visual marker for a camera object, including an axis and FOV.
 

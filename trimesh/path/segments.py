@@ -350,9 +350,7 @@ def extrude(segments: ArrayLike, height: Number, double_sided: bool = False):
     return vertices, faces
 
 
-def length(
-    segments: ArrayLike, summed: bool = True
-) -> np.float64 | NDArray[np.float64]:
+def length(segments: ArrayLike, summed: bool = True) -> np.float64 | NDArray[np.float64]:
     """
     Return the lengths of an array of line segments.
 

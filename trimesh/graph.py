@@ -290,9 +290,7 @@ def shared_edges(faces_a, faces_b):
     return shared
 
 
-def facets(
-    mesh, engine: GraphEngineType = None, facet_threshold: Number | None = None
-):
+def facets(mesh, engine: GraphEngineType = None, facet_threshold: Number | None = None):
     """
     Find the list of parallel adjacent faces.
 
@@ -779,9 +777,7 @@ def neighbors(edges, max_index=None, directed=False):
     return array
 
 
-def smooth_shade(
-    mesh, angle: Number | None = None, facet_minarea: Number | None = 10.0
-):
+def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None = 10.0):
     """
     Return a non-watertight version of the mesh which
     will render nicely with smooth shading by
