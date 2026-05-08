@@ -1,14 +1,13 @@
 from ... import util
 from ...exceptions import ExceptionWrapper
 from ...exchange.ply import load_ply
-from ...typed import Optional, Set
 from ..path import Path
 from . import misc
 from .dxf import _dxf_loaders
 from .svg_io import _svg_loaders
 
 
-def load_path(file_obj, file_type: Optional[str] = None, **kwargs):
+def load_path(file_obj, file_type: str | None = None, **kwargs):
     """
     Load a file to a Path file_object.
 
@@ -74,7 +73,7 @@ def load_path(file_obj, file_type: Optional[str] = None, **kwargs):
     return result
 
 
-def path_formats() -> Set[str]:
+def path_formats() -> set[str]:
     """
     Get a list of supported path formats.
 

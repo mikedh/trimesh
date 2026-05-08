@@ -9,7 +9,6 @@ import json
 import logging
 import random
 import shutil
-import sys
 import time
 import uuid
 import warnings
@@ -23,17 +22,7 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import (
-    ArrayLike,
-    Dict,
-    Integer,
-    Iterable,
-    NDArray,
-    Optional,
-    Set,
-    Union,
-    float64,
-)
+from .typed import ArrayLike, Integer, Iterable, NDArray, float64
 
 # create a default logger
 log = logging.getLogger(__name__)
@@ -71,12 +60,7 @@ def has_module(name: str) -> bool:
     installed : bool
       True if module is installed
     """
-    if sys.version_info >= (3, 10):
-        # pkgutil was deprecated
-        from importlib.util import find_spec
-    else:
-        # this should work on Python 2.7 and 3.4+
-        from pkgutil import find_loader as find_spec
+    from importlib.util import find_spec
 
     return find_spec(name) is not None
 
@@ -761,7 +745,6 @@ def tolist(data):
 def is_binary_file(file_obj):
     """
     Returns True if file has non-ASCII characters (> 0x7F, or 127)
-    Should work in both Python 2 and 3
     """
     start = file_obj.tell()
     fbytes = file_obj.read(1024)
@@ -820,10 +803,10 @@ def decimal_to_digits(decimal, min_digits=None) -> int:
 def attach_to_log(
     level=logging.DEBUG,
     handler=None,
-    loggers: Optional[Iterable[logging.Logger]] = None,
+    loggers: Iterable[logging.Logger] | None = None,
     colors: bool = True,
     capture_warnings: bool = True,
-    blacklist: Optional[Iterable] = None,
+    blacklist: Iterable | None = None,
     only_parent: bool = True,
 ):
     """
@@ -1313,7 +1296,7 @@ def comment_strip(text, starts_with="#", new_line="\n"):
     return result
 
 
-def encoded_to_array(encoded: Union[Dict, ArrayLike]) -> NDArray:
+def encoded_to_array(encoded: dict | ArrayLike) -> NDArray:
     """
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
@@ -1405,8 +1388,8 @@ def type_named(obj, name):
 
     Returns
     ----------
-    class : Optional[Callable]
-      Camed class, or None
+    class : Callable | None
+      Named class, or None
     """
     # if obj is a member of the named class, return True
     name = str(name)
@@ -1420,7 +1403,7 @@ def type_named(obj, name):
 
 def concatenate(
     a, b=None
-) -> Union["trimesh.Trimesh", "trimesh.path.Path2D", "trimesh.path.Path3D"]:  # noqa: F821
+) -> "trimesh.Trimesh | trimesh.path.Path2D | trimesh.path.Path3D":  # noqa: F821
     """
     Concatenate two or more meshes.
 
@@ -1559,7 +1542,7 @@ def submesh(
     faces_sequence,
     repair: bool = True,
     only_watertight: bool = False,
-    min_faces: Optional[Integer] = None,
+    min_faces: Integer | None = None,
     append: bool = False,
 ):
     """
@@ -2458,9 +2441,9 @@ def is_ccw(points, return_all=False):
 
 
 def unique_name(
-    start: Optional[str],
-    contains: Union[Set, Mapping, Iterable],
-    counts: Optional[Dict] = None,
+    start: str | None,
+    contains: set | Mapping | Iterable,
+    counts: dict | None = None,
 ):
     """
     Deterministically generate a unique name not

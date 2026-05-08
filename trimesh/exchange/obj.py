@@ -1,3 +1,4 @@
+import itertools
 import os
 import re
 from collections import defaultdict, deque
@@ -18,7 +19,7 @@ except BaseException as E:
 from .. import util
 from ..constants import log, tol
 from ..resolvers import ResolverLike
-from ..typed import Dict, Loadable, Optional
+from ..typed import Loadable
 from ..visual.color import to_float
 from ..visual.material import SimpleMaterial
 from ..visual.texture import TextureVisuals, unmerge_faces
@@ -26,15 +27,15 @@ from ..visual.texture import TextureVisuals, unmerge_faces
 
 def load_obj(
     file_obj: Loadable,
-    resolver: Optional[ResolverLike] = None,
+    resolver: ResolverLike | None = None,
     group_material: bool = True,
     skip_materials: bool = False,
     maintain_order: bool = False,
-    metadata: Optional[Dict] = None,
+    metadata: dict | None = None,
     split_objects: bool = False,
     split_groups: bool = False,
     **kwargs,
-) -> Dict:
+) -> dict:
     """
     Load a Wavefront OBJ file into kwargs for a trimesh.Scene
     object.
@@ -788,7 +789,7 @@ def _preprocess_faces(text, use_obj=False, use_groups=False):
     # store (material, object, group, face lines)
     face_tuples = []
 
-    for start, end in zip(splits[:-1], splits[1:]):
+    for start, end in itertools.pairwise(splits):
         # ensure there's always a trailing newline
         chunk = f_chunk[start:end].strip() + "\n"
         if chunk.startswith("o "):
@@ -828,7 +829,7 @@ def export_obj(
     -----------
     mesh : trimesh.Trimesh
       Mesh to be exported
-    include_normals : Optional[bool]
+    include_normals : bool or None
       Include vertex normals in export. If None
       will only be included if vertex normals are in cache.
     include_color : bool

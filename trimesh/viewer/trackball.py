@@ -30,7 +30,7 @@ from typing import Literal
 import numpy as np
 
 from .. import transformations
-from ..typed import ArrayLike, Floating, NDArray, Optional
+from ..typed import ArrayLike, Floating, NDArray
 
 
 class Trackball:
@@ -46,7 +46,7 @@ class Trackball:
         pose: ArrayLike,
         size: ArrayLike,
         scale: Floating,
-        target: Optional[ArrayLike] = None,
+        target: ArrayLike | None = None,
     ):
         """Initialize a trackball with an initial camera-to-world pose
         and the given parameters.

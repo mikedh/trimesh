@@ -1,6 +1,6 @@
 import numpy as np
 
-from .typed import ArrayLike, Optional
+from .typed import ArrayLike
 
 try:
     from scipy.sparse import coo_matrix, eye
@@ -259,7 +259,7 @@ def filter_mut_dif_laplacian(
 def laplacian_calculation(
     mesh: Trimesh,
     equal_weight: bool = True,
-    pinned_vertices: Optional[ArrayLike] = None,
+    pinned_vertices: ArrayLike | None = None,
 ):
     """
     Calculate a sparse matrix for laplacian operations.
@@ -293,11 +293,7 @@ def laplacian_calculation(
                 (laplacian.data, np.ones(len(pinned_vertices), dtype=bool))
             )
 
-        # using this instead of the line below
-        # laplacian = laplacian / laplacian.sum(axis=1)
-        # because on Python 3.8 that returns a `numpy.matrix`
-        # value instead of a `sparse.coo_matrix`
-        laplacian = laplacian.multiply(1.0 / laplacian.sum(axis=1))
+        laplacian = laplacian / laplacian.sum(axis=1)
 
     else:
         # get the vertex neighbors from the cache

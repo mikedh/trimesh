@@ -1,9 +1,10 @@
 import copy
+import itertools
 
 import numpy as np
 
 from .. import constants, grouping, util
-from ..typed import ArrayLike, Integer, NDArray, Number, Optional
+from ..typed import ArrayLike, Integer, NDArray, Number
 from .util import is_ccw
 
 try:
@@ -142,7 +143,7 @@ def vertex_to_entity_path(vertex_path, graph, entities, vertices=None):
     # traverse the entity path and reverse entities in place to
     # align with this path ordering
     round_trip = np.append(entity_path, entity_path[0])
-    round_trip = zip(round_trip[:-1], round_trip[1:])
+    round_trip = itertools.pairwise(round_trip)
     for ea, eb in round_trip:
         da, db = edge_direction(entities[ea].end_points, entities[eb].end_points)
         if da is not None:
@@ -351,8 +352,8 @@ class PathSample:
 
 def resample_path(
     points: ArrayLike,
-    count: Optional[Integer] = None,
-    step: Optional[Number] = None,
+    count: Integer | None = None,
+    step: Number | None = None,
     step_round: bool = True,
     include_original: bool = False,
 ) -> NDArray[np.float64]:

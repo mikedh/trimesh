@@ -10,7 +10,7 @@ from .. import grouping, resources, util, visual
 from ..constants import log
 from ..geometry import triangulate_quads
 from ..resolvers import Resolver
-from ..typed import NDArray, Optional
+from ..typed import NDArray
 
 # from ply specification, and additional dtypes found in the wild
 _dtypes = {
@@ -68,9 +68,9 @@ def _numpy_type_to_ply_type(_numpy_type):
 
 def load_ply(
     file_obj,
-    resolver: Optional[Resolver] = None,
+    resolver: Resolver | None = None,
     fix_texture: bool = True,
-    prefer_color: Optional[str] = None,
+    prefer_color: str | None = None,
     skip_materials: bool = False,
     *args,
     **kwargs,
@@ -234,7 +234,7 @@ def _assert_attributes_valid(attributes):
 def export_ply(
     mesh,
     encoding="binary",
-    vertex_normal: Optional[bool] = None,
+    vertex_normal: bool | None = None,
     include_attributes: bool = True,
 ):
     """
@@ -294,9 +294,9 @@ def export_ply(
     header_params = {"encoding": encoding}
 
     # structured arrays for exports
-    pack_edges: Optional[NDArray] = None
-    pack_vertex: Optional[NDArray] = None
-    pack_faces: Optional[NDArray] = None
+    pack_edges: NDArray | None = None
+    pack_vertex: NDArray | None = None
+    pack_faces: NDArray | None = None
 
     # check if scene has geometry
     # check if this is a `trimesh.path.Path` object.

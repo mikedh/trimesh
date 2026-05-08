@@ -7,28 +7,19 @@ if everything else fails.
 
 import json
 import os
-from typing import Optional
 
 
-def _get_version() -> Optional[str]:
+def _get_version() -> str | None:
     """
     Try all our methods to get the version.
     """
 
     try:
-        # Get the version string using package metadata on Python >= 3.8
+        # Get the version string using package metadata
         from importlib.metadata import version
 
         return version("trimesh")
-    except BaseException:
-        pass
-
-    try:
-        # Get the version string using package metadata on Python < 3.8
-        from pkg_resources import get_distribution
-
-        return get_distribution("trimesh").version
-    except BaseException:
+    except Exception:
         pass
 
     try:
@@ -46,7 +37,7 @@ def _get_version() -> Optional[str]:
             # json.loads cleans up the string and removes the quotes
             # this logic requires the first use of "version" be the actual version
             return next(json.loads(L.split("=")[1]) for L in f if "version" in L)
-    except BaseException:
+    except Exception:
         pass
 
     return None

@@ -1,9 +1,7 @@
 import numpy as np
 
-from .typed import Dict, List
 
-
-def convex_decomposition(mesh, **kwargs) -> List[Dict]:
+def convex_decomposition(mesh, **kwargs) -> list[dict]:
     """
     Compute an approximate convex decomposition of a mesh.
 

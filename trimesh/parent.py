@@ -8,6 +8,7 @@ The base class for Trimesh, PointCloud, and Scene objects
 import abc
 import os
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -16,7 +17,7 @@ from . import transformations as tf
 from .caching import cache_decorator
 from .constants import tol
 from .resolvers import ResolverLike
-from .typed import Any, ArrayLike, Dict, NDArray, Optional, float64
+from .typed import ArrayLike, NDArray, float64
 from .util import ABC
 
 
@@ -27,23 +28,23 @@ class LoadSource:
     """
 
     # a file-like object that can be accessed
-    file_obj: Optional[Any] = None
+    file_obj: Any | None = None
 
     # a cleaned file type string, i.e. "stl"
-    file_type: Optional[str] = None
+    file_type: str | None = None
 
     # if this was originally loaded from a file path
     # save it here so we can check it later.
-    file_path: Optional[str] = None
+    file_path: str | None = None
 
     # did we open `file_obj` ourselves?
     was_opened: bool = False
 
     # a resolver for loading assets next to the file
-    resolver: Optional[ResolverLike] = None
+    resolver: ResolverLike | None = None
 
     @property
-    def file_name(self) -> Optional[str]:
+    def file_name(self) -> str | None:
         """
         Get just the file name from the path if available.
 
@@ -56,7 +57,7 @@ class LoadSource:
             return None
         return os.path.basename(self.file_path)
 
-    def __getstate__(self) -> Dict:
+    def __getstate__(self) -> dict[str, Any]:
         # this overrides the `pickle.dump` behavior for this class
         # we cannot pickle a file object so return `file_obj: None` for pickles
         return {k: v if k != "file_obj" else None for k, v in self.__dict__.items()}
@@ -75,7 +76,7 @@ class Geometry(ABC):
     """
 
     # geometry should have a dict to store loose metadata
-    metadata: Dict
+    metadata: dict[str, Any]
 
     @property
     def source(self) -> LoadSource:
@@ -259,7 +260,7 @@ class Geometry(ABC):
         return scale
 
     @property
-    def units(self) -> Optional[str]:
+    def units(self) -> str | None:
         """
         Definition of units for the mesh.
 

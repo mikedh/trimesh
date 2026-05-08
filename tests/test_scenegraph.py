@@ -223,9 +223,6 @@ def test_reverse():
 def test_shortest_path():
     # compare the EnforcedForest shortest path algo
     # to the more general networkx.shortest_path algo
-    if g.sys.version_info < (3, 7):
-        # old networkx is a lot different
-        return
 
     tf = g.trimesh.transformations
     # start with a known good random tree

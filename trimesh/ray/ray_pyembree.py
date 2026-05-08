@@ -17,11 +17,9 @@ from .ray_util import contains_points
 # embree operates on float32 values
 _embree_dtype = np.float32
 
-# when calculating multiple hits we offset the hit to
-# advance the ray past the plane of the triangle we hit
-# hardcode offset for rays larger than our resolution:
-#   np.finfo(_embree_dtype).resolution * 10
-_ray_offset = 1e-5
+# scale-aware base ray offset to step past hit triangles above f32 ULP
+_ray_offset_factor = 1e-6
+_ray_offset_floor = 1e-8
 
 
 class RayMeshIntersector:
@@ -150,7 +148,8 @@ class RayMeshIntersector:
 
         if multiple_hits or return_locations:
             # how much to offset ray to transport to the other side of face
-            ray_offsets = ray_directions * _ray_offset
+            base_offset = max(_ray_offset_floor, self.mesh.scale * _ray_offset_factor)
+            ray_offsets = ray_directions * base_offset
 
             # grab the planes from triangles
             plane_origins = self.mesh.triangles[:, 0, :]
@@ -214,7 +213,7 @@ class RayMeshIntersector:
 
             # clean hits step onto the new face with a fresh base offset
             ray_origins[ok_rays] = new_origins + ray_offsets[ok_rays]
-            ray_offsets[ok_rays] = ray_directions[ok_rays] * _ray_offset
+            ray_offsets[ok_rays] = ray_directions[ok_rays] * base_offset
             # stuck rays double their offset and step further to try to clear
             ray_offsets[dupe_rays] *= 2.0
             ray_origins[dupe_rays] += ray_offsets[dupe_rays]
