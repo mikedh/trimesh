@@ -2,7 +2,7 @@ import numpy as np
 
 from .. import util
 from ..constants import log
-from ..typed import ArrayLike, Number, Optional, Union
+from ..typed import ArrayLike, Number
 
 
 def fill_orthographic(dense):
@@ -98,8 +98,8 @@ fill_voxelization = fill_base
 
 def matrix_to_marching_cubes(
     matrix: ArrayLike,
-    pitch: Union[Number, ArrayLike] = 1.0,
-    threshold: Optional[Number] = None,
+    pitch: Number | ArrayLike = 1.0,
+    threshold: Number | None = None,
 ):
     """
     Convert an (n, m, p) matrix into a mesh, using marching_cubes.

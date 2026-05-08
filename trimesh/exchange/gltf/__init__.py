@@ -18,7 +18,7 @@ from ...caching import hash_fast
 from ...constants import log, tol
 from ...resolvers import ResolverLike, ZipResolver
 from ...scene.cameras import Camera
-from ...typed import Dict, List, NDArray, Optional, Stream
+from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
 from .extensions import handle_extensions
 
@@ -275,8 +275,8 @@ def export_glb(
 
 
 def load_gltf(
-    file_obj: Optional[Stream] = None,
-    resolver: Optional[ResolverLike] = None,
+    file_obj: Stream | None = None,
+    resolver: ResolverLike | None = None,
     ignore_broken: bool = False,
     merge_primitives: bool = False,
     skip_materials: bool = False,
@@ -351,7 +351,7 @@ def load_gltf(
 
 def load_glb(
     file_obj: Stream,
-    resolver: Optional[ResolverLike] = None,
+    resolver: ResolverLike | None = None,
     ignore_broken: bool = False,
     merge_primitives: bool = False,
     skip_materials: bool = False,
@@ -765,7 +765,7 @@ def _append_mesh(
     name,
     tree,
     buffer_items,
-    include_normals: Optional[bool],
+    include_normals: bool | None,
     unitize_normals: bool,
     mat_hashes: dict,
     extension_webp: bool,
@@ -1423,10 +1423,10 @@ def _parse_materials(header, views, resolver=None):
 
 
 def _read_buffers(
-    header: Dict,
-    buffers: List[bytes],
-    mesh_kwargs: Dict,
-    resolver: Optional[ResolverLike],
+    header: dict,
+    buffers: list[bytes],
+    mesh_kwargs: dict,
+    resolver: ResolverLike | None,
     ignore_broken: bool = False,
     merge_primitives: bool = False,
     skip_materials: bool = False,

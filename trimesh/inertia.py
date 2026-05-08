@@ -10,12 +10,12 @@ internal consistency.
 
 import numpy as np
 
-from .typed import ArrayLike, NDArray, Number, Optional, Union, float64
+from .typed import ArrayLike, NDArray, Number, float64
 from .util import multi_dot
 
 
 def cylinder_inertia(
-    mass: Number, radius: Number, height: Number, transform: Optional[ArrayLike] = None
+    mass: Number, radius: Number, height: Number, transform: ArrayLike | None = None
 ) -> NDArray[float64]:
     """
     Return the inertia tensor of a cylinder.
@@ -73,7 +73,7 @@ def sphere_inertia(mass: Number, radius: Number) -> NDArray[float64]:
 
 def points_inertia(
     points: ArrayLike,
-    weights: Union[None, ArrayLike, Number] = None,
+    weights: None | ArrayLike | Number = None,
     at_center_mass: bool = True,
 ) -> NDArray[float64]:
     """
@@ -180,7 +180,7 @@ def transform_inertia(
     transform: ArrayLike,
     inertia_tensor: ArrayLike,
     parallel_axis: bool = False,
-    mass: Optional[Number] = None,
+    mass: Number | None = None,
 ):
     """
      Transform an inertia tensor to a new frame.
@@ -328,7 +328,7 @@ def radial_symmetry(mesh):
     return None, None, None
 
 
-def scene_inertia(scene, transform: Optional[ArrayLike] = None) -> NDArray[float64]:
+def scene_inertia(scene, transform: ArrayLike | None = None) -> NDArray[float64]:
     """
     Calculate the inertia of a scene about a specific frame.
 

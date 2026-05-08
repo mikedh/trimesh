@@ -16,7 +16,7 @@ import numpy as np
 from . import triangles, util
 from .constants import tol
 from .parent import Geometry3D
-from .typed import NDArray, Union
+from .typed import NDArray
 
 try:
     from scipy.spatial import ConvexHull
@@ -128,10 +128,10 @@ class QhullOptions:
       some of the warnings including the narrow hull warning. """
 
     # TODO : not included non-boolean options
-    # QBk: Optional[Floating] = None
+    # QBk: Floating | None = None
     # """ Scale coord[k] to upper bound of n (default 0.5) """
 
-    # Qbk: Optional[Floating] = None
+    # Qbk: Floating | None = None
     # """ Scale coord[k] to low bound of n (default -0.5) """
 
     # Qbk:0Bk:0
@@ -160,8 +160,8 @@ QHULL_DEFAULT = QhullOptions(QbB=True, Pp=True, Qt=True)
 
 
 def convex_hull(
-    obj: Union[Geometry3D, NDArray],
-    qhull_options: Union[QhullOptions, str, None] = QHULL_DEFAULT,
+    obj: Geometry3D | NDArray,
+    qhull_options: QhullOptions | str | None = QHULL_DEFAULT,
     repair: bool = True,
 ) -> "trimesh.Trimesh":  # noqa: F821
     """

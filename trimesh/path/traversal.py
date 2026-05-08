@@ -4,7 +4,7 @@ import itertools
 import numpy as np
 
 from .. import constants, grouping, util
-from ..typed import ArrayLike, Integer, NDArray, Number, Optional
+from ..typed import ArrayLike, Integer, NDArray, Number
 from .util import is_ccw
 
 try:
@@ -352,8 +352,8 @@ class PathSample:
 
 def resample_path(
     points: ArrayLike,
-    count: Optional[Integer] = None,
-    step: Optional[Number] = None,
+    count: Integer | None = None,
+    step: Number | None = None,
     step_round: bool = True,
     include_original: bool = False,
 ) -> NDArray[np.float64]:

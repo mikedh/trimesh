@@ -11,7 +11,7 @@ from .. import geometry, transformations, util
 from ..constants import tol
 from ..grouping import group_rows, unique_rows
 from ..interval import union
-from ..typed import ArrayLike, Integer, NDArray, Number, Optional, Union, float64
+from ..typed import ArrayLike, Integer, NDArray, Number, float64
 
 
 def segments_to_parameters(segments: ArrayLike):
@@ -97,7 +97,7 @@ def colinear_pairs(
     segments: ArrayLike,
     radius: Number = 0.01,
     angle: Number = 0.01,
-    length: Optional[Number] = None,
+    length: Number | None = None,
 ) -> NDArray[np.int64]:
     """
     Find pairs of segments which are colinear.
@@ -352,7 +352,7 @@ def extrude(segments: ArrayLike, height: Number, double_sided: bool = False):
 
 def length(
     segments: ArrayLike, summed: bool = True
-) -> Union[np.float64, NDArray[np.float64]]:
+) -> np.float64 | NDArray[np.float64]:
     """
     Return the lengths of an array of line segments.
 
@@ -494,7 +494,7 @@ def resample(
 def to_svg(
     segments: ArrayLike,
     digits: Integer = 4,
-    matrix: Optional[ArrayLike] = None,
+    matrix: ArrayLike | None = None,
     merge: bool = True,
 ) -> str:
     """

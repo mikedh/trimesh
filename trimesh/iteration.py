@@ -1,9 +1,10 @@
 from math import log2
+from typing import Any
 
-from .typed import Any, Callable, Iterable, List, NDArray, Sequence, Union
+from .typed import Callable, Iterable, NDArray, Sequence
 
 
-def reduce_cascade(operation: Callable, items: Union[Sequence, NDArray]):
+def reduce_cascade(operation: Callable, items: Sequence | NDArray):
     """
     Call an operation function in a cascaded pairwise way against a
     flat list of items.
@@ -75,7 +76,7 @@ def reduce_cascade(operation: Callable, items: Union[Sequence, NDArray]):
     return results[0]
 
 
-def chain(*args: Union[Iterable[Any], Any, None]) -> List[Any]:
+def chain(*args: Iterable[Any] | Any | None) -> list[Any]:
     """
     A less principled version of `list(itertools.chain(*args))` that
     accepts non-iterable values, filters `None`, and returns a list

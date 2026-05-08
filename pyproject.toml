@@ -162,6 +162,8 @@ ignore = [
   "RUF005", # recommends non-type-aware expansion
 ]
 
+typing-modules = ["trimesh.typed"]
+
 # don't allow implicit string concatenation
 flake8-implicit-str-concat = {"allow-multiline" = false}
 

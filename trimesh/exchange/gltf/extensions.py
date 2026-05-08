@@ -8,10 +8,9 @@ Each scope has a TypedDict defining the context passed to handlers.
 
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Any, TypedDict
+from typing import Any, Literal, TypeAlias, TypedDict
 
 from ...constants import log
-from ...typed import Dict, List, Literal, Optional
 
 # Scopes define where in the glTF load/export process handlers run:
 #   material            - after parsing material, can override PBR values
@@ -19,7 +18,7 @@ from ...typed import Dict, List, Literal, Optional
 #   primitive           - after loading primitive, can add face_attributes
 #   primitive_preprocess - before accessor reads, can modify accessors in-place
 #   primitive_export    - during mesh export, can compress/modify primitive data
-Scope = Literal[
+Scope: TypeAlias = Literal[
     "material", "texture_source", "primitive", "primitive_preprocess", "primitive_export"
 ]
 
@@ -38,7 +37,7 @@ Scope = Literal[
 #
 # Example handler pattern:
 #
-#     def my_handler(context: MaterialContext) -> Optional[Dict]:
+#     def my_handler(context: MaterialContext) -> dict | None:
 #         # Access only what you need - additional fields won't break this
 #         data = context["data"]
 #         images = context["images"]
@@ -50,33 +49,33 @@ Scope = Literal[
 class MaterialContext(TypedDict):
     """Context for material scope handlers."""
 
-    data: Dict[str, Any]
-    parse_textures: Callable[..., Dict[str, Any]]
-    images: List
+    data: dict[str, Any]
+    parse_textures: Callable[..., dict[str, Any]]
+    images: list
 
 
 class TextureSourceContext(TypedDict):
     """Context for texture_source scope handlers."""
 
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
 
 class PrimitiveContext(TypedDict):
     """Context for primitive scope handlers (post-load)."""
 
-    data: Dict[str, Any]
-    primitive: Dict
-    mesh_kwargs: Dict
-    accessors: List
+    data: dict[str, Any]
+    primitive: dict
+    mesh_kwargs: dict
+    accessors: list
 
 
 class PrimitivePreprocessContext(TypedDict):
     """Context for primitive_preprocess scope handlers (pre-load)."""
 
-    data: Dict[str, Any]
-    primitive: Dict
-    accessors: List
-    views: List
+    data: dict[str, Any]
+    primitive: dict
+    accessors: list
+    views: list
 
 
 class PrimitiveExportContext(TypedDict):
@@ -84,24 +83,24 @@ class PrimitiveExportContext(TypedDict):
 
     mesh: Any
     name: str
-    tree: Dict
+    tree: dict
     buffer_items: OrderedDict
-    primitive: Dict
+    primitive: dict
     include_normals: bool
 
 
 # Handler type alias - handlers receive a context dict
-Handler = Callable[[Any], Any]
+Handler: TypeAlias = Callable[[Any], Any]
 
 # callback to parse material dict and resolve texture references
-# signature: (*, data: Dict) -> Dict
-ParseTextures = Callable[..., Dict[str, Any]]
+# signature: (*, data: dict) -> dict
+ParseTextures: TypeAlias = Callable[..., dict[str, Any]]
 
 # Registry: {scope: {extension_name: handler}}
-_handlers: Dict[str, Dict[str, Handler]] = {}
+_handlers: dict[str, dict[str, Handler]] = {}
 
 
-def _deep_merge(target: Dict, source: Dict) -> None:
+def _deep_merge(target: dict, source: dict) -> None:
     """
     Recursively merge source dict into target dict.
 
@@ -140,7 +139,7 @@ def register_handler(name: str, scope: Scope) -> Callable[[Handler], Handler]:
     Example
     -------
     >>> @register_handler("MY_extension", scope="material")
-    ... def my_handler(context: MaterialContext) -> Optional[Dict]:
+    ... def my_handler(context: MaterialContext) -> dict | None:
     ...     data = context["data"]
     ...     images = context["images"]
     ...     return {"baseColorFactor": [1, 0, 0, 1]}
@@ -157,7 +156,7 @@ def register_handler(name: str, scope: Scope) -> Callable[[Handler], Handler]:
 
 def handle_extensions(
     *,
-    extensions: Optional[Dict[str, Any]],
+    extensions: dict[str, Any] | None,
     scope: Scope,
     **kwargs,
 ) -> Any:
@@ -229,7 +228,7 @@ def handle_extensions(
 
 
 @register_handler("KHR_materials_pbrSpecularGlossiness", scope="material")
-def _specular_glossiness(context: MaterialContext) -> Optional[Dict[str, Any]]:
+def _specular_glossiness(context: MaterialContext) -> dict[str, Any] | None:
     """
     Convert specular-glossiness material to PBR metallic-roughness.
 
@@ -253,7 +252,7 @@ def _specular_glossiness(context: MaterialContext) -> Optional[Dict[str, Any]]:
 
 
 @register_handler("EXT_texture_webp", scope="texture_source")
-def _texture_webp_source(context: TextureSourceContext) -> Optional[int]:
+def _texture_webp_source(context: TextureSourceContext) -> int | None:
     """
     Return image source index from EXT_texture_webp.
 

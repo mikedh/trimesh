@@ -13,7 +13,7 @@ import numpy as np
 from . import util
 from .constants import tol
 from .points import point_plane_distance
-from .typed import NDArray, Optional, float64
+from .typed import NDArray, float64
 from .util import diagonal_dot, unitize
 
 log = getLogger(__name__)
@@ -207,7 +207,7 @@ class MassProperties:
     center_mass: NDArray[float64]
 
     # the (3, 3) inertia tensor
-    inertia: Optional[NDArray[float64]] = None
+    inertia: NDArray[float64] | None = None
 
     def __getitem__(self, item: str):
         # add for backwards compatibility
