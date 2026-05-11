@@ -13,7 +13,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from ... import rendering, resources, transformations, util, visual
+from ... import resources, transformations, util, visual
 from ...caching import hash_fast
 from ...constants import log, tol
 from ...resolvers import ResolverLike, ZipResolver
@@ -1137,29 +1137,30 @@ def _append_path(path, name, tree, buffer_items):
       Will have buffer appended with path data
     """
 
-    # convert the path to the unnamed args for
-    # a pyglet vertex list
-    vxlist = rendering.path_to_vertexlist(path)
+    # discretize each entity into stacked line segments
+    stacked = [util.stack_lines(e.discrete(path.vertices)) for e in path.entities]
+    lines = util.vstack_empty(stacked)
 
-    # of the count of things to export is zero exit early
-    if vxlist[0] == 0:
+    # nothing to export
+    if len(lines) == 0:
         return
 
-    # TODO add color support to Path object
-    # this is just exporting everying as black
+    # cast to gltf POSITION dtype and pad 2D coordinates to 3D
+    lines = lines.astype(float32)
+    if util.is_shape(path.vertices, (-1, 2)):
+        lines = np.column_stack((lines, np.zeros(len(lines), dtype=float32)))
+
     try:
         material_idx = tree["materials"].index(_default_material)
     except ValueError:
         material_idx = len(tree["materials"])
         tree["materials"].append(_default_material)
 
-    # data is the second value of the fifth field
-    # which is a (data type, data) tuple
     acc_vertex = _data_append(
         acc=tree["accessors"],
         buff=buffer_items,
         blob={"componentType": 5126, "type": "VEC3", "byteOffset": 0},
-        data=vxlist[4][1].astype(float32),
+        data=lines,
     )
 
     current = {
@@ -1181,6 +1182,12 @@ def _append_path(path, name, tree, buffer_items):
         log.debug("failed to serialize metadata, dropping!", exc_info=True)
 
     if path.colors is not None:
+        # repeat each entity's RGBA color across its line-segment vertex count
+        per_vertex = np.repeat(
+            path.colors.view(uint8),
+            [len(s) for s in stacked],
+            axis=0,
+        )
         acc_color = _data_append(
             acc=tree["accessors"],
             buff=buffer_items,
@@ -1190,9 +1197,8 @@ def _append_path(path, name, tree, buffer_items):
                 "type": "VEC4",
                 "byteOffset": 0,
             },
-            data=np.array(vxlist[5][1]).astype(uint8),
+            data=per_vertex,
         )
-        # add color to attributes
         current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
 
     # for each attribute with a leading underscore, assign them to path
@@ -1250,17 +1256,18 @@ def _append_point(points, name, tree, buffer_items):
       Will have buffer appended with points data
     """
 
-    # convert the points to the unnamed args for
-    # a pyglet vertex list
-    vxlist = rendering.points_to_vertexlist(points=points.vertices, colors=points.colors)
+    # normalize point positions to (n, 3) float32 (gltf POSITION dtype)
+    positions = np.asanyarray(points.vertices, dtype=float32)
+    if util.is_shape(positions, (-1, 2)):
+        positions = np.column_stack((positions, np.zeros(len(positions), dtype=float32)))
+    elif not util.is_shape(positions, (-1, 3)):
+        raise ValueError("Pointcloud must be (n,3)!")
 
-    # data is the second value of the fifth field
-    # which is a (data type, data) tuple
     acc_vertex = _data_append(
         acc=tree["accessors"],
         buff=buffer_items,
         blob={"componentType": 5126, "type": "VEC3", "byteOffset": 0},
-        data=vxlist[4][1].astype(float32),
+        data=positions,
     )
     current = {
         "name": name,
@@ -1277,28 +1284,25 @@ def _append_point(points, name, tree, buffer_items):
     # this is just exporting everying as black
     tree["materials"].append(_default_material)
 
-    if len(np.shape(points.colors)) == 2:
-        # colors may be returned as "c3f" or other RGBA
-        color_type, color_data = vxlist[5]
-        if "3" in color_type:
-            kind = "VEC3"
-        elif "4" in color_type:
-            kind = "VEC4"
-        else:
-            raise ValueError("unknown color: %s", color_type)
+    # only export integer-typed (n, 3) or (n, 4) colors; skip anything else
+    colors = np.asanyarray(points.colors) if points.colors is not None else None
+    if (
+        colors is not None
+        and colors.ndim == 2
+        and colors.shape[1] in (3, 4)
+        and colors.dtype.kind in "iu"
+    ):
         acc_color = _data_append(
             acc=tree["accessors"],
             buff=buffer_items,
             blob={
                 "componentType": 5121,
-                "count": vxlist[0],
                 "normalized": True,
-                "type": kind,
+                "type": "VEC3" if colors.shape[1] == 3 else "VEC4",
                 "byteOffset": 0,
             },
-            data=np.array(color_data).astype(uint8),
+            data=colors.astype(uint8),
         )
-        # add color to attributes
         current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
     tree["meshes"].append(current)
 

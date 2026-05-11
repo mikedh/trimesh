@@ -109,10 +109,10 @@ RUN COLUMNS=240 xvfb-run pytest \
 
 
 # use BuildKit secrets to access codecov token securely
-RUN --mount=type=secret,id=codecov_token \
+RUN --mount=type=secret,id=codecov_token,uid=499 \
     curl -Os https://uploader.codecov.io/latest/linux/codecov && \
     chmod +x codecov && \
-    ./codecov -t $(cat /run/secrets/codecov_token || echo "") 
+    ./codecov -Z -t "$(cat /run/secrets/codecov_token)"
 
 ################################
 ### Build Sphinx Docs
