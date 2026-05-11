@@ -23,6 +23,7 @@ Goals
 """
 
 import copy
+from typing import Any
 
 import numpy as np
 
@@ -31,7 +32,6 @@ from ..constants import tol
 from ..grouping import unique_rows
 from ..resources import get_json
 from ..typed import (
-    Any,
     ArrayLike,
     Callable,
     ColorMapType,
@@ -39,8 +39,6 @@ from ..typed import (
     Integer,
     Iterable,
     NDArray,
-    Optional,
-    Union,
 )
 from .base import Visuals
 
@@ -61,8 +59,8 @@ class ColorVisuals(Visuals):
     def __init__(
         self,
         mesh=None,
-        face_colors: Optional[ArrayLike] = None,
-        vertex_colors: Optional[ArrayLike] = None,
+        face_colors: ArrayLike | None = None,
+        vertex_colors: ArrayLike | None = None,
     ):
         """
         Store color information about a mesh.
@@ -120,7 +118,7 @@ class ColorVisuals(Visuals):
         return self.kind is not None
 
     @property
-    def kind(self) -> Optional[str]:
+    def kind(self) -> str | None:
         """
         What color mode has been set.
 
@@ -469,7 +467,7 @@ class ColorVisuals(Visuals):
         mat, uv = color_to_uv(vertex_colors=self.vertex_colors)
         return TextureVisuals(material=mat, uv=uv)
 
-    def concatenate(self, other: Union[Iterable[Visuals], Visuals, ArrayLike], *args):
+    def concatenate(self, other: Iterable[Visuals] | Visuals | ArrayLike, *args):
         """
         Concatenate two or more ColorVisuals objects
         into a single object.
@@ -780,7 +778,7 @@ def srgb_to_linear(srgb: ArrayLike) -> NDArray[np.float64]:
     return linear
 
 
-def random_color(dtype: DTypeLike = np.uint8, count: Optional[Integer] = None) -> NDArray:
+def random_color(dtype: DTypeLike = np.uint8, count: Integer | None = None) -> NDArray:
     """
     Return a random RGB color using datatype specified.
 
@@ -863,7 +861,7 @@ def face_to_vertex_color(
     return vertex.astype(dtype)
 
 
-def colors_to_materials(colors: ArrayLike, count: Optional[Integer] = None):
+def colors_to_materials(colors: ArrayLike, count: Integer | None = None):
     """
     Convert a list of colors into a list of unique materials
     and material indexes.
@@ -901,9 +899,7 @@ def colors_to_materials(colors: ArrayLike, count: Optional[Integer] = None):
     return diffuse, index
 
 
-def linear_color_map(
-    values: ArrayLike, color_range: Optional[ArrayLike] = None
-) -> NDArray:
+def linear_color_map(values: ArrayLike, color_range: ArrayLike | None = None) -> NDArray:
     """
     Linearly interpolate a color lookup table from normalized
     values.
@@ -979,7 +975,7 @@ def linear_color_map(
 
 def interpolate(
     values: ArrayLike,
-    color_map: Union[None, ColorMapType, Callable] = None,
+    color_map: None | ColorMapType | Callable = None,
     dtype: DTypeLike = np.uint8,
 ) -> NDArray:
     """

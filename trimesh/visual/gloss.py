@@ -2,7 +2,7 @@ import numpy as np
 
 from ..constants import log
 from ..exceptions import ExceptionWrapper
-from ..typed import ArrayLike, Number, Optional
+from ..typed import ArrayLike, Number
 from .color import linear_to_srgb, srgb_to_linear
 
 try:
@@ -13,11 +13,11 @@ except BaseException as E:
 
 
 def specular_to_pbr(
-    specularFactor: Optional[ArrayLike] = None,
-    glossinessFactor: Optional[Number] = None,
-    specularGlossinessTexture: Optional["Image"] = None,
-    diffuseTexture: Optional["Image"] = None,
-    diffuseFactor: Optional[ArrayLike] = None,
+    specularFactor: ArrayLike | None = None,
+    glossinessFactor: Number | None = None,
+    specularGlossinessTexture: "Image | None" = None,
+    diffuseTexture: "Image | None" = None,
+    diffuseFactor: ArrayLike | None = None,
     **kwargs,
 ) -> dict:
     """

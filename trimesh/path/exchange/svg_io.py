@@ -8,7 +8,7 @@ import numpy as np
 from ... import exceptions, grouping, resources, util
 from ...constants import log, tol
 from ...transformations import planar_matrix, transform_points
-from ...typed import Dict, Iterable, Mapping, NDArray, Number
+from ...typed import Iterable, Mapping, NDArray, Number
 from ...util import jsonify
 from ..arc import arc_center, to_threepoint
 from ..entities import Arc, Bezier, Line
@@ -106,7 +106,7 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
     return result
 
 
-def _attrib_metadata(attrib: Mapping) -> Dict:
+def _attrib_metadata(attrib: Mapping) -> dict:
     try:
         # try to retrieve any trimesh attributes as metadata
         return {

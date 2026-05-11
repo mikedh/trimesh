@@ -12,7 +12,7 @@ from .geometry import weighted_vertex_normals
 from .points import PointCloud, plane_fit
 from .transformations import transform_points
 from .triangles import angles, cross, normals
-from .typed import ArrayLike, Integer, Optional
+from .typed import ArrayLike, Integer
 
 try:
     import scipy.sparse as sparse
@@ -194,7 +194,7 @@ def mesh_other(
 def procrustes(
     a: ArrayLike,
     b: ArrayLike,
-    weights: Optional[ArrayLike] = None,
+    weights: ArrayLike | None = None,
     reflection: bool = True,
     translation: bool = True,
     scale: bool = True,
@@ -501,7 +501,7 @@ def nricp_amberg(
 
     Returns
     ----------
-    result : (n, 3) float or List[(n, 3) float]
+    result : (n, 3) float or list[(n, 3) float]
         The vertices positions of source_mesh such that it is registered non-rigidly
         onto the target geometry.
         If return_records is True, it returns the list of the vertex positions at each
@@ -724,7 +724,7 @@ def _from_mesh(
         Dict to accept other key word arguments (not used)
     Returns
     ----------
-    qres : Dict
+    qres : dict
       Dictionary containing :
        - nearest points (m, 3) with key 'nearest'
        - distances to nearest point (m,) with key 'distances'
@@ -799,7 +799,7 @@ def _from_points(
 
     Returns
     ----------
-    qres : Dict
+    qres : dict
       Dictionary containing :
        - nearest points (m, 3) with key 'nearest'
        - distances to nearest point (m,) with key 'distances'
@@ -899,7 +899,7 @@ def nricp_sumner(
 
     Returns
     ----------
-    result : (n, 3) float or List[(n, 3) float]
+    result : (n, 3) float or list[(n, 3) float]
         The vertices positions of source_mesh such that it is registered non-rigidly
         onto the target geometry.
         If return_records is True, it returns the list of the vertex positions at each

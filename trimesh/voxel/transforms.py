@@ -2,7 +2,6 @@ import numpy as np
 
 from .. import caching, util
 from .. import transformations as tr
-from ..typed import Optional
 
 
 class Transform:
@@ -13,7 +12,7 @@ class Transform:
     for the voxels, including pitch and origin.
     """
 
-    def __init__(self, matrix, datastore: Optional[caching.DataStore] = None):
+    def __init__(self, matrix, datastore: caching.DataStore | None = None):
         """
         Initialize with a transform.
 

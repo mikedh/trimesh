@@ -142,17 +142,10 @@ transforms = [
 # should be a (100, 4, 4) float
 transforms = np.array(transforms)
 
-try:
-    # do the imports for Python 2
-    from cStringIO import StringIO
+from io import StringIO
+from io import BytesIO
 
-    PY3 = False
-except ImportError:
-    # if that didn't work we're probably on Python 3
-    from io import StringIO
-    from io import BytesIO
-
-    PY3 = True
+PY3 = True
 
 # are we on linux
 is_linux = "linux" in platform.system().lower()

@@ -19,13 +19,9 @@ from .typed import (
     ArrayLike,
     GraphEngineType,
     Integer,
-    List,
     NDArray,
     Number,
-    Optional,
     Sequence,
-    Tuple,
-    Union,
     int64,
 )
 
@@ -294,9 +290,7 @@ def shared_edges(faces_a, faces_b):
     return shared
 
 
-def facets(
-    mesh, engine: GraphEngineType = None, facet_threshold: Optional[Number] = None
-):
+def facets(mesh, engine: GraphEngineType = None, facet_threshold: Number | None = None):
     """
     Find the list of parallel adjacent faces.
 
@@ -349,10 +343,10 @@ def split(
     mesh,
     only_watertight: bool = True,
     repair: bool = True,
-    adjacency: Optional[ArrayLike] = None,
+    adjacency: ArrayLike | None = None,
     engine: GraphEngineType = None,
     **kwargs,
-) -> List:
+) -> list:
     """
     Split a mesh into multiple meshes from face
     connectivity.
@@ -529,7 +523,7 @@ def connected_component_labels(edges, node_count=None):
     return labels
 
 
-def _split_traversal(traversal: NDArray, edges_tree) -> List[NDArray]:
+def _split_traversal(traversal: NDArray, edges_tree) -> list[NDArray]:
     """
     Given a traversal as a list of nodes split the traversal
     if a sequential index pair is not in the given edges.
@@ -592,7 +586,7 @@ def _split_traversal(traversal: NDArray, edges_tree) -> List[NDArray]:
     return split
 
 
-def fill_traversals(traversals: Sequence, edges: ArrayLike) -> Union[Sequence, NDArray]:
+def fill_traversals(traversals: Sequence, edges: ArrayLike) -> Sequence | NDArray:
     """
     Convert a traversal of a list of edges into a sequence of
     traversals where every pair of consecutive node indexes
@@ -783,9 +777,7 @@ def neighbors(edges, max_index=None, directed=False):
     return array
 
 
-def smooth_shade(
-    mesh, angle: Optional[Number] = None, facet_minarea: Optional[Number] = 10.0
-):
+def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None = 10.0):
     """
     Return a non-watertight version of the mesh which
     will render nicely with smooth shading by
@@ -873,8 +865,8 @@ def smooth_shade(
 
 
 def is_watertight(
-    edges: ArrayLike, edges_sorted: Optional[ArrayLike] = None
-) -> Tuple[bool, bool]:
+    edges: ArrayLike, edges_sorted: ArrayLike | None = None
+) -> tuple[bool, bool]:
     """
     Parameters
     -----------

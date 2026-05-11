@@ -17,7 +17,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .caching import cache_decorator
 from .constants import log, tol
-from .typed import ArrayLike, Integer, Number, Optional
+from .typed import ArrayLike, Integer, Number
 
 # immutable identity matrix for checks
 _IDENTITY = np.eye(4)
@@ -602,8 +602,8 @@ class Sphere(Primitive):
     def __init__(
         self,
         radius: Number = 1.0,
-        center: Optional[ArrayLike] = None,
-        transform: Optional[ArrayLike] = None,
+        center: ArrayLike | None = None,
+        transform: ArrayLike | None = None,
         subdivisions: Integer = 3,
         mutable: bool = True,
     ):
@@ -749,11 +749,11 @@ class Box(Primitive):
 
         Parameters
         ----------
-        extents : Optional[ndarray] (3,) float
+        extents : ndarray (3,) float or None
           Length of each side of the 3D box.
-        transform : Optional[ndarray] (4, 4) float
+        transform : ndarray (4, 4) float or None
           Homogeneous transformation matrix for box center.
-        bounds : Optional[ndarray] (2, 3) float
+        bounds : ndarray (2, 3) float or None
           Axis aligned bounding box, if passed extents and
           transform will be derived from this.
         mutable : bool
@@ -917,7 +917,7 @@ class Extrusion(Primitive):
     def __init__(
         self,
         polygon=None,
-        transform: Optional[ArrayLike] = None,
+        transform: ArrayLike | None = None,
         height: Number = 1.0,
         mutable: bool = True,
         mid_plane: bool = False,

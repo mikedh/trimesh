@@ -19,13 +19,13 @@ except BaseException as E:
     ImageDraw = _handle
     ImageChops = _handle
 
-from ..typed import ArrayLike, Floating, Optional, Union
+from ..typed import ArrayLike, Floating
 
 
 def rasterize(
     path: "trimesh.path.Path2D",  # noqa
-    pitch: Union[Floating, ArrayLike, None] = None,
-    origin: Optional[ArrayLike] = None,
+    pitch: Floating | ArrayLike | None = None,
+    origin: ArrayLike | None = None,
     resolution=None,
     fill=True,
     width=None,

@@ -3,15 +3,13 @@ import json
 import os
 from io import BytesIO
 
-from ..typed import Dict
-
 # find the current absolute path to this directory
 _pwd = os.path.expanduser(os.path.abspath(os.path.dirname(__file__)))
 # once resources are loaded cache them
 _cache = {}
 
 
-def get_schema(name: str) -> Dict:
+def get_schema(name: str) -> dict:
     """
     Load a schema and evaluate the referenced files.
 
@@ -34,7 +32,7 @@ def get_schema(name: str) -> Dict:
     return resolve(json.loads(resolver.get(name).decode("utf-8")), resolver=resolver)
 
 
-def get_json(name: str) -> Dict:
+def get_json(name: str) -> dict:
     """
     Get a resource from the `trimesh/resources` folder as a decoded string.
 

@@ -1,7 +1,7 @@
 import numpy as np
 
 from .. import util
-from ..typed import Dict, Stream
+from ..typed import Stream
 
 
 class HeaderError(Exception):
@@ -20,7 +20,7 @@ _stl_dtype = np.dtype(
 _stl_dtype_header = np.dtype([("header", np.void, 80), ("face_count", "<u4")])
 
 
-def load_stl(file_obj: Stream, **kwargs) -> Dict:
+def load_stl(file_obj: Stream, **kwargs) -> dict:
     """
     Load a binary or an ASCII STL file from a file object.
 
@@ -52,7 +52,7 @@ def load_stl(file_obj: Stream, **kwargs) -> Dict:
         return load_stl_ascii(file_obj)
 
 
-def load_stl_binary(file_obj: Stream) -> Dict:
+def load_stl_binary(file_obj: Stream) -> dict:
     """
     Load a binary STL file from a file object.
 
@@ -134,7 +134,7 @@ def load_stl_binary(file_obj: Stream) -> Dict:
     return result
 
 
-def load_stl_ascii(file_obj: Stream) -> Dict:
+def load_stl_ascii(file_obj: Stream) -> dict:
     """
     Load an ASCII STL file from a file object.
 

@@ -1,13 +1,11 @@
 import numpy as np
 
 from .. import bounds, constants, util
-from ..typed import ArrayLike, Optional
+from ..typed import ArrayLike
 
 
 @constants.log_time
-def contains_points(
-    intersector, points: ArrayLike, check_direction: Optional[bool] = None
-):
+def contains_points(intersector, points: ArrayLike, check_direction: bool | None = None):
     """
     Check if a mesh contains a set of points, using ray tests.
 
