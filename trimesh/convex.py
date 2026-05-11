@@ -244,7 +244,11 @@ def convex_hull(
     # should have a positive dot product with the normal of that face
     # if it doesn't it is probably backwards
     # note that this sometimes gets screwed up by precision issues
-    centroid = np.average(triangles_center, weights=triangles_area, axis=0)
+    try:
+        centroid = np.average(triangles_center, weights=triangles_area, axis=0)
+    except ZeroDivisionError:
+        # degenerate hull (e.g. s390x: every simplex rounded to zero area)
+        centroid = vertices.mean(axis=0) if len(vertices) else np.zeros(3)
     # a vector from the centroid to a point on each face
     test_vector = triangles_center - centroid
     # check the projection against face normals
