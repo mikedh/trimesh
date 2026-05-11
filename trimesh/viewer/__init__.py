@@ -15,7 +15,7 @@ from .notebook import (
 
 try:
     # the modern shader-based viewer for `pyglet>=2`
-    from .pyglet2.viewer import SceneViewer, render_scene
+    from .pyglet2 import SceneViewer, render_scene
 except ImportError as E:
     try:
         # fall back to the legacy fixed-function viewer for `pyglet<2`
