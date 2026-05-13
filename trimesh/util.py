@@ -30,6 +30,7 @@ from typing import (
     Any,
     Final,
     Literal,
+    Protocol,
     TypeAlias,
     TypedDict,
     TypeGuard,
@@ -40,12 +41,11 @@ from typing import (
 
 if TYPE_CHECKING:
     import rtree
-    from _typeshed import SizedBuffer, SupportsLenAndGetItem, SupportsRead, SupportsWrite
+    from _typeshed import SizedBuffer, SupportsRead, SupportsWrite
     from typing_extensions import TypeIs
 
-    from trimesh.base import Trimesh
-    from trimesh.path import Path2D, Path3D
-
+    import trimesh
+    import trimesh.path
 
 import numpy as np
 
@@ -56,6 +56,7 @@ from .typed import ArrayLike, Integer, Iterable, NDArray
 
 # type variables (not to be used outside of this module)
 _T = TypeVar("_T")
+_T_co = TypeVar("_T_co", covariant=True)
 _KT = TypeVar("_KT", bound=Hashable)
 _NonSequenceT = TypeVar("_NonSequenceT", bound=str | bytes | complex)
 _StrOrBytes = TypeVar("_StrOrBytes", bound=str | bytes)
@@ -85,6 +86,12 @@ class _EncodedArrayBase64(_EncodedArray):
 
 class _EncodedArrayBinary(_EncodedArray):
     binary: bytes
+
+
+# beartype-friendly equivalents of `_typeshed` protocols
+class _SupportsLenAndGetItem(Protocol[_T_co]):
+    def __len__(self) -> int: ...
+    def __getitem__(self, k: int, /) -> _T_co: ...
 
 
 # create a default logger
@@ -269,7 +276,7 @@ def is_string(obj: object) -> "TypeIs[str]":
     return isinstance(obj, str)
 
 
-def is_sequence(obj: object) -> TypeGuard["SupportsLenAndGetItem[Any]"]:
+def is_sequence(obj: object) -> TypeGuard[_SupportsLenAndGetItem[Any]]:
     """
     Check if an object is a sequence or not.
 
@@ -301,7 +308,11 @@ def is_sequence(obj: object) -> TypeGuard["SupportsLenAndGetItem[Any]"]:
     return seq
 
 
-def is_shape(obj: NDArray[Any], shape: Sequence[int], allow_zeros: bool = False) -> bool:
+def is_shape(
+    obj: object,
+    shape: Sequence[int | tuple[int, ...]],
+    allow_zeros: bool = False,
+) -> bool:
     """
     Compare the shape of a numpy.ndarray to a target shape,
     with any value less than zero being considered a wildcard
@@ -353,6 +364,9 @@ def is_shape(obj: NDArray[Any], shape: Sequence[int], allow_zeros: bool = False)
     if not hasattr(obj, "shape") or len(obj.shape) != len(shape):
         return False
 
+    # most type-checkers (still) don't support `hasattr` type narrowing
+    obj = cast("NDArray[Any]", obj)
+
     # empty lists with any flexible dimensions match
     if len(obj) == 0 and -1 in shape:
         return True
@@ -370,7 +384,7 @@ def is_shape(obj: NDArray[Any], shape: Sequence[int], allow_zeros: bool = False)
                 return False
 
         # check if current field is a wildcard
-        if target < 0:
+        if cast(int, target) < 0:
             if i == 0 and not allow_zeros:
                 # if a dimension is 0, we don't allow
                 # that to match to a wildcard
@@ -1484,7 +1498,7 @@ def encoded_to_array(encoded: ArrayLike | dict[_StrOrBytes, Any]) -> NDArray[Any
     return array
 
 
-def is_instance_named(obj: object, name: str) -> bool:
+def is_instance_named(obj: object, name: str | list[str]) -> bool:
     """
     Given an object, if it is a member of the class 'name',
     or a subclass of 'name', return True.
@@ -1555,9 +1569,9 @@ def type_named(obj: object, name: str) -> type[Any] | None:
 
 
 def concatenate(
-    a: "Trimesh | Iterable[Trimesh]",
-    b: "Trimesh | Iterable[Trimesh] | None" = None,
-) -> "Trimesh | Path2D | Path3D":
+    a: "trimesh.Trimesh | Iterable[trimesh.Trimesh]",
+    b: "trimesh.Trimesh | Iterable[trimesh.Trimesh] | None" = None,
+) -> "trimesh.Trimesh | trimesh.path.Path2D | trimesh.path.Path3D":
     """
     Concatenate two or more meshes.
 
@@ -1694,31 +1708,31 @@ def concatenate(
 
 @overload
 def submesh(
-    mesh: "Trimesh",
+    mesh: "trimesh.Trimesh",
     faces_sequence: Iterable[int],
     repair: bool = True,
     only_watertight: bool = False,
     min_faces: Integer | None = None,
     append: Literal[False] = False,
-) -> "Trimesh": ...
+) -> "trimesh.Trimesh": ...
 @overload
 def submesh(
-    mesh: "Trimesh",
+    mesh: "trimesh.Trimesh",
     faces_sequence: Iterable[int],
     repair: bool = True,
     only_watertight: bool = False,
     min_faces: Integer | None = None,
     *,
     append: Literal[True],
-) -> list["Trimesh"]: ...
+) -> list["trimesh.Trimesh"]: ...
 def submesh(
-    mesh: "Trimesh",
+    mesh: "trimesh.Trimesh",
     faces_sequence: Iterable[int],
     repair: bool = True,
     only_watertight: bool = False,
     min_faces: Integer | None = None,
     append: bool = False,
-) -> "Trimesh | list[Trimesh]":
+) -> "trimesh.Trimesh | list[trimesh.Trimesh]":
     """
     Return a subset of a mesh.
 
@@ -2113,9 +2127,9 @@ def sigfig_int(values: ArrayLike, sigfig: ArrayLike) -> tuple[_VecI64, _VecF64]:
 
 
 def decompress(
-    file_obj: "bytes | IO[bytes]",
+    file_obj: bytes | IO[bytes] | BytesIO,  # https://github.com/beartype/beartype/issues/643
     file_type: str,
-) -> dict[str, IO[bytes] | None]:
+) -> dict[str, BytesIO] | dict[str, IO[bytes] | None]:
     """
     Given an open file object and a file type, return all components
     of the archive as open file objects in a dict.
@@ -2220,7 +2234,7 @@ def split_extension(file_name: str, special: Iterable[str] | None = None) -> str
 
 
 def triangle_strips_to_faces(
-    strips: "SupportsLenAndGetItem[NDArray[np.integer[Any]]]",
+    strips: _SupportsLenAndGetItem[NDArray[np.integer[Any]]],
 ) -> _MatI64:
     """
     Convert a sequence of triangle strips to (n, 3) faces.
@@ -2672,7 +2686,7 @@ def is_ccw(
 
 
 def unique_name(
-    start: str,
+    start: str | None,
     contains: Collection[str],
     counts: dict[str, int] | None = None,
 ) -> str:
