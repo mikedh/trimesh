@@ -24,65 +24,13 @@ from collections.abc import (
 )
 from copy import deepcopy
 from io import BytesIO, StringIO
-from typing import (
-    IO,
-    TYPE_CHECKING,
-    Any,
-    Literal,
-    Protocol,
-    TypeAlias,
-    TypedDict,
-    TypeVar,
-    cast,
-    overload,
-)
 
 import numpy as np
 
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import ArrayLike, Integer, Iterable, NDArray
-
-# type variables (not to be used outside of this module)
-_T = TypeVar("_T")
-_T_co = TypeVar("_T_co", covariant=True)
-_KT = TypeVar("_KT", bound=Hashable)
-_NonSequenceT = TypeVar("_NonSequenceT", bound=str | bytes | complex)
-_StrOrBytes = TypeVar("_StrOrBytes", bound=str | bytes)
-_ArrayT = TypeVar("_ArrayT", bound=NDArray[Any])
-_ShapeT = TypeVar("_ShapeT", bound=tuple[int, ...])
-_ScalarT = TypeVar("_ScalarT", bound=np.generic)
-_DTypeT = TypeVar("_DTypeT", bound=np.dtype[Any])
-_IntDTypeT = TypeVar("_IntDTypeT", bound=np.dtype[np.integer[Any]])
-
-# shape-typed ndarray aliases
-_VecI64: TypeAlias = np.ndarray[tuple[int], np.dtype[np.int64]]
-_VecF64: TypeAlias = np.ndarray[tuple[int], np.dtype[np.float64]]
-_MatI64: TypeAlias = np.ndarray[tuple[int, int], np.dtype[np.int64]]
-_MatF64: TypeAlias = np.ndarray[tuple[int, int], np.dtype[np.float64]]
-
-# typed mappings for `encode_array`
-
-
-class _EncodedArray(TypedDict):
-    dtype: str
-    shape: tuple[int, ...]
-
-
-class _EncodedArrayBase64(_EncodedArray):
-    base64: str
-
-
-class _EncodedArrayBinary(_EncodedArray):
-    binary: bytes
-
-
-# beartype-friendly equivalents of `_typeshed` protocols
-class _SupportsLenAndGetItem(Protocol[_T_co]):
-    def __len__(self) -> int: ...
-    def __getitem__(self, k: int, /) -> _T_co: ...
-
+from .typed import IO, Any, ArrayLike, Floating, Integer, Iterable, NDArray
 
 # create a default logger
 log: logging.Logger = logging.getLogger(__name__)
@@ -377,7 +325,7 @@ def is_shape(
     return True
 
 
-def make_sequence(obj: Any) -> list[Any]:
+def make_sequence(obj: Any) -> list:
     """
     Given an object, if it is a sequence return, otherwise
     add it to a length 1 sequence and return.
@@ -480,7 +428,7 @@ def vector_hemisphere(
     return oriented
 
 
-def vector_to_spherical(cartesian: ArrayLike) -> _MatF64:
+def vector_to_spherical(cartesian: ArrayLike) -> NDArray[np.float64]:
     """
     Convert a set of cartesian points to (n, 2) spherical unit
     vectors.
@@ -508,7 +456,7 @@ def vector_to_spherical(cartesian: ArrayLike) -> _MatF64:
     return spherical
 
 
-def spherical_to_vector(spherical: ArrayLike) -> _MatF64:
+def spherical_to_vector(spherical: ArrayLike) -> NDArray[np.float64]:
     """
     Convert an array of `(n, 2)` spherical angles to `(n, 3)` unit vectors.
 
@@ -532,13 +480,7 @@ def spherical_to_vector(spherical: ArrayLike) -> _MatF64:
     return np.column_stack((ct * sp, st * sp, cp))
 
 
-@overload
-def pairwise(
-    iterable: np.ndarray[Any, _DTypeT],
-) -> np.ndarray[tuple[int, int], _DTypeT]: ...
-@overload
-def pairwise(iterable: Iterable[_T]) -> "zip[tuple[_T, _T]]": ...
-def pairwise(iterable: Iterable[Any]) -> "zip[tuple[Any, Any]] | NDArray[Any]":
+def pairwise(iterable: Iterable[Any]) -> "zip[tuple[Any, Any]] | NDArray":
     """
     For an iterable, group values into pairs.
 
@@ -636,9 +578,7 @@ def diagonal_dot(a: ArrayLike, b: ArrayLike) -> np.ndarray[tuple[int], np.dtype[
     return np.dot(a * b, [1.0] * a.shape[1])
 
 
-def row_norm(
-    data: np.ndarray[tuple[int, int], np.dtype[np.integer[Any] | np.floating[Any]]],
-) -> _VecF64:
+def row_norm(data: NDArray) -> NDArray[np.float64]:
     """
     Compute the norm per-row of a numpy array.
 
@@ -664,14 +604,10 @@ def row_norm(
     return np.sqrt(np.dot(data**2, [1] * data.shape[1]))
 
 
-@overload
-def stack_3D(points: ArrayLike, return_2D: Literal[False] = False) -> _MatF64: ...
-@overload
-def stack_3D(points: ArrayLike, return_2D: Literal[True]) -> tuple[_MatF64, bool]: ...
 def stack_3D(
     points: ArrayLike,
     return_2D: bool = False,
-) -> _MatF64 | tuple[_MatF64, bool]:
+) -> NDArray[np.float64] | tuple[NDArray[np.float64], bool]:
     """
     For a list of (n, 2) or (n, 3) points return them
     as (n, 3) 3D points, 2D points on the XY plane.
@@ -711,7 +647,7 @@ def stack_3D(
     return points
 
 
-def grid_arange(bounds: ArrayLike, step: ArrayLike) -> _MatF64:
+def grid_arange(bounds: ArrayLike, step: ArrayLike) -> NDArray[np.float64]:
     """
     Return a grid from an (2,dimension) bounds with samples step distance apart.
 
@@ -742,7 +678,7 @@ def grid_arange(bounds: ArrayLike, step: ArrayLike) -> _MatF64:
     return grid
 
 
-def grid_linspace(bounds: ArrayLike, count: ArrayLike) -> _MatF64:
+def grid_linspace(bounds: ArrayLike, count: ArrayLike) -> NDArray[np.float64]:
     """
     Return a grid spaced inside a bounding box with edges spaced using np.linspace.
 
@@ -772,7 +708,9 @@ def grid_linspace(bounds: ArrayLike, count: ArrayLike) -> _MatF64:
     return grid
 
 
-def multi_dict(pairs: Iterable[tuple[_KT, _T]]) -> collections.defaultdict[_KT, list[_T]]:
+def multi_dict(
+    pairs: Iterable[tuple[Hashable, Any]],
+) -> collections.defaultdict[Hashable, list]:
     """
     Given a set of key value pairs, create a dictionary.
     If a key occurs multiple times, stack the values into an array.
@@ -851,7 +789,7 @@ def distance_to_end(file_obj: IO[Any]) -> int:
     return distance
 
 
-def decimal_to_digits(decimal: float | np.floating, min_digits: int | None = None) -> int:
+def decimal_to_digits(decimal: Floating, min_digits: Integer | None = None) -> int:
     """
     Return the number of digits to the first nonzero decimal.
 
@@ -872,7 +810,7 @@ def decimal_to_digits(decimal: float | np.floating, min_digits: int | None = Non
 
 
 def attach_to_log(
-    level: int = logging.DEBUG,
+    level: Integer = logging.DEBUG,
     handler: logging.Handler | None = None,
     loggers: MutableSet[logging.Logger | Any] | None = None,
     colors: bool = True,
@@ -1043,7 +981,7 @@ def stack_lines(indices: ArrayLike) -> NDArray:
 
 
 def append_faces(
-    vertices_seq: Iterable[NDArray[_ScalarT]],
+    vertices_seq: Iterable[NDArray],
     faces_seq: Iterable[NDArray[np.integer[Any]]],
 ) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
     """
@@ -1089,7 +1027,7 @@ def array_to_string(
     array: ArrayLike,
     col_delim: str = " ",
     row_delim: str = "\n",
-    digits: int = 8,
+    digits: Integer = 8,
     value_format: str = "{}",
 ) -> str:
     """
@@ -1173,7 +1111,7 @@ def structured_array_to_string(
     array: ArrayLike,
     col_delim: str = " ",
     row_delim: str = "\n",
-    digits: int = 8,
+    digits: Integer = 8,
     value_format: str = "{}",
 ) -> str:
     """
@@ -1262,25 +1200,6 @@ def structured_array_to_string(
     return formatted
 
 
-@overload
-def array_to_encoded(
-    array: ArrayLike,
-    dtype: np.typing.DTypeLike | None = None,
-    encoding: Literal["base64"] = "base64",
-) -> "_EncodedArrayBase64": ...
-@overload
-def array_to_encoded(
-    array: ArrayLike,
-    dtype: np.typing.DTypeLike | None = None,
-    *,
-    encoding: Literal["binary"],
-) -> "_EncodedArrayBinary": ...
-@overload
-def array_to_encoded(
-    array: ArrayLike,
-    dtype: np.typing.DTypeLike,
-    encoding: Literal["binary"],
-) -> "_EncodedArrayBinary": ...
 def array_to_encoded(
     array: ArrayLike,
     dtype: np.typing.DTypeLike | None = None,
@@ -1327,7 +1246,7 @@ def array_to_encoded(
 
 
 # the store key type must be `Any` because the key type changes from `bytes` to `str`
-def decode_keys(store: dict[Any, _T], encoding: str = "utf-8") -> dict[str, _T]:
+def decode_keys(store: dict[Any, Any], encoding: str = "utf-8") -> dict[str, Any]:
     """
     If a dictionary has keys that are bytes decode them to a str.
 
@@ -1405,11 +1324,7 @@ def comment_strip(text: str, starts_with: str = "#", new_line: str = "\n") -> st
     return result
 
 
-@overload
-def encoded_to_array(encoded: _ArrayT) -> _ArrayT: ...
-@overload  # `_StrOrBytes` is used instead of `str | bytes` because `dict` is invariant.
-def encoded_to_array(encoded: ArrayLike | dict[_StrOrBytes, Any]) -> NDArray[Any]: ...
-def encoded_to_array(encoded: ArrayLike | dict[_StrOrBytes, Any]) -> NDArray[Any]:
+def encoded_to_array(encoded: ArrayLike | dict[Any, Any]) -> NDArray:
     """
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
@@ -1475,11 +1390,11 @@ def is_instance_named(obj: object, name: str | list[str]) -> bool:
         return False
 
 
-def type_bases(obj: object, depth: int = 4) -> list[type[Any]]:
+def type_bases(obj: object, depth: Integer = 4) -> list[type]:
     """
     Return the bases of the object passed.
     """
-    bases: collections.deque[list[Any]] = collections.deque(
+    bases: collections.deque[list] = collections.deque(
         [list(obj.__class__.__bases__)]
     )
     for i in range(depth):
@@ -1491,7 +1406,7 @@ def type_bases(obj: object, depth: int = 4) -> list[type[Any]]:
     return [i for i in bases_flat if hasattr(i, "__name__")]
 
 
-def type_named(obj: object, name: str) -> type[Any] | None:
+def type_named(obj: object, name: str) -> type | None:
     """
     Similar to the type() builtin, but looks in class bases
     for named instance.
@@ -1518,10 +1433,7 @@ def type_named(obj: object, name: str) -> type[Any] | None:
     raise ValueError("Unable to extract class of name " + name)
 
 
-def concatenate(
-    a: "trimesh.Trimesh | Iterable[trimesh.Trimesh]",
-    b: "trimesh.Trimesh | Iterable[trimesh.Trimesh] | None" = None,
-) -> "trimesh.Trimesh | trimesh.path.Path2D | trimesh.path.Path3D":
+def concatenate(a, b=None):
     """
     Concatenate two or more meshes.
 
@@ -1656,33 +1568,14 @@ def concatenate(
     return result
 
 
-@overload
 def submesh(
-    mesh: "trimesh.Trimesh",
-    faces_sequence: Iterable[int],
-    repair: bool = True,
-    only_watertight: bool = False,
-    min_faces: Integer | None = None,
-    append: Literal[False] = False,
-) -> "trimesh.Trimesh": ...
-@overload
-def submesh(
-    mesh: "trimesh.Trimesh",
-    faces_sequence: Iterable[int],
-    repair: bool = True,
-    only_watertight: bool = False,
-    min_faces: Integer | None = None,
-    *,
-    append: Literal[True],
-) -> list["trimesh.Trimesh"]: ...
-def submesh(
-    mesh: "trimesh.Trimesh",
-    faces_sequence: Iterable[int],
+    mesh,
+    faces_sequence: Iterable[Integer],
     repair: bool = True,
     only_watertight: bool = False,
     min_faces: Integer | None = None,
     append: bool = False,
-) -> "trimesh.Trimesh | list[trimesh.Trimesh]":
+):
     """
     Return a subset of a mesh.
 
@@ -1821,7 +1714,7 @@ def submesh(
     return result
 
 
-def zero_pad(data: _ArrayT, count: int, right: bool = True) -> _ArrayT | _VecF64:
+def zero_pad(data: NDArray, count: Integer, right: bool = True) -> NDArray:
     """
     Parameters
     ------------
@@ -1880,19 +1773,7 @@ def jsonify(obj: object, **kwargs: Any) -> str:
     return json.dumps(obj, cls=EdgeEncoder, **kwargs)
 
 
-@overload
-def convert_like(
-    item: np.ndarray[_ShapeT, Any],
-    like: NDArray[_ScalarT] | _ScalarT,
-) -> np.ndarray[_ShapeT, np.dtype[_ScalarT]]: ...
-@overload
-def convert_like(
-    item: ArrayLike,
-    like: NDArray[_ScalarT] | _ScalarT,
-) -> NDArray[_ScalarT]: ...
-@overload
-def convert_like(item: object, like: object) -> Any: ...
-def convert_like(item: Any, like: Any) -> Any:
+def convert_like(item, like):
     """
     Convert an item to have the dtype of another item
 
@@ -1937,7 +1818,7 @@ def convert_like(item: Any, like: Any) -> Any:
     return item
 
 
-def bounds_tree(bounds: ArrayLike) -> "rtree.index.Index":
+def bounds_tree(bounds: ArrayLike):
     """
     Given a set of axis aligned bounds create an r-tree for
     broad-phase collision detection.
@@ -1980,10 +1861,6 @@ def bounds_tree(bounds: ArrayLike) -> "rtree.index.Index":
     )
 
 
-@overload
-def wrap_as_stream(item: str) -> StringIO: ...
-@overload
-def wrap_as_stream(item: bytes) -> BytesIO: ...
 def wrap_as_stream(item: str | bytes) -> StringIO | BytesIO:
     """
     Wrap a string or bytes object as a file object.
@@ -2005,7 +1882,7 @@ def wrap_as_stream(item: str | bytes) -> StringIO | BytesIO:
     raise ValueError(f"{type(item).__name__} is not wrappable!")
 
 
-def sigfig_round(values: ArrayLike, sigfig: ArrayLike = 1) -> _VecF64:
+def sigfig_round(values: ArrayLike, sigfig: ArrayLike = 1) -> NDArray[np.float64]:
     """
     Round a single value to a specified number of significant figures.
 
@@ -2039,7 +1916,9 @@ def sigfig_round(values: ArrayLike, sigfig: ArrayLike = 1) -> _VecF64:
     return rounded
 
 
-def sigfig_int(values: ArrayLike, sigfig: ArrayLike) -> tuple[_VecI64, _VecF64]:
+def sigfig_int(
+    values: ArrayLike, sigfig: ArrayLike
+) -> tuple[NDArray[np.int64], NDArray[np.float64]]:
     """
     Convert a set of floating point values into integers
     with a specified number of significant figures and an
@@ -2121,7 +2000,7 @@ def decompress(
 
 
 def compress(
-    info: Mapping[str, "str | SizedBuffer | SupportsRead[Any]"],
+    info: Mapping[str, str | bytes | IO[Any]],
     **kwargs: Any,
 ) -> bytes:
     """
@@ -2146,9 +2025,9 @@ def compress(
         for name, data_or_file in info.items():
             if hasattr(data_or_file, "read"):
                 # if we were passed a file object, read it
-                data = cast("SupportsRead[Any]", data_or_file).read()
+                data = data_or_file.read()
             else:
-                data = cast("str | SizedBuffer", data_or_file)
+                data = data_or_file
             zipper.writestr(name, data)
     file_obj.seek(0)
     compressed = file_obj.read()
@@ -2186,7 +2065,7 @@ def split_extension(file_name: str, special: Iterable[str] | None = None) -> str
 
 
 def triangle_strips_to_faces(
-    strips: _SupportsLenAndGetItem[NDArray[np.integer[Any]]],
+    strips: Sequence[NDArray[np.integer[Any]]],
 ) -> NDArray[np.int64]:
     """
     Convert a sequence of triangle strips to (n, 3) faces.
@@ -2248,7 +2127,7 @@ def triangle_strips_to_faces(
     return tri
 
 
-def triangle_fans_to_faces(fans: Iterable[NDArray[np.integer[Any]]]) -> _MatI64:
+def triangle_fans_to_faces(fans: Iterable[NDArray[np.integer[Any]]]) -> NDArray[np.int64]:
     """
     Convert fans of m + 2 vertex indices in fan format to m triangles
 
@@ -2270,9 +2149,7 @@ def triangle_fans_to_faces(fans: Iterable[NDArray[np.integer[Any]]]) -> _MatI64:
     return np.concatenate(faces, dtype=int)
 
 
-def vstack_empty(
-    tup: Iterable[NDArray[_ScalarT]],
-) -> np.ndarray[tuple[int, int], np.dtype[_ScalarT]]:
+def vstack_empty(tup: Iterable[NDArray]) -> NDArray:
     """
     A thin wrapper for numpy.vstack that ignores empty lists.
 
@@ -2301,9 +2178,9 @@ def vstack_empty(
 
 def write_encoded(
     file_obj: IO[Any],
-    stuff: _StrOrBytes,
+    stuff: str | bytes,
     encoding: str = "utf-8",
-) -> _StrOrBytes:
+) -> str | bytes:
     """
     If a file is open in binary mode and a
     string is passed, encode and write.
@@ -2337,7 +2214,7 @@ def write_encoded(
     return stuff
 
 
-def unique_id(length: int = 12) -> str:
+def unique_id(length: Integer = 12) -> str:
     """
     Generate a random alphaNumber unique identifier
     using UUID logic.
@@ -2355,7 +2232,7 @@ def unique_id(length: int = 12) -> str:
     return uuid.UUID(int=random.getrandbits(128), version=4).hex[:length]
 
 
-def generate_basis(z: ArrayLike, epsilon: float = 1e-12) -> _MatF64:
+def generate_basis(z: ArrayLike, epsilon: float = 1e-12) -> NDArray[np.float64]:
     """
     Generate an arbitrary basis (also known as a coordinate frame)
     from a given z-axis vector.
@@ -2417,10 +2294,10 @@ def generate_basis(z: ArrayLike, epsilon: float = 1e-12) -> _MatF64:
 
 
 def isclose(
-    a: np.ndarray[_ShapeT, np.dtype[Any]],
-    b: np.ndarray[_ShapeT, np.dtype[Any]],
-    atol: float = 1e-8,
-) -> np.ndarray[_ShapeT, np.dtype[np.bool_]]:
+    a: NDArray,
+    b: NDArray,
+    atol: Floating = 1e-8,
+) -> NDArray[np.bool_]:
     """
     A replacement for np.isclose that does fewer checks
     and validation and as a result is roughly 4x faster.
@@ -2443,13 +2320,10 @@ def isclose(
       Per-element closeness
     """
     diff = a - b
-    return cast(
-        "np.ndarray[_ShapeT, np.dtype[np.bool_]]",
-        np.logical_and(diff > -atol, diff < atol),
-    )
+    return np.logical_and(diff > -atol, diff < atol)
 
 
-def allclose(a: NDArray[Any], b: NDArray[Any], atol: float = 1e-8) -> bool:
+def allclose(a: NDArray, b: NDArray, atol: Floating = 1e-8) -> bool:
     """
     A replacement for np.allclose that does few checks
     and validation and as a result is faster.
@@ -2532,12 +2406,8 @@ def decode_text(text: str | bytes, initial: str = "utf-8") -> str:
       Data as a string
     """
     # if not bytes just return input
-    if TYPE_CHECKING:  # workaround for the lack of `hasattr` support in type-checkers
-        if not isinstance(text, bytes):
-            return text
-    else:
-        if not hasattr(text, "decode"):
-            return text
+    if not hasattr(text, "decode"):
+        return text
 
     try:
         # initially guess file is UTF-8 or specified encoding
@@ -2584,17 +2454,7 @@ def to_ascii(text: Any) -> str:
     return str(text)
 
 
-@overload
-def is_ccw(points: ArrayLike, return_all: Literal[False] = False) -> np.bool_: ...
-@overload
-def is_ccw(
-    points: ArrayLike,
-    return_all: Literal[True],
-) -> tuple[np.bool_, np.float64, _VecF64]: ...
-def is_ccw(
-    points: ArrayLike,
-    return_all: bool = False,
-) -> np.bool_ | tuple[np.bool_, np.float64, _VecF64]:
+def is_ccw(points: ArrayLike, return_all: bool = False):
     """
     Check if connected 2D points are counterclockwise.
 
