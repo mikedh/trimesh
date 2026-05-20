@@ -28,6 +28,66 @@ class ViewerTest(g.unittest.TestCase):
 
         assert len(png) > 0
 
+    def test_matrix_to_pyglet(self):
+        """
+        `matrix_to_pyglet` converts row-major numpy to column-major pyglet
+        Mat4. This is the conversion that crosses the numpy/GL boundary
+        every frame; getting it wrong mirrors or shears the whole scene
+        with no error.
+        """
+        try:
+            import pyglet
+        except ImportError:
+            self.skipTest("pyglet not installed")
+        if int(pyglet.version.split(".")[0]) < 2:
+            self.skipTest("requires pyglet>=2")
+        from trimesh.viewer.pyglet2 import matrix_to_pyglet
+
+        # use a fully-distinct matrix (every entry unique) so a transpose
+        # bug can't accidentally pass.
+        m = g.np.arange(16, dtype=g.np.float64).reshape(4, 4)
+        out = matrix_to_pyglet(m)
+        # Mat4 is a 16-tuple in column-major order; reshape with order="F"
+        # should round-trip back to the original numpy matrix.
+        round_trip = g.np.asarray(out, dtype=g.np.float64).reshape((4, 4), order="F")
+        assert g.np.array_equal(round_trip, m), (
+            f"matrix_to_pyglet must preserve layout:\ninput:\n{m}\n"
+            + f"round-trip:\n{round_trip}"
+        )
+
+    def test_composition(self):
+        """
+        SceneViewer must hold a `pyglet.window.Window` rather than subclass
+        it. pyglet 2's window class reserves a long list of private
+        attributes (`_view`, `_viewport`, `view`, `projection`, ...) that
+        silently break when shadowed. Lock that down so a future refactor
+        can't quietly bring inheritance back.
+        """
+        if not g.include_rendering:
+            return
+        try:
+            import pyglet
+        except ImportError:
+            self.skipTest("pyglet not installed")
+        if int(pyglet.version.split(".")[0]) < 2:
+            self.skipTest("requires pyglet>=2")
+        from trimesh.viewer import SceneViewer
+
+        scene = g.trimesh.creation.box().scene()
+        viewer = SceneViewer(scene=scene, start_loop=False, visible=False)
+        # composition: viewer is NOT a Window, but holds one.
+        assert not isinstance(viewer, pyglet.window.Window)
+        assert isinstance(viewer.window, pyglet.window.Window)
+        # the window's private attributes are untouched. on the X11
+        # backend `_view` is the xlib subwindow handle (an int); shadowing
+        # it triggers a ctypes ArgumentError on the next resize.
+        if hasattr(viewer.window, "_view"):
+            assert isinstance(viewer.window._view, int), (
+                "pyglet.window.Window._view must remain a plain int (xlib"
+                + " subwindow handle): SceneViewer used to shadow it."
+            )
+        viewer.close()
+
     def test_methods(self):
         if not g.include_rendering:
             return
@@ -36,7 +96,7 @@ class ViewerTest(g.unittest.TestCase):
         from pyglet import gl
         from pyglet.window import key
 
-        from trimesh.viewer.windowed import SceneViewer
+        from trimesh.viewer import SceneViewer
 
         window_conf = gl.Config(double_buffer=True, depth_size=24)
 

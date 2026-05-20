@@ -771,6 +771,35 @@ class Scene(Geometry3D):
         """
         self.graph[self.camera.name] = matrix
 
+    def camera_project(self, points: ArrayLike) -> NDArray[float64]:
+        """
+        Project world-space points to normalized device coordinates
+        through the same view * projection chain that the OpenGL viewer
+        uses. Companion to `camera_rays`: that one goes pixels-to-rays,
+        this one goes points-to-pixels (well, to NDC).
+
+        A point is inside the camera frustum iff every component of its
+        returned NDC is in `[-1, 1]`.
+
+        Parameters
+        ----------
+        points : (n, 3) float
+          World-space points.
+
+        Returns
+        --------
+        ndc : (n, 3) float
+          Normalized device coordinates: x and y span the framebuffer
+          left-to-right and bottom-to-top, z spans `z_near` to `z_far`.
+        """
+        view = np.linalg.inv(self.camera_transform)
+        projection = self.camera.projection
+        homogeneous = np.column_stack(
+            [np.asarray(points, dtype=np.float64), np.ones(len(points))]
+        )
+        clip = homogeneous @ view.T @ projection.T
+        return clip[:, :3] / clip[:, 3:4]
+
     def camera_rays(self) -> tuple[NDArray[float64], NDArray[float64], NDArray[int64]]:
         """
         Calculate the trimesh.scene.Camera origin and ray
@@ -1059,7 +1088,7 @@ class Scene(Geometry3D):
         png : bytes
           Render of scene as a PNG
         """
-        from ..viewer.windowed import render_scene
+        from ..viewer import render_scene
 
         return render_scene(
             scene=self, resolution=resolution, fullscreen=False, resizable=False, **kwargs
