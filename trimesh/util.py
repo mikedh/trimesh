@@ -28,24 +28,14 @@ from typing import (
     IO,
     TYPE_CHECKING,
     Any,
-    Final,
     Literal,
     Protocol,
     TypeAlias,
     TypedDict,
-    TypeGuard,
     TypeVar,
     cast,
     overload,
 )
-
-if TYPE_CHECKING:
-    import rtree
-    from _typeshed import SizedBuffer, SupportsRead, SupportsWrite
-    from typing_extensions import TypeIs
-
-    import trimesh
-    import trimesh.path
 
 import numpy as np
 
@@ -105,13 +95,13 @@ which = shutil.which
 # a floating point threshold for 0.0
 # we are setting it to 100x the resolution of a float64
 # which works out to be 1e-13
-TOL_ZERO: Final[np.float64] = np.finfo(np.float64).resolution * 100
+TOL_ZERO: float = float(np.finfo(np.float64).resolution * 100)
 # how close to merge vertices
-TOL_MERGE: Final = 1e-8
+TOL_MERGE: float = 1e-8
 # enable additional potentially slow checks
-_STRICT = False
+_STRICT: bool = False
 
-_IDENTITY = np.eye(4, dtype=np.float64)
+_IDENTITY: NDArray[np.float64] = np.eye(4, dtype=np.float64)
 _IDENTITY.flags["WRITEABLE"] = False
 
 
@@ -135,23 +125,11 @@ def has_module(name: str) -> bool:
     return find_spec(name) is not None
 
 
-@overload
-def unitize(
-    vectors: ArrayLike,
-    check_valid: Literal[False] = False,
-    threshold: float | None = None,
-) -> NDArray[np.float64]: ...
-@overload
-def unitize(
-    vectors: ArrayLike,
-    check_valid: Literal[True],
-    threshold: float | None = None,
-) -> tuple[NDArray[np.float64], NDArray[np.bool_] | np.bool_]: ...
 def unitize(
     vectors: ArrayLike,
     check_valid: bool = False,
     threshold: float | None = None,
-) -> NDArray[np.float64] | tuple[NDArray[np.float64], NDArray[np.bool_] | np.bool_]:
+):
     """
     Unitize a vector or an array or row-vectors.
 
@@ -223,7 +201,7 @@ def euclidean(a: ArrayLike, b: ArrayLike) -> np.float64:
     return np.sqrt(((a - b) ** 2).sum())
 
 
-def is_file(obj: object) -> TypeGuard["SupportsRead[Any] | SupportsWrite[Any]"]:
+def is_file(obj: Any) -> bool:
     """
     Check if an object is file-like
 
@@ -259,7 +237,7 @@ def is_pathlib(obj: object) -> bool:
     return hasattr(obj, "absolute") and name.endswith("Path")
 
 
-def is_string(obj: object) -> "TypeIs[str]":
+def is_string(obj: object) -> bool:
     """
     DEPRECATED : this is not necessary since we dropped Python 2.
 
@@ -276,7 +254,7 @@ def is_string(obj: object) -> "TypeIs[str]":
     return isinstance(obj, str)
 
 
-def is_sequence(obj: object) -> TypeGuard[_SupportsLenAndGetItem[Any]]:
+def is_sequence(obj: Any) -> bool:
     """
     Check if an object is a sequence or not.
 
@@ -309,7 +287,7 @@ def is_sequence(obj: object) -> TypeGuard[_SupportsLenAndGetItem[Any]]:
 
 
 def is_shape(
-    obj: object,
+    obj: NDArray | Any,
     shape: Sequence[int | tuple[int, ...]],
     allow_zeros: bool = False,
 ) -> bool:
@@ -364,9 +342,6 @@ def is_shape(
     if not hasattr(obj, "shape") or len(obj.shape) != len(shape):
         return False
 
-    # most type-checkers (still) don't support `hasattr` type narrowing
-    obj = cast("NDArray[Any]", obj)
-
     # empty lists with any flexible dimensions match
     if len(obj) == 0 and -1 in shape:
         return True
@@ -384,7 +359,7 @@ def is_shape(
                 return False
 
         # check if current field is a wildcard
-        if cast(int, target) < 0:
+        if int(target) < 0:
             if i == 0 and not allow_zeros:
                 # if a dimension is 0, we don't allow
                 # that to match to a wildcard
@@ -402,13 +377,7 @@ def is_shape(
     return True
 
 
-@overload
-def make_sequence(obj: list[_T] | tuple[_T, ...]) -> list[_T]: ...
-@overload
-def make_sequence(obj: _NonSequenceT) -> list[_NonSequenceT]: ...
-@overload
-def make_sequence(obj: object) -> list[Any]: ...
-def make_sequence(obj: object) -> list[Any]:
+def make_sequence(obj: Any) -> list[Any]:
     """
     Given an object, if it is a sequence return, otherwise
     add it to a length 1 sequence and return.
@@ -434,20 +403,10 @@ def make_sequence(obj: object) -> list[Any]:
         return [obj]
 
 
-@overload
-def vector_hemisphere(
-    vectors: ArrayLike,
-    return_sign: Literal[False] = False,
-) -> _MatF64: ...
-@overload
-def vector_hemisphere(
-    vectors: ArrayLike,
-    return_sign: Literal[True],
-) -> tuple[_MatF64, _VecF64]: ...
 def vector_hemisphere(
     vectors: ArrayLike,
     return_sign: bool = False,
-) -> _MatF64 | tuple[_MatF64, _VecF64]:
+):
     """
     For a set of 3D vectors alter the sign so they are all in the
     upper hemisphere.
@@ -1034,13 +993,7 @@ def attach_to_log(
     np.set_printoptions(precision=5, suppress=True)
 
 
-@overload
-def stack_lines(
-    indices: np.ndarray[Any, _DTypeT],
-) -> np.ndarray[tuple[int, int], _DTypeT]: ...
-@overload
-def stack_lines(indices: ArrayLike) -> np.ndarray[tuple[int, int], np.dtype[Any]]: ...
-def stack_lines(indices: ArrayLike) -> np.ndarray[tuple[int, int], np.dtype[Any]]:
+def stack_lines(indices: ArrayLike) -> NDArray:
     """
     Stack a list of values that represent a polyline into
     individual line segments with duplicated consecutive values.
@@ -1092,10 +1045,7 @@ def stack_lines(indices: ArrayLike) -> np.ndarray[tuple[int, int], np.dtype[Any]
 def append_faces(
     vertices_seq: Iterable[NDArray[_ScalarT]],
     faces_seq: Iterable[NDArray[np.integer[Any]]],
-) -> tuple[
-    np.ndarray[tuple[int, int], np.dtype[_ScalarT]],
-    _MatI64,
-]:
+) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
     """
     Given a sequence of zero-indexed faces and vertices
     combine them into a single array of faces and
@@ -1116,9 +1066,9 @@ def append_faces(
       Reference vertex indices
     """
     # the length of each vertex array
-    vertices_len: _VecI64 = np.array([len(i) for i in vertices_seq])
+    vertices_len = np.array([len(i) for i in vertices_seq], dtype=np.int64)
     # how much each group of faces needs to be offset
-    face_offset: _VecI64 = np.append(0, np.cumsum(vertices_len)[:-1])
+    face_offset = np.append(0, np.cumsum(vertices_len)[:-1])
 
     new_faces = []
     for offset, faces in zip(face_offset, faces_seq):
@@ -1145,7 +1095,7 @@ def array_to_string(
     """
     Convert a 1 or 2D array into a string with a specified number
     of digits and delimiter. The reason this exists is that the
-    basic numpy array to string conversions are surprisingly bad.
+    basic numpy array to string conversions are surprisingly slow.
 
     Parameters
     ------------
@@ -1229,8 +1179,8 @@ def structured_array_to_string(
     """
     Convert an unstructured array into a string with a specified
     number of digits and delimiter. The reason thisexists is
-    that the basic numpy array to string conversionsare
-    surprisingly bad.
+    that the basic numpy array to string conversions are
+    surprisingly slow.
 
     Parameters
     ------------
@@ -2127,7 +2077,9 @@ def sigfig_int(values: ArrayLike, sigfig: ArrayLike) -> tuple[_VecI64, _VecF64]:
 
 
 def decompress(
-    file_obj: bytes | IO[bytes] | BytesIO,  # https://github.com/beartype/beartype/issues/643
+    file_obj: bytes
+    | IO[bytes]
+    | BytesIO,  # https://github.com/beartype/beartype/issues/643
     file_type: str,
 ) -> dict[str, BytesIO] | dict[str, IO[bytes] | None]:
     """
@@ -2235,7 +2187,7 @@ def split_extension(file_name: str, special: Iterable[str] | None = None) -> str
 
 def triangle_strips_to_faces(
     strips: _SupportsLenAndGetItem[NDArray[np.integer[Any]]],
-) -> _MatI64:
+) -> NDArray[np.int64]:
     """
     Convert a sequence of triangle strips to (n, 3) faces.
 
