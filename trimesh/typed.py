@@ -1,9 +1,9 @@
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from pathlib import Path
 from sys import version_info
-from typing import IO, Any, BinaryIO, Literal, TypeAlias
+from typing import IO, Any, BinaryIO, Literal, TypeAlias, TypeVar
 
-from numpy import float64, floating, int64, integer
+from numpy import dtype, float64, floating, generic, int64, integer, ndarray
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
 if version_info >= (3, 11):
@@ -49,6 +49,13 @@ BooleanOperationType: TypeAlias = Literal["difference", "union", "intersection"]
 # what are the supported methods for converting a mesh into voxels.
 VoxelizationMethodsType: TypeAlias = Literal["subdivide", "ray", "binvox"]
 
+# add numpy types like their `numpy.typing.NDArray`
+# but with specific dimensionality
+DType = TypeVar("DType", bound=generic)
+NDArray1D: TypeAlias = ndarray[tuple[int], dtype[DType]]
+NDArray2D: TypeAlias = ndarray[tuple[int, int], dtype[DType]]
+NDArray3D: TypeAlias = ndarray[tuple[int, int, int], dtype[DType]]
+
 __all__ = [
     "IO",
     "Any",
@@ -63,6 +70,9 @@ __all__ = [
     "Loadable",
     "Mapping",
     "NDArray",
+    "NDArray1D",
+    "NDArray2D",
+    "NDArray3D",
     "Number",
     "Self",
     "Sequence",

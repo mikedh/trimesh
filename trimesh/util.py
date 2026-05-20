@@ -30,7 +30,17 @@ import numpy as np
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import IO, Any, ArrayLike, Floating, Integer, Iterable, NDArray
+from .typed import (
+    IO,
+    Any,
+    ArrayLike,
+    Floating,
+    Integer,
+    Iterable,
+    NDArray,
+    NDArray1D,
+    NDArray2D,
+)
 
 # create a default logger
 log: logging.Logger = logging.getLogger(__name__)
@@ -428,7 +438,7 @@ def vector_hemisphere(
     return oriented
 
 
-def vector_to_spherical(cartesian: ArrayLike) -> NDArray[np.float64]:
+def vector_to_spherical(cartesian: ArrayLike) -> NDArray2D[np.float64]:
     """
     Convert a set of cartesian points to (n, 2) spherical unit
     vectors.
@@ -456,7 +466,7 @@ def vector_to_spherical(cartesian: ArrayLike) -> NDArray[np.float64]:
     return spherical
 
 
-def spherical_to_vector(spherical: ArrayLike) -> NDArray[np.float64]:
+def spherical_to_vector(spherical: ArrayLike) -> NDArray2D[np.float64]:
     """
     Convert an array of `(n, 2)` spherical angles to `(n, 3)` unit vectors.
 
@@ -578,7 +588,7 @@ def diagonal_dot(a: ArrayLike, b: ArrayLike) -> np.ndarray[tuple[int], np.dtype[
     return np.dot(a * b, [1.0] * a.shape[1])
 
 
-def row_norm(data: NDArray) -> NDArray[np.float64]:
+def row_norm(data: NDArray) -> NDArray1D[np.float64]:
     """
     Compute the norm per-row of a numpy array.
 
@@ -607,7 +617,7 @@ def row_norm(data: NDArray) -> NDArray[np.float64]:
 def stack_3D(
     points: ArrayLike,
     return_2D: bool = False,
-) -> NDArray[np.float64] | tuple[NDArray[np.float64], bool]:
+) -> NDArray2D[np.float64] | tuple[NDArray2D[np.float64], bool]:
     """
     For a list of (n, 2) or (n, 3) points return them
     as (n, 3) 3D points, 2D points on the XY plane.
@@ -647,7 +657,7 @@ def stack_3D(
     return points
 
 
-def grid_arange(bounds: ArrayLike, step: ArrayLike) -> NDArray[np.float64]:
+def grid_arange(bounds: ArrayLike, step: ArrayLike) -> NDArray2D[np.float64]:
     """
     Return a grid from an (2,dimension) bounds with samples step distance apart.
 
@@ -678,7 +688,7 @@ def grid_arange(bounds: ArrayLike, step: ArrayLike) -> NDArray[np.float64]:
     return grid
 
 
-def grid_linspace(bounds: ArrayLike, count: ArrayLike) -> NDArray[np.float64]:
+def grid_linspace(bounds: ArrayLike, count: ArrayLike) -> NDArray2D[np.float64]:
     """
     Return a grid spaced inside a bounding box with edges spaced using np.linspace.
 
@@ -983,7 +993,7 @@ def stack_lines(indices: ArrayLike) -> NDArray:
 def append_faces(
     vertices_seq: Iterable[NDArray],
     faces_seq: Iterable[NDArray[np.integer[Any]]],
-) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
+) -> tuple[NDArray2D[np.float64], NDArray2D[np.int64]]:
     """
     Given a sequence of zero-indexed faces and vertices
     combine them into a single array of faces and
@@ -1394,9 +1404,7 @@ def type_bases(obj: object, depth: Integer = 4) -> list[type]:
     """
     Return the bases of the object passed.
     """
-    bases: collections.deque[list] = collections.deque(
-        [list(obj.__class__.__bases__)]
-    )
+    bases: collections.deque[list] = collections.deque([list(obj.__class__.__bases__)])
     for i in range(depth):
         bases.append([i.__base__ for i in bases[-1] if i is not None])
     try:
@@ -1882,7 +1890,7 @@ def wrap_as_stream(item: str | bytes) -> StringIO | BytesIO:
     raise ValueError(f"{type(item).__name__} is not wrappable!")
 
 
-def sigfig_round(values: ArrayLike, sigfig: ArrayLike = 1) -> NDArray[np.float64]:
+def sigfig_round(values: ArrayLike, sigfig: ArrayLike = 1) -> NDArray1D[np.float64]:
     """
     Round a single value to a specified number of significant figures.
 
@@ -1918,7 +1926,7 @@ def sigfig_round(values: ArrayLike, sigfig: ArrayLike = 1) -> NDArray[np.float64
 
 def sigfig_int(
     values: ArrayLike, sigfig: ArrayLike
-) -> tuple[NDArray[np.int64], NDArray[np.float64]]:
+) -> tuple[NDArray1D[np.int64], NDArray1D[np.float64]]:
     """
     Convert a set of floating point values into integers
     with a specified number of significant figures and an
@@ -2066,7 +2074,7 @@ def split_extension(file_name: str, special: Iterable[str] | None = None) -> str
 
 def triangle_strips_to_faces(
     strips: Sequence[NDArray[np.integer[Any]]],
-) -> NDArray[np.int64]:
+) -> NDArray2D[np.int64]:
     """
     Convert a sequence of triangle strips to (n, 3) faces.
 
@@ -2127,7 +2135,9 @@ def triangle_strips_to_faces(
     return tri
 
 
-def triangle_fans_to_faces(fans: Iterable[NDArray[np.integer[Any]]]) -> NDArray[np.int64]:
+def triangle_fans_to_faces(
+    fans: Iterable[NDArray[np.integer[Any]]],
+) -> NDArray2D[np.int64]:
     """
     Convert fans of m + 2 vertex indices in fan format to m triangles
 
@@ -2232,7 +2242,7 @@ def unique_id(length: Integer = 12) -> str:
     return uuid.UUID(int=random.getrandbits(128), version=4).hex[:length]
 
 
-def generate_basis(z: ArrayLike, epsilon: float = 1e-12) -> NDArray[np.float64]:
+def generate_basis(z: ArrayLike, epsilon: float = 1e-12) -> NDArray2D[np.float64]:
     """
     Generate an arbitrary basis (also known as a coordinate frame)
     from a given z-axis vector.
