@@ -209,6 +209,32 @@ class CollisionTest(g.unittest.TestCase):
             g.np.linalg.norm(data.point(names[0]) - data.point(names[1])), dist
         )
 
+    def test_collision_batch(self):
+        # regression: in_collision_single(return_names=True) dropped pairs
+        # once cumulative contacts hit num_max_contacts — fcl's default
+        # callback halts traversal at the cap
+        if fcl is None:
+            g.log.warning("skipping FCL tests: not installed")
+            return
+
+        # many probes each colliding with one large static object
+        anvil = g.trimesh.creation.box(extents=[200, 200, 200])
+        probe = g.trimesh.creation.revolve(
+            g.np.array([[0, 3.0], [3, 3], [3, 75], [127, 75], [127, 580], [0, 580]]),
+            sections=32,
+        )
+        count = 700
+        names = [f"probe_{i}" for i in range(count)]
+        batch = g.trimesh.collision.CollisionManager()
+        for i, name in enumerate(names):
+            t = g.np.eye(4)
+            t[:3, 3] = [(i / count - 0.5) * 30, 0, -50]
+            batch.add_object(name, probe, transform=t)
+
+        hit, reported = batch.in_collision_single(anvil, return_names=True)
+        assert hit
+        assert set(names) == reported
+
     def test_scene(self):
         if fcl is None:
             return
