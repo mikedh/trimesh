@@ -175,6 +175,72 @@ def test_path_sweep():
         assert mesh.is_volume
 
 
+def test_sweep_no_twist():
+    # A polygon swept along a curving 3D path should not spuriously twist about
+    # the path when no per-vertex `angles` are requested.
+    # https://github.com/mikedh/trimesh/issues/2448
+    if len(existing_engines) == 0:
+        return
+
+    # a regular pentagon centered on the origin, so each slice's centroid is the
+    # corresponding path vertex (used by the twist metric below)
+    a = g.np.linspace(0, 2 * g.np.pi, 5, endpoint=False)
+    poly = g.Polygon(g.np.column_stack([0.1 * g.np.cos(a), 0.1 * g.np.sin(a)]))
+
+    # a path that curves in all three dimensions
+    path = g.np.array(
+        [
+            [-0.4844, 0.5410, 0.0815],
+            [-0.6675, 0.8110, 0.4648],
+            [-0.5557, 0.9077, 0.6270],
+            [-0.3574, 0.9770, 0.7230],
+            [-0.1116, 1.0010, 0.7000],
+            [0.1598, 0.9730, 0.5425],
+            [0.2084, 0.6760, 0.1472],
+        ]
+    )
+
+    mesh = g.trimesh.creation.sweep_polygon(poly, path, cap=True, connect=False)
+    assert mesh.is_volume
+
+    # plane normal of each slice, reconstructed exactly as `sweep_polygon` does
+    util = g.trimesh.util
+    tf = g.trimesh.transformations
+    vector = util.unitize(path[1:] - path[:-1])
+    vector_mean = util.unitize(vector[1:] + vector[:-1])
+    normal = g.np.concatenate([[vector[0]], vector_mean, [vector[-1]]], axis=0)
+
+    # vertices come out as one `stride`-length boundary ring per path vertex
+    stride = len(mesh.vertices) // len(path)
+    rings = mesh.vertices.reshape((len(path), stride, 3)) - path[:, None, :]
+
+    # For each consecutive pair of slices, rotate the earlier ring by the minimal
+    # rotation between their plane normals, then measure the residual rotation about
+    # the later normal. That residual is the spurious twist, which should be ~0 for
+    # a rotation-minimizing frame. Before the fix this exceeded 130 degrees.
+    total_twist = 0.0
+    for i in range(len(path) - 1):
+        axis = g.np.cross(normal[i], normal[i + 1])
+        sin_a = g.np.linalg.norm(axis)
+        cos_a = g.np.dot(normal[i], normal[i + 1])
+        if sin_a < 1e-12:
+            rotated = rings[i]
+        else:
+            matrix = tf.rotation_matrix(g.np.arctan2(sin_a, cos_a), axis / sin_a)
+            rotated = rings[i] @ matrix[:3, :3].T
+        a0 = rotated[0] / g.np.linalg.norm(rotated[0])
+        b0 = rings[i + 1][0] / g.np.linalg.norm(rings[i + 1][0])
+        total_twist += abs(
+            g.np.degrees(
+                g.np.arctan2(
+                    g.np.dot(g.np.cross(a0, b0), normal[i + 1]), g.np.dot(a0, b0)
+                )
+            )
+        )
+
+    assert total_twist < 1.0
+
+
 def test_simple_watertight():
     # create a simple polygon
     polygon = g.Polygon(((0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)))

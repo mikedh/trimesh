@@ -345,49 +345,58 @@ def sweep_polygon(
     # planes should have one unit normal and one vertex each
     assert normal.shape == path.shape
 
-    # get the spherical coordinates for the normal vectors
-    theta, phi = util.vector_to_spherical(normal).T
+    # Build a rotation-minimizing (parallel-transport) frame for each slice.
+    #
+    # Each slice's local +Z axis is its plane normal; the two in-plane axes are
+    # propagated from one slice to the next by the *minimal* rotation that carries
+    # the previous normal onto the current one. Constructing each frame
+    # independently from the normal's spherical coordinates (the previous
+    # approach) ties the in-plane roll to the normal's azimuth, so the cross
+    # section spuriously twists as the path curves out of a plane, even when no
+    # `angles` roll was requested (https://github.com/mikedh/trimesh/issues/2448).
 
-    # collect the trig values into numpy arrays we can compose into matrices
-    cos_theta, sin_theta = np.cos(theta), np.sin(theta)
-    cos_phi, sin_phi = np.cos(phi), np.sin(phi)
+    # The starting in-plane axis matches the slice-0 axis of the previous
+    # spherical-coordinate frame, so a straight (untwisted) sweep is unchanged.
+    theta_0 = util.vector_to_spherical(normal[:1])[0, 0]
+    in_plane_x = np.zeros((len(path), 3))
+    in_plane_y = np.zeros((len(path), 3))
+    in_plane_x[0] = util.unitize([np.sin(theta_0), -np.cos(theta_0), 0.0])
+    in_plane_y[0] = np.cross(normal[0], in_plane_x[0])
+
+    for i in range(1, len(path)):
+        cross = np.cross(normal[i - 1], normal[i])
+        sin_a = np.linalg.norm(cross)
+        cos_a = np.dot(normal[i - 1], normal[i])
+        if sin_a < 1e-12:
+            # consecutive normals are parallel: carry the frame through unchanged
+            rotated_x = in_plane_x[i - 1]
+        else:
+            # Rodrigues' rotation of the previous in-plane x-axis by the minimal
+            # rotation (axis `cross`, angle between the two normals)
+            rot_axis = cross / sin_a
+            angle = np.arctan2(sin_a, cos_a)
+            rotated_x = (
+                in_plane_x[i - 1] * np.cos(angle)
+                + np.cross(rot_axis, in_plane_x[i - 1]) * np.sin(angle)
+                + rot_axis * np.dot(rot_axis, in_plane_x[i - 1]) * (1.0 - np.cos(angle))
+            )
+        # re-project against the current normal to remove numerical drift
+        rotated_x = util.unitize(rotated_x - normal[i] * np.dot(rotated_x, normal[i]))
+        in_plane_x[i] = rotated_x
+        in_plane_y[i] = np.cross(normal[i], rotated_x)
+
+    # apply the optional per-slice roll about each local normal (`angles`)
     cos_roll, sin_roll = np.cos(angles), np.sin(angles)
+    axes_x = in_plane_x * cos_roll[:, None] - in_plane_y * sin_roll[:, None]
+    axes_y = in_plane_x * sin_roll[:, None] + in_plane_y * cos_roll[:, None]
 
-    # we want a rotation which will be the identity for a Z+ vector
-    # this was constructed and unrolled from the following sympy block
-    # theta, phi, roll = sp.symbols("theta phi roll")
-    # matrix = (
-    #     tf.rotation_matrix(roll, [0, 0, 1]) @
-    #     tf.rotation_matrix(phi, [1, 0, 0]) @
-    #     tf.rotation_matrix((sp.pi / 2) - theta, [0, 0, 1])
-    # ).inv()
-    # matrix.simplify()
-
-    # shorthand for stacking
-    zeros = np.zeros(len(theta))
-    ones = np.ones(len(theta))
-
-    # stack initially as one unrolled matrix per row
-    transforms = np.column_stack(
-        [
-            -sin_roll * cos_phi * cos_theta + sin_theta * cos_roll,
-            sin_roll * sin_theta + cos_phi * cos_roll * cos_theta,
-            sin_phi * cos_theta,
-            path[:, 0],
-            -sin_roll * sin_theta * cos_phi - cos_roll * cos_theta,
-            -sin_roll * cos_theta + sin_theta * cos_phi * cos_roll,
-            sin_phi * sin_theta,
-            path[:, 1],
-            sin_phi * sin_roll,
-            -sin_phi * cos_roll,
-            cos_phi,
-            path[:, 2],
-            zeros,
-            zeros,
-            zeros,
-            ones,
-        ]
-    ).reshape((-1, 4, 4))
+    # assemble one homogeneous transform per slice with columns [x, y, normal, origin]
+    transforms = np.zeros((len(path), 4, 4))
+    transforms[:, :3, 0] = axes_x
+    transforms[:, :3, 1] = axes_y
+    transforms[:, :3, 2] = normal
+    transforms[:, :3, 3] = path
+    transforms[:, 3, 3] = 1.0
 
     if tol.strict:
         # make sure that each transform moves the Z+ vector to the requested normal
