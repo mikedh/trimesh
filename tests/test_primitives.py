@@ -305,6 +305,17 @@ def test_box_bounds_constructor():
     # bounds should match requesta
     assert g.np.allclose(prim.bounds, bounds)
 
+    # the resulting AABB must not depend on the order the two corners are
+    # passed in: regression test for the center being computed from
+    # `bounds[0]` rather than the min corner (issue #2523)
+    expected = [[0, 0, 0], [1, 1, 1]]
+    for corners in (
+        [[0, 0, 0], [1, 1, 1]],
+        [[0, 1, 0], [1, 0, 1]],
+        [[1, 1, 1], [0, 0, 0]],
+    ):
+        assert g.np.allclose(g.trimesh.primitives.Box(bounds=corners).bounds, expected)
+
     try:
         # should raise a ValueError
         g.trimesh.primitives.Box(extents=bounds[0], bounds=bounds)

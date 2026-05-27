@@ -774,8 +774,10 @@ class Box(Primitive):
             # create extents from AABB
             extents = np.ptp(bounds, axis=0)
             # translate to the center of the box
+            # use the min corner (not `bounds[0]`) so the result is
+            # independent of the order the two corners are passed in
             transform = np.eye(4)
-            transform[:3, 3] = bounds[0] + extents / 2.0
+            transform[:3, 3] = np.min(bounds, axis=0) + extents / 2.0
 
         self.primitive = PrimitiveAttributes(
             self,
