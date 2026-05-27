@@ -13,19 +13,46 @@ import time
 import uuid
 import warnings
 import zipfile
-from collections.abc import Mapping
+from collections.abc import (
+    Callable,
+    Collection,
+    Hashable,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    MutableSet,
+    Sequence,
+)
 from copy import deepcopy
 from io import BytesIO, StringIO
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .iteration import chain
 
 # use our wrapped types for wider version compatibility
-from .typed import ArrayLike, Integer, Iterable, NDArray, float64
+from .typed import (
+    IO,
+    Any,
+    ArrayLike,
+    BoolIsFile,
+    Floating,
+    Integer,
+    Iterable,
+    NDArray,
+    NDArray1D,
+    NDArray2D,
+)
+
+# imported only so type checkers can resolve the dotted forward-ref
+# string return below — never imported at runtime, and beartype
+# re-imports the dotted path itself when the function is first called
+if TYPE_CHECKING:
+    import trimesh.parent
 
 # create a default logger
-log = logging.getLogger(__name__)
+log: logging.Logger = logging.getLogger(__name__)
 
 ABC = abc.ABC
 now = time.time
@@ -35,13 +62,13 @@ which = shutil.which
 # a floating point threshold for 0.0
 # we are setting it to 100x the resolution of a float64
 # which works out to be 1e-13
-TOL_ZERO = np.finfo(np.float64).resolution * 100
+TOL_ZERO: float = float(np.finfo(np.float64).resolution * 100)
 # how close to merge vertices
-TOL_MERGE = 1e-8
+TOL_MERGE: float = 1e-8
 # enable additional potentially slow checks
-_STRICT = False
+_STRICT: bool = False
 
-_IDENTITY = np.eye(4, dtype=np.float64)
+_IDENTITY: NDArray[np.float64] = np.eye(4, dtype=np.float64)
 _IDENTITY.flags["WRITEABLE"] = False
 
 
@@ -65,7 +92,11 @@ def has_module(name: str) -> bool:
     return find_spec(name) is not None
 
 
-def unitize(vectors, check_valid=False, threshold=None):
+def unitize(
+    vectors: ArrayLike,
+    check_valid: bool = False,
+    threshold: float | None = None,
+):
     """
     Unitize a vector or an array or row-vectors.
 
@@ -120,7 +151,7 @@ def unitize(vectors, check_valid=False, threshold=None):
     return unit
 
 
-def euclidean(a, b) -> float:
+def euclidean(a: ArrayLike, b: ArrayLike) -> np.float64:
     """
     DEPRECATED: use `np.linalg.norm(a - b)` instead of this.
     """
@@ -137,7 +168,7 @@ def euclidean(a, b) -> float:
     return np.sqrt(((a - b) ** 2).sum())
 
 
-def is_file(obj):
+def is_file(obj: Any) -> BoolIsFile:
     """
     Check if an object is file-like
 
@@ -154,7 +185,7 @@ def is_file(obj):
     return hasattr(obj, "read") or hasattr(obj, "write")
 
 
-def is_pathlib(obj):
+def is_pathlib(obj: object) -> bool:
     """
     Check if the object is a `pathlib.Path` or subclass.
 
@@ -173,7 +204,7 @@ def is_pathlib(obj):
     return hasattr(obj, "absolute") and name.endswith("Path")
 
 
-def is_string(obj) -> bool:
+def is_string(obj: object) -> bool:
     """
     DEPRECATED : this is not necessary since we dropped Python 2.
 
@@ -190,7 +221,7 @@ def is_string(obj) -> bool:
     return isinstance(obj, str)
 
 
-def is_sequence(obj) -> bool:
+def is_sequence(obj: Any) -> bool:
     """
     Check if an object is a sequence or not.
 
@@ -222,7 +253,11 @@ def is_sequence(obj) -> bool:
     return seq
 
 
-def is_shape(obj, shape, allow_zeros: bool = False) -> bool:
+def is_shape(
+    obj: NDArray | Any,
+    shape: Sequence[int | tuple[int, ...]],
+    allow_zeros: bool = False,
+) -> bool:
     """
     Compare the shape of a numpy.ndarray to a target shape,
     with any value less than zero being considered a wildcard
@@ -283,7 +318,9 @@ def is_shape(obj, shape, allow_zeros: bool = False) -> bool:
     # wildcards are less than zero (i.e. -1)
     for i, target in zip(obj.shape, shape):
         # check if current field has multiple acceptable values
-        if is_sequence(target):
+        # an explicit tuple/list check narrows `target` for type
+        # checkers — `is_sequence` is not a type guard
+        if isinstance(target, (list, tuple)):
             if i in target:
                 # obj shape is in the accepted values
                 continue
@@ -291,7 +328,7 @@ def is_shape(obj, shape, allow_zeros: bool = False) -> bool:
                 return False
 
         # check if current field is a wildcard
-        if target < 0:
+        if int(target) < 0:
             if i == 0 and not allow_zeros:
                 # if a dimension is 0, we don't allow
                 # that to match to a wildcard
@@ -309,7 +346,7 @@ def is_shape(obj, shape, allow_zeros: bool = False) -> bool:
     return True
 
 
-def make_sequence(obj):
+def make_sequence(obj: Any) -> list:
     """
     Given an object, if it is a sequence return, otherwise
     add it to a length 1 sequence and return.
@@ -333,7 +370,10 @@ def make_sequence(obj):
         return [obj]
 
 
-def vector_hemisphere(vectors, return_sign=False):
+def vector_hemisphere(
+    vectors: ArrayLike,
+    return_sign: bool = False,
+):
     """
     For a set of 3D vectors alter the sign so they are all in the
     upper hemisphere.
@@ -407,7 +447,7 @@ def vector_hemisphere(vectors, return_sign=False):
     return oriented
 
 
-def vector_to_spherical(cartesian):
+def vector_to_spherical(cartesian: ArrayLike) -> NDArray2D[np.float64]:
     """
     Convert a set of cartesian points to (n, 2) spherical unit
     vectors.
@@ -435,7 +475,7 @@ def vector_to_spherical(cartesian):
     return spherical
 
 
-def spherical_to_vector(spherical: ArrayLike) -> NDArray[float64]:
+def spherical_to_vector(spherical: ArrayLike) -> NDArray2D[np.float64]:
     """
     Convert an array of `(n, 2)` spherical angles to `(n, 3)` unit vectors.
 
@@ -459,7 +499,7 @@ def spherical_to_vector(spherical: ArrayLike) -> NDArray[float64]:
     return np.column_stack((ct * sp, st * sp, cp))
 
 
-def pairwise(iterable):
+def pairwise(iterable: Iterable[Any]) -> "zip[tuple[Any, Any]] | NDArray":
     """
     For an iterable, group values into pairs.
 
@@ -500,27 +540,10 @@ def pairwise(iterable):
     return zip(a, b)
 
 
-try:
-    # prefer the faster numpy version of multi_dot
-    # only included in recent-ish version of numpy
-    multi_dot = np.linalg.multi_dot
-except AttributeError:
-    log.debug("np.linalg.multi_dot not available, using fallback")
-
-    def multi_dot(arrays):
-        """
-        Compute the dot product of two or more arrays in a single function call.
-        In most versions of numpy this is included, this slower function is
-        provided for backwards compatibility with ancient versions of numpy.
-        """
-        arrays = np.asanyarray(arrays)
-        result = arrays[0].copy()
-        for i in arrays[1:]:
-            result = np.dot(result, i)
-        return result
+multi_dot = np.linalg.multi_dot
 
 
-def diagonal_dot(a, b):
+def diagonal_dot(a: ArrayLike, b: ArrayLike) -> np.ndarray[tuple[int], np.dtype[Any]]:
     """
     Dot product by row of a and b.
 
@@ -574,7 +597,7 @@ def diagonal_dot(a, b):
     return np.dot(a * b, [1.0] * a.shape[1])
 
 
-def row_norm(data):
+def row_norm(data: NDArray) -> NDArray1D[np.float64]:
     """
     Compute the norm per-row of a numpy array.
 
@@ -600,7 +623,10 @@ def row_norm(data):
     return np.sqrt(np.dot(data**2, [1] * data.shape[1]))
 
 
-def stack_3D(points, return_2D=False):
+def stack_3D(
+    points: ArrayLike,
+    return_2D: bool = False,
+) -> NDArray2D[np.float64] | tuple[NDArray2D[np.float64], bool]:
     """
     For a list of (n, 2) or (n, 3) points return them
     as (n, 3) 3D points, 2D points on the XY plane.
@@ -640,7 +666,7 @@ def stack_3D(points, return_2D=False):
     return points
 
 
-def grid_arange(bounds, step):
+def grid_arange(bounds: ArrayLike, step: ArrayLike) -> NDArray2D[np.float64]:
     """
     Return a grid from an (2,dimension) bounds with samples step distance apart.
 
@@ -671,7 +697,7 @@ def grid_arange(bounds, step):
     return grid
 
 
-def grid_linspace(bounds, count):
+def grid_linspace(bounds: ArrayLike, count: ArrayLike) -> NDArray2D[np.float64]:
     """
     Return a grid spaced inside a bounding box with edges spaced using np.linspace.
 
@@ -701,7 +727,9 @@ def grid_linspace(bounds, count):
     return grid
 
 
-def multi_dict(pairs):
+def multi_dict(
+    pairs: Iterable[tuple[Hashable, Any]],
+) -> collections.defaultdict[Hashable, list]:
     """
     Given a set of key value pairs, create a dictionary.
     If a key occurs multiple times, stack the values into an array.
@@ -723,7 +751,7 @@ def multi_dict(pairs):
     return result
 
 
-def tolist(data):
+def tolist(data: object) -> Any:
     """
     Ensure that any arrays or dicts passed containing
     numpy arrays are properly converted to lists
@@ -742,7 +770,7 @@ def tolist(data):
     return result
 
 
-def is_binary_file(file_obj):
+def is_binary_file(file_obj: IO[Any]) -> bool:
     """
     Returns True if file has non-ASCII characters (> 0x7F, or 127)
     """
@@ -760,7 +788,7 @@ def is_binary_file(file_obj):
     return False
 
 
-def distance_to_end(file_obj):
+def distance_to_end(file_obj: IO[Any]) -> int:
     """
     For an open file object how far is it to the end
 
@@ -780,7 +808,7 @@ def distance_to_end(file_obj):
     return distance
 
 
-def decimal_to_digits(decimal, min_digits=None) -> int:
+def decimal_to_digits(decimal: Floating, min_digits: Integer | None = None) -> int:
     """
     Return the number of digits to the first nonzero decimal.
 
@@ -801,14 +829,14 @@ def decimal_to_digits(decimal, min_digits=None) -> int:
 
 
 def attach_to_log(
-    level=logging.DEBUG,
-    handler=None,
-    loggers: Iterable[logging.Logger] | None = None,
+    level: Integer = logging.DEBUG,
+    handler: logging.Handler | None = None,
+    loggers: MutableSet[logging.Logger | Any] | None = None,
     colors: bool = True,
     capture_warnings: bool = True,
-    blacklist: Iterable | None = None,
+    blacklist: Iterable[str] | None = None,
     only_parent: bool = True,
-):
+) -> None:
     """
     Attach a stream handler to all loggers.
 
@@ -880,7 +908,8 @@ def attach_to_log(
 
     # add the formatters and set the level
     handler.setFormatter(formatter)
-    handler.setLevel(level)
+    # numpy integers aren't `int` subclasses — coerce for the stdlib stubs
+    handler.setLevel(int(level))
 
     # if nothing passed use all available loggers
     if loggers is None:
@@ -894,7 +923,7 @@ def attach_to_log(
     logging.getLogger("pyembree").disabled = True
 
     # cull loggers that are not actually loggers or are on the blacklist
-    loggers = {
+    loggers_dict = {
         L.name: L
         for L in loggers
         if hasattr(L, "name")
@@ -906,23 +935,23 @@ def attach_to_log(
         # create a new dict to store only parent loggers
         parent_loggers = {}
         # sort logger names to process in hierarchical order
-        for name in sorted(loggers.keys()):
+        for name in sorted(loggers_dict.keys()):
             # if it's not a child of any existing parent, add it as a parent
             if not any(name.startswith(f"{p}.") for p in parent_loggers.keys()):
-                parent_loggers[name] = loggers[name]
+                parent_loggers[name] = loggers_dict[name]
         # replace loggers dict with only parent loggers
-        loggers = parent_loggers
+        loggers_dict = parent_loggers
 
     # loop through all available loggers
-    for logger in loggers.values():
+    for logger in loggers_dict.values():
         logger.addHandler(handler)
-        logger.setLevel(level)
+        logger.setLevel(int(level))
 
     # set nicer numpy print options
     np.set_printoptions(precision=5, suppress=True)
 
 
-def stack_lines(indices):
+def stack_lines(indices: ArrayLike) -> NDArray:
     """
     Stack a list of values that represent a polyline into
     individual line segments with duplicated consecutive values.
@@ -971,7 +1000,10 @@ def stack_lines(indices):
     return np.column_stack((indices[:-1], indices[1:])).reshape(shape)
 
 
-def append_faces(vertices_seq, faces_seq):
+def append_faces(
+    vertices_seq: Iterable[NDArray],
+    faces_seq: Iterable[NDArray[np.integer[Any]]],
+) -> tuple[NDArray2D[np.float64], NDArray2D[np.int64]]:
     """
     Given a sequence of zero-indexed faces and vertices
     combine them into a single array of faces and
@@ -992,7 +1024,7 @@ def append_faces(vertices_seq, faces_seq):
       Reference vertex indices
     """
     # the length of each vertex array
-    vertices_len = np.array([len(i) for i in vertices_seq])
+    vertices_len = np.array([len(i) for i in vertices_seq], dtype=np.int64)
     # how much each group of faces needs to be offset
     face_offset = np.append(0, np.cumsum(vertices_len)[:-1])
 
@@ -1010,11 +1042,17 @@ def append_faces(vertices_seq, faces_seq):
     return vertices, faces
 
 
-def array_to_string(array, col_delim=" ", row_delim="\n", digits=8, value_format="{}"):
+def array_to_string(
+    array: ArrayLike,
+    col_delim: str = " ",
+    row_delim: str = "\n",
+    digits: Integer = 8,
+    value_format: str = "{}",
+) -> str:
     """
     Convert a 1 or 2D array into a string with a specified number
     of digits and delimiter. The reason this exists is that the
-    basic numpy array to string conversions are surprisingly bad.
+    basic numpy array to string conversions are surprisingly slow.
 
     Parameters
     ------------
@@ -1089,13 +1127,17 @@ def array_to_string(array, col_delim=" ", row_delim="\n", digits=8, value_format
 
 
 def structured_array_to_string(
-    array, col_delim=" ", row_delim="\n", digits=8, value_format="{}"
-):
+    array: ArrayLike,
+    col_delim: str = " ",
+    row_delim: str = "\n",
+    digits: Integer = 8,
+    value_format: str = "{}",
+) -> str:
     """
     Convert an unstructured array into a string with a specified
     number of digits and delimiter. The reason thisexists is
-    that the basic numpy array to string conversionsare
-    surprisingly bad.
+    that the basic numpy array to string conversions are
+    surprisingly slow.
 
     Parameters
     ------------
@@ -1177,7 +1219,11 @@ def structured_array_to_string(
     return formatted
 
 
-def array_to_encoded(array, dtype=None, encoding="base64"):
+def array_to_encoded(
+    array: ArrayLike,
+    dtype: np.typing.DTypeLike | None = None,
+    encoding: str = "base64",
+) -> Mapping[str, Any]:
     """
     Export a numpy array to a compact serializable dictionary.
 
@@ -1205,7 +1251,7 @@ def array_to_encoded(array, dtype=None, encoding="base64"):
     if dtype is None:
         dtype = array.dtype
 
-    encoded = {"dtype": np.dtype(dtype).str, "shape": shape}
+    encoded: dict[str, Any] = {"dtype": np.dtype(dtype).str, "shape": shape}
     if encoding in ["base64", "dict64"]:
         packed = base64.b64encode(flat.astype(dtype).tobytes())
         if hasattr(packed, "decode"):
@@ -1218,7 +1264,8 @@ def array_to_encoded(array, dtype=None, encoding="base64"):
     return encoded
 
 
-def decode_keys(store, encoding="utf-8"):
+# the store key type must be `Any` because the key type changes from `bytes` to `str`
+def decode_keys(store: dict[Any, Any], encoding: str = "utf-8") -> dict[str, Any]:
     """
     If a dictionary has keys that are bytes decode them to a str.
 
@@ -1251,7 +1298,7 @@ def decode_keys(store, encoding="utf-8"):
     return store
 
 
-def comment_strip(text, starts_with="#", new_line="\n"):
+def comment_strip(text: str, starts_with: str = "#", new_line: str = "\n") -> str:
     """
     Strip comments from a text block.
 
@@ -1296,7 +1343,7 @@ def comment_strip(text, starts_with="#", new_line="\n"):
     return result
 
 
-def encoded_to_array(encoded: dict | ArrayLike) -> NDArray:
+def encoded_to_array(encoded: ArrayLike | dict[Any, Any]) -> NDArray:
     """
     Turn a dictionary with base64 encoded strings back into a numpy array.
 
@@ -1321,19 +1368,21 @@ def encoded_to_array(encoded: dict | ArrayLike) -> NDArray:
         else:
             raise ValueError("Unable to extract numpy array from input")
 
-    encoded = decode_keys(encoded)
+    encoded_dict = decode_keys(encoded)
 
-    dtype = np.dtype(encoded["dtype"])
-    if "base64" in encoded:
-        array = np.frombuffer(base64.b64decode(encoded["base64"]), dtype)
-    elif "binary" in encoded:
-        array = np.frombuffer(encoded["binary"], dtype=dtype)
-    if "shape" in encoded:
-        array = array.reshape(encoded["shape"])
+    dtype = np.dtype(encoded_dict["dtype"])
+    if "base64" in encoded_dict:
+        array = np.frombuffer(base64.b64decode(encoded_dict["base64"]), dtype)
+    elif "binary" in encoded_dict:
+        array = np.frombuffer(encoded_dict["binary"], dtype=dtype)
+    else:
+        raise ValueError("Invalid encoded array, no 'base64' or 'binary' key found")
+    if "shape" in encoded_dict:
+        array = array.reshape(encoded_dict["shape"])
     return array
 
 
-def is_instance_named(obj, name):
+def is_instance_named(obj: object, name: str | list[str]) -> bool:
     """
     Given an object, if it is a member of the class 'name',
     or a subclass of 'name', return True.
@@ -1360,21 +1409,21 @@ def is_instance_named(obj, name):
         return False
 
 
-def type_bases(obj, depth=4):
+def type_bases(obj: object, depth: Integer = 4) -> list[type]:
     """
     Return the bases of the object passed.
     """
-    bases = collections.deque([list(obj.__class__.__bases__)])
+    bases: collections.deque[list] = collections.deque([list(obj.__class__.__bases__)])
     for i in range(depth):
         bases.append([i.__base__ for i in bases[-1] if i is not None])
     try:
-        bases = np.hstack(bases)
+        bases_flat = np.hstack(bases)
     except IndexError:
-        bases = []
-    return [i for i in bases if hasattr(i, "__name__")]
+        return []
+    return [i for i in bases_flat if hasattr(i, "__name__")]
 
 
-def type_named(obj, name):
+def type_named(obj: object, name: str) -> type | None:
     """
     Similar to the type() builtin, but looks in class bases
     for named instance.
@@ -1401,9 +1450,7 @@ def type_named(obj, name):
     raise ValueError("Unable to extract class of name " + name)
 
 
-def concatenate(
-    a, b=None
-) -> "trimesh.Trimesh | trimesh.path.Path2D | trimesh.path.Path3D":  # noqa: F821
+def concatenate(a, b=None) -> "trimesh.parent.Geometry":
     """
     Concatenate two or more meshes.
 
@@ -1448,7 +1495,11 @@ def concatenate(
         return concatenate_path(is_path)
 
     if len(is_mesh) == 0:
-        return []
+        # nothing concatenable was passed — match the empty-input
+        # branch above and hand back an empty mesh
+        from .base import Trimesh
+
+        return Trimesh()
 
     # extract the trimesh type to avoid a circular import
     # and assert that all inputs are Trimesh objects
@@ -1482,7 +1533,7 @@ def concatenate(
 
     metadata = {}
     try:
-        [metadata.update(deepcopy(m.metadata) for m in is_mesh)]
+        _ = [metadata.update(deepcopy(m.metadata) for m in is_mesh)]
     except BaseException:
         pass
 
@@ -1517,6 +1568,7 @@ def concatenate(
                 )
 
     # create the mesh object
+    assert trimesh_type is not None
     result = trimesh_type(
         vertices=vertices,
         faces=faces,
@@ -1539,7 +1591,7 @@ def concatenate(
 
 def submesh(
     mesh,
-    faces_sequence,
+    faces_sequence: Iterable[Integer],
     repair: bool = True,
     only_watertight: bool = False,
     min_faces: Integer | None = None,
@@ -1612,6 +1664,7 @@ def submesh(
         faces.append(mask[current])
         vertices.append(original_vertices[unique])
 
+        assert mesh.visual is not None
         try:
             visuals.append(mesh.visual.face_subset(index))
         except BaseException as E:
@@ -1619,17 +1672,19 @@ def submesh(
             visuals = None
 
     if len(vertices) == 0:
-        return np.array([])
+        return []
 
     # we use type(mesh) rather than importing Trimesh from base
     # to avoid a circular import
     trimesh_type = type_named(mesh, "Trimesh")
+    assert trimesh_type is not None
+
     if append:
         visual = None
         try:
             visuals = np.array(visuals)
             visual = visuals[0].concatenate(visuals[1:])
-        except BaseException:
+        except Exception:
             log.debug("failed to combine visuals", exc_info=True)
         # re-index faces and stack
         vertices, faces = append_faces(vertices, faces)
@@ -1680,7 +1735,7 @@ def submesh(
     return result
 
 
-def zero_pad(data, count, right=True):
+def zero_pad(data: NDArray, count: Integer, right: bool = True) -> NDArray:
     """
     Parameters
     ------------
@@ -1707,7 +1762,7 @@ def zero_pad(data, count, right=True):
         return np.asanyarray(data)
 
 
-def jsonify(obj, **kwargs):
+def jsonify(obj: object, **kwargs: Any) -> str:
     """
     A version of json.dumps that can handle numpy arrays
     by creating a custom encoder for numpy dtypes.
@@ -1726,14 +1781,14 @@ def jsonify(obj, **kwargs):
     """
 
     class EdgeEncoder(json.JSONEncoder):
-        def default(self, obj):
+        def default(self, o: Any) -> str:
             # will work for numpy.ndarrays
             # as well as their int64/etc objects
-            if hasattr(obj, "tolist"):
-                return obj.tolist()
-            elif hasattr(obj, "timestamp"):
-                return obj.timestamp()
-            return json.JSONEncoder.default(self, obj)
+            if hasattr(o, "tolist"):
+                return o.tolist()
+            elif hasattr(o, "timestamp"):
+                return o.timestamp()
+            return json.JSONEncoder.default(self, o)
 
     # run the dumps using our encoder
     return json.dumps(obj, cls=EdgeEncoder, **kwargs)
@@ -1784,7 +1839,7 @@ def convert_like(item, like):
     return item
 
 
-def bounds_tree(bounds):
+def bounds_tree(bounds: ArrayLike) -> Any:
     """
     Given a set of axis aligned bounds create an r-tree for
     broad-phase collision detection.
@@ -1827,7 +1882,7 @@ def bounds_tree(bounds):
     )
 
 
-def wrap_as_stream(item):
+def wrap_as_stream(item: str | bytes) -> StringIO | BytesIO:
     """
     Wrap a string or bytes object as a file object.
 
@@ -1848,7 +1903,7 @@ def wrap_as_stream(item):
     raise ValueError(f"{type(item).__name__} is not wrappable!")
 
 
-def sigfig_round(values, sigfig=1):
+def sigfig_round(values: ArrayLike, sigfig: ArrayLike = 1) -> NDArray1D[np.float64]:
     """
     Round a single value to a specified number of significant figures.
 
@@ -1882,7 +1937,9 @@ def sigfig_round(values, sigfig=1):
     return rounded
 
 
-def sigfig_int(values, sigfig):
+def sigfig_int(
+    values: ArrayLike, sigfig: ArrayLike
+) -> tuple[NDArray1D[np.int64], NDArray1D[np.float64]]:
     """
     Convert a set of floating point values into integers
     with a specified number of significant figures and an
@@ -1899,7 +1956,7 @@ def sigfig_int(values, sigfig):
     ------------
     as_int : (n,) int
       Every value[i] has sigfig[i] digits
-    multiplier : (n, int)
+    multiplier : (n,) float
       Exponent, so as_int * 10 ** multiplier is
       the same order of magnitude as the input
     """
@@ -1919,7 +1976,12 @@ def sigfig_int(values, sigfig):
     return as_int, multiplier
 
 
-def decompress(file_obj, file_type):
+def decompress(
+    file_obj: bytes
+    | IO[bytes]
+    | BytesIO,  # https://github.com/beartype/beartype/issues/643
+    file_type: str,
+) -> dict[str, IO[bytes] | None]:
     """
     Given an open file object and a file type, return all components
     of the archive as open file objects in a dict.
@@ -1939,17 +2001,17 @@ def decompress(file_obj, file_type):
 
     file_type = str(file_type).lower()
     if isinstance(file_obj, bytes):
-        file_obj = wrap_as_stream(file_obj)
+        file_obj = BytesIO(file_obj)
 
     if file_type.endswith("zip"):
         archive = zipfile.ZipFile(file_obj)
-        return {name: wrap_as_stream(archive.read(name)) for name in archive.namelist()}
+        return {name: BytesIO(archive.read(name)) for name in archive.namelist()}
     if file_type.endswith("bz2"):
         import bz2
 
         # get the file name if we have one otherwise default to "archive"
         name = getattr(file_obj, "name", "archive1234")[:-4]
-        return {name: wrap_as_stream(bz2.open(file_obj, mode="r").read())}
+        return {name: BytesIO(bz2.open(file_obj, mode="r").read())}
     if "tar" in file_type[-6:]:
         import tarfile
 
@@ -1958,7 +2020,10 @@ def decompress(file_obj, file_type):
     raise ValueError("Unsupported type passed!")
 
 
-def compress(info, **kwargs):
+def compress(
+    info: Mapping[str, str | bytes | IO[Any]],
+    **kwargs: Any,
+) -> bytes:
     """
     Compress data stored in a dict.
 
@@ -1978,17 +2043,19 @@ def compress(info, **kwargs):
     with zipfile.ZipFile(
         file_obj, mode="w", compression=zipfile.ZIP_DEFLATED, **kwargs
     ) as zipper:
-        for name, data in info.items():
-            if hasattr(data, "read"):
-                # if we were passed a file object, read it
-                data = data.read()
+        for name, data_or_file in info.items():
+            if isinstance(data_or_file, (str, bytes)):
+                data = data_or_file
+            else:
+                # a file-like object — read its contents
+                data = data_or_file.read()
             zipper.writestr(name, data)
     file_obj.seek(0)
     compressed = file_obj.read()
     return compressed
 
 
-def split_extension(file_name, special=None) -> str:
+def split_extension(file_name: str, special: Iterable[str] | None = None) -> str:
     """
     Find the file extension of a file name, including support for
     special case multipart file extensions (like .tar.gz)
@@ -2018,7 +2085,9 @@ def split_extension(file_name, special=None) -> str:
     return file_name.split(".")[-1]
 
 
-def triangle_strips_to_faces(strips):
+def triangle_strips_to_faces(
+    strips: Sequence[NDArray[np.integer[Any]]],
+) -> NDArray2D[np.int64]:
     """
     Convert a sequence of triangle strips to (n, 3) faces.
 
@@ -2079,7 +2148,9 @@ def triangle_strips_to_faces(strips):
     return tri
 
 
-def triangle_fans_to_faces(fans):
+def triangle_fans_to_faces(
+    fans: Iterable[NDArray[np.integer[Any]]],
+) -> NDArray2D[np.int64]:
     """
     Convert fans of m + 2 vertex indices in fan format to m triangles
 
@@ -2098,10 +2169,10 @@ def triangle_fans_to_faces(fans):
         np.transpose([fan[0] * np.ones(len(fan) - 2, dtype=int), fan[1:-1], fan[2:]])
         for fan in fans
     ]
-    return np.concatenate(faces)
+    return np.concatenate(faces, dtype=int)
 
 
-def vstack_empty(tup):
+def vstack_empty(tup: Iterable[NDArray]) -> NDArray:
     """
     A thin wrapper for numpy.vstack that ignores empty lists.
 
@@ -2128,7 +2199,11 @@ def vstack_empty(tup):
     return np.vstack(stackable)
 
 
-def write_encoded(file_obj, stuff, encoding="utf-8"):
+def write_encoded(
+    file_obj: IO[Any],
+    stuff: str | bytes,
+    encoding: str = "utf-8",
+) -> str | bytes:
     """
     If a file is open in binary mode and a
     string is passed, encode and write.
@@ -2162,7 +2237,7 @@ def write_encoded(file_obj, stuff, encoding="utf-8"):
     return stuff
 
 
-def unique_id(length=12):
+def unique_id(length: Integer = 12) -> str:
     """
     Generate a random alphaNumber unique identifier
     using UUID logic.
@@ -2180,7 +2255,7 @@ def unique_id(length=12):
     return uuid.UUID(int=random.getrandbits(128), version=4).hex[:length]
 
 
-def generate_basis(z, epsilon=1e-12):
+def generate_basis(z: ArrayLike, epsilon: float = 1e-12) -> NDArray2D[np.float64]:
     """
     Generate an arbitrary basis (also known as a coordinate frame)
     from a given z-axis vector.
@@ -2241,7 +2316,11 @@ def generate_basis(z, epsilon=1e-12):
     return result
 
 
-def isclose(a, b, atol: float = 1e-8):
+def isclose(
+    a: NDArray,
+    b: NDArray,
+    atol: Floating = 1e-8,
+) -> NDArray[np.bool_]:
     """
     A replacement for np.isclose that does fewer checks
     and validation and as a result is roughly 4x faster.
@@ -2267,7 +2346,7 @@ def isclose(a, b, atol: float = 1e-8):
     return np.logical_and(diff > -atol, diff < atol)
 
 
-def allclose(a, b, atol: float = 1e-8):
+def allclose(a: NDArray, b: NDArray, atol: Floating = 1e-8) -> bool:
     """
     A replacement for np.allclose that does few checks
     and validation and as a result is faster.
@@ -2286,10 +2365,10 @@ def allclose(a, b, atol: float = 1e-8):
     bool indicating if all elements are within `atol`.
     """
     #
-    return float(np.ptp(a - b)) < atol
+    return bool(float(np.ptp(a - b)) < atol)
 
 
-class FunctionRegistry(Mapping):
+class FunctionRegistry(Mapping[str, Callable[..., Any]]):
     """
     Non-overwritable mapping of string keys to functions.
 
@@ -2300,15 +2379,15 @@ class FunctionRegistry(Mapping):
     See trimesh.voxel.morphology for example usage.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Callable[..., Any]) -> None:
         self._dict = {}
         for k, v in kwargs.items():
             self[k] = v
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Callable[..., Any]:
         return self._dict[key]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Callable[..., object]) -> None:
         if not isinstance(key, str):
             raise ValueError(f"key must be a string, got {key!s}")
         if key in self:
@@ -2317,20 +2396,20 @@ class FunctionRegistry(Mapping):
             raise ValueError("Cannot set value which is not callable.")
         self._dict[key] = value
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._dict)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._dict)
 
-    def __contains__(self, key):
+    def __contains__(self, key: object) -> bool:
         return key in self._dict
 
-    def __call__(self, key, *args, **kwargs):
+    def __call__(self, key: str, *args: object, **kwargs: object) -> Any:
         return self[key](*args, **kwargs)
 
 
-def decode_text(text, initial="utf-8"):
+def decode_text(text: str | bytes, initial: str = "utf-8") -> str:
     """
     Try to decode byte input as a string.
 
@@ -2349,12 +2428,13 @@ def decode_text(text, initial="utf-8"):
     decoded : str
       Data as a string
     """
-    # if not bytes just return input
-    if not hasattr(text, "decode"):
+    # if it's already a string there is nothing to decode
+    if isinstance(text, str):
         return text
+
     try:
         # initially guess file is UTF-8 or specified encoding
-        text = text.decode(initial)
+        return text.decode(initial)
     except UnicodeDecodeError:
         # detect different file encodings
         from charset_normalizer import detect as charset_normalizer_detect
@@ -2370,11 +2450,10 @@ def decode_text(text, initial="utf-8"):
         )
         # try to decode again ignoring errors
         # if detect returned nothing just use the initial guess
-        text = text.decode(detect["encoding"] or initial, errors="ignore")
-    return text
+        return text.decode(detect["encoding"] or initial, errors="ignore")
 
 
-def to_ascii(text):
+def to_ascii(text: Any) -> str:
     """
     Force a string or other to ASCII text ignoring errors.
 
@@ -2398,7 +2477,7 @@ def to_ascii(text):
     return str(text)
 
 
-def is_ccw(points, return_all=False):
+def is_ccw(points: ArrayLike, return_all: bool = False):
     """
     Check if connected 2D points are counterclockwise.
 
@@ -2443,9 +2522,9 @@ def is_ccw(points, return_all=False):
 
 def unique_name(
     start: str | None,
-    contains: set | Mapping | Iterable,
-    counts: dict | None = None,
-):
+    contains: Collection[str],
+    counts: MutableMapping[str | None, int] | None = None,
+) -> str:
     """
     Deterministically generate a unique name not
     contained in a dict, set or other grouping with

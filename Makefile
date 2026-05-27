@@ -6,8 +6,12 @@ SHELL := bash
 .DELETE_ON_ERROR:
 .SUFFIXES:
 
-# get the git short hash and trimesh semver.
-VERSION := $(shell python trimesh/version.py)
+
+# prefer `uv run python` so this works without a system python on PATH
+PYTHON := $(shell command -v uv >/dev/null && echo 'uv run python' || echo python)
+# get the trimesh semantic version
+VERSION := $(shell $(PYTHON) trimesh/version.py)
+# save the git short hash for tags
 GIT_SHA := $(shell git rev-parse --short HEAD)
 
 # for coverage reports
@@ -64,6 +68,11 @@ tests: ## Run unit tests inside docker images.
 		--target tests \
 		--secret id=codecov_token,env=CODECOV_TOKEN \
 		.
+
+# run the `ty` type checker and print a per-file diagnostic-count table
+.PHONY: type-check
+type-check: ## Print a per-file `ty` type-check report
+	uv run --with ty python helpers/run_typecheck.py
 
 # build the docs inside our image and eject the contents
 # into `./html` directory

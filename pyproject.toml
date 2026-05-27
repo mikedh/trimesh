@@ -55,6 +55,7 @@ include-package-data = false
 
 [tool.setuptools.package-data]
 trimesh = [
+    "py.typed",
     "resources/templates/*",
     "resources/*.json*",
     "resources/schema/*",

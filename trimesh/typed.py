@@ -1,9 +1,9 @@
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from pathlib import Path
 from sys import version_info
-from typing import IO, Any, BinaryIO, Literal, TypeAlias
+from typing import IO, Any, BinaryIO, Literal, TypeAlias, TypeGuard, TypeVar
 
-from numpy import float64, floating, int64, integer
+from numpy import dtype, float64, floating, generic, int64, integer, ndarray
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
 if version_info >= (3, 11):
@@ -15,6 +15,10 @@ else:
 # a file-like object or a file path, or sometimes a dict
 Stream: TypeAlias = IO[str] | IO[bytes]
 Loadable: TypeAlias = str | Path | Stream | dict | None
+
+# for a function that returns "is this a file or not"
+# but with typeguard-narrowing if the answer is yes
+BoolIsFile: TypeAlias = TypeGuard[IO[Any]]
 
 # numpy integers do not inherit from python integers, i.e.
 # if you type a function argument as an `int` and then pass
@@ -49,18 +53,31 @@ BooleanOperationType: TypeAlias = Literal["difference", "union", "intersection"]
 # what are the supported methods for converting a mesh into voxels.
 VoxelizationMethodsType: TypeAlias = Literal["subdivide", "ray", "binvox"]
 
+# add numpy types like their `numpy.typing.NDArray`
+# but with specific dimensionality, i.e. `NDArray2D[np.float64]`
+DType = TypeVar("DType", bound=generic)
+NDArray1D: TypeAlias = ndarray[tuple[int], dtype[DType]]
+NDArray2D: TypeAlias = ndarray[tuple[int, int], dtype[DType]]
+NDArray3D: TypeAlias = ndarray[tuple[int, int, int], dtype[DType]]
+
 __all__ = [
     "IO",
+    "Any",
     "ArrayLike",
     "BinaryIO",
+    "BoolIsFile",
     "Callable",
     "DTypeLike",
+    "Floating",
     "Hashable",
     "Integer",
     "Iterable",
     "Loadable",
     "Mapping",
     "NDArray",
+    "NDArray1D",
+    "NDArray2D",
+    "NDArray3D",
     "Number",
     "Self",
     "Sequence",
