@@ -100,6 +100,7 @@ class Trimesh(Geometry3D):
         faces: ArrayLike | None = None,
         face_normals: ArrayLike | None = None,
         vertex_normals: ArrayLike | None = None,
+        vertex_tangents: ArrayLike | None = None,
         face_colors: ArrayLike | None = None,
         vertex_colors: ArrayLike | None = None,
         face_attributes: dict[str, ArrayLike] | None = None,
@@ -127,6 +128,9 @@ class Trimesh(Geometry3D):
           Array of normal vectors corresponding to faces
         vertex_normals : (n, 3) float
           Array of normal vectors for vertices
+        vertex_tangents : (n, 4) float
+          Array of tangent vectors (xyz) and handedness (w) for vertices,
+          for example loaded from a glTF `TANGENT` attribute
         face_colors : (n, 3|4) uint8
           Array of colors for faces
         vertex_colors : (n, 3|4) uint8
@@ -214,6 +218,10 @@ class Trimesh(Geometry3D):
         # (n, 3) float of vertex normals, can be created from face normals
         if vertex_normals is not None:
             self.vertex_normals = vertex_normals
+
+        # (n, 4) float of vertex tangents, e.g. from a glTF TANGENT attribute
+        if vertex_tangents is not None:
+            self.vertex_tangents = vertex_tangents
 
         # embree is a much, much faster raytracer written by Intel
         # if you have pyembree installed you should use it
@@ -555,6 +563,56 @@ class Trimesh(Geometry3D):
                 if np.ptp(values) < tol.merge:
                     log.debug("vertex_normals are all zero!")
                 self._cache["vertex_normals"] = values
+
+    @cache_decorator
+    def vertex_tangents(self) -> NDArray[float64]:
+        """
+        The tangent vectors of the mesh, used for normal (bump) mapping.
+
+        If tangents were loaded (for example from a glTF `TANGENT`
+        attribute) and match the number of vertices they are returned
+        directly. Otherwise they are computed from the vertex normals and
+        the per-vertex UV coordinates of the mesh's texture visual; a mesh
+        without UV coordinates has no defined tangent space and returns
+        zeros.
+
+        Returns
+        ----------
+        vertex_tangents : (n, 4) float
+          Tangent direction (xyz) and basis handedness (w, either +1 or
+          -1) at each vertex, where n == len(self.vertices). The bitangent
+          is `cross(vertex_normals, vertex_tangents[:, :3]) *
+          vertex_tangents[:, 3]`.
+        """
+        uv = getattr(self.visual, "uv", None)
+        if uv is None or len(uv) != len(self.vertices):
+            # tangents are only defined for a UV-mapped mesh
+            log.debug("no UV coordinates, vertex_tangents are zero!")
+            return np.zeros((len(self.vertices), 4), dtype=float64)
+        return geometry.vertex_tangents(
+            vertices=self.vertices,
+            faces=self.faces,
+            vertex_normals=self.vertex_normals,
+            uv=uv,
+            face_angles=self.face_angles,
+        )
+
+    @vertex_tangents.setter
+    def vertex_tangents(self, values: ArrayLike) -> None:
+        """
+        Assign values to vertex tangents.
+
+        Parameters
+        -------------
+        values : (len(self.vertices), 4) float
+          Tangent vectors (xyz) and handedness (w) for each vertex
+        """
+        if values is not None:
+            values = np.asanyarray(values, order="C", dtype=float64)
+            if values.shape == (len(self.vertices), 4):
+                self._cache["vertex_tangents"] = values
+            else:
+                log.debug("passed vertex_tangents are not (n, 4)!")
 
     @cache_decorator
     def vertex_faces(self) -> NDArray[int64]:

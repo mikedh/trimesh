@@ -921,6 +921,21 @@ def _append_mesh(
             # add the reference for UV coordinates
             current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
 
+        # export vertex tangents for normal mapping if they have been
+        # computed or loaded; glTF expects a VEC4 with handedness in w
+        if has_uv and "vertex_tangents" in mesh._cache.cache:
+            # the V texture coordinate was flipped above, which flips the
+            # handedness of the tangent basis, so flip w to match
+            tangents = mesh.vertex_tangents.copy()
+            tangents[:, 3] *= -1.0
+            acc_tangent = _data_append(
+                acc=tree["accessors"],
+                buff=buffer_items,
+                blob={"componentType": 5126, "type": "VEC4", "byteOffset": 0},
+                data=tangents.astype(float32),
+            )
+            current["primitives"][0]["attributes"]["TANGENT"] = acc_tangent
+
         # reference the material
         current["primitives"][0]["material"] = current_material
 
@@ -1658,7 +1673,15 @@ def _read_buffers(
                     if "NORMAL" in attr:
                         # vertex normals are specified
                         kwargs["vertex_normals"] = access[attr["NORMAL"]]
-                        # do we have UV coordinates
+                    if "TANGENT" in attr:
+                        # vertex tangents are a VEC4 of xyz direction and w
+                        # handedness; undo the V-flip glTF applies to UVs
+                        # (see TEXCOORD_0 below) so the basis handedness
+                        # matches trimesh's UV convention
+                        tangents = np.array(access[attr["TANGENT"]], dtype=np.float64)
+                        tangents[:, 3] *= -1.0
+                        kwargs["vertex_tangents"] = tangents
+                    # do we have UV coordinates
                     visuals = None
                     if "material" in p and not skip_materials:
                         if materials is None:
