@@ -69,6 +69,11 @@ tests: ## Run unit tests inside docker images.
 		--secret id=codecov_token,env=CODECOV_TOKEN \
 		.
 
+# run the `ty` type checker and print a per-file diagnostic-count table
+.PHONY: type-check
+type-check: ## Print a per-file `ty` type-check report
+	uv run --with ty python helpers/run_typecheck.py
+
 # build the docs inside our image and eject the contents
 # into `./html` directory
 .PHONY: docs

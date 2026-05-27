@@ -19,11 +19,13 @@ from collections.abc import (
     Hashable,
     Iterator,
     Mapping,
+    MutableMapping,
     MutableSet,
     Sequence,
 )
 from copy import deepcopy
 from io import BytesIO, StringIO
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -34,6 +36,7 @@ from .typed import (
     IO,
     Any,
     ArrayLike,
+    BoolIsFile,
     Floating,
     Integer,
     Iterable,
@@ -41,6 +44,12 @@ from .typed import (
     NDArray1D,
     NDArray2D,
 )
+
+# imported only so type checkers can resolve the dotted forward-ref
+# string return below — never imported at runtime, and beartype
+# re-imports the dotted path itself when the function is first called
+if TYPE_CHECKING:
+    import trimesh.parent
 
 # create a default logger
 log: logging.Logger = logging.getLogger(__name__)
@@ -159,7 +168,7 @@ def euclidean(a: ArrayLike, b: ArrayLike) -> np.float64:
     return np.sqrt(((a - b) ** 2).sum())
 
 
-def is_file(obj: Any) -> bool:
+def is_file(obj: Any) -> BoolIsFile:
     """
     Check if an object is file-like
 
@@ -309,7 +318,9 @@ def is_shape(
     # wildcards are less than zero (i.e. -1)
     for i, target in zip(obj.shape, shape):
         # check if current field has multiple acceptable values
-        if is_sequence(target):
+        # an explicit tuple/list check narrows `target` for type
+        # checkers — `is_sequence` is not a type guard
+        if isinstance(target, (list, tuple)):
             if i in target:
                 # obj shape is in the accepted values
                 continue
@@ -354,9 +365,7 @@ def make_sequence(obj: Any) -> list:
        Contains input value
     """
     if is_sequence(obj):
-        # false positive type error caused by bug in typeshed:
-        # https://github.com/python/typeshed/pull/12294
-        return list(obj)  # type: ignore
+        return list(obj)
     else:
         return [obj]
 
@@ -899,7 +908,8 @@ def attach_to_log(
 
     # add the formatters and set the level
     handler.setFormatter(formatter)
-    handler.setLevel(level)
+    # numpy integers aren't `int` subclasses — coerce for the stdlib stubs
+    handler.setLevel(int(level))
 
     # if nothing passed use all available loggers
     if loggers is None:
@@ -935,7 +945,7 @@ def attach_to_log(
     # loop through all available loggers
     for logger in loggers_dict.values():
         logger.addHandler(handler)
-        logger.setLevel(level)
+        logger.setLevel(int(level))
 
     # set nicer numpy print options
     np.set_printoptions(precision=5, suppress=True)
@@ -1029,7 +1039,6 @@ def append_faces(
     # stack to clean (n, 3) int
     faces = vstack_empty(new_faces)
 
-    # the `# type: ignore` is needed due to limitated numpy typing support
     return vertices, faces
 
 
@@ -1441,7 +1450,7 @@ def type_named(obj: object, name: str) -> type | None:
     raise ValueError("Unable to extract class of name " + name)
 
 
-def concatenate(a, b=None):
+def concatenate(a, b=None) -> "trimesh.parent.Geometry":
     """
     Concatenate two or more meshes.
 
@@ -1486,7 +1495,11 @@ def concatenate(a, b=None):
         return concatenate_path(is_path)
 
     if len(is_mesh) == 0:
-        return []
+        # nothing concatenable was passed — match the empty-input
+        # branch above and hand back an empty mesh
+        from .base import Trimesh
+
+        return Trimesh()
 
     # extract the trimesh type to avoid a circular import
     # and assert that all inputs are Trimesh objects
@@ -1826,7 +1839,7 @@ def convert_like(item, like):
     return item
 
 
-def bounds_tree(bounds: ArrayLike):
+def bounds_tree(bounds: ArrayLike) -> Any:
     """
     Given a set of axis aligned bounds create an r-tree for
     broad-phase collision detection.
@@ -1968,7 +1981,7 @@ def decompress(
     | IO[bytes]
     | BytesIO,  # https://github.com/beartype/beartype/issues/643
     file_type: str,
-) -> dict[str, BytesIO] | dict[str, IO[bytes] | None]:
+) -> dict[str, IO[bytes] | None]:
     """
     Given an open file object and a file type, return all components
     of the archive as open file objects in a dict.
@@ -1988,17 +2001,17 @@ def decompress(
 
     file_type = str(file_type).lower()
     if isinstance(file_obj, bytes):
-        file_obj = wrap_as_stream(file_obj)
+        file_obj = BytesIO(file_obj)
 
     if file_type.endswith("zip"):
         archive = zipfile.ZipFile(file_obj)
-        return {name: wrap_as_stream(archive.read(name)) for name in archive.namelist()}
+        return {name: BytesIO(archive.read(name)) for name in archive.namelist()}
     if file_type.endswith("bz2"):
         import bz2
 
         # get the file name if we have one otherwise default to "archive"
         name = getattr(file_obj, "name", "archive1234")[:-4]
-        return {name: wrap_as_stream(bz2.open(file_obj, mode="r").read())}
+        return {name: BytesIO(bz2.open(file_obj, mode="r").read())}
     if "tar" in file_type[-6:]:
         import tarfile
 
@@ -2031,11 +2044,11 @@ def compress(
         file_obj, mode="w", compression=zipfile.ZIP_DEFLATED, **kwargs
     ) as zipper:
         for name, data_or_file in info.items():
-            if hasattr(data_or_file, "read"):
-                # if we were passed a file object, read it
-                data = data_or_file.read()
-            else:
+            if isinstance(data_or_file, (str, bytes)):
                 data = data_or_file
+            else:
+                # a file-like object — read its contents
+                data = data_or_file.read()
             zipper.writestr(name, data)
     file_obj.seek(0)
     compressed = file_obj.read()
@@ -2352,7 +2365,7 @@ def allclose(a: NDArray, b: NDArray, atol: Floating = 1e-8) -> bool:
     bool indicating if all elements are within `atol`.
     """
     #
-    return float(np.ptp(a - b)) < atol
+    return bool(float(np.ptp(a - b)) < atol)
 
 
 class FunctionRegistry(Mapping[str, Callable[..., Any]]):
@@ -2415,8 +2428,8 @@ def decode_text(text: str | bytes, initial: str = "utf-8") -> str:
     decoded : str
       Data as a string
     """
-    # if not bytes just return input
-    if not hasattr(text, "decode"):
+    # if it's already a string there is nothing to decode
+    if isinstance(text, str):
         return text
 
     try:
@@ -2510,7 +2523,7 @@ def is_ccw(points: ArrayLike, return_all: bool = False):
 def unique_name(
     start: str | None,
     contains: Collection[str],
-    counts: dict[str, int] | None = None,
+    counts: MutableMapping[str | None, int] | None = None,
 ) -> str:
     """
     Deterministically generate a unique name not
