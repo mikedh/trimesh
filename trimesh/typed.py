@@ -16,9 +16,8 @@ else:
 Stream: TypeAlias = IO[str] | IO[bytes]
 Loadable: TypeAlias = str | Path | Stream | dict | None
 
-# narrowing return for `is_file` — hides the `TypeGuard` spelling
-# behind an alias so the signature stays readable but checkers
-# still narrow the argument to a stream after the check passes
+# for a function that returns "is this a file or not"
+# but with typeguard-narrowing if the answer is yes
 BoolIsFile: TypeAlias = TypeGuard[IO[Any]]
 
 # numpy integers do not inherit from python integers, i.e.
@@ -55,7 +54,7 @@ BooleanOperationType: TypeAlias = Literal["difference", "union", "intersection"]
 VoxelizationMethodsType: TypeAlias = Literal["subdivide", "ray", "binvox"]
 
 # add numpy types like their `numpy.typing.NDArray`
-# but with specific dimensionality
+# but with specific dimensionality, i.e. `NDArray2D[np.float64]`
 DType = TypeVar("DType", bound=generic)
 NDArray1D: TypeAlias = ndarray[tuple[int], dtype[DType]]
 NDArray2D: TypeAlias = ndarray[tuple[int, int], dtype[DType]]
