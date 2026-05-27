@@ -241,6 +241,50 @@ class SubDivideTest(g.unittest.TestCase):
         r = m.subdivide_to_size(0.01, max_iter=10)
         assert r.is_watertight
 
+    def test_subdivide_to_size_crack_free(self):
+        # subdivide_to_size must split edges shared between a refined and an
+        # unrefined face on both sides, so a watertight mesh stays watertight
+        # (no T-junctions). This only shows up when faces have non-uniform edge
+        # lengths so that some faces are refined and their neighbors are not:
+        # an axis-aligned box that is long in one dimension is the simplest case.
+        # See https://github.com/mikedh/trimesh/issues/1731
+        meshes = [
+            g.trimesh.creation.box(extents=[10.0, 1.0, 1.0]),
+            g.trimesh.creation.cylinder(radius=1.0, height=8.0),
+            g.trimesh.creation.icosphere(subdivisions=1),
+        ]
+        for m in meshes:
+            assert m.is_watertight
+            max_edge = 0.5
+            v, f, idx = g.trimesh.remesh.subdivide_to_size(
+                m.vertices, m.faces, max_edge=max_edge, return_index=True
+            )
+            s = g.trimesh.Trimesh(vertices=v, faces=f, process=False)
+
+            # the whole point of the fix: no cracks are introduced
+            assert s.is_watertight
+            assert s.is_winding_consistent
+            # in a watertight mesh every edge is shared by exactly two faces;
+            # a T-junction would leave an edge used by only one face
+            assert len(s.edges) == (len(s.edges_unique) * 2)
+
+            # the size goal is still met and geometry is unchanged
+            edge_len = (
+                g.np.diff(s.vertices[s.edges_unique], axis=1).reshape((-1, 3)) ** 2
+            ).sum(axis=1) ** 0.5
+            assert (edge_len <= max_edge + 1e-8).all()
+            assert g.np.isclose(m.area, s.area)
+            assert g.np.isclose(m.volume, s.volume)
+
+            # return_index: one parent per new face, lying on that original face
+            assert len(idx) == len(f)
+            assert idx.max() < len(m.faces)
+            bary = g.trimesh.triangles.points_to_barycentric(
+                m.triangles[idx], s.triangles.mean(axis=1)
+            )
+            assert bary.max() < 1 + 1e-3
+            assert bary.min() > -1e-3
+
     def test_idx_simple(self):
         vertices = g.np.array([0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0]).reshape((-1, 3)) * 10
         faces = g.np.array(
