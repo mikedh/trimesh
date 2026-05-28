@@ -1159,7 +1159,7 @@ class GLTFTest(g.unittest.TestCase):
         # channel and the mesh rendered as solid. Verify the exporter now
         # emits a `BLEND` material so per-vertex/per-face alpha is honored.
         mesh = g.trimesh.creation.cylinder(1.0, 1.0)
-        mesh.visual.face_colors = (255, 0, 0, 100)
+        mesh.visual.face_colors = [255, 0, 0, 100]
         # base sanity: this is a ColorVisuals, so no PBR material attribute
         assert not hasattr(mesh.visual, "material")
 
@@ -1191,7 +1191,7 @@ class GLTFTest(g.unittest.TestCase):
         # the default-material behavior) — the transparency workaround above
         # must not fire for `alpha == 255` colors.
         mesh = g.trimesh.creation.cylinder(1.0, 1.0)
-        mesh.visual.face_colors = (200, 50, 50, 255)
+        mesh.visual.face_colors = [200, 50, 50, 255]
         tree = g.json.loads(mesh.export(file_type="gltf")["model.gltf"].decode("utf-8"))
 
         # no material is emitted: opaque ColorVisuals continues to use the
@@ -1208,9 +1208,9 @@ class GLTFTest(g.unittest.TestCase):
         # one per primitive — the lookup-then-append branch must dedupe.
         scene = g.trimesh.Scene()
         a = g.trimesh.creation.box()
-        a.visual.face_colors = (255, 0, 0, 100)
+        a.visual.face_colors = [255, 0, 0, 100]
         b = g.trimesh.creation.box()
-        b.visual.face_colors = (0, 255, 0, 100)
+        b.visual.face_colors = [0, 255, 0, 100]
         scene.add_geometry(a, "a")
         scene.add_geometry(b, "b")
         tree = g.json.loads(scene.export(file_type="gltf")["model.gltf"].decode("utf-8"))
