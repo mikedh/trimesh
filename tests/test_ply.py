@@ -19,6 +19,73 @@ class PlyTest(g.unittest.TestCase):
         assert len(m.vertex_attributes["color"]) == len(m.vertices)
         assert len(m.visual.uv) == len(m.vertices)
 
+    def test_multi_roundtrip_preserves_uv_and_vertex_colors(self):
+        # Regression test for https://github.com/mikedh/trimesh/issues/2419
+        #
+        # `models/multi.ply` is the fixture from the original report — a
+        # textured mesh that also carries per-vertex `red green blue`.
+        # The load side was fixed in 72016ad5 (constructor stores
+        # `vertex_colors` as `vertex_attributes["color"]` when `visual`
+        # is also passed), but the PLY exporter then wrote the array via
+        # the generic vertex-attribute path as `property list uchar uchar
+        # color`. That list-typed property is not standard PLY color
+        # encoding and the importer (and every other PLY reader) does not
+        # recover it as colors, silently losing the data on round-trip.
+        m = g.get_mesh("multi.ply")
+        # sanity: load preserves both
+        assert m.visual.kind == "texture"
+        assert m.visual.uv.shape == (len(m.vertices), 2)
+        assert m.vertex_attributes["color"].shape[0] == len(m.vertices)
+
+        # export to PLY and verify the header uses standard color properties
+        export = m.export(file_type="ply")
+        header = export.split(b"end_header")[0].decode("utf-8")
+        assert "property uchar red" in header
+        assert "property uchar green" in header
+        assert "property uchar blue" in header
+        assert "property uchar alpha" in header
+        # texture coords still written
+        assert "property double s" in header or "property float s" in header
+        # the malformed list-typed `color` property must NOT appear
+        assert "property list uchar uchar color" not in header
+        assert "property list uchar uint8 color" not in header
+
+        # round-trip back to a Trimesh and confirm both visual.uv AND
+        # vertex_attributes["color"] survive
+        reloaded = g.roundtrip(export, file_type="ply")
+        assert hasattr(reloaded.visual, "uv")
+        assert reloaded.visual.uv.shape == (len(reloaded.vertices), 2)
+        assert "color" in reloaded.vertex_attributes
+        reloaded_colors = g.np.asarray(reloaded.vertex_attributes["color"])
+        assert reloaded_colors.shape == (len(reloaded.vertices), 4)
+        # the RGB channels match the original (alpha is padded to 255
+        # since the source PLY had only red/green/blue, which is the
+        # standard PLY convention for opaque)
+        orig_colors = g.np.asarray(m.vertex_attributes["color"])
+        if orig_colors.shape[1] == 3:
+            assert g.np.array_equal(reloaded_colors[:, :3], orig_colors)
+            assert (reloaded_colors[:, 3] == 255).all()
+        else:
+            assert g.np.array_equal(reloaded_colors, orig_colors)
+
+    def test_ply_export_color_only_when_rgb_shape(self):
+        # Regression guard for #2419: the standard-color shortcut must
+        # ONLY fire for shape-(n, 3 or 4) arrays. Non-color `color` keys
+        # (e.g. a per-vertex scalar accidentally named "color", or an
+        # exotic (n, 5) array) must keep falling through to the generic
+        # vertex-attribute writer rather than being coerced into RGBA.
+        box = g.trimesh.creation.box()
+        # scalar attribute confusingly named "color" but shaped (n,)
+        box.vertex_attributes["color"] = g.np.arange(
+            len(box.vertices), dtype=g.np.float32
+        )
+        export = box.export(file_type="ply")
+        header = export.split(b"end_header")[0].decode("utf-8")
+        # since the array is 1-D it is exported as a normal scalar
+        # `property float color`, not as RGBA channels
+        assert "property uchar red" not in header
+        assert "property float color" in header
+
     def test_ply(self):
         m = g.get_mesh("machinist.XAML")
 

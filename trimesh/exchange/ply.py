@@ -363,6 +363,45 @@ def export_ply(
             and mesh.visual.kind == "vertex"
             and len(mesh.visual.vertex_colors) == len(mesh.vertices)
         )
+        # the source array packed into the `rgba` field if we end up
+        # writing standard `red/green/blue/alpha` color properties below
+        vertex_color_source = (
+            mesh.visual.vertex_colors if vertex_color else None
+        )
+
+        # ColorVisuals carries colors directly via `mesh.visual.vertex_colors`
+        # and we just handled that. A TextureVisuals mesh that ALSO loaded
+        # per-vertex colors (PLY/OBJ with both UV and red/green/blue, see
+        # issue #2419) instead stashes them in `mesh.vertex_attributes["color"]`.
+        # Without special handling, the generic vertex-attribute exporter would
+        # serialize them as a `property list uchar uchar color` row — a
+        # malformed list-typed property that no standard PLY reader (including
+        # ours) recovers as colors, silently losing the data on round-trip.
+        # Detect that case and write standard red/green/blue/alpha properties
+        # so the file stays interoperable and our own import preserves them.
+        attr_color = None
+        if (
+            not vertex_color
+            and hasattr(mesh, "vertex_attributes")
+            and "color" in mesh.vertex_attributes
+        ):
+            candidate = np.asanyarray(mesh.vertex_attributes["color"])
+            if (
+                candidate.ndim == 2
+                and candidate.shape[0] == len(mesh.vertices)
+                and candidate.shape[1] in (3, 4)
+            ):
+                # promote to 4-channel uint8 RGBA to match the color template
+                rgba = np.asarray(candidate, dtype=np.uint8)
+                if rgba.shape[1] == 3:
+                    rgba = np.column_stack(
+                        (rgba, np.full(rgba.shape[0], 255, dtype=np.uint8))
+                    )
+                vertex_color = True
+                vertex_color_source = rgba
+                # remember the key so we can skip the generic export below
+                attr_color = "color"
+
         if vertex_color:
             header.append(templates["color"])
             dtype_vertex.append(dtype_color)
@@ -373,7 +412,11 @@ def export_ply(
                 vertex_attributes = {
                     k: v
                     for k, v in mesh.vertex_attributes.items()
-                    if hasattr(v, "__len__") and len(v) == vertex_count
+                    # do not double-export the color we just hoisted into
+                    # standard `red/green/blue/alpha` properties above
+                    if k != attr_color
+                    and hasattr(v, "__len__")
+                    and len(v) == vertex_count
                 }
                 _add_attributes_to_header(header, vertex_attributes)
                 _add_attributes_to_dtype(dtype_vertex, vertex_attributes)
@@ -386,7 +429,7 @@ def export_ply(
         if vertex_normal:
             pack_vertex["normals"] = mesh.vertex_normals
         if vertex_color:
-            pack_vertex["rgba"] = mesh.visual.vertex_colors
+            pack_vertex["rgba"] = vertex_color_source
 
         if include_attributes and vertex_attributes is not None:
             _add_attributes_to_data_array(pack_vertex, vertex_attributes)
