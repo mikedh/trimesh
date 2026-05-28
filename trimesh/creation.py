@@ -185,6 +185,14 @@ def revolve(
     if transform is not None:
         # apply transform to vertices
         vertices = tf.transform_points(vertices, transform)
+        # if the transform flips the winding (i.e. has a negative
+        # determinant / reflection) flip faces back so the normals
+        # still face outwards and the result remains a valid volume
+        # (see issue #2439); mirrors the handling in
+        # `extrude_triangulation`
+        if tf.flips_winding(transform):
+            # fliplr makes arrays non-contiguous so re-pack them
+            faces = np.ascontiguousarray(np.fliplr(faces))
 
     # create the mesh from our vertices and faces
     mesh = Trimesh(vertices=vertices, faces=faces, **kwargs)
