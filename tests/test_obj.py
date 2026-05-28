@@ -93,6 +93,139 @@ def test_obj_negative_indices():
     assert mesh.vertices.shape == (8, 3)
 
 
+def test_obj_negative_indices_interleaved():
+    # regression for issue #2364: OBJ files that interleave `v` and `f`
+    # declarations together with negative face indices were silently
+    # mis-loaded because the loader bulk-collected every `v` up-front
+    # so negative indices were resolved against the file's *final*
+    # vertex list rather than the running count at each face line.
+    #
+    # synthesize two axis-aligned unit cubes declared in two passes;
+    # each block uses `f -8 .. -1` referencing only the eight vertices
+    # that immediately precede it, like the OBJ in the bug report.
+
+    def cube_block(origin):
+        ox, oy, oz = origin
+        # 8 unit cube vertices in canonical order
+        verts = [
+            (ox, oy, oz),
+            (ox + 1, oy, oz),
+            (ox + 1, oy + 1, oz),
+            (ox, oy + 1, oz),
+            (ox, oy, oz + 1),
+            (ox + 1, oy, oz + 1),
+            (ox + 1, oy + 1, oz + 1),
+            (ox, oy + 1, oz + 1),
+        ]
+        lines = [f"v {x} {y} {z}" for x, y, z in verts]
+        # six quad faces, all using the negative offset -1..-8
+        # which under the spec refers to the 8 vertices just above.
+        # winding chosen for consistent outward normals.  the verts
+        # are indexed -8..-1 == v0..v7 with:
+        #   v0=(0,0,0), v1=(1,0,0), v2=(1,1,0), v3=(0,1,0)
+        #   v4=(0,0,1), v5=(1,0,1), v6=(1,1,1), v7=(0,1,1)
+        # (with `origin` added to each).
+        lines.extend([
+            "f -8 -5 -6 -7",  # bottom z = oz       (-z): v0 v3 v2 v1
+            "f -4 -3 -2 -1",  # top    z = oz + 1   (+z): v4 v5 v6 v7
+            "f -8 -7 -3 -4",  # front  y = oy       (-y): v0 v1 v5 v4
+            "f -6 -5 -1 -2",  # back   y = oy + 1   (+y): v2 v3 v7 v6
+            "f -8 -4 -1 -5",  # left   x = ox       (-x): v0 v4 v7 v3
+            "f -7 -6 -2 -3",  # right  x = ox + 1   (+x): v1 v2 v6 v5
+        ])
+        return "\n".join(lines)
+
+    obj_text = "\n".join([
+        "o cube_a",
+        cube_block((0, 0, 0)),
+        "o cube_b",
+        cube_block((10, 0, 0)),
+        "",
+    ])
+
+    scene = g.trimesh.load(
+        g.io.StringIO(obj_text),
+        file_type="obj",
+        split_objects=True,
+        group_material=False,
+    )
+
+    # bulk-load should have produced two distinct cubes
+    assert len(scene.geometry) == 2
+    cubes = list(scene.geometry.values())
+
+    # before #2364 was fixed each "cube" inherited vertices from the
+    # other one (negative indices resolved against the global list);
+    # geometry is now correctly split.  geometry iteration order
+    # isn't part of the loader's contract so sort by x to match.
+    cubes.sort(key=lambda m: m.vertices[:, 0].min())
+    cube_a, cube_b = cubes
+    assert cube_a.vertices.shape == (8, 3)
+    assert cube_b.vertices.shape == (8, 3)
+    # outer-bounds split cleanly along x
+    assert cube_a.vertices[:, 0].max() <= 1.0 + 1e-9
+    assert cube_b.vertices[:, 0].min() >= 10.0 - 1e-9
+
+    # `load_mesh` concatenates: total 16 unique vertices, two unit
+    # cubes' worth of volume.  also verify the concatenated mesh is
+    # a real solid (would not be if indices were tangled).
+    merged = g.trimesh.load_mesh(
+        g.io.StringIO(obj_text), file_type="obj", group_material=False
+    )
+    assert merged.vertices.shape == (16, 3)
+    assert merged.is_volume
+    assert g.np.isclose(merged.volume, 2.0)
+
+
+def test_obj_negative_indices_normalizer_noop_on_positive_file():
+    # the negative-index normalization pass added in #2364 must be a
+    # textual no-op on OBJ files whose face lines only use positive
+    # indices, regardless of any unrelated negative numbers (e.g.
+    # negative vertex coordinates) in the file.
+    from trimesh.exchange.obj import _resolve_negative_face_indices
+
+    text = "\n".join([
+        "v -1 -1 -1",
+        "v  1 -1 -1",
+        "v  1  1 -1",
+        "v -1  1 -1",
+        "f 1 2 3",
+        "f 1 3 4",
+        "",
+    ])
+    assert _resolve_negative_face_indices(text) == text
+
+
+def test_obj_negative_indices_normalizer_mixed_slash_layouts():
+    # `f v/vt/vn`, `f v//vn` and `f v/vt` layouts must each have their
+    # negative components resolved (regression for #2364).
+    from trimesh.exchange.obj import _resolve_negative_face_indices
+
+    text = "\n".join([
+        "v 0 0 0",
+        "v 1 0 0",
+        "v 0 1 0",
+        "vt 0 0",
+        "vt 1 0",
+        "vt 0 1",
+        "vn 0 0 1",
+        "f -3/-3/-1 -2/-2/-1 -1/-1/-1",
+        "f -3//-1 -2//-1 -1//-1",
+        "f -3/-3 -2/-2 -1/-1",
+        "",
+    ])
+    out = _resolve_negative_face_indices(text)
+    # at the point of every face line, v_count = vt_count = 3 and
+    # vn_count = 1 — so every -k should resolve to (count - k + 1).
+    expected_face_lines = [
+        "f 1/1/1 2/2/1 3/3/1",
+        "f 1//1 2//1 3//1",
+        "f 1/1 2/2 3/3",
+    ]
+    out_face_lines = [L for L in out.split("\n") if L.startswith("f ")]
+    assert out_face_lines == expected_face_lines
+
+
 def test_obj_quad():
     mesh = g.get_mesh("quadknot.obj", merge_tex=True)
     # make sure some data got loaded

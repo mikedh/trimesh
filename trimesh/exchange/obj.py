@@ -83,6 +83,17 @@ def load_obj(
     # line
     text = text.replace("\\\n", "")
 
+    # the OBJ spec allows negative face vertex/texture/normal indices,
+    # which refer to the k-th most recently declared element BEFORE the
+    # face line.  the rest of this loader bulk-collects every `v`, `vt`
+    # and `vn` up-front before processing faces, so leaving negative
+    # indices in place silently re-indexes them against the file's
+    # *final* element list.  for OBJ files that interleave vertex and
+    # face declarations (issue #2364) that resolves wrong.  rewrite
+    # negative indices into their absolute 1-based positive form here
+    # so downstream parsing remains correct in either layout.
+    text = _resolve_negative_face_indices(text)
+
     # Load Materials
     materials = {}
     mtl_position = text.find("mtllib")
@@ -555,6 +566,79 @@ def _parse_faces_fallback(lines):
         normals[normals > 0] -= 1
 
     return faces, faces_tex, normals
+
+
+def _resolve_negative_face_indices(text):
+    """
+    Rewrite negative face vertex / texture / normal indices in OBJ text
+    into their absolute 1-based positive form.
+
+    Per the OBJ spec a negative face element index `-k` refers to the
+    k-th most recently declared element BEFORE that face line, where
+    each of `v`, `vt`, `vn` is counted in its own list.  trimesh's OBJ
+    loader bulk-collects every `v`, `vt`, `vn` up-front before
+    processing faces (see `_parse_vertices`), so negative indices left
+    in the text get re-indexed against the file's *final* element
+    list.  For OBJ files that interleave vertex and face declarations
+    (issue #2364) that produces silently-wrong meshes.
+
+    This function walks the file once, tracks the running count of
+    `v` / `vt` / `vn` declarations, and on each face line rewrites any
+    `-k` index into `(running_count - k + 1)` (1-based positive form).
+    Files without negative face indices are returned unchanged.
+
+    Parameters
+    -------------
+    text : str
+      Full text of an OBJ file (already line-normalized).
+
+    Returns
+    -------------
+    text : str
+      Either the input (no negatives found) or a rewritten copy.
+    """
+    # cheap rejection: only spend time walking the file if some face
+    # line actually contains a negative.  this single regex scan is
+    # much cheaper than the line-by-line walk below.
+    if re.search(r"(?m)^f[^\n]*-\d", text) is None:
+        return text
+
+    v_count = vt_count = vn_count = 0
+
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        # avoid a full strip() per line; OBJ directives sit at column 0
+        # except for the synthetic leading newline added by the caller,
+        # so a single leading-character classification is enough.
+        if not line:
+            continue
+        head = line[:3]
+        if head.startswith("v "):
+            v_count += 1
+        elif head.startswith("vt "):
+            vt_count += 1
+        elif head.startswith("vn "):
+            vn_count += 1
+        elif head.startswith("f ") and "-" in line:
+            # rewrite each whitespace-separated token of the face line.
+            # token layout: "v", "v/vt", "v//vn", or "v/vt/vn".
+            parts = line.split()
+            # parts[0] is "f"
+            for j in range(1, len(parts)):
+                fields = parts[j].split("/")
+                # field 0: vertex index
+                if fields[0] and fields[0].startswith("-"):
+                    fields[0] = str(v_count + int(fields[0]) + 1)
+                # field 1: optional vt index
+                if len(fields) > 1 and fields[1] and fields[1].startswith("-"):
+                    fields[1] = str(vt_count + int(fields[1]) + 1)
+                # field 2: optional vn index
+                if len(fields) > 2 and fields[2] and fields[2].startswith("-"):
+                    fields[2] = str(vn_count + int(fields[2]) + 1)
+                parts[j] = "/".join(fields)
+            lines[i] = " ".join(parts)
+
+    return "\n".join(lines)
 
 
 def _parse_vertices(text):
