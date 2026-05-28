@@ -42,6 +42,35 @@ ABC = abc.ABC
 now = time.time
 which = shutil.which
 
+# remembers which loaders/exporters have already emitted the
+# "install pillow to keep textures" warning so we don't spam the user
+# on every call. Tracked by `warn_pillow_missing` below.
+_PILLOW_MISSING_WARNED: "set[str]" = set()
+
+
+def warn_pillow_missing(context: str) -> None:
+    """
+    Emit a single-shot user-facing warning when a texture-aware loader
+    or exporter has to silently drop image data because `pillow` is not
+    installed. Subsequent calls with the same `context` are no-ops so
+    repeated loads don't spam the user's log. See #2333.
+
+    Parameters
+    ----------
+    context : str
+      Short tag describing where the texture is being dropped
+      (e.g. ``"OBJ load"``, ``"glTF load"``). Used both as the de-dupe
+      key and embedded in the warning text so the user can tell which
+      pipeline silently lost the image.
+    """
+    if context in _PILLOW_MISSING_WARNED:
+        return
+    _PILLOW_MISSING_WARNED.add(context)
+    log.warning(
+        "trimesh: %s is dropping a texture image because `pillow` is not installed (`pip install pillow`); the loaded/exported mesh will have no texture data and further textures from this pipeline will not log this warning again",
+        context,
+    )
+
 # include constants here so we don't have to import
 # a floating point threshold for 0.0
 # we are setting it to 100x the resolution of a float64
