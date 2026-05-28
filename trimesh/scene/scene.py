@@ -920,7 +920,17 @@ class Scene(Geometry3D):
         for node_name in self.graph.nodes_geometry:
             transform, geometry_name = self.graph[node_name]
             # get a copy of the geometry
-            current = self.geometry[geometry_name].copy()
+            # `include_cache=True` lets us bring along any user-assigned
+            # `vertex_normals` / `face_normals` (which live only in
+            # `_cache`) so that `apply_transform` can rotate them and
+            # downstream consumers like `Scene.to_mesh` don't silently
+            # recompute them from the bare geometry (see issue #2390).
+            try:
+                current = self.geometry[geometry_name].copy(include_cache=True)
+            except TypeError:
+                # not every geometry's `copy` supports include_cache,
+                # e.g. Path2D/Path3D and PointCloud
+                current = self.geometry[geometry_name].copy()
 
             # if the geometry is 2D see if we have to upgrade to 3D
             if hasattr(current, "to_3D"):
