@@ -105,6 +105,78 @@ def test_obj_quad():
     assert g.np.isclose(mesh.area, rec.area)
 
 
+def _polygon_area_3d(points):
+    # planar area of a 3D polygon given its ordered boundary points
+    center = points.mean(axis=0)
+    _, _, vh = g.np.linalg.svd(points - center)
+    flat = g.np.column_stack(((points - center).dot(vh[0]), (points - center).dot(vh[1])))
+    x, y = flat[:, 0], flat[:, 1]
+    return abs(0.5 * g.np.sum(x * g.np.roll(y, -1) - g.np.roll(x, -1) * y))
+
+
+def test_obj_nonconvex_ngon():
+    # regression for issue #2519: faces with more than 4 corners were
+    # triangulated with a naive fan from the first corner, which is
+    # only valid for convex polygons. for a non-convex n-gon the fan
+    # produces triangles that spill outside the polygon, inflating the
+    # surface area and corrupting the geometry.
+    #
+    # `models/wallhole.obj` contains two non-convex 11-gons; when an
+    # earcut engine is available the loaded surface area should equal
+    # the exact sum of the source polygons' planar areas.
+    engines = [k for k, exists in g.trimesh.creation._engines if exists]
+    if not engines:
+        # no triangulation engine installed: loader falls back to a
+        # fan and we can't assert the corrected area
+        return
+
+    mesh = g.get_mesh("wallhole.obj", process=False)
+
+    # compute the exact total area from the original polygon faces
+    with open(g.os.path.join(g.dir_models, "wallhole.obj")) as f:
+        text = f.read().replace("\\\n", "")
+    true_total = 0.0
+    has_ngon = False
+    for line in text.splitlines():
+        if not line.startswith("f "):
+            continue
+        idx = g.np.array([int(t.split("/")[0]) for t in line.split()[1:]]) - 1
+        if len(idx) > 4:
+            has_ngon = True
+        true_total += _polygon_area_3d(mesh.vertices[idx])
+
+    assert has_ngon
+    # the fan triangulation used to give a strictly larger area
+    # (non-convex faces covered area outside the polygon)
+    assert g.np.isclose(mesh.area, true_total)
+
+
+def test_obj_nonconvex_ngon_synthetic():
+    # an explicit non-convex pentagon ("arrowhead") that fails with a
+    # fan from vertex 0 but triangulates correctly with earcut (#2519)
+    engines = [k for k, exists in g.trimesh.creation._engines if exists]
+    if not engines:
+        return
+
+    # a concave pentagon in the z=0 plane; vertex 4 is a deep notch
+    obj = "\n".join([
+        "v 0 0 0",
+        "v 2 0 0",
+        "v 2 2 0",
+        "v 1 0.5 0",  # reflex/notch vertex pulled inward
+        "v 0 2 0",
+        "f 1 2 3 4 5",
+        "",
+    ])
+    mesh = g.trimesh.load(g.io.StringIO(obj), file_type="obj", process=False)
+
+    verts = g.np.array(
+        [[0, 0, 0], [2, 0, 0], [2, 2, 0], [1, 0.5, 0], [0, 2, 0]], dtype=float
+    )
+    true_area = _polygon_area_3d(verts)
+    assert g.np.isclose(mesh.area, true_area)
+
+
 def test_obj_multiobj():
     # test a wavefront file with multiple objects in the same file
     scene = g.get_mesh("two_objects.obj", split_objects=True, group_material=False)

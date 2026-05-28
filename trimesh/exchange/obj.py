@@ -154,8 +154,15 @@ def load_obj(
         columns = len(face_lines[0].replace("/", " ").split())
         flat_array = all(columns == len(f.replace("/", " ").split()) for f in face_lines)
 
+        # number of corners on the sample face (tokens split on space).
+        # the vectorized path fans polygons, which is only correct for
+        # convex faces, so route faces with more than 4 corners through
+        # the slower fallback which can triangulate them properly with
+        # the vertex positions (see issue #2519).
+        corner_count = len(face_lines[0].split())
+
         # make sure we have the right number of values for vectorized
-        if flat_array:
+        if flat_array and corner_count <= 4:
             # the fastest way to get to a numpy array
             # processes the whole string at once into a 1D array
             array = np.fromstring(
@@ -176,7 +183,7 @@ def load_obj(
             #  '31407 31406 31408',
             #  '32303/2469 32304/2469 32305/2469',
             log.debug("faces have mixed data: using slow fallback!")
-            faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines)
+            faces, faces_tex, faces_norm = _parse_faces_fallback(face_lines, vertices=v)
 
         # build name from components
         name_parts = []
@@ -474,7 +481,95 @@ def _parse_faces_vectorized(array, columns, sample_line):
     return faces, faces_tex, faces_norm
 
 
-def _parse_faces_fallback(lines):
+def _fan_triangulate_tokens(split):
+    """
+    Triangulate a polygon face given as a list of corner tokens
+    (e.g. `["v/vt/vn", ...]`) using a naive triangle fan rooted at
+    the first corner. Correct only for convex polygons but cheap and
+    dependency-free, so it is used as a fallback.
+
+    Parameters
+    -------------
+    split : (n,) list of str
+      Corner tokens of a single face with `n >= 3` corners.
+
+    Returns
+    -------------
+    tokens : (3 * (n - 2),) list of str
+      Corner tokens grouped into triangles.
+    """
+    collect = []
+    # we need a flat list so append inside a list comprehension
+    collect_append = collect.append
+    [
+        [
+            collect_append(split[0]),
+            collect_append(split[i + 1]),
+            collect_append(split[i + 2]),
+        ]
+        for i in range(len(split) - 2)
+    ]
+    return collect
+
+
+def _ngon_triangulate_tokens(split, vertices):
+    """
+    Triangulate a polygon face using the 3D positions of its corners,
+    so that non-convex faces are handled correctly rather than being
+    fanned (see issue #2364's sibling #2519). Returns the corner
+    tokens reordered into triangles, or `None` when proper
+    triangulation isn't possible (no positions available, no earcut
+    engine installed, or a degenerate projection) so the caller can
+    fall back to a simple fan.
+
+    Parameters
+    -------------
+    split : (n,) list of str
+      Corner tokens of a single face with `n >= 4` corners.
+    vertices : (m, 3) float or None
+      Vertex positions referenced (1-indexed) by the face tokens.
+
+    Returns
+    -------------
+    tokens : list of str or None
+      Corner tokens grouped into triangles, or None to signal that
+      the caller should fan instead.
+    """
+    if vertices is None or len(vertices) == 0:
+        return None
+    try:
+        # `mapbox_earcut` is a soft dependency and, unlike the
+        # `triangle` engine, does not insert any new vertices so the
+        # face tokens can be reused directly by index.
+        from mapbox_earcut import triangulate_float64
+    except BaseException:
+        return None
+    try:
+        # the vertex reference is the first slash-separated value
+        idx = np.array([int(t.split("/", 1)[0]) for t in split], dtype=np.int64)
+    except BaseException:
+        return None
+    # only handle in-range 1-indexed positive references; negative
+    # indices are resolved earlier in `load_obj` so should not appear
+    if idx.min() < 1 or idx.max() > len(vertices):
+        return None
+    points = vertices[idx - 1]
+    # project the polygon onto its best-fit plane to get 2D coordinates
+    centered = points - points.mean(axis=0)
+    try:
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    except BaseException:
+        return None
+    flat = np.column_stack((centered.dot(vh[0]), centered.dot(vh[1])))
+    # earcut a single closed ring of `len(flat)` points
+    tris = triangulate_float64(flat, np.array([len(flat)], dtype=np.uint32))
+    # earcut returns a flat array of local corner indices, 3 per triangle
+    if len(tris) == 0 or len(tris) % 3 != 0:
+        return None
+    return [split[i] for i in tris]
+
+
+def _parse_faces_fallback(lines, vertices=None):
     """
     Use a slow but more flexible looping method to process
     face lines as a fallback option to faster vectorized methods.
@@ -483,6 +578,10 @@ def _parse_faces_fallback(lines):
     -------------
     lines : (n,) str
       List of lines with face information
+    vertices : (m, 3) float or None
+      Vertex positions, used to triangulate non-convex polygon faces
+      correctly when an earcut engine is available; falls back to a
+      fan when not passed or not possible.
 
     Returns
     -------------
@@ -502,24 +601,15 @@ def _parse_faces_fallback(lines):
         len_split = len(split)
         if len_split == 3:
             pass
-        elif len_split == 4:
-            # triangulate quad face
-            split = [split[0], split[1], split[2], split[2], split[3], split[0]]
-        elif len_split > 4:
-            # triangulate polygon as a triangles fan
-            collect = []
-            # we need a flat list so append inside
-            # a list comprehension
-            collect_append = collect.append
-            [
-                [
-                    collect_append(split[0]),
-                    collect_append(split[i + 1]),
-                    collect_append(split[i + 2]),
-                ]
-                for i in range(len(split) - 2)
-            ]
-            split = collect
+        elif len_split >= 4:
+            # quads and larger polygons: triangulate using the vertex
+            # positions when possible (handles non-convex faces) and
+            # otherwise fall back to a naive fan
+            proper = _ngon_triangulate_tokens(split, vertices)
+            if proper is not None:
+                split = proper
+            else:
+                split = _fan_triangulate_tokens(split)
         else:
             log.debug(f"face needs more values 3>{len(split)} skipping!")
             continue
