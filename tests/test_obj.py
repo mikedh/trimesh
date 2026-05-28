@@ -392,6 +392,124 @@ def test_mtl_color_roundtrip():
     assert g.np.isclose(m.visual.material.glossiness, r.visual.material.glossiness)
 
 
+def test_mtl_optional_properties_roundtrip():
+    # regression for issue #2349: SimpleMaterial used to silently
+    # drop `Ni`, `d`, `Tf` and `illum` on export because they were
+    # parsed only into `SimpleMaterial.kwargs` and never written
+    # back out by `to_obj`.  exercise the full
+    # parse_mtl -> SimpleMaterial -> to_obj roundtrip through the
+    # OBJ loader/exporter.
+    mtl_text = "\n".join([
+        "newmtl PropTest",
+        "Ka 0.20 0.30 0.40",
+        "Kd 0.50 0.60 0.70",
+        "Ks 0.10 0.10 0.10",
+        "Ns 250.0",
+        "Ni 1.50",
+        "d 0.85",
+        "Tf 1.0 0.9 0.8",
+        "illum 2",
+        "",
+    ])
+    obj_text = "\n".join([
+        "mtllib mat.mtl",
+        "usemtl PropTest",
+        "v 0 0 0",
+        "v 1 0 0",
+        "v 0 1 0",
+        "vt 0 0",
+        "vt 1 0",
+        "vt 0 1",
+        "f 1/1 2/2 3/3",
+        "",
+    ])
+
+    r = g.trimesh.resolvers.ZipResolver()
+    r["mat.mtl"] = mtl_text.encode("utf-8")
+    mesh = g.trimesh.load(
+        g.io.StringIO(obj_text), file_type="obj", resolver=r
+    )
+
+    mat = mesh.visual.material
+    assert g.np.isclose(mat.index_of_refraction, 1.50)
+    assert g.np.isclose(mat.dissolve, 0.85)
+    assert g.np.allclose(mat.transmission_filter, (1.0, 0.9, 0.8))
+    assert mat.illumination_model == 2
+
+    # round-trip through OBJ export
+    out = g.trimesh.resolvers.ZipResolver()
+    out["m.obj"] = mesh.export(file_type="obj", mtl_name="mat.mtl", resolver=out)
+    mtl_out = out["mat.mtl"].decode("utf-8")
+    assert "Ni 1.50000000" in mtl_out
+    assert "d 0.85000000" in mtl_out
+    assert "Tf 1.00000000 0.90000000 0.80000000" in mtl_out
+    assert "illum 2" in mtl_out
+
+    # parse the exported MTL back and confirm values survived
+    obj_bytes = out["m.obj"]
+    if isinstance(obj_bytes, str):
+        obj_bytes = obj_bytes.encode("utf-8")
+    re_loaded = g.trimesh.load(
+        g.io.BytesIO(obj_bytes), file_type="obj", resolver=out
+    )
+    rmat = re_loaded.visual.material
+    assert g.np.isclose(rmat.index_of_refraction, 1.50)
+    assert g.np.isclose(rmat.dissolve, 0.85)
+    assert g.np.allclose(rmat.transmission_filter, (1.0, 0.9, 0.8))
+    assert rmat.illumination_model == 2
+
+
+def test_mtl_Tr_maps_to_dissolve():
+    # OBJ/MTL allows specifying transparency either as `d <opacity>`
+    # or `Tr <1 - opacity>`.  `parse_mtl` should recognize `Tr` and
+    # store the equivalent `dissolve` value.
+    mtl_text = "\n".join([
+        "newmtl TrTest",
+        "Ka 0 0 0",
+        "Kd 1 1 1",
+        "Ks 0 0 0",
+        "Ns 1",
+        "Tr 0.2",
+        "",
+    ])
+    obj_text = "\n".join([
+        "mtllib m.mtl",
+        "usemtl TrTest",
+        "v 0 0 0",
+        "v 1 0 0",
+        "v 0 1 0",
+        "vt 0 0",
+        "vt 1 0",
+        "vt 0 1",
+        "f 1/1 2/2 3/3",
+        "",
+    ])
+    r = g.trimesh.resolvers.ZipResolver()
+    r["m.mtl"] = mtl_text.encode("utf-8")
+    mesh = g.trimesh.load(g.io.StringIO(obj_text), file_type="obj", resolver=r)
+    assert g.np.isclose(mesh.visual.material.dissolve, 0.8)
+
+
+def test_mtl_optional_properties_distinct_hash():
+    # regression for issue #2349: two SimpleMaterials that differ
+    # only in `Ni` (or `d`/`Tf`/`illum`) had identical hashes,
+    # so when both appeared in a scene the OBJ exporter folded them
+    # into a single output material.
+    from trimesh.visual.material import SimpleMaterial
+
+    base = {"diffuse": [1.0, 0.5, 0.25, 1.0], "glossiness": 10.0}
+    a = SimpleMaterial(**base)
+    b = SimpleMaterial(**base, index_of_refraction=1.5)
+    c = SimpleMaterial(**base, index_of_refraction=2.0)
+    d = SimpleMaterial(**base, dissolve=0.5)
+    e = SimpleMaterial(**base, illumination_model=2)
+    f = SimpleMaterial(**base, transmission_filter=[0.5, 0.5, 0.5])
+    # every variant should hash differently from every other one
+    assert len({hash(x) for x in (a, b, c, d, e, f)}) == 6
+    # repeating the same args should still hash equal
+    assert hash(b) == hash(SimpleMaterial(**base, index_of_refraction=1.5))
+
+
 def test_scene_export_material_name():
     s = g.get_mesh("fuze.obj", force="scene")
 

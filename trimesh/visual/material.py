@@ -72,6 +72,10 @@ class SimpleMaterial(Material):
         specular=None,
         glossiness=None,
         name=None,
+        index_of_refraction=None,
+        dissolve=None,
+        transmission_filter=None,
+        illumination_model=None,
         **kwargs,
     ):
         # save image
@@ -85,7 +89,29 @@ class SimpleMaterial(Material):
         # save Ns
         self.glossiness = glossiness
 
-        # save other keyword arguments
+        # optional MTL properties; the OBJ/MTL spec allows
+        # `Ni` (index of refraction), `d` (dissolve / opacity),
+        # `Tf` (transmission filter, length-3) and `illum`
+        # (illumination model, int).  Storing them as typed
+        # attributes lets `to_obj` round-trip them and lets
+        # `__hash__` notice materials that differ ONLY in these
+        # fields (otherwise two such materials collapse into one
+        # during export — see issue #2349).
+        self.index_of_refraction = (
+            None if index_of_refraction is None else float(index_of_refraction)
+        )
+        self.dissolve = None if dissolve is None else float(dissolve)
+        if transmission_filter is None:
+            self.transmission_filter = None
+        else:
+            self.transmission_filter = tuple(float(x) for x in transmission_filter)
+        self.illumination_model = (
+            None if illumination_model is None else int(float(illumination_model))
+        )
+
+        # save any other keyword arguments untouched (so callers
+        # that pass arbitrary extension keys still see them on the
+        # instance via `material.kwargs`).
         self.kwargs = kwargs
 
     def to_color(self, uv):
@@ -126,6 +152,21 @@ class SimpleMaterial(Material):
             "Ks {:0.8f} {:0.8f} {:0.8f}".format(*Ks),
             f"Ns {self.glossiness:0.8f}",
         ]
+
+        # optional MTL fields (issue #2349): only emit a line when
+        # the value was explicitly supplied so we don't add bogus
+        # `Ni 1.0` / `d 1.0` / `illum 1` defaults to every exported
+        # material.
+        if self.index_of_refraction is not None:
+            mtl.append(f"Ni {self.index_of_refraction:0.8f}")
+        if self.dissolve is not None:
+            mtl.append(f"d {self.dissolve:0.8f}")
+        if self.transmission_filter is not None:
+            mtl.append(
+                "Tf " + " ".join(f"{v:0.8f}" for v in self.transmission_filter)
+            )
+        if self.illumination_model is not None:
+            mtl.append(f"illum {int(self.illumination_model)}")
 
         # collect the OBJ data into files
         data = {}
@@ -176,6 +217,19 @@ class SimpleMaterial(Material):
             hashed ^= hash(self.specular.tobytes())
         if isinstance(self.glossiness, float):
             hashed ^= hash(int(self.glossiness * 1000))
+        # include optional MTL fields (issue #2349) so two
+        # materials that differ ONLY by `Ni` / `d` / `Tf` / `illum`
+        # don't collide and get exported as a single material.
+        if self.index_of_refraction is not None:
+            hashed ^= hash(("Ni", int(self.index_of_refraction * 1000)))
+        if self.dissolve is not None:
+            hashed ^= hash(("d", int(self.dissolve * 1000)))
+        if self.transmission_filter is not None:
+            hashed ^= hash(
+                ("Tf", tuple(int(v * 1000) for v in self.transmission_filter))
+            )
+        if self.illumination_model is not None:
+            hashed ^= hash(("illum", int(self.illumination_model)))
         return hashed
 
     @property
