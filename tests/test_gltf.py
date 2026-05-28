@@ -1151,6 +1151,76 @@ class GLTFTest(g.unittest.TestCase):
         mean_squared_error = ((a - b) ** 2).sum() / g.np.prod(a.shape)
         assert mean_squared_error < 10.0
 
+    def test_color_visuals_transparency_export(self):
+        # https://github.com/mikedh/trimesh/issues/2436
+        # ColorVisuals meshes with `alpha < 255` previously exported with no
+        # material at all, leaving renderers to fall back to the glTF default
+        # material whose `alphaMode` is `OPAQUE`. That swallowed the alpha
+        # channel and the mesh rendered as solid. Verify the exporter now
+        # emits a `BLEND` material so per-vertex/per-face alpha is honored.
+        mesh = g.trimesh.creation.cylinder(1.0, 1.0)
+        mesh.visual.face_colors = (255, 0, 0, 100)
+        # base sanity: this is a ColorVisuals, so no PBR material attribute
+        assert not hasattr(mesh.visual, "material")
+
+        tree = g.json.loads(mesh.export(file_type="gltf")["model.gltf"].decode("utf-8"))
+
+        # a material should now exist and be referenced by the primitive
+        materials = tree.get("materials") or []
+        assert len(materials) == 1
+        assert materials[0]["alphaMode"] == "BLEND"
+        # transparent meshes should default to double-sided for correct rendering
+        assert materials[0].get("doubleSided") is True
+        primitive = tree["meshes"][0]["primitives"][0]
+        assert primitive.get("material") == 0
+        # COLOR_0 must still be written so per-vertex alpha is available
+        assert "COLOR_0" in primitive["attributes"]
+
+        # GLB roundtrip should preserve `alphaMode = BLEND` on the material
+        export = mesh.export(file_type="glb")
+        validate_glb(export)
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(export), file_type="glb", force="mesh"
+        )
+        assert reloaded.visual.material.alphaMode == "BLEND"
+        assert getattr(reloaded.visual.material, "doubleSided", False) is True
+
+    def test_color_visuals_opaque_no_extra_material(self):
+        # https://github.com/mikedh/trimesh/issues/2436
+        # Fully opaque ColorVisuals should still emit no material (preserving
+        # the default-material behavior) — the transparency workaround above
+        # must not fire for `alpha == 255` colors.
+        mesh = g.trimesh.creation.cylinder(1.0, 1.0)
+        mesh.visual.face_colors = (200, 50, 50, 255)
+        tree = g.json.loads(mesh.export(file_type="gltf")["model.gltf"].decode("utf-8"))
+
+        # no material is emitted: opaque ColorVisuals continues to use the
+        # implicit glTF default material rather than allocating an explicit one
+        assert not tree.get("materials")
+        primitive = tree["meshes"][0]["primitives"][0]
+        assert "material" not in primitive
+        assert "COLOR_0" in primitive["attributes"]
+
+    def test_color_visuals_transparency_dedupes_material(self):
+        # https://github.com/mikedh/trimesh/issues/2436
+        # Multiple ColorVisuals meshes sharing the same transparency profile
+        # should reuse a single `BLEND` material rather than allocating
+        # one per primitive — the lookup-then-append branch must dedupe.
+        scene = g.trimesh.Scene()
+        a = g.trimesh.creation.box()
+        a.visual.face_colors = (255, 0, 0, 100)
+        b = g.trimesh.creation.box()
+        b.visual.face_colors = (0, 255, 0, 100)
+        scene.add_geometry(a, "a")
+        scene.add_geometry(b, "b")
+        tree = g.json.loads(scene.export(file_type="gltf")["model.gltf"].decode("utf-8"))
+        # a single shared transparent material reused by both primitives
+        materials = tree.get("materials") or []
+        assert len(materials) == 1
+        assert materials[0]["alphaMode"] == "BLEND"
+        for mesh_entry in tree["meshes"]:
+            assert mesh_entry["primitives"][0].get("material") == 0
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
