@@ -130,6 +130,49 @@ class NormalsTest(g.unittest.TestCase):
         mesh.face_normals = g.np.zeros_like(mesh.faces)
         assert g.np.allclose(g.np.linalg.norm(mesh.face_normals, axis=1), 1.0)
 
+    def test_face_normals_setter_validation(self):
+        """
+        Regression for issue #2394: the face_normals setter used to
+        only validate the first 20 faces against the recomputed
+        normals, so it could silently accept wrong normals (if the
+        first 20 happened to match) and silently drop legitimately
+        sign-flipped normals. The setter should validate every face
+        and accept any normals that are perpendicular to the face
+        plane regardless of sign.
+        """
+        # use enough faces that a "first 20" check would miss errors
+        # (use a fresh mesh per case to avoid face_normals cache carryover)
+        def fresh():
+            m = g.trimesh.creation.icosphere(subdivisions=2)
+            assert len(m.faces) > 20
+            return m, m.face_normals.copy()
+
+        # fully sign-flipped normals are still perpendicular to every
+        # face and must now be accepted as-is (the user's explicit
+        # request in #2394)
+        mesh, computed = fresh()
+        flipped = -computed
+        mesh.face_normals = flipped
+        assert g.np.allclose(mesh.face_normals, flipped)
+
+        # normals that are correct for the first 20 faces but garbage
+        # afterwards must be rejected (the old check missed this)
+        mesh, computed = fresh()
+        partial_garbage = computed.copy()
+        partial_garbage[20:] = [0.0, 0.0, 1.0]
+        mesh.face_normals = partial_garbage
+        assert not g.np.allclose(mesh.face_normals, partial_garbage)
+        # rejected -> falls back to the true computed normals
+        assert g.np.allclose(mesh.face_normals, computed)
+
+        # a non-perpendicular set must be rejected wholesale
+        mesh, computed = fresh()
+        # rotate every normal 30 degrees out of the face plane around x
+        c, s = g.np.cos(0.5), g.np.sin(0.5)
+        rot = g.np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+        mesh.face_normals = computed.dot(rot.T)
+        assert g.np.allclose(mesh.face_normals, computed)
+
     def test_merge(self):
         """
         Check merging with vertex normals

@@ -451,6 +451,15 @@ class Trimesh(Geometry3D):
         """
         Assign values to face normals.
 
+        The supplied normals are validated against the actual face
+        geometry: a normal is accepted only if it is perpendicular to
+        its face plane (i.e. parallel or anti-parallel to the cross
+        product of the triangle edges). This check runs over *every*
+        face rather than a sample, and is sign-agnostic so explicitly
+        flipped-but-valid normals are honored. Normals that don't
+        correspond to the face geometry are ignored and the cached
+        cross-product normals will be regenerated on next access.
+
         Parameters
         -------------
         values : (len(self.faces), 3) float
@@ -475,12 +484,29 @@ class Trimesh(Geometry3D):
             log.debug("face_normals all zero, ignoring!")
             return
 
-        # make sure the first few normals match the first few triangles
-        check, valid = triangles.normals(self.vertices.view(np.ndarray)[self.faces[:20]])
-        compare = np.zeros((len(valid), 3))
-        compare[valid] = check
-        if not np.allclose(compare, values[:20]):
-            log.debug("face_normals didn't match triangles, ignoring!")
+        # validate that every supplied normal is actually perpendicular
+        # to its face by comparing against the cross product of the
+        # triangle edges (the unnormalized "true" normal direction).
+        # historically this only checked the first 20 faces against the
+        # recomputed normals which both missed errors past face 20 and
+        # rejected legitimately sign-flipped normals (see issue #2394).
+        crosses = self.triangles_cross
+        # a supplied normal is parallel/anti-parallel to `crosses` when
+        # their cross product is near zero; this is sign independent
+        parallel = np.cross(values, crosses)
+        # scale-invariant comparison: divide the residual by the product
+        # of the magnitudes so the test is on the angle, not the lengths
+        mag = np.sqrt((values**2).sum(axis=1) * (crosses**2).sum(axis=1))
+        # zero-area faces have an undefined normal so we can't validate
+        # them; treat those as always-valid like the getter does
+        nonzero = mag > tol.merge
+        # `sin` of the angle between supplied normal and the face plane
+        residual = np.zeros(len(values), dtype=float64)
+        residual[nonzero] = (
+            np.sqrt((parallel[nonzero] ** 2).sum(axis=1)) / mag[nonzero]
+        )
+        if (residual > 1e-3).any():
+            log.debug("face_normals not perpendicular to faces, ignoring!")
             return
 
         # otherwise store face normals
