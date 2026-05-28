@@ -1,4 +1,5 @@
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
+from io import IOBase
 from pathlib import Path
 from sys import version_info
 from typing import IO, Any, BinaryIO, Literal, TypeAlias, TypeGuard, TypeVar
@@ -13,7 +14,10 @@ else:
 
 # most loader routes take `file_obj` which can either be
 # a file-like object or a file path, or sometimes a dict
-Stream: TypeAlias = IO[str] | IO[bytes]
+# `IOBase` is the base of every stdlib stream and is included because
+# concrete streams like `io.BytesIO` don't satisfy the `IO` protocol
+# under beartype — https://github.com/beartype/beartype/issues/643
+Stream: TypeAlias = IO[str] | IO[bytes] | IOBase
 Loadable: TypeAlias = str | Path | Stream | dict | None
 
 # for a function that returns "is this a file or not"

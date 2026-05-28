@@ -2433,7 +2433,7 @@ class Trimesh(Geometry3D):
 
         return new_mesh
 
-    def unwrap(self, image: Image = None) -> "Trimesh":
+    def unwrap(self, image=None) -> "Trimesh":
         """
         Returns a Trimesh object equivalent to the current mesh where
         the vertices have been assigned uv texture coordinates. Vertices

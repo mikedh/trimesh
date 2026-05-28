@@ -33,7 +33,6 @@ from .iteration import chain
 
 # use our wrapped types for wider version compatibility
 from .typed import (
-    IO,
     Any,
     ArrayLike,
     BoolIsFile,
@@ -43,6 +42,8 @@ from .typed import (
     NDArray,
     NDArray1D,
     NDArray2D,
+    Number,
+    Stream,
 )
 
 # imported only so type checkers can resolve the dotted forward-ref
@@ -499,7 +500,7 @@ def spherical_to_vector(spherical: ArrayLike) -> NDArray2D[np.float64]:
     return np.column_stack((ct * sp, st * sp, cp))
 
 
-def pairwise(iterable: Iterable[Any]) -> "zip[tuple[Any, Any]] | NDArray":
+def pairwise(iterable: Iterable[Any]):
     """
     For an iterable, group values into pairs.
 
@@ -666,7 +667,7 @@ def stack_3D(
     return points
 
 
-def grid_arange(bounds: ArrayLike, step: ArrayLike) -> NDArray2D[np.float64]:
+def grid_arange(bounds: ArrayLike, step: Number | ArrayLike) -> NDArray2D[np.float64]:
     """
     Return a grid from an (2,dimension) bounds with samples step distance apart.
 
@@ -697,7 +698,7 @@ def grid_arange(bounds: ArrayLike, step: ArrayLike) -> NDArray2D[np.float64]:
     return grid
 
 
-def grid_linspace(bounds: ArrayLike, count: ArrayLike) -> NDArray2D[np.float64]:
+def grid_linspace(bounds: ArrayLike, count: Integer | ArrayLike) -> NDArray2D[np.float64]:
     """
     Return a grid spaced inside a bounding box with edges spaced using np.linspace.
 
@@ -728,7 +729,7 @@ def grid_linspace(bounds: ArrayLike, count: ArrayLike) -> NDArray2D[np.float64]:
 
 
 def multi_dict(
-    pairs: Iterable[tuple[Hashable, Any]],
+    pairs: ArrayLike | Iterable[tuple[Hashable, Any]],
 ) -> collections.defaultdict[Hashable, list]:
     """
     Given a set of key value pairs, create a dictionary.
@@ -770,7 +771,7 @@ def tolist(data: object) -> Any:
     return result
 
 
-def is_binary_file(file_obj: IO[Any]) -> bool:
+def is_binary_file(file_obj: Stream) -> bool:
     """
     Returns True if file has non-ASCII characters (> 0x7F, or 127)
     """
@@ -788,7 +789,7 @@ def is_binary_file(file_obj: IO[Any]) -> bool:
     return False
 
 
-def distance_to_end(file_obj: IO[Any]) -> int:
+def distance_to_end(file_obj: Stream) -> int:
     """
     For an open file object how far is it to the end
 
@@ -1001,8 +1002,8 @@ def stack_lines(indices: ArrayLike) -> NDArray:
 
 
 def append_faces(
-    vertices_seq: Iterable[NDArray],
-    faces_seq: Iterable[NDArray[np.integer[Any]]],
+    vertices_seq: Iterable[ArrayLike],
+    faces_seq: Iterable[ArrayLike],
 ) -> tuple[NDArray2D[np.float64], NDArray2D[np.int64]]:
     """
     Given a sequence of zero-indexed faces and vertices
@@ -1591,7 +1592,7 @@ def concatenate(a, b=None) -> "trimesh.parent.Geometry":
 
 def submesh(
     mesh,
-    faces_sequence: Iterable[Integer],
+    faces_sequence: Iterable[ArrayLike],
     repair: bool = True,
     only_watertight: bool = False,
     min_faces: Integer | None = None,
@@ -1977,11 +1978,9 @@ def sigfig_int(
 
 
 def decompress(
-    file_obj: bytes
-    | IO[bytes]
-    | BytesIO,  # https://github.com/beartype/beartype/issues/643
+    file_obj: bytes | Stream,
     file_type: str,
-) -> dict[str, IO[bytes] | None]:
+) -> dict[str, Stream | None]:
     """
     Given an open file object and a file type, return all components
     of the archive as open file objects in a dict.
@@ -2021,7 +2020,7 @@ def decompress(
 
 
 def compress(
-    info: Mapping[str, str | bytes | IO[Any]],
+    info: Mapping[str, str | bytes | Stream],
     **kwargs: Any,
 ) -> bytes:
     """
@@ -2086,7 +2085,7 @@ def split_extension(file_name: str, special: Iterable[str] | None = None) -> str
 
 
 def triangle_strips_to_faces(
-    strips: Sequence[NDArray[np.integer[Any]]],
+    strips: Sequence[ArrayLike],
 ) -> NDArray2D[np.int64]:
     """
     Convert a sequence of triangle strips to (n, 3) faces.
@@ -2149,7 +2148,7 @@ def triangle_strips_to_faces(
 
 
 def triangle_fans_to_faces(
-    fans: Iterable[NDArray[np.integer[Any]]],
+    fans: Iterable[ArrayLike],
 ) -> NDArray2D[np.int64]:
     """
     Convert fans of m + 2 vertex indices in fan format to m triangles
@@ -2172,7 +2171,7 @@ def triangle_fans_to_faces(
     return np.concatenate(faces, dtype=int)
 
 
-def vstack_empty(tup: Iterable[NDArray]) -> NDArray:
+def vstack_empty(tup: Iterable[ArrayLike]) -> NDArray:
     """
     A thin wrapper for numpy.vstack that ignores empty lists.
 
@@ -2200,7 +2199,7 @@ def vstack_empty(tup: Iterable[NDArray]) -> NDArray:
 
 
 def write_encoded(
-    file_obj: IO[Any],
+    file_obj: Stream,
     stuff: str | bytes,
     encoding: str = "utf-8",
 ) -> str | bytes:
@@ -2317,10 +2316,10 @@ def generate_basis(z: ArrayLike, epsilon: float = 1e-12) -> NDArray2D[np.float64
 
 
 def isclose(
-    a: NDArray,
-    b: NDArray,
+    a: Number | NDArray,
+    b: Number | NDArray,
     atol: Floating = 1e-8,
-) -> NDArray[np.bool_]:
+) -> np.bool_ | NDArray[np.bool_]:
     """
     A replacement for np.isclose that does fewer checks
     and validation and as a result is roughly 4x faster.
@@ -2346,7 +2345,7 @@ def isclose(
     return np.logical_and(diff > -atol, diff < atol)
 
 
-def allclose(a: NDArray, b: NDArray, atol: Floating = 1e-8) -> bool:
+def allclose(a: Number | NDArray, b: Number | NDArray, atol: Floating = 1e-8) -> bool:
     """
     A replacement for np.allclose that does few checks
     and validation and as a result is faster.
