@@ -1004,7 +1004,7 @@ def stack_lines(indices: ArrayLike) -> NDArray:
 def append_faces(
     vertices_seq: Iterable[ArrayLike],
     faces_seq: Iterable[ArrayLike],
-) -> tuple[NDArray2D[np.float64], NDArray2D[np.int64]]:
+) -> tuple[NDArray2D[np.floating], NDArray2D[np.integer]]:
     """
     Given a sequence of zero-indexed faces and vertices
     combine them into a single array of faces and
@@ -1039,6 +1039,13 @@ def append_faces(
     vertices = vstack_empty(vertices_seq)
     # stack to clean (n, 3) int
     faces = vstack_empty(new_faces)
+
+    # an all-empty stack collapses to a 1d float array — restore the
+    # documented 2d shape and integer face dtype
+    if len(vertices) == 0:
+        vertices = vertices.reshape((0, 3))
+    if len(faces) == 0:
+        faces = faces.reshape((0, 3)).astype(np.int64)
 
     return vertices, faces
 
@@ -2085,7 +2092,7 @@ def split_extension(file_name: str, special: Iterable[str] | None = None) -> str
 
 
 def triangle_strips_to_faces(
-    strips: Sequence[ArrayLike],
+    strips: ArrayLike | Sequence[ArrayLike],
 ) -> NDArray2D[np.int64]:
     """
     Convert a sequence of triangle strips to (n, 3) faces.

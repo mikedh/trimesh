@@ -77,10 +77,16 @@ def main() -> int:
     if os.environ.get("TYPE_ALL") or "-all" in " ".join(sys.argv[1:]):
         ordered = sorted(
             diagnostics,
-            key=lambda d: (d["location"]["path"], d["location"]["positions"]["begin"]["line"]),
+            key=lambda d: (
+                d["location"]["path"],
+                d["location"]["positions"]["begin"]["line"],
+            ),
         )
         detail = [
-            [f"`{d['location']['path']}:{d['location']['positions']['begin']['line']}`", d["description"]]
+            [
+                f"`{d['location']['path']}:{d['location']['positions']['begin']['line']}`",
+                d["description"],
+            ]
             for d in ordered
         ]
         print()

@@ -9,7 +9,7 @@ from itertools import zip_longest
 
 import numpy as np
 
-from . import graph, grouping, util
+from . import graph, grouping
 from .constants import tol
 from .geometry import faces_to_edges
 
@@ -119,7 +119,10 @@ def subdivide_to_size(vertices, faces, max_edge, max_iter=10, return_index=False
     Subdivide a mesh until every edge is shorter than a
     specified length.
 
-    Will return a triangle soup, not a nicely structured mesh.
+    Every edge longer than `max_edge` is bisected at a single shared
+    midpoint, so the two faces on either side stay in sync and a
+    watertight input stays watertight — no T-junctions (cracks) are
+    introduced. Faces already small enough are left untouched.
 
     Parameters
     ------------
@@ -140,69 +143,102 @@ def subdivide_to_size(vertices, faces, max_edge, max_iter=10, return_index=False
       Vertices in space
     faces : (q, 3) int
       Indices of vertices
-    index : (q, 3) int
+    index : (q,) int
       Only returned if `return_index`, index of
       original face for each new face.
     """
-    # store completed
-    done_face = []
-    done_vert = []
-    done_idx = []
-
     # copy inputs and make sure dtype is correct
-    current_faces = np.array(faces, dtype=np.int64, copy=True)
-    current_vertices = np.array(vertices, dtype=np.float64, copy=True)
+    vertices = np.array(vertices, dtype=np.float64, copy=True)
+    faces = np.array(faces, dtype=np.int64, copy=True)
+    # map each current face back to its original face index
+    index = np.arange(len(faces))
 
-    # store a map to the original face index
-    current_index = np.arange(len(faces))
-
-    # loop through iteration cap
     for i in range(max_iter + 1):
-        # compute the length of every triangle edge
-        edge_length = (
-            np.diff(current_vertices[current_faces[:, [0, 1, 2, 0]], :3], axis=1) ** 2
-        ).sum(axis=2) ** 0.5
-        # check edge length against maximum
-        too_long = (edge_length > max_edge).any(axis=1)
-        # faces that are OK
-        face_ok = ~too_long
+        # the unique edges of the current mesh and the length of each
+        edges = np.sort(faces_to_edges(faces), axis=1)
+        unique, inverse = grouping.unique_rows(edges)
+        edges_unique = edges[unique]
+        # length uses xyz only — callers may hstack extra columns (e.g. uv)
+        lengths = (
+            (vertices[edges_unique[:, 0], :3] - vertices[edges_unique[:, 1], :3]) ** 2
+        ).sum(axis=1) ** 0.5
+        long_edge = lengths > max_edge
 
-        # clean up the faces a little bit so we don't
-        # store a ton of unused vertices
-        unique, inverse = grouping.unique_bincount(
-            current_faces[face_ok].flatten(), return_inverse=True
-        )
-
-        # store vertices and faces meeting criteria
-        done_vert.append(current_vertices[unique])
-        done_face.append(inverse.reshape((-1, 3)))
-
-        if return_index:
-            done_idx.append(current_index[face_ok])
-            current_index = np.tile(current_index[too_long], (4, 1)).T.ravel()
-
-        # met our goals so exit
-        if not too_long.any():
+        # every edge is short enough so we're done
+        if not long_edge.any():
             break
-
-        # check max_iter before subdividing again
+        # check max_iter before refining again
         if i >= max_iter:
             raise ValueError("max_iter exceeded!")
 
-        # run subdivision again
-        (current_vertices, current_faces) = subdivide(
-            current_vertices, current_faces[too_long]
-        )
+        # one shared midpoint vertex per long edge, -1 where left intact
+        midpoint = np.full(len(unique), -1, dtype=np.int64)
+        midpoint[long_edge] = np.arange(int(long_edge.sum())) + len(vertices)
+        vertices = np.vstack((vertices, vertices[edges_unique[long_edge]].mean(axis=1)))
 
-    # stack sequence into nice (n, 3) arrays
-    final_vertices, final_faces = util.append_faces(done_vert, done_face)
+        # midpoint id for each face's 3 edges, columns (v0v1, v1v2, v2v0)
+        face_mid = midpoint[inverse].reshape((-1, 3))
+        split = face_mid >= 0
+        # number of edges marked for bisection on each face: 0, 1, 2, or 3
+        count = split.sum(axis=1)
+
+        # 0 marked edges — face passes through unchanged
+        keep = count == 0
+        faces_keep = faces[keep]
+        index_keep = index[keep]
+
+        # 1 marked edge — rotate so the split edge is (a, b) so a single
+        # template handles all three cases: fan the midpoint to the
+        # opposite vertex as [a, p, c], [p, b, c]
+        one = count == 1
+        j = np.argmax(split[one], axis=1)
+        r = np.arange(len(j))
+        f1, mid1 = faces[one], face_mid[one]
+        a, b, c = f1[r, j], f1[r, (j + 1) % 3], f1[r, (j + 2) % 3]
+        p = mid1[r, j]
+        faces_one = np.column_stack((a, p, c, p, b, c)).reshape((-1, 3))
+        index_one = np.repeat(index[one], 2)
+
+        # 2 marked edges — rotate so the unsplit edge is (c, a), again so
+        # one template covers all three cases: a corner triangle [p, b, q]
+        # plus the quad (a, p, q, c) cut along its shorter diagonal
+        two = count == 2
+        j = (np.argmin(split[two], axis=1) + 1) % 3
+        r = np.arange(len(j))
+        f2, mid2 = faces[two], face_mid[two]
+        a, b, c = f2[r, j], f2[r, (j + 1) % 3], f2[r, (j + 2) % 3]
+        p, q = mid2[r, j], mid2[r, (j + 1) % 3]
+        # the shorter of the two quad diagonals: a-q versus p-c (xyz only)
+        use_aq = (
+            ((vertices[a, :3] - vertices[q, :3]) ** 2).sum(axis=1)
+            <= ((vertices[p, :3] - vertices[c, :3]) ** 2).sum(axis=1)
+        )[:, None]
+        corner = np.column_stack((p, b, q))
+        quad_a = np.where(use_aq, np.column_stack((a, p, q)), np.column_stack((a, p, c)))
+        quad_b = np.where(use_aq, np.column_stack((a, q, c)), np.column_stack((p, q, c)))
+        faces_two = np.vstack((corner, quad_a, quad_b))
+        index_two = np.tile(index[two], 3)
+
+        # 3 marked edges — the regular 1 -> 4 split, same winding as subdivide
+        three = count == 3
+        f3, mid3 = faces[three], face_mid[three]
+        v0, v1, v2 = f3.T
+        m0, m1, m2 = mid3.T
+        faces_three = np.column_stack(
+            (v0, m0, m2, m0, v1, m1, m2, m1, v2, m0, m1, m2)
+        ).reshape((-1, 3))
+        index_three = np.repeat(index[three], 4)
+
+        faces = np.vstack((faces_keep, faces_one, faces_two, faces_three)).astype(
+            np.int64
+        )
+        index = np.concatenate((index_keep, index_one, index_two, index_three))
 
     if return_index:
-        final_index = np.concatenate(done_idx)
-        assert len(final_index) == len(final_faces)
-        return final_vertices, final_faces, final_index
+        assert len(index) == len(faces)
+        return vertices, faces, index
 
-    return final_vertices, final_faces
+    return vertices, faces
 
 
 def subdivide_loop(vertices, faces, iterations=None):
