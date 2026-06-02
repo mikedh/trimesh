@@ -5,11 +5,45 @@ sample.py
 Randomly sample surface and volume of meshes.
 """
 
+from typing import overload
+
 import numpy as np
 
 from . import transformations, util
-from .typed import ArrayLike, Integer, NDArray, Number, Optional, float64
+from .typed import (
+    Any,
+    ArrayLike,
+    Integer,
+    Literal,
+    NDArray,
+    Number,
+    Optional,
+    Tuple,
+    float64,
+    int64,
+)
 from .visual import uv_to_interpolated_color
+
+
+@overload
+def sample_surface(
+    mesh,
+    count: Integer,
+    face_weight: Optional[ArrayLike] = ...,
+    sample_color: Literal[False] = ...,
+    seed=...,
+) -> Tuple[NDArray[float64], NDArray[int64]]: ...
+
+
+@overload
+def sample_surface(
+    mesh,
+    count: Integer,
+    face_weight: Optional[ArrayLike] = ...,
+    *,
+    sample_color: Literal[True],
+    seed=...,
+) -> Tuple[NDArray[float64], NDArray[int64], NDArray[Any]]: ...
 
 
 def sample_surface(
@@ -53,13 +87,11 @@ def sample_surface(
       Returns only when the sample_color is True
     """
 
-    if face_weight is None:
-        # len(mesh.faces) float, array of the areas
-        # of each face of the mesh
-        face_weight = mesh.area_faces
+    # len(mesh.faces) float, array of face areas if no override
+    weights = mesh.area_faces if face_weight is None else face_weight
 
     # cumulative sum of weights (len(mesh.faces))
-    weight_cum = np.cumsum(face_weight)
+    weight_cum = np.cumsum(weights)
 
     # seed the random number generator as requested
     if seed is None:
@@ -81,14 +113,6 @@ def sample_surface(
     tri_origins = tri_origins[face_index]
     tri_vectors = tri_vectors[face_index]
 
-    if sample_color and hasattr(mesh.visual, "uv"):
-        uv_origins = mesh.visual.uv[mesh.faces[:, 0]]
-        uv_vectors = mesh.visual.uv[mesh.faces[:, 1:]].copy()
-        uv_origins_tile = np.tile(uv_origins, (1, 2)).reshape((-1, 2, 2))
-        uv_vectors -= uv_origins_tile
-        uv_origins = uv_origins[face_index]
-        uv_vectors = uv_vectors[face_index]
-
     # randomly generate two 0-1 scalar components to multiply edge vectors b
     random_lengths = random((len(tri_vectors), 2, 1))
 
@@ -109,6 +133,13 @@ def sample_surface(
 
     if sample_color:
         if hasattr(mesh.visual, "uv"):
+            uv_origins = mesh.visual.uv[mesh.faces[:, 0]]
+            uv_vectors = mesh.visual.uv[mesh.faces[:, 1:]].copy()
+            uv_origins_tile = np.tile(uv_origins, (1, 2)).reshape((-1, 2, 2))
+            uv_vectors -= uv_origins_tile
+            uv_origins = uv_origins[face_index]
+            uv_vectors = uv_vectors[face_index]
+
             sample_uv_vector = (uv_vectors * random_lengths).sum(axis=1)
             uv_samples = sample_uv_vector + uv_origins
             texture = mesh.visual.material.image
