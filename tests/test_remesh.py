@@ -260,8 +260,8 @@ class SubDivideTest(g.unittest.TestCase):
             )
             eps = 1e-8
             for fid in fidx:
-                # get the new triangles, as indicated by the index
-                tri_new = v[f[idx[fid]]]
+                # get the new triangles whose source is this original face
+                tri_new = v[f[idx == fid]]
 
                 # this is the original triangle
                 original = vertices[faces[g.np.tile(fid, len(tri_new) * 3)]]
