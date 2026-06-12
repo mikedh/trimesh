@@ -81,7 +81,8 @@ easy = [
     "rtree",
     "httpx",
     "scipy",
-    "embreex",
+    # embreex ships no Linux/aarch64 wheel, so require it everywhere except there
+    "embreex; platform_machine!='aarch64'",
     "pillow",
     "vhacdx; python_version>='3.9'",
     # old versions of mapbox_earcut produce incorrect values on numpy 2.0
