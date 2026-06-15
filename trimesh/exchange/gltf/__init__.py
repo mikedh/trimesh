@@ -464,7 +464,7 @@ def load_glb(
     return kwargs
 
 
-def _uri_to_bytes(uri: str, resolver: ResolverLike) -> bytes:
+def _uri_to_bytes(uri: str, resolver: ResolverLike | None) -> bytes:
     """
     Take a URI string and load it as a
     a filename or as base64.

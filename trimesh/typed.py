@@ -2,7 +2,17 @@ from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from io import IOBase
 from pathlib import Path
 from sys import version_info
-from typing import IO, Any, BinaryIO, Literal, Protocol, TypeAlias, TypeGuard, TypeVar
+from typing import (
+    IO,
+    Any,
+    BinaryIO,
+    Literal,
+    Protocol,
+    TypeAlias,
+    TypeGuard,
+    TypeVar,
+    runtime_checkable,
+)
 
 from numpy import dtype, float64, floating, generic, int64, integer, ndarray
 from numpy.typing import ArrayLike, DTypeLike, NDArray
@@ -58,6 +68,7 @@ BooleanOperationType: TypeAlias = Literal["difference", "union", "intersection"]
 VoxelizationMethodsType: TypeAlias = Literal["subdivide", "ray", "binvox"]
 
 
+@runtime_checkable
 class HttpSessionLike(Protocol):
     """
     Structural type for an HTTP session.

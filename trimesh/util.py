@@ -1985,7 +1985,7 @@ def sigfig_int(
 
 
 # cap on total uncompressed bytes from a single archive
-MAX_ARCHIVE_SIZE = 536870912
+MAX_ARCHIVE_SIZE = 8 * 1024**3  # 8 GiB
 
 
 def decompress(
