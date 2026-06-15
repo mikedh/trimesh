@@ -18,7 +18,6 @@ from pyinstrument import Profiler
 from pyinstrument.renderers.jsonrenderer import JSONRenderer
 
 import trimesh
-from trimesh.typed import List, Optional, Tuple
 from trimesh.util import log, wrap_as_stream
 
 
@@ -37,16 +36,16 @@ class LoadReport:
     file_size: float
 
     # i.e. 'Scene'
-    type_load: Optional[str] = None
+    type_load: str | None = None
 
     # what type was every geometry
-    type_geometry: Optional[Tuple[str]] = None
+    type_geometry: tuple[str, ...] | None = None
 
     # what is the printed repr of the object, i.e. `<Trimesh ...>`
-    repr_load: Optional[str] = None
+    repr_load: str | None = None
 
     # if there was an exception save it here
-    exception: Optional[str] = None
+    exception: str | None = None
 
 
 @dataclass
@@ -169,8 +168,8 @@ def markdown_table(headers: tuple[str, ...], rows: list[tuple]) -> str:
 
 
 def on_repo(
-    repo: str, commit: str, available: set, root: Optional[str] = None
-) -> List[LoadReport]:
+    repo: str, commit: str, available: set, root: str | None = None
+) -> list[LoadReport]:
     """
     Try loading all supported files in a Github repo.
 

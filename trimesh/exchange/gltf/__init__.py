@@ -18,7 +18,7 @@ from ...caching import hash_fast
 from ...constants import log, tol
 from ...resolvers import ResolverLike, ZipResolver
 from ...scene.cameras import Camera
-from ...typed import Dict, List, NDArray, Optional, Stream
+from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
 from .extensions import handle_extensions
 
@@ -275,8 +275,8 @@ def export_glb(
 
 
 def load_gltf(
-    file_obj: Optional[Stream] = None,
-    resolver: Optional[ResolverLike] = None,
+    file_obj: Stream | None = None,
+    resolver: ResolverLike | None = None,
     ignore_broken: bool = False,
     merge_primitives: bool = False,
     skip_materials: bool = False,
@@ -351,7 +351,7 @@ def load_gltf(
 
 def load_glb(
     file_obj: Stream,
-    resolver: Optional[ResolverLike] = None,
+    resolver: ResolverLike | None = None,
     ignore_broken: bool = False,
     merge_primitives: bool = False,
     skip_materials: bool = False,
@@ -464,7 +464,7 @@ def load_glb(
     return kwargs
 
 
-def _uri_to_bytes(uri: str, resolver: ResolverLike) -> bytes:
+def _uri_to_bytes(uri: str, resolver: ResolverLike | None) -> bytes:
     """
     Take a URI string and load it as a
     a filename or as base64.
@@ -488,9 +488,12 @@ def _uri_to_bytes(uri: str, resolver: ResolverLike) -> bytes:
         # string didn't contain the base64 header
         # so return the result from the resolver
         return resolver[uri]
-    # we have a base64 header so strip off
-    # leading index and then decode into bytes
-    return base64.b64decode(uri[index + 7 :])
+    # strip the base64 header — cap the encoded length against the decompress
+    # limit (4 b64 chars per 3 raw bytes) to bound the decoded size
+    payload = uri[index + 7 :]
+    if len(payload) > util.MAX_ARCHIVE_SIZE * 4 // 3 + 4:
+        raise ValueError("gltf base64 payload exceeds size cap")
+    return base64.b64decode(payload)
 
 
 def _buffer_append(ordered, data):
@@ -765,7 +768,7 @@ def _append_mesh(
     name,
     tree,
     buffer_items,
-    include_normals: Optional[bool],
+    include_normals: bool | None,
     unitize_normals: bool,
     mat_hashes: dict,
     extension_webp: bool,
@@ -1110,8 +1113,7 @@ def _byte_pad(data, bound=4):
     if len(data) % bound != 0:
         # extra bytes to pad with
         count = bound - (len(data) % bound)
-        # bytes(count) only works on Python 3
-        pad = (" " * count).encode("utf-8")
+        pad = bytes(count)
         # combine the padding and data
         result = b"".join([data, pad])
         # we should always divide evenly
@@ -1424,10 +1426,10 @@ def _parse_materials(header, views, resolver=None):
 
 
 def _read_buffers(
-    header: Dict,
-    buffers: List[bytes],
-    mesh_kwargs: Dict,
-    resolver: Optional[ResolverLike],
+    header: dict,
+    buffers: list[bytes],
+    mesh_kwargs: dict,
+    resolver: ResolverLike | None,
     ignore_broken: bool = False,
     merge_primitives: bool = False,
     skip_materials: bool = False,

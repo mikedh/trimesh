@@ -2,7 +2,7 @@ import os
 import tempfile
 
 from ..exceptions import ExceptionWrapper
-from ..typed import BinaryIO, Dict, Number, Optional
+from ..typed import BinaryIO, Number
 
 # used as an intermediate format
 from .gltf import load_glb
@@ -11,12 +11,12 @@ from .gltf import load_glb
 def load_step(
     file_obj: BinaryIO,
     file_type,
-    tol_linear: Optional[Number] = None,
-    tol_angular: Optional[Number] = None,
-    tol_relative: Optional[bool] = False,
+    tol_linear: Number | None = None,
+    tol_angular: Number | None = None,
+    tol_relative: bool | None = False,
     merge_primitives: bool = True,
     **kwargs,
-) -> Dict:
+) -> dict:
     """
     Use `cascadio` a packaged version of OpenCASCADE
     to load a STEP file using GLB as an intermediate.

@@ -1,4 +1,5 @@
 import collections
+import itertools
 from copy import deepcopy
 
 import numpy as np
@@ -6,7 +7,7 @@ import numpy as np
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
-from ..typed import ArrayLike, Hashable, NDArray, Optional, Sequence, Tuple, Union
+from ..typed import ArrayLike, Hashable, NDArray, Sequence
 
 # we compare to identity a lot
 _identity = np.eye(4)
@@ -93,8 +94,8 @@ class SceneGraph:
             self.transforms.node_data[frame_to]["geometry"] = kwargs["geometry"]
 
     def get(
-        self, frame_to: Hashable, frame_from: Optional[Hashable] = None
-    ) -> Tuple[NDArray[np.float64], Optional[Hashable]]:
+        self, frame_to: Hashable, frame_from: Hashable | None = None
+    ) -> tuple[NDArray[np.float64], Hashable | None]:
         """
         Get the transform from one frame to another.
 
@@ -152,7 +153,7 @@ class SceneGraph:
 
             # loop through pairs of the path
             matrices = []
-            for u, v in zip(path[:-1], path[1:]):
+            for u, v in itertools.pairwise(path):
                 forward = data.get((u, v))
                 if forward is not None:
                     if "matrix" in forward:
@@ -478,7 +479,7 @@ class SceneGraph:
                 res[attr["geometry"]].append(node)
         return res
 
-    def remove_geometries(self, geometries: Union[str, set, Sequence]):
+    def remove_geometries(self, geometries: str | set | Sequence):
         """
         Remove the reference for specified geometries
         from nodes without deleting the node.
@@ -508,9 +509,7 @@ class SceneGraph:
     def __contains__(self, key: Hashable) -> bool:
         return key in self.transforms.node_data
 
-    def __getitem__(
-        self, key: Hashable
-    ) -> Tuple[NDArray[np.float64], Optional[Hashable]]:
+    def __getitem__(self, key: Hashable) -> tuple[NDArray[np.float64], Hashable | None]:
         return self.get(key)
 
     def __setitem__(self, key: Hashable, value: ArrayLike):

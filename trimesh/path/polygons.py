@@ -7,7 +7,7 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..iteration import reduce_cascade
 from ..transformations import transform_points
-from ..typed import ArrayLike, Iterable, NDArray, Number, Optional, Union, float64, int64
+from ..typed import ArrayLike, Iterable, NDArray, Number, float64, int64
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -173,7 +173,7 @@ def edges_to_polygons(edges: NDArray[int64], vertices: NDArray[float64]):
     ]
 
 
-def polygons_obb(polygons: Union[Iterable[Polygon], ArrayLike]):
+def polygons_obb(polygons: Iterable[Polygon] | ArrayLike):
     """
     Find the OBBs for a list of shapely.geometry.Polygons
     """
@@ -184,7 +184,7 @@ def polygons_obb(polygons: Union[Iterable[Polygon], ArrayLike]):
     return np.array(transforms), np.array(rectangles)
 
 
-def polygon_obb(polygon: Union[Polygon, NDArray]):
+def polygon_obb(polygon: Polygon | NDArray):
     """
     Find the oriented bounding box of a Shapely polygon.
 
@@ -377,7 +377,7 @@ def stack_boundaries(boundaries):
     return np.vstack((boundaries["shell"], np.vstack(boundaries["holes"])))
 
 
-def medial_axis(polygon: Polygon, resolution: Optional[Number] = None, clip=None):
+def medial_axis(polygon: Polygon, resolution: Number | None = None, clip=None):
     """
     Given a shapely polygon, find the approximate medial axis
     using a voronoi diagram of evenly spaced points on the

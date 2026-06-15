@@ -6,32 +6,14 @@ Pull requests are always super welcome! Trimesh is a relatively small open sourc
 
 ## Developer Quick Start
 
-Here's how I set up a new environment and write functions. It's not necessary to do it this way but it does make some things easier! If you don't have a "virtual environment" solution there's plenty of ways to do this (poetry, pipenv, conda, etc.) but I just use the `venv` module built into the standard library:
-```
-# create the venv
-python -m venv ~/venv
-
-# on linux this will use this venv
-# every time you open a new terminal
-echo "source ~/venv/bin/activate" >> ~/.bashrc
-```
-Then when you open a new terminal you can verify it got the right environment with `which`:
-```
-mikedh@orion:trimesh$ which python
-/home/mikedh/venv/bin/python
-
-mikedh@orion:trimesh$ which pip
-/home/mikedh/venv/bin/pip
-```
-
-If you're planning on editing trimesh you might want to fork it via the Github interface, then install it via an editable pip install:
+Here's how I set up a new environment and write functions. It's not necessary to do it this way but it does make some things easier. If you're planning on editing trimesh you might want to fork it via the Github interface, then install it via an editable pip install:
 ```
 # you probably want to clone your fork
 git clone git@github.com:mikedh/trimesh.git
 
 # do an editable install so you can experiment
 cd trimesh
-pip install -e .[easy,test]
+uv sync --extra all
 ```
 
 
@@ -97,68 +79,17 @@ We try to add a somewhat helpful `DeprecationWarning` one year in advance of a m
     )
 ```
 
+## Pull Requests And AI
+
+Contributions are welcome! There's an AI policy in the repository root aimed at reducing the effort for maintainers.
+
+The most compelling issue or PR has a ~10-line standalone reproduction containing one or more strict `assert condition` that fails in the `main` branch. Adding test models is OK but undesirable. After the error reliably fails the assertion, try to keep diffs of fixes small and surgical. Assertion quality is going to be the main review point. Think about the STRONGEST possible predicate that an `assert` gives full confidence in the solution, and that maintainers can't break in the future, and makes cheating the test harder than root-cause fixes. 
+
+For example, if you were writing a 2D convex hulls algorithm: if you traverse hull segments in order, the projection for every vertex against signed perpendicular vector should be between negative infinity and floating-point epsilon. This one assertion guarantees consistent winding (through the signed vectors), AND convexity of the result, and is simple, easy to calculate, and catches nearly all errors. Some other predicates that you can check against truth that can be useful are `mesh.is_volume`, `mesh.area`, `mesh.volume`, but the stronger the better!
+
+Mesh analysis in Python is quite performance sensitive, and very minor changes can make things unusably slow. A PR is more compelling if it has a profiler output (`pyinstrument`) for every use of the old code in unit tests, and the matching profile for the new code running on everything in the unit tests. If the new thing is 10x slower than the old thing, it is bad.
+
+
 ## General Tips
 
-Python can be fast but only when you use it as little as possible. In general, if you ever have a block which loops through faces and vertices it will be basically unusable with even moderately sized meshes. All operations on face or vertex arrays should be vectorized numpy operations unless absolutely unavoidable. Profiling helps figure out what is slow, but some general advice:
-
-### Helpful
-- Run your test script with `ipython -i newstuff.py` and profile with magic, i.e. `%timeit var.split()`
-- Use `np.fromstring`, `np.frombuffer`
-- Use `str.split` or `np.fromstring`:
-```
-In [6]: %timeit np.array(text.split(), dtype=np.float64)
-1000 loops, best of 3: 209 µs per loop
-
-In [7]: %timeit np.fromstring(text, sep='\n', dtype=np.float64)
-10000 loops, best of 3: 139 µs per loop
-```
-- Use giant format strings rather than looping, appending, or even iterator joining:
-```
-In [14]: array = np.random.random((10000,3))
-
-In [15]: %timeit '\n'.join('{}/{}/{}'.format(*row) for row in array)
-10 loops, best of 3: 60.3 ms per loop
-
-In [16]: %timeit ('{}/{}/{}\n' * len(array))[:-1].format(*array.flatten())
-10 loops, best of 3: 34.3 ms per loop
-```
-- Sometimes you can use sparse matrices to replace a loop and get a huge speedup. [Here's the same algorithm implemented two ways, looping and sparse dot products.](https://github.com/mikedh/trimesh/blob/master/trimesh/geometry.py#L186-L203)
-- In tight loops, `array.sum(axis=1)` often pops up as the slowest thing. This can be replaced with a dot product of ones, which are very optimized can be substantially faster:
-```
-In [1]: import numpy as np
-
-In [2]: a = np.random.random((10000, 3))
-
-In [3]: %timeit a.sum(axis=1)
-10000 loops, best of 3: 157 µs per loop
-
-In [4]: %timeit np.dot(a, [1,1,1])
-10000 loops, best of 3: 25.8 µs per loop
-```
-- If you can use it, `np.concatenate` is usually faster than `np.vstack`, `np.append`, or `np.column_stack`
-```
-In [3]: seq = [np.random.random((int(np.random.random() * 1000), 3)) for i in range(1000)]
-
-In [7]: %timeit np.vstack(seq)
-100 loops, best of 3: 3.48 ms per loop
-
-In [8]: %timeit np.concatenate(seq)
-100 loops, best of 3: 2.33 ms per loop
-```
-- Sometimes `np.bincount` can be used instead of `np.unique` for a substantial speedup:
-```
-In [45]: a = (np.random.random(1000) * 1000).astype(int)
-
-In [46]: set(np.where(np.bincount(a).astype(bool))[0]) == set(np.unique(a))
-Out[46]: True
-
-In [47]: %timeit np.where(np.bincount(a).astype(bool))[0]
-100000 loops, best of 3: 5.81 µs per loop
-
-In [48]: %timeit np.unique(a)
-10000 loops, best of 3: 31.8 µs per loop
-```
-
-### Try To Avoid
-- Looping in general, and *especially* looping on arrays that could have many elements(i.e. vertices and faces). The loop overhead is very high in Python. If necessary to loop you may find that list comprehensions are quite a bit faster (though definitely profile first!) probably for scoping reasons.
-- Boolean operations (i.e. intersection, difference, union) on meshes may seem like the answer, but they are nearly always flaky and slow. The best answer is usually to restructure your problem to use some form of vector checks if possible (i.e. dot products, ray tests, etc). Look at `trimesh.intersections` for an example of a problem that could have used a boolean operation but didn't.
+Python can be fast but only when you lean heavily on `numpy`. In general, if you ever have a block which loops through faces and vertices it will be basically unusable with even moderately sized meshes. All operations on face or vertex arrays should be vectorized numpy operations unless absolutely unavoidable. Profiling helps figure out what is slow, but some general advice:

@@ -10,7 +10,7 @@ import numpy as np
 from . import interfaces
 from .exceptions import ExceptionWrapper
 from .iteration import reduce_cascade
-from .typed import BooleanEngineType, BooleanOperationType, Callable, Dict, Sequence
+from .typed import BooleanEngineType, BooleanOperationType, Callable, Sequence
 
 try:
     from manifold3d import Manifold, Mesh
@@ -182,7 +182,7 @@ def boolean_manifold(
 
 
 # which backend boolean engines do we have
-_engines: Dict[str, Callable] = {}
+_engines: dict[str, Callable] = {}
 
 if isinstance(Manifold, ExceptionWrapper):
     # manifold isn't available so use the import error

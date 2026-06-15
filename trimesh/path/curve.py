@@ -2,7 +2,7 @@ import numpy as np
 
 from ..constants import res_path as res
 from ..constants import tol_path as tol
-from ..typed import Integer, List
+from ..typed import Integer
 
 
 def discretize_bezier(points, count=None, scale=1.0):
@@ -104,7 +104,7 @@ def discretize_bspline(control, knots, count=None, scale=1.0):
     return discrete
 
 
-def binomial(n: Integer) -> List:
+def binomial(n: Integer) -> list:
     """
     Return all binomial coefficients for a given order.
 
