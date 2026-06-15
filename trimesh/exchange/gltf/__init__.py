@@ -890,6 +890,39 @@ def _append_mesh(
                 "Vertex colors have different length than mesh vertices, dropping!"
             )
 
+    if not hasattr(mesh.visual, "material") and vertex_colors is not None:
+        # `ColorVisuals` carries vertex/face colors but has no `material` attribute,
+        # so without explicit help the primitive references the glTF default material,
+        # which has `alphaMode: "OPAQUE"`. With OPAQUE the alpha channel of COLOR_0
+        # is discarded by spec-compliant renderers (three.js, Babylon, model-viewer)
+        # and meshes with semi-transparent vertex/face colors render as solid.
+        # If any color has alpha < 255 add a material with `alphaMode: "BLEND"`
+        # and `doubleSided: True` so the per-vertex alpha is honored.
+        # See: https://github.com/mikedh/trimesh/issues/2436
+        try:
+            alpha = np.asarray(vertex_colors)
+            has_alpha = (
+                alpha.ndim == 2 and alpha.shape[1] == 4 and (alpha[:, 3] < 255).any()
+            )
+        except BaseException:
+            has_alpha = False
+        if has_alpha:
+            transparent_material = {
+                "pbrMetallicRoughness": {
+                    "baseColorFactor": [1, 1, 1, 1],
+                    "metallicFactor": 0,
+                    "roughnessFactor": 0,
+                },
+                "alphaMode": "BLEND",
+                "doubleSided": True,
+            }
+            try:
+                material_idx = tree["materials"].index(transparent_material)
+            except ValueError:
+                material_idx = len(tree["materials"])
+                tree["materials"].append(transparent_material)
+            current["primitives"][0]["material"] = material_idx
+
     if hasattr(mesh.visual, "material"):
         # append the material and then set from returned index
         current_material = _append_material(
