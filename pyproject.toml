@@ -68,7 +68,7 @@ trimesh = [
 # this is the base extra most users will want
 easy = [
     "colorlog",
-    "manifold3d>=2.3.0; python_version<'3.14'", # TODO : waiting on 314 wheels
+    "manifold3d>=2.3.0",
     "charset-normalizer",
     "lxml",
     "jsonschema",
@@ -80,7 +80,7 @@ easy = [
     "rtree",
     "httpx",
     "scipy",
-    "embreex",
+    "embreex; platform_machine!='aarch64'",
     "pillow",
     "vhacdx",
     # old versions of mapbox_earcut produce incorrect values on numpy 2.0
@@ -94,7 +94,6 @@ recommend = [
     "fast-simplification",
     "python-fcl", # do collision checks
     "cascadio", # load `STEP` files
-    "manifold3d>=2.3.0; python_version>='3.14'", # TODO : waiting on 314 wheels
 ]
 
 # stuff to run simple testing

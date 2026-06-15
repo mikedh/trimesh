@@ -94,6 +94,15 @@ def load_meshio(file_obj, file_type: str, **kwargs):
     loaded : dict
       kwargs for Trimesh constructor
     """
+    import warnings
+
+    warnings.warn(
+        "`meshio` loading is deprecated and will be removed after June 2027; "
+        + "use `meshio` directly if you need these formats.",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+
     # trimesh "file types" are really filename extensions
     # meshio may return multiple answers for each file extension
     file_formats = meshio.extension_to_filetypes["." + file_type]
