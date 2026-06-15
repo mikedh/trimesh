@@ -487,7 +487,7 @@ class SceneViewer(pyglet.window.Window):
         # opengl only supports 7 lights?
         for i, light in enumerate(scene.lights[:7]):
             # the index of which light we have
-            lightN = eval(f"gl.GL_LIGHT{i}")
+            lightN = getattr(gl, f"GL_LIGHT{i}")
 
             # get the transform for the light by name
             matrix = scene.graph.get(light.name)[0]

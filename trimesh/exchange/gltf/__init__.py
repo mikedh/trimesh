@@ -488,9 +488,12 @@ def _uri_to_bytes(uri: str, resolver: ResolverLike) -> bytes:
         # string didn't contain the base64 header
         # so return the result from the resolver
         return resolver[uri]
-    # we have a base64 header so strip off
-    # leading index and then decode into bytes
-    return base64.b64decode(uri[index + 7 :])
+    # strip the base64 header — cap the encoded length against the decompress
+    # limit (4 b64 chars per 3 raw bytes) to bound the decoded size
+    payload = uri[index + 7 :]
+    if len(payload) > util.MAX_ARCHIVE_SIZE * 4 // 3 + 4:
+        raise ValueError("gltf base64 payload exceeds size cap")
+    return base64.b64decode(payload)
 
 
 def _buffer_append(ordered, data):

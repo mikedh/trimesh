@@ -79,7 +79,9 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     model = next(iter(v for k, v in archive.items() if "3d/3dmodel.model" in k.lower()))
 
     # read root attributes only from XML first
-    _event, root = next(etree.iterparse(model, tag=("{*}model"), events=("start",)))
+    _event, root = next(
+        etree.iterparse(model, tag=("{*}model"), events=("start",), **XML_PARSER_OPTIONS)
+    )
     # collect unit information from the tree
     if "unit" in root.attrib:
         metadata = {"units": root.attrib["unit"]}
@@ -107,7 +109,9 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     # iterate the XML object and build elements with an LXML iterator
     # loaded elements are cleared to avoid ballooning memory
     model.seek(0)
-    for _, obj in etree.iterparse(model, tag=("{*}object", "{*}build"), events=("end",)):
+    for _, obj in etree.iterparse(
+        model, tag=("{*}object", "{*}build"), events=("end",), **XML_PARSER_OPTIONS
+    ):
         # parse objects
         if "object" in obj.tag:
             # id is mandatory
@@ -152,7 +156,10 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
                     id_name[mesh_index] = name
 
                     for _, m in etree.iterparse(
-                        archive[path], tag=("{*}mesh"), events=("end",)
+                        archive[path],
+                        tag=("{*}mesh"),
+                        events=("end",),
+                        **XML_PARSER_OPTIONS,
                     ):
                         v, f = _read_mesh(m)
                         v_seq[mesh_index].append(v)
@@ -508,6 +515,8 @@ def _attrib_to_transform(attrib):
 try:
     import networkx as nx
     from lxml import etree
+
+    from .common import XML_PARSER_OPTIONS
 
     _three_loaders = {"3mf": load_3MF}
     _3mf_exporters = {"3mf": export_3MF}

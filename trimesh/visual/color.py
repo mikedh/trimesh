@@ -311,8 +311,8 @@ class ColorVisuals(Visuals):
             # if the cached colors have been changed since creation we move
             # them to data
             if hash(colors) != self._cache[key_hash]:
-                # call the setter on the property using exec
-                # this avoids having to pass a setter to this function
+                # cached colors were mutated — promote to user data via
+                # the appropriate property setter
                 if name == "face":
                     self.face_colors = colors
                 elif name == "vertex":

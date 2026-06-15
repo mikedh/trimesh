@@ -2,7 +2,7 @@ from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from io import IOBase
 from pathlib import Path
 from sys import version_info
-from typing import IO, Any, BinaryIO, Literal, TypeAlias, TypeGuard, TypeVar
+from typing import IO, Any, BinaryIO, Literal, Protocol, TypeAlias, TypeGuard, TypeVar
 
 from numpy import dtype, float64, floating, generic, int64, integer, ndarray
 from numpy.typing import ArrayLike, DTypeLike, NDArray
@@ -57,6 +57,18 @@ BooleanOperationType: TypeAlias = Literal["difference", "union", "intersection"]
 # what are the supported methods for converting a mesh into voxels.
 VoxelizationMethodsType: TypeAlias = Literal["subdivide", "ray", "binvox"]
 
+
+class HttpSessionLike(Protocol):
+    """
+    Structural type for an HTTP session.
+
+    Matches `httpx.Client` and `requests.Session` so a resolver
+    can take either without trimesh importing them directly.
+    """
+
+    def get(self, url: str, *args, **kwargs) -> Any: ...
+
+
 # add numpy types like their `numpy.typing.NDArray`
 # but with specific dimensionality, i.e. `NDArray2D[np.float64]`
 DType = TypeVar("DType", bound=generic)
@@ -74,6 +86,7 @@ __all__ = [
     "DTypeLike",
     "Floating",
     "Hashable",
+    "HttpSessionLike",
     "Integer",
     "Iterable",
     "Loadable",

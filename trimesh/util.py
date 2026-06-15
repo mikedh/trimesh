@@ -1984,6 +1984,10 @@ def sigfig_int(
     return as_int, multiplier
 
 
+# cap on total uncompressed bytes from a single archive
+MAX_ARCHIVE_SIZE = 536870912
+
+
 def decompress(
     file_obj: bytes | Stream,
     file_type: str,
@@ -1992,37 +1996,66 @@ def decompress(
     Given an open file object and a file type, return all components
     of the archive as open file objects in a dict.
 
+    Total uncompressed size is capped at `MAX_ARCHIVE_SIZE`; reads stop
+    one byte past the budget rather than trusting declared member sizes.
+
     Parameters
     ------------
     file_obj : file-like
-      Containing compressed data
+      Containing compressed data.
     file_type : str
-      File extension, 'zip', 'tar.gz', etc
+      File extension, 'zip', 'tar.gz', etc.
 
     Returns
     ---------
     decompressed : dict
-      Data from archive in format {file name : file-like}
+      Data from archive in format {file name : file-like}.
     """
-
     file_type = str(file_type).lower()
     if isinstance(file_obj, bytes):
         file_obj = BytesIO(file_obj)
 
     if file_type.endswith("zip"):
         archive = zipfile.ZipFile(file_obj)
-        return {name: BytesIO(archive.read(name)) for name in archive.namelist()}
+        result = {}
+        total = 0
+        for info in archive.infolist():
+            with archive.open(info, mode="r") as src:
+                # read one past the remaining budget to detect overflow
+                data = src.read(MAX_ARCHIVE_SIZE - total + 1)
+            if total + len(data) > MAX_ARCHIVE_SIZE:
+                raise ValueError("archive exceeds size cap")
+            total += len(data)
+            result[info.filename] = wrap_as_stream(data)
+        return result
     if file_type.endswith("bz2"):
         import bz2
 
         # get the file name if we have one otherwise default to "archive"
         name = getattr(file_obj, "name", "archive1234")[:-4]
-        return {name: BytesIO(bz2.open(file_obj, mode="r").read())}
+        data = bz2.open(file_obj, mode="r").read(MAX_ARCHIVE_SIZE + 1)
+        if len(data) > MAX_ARCHIVE_SIZE:
+            raise ValueError("archive exceeds size cap")
+        return {name: wrap_as_stream(data)}
     if "tar" in file_type[-6:]:
         import tarfile
 
         archive = tarfile.open(fileobj=file_obj, mode="r")
-        return {name: archive.extractfile(name) for name in archive.getnames()}
+        result = {}
+        total = 0
+        for info in archive.getmembers():
+            if not info.isfile():
+                continue
+            src = archive.extractfile(info)
+            if src is None:
+                continue
+            # read one past the remaining budget rather than trusting info.size
+            data = src.read(MAX_ARCHIVE_SIZE - total + 1)
+            if total + len(data) > MAX_ARCHIVE_SIZE:
+                raise ValueError("archive exceeds size cap")
+            total += len(data)
+            result[info.name] = wrap_as_stream(data)
+        return result
     raise ValueError("Unsupported type passed!")
 
 

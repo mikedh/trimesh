@@ -3301,9 +3301,9 @@ class Trimesh(Geometry3D):
 
     def eval_cached(self, statement: str, *args) -> Any:
         """
-        Evaluate a statement and cache the result before returning.
+        DEPRECATED: call `eval` directly instead.
 
-        Statements are evaluated inside the Trimesh object, and
+        Evaluate a statement and cache the result before returning.
 
         Parameters
         ------------
@@ -3320,6 +3320,16 @@ class Trimesh(Geometry3D):
         -----------
         r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0, 0, 1])
         """
+        import warnings
+
+        warnings.warn(
+            "`Trimesh.eval_cached` is deprecated "
+            + "and will be removed in a future release. "
+            + "call `eval` directly if you need this behavior.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+
         # store this by the combined hash of statement and args
         hashable = [hash(statement)]
         hashable.extend(hash(a) for a in args)
