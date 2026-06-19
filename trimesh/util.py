@@ -45,7 +45,7 @@ which = shutil.which
 # remembers which loaders/exporters have already emitted the
 # "install pillow to keep textures" warning so we don't spam the user
 # on every call. Tracked by `warn_pillow_missing` below.
-_PILLOW_MISSING_WARNED: "set[str]" = set()
+_PILLOW_MISSING_WARNED = set()
 
 
 def warn_pillow_missing(context: str) -> None:
