@@ -34,7 +34,8 @@ html: conf.py $(CONTENT)/index.rst trimesh.rst README.rst $(example_rsts) exampl
 		( cd .. && coverage html --data-file=.coverage -d "docs/$(COVERAGEDIR)" ) && \
 		$(PYTHON) coverage_badge.py \
 			"$$( cd .. && coverage report --format=total --precision=1 --data-file=.coverage )" \
-			"$(COVERAGEDIR)/badge.svg" ; \
+			"$(COVERAGEDIR)/badge.svg" && \
+		sed -i -E 's#<link rel="icon"[^>]*>#<link rel="icon" href="../favicon.ico">#' "$(COVERAGEDIR)"/*.html ; \
 	else echo "no ../.coverage data file — skipping coverage report" ; fi
 
 .deps: requirements.txt
