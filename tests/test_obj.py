@@ -438,7 +438,10 @@ def test_mtl_optional_properties_roundtrip():
 
     # round-trip through OBJ export
     out = g.trimesh.resolvers.ZipResolver()
-    out["m.obj"] = mesh.export(file_type="obj", mtl_name="mat.mtl", resolver=out)
+    obj_bytes = mesh.export(file_type="obj", mtl_name="mat.mtl", resolver=out)
+    if isinstance(obj_bytes, str):
+        obj_bytes = obj_bytes.encode("utf-8")
+    out["m.obj"] = obj_bytes
     mtl_out = out["mat.mtl"].decode("utf-8")
     assert "Ni 1.50000000" in mtl_out
     assert "d 0.85000000" in mtl_out
@@ -447,8 +450,6 @@ def test_mtl_optional_properties_roundtrip():
 
     # parse the exported MTL back and confirm values survived
     obj_bytes = out["m.obj"]
-    if isinstance(obj_bytes, str):
-        obj_bytes = obj_bytes.encode("utf-8")
     re_loaded = g.trimesh.load(
         g.io.BytesIO(obj_bytes), file_type="obj", resolver=out
     )
