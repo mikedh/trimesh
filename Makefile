@@ -14,10 +14,6 @@ VERSION := $(shell $(PYTHON) trimesh/version.py)
 # save the git short hash for tags
 GIT_SHA := $(shell git rev-parse --short HEAD)
 
-# for coverage reports
-GIT_SHA_FULL := $(shell git rev-parse HEAD)
-GIT_REPO := "mikedh/trimesh"
-
 # the name of the docker images
 NAME=trimesh/trimesh
 REPO=docker.io
@@ -66,7 +62,6 @@ tests: ## Run unit tests inside docker images.
 	docker build \
 		$(DOCKER_BUILD_ARGS) \
 		--target tests \
-		--secret id=codecov_token,env=CODECOV_TOKEN \
 		.
 
 # run the `ty` type checker and print a per-file diagnostic-count table

@@ -80,9 +80,6 @@ COPY --chown=499 trimesh ./trimesh/
 COPY --chown=499 models ./models/
 COPY --chown=499 pyproject.toml .
 
-# codecov looks at the git history
-COPY --chown=499 ./.git ./.git/
-
 USER root
 RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox,blender,build
 USER user
@@ -100,19 +97,13 @@ RUN ruff check trimesh && \
 
 # run pytest wrapped with xvfb for simple viewer tests
 # print more columns so the short summary is usable
+# `--cov` leaves a `.coverage` data file the docs build turns into a report
 RUN COLUMNS=240 xvfb-run pytest \
     --cov=trimesh \
     --beartype-packages=trimesh \
     -p no:ALL_DEPENDENCIES \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
-
-
-# use BuildKit secrets to access codecov token securely
-RUN --mount=type=secret,id=codecov_token \
-    curl -Os https://uploader.codecov.io/latest/linux/codecov && \
-    chmod +x codecov && \
-    ./codecov -t $(cat /run/secrets/codecov_token || echo "") 
 
 ################################
 ### Build Sphinx Docs
@@ -129,6 +120,10 @@ COPY --chown=499 docs ./docs/
 COPY --chown=499 examples ./examples/
 COPY --chown=499 models ./models/
 COPY --chown=499 trimesh ./trimesh/
+
+# pull the coverage data from the tests stage so the docs build can render
+# it into a styled report next to `trimesh` (same path pytest measured)
+COPY --chown=499 --from=tests /home/user/.coverage /home/user/.coverage
 
 # autodoc walks trimesh modules that import optional deps
 RUN pip install /home/user[easy,recommend]

@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.10"
-version = "5.0.0rc0"
+version = "5.0.0rc1"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -109,7 +109,6 @@ test = [
 # be easy to install on all platforms and is only really
 # a good idea in our "cannonical docker images"
 test_more = [
-    "coveralls",  # report test coverage
     "ezdxf",      # compare our DXF loading with theirs
     "meshio",     # load some FEA-adjacent format s
     "xatlas",     # provide unwrapping for texturing
@@ -121,14 +120,14 @@ test_more = [
     "marimo",   # different notebook stuff
 ]
 
-# openctm will be fully removed sometime after June 2026
-# as it is unmaintained, wasn't used widely and was inflicting
-# a support burden on upstream package management
-deprecated = ["openctm"]
-
 # requires pip >= 21.2
-# https://hynek.me/articles/python-recursive-optional-dependencies/
+# https://hynek.me/articles/python-recursive-optional-dependencies
 all = ["trimesh[easy,recommend,test,test_more,deprecated]"]
+
+[tool.coverage.html]
+# coverage report publishes to `trimesh.org/coverage`
+title = "trimesh coverage"
+extra_css = "docs/static/coverage.css"
 
 [tool.ruff]
 target-version = "py310"
