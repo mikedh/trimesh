@@ -206,6 +206,63 @@ class UtilTests(unittest.TestCase):
         c = g.trimesh.util.concatenate([a, b])
         assert "face_normals" in c._cache
 
+    def test_concat_single_preserves_normals(self):
+        # regression for issue #2390: when `concatenate` is called with a
+        # single mesh (e.g. through `Scene.to_mesh` / `trimesh.load_mesh`)
+        # any user-supplied vertex or face normals were silently dropped
+        # because the single-mesh early return called `.copy()` without
+        # `include_cache=True`.
+        a = g.trimesh.creation.icosphere()
+
+        rando_vn = g.trimesh.unitize(g.random(a.vertices.shape))
+        a.vertex_normals = rando_vn
+        # `face_normals` are validated against actual triangles in the
+        # setter, so populate the cache via the property instead.
+        original_fn = a.face_normals.copy()
+        assert "face_normals" in a._cache
+
+        # direct single-mesh `concatenate` path
+        c = g.trimesh.util.concatenate([a])
+        assert "vertex_normals" in c._cache
+        assert g.np.allclose(c.vertex_normals, rando_vn)
+        assert "face_normals" in c._cache
+        assert g.np.allclose(c.face_normals, original_fn)
+
+    def test_scene_to_mesh_preserves_normals(self):
+        # regression for issue #2390: the full path is
+        # `Scene.to_mesh` -> `Scene.dump` (which copies geometry, then
+        # `apply_transform`) -> `util.concatenate`.  Before #2390 was
+        # fixed, `Scene.dump` dropped the cache and `apply_transform`
+        # therefore had nothing to rotate, so `to_mesh` returned a
+        # mesh with stale auto-computed normals.
+        a = g.trimesh.creation.icosphere()
+        rando_vn = g.trimesh.unitize(g.random(a.vertices.shape))
+        a.vertex_normals = rando_vn
+
+        # single-geometry scene with identity transform
+        s = g.trimesh.Scene(a)
+        m = s.to_mesh()
+        assert g.np.allclose(m.vertex_normals, rando_vn)
+
+        # single-geometry scene with rotation: normals must be rotated
+        T = g.trimesh.transformations.rotation_matrix(g.np.pi / 3.0, [0, 1, 0])
+        s = g.trimesh.Scene()
+        s.add_geometry(a, transform=T)
+        m = s.to_mesh()
+        expected = g.trimesh.util.unitize(
+            g.trimesh.transformations.transform_points(
+                rando_vn, T, translate=False
+            )
+        )
+        assert g.np.allclose(m.vertex_normals, expected)
+
+        # accessing `Scene.dump` / `to_mesh` must not mutate the
+        # original mesh sitting in `Scene.geometry`.
+        hsh = a.__hash__()
+        _ = g.trimesh.Scene(a).to_mesh()
+        assert a.__hash__() == hsh
+        assert g.np.allclose(a.vertex_normals, rando_vn)
+
     def test_unique_id(self):
         num_ids = 10000
 

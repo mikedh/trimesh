@@ -1486,7 +1486,13 @@ def concatenate(a, b=None) -> "trimesh.parent.Geometry":
 
     if len(dump) == 1:
         # if there is only one geometry just return the first
-        return dump[0].copy()
+        # `include_cache=True` preserves user-assigned `vertex_normals`
+        # / `face_normals` for Trimesh inputs (see issue #2390); other
+        # geometries don't accept the keyword so fall back gracefully.
+        try:
+            return dump[0].copy(include_cache=True)
+        except TypeError:
+            return dump[0].copy()
     elif len(dump) == 0:
         # if there are no meshes return an empty mesh
         from .base import Trimesh
