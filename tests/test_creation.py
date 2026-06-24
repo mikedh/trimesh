@@ -32,6 +32,51 @@ def test_cone():
     assert c.metadata["shape"] == "cone"
 
 
+def test_revolve_reflection_transform():
+    # regression for issue #2439: passing a reflection (negative
+    # determinant) transform to a `revolve`-based primitive used to
+    # flip the winding so the result was no longer a valid volume,
+    # while applying the same transform *after* creation worked.
+    # the `transform=` keyword and `apply_transform` should agree.
+    reflections = [
+        g.np.diag([-1.0, 1.0, 1.0, 1.0]),
+        g.np.diag([1.0, 1.0, -1.0, 1.0]),
+        g.np.diag([-1.0, -1.0, -1.0, 1.0]),
+    ]
+
+    builders = [
+        ("cone", lambda T: g.trimesh.creation.cone(radius=0.5, height=1.0, transform=T)),
+        (
+            "cylinder",
+            lambda T: g.trimesh.creation.cylinder(radius=0.5, height=1.0, transform=T),
+        ),
+        (
+            "annulus",
+            lambda T: g.trimesh.creation.annulus(
+                r_min=0.5, r_max=1.0, height=1.0, transform=T
+            ),
+        ),
+    ]
+
+    for name, build in builders:
+        # baseline volume of the un-transformed primitive
+        base = build(g.np.eye(4))
+        assert base.is_volume
+
+        for T in reflections:
+            passed = build(T)
+            # building with the reflection transform must stay a volume
+            assert passed.is_volume, f"{name} not a volume with reflection transform"
+            assert passed.volume > 0
+
+            # and must match applying the transform after construction
+            after = build(g.np.eye(4))
+            after.apply_transform(T)
+            assert after.is_volume
+            assert g.np.isclose(passed.volume, after.volume)
+            assert g.np.isclose(passed.volume, base.volume)
+
+
 def test_cylinder():
     # tolerance for cylinders
     atol = 0.03
