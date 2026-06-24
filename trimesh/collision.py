@@ -204,6 +204,11 @@ class CollisionManager:
         self._manager = fcl.DynamicAABBTreeCollisionManager()
         self._manager.setup()
 
+        # ordered pairs of names this manager should ignore during
+        # internal collision checks. Each entry is a frozenset of two
+        # names so look-ups are direction-independent. See #2454.
+        self._ignored_pairs: set = set()
+
     def add_object(self, name, mesh, transform=None):
         """
         Add an object to the collision manager.
@@ -262,6 +267,12 @@ class CollisionManager:
             geom_id = id(self._objs.pop(name)["geom"])
             # remove names
             self._names.pop(geom_id)
+            # drop any ignored-pair entries that referenced this object
+            # so a re-added object with the same name doesn't inherit
+            # stale ignore rules from its predecessor
+            self._ignored_pairs = {
+                pair for pair in self._ignored_pairs if name not in pair
+            }
         else:
             raise ValueError(f"{name} not in collision manager!")
 
@@ -284,6 +295,79 @@ class CollisionManager:
             self._manager.update(o)
         else:
             raise ValueError(f"{name} not in collision manager!")
+
+    def set_pair_ignored(self, name_a, name_b, ignored: bool = True) -> None:
+        """
+        Mark a pair of managed objects to be skipped by
+        ``in_collision_internal`` (and similarly by the contact set
+        returned from cross-manager / single-mesh checks for that
+        pair).
+
+        Useful when the manager holds e.g. the links of an articulated
+        robot whose neighboring links touch at joints — those contacts
+        are physically intended and should not register as
+        "self-collisions". See #2454.
+
+        Parameters
+        ----------
+        name_a, name_b : hashable
+          Identifiers of two objects already in the manager. The
+          ignore relation is symmetric, so the order doesn't matter.
+        ignored : bool
+          If True (default) add the pair to the ignore set. If False
+          remove it.
+
+        Raises
+        ------
+        ValueError
+          If `name_a == name_b` or either name is not in the manager.
+        """
+        if name_a == name_b:
+            raise ValueError("cannot ignore an object against itself")
+        if name_a not in self._objs:
+            raise ValueError(f"{name_a!r} not in collision manager!")
+        if name_b not in self._objs:
+            raise ValueError(f"{name_b!r} not in collision manager!")
+        pair = frozenset((name_a, name_b))
+        if ignored:
+            self._ignored_pairs.add(pair)
+        else:
+            self._ignored_pairs.discard(pair)
+
+    def is_pair_ignored(self, name_a, name_b) -> bool:
+        """
+        Return True if the pair (`name_a`, `name_b`) has been marked
+        ignored via `set_pair_ignored`.
+        """
+        return frozenset((name_a, name_b)) in self._ignored_pairs
+
+    def clear_ignored_pairs(self) -> None:
+        """Remove every previously-registered ignored pair."""
+        self._ignored_pairs.clear()
+
+    @property
+    def ignored_pairs(self):
+        """
+        A copy of the registered ignored pairs as a set of sorted-name
+        2-tuples (the same shape the `_internal` / `_other` queries
+        return in their `names` results).
+        """
+        return {tuple(sorted(p)) for p in self._ignored_pairs}
+
+    def _is_contact_ignored(self, contact) -> bool:
+        """
+        Decide whether a single FCL `Contact` should be dropped because
+        the two objects it references are in `_ignored_pairs`. Returns
+        False (keep) if either side cannot be resolved to a managed
+        name, so external geometries are never silently swallowed.
+        """
+        if not self._ignored_pairs:
+            return False
+        n1 = self._extract_name(contact.o1)
+        n2 = self._extract_name(contact.o2)
+        if n1 is None or n2 is None:
+            return False
+        return frozenset((n1, n2)) in self._ignored_pairs
 
     def in_collision_single(
         self, mesh, transform=None, return_names=False, return_data=False
@@ -324,15 +408,29 @@ class CollisionManager:
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
         o = fcl.CollisionObject(geom, t)
 
-        cdata, callback = _fcl_collision_data(return_names, return_data)
+        # If any pair has been marked ignored we always need the contact
+        # list so we can filter it, even when only a boolean result is
+        # requested — tell the helper we need contacts.
+        cdata, callback = _fcl_collision_data(
+            return_names or bool(self._ignored_pairs), return_data
+        )
         self._manager.collide(o, cdata, callback)
         result = cdata.result.is_collision
+
+        # Drop contacts touching ignored pairs and, if any ignored pair
+        # has been registered, recompute the boolean result from the
+        # filtered list — otherwise a single ignored contact would mark
+        # the whole query as "in collision" (see #2454).
+        contacts = list(cdata.result.contacts)
+        if self._ignored_pairs:
+            contacts = [c for c in contacts if not self._is_contact_ignored(c)]
+            result = len(contacts) > 0
 
         # If we want to return the objects that were collision, collect them.
         objs_in_collision = set()
         contact_data = []
         if return_names or return_data:
-            for contact in cdata.result.contacts:
+            for contact in contacts:
                 cg = contact.o1
                 if cg == geom:
                     cg = contact.o2
@@ -380,15 +478,28 @@ class CollisionManager:
         contacts : list of ContactData
           All contacts detected
         """
-        cdata, callback = _fcl_collision_data(return_names, return_data)
+        # If any pair has been marked ignored we always need the contact
+        # list so we can filter it, even when only a boolean result is
+        # requested — tell the helper we need contacts.
+        cdata, callback = _fcl_collision_data(
+            return_names or bool(self._ignored_pairs), return_data
+        )
         self._manager.collide(cdata, callback)
 
         result = cdata.result.is_collision
 
+        # Drop contacts touching ignored pairs and, if any ignored pair
+        # has been registered, recompute the boolean result from the
+        # filtered list — see #2454.
+        contacts = list(cdata.result.contacts)
+        if self._ignored_pairs:
+            contacts = [c for c in contacts if not self._is_contact_ignored(c)]
+            result = len(contacts) > 0
+
         objs_in_collision = set()
         contact_data = []
         if return_names or return_data:
-            for contact in cdata.result.contacts:
+            for contact in contacts:
                 names = (self._extract_name(contact.o1), self._extract_name(contact.o2))
 
                 if return_names:
