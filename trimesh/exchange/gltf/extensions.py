@@ -14,6 +14,7 @@ import numpy as np
 
 from ...caching import hash_fast
 from ...constants import log
+from ...exceptions import ExceptionWrapper
 
 try:
     import DracoPy as dpy
