@@ -133,7 +133,7 @@ def export_gltf(
 
     base64_buffer_format = "data:application/octet-stream;base64,{}"
     if merge_buffers:
-        views = _build_views(buffer_items)
+        views, buffer_items = _build_views(buffer_items)
         buffer_data = b"".join(buffer_items.values())
         if embed_buffers:
             buffer_name = base64_buffer_format.format(
@@ -219,7 +219,7 @@ def export_glb(
     )
 
     # A bufferView is a slice of a file
-    views = _build_views(buffer_items)
+    views, buffer_items = _build_views(buffer_items)
 
     # combine bytes into a single blob
     buffer_data = b"".join(buffer_items.values())
@@ -1026,18 +1026,25 @@ def _build_views(buffer_items):
     ----------
     views : (n,) list of dict
       GLTF views
+    buffer_items
+        Padded buffer items
     """
     views = []
+    padded = OrderedDict()
     # create the buffer views
     current_pos = 0
-    for current_item in buffer_items.values():
+    for key, current_item in buffer_items.items():
         views.append(
             {"buffer": 0, "byteOffset": current_pos, "byteLength": len(current_item)}
         )
+        padding_needed = 4 - len(current_item) % 4
+        if padding_needed != 4:
+            current_item = current_item + bytes([0] * padding_needed)
         assert (current_pos % 4) == 0
         assert (len(current_item) % 4) == 0
         current_pos += len(current_item)
-    return views
+        padded[key] = current_item
+    return views, padded
 
 
 def _build_accessor(array):
