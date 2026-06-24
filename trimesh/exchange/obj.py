@@ -344,7 +344,19 @@ def parse_mtl(mtl, resolver=None):
     lines = str.splitlines(str(mtl).strip())
 
     # remap OBJ property names to kwargs for SimpleMaterial
-    mapped = {"kd": "diffuse", "ka": "ambient", "ks": "specular", "ns": "glossiness"}
+    mapped = {
+        "kd": "diffuse",
+        "ka": "ambient",
+        "ks": "specular",
+        "ns": "glossiness",
+        # issue #2349: these MTL keys were silently swallowed into
+        # `SimpleMaterial.kwargs` and dropped on re-export.  Forward
+        # them as typed constructor arguments so they round-trip.
+        "ni": "index_of_refraction",
+        "d": "dissolve",
+        "tf": "transmission_filter",
+        "illum": "illumination_model",
+    }
 
     for line in lines:
         # split by white space
@@ -394,6 +406,16 @@ def parse_mtl(mtl, resolver=None):
                     material[key] = value
             except BaseException:
                 log.debug("failed to convert color!", exc_info=True)
+        elif key == "tr" and material is not None:
+            # `Tr` is the inverse of `d` (transparency vs opacity).
+            # Per the MTL spec both refer to the same property; if
+            # `d` was already set elsewhere keep it as-authoritative.
+            try:
+                tr = float(split[1])
+                material.setdefault("dissolve", 1.0 - tr)
+                material["tr"] = tr
+            except BaseException:
+                log.debug("failed to convert Tr", exc_info=True)
         # pass everything as kwargs to material constructor
         elif material is not None:
             # save any other unspecified keys
