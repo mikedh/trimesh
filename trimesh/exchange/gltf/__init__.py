@@ -805,6 +805,54 @@ def _append_mesh(
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
         log.debug("skipping empty mesh!")
         return
+
+    current = {
+        "name": name,
+        "extras": {},
+        "primitives": [
+            {
+                "attributes": {"POSITION": 0},
+                "indices": 0,
+                "mode": _GL_TRIANGLES,
+            }
+        ],
+    }
+
+    # Handle texture first so any images are at the beginning of the buffer list
+    if hasattr(mesh.visual, "material"):
+        # append the material and then set from returned index
+        current_material = _append_material(
+            mat=mesh.visual.material,
+            tree=tree,
+            buffer_items=buffer_items,
+            mat_hashes=mat_hashes,
+            extension_webp=extension_webp,
+        )
+
+        # if mesh has UV coordinates defined export them
+        has_uv = (
+            hasattr(mesh.visual, "uv")
+            and mesh.visual.uv is not None
+            and len(mesh.visual.uv) == len(mesh.vertices)
+        )
+        if has_uv:
+            # slice off W if passed
+            uv = mesh.visual.uv.copy()[:, :2]
+            # reverse the Y for GLTF
+            uv[:, 1] = 1.0 - uv[:, 1]
+            # add an accessor describing the blob of UV's
+            acc_uv = _data_append(
+                acc=tree["accessors"],
+                buff=buffer_items,
+                blob={"componentType": 5126, "type": "VEC2", "byteOffset": 0},
+                data=uv.astype(float32),
+            )
+            # add the reference for UV coordinates
+            current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
+
+        # reference the material
+        current["primitives"][0]["material"] = current_material
+
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
     # accessors refer to data locations
@@ -826,17 +874,9 @@ def _append_mesh(
     )
 
     # meshes reference accessor indexes
-    current = {
-        "name": name,
-        "extras": {},
-        "primitives": [
-            {
-                "attributes": {"POSITION": acc_vertex},
-                "indices": acc_face,
-                "mode": _GL_TRIANGLES,
-            }
-        ],
-    }
+    current["primitives"][0]["attributes"]["POSITION"] = acc_vertex
+    current["primitives"][0]["indices"] = acc_face
+
     # if units are defined, store them as an extra
     # the GLTF spec says everything is implicit meters
     # we're not doing that as our unit conversions are expensive
@@ -889,40 +929,6 @@ def _append_mesh(
             log.warning(
                 "Vertex colors have different length than mesh vertices, dropping!"
             )
-
-    if hasattr(mesh.visual, "material"):
-        # append the material and then set from returned index
-        current_material = _append_material(
-            mat=mesh.visual.material,
-            tree=tree,
-            buffer_items=buffer_items,
-            mat_hashes=mat_hashes,
-            extension_webp=extension_webp,
-        )
-
-        # if mesh has UV coordinates defined export them
-        has_uv = (
-            hasattr(mesh.visual, "uv")
-            and mesh.visual.uv is not None
-            and len(mesh.visual.uv) == len(mesh.vertices)
-        )
-        if has_uv:
-            # slice off W if passed
-            uv = mesh.visual.uv.copy()[:, :2]
-            # reverse the Y for GLTF
-            uv[:, 1] = 1.0 - uv[:, 1]
-            # add an accessor describing the blob of UV's
-            acc_uv = _data_append(
-                acc=tree["accessors"],
-                buff=buffer_items,
-                blob={"componentType": 5126, "type": "VEC2", "byteOffset": 0},
-                data=uv.astype(float32),
-            )
-            # add the reference for UV coordinates
-            current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
-
-        # reference the material
-        current["primitives"][0]["material"] = current_material
 
     if include_normals or (
         include_normals is None and "vertex_normals" in mesh._cache.cache

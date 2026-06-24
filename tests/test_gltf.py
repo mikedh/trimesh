@@ -1151,6 +1151,27 @@ class GLTFTest(g.unittest.TestCase):
         mean_squared_error = ((a - b) ** 2).sum() / g.np.prod(a.shape)
         assert mean_squared_error < 10.0
 
+    def test_draco_roundtrip(self):
+        m = g.get_mesh("fuze.obj")
+        nc = m.export(file_type="glb")
+        e = m.export(file_type="glb", extension_draco=True)
+        r = g.trimesh.load_mesh(g.trimesh.util.wrap_as_stream(e), file_type="glb")
+
+        assert len(m.faces) == len(r.faces)
+        assert len(e) < len(nc)  # ensure compression worked
+
+        # compare RGBA images for the roundtripped texture
+        a = g.np.array(m.visual.material.image)
+        b = g.np.array(r.visual.material.baseColorTexture)
+        assert a.shape == b.shape
+
+        # test with normals
+        e = m.export(file_type="glb", extension_draco=True, include_normals=True)
+        r = g.trimesh.load_mesh(g.trimesh.util.wrap_as_stream(e), file_type="glb")
+
+        assert len(m.faces) == len(r.faces)
+        assert len(r.vertex_normals) == len(r.vertices)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
