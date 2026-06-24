@@ -14,6 +14,12 @@ import numpy as np
 
 from ...caching import hash_fast
 from ...constants import log
+from ...exceptions import ExceptionWrapper
+
+try:
+    import DracoPy as dpy
+except BaseException as E:
+    dpy = exceptions.ExceptionWrapper(E)
 
 # GL geometry modes
 _GL_TRIANGLES = 4
@@ -299,7 +305,6 @@ def _draco_mesh_compression(context: PrimitivePreprocessContext) -> None:
     context
         PrimitivePreprocessContext with extension data.
     """
-    import DracoPy as dpy
     primitive = context["primitive"]
 
     if primitive.get("mode") not in [_GL_STRIP, _GL_TRIANGLES]:
@@ -344,12 +349,6 @@ def _draco_mesh_compression(context: PrimitiveExportContext) -> None:
     context
         PrimitiveExportContext with extension data.
     """
-    import DracoPy as dpy
-
-    # For index accessor + attribute accessors:
-    #  - Replace the accessor information
-    #  - Extract data from buffers
-
     primitive = context.get("primitive")
     if not primitive:
         return
@@ -418,8 +417,8 @@ def _draco_mesh_compression(context: PrimitiveExportContext) -> None:
         tex_coord=tex_coord,
         normals=normals,
         generic_attributes=generic_attributes or None,
-        quantization_bits=14,
-        compression_level=2,
+        quantization_bits=14,  # blender defaults
+        compression_level=6,   # blender defaults
     )
     dpy_mesh = dpy.decode_buffer_to_mesh(buf)
 
