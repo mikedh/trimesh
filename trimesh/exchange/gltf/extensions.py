@@ -14,12 +14,11 @@ import numpy as np
 
 from ...caching import hash_fast
 from ...constants import log
-from ...exceptions import ExceptionWrapper
 
 try:
     import DracoPy as dpy
 except BaseException as E:
-    dpy = exceptions.ExceptionWrapper(E)
+    dpy = ExceptionWrapper(E)
 
 # GL geometry modes
 _GL_TRIANGLES = 4
@@ -363,10 +362,10 @@ def _draco_mesh_compression(context: PrimitiveExportContext) -> None:
 
     accessors = tree.get("accessors", [])
 
-    accessor_idx_map = {i: v for i, v in enumerate(accessors.values())}
-    accessor_key_map = {i: k for i, k in enumerate(accessors)}
-    buffer_idx_map = {i: v for i, v in enumerate(buffer_items.values())}
-    buffer_key_map = {i: k for i, k in enumerate(buffer_items)}
+    accessor_idx_map = dict(enumerate(accessors.values()))
+    accessor_key_map = dict(enumerate(accessors))
+    buffer_idx_map = dict(enumerate(buffer_items.values()))
+    buffer_key_map = dict(enumerate(buffer_items))
 
     points = None
     faces = None
