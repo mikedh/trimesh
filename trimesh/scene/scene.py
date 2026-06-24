@@ -1605,7 +1605,7 @@ def reconstruct_instances(scene: Scene, cost_threshold: Floating = 1e-6) -> Scen
         # get the geometry name for this base node
         _, geom_base = scene.graph[node_base]
         # get the vertices of the base model
-        base: NDArray = scene.geometry[geom_base].vertices.view(np.ndarray)
+        base = scene.geometry[geom_base].vertices.view(np.ndarray)
 
         for node in group[1:]:
             # the original pose of this node in the scene

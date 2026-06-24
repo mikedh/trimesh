@@ -69,7 +69,8 @@ TOL_MERGE: float = 1e-8
 # enable additional potentially slow checks
 _STRICT: bool = False
 
-_IDENTITY: NDArray[np.float64] = np.eye(4, dtype=np.float64)
+# beartype is unable to resolve `NDArray[float64]` for globals
+_IDENTITY: np.ndarray = np.eye(4, dtype=np.float64)
 _IDENTITY.flags["WRITEABLE"] = False
 
 
@@ -598,7 +599,7 @@ def diagonal_dot(a: ArrayLike, b: ArrayLike) -> np.ndarray[tuple[int], np.dtype[
     return np.dot(a * b, [1.0] * a.shape[1])
 
 
-def row_norm(data: NDArray) -> NDArray1D[np.float64]:
+def row_norm(data: NDArray2D[Any]) -> NDArray1D[np.float64]:
     """
     Compute the norm per-row of a numpy array.
 

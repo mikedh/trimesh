@@ -1,10 +1,8 @@
-
-# Stage 1: Build uv
-FROM ghcr.io/astral-sh/uv:0.9.8 AS uv
+# get UV from a docker copy
+FROM ghcr.io/astral-sh/uv:0.11.23 AS uv
 
 # use a vanilla Debian base image
 FROM debian:trixie-slim AS base
-LABEL maintainer="mikedh@kerfed.com"
 
 # Copy uv binary from the builder stage
 COPY --from=uv uv /usr/local/bin/uv
@@ -23,8 +21,7 @@ WORKDIR /home/user
 # but if you use Debian methods like `update-alternatives`
 # it won't provide a `pip` which works easily and it isn't
 # easy to know how system packages interact with pip packages
-
-ARG PYTHON_VERSION="3.14.0"
+ARG PYTHON_VERSION="3.14.4"
 RUN uv venv --python=python${PYTHON_VERSION} venv
 
 # Add `pip` script install location to $PATH

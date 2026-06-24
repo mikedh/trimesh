@@ -10,7 +10,7 @@ from .. import grouping, resources, util, visual
 from ..constants import log
 from ..geometry import triangulate_quads
 from ..resolvers import Resolver
-from ..typed import NDArray
+from ..typed import ArrayLike
 
 # from ply specification, and additional dtypes found in the wild
 _dtypes = {
@@ -294,9 +294,9 @@ def export_ply(
     header_params = {"encoding": encoding}
 
     # structured arrays for exports
-    pack_edges: NDArray | None = None
-    pack_vertex: NDArray | None = None
-    pack_faces: NDArray | None = None
+    pack_edges: ArrayLike | None = None
+    pack_vertex: ArrayLike | None = None
+    pack_faces: ArrayLike | None = None
 
     # check if scene has geometry
     # check if this is a `trimesh.path.Path` object.
