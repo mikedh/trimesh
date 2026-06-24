@@ -599,7 +599,7 @@ def diagonal_dot(a: ArrayLike, b: ArrayLike) -> np.ndarray[tuple[int], np.dtype[
     return np.dot(a * b, [1.0] * a.shape[1])
 
 
-def row_norm(data: NDArray) -> NDArray1D[np.float64]:
+def row_norm(data: NDArray2D[Any]) -> NDArray1D[np.float64]:
     """
     Compute the norm per-row of a numpy array.
 
