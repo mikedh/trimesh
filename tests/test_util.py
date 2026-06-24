@@ -570,6 +570,62 @@ class StructuredArrayToString(unittest.TestCase):
             )
 
 
+class WarnPillowMissingTests(unittest.TestCase):
+    """
+    Regression tests for https://github.com/mikedh/trimesh/issues/2333:
+    textures were silently dropped from OBJ/PLY/glTF loads when pillow
+    was not installed. `util.warn_pillow_missing` is a single-shot
+    pillow-missing diagnostic the loaders now emit.
+    """
+
+    def setUp(self):
+        # capture log records emitted on the trimesh.util logger
+        self._records = []
+
+        class Cap(logging.Handler):
+            def emit(_self, record):
+                self._records.append((record.levelname, record.getMessage()))
+
+        self._handler = Cap()
+        self._prev_level = trimesh.util.log.level
+        trimesh.util.log.addHandler(self._handler)
+        trimesh.util.log.setLevel(logging.DEBUG)
+        # reset the once-per-context guard so each test starts fresh
+        trimesh.util._PILLOW_MISSING_WARNED.clear()
+
+    def tearDown(self):
+        trimesh.util.log.removeHandler(self._handler)
+        trimesh.util.log.setLevel(self._prev_level)
+        trimesh.util._PILLOW_MISSING_WARNED.clear()
+
+    def _warnings(self):
+        return [m for lvl, m in self._records if lvl == "WARNING"]
+
+    def test_warns_once_per_context(self):
+        trimesh.util.warn_pillow_missing("OBJ load")
+        trimesh.util.warn_pillow_missing("OBJ load")
+        trimesh.util.warn_pillow_missing("OBJ load")
+        pillow_warnings = [w for w in self._warnings() if "pillow" in w.lower()]
+        # only the first call should reach the logger
+        assert len(pillow_warnings) == 1
+        # the context tag is embedded so the user can tell which
+        # pipeline silently dropped the texture
+        assert "OBJ load" in pillow_warnings[0]
+
+    def test_different_contexts_each_warn_once(self):
+        trimesh.util.warn_pillow_missing("OBJ load")
+        trimesh.util.warn_pillow_missing("PLY load")
+        trimesh.util.warn_pillow_missing("glTF load")
+        # repeat to confirm de-dupe per context
+        trimesh.util.warn_pillow_missing("OBJ load")
+        trimesh.util.warn_pillow_missing("PLY load")
+        pillow_warnings = [w for w in self._warnings() if "pillow" in w.lower()]
+        assert len(pillow_warnings) == 3
+        contexts = {ctx for ctx in ("OBJ load", "PLY load", "glTF load")
+                    if any(ctx in w for w in pillow_warnings)}
+        assert contexts == {"OBJ load", "PLY load", "glTF load"}
+
+
 if __name__ == "__main__":
     trimesh.util.attach_to_log()
     unittest.main()

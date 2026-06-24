@@ -1310,7 +1310,11 @@ def _parse_textures(header, views, resolver=None):
     try:
         import PIL.Image
     except ImportError:
-        log.debug("unable to load textures without pillow!")
+        # only warn when this glTF actually references textures —
+        # otherwise plain meshes loaded without pillow would noisily
+        # flag a missing dep that wasn't going to matter. See #2333.
+        if header.get("images"):
+            util.warn_pillow_missing("glTF load")
         return None
 
     # load any images

@@ -377,6 +377,10 @@ def parse_mtl(mtl, resolver=None):
                 # record the texture reference as written in the MTL
                 material["image"].info["file_path"] = file_name
 
+            except ImportError:
+                # missing pillow is the most common reason for a silent
+                # texture drop and used to be hidden at log.debug — see #2333
+                util.warn_pillow_missing("OBJ load")
             except BaseException:
                 log.debug("failed to load image", exc_info=True)
 

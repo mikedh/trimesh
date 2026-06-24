@@ -112,17 +112,20 @@ def load_ply(
 
     # try to load the referenced image
     image = None
-    if not skip_materials:
+    # only attempt the import / load when the PLY actually references
+    # a texture image — otherwise importing pillow on every PLY load
+    # and warning when it's missing would spam non-textured workflows
+    if not skip_materials and image_name is not None:
         try:
             # soft dependency
             import PIL.Image
 
-            # if an image name is passed try to load it
-            if image_name is not None:
-                data = resolver.get(image_name)
-                image = PIL.Image.open(util.wrap_as_stream(data))
+            data = resolver.get(image_name)
+            image = PIL.Image.open(util.wrap_as_stream(data))
         except ImportError:
-            log.debug("textures require `pip install pillow`")
+            # missing pillow is the most common reason for a silent
+            # texture drop and used to be hidden at log.debug — see #2333
+            util.warn_pillow_missing("PLY load")
         except BaseException:
             log.warning("unable to load image!", exc_info=True)
 
