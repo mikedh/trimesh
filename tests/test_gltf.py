@@ -135,6 +135,45 @@ class GLTFTest(g.unittest.TestCase):
         export = mesh.export(file_type="glb", unitize_normals=True)
         validate_glb(export, "fuze.ply")
 
+    def test_tangents(self):
+        # vertex tangents are computed from UV + normals and round-trip
+        # through the glTF `TANGENT` attribute (#2494)
+        mesh = g.get_mesh("fuze.ply")
+        assert mesh.visual.uv is not None
+
+        tangents = mesh.vertex_tangents
+        # one VEC4 (xyz direction + w handedness) per vertex
+        assert tangents.shape == (len(mesh.vertices), 4)
+        direction = tangents[:, :3]
+        handed = tangents[:, 3]
+        # the direction is unit length and orthogonal to the vertex normal
+        assert g.np.allclose(g.np.linalg.norm(direction, axis=1), 1.0)
+        dot_normal = g.np.einsum("ij,ij->i", direction, mesh.vertex_normals)
+        assert g.np.abs(dot_normal).max() < 1e-6
+        # handedness is strictly +1 or -1 for this fully UV-mapped mesh
+        assert set(g.np.unique(handed).tolist()) == {-1.0, 1.0}
+
+        # exporting includes a TANGENT attribute and is a valid glTF
+        export = mesh.export(file_type="glb")
+        validate_glb(export, "fuze.ply")
+        assert b"TANGENT" in export
+
+        # and the tangents survive a round-trip through GLB unchanged
+        reloaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
+        geom = next(iter(reloaded.geometry.values()))
+        # they were loaded from the file, not recomputed
+        assert "vertex_tangents" in geom._cache.cache
+        assert g.np.allclose(geom.vertex_tangents, tangents, atol=1e-5)
+
+    def test_tangents_no_uv(self):
+        # a mesh without UV coordinates has no defined tangent space, so
+        # the tangents are zero and no TANGENT attribute is exported
+        mesh = g.trimesh.creation.box()
+        assert g.np.allclose(mesh.vertex_tangents, 0.0)
+
+        export = mesh.export(file_type="glb")
+        assert b"TANGENT" not in export
+
     def test_cesium(self):
         # A GLTF with a multi- primitive mesh
 
