@@ -10,7 +10,34 @@ from collections import OrderedDict
 from collections.abc import Callable
 from typing import Any, Literal, TypeAlias, TypedDict
 
+import numpy as np
+
+from ...caching import hash_fast
 from ...constants import log
+from ...exceptions import ExceptionWrapper
+
+try:
+    import DracoPy as dpy
+except BaseException as E:
+    dpy = ExceptionWrapper(E)
+
+# GL geometry modes
+_GL_TRIANGLES = 4
+_GL_STRIP = 5
+
+# GLTF data formats: numpy shapes
+_shapes = {
+    "SCALAR": 1,
+    "VEC2": (2),
+    "VEC3": (3),
+    "VEC4": (4),
+    "MAT2": (2, 2),
+    "MAT3": (3, 3),
+    "MAT4": (4, 4),
+}
+
+# GLTF data type codes: little endian numpy dtypes
+_dtypes = {5120: "<i1", 5121: "<u1", 5122: "<i2", 5123: "<u2", 5125: "<u4", 5126: "<f4"}
 
 # Scopes define where in the glTF load/export process handlers run:
 #   material            - after parsing material, can override PBR values
@@ -198,7 +225,7 @@ def handle_extensions(
             if (result := _handlers[scope][ext_name](context)) is not None:
                 results[ext_name] = result
         except Exception as e:
-            log.warning(f"failed to process extension {ext_name}: {e}")
+            log.exception(f"failed to process extension {ext_name}: {e}")
 
     # for _source scopes return first result, otherwise return all results
     if scope.endswith("_source"):
@@ -267,3 +294,192 @@ def _texture_webp_source(context: TextureSourceContext) -> int | None:
       Index into glTF images array, or None if not present.
     """
     return context["data"].get("source")
+
+@register_handler("KHR_draco_mesh_compression", scope="primitive_preprocess")
+def _draco_mesh_compression(context: PrimitivePreprocessContext) -> None:
+    """
+    Decompress draco mesh data.
+
+    Parameters
+    ----------
+    context
+        PrimitivePreprocessContext with extension data.
+    """
+    primitive = context["primitive"]
+
+    if primitive.get("mode") not in [_GL_STRIP, _GL_TRIANGLES]:
+        return
+
+    extensions = primitive.get("extensions")
+    if not extensions:
+        return
+
+    extension = extensions.get("KHR_draco_mesh_compression")
+    if not extension:
+        return
+
+    all_attributes = primitive["attributes"]
+    extension_attributes = {v: k for k, v in extension["attributes"].items()}
+    dpy_mesh = dpy.decode_buffer_to_mesh(context["views"][int(extension["bufferView"])])
+
+    # Update any accessors with decompressed data
+    for attr in dpy_mesh.attributes:
+        uid = attr["unique_id"]
+        if uid not in extension_attributes:
+            continue
+        attr_name = extension_attributes[uid]
+        if attr_name not in all_attributes:
+            continue
+        context["accessors"][all_attributes[attr_name]] = attr["data"]
+
+    # Handle indexed accesssors
+    indices = primitive.get("indices")
+    if indices is None:
+        return
+    context["accessors"][indices] = dpy_mesh.faces
+
+
+@register_handler("KHR_draco_mesh_compression", scope="primitive_export")
+def _draco_mesh_compression(context: PrimitiveExportContext) -> None:
+    """
+    Decompress draco mesh data.
+
+    Parameters
+    ----------
+    context
+        PrimitiveExportContext with extension data.
+    """
+    primitive = context.get("primitive")
+    if not primitive:
+        return
+
+    tree = context.get("tree")
+    if not tree:
+        return
+
+    buffer_items = context.get("buffer_items")
+    if not buffer_items:
+        return
+
+    accessors = tree.get("accessors", [])
+
+    accessor_idx_map = dict(enumerate(accessors.values()))
+    accessor_key_map = dict(enumerate(accessors))
+    buffer_idx_map = dict(enumerate(buffer_items.values()))
+    buffer_key_map = dict(enumerate(buffer_items))
+
+    points = None
+    faces = None
+    colors = None
+    tex_coord = None
+    normals = None
+    generic_attributes = {}
+
+    buffer_indices = []
+
+    attributes = primitive.get("attributes")
+    all_attribs = attributes.copy()
+    all_attribs["FACES"] = primitive.get("indices")
+
+    for attribute_name, attribute_idx in all_attribs.items():
+        accessor = accessor_idx_map[attribute_idx]
+        dtype = np.dtype(_dtypes[accessor["componentType"]])
+        count = accessor["count"]
+        per_item = _shapes[accessor["type"]]
+        shape = (count, per_item)
+        per_count = np.abs(np.prod(per_item))
+        buffer_idx = accessor["bufferView"]
+        start = accessor.get("byteOffset", 0)
+        data = buffer_idx_map[buffer_idx]
+        length = dtype.itemsize * count * per_count
+        npdata = np.frombuffer(data[start : start + length], dtype=dtype).reshape(shape)
+        buffer_indices.append(buffer_idx)
+
+        match attribute_name:
+            case "POSITION":
+                points = npdata
+            case "TEXCOORD_0":
+                tex_coord = npdata.astype(float)
+            case "COLOR_0":
+                colors = npdata
+            case "NORMAL":
+                normals = npdata.astype(float)
+            case "FACES":
+                faces = npdata.reshape(-1, 3)
+            case _:
+                generic_attributes[attribute_name] = npdata
+
+    # Compress the mesh, then decompress it to get relative sizes
+    buf = dpy.encode(
+        points=points,
+        faces=faces,
+        colors=colors,
+        tex_coord=tex_coord,
+        normals=normals,
+        generic_attributes=generic_attributes or None,
+        quantization_bits=14,  # blender defaults
+        compression_level=6,   # blender defaults
+    )
+    dpy_mesh = dpy.decode_buffer_to_mesh(buf)
+
+    # Edit attributes in place, removing everything but size and dtype info
+    new_attribute_map = {}
+    for attribute_name, attribute_idx in all_attribs.items():
+        accessor = accessor_idx_map[attribute_idx]
+        dtype = accessor["componentType"]
+        rtype = accessor["type"]
+        count = accessor["count"]
+
+        attribute_type = None
+        new_attribute_idx = None
+        match attribute_name:
+            case "POSITION":
+                count = len(dpy_mesh.points)
+                attribute_type = dpy.AttributeType.POSITION
+            case "TEXCOORD_0":
+                count = len(dpy_mesh.tex_coord)
+                attribute_type = dpy.AttributeType.TEX_COORD
+            case "COLOR_0":
+                count = len(dpy_mesh.colors)
+                attribute_type = dpy.AttributeType.COLOR
+            case "NORMAL":
+                count = len(dpy_mesh.normals)
+                attribute_type = dpy.AttributeType.NORMAL
+            case "FACES":
+                count = len(dpy_mesh.faces) * 3
+            case _:
+                attr = dpy_mesh.get_attribute_by_name(attribute_name)
+                count = len(attr["data"])
+                new_attribute_idx = attr["unique_id"]
+
+        if new_attribute_idx is None and attribute_type is not None:
+            attr = dpy_mesh.get_attribute_by_type(attribute_type)
+            new_attribute_idx = attr["unique_id"]
+
+        if new_attribute_idx is not None:
+            new_attribute_map[attribute_name] = new_attribute_idx
+
+        new_accessor = {
+            "componentType": dtype,
+            "type": rtype,
+            "count": count,
+        }
+        if "min" in accessor:
+            new_accessor["min"] = accessor["min"]
+        if "max" in accessor:
+            new_accessor["max"] = accessor["max"]
+
+        accessors[accessor_key_map[attribute_idx]] = new_accessor
+
+    # Remove all referenced buffers and then add a new one containing the mesh data
+    for buffer_idx in buffer_indices:
+        buffer_items.pop(buffer_key_map[buffer_idx])
+    buffer_items[hash_fast(buf)] = buf
+
+    # Update extension
+    if "extensions" not in primitive:
+        primitive["extensions"] = {}
+    primitive["extensions"]["KHR_draco_mesh_compression"] = {
+        "bufferView": len(buffer_items) - 1,
+        "attributes": new_attribute_map,
+    }

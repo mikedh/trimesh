@@ -67,6 +67,7 @@ trimesh = [
 
 # this is the base extra most users will want
 easy = [
+    "DracoPy",
     "colorlog",
     "manifold3d>=2.3.0",
     "charset-normalizer",

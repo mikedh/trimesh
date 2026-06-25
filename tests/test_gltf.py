@@ -1,3 +1,5 @@
+import platform
+
 try:
     from . import generic as g
 except BaseException:
@@ -1150,6 +1152,31 @@ class GLTFTest(g.unittest.TestCase):
         # if they are much different this number will be absolutely huge
         mean_squared_error = ((a - b) ** 2).sum() / g.np.prod(a.shape)
         assert mean_squared_error < 10.0
+
+    def test_draco_roundtrip(self):
+        # Skip this if on i386 or s390x
+        if platform.machine().lower() in ("i386", "s390x", "s390"):
+            return
+
+        m = g.get_mesh("fuze.obj")
+        nc = m.export(file_type="glb")
+        e = m.export(file_type="glb", extension_draco=True)
+        r = g.trimesh.load_mesh(g.trimesh.util.wrap_as_stream(e), file_type="glb")
+
+        assert len(m.faces) == len(r.faces)
+        assert len(e) < len(nc)  # ensure compression worked
+
+        # compare RGBA images for the roundtripped texture
+        a = g.np.array(m.visual.material.image)
+        b = g.np.array(r.visual.material.baseColorTexture)
+        assert a.shape == b.shape
+
+        # test with normals
+        e = m.export(file_type="glb", extension_draco=True, include_normals=True)
+        r = g.trimesh.load_mesh(g.trimesh.util.wrap_as_stream(e), file_type="glb")
+
+        assert len(m.faces) == len(r.faces)
+        assert len(r.vertex_normals) == len(r.vertices)
 
 
 if __name__ == "__main__":
