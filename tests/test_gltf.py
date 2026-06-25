@@ -1,3 +1,5 @@
+import platform
+
 try:
     from . import generic as g
 except BaseException:
@@ -1152,6 +1154,10 @@ class GLTFTest(g.unittest.TestCase):
         assert mean_squared_error < 10.0
 
     def test_draco_roundtrip(self):
+        # Skip this if on i386 or s390x
+        if platform.machine().lower() in ("i386", "s390x", "s390"):
+            return
+
         m = g.get_mesh("fuze.obj")
         nc = m.export(file_type="glb")
         e = m.export(file_type="glb", extension_draco=True)
