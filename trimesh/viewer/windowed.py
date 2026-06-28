@@ -299,6 +299,10 @@ class SceneViewer(pyglet.window.Window):
             util.log.warning(f"failed to add geometry `{name}`", exc_info=True)
             return
 
+        # delete old vertex list with the same name
+        if name in self.vertex_list:
+            self.vertex_list[name].delete()
+        
         # create the indexed vertex list
         self.vertex_list[name] = self.batch.add_indexed(*args)
         # save the hash of the geometry
@@ -328,6 +332,9 @@ class SceneViewer(pyglet.window.Window):
         # which geometries no longer need to be kept
         geom_delete = [geom for geom in self.vertex_list if geom not in geom_keep]
         for geom in geom_delete:
+            # delete the vertex list
+            if geom in self.vertex_list:
+                self.vertex_list[geom].delete()
             # remove stored vertex references
             self.vertex_list.pop(geom, None)
             self.vertex_list_hash.pop(geom, None)
