@@ -981,7 +981,7 @@ def capsule(
     radius : float
       Radius of the cylinder and hemispheres
     count : (2,) int
-      Number of sections on latitude and longitude
+      Number of sections on latitude and longitude on each hemisphere
     transform : None or (4, 4) float
       Transform to apply to mesh after construction
     Returns
@@ -1002,7 +1002,8 @@ def capsule(
     radius = abs(float(radius))
 
     # create a half circle
-    theta = np.linspace(-np.pi / 2.0, np.pi / 2.0, count[0])
+    theta = np.linspace(0, np.pi / 2.0, count[0])
+    theta = np.hstack((np.flip(-theta), theta))
     linestring = np.column_stack((np.cos(theta), np.sin(theta))) * radius
 
     # offset the top and bottom by half the height
