@@ -1477,6 +1477,8 @@ def _read_buffers(
         # load data from buffers into numpy arrays
         # using the layout described by accessors
         access = [None] * len(header["accessors"])
+        # bufferless, non-sparse accessors must be filled by an extension or stay zero
+        placeholders = set()
         for index, a in enumerate(header["accessors"]):
             # number of items
             count = a["count"]
@@ -1535,7 +1537,9 @@ def _read_buffers(
                         data[start : start + length], dtype=dtype
                     ).reshape(shape)
             else:
-                # a "sparse" accessor should be initialized as zeros
+                # zero placeholder a decoder may replace
+                if "sparse" not in a:
+                    placeholders.add(index)
                 access[index] = np.zeros(count * per_count, dtype=dtype).reshape(shape)
 
         # possibly load images and textures into material objects
@@ -1552,6 +1556,8 @@ def _read_buffers(
     # be inserted to avoid a potentially slow search through our
     # dict of names
     name_counts = {}
+    # extensions whose geometry we couldn't decode for lack of a handler
+    undecoded = set()
     for index, m in enumerate(header.get("meshes", [])):
         try:
             # GLTF spec indicates implicit units are meters
@@ -1572,13 +1578,20 @@ def _read_buffers(
                 # Handle primitive preprocessing extensions (e.g. Draco decompression)
                 # These run before reading accessors since they may modify them
                 if prim_extensions := p.get("extensions"):
+                    missing = set()
                     handle_extensions(
                         extensions=prim_extensions,
                         scope="primitive_preprocess",
+                        unhandled=missing,
                         primitive=p,
                         accessors=access,
                         views=views,
                     )
+                    # an unhandled extension that left attributes as placeholder zeros
+                    if missing and not placeholders.isdisjoint(
+                        p.get("attributes", {}).values()
+                    ):
+                        undecoded.update(missing)
 
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
@@ -1721,6 +1734,12 @@ def _read_buffers(
                 log.debug("failed to load mesh", exc_info=True)
             else:
                 raise E
+
+    if undecoded:
+        log.warning(
+            "`%s` GLTF extension has no handler, values are placeholder zeros",
+            ", ".join(sorted(undecoded)),
+        )
 
     # sometimes GLTF "meshes" come with multiple "primitives"
     # by default we return one Trimesh object per "primitive"

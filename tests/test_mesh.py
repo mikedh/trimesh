@@ -210,9 +210,7 @@ def test_remove_infinite_values_drops_dependent_faces():
         ],
         dtype=g.np.int64,
     )
-    mesh = g.trimesh.Trimesh(
-        vertices=vertices.copy(), faces=faces.copy(), process=True
-    )
+    mesh = g.trimesh.Trimesh(vertices=vertices.copy(), faces=faces.copy(), process=True)
 
     # the non-finite vertex is gone
     assert g.np.isfinite(mesh.vertices).all()
@@ -247,9 +245,7 @@ def test_remove_infinite_values_inf_vertex_drops_face():
         dtype=g.np.float64,
     )
     faces = g.np.array([[0, 1, 2], [0, 3, 1]], dtype=g.np.int64)
-    mesh = g.trimesh.Trimesh(
-        vertices=vertices.copy(), faces=faces.copy(), process=True
-    )
+    mesh = g.trimesh.Trimesh(vertices=vertices.copy(), faces=faces.copy(), process=True)
 
     assert g.np.isfinite(mesh.vertices).all()
     assert len(mesh.vertices) == 3
