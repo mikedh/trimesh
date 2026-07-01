@@ -124,21 +124,25 @@ def mesh_other(
     # the principal inertia transform has arbitrary sign
     # along the 3 major axis so try all combinations of
     # 180 degree rotations with a quick first ICP pass
-    cubes = np.array(
-        [
-            np.eye(4) * np.append(diag, 1)
-            for diag in [
-                [1, 1, 1],
-                [1, 1, -1],
-                [1, -1, 1],
-                [-1, 1, 1],
-                [-1, -1, 1],
-                [-1, 1, -1],
-                [1, -1, -1],
-                [-1, -1, -1],
-            ]
-        ]
-    )
+    diagonals = [
+        [1, 1, 1],
+        [1, 1, -1],
+        [1, -1, 1],
+        [-1, 1, 1],
+        [-1, -1, 1],
+        [-1, 1, -1],
+        [1, -1, -1],
+        [-1, -1, -1],
+    ]
+    if not kwargs.get("reflection", True):
+        # Half of these sign flips have an odd number of -1 and are therefore
+        # reflections (negative determinant). ICP only refines with proper
+        # rotations, so a reflected seed can never be corrected and would
+        # produce a final transform containing a reflection even though
+        # reflection was disabled. Keep only the proper-rotation seeds
+        # (identity and the three 180 degree axis rotations). See #2482.
+        diagonals = [diag for diag in diagonals if np.prod(diag) > 0]
+    cubes = np.array([np.eye(4) * np.append(diag, 1) for diag in diagonals])
 
     # loop through permutations and run iterative closest point
     costs = np.ones(len(cubes)) * np.inf

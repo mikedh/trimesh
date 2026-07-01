@@ -148,6 +148,35 @@ class RegistrationTest(g.unittest.TestCase):
         _matrix, _transformed, cost = g.trimesh.registration.icp(X, m, scale=False)
         assert cost < 0.01
 
+    def test_mesh_other_no_reflection(self):
+        # regression test for #2482: `mesh_other` seeds ICP with sign-flip
+        # initial transforms, half of which are reflections. With
+        # `reflection=False` those reflected seeds could still win and return
+        # a transform with a negative determinant (i.e. a reflection).
+        a = g.get_mesh("featuretype.STL")
+
+        # build a mirrored, inside-out copy of `a`
+        b = a.copy()
+        b.apply_transform(g.trimesh.transformations.rotation_matrix(0.9, [0.3, 0.6, 0.2]))
+        b.apply_transform(g.np.diag([-1.0, -1.0, 1.0, 1.0]))
+        b.vertices[:, 1] *= -1.0
+
+        # with reflection disabled the result must be a proper rotation
+        for seed in range(3):
+            g.np.random.seed(seed)
+            matrix, _cost = g.trimesh.registration.mesh_other(
+                a, b, samples=500, reflection=False, scale=False
+            )
+            assert g.np.linalg.det(matrix[:3, :3]) > 0
+
+        # with reflection enabled it is still allowed to use a reflection
+        # to fit the mirrored mesh
+        g.np.random.seed(0)
+        matrix, _cost = g.trimesh.registration.mesh_other(
+            a, b, samples=500, reflection=True, scale=False
+        )
+        assert g.np.linalg.det(matrix[:3, :3]) < 0
+
     def test_icp_points(self):
         # see if ICP alignment works with point clouds
         # create random points in space

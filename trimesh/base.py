@@ -1387,14 +1387,24 @@ class Trimesh(Geometry3D):
 
         Alters `self.faces` and `self.vertices`
         """
-        if util.is_shape(self.faces, (-1, 3)):
-            # (len(self.faces), ) bool, mask for faces
-            face_mask = np.isfinite(self.faces).all(axis=1)
-            self.update_faces(face_mask)
-
         if util.is_shape(self.vertices, (-1, 3)):
             # (len(self.vertices), ) bool, mask for vertices
             vertex_mask = np.isfinite(self.vertices).all(axis=1)
+            # faces referencing a non-finite vertex must be dropped BEFORE
+            # the vertex is removed. `update_vertices` reindexes faces via
+            # an inverse-array whose entries for removed vertices default
+            # to 0, so any face touching a NaN/Inf vertex would otherwise
+            # be silently rewritten to a degenerate triangle (e.g. `[0,1,2]`
+            # becomes `[0,1,0]`) that later crashes the renderer. See #2445.
+            if (
+                util.is_shape(self.faces, (-1, 3))
+                and not vertex_mask.all()
+                and len(self.faces) > 0
+            ):
+                # face is kept only if all three vertex indices are valid
+                face_mask = vertex_mask[self.faces].all(axis=1)
+                if not face_mask.all():
+                    self.update_faces(face_mask)
             self.update_vertices(vertex_mask)
 
     def unique_faces(self) -> NDArray[np.bool_]:
