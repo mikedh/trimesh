@@ -126,6 +126,11 @@ def test_capsule():
     assert mesh.body_count == 1
     assert g.np.allclose(mesh.extents, [2, 2, 4], atol=0.05)
 
+    # cylinder must reach the requested radius
+    for count in (6, 7, 8):
+        cap = g.trimesh.creation.capsule(radius=1.0, height=1.0, count=(count, 12))
+        assert g.np.isclose(g.np.linalg.norm(cap.vertices[:, :2], axis=1).max(), 1.0)
+
 
 def test_spheres():
     # test generation of UV spheres and icospheres
@@ -454,3 +459,4 @@ def test_torus():
 if __name__ == "__main__":
     # test_torus()
     test_revolve()
+    test_capsule()

@@ -1009,8 +1009,8 @@ def capsule(
     height = abs(float(height))
     radius = abs(float(radius))
 
-    # create a half circle
-    theta = np.linspace(-np.pi / 2.0, np.pi / 2.0, count[0])
+    # create a half circle with a vertex at 0.0
+    theta = np.linspace(-np.pi / 2.0, np.pi / 2.0, count[0] + 1)
     linestring = np.column_stack((np.cos(theta), np.sin(theta))) * radius
 
     # offset the top and bottom by half the height
