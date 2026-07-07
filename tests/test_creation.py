@@ -128,7 +128,7 @@ def test_capsule():
 
     # cylinder must reach the requested radius
     for count in (6, 7, 8):
-        cap = g.trimesh.creation.capsule(radius=1.0, height=1.0, count=(count, 12))
+        cap = g.trimesh.creation.capsule(radius=1.0, height=1.0, count=[count, 12])
         assert g.np.isclose(g.np.linalg.norm(cap.vertices[:, :2], axis=1).max(), 1.0)
 
 
