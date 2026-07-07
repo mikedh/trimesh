@@ -26,6 +26,25 @@ except BaseException as E:
     sparse = exceptions.ExceptionWrapper(E)
 
 
+# permutations of cube rotations
+# the principal inertia transform has arbitrary sign
+# along the 3 major axis so try all combinations of
+# 180 degree rotations with a quick first ICP pass
+_cube_diagonals = np.array(
+    [
+        [1, 1, 1, 1],
+        [1, 1, -1, 1],
+        [1, -1, 1, 1],
+        [-1, 1, 1, 1],
+        [-1, -1, 1, 1],
+        [-1, 1, -1, 1],
+        [1, -1, -1, 1],
+        [-1, -1, -1, 1],
+    ],
+    dtype=np.float64,
+)
+
+
 def mesh_other(
     mesh,
     other,
@@ -33,6 +52,7 @@ def mesh_other(
     scale: bool = False,
     icp_first: Integer = 10,
     icp_final: Integer = 50,
+    reflection: bool = True,
     **kwargs,
 ):
     """
@@ -119,30 +139,18 @@ def mesh_other(
     # of the search mesh to be aligned with the best- guess
     # principal axes of the points
     search_to_points = np.dot(np.linalg.inv(points_PIT), search_PIT)
-
-    # permutations of cube rotations
-    # the principal inertia transform has arbitrary sign
-    # along the 3 major axis so try all combinations of
-    # 180 degree rotations with a quick first ICP pass
-    diagonals = [
-        [1, 1, 1],
-        [1, 1, -1],
-        [1, -1, 1],
-        [-1, 1, 1],
-        [-1, -1, 1],
-        [-1, 1, -1],
-        [1, -1, -1],
-        [-1, -1, -1],
-    ]
-    if not kwargs.get("reflection", True):
+    if not reflection:
         # Half of these sign flips have an odd number of -1 and are therefore
         # reflections (negative determinant). ICP only refines with proper
         # rotations, so a reflected seed can never be corrected and would
         # produce a final transform containing a reflection even though
         # reflection was disabled. Keep only the proper-rotation seeds
         # (identity and the three 180 degree axis rotations). See #2482.
-        diagonals = [diag for diag in diagonals if np.prod(diag) > 0]
-    cubes = np.array([np.eye(4) * np.append(diag, 1) for diag in diagonals])
+        diagonals = _cube_diagonals[np.prod(_cube_diagonals, axis=1) > 0.0]
+    else:
+        diagonals = _cube_diagonals
+
+    cubes = np.array([np.diag(d) for d in diagonals])
 
     # loop through permutations and run iterative closest point
     costs = np.ones(len(cubes)) * np.inf
@@ -164,6 +172,7 @@ def mesh_other(
             initial=a_to_b,
             max_iterations=int(icp_first),
             scale=scale,
+            reflection=reflection,
             **kwargs,
         )
 
@@ -178,6 +187,7 @@ def mesh_other(
         initial=transforms[np.argmin(costs)],
         max_iterations=int(icp_final),
         scale=scale,
+        reflection=reflection,
         **kwargs,
     )
 
