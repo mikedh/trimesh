@@ -57,6 +57,11 @@ def enclosure_tree(polygons):
     if len(polygons) == 0:
         return np.array([], dtype=np.int64), contains
     elif len(polygons) == 1:
+        # `paths_to_polygons` may produce `None` for unrecoverable
+        # geometry: never emit it as a root, matching the multi-polygon
+        # code path below where `None` is excluded by the bounds check
+        if polygons[0] is None:
+            return np.array([], dtype=np.int64), contains
         # add an early exit for only a single polygon
         contains.add_node(0)
         return np.array([0], dtype=np.int64), contains

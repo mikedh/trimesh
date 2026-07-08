@@ -275,6 +275,69 @@ def test_native_centroid():
         assert g.np.isclose(abs(area), p.area)
 
 
+def test_enclosure_tree_none():
+    # `paths_to_polygons` documents that unrecoverable geometry
+    # produces `None` entries: `enclosure_tree` should never emit
+    # a `None` polygon as a root curve
+    # a closed "loop" with fewer than 4 vertices can not have
+    # nonzero area and is documented to produce `None`
+    degenerate = g.np.array([[0.0, 0.0], [1.0, 1.0], [0.0, 0.0]])
+    polys = g.trimesh.path.polygons.paths_to_polygons([degenerate])
+    assert len(polys) == 1
+    assert polys[0] is None
+
+    # single-polygon early exit used to return `roots=[0]` here
+    # which crashed `Path2D.polygons_full` with
+    # `'NoneType' object has no attribute 'exterior'`
+    roots, contains = g.trimesh.path.polygons.enclosure_tree(polys)
+    assert len(roots) == 0
+    assert len(contains.nodes) == 0
+
+    # multi-polygon path: `None` alongside a valid polygon
+    # is excluded by the bounds check
+    square = g.np.array(
+        [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]]
+    )
+    polys = g.trimesh.path.polygons.paths_to_polygons([degenerate, square])
+    roots, contains = g.trimesh.path.polygons.enclosure_tree(polys)
+    assert list(roots) == [1]
+
+
+def test_polygons_full_none():
+    # `Path2D.polygons_full` should skip root curves whose closed
+    # polygon could not be recovered instead of raising
+    # AttributeError on `None.exterior`. Simulate what
+    # `mesh.section` produces in the wild for a degenerate slice:
+    # `polygons_closed` containing `None` (documented behavior of
+    # `paths_to_polygons`) alongside a valid polygon.
+    square = g.Polygon([(0, 0), (10, 0), (10, 10), (0, 10)])
+
+    class _Degenerate(g.trimesh.path.Path2D):
+        # simulate one recovered and one unrecoverable circuit
+        @property
+        def polygons_closed(self):
+            return g.np.array([None, square], dtype=object)
+
+        @property
+        def root(self):
+            return [0, 1]
+
+        @property
+        def enclosure_directed(self):
+            graph = g.nx.DiGraph()
+            graph.add_nodes_from([0, 1])
+            return graph
+
+    path = _Degenerate(
+        entities=[g.trimesh.path.entities.Line([0, 1])],
+        vertices=g.np.array([[0.0, 0.0], [1.0, 1.0]]),
+    )
+    # used to raise AttributeError on the `None` root
+    full = path.polygons_full
+    assert len(full) == 1
+    assert g.np.isclose(full[0].area, square.area)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     test_polygon_sample()

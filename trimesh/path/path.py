@@ -1227,27 +1227,35 @@ class Path2D(Path):
 
         Returns
         ---------
-        full : (len(self.root),) shapely.geometry.Polygon
-            Polygons containing interiors
+        full : (m,) shapely.geometry.Polygon
+            Polygons containing interiors: `m <= len(self.root)`
+            as root curves whose geometry could not be recovered
+            (i.e. `None` in `polygons_closed`) are skipped.
         """
-        # pre- allocate the list to avoid indexing problems
-        full = [None] * len(self.root)
         # store the graph to avoid cache thrashing
         enclosure = self.enclosure_directed
         # store closed polygons to avoid cache hits
         closed = self.polygons_closed
 
+        full = []
         # loop through root curves
-        for i, root in enumerate(self.root):
+        for root in self.root:
+            # `polygons_closed` may contain `None` for degenerate
+            # geometry it could not recover: skip those rather than
+            # raising an AttributeError on `None.exterior`
+            if closed[root] is None:
+                continue
             # a list of multiple Polygon objects that
             # are fully contained by the root curve
             children = [closed[child] for child in enclosure[root].keys()]
             # all polygons_closed are CCW, so for interiors reverse them
-            holes = [np.array(p.exterior.coords)[::-1] for p in children]
+            holes = [
+                np.array(p.exterior.coords)[::-1] for p in children if p is not None
+            ]
             # a single Polygon object
             shell = closed[root].exterior
             # create a polygon with interiors
-            full[i] = polygons.repair_invalid(Polygon(shell=shell, holes=holes))
+            full.append(polygons.repair_invalid(Polygon(shell=shell, holes=holes)))
 
         return full
 
