@@ -905,6 +905,30 @@ class GLTFTest(g.unittest.TestCase):
         assert g.np.allclose(reloaded.vertices, points)
         assert g.np.allclose(reloaded.colors, colors)
 
+    def test_world_node_collision(self):
+        # a non-root node named "world" must not merge with the hardcoded base
+        # frame; on main its transform collapses to identity on round-trip
+        tf = g.trimesh.transformations.rotation_matrix(0.7, [1.0, 2.0, 3.0])
+        tf[:3, 3] = [5.0, -3.0, 2.0]
+
+        scene = g.trimesh.Scene(base_frame="root")
+        scene.add_geometry(
+            g.trimesh.creation.box(),
+            node_name="world",
+            parent_node_name="root",
+            geom_name="box",
+            transform=tf,
+        )
+
+        def geom_world_transform(s):
+            return s.graph.get(s.graph.nodes_geometry[0])[0]
+
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(scene.export(file_type="glb")),
+            file_type="glb",
+        )
+        assert g.np.allclose(geom_world_transform(scene), geom_world_transform(reloaded))
+
     def test_bulk(self):
         # Try exporting every loadable model to GLTF and checking
         # the generated header against the schema.

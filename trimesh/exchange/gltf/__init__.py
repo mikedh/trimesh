@@ -18,6 +18,7 @@ from ...caching import hash_fast
 from ...constants import log, tol
 from ...resolvers import ResolverLike, ZipResolver
 from ...scene.cameras import Camera
+from ...scene.transforms import DEFAULT_BASE_FRAME
 from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
 from .extensions import handle_extensions
@@ -1809,13 +1810,8 @@ def _read_buffers(
         name_index[unique_name(n.get("name", str(i)), name_index, counts=name_counts)] = i
     # names: {index: name}
     names = {v: k for k, v in name_index.items()}
-
-    # the GLTF is allowed to declare a base frame, should we have used that?
-    base_frame = "world"
-    if base_frame in name_index:
-        # todo : handle this?
-        log.debug("file contains a `world` node, we may stomp on it")
-    names[base_frame] = base_frame
+    # set the default base frame
+    names[DEFAULT_BASE_FRAME] = DEFAULT_BASE_FRAME
 
     # visited, kwargs for scene.graph.update
     graph = deque()
@@ -1833,12 +1829,17 @@ def _read_buffers(
         # otherwise just use the first index
         scene_index = 0
 
-    base_frame = "world"
     if "scenes" in header:
+        roots = header["scenes"][scene_index].get("nodes", [])
+        # a non-root node named "world" merges with the base frame and loses
+        # its transform — rename just that node
+        world = name_index.get(DEFAULT_BASE_FRAME)
+        if world is not None and world not in roots:
+            names[world] = unique_name(DEFAULT_BASE_FRAME, set(names.values()))
         # start the traversal from the base frame to the roots
-        for root in header["scenes"][scene_index].get("nodes", []):
+        for root in roots:
             # add transform from base frame to these root nodes
-            queue.append((base_frame, root))
+            queue.append((DEFAULT_BASE_FRAME, root))
 
     # make sure we don't process an edge multiple times
     consumed = set()
@@ -1956,7 +1957,7 @@ def _read_buffers(
         "class": "Scene",
         "geometry": meshes,
         "graph": graph,
-        "base_frame": base_frame,
+        "base_frame": DEFAULT_BASE_FRAME,
         "camera": camera,
         "camera_transform": camera_transform,
         "metadata": {},

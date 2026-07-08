@@ -7,11 +7,14 @@ import numpy as np
 from .. import caching, util
 from ..caching import hash_fast
 from ..transformations import fix_rigid, quaternion_matrix, rotation_matrix
-from ..typed import ArrayLike, Hashable, NDArray, Sequence
+from ..typed import ArrayLike, Floating, Hashable, NDArray, Sequence
 
 # we compare to identity a lot
 _identity = np.eye(4)
 _identity.flags["WRITEABLE"] = False
+
+# default name for the root frame of a scene graph
+DEFAULT_BASE_FRAME = "world"
 
 
 class SceneGraph:
@@ -23,26 +26,29 @@ class SceneGraph:
     nodes.
     """
 
-    def __init__(self, base_frame="world", repair_rigid=1e-5):
+    def __init__(
+        self, base_frame: str | None = None, repair_rigid: None | Floating = 1e-5
+    ):
         """
         Create a scene graph, holding homogeneous transformation
         matrices and instance information about geometry.
 
         Parameters
         -----------
-        base_frame : any
+        base_frame
           The root node transforms will be positioned from.
-        repair_rigid : None or float
+        repair_rigid
           If a float will attempt to repair rotation matrices
           where `M @ M.T` differs from an identity matrix by
           more than floating point zero but less than this value.
           This can happen in a deep tree with a lot of matrix
           multiplies.
         """
+
         # a graph structure, subclass of networkx DiGraph
         self.transforms = EnforcedForest()
         # hashable, the base or root frame
-        self.base_frame = base_frame
+        self.base_frame = base_frame or DEFAULT_BASE_FRAME
         # if passed as a float try to repair rigid transforms
         # that have accumulated floating point error
         self.repair_rigid = repair_rigid
