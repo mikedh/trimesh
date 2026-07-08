@@ -2094,15 +2094,8 @@ class Trimesh(Geometry3D):
         mesh: trimesh.Trimesh
           The copy of current mesh with subdivided faces.
         """
-        if iterations is not None:
-            # check that our arguments are executable
-            if face_index is not None:
-                raise ValueError("Unable to subdivide a subset with multiple iterations!")
-            # decrement the next iteration
-            next_iteration = iterations - 1
-            # if we've reached zero exit
-            if next_iteration <= 0:
-                next_iteration = None
+        if iterations is not None and face_index is not None:
+            raise ValueError("Unable to subdivide a subset with multiple iterations!")
 
         visual = None
         if hasattr(self.visual, "uv") and np.shape(self.visual.uv) == (
@@ -2141,8 +2134,8 @@ class Trimesh(Geometry3D):
             process=False,
         )
 
-        if iterations is not None:
-            return result.subdivide(iterations=next_iteration)
+        if iterations is not None and iterations > 1:
+            return result.subdivide(iterations=iterations - 1)
 
         return result
 
