@@ -1227,22 +1227,24 @@ class Path2D(Path):
 
         Returns
         ---------
-        full : (m,) shapely.geometry.Polygon
-            Polygons containing interiors: `m <= len(self.root)`
-            as root curves whose geometry could not be recovered
-            (i.e. `None` in `polygons_closed`) are skipped.
+        full : (len(self.root),) shapely.geometry.Polygon
+            Polygons containing interiors. An entry is `None` when the
+            root curve's geometry could not be recovered (i.e. `None`
+            in `polygons_closed`), preserving correspondence with
+            `self.root`.
         """
+        # pre- allocate the list to avoid indexing problems
+        full = [None] * len(self.root)
         # store the graph to avoid cache thrashing
         enclosure = self.enclosure_directed
         # store closed polygons to avoid cache hits
         closed = self.polygons_closed
 
-        full = []
         # loop through root curves
-        for root in self.root:
+        for i, root in enumerate(self.root):
             # `polygons_closed` may contain `None` for degenerate
-            # geometry it could not recover: skip those rather than
-            # raising an AttributeError on `None.exterior`
+            # geometry it could not recover: leave the entry as `None`
+            # rather than raising an AttributeError on `None.exterior`
             if closed[root] is None:
                 continue
             # a list of multiple Polygon objects that
@@ -1255,7 +1257,7 @@ class Path2D(Path):
             # a single Polygon object
             shell = closed[root].exterior
             # create a polygon with interiors
-            full.append(polygons.repair_invalid(Polygon(shell=shell, holes=holes)))
+            full[i] = polygons.repair_invalid(Polygon(shell=shell, holes=holes))
 
         return full
 

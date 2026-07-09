@@ -332,10 +332,12 @@ def test_polygons_full_none():
         entities=[g.trimesh.path.entities.Line([0, 1])],
         vertices=g.np.array([[0.0, 0.0], [1.0, 1.0]]),
     )
-    # used to raise AttributeError on the `None` root
+    # used to raise AttributeError on the `None` root; correspondence
+    # with `self.root` is preserved (unrecoverable entry stays `None`)
     full = path.polygons_full
-    assert len(full) == 1
-    assert g.np.isclose(full[0].area, square.area)
+    assert len(full) == len(path.root) == 2
+    assert full[0] is None
+    assert g.np.isclose(full[1].area, square.area)
 
 
 if __name__ == "__main__":
