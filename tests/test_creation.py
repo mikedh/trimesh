@@ -126,10 +126,13 @@ def test_capsule():
     assert mesh.body_count == 1
     assert g.np.allclose(mesh.extents, [2, 2, 4], atol=0.05)
 
-    # cylinder must reach the requested radius
-    for count in (6, 7, 8):
-        cap = g.trimesh.creation.capsule(radius=1.0, height=1.0, count=[count, 12])
-        assert g.np.isclose(g.np.linalg.norm(cap.vertices[:, :2], axis=1).max(), 1.0)
+    # the widest vertices must reach the radius
+    # and form a wall spanning the whole height
+    for radius, height, count in ((1.0, 1.0, 6), (2.0, 3.0, 7), (0.5, 4.0, 8)):
+        cap = g.trimesh.creation.capsule(radius=radius, height=height, count=[count, 24])
+        xy = g.np.linalg.norm(cap.vertices[:, :2], axis=1)
+        assert cap.is_volume and g.np.isclose(xy.max(), radius)
+        assert g.np.isclose(g.np.ptp(cap.vertices[g.np.isclose(xy, radius), 2]), height)
 
 
 def test_spheres():
