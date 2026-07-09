@@ -302,7 +302,7 @@ class SceneViewer(pyglet.window.Window):
         # delete old vertex list with the same name
         if name in self.vertex_list:
             self.vertex_list[name].delete()
-        
+
         # create the indexed vertex list
         self.vertex_list[name] = self.batch.add_indexed(*args)
         # save the hash of the geometry
