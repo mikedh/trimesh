@@ -629,6 +629,35 @@ def test_raises_if_array_is_not_flat_structured():
         return
 
 
+def test_log_helper():
+    # exercise attach_to_log without polluting global logging
+    import io
+
+    logger = logging.getLogger("trimesh.test_attach")
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    printoptions = np.get_printoptions()
+    try:
+        # numpy integer level exercises the int(level) coercion
+        trimesh.util.attach_to_log(
+            level=np.int64(logging.INFO),
+            handler=handler,
+            loggers={logger},
+            colors=False,
+            capture_warnings=False,
+        )
+        assert handler in logger.handlers
+        assert logger.level == logging.INFO
+        assert handler.level == logging.INFO
+        logger.info("hello from test_log_helper")
+        assert "hello from test_log_helper" in stream.getvalue()
+    finally:
+        # do not pollute global state
+        logger.removeHandler(handler)
+        logging.getLogger("py.warnings").removeHandler(handler)
+        np.set_printoptions(**printoptions)
+
+
 if __name__ == "__main__":
     trimesh.util.attach_to_log()
 
