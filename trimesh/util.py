@@ -1791,7 +1791,7 @@ def jsonify(obj: object, **kwargs: Any) -> str:
     """
 
     class EdgeEncoder(json.JSONEncoder):
-        def default(self, obj: Any) -> str:
+        def default(self, obj: Any):
             # will work for numpy.ndarrays
             # as well as their int64/etc objects
             if hasattr(obj, "tolist"):
