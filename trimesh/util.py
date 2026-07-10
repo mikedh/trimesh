@@ -24,6 +24,7 @@ from collections.abc import (
     Sequence,
 )
 from copy import deepcopy
+from dataclasses import asdict as dataclass_to_dict
 from io import BytesIO, StringIO
 from typing import TYPE_CHECKING
 
@@ -1790,14 +1791,19 @@ def jsonify(obj: object, **kwargs: Any) -> str:
     """
 
     class EdgeEncoder(json.JSONEncoder):
-        def default(self, o: Any) -> str:
+        def default(self, obj: Any) -> str:
             # will work for numpy.ndarrays
             # as well as their int64/etc objects
-            if hasattr(o, "tolist"):
-                return o.tolist()
-            elif hasattr(o, "timestamp"):
-                return o.timestamp()
-            return json.JSONEncoder.default(self, o)
+            if hasattr(obj, "tolist"):
+                # this works on numpy arrays
+                return obj.tolist()
+            elif hasattr(obj, "timestamp"):
+                # serialize datetime as the float stamp
+                return obj.timestamp()
+            elif hasattr(obj, "__dataclass_fields__"):
+                # serialize dataclasses as dict
+                return dataclass_to_dict(obj)
+            return json.JSONEncoder.default(self, obj)
 
     # run the dumps using our encoder
     return json.dumps(obj, cls=EdgeEncoder, **kwargs)

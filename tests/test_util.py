@@ -1,5 +1,4 @@
 import logging
-import unittest
 
 import numpy as np
 
@@ -29,6 +28,41 @@ def test_unitize_multi():
 
     length = np.sum(vectors[1:] ** 2, axis=1) ** 0.5
     assert np.allclose(length, 1.0)
+
+
+def test_jsonify():
+    # check our numpy+timestamp+dataclass JSON exporter
+    import json
+    from dataclasses import dataclass
+    from datetime import datetime
+
+    import numpy as np
+
+    from trimesh.util import jsonify
+
+    @dataclass
+    class Things:
+        a: float
+        b: int
+
+    # we support timestamps, numpy arrays, and dataclasses
+    # all will be downgraded into simpler types
+    data = {
+        "stamp": datetime.now(),
+        "array": np.arange(10),
+        "thing": Things(a=10.2, b=11),
+    }
+
+    # roundtrip our payload through JSON
+    trip = json.loads(jsonify(data))
+
+    # datetime is downgraded to float timestamp
+    assert np.isclose(data["stamp"].timestamp(), trip["stamp"])
+    # arrays are downgraded to JSON lists
+    assert np.allclose(data["array"], trip["array"])
+    # dataclasses downgraded to dicts
+    assert np.isclose(data["thing"].a, trip["thing"]["a"])
+    assert data["thing"].b == trip["thing"]["b"]
 
 
 def test_align():
@@ -452,9 +486,12 @@ def test_supports_uints():
 
 
 def test_supports_repeat_format():
-    assert g.trimesh.util.array_to_string(
-        np.array([[1, 2, 3], [4, 5, 6]]), value_format="{} {}"
-    ) == "1 1 2 2 3 3\n4 4 5 5 6 6"
+    assert (
+        g.trimesh.util.array_to_string(
+            np.array([[1, 2, 3], [4, 5, 6]]), value_format="{} {}"
+        )
+        == "1 1 2 2 3 3\n4 4 5 5 6 6"
+    )
 
 
 def test_raises_if_array_is_structured():
@@ -505,13 +542,16 @@ def test_converts_a_structured_array_with_2d_elements():
 
 
 def test_uses_the_specified_column_delimiter():
-    assert g.trimesh.util.structured_array_to_string(
-        np.array(
-            [(1, 1.1), (2, 2.2)],
-            dtype=[("some_int", np.int64), ("some_float", np.float64)],
-        ),
-        col_delim="col",
-    ) == "1col1.10000000\n2col2.20000000"
+    assert (
+        g.trimesh.util.structured_array_to_string(
+            np.array(
+                [(1, 1.1), (2, 2.2)],
+                dtype=[("some_int", np.int64), ("some_float", np.float64)],
+            ),
+            col_delim="col",
+        )
+        == "1col1.10000000\n2col2.20000000"
+    )
 
 
 def test_uses_the_specified_row_delimiter_structured():
@@ -591,4 +631,5 @@ def test_raises_if_array_is_not_flat_structured():
 
 if __name__ == "__main__":
     trimesh.util.attach_to_log()
-    unittest.main()
+
+    test_jsonify()
