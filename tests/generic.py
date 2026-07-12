@@ -294,12 +294,15 @@ def serve_meshes():
             self.httpd.serve_forever()
 
     t = _ServerThread()
-    t.daemon = False
+    t.daemon = True
     t.start()
     time.sleep(0.2)
-    yield "http://localhost:{}".format(t.port)
-    t.httpd.shutdown()
-    t.join()
+    try:
+        yield "http://localhost:{}".format(t.port)
+    finally:
+        # tear down the server even if the `with` body raised
+        t.httpd.shutdown()
+        t.join()
 
 
 def get_meshes(
