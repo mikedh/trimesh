@@ -4,6 +4,40 @@ except BaseException:
     import generic as g
 
 
+def test_flips_winding():
+    tf = g.trimesh.transformations
+    # a transform flips winding exactly when its determinant is negative
+    assert not tf.flips_winding(g.np.eye(4))
+    assert not tf.flips_winding(tf.rotation_matrix(1.0, [0, 1, 0]))
+    # single-axis reflections flip
+    assert tf.flips_winding(g.np.diag([-1, 1, 1, 1]))
+    # two reflections compose to a rotation
+    assert not tf.flips_winding(g.np.diag([-1, -1, 1, 1]))
+    # mirroring all three axes flips — determinant sign, not element signs
+    assert tf.flips_winding(g.np.diag([-1, -1, -1, 1]))
+    # anisotropic positive scale never flips
+    assert not tf.flips_winding(g.np.diag([2.0, 0.5, 3.0, 1]))
+    # bare (3, 3) rotations are accepted too
+    assert tf.flips_winding(g.np.diag([-1.0, 1.0, 1.0]))
+    assert not tf.flips_winding(g.np.eye(3))
+    # anything else errors early
+    try:
+        tf.flips_winding(g.np.zeros((2, 3)))
+        raise AssertionError("should have raised on (2, 3)")
+    except ValueError:
+        pass
+
+    # winding checks must not consume the global numpy RNG —
+    # seeded pipelines depend on bit-exact reproducibility
+    matrix = tf.random_rotation_matrix()
+    state = g.np.random.get_state()
+    tf.flips_winding(matrix)
+    after = g.np.random.get_state()
+    assert state[0] == after[0]
+    assert g.np.array_equal(state[1], after[1])
+    assert state[2:] == after[2:]
+
+
 class TransformTest(g.unittest.TestCase):
     def test_doctest(self):
         """

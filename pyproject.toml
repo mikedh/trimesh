@@ -118,7 +118,13 @@ test_more = [
     "triangle; python_version<'3.14'",  # polygon tesselator
     "ipython",  # check the notebook stuff
     "marimo",   # different notebook stuff
+    "requests", # check WebResolver session compatibility
+    "aiohttp",  # check WebResolver session compatibility
 ]
+
+# kept empty so downstream `trimesh[deprecated]` 
+# pins don't fail strict resolvers like poetry
+deprecated = []
 
 # requires pip >= 21.2
 # https://hynek.me/articles/python-recursive-optional-dependencies

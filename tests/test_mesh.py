@@ -270,6 +270,33 @@ def test_remove_infinite_values_no_op_on_finite_mesh():
     assert len(mesh.faces) == n_f
 
 
+def test_remove_infinite_values_edge_shapes():
+    # the guards live inside `update_faces` (early-returns on empty
+    # meshes and all-true masks) so degenerate shapes must work
+    empty = g.trimesh.Trimesh()
+    empty.remove_infinite_values()
+    assert len(empty.vertices) == 0
+    assert len(empty.faces) == 0
+
+    # NaN vertex with no faces at all is still removed
+    cloud = g.trimesh.Trimesh(
+        vertices=[[0.0, 0.0, 0.0], [g.np.nan, 0.0, 0.0]], process=False
+    )
+    cloud.remove_infinite_values()
+    assert len(cloud.vertices) == 1
+    assert g.np.isfinite(cloud.vertices).all()
+
+    # a NaN vertex referenced by no face drops no faces
+    mesh = g.trimesh.Trimesh(
+        vertices=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [g.np.nan, 0, 0]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    mesh.remove_infinite_values()
+    assert len(mesh.vertices) == 3
+    assert mesh.faces.tolist() == [[0, 1, 2]]
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     test_mesh_2D()

@@ -140,17 +140,14 @@ def mesh_other(
     # principal axes of the points
     search_to_points = np.dot(np.linalg.inv(points_PIT), search_PIT)
     if not reflection:
-        # Half of these sign flips have an odd number of -1 and are therefore
-        # reflections (negative determinant). ICP only refines with proper
-        # rotations, so a reflected seed can never be corrected and would
-        # produce a final transform containing a reflection even though
-        # reflection was disabled. Keep only the proper-rotation seeds
-        # (identity and the three 180 degree axis rotations). See #2482.
+        # drop the negative-determinant seeds — icp can only refine
+        # proper rotations so a reflected seed stays reflected, #2482
         diagonals = _cube_diagonals[np.prod(_cube_diagonals, axis=1) > 0.0]
     else:
         diagonals = _cube_diagonals
 
-    cubes = np.array([np.diag(d) for d in diagonals])
+    # expand the diagonals into (n, 4, 4) transforms
+    cubes = np.eye(4) * diagonals[:, None, :]
 
     # loop through permutations and run iterative closest point
     costs = np.ones(len(cubes)) * np.inf

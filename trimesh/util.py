@@ -834,7 +834,7 @@ def decimal_to_digits(decimal: Floating, min_digits: Integer | None = None) -> i
 def attach_to_log(
     level: Integer = logging.DEBUG,
     handler: logging.Handler | None = None,
-    loggers: MutableSet[logging.Logger | Any] | None = None,
+    loggers: MutableSet[logging.Logger] | None = None,
     colors: bool = True,
     capture_warnings: bool = True,
     blacklist: Iterable[str] | None = None,
@@ -1433,7 +1433,7 @@ def type_bases(obj: object, depth: Integer = 4) -> list[type]:
     return [i for i in bases_flat if hasattr(i, "__name__")]
 
 
-def type_named(obj: object, name: str) -> type | None:
+def type_named(obj: object, name: str) -> type:
     """
     Similar to the type() builtin, but looks in class bases
     for named instance.
@@ -1443,12 +1443,12 @@ def type_named(obj: object, name: str) -> type | None:
     obj : any
       Object to look for class of
     name : str
-      Nnme of class
+      Name of class
 
     Returns
     ----------
-    class : Callable | None
-      Named class, or None
+    class : type
+      Named class, raises ValueError if not found
     """
     # if obj is a member of the named class, return True
     name = str(name)
@@ -1578,7 +1578,6 @@ def concatenate(a, b=None) -> "trimesh.parent.Geometry":
                 )
 
     # create the mesh object
-    assert trimesh_type is not None
     result = trimesh_type(
         vertices=vertices,
         faces=faces,
@@ -1674,12 +1673,7 @@ def submesh(
         faces.append(mask[current])
         vertices.append(original_vertices[unique])
 
-        assert mesh.visual is not None
-        try:
-            visuals.append(mesh.visual.face_subset(index))
-        except BaseException as E:
-            raise E
-            visuals = None
+        visuals.append(mesh.visual.face_subset(index))
 
     if len(vertices) == 0:
         return []
@@ -1687,7 +1681,6 @@ def submesh(
     # we use type(mesh) rather than importing Trimesh from base
     # to avoid a circular import
     trimesh_type = type_named(mesh, "Trimesh")
-    assert trimesh_type is not None
 
     if append:
         visual = None
@@ -2022,17 +2015,22 @@ def decompress(
     if isinstance(file_obj, bytes):
         file_obj = BytesIO(file_obj)
 
+    def read_capped(src, total):
+        # read an archive member one byte past the remaining budget
+        # rather than trusting the size the archive declared, returning
+        # the data and the new running total of bytes read
+        data = src.read(MAX_ARCHIVE_SIZE - total + 1)
+        if total + len(data) > MAX_ARCHIVE_SIZE:
+            raise ValueError("archive exceeds size cap")
+        return data, total + len(data)
+
     if file_type.endswith("zip"):
         archive = zipfile.ZipFile(file_obj)
         result = {}
         total = 0
         for info in archive.infolist():
             with archive.open(info, mode="r") as src:
-                # read one past the remaining budget to detect overflow
-                data = src.read(MAX_ARCHIVE_SIZE - total + 1)
-            if total + len(data) > MAX_ARCHIVE_SIZE:
-                raise ValueError("archive exceeds size cap")
-            total += len(data)
+                data, total = read_capped(src, total)
             result[info.filename] = wrap_as_stream(data)
         return result
     if file_type.endswith("bz2"):
@@ -2040,9 +2038,7 @@ def decompress(
 
         # get the file name if we have one otherwise default to "archive"
         name = getattr(file_obj, "name", "archive1234")[:-4]
-        data = bz2.open(file_obj, mode="r").read(MAX_ARCHIVE_SIZE + 1)
-        if len(data) > MAX_ARCHIVE_SIZE:
-            raise ValueError("archive exceeds size cap")
+        data, _ = read_capped(bz2.open(file_obj, mode="r"), 0)
         return {name: wrap_as_stream(data)}
     if "tar" in file_type[-6:]:
         import tarfile
@@ -2056,11 +2052,7 @@ def decompress(
             src = archive.extractfile(info)
             if src is None:
                 continue
-            # read one past the remaining budget rather than trusting info.size
-            data = src.read(MAX_ARCHIVE_SIZE - total + 1)
-            if total + len(data) > MAX_ARCHIVE_SIZE:
-                raise ValueError("archive exceeds size cap")
-            total += len(data)
+            data, total = read_capped(src, total)
             result[info.name] = wrap_as_stream(data)
         return result
     raise ValueError("Unsupported type passed!")

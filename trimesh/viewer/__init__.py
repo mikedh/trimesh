@@ -30,7 +30,6 @@ except BaseException as E:
 # as otherwise flake8 gets mad
 __all__ = [
     "SceneViewer",
-    "SceneWidget",
     "in_notebook",
     "render_scene",
     "scene_to_html",

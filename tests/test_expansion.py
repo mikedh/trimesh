@@ -85,7 +85,7 @@ def test_filepath_resolver_traversal_rejected(tmp_path):
     root.mkdir()
     (root / "real.txt").write_bytes(b"ok")
     resolver = resolvers.FilePathResolver(str(root / "real.txt"))
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ValueError, match="escapes resolver root"):
         resolver.get("../../../etc/passwd")
     # legitimate name in-root still works — the hardening did not break the
     # happy path

@@ -56,6 +56,34 @@ def validate_glb(data, name=None):
 load_kwargs = g.trimesh.exchange.load._load_kwargs
 
 
+def world_root_tree():
+    # minimal single-file glTF whose ROOT node is named "world"
+    # and carries a transform — the shape external tools produce
+    indices = g.np.array([0, 1, 2], dtype=g.np.uint32).tobytes()
+    uri = "data:application/octet-stream;base64," + g.base64.b64encode(indices).decode(
+        "utf-8"
+    )
+    tree = {
+        "asset": {"version": "2.0"},
+        "scene": 0,
+        "scenes": [{"nodes": [0]}],
+        "nodes": [
+            {"name": "world", "translation": [10.0, 0.0, 0.0], "children": [1]},
+            {"name": "geom", "mesh": 0},
+        ],
+        "meshes": [
+            {"primitives": [{"attributes": {"POSITION": 0}, "indices": 1, "mode": 4}]}
+        ],
+        "accessors": [
+            {"componentType": 5126, "count": 3, "type": "VEC3"},
+            {"componentType": 5125, "count": 3, "type": "SCALAR", "bufferView": 0},
+        ],
+        "bufferViews": [{"buffer": 0, "byteLength": 12, "byteOffset": 0}],
+        "buffers": [{"byteLength": 12, "uri": uri}],
+    }
+    return g.trimesh.util.wrap_as_stream(g.json.dumps(tree).encode("utf-8"))
+
+
 class GLTFTest(g.unittest.TestCase):
     def test_duck(self):
         scene = g.get_mesh("Duck.glb", process=False)
@@ -928,6 +956,61 @@ class GLTFTest(g.unittest.TestCase):
             file_type="glb",
         )
         assert g.np.allclose(geom_world_transform(scene), geom_world_transform(reloaded))
+
+    def test_world_root_transform(self):
+        # a root node named "world" with a transform must keep it —
+        # merging with the synthetic base frame silently dropped it
+        scene = g.trimesh.load(world_root_tree(), file_type="gltf")
+        transform = scene.graph.get(scene.graph.nodes_geometry[0])[0]
+        assert g.np.allclose(transform[:3, 3], [10.0, 0.0, 0.0])
+
+    def test_world_no_accumulation(self):
+        # the 2025-08-11 unconditional-rename attempt failed because every
+        # round-trip of trimesh's own exports renamed the wrapper node and
+        # grew the graph — pin names and node count across cycles
+        scene = g.trimesh.load(world_root_tree(), file_type="gltf")
+
+        def cycle(s):
+            return g.trimesh.load(
+                g.trimesh.util.wrap_as_stream(s.export(file_type="glb")),
+                file_type="glb",
+            )
+
+        once = cycle(scene)
+        twice = cycle(once)
+        thrice = cycle(twice)
+        assert set(once.graph.nodes) == set(twice.graph.nodes)
+        assert set(twice.graph.nodes) == set(thrice.graph.nodes)
+        # the world transform of the geometry must be stable too
+        for s in (once, twice, thrice):
+            transform = s.graph.get(s.graph.nodes_geometry[0])[0]
+            assert g.np.allclose(transform[:3, 3], [10.0, 0.0, 0.0])
+
+    def test_export_no_wrapper_node(self):
+        # exports hang children as real scene roots instead of wrapping
+        # everything in a synthetic transform-less "world" node
+        scene = g.trimesh.Scene(g.trimesh.creation.box())
+        scene.metadata["hi"] = 3
+
+        export = scene.export(file_type="gltf")
+        tree = g.json.loads(export["model.gltf"].decode("utf-8"))
+
+        # no wrapper node and the real nodes are the scene roots
+        names = [n.get("name") for n in tree["nodes"]]
+        assert scene.graph.base_frame not in names
+        assert len(tree["nodes"]) == len(scene.graph.nodes) - 1
+        assert len(tree["scenes"][0]["nodes"]) == len(
+            scene.graph.transforms.children[scene.graph.base_frame]
+        )
+        # scene metadata must survive the root change
+        assert tree["scenes"][0]["extras"]["hi"] == 3
+
+        # round-trips keep the node names identical
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(scene.export(file_type="glb")),
+            file_type="glb",
+        )
+        assert set(reloaded.graph.nodes) == set(scene.graph.nodes)
 
     def test_bulk(self):
         # Try exporting every loadable model to GLTF and checking

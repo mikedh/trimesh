@@ -321,6 +321,24 @@ def test_translation_origin():
     assert g.np.allclose(s.bounds[0], 0)
 
 
+def test_falsy_base_frame():
+    # frames are documented as any hashable so a falsy
+    # node name like `0` must not be replaced with `world`
+    assert g.trimesh.scene.transforms.SceneGraph(base_frame=0).base_frame == 0
+
+    # a scene with `world -> 0 -> child` where child has geometry
+    s = g.trimesh.Scene()
+    box = g.trimesh.creation.box()
+    s.graph.update(frame_to=0, frame_from=s.graph.base_frame)
+    s.add_geometry(box, node_name="child", parent_node_name=0)
+
+    # subscene rooted at the falsy node must keep its name and geometry
+    sub = s.subscene(0)
+    assert sub.graph.base_frame == 0
+    assert set(sub.graph.nodes_geometry) == {"child"}
+    assert g.np.isclose(sub.volume, box.volume)
+
+
 def test_reconstruct():
     original = g.get_mesh("cycloidal.3DXML")
     assert isinstance(original, g.trimesh.Scene)

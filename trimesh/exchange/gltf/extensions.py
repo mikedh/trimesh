@@ -7,7 +7,7 @@ Each scope has a TypedDict defining the context passed to handlers.
 """
 
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any, Literal, TypeAlias, TypedDict
 
 from ...constants import log
@@ -154,11 +154,29 @@ def register_handler(name: str, scope: Scope) -> Callable[[Handler], Handler]:
     return decorator
 
 
+def unregistered(extensions: Iterable[str], scope: Scope) -> set:
+    """
+    Find extension names with no registered handler for a scope.
+
+    Parameters
+    ----------
+    extensions
+      Extension names, i.e. the keys of a glTF "extensions" dict.
+    scope
+      Handler scope to check against.
+
+    Returns
+    -------
+    missing
+      Extension names with no handler registered for the scope.
+    """
+    return set(extensions) - _handlers.get(scope, {}).keys()
+
+
 def handle_extensions(
     *,
     extensions: dict[str, Any] | None,
     scope: Scope,
-    unhandled: set | None = None,
     **kwargs,
 ) -> Any:
     """
@@ -170,9 +188,6 @@ def handle_extensions(
       The "extensions" dict from a glTF element, or None.
     scope
       Handler scope to invoke.
-    unhandled
-      If passed, extension names with no registered handler for this
-      scope are added to this set so callers can react to them.
     **kwargs
       Scope-specific arguments that will be combined with extension data
       into a typed context dict. Required kwargs by scope:
@@ -189,16 +204,12 @@ def handle_extensions(
       For scopes ending in "_source", returns first non-None result.
       For "primitive" scope, automatically merges results into mesh_kwargs.
     """
-    registered = _handlers.get(scope, {})
-    if unhandled is not None and extensions:
-        unhandled.update(extensions.keys() - registered.keys())
-
     if not extensions or scope not in _handlers:
         return {} if not scope.endswith("_source") else None
 
     results = {}
     for ext_name, data in extensions.items():
-        if ext_name not in registered:
+        if ext_name not in _handlers[scope]:
             continue
         try:
             # Build context dict with data + all kwargs

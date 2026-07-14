@@ -185,11 +185,8 @@ def revolve(
     if transform is not None:
         # apply transform to vertices
         vertices = tf.transform_points(vertices, transform)
-        # if the transform flips the winding (i.e. has a negative
-        # determinant / reflection) flip faces back so the normals
-        # still face outwards and the result remains a valid volume
-        # (see issue #2439); mirrors the handling in
-        # `extrude_triangulation`
+        # a reflecting transform flips winding so flip the faces
+        # back to keep normals outward, #2439
         if tf.flips_winding(transform):
             # fliplr makes arrays non-contiguous so re-pack them
             faces = np.ascontiguousarray(np.fliplr(faces))

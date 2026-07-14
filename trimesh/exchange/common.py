@@ -21,11 +21,13 @@ class XMLParserOptions(TypedDict):
 
 
 # lxml parser options shared across exchange loaders — disable entity
-# resolution, network access, and DTD loading, and keep libxml2 size guards
+# resolution, network access, and DTD loading. `huge_tree` stays enabled
+# as 3DXML stores vertex data in text nodes past the ~10MB libxml2 cap
+# and the archive size cap in `util.decompress` already bounds memory
 XML_PARSER_OPTIONS: XMLParserOptions = {
     "resolve_entities": False,
     "no_network": True,
-    "huge_tree": False,
+    "huge_tree": True,
     "load_dtd": False,
     "dtd_validation": False,
     "attribute_defaults": False,

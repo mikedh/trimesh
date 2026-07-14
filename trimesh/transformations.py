@@ -2313,27 +2313,7 @@ def flips_winding(matrix):
     """
     # get input as numpy array
     matrix = np.asanyarray(matrix, dtype=np.float64)
-    # how many random triangles do we really want
-    count = 3
-    # test rotation against some random triangles
-    tri = np.random.random((count * 3, 3))
-    rot = np.dot(matrix[:3, :3], tri.T).T
-
-    # stack them into one triangle soup
-    triangles = np.vstack((tri, rot)).reshape((-1, 3, 3))
-    # find the normals of every triangle
-    vectors = np.diff(triangles, axis=1)
-    cross = np.cross(vectors[:, 0], vectors[:, 1])
-    # rotate the original normals to match
-    cross[:count] = np.dot(matrix[:3, :3], cross[:count].T).T
-    # unitize normals
-    norm = np.sqrt(np.dot(cross * cross, [1, 1, 1])).reshape((-1, 1))
-    cross = cross / norm
-    # find the projection of the two normals
-    projection = np.dot(cross[:count] * cross[count:], [1.0] * 3)
-    # if the winding was flipped but not the normal
-    # the projection will be negative, and since we're
-    # checking a few triangles check against the mean
-    flip = projection.mean() < 0.0
-
-    return flip
+    if matrix.shape not in ((3, 3), (4, 4)):
+        raise ValueError(f"matrix must be (3, 3) or (4, 4), not {matrix.shape!s}")
+    # a transform flips winding exactly when its determinant is negative
+    return bool(np.linalg.det(matrix[:3, :3]) < 0.0)

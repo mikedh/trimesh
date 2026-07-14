@@ -15,9 +15,9 @@ except BaseException:
 from trimesh.exchange.gltf import extensions as ext
 
 
-def minimal_gltf():
-    # one-triangle glTF whose POSITION accessor is bufferless -- a placeholder
-    # an extension is expected to fill -- and whose primitive carries a dummy extension
+def minimal_gltf(extension="TEST_dummy"):
+    # one-triangle glTF whose POSITION accessor is bufferless — a placeholder
+    # an extension is expected to fill — and whose primitive carries the extension
     indices = g.np.array([0, 1, 2], dtype=g.np.uint32).tobytes()
     uri = "data:application/octet-stream;base64," + base64.b64encode(indices).decode()
     tree = {
@@ -32,13 +32,13 @@ def minimal_gltf():
                         "attributes": {"POSITION": 0},
                         "indices": 1,
                         "mode": 4,
-                        "extensions": {"TEST_dummy": {}},
+                        "extensions": {extension: {}},
                     }
                 ]
             }
         ],
         "accessors": [
-            # bufferless -> created as placeholder zeros
+            # bufferless — created as placeholder zeros
             {"componentType": 5126, "count": 3, "type": "VEC3"},
             {"componentType": 5125, "count": 3, "type": "SCALAR", "bufferView": 0},
         ],
@@ -85,8 +85,15 @@ class GLTFHandlerTest(g.unittest.TestCase):
         assert g.np.allclose(geom.vertices, 0.0)
         assert any("TEST_dummy" in line for line in cm.output)
 
+    def test_draco_warns_by_name(self):
+        # a draco-compressed primitive with no registered decoder must
+        # warn naming the real extension
+        with self.assertLogs("trimesh", level="WARNING") as cm:
+            g.trimesh.load(minimal_gltf("KHR_draco_mesh_compression"), file_type="gltf")
+        assert any("KHR_draco_mesh_compression" in line for line in cm.output)
+
     def test_handler_fills_placeholder(self):
-        # a handler may fill the placeholder accessor in place -- a successful
+        # a handler may fill the placeholder accessor in place — a successful
         # decode must not warn
         filled = g.np.arange(9, dtype=g.np.float32).reshape((3, 3))
 

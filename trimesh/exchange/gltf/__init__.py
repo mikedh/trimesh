@@ -21,7 +21,7 @@ from ...scene.cameras import Camera
 from ...scene.transforms import DEFAULT_BASE_FRAME
 from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
-from .extensions import handle_extensions
+from .extensions import handle_extensions, unregistered
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -655,7 +655,8 @@ def _create_gltf_structure(
     # world node to the 0-index
     tree = {
         "scene": 0,
-        "scenes": [{"nodes": [0]}],
+        # the root node indices are filled in from the scene graph
+        "scenes": [{}],
         "asset": {"version": "2.0", "generator": "https://github.com/mikedh/trimesh"},
         "accessors": OrderedDict(),
         "meshes": [],
@@ -718,6 +719,9 @@ def _create_gltf_structure(
 
     # grab the flattened scene graph in GLTF's format
     nodes = scene.graph.to_gltf(scene=scene, mesh_index=mesh_index)
+    # set the roots on the existing scene dict — it may already
+    # hold `extras` with the scene metadata
+    tree["scenes"][0]["nodes"] = nodes.pop("scene_roots")
     tree.update(nodes)
 
     extensions_used = set()
@@ -1576,23 +1580,21 @@ def _read_buffers(
                 metadata["gltf_extensions"] = m["extensions"]
 
             for p in m["primitives"]:
-                # Handle primitive preprocessing extensions (e.g. Draco decompression)
-                # These run before reading accessors since they may modify them
+                # preprocessing extensions like draco decompression run
+                # before reading accessors as they may modify them
                 if prim_extensions := p.get("extensions"):
-                    missing = set()
                     handle_extensions(
                         extensions=prim_extensions,
                         scope="primitive_preprocess",
-                        unhandled=missing,
                         primitive=p,
                         accessors=access,
                         views=views,
                     )
-                    # an unhandled extension that left attributes as placeholder zeros
-                    if missing and not placeholders.isdisjoint(
-                        p.get("attributes", {}).values()
-                    ):
-                        undecoded.update(missing)
+                    # warn later if an unhandled extension left placeholder zeros
+                    if not placeholders.isdisjoint(p.get("attributes", {}).values()):
+                        undecoded.update(
+                            unregistered(prim_extensions, "primitive_preprocess")
+                        )
 
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
@@ -1810,7 +1812,16 @@ def _read_buffers(
         name_index[unique_name(n.get("name", str(i)), name_index, counts=name_counts)] = i
     # names: {index: name}
     names = {v: k for k, v in name_index.items()}
-    # set the default base frame
+
+    # rename any file node that collides with the synthetic base frame
+    # so its transform and children survive under their own frame —
+    # trimesh's own exports never contain one, #2421
+    world = name_index.get(DEFAULT_BASE_FRAME)
+    if world is not None:
+        names[world] = unique_name(DEFAULT_BASE_FRAME, set(names.values()))
+
+    # traversal edges are seeded as (DEFAULT_BASE_FRAME, index) so the
+    # index-keyed dict intentionally holds one string key for the base
     names[DEFAULT_BASE_FRAME] = DEFAULT_BASE_FRAME
 
     # visited, kwargs for scene.graph.update
@@ -1830,14 +1841,8 @@ def _read_buffers(
         scene_index = 0
 
     if "scenes" in header:
-        roots = header["scenes"][scene_index].get("nodes", [])
-        # a non-root node named "world" merges with the base frame and loses
-        # its transform — rename just that node
-        world = name_index.get(DEFAULT_BASE_FRAME)
-        if world is not None and world not in roots:
-            names[world] = unique_name(DEFAULT_BASE_FRAME, set(names.values()))
         # start the traversal from the base frame to the roots
-        for root in roots:
+        for root in header["scenes"][scene_index].get("nodes", []):
             # add transform from base frame to these root nodes
             queue.append((DEFAULT_BASE_FRAME, root))
 

@@ -3,6 +3,7 @@ try:
 except BaseException:
     import generic as g
 
+import io
 import typing
 
 import numpy as np
@@ -25,6 +26,31 @@ def _check(values: ArrayLike) -> NDArray[int64]:
 
 def _run() -> NDArray[int64]:
     return _check(values=[1, 2])
+
+
+def test_deprecated_aliases():
+    # aliases from the pre-5.0 typed module stay importable
+    # until their removal after july 2028
+    import trimesh.typed
+
+    deprecated = {
+        "List": list,
+        "Dict": dict,
+        "Tuple": tuple,
+        "Set": set,
+        "Optional": typing.Optional,
+        "Union": typing.Union,
+        "TextIO": typing.TextIO,
+        "BytesIO": io.BytesIO,
+        "StringIO": io.StringIO,
+        "BufferedRandom": io.BufferedRandom,
+        "unsignedinteger": np.unsignedinteger,
+    }
+    for name, expect in deprecated.items():
+        assert getattr(trimesh.typed, name) is expect
+
+    # everything in `__all__` must be an attribute
+    assert all(hasattr(trimesh.typed, name) for name in trimesh.typed.__all__)
 
 
 class TypedTest(g.unittest.TestCase):
