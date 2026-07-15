@@ -44,7 +44,7 @@ def load_path(file_obj, file_type: str | None = None, **kwargs):
         if arg.file_type in path_loaders:
             kwargs.update(
                 path_loaders[arg.file_type](
-                    file_obj=arg.file_obj, file_type=arg.file_type
+                    file_obj=arg.file_obj, file_type=arg.file_type, **kwargs
                 )
             )
         elif arg.file_type == "ply":

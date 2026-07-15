@@ -58,7 +58,7 @@ def _read_mesh(mesh):
     return v_array, f_array
 
 
-def load_3MF(file_obj, postprocess=True, **kwargs):
+def load_3MF(file_obj, postprocess=True, huge_tree: bool = False, **kwargs):
     """
     Load a 3MF formatted file into a Trimesh scene.
 
@@ -80,7 +80,13 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
 
     # read root attributes only from XML first
     _event, root = next(
-        etree.iterparse(model, tag=("{*}model"), events=("start",), **XML_PARSER_OPTIONS)
+        etree.iterparse(
+            model,
+            tag=("{*}model"),
+            events=("start",),
+            **XML_PARSER_OPTIONS,
+            huge_tree=huge_tree,
+        )
     )
     # collect unit information from the tree
     if "unit" in root.attrib:
@@ -110,7 +116,11 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
     # loaded elements are cleared to avoid ballooning memory
     model.seek(0)
     for _, obj in etree.iterparse(
-        model, tag=("{*}object", "{*}build"), events=("end",), **XML_PARSER_OPTIONS
+        model,
+        tag=("{*}object", "{*}build"),
+        events=("end",),
+        **XML_PARSER_OPTIONS,
+        huge_tree=huge_tree,
     ):
         # parse objects
         if "object" in obj.tag:
@@ -160,6 +170,7 @@ def load_3MF(file_obj, postprocess=True, **kwargs):
                         tag=("{*}mesh"),
                         events=("end",),
                         **XML_PARSER_OPTIONS,
+                        huge_tree=huge_tree,
                     ):
                         v, f = _read_mesh(m)
                         v_seq[mesh_index].append(v)

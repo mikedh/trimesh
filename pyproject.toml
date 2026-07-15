@@ -130,6 +130,11 @@ deprecated = []
 # https://hynek.me/articles/python-recursive-optional-dependencies
 all = ["trimesh[easy,recommend,test,test_more,deprecated]"]
 
+[tool.pytest.ini_options]
+# dump every thread's stack if a test wedges — a hung runner
+# should name the frame rather than burn the job timeout in silence
+faulthandler_timeout = 300
+
 [tool.coverage.html]
 # coverage report publishes to `trimesh.org/coverage`
 title = "trimesh coverage"

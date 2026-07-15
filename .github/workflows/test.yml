@@ -23,6 +23,7 @@ jobs:
   tests:
     name: Run Unit Tests
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         python-version: ["3.10", "3.13"]

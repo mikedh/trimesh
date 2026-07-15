@@ -22,7 +22,9 @@ _IDENTITY = np.eye(3)
 _IDENTITY.flags["WRITEABLE"] = False
 
 
-def svg_to_path(file_obj=None, file_type=None, path_string=None):
+def svg_to_path(
+    file_obj=None, file_type=None, path_string=None, huge_tree: bool = False, **kwargs
+):
     """
     Load an SVG file into a Path2D object.
 
@@ -48,7 +50,8 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
     if file_obj is not None:
         # first parse the XML
         tree = etree.fromstring(
-            file_obj.read(), parser=etree.XMLParser(**XML_PARSER_OPTIONS)
+            file_obj.read(),
+            parser=etree.XMLParser(**XML_PARSER_OPTIONS, huge_tree=huge_tree),
         )
         # store paths and transforms as
         # (path string, 3x3 matrix)

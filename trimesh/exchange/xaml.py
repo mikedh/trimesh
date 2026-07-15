@@ -13,7 +13,7 @@ from .. import transformations as tf
 from .. import util, visual
 
 
-def load_XAML(file_obj, *args, **kwargs):
+def load_XAML(file_obj, *args, huge_tree: bool = False, **kwargs):
     """
     Load a 3D XAML file.
 
@@ -61,7 +61,9 @@ def load_XAML(file_obj, *args, **kwargs):
 
     # read the file and parse XML
     file_data = file_obj.read()
-    root = etree.fromstring(file_data, parser=etree.XMLParser(**XML_PARSER_OPTIONS))
+    root = etree.fromstring(
+        file_data, parser=etree.XMLParser(**XML_PARSER_OPTIONS, huge_tree=huge_tree)
+    )
 
     # the XML namespace
     ns = root.tag.split("}")[0] + "}"
