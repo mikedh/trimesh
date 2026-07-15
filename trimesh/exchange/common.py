@@ -6,11 +6,11 @@ Helpers shared across exchange loaders.
 """
 
 # lxml parser options shared across exchange loaders — disable entity
-# resolution, network access, and DTD loading. `huge_tree` is passed per-call
-# by loaders rather than set here as it is a caller opt-in
+# resolution, network access, and DTD loading, and keep libxml2 size guards
 XML_PARSER_OPTIONS = {
     "resolve_entities": False,
     "no_network": True,
+    "huge_tree": False,
     "load_dtd": False,
     "dtd_validation": False,
     "attribute_defaults": False,

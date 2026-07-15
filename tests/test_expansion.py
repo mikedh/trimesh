@@ -6,16 +6,11 @@ files that expand far beyond their size.
 import io
 import warnings
 import zipfile
-from pathlib import Path
 
-import numpy as np
 import pytest
 
 import trimesh
 from trimesh import resolvers, util
-
-# the model corpus, as this file avoids importing `generic`
-MODELS = Path(__file__).parent.parent / "models"
 
 EXPANSION_CHECK = b"""<?xml version="1.0"?>
 <!DOCTYPE root [
@@ -262,62 +257,3 @@ def test_meshscript_argv_no_split_injection(monkeypatch, tmp_path):
         script.run("$MESH_PRE $SCRIPT")
     # whitespace and flag-like text in the substituted path stayed one token
     assert captured["argv"] == [bad_path, "x"]
-
-
-# libxml2 caps a single text node at ~10MB and `XML_PARSE_HUGE` is the
-# only way past it: the limit is a compile-time constant and lxml exposes
-# no memlimit, so `huge_tree` is a bool rather than a size
-HUGE_TEXT = b"x" * 10_500_000
-
-
-def test_svg_huge_tree_opt_in():
-    # `svg` goes through `load_path`, which has to forward the kwarg
-    svg = (
-        b'<svg xmlns="http://www.w3.org/2000/svg"><desc>'
-        + HUGE_TEXT
-        + b'</desc><path d="M0,0L1,1"/></svg>'
-    )
-    # the default is not checked here — whether libxml2 enforces the text cap on
-    # the `fromstring` path varies by build and some do not enforce it at all
-    #
-    # these bytes only load if `huge_tree` actually reached the parser
-    path = trimesh.load(io.BytesIO(svg), file_type="svg", huge_tree=True)
-    assert len(path.entities) == 1
-
-
-def test_3mf_huge_tree_opt_in():
-    # `3mf` goes through the mesh branch of `load_scene`
-    from lxml import etree
-
-    original = trimesh.load(MODELS / "pyramids.3mf")
-    with zipfile.ZipFile(MODELS / "pyramids.3mf") as z:
-        model = z.read("3D/3dmodel.model")
-
-    # inject an oversize text node after the `<model>` open tag, leaving
-    # an otherwise unmodified and still-valid 3MF
-    split = model.index(b">", model.index(b"<model")) + 1
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        z.writestr(
-            "3D/3dmodel.model",
-            model[:split]
-            + b'<metadata name="pad">'
-            + HUGE_TEXT
-            + b"</metadata>"
-            + model[split:],
-        )
-    padded = buf.getvalue()
-
-    # the oversize text node is refused by default — match on the type and not the
-    # message as libxml2's wording for this differs between builds
-    try:
-        trimesh.load(io.BytesIO(padded), file_type="3mf")
-        raise AssertionError("oversize text node was accepted by default")
-    except etree.XMLSyntaxError:
-        pass
-
-    # opting in parses the same bytes, and the padding is inert: the
-    # geometry has to match the unpadded file exactly
-    scene = trimesh.load(io.BytesIO(padded), file_type="3mf", huge_tree=True)
-    assert scene.triangles.shape == original.triangles.shape
-    assert np.allclose(scene.triangles, original.triangles)

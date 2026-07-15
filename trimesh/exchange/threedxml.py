@@ -25,7 +25,7 @@ from .. import util
 from ..visual.texture import TextureVisuals
 
 
-def load_3DXML(file_obj, *args, huge_tree: bool = False, **kwargs):
+def load_3DXML(file_obj, *args, **kwargs):
     """
     Load a 3DXML scene into kwargs. 3DXML is a CAD format
     that can be exported from Solidworks
@@ -49,8 +49,7 @@ def load_3DXML(file_obj, *args, huge_tree: bool = False, **kwargs):
         # contains non- xml files, like JPG previews
         try:
             as_etree[k] = etree.fromstring(
-                v.read(),
-                parser=etree.XMLParser(**XML_PARSER_OPTIONS, huge_tree=huge_tree),
+                v.read(), parser=etree.XMLParser(**XML_PARSER_OPTIONS)
             )
         except etree.XMLSyntaxError:
             # move the file object back to the file start
