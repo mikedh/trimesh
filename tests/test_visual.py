@@ -8,7 +8,8 @@ class VisualTest(g.unittest.TestCase):
     def test_face_subset_texture_visuals(self):
         m = g.get_mesh("fuze.obj", force="mesh")
 
-        face_index = g.np.random.choice(len(m.faces), len(m.triangles) // 2)
+        rng = g.np.random.default_rng(seed=0)
+        face_index = rng.choice(len(m.faces), len(m.triangles) // 2)
         idx = m.faces[g.np.unique(face_index)].flatten()
 
         ori = m.visual.uv[idx]
@@ -23,10 +24,11 @@ class VisualTest(g.unittest.TestCase):
 
         m = g.get_mesh("torus.STL")
 
-        vertex_colors = g.np.random.randint(0, 255, size=(len(m.vertices), 3))
+        rng = g.np.random.default_rng(seed=0)
+        vertex_colors = rng.integers(0, 255, size=(len(m.vertices), 3))
         m.visual = trimesh.visual.ColorVisuals(mesh=m, vertex_colors=vertex_colors)
 
-        face_index = g.np.random.choice(len(m.faces), len(m.triangles) // 2)
+        face_index = rng.choice(len(m.faces), len(m.triangles) // 2)
         idx = m.faces[g.np.unique(face_index)].flatten()
 
         ori = m.visual.vertex_colors[idx]

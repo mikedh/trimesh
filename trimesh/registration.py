@@ -12,7 +12,7 @@ from .geometry import weighted_vertex_normals
 from .points import PointCloud, plane_fit
 from .transformations import transform_points
 from .triangles import angles, cross, normals
-from .typed import ArrayLike, Integer
+from .typed import ArrayLike, Integer, Seed
 
 try:
     import scipy.sparse as sparse
@@ -53,6 +53,7 @@ def mesh_other(
     icp_first: Integer = 10,
     icp_final: Integer = 50,
     reflection: bool = True,
+    seed: Seed = None,
     **kwargs,
 ):
     """
@@ -76,6 +77,9 @@ def mesh_other(
     icp_final : int
       How many ICP iterations for the closest
       candidate from the wider search
+    seed : None or int
+      Seed the surface sampling this uses to pick key points:
+      pass an integer for deterministic results.
     kwargs : dict
       Passed through to `icp`, which passes through to `procrustes`
 
@@ -94,9 +98,9 @@ def mesh_other(
         to registration.
         """
         if len(m.vertices) < (count / 2):
-            return np.vstack((m.vertices, m.sample(count - len(m.vertices))))
+            return np.vstack((m.vertices, m.sample(count - len(m.vertices), seed=seed)))
         else:
-            return m.sample(count)
+            return m.sample(count, seed=seed)
 
     if not util.is_instance_named(mesh, "Trimesh"):
         raise ValueError("mesh must be Trimesh object!")

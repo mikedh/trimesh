@@ -140,23 +140,27 @@ class MutateTests(g.unittest.TestCase):
         _ = mesh.face_adjacency_tree
         _ = mesh.copy()
 
+        # draw from a stream: `g.random` returns the same array for the
+        # same shape, which made every `origins` and `normals` pair identical
+        with g.RandomSeed() as r:
+            ray_origins = r.random((100, 3)) * 1000
+            points = r.random((500, 3)) * 100
+            section_count = 20
+            origins = r.random((section_count, 3)) * 100
+            normals = r.random((section_count, 3)) * 100
+            heights = r.random((10,)) * 100
+
         # ray.intersects_id
         centre = mesh.vertices.mean(axis=0)
-        origins = g.random((100, 3)) * 1000
-        directions = g.np.copy(origins)
+        directions = g.np.copy(ray_origins)
         directions[:50, :] -= centre
         directions[50:, :] += centre
-        mesh.ray.intersects_id(origins, directions)
+        mesh.ray.intersects_id(ray_origins, directions)
 
         # nearest.vertex
-        points = g.random((500, 3)) * 100
         mesh.nearest.vertex(points)
 
         # section
-        section_count = 20
-        origins = g.random((section_count, 3)) * 100
-        normals = g.random((section_count, 3)) * 100
-        heights = g.random((10,)) * 100
         for o, n in zip(origins, normals):
             # try slicing at random origin and at center mass
             mesh.slice_plane(o, n)

@@ -185,13 +185,14 @@ class PackingTest(g.unittest.TestCase):
         )
 
         density = []
-        with g.Profiler() as P:
-            for i in range(10):
-                # roll the extents by a random amount and offset
-                extents = []
-                for i in ori:
-                    extents.append(g.np.roll(i, int(g.random() * 10)) + g.random(3))
-                extents = g.np.array(extents)
+        with g.Profiler() as P, g.RandomSeed() as r:
+            for _i in range(10):
+                # roll the extents by a random amount and offset: drawing
+                # from `g.random` rolled every rectangle by the same 4 and
+                # offset them all identically on every iteration
+                extents = g.np.array(
+                    [g.np.roll(rect, int(r.random() * 10)) + r.random(3) for rect in ori]
+                )
 
                 bounds, consume = packing.rectangles(extents)
                 # should have inserted everything because we didn't specify

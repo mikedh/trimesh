@@ -71,8 +71,9 @@ class ArcTests(g.unittest.TestCase):
             assert g.np.allclose(center, info["center"])
             assert g.np.allclose(radius, info["radius"])
 
-        for center, radius, three in zip(center_3D, radii, points_3D):
-            transform = g.trimesh.transformations.random_rotation_matrix()
+        for center, radius, three, transform in zip(
+            center_3D, radii, points_3D, g.random_transforms(len(radii), translate=0.0)
+        ):
             center = g.trimesh.transformations.transform_points([center], transform)[0]
             three = g.trimesh.transformations.transform_points(three, transform)
 

@@ -199,8 +199,8 @@ True
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from .typed import Integer, Number
-from .util import diagonal_dot
+from .typed import Integer, Number, Seed
+from .util import diagonal_dot, random_generator
 
 # a cached immutable identity matrix provides a speedup sometimes
 _IDENTITY = np.eye(4)
@@ -1566,12 +1566,14 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     return q0
 
 
-def random_quaternion(rand=None, num=1):
+def random_quaternion(rand=None, num=1, seed: Seed = None):
     """Return uniform random unit quaternion.
 
     rand: array like or None
         Three independent random variables that are uniformly distributed
         between 0 and 1.
+    seed : None or int
+        Seed for deterministic results, otherwise OS entropy.
 
     >>> q = random_quaternion()
     >>> np.allclose(1, vector_norm(q))
@@ -1579,13 +1581,15 @@ def random_quaternion(rand=None, num=1):
     >>> q = random_quaternion(num=10)
     >>> np.allclose(1, vector_norm(q, axis=1))
     True
-    >>> q = random_quaternion(np.random.random(3))
+    >>> q = random_quaternion(random_vector(3))
     >>> len(q.shape), q.shape[0]==4
     (1, True)
+    >>> bool(np.allclose(random_quaternion(seed=0), random_quaternion(seed=0)))
+    True
 
     """
     if rand is None:
-        rand = np.random.rand(3 * num).reshape((3, -1))
+        rand = random_generator(seed).random(3 * num).reshape((3, -1))
     else:
         assert rand.shape[0] == 3
     r1 = np.sqrt(1.0 - rand[0])
@@ -1599,7 +1603,10 @@ def random_quaternion(rand=None, num=1):
 
 
 def random_rotation_matrix(
-    rand: ArrayLike | None = None, num: Integer = 1, translate: Number | None = None
+    rand: ArrayLike | None = None,
+    num: Integer = 1,
+    translate: Number | None = None,
+    seed: Seed = None,
 ):
     """
     Return uniform random rotation matrix.
@@ -1614,6 +1621,8 @@ def random_rotation_matrix(
     translate
       If passed the rotation matrix will include translation
       that is random and between positive and negative half this value.
+    seed
+      Seed for deterministic results, otherwise OS entropy.
 
     >>> R = random_rotation_matrix()
     >>> np.allclose(np.dot(R.T, R), np.identity(4))
@@ -1621,12 +1630,18 @@ def random_rotation_matrix(
     >>> R = random_rotation_matrix(num=10)
     >>> np.allclose(np.einsum('...ji,...jk->...ik', R, R), np.identity(4))
     True
+    >>> bool(np.allclose(random_rotation_matrix(seed=0, translate=10),
+    ...                  random_rotation_matrix(seed=0, translate=10)))
+    True
 
     """
-    matrix = quaternion_matrix(random_quaternion(rand=rand, num=num))
+    # thread one generator through so a passed `seed` doesn't hand the
+    # translation the same values as the quaternion below
+    rng = random_generator(seed)
+    matrix = quaternion_matrix(random_quaternion(rand=rand, num=num, seed=rng))
     if translate:
         # apply random translation with the order of magnitude requested
-        matrix[:3, 3] = (np.random.random(3) - 0.5) * float(translate)
+        matrix[:3, 3] = (rng.random(3) - 0.5) * float(translate)
 
     return matrix
 
@@ -1905,7 +1920,7 @@ def unit_vector(data, axis=None, out=None):
         return data
 
 
-def random_vector(size):
+def random_vector(size, seed: Seed = None):
     """Return array of random doubles in the half-open interval [0.0, 1.0).
 
     >>> v = random_vector(10000)
@@ -1915,9 +1930,11 @@ def random_vector(size):
     >>> v1 = random_vector(10)
     >>> bool(np.any(v0 == v1))
     False
+    >>> bool(np.allclose(random_vector(10, seed=0), random_vector(10, seed=0)))
+    True
 
     """
-    return np.random.random(size)
+    return random_generator(seed).random(size)
 
 
 def vector_product(v0, v1, axis=0):

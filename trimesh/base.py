@@ -53,6 +53,7 @@ from .typed import (
     Loadable,
     NDArray,
     Number,
+    Seed,
     Self,
     Sequence,
     ViewerType,
@@ -2016,6 +2017,7 @@ class Trimesh(Geometry3D):
         sigma: Floating = 0.0,
         n_samples: Integer = 1,
         threshold: Floating = 0.0,
+        seed: Seed = None,
     ) -> tuple[NDArray[float64], NDArray[float64]]:
         """
         Computes stable orientations of a mesh and their quasi-static probabilities.
@@ -2064,6 +2066,7 @@ class Trimesh(Geometry3D):
             sigma=sigma,
             n_samples=n_samples,
             threshold=threshold,
+            seed=seed,
         )
 
     def subdivide(
@@ -2504,6 +2507,7 @@ class Trimesh(Geometry3D):
         count: Integer,
         return_index: bool = False,
         face_weight: NDArray[float64] | None = None,
+        seed: Seed = None,
     ):
         """
         Return random samples distributed across the
@@ -2519,6 +2523,8 @@ class Trimesh(Geometry3D):
         face_weight : None or len(mesh.faces) float
           Weight faces by a factor other than face area.
           If None will be the same as face_weight=mesh.area
+        seed : None or int
+          Seed for deterministic results, otherwise OS entropy.
 
         Returns
         ---------
@@ -2528,7 +2534,7 @@ class Trimesh(Geometry3D):
           Index of self.faces
         """
         samples, index = sample.sample_surface(
-            mesh=self, count=count, face_weight=face_weight
+            mesh=self, count=count, face_weight=face_weight, seed=seed
         )
         if return_index:
             return samples, index

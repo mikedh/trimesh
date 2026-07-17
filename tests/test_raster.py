@@ -53,7 +53,7 @@ class RasterTest(g.unittest.TestCase):
         theta = g.np.linspace(0, g.np.pi * 2, 100)
         unit = g.np.column_stack((g.np.cos(theta), g.np.sin(theta)))
         radii = g.np.linspace(1.0, 10.0, 10)
-        g.np.random.shuffle(radii)
+        g.np.random.default_rng(seed=0).shuffle(radii)
         paths = []
         for R in radii:
             paths.append(g.trimesh.load_path(R * unit))

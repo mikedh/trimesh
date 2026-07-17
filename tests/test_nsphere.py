@@ -21,21 +21,24 @@ class NSphereTest(g.unittest.TestCase):
             assert s.volume > (m.volume - tol_fit)
 
         # check minimum n-sphere for points in 2, 3, 4 dimensions
-        for d in [2, 3, 4]:
-            for _i in range(5):
-                points = g.random((100, d))
-                C, R = g.trimesh.nsphere.minimum_nsphere(points)
-                R_check = ((points - C) ** 2).sum(axis=1).max() ** 0.5
-                assert len(C) == d
-                assert R > 0.0
-                assert abs(R - R_check) < g.tol.merge
+        # draw inside the block: `g.random` gave every iteration the same
+        # cloud so this fit one sphere five times per dimension
+        with g.RandomSeed() as r:
+            for d in [2, 3, 4]:
+                for _i in range(5):
+                    points = r.random((100, d))
+                    C, R = g.trimesh.nsphere.minimum_nsphere(points)
+                    R_check = ((points - C) ** 2).sum(axis=1).max() ** 0.5
+                    assert len(C) == d
+                    assert R > 0.0
+                    assert abs(R - R_check) < g.tol.merge
 
     def test_isnsphere(self):
         # make sure created spheres are uv sphere
         m = g.trimesh.creation.uv_sphere()
         # move the mesh around for funsies
         m.apply_translation(g.random(3))
-        m.apply_transform(g.trimesh.transformations.random_rotation_matrix())
+        m.apply_transform(next(g.random_transforms(1, translate=0.0)))
         # all vertices should be on nsphere
         assert g.trimesh.nsphere.is_nsphere(m.vertices)
 

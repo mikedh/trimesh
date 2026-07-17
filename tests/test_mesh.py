@@ -170,7 +170,7 @@ def test_meshes():
 def test_mesh_2D():
     # check a simple mesh with 2D vertices
     m = g.trimesh.Trimesh(
-        vertices=g.np.random.random((100, 2)),
+        vertices=g.random((100, 2)),
         faces=g.np.arange(99, dtype=g.np.int64).reshape((-1, 3)),
     )
     # the face normals should be 3D (+Z)

@@ -18,10 +18,14 @@ class AlignTests(g.unittest.TestCase):
 
         # start with some edge cases and make sure the transform works
         target = g.np.array([0, 0, -1], dtype=g.np.float64)
+        # draw from a stream: `g.random` returns the same array for the same
+        # shape so these two blocks were the same 1000 directions twice
+        with g.RandomSeed() as r:
+            unit_vectors, raw_vectors = r.random((2, 1000, 3)) - 0.5
         vectors = g.np.vstack(
             (
-                g.trimesh.unitize(g.random((1000, 3)) - 0.5),
-                g.random((1000, 3)) - 0.5,
+                g.trimesh.unitize(unit_vectors),
+                raw_vectors,
                 [-target, target],
                 g.trimesh.util.generate_basis(target),
                 [

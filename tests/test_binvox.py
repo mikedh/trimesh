@@ -14,7 +14,7 @@ class BinvoxTest(g.unittest.TestCase):
     def test_load_save_invariance(self):
         np = g.np
         n = 4
-        dense = np.random.uniform(size=(n,) * 3) > 0.8
+        dense = g.random((n,) * 3) > 0.8
         dense[0, 0, 0] = dense[-1, -1, -1] = 1  # ensure extent test works
         shape = dense.shape
         rl_data = rl.dense_to_rle(dense.flatten(), dtype=np.uint8)

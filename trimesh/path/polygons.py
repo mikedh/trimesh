@@ -7,7 +7,8 @@ from ..constants import log
 from ..constants import tol_path as tol
 from ..iteration import reduce_cascade
 from ..transformations import transform_points
-from ..typed import ArrayLike, Iterable, NDArray, Number, float64, int64
+from ..typed import ArrayLike, Iterable, NDArray, Number, Seed, float64, int64
+from ..util import random_generator
 from .simplify import fit_circle_check
 from .traversal import resample_path
 
@@ -487,7 +488,7 @@ def identifier(polygon: Polygon) -> NDArray[float64]:
     return np.array(result, dtype=np.float64)
 
 
-def random_polygon(segments=8, radius=1.0):
+def random_polygon(segments=8, radius=1.0, seed: Seed = None):
     """
     Generate a random polygon with a maximum number of sides and approximate radius.
 
@@ -497,14 +498,17 @@ def random_polygon(segments=8, radius=1.0):
       The maximum number of sides the random polygon will have
     radius : float
       The approximate radius of the polygon desired
+    seed : None or int
+      Seed for deterministic results, otherwise OS entropy.
 
     Returns
     ---------
     polygon : shapely.geometry.Polygon
       Geometry object with random exterior and no interiors.
     """
-    angles = np.sort(np.cumsum(np.random.random(segments) * np.pi * 2) % (np.pi * 2))
-    radii = np.random.random(segments) * radius
+    rng = random_generator(seed)
+    angles = np.sort(np.cumsum(rng.random(segments) * np.pi * 2) % (np.pi * 2))
+    radii = rng.random(segments) * radius
 
     points = np.column_stack((np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
     points = np.vstack((points, points[0]))
@@ -575,7 +579,7 @@ def paths_to_polygons(paths, scale=None):
     return polygons
 
 
-def sample(polygon, count, factor=1.5, max_iter=10):
+def sample(polygon, count, factor=1.5, max_iter=10, seed: Seed = None):
     """
     Use rejection sampling to generate random points inside a
     polygon. Note that this function may return fewer or no
@@ -593,6 +597,8 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     max_iter : int
       Maximum number of intersection checks is:
       > count * factor * max_iter
+    seed : None or int
+      Seed for deterministic results, otherwise OS entropy.
 
     Returns
     -----------
@@ -615,7 +621,8 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     per_loop = int(count * factor)
 
     # start with some rejection sampling
-    points = bounds[0] + extents * np.random.random((per_loop, 2))
+    rng = random_generator(seed)
+    points = bounds[0] + extents * rng.random((per_loop, 2))
     # do the point in polygon test and append resulting hits
     mask = vectorized.contains(polygon, *points.T)
     hit = [points[mask]]
@@ -627,7 +634,7 @@ def sample(polygon, count, factor=1.5, max_iter=10):
     # if we have to do iterations loop here slowly
     for _ in range(max_iter):
         # generate points inside polygons AABB
-        points = (np.random.random((per_loop, 2)) * extents) + bounds[0]
+        points = (rng.random((per_loop, 2)) * extents) + bounds[0]
         # do the point in polygon test and append resulting hits
         mask = vectorized.contains(polygon, *points.T)
         hit.append(points[mask])

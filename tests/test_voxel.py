@@ -215,10 +215,11 @@ class VoxelGridTest(g.unittest.TestCase):
     def test_is_filled(self):
         """More rigorous test of VoxelGrid.is_filled."""
         n = 10
-        matrix = g.np.random.uniform(size=(n + 1,) * 3) > 0.5
+        rng = g.np.random.default_rng(seed=0)
+        matrix = rng.uniform(size=(n + 1,) * 3) > 0.5
         not_matrix = g.np.logical_not(matrix)
         pitch = 1.0 / n
-        origin = g.np.random.uniform(size=(3,))
+        origin = rng.uniform(size=(3,))
         vox = g.trimesh.voxel.VoxelGrid(matrix)
         vox = vox.apply_scale(pitch).apply_translation(origin)
         not_vox = g.trimesh.voxel.VoxelGrid(not_matrix)
@@ -226,8 +227,8 @@ class VoxelGridTest(g.unittest.TestCase):
         for a, b in ((vox, not_vox), (not_vox, vox)):
             points = a.points
             # slight jitter - shouldn't change indices
-            points += (g.np.random.uniform(size=points.shape) - 1) * 0.4 * pitch
-            g.np.random.shuffle(points)
+            points += (rng.uniform(size=points.shape) - 1) * 0.4 * pitch
+            rng.shuffle(points)
 
             # all points are filled, and no empty points are filled
             assert g.np.all(a.is_filled(points))
@@ -337,7 +338,7 @@ class VoxelGridTest(g.unittest.TestCase):
         )
 
         v_brle = voxel.VoxelGrid(brle_obj.reshape(shape))
-        query_points = g.np.random.uniform(size=(100, 3), high=4)
+        query_points = g.np.random.default_rng(seed=0).uniform(size=(100, 3), high=4)
         self._test_equiv(v_rle, v_brle, query_points)
 
     def test_hollow(self):

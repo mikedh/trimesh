@@ -14,7 +14,7 @@ class SectionTest(g.unittest.TestCase):
             start=mesh.bounds[0][2], stop=mesh.bounds[1][2] + 2 * step, step=step
         )
         # randomly order Z so first level is probably not zero
-        z_levels = g.np.random.permutation(z_levels)
+        z_levels = g.np.random.default_rng(seed=0).permutation(z_levels)
 
         # rotate around so we're not just testing XY parallel planes
         for angle in [0.0, g.np.radians(1.0), g.np.radians(11.11232)]:
@@ -393,15 +393,12 @@ class SliceTest(g.unittest.TestCase):
         if not g.has_earcut:
             return
 
-        from trimesh.transformations import random_rotation_matrix
+        # rotate-only as both boxes have to overlap to produce a cap
+        transforms = list(g.random_transforms(200, translate=0.0))
 
-        for _i in range(100):
-            box1 = g.trimesh.primitives.Box(
-                extents=[10, 20, 30], transform=random_rotation_matrix()
-            )
-            box2 = g.trimesh.primitives.Box(
-                extents=[10, 20, 30], transform=random_rotation_matrix()
-            )
+        for first, second in zip(transforms[::2], transforms[1::2]):
+            box1 = g.trimesh.primitives.Box(extents=[10, 20, 30], transform=first)
+            box2 = g.trimesh.primitives.Box(extents=[10, 20, 30], transform=second)
 
             result = g.trimesh.intersections.slice_mesh_plane(
                 mesh=box2,

@@ -68,20 +68,23 @@ def test_jsonify():
 def test_align():
     log.info("Testing vector alignment")
     target = np.array([0, 0, 1])
-    for _i in range(100):
-        vector = trimesh.unitize(np.random.random(3) - 0.5)
+    # generate in one call as `g.random` re-seeds every time it's called
+    for vector in trimesh.unitize(g.random((100, 3)) - 0.5):
         T = trimesh.geometry.align_vectors(vector, target)
         result = np.dot(T, np.append(vector, 1))[0:3]
         assert np.abs(result - target).sum() < TOL_ZERO
 
 
 def test_bounds_tree():
-    for _attempt in range(3):
-        for dimension in [2, 3]:
-            t = g.random((1000, 3, dimension))
-            bounds = g.np.column_stack((t.min(axis=1), t.max(axis=1)))
-            tree = g.trimesh.util.bounds_tree(bounds)
-            assert 0 in tree.intersection(bounds[0])
+    # draw inside the block: `g.random` gave every attempt the same
+    # boxes so two of these three rounds were a no-op
+    with g.RandomSeed() as r:
+        for _attempt in range(3):
+            for dimension in [2, 3]:
+                t = r.random((1000, 3, dimension))
+                bounds = g.np.column_stack((t.min(axis=1), t.max(axis=1)))
+                tree = g.trimesh.util.bounds_tree(bounds)
+                assert 0 in tree.intersection(bounds[0])
 
 
 def test_stack():
@@ -314,7 +317,7 @@ def test_unique_name():
 def test_inside():
     sphere = g.trimesh.primitives.Sphere(radius=1.0, subdivisions=4)
     g.log.info("Testing contains function with sphere")
-    samples = (np.random.random((1000, 3)) - 0.5) * 5
+    samples = (g.random((1000, 3)) - 0.5) * 5
     radius = np.linalg.norm(samples, axis=1)
 
     margin = 0.05
@@ -375,7 +378,7 @@ def test_unique():
         np.array([0, 1, 2, 3, 1, 3, 10, 20]),
         np.arange(100),
         np.array([], dtype=np.int64),
-        (np.random.random(1000) * 10).astype(int),
+        (g.random(1000) * 10).astype(int),
     ]
 
     for values in options:

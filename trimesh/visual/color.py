@@ -39,6 +39,7 @@ from ..typed import (
     Integer,
     Iterable,
     NDArray,
+    Seed,
 )
 from .base import Visuals
 
@@ -778,7 +779,11 @@ def srgb_to_linear(srgb: ArrayLike) -> NDArray[np.float64]:
     return linear
 
 
-def random_color(dtype: DTypeLike = np.uint8, count: Integer | None = None) -> NDArray:
+def random_color(
+    dtype: DTypeLike = np.uint8,
+    count: Integer | None = None,
+    seed: Seed = None,
+) -> NDArray:
     """
     Return a random RGB color using datatype specified.
 
@@ -789,6 +794,8 @@ def random_color(dtype: DTypeLike = np.uint8, count: Integer | None = None) -> N
     count
       If passed return (count, 4) colors instead of
       a single (4,) color.
+    seed
+      Seed for deterministic results, otherwise OS entropy.
 
     Returns
     ----------
@@ -796,7 +803,7 @@ def random_color(dtype: DTypeLike = np.uint8, count: Integer | None = None) -> N
       Random color or colors that look "OK"
     """
     # generate a random hue
-    hue = (np.random.random(count or 1) + 0.61803) % 1.0
+    hue = (util.random_generator(seed).random(count or 1) + 0.61803) % 1.0
 
     # saturation and "value" as constant
     sv = np.ones_like(hue) * 0.99

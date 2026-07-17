@@ -103,21 +103,23 @@ def test_primitives():
         g.trimesh.primitives.Box(),
         g.trimesh.primitives.Sphere(radius=1.23),
     ]
-    for p in primitives:
-        for _i in range(100):
-            # check to make sure the analytic inertia tensors are relatively
-            # close to the meshed inertia tensor (order of magnitude and
-            # sign)
-            b = p.to_mesh()
-            comparison = g.np.abs(p.moment_inertia - b.moment_inertia)
-            c_max = comparison.max() / g.np.abs(p.moment_inertia).max()
-            assert c_max < 0.1
+    # draw inside the block: `g.random` pinned the sphere to one center
+    # so every round of its loop re-checked an identical primitive
+    with g.RandomSeed() as r:
+        for p in primitives:
+            for matrix in g.random_transforms(100, translate=0.0):
+                # check to make sure the analytic inertia tensors are relatively
+                # close to the meshed inertia tensor (order of magnitude and
+                # sign)
+                b = p.to_mesh()
+                comparison = g.np.abs(p.moment_inertia - b.moment_inertia)
+                c_max = comparison.max() / g.np.abs(p.moment_inertia).max()
+                assert c_max < 0.1
 
-            if hasattr(p.primitive, "transform"):
-                matrix = g.trimesh.transformations.random_rotation_matrix()
-                p.primitive.transform = matrix
-            elif hasattr(p.primitive, "center"):
-                p.primitive.center = g.random(3)
+                if hasattr(p.primitive, "transform"):
+                    p.primitive.transform = matrix
+                elif hasattr(p.primitive, "center"):
+                    p.primitive.center = r.random(3)
 
 
 def test_tetrahedron():

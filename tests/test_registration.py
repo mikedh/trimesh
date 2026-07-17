@@ -163,17 +163,15 @@ class RegistrationTest(g.unittest.TestCase):
 
         # with reflection disabled the result must be a proper rotation
         for seed in range(3):
-            g.np.random.seed(seed)
             matrix, _cost = g.trimesh.registration.mesh_other(
-                a, b, samples=500, reflection=False, scale=False
+                a, b, samples=500, reflection=False, scale=False, seed=seed
             )
             assert g.np.linalg.det(matrix[:3, :3]) > 0
 
         # with reflection enabled it is still allowed to use a reflection
         # to fit the mirrored mesh
-        g.np.random.seed(0)
         matrix, _cost = g.trimesh.registration.mesh_other(
-            a, b, samples=500, reflection=True, scale=False
+            a, b, samples=500, reflection=True, scale=False, seed=0
         )
         assert g.np.linalg.det(matrix[:3, :3]) < 0
 
@@ -189,7 +187,7 @@ class RegistrationTest(g.unittest.TestCase):
 
         # take a few randomly chosen points and make
         # sure the order is permutated
-        index = g.np.random.choice(g.np.arange(len(points_a)), 20)
+        index = g.np.random.default_rng(seed=0).choice(g.np.arange(len(points_a)), 20)
         # transform and apply index
         points_b = g.trimesh.transform_points(points_a[index], matrix)
         # tun the solver
@@ -211,8 +209,7 @@ class RegistrationTest(g.unittest.TestCase):
         # apply tessellation and random noise
         mesh = mesh.permutate.noise(noise)
         # randomly rotation with translation
-        transform = g.trimesh.transformations.random_rotation_matrix()
-        transform[:3, 3] = (g.random(3) - 0.5) * 1000
+        transform = next(g.random_transforms(1, translate=1000))
 
         mesh.apply_transform(transform)
 
@@ -234,7 +231,8 @@ class RegistrationTest(g.unittest.TestCase):
 
         # try our registration with points
         points = g.trimesh.transform_points(
-            scan.sample(100), matrix=g.trimesh.transformations.random_rotation_matrix()
+            scan.sample(100, seed=0),
+            matrix=next(g.random_transforms(1, translate=0.0)),
         )
         truth_to_points, _cost = truth.register(points)
         truth.apply_transform(truth_to_points)

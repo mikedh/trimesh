@@ -44,6 +44,7 @@ from .typed import (
     NDArray1D,
     NDArray2D,
     Number,
+    Seed,
     Stream,
 )
 
@@ -73,6 +74,34 @@ _STRICT: bool = False
 # beartype is unable to resolve `NDArray[float64]` for globals
 _IDENTITY: np.ndarray = np.eye(4, dtype=np.float64)
 _IDENTITY.flags["WRITEABLE"] = False
+
+# one process-wide generator for the unseeded case: constructing one
+# collects OS entropy which costs ~200x more than the draw it feeds
+_RANDOM_DEFAULT = np.random.default_rng()
+
+
+def random_generator(seed: Seed = None) -> np.random.Generator:
+    """
+    Get a random generator, optionally seeded for deterministic results.
+
+    Parameters
+    ----------
+    seed
+      If None use a shared generator seeded from OS entropy. An integer
+      seeds a fresh generator. A `Generator` is returned unaltered which
+      lets a caller thread one stream through nested calls rather than
+      re-seeding each of them to identical values.
+
+    Returns
+    -------
+    generator
+      Draw random values from this.
+    """
+    if seed is None:
+        # numpy locks the bit generator on every draw so sharing
+        # this between threads is as safe as `numpy.random.random`
+        return _RANDOM_DEFAULT
+    return np.random.default_rng(seed)
 
 
 def has_module(name: str) -> bool:

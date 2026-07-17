@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Integer, NDArray, Number
+from .typed import ArrayLike, Integer, NDArray, Number, Seed
 
 try:
     # shapely is a soft dependency
@@ -1229,7 +1229,7 @@ def _segment_to_cylinder(segment: ArrayLike):
     return transform, height
 
 
-def random_soup(face_count: Integer = 100):
+def random_soup(face_count: Integer = 100, seed: Seed = None):
     """
     Return random triangles as a Trimesh
 
@@ -1237,13 +1237,15 @@ def random_soup(face_count: Integer = 100):
     -----------
     face_count : int
       Number of faces desired in mesh
+    seed : None or int
+      Seed for deterministic results, otherwise OS entropy.
 
     Returns
     -----------
     soup : trimesh.Trimesh
       Geometry with face_count random faces
     """
-    vertices = np.random.random((face_count * 3, 3)) - 0.5
+    vertices = util.random_generator(seed).random((face_count * 3, 3)) - 0.5
     faces = np.arange(face_count * 3).reshape((-1, 3))
     soup = Trimesh(vertices=vertices, faces=faces)
     return soup

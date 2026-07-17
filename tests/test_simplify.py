@@ -80,7 +80,7 @@ class SimplifyTest(g.unittest.TestCase):
     def test_merge_colinear(self):
         num = 100
         dists = g.np.linspace(0, 1000, num=num)
-        direction = g.trimesh.unitize([1, g.np.random.rand()])
+        direction = g.trimesh.unitize([1, g.random()])
         points = direction * dists.reshape((-1, 1))
         merged = g.trimesh.path.simplify.merge_colinear(points, scale=1000)
         g.log.debug("direction:", direction)

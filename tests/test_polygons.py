@@ -43,7 +43,7 @@ def test_random_polygon():
     """
     Test creation of random polygons
     """
-    p = g.trimesh.path.polygons.random_polygon()
+    p = g.trimesh.path.polygons.random_polygon(seed=0)
     assert p.area > 0.0
     assert p.is_valid
 
@@ -56,7 +56,7 @@ def test_polygon_sample():
     p = g.Point([0, 0]).buffer(1.0)
     count = 100
 
-    s = g.trimesh.path.polygons.sample(p, count=count)
+    s = g.trimesh.path.polygons.sample(p, count=count, seed=0)
     assert len(s) <= count
     assert s.shape[1] == 2
 
@@ -87,7 +87,7 @@ def test_polygon_sample():
     # try a polygon with a low area/aabb-area ratio to
     # check the iteration loop.
     p = g.Polygon([[0, 0], [1, 1], [0.5 - 1e-3, 0.5], [0, 0]])
-    s = g.trimesh.path.polygons.sample(polygon=p, count=100)
+    s = g.trimesh.path.polygons.sample(polygon=p, count=100, seed=0)
 
 
 def test_project():

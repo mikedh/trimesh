@@ -5,7 +5,7 @@ except BaseException:
 
 
 def test_extrusion():
-    transform = g.trimesh.transformations.random_rotation_matrix()
+    transform = next(g.random_transforms(1, translate=0.0))
     polygon = g.Point([0, 0]).buffer(0.5)
     e = g.trimesh.primitives.Extrusion(polygon=polygon, transform=transform)
 

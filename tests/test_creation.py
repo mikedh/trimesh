@@ -113,7 +113,7 @@ def test_cylinder():
 
 def test_soup():
     count = 100
-    mesh = g.trimesh.creation.random_soup(face_count=count)
+    mesh = g.trimesh.creation.random_soup(face_count=count, seed=0)
     assert len(mesh.faces) == count
     assert len(mesh.face_adjacency) == 0
     assert len(mesh.split(only_watertight=True)) == 0
