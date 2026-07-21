@@ -5,6 +5,8 @@ proximity.py
 Query mesh- point proximity.
 """
 
+from importlib import metadata
+
 import numpy as np
 
 from . import util
@@ -20,6 +22,12 @@ except BaseException as E:
     from .exceptions import ExceptionWrapper
 
     cKDTree = ExceptionWrapper(E)
+
+
+try:
+    _rtree_version = tuple(int(part) for part in metadata.version("rtree").split(".")[:3])
+except (metadata.PackageNotFoundError, ValueError):
+    _rtree_version = ()
 
 
 def nearby_faces(mesh, points):
@@ -61,8 +69,21 @@ def nearby_faces(mesh, points):
     # axis aligned bounds
     bounds = np.column_stack((points - distance_vertex, points + distance_vertex))
 
-    # faces that intersect axis aligned bounding box
-    candidates = [list(rtree.intersection(b)) for b in bounds]
+    # rtree 1.4.0 exposed intersection_v but its batch API was defective.
+    # Preserve the established scalar path for older installed rtree versions.
+    if len(bounds) == 0:
+        return []
+
+    if _rtree_version >= (1, 4, 1) and callable(getattr(rtree, "intersection_v", None)):
+        # The batch call returns flat hit indexes and one hit count per query box.
+        hit_ids, hit_counts = rtree.intersection_v(bounds[:, :3], bounds[:, 3:])
+        candidates = []
+        start = 0
+        for count in hit_counts:
+            candidates.append(hit_ids[start : start + count].tolist())
+            start += count
+    else:
+        candidates = [list(rtree.intersection(b)) for b in bounds]
 
     return candidates
 
