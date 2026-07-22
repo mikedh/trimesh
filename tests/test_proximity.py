@@ -232,7 +232,8 @@ class NearestTest(g.unittest.TestCase):
                 mock.patch.object(tree, method, wraps=getattr(tree, method)) as query,
             ):
                 actual = g.trimesh.proximity.nearby_faces(mesh, points)
-            assert actual == expected
+            assert len(actual) == len(expected)
+            assert all(g.np.array_equal(a, e) for a, e in zip(actual, expected))
             assert query.call_count == (1 if method == "intersection_v" else len(points))
 
     def test_candidates_empty(self):

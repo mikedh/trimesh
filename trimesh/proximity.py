@@ -77,11 +77,7 @@ def nearby_faces(mesh, points):
     if _rtree_version >= (1, 4, 1) and callable(getattr(rtree, "intersection_v", None)):
         # The batch call returns flat hit indexes and one hit count per query box.
         hit_ids, hit_counts = rtree.intersection_v(bounds[:, :3], bounds[:, 3:])
-        candidates = []
-        start = 0
-        for count in hit_counts:
-            candidates.append(hit_ids[start : start + count].tolist())
-            start += count
+        candidates = np.array_split(hit_ids, np.cumsum(hit_counts)[:-1])
     else:
         candidates = [list(rtree.intersection(b)) for b in bounds]
 
