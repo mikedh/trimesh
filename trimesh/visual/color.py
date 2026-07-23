@@ -801,7 +801,7 @@ def random_color(dtype: DTypeLike = np.uint8, count: Integer | None = None) -> N
     # saturation and "value" as constant
     sv = np.ones_like(hue) * 0.99
     # convert our random hue to RGBA
-    colors = hsv_to_rgba(np.column_stack((hue, sv, sv)))
+    colors = hsv_to_rgba(np.column_stack((hue, sv, sv)), dtype=dtype)
 
     # unspecified count is a single color
     if count is None:
