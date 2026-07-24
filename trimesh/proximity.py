@@ -5,7 +5,6 @@ proximity.py
 Query mesh- point proximity.
 """
 
-
 import numpy as np
 
 from . import util

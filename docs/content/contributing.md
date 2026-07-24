@@ -70,13 +70,13 @@ Trimesh uses the [Sphinx Numpy-style](https://www.sphinx-doc.org/en/master/usage
 We try to add a somewhat helpful `DeprecationWarning` one year in advance of a major API change:
 
 ```python
-    warnings.warn(
-        "`remove_duplicate_faces` is deprecated "
-        + "and will be removed in March 2024: "
-            + "replace with `mesh.update_faces(mesh.unique_faces())`",
-        category=DeprecationWarning,
-        stacklevel=2,
-    )
+warnings.warn(
+    "`remove_duplicate_faces` is deprecated "
+    + "and will be removed in March 2024: "
+    + "replace with `mesh.update_faces(mesh.unique_faces())`",
+    category=DeprecationWarning,
+    stacklevel=2,
+)
 ```
 
 ## Pull Requests And AI

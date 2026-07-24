@@ -1,4 +1,3 @@
-
 try:
     from . import generic as g
 except BaseException:
@@ -215,7 +214,6 @@ class NearestTest(g.unittest.TestCase):
             process=False,
         )
         points = g.np.array([[0.2, 0.2, 0.5], [0.2, 0.2, 0.5]], dtype=g.np.float32)
-        tree = mesh.triangles_tree
 
         expected = g.trimesh.proximity.nearby_faces(mesh, points)
         assert g.np.allclose(expected, [[0, 1], [0, 1]])

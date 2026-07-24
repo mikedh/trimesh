@@ -27,7 +27,7 @@ class SceneGraph:
     """
 
     def __init__(
-        self, base_frame: Hashable | None = None, repair_rigid: None | Floating = 1e-5
+        self, base_frame: Hashable | None = None, repair_rigid: Floating | None = 1e-5
     ):
         """
         Create a scene graph, holding homogeneous transformation
