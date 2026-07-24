@@ -63,6 +63,16 @@ def test_random_color():
     assert c.shape == (10, 4)
     assert c.dtype == g.np.uint8
 
+    # the requested dtype should be honored
+    c = random_color(dtype=g.np.float64)
+    assert c.dtype == g.np.float64
+    assert c.max() <= 1.0
+
+    c = random_color(dtype=g.np.uint16, count=10)
+    assert c.shape == (10, 4)
+    assert c.dtype == g.np.uint16
+    assert c.max() > 255
+
 
 def test_hsv_rgba():
     # the non-vectorized stdlib HSV -> RGB function
