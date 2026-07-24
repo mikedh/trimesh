@@ -1251,9 +1251,7 @@ class Path2D(Path):
             # are fully contained by the root curve
             children = [closed[child] for child in enclosure[root].keys()]
             # all polygons_closed are CCW, so for interiors reverse them
-            holes = [
-                np.array(p.exterior.coords)[::-1] for p in children if p is not None
-            ]
+            holes = [np.array(p.exterior.coords)[::-1] for p in children if p is not None]
             # a single Polygon object
             shell = closed[root].exterior
             # create a polygon with interiors

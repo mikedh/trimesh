@@ -295,9 +295,7 @@ def test_enclosure_tree_none():
 
     # multi-polygon path: `None` alongside a valid polygon
     # is excluded by the bounds check
-    square = g.np.array(
-        [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]]
-    )
+    square = g.np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]])
     polys = g.trimesh.path.polygons.paths_to_polygons([degenerate, square])
     roots, contains = g.trimesh.path.polygons.enclosure_tree(polys)
     assert list(roots) == [1]
