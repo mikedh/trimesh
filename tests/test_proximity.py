@@ -1,3 +1,5 @@
+from unittest import mock
+
 try:
     from . import generic as g
 except BaseException:
@@ -206,6 +208,41 @@ class NearestTest(g.unittest.TestCase):
         mesh = g.trimesh.creation.random_soup(2000)
         points = g.random((2000, 3))
         g.trimesh.proximity.nearby_faces(mesh=mesh, points=points)
+
+    def test_candidates_rtree_versions(self):
+        mesh = g.trimesh.Trimesh(
+            vertices=[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            faces=[[0, 1, 2], [0, 1, 2]],
+            process=False,
+        )
+        points = g.np.array([[0.2, 0.2, 0.5], [0.2, 0.2, 0.5]], dtype=g.np.float32)
+        tree = mesh.triangles_tree
+
+        with mock.patch.object(g.trimesh.proximity, "_rtree_version", (1, 3, 0)):
+            expected = g.trimesh.proximity.nearby_faces(mesh, points)
+        assert expected == [[0, 1], [0, 1]]
+
+        for version, method in [
+            ((1, 4, 1), "intersection_v"),
+            ((1, 4, 0), "intersection"),
+            ((1, 3, 0), "intersection"),
+        ]:
+            with (
+                mock.patch.object(g.trimesh.proximity, "_rtree_version", version),
+                mock.patch.object(tree, method, wraps=getattr(tree, method)) as query,
+            ):
+                actual = g.trimesh.proximity.nearby_faces(mesh, points)
+            assert len(actual) == len(expected)
+            assert all(g.np.array_equal(a, e) for a, e in zip(actual, expected))
+            assert query.call_count == (1 if method == "intersection_v" else len(points))
+
+    def test_candidates_empty(self):
+        # an empty (0, 3) query set must return an empty list of candidates
+        mesh = g.trimesh.creation.box()
+        candidates = g.trimesh.proximity.nearby_faces(
+            mesh=mesh, points=g.np.zeros((0, 3))
+        )
+        assert candidates == []
 
     def test_returns_correct_point_in_ambiguous_cases(self):
         mesh = g.trimesh.Trimesh(
