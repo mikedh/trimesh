@@ -1,4 +1,5 @@
 import logging
+import sys
 import unittest
 
 import numpy as np
@@ -568,6 +569,95 @@ class StructuredArrayToString(unittest.TestCase):
                     dtype=[("some_int", np.int64), ("some_float", np.float64)],
                 )
             )
+
+
+_ARCHIVE_MEMORY_PROBE = """
+import bz2, io, resource, sys
+import trimesh
+
+payload = bz2.compress(b"solid x\\nendsolid x\\n")
+
+# Warm every lazy import first: numpy and OpenBLAS reserve gigabytes of address
+# space at import time, so the limit has to go on afterwards or the process dies
+# before reaching the code under test.
+trimesh.util.decompress(io.BytesIO(payload), "bz2")
+
+def vmsize():
+    for line in open("/proc/self/status"):
+        if line.startswith("VmSize:"):
+            return int(line.split()[1]) * 1024
+    raise RuntimeError("no VmSize")
+
+# Headroom well under MAX_ARCHIVE_SIZE, so an 8 GiB request still fails.
+resource.setrlimit(resource.RLIMIT_AS, (vmsize() + (512 << 20),) * 2)
+
+trimesh.load(io.BytesIO(payload), file_type="bz2")
+sys.exit(0)
+"""
+
+
+class ArchiveCapTest(unittest.TestCase):
+    @unittest.skipUnless(sys.platform.startswith("linux"), "needs /proc and rlimit")
+    def test_small_archive_fits_in_memory(self):
+        """
+        Loading a tiny archive must not reserve the whole size cap.
+
+        `read(MAX_ARCHIVE_SIZE + 1)` preallocates its argument, so a 54 byte
+        file used to request 8 GiB. Run under an address-space limit set just
+        above current usage so the over-allocation shows up as a failure
+        rather than as slow success on a large machine.
+        """
+        import subprocess
+
+        proc = subprocess.run(
+            [sys.executable, "-c", _ARCHIVE_MEMORY_PROBE],
+            capture_output=True,
+            timeout=120,
+        )
+        assert proc.returncode == 0, proc.stderr.decode()[-2000:]
+
+    def test_cap_still_enforced(self):
+        """Reading must still stop one byte past the budget."""
+        import bz2
+        import io
+
+        from trimesh.util import _read_capped
+
+        cap = 1024
+        payload = bz2.compress(b"A" * (cap * 4))
+        data = _read_capped(bz2.open(io.BytesIO(payload), mode="r"), cap)
+        assert len(data) == cap + 1
+
+    def test_round_trip(self):
+        """Archives below the cap must still decompress to their contents."""
+        import bz2
+        import io
+        import tarfile
+        import zipfile
+
+        from trimesh.util import decompress
+
+        content = b"solid x\nendsolid x\n"
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as archive:
+            archive.writestr("a.stl", content)
+        as_zip = buf.getvalue()
+
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as archive:
+            info = tarfile.TarInfo("a.stl")
+            info.size = len(content)
+            archive.addfile(info, io.BytesIO(content))
+        as_tar = buf.getvalue()
+
+        for file_type, blob in (
+            ("bz2", bz2.compress(content)),
+            ("zip", as_zip),
+            ("tar.gz", as_tar),
+        ):
+            result = decompress(io.BytesIO(blob), file_type)
+            assert next(iter(result.values())).read() == content
 
 
 if __name__ == "__main__":

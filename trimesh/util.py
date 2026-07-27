@@ -1988,6 +1988,44 @@ def sigfig_int(
 # cap on total uncompressed bytes from a single archive
 MAX_ARCHIVE_SIZE = 8 * 1024**3  # 8 GiB
 
+# how much to pull per read when enforcing the cap
+_ARCHIVE_CHUNK_SIZE = 1024**2  # 1 MiB
+
+
+def _read_capped(src: Stream, remaining: int, chunk: int = _ARCHIVE_CHUNK_SIZE) -> bytes:
+    """
+    Read at most `remaining + 1` bytes from a stream.
+
+    Passing the budget straight to `read()` would work but most file-like
+    objects preallocate a buffer of the requested size, so a tiny archive
+    would still reserve the entire cap. Reading in chunks keeps peak memory
+    proportional to the data actually present while still returning one byte
+    past the budget so the caller can detect an overflow.
+
+    Parameters
+    ------------
+    src : file-like
+      Stream to read from.
+    remaining : int
+      Budget in bytes; reading stops one byte past this.
+    chunk : int
+      Bytes to request per read.
+
+    Returns
+    ---------
+    data : bytes
+      At most `remaining + 1` bytes.
+    """
+    result = []
+    total = 0
+    while total <= remaining:
+        block = src.read(min(chunk, remaining - total + 1))
+        if not block:
+            break
+        result.append(block)
+        total += len(block)
+    return b"".join(result)
+
 
 def decompress(
     file_obj: bytes | Stream,
@@ -2023,7 +2061,7 @@ def decompress(
         for info in archive.infolist():
             with archive.open(info, mode="r") as src:
                 # read one past the remaining budget to detect overflow
-                data = src.read(MAX_ARCHIVE_SIZE - total + 1)
+                data = _read_capped(src, MAX_ARCHIVE_SIZE - total)
             if total + len(data) > MAX_ARCHIVE_SIZE:
                 raise ValueError("archive exceeds size cap")
             total += len(data)
@@ -2034,7 +2072,7 @@ def decompress(
 
         # get the file name if we have one otherwise default to "archive"
         name = getattr(file_obj, "name", "archive1234")[:-4]
-        data = bz2.open(file_obj, mode="r").read(MAX_ARCHIVE_SIZE + 1)
+        data = _read_capped(bz2.open(file_obj, mode="r"), MAX_ARCHIVE_SIZE)
         if len(data) > MAX_ARCHIVE_SIZE:
             raise ValueError("archive exceeds size cap")
         return {name: wrap_as_stream(data)}
@@ -2051,7 +2089,7 @@ def decompress(
             if src is None:
                 continue
             # read one past the remaining budget rather than trusting info.size
-            data = src.read(MAX_ARCHIVE_SIZE - total + 1)
+            data = _read_capped(src, MAX_ARCHIVE_SIZE - total)
             if total + len(data) > MAX_ARCHIVE_SIZE:
                 raise ValueError("archive exceeds size cap")
             total += len(data)
