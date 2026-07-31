@@ -7,7 +7,7 @@ rl = g.trimesh.voxel.runlength
 np = g.np
 
 shape = (10, 10, 10)
-dense_data = np.random.uniform(size=shape) < 0.2
+dense_data = g.random(shape) < 0.2
 rle = enc.RunLengthEncoding.from_dense(dense_data.reshape((-1,)), dtype=bool).reshape(
     shape
 )

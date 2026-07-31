@@ -4,6 +4,14 @@ except BaseException:
     import generic as g
 
 
+def test_all_exists():
+    # every name in `__all__` should be an attribute — a stale
+    # entry breaks `from trimesh.viewer import *`
+    from trimesh import viewer
+
+    assert all(hasattr(viewer, name) for name in viewer.__all__)
+
+
 class ViewerTest(g.unittest.TestCase):
     def test_viewer(self):
         # if the runner has not asked to include rendering exit

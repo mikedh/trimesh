@@ -80,81 +80,95 @@ class BoundsTest(g.unittest.TestCase):
         """
         Test OBB functions with raw points as input
         """
-        for dimension in [3, 2]:
-            for _i in range(25):
-                points = g.random((10, dimension))
+        # draw inside the block: `g.random` would hand every iteration
+        # the same points and make 24 of these 25 rounds a no-op
+        with g.RandomSeed() as r:
+            for dimension in [3, 2]:
+                for _i in range(25):
+                    points = r.random((10, dimension))
+                    to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
+
+                    assert g.trimesh.util.is_shape(
+                        to_origin, (dimension + 1, dimension + 1)
+                    )
+                    assert g.trimesh.util.is_shape(extents, (dimension,))
+
+                    transformed = g.trimesh.transform_points(points, to_origin)
+
+                    transformed_bounds = [
+                        transformed.min(axis=0),
+                        transformed.max(axis=0),
+                    ]
+
+                    for j in transformed_bounds:
+                        # assert that the points once our obb to_origin transform
+                        # is applied has a bounding box centered on the origin
+                        assert g.np.allclose(g.np.abs(j), extents / 2.0)
+
+                    extents_tf = g.np.diff(transformed_bounds, axis=0).reshape(dimension)
+                    assert g.np.allclose(extents_tf, extents)
+
+    def test_obb_coplanar_points(self):
+        """
+        Test OBB functions with coplanar points as input
+        """
+        # draw inside the block: `g.random` would hand every iteration the
+        # same points and the same rotation, making 4 of these 5 a no-op
+        with g.RandomSeed() as r:
+            for _i in range(5):
+                points = g.np.zeros((5, 3))
+                points[:, :2] = r.random((points.shape[0], 2))
+                rot, _ = g.np.linalg.qr(r.random((3, 3)))
+                points = g.np.matmul(points, rot)
                 to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
 
-                assert g.trimesh.util.is_shape(to_origin, (dimension + 1, dimension + 1))
-                assert g.trimesh.util.is_shape(extents, (dimension,))
+                assert g.trimesh.util.is_shape(to_origin, (4, 4))
+                assert g.trimesh.util.is_shape(extents, (3,))
 
                 transformed = g.trimesh.transform_points(points, to_origin)
 
                 transformed_bounds = [transformed.min(axis=0), transformed.max(axis=0)]
 
                 for j in transformed_bounds:
-                    # assert that the points once our obb to_origin transform is applied
-                    # has a bounding box centered on the origin
+                    # assert that the points once our obb to_origin transform is
+                    # applied has a bounding box centered on the origin
                     assert g.np.allclose(g.np.abs(j), extents / 2.0)
 
-                extents_tf = g.np.diff(transformed_bounds, axis=0).reshape(dimension)
+                extents_tf = g.np.diff(transformed_bounds, axis=0).reshape(3)
                 assert g.np.allclose(extents_tf, extents)
 
-    def test_obb_coplanar_points(self):
-        """
-        Test OBB functions with coplanar points as input
-        """
-        for _i in range(5):
-            points = g.np.zeros((5, 3))
-            points[:, :2] = g.random((points.shape[0], 2))
-            rot, _ = g.np.linalg.qr(g.random((3, 3)))
-            points = g.np.matmul(points, rot)
-            to_origin, extents = g.trimesh.bounds.oriented_bounds(points)
-
-            assert g.trimesh.util.is_shape(to_origin, (4, 4))
-            assert g.trimesh.util.is_shape(extents, (3,))
-
-            transformed = g.trimesh.transform_points(points, to_origin)
-
-            transformed_bounds = [transformed.min(axis=0), transformed.max(axis=0)]
-
-            for j in transformed_bounds:
-                # assert that the points once our obb to_origin transform is applied
-                # has a bounding box centered on the origin
-                assert g.np.allclose(g.np.abs(j), extents / 2.0)
-
-            extents_tf = g.np.diff(transformed_bounds, axis=0).reshape(3)
-            assert g.np.allclose(extents_tf, extents)
-
     def test_2D(self):
-        for theta in g.np.linspace(0, g.np.pi * 2, 2000):
-            # create some random rectangular-ish 2D points
-            points = g.random((10, 2)) * [5, 1]
+        # draw inside the block: `g.random` gave all 2000 angles the
+        # same points so this only ever rotated one rectangle
+        with g.RandomSeed() as r:
+            for theta in g.np.linspace(0, g.np.pi * 2, 2000):
+                # create some random rectangular-ish 2D points
+                points = r.random((10, 2)) * [5, 1]
 
-            # save the basic AABB of the points before rotation
-            rectangle_pre = g.np.ptp(points, axis=0)
+                # save the basic AABB of the points before rotation
+                rectangle_pre = g.np.ptp(points, axis=0)
 
-            # rotate them by an increment
-            TR = g.trimesh.transformations.planar_matrix(theta=theta)
-            points = g.trimesh.transform_points(points, TR)
+                # rotate them by an increment
+                TR = g.trimesh.transformations.planar_matrix(theta=theta)
+                points = g.trimesh.transform_points(points, TR)
 
-            # find the OBB of the points
-            T, rectangle = g.trimesh.bounds.oriented_bounds_2D(points)
+                # find the OBB of the points
+                T, rectangle = g.trimesh.bounds.oriented_bounds_2D(points)
 
-            # apply the calculated OBB
-            oriented = g.trimesh.transform_points(points, T)
+                # apply the calculated OBB
+                oriented = g.trimesh.transform_points(points, T)
 
-            origin = oriented.min(axis=0) + g.np.ptp(oriented, axis=0) / 2.0
+                origin = oriented.min(axis=0) + g.np.ptp(oriented, axis=0) / 2.0
 
-            # check to make sure the returned rectangle size is right
-            assert g.np.allclose(g.np.ptp(oriented, axis=0), rectangle)
-            # check to make sure the OBB consistently returns the
-            # long axis in the same direction
-            assert rectangle[0] > rectangle[1]
-            # check to make sure result is actually returning an OBB
-            assert g.np.allclose(origin, 0.0)
-            # make sure OBB has less or same area as naive AABB
-            assert g.np.prod(rectangle) <= g.np.prod(rectangle_pre)
+                # check to make sure the returned rectangle size is right
+                assert g.np.allclose(g.np.ptp(oriented, axis=0), rectangle)
+                # check to make sure the OBB consistently returns the
+                # long axis in the same direction
+                assert rectangle[0] > rectangle[1]
+                # check to make sure result is actually returning an OBB
+                assert g.np.allclose(origin, 0.0)
+                # make sure OBB has less or same area as naive AABB
+                assert g.np.prod(rectangle) <= g.np.prod(rectangle_pre)
 
     def test_cylinder(self):
         """
@@ -226,12 +240,8 @@ class BoundsTest(g.unittest.TestCase):
         extents = [10, 2, 3.5]
         extents_ordered = g.np.sort(extents)
 
-        for _i in range(100):
-            # transform box randomly in rotation and translation
-            mat = g.trimesh.transformations.random_rotation_matrix()
-            # translate in box -100 : +100
-            mat[:3, 3] = (g.random(3) - 0.5) * 200
-
+        # transform box randomly in rotation and translation in box -100 : +100
+        for mat in g.random_transforms(100, translate=200):
             # source mesh to check
             b = g.trimesh.creation.box(extents=extents, transform=mat)
 
@@ -262,13 +272,11 @@ class BoundsTest(g.unittest.TestCase):
     def test_bounds_tree(self):
         # test r-tree intersections
         for dimension in (2, 3):
-            # create some (n, 2, 3) bounds
-            bounds = g.np.array(
-                [
-                    [i.min(axis=0), i.max(axis=0)]
-                    for i in [g.random((4, dimension)) for i in range(10)]
-                ]
-            )
+            # create some (n, 2, 3) bounds from a stream: `g.random` returns
+            # the same array every call which made these 10 identical boxes
+            with g.RandomSeed() as r:
+                corners = r.random((10, 4, dimension))
+            bounds = g.np.array([[i.min(axis=0), i.max(axis=0)] for i in corners])
             tree = g.trimesh.util.bounds_tree(bounds)
             for i, b in enumerate(bounds):
                 assert i in set(tree.intersection(b.ravel()))

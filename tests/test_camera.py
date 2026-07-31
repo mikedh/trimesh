@@ -81,23 +81,32 @@ class CameraTests(g.unittest.TestCase):
         # original points
         ori = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1]])
 
-        for _i in range(10):
-            # set the extents to be random but positive
-            extents = g.random() * 10
-            points = g.trimesh.util.stack_3D(ori.copy() * extents)
+        # draw inside the block: `g.random` gave every iteration the same
+        # extents and offset so this tested one camera ten times
+        with g.RandomSeed() as r:
+            for _i in range(10):
+                # set the extents to be random but positive
+                extents = r.random() * 10
+                points = g.trimesh.util.stack_3D(ori.copy() * extents)
 
-            fov = g.np.array([20, 50])
+                fov = g.np.array([20, 50])
 
-            # offset the points by a random amount
-            offset = (g.random(3) - 0.5) * 100
-            T = g.trimesh.scene.cameras.look_at(points + offset, fov)
+                # offset the points by a random amount
+                offset = (r.random(3) - 0.5) * 100
+                moved = points + offset
+                T = g.trimesh.scene.cameras.look_at(moved, fov)
 
-            # check using trig
-            check = (np.ptp(points, axis=0)[:2] / 2.0) / g.np.tan(np.radians(fov / 2))
-            check += points[:, 2].mean()
+                # check using trig
+                check = (np.ptp(points, axis=0)[:2] / 2.0) / g.np.tan(np.radians(fov / 2))
 
-            # Z should be the same as maximum trig option
-            assert np.linalg.inv(T)[2, 3] >= check.max()
+                # `look_at` returns a camera-to-world pose so the distance is
+                # from the camera back to what it's pointed at: comparing the
+                # world-to-camera translation against this only ever passed
+                # because the offset was a fixed large negative number
+                distance = T[2, 3] - moved[:, 2].mean()
+
+                # camera should be far enough back to fit every point in frame
+                assert distance + 1e-8 >= check.max()
 
         # just run to test other arguments
         # TODO(unknown): find the way to test it correctly

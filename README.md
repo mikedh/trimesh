@@ -40,21 +40,20 @@ import trimesh
 trimesh.util.attach_to_log()
 
 # mesh objects can be created from existing faces and vertex data
-mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
-                       faces=[[0, 1, 2]])
+mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]], faces=[[0, 1, 2]])
 
 # by default, Trimesh will do a light processing, which will
 # remove any NaN values and merge vertices that share position
 # if you want to not do this on load, you can pass `process=False`
-mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
-                       faces=[[0, 1, 2]],
-                       process=False)
+mesh = trimesh.Trimesh(
+    vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]], faces=[[0, 1, 2]], process=False
+)
 
 # some formats like `glb` represent multiple meshes with multiple instances
 # and `load_mesh` will concatenate irreversibly, load it as a Scene
 # if you need instance information:
 #   `scene = trimesh.load_scene('models/CesiumMilkTruck.glb')`
-mesh = trimesh.load_mesh('models/CesiumMilkTruck.glb')
+mesh = trimesh.load_mesh("models/CesiumMilkTruck.glb")
 
 # is the current mesh watertight?
 mesh.is_watertight
@@ -116,10 +115,11 @@ mesh.bounding_box_oriented.primitive.transform
 # available, and will be the minimum volume version of each
 # except in certain degenerate cases, where they will be no worse
 # than a least squares fit version of the primitive.
-print(mesh.bounding_box_oriented.volume,
-      mesh.bounding_cylinder.volume,
-      mesh.bounding_sphere.volume)
-
+print(
+    mesh.bounding_box_oriented.volume,
+    mesh.bounding_cylinder.volume,
+    mesh.bounding_sphere.volume,
+)
 ```
 
 ## Features

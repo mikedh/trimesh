@@ -7,7 +7,7 @@ Each scope has a TypedDict defining the context passed to handlers.
 """
 
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any, Literal, TypeAlias, TypedDict
 
 from ...constants import log
@@ -152,6 +152,25 @@ def register_handler(name: str, scope: Scope) -> Callable[[Handler], Handler]:
         return func
 
     return decorator
+
+
+def unregistered(extensions: Iterable[str], scope: Scope) -> set:
+    """
+    Find extension names with no registered handler for a scope.
+
+    Parameters
+    ----------
+    extensions
+      Extension names, i.e. the keys of a glTF "extensions" dict.
+    scope
+      Handler scope to check against.
+
+    Returns
+    -------
+    missing
+      Extension names with no handler registered for the scope.
+    """
+    return set(extensions) - _handlers.get(scope, {}).keys()
 
 
 def handle_extensions(

@@ -9,18 +9,13 @@ except BaseException:
     fcl = None
 
 
-# fcl caps result.contacts at num_max_contacts per fcl.collide() call.
-# with our custom callback that becomes a per-pair cap: for return_names
-# we only need to know each pair collided so 1 suffices, but for
-# return_data the caller wants the full contact list so the cap must be
-# bigger than the worst-case contact count for any single pair — picked
-# high enough to be effectively unlimited for realistic geometry
+# contact cap per pair
 COLLISION_PER_PAIR_CAP = 100000
 
 
 def _fcl_collide_callback(o1, o2, cdata):
-    # fcl.defaultCollisionCallback halts BVH traversal once cumulative
-    # contacts hit num_max_contacts — dropping any later colliding pairs
+    # unlike fcl.defaultCollisionCallback never halt traversal
+    # early that would silently drop later colliding pairs
     fcl.collide(o1=o1, o2=o2, request=cdata.request, result=cdata.result)
     return False
 
@@ -29,8 +24,8 @@ def _fcl_collision_data(return_names, return_data):
     # build (cdata, callback) sized for what the caller actually needs
     if not (return_names or return_data):
         return fcl.CollisionData(), fcl.defaultCollisionCallback
-    # one contact per pair is enough to identify the pair — only ask
-    # fcl for many contacts if the caller wants the contact data itself
+    # one contact identifies a pair only ask for more if the
+    # caller wants the contact data itself
     request = fcl.CollisionRequest(
         num_max_contacts=COLLISION_PER_PAIR_CAP if return_data else 1,
         enable_contact=True,

@@ -8,7 +8,7 @@ Randomly sample surface and volume of meshes.
 import numpy as np
 
 from . import transformations, util
-from .typed import ArrayLike, Integer, NDArray, Number, float64
+from .typed import ArrayLike, Integer, NDArray, Number, Seed, float64
 from .visual import uv_to_interpolated_color
 
 
@@ -17,7 +17,7 @@ def sample_surface(
     count: Integer,
     face_weight: ArrayLike | None = None,
     sample_color=False,
-    seed=None,
+    seed: Seed = None,
 ):
     """
     Sample the surface of a mesh, returning the specified
@@ -39,8 +39,7 @@ def sample_surface(
       Option to calculate the color of the sampled points.
       Default is False.
     seed : None or int
-      If passed as an integer will provide deterministic results
-      otherwise pulls the seed from operating system entropy.
+      Seed for deterministic results, otherwise OS entropy.
 
     Returns
     ---------
@@ -61,11 +60,7 @@ def sample_surface(
     # cumulative sum of weights (len(mesh.faces))
     weight_cum = np.cumsum(face_weight)
 
-    # seed the random number generator as requested
-    if seed is None:
-        random = np.random.random
-    else:
-        random = np.random.default_rng(seed).random
+    random = util.random_generator(seed).random
 
     # last value of cumulative sum is total summed weight/area
     face_pick = random(count) * weight_cum[-1]
@@ -121,7 +116,7 @@ def sample_surface(
     return samples, face_index
 
 
-def volume_mesh(mesh, count: Integer) -> NDArray[float64]:
+def volume_mesh(mesh, count: Integer, seed: Seed = None) -> NDArray[float64]:
     """
     Use rejection sampling to produce points randomly
     distributed in the volume of a mesh.
@@ -133,20 +128,26 @@ def volume_mesh(mesh, count: Integer) -> NDArray[float64]:
       Geometry to sample
     count : int
       Number of points to return
+    seed : None or int
+      Seed for deterministic results, otherwise OS entropy.
 
     Returns
     ---------
     samples : (n, 3) float
       Points in the volume of the mesh where n <= count
     """
-    points = (np.random.random((count, 3)) * mesh.extents) + mesh.bounds[0]
+    random = util.random_generator(seed).random
+    points = (random((count, 3)) * mesh.extents) + mesh.bounds[0]
     contained = mesh.contains(points)
     samples = points[contained][:count]
     return samples
 
 
 def volume_rectangular(
-    extents, count: Integer, transform: ArrayLike | None = None
+    extents,
+    count: Integer,
+    transform: ArrayLike | None = None,
+    seed: Seed = None,
 ) -> NDArray[float64]:
     """
     Return random samples inside a rectangular volume,
@@ -160,20 +161,24 @@ def volume_rectangular(
       Number of points to return
     transform : (4, 4) float
       Homogeneous transformation matrix
+    seed : None or int
+      Seed for deterministic results, otherwise OS entropy.
 
     Returns
     ---------
     samples : (count, 3) float
       Points in requested volume
     """
-    samples = np.random.random((count, 3)) - 0.5
+    samples = util.random_generator(seed).random((count, 3)) - 0.5
     samples *= extents
     if transform is not None:
         samples = transformations.transform_points(samples, transform)
     return samples
 
 
-def sample_surface_even(mesh, count: Integer, radius: Number | None = None, seed=None):
+def sample_surface_even(
+    mesh, count: Integer, radius: Number | None = None, seed: Seed = None
+):
     """
     Sample the surface of a mesh, returning samples which are
     VERY approximately evenly spaced. This is accomplished by
@@ -223,7 +228,7 @@ def sample_surface_even(mesh, count: Integer, radius: Number | None = None, seed
     return points, index[mask]
 
 
-def sample_surface_sphere(count: int) -> NDArray[float64]:
+def sample_surface_sphere(count: int, seed: Seed = None) -> NDArray[float64]:
     """
     Correctly pick random points on the surface of a unit sphere
 
@@ -234,6 +239,8 @@ def sample_surface_sphere(count: int) -> NDArray[float64]:
     -----------
     count : int
       Number of points to return
+    seed : None or int
+      Seed for deterministic results, otherwise OS entropy.
 
     Returns
     ----------
@@ -241,7 +248,7 @@ def sample_surface_sphere(count: int) -> NDArray[float64]:
       Random points on the surface of a unit sphere
     """
     # get random values 0.0-1.0
-    u, v = np.random.random((2, count))
+    u, v = util.random_generator(seed).random((2, count))
     # convert to two angles
     theta = np.pi * 2 * u
     phi = np.arccos((2 * v) - 1)

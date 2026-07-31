@@ -16,7 +16,7 @@ from .base import Trimesh
 from .constants import log, tol
 from .geometry import align_vectors, faces_to_edges, plane_transform
 from .resources import get_json
-from .typed import ArrayLike, Integer, NDArray, Number
+from .typed import ArrayLike, Integer, NDArray, Number, Seed
 
 try:
     # shapely is a soft dependency
@@ -185,6 +185,11 @@ def revolve(
     if transform is not None:
         # apply transform to vertices
         vertices = tf.transform_points(vertices, transform)
+        # a reflecting transform flips winding so flip the faces
+        # back to keep normals outward, #2439
+        if tf.flips_winding(transform):
+            # fliplr makes arrays non-contiguous so re-pack them
+            faces = np.ascontiguousarray(np.fliplr(faces))
 
     # create the mesh from our vertices and faces
     mesh = Trimesh(vertices=vertices, faces=faces, **kwargs)
@@ -1001,8 +1006,14 @@ def capsule(
     height = abs(float(height))
     radius = abs(float(radius))
 
-    # create a half circle
-    theta = np.linspace(-np.pi / 2.0, np.pi / 2.0, count[0])
+    # two quarter circles sharing an equator vertex
+    # each hemisphere reaches full radius symmetrically
+    theta = np.concatenate(
+        (
+            np.linspace(-np.pi / 2.0, 0.0, count[0] // 2 + 1),
+            np.linspace(0.0, np.pi / 2.0, count[0] // 2 + 1),
+        )
+    )
     linestring = np.column_stack((np.cos(theta), np.sin(theta))) * radius
 
     # offset the top and bottom by half the height
@@ -1218,7 +1229,7 @@ def _segment_to_cylinder(segment: ArrayLike):
     return transform, height
 
 
-def random_soup(face_count: Integer = 100):
+def random_soup(face_count: Integer = 100, seed: Seed = None):
     """
     Return random triangles as a Trimesh
 
@@ -1226,13 +1237,15 @@ def random_soup(face_count: Integer = 100):
     -----------
     face_count : int
       Number of faces desired in mesh
+    seed : None or int
+      Seed for deterministic results, otherwise OS entropy.
 
     Returns
     -----------
     soup : trimesh.Trimesh
       Geometry with face_count random faces
     """
-    vertices = np.random.random((face_count * 3, 3)) - 0.5
+    vertices = util.random_generator(seed).random((face_count * 3, 3)) - 0.5
     faces = np.arange(face_count * 3).reshape((-1, 3))
     soup = Trimesh(vertices=vertices, faces=faces)
     return soup

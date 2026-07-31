@@ -24,6 +24,7 @@ from collections.abc import (
     Sequence,
 )
 from copy import deepcopy
+from dataclasses import asdict as dataclass_to_dict
 from io import BytesIO, StringIO
 from typing import TYPE_CHECKING
 
@@ -43,6 +44,7 @@ from .typed import (
     NDArray1D,
     NDArray2D,
     Number,
+    Seed,
     Stream,
 )
 
@@ -72,6 +74,34 @@ _STRICT: bool = False
 # beartype is unable to resolve `NDArray[float64]` for globals
 _IDENTITY: np.ndarray = np.eye(4, dtype=np.float64)
 _IDENTITY.flags["WRITEABLE"] = False
+
+# one process-wide generator for the unseeded case: constructing one
+# collects OS entropy which costs ~200x more than the draw it feeds
+_RANDOM_DEFAULT = np.random.default_rng()
+
+
+def random_generator(seed: Seed = None) -> np.random.Generator:
+    """
+    Get a random generator, optionally seeded for deterministic results.
+
+    Parameters
+    ----------
+    seed
+      If None use a shared generator seeded from OS entropy. An integer
+      seeds a fresh generator. A `Generator` is returned unaltered which
+      lets a caller thread one stream through nested calls rather than
+      re-seeding each of them to identical values.
+
+    Returns
+    -------
+    generator
+      Draw random values from this.
+    """
+    if seed is None:
+        # numpy locks the bit generator on every draw so sharing
+        # this between threads is as safe as `numpy.random.random`
+        return _RANDOM_DEFAULT
+    return np.random.default_rng(seed)
 
 
 def has_module(name: str) -> bool:
@@ -833,7 +863,7 @@ def decimal_to_digits(decimal: Floating, min_digits: Integer | None = None) -> i
 def attach_to_log(
     level: Integer = logging.DEBUG,
     handler: logging.Handler | None = None,
-    loggers: MutableSet[logging.Logger | Any] | None = None,
+    loggers: MutableSet[logging.Logger] | None = None,
     colors: bool = True,
     capture_warnings: bool = True,
     blacklist: Iterable[str] | None = None,
@@ -1432,7 +1462,7 @@ def type_bases(obj: object, depth: Integer = 4) -> list[type]:
     return [i for i in bases_flat if hasattr(i, "__name__")]
 
 
-def type_named(obj: object, name: str) -> type | None:
+def type_named(obj: object, name: str) -> type:
     """
     Similar to the type() builtin, but looks in class bases
     for named instance.
@@ -1442,12 +1472,12 @@ def type_named(obj: object, name: str) -> type | None:
     obj : any
       Object to look for class of
     name : str
-      Nnme of class
+      Name of class
 
     Returns
     ----------
-    class : Callable | None
-      Named class, or None
+    class : type
+      Named class, raises ValueError if not found
     """
     # if obj is a member of the named class, return True
     name = str(name)
@@ -1577,7 +1607,6 @@ def concatenate(a, b=None) -> "trimesh.parent.Geometry":
                 )
 
     # create the mesh object
-    assert trimesh_type is not None
     result = trimesh_type(
         vertices=vertices,
         faces=faces,
@@ -1673,12 +1702,7 @@ def submesh(
         faces.append(mask[current])
         vertices.append(original_vertices[unique])
 
-        assert mesh.visual is not None
-        try:
-            visuals.append(mesh.visual.face_subset(index))
-        except BaseException as E:
-            raise E
-            visuals = None
+        visuals.append(mesh.visual.face_subset(index))
 
     if len(vertices) == 0:
         return []
@@ -1686,7 +1710,6 @@ def submesh(
     # we use type(mesh) rather than importing Trimesh from base
     # to avoid a circular import
     trimesh_type = type_named(mesh, "Trimesh")
-    assert trimesh_type is not None
 
     if append:
         visual = None
@@ -1790,14 +1813,19 @@ def jsonify(obj: object, **kwargs: Any) -> str:
     """
 
     class EdgeEncoder(json.JSONEncoder):
-        def default(self, o: Any) -> str:
+        def default(self, obj: Any):
             # will work for numpy.ndarrays
             # as well as their int64/etc objects
-            if hasattr(o, "tolist"):
-                return o.tolist()
-            elif hasattr(o, "timestamp"):
-                return o.timestamp()
-            return json.JSONEncoder.default(self, o)
+            if hasattr(obj, "tolist"):
+                # this works on numpy arrays
+                return obj.tolist()
+            elif hasattr(obj, "timestamp"):
+                # serialize datetime as the float stamp
+                return obj.timestamp()
+            elif hasattr(obj, "__dataclass_fields__"):
+                # serialize dataclasses as dict
+                return dataclass_to_dict(obj)
+            return json.JSONEncoder.default(self, obj)
 
     # run the dumps using our encoder
     return json.dumps(obj, cls=EdgeEncoder, **kwargs)
@@ -1985,8 +2013,8 @@ def sigfig_int(
     return as_int, multiplier
 
 
-# cap on total uncompressed bytes from a single archive
-MAX_ARCHIVE_SIZE = 8 * 1024**3  # 8 GiB
+# skip ZIP members once declared uncompressed sizes exceed this
+_ARCHIVE_SKIP_SIZE = 32 * 1024**3  # 32 GiB
 
 
 def decompress(
@@ -1997,8 +2025,9 @@ def decompress(
     Given an open file object and a file type, return all components
     of the archive as open file objects in a dict.
 
-    Total uncompressed size is capped at `MAX_ARCHIVE_SIZE`; reads stop
-    one byte past the budget rather than trusting declared member sizes.
+    ZIP members are skipped once the total uncompressed size declared by
+    the archive exceeds `_ARCHIVE_SKIP_SIZE`. Other formats don't store a
+    per-member compressed size so there is nothing to check before reading.
 
     Parameters
     ------------
@@ -2019,14 +2048,21 @@ def decompress(
     if file_type.endswith("zip"):
         archive = zipfile.ZipFile(file_obj)
         result = {}
+        # running total of the sizes the central directory declared: this is
+        # an upper bound on what we can actually read as `ZipExtFile` stops
+        # at the declared size and then fails the CRC check
         total = 0
         for info in archive.infolist():
+            if total + info.file_size > _ARCHIVE_SKIP_SIZE:
+                log.warning(
+                    "skipping `%s`: declared %d bytes exceeds archive budget",
+                    info.filename,
+                    info.file_size,
+                )
+                continue
+            total += info.file_size
             with archive.open(info, mode="r") as src:
-                # read one past the remaining budget to detect overflow
-                data = src.read(MAX_ARCHIVE_SIZE - total + 1)
-            if total + len(data) > MAX_ARCHIVE_SIZE:
-                raise ValueError("archive exceeds size cap")
-            total += len(data)
+                data = src.read()
             result[info.filename] = wrap_as_stream(data)
         return result
     if file_type.endswith("bz2"):
@@ -2034,28 +2070,19 @@ def decompress(
 
         # get the file name if we have one otherwise default to "archive"
         name = getattr(file_obj, "name", "archive1234")[:-4]
-        data = bz2.open(file_obj, mode="r").read(MAX_ARCHIVE_SIZE + 1)
-        if len(data) > MAX_ARCHIVE_SIZE:
-            raise ValueError("archive exceeds size cap")
-        return {name: wrap_as_stream(data)}
+        return {name: wrap_as_stream(bz2.open(file_obj, mode="r").read())}
     if "tar" in file_type[-6:]:
         import tarfile
 
         archive = tarfile.open(fileobj=file_obj, mode="r")
         result = {}
-        total = 0
         for info in archive.getmembers():
             if not info.isfile():
                 continue
             src = archive.extractfile(info)
             if src is None:
                 continue
-            # read one past the remaining budget rather than trusting info.size
-            data = src.read(MAX_ARCHIVE_SIZE - total + 1)
-            if total + len(data) > MAX_ARCHIVE_SIZE:
-                raise ValueError("archive exceeds size cap")
-            total += len(data)
-            result[info.name] = wrap_as_stream(data)
+            result[info.name] = wrap_as_stream(src.read())
         return result
     raise ValueError("Unsupported type passed!")
 

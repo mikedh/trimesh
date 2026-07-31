@@ -1,3 +1,5 @@
+import io
+import typing
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from io import IOBase
 from pathlib import Path
@@ -14,7 +16,9 @@ from typing import (
     runtime_checkable,
 )
 
+import numpy
 from numpy import dtype, float64, floating, generic, int64, integer, ndarray
+from numpy.random import BitGenerator, Generator, SeedSequence
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
 if version_info >= (3, 11):
@@ -75,6 +79,9 @@ class HttpSessionLike(Protocol):
 
     Matches `httpx.Client` and `requests.Session` so a resolver
     can take either without trimesh importing them directly.
+    other duck-typed sessions are called as `get(url)` with no
+    additional kwargs. async sessions like `aiohttp.ClientSession`
+    can't be driven synchronously and are rejected at runtime.
     """
 
     def get(self, url: str, *args, **kwargs) -> Any: ...
@@ -86,6 +93,27 @@ DType = TypeVar("DType", bound=generic)
 NDArray1D: TypeAlias = ndarray[tuple[int], dtype[DType]]
 NDArray2D: TypeAlias = ndarray[tuple[int, int], dtype[DType]]
 NDArray3D: TypeAlias = ndarray[tuple[int, int, int], dtype[DType]]
+
+# anything `numpy.random.default_rng` can normalize into a `Generator`
+# passing a `Generator` lets a caller thread one stream through nested
+# calls -- `default_rng` hands it back rather than re-seeding it
+Seed: TypeAlias = Integer | Sequence[int] | SeedSequence | Generator | BitGenerator | None
+
+
+# DEPRECATED : these aliases will be removed after July 2028
+# import them from `typing`, `io`, or `numpy` instead
+List = list
+Dict = dict
+Tuple = tuple
+Set = set
+Optional = typing.Optional
+Union = typing.Union
+TextIO = typing.TextIO
+BytesIO = io.BytesIO
+StringIO = io.StringIO
+BufferedRandom = io.BufferedRandom
+unsignedinteger = numpy.unsignedinteger
+
 
 __all__ = [
     "IO",
@@ -100,6 +128,7 @@ __all__ = [
     "HttpSessionLike",
     "Integer",
     "Iterable",
+    "Literal",
     "Loadable",
     "Mapping",
     "NDArray",
@@ -107,6 +136,7 @@ __all__ = [
     "NDArray2D",
     "NDArray3D",
     "Number",
+    "Seed",
     "Self",
     "Sequence",
     "Stream",

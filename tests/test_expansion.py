@@ -7,6 +7,7 @@ import io
 import warnings
 import zipfile
 
+import numpy as np
 import pytest
 
 import trimesh
@@ -85,7 +86,7 @@ def test_filepath_resolver_traversal_rejected(tmp_path):
     root.mkdir()
     (root / "real.txt").write_bytes(b"ok")
     resolver = resolvers.FilePathResolver(str(root / "real.txt"))
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ValueError, match="escapes resolver root"):
         resolver.get("../../../etc/passwd")
     # legitimate name in-root still works — the hardening did not break the
     # happy path
@@ -105,45 +106,33 @@ def test_filepath_resolver_write_traversal_rejected(tmp_path):
     assert (root / "ok.txt").read_bytes() == b"safe"
 
 
-def test_decompress_rejects_oversize_archive(monkeypatch):
-    # patch the cap down so we don't have to craft a real 512 MB archive
-    monkeypatch.setattr(util, "MAX_ARCHIVE_SIZE", 1024)
+def test_decompress_skips_oversize_members():
+    # the skip is based on the size the central directory declares so the
+    # payload never has to exist: this builds a 300-ish byte archive claiming
+    # a 50 GiB member in well under a millisecond, against the real budget
+    mesh = trimesh.creation.box()
+    stl = mesh.export(file_type="stl")
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        z.writestr("big.bin", b"\x00" * (2 * 1024 * 1024))
+        z.writestr("payload.bin", b"\x00" * 1024)
+        z.writestr("m.stl", stl)
+        # mutated before close so zipfile writes the zip64 extra field for us
+        z.getinfo("payload.bin").file_size = 50 * 1024**3
     buf.seek(0)
-    with pytest.raises(ValueError, match="size cap"):
-        util.decompress(buf, file_type="zip")
 
+    result = util.decompress(buf, file_type="zip")
+    # the oversize member is gone and the rest of the archive survived
+    assert set(result) == {"m.stl"}
+    # nothing beyond the surviving member was ever materialized: over-declaring
+    # only gets you skipped and under-declaring truncates and fails the CRC, so
+    # there is no size to claim that reads more bytes than this
+    assert sum(len(v.read()) for v in result.values()) == len(stl)
 
-def test_decompress_zip_cap_is_cumulative(monkeypatch):
-    # F2 — running byte total spans members. each individual member fits
-    # under the cap, but the sum of several does not. the cap must fire
-    # mid-archive rather than per-member.
-    monkeypatch.setattr(util, "MAX_ARCHIVE_SIZE", 2048)
-    buf = io.BytesIO()
-    payload = b"\x00" * 1024
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        for i in range(4):
-            z.writestr(f"chunk_{i}.bin", payload)
+    # and the geometry that survived is actually correct
     buf.seek(0)
-    with pytest.raises(ValueError, match="size cap"):
-        util.decompress(buf, file_type="zip")
-
-
-def test_gltf_base64_oversize_rejected(monkeypatch):
-    # F1 — `_uri_to_bytes` decodes `data:…;base64,…` URIs; the encoded
-    # payload size must be capped before allocation. patch the cap low so
-    # we don't have to allocate hundreds of MB to exercise the guard.
-    from trimesh.exchange.gltf import _uri_to_bytes
-
-    monkeypatch.setattr(util, "MAX_ARCHIVE_SIZE", 1024)
-    # build a base64 payload longer than the encoded-length threshold
-    # (MAX_ARCHIVE_SIZE * 4 // 3 + 4)
-    oversize = "A" * (1024 * 4 // 3 + 64)
-    uri = "data:application/octet-stream;base64," + oversize
-    with pytest.raises(ValueError, match="exceeds size cap"):
-        _uri_to_bytes(uri, resolver=None)
+    loaded = trimesh.load_scene(buf, file_type="zip")
+    assert len(loaded.geometry) == 1
+    assert np.isclose(next(iter(loaded.geometry.values())).volume, mesh.volume)
 
 
 def test_obj_image_metadata_records_reference(tmp_path):

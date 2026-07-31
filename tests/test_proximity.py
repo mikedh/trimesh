@@ -207,6 +207,25 @@ class NearestTest(g.unittest.TestCase):
         points = g.random((2000, 3))
         g.trimesh.proximity.nearby_faces(mesh=mesh, points=points)
 
+    def test_candidates_rtree_versions(self):
+        mesh = g.trimesh.Trimesh(
+            vertices=[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            faces=[[0, 1, 2], [0, 1, 2]],
+            process=False,
+        )
+        points = g.np.array([[0.2, 0.2, 0.5], [0.2, 0.2, 0.5]], dtype=g.np.float32)
+
+        expected = g.trimesh.proximity.nearby_faces(mesh, points)
+        assert g.np.allclose(expected, [[0, 1], [0, 1]])
+
+    def test_candidates_empty(self):
+        # an empty (0, 3) query set must return an empty list of candidates
+        mesh = g.trimesh.creation.box()
+        candidates = g.trimesh.proximity.nearby_faces(
+            mesh=mesh, points=g.np.zeros((0, 3))
+        )
+        assert len(candidates) == 0
+
     def test_returns_correct_point_in_ambiguous_cases(self):
         mesh = g.trimesh.Trimesh(
             vertices=[

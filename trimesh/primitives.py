@@ -17,7 +17,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .caching import cache_decorator
 from .constants import log, tol
-from .typed import ArrayLike, Integer, Number
+from .typed import ArrayLike, Integer, Number, Seed
 
 # immutable identity matrix for checks
 _IDENTITY = np.eye(4)
@@ -807,7 +807,7 @@ class Box(Primitive):
     def transform(self):
         return self.primitive.transform
 
-    def sample_volume(self, count):
+    def sample_volume(self, count, seed: Seed = None):
         """
         Return random samples from inside the volume of the box.
 
@@ -815,6 +815,8 @@ class Box(Primitive):
         -------------
         count : int
           Number of samples to return
+        seed : None or int
+          Seed for deterministic results, otherwise OS entropy.
 
         Returns
         ----------
@@ -825,6 +827,7 @@ class Box(Primitive):
             extents=self.primitive.extents,
             count=count,
             transform=self.primitive.transform,
+            seed=seed,
         )
         return samples
 

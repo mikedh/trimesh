@@ -56,6 +56,34 @@ def validate_glb(data, name=None):
 load_kwargs = g.trimesh.exchange.load._load_kwargs
 
 
+def world_root_tree():
+    # minimal single-file glTF whose ROOT node is named "world"
+    # and carries a transform — the shape external tools produce
+    indices = g.np.array([0, 1, 2], dtype=g.np.uint32).tobytes()
+    uri = "data:application/octet-stream;base64," + g.base64.b64encode(indices).decode(
+        "utf-8"
+    )
+    tree = {
+        "asset": {"version": "2.0"},
+        "scene": 0,
+        "scenes": [{"nodes": [0]}],
+        "nodes": [
+            {"name": "world", "translation": [10.0, 0.0, 0.0], "children": [1]},
+            {"name": "geom", "mesh": 0},
+        ],
+        "meshes": [
+            {"primitives": [{"attributes": {"POSITION": 0}, "indices": 1, "mode": 4}]}
+        ],
+        "accessors": [
+            {"componentType": 5126, "count": 3, "type": "VEC3"},
+            {"componentType": 5125, "count": 3, "type": "SCALAR", "bufferView": 0},
+        ],
+        "bufferViews": [{"buffer": 0, "byteLength": 12, "byteOffset": 0}],
+        "buffers": [{"byteLength": 12, "uri": uri}],
+    }
+    return g.trimesh.util.wrap_as_stream(g.json.dumps(tree).encode("utf-8"))
+
+
 class GLTFTest(g.unittest.TestCase):
     def test_duck(self):
         scene = g.get_mesh("Duck.glb", process=False)
@@ -547,14 +575,15 @@ class GLTFTest(g.unittest.TestCase):
         sphere = g.trimesh.primitives.Sphere()
         v_count, _ = sphere.vertices.shape
 
-        sphere.vertex_attributes["_CustomFloat32Scalar"] = g.np.random.rand(
-            v_count, 1
+        random = g.np.random.default_rng(seed=0)
+        sphere.vertex_attributes["_CustomFloat32Scalar"] = random.random(
+            (v_count, 1)
         ).astype(g.np.float32)
-        sphere.vertex_attributes["_CustomFloat32Vec3"] = g.np.random.rand(
-            v_count, 3
+        sphere.vertex_attributes["_CustomFloat32Vec3"] = random.random(
+            (v_count, 3)
         ).astype(g.np.float32)
-        sphere.vertex_attributes["_CustomFloat32Mat4"] = g.np.random.rand(
-            v_count, 4, 4
+        sphere.vertex_attributes["_CustomFloat32Mat4"] = random.random(
+            (v_count, 4, 4)
         ).astype(g.np.float32)
 
         # export as GLB bytes
@@ -565,7 +594,7 @@ class GLTFTest(g.unittest.TestCase):
         # uint32 is slightly off-label and may cause
         # validators to fail but if you're a bad larry who
         # doesn't follow the rules it should be fine
-        sphere.vertex_attributes["_CustomUInt32Scalar"] = g.np.random.randint(
+        sphere.vertex_attributes["_CustomUInt32Scalar"] = random.integers(
             0, 1000, size=(v_count, 1)
         ).astype(g.np.uint32)
 
@@ -573,10 +602,10 @@ class GLTFTest(g.unittest.TestCase):
         # complains about the 4-byte boundaries even though
         # all their lengths and offsets mod 4 are zero
         # not sure if that's a validator bug or what
-        sphere.vertex_attributes["_CustomUInt16Scalar"] = g.np.random.randint(
+        sphere.vertex_attributes["_CustomUInt16Scalar"] = random.integers(
             0, 1000, size=(v_count, 1)
         ).astype(g.np.uint16)
-        sphere.vertex_attributes["_CustomInt16Scalar"] = g.np.random.randint(
+        sphere.vertex_attributes["_CustomInt16Scalar"] = random.integers(
             0, 1000, size=(v_count, 1)
         ).astype(g.np.int16)
 
@@ -904,6 +933,85 @@ class GLTFTest(g.unittest.TestCase):
         # make sure points with color survived export and reload
         assert g.np.allclose(reloaded.vertices, points)
         assert g.np.allclose(reloaded.colors, colors)
+
+    def test_world_node_collision(self):
+        # a non-root node named "world" must not merge with the hardcoded base
+        # frame; on main its transform collapses to identity on round-trip
+        tf = g.trimesh.transformations.rotation_matrix(0.7, [1.0, 2.0, 3.0])
+        tf[:3, 3] = [5.0, -3.0, 2.0]
+
+        scene = g.trimesh.Scene(base_frame="root")
+        scene.add_geometry(
+            g.trimesh.creation.box(),
+            node_name="world",
+            parent_node_name="root",
+            geom_name="box",
+            transform=tf,
+        )
+
+        def geom_world_transform(s):
+            return s.graph.get(s.graph.nodes_geometry[0])[0]
+
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(scene.export(file_type="glb")),
+            file_type="glb",
+        )
+        assert g.np.allclose(geom_world_transform(scene), geom_world_transform(reloaded))
+
+    def test_world_root_transform(self):
+        # a root node named "world" with a transform must keep it —
+        # merging with the synthetic base frame silently dropped it
+        scene = g.trimesh.load(world_root_tree(), file_type="gltf")
+        transform = scene.graph.get(scene.graph.nodes_geometry[0])[0]
+        assert g.np.allclose(transform[:3, 3], [10.0, 0.0, 0.0])
+
+    def test_world_no_accumulation(self):
+        # the 2025-08-11 unconditional-rename attempt failed because every
+        # round-trip of trimesh's own exports renamed the wrapper node and
+        # grew the graph — pin names and node count across cycles
+        scene = g.trimesh.load(world_root_tree(), file_type="gltf")
+
+        def cycle(s):
+            return g.trimesh.load(
+                g.trimesh.util.wrap_as_stream(s.export(file_type="glb")),
+                file_type="glb",
+            )
+
+        once = cycle(scene)
+        twice = cycle(once)
+        thrice = cycle(twice)
+        assert set(once.graph.nodes) == set(twice.graph.nodes)
+        assert set(twice.graph.nodes) == set(thrice.graph.nodes)
+        # the world transform of the geometry must be stable too
+        for s in (once, twice, thrice):
+            transform = s.graph.get(s.graph.nodes_geometry[0])[0]
+            assert g.np.allclose(transform[:3, 3], [10.0, 0.0, 0.0])
+
+    def test_export_no_wrapper_node(self):
+        # exports hang children as real scene roots instead of wrapping
+        # everything in a synthetic transform-less "world" node
+        scene = g.trimesh.Scene(g.trimesh.creation.box())
+        scene.metadata["hi"] = 3
+
+        export = scene.export(file_type="gltf")
+        tree = g.json.loads(export["model.gltf"].decode("utf-8"))
+
+        # no wrapper node and the real nodes are the scene roots
+        names = [n.get("name") for n in tree["nodes"]]
+        assert scene.graph.base_frame not in names
+        assert len(tree["nodes"]) == len(scene.graph.nodes) - 1
+        assert len(tree["scenes"][0]["nodes"]) == len(
+            scene.graph.transforms.children[scene.graph.base_frame]
+        )
+        # scene metadata must survive the root change
+        assert tree["scenes"][0]["extras"]["hi"] == 3
+
+        # round-trips keep the node names identical
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(scene.export(file_type="glb")),
+            file_type="glb",
+        )
+        assert set(reloaded.graph.nodes) == set(scene.graph.nodes)
 
     def test_bulk(self):
         # Try exporting every loadable model to GLTF and checking

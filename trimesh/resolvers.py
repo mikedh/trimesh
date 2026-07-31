@@ -60,7 +60,7 @@ class FilePathResolver(Resolver):
     Resolve files from a source path on the file system.
     """
 
-    def __init__(self, source: str):
+    def __init__(self, source: str, allow_anywhere: bool = False):
         """
         Resolve files based on a source path.
 
@@ -68,9 +68,15 @@ class FilePathResolver(Resolver):
         ------------
         source : str
           File path where mesh was loaded from
+        allow_anywhere : bool
+          If True allow assets to reference paths outside the
+          resolver root, i.e. `../textures/thing.png` — the
+          pre-5.0 behavior.
         """
         # remove everything other than absolute path
         clean = os.path.expanduser(os.path.abspath(str(source)))
+
+        self.allow_anywhere = bool(allow_anywhere)
 
         self.clean = clean
         if os.path.isdir(clean):
@@ -121,7 +127,39 @@ class FilePathResolver(Resolver):
         resolver : FilePathResolver
           Resolver with root directory changed.
         """
-        return FilePathResolver(os.path.join(self.parent, namespace))
+        return FilePathResolver(
+            os.path.join(self.parent, namespace), allow_anywhere=self.allow_anywhere
+        )
+
+    def absolute(self, name: str) -> Path:
+        """
+        Resolve an asset name to an absolute path under the
+        resolver root.
+
+        Parameters
+        ------------
+        name : str
+          Name of an asset relative to the resolver root.
+
+        Returns
+        ------------
+        path : pathlib.Path
+          Absolute resolved path.
+
+        Raises
+        ------------
+        ValueError
+          If the path escapes the resolver root and
+          `allow_anywhere` was not set.
+        """
+        parent = Path(self.parent).resolve()
+        path = (parent / name.strip()).resolve()
+        if not self.allow_anywhere and not path.is_relative_to(parent):
+            raise ValueError(
+                f"'{name}' escapes resolver root '{parent}' — pass "
+                + "`FilePathResolver(path, allow_anywhere=True)` to allow it"
+            )
+        return path
 
     def get(self, name: str):
         """
@@ -137,20 +175,22 @@ class FilePathResolver(Resolver):
         data : bytes
           Loaded data from asset.
         """
-        # require each candidate to resolve inside the root
-        parent = Path(self.parent).resolve()
         candidates = (
             name.strip(),
             name.strip().lstrip("/"),
             os.path.split(name)[-1],
         )
         for candidate in candidates:
-            path = (parent / candidate).resolve()
-            if not path.is_relative_to(parent):
+            try:
+                path = self.absolute(candidate)
+            except ValueError:
                 continue
             if path.exists():
                 with open(path, "rb") as f:
                     return f.read()
+        # if the requested name escaped the root this raises
+        # the actionable error instead of a plain not-found
+        self.absolute(name)
         raise FileNotFoundError(name)
 
     def write(self, name: str, data: str | bytes):
@@ -164,11 +204,7 @@ class FilePathResolver(Resolver):
         data : str or bytes
           Data to write to the file.
         """
-        parent = Path(self.parent).resolve()
-        path = (parent / name.strip()).resolve()
-        if not path.is_relative_to(parent):
-            raise ValueError(f"path escapes resolver root: {name!r}")
-        with open(path, "wb") as f:
+        with open(self.absolute(name), "wb") as f:
             # handle encodings correctly for str/bytes
             util.write_encoded(file_obj=f, stuff=data)
 
@@ -361,6 +397,27 @@ class WebResolver(Resolver):
         self.session = session
         self.timeout = timeout
 
+        # per-library request kwargs: httpx and requests disagree on
+        # the redirect kwarg name — this is also where any future
+        # library-specific options should live
+        library = "httpx" if session is None else type(session).__module__.split(".")[0]
+        if library == "httpx":
+            # also the bare httpx module fallback when no session was passed
+            self.request_kwargs = {"follow_redirects": True, "timeout": timeout}
+        elif library == "requests":
+            self.request_kwargs = {"allow_redirects": True, "timeout": timeout}
+        elif library == "aiohttp":
+            # an aiohttp session can only be constructed inside a running
+            # event loop and its connector binds to that loop, so a
+            # synchronous fetch can never legally drive one
+            raise ValueError(
+                "`aiohttp` sessions are async-only and bound to their creation "
+                + "loop: pass an `httpx.Client` or `requests.Session` instead"
+            )
+        else:
+            # a duck-typed session gets `get(url)` with no assumed kwargs
+            self.request_kwargs = {}
+
         # we want a base url
         split = [i for i in parsed.path.split("/") if len(i) > 0]
 
@@ -411,16 +468,13 @@ class WebResolver(Resolver):
 
         # the caller's session or the bare httpx module, both expose `.get`
         client = self.session or httpx
-        url = self.base_url + name
-        response = client.get(url, follow_redirects=True, timeout=self.timeout)
+        response = client.get(self.base_url + name, **self.request_kwargs)
 
         if response.status_code >= 300:
             # try to strip off filesystem crap
             if name.startswith("./"):
                 name = name[2:]
-            response = client.get(
-                self.base_url + name, follow_redirects=True, timeout=self.timeout
-            )
+            response = client.get(self.base_url + name, **self.request_kwargs)
 
         # now raise if we don't have
         response.raise_for_status()
@@ -442,9 +496,7 @@ class WebResolver(Resolver):
         import httpx
 
         # just fetch the url we were created with
-        response = (self.session or httpx).get(
-            self.url, follow_redirects=True, timeout=self.timeout
-        )
+        response = (self.session or httpx).get(self.url, **self.request_kwargs)
         response.raise_for_status()
         return response.content
 
@@ -517,20 +569,8 @@ class GithubResolver(Resolver):
         else:
             raise ValueError("`commit` or `branch` must be passed!")
 
-        if session is None:
-            # same deprecation as `WebResolver`, see there for rationale
-            import warnings
-
-            warnings.warn(
-                "`GithubResolver` without a `session` is deprecated "
-                + "and will require one in a future release. "
-                + "pass an `httpx.Client` or `requests.Session`.",
-                category=DeprecationWarning,
-                stacklevel=2,
-            )
-
-        self.session = session
-        self.timeout = timeout
+        # reuse the session handling and deprecation warning
+        self.resolver = WebResolver(url=self.url, session=session, timeout=timeout)
 
         if save is not None:
             self.cache = caching.DiskCache(save)
@@ -559,22 +599,10 @@ class GithubResolver(Resolver):
         - retrieve zip file and saved
         """
 
-        def fetch() -> bytes:
-            """
-            Fetch the remote zip file.
-            """
-            import httpx
-
-            response = (self.session or httpx).get(
-                self.url, follow_redirects=True, timeout=self.timeout
-            )
-            response.raise_for_status()
-            return response.content
-
         if hasattr(self, "_zip"):
             return self._zip
         # download the archive or get from disc
-        raw = self.cache.get(self.url, fetch)
+        raw = self.cache.get(self.url, self.resolver.get_base)
         # create a zip resolver for the archive
         # the root directory in the zip is the repo+commit so strip that off
         # so the keys are usable, i.e. "models" instead of "trimesh-2232323/models"

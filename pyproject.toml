@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.10"
-version = "5.0.0rc1"
+version = "5.0.0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -118,11 +118,22 @@ test_more = [
     "triangle; python_version<'3.14'",  # polygon tesselator
     "ipython",  # check the notebook stuff
     "marimo",   # different notebook stuff
+    "requests", # check WebResolver session compatibility
+    "aiohttp",  # check WebResolver session compatibility
 ]
+
+# kept empty so downstream `trimesh[deprecated]` 
+# pins don't fail strict resolvers like poetry
+deprecated = []
 
 # requires pip >= 21.2
 # https://hynek.me/articles/python-recursive-optional-dependencies
 all = ["trimesh[easy,recommend,test,test_more,deprecated]"]
+
+[tool.pytest.ini_options]
+# dump every thread's stack if a test wedges — a hung runner
+# should name the frame rather than burn the job timeout in silence
+faulthandler_timeout = 300
 
 [tool.coverage.html]
 # coverage report publishes to `trimesh.org/coverage`
@@ -169,7 +180,13 @@ flake8-implicit-str-concat = {"allow-multiline" = false}
 # ban debug and usually-a-bug imports in `trimesh` core library
 [tool.ruff.lint.per-file-ignores]
 # examples/tests/helpers/docs are allowed to print demo / diagnostic output
-"{examples,tests,helpers,docs}/*" = ["T20", "TID251"]
+"{examples,tests,helpers,docs}/*" = ["T20"]
+# examples and docs are demos rather than tests so they're allowed to plot
+# and to be non-deterministic: they only need the printing exemption
+"{examples,docs}/*" = ["TID251"]
+# these implement and enforce the seeded replacements so they have
+# to touch the global RNG the rest of the suite is banned from
+"tests/{generic,conftest}.py" = ["TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "IPython.embed".msg = "you forgot to remove a debug embed ;)"

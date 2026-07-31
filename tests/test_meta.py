@@ -26,7 +26,10 @@ class MetaTest(g.unittest.TestCase):
             # note that JSON doesn't support integers as keys
             # so convert integers to strings for comparison
             m.metadata.update(
-                g.np.random.randint(0, 1000, 10).reshape((-1, 2)).astype(str)
+                g.np.random.default_rng(seed=0)
+                .integers(0, 1000, 10)
+                .reshape((-1, 2))
+                .astype(str)
             )
 
         # reload the exported scene

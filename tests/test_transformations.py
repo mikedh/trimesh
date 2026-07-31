@@ -4,6 +4,40 @@ except BaseException:
     import generic as g
 
 
+def test_flips_winding():
+    tf = g.trimesh.transformations
+    # a transform flips winding exactly when its determinant is negative
+    assert not tf.flips_winding(g.np.eye(4))
+    assert not tf.flips_winding(tf.rotation_matrix(1.0, [0, 1, 0]))
+    # single-axis reflections flip
+    assert tf.flips_winding(g.np.diag([-1, 1, 1, 1]))
+    # two reflections compose to a rotation
+    assert not tf.flips_winding(g.np.diag([-1, -1, 1, 1]))
+    # mirroring all three axes flips — determinant sign, not element signs
+    assert tf.flips_winding(g.np.diag([-1, -1, -1, 1]))
+    # anisotropic positive scale never flips
+    assert not tf.flips_winding(g.np.diag([2.0, 0.5, 3.0, 1]))
+    # bare (3, 3) rotations are accepted too
+    assert tf.flips_winding(g.np.diag([-1.0, 1.0, 1.0]))
+    assert not tf.flips_winding(g.np.eye(3))
+    # anything else errors early
+    try:
+        tf.flips_winding(g.np.zeros((2, 3)))
+        raise AssertionError("should have raised on (2, 3)")
+    except ValueError:
+        pass
+
+    # winding checks must not consume the global numpy RNG —
+    # seeded pipelines depend on bit-exact reproducibility
+    matrix = tf.random_rotation_matrix(seed=0)
+    state = g.np.random.get_state()
+    tf.flips_winding(matrix)
+    after = g.np.random.get_state()
+    assert state[0] == after[0]
+    assert g.np.array_equal(state[1], after[1])
+    assert state[2:] == after[2:]
+
+
 class TransformTest(g.unittest.TestCase):
     def test_doctest(self):
         """
@@ -28,9 +62,12 @@ class TransformTest(g.unittest.TestCase):
 
         # search for interactive sessions in docstrings and verify they work
         # they are super unreliable and depend on janky string formatting
-        results = doctest.testmod(
-            trimesh.transformations, verbose=False, raise_on_error=False
-        )
+        # the examples call the `random_*` functions which draw from the
+        # global RNG so seed in a scope which puts the state back
+        with g.RandomSeed(0):
+            results = doctest.testmod(
+                trimesh.transformations, verbose=False, raise_on_error=False
+            )
 
         if results.failed > 0:
             raise ValueError(str(results))
@@ -67,26 +104,30 @@ class TransformTest(g.unittest.TestCase):
         assert g.np.allclose(tr.transform_points(points, g.np.eye(3)), points)
 
     def test_around(self):
-        # check transform_around on 2D points
-        points = g.random((100, 2))
-        for i, p in enumerate(points):
-            offset = g.random(2)
-            matrix = g.trimesh.transformations.planar_matrix(
-                theta=g.random() + 0.1, offset=offset, point=p
-            )
+        # draw inside the block: `g.random` pinned `offset` and `theta` to
+        # one value so all 100 rounds used the same rotation
+        with g.RandomSeed() as r:
+            # check transform_around on 2D points
+            points = r.random((100, 2))
+            for i, p in enumerate(points):
+                offset = r.random(2)
+                matrix = g.trimesh.transformations.planar_matrix(
+                    theta=r.random() + 0.1, offset=offset, point=p
+                )
 
-            # apply the matrix
-            check = g.trimesh.transform_points(points, matrix)
-            compare = g.np.isclose(check, points + offset)
-            # the point we rotated around shouldn't move
-            assert compare[i].all()
-            # all other points should move
-            assert compare.all(axis=1).sum() == 1
+                # apply the matrix
+                check = g.trimesh.transform_points(points, matrix)
+                compare = g.np.isclose(check, points + offset)
+                # the point we rotated around shouldn't move
+                assert compare[i].all()
+                # all other points should move
+                assert compare.all(axis=1).sum() == 1
 
         # check transform_around on 3D points
         points = g.random((100, 3))
-        for i, p in enumerate(points):
-            matrix = g.trimesh.transformations.random_rotation_matrix()
+        for (i, p), matrix in zip(
+            enumerate(points), g.random_transforms(len(points), translate=0.0)
+        ):
             matrix = g.trimesh.transformations.transform_around(matrix, p)
 
             # apply the matrix
@@ -106,9 +147,12 @@ class TransformTest(g.unittest.TestCase):
         R = rotation_matrix(g.np.pi / 2, [0, 0, 1], [1, 0, 0])
         assert g.np.allclose(g.np.dot(R, [0, 0, 0, 1]), [1, -1, 0, 1])
 
-        angle = (g.random() - 0.5) * (2 * g.np.pi)
-        direc = g.random(3) - 0.5
-        point = g.random(3) - 0.5
+        # draw from a stream: `g.random` returns the same values for the same
+        # shape, which put `point` exactly on the axis through `direc`
+        with g.RandomSeed() as r:
+            angle = (r.random() - 0.5) * (2 * g.np.pi)
+            direc = r.random(3) - 0.5
+            point = r.random(3) - 0.5
         R0 = rotation_matrix(angle, direc, point)
         R1 = rotation_matrix(angle - 2 * g.np.pi, direc, point)
         assert g.trimesh.transformations.is_same_transform(R0, R1)
@@ -172,10 +216,10 @@ class TransformTest(g.unittest.TestCase):
         # results should be the same
         assert g.np.allclose(mm, qm, atol=1e-5)
         # all random matrices should be rigid transforms
-        assert all(is_rigid(T) for T in random_matrix(num=100))
+        assert all(is_rigid(T) for T in random_matrix(num=100, seed=0))
         # random quaternions should all be unit vector
         assert g.np.allclose(
-            g.np.linalg.norm(random_quat(num=100), axis=1), 1.0, atol=1e-6
+            g.np.linalg.norm(random_quat(num=100, seed=0), axis=1), 1.0, atol=1e-6
         )
 
     def test_angle(self):

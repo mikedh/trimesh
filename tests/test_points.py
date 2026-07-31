@@ -92,54 +92,52 @@ def test_vertex_only():
 
 
 def test_plane():
-    # make sure plane fitting works for 2D points in space
-    for _i in range(10):
-        # create a random rotation
-        matrix = g.trimesh.transformations.random_rotation_matrix()
-        # create some random points in spacd
-        p = g.random((1000, 3))
-        # make them all lie on the XY plane so we know
-        # the correct normal to check against
-        p[:, 2] = 0
-        # transform them into random frame
-        p = g.trimesh.transform_points(p, matrix)
-        # we made the Z values zero before transforming
-        # so the true normal should be Z then rotated
-        truth = g.trimesh.transform_points([[0, 0, 1]], matrix, translate=False)[0]
-        # run the plane fit
-        _C, N = g.trimesh.points.plane_fit(p)
-        # sign of normal is arbitrary on fit so check both
-        assert g.np.allclose(truth, N) or g.np.allclose(truth, -N)
-    # make sure plane fit works with multiple point sets at once
-    nb_points_sets = 20
-    for _i in range(10):
-        # create a random rotation
-        matrices = [
-            g.trimesh.transformations.random_rotation_matrix()
-            for _ in range(nb_points_sets)
-        ]
-        # create some random points in spacd
-        p = g.random((nb_points_sets, 1000, 3))
-        # make them all lie on the XY plane so we know
-        # the correct normal to check against
-        p[..., 2] = 0
-        # transform them into random frame
-        for j, matrix in enumerate(matrices):
-            p[j, ...] = g.trimesh.transform_points(p[j, ...], matrix)
-        # p = g.trimesh.transform_points(p, matrix)
-        # we made the Z values zero before transforming
-        # so the true normal should be Z then rotated
-        truths = g.np.zeros((len(p), 3))
-        for j, matrix in enumerate(matrices):
-            truths[j, :] = g.trimesh.transform_points(
-                [[0, 0, 1]], matrix, translate=False
-            )[0]
-        # run the plane fit
-        _C, N = g.trimesh.points.plane_fit(p)
+    # draw inside the block: `g.random` would hand every iteration the
+    # same points, so each loop below only ever fit one point cloud
+    with g.RandomSeed() as r:
+        # make sure plane fitting works for 2D points in space
+        for matrix in g.random_transforms(10, translate=0.0):
+            # create some random points in spacd
+            p = r.random((1000, 3))
+            # make them all lie on the XY plane so we know
+            # the correct normal to check against
+            p[:, 2] = 0
+            # transform them into random frame
+            p = g.trimesh.transform_points(p, matrix)
+            # we made the Z values zero before transforming
+            # so the true normal should be Z then rotated
+            truth = g.trimesh.transform_points([[0, 0, 1]], matrix, translate=False)[0]
+            # run the plane fit
+            _C, N = g.trimesh.points.plane_fit(p)
+            # sign of normal is arbitrary on fit so check both
+            assert g.np.allclose(truth, N) or g.np.allclose(truth, -N)
 
-        # sign of normal is arbitrary on fit so check both
-        cosines = g.np.einsum("ij,ij->i", N, truths)
-        assert g.np.allclose(g.np.abs(cosines), g.np.ones_like(cosines))
+        # make sure plane fit works with multiple point sets at once
+        nb_points_sets = 20
+        for i in range(10):
+            # vary the rotations per iteration as well as the points
+            matrices = list(g.random_transforms(nb_points_sets, translate=0.0, seed=i))
+            # create some random points in spacd
+            p = r.random((nb_points_sets, 1000, 3))
+            # make them all lie on the XY plane so we know
+            # the correct normal to check against
+            p[..., 2] = 0
+            # transform them into random frame
+            for j, matrix in enumerate(matrices):
+                p[j, ...] = g.trimesh.transform_points(p[j, ...], matrix)
+            # we made the Z values zero before transforming
+            # so the true normal should be Z then rotated
+            truths = g.np.zeros((len(p), 3))
+            for j, matrix in enumerate(matrices):
+                truths[j, :] = g.trimesh.transform_points(
+                    [[0, 0, 1]], matrix, translate=False
+                )[0]
+            # run the plane fit
+            _C, N = g.trimesh.points.plane_fit(p)
+
+            # sign of normal is arbitrary on fit so check both
+            cosines = g.np.einsum("ij,ij->i", N, truths)
+            assert g.np.allclose(g.np.abs(cosines), g.np.ones_like(cosines))
 
 
 def test_kmeans(cluster_count=5, points_per_cluster=100):
@@ -156,7 +154,9 @@ def test_kmeans(cluster_count=5, points_per_cluster=100):
     clustered = g.np.vstack(clustered)
 
     # run k- means clustering on our nicely separated data
-    centroids, klabel = g.trimesh.points.k_means(points=clustered, k=cluster_count)
+    centroids, klabel = g.trimesh.points.k_means(
+        points=clustered, k=cluster_count, seed=0
+    )
 
     # reshape to make sure all groups have the same index
     variance = g.np.ptp(klabel.reshape((cluster_count, points_per_cluster)), axis=1)
@@ -169,21 +169,24 @@ def test_tsp():
     """
     Test our solution for visiting every point in order.
     """
-    for dimension in [2, 3]:
-        for count in [2, 10, 100]:
-            for _i in range(10):
-                points = g.random((count, dimension))
+    # draw inside the block: `g.random` gave every iteration the same
+    # points so this solved one tour ten times per shape
+    with g.RandomSeed() as r:
+        for dimension in [2, 3]:
+            for count in [2, 10, 100]:
+                for _i in range(10):
+                    points = r.random((count, dimension))
 
-                # find a path that visits every point quickly
-                idx, dist = g.trimesh.points.tsp(points, start=0)
+                    # find a path that visits every point quickly
+                    idx, dist = g.trimesh.points.tsp(points, start=0)
 
-                # indexes should visit every point exactly once
-                assert set(idx) == set(range(len(points)))
-                assert len(idx) == len(points)
-                assert len(dist) == len(points) - 1
+                    # indexes should visit every point exactly once
+                    assert set(idx) == set(range(len(points)))
+                    assert len(idx) == len(points)
+                    assert len(dist) == len(points) - 1
 
-                # shouldn't be any negative indexes
-                assert (idx >= 0).all()
+                    # shouldn't be any negative indexes
+                    assert (idx >= 0).all()
 
                 # make sure distances returned are correct
                 dist_check = g.np.linalg.norm(g.np.diff(points[idx], axis=0), axis=1)
@@ -291,7 +294,7 @@ def test_radial_sort():
     points *= g.random(len(theta)).reshape((-1, 1))
 
     # apply a random order to the points
-    order = g.np.random.permutation(g.np.arange(len(points)))
+    order = g.np.random.default_rng(seed=0).permutation(g.np.arange(len(points)))
 
     # get the sorted version of these points
     # when we pass them the randomly ordered points
