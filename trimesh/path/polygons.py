@@ -511,9 +511,9 @@ def random_polygon(segments=8, radius=1.0, seed: Seed = None):
     polygon : shapely.geometry.Polygon
       Geometry object with random exterior and no interiors.
     """
-    rng = random_generator(seed)
-    angles = np.sort(np.cumsum(rng.random(segments) * np.pi * 2) % (np.pi * 2))
-    radii = rng.random(segments) * radius
+    random = random_generator(seed)
+    angles = np.sort(np.cumsum(random.random(segments) * np.pi * 2) % (np.pi * 2))
+    radii = random.random(segments) * radius
 
     points = np.column_stack((np.cos(angles), np.sin(angles))) * radii.reshape((-1, 1))
     points = np.vstack((points, points[0]))
@@ -626,8 +626,8 @@ def sample(polygon, count, factor=1.5, max_iter=10, seed: Seed = None):
     per_loop = int(count * factor)
 
     # start with some rejection sampling
-    rng = random_generator(seed)
-    points = bounds[0] + extents * rng.random((per_loop, 2))
+    random = random_generator(seed)
+    points = bounds[0] + extents * random.random((per_loop, 2))
     # do the point in polygon test and append resulting hits
     mask = vectorized.contains(polygon, *points.T)
     hit = [points[mask]]
@@ -639,7 +639,7 @@ def sample(polygon, count, factor=1.5, max_iter=10, seed: Seed = None):
     # if we have to do iterations loop here slowly
     for _ in range(max_iter):
         # generate points inside polygons AABB
-        points = (rng.random((per_loop, 2)) * extents) + bounds[0]
+        points = (random.random((per_loop, 2)) * extents) + bounds[0]
         # do the point in polygon test and append resulting hits
         mask = vectorized.contains(polygon, *points.T)
         hit.append(points[mask])

@@ -1637,11 +1637,11 @@ def random_rotation_matrix(
     """
     # thread one generator through so a passed `seed` doesn't hand the
     # translation the same values as the quaternion below
-    rng = random_generator(seed)
-    matrix = quaternion_matrix(random_quaternion(rand=rand, num=num, seed=rng))
+    random = random_generator(seed)
+    matrix = quaternion_matrix(random_quaternion(rand=rand, num=num, seed=random))
     if translate:
         # apply random translation with the order of magnitude requested
-        matrix[:3, 3] = (rng.random(3) - 0.5) * float(translate)
+        matrix[:3, 3] = (random.random(3) - 0.5) * float(translate)
 
     return matrix
 

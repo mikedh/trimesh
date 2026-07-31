@@ -32,11 +32,13 @@ def transform(mesh, translation_scale: Number = 1000.0, seed: Seed = None):
     """
     # thread one generator through so the rotation and the reordering
     # below aren't each handed an identically re-seeded stream
-    rng = util.random_generator(seed)
-    matrix = transformations.random_rotation_matrix(translate=translation_scale, seed=rng)
+    random = util.random_generator(seed)
+    matrix = transformations.random_rotation_matrix(
+        translate=translation_scale, seed=random
+    )
 
     # randomly re-order triangles
-    triangles = rng.permutation(mesh.triangles).reshape((-1, 3))
+    triangles = random.permutation(mesh.triangles).reshape((-1, 3))
     # apply rigid transform
     triangles = transformations.transform_points(triangles, matrix)
 
@@ -71,12 +73,12 @@ def noise(mesh, magnitude=None, seed: Seed = None):
     if magnitude is None:
         magnitude = mesh.scale / 100.0
 
-    rng = util.random_generator(seed)
-    random = (rng.random(mesh.vertices.shape) - 0.5) * magnitude
-    vertices_noise = mesh.vertices.copy() + random
+    random = util.random_generator(seed)
+    offset = (random.random(mesh.vertices.shape) - 0.5) * magnitude
+    vertices_noise = mesh.vertices.copy() + offset
 
     # make sure we've re- ordered faces randomly
-    triangles = rng.permutation(vertices_noise[mesh.faces])
+    triangles = random.permutation(vertices_noise[mesh.faces])
 
     mesh_type = util.type_named(mesh, "Trimesh")
     permutated = mesh_type(**triangles_module.to_kwargs(triangles))
@@ -104,11 +106,11 @@ def tessellation(mesh, seed: Seed = None):
     permutated : trimesh.Trimesh
       Mesh with remeshed facets
     """
-    rng = util.random_generator(seed)
+    random = util.random_generator(seed)
 
     # create random barycentric coordinates for each face
     # pad all coordinates by a small amount to bias new vertex towards center
-    barycentric = rng.random(mesh.faces.shape) + 0.05
+    barycentric = random.random(mesh.faces.shape) + 0.05
     barycentric /= barycentric.sum(axis=1).reshape((-1, 1))
 
     # create one new vertex somewhere in a face
@@ -126,7 +128,7 @@ def tessellation(mesh, seed: Seed = None):
         )
     )
     # make sure the order of the faces is permutated
-    faces = rng.permutation(faces)
+    faces = random.permutation(faces)
 
     mesh_type = util.type_named(mesh, "Trimesh")
     permutated = mesh_type(vertices=vertices, faces=faces)

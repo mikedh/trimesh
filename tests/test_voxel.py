@@ -215,11 +215,11 @@ class VoxelGridTest(g.unittest.TestCase):
     def test_is_filled(self):
         """More rigorous test of VoxelGrid.is_filled."""
         n = 10
-        rng = g.np.random.default_rng(seed=0)
-        matrix = rng.uniform(size=(n + 1,) * 3) > 0.5
+        random = g.np.random.default_rng(seed=0)
+        matrix = random.uniform(size=(n + 1,) * 3) > 0.5
         not_matrix = g.np.logical_not(matrix)
         pitch = 1.0 / n
-        origin = rng.uniform(size=(3,))
+        origin = random.uniform(size=(3,))
         vox = g.trimesh.voxel.VoxelGrid(matrix)
         vox = vox.apply_scale(pitch).apply_translation(origin)
         not_vox = g.trimesh.voxel.VoxelGrid(not_matrix)
@@ -227,8 +227,8 @@ class VoxelGridTest(g.unittest.TestCase):
         for a, b in ((vox, not_vox), (not_vox, vox)):
             points = a.points
             # slight jitter - shouldn't change indices
-            points += (rng.uniform(size=points.shape) - 1) * 0.4 * pitch
-            rng.shuffle(points)
+            points += (random.uniform(size=points.shape) - 1) * 0.4 * pitch
+            random.shuffle(points)
 
             # all points are filled, and no empty points are filled
             assert g.np.all(a.is_filled(points))

@@ -575,14 +575,14 @@ class GLTFTest(g.unittest.TestCase):
         sphere = g.trimesh.primitives.Sphere()
         v_count, _ = sphere.vertices.shape
 
-        rng = g.np.random.default_rng(seed=0)
-        sphere.vertex_attributes["_CustomFloat32Scalar"] = rng.random(
+        random = g.np.random.default_rng(seed=0)
+        sphere.vertex_attributes["_CustomFloat32Scalar"] = random.random(
             (v_count, 1)
         ).astype(g.np.float32)
-        sphere.vertex_attributes["_CustomFloat32Vec3"] = rng.random((v_count, 3)).astype(
-            g.np.float32
-        )
-        sphere.vertex_attributes["_CustomFloat32Mat4"] = rng.random(
+        sphere.vertex_attributes["_CustomFloat32Vec3"] = random.random(
+            (v_count, 3)
+        ).astype(g.np.float32)
+        sphere.vertex_attributes["_CustomFloat32Mat4"] = random.random(
             (v_count, 4, 4)
         ).astype(g.np.float32)
 
@@ -594,7 +594,7 @@ class GLTFTest(g.unittest.TestCase):
         # uint32 is slightly off-label and may cause
         # validators to fail but if you're a bad larry who
         # doesn't follow the rules it should be fine
-        sphere.vertex_attributes["_CustomUInt32Scalar"] = rng.integers(
+        sphere.vertex_attributes["_CustomUInt32Scalar"] = random.integers(
             0, 1000, size=(v_count, 1)
         ).astype(g.np.uint32)
 
@@ -602,10 +602,10 @@ class GLTFTest(g.unittest.TestCase):
         # complains about the 4-byte boundaries even though
         # all their lengths and offsets mod 4 are zero
         # not sure if that's a validator bug or what
-        sphere.vertex_attributes["_CustomUInt16Scalar"] = rng.integers(
+        sphere.vertex_attributes["_CustomUInt16Scalar"] = random.integers(
             0, 1000, size=(v_count, 1)
         ).astype(g.np.uint16)
-        sphere.vertex_attributes["_CustomInt16Scalar"] = rng.integers(
+        sphere.vertex_attributes["_CustomInt16Scalar"] = random.integers(
             0, 1000, size=(v_count, 1)
         ).astype(g.np.int16)
 

@@ -52,7 +52,7 @@ def permutations(
     identifiers = []
     start = time.time()
     # a local generator so runs repeat and the global stream is left alone
-    rng = np.random.default_rng(seed=0)
+    random = np.random.default_rng(seed=0)
 
     # do subdivisions
     divided = [mesh.copy()]
@@ -63,7 +63,7 @@ def permutations(
         np.linspace(0.0, displacement_max / mesh.scale, count)
     ):
         # get one of the subdivided meshes
-        current = rng.choice(divided).copy()
+        current = random.choice(divided).copy()
 
         if i > (count / 10):
             # run first bunch without tessellation permutation
@@ -97,7 +97,7 @@ def get_meshes(path="../../../models", cutoff=None):
     meshes: (n,) list of Trimesh objects
     """
     # a local generator so runs repeat and the global stream is left alone
-    rng = np.random.default_rng(seed=0)
+    random = np.random.default_rng(seed=0)
 
     bodies = collections.deque()
     for file_name in os.listdir(path):
@@ -115,21 +115,21 @@ def get_meshes(path="../../../models", cutoff=None):
 
     for _i in range(100):
         cylinder = trimesh.creation.cylinder(
-            radius=rng.random() * 100,
-            height=rng.random() * 1000,
-            sections=int(np.clip(rng.random() * 720, 20, 720)),
+            radius=random.random() * 100,
+            height=random.random() * 1000,
+            sections=int(np.clip(random.random() * 720, 20, 720)),
         )
 
         capsule = trimesh.creation.capsule(
-            radius=rng.random() * 100,
-            height=rng.random() * 1000,
-            count=np.clip(rng.random(2) * 720, 20, 720).astype(int),
+            radius=random.random() * 100,
+            height=random.random() * 1000,
+            count=np.clip(random.random(2) * 720, 20, 720).astype(int),
         )
         bodies.append(cylinder)
         bodies.append(capsule)
     for _i in range(10):
         bodies.append(
-            trimesh.creation.random_soup(int(np.clip(rng.random() * 1000, 20, 1000)))
+            trimesh.creation.random_soup(int(np.clip(random.random() * 1000, 20, 1000)))
         )
     bodies.append(trimesh.creation.icosphere())
     bodies.append(trimesh.creation.uv_sphere())

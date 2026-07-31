@@ -160,8 +160,8 @@ def test_issue_1898_locations_colinear_with_directions():
     # rays fired from (0,0,-5) with small angular jitter — with a
     # unit-radius sphere at origin the half-angle to graze is ~11.3°,
     # so a jitter of 0.05 in XY (about ±3°) stays well inside that cone
-    rng = np.random.RandomState(seed=1)
-    jitter = (rng.random_sample((8, 3)) - 0.5) * 0.1
+    random = np.random.RandomState(seed=1)
+    jitter = (random.random_sample((8, 3)) - 0.5) * 0.1
     directions = trimesh.unitize(jitter + [[0, 0, 1]])
     origins = np.tile([[0.0, 0.0, -5.0]], (len(directions), 1))
 
@@ -400,9 +400,9 @@ def test_issue_1919_engines_agree_simple_mesh():
     The embree and native (pure-Python) ray backends disagreed on
     `intersects_any` for random rays through a simple convex mesh."""
     mesh = trimesh.creation.icosphere(subdivisions=2)
-    rng = np.random.default_rng(0)
-    origins = (rng.random((200, 3)) - 0.5) * 5
-    directions = trimesh.unitize(rng.random((200, 3)) - 0.5)
+    random = np.random.default_rng(0)
+    origins = (random.random((200, 3)) - 0.5) * 5
+    directions = trimesh.unitize(random.random((200, 3)) - 0.5)
 
     embree_hits = ray_pyembree.RayMeshIntersector(mesh).intersects_any(
         origins, directions
@@ -426,9 +426,9 @@ def test_issue_1180_first_hit_arrays_aligned():
     # we scale down to keep CI fast but cover the 1024 boundary
     for ray_count in [1023, 1024, 1025, 2048, 10000]:
         origins = np.tile([[0.0, 0.0, -5.0]], (ray_count, 1))
-        rng = np.random.default_rng(ray_count)
+        random = np.random.default_rng(ray_count)
         # direction jitter offset so the mean is roughly +z toward sphere
-        directions = trimesh.unitize(rng.random((ray_count, 3)) - [0.5, 0.5, -0.2])
+        directions = trimesh.unitize(random.random((ray_count, 3)) - [0.5, 0.5, -0.2])
 
         locations, index_ray, index_tri = mesh.ray.intersects_location(
             origins, directions, multiple_hits=False
@@ -443,9 +443,9 @@ def test_issue_1786_contains_stable_over_many_calls():
     `mesh.contains` drifted after many calls in a loop — the reporter
     saw results change after a few million queries."""
     mesh = trimesh.creation.icosphere()
-    rng = np.random.default_rng(0)
+    random = np.random.default_rng(0)
     # 256 points in [-0.5, 0.5] — all strictly inside the unit sphere
-    points = rng.random((256, 3)) - 0.5
+    points = random.random((256, 3)) - 0.5
 
     first = mesh.contains(points)
     # all points are strictly inside, so `first` must be all-True,

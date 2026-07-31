@@ -80,11 +80,11 @@ def compute_stable_poses(
         center_mass = mesh.center_mass
 
     # Sample center of mass, rejecting points outside of conv hull
-    rng = random_generator(seed)
+    random = random_generator(seed)
     sample_coms = []
     while len(sample_coms) < n_samples:
         remaining = n_samples - len(sample_coms)
-        coms = rng.multivariate_normal(center_mass, sigma * np.eye(3), remaining)
+        coms = random.multivariate_normal(center_mass, sigma * np.eye(3), remaining)
         for c in coms:
             dots = diagonal_dot(c - cvh.triangles_center, cvh.face_normals)
             if np.all(dots < 0):
