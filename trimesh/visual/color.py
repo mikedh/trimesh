@@ -975,7 +975,7 @@ def linear_color_map(values: ArrayLike, color_range: ArrayLike | None = None) ->
 
 def interpolate(
     values: ArrayLike,
-    color_map: None | ColorMapType | Callable = None,
+    color_map: ColorMapType | Callable | None = None,
     dtype: DTypeLike = np.uint8,
 ) -> NDArray:
     """
