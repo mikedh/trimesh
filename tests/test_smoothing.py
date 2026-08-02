@@ -62,6 +62,17 @@ def explicit_laplacian_calculation(mesh, equal_weight=True, pinned_vertices=None
 
 
 class SmoothTest(g.unittest.TestCase):
+    def test_laplacian_volume_constraint_is_translation_invariant(self):
+        centered = g.trimesh.creation.icosahedron()
+        translated = centered.copy()
+        offset = g.np.array([10.0, 20.0, 30.0])
+        translated.apply_translation(offset)
+
+        g.trimesh.smoothing.filter_laplacian(centered, iterations=1)
+        g.trimesh.smoothing.filter_laplacian(translated, iterations=1)
+
+        assert g.np.allclose(translated.vertices - offset, centered.vertices)
+
     def test_laplacian_calculation(self):
         m = g.trimesh.creation.icosahedron()
         m.vertices, m.faces = g.trimesh.remesh.subdivide_to_size(m.vertices, m.faces, 0.1)
