@@ -61,6 +61,7 @@ def filter_laplacian(
     # save initial volume
     if volume_constraint:
         vol_ini = mesh.volume
+        center_mass = mesh.center_mass
 
     # get mesh vertices and faces as vanilla numpy array
     vertices = mesh.vertices.copy().view(np.ndarray)
@@ -89,7 +90,8 @@ def filter_laplacian(
                 "volume"
             ]
             # scale by volume ratio
-            vertices *= (vol_ini / vol_new) ** (1.0 / 3.0)
+            scale = (vol_ini / vol_new) ** (1.0 / 3.0)
+            vertices = (vertices - center_mass) * scale + center_mass
 
     # assign modified vertices back to mesh
     mesh.vertices = vertices
