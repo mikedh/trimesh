@@ -296,9 +296,9 @@ def _texture_webp_source(context: TextureSourceContext) -> int | None:
 _draco_kwargs = {"COLOR_0": "colors", "TEXCOORD_0": "tex_coord", "NORMAL": "normals"}
 
 # draco quantizes onto a grid over the bounding box so error is relative,
-# landing near `0.4 * 2**-bits * mesh.scale` and halving per bit. 14 is what
-# blender and friends emit. Patch these for a different tradeoff — GLTF stores
-# positions as float32 so `extent * 2**-24` is a floor, and draco caps at 30.
+# capped at half a step (`mesh.extents.max() * 2**-(bits + 1)`) and halving per
+# bit. 14 is what blender and friends emit. Patch these for a different tradeoff
+# — GLTF stores positions as float32 so 24 bits is a floor, and draco caps at 30.
 _DRACO_QUANT = 14
 _DRACO_COMPRESSION = 6
 
@@ -344,26 +344,19 @@ def _draco_decode(context: PrimitivePreprocessContext) -> None:
 
 
 @register_handler("KHR_draco_mesh_compression", scope="primitive_export")
-def _draco_encode(context: PrimitiveExportContext) -> tuple | None:
+def _draco_encode(context: PrimitiveExportContext) -> None:
     """
     Compress a primitive's geometry into a single draco buffer.
 
     This only *adds* to the tree: the uncompressed accessors keep their
-    `bufferView` and the exporter strips them afterwards from the indexes we
-    return. Doing it in that order is what lets deduplicated geometry work — two
-    copies of one mesh share accessors, so the second primitive through here must
-    still be able to read the source arrays.
+    `bufferView` and the exporter strips them once everything is written, from
+    the attribute names we record here. Doing it in that order means a primitive
+    we bail on keeps working, rather than exporting accessors full of zeros.
 
     Parameters
     ----------
     context
       PrimitiveExportContext, whose `primitive` and `buffer_items` we mutate.
-
-    Returns
-    -------
-    absorbed
-      Indexes of accessors whose data now lives in the draco buffer, or None
-      if the primitive was left uncompressed.
     """
     import DracoPy
 
@@ -423,6 +416,3 @@ def _draco_encode(context: PrimitiveExportContext) -> tuple | None:
         "bufferView": _buffer_append(context["buffer_items"], buffer),
         "attributes": {name: ids[kinds[name]] for name in claimed},
     }
-
-    # tell the exporter which accessors no longer need a buffer of their own
-    return {attributes[name] for name in claimed} | {primitive["indices"]}

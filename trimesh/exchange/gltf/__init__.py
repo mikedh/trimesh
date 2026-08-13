@@ -105,9 +105,9 @@ def export_gltf(
       Export textures as webP (using glTF's EXT_texture_webp extension).
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression),
-      which requires the `DracoPy` package. This is lossy: it moves
-      every vertex by roughly `2e-5 * mesh.scale`, tunable with
-      `gltf.extensions._DRACO_QUANT`.
+      which requires `DracoPy` and is lossy: it quantizes onto a grid
+      over the bounding box, moving each vertex up to a half step,
+      i.e. `mesh.extents.max() * 2**-15`.
 
     Returns
     ----------
@@ -200,9 +200,9 @@ def export_glb(
       Export textures as webP using EXT_texture_webp extension.
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression),
-      which requires the `DracoPy` package. This is lossy: it moves
-      every vertex by roughly `2e-5 * mesh.scale`, tunable with
-      `gltf.extensions._DRACO_QUANT`.
+      which requires `DracoPy` and is lossy: it quantizes onto a grid
+      over the bounding box, moving each vertex up to a half step,
+      i.e. `mesh.extents.max() * 2**-15`.
 
     Returns
     ----------
@@ -737,25 +737,20 @@ def _create_gltf_structure(
     mesh_index = {}
     previous = len(tree["meshes"])
 
-    # accessors an export extension has moved into a buffer of its own
-    absorbed = set()
-
     # loop through every geometry
     for name, geometry in scene.geometry.items():
         if util.is_instance_named(geometry, "Trimesh"):
             # add the mesh
-            absorbed.update(
-                _append_mesh(
-                    mesh=geometry,
-                    name=name,
-                    tree=tree,
-                    buffer_items=buffer_items,
-                    include_normals=include_normals,
-                    unitize_normals=unitize_normals,
-                    mat_hashes=mat_hashes,
-                    extension_webp=extension_webp,
-                    extension_draco=extension_draco,
-                )
+            _append_mesh(
+                mesh=geometry,
+                name=name,
+                tree=tree,
+                buffer_items=buffer_items,
+                include_normals=include_normals,
+                unitize_normals=unitize_normals,
+                mat_hashes=mat_hashes,
+                extension_webp=extension_webp,
+                extension_draco=extension_draco,
             )
         elif util.is_instance_named(geometry, "Path"):
             # add Path2D and Path3D objects
@@ -807,12 +802,12 @@ def _create_gltf_structure(
     if len(extensions_required) > 0:
         tree["extensionsRequired"] = list(extensions_required)
 
+    # drop the raw data an extension has replaced with a compressed buffer
+    # before a postprocessor can record indexes we're about to renumber
+    _prune_views(tree=tree, buffer_items=buffer_items)
+
     if buffer_postprocessor is not None:
         buffer_postprocessor(buffer_items, tree)
-
-    # drop the raw data an extension has replaced with a compressed buffer
-    if absorbed:
-        _absorb_views(tree=tree, buffer_items=buffer_items, absorbed=absorbed)
 
     # convert accessors back to a flat list
     tree["accessors"] = list(tree["accessors"].values())
@@ -864,17 +859,11 @@ def _append_mesh(
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression),
       which is lossy and requires the `DracoPy` package.
-
-    Returns
-    ----------
-    absorbed
-      Indexes of accessors an export extension has moved into a buffer
-      of its own, and which therefore no longer need one of their own.
     """
     # return early from empty meshes to avoid crashing later
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
         log.debug("skipping empty mesh!")
-        return set()
+        return
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
     # arrays exactly as they were written, keyed like a primitive's attributes
@@ -1071,13 +1060,10 @@ def _append_mesh(
             data=data,
         )
 
-    # accessors a primitive_export handler has taken ownership of
-    absorbed = set()
-
     # Handle Draco compression via extension handler
     if extension_draco:
         # Call primitive_export handlers
-        results = handle_extensions(
+        handle_extensions(
             extensions={"KHR_draco_mesh_compression": {}},
             scope="primitive_export",
             mesh=mesh,
@@ -1087,23 +1073,20 @@ def _append_mesh(
             primitive=current["primitives"][0],
             arrays=written,
         )
-        # a handler reports the accessors whose data it moved into its own buffer
-        absorbed = set().union(*results.values())
 
     tree["meshes"].append(current)
 
-    return absorbed
 
-
-def _absorb_views(tree: dict, buffer_items: IndexedDict, absorbed: set):
+def _prune_views(tree: dict, buffer_items: IndexedDict):
     """
-    Retire the buffers of accessors an export extension has taken over.
+    Drop buffers nothing references any more and renumber the rest.
 
     An extension like draco replaces the data of several accessors with one
     compressed buffer, so those accessors stop referencing a `bufferView` and
     whatever they used to point at is usually left with nothing referencing it.
-    Buffers are referred to by their position, so anything we drop means
-    renumbering every reference that came after it.
+    Buffers are referred to by their position, so dropping one renumbers every
+    reference after it, which is why this can only run once every geometry has
+    been written rather than as each primitive is compressed.
 
     Parameters
     ------------
@@ -1111,12 +1094,21 @@ def _absorb_views(tree: dict, buffer_items: IndexedDict, absorbed: set):
       GLTF header, will be mutated in-place
     buffer_items
       Buffers keyed by hash, will be mutated in-place
-    absorbed
-      Indexes of accessors whose data now lives in an extension's buffer
     """
     accessors = list(tree["accessors"].values())
-    # these get their data from an extension's buffer now, not their own
-    [accessors[index].pop("bufferView", None) for index in absorbed]
+
+    # an extension lists the attributes it compressed, so it tells us which
+    # accessors read from its buffer now rather than one of their own
+    for mesh in tree["meshes"]:
+        for primitive in mesh["primitives"]:
+            draco = primitive.get("extensions", {}).get("KHR_draco_mesh_compression")
+            if draco is None:
+                continue
+            indexes = [primitive["attributes"][n] for n in draco["attributes"]]
+            for accessor in [accessors[i] for i in indexes + [primitive["indices"]]]:
+                # `byteOffset` is only allowed to exist alongside a `bufferView`
+                accessor.pop("bufferView", None)
+                accessor.pop("byteOffset", None)
 
     # the only three places a tree we generated can reference a buffer:
     # accessors, images, and the extension which prompted this
@@ -1133,7 +1125,10 @@ def _absorb_views(tree: dict, buffer_items: IndexedDict, absorbed: set):
         if isinstance(item.get("bufferView"), int)
     ]
 
-    used = np.unique([reference["bufferView"] for reference in references])
+    # astype as `np.unique` of nothing is float and can't index
+    used = np.unique([reference["bufferView"] for reference in references]).astype(
+        np.int64
+    )
     if len(used) == len(buffer_items):
         # everything is still referenced so there is nothing to renumber
         return

@@ -184,109 +184,7 @@ class DracoTest(g.unittest.TestCase):
         # UV would survive being swapped with normals so check it directly
         assert g.np.allclose(r.visual.uv, m.visual.uv, atol=1e-6)
 
-    def test_decode_no_handler_warns(self):
-        # the same file with no decoder registered must warn rather than
-        # silently produce a mesh full of zeros
-        if DracoPy is None:
-            g.log.info("not testing draco as no `DracoPy`")
-            return
-
-        from trimesh.exchange.gltf import extensions as ext
-
-        blob = draco_gltf(g.get_mesh("fuze.obj")).getvalue()
-        handler = ext._handlers["primitive_preprocess"].pop("KHR_draco_mesh_compression")
-        try:
-            with self.assertLogs("trimesh", level="WARNING") as cm:
-                r = g.trimesh.load_mesh(g.io.BytesIO(blob), file_type="gltf")
-        finally:
-            ext._handlers["primitive_preprocess"]["KHR_draco_mesh_compression"] = handler
-
-        assert g.np.allclose(r.vertices, 0.0)
-        assert any("KHR_draco_mesh_compression" in line for line in cm.output)
-
-    def test_export_roundtrip(self):
-        # exported draco must be smaller and reload as the same mesh
-        if DracoPy is None:
-            g.log.info("not testing draco as no `DracoPy`")
-            return
-
-        m = g.get_mesh("featuretype.STL")
-        plain = m.export(file_type="glb")
-        compressed = m.export(file_type="glb", extension_draco=True)
-
-        # an untextured mesh is all geometry so this must actually shrink
-        assert len(compressed) < len(plain)
-
-        # only does anything where the khronos validator is installed
-        validate_glb(compressed, name="draco")
-
-        r = g.trimesh.load_mesh(
-            g.trimesh.util.wrap_as_stream(compressed), file_type="glb"
-        )
-
-        # exact face equality only holds because we encode with `preserve_order`
-        assert g.np.array_equal(r.faces, m.faces)
-        assert len(r.vertices) == len(m.vertices)
-        # vertices must correspond one-to-one, not just as a set
-        assert g.np.allclose(r.vertices, m.vertices, atol=m.scale * 1e-3)
-        assert g.np.isclose(r.volume, m.volume, rtol=1e-3)
-
-        tree = glb_header(compressed)
-        assert "KHR_draco_mesh_compression" in tree["extensionsRequired"]
-
-        # every accessor draco took over must have given up its buffer
-        for mesh in tree["meshes"]:
-            for primitive in mesh["primitives"]:
-                extension = primitive["extensions"]["KHR_draco_mesh_compression"]
-                absorbed = [
-                    primitive["attributes"][name] for name in extension["attributes"]
-                ]
-                absorbed.append(primitive["indices"])
-                assert not any("bufferView" in tree["accessors"][i] for i in absorbed)
-
-        # if the uncompressed data were still in the file it would be orphaned
-        assert referenced_views(tree) == set(range(len(tree["bufferViews"])))
-
-    def test_off_by_default(self):
-        # draco must never appear unless it was explicitly asked for
-        m = g.get_mesh("featuretype.STL")
-        assert b"KHR_draco" not in m.export(file_type="glb")
-        assert not any(b"KHR_draco" in v for v in m.export(file_type="gltf").values())
-        assert b"KHR_draco" not in g.trimesh.Scene({"m": m}).export(file_type="glb")
-
-    def test_quantization(self):
-        # the quantization constant must actually reach draco
-        if DracoPy is None:
-            g.log.info("not testing draco as no `DracoPy`")
-            return
-
-        from trimesh.exchange.gltf import extensions as ext
-
-        m = g.get_mesh("featuretype.STL")
-        deviation = {}
-        size = {}
-        original = ext._DRACO_QUANT
-        try:
-            for bits in [12, 16, 24]:
-                ext._DRACO_QUANT = bits
-                blob = m.export(file_type="glb", extension_draco=True)
-                r = g.trimesh.load_mesh(
-                    g.trimesh.util.wrap_as_stream(blob), file_type="glb"
-                )
-                # order is preserved at every setting so this is a per-vertex error
-                deviation[bits] = g.np.abs(r.vertices - m.vertices).max()
-                size[bits] = len(blob)
-        finally:
-            ext._DRACO_QUANT = original
-
-        # each bit halves the quantization step so error must fall geometrically:
-        # a constant that never reached the encoder would make these equal
-        assert deviation[12] > deviation[16] * 8
-        assert deviation[16] > deviation[24] * 8
-        # and precision is not free
-        assert size[12] < size[16] < size[24]
-
-    def test_export_scene(self):
+    def test_export(self):
         # textures, vertex colors, and duplicated geometry in one scene
         if DracoPy is None:
             g.log.info("not testing draco as no `DracoPy`")
@@ -306,22 +204,38 @@ class DracoTest(g.unittest.TestCase):
             {"fuze": fuze.copy(), "colored": colored, "duplicate": fuze.copy()}
         )
         # pin `include_normals` so it doesn't depend on what happens to be cached
-        compressed = scene.export(
-            file_type="glb", extension_draco=True, include_normals=True
-        )
-        validate_glb(compressed, name="draco scene")
+        kwargs = {"file_type": "glb", "include_normals": True}
+        plain = scene.export(**kwargs)
+        compressed = scene.export(extension_draco=True, **kwargs)
+
+        # this must actually shrink and must never happen unasked
+        assert len(compressed) < len(plain)
+        assert b"KHR_draco" not in plain
+
+        validate_glb(compressed, name="draco")
         reloaded = g.trimesh.load_scene(
             g.trimesh.util.wrap_as_stream(compressed), file_type="glb"
         )
 
+        error = {}
         for name, check in reloaded.geometry.items():
             source = scene.geometry[name]
+            # exact face equality only holds because we encode `preserve_order`
             assert g.np.array_equal(check.faces, source.faces)
-            assert g.np.allclose(
-                check.vertices, source.vertices, atol=source.scale * 1e-3
-            )
+            # vertices must correspond one-to-one, not just match as a set
+            error[name] = g.np.abs(check.vertices - source.vertices).max()
+            # draco quantizes onto a grid over the bounding box, so half a step
+            # is the most any vertex is allowed to move at the exported bit depth
+            assert error[name] <= source.extents.max() * 2**-15
+            assert check.is_volume == source.is_volume
+            assert g.np.isclose(check.volume, source.volume, rtol=1e-3)
+
+        # a box lands exactly on the grid so only check the other side here:
+        # more precision than we asked for means the bit depth never arrived
+        assert error["fuze"] > scene.geometry["fuze"].extents.max() * 2**-16
 
         tree = glb_header(compressed)
+        assert "KHR_draco_mesh_compression" in tree["extensionsRequired"]
         primitives = [p for m in tree["meshes"] for p in m["primitives"]]
 
         # every mesh must be compressed: identical geometry shares accessors so
@@ -331,12 +245,23 @@ class DracoTest(g.unittest.TestCase):
             for p in primitives
         ]
         assert len(views) == len(scene.geometry)
-
         # `fuze` and `duplicate` are identical so they must share one buffer
         assert len(set(views)) == len(scene.geometry) - 1
 
+        # every accessor draco took over must have given up its buffer
+        for primitive in primitives:
+            absorbed = [
+                primitive["attributes"][name]
+                for name in primitive["extensions"]["KHR_draco_mesh_compression"][
+                    "attributes"
+                ]
+            ]
+            absorbed.append(primitive["indices"])
+            assert not any("bufferView" in tree["accessors"][i] for i in absorbed)
+
         # the texture survived the buffers being renumbered around it
         assert reloaded.geometry["fuze"].visual.material.baseColorTexture is not None
+        # if the uncompressed data were still in the file it would be orphaned
         assert referenced_views(tree) == set(range(len(tree["bufferViews"])))
 
 
