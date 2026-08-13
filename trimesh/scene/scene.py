@@ -27,6 +27,7 @@ from ..typed import (
 )
 from ..util import unique_name
 from . import cameras, lighting
+from .animation import RigidAnimation
 from .transforms import SceneGraph
 
 # the types of objects we can create a scene from
@@ -76,6 +77,10 @@ class Scene(Geometry3D):
 
         # create a new graph
         self.graph = SceneGraph(base_frame=base_frame)
+
+        # keyframed animation, those sharing a name are
+        # exported as a single glTF animation
+        self.animations: list[RigidAnimation] = []
 
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
@@ -1343,6 +1348,9 @@ class Scene(Geometry3D):
             metadata=self.metadata.copy(),
             camera=camera,
         )
+        # deep copy so the keyframe arrays aren't shared with the original
+        copied.animations = [deepcopy(a) for a in self.animations]
+
         return copied
 
     def show(

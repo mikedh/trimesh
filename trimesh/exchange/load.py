@@ -435,6 +435,12 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
 
         if "base_frame" in kwargs:
             scene.graph.base_frame = kwargs["base_frame"]
+
+        # keyframed animation, if it exists
+        animations = kwargs.get("animations")
+        if animations:
+            scene.animations.extend(animations)
+
         metadata = kwargs.get("metadata")
         if isinstance(metadata, dict):
             scene.metadata.update(kwargs["metadata"])

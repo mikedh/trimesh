@@ -251,8 +251,9 @@ class SceneGraph:
         Returns
         --------
         gltf : dict
-          With 'nodes' referencing a list of dicts and 'scene_roots'
-          referencing the node indices the scene should start from.
+          With 'nodes' referencing a list of dicts, 'scene_roots'
+          referencing the node indices the scene should start from,
+          and 'node_index' mapping {node name : index in 'nodes'}.
         """
 
         if mesh_index is None:
@@ -351,7 +352,9 @@ class SceneGraph:
         else:
             roots = [lookup[base_frame]]
 
-        gltf = {"nodes": result, "scene_roots": roots}
+        # `node_index` lets a caller find the node a name landed at
+        # which animation channels need as they target node indexes
+        gltf = {"nodes": result, "scene_roots": roots, "node_index": lookup}
         if len(extensions_used) > 0:
             gltf["extensionsUsed"] = list(extensions_used)
         return gltf

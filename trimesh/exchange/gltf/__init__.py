@@ -13,7 +13,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from ... import rendering, resources, transformations, util, visual
+from ... import rendering, resources, util, visual
 from ...caching import hash_fast
 from ...constants import log, tol
 from ...resolvers import ResolverLike, ZipResolver
@@ -22,6 +22,19 @@ from ...scene.transforms import DEFAULT_BASE_FRAME
 from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
 from .extensions import handle_extensions, unregistered
+from .transform import (
+    ROTATION,
+    SCALE,
+    TRANSLATION,
+    matrix_from_gltf,
+    matrix_from_trs,
+    node_from_trs,
+    quaternion_from_gltf,
+    quaternion_to_gltf,
+    trs_from_matrix,
+    trs_from_node,
+    unwind,
+)
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -43,6 +56,19 @@ _shapes = {
     "MAT3": (3, 3),
     "MAT4": (4, 4),
 }
+
+# trimesh interpolation mode : GLTF sampler interpolation
+_INTERPOLATION = {"linear": "LINEAR", "step": "STEP", "cubic": "CUBICSPLINE"}
+# and the reverse, for loading
+_INTERPOLATION_LOAD = {v: k for k, v in _INTERPOLATION.items()}
+
+# the animation channels which map onto a keyframe, as
+# (GLTF channel path, keyframe field, index into a packed TRS)
+_CHANNELS = (
+    ("translation", "translation", TRANSLATION),
+    ("rotation", "quaternion", ROTATION),
+    ("scale", "scale", SCALE),
+)
 
 # a default PBR metallic material
 _default_material = {
@@ -776,7 +802,19 @@ def _create_gltf_structure(
     # set the roots on the existing scene dict — it may already
     # hold `extras` with the scene metadata
     tree["scenes"][0]["nodes"] = nodes.pop("scene_roots")
+    # {node name : index in tree["nodes"]} which animation channels
+    # target by index, pop so it isn't serialized into the header
+    node_index = nodes.pop("node_index")
     tree.update(nodes)
+
+    # add any keyframed animation, which also rewrites the nodes it
+    # targets from a `matrix` into TRS as the spec requires
+    _append_animations(
+        tree=tree,
+        buffer_items=buffer_items,
+        animations=getattr(scene, "animations", []),
+        node_index=node_index,
+    )
 
     extensions_used = set()
     extensions_required = set()
@@ -824,6 +862,167 @@ def _create_gltf_structure(
     [tree.pop(key) for key in check if len(tree[key]) == 0]
 
     return tree, buffer_items
+
+
+def _append_animations(tree: dict, buffer_items, animations, node_index: dict):
+    """
+    Append keyframed animations to a GLTF tree, mutating it in-place.
+
+    Animations which share a `name` are combined into a single GLTF
+    animation. Any node targeted by a channel is rewritten from a
+    `matrix` into TRS, as the spec forbids a matrix on animated nodes.
+
+    Parameters
+    ------------
+    tree
+      GLTF header, will be mutated in-place.
+    buffer_items
+      Collection of buffer bytes, will be mutated in-place.
+    animations
+      Sequence of `trimesh.scene.animation.Animation` objects.
+    node_index
+      Mapping of {node name : index in `tree["nodes"]`}
+    """
+    if len(animations) == 0:
+        return
+
+    # group by name so each name becomes one GLTF animation
+    grouped = OrderedDict()
+    for animation in animations:
+        grouped.setdefault(animation.name, []).append(animation)
+
+    result = []
+    # nodes which need rewriting from `matrix` into TRS
+    animated = set()
+
+    # {node index : parent node index} for the tree being written, as GLTF
+    # can only say "animate this node relative to its parent" and an edge
+    # which isn't a parent edge would export as a different animation
+    parents = {
+        child: parent
+        for parent, node in enumerate(tree["nodes"])
+        for child in node.get("children", [])
+    }
+
+    for name, group in grouped.items():
+        samplers = []
+        channels = []
+
+        for animation in group:
+            index = node_index.get(animation.frame_to)
+            if index is None:
+                log.warning(f"animation targets missing node `{animation.frame_to}`!")
+                continue
+
+            # `frame_from` of None means the base frame, which is the tree
+            # root and so has no entry in `parents`
+            expected = node_index.get(animation.frame_from)
+            if parents.get(index) != expected:
+                log.warning(
+                    f"animation `{name}` drives edge "
+                    + f"`{animation.frame_from}` -> `{animation.frame_to}` which is "
+                    + "not a parent edge, GLTF can only store the parent edge!"
+                )
+
+            keyframes = animation.keyframes
+            cubic = animation.interpolation == "cubic"
+
+            # the time accessor is shared by every channel of this node
+            # note `_data_append` fills in the min/max the spec requires
+            sampler_input = _data_append(
+                acc=tree["accessors"],
+                buff=buffer_items,
+                blob={"componentType": 5126, "type": "SCALAR"},
+                data=animation.times.astype(float32),
+            )
+
+            # what the node looks like when this channel isn't animated
+            base = tree["nodes"][index].get("matrix")
+            static = trs_from_matrix(_EYE if base is None else matrix_from_gltf(base))[0]
+
+            for path, field, index_trs in _CHANNELS:
+                values = keyframes[field]
+                incoming = keyframes[f"{field}_in"]
+                outgoing = keyframes[f"{field}_out"]
+
+                if path == "rotation":
+                    # trimesh stores `wxyz` and GLTF wants `xyzw`
+                    values = quaternion_to_gltf(values)
+                    incoming = quaternion_to_gltf(incoming)
+                    outgoing = quaternion_to_gltf(outgoing)
+                    if not cubic:
+                        # keep adjacent keyframes in the same hemisphere or a
+                        # viewer interpolates the long way and visibly jerks.
+                        # a cubic spline is left alone as flipping a keyframe
+                        # without flipping its tangents would break the curve
+                        values = unwind(values)
+
+                # a channel which never changes and already matches the
+                # node's static pose doesn't need to be stored at all
+                static_curve = len(values) == 1 or np.ptp(values, axis=0).max() < 1e-12
+                if cubic:
+                    # tangents can bend a curve which has identical endpoints
+                    static_curve = static_curve and not (
+                        np.abs(incoming).max() > 1e-12 or np.abs(outgoing).max() > 1e-12
+                    )
+                if static_curve:
+                    same = np.allclose(values[0], static[index_trs])
+                    if path == "rotation" and not same:
+                        # a quaternion and its negation are the same rotation
+                        same = np.allclose(values[0], -static[index_trs])
+                    if same:
+                        continue
+
+                if cubic:
+                    # the spec interleaves each keyframe as in-tangent,
+                    # value, out-tangent so the accessor is 3x as long
+                    data = np.stack([incoming, values, outgoing], axis=1).reshape(
+                        (-1, values.shape[1])
+                    )
+                else:
+                    data = values
+
+                samplers.append(
+                    {
+                        "input": sampler_input,
+                        "output": _data_append(
+                            acc=tree["accessors"],
+                            buff=buffer_items,
+                            blob={
+                                "componentType": 5126,
+                                "type": "VEC4" if path == "rotation" else "VEC3",
+                            },
+                            data=np.ascontiguousarray(data, dtype=float32),
+                        ),
+                        "interpolation": _INTERPOLATION[animation.interpolation],
+                    }
+                )
+                channels.append(
+                    {
+                        "sampler": len(samplers) - 1,
+                        "target": {"node": index, "path": path},
+                    }
+                )
+                # only a node which is actually targeted has to be rewritten
+                animated.add(index)
+
+        if len(channels) > 0:
+            result.append({"name": name, "samplers": samplers, "channels": channels})
+
+    if len(result) == 0:
+        return
+
+    # the spec forbids a `matrix` on any node targeted by an animation
+    # so replace it with the equivalent TRS on every animated node
+    for index in animated:
+        node = tree["nodes"][index]
+        matrix = node.pop("matrix", None)
+        if matrix is None:
+            continue
+        # `node_from_trs` omits any component already at the GLTF default
+        node_from_trs(trs_from_matrix(matrix_from_gltf(matrix))[0], node)
+
+    tree["animations"] = result
 
 
 def _append_mesh(
@@ -1601,6 +1800,9 @@ def _read_buffers(
       Can be passed to load_kwargs for a trimesh.Scene
     """
 
+    # decoded accessor data, empty if the file has no buffers at all
+    access = []
+
     if "bufferViews" in header:
         # split buffer data into buffer views
         views = [None] * len(header["bufferViews"])
@@ -2010,31 +2212,16 @@ def _read_buffers(
         # parent -> child relationships have matrix stored in child
         # for the transform from parent to child
         if "matrix" in child:
-            kwargs["matrix"] = (
-                np.array(child["matrix"], dtype=np.float64).reshape((4, 4)).T
-            )
+            kwargs["matrix"] = matrix_from_gltf(child["matrix"])
         else:
             # if no matrix set identity
             kwargs["matrix"] = _EYE
 
-        # Now apply keyword translations
-        # GLTF applies these in order: T * R * S
-        if "translation" in child:
+        # apply any TRS keys on top, which GLTF orders as T * R * S
+        # a node with none of them yields identity so this is a no-op
+        if any(key in child for key in ("translation", "rotation", "scale")):
             kwargs["matrix"] = np.dot(
-                kwargs["matrix"], transformations.translation_matrix(child["translation"])
-            )
-        if "rotation" in child:
-            # GLTF rotations are stored as (4,) XYZW unit quaternions
-            # we need to re- order to our quaternion style, WXYZ
-            quat = np.reshape(child["rotation"], 4)[[3, 0, 1, 2]]
-            # add the rotation to the matrix
-            kwargs["matrix"] = np.dot(
-                kwargs["matrix"], transformations.quaternion_matrix(quat)
-            )
-        if "scale" in child:
-            # add scale to the matrix
-            kwargs["matrix"] = np.dot(
-                kwargs["matrix"], np.diag(np.concatenate((child["scale"], [1.0])))
+                kwargs["matrix"], matrix_from_trs(trs_from_node(child))[0]
             )
 
         # If a camera exists, create the camera and dont add the node to the graph
@@ -2099,6 +2286,14 @@ def _read_buffers(
         "camera": camera,
         "camera_transform": camera_transform,
         "metadata": {},
+        # the traversal above already worked out which edge every node
+        # sits on, which is the edge an animation targeting it drives
+        "animations": _parse_animations(
+            header=header,
+            access=access,
+            names=names,
+            edges={k["frame_to"]: k["frame_from"] for k in graph},
+        ),
     }
 
     try:
@@ -2113,6 +2308,179 @@ def _read_buffers(
         result["metadata"]["gltf_extensions"] = header["extensions"]
     except BaseException:
         pass
+
+    return result
+
+
+def _parse_animations(header, access, names, edges):
+    """
+    Convert GLTF animations into trimesh animation objects.
+
+    A GLTF animation holds channels targeting multiple nodes, which
+    is flattened here into one `RigidAnimation` per node sharing a name.
+
+    GLTF targets a node and leaves the parent implied by its node tree,
+    where trimesh drives an edge, so this is where that node target is
+    resolved into the `frame_from -> frame_to` pair it actually means.
+
+    Parameters
+    ------------
+    header : dict
+      GLTF header.
+    access : list
+      Decoded accessor data.
+    names : dict
+      Mapping of {node index : node name}
+    edges : dict
+      Mapping of {node name : parent node name}
+
+    Returns
+    ----------
+    animations : list
+      Sequence of `RigidAnimation` objects.
+    """
+    # imported here rather than at module level to keep the dependency
+    # one-way: `trimesh.scene.scene` imports this package to export, so a
+    # module-level import back into `trimesh.scene` closes a cycle which
+    # only survives today because of the order the modules happen to load
+    from ...scene.animation import KEYFRAME, RigidAnimation, keyframes_from_matrix
+
+    result = []
+    nodes = header.get("nodes", [])
+
+    for index, current in enumerate(header.get("animations", [])):
+        name = current.get("name", f"animation_{index}")
+        samplers = current.get("samplers", [])
+
+        # {node index : {path : (times, values, in, out, mode)}}
+        collected = defaultdict(dict)
+
+        for channel in current.get("channels", []):
+            target = channel.get("target", {})
+            node = target.get("node")
+            path = target.get("path")
+
+            if node is None or node not in names:
+                continue
+            if path not in ("translation", "rotation", "scale"):
+                if path == "weights":
+                    log.warning("morph target `weights` animation is not supported!")
+                continue
+
+            try:
+                sampler = samplers[channel["sampler"]]
+                times = np.asanyarray(access[sampler["input"]], dtype=np.float64).reshape(
+                    -1
+                )
+                values = np.asanyarray(access[sampler["output"]], dtype=np.float64)
+            except BaseException:
+                log.warning("unable to load animation sampler!", exc_info=True)
+                continue
+
+            stored = sampler.get("interpolation", "LINEAR")
+            values = values.reshape((-1, values.shape[-1] if values.ndim > 1 else 1))
+
+            mode = _INTERPOLATION_LOAD.get(stored)
+            if mode is None:
+                log.warning(f"unsupported interpolation `{stored}`, using LINEAR")
+                mode = "linear"
+
+            if mode == "cubic":
+                # stored interleaved as in-tangent, value, out-tangent
+                if len(values) != len(times) * 3:
+                    log.warning(f"animation `{name}` bad CUBICSPLINE length, skipping")
+                    continue
+                split = values.reshape((len(times), 3, -1))
+                incoming, values, outgoing = split[:, 0], split[:, 1], split[:, 2]
+            else:
+                incoming = outgoing = np.zeros_like(values)
+
+            if len(times) != len(values):
+                log.warning(f"animation `{name}` sampler length mismatch, skipping")
+                continue
+
+            collected[node][path] = (times, values, incoming, outgoing, mode)
+
+        for node, channels in collected.items():
+            # every channel of this node has to land on a shared time base
+            # in the common case they already reference one input accessor
+            bases = [c[0] for c in channels.values()]
+            shared = all(np.array_equal(b, bases[0]) for b in bases[1:])
+            times = bases[0] if shared else np.unique(np.concatenate(bases))
+
+            modes = [c[4] for c in channels.values()]
+            if not shared and "cubic" in modes:
+                # a spline is still followed along its own curve when it gets
+                # resampled below, but the keyframes it lands on have no
+                # tangents of their own, so it can't stay a spline
+                log.warning(
+                    f"animation `{name}` mixes time bases, "
+                    + "baking CUBICSPLINE down to LINEAR keyframes"
+                )
+                modes = ["linear" if m == "cubic" else m for m in modes]
+
+            # channels have to agree on how to blend, as marking a mixed
+            # animation STEP would make its smooth channels blocky and
+            # marking it cubic would need tangents the other channels lack
+            interpolation = modes[0] if len(set(modes)) == 1 else "linear"
+
+            # what this node looks like when a channel isn't animated, which
+            # holds that static value across the whole timeline
+            static = nodes[node]
+            trs = (
+                trs_from_matrix(matrix_from_gltf(static["matrix"]))[0]
+                if "matrix" in static
+                else trs_from_node(static)
+            )
+
+            keyframes = np.zeros(len(times), dtype=KEYFRAME)
+            keyframes["time"] = times
+            keyframes["translation"] = trs[TRANSLATION]
+            keyframes["quaternion"] = quaternion_from_gltf(trs[ROTATION])
+            keyframes["scale"] = trs[SCALE]
+
+            for path, field, _index_trs in _CHANNELS:
+                if path not in channels:
+                    continue
+                channel_times, values, incoming, outgoing, mode = channels[path]
+
+                if path == "rotation":
+                    # GLTF stores `xyzw` and trimesh stores `wxyz`
+                    values = quaternion_from_gltf(values)
+                    incoming = quaternion_from_gltf(incoming)
+                    outgoing = quaternion_from_gltf(outgoing)
+
+                if not shared:
+                    # land this channel on the shared base by asking a
+                    # one-channel animation to resample itself. the tangents
+                    # come along so a spline is followed along its real curve
+                    # before being flattened onto the new keyframe times
+                    alone = keyframes_from_matrix(channel_times)
+                    alone[field] = values
+                    alone[f"{field}_in"] = incoming
+                    alone[f"{field}_out"] = outgoing
+                    values = (
+                        RigidAnimation(frame_to=path, keyframes=alone, interpolation=mode)
+                        .resample(times)
+                        .keyframes[field]
+                    )
+
+                keyframes[field] = values
+                # tangents are meaningless outside of a cubic spline, and
+                # this only reaches cubic when every channel shared a base
+                if interpolation == "cubic":
+                    keyframes[f"{field}_in"] = incoming
+                    keyframes[f"{field}_out"] = outgoing
+
+            result.append(
+                RigidAnimation(
+                    frame_to=names[node],
+                    frame_from=edges.get(names[node]),
+                    keyframes=keyframes,
+                    name=name,
+                    interpolation=interpolation,
+                )
+            )
 
     return result
 

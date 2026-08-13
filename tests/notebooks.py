@@ -144,7 +144,17 @@ def render_examples(out_dir, in_dir=None, ext="ipynb"):
 def main():
     # examples which we're not going to run in CI
     # widget.py opens a window and does a bunch of openGL stuff
-    ci_blacklist = ["widget.py", "voxel.py", "voxel_fillers.py", "voxel_silhouette.py"]
+    # the animation examples end in a viewer, and render_blender.py
+    # imports `bpy` which only exists inside Blender itself
+    ci_blacklist = [
+        "widget.py",
+        "voxel.py",
+        "voxel_fillers.py",
+        "voxel_silhouette.py",
+        "animation_cycloidal.py",
+        "animation_robot.py",
+        "render_blender.py",
+    ]
 
     if "examples" in sys.argv:
         out_path = sys.argv[sys.argv.index("examples") + 1]
