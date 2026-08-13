@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from math import log2
 from typing import Any
 
@@ -129,3 +130,72 @@ def chain(*args: Iterable[Any] | Any | None) -> list[Any]:
         if a is not None
     ]
     return chained
+
+
+class IndexedDict(OrderedDict):
+    """
+    An append-only `OrderedDict` which knows what position a key was inserted at.
+
+    Why this exists
+    ----------------
+    GLTF refers to accessors and buffer views by their *position* in an array.
+    Our exporter keys them by a hash of their contents instead, so identical
+    data is only stored once, which means it constantly has to convert a hash
+    back into a position. Neither `dict` nor `collections.OrderedDict` can do
+    that: the only spelling available is `list(d.keys()).index(key)`, which
+    allocates the entire key list and scans it on every call.
+
+    That lookup only runs when something is deduplicated, so for a scene where
+    every geometry is unique it costs nothing measurable. For a scene with
+    repeated geometry it runs once per repeat against a dict which grows with
+    the scene, which is quadratic. Exporting `n` unique boxes plus `n` copies:
+
+        n       list(keys()).index()      this class
+        2000          0.169s                0.111s
+        4000          0.521s                0.214s
+        8000          1.849s                0.416s
+
+    Append-only
+    ------------
+    Removing or reordering a key shifts the position of every key after it, so
+    `__delitem__`, `pop`, `popitem`, and `move_to_end` raise rather than hand
+    out stale positions later. Removal is `clear()` followed by `update()`.
+
+    Subclassing `OrderedDict` rather than `dict` is deliberate twice over: it
+    keeps `isinstance(d, OrderedDict)` true for the callers which used to be
+    handed one, and unlike `dict` it routes `__init__`, `update`, `setdefault`,
+    `|=`, and `copy` through `__setitem__`, so there is exactly one place a
+    position is ever recorded.
+
+    Examples
+    ----------
+
+    In [1]: IndexedDict({"a": 1, "b": 2, "c": 3}).index("c")
+    Out[1]: 2
+    """
+
+    def __init__(self, *args, **kwargs):
+        # must exist before `super` starts routing through `__setitem__`
+        self._position = {}
+        super().__init__(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        if key not in self:
+            self._position[key] = len(self)
+        super().__setitem__(key, value)
+
+    def _forbidden(self, *args, **kwargs):
+        raise TypeError("`IndexedDict` is append-only: use `clear` and `update`")
+
+    # removing or reordering a key shifts the position of every key after it
+    __delitem__ = pop = popitem = move_to_end = _forbidden
+
+    def clear(self) -> None:
+        super().clear()
+        self._position.clear()
+
+    def index(self, key) -> int:
+        """
+        Which position in insertion order was `key` inserted at.
+        """
+        return self._position[key]
