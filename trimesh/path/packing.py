@@ -8,8 +8,8 @@ Pack rectangular regions onto larger rectangular regions.
 import numpy as np
 
 from ..constants import log, tol
-from ..typed import ArrayLike, Integer, NDArray, Number, float64
-from ..util import allclose, bounds_tree
+from ..typed import ArrayLike, Integer, NDArray, Number, Seed, float64
+from ..util import allclose, bounds_tree, random_generator
 
 # floating point zero
 _TOL_ZERO = 1e-12
@@ -160,7 +160,9 @@ def _roll(a, count):
         return np.concatenate([a[-count:], a[:-count]])
 
 
-def rectangles_single(extents, size=None, shuffle=False, rotate=True, random=None):
+def rectangles_single(
+    extents, size=None, shuffle=False, rotate=True, random: Seed = None
+):
     """
     Execute a single insertion order of smaller rectangles onto
     a larger rectangle using a binary space partition tree.
@@ -179,6 +181,9 @@ def rectangles_single(extents, size=None, shuffle=False, rotate=True, random=Non
       on insertion order.
     rotate : bool
       If True, allow integer-roll rotation.
+    random : None or int or numpy.random.Generator
+      Source for the shuffle, pass a `Generator` to draw from
+      one stream across repeated calls.
 
     Returns
     ---------
@@ -200,11 +205,8 @@ def rectangles_single(extents, size=None, shuffle=False, rotate=True, random=Non
     order = np.argsort(extents.max(axis=1))[::-1]
 
     if shuffle:
-        if random is not None:
-            order = random.permutation(order)
-        else:
-            # reorder with permutations
-            order = np.random.permutation(order)
+        # reorder with permutations
+        order = random_generator(random).permutation(order)
 
     if size is None:
         # if no bounds are passed start it with the size of a large
@@ -416,7 +418,7 @@ def rectangles(
     iterations=50,
     rotate=True,
     quanta=None,
-    seed=None,
+    seed: Seed = None,
 ):
     """
     Run multiple iterations of rectangle packing, this is the
@@ -464,10 +466,9 @@ def rectangles(
     # how many rect were inserted
     best_count = 0
 
-    if seed is None:
-        random = None
-    else:
-        random = np.random.default_rng(seed=seed)
+    # hoist the generator so the loop below draws from one stream
+    # rather than re-collecting OS entropy on every iteration
+    random = random_generator(seed)
 
     for i in range(iterations):
         # run a single insertion order
@@ -511,7 +512,7 @@ def images(
     power_resize: bool = False,
     deduplicate: bool = False,
     iterations: Integer | None = 50,
-    seed: Integer | None = None,
+    seed: Seed = None,
     spacing: Number | None = None,
     mode: str | None = None,
 ):

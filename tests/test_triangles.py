@@ -143,7 +143,7 @@ class TrianglesTest(g.unittest.TestCase):
         # an equilateral triangle transformed into space
         tris = g.trimesh.transform_points(
             g.np.array([[-1, 0, 0], [1, 0, 0], [0, g.np.sqrt(3), 0]], dtype=g.np.float64),
-            g.trimesh.transformations.random_rotation_matrix(),
+            next(g.random_transforms(1, translate=0.0)),
         ).reshape((-1, 3, 3))
         angles = g.trimesh.triangles.angles(tris)
         # all angles should be 60 degrees
@@ -152,7 +152,7 @@ class TrianglesTest(g.unittest.TestCase):
         # an 3-4-5 right triangle
         tris = g.trimesh.transform_points(
             g.np.array([[0, 0, 0], [3, 0, 0], [0, 4, 0]], dtype=g.np.float64),
-            g.trimesh.transformations.random_rotation_matrix(),
+            next(g.random_transforms(1, translate=0.0)),
         ).reshape((-1, 3, 3))
         # get angles
         angles = g.trimesh.triangles.angles(tris)

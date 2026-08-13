@@ -104,7 +104,7 @@ def contains_points(intersector, points: ArrayLike, check_direction: bool | None
     # to avoid infinite recursion
     if check_direction is None:
         # we're going to run the check again in a random direction
-        new_direction = util.unitize(np.random.random(3) - 0.5)
+        new_direction = util.unitize(util.random_generator().random(3) - 0.5)
         # do the mask trick again to be able to assign results
         mask = inside_aabb.copy()
         mask[mask] = broken

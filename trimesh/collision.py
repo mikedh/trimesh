@@ -9,6 +9,30 @@ except BaseException:
     fcl = None
 
 
+# contact cap per pair
+COLLISION_PER_PAIR_CAP = 100000
+
+
+def _fcl_collide_callback(o1, o2, cdata):
+    # unlike fcl.defaultCollisionCallback never halt traversal
+    # early that would silently drop later colliding pairs
+    fcl.collide(o1=o1, o2=o2, request=cdata.request, result=cdata.result)
+    return False
+
+
+def _fcl_collision_data(return_names, return_data):
+    # build (cdata, callback) sized for what the caller actually needs
+    if not (return_names or return_data):
+        return fcl.CollisionData(), fcl.defaultCollisionCallback
+    # one contact identifies a pair only ask for more if the
+    # caller wants the contact data itself
+    request = fcl.CollisionRequest(
+        num_max_contacts=COLLISION_PER_PAIR_CAP if return_data else 1,
+        enable_contact=True,
+    )
+    return fcl.CollisionData(request=request), _fcl_collide_callback
+
+
 class ContactData:
     """
     Data structure for holding information about a collision contact.
@@ -295,14 +319,8 @@ class CollisionManager:
         t = fcl.Transform(transform[:3, :3], transform[:3, 3])
         o = fcl.CollisionObject(geom, t)
 
-        # Collide with manager's objects
-        cdata = fcl.CollisionData()
-        if return_names or return_data:
-            cdata = fcl.CollisionData(
-                request=fcl.CollisionRequest(num_max_contacts=100000, enable_contact=True)
-            )
-
-        self._manager.collide(o, cdata, fcl.defaultCollisionCallback)
+        cdata, callback = _fcl_collision_data(return_names, return_data)
+        self._manager.collide(o, cdata, callback)
         result = cdata.result.is_collision
 
         # If we want to return the objects that were collision, collect them.
@@ -357,13 +375,8 @@ class CollisionManager:
         contacts : list of ContactData
           All contacts detected
         """
-        cdata = fcl.CollisionData()
-        if return_names or return_data:
-            cdata = fcl.CollisionData(
-                request=fcl.CollisionRequest(num_max_contacts=100000, enable_contact=True)
-            )
-
-        self._manager.collide(cdata, fcl.defaultCollisionCallback)
+        cdata, callback = _fcl_collision_data(return_names, return_data)
+        self._manager.collide(cdata, callback)
 
         result = cdata.result.is_collision
 
@@ -415,12 +428,8 @@ class CollisionManager:
         contacts : list of ContactData
           All contacts detected
         """
-        cdata = fcl.CollisionData()
-        if return_names or return_data:
-            cdata = fcl.CollisionData(
-                request=fcl.CollisionRequest(num_max_contacts=100000, enable_contact=True)
-            )
-        self._manager.collide(other_manager._manager, cdata, fcl.defaultCollisionCallback)
+        cdata, callback = _fcl_collision_data(return_names, return_data)
+        self._manager.collide(other_manager._manager, cdata, callback)
         result = cdata.result.is_collision
 
         objs_in_collision = set()

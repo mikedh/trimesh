@@ -12,7 +12,7 @@ from .geometry import weighted_vertex_normals
 from .points import PointCloud, plane_fit
 from .transformations import transform_points
 from .triangles import angles, cross, normals
-from .typed import ArrayLike, Integer
+from .typed import ArrayLike, Integer, Seed
 
 try:
     import scipy.sparse as sparse
@@ -26,6 +26,25 @@ except BaseException as E:
     sparse = exceptions.ExceptionWrapper(E)
 
 
+# permutations of cube rotations
+# the principal inertia transform has arbitrary sign
+# along the 3 major axis so try all combinations of
+# 180 degree rotations with a quick first ICP pass
+_cube_diagonals = np.array(
+    [
+        [1, 1, 1, 1],
+        [1, 1, -1, 1],
+        [1, -1, 1, 1],
+        [-1, 1, 1, 1],
+        [-1, -1, 1, 1],
+        [-1, 1, -1, 1],
+        [1, -1, -1, 1],
+        [-1, -1, -1, 1],
+    ],
+    dtype=np.float64,
+)
+
+
 def mesh_other(
     mesh,
     other,
@@ -33,6 +52,8 @@ def mesh_other(
     scale: bool = False,
     icp_first: Integer = 10,
     icp_final: Integer = 50,
+    reflection: bool = True,
+    seed: Seed = None,
     **kwargs,
 ):
     """
@@ -56,6 +77,9 @@ def mesh_other(
     icp_final : int
       How many ICP iterations for the closest
       candidate from the wider search
+    seed : None or int
+      Seed the surface sampling this uses to pick key points:
+      pass an integer for deterministic results.
     kwargs : dict
       Passed through to `icp`, which passes through to `procrustes`
 
@@ -74,9 +98,9 @@ def mesh_other(
         to registration.
         """
         if len(m.vertices) < (count / 2):
-            return np.vstack((m.vertices, m.sample(count - len(m.vertices))))
+            return np.vstack((m.vertices, m.sample(count - len(m.vertices), seed=seed)))
         else:
-            return m.sample(count)
+            return m.sample(count, seed=seed)
 
     if not util.is_instance_named(mesh, "Trimesh"):
         raise ValueError("mesh must be Trimesh object!")
@@ -119,26 +143,15 @@ def mesh_other(
     # of the search mesh to be aligned with the best- guess
     # principal axes of the points
     search_to_points = np.dot(np.linalg.inv(points_PIT), search_PIT)
+    if not reflection:
+        # drop the negative-determinant seeds — icp can only refine
+        # proper rotations so a reflected seed stays reflected, #2482
+        diagonals = _cube_diagonals[np.prod(_cube_diagonals, axis=1) > 0.0]
+    else:
+        diagonals = _cube_diagonals
 
-    # permutations of cube rotations
-    # the principal inertia transform has arbitrary sign
-    # along the 3 major axis so try all combinations of
-    # 180 degree rotations with a quick first ICP pass
-    cubes = np.array(
-        [
-            np.eye(4) * np.append(diag, 1)
-            for diag in [
-                [1, 1, 1],
-                [1, 1, -1],
-                [1, -1, 1],
-                [-1, 1, 1],
-                [-1, -1, 1],
-                [-1, 1, -1],
-                [1, -1, -1],
-                [-1, -1, -1],
-            ]
-        ]
-    )
+    # expand the diagonals into (n, 4, 4) transforms
+    cubes = np.eye(4) * diagonals[:, None, :]
 
     # loop through permutations and run iterative closest point
     costs = np.ones(len(cubes)) * np.inf
@@ -160,6 +173,7 @@ def mesh_other(
             initial=a_to_b,
             max_iterations=int(icp_first),
             scale=scale,
+            reflection=reflection,
             **kwargs,
         )
 
@@ -174,6 +188,7 @@ def mesh_other(
         initial=transforms[np.argmin(costs)],
         max_iterations=int(icp_final),
         scale=scale,
+        reflection=reflection,
         **kwargs,
     )
 

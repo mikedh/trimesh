@@ -1,0 +1,30 @@
+name: PR Policy
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  one-open-pr-per-author:
+    name: One Open PR Per Author
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce one open PR per author
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          # collaborators are exempt — gh exits 0 on 204, nonzero on 404
+          gh api "repos/$GH_REPO/collaborators/$AUTHOR" --silent 2>/dev/null && exit 0
+          # --author filters server-side; gh reads the repo from $GH_REPO
+          others=$(gh pr list --state open --author "$AUTHOR" \
+            --json number --jq "[.[] | select(.number != $PR) | \"#\(.number)\"] | join(\", \")")
+          [ -z "$others" ] && exit 0
+          gh pr close "$PR" --comment "Thanks for the contribution! This repository limits contributors to **one open pull request at a time**.
+
+          You already have an open PR ($others), so this one is being closed automatically. Please continue in that PR, or close it and reopen this when ready."

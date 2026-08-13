@@ -32,6 +32,51 @@ def test_cone():
     assert c.metadata["shape"] == "cone"
 
 
+def test_revolve_reflection_transform():
+    # regression for issue #2439: passing a reflection (negative
+    # determinant) transform to a `revolve`-based primitive used to
+    # flip the winding so the result was no longer a valid volume,
+    # while applying the same transform *after* creation worked.
+    # the `transform=` keyword and `apply_transform` should agree.
+    reflections = [
+        g.np.diag([-1.0, 1.0, 1.0, 1.0]),
+        g.np.diag([1.0, 1.0, -1.0, 1.0]),
+        g.np.diag([-1.0, -1.0, -1.0, 1.0]),
+    ]
+
+    builders = [
+        ("cone", lambda T: g.trimesh.creation.cone(radius=0.5, height=1.0, transform=T)),
+        (
+            "cylinder",
+            lambda T: g.trimesh.creation.cylinder(radius=0.5, height=1.0, transform=T),
+        ),
+        (
+            "annulus",
+            lambda T: g.trimesh.creation.annulus(
+                r_min=0.5, r_max=1.0, height=1.0, transform=T
+            ),
+        ),
+    ]
+
+    for name, build in builders:
+        # baseline volume of the un-transformed primitive
+        base = build(g.np.eye(4))
+        assert base.is_volume
+
+        for T in reflections:
+            passed = build(T)
+            # building with the reflection transform must stay a volume
+            assert passed.is_volume, f"{name} not a volume with reflection transform"
+            assert passed.volume > 0
+
+            # and must match applying the transform after construction
+            after = build(g.np.eye(4))
+            after.apply_transform(T)
+            assert after.is_volume
+            assert g.np.isclose(passed.volume, after.volume)
+            assert g.np.isclose(passed.volume, base.volume)
+
+
 def test_cylinder():
     # tolerance for cylinders
     atol = 0.03
@@ -68,7 +113,7 @@ def test_cylinder():
 
 def test_soup():
     count = 100
-    mesh = g.trimesh.creation.random_soup(face_count=count)
+    mesh = g.trimesh.creation.random_soup(face_count=count, seed=0)
     assert len(mesh.faces) == count
     assert len(mesh.face_adjacency) == 0
     assert len(mesh.split(only_watertight=True)) == 0
@@ -80,6 +125,14 @@ def test_capsule():
     assert mesh.is_volume
     assert mesh.body_count == 1
     assert g.np.allclose(mesh.extents, [2, 2, 4], atol=0.05)
+
+    # the widest vertices must reach the radius
+    # and form a wall spanning the whole height
+    for radius, height, count in ((1.0, 1.0, 6), (2.0, 3.0, 7), (0.5, 4.0, 8)):
+        cap = g.trimesh.creation.capsule(radius=radius, height=height, count=[count, 24])
+        xy = g.np.linalg.norm(cap.vertices[:, :2], axis=1)
+        assert cap.is_volume and g.np.isclose(xy.max(), radius)
+        assert g.np.isclose(g.np.ptp(cap.vertices[g.np.isclose(xy, radius), 2]), height)
 
 
 def test_spheres():
@@ -409,3 +462,4 @@ def test_torus():
 if __name__ == "__main__":
     # test_torus()
     test_revolve()
+    test_capsule()

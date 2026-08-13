@@ -1,0 +1,216 @@
+/*
+ * coverage.css — appended to coverage.py's report via `[tool.coverage.html] extra_css`.
+ *
+ * Goal: make the standalone coverage report look like it belongs in the trimesh
+ * Furo docs. We import Furo's compiled stylesheet (one dir up on the deployed
+ * site) purely to pull in its CSS variables, font stacks and automatic light/dark
+ * — Furo switches on `@media (prefers-color-scheme:dark){body:not([data-theme=light])}`
+ * and coverage's <body> has no `data-theme`, so it follows the OS like the docs do.
+ *
+ * Colors reference Furo variables only — no hardcoded hex — so light/dark stays
+ * in sync with the docs; the one media query below is layout-only (responsive).
+ */
+
+@import "../_static/styles/furo.css";
+
+body {
+    background: var(--color-background-primary);
+    color: var(--color-foreground-primary);
+    font-family: var(--font-stack);
+}
+
+a, a.nav {
+    color: var(--color-link);
+}
+
+/* ---- header ---------------------------------------------------------- */
+header {
+    background: var(--color-background-secondary);
+    border-bottom: 1px solid var(--color-background-border);
+}
+
+header h1 {
+    font-weight: 600;
+}
+
+.pc_cov {
+    color: var(--color-brand-primary);
+    font-weight: 700;
+}
+
+header p.text, footer .content {
+    color: var(--color-foreground-muted);
+}
+
+/* nav tabs (Files / Functions / Classes) styled like Furo buttons */
+header h2 a.button {
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-background-border);
+    border-radius: 0.25em;
+    color: var(--color-foreground-secondary);
+}
+header h2 a.button:hover {
+    color: var(--color-brand-primary);
+    border-color: var(--color-foreground-border);
+}
+header h2 a.button.current {
+    background: var(--color-background-primary);
+    border-color: var(--color-brand-primary);
+    color: var(--color-foreground-primary);
+}
+
+/* show run/mis/exc/par toggle buttons — neutral chrome, coverage keeps its
+ * semantic backgrounds when a category is active (.show_*) */
+header button {
+    background: var(--color-background-primary);
+    border: 1px solid var(--color-background-border);
+    border-radius: 0.25em;
+    color: var(--color-foreground-secondary);
+}
+
+/* ---- filter box ------------------------------------------------------ */
+#filter_container #filter {
+    background: var(--color-background-primary);
+    border: 1px solid var(--color-background-border);
+    border-radius: 0.25em;
+    color: var(--color-foreground-primary);
+}
+#filter_container #filter:focus {
+    border-color: var(--color-brand-primary);
+}
+#filter_container label {
+    color: var(--color-foreground-muted);
+}
+
+/* keyboard-shortcut key caps */
+kbd {
+    background: var(--color-inline-code-background);
+    border: 1px solid var(--color-background-border);
+    border-radius: 0.25em;
+    color: var(--color-foreground-primary);
+    font-family: var(--font-stack--monospace);
+}
+
+#help_panel {
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-background-border);
+    color: var(--color-foreground-primary);
+}
+
+/* ---- index table ----------------------------------------------------- */
+#index {
+    font-family: var(--font-stack--monospace);
+}
+
+/* numeric columns: right aligned, tabular figures so digits line up and each
+ * header sits squarely over its column */
+#index td, #index th {
+    border-bottom: 1px solid var(--color-background-border);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+#index td.name, #index th.name {
+    text-align: left;
+    font-family: var(--font-stack);
+}
+
+#index th {
+    color: var(--color-foreground-secondary);
+    border-color: var(--color-background-border);
+}
+#index th:hover,
+#index th[aria-sort="ascending"],
+#index th[aria-sort="descending"] {
+    background: var(--color-background-hover);
+}
+#index th .arrows {
+    color: var(--color-foreground-muted);
+}
+
+#index td.name a {
+    color: inherit;
+}
+#index tr.region:hover {
+    background: var(--color-background-hover);
+}
+#index tr.region:hover td.name {
+    color: var(--color-brand-primary);
+}
+#index tr.total td {
+    border-top: 1px solid var(--color-foreground-border);
+}
+
+/* ---- source view ----------------------------------------------------- */
+#source {
+    font-family: var(--font-stack--monospace);
+}
+/* Furo's bare `p{margin}` would gap every code line — id specificity wins */
+#source p {
+    margin: 0;
+}
+#source p .n, #source p .n a {
+    color: var(--color-foreground-muted);
+}
+#source p .t .key {
+    color: var(--color-brand-primary);
+}
+#source p .t .com {
+    color: var(--color-foreground-muted);
+}
+
+#scroll_marker {
+    background: var(--color-background-primary);
+    border-left: 1px solid var(--color-background-border);
+}
+#scroll_marker .marker {
+    background: var(--color-background-border);
+}
+
+/* ---- layout: centered Furo-style column, responsive ------------------ */
+/* coverage hard-codes a 3.5rem left margin and floats the filter, so the
+ * stock page is left-jammed and desktop-only. center a max-width column,
+ * make the table fill it (so the title block and table share a width and
+ * left edge), and collapse to a usable table on phones. */
+:root {
+    --cov-width: 52rem;
+    --cov-pad: 2rem;
+}
+
+header .content,
+main#index,
+main#source,
+footer .content {
+    max-width: var(--cov-width);
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+}
+
+header .content { padding-left: var(--cov-pad); padding-right: var(--cov-pad); }
+main#index { margin-top: 1rem; padding: 0 var(--cov-pad); }
+footer { margin-left: 0; margin-right: 0; }
+footer .content { padding: 0 var(--cov-pad); }
+/* keep room for the floated line-number gutter */
+main#source { padding-left: calc(var(--cov-pad) + 3.5rem); padding-right: var(--cov-pad); }
+
+/* table fills the column so its width + left edge match the title block */
+#index table.index { width: 100%; margin: 0; }
+
+@media (max-width: 700px) {
+    /* collapse the side margin to the screen edge */
+    :root { --cov-pad: 0.75rem; }
+    /* the centering auto-margins leave a stray left offset here — pin flush */
+    header .content, main#index, main#source, footer .content {
+        margin-left: 0;
+        margin-right: 0;
+    }
+    /* stack the filter instead of floating it off-screen */
+    #filter_container { float: none; margin: 0.5rem 0 0; }
+    #filter_container #filter { width: 100%; box-sizing: border-box; }
+    /* a 5-column table can't fit a phone — drop the low-value columns and
+     * keep File / missing / coverage% */
+    #index th.spacer, #index td.spacer,
+    #index th#statements, #index tr > td:nth-child(3),
+    #index th#excluded, #index tr > td:nth-child(5) { display: none; }
+    #index td.name, #index th.name { min-width: 0; }
+}

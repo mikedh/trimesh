@@ -18,9 +18,10 @@ from ...caching import hash_fast
 from ...constants import log, tol
 from ...resolvers import ResolverLike, ZipResolver
 from ...scene.cameras import Camera
+from ...scene.transforms import DEFAULT_BASE_FRAME
 from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
-from .extensions import handle_extensions
+from .extensions import handle_extensions, unregistered
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -464,7 +465,7 @@ def load_glb(
     return kwargs
 
 
-def _uri_to_bytes(uri: str, resolver: ResolverLike) -> bytes:
+def _uri_to_bytes(uri: str, resolver: ResolverLike | None) -> bytes:
     """
     Take a URI string and load it as a
     a filename or as base64.
@@ -488,8 +489,8 @@ def _uri_to_bytes(uri: str, resolver: ResolverLike) -> bytes:
         # string didn't contain the base64 header
         # so return the result from the resolver
         return resolver[uri]
-    # we have a base64 header so strip off
-    # leading index and then decode into bytes
+    # strip the base64 header and decode: note that the decoded result is
+    # 3/4 the length of the payload which is already in-memory
     return base64.b64decode(uri[index + 7 :])
 
 
@@ -651,7 +652,8 @@ def _create_gltf_structure(
     # world node to the 0-index
     tree = {
         "scene": 0,
-        "scenes": [{"nodes": [0]}],
+        # the root node indices are filled in from the scene graph
+        "scenes": [{}],
         "asset": {"version": "2.0", "generator": "https://github.com/mikedh/trimesh"},
         "accessors": OrderedDict(),
         "meshes": [],
@@ -714,6 +716,9 @@ def _create_gltf_structure(
 
     # grab the flattened scene graph in GLTF's format
     nodes = scene.graph.to_gltf(scene=scene, mesh_index=mesh_index)
+    # set the roots on the existing scene dict — it may already
+    # hold `extras` with the scene metadata
+    tree["scenes"][0]["nodes"] = nodes.pop("scene_roots")
     tree.update(nodes)
 
     extensions_used = set()
@@ -1478,6 +1483,8 @@ def _read_buffers(
         # load data from buffers into numpy arrays
         # using the layout described by accessors
         access = [None] * len(header["accessors"])
+        # bufferless, non-sparse accessors must be filled by an extension or stay zero
+        placeholders = set()
         for index, a in enumerate(header["accessors"]):
             # number of items
             count = a["count"]
@@ -1536,7 +1543,9 @@ def _read_buffers(
                         data[start : start + length], dtype=dtype
                     ).reshape(shape)
             else:
-                # a "sparse" accessor should be initialized as zeros
+                # zero placeholder a decoder may replace
+                if "sparse" not in a:
+                    placeholders.add(index)
                 access[index] = np.zeros(count * per_count, dtype=dtype).reshape(shape)
 
         # possibly load images and textures into material objects
@@ -1553,6 +1562,8 @@ def _read_buffers(
     # be inserted to avoid a potentially slow search through our
     # dict of names
     name_counts = {}
+    # extensions whose geometry we couldn't decode for lack of a handler
+    undecoded = set()
     for index, m in enumerate(header.get("meshes", [])):
         try:
             # GLTF spec indicates implicit units are meters
@@ -1570,8 +1581,8 @@ def _read_buffers(
                 metadata["gltf_extensions"] = m["extensions"]
 
             for p in m["primitives"]:
-                # Handle primitive preprocessing extensions (e.g. Draco decompression)
-                # These run before reading accessors since they may modify them
+                # preprocessing extensions like draco decompression run
+                # before reading accessors as they may modify them
                 if prim_extensions := p.get("extensions"):
                     handle_extensions(
                         extensions=prim_extensions,
@@ -1580,6 +1591,11 @@ def _read_buffers(
                         accessors=access,
                         views=views,
                     )
+                    # warn later if an unhandled extension left placeholder zeros
+                    if not placeholders.isdisjoint(p.get("attributes", {}).values()):
+                        undecoded.update(
+                            unregistered(prim_extensions, "primitive_preprocess")
+                        )
 
                 # if we don't have a triangular mesh continue
                 # if not specified assume it is a mesh
@@ -1723,6 +1739,12 @@ def _read_buffers(
             else:
                 raise E
 
+    if undecoded:
+        log.warning(
+            "`%s` GLTF extension has no handler, values are placeholder zeros",
+            ", ".join(sorted(undecoded)),
+        )
+
     # sometimes GLTF "meshes" come with multiple "primitives"
     # by default we return one Trimesh object per "primitive"
     # but if merge_primitives is True we combine the primitives
@@ -1792,12 +1814,16 @@ def _read_buffers(
     # names: {index: name}
     names = {v: k for k, v in name_index.items()}
 
-    # the GLTF is allowed to declare a base frame, should we have used that?
-    base_frame = "world"
-    if base_frame in name_index:
-        # todo : handle this?
-        log.debug("file contains a `world` node, we may stomp on it")
-    names[base_frame] = base_frame
+    # rename any file node that collides with the synthetic base frame
+    # so its transform and children survive under their own frame —
+    # trimesh's own exports never contain one, #2421
+    world = name_index.get(DEFAULT_BASE_FRAME)
+    if world is not None:
+        names[world] = unique_name(DEFAULT_BASE_FRAME, set(names.values()))
+
+    # traversal edges are seeded as (DEFAULT_BASE_FRAME, index) so the
+    # index-keyed dict intentionally holds one string key for the base
+    names[DEFAULT_BASE_FRAME] = DEFAULT_BASE_FRAME
 
     # visited, kwargs for scene.graph.update
     graph = deque()
@@ -1815,12 +1841,11 @@ def _read_buffers(
         # otherwise just use the first index
         scene_index = 0
 
-    base_frame = "world"
     if "scenes" in header:
         # start the traversal from the base frame to the roots
         for root in header["scenes"][scene_index].get("nodes", []):
             # add transform from base frame to these root nodes
-            queue.append((base_frame, root))
+            queue.append((DEFAULT_BASE_FRAME, root))
 
     # make sure we don't process an edge multiple times
     consumed = set()
@@ -1938,7 +1963,7 @@ def _read_buffers(
         "class": "Scene",
         "geometry": meshes,
         "graph": graph,
-        "base_frame": base_frame,
+        "base_frame": DEFAULT_BASE_FRAME,
         "camera": camera,
         "camera_transform": camera_transform,
         "metadata": {},

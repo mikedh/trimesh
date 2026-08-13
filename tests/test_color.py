@@ -33,8 +33,8 @@ def test_visual():
     # stl shouldn't have any visual properties defined
     assert not mesh.visual.defined
 
-    for facet in mesh.facets:
-        mesh.visual.face_colors[facet] = g.trimesh.visual.random_color()
+    for i, facet in enumerate(mesh.facets):
+        mesh.visual.face_colors[facet] = g.trimesh.visual.random_color(seed=i)
 
     assert mesh.visual.defined
     assert not mesh.visual.transparency
@@ -55,13 +55,23 @@ def test_concatenate():
 def test_random_color():
     from trimesh.visual.color import random_color
 
-    c = random_color()
+    c = random_color(seed=0)
     assert c.shape == (4,)
     assert c.dtype == g.np.uint8
 
-    c = random_color(count=10)
+    c = random_color(count=10, seed=0)
     assert c.shape == (10, 4)
     assert c.dtype == g.np.uint8
+
+    # the requested dtype should be honored
+    c = random_color(dtype=g.np.float64)
+    assert c.dtype == g.np.float64
+    assert c.max() <= 1.0
+
+    c = random_color(dtype=g.np.uint16, count=10)
+    assert c.shape == (10, 4)
+    assert c.dtype == g.np.uint16
+    assert c.max() > 255
 
 
 def test_hsv_rgba():
@@ -195,28 +205,33 @@ def test_data_model():
     m.visual.vertex_colors[1] = test_color_transparent
     assert m.visual.transparency
 
-    test = (g.random((len(m.faces), 4)) * 255).astype(g.np.uint8)
-    m.visual.face_colors = test
-    assert bool((m.visual.face_colors == test).all())
+    # draw from a stream: `g.random(4)` returns the same color every call, so
+    # the single-color checks below were asserting a value already set
+    with g.RandomSeed() as r:
+        per_face = (r.random((len(m.faces), 4)) * 255).astype(g.np.uint8)
+        per_vertex = (r.random((len(m.vertices), 4)) * 255).astype(g.np.uint8)
+        one_face = (r.random(4) * 255).astype(g.np.uint8)
+        one_vertex = (r.random(4) * 255).astype(g.np.uint8)
+        two_faces = (r.random((2, 4)) * 255).astype(g.np.uint8)
+
+    m.visual.face_colors = per_face
+    assert bool((m.visual.face_colors == per_face).all())
     assert m.visual.kind == "face"
 
-    test = (g.random((len(m.vertices), 4)) * 255).astype(g.np.uint8)
-    m.visual.vertex_colors = test
-    assert bool((m.visual.vertex_colors == test).all())
+    m.visual.vertex_colors = per_vertex
+    assert bool((m.visual.vertex_colors == per_vertex).all())
     assert m.visual.kind == "vertex"
 
-    test = (g.random(4) * 255).astype(g.np.uint8)
-    m.visual.face_colors = test
-    assert bool((m.visual.vertex_colors == test).all())
+    m.visual.face_colors = one_face
+    assert bool((m.visual.vertex_colors == one_face).all())
     assert m.visual.kind == "face"
     m.visual.vertex_colors[0] = [0, 0, 0, 0]
     assert m.visual.kind == "vertex"
 
-    test = (g.random(4) * 255).astype(g.np.uint8)
-    m.visual.vertex_colors = test
-    assert bool((m.visual.face_colors == test).all())
+    m.visual.vertex_colors = one_vertex
+    assert bool((m.visual.face_colors == one_vertex).all())
     assert m.visual.kind == "vertex"
-    m.visual.face_colors[:2] = (g.random((2, 4)) * 255).astype(g.np.uint8)
+    m.visual.face_colors[:2] = two_faces
     assert m.visual.kind == "face"
 
 
@@ -365,7 +380,8 @@ def test_interpolate():
 
     # now see if we match matplotlib if it's installed
     try:
-        from matplotlib.pyplot import get_cmap
+        # checking against matplotlib is the point of this test
+        from matplotlib.pyplot import get_cmap  # noqa: TID251
     except ImportError:
         return
 

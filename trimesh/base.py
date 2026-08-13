@@ -53,6 +53,7 @@ from .typed import (
     Loadable,
     NDArray,
     Number,
+    Seed,
     Self,
     Sequence,
     ViewerType,
@@ -1387,14 +1388,14 @@ class Trimesh(Geometry3D):
 
         Alters `self.faces` and `self.vertices`
         """
-        if util.is_shape(self.faces, (-1, 3)):
-            # (len(self.faces), ) bool, mask for faces
-            face_mask = np.isfinite(self.faces).all(axis=1)
-            self.update_faces(face_mask)
-
         if util.is_shape(self.vertices, (-1, 3)):
             # (len(self.vertices), ) bool, mask for vertices
             vertex_mask = np.isfinite(self.vertices).all(axis=1)
+            if util.is_shape(self.faces, (-1, 3)) and not vertex_mask.all():
+                # drop faces touching a removed vertex before reindexing
+                # maps them to a degenerate triangle, #2445 — empty faces
+                # and all-true masks early-return inside `update_faces`
+                self.update_faces(vertex_mask[self.faces].all(axis=1))
             self.update_vertices(vertex_mask)
 
     def unique_faces(self) -> NDArray[np.bool_]:
@@ -2016,6 +2017,7 @@ class Trimesh(Geometry3D):
         sigma: Floating = 0.0,
         n_samples: Integer = 1,
         threshold: Floating = 0.0,
+        seed: Seed = None,
     ) -> tuple[NDArray[float64], NDArray[float64]]:
         """
         Computes stable orientations of a mesh and their quasi-static probabilities.
@@ -2064,6 +2066,7 @@ class Trimesh(Geometry3D):
             sigma=sigma,
             n_samples=n_samples,
             threshold=threshold,
+            seed=seed,
         )
 
     def subdivide(
@@ -2094,15 +2097,8 @@ class Trimesh(Geometry3D):
         mesh: trimesh.Trimesh
           The copy of current mesh with subdivided faces.
         """
-        if iterations is not None:
-            # check that our arguments are executable
-            if face_index is not None:
-                raise ValueError("Unable to subdivide a subset with multiple iterations!")
-            # decrement the next iteration
-            next_iteration = iterations - 1
-            # if we've reached zero exit
-            if next_iteration <= 0:
-                next_iteration = None
+        if iterations is not None and face_index is not None:
+            raise ValueError("Unable to subdivide a subset with multiple iterations!")
 
         visual = None
         if hasattr(self.visual, "uv") and np.shape(self.visual.uv) == (
@@ -2141,8 +2137,8 @@ class Trimesh(Geometry3D):
             process=False,
         )
 
-        if iterations is not None:
-            return result.subdivide(iterations=next_iteration)
+        if iterations is not None and iterations > 1:
+            return result.subdivide(iterations=iterations - 1)
 
         return result
 
@@ -2433,7 +2429,7 @@ class Trimesh(Geometry3D):
 
         return new_mesh
 
-    def unwrap(self, image: Image = None) -> "Trimesh":
+    def unwrap(self, image=None) -> "Trimesh":
         """
         Returns a Trimesh object equivalent to the current mesh where
         the vertices have been assigned uv texture coordinates. Vertices
@@ -2504,6 +2500,7 @@ class Trimesh(Geometry3D):
         count: Integer,
         return_index: bool = False,
         face_weight: NDArray[float64] | None = None,
+        seed: Seed = None,
     ):
         """
         Return random samples distributed across the
@@ -2519,6 +2516,8 @@ class Trimesh(Geometry3D):
         face_weight : None or len(mesh.faces) float
           Weight faces by a factor other than face area.
           If None will be the same as face_weight=mesh.area
+        seed : None or int
+          Seed for deterministic results, otherwise OS entropy.
 
         Returns
         ---------
@@ -2528,7 +2527,7 @@ class Trimesh(Geometry3D):
           Index of self.faces
         """
         samples, index = sample.sample_surface(
-            mesh=self, count=count, face_weight=face_weight
+            mesh=self, count=count, face_weight=face_weight, seed=seed
         )
         if return_index:
             return samples, index
@@ -3301,9 +3300,9 @@ class Trimesh(Geometry3D):
 
     def eval_cached(self, statement: str, *args) -> Any:
         """
-        Evaluate a statement and cache the result before returning.
+        DEPRECATED: call `eval` directly instead.
 
-        Statements are evaluated inside the Trimesh object, and
+        Evaluate a statement and cache the result before returning.
 
         Parameters
         ------------
@@ -3320,6 +3319,16 @@ class Trimesh(Geometry3D):
         -----------
         r = mesh.eval_cached('np.dot(self.vertices, args[0])', [0, 0, 1])
         """
+        import warnings
+
+        warnings.warn(
+            "`Trimesh.eval_cached` is deprecated "
+            + "and will be removed in a future release. "
+            + "call `eval` directly if you need this behavior.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+
         # store this by the combined hash of statement and args
         hashable = [hash(statement)]
         hashable.extend(hash(a) for a in args)

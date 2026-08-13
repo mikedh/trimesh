@@ -19,7 +19,9 @@ class VerticesTest(g.unittest.TestCase):
 
             # choose some random vertices and make sure their
             # face indices are correct
-            rand_vertices = g.np.random.randint(low=0, high=len(m.vertices), size=100)
+            rand_vertices = g.np.random.default_rng(seed=0).integers(
+                low=0, high=len(m.vertices), size=100
+            )
             for v in rand_vertices:
                 v_faces = g.np.where(m.faces == v)[0][::-1]
                 assert g.np.all(v_faces == m.vertex_faces[v][m.vertex_faces[v] >= 0])

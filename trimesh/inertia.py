@@ -73,7 +73,7 @@ def sphere_inertia(mass: Number, radius: Number) -> NDArray[float64]:
 
 def points_inertia(
     points: ArrayLike,
-    weights: None | ArrayLike | Number = None,
+    weights: ArrayLike | Number | None = None,
     at_center_mass: bool = True,
 ) -> NDArray[float64]:
     """

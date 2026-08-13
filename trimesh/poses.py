@@ -8,7 +8,8 @@ Find stable orientations of meshes.
 import numpy as np
 
 from .triangles import points_to_barycentric
-from .util import diagonal_dot
+from .typed import Seed
+from .util import diagonal_dot, random_generator
 
 try:
     import networkx as nx
@@ -20,7 +21,9 @@ except BaseException as E:
     nx = ExceptionWrapper(E)
 
 
-def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, threshold=0.0):
+def compute_stable_poses(
+    mesh, center_mass=None, sigma=0.0, n_samples=1, threshold=0.0, seed: Seed = None
+):
     """
     Computes stable orientations of a mesh and their quasi-static probabilities.
 
@@ -56,6 +59,9 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
       The probability value at which to threshold
       returned stable poses
 
+    seed : None or int
+      Seed for deterministic results, otherwise OS entropy.
+
     Returns
     -------
     transforms : (n, 4, 4) float
@@ -74,10 +80,11 @@ def compute_stable_poses(mesh, center_mass=None, sigma=0.0, n_samples=1, thresho
         center_mass = mesh.center_mass
 
     # Sample center of mass, rejecting points outside of conv hull
+    random = random_generator(seed)
     sample_coms = []
     while len(sample_coms) < n_samples:
         remaining = n_samples - len(sample_coms)
-        coms = np.random.multivariate_normal(center_mass, sigma * np.eye(3), remaining)
+        coms = random.multivariate_normal(center_mass, sigma * np.eye(3), remaining)
         for c in coms:
             dots = diagonal_dot(c - cvh.triangles_center, cvh.face_normals)
             if np.all(dots < 0):

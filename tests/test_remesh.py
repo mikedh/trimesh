@@ -81,6 +81,19 @@ class SubDivideTest(g.unittest.TestCase):
             )
             assert check.faces.shape == m.faces.shape
 
+    def test_subdivide_iterations(self):
+        # subdivide should run exactly `iterations` times
+        # https://github.com/mikedh/trimesh/issues/2575
+        m = g.trimesh.creation.box()
+
+        # each subdivision replaces every face with 4 smaller faces
+        for iterations in range(1, 4):
+            s = m.subdivide(iterations=iterations)
+            assert len(s.faces) == len(m.faces) * 4**iterations
+
+        # passing iterations=1 should match the default single subdivision
+        assert m.subdivide(iterations=1).faces.shape == m.subdivide().faces.shape
+
     def test_sub(self):
         # try on some primitives
         meshes = [g.trimesh.creation.box(), g.trimesh.creation.icosphere()]

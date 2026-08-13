@@ -16,6 +16,7 @@ from ..registration import procrustes
 from ..typed import (
     ArrayLike,
     Floating,
+    Hashable,
     Integer,
     Iterable,
     NDArray,
@@ -43,7 +44,7 @@ class Scene(Geometry3D):
     def __init__(
         self,
         geometry: GeometryInput | None = None,
-        base_frame: str = "world",
+        base_frame: Hashable = "world",
         metadata: dict | None = None,
         graph: SceneGraph | None = None,
         camera: cameras.Camera | None = None,
@@ -118,9 +119,9 @@ class Scene(Geometry3D):
     def add_geometry(
         self,
         geometry: GeometryInput,
-        node_name: str | None = None,
+        node_name: Hashable | None = None,
         geom_name: str | None = None,
-        parent_node_name: str | None = None,
+        parent_node_name: Hashable | None = None,
         transform: NDArray | None = None,
         metadata: dict | None = None,
     ):
@@ -1008,7 +1009,7 @@ class Scene(Geometry3D):
         # concatenate everything and return the most-occurring type.
         return util.concatenate(self.dump())
 
-    def subscene(self, node: str) -> "Scene":
+    def subscene(self, node: Hashable) -> "Scene":
         """
         Get part of a scene that succeeds a specified node.
 
@@ -1634,7 +1635,7 @@ def reconstruct_instances(scene: Scene, cost_threshold: Floating = 1e-6) -> Scen
         # get the geometry name for this base node
         _, geom_base = scene.graph[node_base]
         # get the vertices of the base model
-        base: NDArray = scene.geometry[geom_base].vertices.view(np.ndarray)
+        base = scene.geometry[geom_base].vertices.view(np.ndarray)
 
         for node in group[1:]:
             # the original pose of this node in the scene

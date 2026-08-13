@@ -170,7 +170,7 @@ def test_meshes():
 def test_mesh_2D():
     # check a simple mesh with 2D vertices
     m = g.trimesh.Trimesh(
-        vertices=g.np.random.random((100, 2)),
+        vertices=g.random((100, 2)),
         faces=g.np.arange(99, dtype=g.np.int64).reshape((-1, 3)),
     )
     # the face normals should be 3D (+Z)
@@ -180,6 +180,123 @@ def test_mesh_2D():
 
     rend = mesh_to_vertexlist(m)
     assert len(rend) > 1
+
+
+def test_remove_infinite_values_drops_dependent_faces():
+    # Regression test for https://github.com/mikedh/trimesh/issues/2445
+    #
+    # `remove_infinite_values` was checking `np.isfinite(self.faces)` which
+    # is always all-True (face indices are int64), so faces referencing a
+    # NaN/Inf vertex were never explicitly dropped. They then sneaked
+    # through `update_vertices`, whose inverse-index map defaults to 0
+    # for removed vertices — turning each face that touched a NaN vertex
+    # into a degenerate triangle (e.g. `[0,1,2]` -> `[0,1,0]`). Those
+    # degenerate faces crashed the renderer with `IndexError` on `mesh.show`.
+    vertices = g.np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.5, 0.5, g.np.nan],
+        ],
+        dtype=g.np.float64,
+    )
+    faces = g.np.array(
+        [
+            [0, 1, 2],
+            [1, 3, 2],
+            [0, 4, 1],
+            [1, 4, 3],
+            [3, 4, 2],
+        ],
+        dtype=g.np.int64,
+    )
+    mesh = g.trimesh.Trimesh(vertices=vertices.copy(), faces=faces.copy(), process=True)
+
+    # the non-finite vertex is gone
+    assert g.np.isfinite(mesh.vertices).all()
+    assert len(mesh.vertices) == 4
+
+    # the three faces that touched the NaN vertex are removed; the two
+    # entirely-finite faces survive without being remapped to degenerates
+    assert len(mesh.faces) == 2
+    # every surviving face references a valid vertex
+    assert (mesh.faces < len(mesh.vertices)).all()
+    # no surviving face is degenerate (no repeated vertex index)
+    assert (mesh.faces[:, 0] != mesh.faces[:, 1]).all()
+    assert (mesh.faces[:, 1] != mesh.faces[:, 2]).all()
+    assert (mesh.faces[:, 0] != mesh.faces[:, 2]).all()
+
+    # a scene-build round-trip should work without crashing now that the
+    # mesh contains only well-formed faces
+    scene = mesh.scene()
+    assert "geometry_0" in scene.geometry
+
+
+def test_remove_infinite_values_inf_vertex_drops_face():
+    # Companion to #2445: `np.inf` vertices should be dropped along with
+    # any face referencing them — the bug fix must cover both NaN and Inf.
+    vertices = g.np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.5, 0.5, g.np.inf],
+        ],
+        dtype=g.np.float64,
+    )
+    faces = g.np.array([[0, 1, 2], [0, 3, 1]], dtype=g.np.int64)
+    mesh = g.trimesh.Trimesh(vertices=vertices.copy(), faces=faces.copy(), process=True)
+
+    assert g.np.isfinite(mesh.vertices).all()
+    assert len(mesh.vertices) == 3
+    # only the all-finite face survives
+    assert len(mesh.faces) == 1
+    assert (mesh.faces < len(mesh.vertices)).all()
+
+
+def test_remove_infinite_values_no_op_on_finite_mesh():
+    # Sanity: when every vertex is finite, `remove_infinite_values` must
+    # not drop anything. Guards against an over-eager fix that would
+    # touch face counts on healthy meshes.
+    vertices = g.np.random.RandomState(0).random((40, 3))
+    # random integer faces, deduped so we don't start with degenerates
+    raw = g.np.random.RandomState(1).randint(0, 40, (50, 3))
+    faces = g.np.array([f for f in raw if len(set(f)) == 3], dtype=g.np.int64)
+
+    mesh = g.trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
+    n_v, n_f = len(mesh.vertices), len(mesh.faces)
+    mesh.remove_infinite_values()
+    assert len(mesh.vertices) == n_v
+    assert len(mesh.faces) == n_f
+
+
+def test_remove_infinite_values_edge_shapes():
+    # the guards live inside `update_faces` (early-returns on empty
+    # meshes and all-true masks) so degenerate shapes must work
+    empty = g.trimesh.Trimesh()
+    empty.remove_infinite_values()
+    assert len(empty.vertices) == 0
+    assert len(empty.faces) == 0
+
+    # NaN vertex with no faces at all is still removed
+    cloud = g.trimesh.Trimesh(
+        vertices=[[0.0, 0.0, 0.0], [g.np.nan, 0.0, 0.0]], process=False
+    )
+    cloud.remove_infinite_values()
+    assert len(cloud.vertices) == 1
+    assert g.np.isfinite(cloud.vertices).all()
+
+    # a NaN vertex referenced by no face drops no faces
+    mesh = g.trimesh.Trimesh(
+        vertices=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [g.np.nan, 0, 0]],
+        faces=[[0, 1, 2]],
+        process=False,
+    )
+    mesh.remove_infinite_values()
+    assert len(mesh.vertices) == 3
+    assert mesh.faces.tolist() == [[0, 1, 2]]
 
 
 if __name__ == "__main__":

@@ -1,10 +1,8 @@
-
-# Stage 1: Build uv
-FROM ghcr.io/astral-sh/uv:0.9.8 AS uv
+# get UV from a docker copy
+FROM ghcr.io/astral-sh/uv:0.11.23 AS uv
 
 # use a vanilla Debian base image
 FROM debian:trixie-slim AS base
-LABEL maintainer="mikedh@kerfed.com"
 
 # Copy uv binary from the builder stage
 COPY --from=uv uv /usr/local/bin/uv
@@ -23,8 +21,7 @@ WORKDIR /home/user
 # but if you use Debian methods like `update-alternatives`
 # it won't provide a `pip` which works easily and it isn't
 # easy to know how system packages interact with pip packages
-
-ARG PYTHON_VERSION="3.14.0"
+ARG PYTHON_VERSION="3.14.4"
 RUN uv venv --python=python${PYTHON_VERSION} venv
 
 # Add `pip` script install location to $PATH
@@ -80,9 +77,6 @@ COPY --chown=499 trimesh ./trimesh/
 COPY --chown=499 models ./models/
 COPY --chown=499 pyproject.toml .
 
-# codecov looks at the git history
-COPY --chown=499 ./.git ./.git/
-
 USER root
 RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox,blender,build
 USER user
@@ -100,19 +94,13 @@ RUN ruff check trimesh && \
 
 # run pytest wrapped with xvfb for simple viewer tests
 # print more columns so the short summary is usable
+# `--cov` leaves a `.coverage` data file the docs build turns into a report
 RUN COLUMNS=240 xvfb-run pytest \
     --cov=trimesh \
     --beartype-packages=trimesh \
     -p no:ALL_DEPENDENCIES \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
-
-
-# use BuildKit secrets to access codecov token securely
-RUN --mount=type=secret,id=codecov_token,uid=499 \
-    curl -Os https://uploader.codecov.io/latest/linux/codecov && \
-    chmod +x codecov && \
-    ./codecov -Z -t "$(cat /run/secrets/codecov_token)"
 
 ################################
 ### Build Sphinx Docs
@@ -129,6 +117,10 @@ COPY --chown=499 docs ./docs/
 COPY --chown=499 examples ./examples/
 COPY --chown=499 models ./models/
 COPY --chown=499 trimesh ./trimesh/
+
+# pull the coverage data from the tests stage so the docs build can render
+# it into a styled report next to `trimesh` (same path pytest measured)
+COPY --chown=499 --from=tests /home/user/.coverage /home/user/.coverage
 
 # autodoc walks trimesh modules that import optional deps
 RUN pip install /home/user[easy,recommend]

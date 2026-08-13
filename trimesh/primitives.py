@@ -17,7 +17,7 @@ from . import transformations as tf
 from .base import Trimesh
 from .caching import cache_decorator
 from .constants import log, tol
-from .typed import ArrayLike, Integer, Number
+from .typed import ArrayLike, Integer, Number, Seed
 
 # immutable identity matrix for checks
 _IDENTITY = np.eye(4)
@@ -774,8 +774,10 @@ class Box(Primitive):
             # create extents from AABB
             extents = np.ptp(bounds, axis=0)
             # translate to the center of the box
+            # use the min corner (not `bounds[0]`) so the result is
+            # independent of the order the two corners are passed in
             transform = np.eye(4)
-            transform[:3, 3] = bounds[0] + extents / 2.0
+            transform[:3, 3] = np.min(bounds, axis=0) + extents / 2.0
 
         self.primitive = PrimitiveAttributes(
             self,
@@ -805,7 +807,7 @@ class Box(Primitive):
     def transform(self):
         return self.primitive.transform
 
-    def sample_volume(self, count):
+    def sample_volume(self, count, seed: Seed = None):
         """
         Return random samples from inside the volume of the box.
 
@@ -813,6 +815,8 @@ class Box(Primitive):
         -------------
         count : int
           Number of samples to return
+        seed : None or int
+          Seed for deterministic results, otherwise OS entropy.
 
         Returns
         ----------
@@ -823,6 +827,7 @@ class Box(Primitive):
             extents=self.primitive.extents,
             count=count,
             transform=self.primitive.transform,
+            seed=seed,
         )
         return samples
 

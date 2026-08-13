@@ -61,7 +61,7 @@ def load_XAML(file_obj, *args, **kwargs):
 
     # read the file and parse XML
     file_data = file_obj.read()
-    root = etree.XML(file_data)
+    root = etree.fromstring(file_data, parser=etree.XMLParser(**XML_PARSER_OPTIONS))
 
     # the XML namespace
     ns = root.tag.split("}")[0] + "}"
@@ -146,6 +146,8 @@ def load_XAML(file_obj, *args, **kwargs):
 
 try:
     from lxml import etree
+
+    from .common import XML_PARSER_OPTIONS
 
     _xaml_loaders = {"xaml": load_XAML}
 except BaseException as E:

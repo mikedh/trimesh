@@ -284,7 +284,8 @@ class CacheTest(g.unittest.TestCase):
             False,
             False,
             g.random(dim),
-            g.random(dim[::1]),
+            # `[::1]` was a no-op slice so this was a duplicate of the above
+            g.random(dim[::-1]),
             "shape",
         ]
 

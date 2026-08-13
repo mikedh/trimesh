@@ -1,5 +1,6 @@
 import json
 import os
+import urllib.parse
 from copy import deepcopy
 
 import numpy as np
@@ -10,7 +11,7 @@ from ..exceptions import ExceptionWrapper
 from ..parent import Geometry, LoadSource
 from ..points import PointCloud
 from ..scene.scene import Scene, append_scenes
-from ..typed import Loadable
+from ..typed import HttpSessionLike, Loadable
 from ..util import log
 from . import misc
 from .binvox import _binvox_loaders
@@ -160,6 +161,7 @@ def load_scene(
     resolver: resolvers.ResolverLike | None = None,
     allow_remote: bool = False,
     metadata: dict | None = None,
+    session: HttpSessionLike | None = None,
     **kwargs,
 ) -> Scene:
     """
@@ -180,6 +182,9 @@ def load_scene(
       For 'scene': try to coerce everything into a scene
     allow_remote
       If True allow this load call to work on a remote URL.
+    session : HttpSessionLike or None
+      Optional HTTP session passed through to a `WebResolver` when loading
+      from a URL. Accepts `httpx.Client` or `requests.Session`.
     kwargs : dict
       Passed to geometry __init__
 
@@ -195,6 +200,7 @@ def load_scene(
         file_type=file_type,
         resolver=resolver,
         allow_remote=allow_remote,
+        session=session,
     )
 
     try:
@@ -520,6 +526,7 @@ def _parse_file_args(
     file_type: str | None,
     resolver: resolvers.ResolverLike | None = None,
     allow_remote: bool = False,
+    session: HttpSessionLike | None = None,
     **kwargs,
 ) -> LoadSource:
     """
@@ -605,18 +612,16 @@ def _parse_file_args(
                 # if a bracket is in the string it's probably straight JSON
                 file_type = "json"
                 file_obj = util.wrap_as_stream(file_obj)
-            elif "https://" in file_obj or "http://" in file_obj:
+            elif urllib.parse.urlparse(file_obj).scheme in ("http", "https"):
                 if not allow_remote:
                     raise ValueError("unable to load URL with `allow_remote=False`")
-
-                import urllib
 
                 # remove the url-safe encoding and query params
                 file_type = util.split_extension(
                     urllib.parse.unquote(file_obj).split("?", 1)[0].split("/")[-1].strip()
                 )
                 # create a web resolver to do the fetching and whatnot
-                resolver = resolvers.WebResolver(url=file_obj)
+                resolver = resolvers.WebResolver(url=file_obj, session=session)
                 # fetch the base file
                 file_obj = util.wrap_as_stream(resolver.get_base())
 

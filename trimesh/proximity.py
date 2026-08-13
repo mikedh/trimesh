@@ -12,6 +12,7 @@ from .constants import log_time, tol
 from .grouping import group_min
 from .triangles import closest_point as _corresponding
 from .triangles import points_to_barycentric
+from .typed import ArrayLike
 from .util import diagonal_dot
 
 try:
@@ -22,7 +23,7 @@ except BaseException as E:
     cKDTree = ExceptionWrapper(E)
 
 
-def nearby_faces(mesh, points):
+def nearby_faces(mesh, points: ArrayLike):
     """
     For each point find nearby faces relatively quickly.
 
@@ -46,6 +47,11 @@ def nearby_faces(mesh, points):
       Sequence of indexes for mesh.faces
     """
     points = np.asanyarray(points, dtype=np.float64)
+    # empty points lists should get empty candidates
+    if len(points) == 0:
+        return []
+
+    # mishapen points should error
     if not util.is_shape(points, (-1, 3)):
         raise ValueError("points must be (n,3)!")
 
@@ -61,10 +67,13 @@ def nearby_faces(mesh, points):
     # axis aligned bounds
     bounds = np.column_stack((points - distance_vertex, points + distance_vertex))
 
-    # faces that intersect axis aligned bounding box
-    candidates = [list(rtree.intersection(b)) for b in bounds]
-
-    return candidates
+    try:
+        # use the batch API added in 1.4.0 and fixed to actually work in 1.4.1
+        hit_ids, hit_counts = rtree.intersection_v(bounds[:, :3], bounds[:, 3:])
+        return np.array_split(hit_ids, np.cumsum(hit_counts)[:-1])
+    except BaseException:
+        # fall back to a list comprehension
+        return [list(rtree.intersection(b)) for b in bounds]
 
 
 def closest_point_naive(mesh, points):

@@ -59,7 +59,11 @@ class MeshScript:
         return self
 
     def run(self, command):
-        command_run = Template(command).substitute(self.replacement).split()
+        # substitute per-token so a replacement containing whitespace
+        # stays a single argv entry
+        command_run = [
+            Template(part).substitute(self.replacement) for part in command.split()
+        ]
         # run the binary
         startupinfo = None
         if platform.system() == "Windows":

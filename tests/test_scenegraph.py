@@ -6,14 +6,14 @@ except BaseException:
 from trimesh.scene.transforms import EnforcedForest
 
 
-def random_chr():
-    return chr(ord("a") + round(g.random() * 25))
-
-
 def test_forest():
     graph = EnforcedForest()
-    for _i in range(5000):
-        graph.add_edge(random_chr(), random_chr())
+    # draw from a stream: `g.random` returns the same value every call
+    # which made this 5000 self-edges on a single node
+    with g.RandomSeed() as r:
+        edges = r.integers(0, 26, (5000, 2))
+    for a, b in edges:
+        graph.add_edge(chr(ord("a") + a), chr(ord("a") + b))
 
 
 def test_cache():
@@ -156,7 +156,7 @@ def test_scene_transform():
     assert g.np.allclose(scene.convex_hull.bounds, b)
 
     # get a random rotation matrix
-    T = g.trimesh.transformations.random_rotation_matrix()
+    T = next(g.random_transforms(1, translate=0.0))
 
     # apply it to both the mesh and the scene
     m.apply_transform(T)
@@ -249,7 +249,9 @@ def test_shortest_path():
         forest.add_edge(*k, **v)
 
     # generate a lot of random queries
-    queries = g.np.random.choice(list(forest.nodes), 10000).reshape((-1, 2))
+    queries = (
+        g.np.random.default_rng(seed=0).choice(list(forest.nodes), 10000).reshape((-1, 2))
+    )
     # filter out any self-queries as networkx doesn't handle them
     queries = queries[g.np.ptp(queries, axis=1) > 0]
 
@@ -312,13 +314,31 @@ def test_translation_cache():
 def test_translation_origin():
     # check to see if we can translate to the origin
     c = g.get_mesh("cycloidal.3DXML")
-    c.apply_transform(g.trimesh.transformations.random_rotation_matrix())
+    c.apply_transform(next(g.random_transforms(1, translate=0.0)))
     s = c.scaled(1.0 / c.extents)
     # shouldn't be at the origin
     assert not g.np.allclose(s.bounds[0], 0.0)
     # should move to the origin
     s.apply_translation(-s.bounds[0])
     assert g.np.allclose(s.bounds[0], 0)
+
+
+def test_falsy_base_frame():
+    # frames are documented as any hashable so a falsy
+    # node name like `0` must not be replaced with `world`
+    assert g.trimesh.scene.transforms.SceneGraph(base_frame=0).base_frame == 0
+
+    # a scene with `world -> 0 -> child` where child has geometry
+    s = g.trimesh.Scene()
+    box = g.trimesh.creation.box()
+    s.graph.update(frame_to=0, frame_from=s.graph.base_frame)
+    s.add_geometry(box, node_name="child", parent_node_name=0)
+
+    # subscene rooted at the falsy node must keep its name and geometry
+    sub = s.subscene(0)
+    assert sub.graph.base_frame == 0
+    assert set(sub.graph.nodes_geometry) == {"child"}
+    assert g.np.isclose(sub.volume, box.volume)
 
 
 def test_reconstruct():

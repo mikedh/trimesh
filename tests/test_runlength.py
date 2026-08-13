@@ -8,17 +8,11 @@ np = g.np
 
 
 def random_rle_encoding(n=20, max_value=255, dtype=np.uint8):
-    return (
-        np.random.uniform(
-            size=(n,),
-        )
-        * (max_value - 1)
-        + 1
-    ).astype(np.uint8)
+    return (g.random((n,)) * (max_value - 1) + 1).astype(np.uint8)
 
 
 def random_brle_encoding(n=20, max_value=255, dtype=np.uint8):
-    return (np.random.uniform(size=(n,)) * (max_value - 1) + 1).astype(dtype)
+    return (g.random((n,)) * (max_value - 1) + 1).astype(dtype)
 
 
 class RleTest(g.unittest.TestCase):
@@ -26,7 +20,7 @@ class RleTest(g.unittest.TestCase):
 
     def test_rle_encode_decode(self):
         small = np.array([3] * 500 + [5] * 1000 + [2], dtype=np.uint8)
-        rand = (np.random.uniform(size=(10000,)) > 0.05).astype(np.uint8)
+        rand = (g.random((10000,)) > 0.05).astype(np.uint8)
         for original in [small, rand]:
             for dtype in [np.uint8, np.int64]:
                 enc = rl.dense_to_rle(original, dtype=dtype)
@@ -81,7 +75,7 @@ class RleTest(g.unittest.TestCase):
 
     def test_brle_encode_decode(self):
         small = np.array([False] * 500 + [True] * 1000 + [False], dtype=bool)
-        rand = np.random.uniform(size=(10000,)) > 0.05
+        rand = g.random((10000,)) > 0.05
         for original in [small, rand]:
             for dtype in [np.uint8, np.int64]:
                 enc = rl.dense_to_brle(original, dtype=dtype)
@@ -170,7 +164,7 @@ class RleTest(g.unittest.TestCase):
     def test_rle_mask(self):
         rle_data = random_rle_encoding()
         dense = rl.rle_to_dense(rle_data)
-        mask = np.random.uniform(size=dense.shape) > 0.8
+        mask = g.random(dense.shape) > 0.8
         expected = dense[mask]
         actual = tuple(rl.rle_mask(rle_data, mask))
         np.testing.assert_equal(actual, expected)
@@ -178,7 +172,7 @@ class RleTest(g.unittest.TestCase):
     def test_brle_mask(self):
         brle_data = random_brle_encoding()
         dense = rl.brle_to_dense(brle_data)
-        mask = np.random.uniform(size=dense.shape) > 0.8
+        mask = g.random(dense.shape) > 0.8
         expected = dense[mask]
         actual = tuple(rl.brle_mask(brle_data, mask))
         np.testing.assert_equal(actual, expected)

@@ -50,7 +50,7 @@ def generate_primitives():
     primitives.append(
         g.trimesh.primitives.Box(
             extents=[10, 20, 30],
-            transform=g.trimesh.transformations.random_rotation_matrix(),
+            transform=next(g.random_transforms(1, translate=0.0)),
         )
     )
 
@@ -106,7 +106,7 @@ def test_scaling():
         perm[1].primitive.transform = g.tf.translation_matrix([0, 0, 7])
         perm[2].apply_transform(g.tf.rotation_matrix(g.np.pi / 4, [0, 0, 1]))
         # try with a gnarly rotation
-        perm[3].primitive.transform = g.tf.random_rotation_matrix(translate=1000)
+        perm[3].primitive.transform = next(g.random_transforms(1, translate=1000))
 
         fields = set(dir(original.primitive))
         ori_radius, ori_height = None, None
@@ -225,7 +225,7 @@ def test_primitives():
 
 
 def test_sample():
-    transform = g.trimesh.transformations.random_rotation_matrix()
+    transform = next(g.random_transforms(1, translate=0.0))
     box = g.trimesh.primitives.Box(transform=transform, extents=[20, 10, 100])
     for kwargs in [
         {"step": 8},
@@ -264,7 +264,7 @@ def test_cyl_buffer():
     c = g.trimesh.primitives.Cylinder(
         radius=1.0,
         height=10.0,
-        transform=g.trimesh.transformations.random_rotation_matrix(),
+        transform=next(g.random_transforms(1, translate=0.0)),
     )
     # inflate cylinder
     b = c.buffer(1.0)
@@ -304,6 +304,17 @@ def test_box_bounds_constructor():
 
     # bounds should match requesta
     assert g.np.allclose(prim.bounds, bounds)
+
+    # the resulting AABB must not depend on the order the two corners are
+    # passed in: regression test for the center being computed from
+    # `bounds[0]` rather than the min corner (issue #2523)
+    expected = [[0, 0, 0], [1, 1, 1]]
+    for corners in (
+        [[0, 0, 0], [1, 1, 1]],
+        [[0, 1, 0], [1, 0, 1]],
+        [[1, 1, 1], [0, 0, 0]],
+    ):
+        assert g.np.allclose(g.trimesh.primitives.Box(bounds=corners).bounds, expected)
 
     try:
         # should raise a ValueError

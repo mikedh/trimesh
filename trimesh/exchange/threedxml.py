@@ -48,7 +48,9 @@ def load_3DXML(file_obj, *args, **kwargs):
         # wrap in try statement, as sometimes 3DXML
         # contains non- xml files, like JPG previews
         try:
-            as_etree[k] = etree.XML(v.read())
+            as_etree[k] = etree.fromstring(
+                v.read(), parser=etree.XMLParser(**XML_PARSER_OPTIONS)
+            )
         except etree.XMLSyntaxError:
             # move the file object back to the file start
             v.seek(0)
@@ -409,6 +411,8 @@ try:
     # soft dependencies
     import networkx as nx
     from lxml import etree
+
+    from .common import XML_PARSER_OPTIONS
 
     _threedxml_loaders = {"3dxml": load_3DXML}
 except BaseException as E:

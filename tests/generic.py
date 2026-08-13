@@ -169,17 +169,21 @@ io_wrap = trimesh.util.wrap_as_stream
 
 def random(*args, **kwargs):
     """
-    A random function always seeded from the same value so tests
-    can use random data but they execute mostly deterministically
-    in a large test matrix.
+    A FIXED array of pseudorandom values, not a random stream.
 
-    Drop-in replacement for `np.random.random(*args, **kwargs)`
+    This re-seeds on every call so it is a constant: `random(10)` returns
+    the same array every time and `random(3)` is a prefix of `random(10)`.
+    Two calls in one scope are the SAME array, which silently makes
+    "independent" inputs identical to each other.
+
+    Correct for one-shot bulk data. If you need more than one draw use
+    `RandomSeed`, which yields a real stream.
     """
     state = np.random.RandomState(seed=1)
     return state.random_sample(*args, **kwargs)
 
 
-def random_transforms(count, translate=1000):
+def random_transforms(count, translate=1000, seed=0):
     """
     Deterministic generation of random transforms so unit
     tests have limited levels of flake.
@@ -190,14 +194,19 @@ def random_transforms(count, translate=1000):
       Number of repeatable but random-ish transforms to generate
     translate : float
       The scale of translation to apply.
+    seed : int
+      Seed the generator these are drawn from.
 
     Yields
     ------------
     transform : (4, 4) float
       Homogeneous transformation matrix
     """
-    quaternion = random((count, 3))
-    translate = (random((count, 3)) - 0.5) * float(translate)
+    # draw eagerly: a `with` block spanning a `yield` would stay open
+    # across the consumer and never restore if they stopped early
+    with RandomSeed(seed) as r:
+        quaternion = r.random((count, 3))
+        translate = (r.random((count, 3)) - 0.5) * float(translate)
 
     for quat, trans in zip(quaternion, translate):
         matrix = tf.random_rotation_matrix(rand=quat)
@@ -205,9 +214,76 @@ def random_transforms(count, translate=1000):
         yield matrix
 
 
-# random should be deterministic
-assert np.allclose(random(10), random(10))
+class RandomSeed:
+    """
+    A scope with deterministic randomness which leaves no trace.
+
+    Yields a seeded `numpy.random.Generator` to draw test data from, and
+    seeds the global numpy RNG for code we don't control inside the block
+    — the upstream `transformations` doctests are full of `np.random.*`.
+    The original global state is put back on exit even if the body raised
+    so a seed can never leak out and shift the values a later test sees.
+
+    Unlike `random` the yielded generator is a *stream*: successive draws
+    differ, so two "independent" inputs really are independent.
+
+    Parameters
+    -------------
+    seed : int
+      Value to seed both the generator and the global numpy RNG with.
+
+    Examples
+    -------------
+    >>> with RandomSeed(0) as r:
+    ...     a = r.random((100, 3))
+    ...     b = r.random((100, 3))  # genuinely independent of `a`
+    """
+
+    def __init__(self, seed: int = 0):
+        if not isinstance(seed, (int, np.integer)):
+            raise ValueError(f"seed must be an integer, not {type(seed)!s}")
+        self.seed = int(seed)
+
+    def __enter__(self):
+        # stash the state from before we stomp on it
+        self._state = np.random.get_state()
+        np.random.seed(self.seed)
+        return np.random.default_rng(self.seed)
+
+    def __exit__(self, *args):
+        # always restore even if the body raised
+        np.random.set_state(self._state)
+        return False
+
+
+# `random` is a fixed source: pin the values rather than checking it
+# against itself which would only assert that re-seeding re-seeds
+assert np.allclose(random(3), [4.17022005e-01, 7.20324493e-01, 1.14374817e-04])
+assert np.allclose(random(3), random(10)[:3])
+
+# `RandomSeed` should reproduce across processes
+with RandomSeed(0) as r:
+    _check = r.random(10)
+with RandomSeed(0) as r:
+    assert np.allclose(r.random(10), _check)
+
+# it should be a stream rather than a fixed value: this is the entire
+# point of it and the property `random` doesn't have
+with RandomSeed(0) as r:
+    assert not np.allclose(r.random(10), r.random(10))
+
+# it should leave no trace on the global RNG, including for the
+# third-party code it exists to contain
+_before = np.random.get_state()[2]
+with RandomSeed(0) as r:
+    r.random(10)
+    np.random.random(5)
+assert np.random.get_state()[2] == _before
+
+# transforms should repeat and shouldn't alias rotation into translation
 assert np.allclose(list(random_transforms(10)), list(random_transforms(10)))
+_check = np.array(list(random_transforms(100, translate=10)))
+assert not np.allclose(_check[:, :3, 3], _check[0, :3, 3])
 
 
 def _load_data():
@@ -294,12 +370,15 @@ def serve_meshes():
             self.httpd.serve_forever()
 
     t = _ServerThread()
-    t.daemon = False
+    t.daemon = True
     t.start()
     time.sleep(0.2)
-    yield "http://localhost:{}".format(t.port)
-    t.httpd.shutdown()
-    t.join()
+    try:
+        yield "http://localhost:{}".format(t.port)
+    finally:
+        # tear down the server even if the `with` body raised
+        t.httpd.shutdown()
+        t.join()
 
 
 def get_meshes(

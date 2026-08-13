@@ -47,7 +47,9 @@ def svg_to_path(file_obj=None, file_type=None, path_string=None):
     shapes = []
     if file_obj is not None:
         # first parse the XML
-        tree = etree.fromstring(file_obj.read())
+        tree = etree.fromstring(
+            file_obj.read(), parser=etree.XMLParser(**XML_PARSER_OPTIONS)
+        )
         # store paths and transforms as
         # (path string, 3x3 matrix)
         for element in tree.iter("{*}path"):
@@ -797,6 +799,8 @@ except BaseException as E:
 
 try:
     from lxml import etree
+
+    from ...exchange.common import XML_PARSER_OPTIONS
 except BaseException as E:
     # will re-raise the import exception when
     # someone actually tries to use the module
