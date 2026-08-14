@@ -561,9 +561,8 @@ def _data_append(
         hashed = hash_fast(as_bytes)
 
     if claimed is not None:
-        # an extension is storing this data itself: `byteOffset` is only valid
-        # alongside a `bufferView` so an accessor with neither is both correct
-        # and unable to collide with a stored copy of the same data
+        # an extension stores this itself: `byteOffset` is only valid alongside a
+        # `bufferView` and an accessor with neither can't collide with a stored copy
         blob.pop("byteOffset", None)
     elif hashed in buff:
         blob["bufferView"] = buff.index(hashed)
@@ -584,8 +583,7 @@ def _data_append(
     # xor the hash for the blob to the key
     key ^= hashed
 
-    # if key exists return the index it was inserted at, which a claim
-    # still has to record as this is another primitive's accessor too
+    # a claim records here too as this is another primitive's accessor
     if key in acc:
         index = acc.index(key)
         if claimed is not None:
@@ -670,8 +668,7 @@ def _create_gltf_structure(
       Contains bytes of data
     """
     if extension_draco:
-        # fail here rather than warning once per mesh and then quietly
-        # writing a file with none of the compression that was asked for
+        # fail once here rather than warning per mesh and writing an uncompressed file
         import DracoPy  # noqa: F401
 
     # we are defining a single scene, and will be setting the
@@ -767,9 +764,8 @@ def _create_gltf_structure(
     if extension_webp:
         extensions_used.add("EXT_texture_webp")
         extensions_required.add("EXT_texture_webp")
-    # draco has no fallback so it is required, but only if a primitive really
-    # got compressed: asking and not getting it must not write a file every
-    # conforming loader is obligated to refuse
+    # draco has no fallback so it is required, but only if a primitive really got
+    # compressed: a file requiring an extension nothing uses is refused by loaders
     if "KHR_draco_mesh_compression" in extensions_used:
         extensions_required.add("KHR_draco_mesh_compression")
     if len(extensions_used) > 0:
@@ -835,9 +831,8 @@ def _append_mesh(
         log.debug("skipping empty mesh!")
         return
 
-    # draco absorbs geometry into a buffer of its own, so collect the arrays
-    # as they are appended and let the handler at the end claim them rather
-    # than storing every one of them twice
+    # draco absorbs geometry into a buffer of its own, so collect the arrays as
+    # they are appended for the handler below rather than storing each one twice
     claimed = {} if extension_draco else None
 
     # convert mesh data to the correct dtypes
@@ -1045,15 +1040,12 @@ def _append_mesh(
             arrays=claimed,
         )
         if not compressed:
-            # nothing claimed the arrays so store them after all, keyed by
-            # accessor rather than by content: these were built to not
-            # deduplicate, and two of them landing on one view would need a
-            # `byteStride` which is never emitted
+            # nothing claimed the arrays so store them after all, keyed by accessor
+            # not content: two of these landing on one view would need a `byteStride`
             blobs = list(tree["accessors"].values())
             for index, data in claimed.items():
                 key = ("accessor", index)
-                if key not in buffer_items:
-                    buffer_items[key] = _byte_pad(data.tobytes())
+                buffer_items[key] = _byte_pad(data.tobytes())
                 blobs[index]["bufferView"] = buffer_items.index(key)
                 blobs[index]["byteOffset"] = 0
 
