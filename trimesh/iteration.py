@@ -139,12 +139,12 @@ class IndexedDict(OrderedDict):
     Useful anywhere values are referenced by *position* but keyed by content so
     duplicates are only stored once: the only other spelling is
     `list(d.keys()).index(key)`, which allocates every key and scans it, i.e.
-    quadratic. Exporting a GLTF scene of `n` unique boxes plus `n` copies:
+    quadratic. Looking up the position of all `n` keys once each:
 
         n       list(keys()).index()      this class
-        2000          0.169s                0.111s
-        4000          0.521s                0.214s
-        8000          1.849s                0.416s
+        2000          0.061s                0.00007s
+        4000          0.262s                0.00012s
+        8000          1.135s                0.00026s
 
     Removing or reordering a key would shift the position of every key after it,
     so `__delitem__`, `pop`, `popitem`, and `move_to_end` raise: the supported
