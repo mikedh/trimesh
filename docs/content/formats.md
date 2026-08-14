@@ -23,7 +23,7 @@ No dependencies indicates a minimal install of just `trimesh` and `numpy` can lo
 | `PLY`  | | Has both ASCII and Binary representations, both are supported. It has indexed triangles, and a header format that supports named properties. [Overview](https://paulbourke.net/dataformats/ply/index.html)
 | `OBJ`  | | Wavefront OBJ, relatively slow to parse and may require re-indexing to match the `trimesh` "matching arrays" data structure. |
 | `OFF`  | | Text format that is just vertices and faces in ASCII |
-| `3MF`  | `lxml`, `networkx` | An XML based 3D printing focused mesh format. It  |
+| `3MF`  | `lxml`, `networkx` | An XML-based, 3D-printing-focused mesh format. |
 | `3DXML` | `lxml`, `networkx`, `PIL` | Dassault's XML format from CATIA/SolidWorks, the easiest way to get from Solidworks to a nice 3D scene. |
 | `DAE`/`ZAE` | `lxml`, `PIL`, `pycollada` | COLLADA, an XML-based scene format that supports everything. |
 | `STEP`/`STP` | `cascadio` | The only boundary representation format with open-source loaders available. `cascadio` uses OpenCASCADE to convert to GLB before loading. |
