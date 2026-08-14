@@ -1045,11 +1045,16 @@ def _append_mesh(
             arrays=claimed,
         )
         if not compressed:
-            # nothing claimed the arrays so store them after all: an accessor
-            # with neither a `bufferView` nor an extension is all zeros
+            # nothing claimed the arrays so store them after all, keyed by
+            # accessor rather than by content: these were built to not
+            # deduplicate, and two of them landing on one view would need a
+            # `byteStride` which is never emitted
             blobs = list(tree["accessors"].values())
             for index, data in claimed.items():
-                blobs[index]["bufferView"] = _buffer_append(buffer_items, data.tobytes())
+                key = ("accessor", index)
+                if key not in buffer_items:
+                    buffer_items[key] = _byte_pad(data.tobytes())
+                blobs[index]["bufferView"] = buffer_items.index(key)
                 blobs[index]["byteOffset"] = 0
 
     tree["meshes"].append(current)

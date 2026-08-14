@@ -68,37 +68,38 @@ def test_indexed_dict():
         # `index` must agree with the slow version it exists to replace
         # for every key, which is the only thing it promises
         keys = list(current.keys())
-        assert [current.index(k) for k in keys] == list(range(len(keys)))
+        assert [current.index(key) for key in keys] == list(range(len(keys)))
 
     # exercise every path which can insert a key
-    d = IndexedDict({"a": 1, "b": 2})
-    d["c"] = 3
-    d.update({"d": 4}, e=5)
-    d.setdefault("f", 6)
-    d |= {"g": 7}
+    indexed = IndexedDict({"a": 1, "b": 2})
+    indexed["c"] = 3
+    indexed.update({"d": 4}, e=5)
+    indexed.setdefault("f", 6)
+    indexed |= {"g": 7}
     # setting an existing key must not move it or grow the dict
-    d["a"] = 10
-    check(d)
-    assert len(d) == 7 and d["f"] == 6 and d["a"] == 10 and d.index("a") == 0
+    indexed["a"] = 10
+    check(indexed)
+    assert len(indexed) == 7
+    assert indexed["f"] == 6 and indexed["a"] == 10 and indexed.index("a") == 0
 
     # callers handed an `OrderedDict` must not break and a copy must not
     # degrade into a plain `dict` which would forget every position
-    assert isinstance(d, OrderedDict) and isinstance(d.copy(), IndexedDict)
-    check(d.copy())
+    assert isinstance(indexed, OrderedDict) and isinstance(indexed.copy(), IndexedDict)
+    check(indexed.copy())
 
     # removing or reordering would shift every position after it so it
     # must raise loudly rather than silently returning stale indexes
     for name in ("__delitem__", "pop", "popitem", "move_to_end"):
         with pytest.raises(TypeError):
-            getattr(d, name)("a")
+            getattr(indexed, name)("a")
     # the failed removals must not have altered anything
-    check(d)
+    check(indexed)
 
     # `clear` and `update` is the supported way to remove
-    d.clear()
-    d.update({"z": 1, "y": 2})
-    check(d)
-    assert len(d) == 2 and d.index("y") == 1
+    indexed.clear()
+    indexed.update({"z": 1, "y": 2})
+    check(indexed)
+    assert len(indexed) == 2 and indexed.index("y") == 1
 
 
 if __name__ == "__main__":
