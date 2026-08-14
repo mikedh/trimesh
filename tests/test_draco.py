@@ -38,6 +38,9 @@ class DracoTest(g.unittest.TestCase):
             colored.visual.vertex_colors = (
                 r.random((len(colored.vertices), 4)) * 255
             ).astype(g.np.uint8)
+            # draco has no idea what this is so it must be left alone
+            custom = r.random((len(colored.vertices), 3)).astype(g.np.float32)
+        colored.vertex_attributes["_CustomFloat32Vec3"] = custom
 
         # both entries are copies so they are byte-identical: the loaded mesh
         # carries vertex normals from the OBJ that a copy recomputes slightly
@@ -104,6 +107,21 @@ class DracoTest(g.unittest.TestCase):
         # the texture survived everything else giving up its buffer
         assert reloaded.geometry["fuze"].visual.material.baseColorTexture is not None
 
+        # an attribute draco never absorbed must keep its own buffer view, as
+        # an accessor with neither that nor draco data is defined as all zeros
+        attributes = {
+            name: primitive["attributes"][name]
+            for primitive in primitives
+            for name in primitive["attributes"]
+            if name.startswith("_")
+        }
+        assert set(attributes) == {"_CustomFloat32Vec3"}
+        assert all("bufferView" in tree["accessors"][i] for i in attributes.values())
+        # and it must still be exactly what went in
+        assert g.np.allclose(
+            reloaded.geometry["colored"].vertex_attributes["_CustomFloat32Vec3"], custom
+        )
+
     def test_shared_accessor(self):
         # accessors are deduplicated by a hash of their data, so a PointCloud
         # built from a compressed mesh's vertices lands on the same accessor.
@@ -162,23 +180,38 @@ class DracoTest(g.unittest.TestCase):
         def explode(context):
             raise ImportError("no DracoPy")
 
+        # UV, normals, and a texture so every array the handler would have
+        # claimed has to find its way back into a buffer view
+        source = g.trimesh.Scene({"m": g.get_mesh("fuze.obj")})
+        kwargs = {"file_type": "glb", "include_normals": True}
+
         handlers["KHR_draco_mesh_compression"] = explode
         try:
-            export = g.trimesh.Scene({"m": g.trimesh.creation.box()}).export(
-                file_type="glb", extension_draco=True
-            )
+            export = source.export(extension_draco=True, **kwargs)
         finally:
             handlers["KHR_draco_mesh_compression"] = original
 
         tree = glb_header(export)
         assert "KHR_draco_mesh_compression" not in tree.get("extensionsRequired", [])
         assert "KHR_draco_mesh_compression" not in tree.get("extensionsUsed", [])
-        # and the geometry must have fallen back to being stored uncompressed
+        # every accessor must be backed by real bytes: one with no `bufferView`
+        # and no draco data to fill it in is defined as all zeros
+        assert all("bufferView" in a for a in tree["accessors"])
+
         validate_glb(export, name="draco_unavailable")
-        reloaded = g.trimesh.load_scene(
+        check = g.trimesh.load_scene(
             g.trimesh.util.wrap_as_stream(export), file_type="glb"
-        )
-        assert g.np.isclose(reloaded.geometry["m"].volume, 1.0)
+        ).geometry["m"]
+        # the buffers land in a different order than they would have, so compare
+        # against a plain export: nothing about the geometry may have changed
+        plain = g.trimesh.load_scene(
+            g.trimesh.util.wrap_as_stream(source.export(**kwargs)), file_type="glb"
+        ).geometry["m"]
+        assert g.np.array_equal(check.faces, plain.faces)
+        assert g.np.array_equal(check.vertices, plain.vertices)
+        assert g.np.array_equal(check.vertex_normals, plain.vertex_normals)
+        assert g.np.array_equal(check.visual.uv, plain.visual.uv)
+        assert check.visual.material.baseColorTexture is not None
 
 
 if __name__ == "__main__":

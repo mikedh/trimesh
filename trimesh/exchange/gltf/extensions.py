@@ -7,7 +7,7 @@ Each scope has a TypedDict defining the context passed to handlers.
 """
 
 from collections.abc import Callable, Iterable
-from typing import Any, Literal, NamedTuple, TypeAlias, TypedDict
+from typing import Any, Literal, TypeAlias, TypedDict
 
 import numpy as np
 
@@ -80,20 +80,6 @@ class PrimitivePreprocessContext(TypedDict):
     views: list
 
 
-class Attributes(NamedTuple):
-    """
-    The arrays a primitive was exported from in the dtype they were written
-    with, so a handler recompressing them never unpacks bytes back into
-    numpy. Anything the mesh didn't have is `None`.
-    """
-
-    indices: NDArray
-    position: NDArray
-    color: NDArray | None = None
-    uv: NDArray | None = None
-    normal: NDArray | None = None
-
-
 class PrimitiveExportContext(TypedDict):
     """Context for primitive_export scope handlers (during export)."""
 
@@ -102,9 +88,11 @@ class PrimitiveExportContext(TypedDict):
     tree: dict
     buffer_items: dict
     primitive: dict
-    arrays: Attributes
-    # how many bits to quantize positions onto, if the handler is lossy
-    quantization: int
+    # the arrays the primitive's accessors were built from, in the dtype they
+    # would have been written with, keyed by accessor index: a handler storing
+    # them itself never unpacks bytes back into numpy, and the exporter stores
+    # them after all if no handler claims them
+    arrays: dict[int, NDArray]
 
 
 # Handler type alias - handlers receive a context dict
@@ -307,15 +295,19 @@ def _texture_webp_source(context: TextureSourceContext) -> int | None:
 
 
 # the optional attributes draco can absorb, as
-# (`Attributes` field, glTF name, `DracoPy.encode` keyword, `DracoPy.AttributeType`)
+# (glTF name, `DracoPy.encode` keyword, `DracoPy.AttributeType`)
 _draco_optional = (
-    ("color", "COLOR_0", "colors", "COLOR"),
-    ("uv", "TEXCOORD_0", "tex_coord", "TEX_COORD"),
-    ("normal", "NORMAL", "normals", "NORMAL"),
+    ("COLOR_0", "colors", "COLOR"),
+    ("TEXCOORD_0", "tex_coord", "TEX_COORD"),
+    ("NORMAL", "normals", "NORMAL"),
 )
 
 # how hard draco tries, which trades export time for size and is not lossy
 _DRACO_COMPRESSION = 6
+
+# bits draco quantizes positions onto, which is what blender emits: a vertex
+# moves up to half a step, i.e. `mesh.extents.max() * 2**-(bits + 1)`
+_DRACO_QUANTIZATION = 14
 
 
 @register_handler("KHR_draco_mesh_compression", scope="primitive_preprocess")
@@ -363,10 +355,10 @@ def _draco_encode(context: PrimitiveExportContext) -> bool | None:
     """
     Compress a primitive's geometry into a single draco buffer.
 
-    Every array is absorbed, so the exporter writes their accessors with no
-    `bufferView` rather than storing the same data twice. This runs *before*
-    any of them are stored, so returning `None` leaves the primitive exported
-    uncompressed rather than pointing at accessors full of zeros.
+    Every array in `arrays` is absorbed, so the exporter left their accessors
+    with no `bufferView` rather than storing the same data twice. Returning
+    `None` makes it store them after all, so a failure here exports the
+    primitive uncompressed rather than pointing at accessors full of zeros.
 
     Parameters
     ----------
@@ -383,27 +375,33 @@ def _draco_encode(context: PrimitiveExportContext) -> bool | None:
     from . import _buffer_append
 
     primitive = context["primitive"]
-    # the arrays `_append_mesh` wrote, so we never unpack bytes back into numpy
+    attributes = primitive["attributes"]
+    # the arrays the accessors were built from keyed by accessor index, so we
+    # never unpack bytes back into numpy and can only claim what was recorded
     arrays = context["arrays"]
 
-    # the optional attributes this primitive actually has
+    # the optional attributes this primitive actually has: anything the
+    # exporter stored itself, like a custom `_ATTRIBUTE`, is not in `arrays`
     absorb, optional = [], {}
-    for field, name, keyword, kind in _draco_optional:
-        value = getattr(arrays, field)
+    for name, keyword, kind in _draco_optional:
+        value = arrays.get(attributes.get(name))
         if value is None:
             continue
         absorb.append((name, kind))
         # DracoPy asserts on float64 for UV and normals, colors stay uint8
         optional[keyword] = value if value.dtype == np.uint8 else value.astype(np.float64)
 
+    position = arrays[attributes["POSITION"]]
+    indices = arrays[primitive["indices"]]
+
     # `preserve_order` is load-bearing: without it draco rewelds and permutes
     # vertices, which would invalidate the count/min/max already written into
     # every accessor and silently misindex any attribute we didn't compress
     buffer = DracoPy.encode(
-        points=arrays.position,
-        faces=arrays.indices,
+        points=position,
+        faces=indices,
         preserve_order=True,
-        quantization_bits=context["quantization"],
+        quantization_bits=_DRACO_QUANTIZATION,
         compression_level=_DRACO_COMPRESSION,
         **optional,
     )
@@ -414,9 +412,7 @@ def _draco_encode(context: PrimitiveExportContext) -> bool | None:
     # DO NOT remove this check: it is all that stands between a lossy encoder
     # and silently corrupt geometry in the exported file.
     check = DracoPy.decode(buffer)
-    if len(check.points) != len(arrays.position) or len(check.faces) != len(
-        arrays.indices
-    ):
+    if len(check.points) != len(position) or len(check.faces) != len(indices):
         log.warning("draco round trip changed the vertex count, not compressing")
         return None
 
@@ -425,7 +421,7 @@ def _draco_encode(context: PrimitiveExportContext) -> bool | None:
     # `KeyError` leaves this primitive uncompressed rather than pointing at
     # an accessor the exporter is about to stop storing
     ids = {attr["attribute_type"]: attr["unique_id"] for attr in check.attributes}
-    attributes = {
+    absorbed = {
         name: ids[getattr(DracoPy.AttributeType, kind)]
         for name, kind in [("POSITION", "POSITION"), *absorb]
     }
@@ -433,6 +429,6 @@ def _draco_encode(context: PrimitiveExportContext) -> bool | None:
     primitive.setdefault("extensions", {})["KHR_draco_mesh_compression"] = {
         # identical geometry encodes identically so this dedupes for free
         "bufferView": _buffer_append(context["buffer_items"], buffer),
-        "attributes": attributes,
+        "attributes": absorbed,
     }
     return True
