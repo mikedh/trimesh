@@ -136,36 +136,19 @@ class IndexedDict(OrderedDict):
     """
     An append-only `OrderedDict` which knows what position a key was inserted at.
 
-    Why this exists
-    ----------------
-    GLTF refers to accessors and buffer views by their *position* in an array.
-    Our exporter keys them by a hash of their contents instead, so identical
-    data is only stored once, which means it constantly has to convert a hash
-    back into a position. Neither `dict` nor `collections.OrderedDict` can do
-    that: the only spelling available is `list(d.keys()).index(key)`, which
-    allocates the entire key list and scans it on every call.
-
-    That lookup only runs when something is deduplicated, so for a scene where
-    every geometry is unique it costs nothing measurable. For a scene with
-    repeated geometry it runs once per repeat against a dict which grows with
-    the scene, which is quadratic. Exporting `n` unique boxes plus `n` copies:
+    Useful anywhere values are referenced by *position* but keyed by content so
+    duplicates are only stored once: the only other spelling is
+    `list(d.keys()).index(key)`, which allocates every key and scans it, i.e.
+    quadratic. Exporting a GLTF scene of `n` unique boxes plus `n` copies:
 
         n       list(keys()).index()      this class
         2000          0.169s                0.111s
         4000          0.521s                0.214s
         8000          1.849s                0.416s
 
-    Append-only
-    ------------
-    Removing or reordering a key shifts the position of every key after it, so
-    `__delitem__`, `pop`, `popitem`, and `move_to_end` raise rather than hand
-    out stale positions later. Removal is `clear()` followed by `update()`.
-
-    Subclassing `OrderedDict` rather than `dict` is deliberate twice over: it
-    keeps `isinstance(d, OrderedDict)` true for the callers which used to be
-    handed one, and unlike `dict` it routes `__init__`, `update`, `setdefault`,
-    `|=`, and `copy` through `__setitem__`, so there is exactly one place a
-    position is ever recorded.
+    Removing or reordering a key would shift the position of every key after it,
+    so `__delitem__`, `pop`, `popitem`, and `move_to_end` raise: the supported
+    way to remove is `clear` followed by `update`.
 
     Examples
     ----------
@@ -173,6 +156,9 @@ class IndexedDict(OrderedDict):
     In [1]: IndexedDict({"a": 1, "b": 2, "c": 3}).index("c")
     Out[1]: 2
     """
+
+    # subclasses `OrderedDict` rather than `dict` as it routes `__init__`, `update`,
+    # `setdefault`, `|=`, and `copy` through `__setitem__`: one place records a position
 
     def __init__(self, *args, **kwargs):
         # must exist before `super` starts routing through `__setitem__`

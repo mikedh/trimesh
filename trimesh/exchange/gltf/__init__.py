@@ -495,7 +495,7 @@ def _uri_to_bytes(uri: str, resolver: ResolverLike | None) -> bytes:
     return base64.b64decode(uri[index + 7 :])
 
 
-def _buffer_append(ordered, data):
+def _buffer_append(ordered: IndexedDict, data: bytes) -> int:
     """
     Append data to an existing IndexedDict and
     pad it to a 4-byte boundary.
@@ -527,7 +527,7 @@ def _data_append(
     buff: IndexedDict,
     blob: dict,
     data: NDArray,
-    claimed: dict | None = None,
+    claimed: dict[int, NDArray] | None = None,
 ):
     """
     Append a new accessor to an IndexedDict.

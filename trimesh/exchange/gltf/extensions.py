@@ -12,6 +12,7 @@ from typing import Any, Literal, TypeAlias, TypedDict
 import numpy as np
 
 from ...constants import log
+from ...iteration import IndexedDict
 from ...typed import NDArray
 
 # Scopes define where in the glTF load/export process handlers run:
@@ -86,7 +87,8 @@ class PrimitiveExportContext(TypedDict):
     mesh: Any
     name: str
     tree: dict
-    buffer_items: dict
+    # a `bufferView` is the position of an entry in here, so the order matters
+    buffer_items: IndexedDict
     primitive: dict
     # the arrays the primitive's accessors were built from, in the dtype they
     # would have been written with, keyed by accessor index: a handler storing

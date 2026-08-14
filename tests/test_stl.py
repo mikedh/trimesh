@@ -41,7 +41,7 @@ class STLTests(g.unittest.TestCase):
         wrap = blob[:80] + g.np.uint32(2**31 + 12).tobytes() + blob[84:]
         assert len(wrap) == len(blob)
         try:
-            load_stl_binary(g.io_wrap(tampered))
+            load_stl_binary(g.io_wrap(wrap))
         except HeaderError:
             return
         raise ValueError("overflow face count passed")

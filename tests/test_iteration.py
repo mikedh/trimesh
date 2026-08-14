@@ -2,6 +2,7 @@ from collections import OrderedDict
 from functools import reduce
 
 import numpy as np
+import pytest
 
 from trimesh.iteration import IndexedDict, chain, reduce_cascade
 
@@ -75,36 +76,29 @@ def test_indexed_dict():
     d.update({"d": 4}, e=5)
     d.setdefault("f", 6)
     d |= {"g": 7}
-    check(d)
-    assert d["f"] == 6
-
     # setting an existing key must not move it or grow the dict
     d["a"] = 10
     check(d)
-    assert d.index("a") == 0
-    # callers which used to be handed an `OrderedDict` must not break
-    assert isinstance(d, OrderedDict)
-    # and a copy must not degrade into a plain `dict`
-    assert isinstance(d.copy(), IndexedDict)
+    assert len(d) == 7 and d["f"] == 6 and d["a"] == 10 and d.index("a") == 0
+
+    # callers handed an `OrderedDict` must not break and a copy must not
+    # degrade into a plain `dict` which would forget every position
+    assert isinstance(d, OrderedDict) and isinstance(d.copy(), IndexedDict)
     check(d.copy())
 
     # removing or reordering would shift every position after it so it
     # must raise loudly rather than silently returning stale indexes
     for name in ("__delitem__", "pop", "popitem", "move_to_end"):
-        try:
+        with pytest.raises(TypeError):
             getattr(d, name)("a")
-            raise AssertionError(f"`{name}` should have raised!")
-        except TypeError:
-            pass
     # the failed removals must not have altered anything
     check(d)
 
     # `clear` and `update` is the supported way to remove
     d.clear()
-    assert len(d) == 0
     d.update({"z": 1, "y": 2})
     check(d)
-    assert d.index("y") == 1
+    assert len(d) == 2 and d.index("y") == 1
 
 
 if __name__ == "__main__":
