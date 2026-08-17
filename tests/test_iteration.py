@@ -1,8 +1,10 @@
+from collections import OrderedDict
 from functools import reduce
 
 import numpy as np
+import pytest
 
-from trimesh.iteration import chain, reduce_cascade
+from trimesh.iteration import IndexedDict, chain, reduce_cascade
 
 
 def test_reduce_cascade():
@@ -59,6 +61,45 @@ def test_chain():
     assert np.allclose(chain([1, 3], 4), [1, 3, 4])
     # should filter out `None` arguments
     assert np.allclose(chain([1, 3], None, 4, None), [1, 3, 4])
+
+
+def test_indexed_dict():
+    def check(current):
+        # `index` must agree with the slow version it exists to replace
+        # for every key, which is the only thing it promises
+        keys = list(current.keys())
+        assert [current.index(key) for key in keys] == list(range(len(keys)))
+
+    # exercise every path which can insert a key
+    indexed = IndexedDict({"a": 1, "b": 2})
+    indexed["c"] = 3
+    indexed.update({"d": 4}, e=5)
+    indexed.setdefault("f", 6)
+    indexed |= {"g": 7}
+    # setting an existing key must not move it or grow the dict
+    indexed["a"] = 10
+    check(indexed)
+    assert len(indexed) == 7
+    assert indexed["f"] == 6 and indexed["a"] == 10 and indexed.index("a") == 0
+
+    # callers handed an `OrderedDict` must not break and a copy must not
+    # degrade into a plain `dict` which would forget every position
+    assert isinstance(indexed, OrderedDict) and isinstance(indexed.copy(), IndexedDict)
+    check(indexed.copy())
+
+    # removing or reordering would shift every position after it so it
+    # must raise loudly rather than silently returning stale indexes
+    for name in ("__delitem__", "pop", "popitem", "move_to_end"):
+        with pytest.raises(TypeError):
+            getattr(indexed, name)("a")
+    # the failed removals must not have altered anything
+    check(indexed)
+
+    # `clear` and `update` is the supported way to remove
+    indexed.clear()
+    indexed.update({"z": 1, "y": 2})
+    check(indexed)
+    assert len(indexed) == 2 and indexed.index("y") == 1
 
 
 if __name__ == "__main__":
