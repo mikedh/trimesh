@@ -16,6 +16,7 @@ import numpy as np
 from ... import rendering, resources, util, visual
 from ...caching import hash_fast
 from ...constants import log, tol
+from ...iteration import IndexedDict
 from ...resolvers import ResolverLike, ZipResolver
 from ...scene.cameras import Camera
 from ...scene.transforms import DEFAULT_BASE_FRAME
@@ -130,10 +131,8 @@ def export_gltf(
     extension_webp : bool
       Export textures as webP (using glTF's EXT_texture_webp extension).
     extension_draco : bool
-      Compress mesh data using Draco (KHR_draco_mesh_compression),
-      which requires the `DracoPy` package. This is lossy: it moves
-      every vertex by roughly `2e-5 * mesh.scale`, tunable with
-      `gltf.extensions._DRACO_QUANT`.
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
+      Requires the `dracox` package to be installed.
 
     Returns
     ----------
@@ -225,10 +224,8 @@ def export_glb(
     extension_webp : bool
       Export textures as webP using EXT_texture_webp extension.
     extension_draco : bool
-      Compress mesh data using Draco (KHR_draco_mesh_compression),
-      which requires the `DracoPy` package. This is lossy: it moves
-      every vertex by roughly `2e-5 * mesh.scale`, tunable with
-      `gltf.extensions._DRACO_QUANT`.
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
+      Requires the `dracox` package to be installed.
 
     Returns
     ----------
@@ -524,55 +521,7 @@ def _uri_to_bytes(uri: str, resolver: ResolverLike | None) -> bytes:
     return base64.b64decode(uri[index + 7 :])
 
 
-class IndexedDict(dict):
-    """
-    A dict which also knows the position a key was inserted at.
-
-    GLTF refers to accessors and buffer views by their position in an
-    array, but we key them by hash so identical data is only stored once.
-    Converting one to the other with `list(keys()).index(key)` scans the
-    whole dict, which makes exporting a large scene quadratic.
-
-    Append-only: deleting a key would shift the position of every key
-    after it, so removal is spelled `clear()` then `update()`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._position = {key: i for i, key in enumerate(self)}
-
-    def __setitem__(self, key, value):
-        if key not in self:
-            self._position[key] = len(self)
-        super().__setitem__(key, value)
-
-    def update(self, *args, **kwargs):
-        # `dict.update` does not route through `__setitem__`
-        for key, value in dict(*args, **kwargs).items():
-            self[key] = value
-
-    def clear(self):
-        super().clear()
-        self._position.clear()
-
-    def index(self, key) -> int:
-        """
-        Which position was this key inserted at.
-
-        Parameters
-        ----------
-        key
-          A key which is already stored.
-
-        Returns
-        ----------
-        index
-          Position of the key, i.e. what GLTF references it by.
-        """
-        return self._position[key]
-
-
-def _buffer_append(ordered, data):
+def _buffer_append(ordered: IndexedDict, data: bytes) -> int:
     """
     Append data to an existing IndexedDict and
     pad it to a 4-byte boundary.
@@ -599,7 +548,13 @@ def _buffer_append(ordered, data):
     return len(ordered) - 1
 
 
-def _data_append(acc: IndexedDict, buff: IndexedDict, blob: dict, data: NDArray):
+def _data_append(
+    acc: IndexedDict,
+    buff: IndexedDict,
+    blob: dict,
+    data: NDArray,
+    claimed: dict[int, NDArray] | None = None,
+):
     """
     Append a new accessor to an IndexedDict.
 
@@ -613,6 +568,9 @@ def _data_append(acc: IndexedDict, buff: IndexedDict, blob: dict, data: NDArray)
       Candidate accessor
     data
       Data to fill in details to blob
+    claimed
+      If passed store `data` here keyed by the returned accessor index and
+      don't write it into `buff`, for an extension which stores it itself.
 
     Returns
     ----------
@@ -628,7 +586,11 @@ def _data_append(acc: IndexedDict, buff: IndexedDict, blob: dict, data: NDArray)
         # someone passed a vanilla numpy array
         hashed = hash_fast(as_bytes)
 
-    if hashed in buff:
+    if claimed is not None:
+        # an extension stores this itself: `byteOffset` is only valid alongside a
+        # `bufferView` and an accessor with neither can't collide with a stored copy
+        blob.pop("byteOffset", None)
+    elif hashed in buff:
         blob["bufferView"] = buff.index(hashed)
     else:
         # not in buffer items so append and then return index
@@ -647,9 +609,12 @@ def _data_append(acc: IndexedDict, buff: IndexedDict, blob: dict, data: NDArray)
     # xor the hash for the blob to the key
     key ^= hashed
 
-    # if key exists return the index it was inserted at
+    # a claim records here too as this is another primitive's accessor
     if key in acc:
-        return acc.index(key)
+        index = acc.index(key)
+        if claimed is not None:
+            claimed[index] = data
+        return index
 
     # get a numpy dtype for our components
     dtype = np.dtype(_dtypes[blob["componentType"]])
@@ -678,7 +643,10 @@ def _data_append(acc: IndexedDict, buff: IndexedDict, blob: dict, data: NDArray)
 
     # store the accessor and return the index
     acc[key] = blob
-    return len(acc) - 1
+    index = len(acc) - 1
+    if claimed is not None:
+        claimed[index] = data
+    return index
 
 
 def _jsonify(blob):
@@ -716,8 +684,7 @@ def _create_gltf_structure(
     extension_webp : bool
       Export textures as webP using EXT_texture_webp extension.
     extension_draco : bool
-      Compress mesh data using Draco (KHR_draco_mesh_compression),
-      which is lossy and requires the `DracoPy` package.
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
 
     Returns
     ---------------
@@ -726,6 +693,10 @@ def _create_gltf_structure(
     buffer_items : list
       Contains bytes of data
     """
+    if extension_draco:
+        # fail once here rather than warning per mesh and writing an uncompressed file
+        import DracoPy  # noqa: F401
+
     # we are defining a single scene, and will be setting the
     # world node to the 0-index
     tree = {
@@ -763,25 +734,20 @@ def _create_gltf_structure(
     mesh_index = {}
     previous = len(tree["meshes"])
 
-    # accessors an export extension has moved into a buffer of its own
-    absorbed = set()
-
     # loop through every geometry
     for name, geometry in scene.geometry.items():
         if util.is_instance_named(geometry, "Trimesh"):
             # add the mesh
-            absorbed.update(
-                _append_mesh(
-                    mesh=geometry,
-                    name=name,
-                    tree=tree,
-                    buffer_items=buffer_items,
-                    include_normals=include_normals,
-                    unitize_normals=unitize_normals,
-                    mat_hashes=mat_hashes,
-                    extension_webp=extension_webp,
-                    extension_draco=extension_draco,
-                )
+            _append_mesh(
+                mesh=geometry,
+                name=name,
+                tree=tree,
+                buffer_items=buffer_items,
+                include_normals=include_normals,
+                unitize_normals=unitize_normals,
+                mat_hashes=mat_hashes,
+                extension_webp=extension_webp,
+                extension_draco=extension_draco,
             )
         elif util.is_instance_named(geometry, "Path"):
             # add Path2D and Path3D objects
@@ -836,9 +802,9 @@ def _create_gltf_structure(
     if extension_webp:
         extensions_used.add("EXT_texture_webp")
         extensions_required.add("EXT_texture_webp")
-    # Add Draco if used (no fallback, so required)
-    if extension_draco:
-        extensions_used.add("KHR_draco_mesh_compression")
+    # draco has no fallback so it is required, but only if a primitive really got
+    # compressed: a file requiring an extension nothing uses is refused by loaders
+    if "KHR_draco_mesh_compression" in extensions_used:
         extensions_required.add("KHR_draco_mesh_compression")
     if len(extensions_used) > 0:
         tree["extensionsUsed"] = list(extensions_used)
@@ -847,10 +813,6 @@ def _create_gltf_structure(
 
     if buffer_postprocessor is not None:
         buffer_postprocessor(buffer_items, tree)
-
-    # drop the raw data an extension has replaced with a compressed buffer
-    if absorbed:
-        _absorb_views(tree=tree, buffer_items=buffer_items, absorbed=absorbed)
 
     # convert accessors back to a flat list
     tree["accessors"] = list(tree["accessors"].values())
@@ -1061,35 +1023,27 @@ def _append_mesh(
     extension_webp : bool
       Export textures as webP (using glTF's EXT_texture_webp extension).
     extension_draco : bool
-      Compress mesh data using Draco (KHR_draco_mesh_compression),
-      which is lossy and requires the `DracoPy` package.
-
-    Returns
-    ----------
-    absorbed
-      Indexes of accessors an export extension has moved into a buffer
-      of its own, and which therefore no longer need one of their own.
+      Compress mesh data using Draco (KHR_draco_mesh_compression).
     """
     # return early from empty meshes to avoid crashing later
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
         log.debug("skipping empty mesh!")
-        return set()
+        return
+
+    # draco absorbs geometry into a buffer of its own, so collect the arrays as
+    # they are appended for the handler below rather than storing each one twice
+    claimed = {} if extension_draco else None
+
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
-    # arrays exactly as they were written, keyed like a primitive's attributes
-    # so an export extension can recompress them without going back to bytes
-    written = {
-        "indices": mesh.faces.astype(uint32),
-        "POSITION": mesh.vertices.astype(float32),
-    }
-
     # accessors refer to data locations
     # mesh faces are stored as flat list of integers
     acc_face = _data_append(
         acc=tree["accessors"],
         buff=buffer_items,
         blob={"componentType": 5125, "type": "SCALAR"},
-        data=written["indices"],
+        data=mesh.faces.astype(uint32),
+        claimed=claimed,
     )
 
     # vertices: 5126 is a float32
@@ -1098,7 +1052,8 @@ def _append_mesh(
         acc=tree["accessors"],
         buff=buffer_items,
         blob={"componentType": 5126, "type": "VEC3", "byteOffset": 0},
-        data=written["POSITION"],
+        data=mesh.vertices.astype(float32),
+        claimed=claimed,
     )
 
     # meshes reference accessor indexes
@@ -1146,7 +1101,6 @@ def _append_mesh(
 
     if vertex_colors is not None:
         if len(vertex_colors) == len(mesh.vertices):
-            written["COLOR_0"] = vertex_colors.astype(uint8)
             # convert color data to bytes and append
             acc_color = _data_append(
                 acc=tree["accessors"],
@@ -1157,7 +1111,8 @@ def _append_mesh(
                     "type": "VEC4",
                     "byteOffset": 0,
                 },
-                data=written["COLOR_0"],
+                data=vertex_colors.astype(uint8),
+                claimed=claimed,
             )
 
             # add the reference for vertex color
@@ -1188,13 +1143,13 @@ def _append_mesh(
             uv = mesh.visual.uv.copy()[:, :2]
             # reverse the Y for GLTF
             uv[:, 1] = 1.0 - uv[:, 1]
-            written["TEXCOORD_0"] = uv.astype(float32)
             # add an accessor describing the blob of UV's
             acc_uv = _data_append(
                 acc=tree["accessors"],
                 buff=buffer_items,
                 blob={"componentType": 5126, "type": "VEC2", "byteOffset": 0},
-                data=written["TEXCOORD_0"],
+                data=uv.astype(float32),
+                claimed=claimed,
             )
             # add the reference for UV coordinates
             current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
@@ -1213,7 +1168,6 @@ def _append_mesh(
             # they aren't being altered
             normals = mesh.vertex_normals
 
-        written["NORMAL"] = normals.astype(float32)
         acc_norm = _data_append(
             acc=tree["accessors"],
             buff=buffer_items,
@@ -1223,7 +1177,8 @@ def _append_mesh(
                 "type": "VEC3",
                 "byteOffset": 0,
             },
-            data=written["NORMAL"],
+            data=normals.astype(float32),
+            claimed=claimed,
         )
         # add the reference for vertex color
         current["primitives"][0]["attributes"]["NORMAL"] = acc_norm
@@ -1270,13 +1225,10 @@ def _append_mesh(
             data=data,
         )
 
-    # accessors a primitive_export handler has taken ownership of
-    absorbed = set()
-
     # Handle Draco compression via extension handler
     if extension_draco:
         # Call primitive_export handlers
-        results = handle_extensions(
+        compressed = handle_extensions(
             extensions={"KHR_draco_mesh_compression": {}},
             scope="primitive_export",
             mesh=mesh,
@@ -1284,69 +1236,19 @@ def _append_mesh(
             tree=tree,
             buffer_items=buffer_items,
             primitive=current["primitives"][0],
-            arrays=written,
+            arrays=claimed,
         )
-        # a handler reports the accessors whose data it moved into its own buffer
-        absorbed = set().union(*results.values())
+        if not compressed:
+            # nothing claimed the arrays so store them after all, keyed by accessor
+            # not content: two of these landing on one view would need a `byteStride`
+            blobs = list(tree["accessors"].values())
+            for index, data in claimed.items():
+                key = ("accessor", index)
+                buffer_items[key] = _byte_pad(data.tobytes())
+                blobs[index]["bufferView"] = buffer_items.index(key)
+                blobs[index]["byteOffset"] = 0
 
     tree["meshes"].append(current)
-
-    return absorbed
-
-
-def _absorb_views(tree: dict, buffer_items: IndexedDict, absorbed: set):
-    """
-    Retire the buffers of accessors an export extension has taken over.
-
-    An extension like draco replaces the data of several accessors with one
-    compressed buffer, so those accessors stop referencing a `bufferView` and
-    whatever they used to point at is usually left with nothing referencing it.
-    Buffers are referred to by their position, so anything we drop means
-    renumbering every reference that came after it.
-
-    Parameters
-    ------------
-    tree
-      GLTF header, will be mutated in-place
-    buffer_items
-      Buffers keyed by hash, will be mutated in-place
-    absorbed
-      Indexes of accessors whose data now lives in an extension's buffer
-    """
-    accessors = list(tree["accessors"].values())
-    # these get their data from an extension's buffer now, not their own
-    [accessors[index].pop("bufferView", None) for index in absorbed]
-
-    # the only three places a tree we generated can reference a buffer:
-    # accessors, images, and the extension which prompted this
-    references = [
-        item
-        for item in accessors
-        + tree["images"]
-        + [
-            value
-            for mesh in tree["meshes"]
-            for primitive in mesh["primitives"]
-            for value in primitive.get("extensions", {}).values()
-        ]
-        if isinstance(item.get("bufferView"), int)
-    ]
-
-    used = np.unique([reference["bufferView"] for reference in references])
-    if len(used) == len(buffer_items):
-        # everything is still referenced so there is nothing to renumber
-        return
-
-    # survivors keep their relative order: old index -> new index
-    renumber = np.zeros(len(buffer_items), dtype=np.int64)
-    renumber[used] = np.arange(len(used))
-    for reference in references:
-        reference["bufferView"] = int(renumber[reference["bufferView"]])
-
-    keys = list(buffer_items.keys())
-    survivors = [(keys[index], buffer_items[keys[index]]) for index in used]
-    buffer_items.clear()
-    buffer_items.update(survivors)
 
 
 def _build_views(buffer_items):

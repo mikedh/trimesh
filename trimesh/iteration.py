@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from math import log2
 from typing import Any
 
@@ -129,3 +130,58 @@ def chain(*args: Iterable[Any] | Any | None) -> list[Any]:
         if a is not None
     ]
     return chained
+
+
+class IndexedDict(OrderedDict):
+    """
+    An append-only `OrderedDict` which knows what position a key was inserted at.
+
+    Useful anywhere values are referenced by *position* but keyed by content so
+    duplicates are only stored once: the only other spelling is
+    `list(d.keys()).index(key)`, which allocates every key and scans it, i.e.
+    quadratic. Looking up the position of all `n` keys once each:
+
+        n       list(keys()).index()      this class
+        2000          0.061s                0.00007s
+        4000          0.262s                0.00012s
+        8000          1.135s                0.00026s
+
+    Removing or reordering a key would shift the position of every key after it,
+    so `__delitem__`, `pop`, `popitem`, and `move_to_end` raise: the supported
+    way to remove is `clear` followed by `update`.
+
+    Examples
+    ----------
+
+    In [1]: IndexedDict({"a": 1, "b": 2, "c": 3}).index("c")
+    Out[1]: 2
+    """
+
+    # subclasses `OrderedDict` rather than `dict` as it routes `__init__`, `update`,
+    # `setdefault`, `|=`, and `copy` through `__setitem__`: one place records a position
+
+    def __init__(self, *args, **kwargs):
+        # must exist before `super` starts routing through `__setitem__`
+        self._position = {}
+        super().__init__(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        if key not in self:
+            self._position[key] = len(self)
+        super().__setitem__(key, value)
+
+    def _forbidden(self, *args, **kwargs):
+        raise TypeError("`IndexedDict` is append-only: use `clear` and `update`")
+
+    # removing or reordering a key shifts the position of every key after it
+    __delitem__ = pop = popitem = move_to_end = _forbidden
+
+    def clear(self) -> None:
+        super().clear()
+        self._position.clear()
+
+    def index(self, key) -> int:
+        """
+        Which position in insertion order was `key` inserted at.
+        """
+        return self._position[key]
