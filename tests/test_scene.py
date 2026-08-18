@@ -123,12 +123,30 @@ def test_cam_gltf():
         assert r.camera.name == cam.name
         assert (r.camera.fov == cam.fov).all()
         assert r.camera.z_near == cam.z_near
+        # a GLTF camera with no `zfar` means an *infinite* projection
+        # rather than a default one, and a renderer takes that at its
+        # word: it sizes its depth buffer and any depth-binned light
+        # culling against it, so dropping this silently breaks lighting
+        assert r.camera.z_far == cam.z_far
 
 
 def test_scaling():
     # Test the scaling of scenes including unit conversion.
 
     scene = g.get_mesh("cycloidal.3DXML")
+
+    # an animation moves an edge of the graph, so it has to scale with it
+    # or the scaled scene would quietly play at the original size
+    node = scene.graph.nodes_geometry[0]
+    parent = scene.graph.transforms.parents[node]
+    times = g.np.linspace(0.0, 1.0, 5)
+    walk = g.np.tile(scene.graph.get(frame_to=node, frame_from=parent)[0], (5, 1, 1))
+    walk[:, :3, 3] += g.np.column_stack([times, times * 2.0, times * 3.0])
+    scene.animations.append(
+        g.trimesh.scene.animation.RigidAnimation(
+            frame_to=node, frame_from=parent, times=times, matrices=walk
+        )
+    )
 
     hash_val = scene.__hash__()
     extents = scene.bounding_box_oriented.primitive.extents.copy()
@@ -142,6 +160,19 @@ def test_scaling():
     # the oriented bounding box should scale exactly
     # with the scaling factor
     assert g.np.allclose(scaled.bounding_box_oriented.primitive.extents / extents, factor)
+
+    # sample rather than compare keyframes so this holds for any
+    # interpolation: the whole animated transform scales, and the rotation
+    # block is untouched, which a naive scale of the matrix would break
+    dense = g.np.linspace(0.0, 1.0, 37)
+    before = scene.animations[0].at(dense)
+    after = scaled.animations[0].at(dense)
+    assert g.np.allclose(after[:, :3, 3], before[:, :3, 3] * factor)
+    assert g.np.allclose(after[:, :3, :3], before[:, :3, :3])
+    # and the animated edge still agrees with the graph it drives
+    scaled.animate(dense[0])
+    assert g.np.allclose(scaled.graph.get(frame_to=node, frame_from=parent)[0], after[0])
+    scaled.animate(None)
 
     # check bounding primitives
     assert scene.bounding_box.volume > 0.0

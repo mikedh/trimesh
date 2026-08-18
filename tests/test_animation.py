@@ -4,26 +4,6 @@ except BaseException:
     import generic as g
 
 
-def spin_z(angles):
-    """
-    Stack rotations about the Z axis without a loop.
-
-    Parameters
-    ------------
-    angles : (n,) float
-      Rotation angle in radians.
-
-    Returns
-    ----------
-    matrices : (n, 4, 4) float
-      Homogeneous rotation matrices.
-    """
-    half = g.np.asanyarray(angles, dtype=g.np.float64) * 0.5
-    return g.trimesh.transformations.quaternion_matrix(
-        g.np.column_stack([g.np.cos(half), g.np.zeros((len(half), 2)), g.np.sin(half)])
-    )
-
-
 def random_transforms(count, seed=0, mirror=True):
     """
     Stack general affine transforms without a loop.
@@ -165,7 +145,7 @@ def test_cache():
     # including a rotation, which is what goes stale under a cached_property.
     # these keyframes carry scale too so compare the rotation factor rather
     # than the whole block, which is rotation and scale together
-    spun = g.trimesh.transformations.quaternion_from_matrix(spin_z([1.1])[0])
+    spun = g.trimesh.transformations.quaternion_from_matrix(g.spin_z([1.1])[0])
     current.keyframes["quaternion"][4] = spun
     for block in (current.matrices[4], current.at(times[4])):
         assert g.np.allclose(g.trimesh.transformations.tqs_from_matrix(block)[1], spun)
@@ -275,7 +255,7 @@ def test_sample():
     from trimesh.scene.animation import RigidAnimation
 
     times = g.np.linspace(0.0, 4.0, 41)
-    matrices = spin_z(times * g.np.pi * 0.5)
+    matrices = g.spin_z(times * g.np.pi * 0.5)
     current = RigidAnimation(frame_to="a", times=times, matrices=matrices)
 
     assert len(current) == len(times)
@@ -355,11 +335,11 @@ def test_degenerate():
 
     # identical adjacent rotations are the degenerate slerp arc
     held = RigidAnimation(
-        frame_to="a", times=[0.0, 1.0], matrices=g.np.tile(spin_z([0.7]), (2, 1, 1))
+        frame_to="a", times=[0.0, 1.0], matrices=g.np.tile(g.spin_z([0.7]), (2, 1, 1))
     )
     between = held.at(g.np.linspace(0.0, 1.0, 11))
     assert g.np.isfinite(between).all()
-    assert g.np.allclose(between, spin_z([0.7])[0])
+    assert g.np.allclose(between, g.spin_z([0.7])[0])
 
 
 def test_apply():
@@ -383,15 +363,19 @@ def test_apply():
 
     times = g.np.linspace(0.0, 1.0, 9)
     current = RigidAnimation(
-        frame_to="child", frame_from="parent", times=times, matrices=spin_z(times)
+        frame_to="child", frame_from="parent", times=times, matrices=g.spin_z(times)
     )
     scene.animations.append(current)
 
     graph = scene.graph
+    # every edge matrix before anything has been applied, which the scene
+    # has to be restorable to exactly
+    rest = {k: v["matrix"].copy() for k, v in graph.transforms.edge_data.items()}
+
     for time in [0.0, 0.3, 0.62, 1.0]:
-        current.apply(scene, time)
-        # `apply` writes the transform across its own edge, which on a
-        # nested graph is not the transform from the base frame
+        scene.animate(time)
+        # this writes the transform across the animation's own edge, which
+        # on a nested graph is not the transform from the base frame
         local = graph.get(frame_to="child", frame_from="parent")[0]
         assert g.np.allclose(local, current.at(time))
 
@@ -405,6 +389,25 @@ def test_apply():
         assert graph.transforms.parents["child"] == "parent"
         assert ("world", "child") not in graph.transforms.edge_data
 
+    # `None` puts every edge it touched back bit-for-bit, which no partial
+    # restore or stale cache can fake
+    scene.animate(None)
+    after = {k: v["matrix"] for k, v in graph.transforms.edge_data.items()}
+    assert set(after) == set(rest)
+    assert all((after[k] == rest[k]).all() for k in rest)
+
+    # and it stays the rest pose no matter how many times it's asked
+    scene.animate(None)
+    assert all((graph.transforms.edge_data[k]["matrix"] == rest[k]).all() for k in rest)
+
+    # a name filter only drives the animations which carry it
+    scene.animate(0.62, name="nothing-is-called-this")
+    assert all((graph.transforms.edge_data[k]["matrix"] == rest[k]).all() for k in rest)
+
+    # a scene with no animations has a duration of zero rather than raising
+    assert scene.duration == current.duration
+    assert g.trimesh.Scene().duration == 0.0
+
 
 def test_apply_flat():
     """
@@ -416,12 +419,20 @@ def test_apply_flat():
     scene.add_geometry(g.trimesh.creation.box(), node_name="solo")
 
     times = g.np.linspace(0.0, 1.0, 5)
-    current = RigidAnimation(frame_to="solo", times=times, matrices=spin_z(times))
+    current = RigidAnimation(frame_to="solo", times=times, matrices=g.spin_z(times))
+    scene.animations.append(current)
     assert current.frame_from is None
 
     # `None` has to mean the base frame, matching `SceneGraph.update`
-    current.apply(scene, 0.4)
+    rest = scene.graph.get(frame_to="solo")[0].copy()
+    scene.animate(0.4)
     assert g.np.allclose(scene.graph.get(frame_to="solo")[0], current.at(0.4))
+    assert scene.graph.transforms.parents["solo"] == scene.graph.base_frame
+
+    # and it has to resolve to the *same* edge the rest pose was taken
+    # from, or the restore would write a second edge rather than undo one
+    scene.animate(None)
+    assert (scene.graph.get(frame_to="solo")[0] == rest).all()
     assert scene.graph.transforms.parents["solo"] == scene.graph.base_frame
 
 
@@ -466,7 +477,7 @@ def test_scene_copy():
     times = g.np.linspace(0.0, 1.0, 5)
 
     scene.animations.append(
-        RigidAnimation(frame_to=node, times=times, matrices=spin_z(times), name="spin")
+        RigidAnimation(frame_to=node, times=times, matrices=g.spin_z(times), name="spin")
     )
 
     copied = scene.copy()

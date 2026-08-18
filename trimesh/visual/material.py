@@ -12,7 +12,7 @@ import numpy as np
 
 from .. import exceptions, util
 from ..constants import tol
-from ..typed import NDArray
+from ..typed import Floating, NDArray
 from . import color
 
 try:
@@ -197,21 +197,32 @@ class SimpleMaterial(Material):
             return
         self._glossiness = float(value)
 
-    def to_pbr(self):
+    def to_pbr(self, metallic: Floating | None = None, roughness: Floating | None = None):
         """
-        Convert the current simple material to a
-        PBR material.
+        Convert the current simple material to a PBR material.
+
+        Parameters
+        ------------
+        metallic
+          How metallic the surface is, `None` for a dielectric.
+        roughness
+          How rough the surface is, `None` to convert the
+          specular exponent stored in `self.glossiness`.
 
         Returns
         ------------
         pbr : PBRMaterial
           Contains material information in PBR format.
         """
-        # convert specular exponent to roughness
-        roughness = (2 / (self.glossiness + 2)) ** (1.0 / 4.0)
+        if roughness is None:
+            # convert specular exponent to roughness
+            roughness = (2 / (self.glossiness + 2)) ** (1.0 / 4.0)
 
         return PBRMaterial(
-            roughnessFactor=roughness,
+            # an unset `metallicFactor` means GLTF's default of 1.0, i.e.
+            # fully metallic, which is not what a simple material means
+            metallicFactor=0.0 if metallic is None else float(metallic),
+            roughnessFactor=float(roughness),
             baseColorTexture=self.image,
             baseColorFactor=self.diffuse,
         )
@@ -232,14 +243,37 @@ class MultiMaterial(Material):
         else:
             self.materials = materials
 
-    def to_pbr(self):
+    def to_pbr(self, metallic: Floating | None = None, roughness: Floating | None = None):
         """
-        TODO : IMPLEMENT
+        Return the first contained PBR material.
+
+        TODO : actually combine the materials rather than picking one.
+
+        Parameters
+        ------------
+        metallic
+          Override how metallic the surface is.
+        roughness
+          Override how rough the surface is.
+
+        Returns
+        ------------
+        pbr : PBRMaterial
+          Contains material information in PBR format.
         """
-        pbr = [m for m in self.materials if isinstance(m, PBRMaterial)]
-        if len(pbr) == 0:
-            return PBRMaterial()
-        return pbr[0]
+        pbr = next((m for m in self.materials if isinstance(m, PBRMaterial)), None)
+        if pbr is None:
+            pbr = PBRMaterial()
+        elif metallic is not None or roughness is not None:
+            # don't stomp on the material we were only asked to override
+            pbr = pbr.copy()
+
+        if metallic is not None:
+            pbr.metallicFactor = float(metallic)
+        if roughness is not None:
+            pbr.roughnessFactor = float(roughness)
+
+        return pbr
 
     def __hash__(self):
         """
@@ -637,6 +671,18 @@ class PBRMaterial(Material):
             self._data.pop("name", None)
         else:
             self._data["name"] = value
+
+    @property
+    def has_texture(self) -> bool:
+        """
+        Is any image stored on this material.
+
+        Returns
+        ----------
+        has_texture
+          True if any of the texture slots are filled.
+        """
+        return any(k.endswith("Texture") for k in self._data)
 
     def copy(self):
         # doing a straight deepcopy fails due to PIL images

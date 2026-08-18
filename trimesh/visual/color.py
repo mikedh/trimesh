@@ -36,6 +36,7 @@ from ..typed import (
     Callable,
     ColorMapType,
     DTypeLike,
+    Floating,
     Integer,
     Iterable,
     NDArray,
@@ -452,6 +453,36 @@ class ColorVisuals(Visuals):
         color = colors[unique[mode_index]]
 
         return color
+
+    def to_pbr(self, metallic: Floating | None = None, roughness: Floating | None = None):
+        """
+        Convert these colors to a PBR material.
+
+        The colors themselves stay on the mesh as a `COLOR_0` vertex
+        attribute, which GLTF multiplies against `baseColorFactor`, so
+        a white base color here preserves them. Without this a mesh
+        exports with no material at all and inherits GLTF's default of
+        fully metallic and fully rough.
+
+        Parameters
+        ------------
+        metallic
+          How metallic the surface is, `None` for a dielectric.
+        roughness
+          How rough the surface is, `None` for a mild gloss.
+
+        Returns
+        ------------
+        pbr : PBRMaterial
+          Contains material information in PBR format.
+        """
+        from .material import PBRMaterial
+
+        return PBRMaterial(
+            baseColorFactor=[1.0, 1.0, 1.0, 1.0],
+            metallicFactor=0.0 if metallic is None else float(metallic),
+            roughnessFactor=0.4 if roughness is None else float(roughness),
+        )
 
     def to_texture(self):
         """

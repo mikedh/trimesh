@@ -4,33 +4,92 @@ render_blender.py
 
 Render an animated glTF file headlessly with Blender.
 
-This is a `bpy` script and is not run by python directly, it is
-passed to Blender which supplies the `bpy` module:
+Run it with python and it finds Blender and re-launches itself inside it:
+
+    uv run examples/render_blender.py cycloidal.glb out.mp4
+
+which is exactly the same as handing the file over yourself:
 
     blender -b -P examples/render_blender.py -- cycloidal.glb out.mp4
 
-Produces an MP4 if the output name ends in `.mp4`, otherwise a
-numbered PNG sequence. Generate the input with
+The half that runs inside Blender deliberately does not import trimesh:
+Blender ships its own Python and there is no reliable way to install into
+it. Everything a render needs is in the glTF file already, so that half
+only has to set up the render. Generate an input with
 `examples/animation_cycloidal.py` or `examples/animation_robot.py`.
+
+Produces an MP4 if the output name ends in `.mp4`, otherwise a
+numbered PNG sequence.
 """
 
 import math
 import os
+import subprocess
 import sys
+from dataclasses import dataclass
 
-import bpy
-import mathutils
+# note `bpy` is imported inside each function that needs it rather than
+# here: it only exists inside Blender, and the launcher at the bottom of
+# this file has to be importable by a normal python to do its job
 
-# how much empty space to leave around the subject. note that the camera
-# is fit to every pose in the animation, so a subject which sweeps a large
-# volume will look small: that space is where it is about to move
-MARGIN = 1.1
+
+@dataclass
+class Preset:
+    """
+    How much time to spend on a render.
+
+    Almost everything here is close to free and only `samples` really
+    costs: at 4K a frame is 9.7 seconds at 128 samples and 37.8 at 512,
+    for a mean pixel difference of 0.04 out of 255. Turning fast GI off
+    entirely saves one second in forty.
+
+    Attributes
+    ------------
+    resolution : (2,) int
+      Width and height in pixels.
+    samples : int
+      Anti-aliasing samples per pixel, which is where the time goes.
+    trace_scale : str
+      Resolution divisor for ray tracing, "1" being full resolution.
+    fast_gi : bool
+      Fill the shadowed side of surfaces with approximate bounce light.
+    shadow_rays : int
+      Rays per shadow, up to 4.
+    shadow_steps : int
+      Steps along each shadow ray, up to 16.
+    """
+
+    resolution: tuple = (3840, 2160)
+    samples: int = 128
+    trace_scale: str = "1"
+    fast_gi: bool = True
+    shadow_rays: int = 4
+    shadow_steps: int = 16
+
+
+# what to hand someone: 4K with everything which is nearly free turned up
+FINAL = Preset()
+
+# and one to iterate on, which trades everything for about half a second
+# a frame so a six second shot previews in a minute and a half
+PREVIEW = Preset(
+    resolution=(1920, 1080),
+    samples=16,
+    trace_scale="2",
+    fast_gi=False,
+    shadow_rays=1,
+    shadow_steps=4,
+)
+
+PRESETS = {"final": FINAL, "preview": PREVIEW}
 
 
 def clear():
     """
     Delete everything in the startup scene.
     """
+    import bpy
+
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
 
@@ -43,6 +102,8 @@ def duration():
     end : int
       Final frame, or 1 if nothing is animated.
     """
+    import bpy
+
     end = 1.0
     for action in bpy.data.actions:
         # `frame_range` is in frames, already converted from the
@@ -51,128 +112,39 @@ def duration():
     return math.ceil(end)
 
 
-def look_at(subjects, frames=None, samples=24):
+def prefer(target, key, *values):
     """
-    Add a camera framing every passed object, and some lights.
+    Set an enum to the first of `values` this Blender actually has.
+
+    Enum spellings move between versions and some are missing entirely,
+    so asking for a list in preference order and taking what is there
+    beats hard-coding one name and crashing on the version which renamed
+    it. Leaves the property alone if none of them exist.
 
     Parameters
     ------------
-    subjects : list
-      Blender objects to fit in the frame.
-    frames : (2,) int or None
-      First and last frame, so the camera can be fit to the whole
-      animation rather than just the pose the file happens to open in.
-    samples : int
-      How many frames to check when fitting.
+    target : bpy_struct
+      Object to set the property on.
+    key : str
+      Name of the enum property.
+    values : str
+      Identifiers to try, best first.
 
     Returns
     ----------
-    camera : bpy.types.Object
-      The created camera.
+    chosen : str or None
+      Which value was set, None if the property was left alone.
     """
-    scene = bpy.context.scene
-    if frames is None:
-        moments = [scene.frame_current]
-    else:
-        # an animated subject sweeps out much more space than its rest
-        # pose, and fitting to the rest pose alone will crop the motion
-        step = max(1, (frames[1] - frames[0]) // max(1, samples - 1))
-        moments = sorted(set(range(frames[0], frames[1] + 1, step)) | {frames[1]})
+    prop = target.bl_rna.properties.get(key)
+    if prop is None:
+        return None
 
-    corners = []
-    for moment in moments:
-        scene.frame_set(moment)
-        corners.extend(
-            obj.matrix_world @ mathutils.Vector(corner)
-            for obj in subjects
-            for corner in obj.bound_box
-        )
-    scene.frame_set(moments[0])
-
-    low = mathutils.Vector(map(min, zip(*corners)))
-    high = mathutils.Vector(map(max, zip(*corners)))
-
-    center = (low + high) / 2.0
-    radius = max((high - low).length / 2.0, 1e-4)
-
-    # an empty at the center for the camera and lights to aim at
-    target = bpy.data.objects.new("target", None)
-    bpy.context.collection.objects.link(target)
-    target.location = center
-
-    camera_data = bpy.data.cameras.new("camera")
-    camera = bpy.data.objects.new("camera", camera_data)
-    bpy.context.collection.objects.link(camera)
-
-    # the direction the camera sits in, relative to the subject
-    view = mathutils.Vector((0.62, -0.72, 0.31)).normalized()
-
-    # the camera's own axes, so width and height can be fit separately
-    # against their own field of view rather than a single worst case
-    forward = -view
-    right = forward.cross(mathutils.Vector((0.0, 0.0, 1.0))).normalized()
-    up = right.cross(forward).normalized()
-
-    offsets = [corner - center for corner in corners]
-    half_width = max(abs(o.dot(right)) for o in offsets)
-    half_height = max(abs(o.dot(up)) for o in offsets)
-    along = max(abs(o.dot(view)) for o in offsets)
-
-    # `angle` covers the larger image dimension, the other is narrower
-    render = bpy.context.scene.render
-    wide = camera_data.angle
-    narrow = 2.0 * math.atan(
-        math.tan(wide / 2.0)
-        * min(render.resolution_x, render.resolution_y)
-        / max(render.resolution_x, render.resolution_y)
-    )
-    if render.resolution_x >= render.resolution_y:
-        fov_x, fov_y = wide, narrow
-    else:
-        fov_x, fov_y = narrow, wide
-
-    # back off far enough for both axes to fit, plus the subject depth
-    distance = along + MARGIN * max(
-        half_width / math.tan(fov_x / 2.0), half_height / math.tan(fov_y / 2.0)
-    )
-    camera.location = center + view * distance
-    # clip planes have to bracket a subject of any scale
-    camera_data.clip_start = max(distance - along - radius, radius * 1e-3)
-    camera_data.clip_end = distance + along + radius * 2.0
-
-    _aim(camera, target)
-    bpy.context.scene.camera = camera
-
-    # a key light and a softer fill, both aimed at the subject
-    for name, offset, energy in (
-        ("key", (1.0, -0.8, 1.4), 5.0),
-        ("fill", (-1.2, -0.4, 0.5), 2.0),
-    ):
-        light_data = bpy.data.lights.new(name, type="SUN")
-        light_data.energy = energy
-        light = bpy.data.objects.new(name, light_data)
-        bpy.context.collection.objects.link(light)
-        light.location = center + mathutils.Vector(offset) * distance
-        _aim(light, target)
-
-    return camera
-
-
-def _aim(obj, target):
-    """
-    Point an object at a target using a track-to constraint.
-
-    Parameters
-    ------------
-    obj : bpy.types.Object
-      Object to aim.
-    target : bpy.types.Object
-      What to aim it at.
-    """
-    constraint = obj.constraints.new(type="TRACK_TO")
-    constraint.target = target
-    constraint.track_axis = "TRACK_NEGATIVE_Z"
-    constraint.up_axis = "UP_Y"
+    available = {item.identifier for item in getattr(prop, "enum_items", ())}
+    for value in values:
+        if value in available:
+            setattr(target, key, value)
+            return value
+    return None
 
 
 def engine():
@@ -184,6 +156,8 @@ def engine():
     name : str
       An identifier valid for `scene.render.engine`.
     """
+    import bpy
+
     # EEVEE has been renamed more than once between versions
     available = bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items.keys()
     for name in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE", "BLENDER_WORKBENCH"):
@@ -192,7 +166,76 @@ def engine():
     return next(iter(available))
 
 
-def render(path, output, resolution=(1280, 720), fps=30, samples=32):
+def quality(scene, preset=FINAL):
+    """
+    Turn on the settings which make glossy materials look like glossy
+    materials, skipping any this version of Blender doesn't have.
+
+    Parameters
+    ------------
+    scene : bpy.types.Scene
+      Scene to configure.
+    preset : Preset
+      How much time to spend.
+    """
+    scene.render.engine = engine()
+    scene.render.film_transparent = False
+
+    eevee = getattr(scene, "eevee", None)
+    if eevee is not None:
+        # without ray tracing a smooth metal has nothing to reflect
+        for key, value in (
+            ("taa_render_samples", preset.samples),
+            ("use_raytracing", True),
+            ("use_shadows", True),
+            ("shadow_ray_count", preset.shadow_rays),
+            ("shadow_step_count", preset.shadow_steps),
+            ("shadow_resolution_scale", 1.0),
+            # fast GI is what fills the shadowed side of a part
+            ("use_fast_gi", preset.fast_gi),
+            ("fast_gi_ray_count", 16),
+            ("fast_gi_step_count", 64),
+            ("fast_gi_quality", 1.0),
+        ):
+            if hasattr(eevee, key):
+                setattr(eevee, key, value)
+
+        # the enums separately, as their spellings move between versions
+        prefer(eevee, "ray_tracing_method", "SCREEN")
+        prefer(eevee, "fast_gi_method", "GLOBAL_ILLUMINATION")
+        prefer(eevee, "shadow_pool_size", "1024", "512")
+        # the resolution divisors: "1" is full resolution
+        prefer(eevee, "fast_gi_resolution", "1")
+
+        tracing = getattr(eevee, "ray_tracing_options", None)
+        if tracing is not None:
+            for key, value in (
+                ("use_denoise", True),
+                ("denoise_spatial", True),
+                ("denoise_temporal", True),
+                ("denoise_bilateral", True),
+                ("screen_trace_quality", 1.0),
+                # keep tracing all the way into rough surfaces rather
+                # than falling back to a probe halfway
+                ("trace_max_roughness", 1.0),
+            ):
+                if hasattr(tracing, key):
+                    setattr(tracing, key, value)
+            # the default is half resolution, which a final render can
+            # afford to turn off and a preview very much cannot
+            prefer(tracing, "resolution_scale", preset.trace_scale)
+
+    # a filmic view transform is the difference between "rendered in a
+    # spreadsheet" and "photographed", but the color management config
+    # isn't loadable in every install so none of this can be fatal
+    for key, value in (("view_transform", "AgX"), ("look", "AgX - Punchy")):
+        try:
+            setattr(scene.view_settings, key, value)
+        except TypeError:
+            pass
+
+
+def render(path, output, preset=FINAL, fps=30):
     """
     Import an animated glTF file and render it.
 
@@ -202,70 +245,57 @@ def render(path, output, resolution=(1280, 720), fps=30, samples=32):
       Source `.glb` or `.gltf` file.
     output : str
       Where to write, `.mp4` for a video or a prefix for PNG frames.
-    resolution : (2,) int
-      Width and height in pixels.
+    preset : Preset
+      How much time to spend.
     fps : int
       Frames per second.
-    samples : int
-      Anti-aliasing samples per pixel.
     """
+    import bpy
+
     clear()
 
     scene = bpy.context.scene
     # the frame rate has to be set before importing as the glTF
     # importer converts keyframe times from seconds into frames
     scene.render.fps = fps
+    scene.render.resolution_x, scene.render.resolution_y = preset.resolution
 
     bpy.ops.import_scene.gltf(filepath=path)
 
-    subjects = [o for o in scene.objects if o.type == "MESH"]
-    if len(subjects) == 0:
-        raise ValueError(f"no meshes found in `{path}`!")
+    # the file carries its own camera, which is the whole point: it was
+    # placed and animated against the same scene graph the geometry is in
+    camera = next((o for o in scene.objects if o.type == "CAMERA"), None)
+    if camera is None:
+        raise ValueError(
+            f"`{path}` has no camera! generate one with `animation_cycloidal.py`"
+        )
+    scene.camera = camera
+
+    if not any(o.type == "LIGHT" for o in scene.objects):
+        print("warning: file has no lights, the render will be black")
 
     scene.frame_start = 1
     scene.frame_end = duration()
 
-    # the resolution has to be set before framing as the camera is
-    # fit against the aspect ratio of the image it will render
-    scene.render.resolution_x, scene.render.resolution_y = resolution
-
-    # fit the camera to the whole animation, not just the opening pose
-    look_at(subjects, frames=(scene.frame_start, scene.frame_end))
-
-    # a plain gray world so nothing renders against pure black
-    world = bpy.data.worlds.new("world")
-    if world.node_tree is None:
-        # `use_nodes` is deprecated in newer versions where it is the default
-        world.use_nodes = True
-    background = world.node_tree.nodes.get("Background")
-    if background is not None:
-        background.inputs[0].default_value = (0.05, 0.05, 0.06, 1.0)
-    scene.world = world
-
-    scene.render.engine = engine()
-    scene.render.film_transparent = False
-    if hasattr(scene, "eevee"):
-        scene.eevee.taa_render_samples = samples
+    quality(scene, preset=preset)
 
     video = output.lower().endswith(".mp4")
     if video:
-        try:
-            # not every Blender ships with video support compiled in, and
-            # the advertised enum doesn't always match what is accepted
-            scene.render.image_settings.file_format = "FFMPEG"
-            scene.render.ffmpeg.format = "MPEG4"
-            scene.render.ffmpeg.codec = "H264"
-            scene.render.ffmpeg.constant_rate_factor = "HIGH"
-        except TypeError:
-            print("this Blender has no FFMPEG support, writing a PNG sequence instead")
-            print(
-                f"assemble it with: ffmpeg -framerate {fps}"
-                + f" -i {output[:-4]}_%04d.png {output}"
-            )
-            output = f"{output[:-4]}_"
-            video = False
+        settings = scene.render.image_settings
+        # Blender 5.0 only offers a video format once the settings are
+        # switched over to video, and older versions have no such
+        # property: without this `file_format` rejects "FFMPEG" and
+        # looks exactly like a build with no video support at all
+        prefer(settings, "media_type", "VIDEO")
+        settings.file_format = "FFMPEG"
 
-    if not video:
+        # say as little as possible past here. the container and codec
+        # do have to be named as the defaults are MPEG1 and no codec,
+        # but the rest are quality knobs Blender can pick for itself
+        prefer(scene.render.ffmpeg, "format", "MPEG4", "MKV", "QUICKTIME")
+        prefer(scene.render.ffmpeg, "codec", "H264", "MPEG4")
+        prefer(scene.render.ffmpeg, "constant_rate_factor", "PERC_LOSSLESS", "HIGH")
+    else:
         scene.render.image_settings.file_format = "PNG"
 
     # a relative path would be resolved against the blend file, which
@@ -276,16 +306,54 @@ def render(path, output, resolution=(1280, 720), fps=30, samples=32):
     bpy.ops.render.render(animation=True)
 
 
+def launch(source, output, preset="final"):
+    """
+    Find Blender and run this script inside it.
+
+    Parameters
+    ------------
+    source : str
+      Source `.glb` or `.gltf` file.
+    output : str
+      Where to write, `.mp4` for a video or a prefix for PNG frames.
+    preset : str
+      Which entry of `PRESETS` to render with.
+    """
+    # trimesh already knows where Blender puts itself on every platform,
+    # which is more than `shutil.which` will find on Windows or macOS.
+    # this import is safe here as the launcher runs in a normal python
+    from trimesh.interfaces.blender import _blender_executable
+
+    if _blender_executable is None:
+        raise ValueError("no `blender` found, is it installed and in your PATH?")
+
+    subprocess.check_call(
+        [_blender_executable, "--background", "--python", os.path.abspath(__file__)]
+        # Blender hands everything after a bare `--` to the script
+        + ["--", os.path.abspath(source), os.path.abspath(output), preset]
+    )
+
+
 if __name__ == "__main__":
-    # blender passes script arguments after a bare `--`
-    if "--" in sys.argv:
-        argv = sys.argv[sys.argv.index("--") + 1 :]
-    else:
-        argv = []
+    # Blender puts a bare `--` before the arguments meant for the script,
+    # so its absence means this was run by python and has no Blender yet
+    inside = "--" in sys.argv
+    argv = sys.argv[sys.argv.index("--") + 1 :] if inside else sys.argv[1:]
 
     if len(argv) < 1:
         raise ValueError(
-            "usage: blender -b -P render_blender.py -- input.glb [output.mp4]"
+            "usage: python render_blender.py input.glb [output.mp4] "
+            + f"[{'|'.join(PRESETS)}]"
         )
 
-    render(argv[0], argv[1] if len(argv) > 1 else "render.mp4")
+    chosen = argv[2] if len(argv) > 2 else "final"
+    if chosen not in PRESETS:
+        raise ValueError(f"`{chosen}` is not one of {sorted(PRESETS)}")
+
+    source = argv[0]
+    output = argv[1] if len(argv) > 1 else "render.mp4"
+
+    if inside:
+        render(source, output, preset=PRESETS[chosen])
+    else:
+        launch(source, output, chosen)

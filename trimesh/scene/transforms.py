@@ -269,6 +269,12 @@ class SceneGraph:
         base_frame = self.base_frame
         # does the scene have a defined camera to export
         has_camera = scene.has_camera
+        # {light node name : index into the KHR_lights_punctual array}
+        # only lights which were actually set, as `scene.lights` would
+        # generate a default pair for every scene that never had any
+        light_index = (
+            {L.name: i for i, L in enumerate(scene.lights)} if scene.has_lights else {}
+        )
         children = graph.children
 
         # the base frame is a synthetic wrapper: when it carries nothing
@@ -320,6 +326,13 @@ class SceneGraph:
             if has_camera and node == scene.camera.name:
                 info["camera"] = 0
 
+            # a light is referenced by an extension rather than a key
+            if node in light_index:
+                info.setdefault("extensions", {})["KHR_lights_punctual"] = {
+                    "light": light_index[node]
+                }
+                extensions_used.add("KHR_lights_punctual")
+
             if node != base_frame:
                 parent = graph.parents[node]
                 node_edge = edge_data[(parent, node)]
@@ -327,6 +340,7 @@ class SceneGraph:
                 # get the matrix from this edge
                 matrix = node_edge["matrix"]
                 # only include if it's not an identify matrix
+                # note GLTF stores a matrix flattened column-major
                 if not util.allclose(matrix, _identity):
                     info["matrix"] = matrix.T.reshape(-1).tolist()
 
@@ -335,11 +349,13 @@ class SceneGraph:
                 if extras:
                     extras = extras.copy()
 
-                    # if extensionss were stored on this edge
+                    # if extensions were stored on this edge
                     extensions = extras.pop("gltf_extensions", None)
                     if isinstance(extensions, dict):
-                        info["extensions"] = extensions
-                        extensions_used = extensions_used.union(set(extensions.keys()))
+                        # update rather than assign as a light may have
+                        # already put `KHR_lights_punctual` here
+                        info.setdefault("extensions", {}).update(extensions)
+                        extensions_used.update(extensions.keys())
 
                     # convert any numpy arrays to lists
                     extras.update(

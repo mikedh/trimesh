@@ -20,19 +20,17 @@ from ...iteration import IndexedDict
 from ...resolvers import ResolverLike, ZipResolver
 from ...scene.cameras import Camera
 from ...scene.transforms import DEFAULT_BASE_FRAME
+from ...transformations import tqs_matrix
 from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
 from .extensions import handle_extensions, unregistered
 from .transform import (
-    ROTATION,
-    SCALE,
-    TRANSLATION,
+    PATHS,
     matrix_from_gltf,
-    matrix_from_trs,
     node_from_trs,
     quaternion_from_gltf,
     quaternion_to_gltf,
-    trs_from_matrix,
+    trs_from_gltf_matrices,
     trs_from_node,
     unwind,
 )
@@ -58,18 +56,22 @@ _shapes = {
     "MAT4": (4, 4),
 }
 
+# trimesh light class name : `KHR_lights_punctual` type, and the reverse
+_LIGHT_TYPES = {
+    "DirectionalLight": "directional",
+    "PointLight": "point",
+    "SpotLight": "spot",
+}
+_LIGHT_CLASSES = {v: k for k, v in _LIGHT_TYPES.items()}
+
 # trimesh interpolation mode : GLTF sampler interpolation
 _INTERPOLATION = {"linear": "LINEAR", "step": "STEP", "cubic": "CUBICSPLINE"}
 # and the reverse, for loading
 _INTERPOLATION_LOAD = {v: k for k, v in _INTERPOLATION.items()}
 
 # the animation channels which map onto a keyframe, as
-# (GLTF channel path, keyframe field, index into a packed TRS)
-_CHANNELS = (
-    ("translation", "translation", TRANSLATION),
-    ("rotation", "quaternion", ROTATION),
-    ("scale", "scale", SCALE),
-)
+# (GLTF channel path, keyframe field, index into a TRS tuple)
+_CHANNELS = tuple(zip(PATHS, ("translation", "quaternion", "scale"), range(len(PATHS))))
 
 # a default PBR metallic material
 _default_material = {
@@ -714,6 +716,12 @@ def _create_gltf_structure(
     if scene.has_camera:
         tree["cameras"] = [_convert_camera(scene.camera)]
 
+    if scene.has_lights:
+        # `SceneGraph.to_gltf` references these by index in the same order
+        tree.setdefault("extensions", {})["KHR_lights_punctual"] = {
+            "lights": [_convert_light(L) for L in scene.lights]
+        }
+
     if include_metadata and len(scene.metadata) > 0:
         try:
             # fail here if data isn't json compatible
@@ -721,7 +729,8 @@ def _create_gltf_structure(
             tree["scenes"][0]["extras"] = _jsonify(scene.metadata)
             extensions = tree["scenes"][0]["extras"].pop("gltf_extensions", None)
             if isinstance(extensions, dict):
-                tree["extensions"] = extensions
+                # update rather than assign as lights may already be here
+                tree.setdefault("extensions", {}).update(extensions)
         except BaseException:
             log.debug("failed to export scene metadata!", exc_info=True)
 
@@ -798,6 +807,8 @@ def _create_gltf_structure(
     # Add any extensions already in the tree (e.g. node extensions)
     if "extensionsUsed" in tree:
         extensions_used = extensions_used.union(set(tree["extensionsUsed"]))
+    # and any stored at the top level, i.e. the light array
+    extensions_used.update(tree.get("extensions", {}).keys())
     # Add WebP if used
     if extension_webp:
         extensions_used.add("EXT_texture_webp")
@@ -869,12 +880,24 @@ def _append_animations(tree: dict, buffer_items, animations, node_index: dict):
     for name, group in grouped.items():
         samplers = []
         channels = []
+        # the spec requires every {node, path} target in one animation be
+        # unique, so remember which are taken rather than writing a file
+        # a strict loader will refuse
+        targeted = set()
 
         for animation in group:
             index = node_index.get(animation.frame_to)
             if index is None:
                 log.warning(f"animation targets missing node `{animation.frame_to}`!")
                 continue
+
+            if index in targeted:
+                log.warning(
+                    f"animation `{name}` drives node `{animation.frame_to}` more "
+                    + "than once, GLTF allows one channel per node and path!"
+                )
+                continue
+            targeted.add(index)
 
             # `frame_from` of None means the base frame, which is the tree
             # root and so has no entry in `parents`
@@ -889,23 +912,44 @@ def _append_animations(tree: dict, buffer_items, animations, node_index: dict):
             keyframes = animation.keyframes
             cubic = animation.interpolation == "cubic"
 
-            # the time accessor is shared by every channel of this node
-            # note `_data_append` fills in the min/max the spec requires
-            sampler_input = _data_append(
-                acc=tree["accessors"],
-                buff=buffer_items,
-                blob={"componentType": 5126, "type": "SCALAR"},
-                data=animation.times.astype(float32),
-            )
+            # the time accessor is shared by every channel of this node but
+            # is only appended once a channel actually survives the static
+            # check below, as every channel can be dropped and an accessor
+            # nothing references would be left stranded in the file
+            sampler_input = None
 
-            # what the node looks like when this channel isn't animated
-            base = tree["nodes"][index].get("matrix")
-            static = trs_from_matrix(_EYE if base is None else matrix_from_gltf(base))[0]
+            # what the node looks like when a channel isn't animated, in
+            # trimesh's own `wxyz` ordering so the check below can compare
+            # against the keyframes before they're converted
+            node = tree["nodes"][index]
+            static = (
+                trs_from_gltf_matrices(node["matrix"])
+                if "matrix" in node
+                else trs_from_node(node)
+            )
 
             for path, field, index_trs in _CHANNELS:
                 values = keyframes[field]
                 incoming = keyframes[f"{field}_in"]
                 outgoing = keyframes[f"{field}_out"]
+
+                # a channel which never changes and already matches the
+                # node's static pose doesn't need to be stored at all
+                static_curve = len(values) == 1 or np.ptp(values, axis=0).max() < 1e-12
+                if cubic:
+                    # tangents can bend a curve which has identical endpoints
+                    static_curve = static_curve and not (
+                        np.abs(incoming).max() > 1e-12 or np.abs(outgoing).max() > 1e-12
+                    )
+                if static_curve and (
+                    np.allclose(values[0], np.reshape(static[index_trs], -1))
+                    # a quaternion and its negation are the same rotation
+                    or (
+                        path == "rotation"
+                        and np.allclose(values[0], -np.reshape(static[index_trs], -1))
+                    )
+                ):
+                    continue
 
                 if path == "rotation":
                     # trimesh stores `wxyz` and GLTF wants `xyzw`
@@ -919,21 +963,15 @@ def _append_animations(tree: dict, buffer_items, animations, node_index: dict):
                         # without flipping its tangents would break the curve
                         values = unwind(values)
 
-                # a channel which never changes and already matches the
-                # node's static pose doesn't need to be stored at all
-                static_curve = len(values) == 1 or np.ptp(values, axis=0).max() < 1e-12
-                if cubic:
-                    # tangents can bend a curve which has identical endpoints
-                    static_curve = static_curve and not (
-                        np.abs(incoming).max() > 1e-12 or np.abs(outgoing).max() > 1e-12
+                if sampler_input is None:
+                    # the first channel to survive pays for the time accessor
+                    # note `_data_append` fills in the min/max the spec requires
+                    sampler_input = _data_append(
+                        acc=tree["accessors"],
+                        buff=buffer_items,
+                        blob={"componentType": 5126, "type": "SCALAR"},
+                        data=animation.times.astype(float32),
                     )
-                if static_curve:
-                    same = np.allclose(values[0], static[index_trs])
-                    if path == "rotation" and not same:
-                        # a quaternion and its negation are the same rotation
-                        same = np.allclose(values[0], -static[index_trs])
-                    if same:
-                        continue
 
                 if cubic:
                     # the spec interleaves each keyframe as in-tangent,
@@ -974,15 +1012,15 @@ def _append_animations(tree: dict, buffer_items, animations, node_index: dict):
     if len(result) == 0:
         return
 
-    # the spec forbids a `matrix` on any node targeted by an animation
-    # so replace it with the equivalent TRS on every animated node
-    for index in animated:
-        node = tree["nodes"][index]
-        matrix = node.pop("matrix", None)
-        if matrix is None:
-            continue
-        # `node_from_trs` omits any component already at the GLTF default
-        node_from_trs(trs_from_matrix(matrix_from_gltf(matrix))[0], node)
+    # the spec forbids a `matrix` on any node targeted by an animation so
+    # replace it with the equivalent TRS, decomposing every animated node
+    # in one batched call rather than an eigendecomposition each
+    ordered = [i for i in sorted(animated) if "matrix" in tree["nodes"][i]]
+    if len(ordered) > 0:
+        trs = trs_from_gltf_matrices([tree["nodes"][i].pop("matrix") for i in ordered])
+        for j, index in enumerate(ordered):
+            # `node_from_trs` omits any component already at the GLTF default
+            node_from_trs([part[j] for part in trs], tree["nodes"][index])
 
     tree["animations"] = result
 
@@ -1122,10 +1160,16 @@ def _append_mesh(
                 "Vertex colors have different length than mesh vertices, dropping!"
             )
 
-    if hasattr(mesh.visual, "material"):
+    # a visual with no material still needs one, as a primitive with no
+    # material inherits GLTF's default of fully metallic and fully rough
+    material = getattr(mesh.visual, "material", None)
+    if material is None and hasattr(mesh.visual, "to_pbr"):
+        material = mesh.visual.to_pbr()
+
+    if material is not None:
         # append the material and then set from returned index
         current_material = _append_material(
-            mat=mesh.visual.material,
+            mat=material,
             tree=tree,
             buffer_items=buffer_items,
             mat_hashes=mat_hashes,
@@ -1917,16 +1961,26 @@ def _read_buffers(
                         if materials is None:
                             log.debug("no materials! `pip install pillow`")
                         else:
-                            uv = None
-                            if "TEXCOORD_0" in attr:
-                                # flip UV's top- bottom to move origin to lower-left:
-                                # https://github.com/KhronosGroup/glTF/issues/1021
-                                uv = access[attr["TEXCOORD_0"]].copy()
-                                uv[:, 1] = 1.0 - uv[:, 1]
-                                # create a texture visual
-                            visuals = visual.texture.TextureVisuals(
-                                uv=uv, material=materials[p["material"]]
+                            material = materials[p["material"]]
+                            # a primitive with vertex colors and an untextured
+                            # material already carries all of its color in
+                            # `COLOR_0`, so leave it as `ColorVisuals` rather
+                            # than wrapping an image-less material around it
+                            colors_only = "COLOR_0" in attr and not getattr(
+                                material, "has_texture", False
                             )
+                            if not colors_only:
+                                uv = None
+                                if "TEXCOORD_0" in attr:
+                                    # flip UV's top- bottom to move origin to
+                                    # lower-left:
+                                    # https://github.com/KhronosGroup/glTF/issues/1021
+                                    uv = access[attr["TEXCOORD_0"]].copy()
+                                    uv[:, 1] = 1.0 - uv[:, 1]
+                                    # create a texture visual
+                                visuals = visual.texture.TextureVisuals(
+                                    uv=uv, material=material
+                                )
 
                     if "COLOR_0" in attr:
                         try:
@@ -2069,6 +2123,8 @@ def _read_buffers(
     # camera(s), if they exist
     camera = None
     camera_transform = None
+    # `KHR_lights_punctual` lights, {index in the file : light}
+    lights = {}
 
     if "scene" in header:
         # specify the index of scenes if specified
@@ -2121,10 +2177,8 @@ def _read_buffers(
 
         # apply any TRS keys on top, which GLTF orders as T * R * S
         # a node with none of them yields identity so this is a no-op
-        if any(key in child for key in ("translation", "rotation", "scale")):
-            kwargs["matrix"] = np.dot(
-                kwargs["matrix"], matrix_from_trs(trs_from_node(child))[0]
-            )
+        if any(key in child for key in PATHS):
+            kwargs["matrix"] = np.dot(kwargs["matrix"], tqs_matrix(*trs_from_node(child)))
 
         # If a camera exists, create the camera and dont add the node to the graph
         # TODO only process the first camera, ignore the rest
@@ -2146,9 +2200,36 @@ def _read_buffers(
 
         # put any node extensions in a field of the metadata
         if "extensions" in child:
-            if "metadata" not in kwargs:
-                kwargs["metadata"] = {}
-            kwargs["metadata"]["gltf_extensions"] = child["extensions"]
+            extensions = dict(child["extensions"])
+
+            # a light is referenced by a node extension: unlike the camera
+            # keep the node in the graph so the light's transform is just
+            # an edge, which also makes it animatable like anything else
+            punctual = extensions.pop("KHR_lights_punctual", None)
+            if punctual is not None:
+                stored = (
+                    header.get("extensions", {})
+                    .get("KHR_lights_punctual", {})
+                    .get("lights", [])
+                )
+                index = punctual.get("light")
+                if isinstance(index, int) and index < len(stored):
+                    light = _light_from_gltf(stored[index])
+                    if light is not None:
+                        # name it after the node so `Scene.lights` and the
+                        # graph agree, which is what a re-export needs
+                        light.name = names[b]
+                        # key by the stored index rather than appending, as
+                        # the traversal below is a stack and visits nodes in
+                        # an order which has nothing to do with the file's
+                        lights[index] = light
+                else:
+                    log.warning("node references a missing light!")
+
+            if len(extensions) > 0:
+                if "metadata" not in kwargs:
+                    kwargs["metadata"] = {}
+                kwargs["metadata"]["gltf_extensions"] = extensions
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]
@@ -2187,6 +2268,8 @@ def _read_buffers(
         "base_frame": DEFAULT_BASE_FRAME,
         "camera": camera,
         "camera_transform": camera_transform,
+        # back into file order, which is the order they were exported in
+        "lights": [lights[k] for k in sorted(lights.keys())],
         "metadata": {},
         # the traversal above already worked out which edge every node
         # sits on, which is the edge an animation targeting it drives
@@ -2329,17 +2412,17 @@ def _parse_animations(header, access, names, edges):
             # what this node looks like when a channel isn't animated, which
             # holds that static value across the whole timeline
             static = nodes[node]
-            trs = (
-                trs_from_matrix(matrix_from_gltf(static["matrix"]))[0]
+            keyframes = np.zeros(len(times), dtype=KEYFRAME)
+            keyframes["time"] = times
+            (
+                keyframes["translation"],
+                keyframes["quaternion"],
+                keyframes["scale"],
+            ) = (
+                trs_from_gltf_matrices(static["matrix"])
                 if "matrix" in static
                 else trs_from_node(static)
             )
-
-            keyframes = np.zeros(len(times), dtype=KEYFRAME)
-            keyframes["time"] = times
-            keyframes["translation"] = trs[TRANSLATION]
-            keyframes["quaternion"] = quaternion_from_gltf(trs[ROTATION])
-            keyframes["scale"] = trs[SCALE]
 
             for path, field, _index_trs in _CHANNELS:
                 if path not in channels:
@@ -2416,7 +2499,13 @@ def _cam_from_gltf(cam):
 
     fov = (aspect_ratio * yfov, yfov)
 
-    return Camera(name=name, fov=fov, z_near=znear)
+    kwargs = {}
+    # `zfar` is optional and means an infinite projection when missing,
+    # so only override the default when the file actually says something
+    if "zfar" in cam["perspective"]:
+        kwargs["z_far"] = float(cam["perspective"]["zfar"])
+
+    return Camera(name=name, fov=fov, z_near=znear, **kwargs)
 
 
 def _convert_camera(camera):
@@ -2433,16 +2522,92 @@ def _convert_camera(camera):
     gltf_camera : dict
       Camera represented as a GLTF dict
     """
-    result = {
+    return {
         "name": camera.name,
         "type": "perspective",
         "perspective": {
             "aspectRatio": camera.fov[0] / camera.fov[1],
             "yfov": np.radians(camera.fov[1]),
             "znear": float(camera.z_near),
+            # omitting this means an *infinite* projection rather than a
+            # default one, which a renderer takes at its word: it is what
+            # a depth buffer and any depth-binned light culling are sized
+            # against, so leaving it out can quietly break local lighting
+            "zfar": float(camera.z_far),
         },
     }
+
+
+def _convert_light(light):
+    """
+    Convert a trimesh light to a `KHR_lights_punctual` light.
+
+    Parameters
+    ------------
+    light : trimesh.scene.lighting.Light
+      Light to convert.
+
+    Returns
+    -------------
+    gltf_light : dict
+      Light as a `KHR_lights_punctual` dict.
+    """
+    result = {
+        "name": light.name,
+        "type": _LIGHT_TYPES[type(light).__name__],
+        # the extension stores linear RGB in the 0.0 - 1.0 range
+        "color": visual.color.to_float(light.color)[:3].tolist(),
+        "intensity": float(light.intensity),
+    }
+    if light.radius is not None:
+        result["range"] = float(light.radius)
+
+    if result["type"] == "spot":
+        # only a spot has a cone, and the extension defaults differ
+        # from ours so always write both rather than guessing
+        result["spot"] = {
+            "innerConeAngle": float(light.innerConeAngle),
+            "outerConeAngle": float(light.outerConeAngle),
+        }
+
     return result
+
+
+def _light_from_gltf(light):
+    """
+    Convert a `KHR_lights_punctual` light to a trimesh light.
+
+    Parameters
+    ------------
+    light : dict
+      Light as a `KHR_lights_punctual` dict.
+
+    Returns
+    -------------
+    light : trimesh.scene.lighting.Light or None
+      Trimesh light, or None if the type isn't supported.
+    """
+    from ...scene import lighting
+
+    constructor = getattr(lighting, _LIGHT_CLASSES.get(light.get("type"), ""), None)
+    if constructor is None:
+        log.warning(f"unsupported light type `{light.get('type')}`!")
+        return None
+
+    kwargs = {
+        "name": light.get("name"),
+        "intensity": light.get("intensity", 1.0),
+        "radius": light.get("range"),
+    }
+    if "color" in light:
+        kwargs["color"] = visual.color.to_rgba(np.array(light["color"], dtype=np.float64))
+    if constructor is lighting.SpotLight:
+        spot = light.get("spot", {})
+        # set the outer angle first as the inner setter validates against it
+        kwargs["outerConeAngle"] = spot.get("outerConeAngle", np.pi / 4.0)
+        kwargs["innerConeAngle"] = spot.get("innerConeAngle", 0.0)
+
+    return constructor(**kwargs)
 
 
 def _append_image(img, tree, buffer_items, extension_webp):

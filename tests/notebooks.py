@@ -145,7 +145,7 @@ def main():
     # examples which we're not going to run in CI
     # widget.py opens a window and does a bunch of openGL stuff
     # the animation examples end in a viewer, and render_blender.py
-    # imports `bpy` which only exists inside Blender itself
+    # shells out to a Blender which CI has no reason to have installed
     ci_blacklist = [
         "widget.py",
         "voxel.py",

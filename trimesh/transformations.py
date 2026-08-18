@@ -368,16 +368,21 @@ def rotation_matrix(angle, direction, point=None):
     True
 
     """
-    if np.ndim(angle) > 0:
-        # a stack of angles produces a stack of matrices
-        angle = np.asanyarray(angle, dtype=np.float64).reshape(-1)
-        direction = unit_vector(np.asanyarray(direction, dtype=np.float64)[:3])
+    if "sympy" in str(type(angle)):
+        # a symbolic angle can't go through the numeric path below as
+        # it has no float dtype, so it keeps its own copy of Rodrigues'
+        import sympy as sp
 
-        sina = np.sin(angle).reshape((-1, 1, 1))
-        cosa = np.cos(angle).reshape((-1, 1, 1))
+        sina = sp.sin(angle)
+        cosa = sp.cos(angle)
+        direction = unit_vector(direction[:3])
 
-        # the cross product matrix of the rotation axis
-        cross = np.array(
+        # rotation matrix around unit vector
+        M = np.diag([cosa, cosa, cosa, 1.0])
+        M[:3, :3] += np.outer(direction, direction) * (1.0 - cosa)
+
+        direction = direction * sina
+        M[:3, :3] += np.array(
             [
                 [0.0, -direction[2], direction[1]],
                 [direction[2], 0.0, -direction[0]],
@@ -385,41 +390,23 @@ def rotation_matrix(angle, direction, point=None):
             ]
         )
 
-        matrices = np.tile(np.eye(4), (len(angle), 1, 1))
-        # Rodrigues' rotation formula
-        matrices[:, :3, :3] = (
-            np.eye(3) * cosa
-            + np.outer(direction, direction) * (1.0 - cosa)
-            + cross * sina
-        )
-
+        # if point is specified, rotation is not around origin
         if point is not None:
-            # rotate around the passed point rather than the origin
-            point = np.asarray(point, dtype=np.float64)[:3]
-            matrices[:, :3, 3] = point - np.dot(matrices[:, :3, :3], point)
+            point = np.asarray(point[:3], dtype=np.float64)
+            M[:3, 3] = point - np.dot(M[:3, :3], point)
 
-        return matrices
+        return sp.Matrix(M)
 
-    if "sympy" in str(type(angle)):
-        # special case sympy symbolic angles
-        import sympy as sp
+    # a scalar angle is just the single-element case of a stack
+    single = np.ndim(angle) == 0
+    angle = np.asanyarray(angle, dtype=np.float64).reshape(-1)
+    direction = unit_vector(np.asanyarray(direction, dtype=np.float64)[:3])
 
-        symbolic = True
-        sina = sp.sin(angle)
-        cosa = sp.cos(angle)
-    else:
-        symbolic = False
-        sina = np.sin(angle)
-        cosa = np.cos(angle)
+    sina = np.sin(angle).reshape((-1, 1, 1))
+    cosa = np.cos(angle).reshape((-1, 1, 1))
 
-    direction = unit_vector(direction[:3])
-
-    # rotation matrix around unit vector
-    M = np.diag([cosa, cosa, cosa, 1.0])
-    M[:3, :3] += np.outer(direction, direction) * (1.0 - cosa)
-
-    direction = direction * sina
-    M[:3, :3] += np.array(
+    # the cross product matrix of the rotation axis
+    cross = np.array(
         [
             [0.0, -direction[2], direction[1]],
             [direction[2], 0.0, -direction[0]],
@@ -427,16 +414,18 @@ def rotation_matrix(angle, direction, point=None):
         ]
     )
 
-    # if point is specified, rotation is not around origin
+    matrices = np.tile(np.eye(4), (len(angle), 1, 1))
+    # Rodrigues' rotation formula
+    matrices[:, :3, :3] = (
+        np.eye(3) * cosa + np.outer(direction, direction) * (1.0 - cosa) + cross * sina
+    )
+
     if point is not None:
-        point = np.asarray(point[:3], dtype=np.float64)
-        M[:3, 3] = point - np.dot(M[:3, :3], point)
+        # rotate around the passed point rather than the origin
+        point = np.asarray(point, dtype=np.float64)[:3]
+        matrices[:, :3, 3] = point - np.dot(matrices[:, :3, :3], point)
 
-    # return symbolic angles as sympy Matrix objects
-    if symbolic:
-        return sp.Matrix(M)
-
-    return M
+    return matrices[0] if single else matrices
 
 
 def rotation_from_matrix(matrix):
@@ -1467,10 +1456,16 @@ def quaternion_from_matrix(matrix, isprecise=False):
 
     """
     M = np.asarray(matrix, dtype=np.float64)
+    if M.ndim == 2 and M.shape != (4, 4):
+        # a single matrix was historically cropped with `[:4, :4]` which
+        # also let a (3, 3) rotation through, so pad it back up to (4, 4)
+        # note the general path never reads `M[3, 3]` so this is exact
+        padded = np.eye(4)
+        padded[: min(M.shape[0], 4), : min(M.shape[1], 4)] = M[:4, :4]
+        M = padded
     if isprecise:
         # the fast path branches on which diagonal entry is largest
         # which doesn't vectorize cleanly, so keep it single-matrix
-        M = M[:4, :4]
         q = np.zeros((4,))
         t = np.trace(M)
         if t > M[3, 3]:
@@ -1744,8 +1739,10 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     single = q0.ndim == 1 and q1.ndim == 1 and frac.ndim == 0
 
     # broadcast all three arguments to a common leading length
-    q0 = q0.reshape((-1, 4))
-    q1 = q1.reshape((-1, 4))
+    # note the `[..., :4]` truncates an over-length quaternion the
+    # way the original scalar implementation's `quat0[:4]` did
+    q0 = q0[..., :4].reshape((-1, 4))
+    q1 = q1[..., :4].reshape((-1, 4))
     frac = frac.reshape(-1)
     count = max(len(q0), len(q1), len(frac))
     # copy as we mutate `q1` for the shortest-path flip below

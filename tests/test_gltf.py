@@ -431,6 +431,66 @@ class GLTFTest(g.unittest.TestCase):
         export = scene.export(file_type="gltf")
         assert gltf_cameras_key in g.json.loads(export["model.gltf"].decode("utf8"))
 
+        # a camera is a node in the graph like anything else, so it can be
+        # animated by the same machinery: this is what lets a renderer move
+        # the camera without being told how
+        lighting = g.trimesh.scene.lighting
+        scene.lights = [
+            lighting.DirectionalLight(name="key", color=[255, 244, 224, 255]),
+            lighting.PointLight(name="fill", intensity=7.5, radius=12.0),
+            lighting.SpotLight(name="rim", innerConeAngle=0.2, outerConeAngle=0.6),
+        ]
+        for light, x in zip(scene.lights, [1.0, -2.0, 3.0]):
+            scene.graph[light.name] = g.trimesh.transformations.translation_matrix(
+                [x, 0, 2]
+            )
+
+        times = g.np.linspace(0.0, 2.0, 24)
+        poses = g.spin_z(times * g.np.pi) @ scene.camera_transform
+        scene.animations.append(
+            g.trimesh.scene.animation.RigidAnimation(
+                frame_to=scene.camera.name, times=times, matrices=poses, name="orbit"
+            )
+        )
+
+        reloaded = g.trimesh.load(
+            g.trimesh.util.wrap_as_stream(scene.export(file_type="glb")),
+            file_type="glb",
+        )
+
+        # the animation has to come back pointing at the camera the file
+        # actually has, not a dangling node named like the one it had
+        orbit = next(a for a in reloaded.animations if a.name == "orbit")
+        assert orbit.frame_to == reloaded.camera.name
+        assert reloaded.camera.name in reloaded.graph.nodes
+        # float32 is what GLTF stores keyframes as
+        assert g.np.allclose(orbit.at(times), poses, atol=1e-5)
+
+        # lights survive with everything that distinguishes one from another
+        assert [type(x).__name__ for x in reloaded.lights] == [
+            type(x).__name__ for x in scene.lights
+        ]
+        for before, after in zip(scene.lights, reloaded.lights):
+            assert before.name == after.name
+            assert g.np.allclose(before.color, after.color, atol=1)
+            assert g.np.isclose(before.intensity, after.intensity)
+            assert before.radius == after.radius
+            # a light without its transform is not a light
+            assert g.np.allclose(
+                scene.graph[before.name][0], reloaded.graph[after.name][0]
+            )
+        spot = reloaded.lights[-1]
+        assert g.np.isclose(spot.innerConeAngle, 0.2)
+        assert g.np.isclose(spot.outerConeAngle, 0.6)
+
+        # a scene which never had lights set shouldn't grow the extension,
+        # as `scene.lights` would happily invent a pair on being asked
+        plain = g.trimesh.Scene(g.trimesh.creation.box())
+        assert not plain.has_lights
+        assert "KHR_lights_punctual" not in plain.export(file_type="gltf")[
+            "model.gltf"
+        ].decode("utf8")
+
     def test_gltf_pole(self):
         scene = g.get_mesh("simple_pole.glb")
 
@@ -810,6 +870,19 @@ class GLTFTest(g.unittest.TestCase):
         assert g.np.ptp(g.np.ptp(m.visual.vertex_colors, axis=0)) > 0
         # vertex colors should have survived import-export
         assert g.np.allclose(m.visual.vertex_colors, r.visual.vertex_colors)
+
+        header = g.json.loads(export[20 : 20 + int.from_bytes(export[12:16], "little")])
+        # a primitive with no material inherits GLTF's default, which is
+        # fully metallic and fully rough: every mesh needs a real one
+        primitives = [p for mesh in header["meshes"] for p in mesh["primitives"]]
+        assert all("material" in p for p in primitives)
+        # colors ride as COLOR_0 which GLTF multiplies against the base
+        # color, so one white material serves every primitive
+        assert all("COLOR_0" in p["attributes"] for p in primitives)
+        assert len(header["materials"]) == 1
+        pbr = header["materials"][0]["pbrMetallicRoughness"]
+        assert g.np.allclose(pbr["baseColorFactor"], 1.0)
+        assert pbr["metallicFactor"] == 0.0
 
     def test_vertex_attrib(self):
         # test concatenation with texture
@@ -1242,6 +1315,28 @@ class GLTFTest(g.unittest.TestCase):
         simple = mesh.visual.material.to_simple()
         assert simple.name == mesh.visual.material.name
 
+        # `to_pbr` has to write `metallicFactor` even when it is zero, as
+        # leaving it out means GLTF's default of 1.0 and every simple
+        # material would export as a mirror
+        pbr = simple.to_pbr()
+        assert pbr.metallicFactor == 0.0
+        # and roughness is still derived from the specular exponent
+        assert g.np.isclose(pbr.roughnessFactor, (2 / (simple.glossiness + 2)) ** 0.25)
+
+        # an explicit value wins over both defaults
+        asked = simple.to_pbr(metallic=0.9, roughness=0.15)
+        assert asked.metallicFactor == 0.9
+        assert asked.roughnessFactor == 0.15
+
+        # and lands in the file rather than being dropped on the way
+        box = g.trimesh.creation.box()
+        box.visual = g.trimesh.visual.TextureVisuals(material=asked)
+        export = box.export(file_type="glb")
+        header = g.json.loads(export[20 : 20 + int.from_bytes(export[12:16], "little")])
+        stored = header["materials"][0]["pbrMetallicRoughness"]
+        assert stored["metallicFactor"] == 0.9
+        assert stored["roughnessFactor"] == 0.15
+
     def test_webp_roundtrip(self):
         m = g.get_mesh("fuze.obj")
         e = m.export(file_type="glb", extension_webp=True)
@@ -1325,6 +1420,13 @@ class GLTFTest(g.unittest.TestCase):
 
         targeted = set()
         for animation in header["animations"]:
+            # the spec requires every {node, path} target in one animation
+            # be unique, which a strict loader will refuse a file over
+            pairs = [
+                (c["target"]["node"], c["target"]["path"]) for c in animation["channels"]
+            ]
+            assert len(pairs) == len(set(pairs))
+
             for channel in animation["channels"]:
                 node = channel["target"]["node"]
                 targeted.add(node)
@@ -1361,6 +1463,47 @@ class GLTFTest(g.unittest.TestCase):
         # node names should survive so animations can be matched back up
         assert spin.frame_to in {n.get("name") for n in header["nodes"]}
 
+        # nothing should be left in the file which nothing points at: a
+        # channel dropped for being static used to strand its time accessor
+        used = {
+            index
+            for animation in header["animations"]
+            for sampler in animation["samplers"]
+            for index in (sampler["input"], sampler["output"])
+        }
+        for mesh in header["meshes"]:
+            for primitive in mesh["primitives"]:
+                used.update(primitive["attributes"].values())
+                if "indices" in primitive:
+                    used.add(primitive["indices"])
+        assert used == set(range(len(header["accessors"])))
+
+        # an animation whose channels all match the node's static pose has
+        # nothing to say, and shouldn't leave an accessor behind saying it
+        static = g.trimesh.Scene(g.trimesh.creation.box())
+        node = static.graph.nodes_geometry[0]
+        static.animations.append(
+            g.trimesh.scene.animation.RigidAnimation(
+                frame_to=node,
+                times=g.np.linspace(0, 1, 5),
+                matrices=g.np.tile(g.np.eye(4), (5, 1, 1)),
+            )
+        )
+        quiet = g.json.loads(
+            g.trimesh.exchange.gltf.export_gltf(static, embed_buffers=True)["model.gltf"]
+        )
+        assert "animations" not in quiet
+        assert len(quiet["accessors"]) == len(
+            {
+                index
+                for mesh in quiet["meshes"]
+                for primitive in mesh["primitives"]
+                for index in list(primitive["attributes"].values())
+                + [primitive.get("indices")]
+                if index is not None
+            }
+        )
+
     def test_animation_rigid(self):
         """
         A rigid input animation should stay rigid through a roundtrip.
@@ -1383,34 +1526,6 @@ class GLTFTest(g.unittest.TestCase):
         assert g.np.allclose(g.np.linalg.det(rotation), 1.0, atol=1e-5)
         # the bottom row of a homogeneous transform is never touched
         assert g.np.allclose(matrices[:, 3, :], [0, 0, 0, 1])
-
-    def test_animation_apply(self):
-        """
-        Applying an animation should agree with sampling it.
-        """
-        scene, spin = animated_scene()
-
-        graph = scene.graph
-        # the edge `apply` drives, which on a nested graph is not the
-        # same as `scene.graph[frame_to]` from the base frame
-        edge = {"frame_to": spin.frame_to, "frame_from": spin.frame_from}
-
-        for time in [0.0, 0.37, 1.5, spin.times[-1]]:
-            spin.apply(scene, time)
-            assert g.np.allclose(graph.get(**edge)[0], spin.at(time))
-
-            # applying must never move the node in the graph: passing the
-            # wrong `frame_from` reparents it and leaves a second edge
-            # behind, with `parents` and `edge_data` then disagreeing
-            assert graph.transforms.parents[spin.frame_to] == spin.frame_from
-            assert (graph.base_frame, spin.frame_to) not in graph.transforms.edge_data
-
-        # `apply` has to stay a pass-through to `graph.update` rather than
-        # growing any logic of its own about which edge it drives
-        graph.update(**edge, matrix=spin.at(0.62))
-        direct = graph.get(**edge)[0]
-        spin.apply(scene, 0.62)
-        assert g.np.allclose(graph.get(**edge)[0], direct)
 
     def test_animation_scene_untouched(self):
         """
@@ -1440,7 +1555,7 @@ class GLTFTest(g.unittest.TestCase):
 
         times = g.np.linspace(0.0, 2.0, 17)
         # (n, 4, 4) stack of rotations about Z, built without a python loop
-        spin = _spin_z(times * g.np.pi)
+        spin = g.spin_z(times * g.np.pi)
 
         for node in nodes:
             # walking a loaded graph, so the edge has to be asked for
@@ -1472,9 +1587,9 @@ class GLTFTest(g.unittest.TestCase):
             )
 
 
-def test_transform_trs():
+def test_transform_node():
     """
-    Packed TRS should round-trip any transform exactly.
+    A GLTF node dict and a matrix should be two spellings of one transform.
     """
     from trimesh.exchange.gltf import transform as T
 
@@ -1486,68 +1601,42 @@ def test_transform_trs():
         # add a non-uniform scale and a translation
         matrices[:, :3, :3] *= random.uniform(0.2, 3.0, (count, 1, 3))
         matrices[:, :3, 3] = random.uniform(-10, 10, (count, 3))
+    # a mirror can't be a unit quaternion so it has to land in the scale
+    matrices[::2, :3, 0] *= -1.0
+    assert (g.np.linalg.det(matrices[::2, :3, :3]) < 0).all()
 
-    trs = T.trs_from_matrix(matrices)
-    # 3 translation + 4 quaternion + 3 scale, always a single 2D array
-    assert trs.shape == (count, 10)
+    # decompose the whole stack the way the exporter does, from the
+    # column-major flattening GLTF stores
+    trs = T.trs_from_gltf_matrices(matrices.transpose(0, 2, 1).reshape((-1, 16)))
+    # which has to agree with composing them straight back
+    assert g.np.allclose(tf.tqs_matrix(*trs), matrices)
 
-    # the pair being an exact inverse pins the packing, the column
-    # layout, and the XYZW ordering all with one predicate
-    assert g.np.allclose(T.matrix_from_trs(trs), matrices)
-    # rotations are stored as unit quaternions
-    assert g.np.allclose(g.np.linalg.norm(trs[:, T.ROTATION], axis=1), 1.0)
+    # writing each one out as a node and reading it back as an exact
+    # inverse pins the TRS split, the XYZW ordering, and the omitted
+    # defaults all with one predicate
+    for i, matrix in enumerate(matrices):
+        node = {}
+        T.node_from_trs([part[i] for part in trs], node)
+        assert g.np.allclose(tf.tqs_matrix(*T.trs_from_node(node)), matrix)
+    # a transposed matrix would survive a symmetric one, so make sure
+    # the column-major handling above was actually exercised
+    assert not g.np.allclose(matrices[0], matrices[0].T)
 
-    # a mirrored transform can't be represented by a unit quaternion alone
-    # so the reflection has to be carried by a negative scale
-    mirrored = matrices.copy()
-    mirrored[:, :3, 0] *= -1.0
-    assert (g.np.linalg.det(mirrored[:, :3, :3]) < 0).all()
-    assert g.np.allclose(T.matrix_from_trs(T.trs_from_matrix(mirrored)), mirrored)
-    assert (T.trs_from_matrix(mirrored)[:, T.SCALE] < 0).any()
-
-    # a single matrix is still a stack of one rather than being squeezed
-    assert T.trs_from_matrix(matrices[0]).shape == (1, 10)
-    assert T.matrix_from_trs(T.trs_from_matrix(matrices[0])).shape == (1, 4, 4)
-
-    # a read-only input must not be mutated: the exporter passes `_EYE`
-    eye = g.np.eye(4)
-    eye.flags.writeable = False
-    assert g.np.allclose(T.matrix_from_trs(T.trs_from_matrix(eye))[0], g.np.eye(4))
-
-
-def test_transform_node():
-    """
-    A GLTF node dict and a matrix should be two spellings of one transform.
-    """
-    from trimesh.exchange.gltf import transform as T
-
-    tf = g.trimesh.transformations
-    matrix = tf.rotation_matrix(0.7, [1.0, 2.0, 3.0])
-    matrix[:3, :3] *= [2.0, 0.5, 3.0]
-    matrix[:3, 3] = [4.0, -5.0, 6.0]
-
-    node = {}
-    T.node_from_trs(T.trs_from_matrix(matrix)[0], node)
-    assert set(node) == {"translation", "rotation", "scale"}
-    assert g.np.allclose(T.matrix_from_trs(T.trs_from_node(node))[0], matrix)
+    def as_node(matrix):
+        # write a single matrix out the way the exporter does
+        node = {}
+        T.node_from_trs(
+            [p[0] for p in T.trs_from_gltf_matrices(matrix.T.reshape(-1))], node
+        )
+        return node
 
     # a component at its default is dropped even when the others aren't:
-    # a pure rotation and translation has a scale of exactly one
-    rigid = {}
-    T.node_from_trs(T.trs_from_matrix(tf.rotation_matrix(0.7, [1.0, 2.0, 3.0]))[0], rigid)
-    assert set(rigid) == {"rotation"}
-
+    # a pure rotation has a scale of exactly one and no translation
+    assert set(as_node(tf.rotation_matrix(0.7, [1.0, 2.0, 3.0]))) == {"rotation"}
     # anything already at the GLTF default is omitted rather than written
-    identity = {}
-    T.node_from_trs(T.trs_from_matrix(g.np.eye(4))[0], identity)
-    assert identity == {}
+    assert as_node(g.np.eye(4)) == {}
     # and a node with no keys at all reads back as identity
-    assert g.np.allclose(T.matrix_from_trs(T.trs_from_node({}))[0], g.np.eye(4))
-
-    # matrices are stored column-major, which is its own round-trip
-    assert g.np.allclose(T.matrix_from_gltf(T.matrix_to_gltf(matrix)), matrix)
-    # a transposed matrix would survive a symmetric one, so use a real one
-    assert not g.np.allclose(matrix, matrix.T)
+    assert g.np.allclose(tf.tqs_matrix(*T.trs_from_node({})), g.np.eye(4))
 
 
 def test_transform_unwind():
@@ -1916,7 +2005,7 @@ def test_animation_cubic_roundtrip():
 
     random = g.np.random.default_rng(11)
     times = g.np.linspace(0.0, 2.0, 9)
-    matrices = _spin_z(times * g.np.pi * 0.5)
+    matrices = g.spin_z(times * g.np.pi * 0.5)
     matrices[:, :3, 3] = random.uniform(-2.0, 2.0, (len(times), 3))
 
     keyframes = keyframes_from_matrix(times, matrices)
@@ -1960,26 +2049,6 @@ def test_animation_cubic_roundtrip():
         frame_to="spinner", keyframes=keyframes.copy(), interpolation="linear"
     )
     assert g.np.abs(original.at(dense) - linear.at(dense)).max() > 1e-2
-
-
-def _spin_z(angles):
-    """
-    Stack rotations about the Z axis without a loop.
-
-    Parameters
-    ------------
-    angles : (n,) float
-      Rotation angle in radians.
-
-    Returns
-    ----------
-    matrices : (n, 4, 4) float
-      Homogeneous rotation matrices.
-    """
-    half = g.np.asanyarray(angles, dtype=g.np.float64) * 0.5
-    return g.trimesh.transformations.quaternion_matrix(
-        g.np.column_stack([g.np.cos(half), g.np.zeros((len(half), 2)), g.np.sin(half)])
-    )
 
 
 def _accessor_values(header):
@@ -2056,7 +2125,7 @@ def animated_scene():
         frame_to=nodes[-1],
         frame_from=edge[nodes[-1]],
         times=times,
-        matrices=_spin_z(times * g.np.pi),
+        matrices=g.spin_z(times * g.np.pi),
         name="spin",
     )
     scene.animations.append(spin)

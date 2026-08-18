@@ -6,16 +6,11 @@ Keyframed animation of a scene, stored as translation,
 rotation, and scale sampled at increasing times.
 """
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 
 from .. import caching
 from ..transformations import quaternion_slerp, tqs_from_matrix, tqs_matrix
 from ..typed import Floating, Hashable, Literal, NDArray1D, NDArray3D, float64
-
-if TYPE_CHECKING:
-    from .scene import Scene
 
 # how values between keyframes are computed, which map onto the
 # GLTF sampler interpolation modes of LINEAR, STEP, and CUBICSPLINE
@@ -379,21 +374,8 @@ class RigidAnimation:
             interpolation="step" if self.interpolation == "step" else "linear",
         )
 
-    def apply(self, scene: "Scene", time: Floating) -> None:
-        """
-        Set this animation's edge in a scene at a time.
-
-        Note that this bumps the scene graph hash which includes every
-        edge matrix, so stepping a large scene frame-by-frame will
-        rehash the whole graph on every call.
-
-        Parameters
-        ------------
-        scene : trimesh.Scene
-          Scene to modify in-place.
-        time : float
-          Time to sample at, in seconds.
-        """
-        scene.graph.update(
-            frame_to=self.frame_to, frame_from=self.frame_from, matrix=self.at(time)
-        )
+    # note there is deliberately no `apply(scene, time)` here: writing the
+    # edge is `Scene.animate`, which is the only path that remembers what
+    # was there first so it can be put back. two spellings which wrote the
+    # same edge with different bookkeeping would disagree about the pose a
+    # scene returns to.

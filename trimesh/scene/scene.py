@@ -82,6 +82,10 @@ class Scene(Geometry3D):
         # exported as a single glTF animation
         self.animations: list[RigidAnimation] = []
 
+        # {(frame_from, frame_to) : matrix} of the edges `animate` has
+        # overwritten, so `animate(None)` can put the scene back
+        self._rest: dict = {}
+
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
 
@@ -842,6 +846,13 @@ class Scene(Geometry3D):
         return hasattr(self, "_camera") and self._camera is not None
 
     @property
+    def has_lights(self) -> bool:
+        # note this deliberately does not touch `self.lights`, which
+        # would generate a default pair rather than reporting there
+        # aren't any: an exporter wants to know what was actually set
+        return getattr(self, "_lights", None) is not None
+
+    @property
     def lights(self) -> list[lighting.Light]:
         """
         Get a list of the lights in the scene. If nothing is
@@ -873,6 +884,69 @@ class Scene(Geometry3D):
           Lights in the scene.
         """
         self._lights = lights
+
+    @property
+    def duration(self) -> float:
+        """
+        How long the longest animation in this scene runs for.
+
+        Returns
+        -------------
+        duration
+          Length in seconds, zero if the scene isn't animated.
+        """
+        if len(self.animations) == 0:
+            return 0.0
+        return max(a.duration for a in self.animations)
+
+    def animate(self, time: Floating | None, name: str | None = None) -> None:
+        """
+        Set every animated edge of the scene graph to its pose at a time.
+
+        Parameters
+        --------------
+        time
+          Time to sample at in seconds, or None to put every edge an
+          animation has touched back the way it was found, i.e. the
+          scene's rest pose.
+        name
+          Only apply animations with this name, None for all of them.
+        """
+        if time is None:
+            # restore in reverse so that if two animations somehow drove
+            # the same edge the first one's value is what's left
+            for edge, matrix in reversed(list(self._rest.items())):
+                self.graph.update(frame_from=edge[0], frame_to=edge[1], matrix=matrix)
+            self._rest.clear()
+            return
+
+        base_frame = self.graph.base_frame
+        for animation in self.animations:
+            if name is not None and animation.name != name:
+                continue
+            # a `frame_from` of None means the base frame, so resolve it
+            # here or the same edge would get two different rest entries
+            frame_from = (
+                base_frame if animation.frame_from is None else animation.frame_from
+            )
+            edge = (frame_from, animation.frame_to)
+
+            if edge not in self._rest:
+                try:
+                    self._rest[edge] = self.graph.get(
+                        frame_to=animation.frame_to, frame_from=frame_from
+                    )[0].copy()
+                except BaseException:
+                    # an animation may target a node which doesn't exist yet
+                    # in which case an identity is the honest thing to
+                    # put back, as the edge had no transform before
+                    self._rest[edge] = np.eye(4)
+
+            self.graph.update(
+                frame_from=frame_from,
+                frame_to=animation.frame_to,
+                matrix=animation.at(time),
+            )
 
     def rezero(self) -> None:
         """
@@ -1013,6 +1087,15 @@ class Scene(Geometry3D):
         geometry_names = {e[2]["geometry"] for e in edges if "geometry" in e[2]}
         geometry = {k: self.geometry[k] for k in geometry_names}
         result = Scene(geometry=geometry, graph=graph)
+
+        # carry any animation which drives an edge that survived, as the
+        # subscene is rooted at `node` its own edge is no longer drivable
+        for animation in self.animations:
+            if animation.frame_to in nodes and animation.frame_to != node:
+                result.animations.append(deepcopy(animation))
+            else:
+                log.debug(f"dropping animation targeting `{animation.frame_to}`")
+
         return result
 
     @caching.cache_decorator
@@ -1207,6 +1290,17 @@ class Scene(Geometry3D):
         if np.allclose(scale, 1.0):
             return result
 
+        # keyframe translations live in the same space as the graph edges
+        # they drive, so they have to scale with them or the animation
+        # would quietly play at the original size in a scaled scene
+        for animation in result.animations:
+            keyframes = animation.keyframes
+            keyframes["translation"] *= scale
+            keyframes["translation_in"] *= scale
+            keyframes["translation_out"] *= scale
+            # re-assign to bump the cache which `matrices` is keyed on
+            animation.keyframes = keyframes
+
         # convert 2D geometries to 3D for 3D scaling factors
         scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
 
@@ -1350,6 +1444,12 @@ class Scene(Geometry3D):
         )
         # deep copy so the keyframe arrays aren't shared with the original
         copied.animations = [deepcopy(a) for a in self.animations]
+        # the rest pose belongs to whatever `animate` did to *this* scene
+        copied._rest = {k: v.copy() for k, v in self._rest.items()}
+
+        if self.has_lights:
+            # lights are plain values so a deepcopy is safe here
+            copied.lights = deepcopy(self.lights)
 
         return copied
 
@@ -1489,6 +1589,8 @@ def append_scenes(iterable, common=None, base_frame="world"):
     geometry = {}
     # save transforms as edge tuples
     edges = []
+    # animations, with their frames remapped alongside the edges
+    animations = []
 
     # nodes which shouldn't be remapped
     common = set(common)
@@ -1566,10 +1668,22 @@ def append_scenes(iterable, common=None, base_frame="world"):
         # mark nodes from current scene as consumed
         consumed.update(current)
 
+        # animations drive edges, so they have to follow the same node
+        # renaming the edges just went through or they'd target nothing
+        for animation in s.animations:
+            moved = deepcopy(animation)
+            moved.frame_to = map_node.get(animation.frame_to, animation.frame_to)
+            if animation.frame_from is not None:
+                moved.frame_from = map_node.get(
+                    animation.frame_from, animation.frame_from
+                )
+            animations.append(moved)
+
     # add all data to a new scene
     result = Scene(base_frame=base_frame)
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
+    result.animations.extend(animations)
 
     return result
 
