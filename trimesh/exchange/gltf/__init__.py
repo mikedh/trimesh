@@ -23,7 +23,13 @@ from ...scene.transforms import DEFAULT_BASE_FRAME
 from ...transformations import tqs_matrix
 from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
-from .extensions import handle_extensions, unregistered
+from .extensions import (
+    GltfLights,
+    export_extensions,
+    handle_extensions,
+    merge_results,
+    unregistered,
+)
 from .transform import (
     PATHS,
     matrix_from_gltf,
@@ -55,14 +61,6 @@ _shapes = {
     "MAT3": (3, 3),
     "MAT4": (4, 4),
 }
-
-# trimesh light class name : `KHR_lights_punctual` type, and the reverse
-_LIGHT_TYPES = {
-    "DirectionalLight": "directional",
-    "PointLight": "point",
-    "SpotLight": "spot",
-}
-_LIGHT_CLASSES = {v: k for k, v in _LIGHT_TYPES.items()}
 
 # trimesh interpolation mode : GLTF sampler interpolation
 _INTERPOLATION = {"linear": "LINEAR", "step": "STEP", "cubic": "CUBICSPLINE"}
@@ -716,12 +714,6 @@ def _create_gltf_structure(
     if scene.has_camera:
         tree["cameras"] = [_convert_camera(scene.camera)]
 
-    if scene.has_lights:
-        # `SceneGraph.to_gltf` references these by index in the same order
-        tree.setdefault("extensions", {})["KHR_lights_punctual"] = {
-            "lights": [_convert_light(L) for L in scene.lights]
-        }
-
     if include_metadata and len(scene.metadata) > 0:
         try:
             # fail here if data isn't json compatible
@@ -782,6 +774,10 @@ def _create_gltf_structure(
     node_index = nodes.pop("node_index")
     tree.update(nodes)
 
+    # anything which writes at the document or node level, i.e. the lights,
+    # which are an array here and an index on each node which carries one
+    export_extensions(scope="scene_export", scene=scene, tree=tree, node_index=node_index)
+
     # add any keyframed animation, which also rewrites the nodes it
     # targets from a `matrix` into TRS as the spec requires
     _append_animations(
@@ -807,8 +803,6 @@ def _create_gltf_structure(
     # Add any extensions already in the tree (e.g. node extensions)
     if "extensionsUsed" in tree:
         extensions_used = extensions_used.union(set(tree["extensionsUsed"]))
-    # and any stored at the top level, i.e. the light array
-    extensions_used.update(tree.get("extensions", {}).keys())
     # Add WebP if used
     if extension_webp:
         extensions_used.add("EXT_texture_webp")
@@ -1269,11 +1263,9 @@ def _append_mesh(
             data=data,
         )
 
-    # Handle Draco compression via extension handler
+    # the flag also decides whether `claimed` collected anything to offer
     if extension_draco:
-        # Call primitive_export handlers
-        compressed = handle_extensions(
-            extensions={"KHR_draco_mesh_compression": {}},
+        compressed = export_extensions(
             scope="primitive_export",
             mesh=mesh,
             name=name,
@@ -1661,8 +1653,14 @@ def _parse_materials(header, views, resolver=None):
                     texture = header["textures"][v["index"]]
                     # Handle texture extensions through registry
                     if tex_ext := texture.get("extensions"):
-                        index = handle_extensions(
-                            extensions=tex_ext, scope="texture_source"
+                        # the first handler to resolve a source wins
+                        index = next(
+                            iter(
+                                handle_extensions(
+                                    extensions=tex_ext, scope="texture_source"
+                                ).values()
+                            ),
+                            None,
                         )
 
                     if index is None:
@@ -2009,12 +2007,15 @@ def _read_buffers(
 
                     # Process primitive-level extensions through registry
                     if prim_extensions := p.get("extensions"):
-                        handle_extensions(
-                            extensions=prim_extensions,
-                            scope="primitive",
-                            primitive=p,
-                            mesh_kwargs=kwargs,
-                            accessors=access,
+                        merge_results(
+                            handle_extensions(
+                                extensions=prim_extensions,
+                                scope="primitive",
+                                primitive=p,
+                                mesh_kwargs=kwargs,
+                                accessors=access,
+                            ),
+                            kwargs,
                         )
                 else:
                     log.debug("skipping primitive with mode %s!", mode)
@@ -2115,6 +2116,15 @@ def _read_buffers(
     # index-keyed dict intentionally holds one string key for the base
     names[DEFAULT_BASE_FRAME] = DEFAULT_BASE_FRAME
 
+    # resolved before the traversal below, which is a stack and visits nodes
+    # in an order that has nothing to do with the file's
+    lights = handle_extensions(
+        extensions=header.get("extensions"),
+        scope="scene",
+        header=header,
+        names=names,
+    ).get(GltfLights.NAME, [])
+
     # visited, kwargs for scene.graph.update
     graph = deque()
     # unvisited, pairs of node indexes
@@ -2123,9 +2133,6 @@ def _read_buffers(
     # camera(s), if they exist
     camera = None
     camera_transform = None
-    # `KHR_lights_punctual` lights, {index in the file : light}
-    lights = {}
-
     if "scene" in header:
         # specify the index of scenes if specified
         scene_index = header["scene"]
@@ -2198,33 +2205,14 @@ def _read_buffers(
         if isinstance(child.get("extras"), dict):
             kwargs["metadata"] = child["extras"]
 
-        # put any node extensions in a field of the metadata
+        # put any node extensions in a field of the metadata, less the
+        # light the `scene` handler above already took: unlike the camera
+        # the node stays in the graph so the light's transform is just an
+        # edge, which also makes it animatable like anything else
         if "extensions" in child:
-            extensions = dict(child["extensions"])
-
-            # a light is referenced by a node extension: unlike the camera
-            # keep the node in the graph so the light's transform is just
-            # an edge, which also makes it animatable like anything else
-            punctual = extensions.pop("KHR_lights_punctual", None)
-            if punctual is not None:
-                stored = (
-                    header.get("extensions", {})
-                    .get("KHR_lights_punctual", {})
-                    .get("lights", [])
-                )
-                index = punctual.get("light")
-                if isinstance(index, int) and index < len(stored):
-                    light = _light_from_gltf(stored[index])
-                    if light is not None:
-                        # name it after the node so `Scene.lights` and the
-                        # graph agree, which is what a re-export needs
-                        light.name = names[b]
-                        # key by the stored index rather than appending, as
-                        # the traversal below is a stack and visits nodes in
-                        # an order which has nothing to do with the file's
-                        lights[index] = light
-                else:
-                    log.warning("node references a missing light!")
+            extensions = {
+                k: v for k, v in child["extensions"].items() if k != GltfLights.NAME
+            }
 
             if len(extensions) > 0:
                 if "metadata" not in kwargs:
@@ -2268,8 +2256,7 @@ def _read_buffers(
         "base_frame": DEFAULT_BASE_FRAME,
         "camera": camera,
         "camera_transform": camera_transform,
-        # back into file order, which is the order they were exported in
-        "lights": [lights[k] for k in sorted(lights.keys())],
+        "lights": lights,
         "metadata": {},
         # the traversal above already worked out which edge every node
         # sits on, which is the edge an animation targeting it drives
@@ -2536,78 +2523,6 @@ def _convert_camera(camera):
             "zfar": float(camera.z_far),
         },
     }
-
-
-def _convert_light(light):
-    """
-    Convert a trimesh light to a `KHR_lights_punctual` light.
-
-    Parameters
-    ------------
-    light : trimesh.scene.lighting.Light
-      Light to convert.
-
-    Returns
-    -------------
-    gltf_light : dict
-      Light as a `KHR_lights_punctual` dict.
-    """
-    result = {
-        "name": light.name,
-        "type": _LIGHT_TYPES[type(light).__name__],
-        # the extension stores linear RGB in the 0.0 - 1.0 range
-        "color": visual.color.to_float(light.color)[:3].tolist(),
-        "intensity": float(light.intensity),
-    }
-    if light.radius is not None:
-        result["range"] = float(light.radius)
-
-    if result["type"] == "spot":
-        # only a spot has a cone, and the extension defaults differ
-        # from ours so always write both rather than guessing
-        result["spot"] = {
-            "innerConeAngle": float(light.innerConeAngle),
-            "outerConeAngle": float(light.outerConeAngle),
-        }
-
-    return result
-
-
-def _light_from_gltf(light):
-    """
-    Convert a `KHR_lights_punctual` light to a trimesh light.
-
-    Parameters
-    ------------
-    light : dict
-      Light as a `KHR_lights_punctual` dict.
-
-    Returns
-    -------------
-    light : trimesh.scene.lighting.Light or None
-      Trimesh light, or None if the type isn't supported.
-    """
-    from ...scene import lighting
-
-    constructor = getattr(lighting, _LIGHT_CLASSES.get(light.get("type"), ""), None)
-    if constructor is None:
-        log.warning(f"unsupported light type `{light.get('type')}`!")
-        return None
-
-    kwargs = {
-        "name": light.get("name"),
-        "intensity": light.get("intensity", 1.0),
-        "radius": light.get("range"),
-    }
-    if "color" in light:
-        kwargs["color"] = visual.color.to_rgba(np.array(light["color"], dtype=np.float64))
-    if constructor is lighting.SpotLight:
-        spot = light.get("spot", {})
-        # set the outer angle first as the inner setter validates against it
-        kwargs["outerConeAngle"] = spot.get("outerConeAngle", np.pi / 4.0)
-        kwargs["innerConeAngle"] = spot.get("innerConeAngle", 0.0)
-
-    return constructor(**kwargs)
 
 
 def _append_image(img, tree, buffer_items, extension_webp):

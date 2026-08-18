@@ -152,7 +152,6 @@ def main():
         "voxel_fillers.py",
         "voxel_silhouette.py",
         "animation_cycloidal.py",
-        "animation_robot.py",
         "render_blender.py",
     ]
 

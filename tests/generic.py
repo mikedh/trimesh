@@ -660,26 +660,6 @@ def roundtrip(exported, file_type, **kwargs):
     )
 
 
-def spin_z(angles):
-    """
-    Stack rotations about the Z axis without a loop.
-
-    Parameters
-    ------------
-    angles : (n,) float
-      Rotation angle in radians.
-
-    Returns
-    ----------
-    matrices : (n, 4, 4) float
-      Homogeneous rotation matrices.
-    """
-    half = np.asanyarray(angles, dtype=np.float64) * 0.5
-    return trimesh.transformations.quaternion_matrix(
-        np.column_stack([np.cos(half), np.zeros((len(half), 2)), np.sin(half)])
-    )
-
-
 def to_glb_bytes(geom: trimesh.Geometry) -> bytes:
     """
     Returns the content of the binary glTF file for the given geometry.

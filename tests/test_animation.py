@@ -3,55 +3,24 @@ try:
 except BaseException:
     import generic as g
 
+from trimesh.scene import animation
+from trimesh.scene.animation import RigidAnimation, keyframes_from_matrix
+from trimesh.transformations import rotation_matrix
 
-def random_transforms(count, seed=0, mirror=True):
+# the axis every spin in here is about
+Z = [0.0, 0.0, 1.0]
+
+
+def test_animation():
     """
-    Stack general affine transforms without a loop.
-
-    Includes non-uniform scale and optionally mirrors, which is what
-    separates a real decomposition from one which only handles rotations.
-
-    Parameters
-    ------------
-    count : int
-      How many transforms to generate.
-    seed : int
-      Which random values to use.
-    mirror : bool
-      Flip the handedness of a few of them. Note that a segment between
-      a mirrored and an unmirrored keyframe has no well defined
-      interpolation in any TQS scheme, as the scale has to pass through
-      zero to change sign, so tests about the path *between* keyframes
-      want this off while tests about the keyframes themselves want it on.
-
-    Returns
-    ----------
-    matrices : (count, 4, 4) float
-      Homogeneous transformation matrices.
+    Keyframe storage, sampling, and every interpolation mode.
     """
-    random = g.np.random.default_rng(seed)
-    matrices = g.trimesh.transformations.random_rotation_matrix(num=count, seed=seed)
-    scale = random.uniform(0.2, 4.0, (count, 3))
-    if mirror:
-        # a unit quaternion can't represent a reflection
-        scale[::5, 0] *= -1.0
+    tf = g.trimesh.transformations
 
-    matrices[:, :3, :3] *= scale.reshape((-1, 1, 3))
-    matrices[:, :3, 3] = random.uniform(-10.0, 10.0, (count, 3))
-
-    return matrices
-
-
-def test_layout():
-    """
-    The keyframe dtype has to stay packed into contiguous runs.
-
-    The sampler blends all ten channels at once through a flat view of
-    the structured array, which silently misaligns rather than raising
-    if a field is ever reordered, resized, or padded.
-    """
-    from trimesh.scene import animation
-
+    # ------------------------------------------------------------ layout
+    # the sampler blends all ten channels at once through a flat view of
+    # the structured array, which silently misaligns rather than raising
+    # if a field is ever reordered, resized, or padded
     fields = animation.KEYFRAME.fields
     # a byte of padding anywhere and the flat view stops lining up
     assert animation.KEYFRAME.itemsize == 31 * 8
@@ -77,65 +46,59 @@ def test_layout():
         ):
             assert column[f"{field}{group}"] - base == within.start
 
+    # -------------------------------------------------- malformed inputs
+    eye = g.np.tile(g.np.eye(4), (3, 1, 1))
+    with g.pytest.raises(ValueError, match="must correspond"):
+        RigidAnimation(frame_to="a", times=[0.0, 1.0], matrices=eye)
+    with g.pytest.raises(ValueError, match="at least one keyframe"):
+        RigidAnimation(frame_to="a", times=[], matrices=g.np.zeros((0, 4, 4)))
+    with g.pytest.raises(ValueError, match="must be increasing"):
+        RigidAnimation(frame_to="a", times=[0.0, 2.0, 1.0], matrices=eye)
+    with g.pytest.raises(ValueError, match="unsupported interpolation"):
+        RigidAnimation(
+            frame_to="a", times=[0.0, 1.0, 2.0], matrices=eye, interpolation="bezier"
+        )
 
-def test_identity():
-    """
-    Comparison has to stay identity-based.
-
-    A generated `__eq__` would compare the numpy fields elementwise
-    and raise on the ambiguous truth value, which breaks anything as
-    ordinary as `animation in scene.animations`.
-    """
-    from trimesh.scene.animation import RigidAnimation
-
-    eye = g.np.tile(g.np.eye(4), (2, 1, 1))
-    current = RigidAnimation(frame_to="a", times=[0.0, 1.0], matrices=eye)
-    other = RigidAnimation(frame_to="a", times=[0.0, 1.0], matrices=eye)
-
+    # comparison has to stay identity-based: a generated `__eq__` would
+    # compare the numpy fields elementwise and raise on the ambiguous
+    # truth value, breaking anything as ordinary as `a in scene.animations`
+    current = RigidAnimation(frame_to="a", times=[0.0, 1.0], matrices=eye[:2])
+    other = RigidAnimation(frame_to="a", times=[0.0, 1.0], matrices=eye[:2])
     assert current == current
     assert current != other
     assert current in [current, other]
     assert len({current, other}) == 2
 
+    # ------------------------------------------------- arbitrary affines
+    # non-uniform scale throughout and a mirror every fifth, which a unit
+    # quaternion can't represent so it has to land in the scale instead
+    random = g.np.random.default_rng(0)
+    affine = tf.random_rotation_matrix(num=37, seed=0)
+    scale = random.uniform(0.2, 4.0, (37, 3))
+    scale[::5, 0] *= -1.0
+    affine[:, :3, :3] *= scale.reshape((-1, 1, 3))
+    affine[:, :3, 3] = random.uniform(-10.0, 10.0, (37, 3))
+    times = g.np.linspace(0.0, 5.0, len(affine))
 
-def test_keyframes_exact():
-    """
-    Sampling at a keyframe time must return that keyframe exactly.
-
-    This is the predicate the whole storage choice rests on: it holds
-    for arbitrary affine keyframes only because the transform is stored
-    decomposed rather than being decomposed on every sample.
-    """
-    from trimesh.scene.animation import RigidAnimation
-
-    matrices = random_transforms(37)
-    times = g.np.linspace(0.0, 5.0, len(matrices))
-
+    # the predicate the whole storage choice rests on: it holds for
+    # arbitrary affine keyframes only because the transform is stored
+    # decomposed rather than being decomposed on every sample
     for mode in ("linear", "step", "cubic"):
         current = RigidAnimation(
-            frame_to="a", times=times, matrices=matrices, interpolation=mode
+            frame_to="a", times=times, matrices=affine, interpolation=mode
         )
         # the stored transform must be the one which was passed in
-        assert g.np.allclose(current.matrices, matrices)
+        assert g.np.allclose(current.matrices, affine)
         # and sampling at every keyframe time must return it
-        assert g.np.allclose(current.at(times), matrices)
+        assert g.np.allclose(current.at(times), affine)
 
-
-def test_cache():
-    """
-    Mutating keyframes must invalidate everything derived from them.
-
-    A `cached_property` silently fails this, and fails it *partially*:
-    fields which happen to be views track while the rest go stale.
-    """
-    from trimesh.scene.animation import RigidAnimation
-
-    matrices = random_transforms(9, seed=1)
-    times = g.np.linspace(0.0, 2.0, len(matrices))
-    current = RigidAnimation(frame_to="a", times=times, matrices=matrices)
-
+    # -------------------------------------------------------- cache
+    # mutating keyframes must invalidate everything derived from them. a
+    # `cached_property` silently fails this, and fails it *partially*:
+    # fields which happen to be views track while the rest go stale
+    current = RigidAnimation(frame_to="a", times=times[:9], matrices=affine[:9])
     # populate every derived value
-    assert g.np.allclose(current.at(times), matrices)
+    assert g.np.allclose(current.at(times[:9]), affine[:9])
 
     # an in-place edit of any field has to be picked up
     current.keyframes["translation"][3] = [9.0, 9.0, 9.0]
@@ -145,10 +108,10 @@ def test_cache():
     # including a rotation, which is what goes stale under a cached_property.
     # these keyframes carry scale too so compare the rotation factor rather
     # than the whole block, which is rotation and scale together
-    spun = g.trimesh.transformations.quaternion_from_matrix(g.spin_z([1.1])[0])
+    spun = tf.quaternion_from_matrix(rotation_matrix(1.1, Z))
     current.keyframes["quaternion"][4] = spun
     for block in (current.matrices[4], current.at(times[4])):
-        assert g.np.allclose(g.trimesh.transformations.tqs_from_matrix(block)[1], spun)
+        assert g.np.allclose(tf.tqs_from_matrix(block)[1], spun)
 
     # and so does replacing the array wholesale
     replaced = current.keyframes.copy()
@@ -157,22 +120,13 @@ def test_cache():
     assert g.np.allclose(current.at(times[5]), current.matrices[5])
     assert g.np.isclose(g.np.linalg.det(current.matrices[5][:3, :3]), 8.0)
 
-
-def test_cubic():
-    """
-    A cubic spline must actually follow its tangents.
-    """
-    from trimesh.scene.animation import RigidAnimation, keyframes_from_matrix
-
-    random = g.np.random.default_rng(4)
-    matrices = random_transforms(11, seed=2)
-    times = g.np.linspace(0.0, 3.0, len(matrices))
-
-    keyframes = keyframes_from_matrix(times, matrices)
-    keyframes["translation_in"] = random.uniform(-3.0, 3.0, (len(times), 3))
-    keyframes["translation_out"] = random.uniform(-3.0, 3.0, (len(times), 3))
-    keyframes["quaternion_in"] = random.uniform(-0.4, 0.4, (len(times), 4))
-    keyframes["quaternion_out"] = random.uniform(-0.4, 0.4, (len(times), 4))
+    # --------------------------------------------------------- cubic
+    # a spline must actually follow its tangents
+    keyframes = keyframes_from_matrix(times[:11], affine[:11])
+    keyframes["translation_in"] = random.uniform(-3.0, 3.0, (11, 3))
+    keyframes["translation_out"] = random.uniform(-3.0, 3.0, (11, 3))
+    keyframes["quaternion_in"] = random.uniform(-0.4, 0.4, (11, 4))
+    keyframes["quaternion_out"] = random.uniform(-0.4, 0.4, (11, 4))
 
     cubic = RigidAnimation(frame_to="a", keyframes=keyframes, interpolation="cubic")
     linear = RigidAnimation(
@@ -180,88 +134,29 @@ def test_cubic():
     )
 
     # the Hermite basis is exactly the bracketing keyframes at either end
-    assert g.np.allclose(cubic.at(times), matrices)
+    assert g.np.allclose(cubic.at(times[:11]), affine[:11])
 
     # with non-zero tangents the path between keyframes has to leave the
     # straight line, or the tangents are being ignored somewhere
-    query = g.np.linspace(0.0, 3.0, 251)
+    query = g.np.linspace(times[0], times[10], 251)
     assert g.np.abs(cubic.at(query) - linear.at(query)).max() > 1e-2
 
     # an elementwise blend of unit quaternions isn't one, so the sampler
     # has to renormalize: if it doesn't the scale drifts with the rotation
-    sampled = cubic.at(query)
-    _t, quaternion, _s = g.trimesh.transformations.tqs_from_matrix(sampled)
+    _t, quaternion, _s = tf.tqs_from_matrix(cubic.at(query))
     assert g.np.allclose(g.np.linalg.norm(quaternion, axis=1), 1.0)
 
     # and outside the keyframes it clamps rather than flying off
-    assert g.np.allclose(cubic.at(-99.0), matrices[0])
-    assert g.np.allclose(cubic.at(99.0), matrices[-1])
+    assert g.np.allclose(cubic.at(-99.0), affine[0])
+    assert g.np.allclose(cubic.at(99.0), affine[10])
 
-
-def test_resample():
-    """
-    Resampling should preserve the motion, not just the keyframes.
-    """
-    from trimesh.scene.animation import RigidAnimation, keyframes_from_matrix
-
-    times = g.np.linspace(0.0, 4.0, 9)
-    # no mirrors: this is a test about the path between keyframes
-    matrices = random_transforms(len(times), seed=7, mirror=False)
-    current = RigidAnimation(
-        frame_to="child", frame_from="parent", times=times, matrices=matrices, name="w"
-    )
-
-    dense = g.np.linspace(0.0, 4.0, 33)
-    resampled = current.resample(dense)
-
-    # the whole path has to agree, not only at the new keyframes: sampling
-    # at `dense` alone would pass even if interpolation were dropped
-    query = g.np.linspace(0.0, 4.0, 411)
-    assert g.np.allclose(resampled.at(query), current.at(query))
-    # and the result is exact at its own keyframes
-    assert g.np.allclose(resampled.at(dense), resampled.matrices)
-    assert g.np.allclose(resampled.times, dense)
-
-    # the edge and name come along, since it is the same motion
-    assert resampled.frame_to == "child"
-    assert resampled.frame_from == "parent"
-    assert resampled.name == "w"
-
-    # a step stays stepped, or resampling would smooth it out. `dense` is a
-    # superset of `times` so the held values land exactly on the same edges
-    original = RigidAnimation(
-        frame_to="a", times=times, matrices=matrices, interpolation="step"
-    )
-    stepped = original.resample(dense)
-    assert stepped.interpolation == "step"
-    assert g.np.allclose(stepped.at(query), original.at(query))
-
-    # but a spline can't stay one: its tangents only describe the curve
-    # through the original keyframes, so they have to be dropped
-    cubic = RigidAnimation(
-        frame_to="a",
-        keyframes=keyframes_from_matrix(times, matrices),
-        interpolation="cubic",
-    ).resample(dense)
-    assert cubic.interpolation == "linear"
-    assert not cubic.keyframes["translation_in"].any()
-    assert not cubic.keyframes["quaternion_out"].any()
-
-
-def test_sample():
-    """
-    Sampling should reproduce keyframes and stay rigid between them.
-    """
-    from trimesh.scene.animation import RigidAnimation
-
+    # ---------------------------------------------------- rigid sampling
     times = g.np.linspace(0.0, 4.0, 41)
-    matrices = g.spin_z(times * g.np.pi * 0.5)
+    matrices = rotation_matrix(times * g.np.pi * 0.5, Z)
     current = RigidAnimation(frame_to="a", times=times, matrices=matrices)
 
     assert len(current) == len(times)
     assert g.np.isclose(current.duration, 4.0)
-
-    # sampling exactly at a keyframe must return that keyframe
     assert g.np.allclose(current.at(times), matrices)
     # a single time returns a single matrix
     assert current.at(1.0).shape == (4, 4)
@@ -278,36 +173,25 @@ def test_sample():
     assert g.np.allclose(current.at(-99.0), matrices[0])
     assert g.np.allclose(current.at(99.0), matrices[-1])
 
-
-def test_step():
-    """
-    A stepped animation should hold the keyframe at-or-before each time.
-    """
-    from trimesh.scene.animation import RigidAnimation
-
-    times = g.np.arange(5, dtype=g.np.float64)
-    matrices = g.np.tile(g.np.eye(4), (5, 1, 1))
-    matrices[:, 0, 3] = g.np.arange(5)
-
+    # ---------------------------------------------------------- step
+    # a stepped animation holds the keyframe at-or-before each time
+    held = g.np.tile(g.np.eye(4), (5, 1, 1))
+    held[:, 0, 3] = g.np.arange(5)
     current = RigidAnimation(
-        frame_to="a", times=times, matrices=matrices, interpolation="step"
+        frame_to="a",
+        times=g.np.arange(5, dtype=g.np.float64),
+        matrices=held,
+        interpolation="step",
     )
-
     # landing exactly on a keyframe picks that keyframe, not the previous
-    assert g.np.allclose(current.at(times), matrices)
+    assert g.np.allclose(current.at(g.np.arange(5, dtype=g.np.float64)), held)
     # and it holds until the next one
     assert g.np.allclose(current.at(2.99)[0, 3], 2.0)
     assert g.np.allclose(current.at(3.0)[0, 3], 3.0)
     assert g.np.allclose(current.at(-1.0)[0, 3], 0.0)
     assert g.np.allclose(current.at(99.0)[0, 3], 4.0)
 
-
-def test_degenerate():
-    """
-    Animations which barely have a timeline should still sample.
-    """
-    from trimesh.scene.animation import RigidAnimation
-
+    # ----------------------------------------------------- degenerate
     single = g.np.tile(g.np.eye(4), (1, 1, 1))
     single[0, :3, 3] = [1, 2, 3]
 
@@ -334,20 +218,68 @@ def test_degenerate():
     assert g.np.allclose(sampled, g.np.eye(4))
 
     # identical adjacent rotations are the degenerate slerp arc
-    held = RigidAnimation(
-        frame_to="a", times=[0.0, 1.0], matrices=g.np.tile(g.spin_z([0.7]), (2, 1, 1))
+    still = RigidAnimation(
+        frame_to="a",
+        times=[0.0, 1.0],
+        matrices=g.np.tile(rotation_matrix(0.7, Z), (2, 1, 1)),
     )
-    between = held.at(g.np.linspace(0.0, 1.0, 11))
+    between = still.at(g.np.linspace(0.0, 1.0, 11))
     assert g.np.isfinite(between).all()
-    assert g.np.allclose(between, g.spin_z([0.7])[0])
+    assert g.np.allclose(between, rotation_matrix(0.7, Z))
+
+    # ------------------------------------------------------- resample
+    # no mirrors here: a segment between a mirrored and an unmirrored
+    # keyframe has no well defined interpolation in any TQS scheme, as
+    # the scale has to pass through zero to change sign
+    times = g.np.linspace(0.0, 4.0, 9)
+    smooth = tf.random_rotation_matrix(num=9, seed=7)
+    smooth[:, :3, :3] *= random.uniform(0.2, 4.0, (9, 1, 3))
+    smooth[:, :3, 3] = random.uniform(-10.0, 10.0, (9, 3))
+    current = RigidAnimation(
+        frame_to="child", frame_from="parent", times=times, matrices=smooth, name="w"
+    )
+
+    dense = g.np.linspace(0.0, 4.0, 33)
+    resampled = current.resample(dense)
+
+    # the whole path has to agree, not only at the new keyframes: sampling
+    # at `dense` alone would pass even if interpolation were dropped
+    query = g.np.linspace(0.0, 4.0, 411)
+    assert g.np.allclose(resampled.at(query), current.at(query))
+    # and the result is exact at its own keyframes
+    assert g.np.allclose(resampled.at(dense), resampled.matrices)
+    assert g.np.allclose(resampled.times, dense)
+
+    # the edge and name come along, since it is the same motion
+    assert resampled.frame_to == "child"
+    assert resampled.frame_from == "parent"
+    assert resampled.name == "w"
+
+    # a step stays stepped, or resampling would smooth it out. `dense` is a
+    # superset of `times` so the held values land exactly on the same edges
+    original = RigidAnimation(
+        frame_to="a", times=times, matrices=smooth, interpolation="step"
+    )
+    stepped = original.resample(dense)
+    assert stepped.interpolation == "step"
+    assert g.np.allclose(stepped.at(query), original.at(query))
+
+    # but a spline can't stay one: its tangents only describe the curve
+    # through the original keyframes, so they have to be dropped
+    cubic = RigidAnimation(
+        frame_to="a",
+        keyframes=keyframes_from_matrix(times, smooth),
+        interpolation="cubic",
+    ).resample(dense)
+    assert cubic.interpolation == "linear"
+    assert not cubic.keyframes["translation_in"].any()
+    assert not cubic.keyframes["quaternion_out"].any()
 
 
-def test_apply():
+def test_animation_scene():
     """
-    Applying an animation should write the local transform.
+    Applying animations to a scene graph, and copying them.
     """
-    from trimesh.scene.animation import RigidAnimation
-
     tf = g.trimesh.transformations
 
     scene = g.trimesh.Scene()
@@ -360,12 +292,22 @@ def test_apply():
     scene.graph.update(
         frame_to="parent", frame_from="world", matrix=tf.translation_matrix([0, 7, 0])
     )
+    # a second node hanging directly off the base frame, which an
+    # animation targets without naming a `frame_from` at all
+    scene.add_geometry(g.trimesh.creation.box(), node_name="solo")
 
     times = g.np.linspace(0.0, 1.0, 9)
-    current = RigidAnimation(
-        frame_to="child", frame_from="parent", times=times, matrices=g.spin_z(times)
+    nested = RigidAnimation(
+        frame_to="child",
+        frame_from="parent",
+        times=times,
+        matrices=rotation_matrix(times, Z),
     )
-    scene.animations.append(current)
+    flat = RigidAnimation(
+        frame_to="solo", times=times, matrices=rotation_matrix(times * 2.0, Z)
+    )
+    scene.animations.extend([nested, flat])
+    assert flat.frame_from is None
 
     graph = scene.graph
     # every edge matrix before anything has been applied, which the scene
@@ -377,7 +319,7 @@ def test_apply():
         # this writes the transform across the animation's own edge, which
         # on a nested graph is not the transform from the base frame
         local = graph.get(frame_to="child", frame_from="parent")[0]
-        assert g.np.allclose(local, current.at(time))
+        assert g.np.allclose(local, nested.at(time))
 
         # the parent transform still composes on top of it
         world = graph.get(frame_to="child")[0]
@@ -389,12 +331,19 @@ def test_apply():
         assert graph.transforms.parents["child"] == "parent"
         assert ("world", "child") not in graph.transforms.edge_data
 
+        # a `frame_from` of None has to mean the base frame, matching
+        # `SceneGraph.update`, and resolve to the *same* edge the rest
+        # pose came from or the restore writes a second edge
+        assert g.np.allclose(graph.get(frame_to="solo")[0], flat.at(time))
+        assert graph.transforms.parents["solo"] == graph.base_frame
+
     # `None` puts every edge it touched back bit-for-bit, which no partial
     # restore or stale cache can fake
     scene.animate(None)
     after = {k: v["matrix"] for k, v in graph.transforms.edge_data.items()}
     assert set(after) == set(rest)
     assert all((after[k] == rest[k]).all() for k in rest)
+    assert graph.transforms.parents["solo"] == graph.base_frame
 
     # and it stays the rest pose no matter how many times it's asked
     scene.animate(None)
@@ -405,83 +354,13 @@ def test_apply():
     assert all((graph.transforms.edge_data[k]["matrix"] == rest[k]).all() for k in rest)
 
     # a scene with no animations has a duration of zero rather than raising
-    assert scene.duration == current.duration
+    assert scene.duration == nested.duration
     assert g.trimesh.Scene().duration == 0.0
 
-
-def test_apply_flat():
-    """
-    An animation on a base frame child needs no `frame_from`.
-    """
-    from trimesh.scene.animation import RigidAnimation
-
-    scene = g.trimesh.Scene()
-    scene.add_geometry(g.trimesh.creation.box(), node_name="solo")
-
-    times = g.np.linspace(0.0, 1.0, 5)
-    current = RigidAnimation(frame_to="solo", times=times, matrices=g.spin_z(times))
-    scene.animations.append(current)
-    assert current.frame_from is None
-
-    # `None` has to mean the base frame, matching `SceneGraph.update`
-    rest = scene.graph.get(frame_to="solo")[0].copy()
-    scene.animate(0.4)
-    assert g.np.allclose(scene.graph.get(frame_to="solo")[0], current.at(0.4))
-    assert scene.graph.transforms.parents["solo"] == scene.graph.base_frame
-
-    # and it has to resolve to the *same* edge the rest pose was taken
-    # from, or the restore would write a second edge rather than undo one
-    scene.animate(None)
-    assert (scene.graph.get(frame_to="solo")[0] == rest).all()
-    assert scene.graph.transforms.parents["solo"] == scene.graph.base_frame
-
-
-def test_malformed():
-    """
-    Nonsense keyframes should raise rather than silently misbehave.
-    """
-    from trimesh.scene.animation import RigidAnimation
-
-    eye = g.np.tile(g.np.eye(4), (3, 1, 1))
-
-    # mismatched times and matrices
-    try:
-        RigidAnimation(frame_to="a", times=[0.0, 1.0], matrices=eye)
-        raise AssertionError("accepted mismatched lengths!")
-    except ValueError:
-        pass
-
-    # no keyframes at all
-    try:
-        RigidAnimation(frame_to="a", times=[], matrices=g.np.zeros((0, 4, 4)))
-        raise AssertionError("accepted an empty animation!")
-    except ValueError:
-        pass
-
-    # times which go backwards
-    try:
-        RigidAnimation(frame_to="a", times=[0.0, 2.0, 1.0], matrices=eye)
-        raise AssertionError("accepted decreasing times!")
-    except ValueError:
-        pass
-
-
-def test_scene_copy():
-    """
-    Animations should survive a scene copy without sharing arrays.
-    """
-    from trimesh.scene.animation import RigidAnimation
-
-    scene = g.trimesh.Scene(g.trimesh.creation.box())
-    node = scene.graph.nodes_geometry[0]
-    times = g.np.linspace(0.0, 1.0, 5)
-
-    scene.animations.append(
-        RigidAnimation(frame_to=node, times=times, matrices=g.spin_z(times), name="spin")
-    )
-
+    # --------------------------------------------------------- copying
+    nested.name = "spin"
     copied = scene.copy()
-    assert len(copied.animations) == 1
+    assert len(copied.animations) == len(scene.animations)
     assert copied.animations[0].name == "spin"
     assert g.np.allclose(copied.animations[0].at(0.5), scene.animations[0].at(0.5))
 

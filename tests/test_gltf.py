@@ -3,6 +3,11 @@ try:
 except BaseException:
     import generic as g
 
+from trimesh.exchange.gltf import transform as T
+from trimesh.exchange.gltf.extensions import GltfLights, registered
+from trimesh.scene.animation import RigidAnimation, keyframes_from_matrix
+from trimesh.transformations import rotation_matrix
+
 # Khronos' official file validator
 # can be installed with the helper script:
 # `trimesh/docker/builds/gltf_validator.bash`
@@ -446,17 +451,14 @@ class GLTFTest(g.unittest.TestCase):
             )
 
         times = g.np.linspace(0.0, 2.0, 24)
-        poses = g.spin_z(times * g.np.pi) @ scene.camera_transform
+        poses = rotation_matrix(times * g.np.pi, [0, 0, 1]) @ scene.camera_transform
         scene.animations.append(
-            g.trimesh.scene.animation.RigidAnimation(
+            RigidAnimation(
                 frame_to=scene.camera.name, times=times, matrices=poses, name="orbit"
             )
         )
 
-        reloaded = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(scene.export(file_type="glb")),
-            file_type="glb",
-        )
+        reloaded = g.roundtrip(scene.export(file_type="glb"), "glb")
 
         # the animation has to come back pointing at the camera the file
         # actually has, not a dangling node named like the one it had
@@ -490,6 +492,51 @@ class GLTFTest(g.unittest.TestCase):
         assert "KHR_lights_punctual" not in plain.export(file_type="gltf")[
             "model.gltf"
         ].decode("utf8")
+
+        # the extension is handled by the registry rather than inline, which
+        # is what lets anything else hook the document and node level too
+        assert GltfLights.NAME in registered("scene")
+        assert GltfLights.NAME in registered("scene_export")
+
+        # write it onto a tree by hand, with no exporter in between: a node
+        # refers to a light by its *position* in the document array, which is
+        # the one contract joining the two halves
+        tree = {"nodes": [{"name": L.name} for L in scene.lights]}
+        # something already on a node, which the merge must not stomp
+        tree["nodes"][0]["extensions"] = {"MY_extension": {"keep": True}}
+        node_index = {L.name: i for i, L in enumerate(scene.lights)}
+        GltfLights(scene.lights).to_gltf(tree, node_index)
+
+        stored = tree["extensions"][GltfLights.NAME]["lights"]
+        assert len(stored) == len(scene.lights)
+        for i, light in enumerate(scene.lights):
+            node = tree["nodes"][node_index[light.name]]
+            assert node["extensions"][GltfLights.NAME]["light"] == i
+            assert stored[i]["name"] == light.name
+        assert tree["nodes"][0]["extensions"]["MY_extension"] == {"keep": True}
+
+        # and reading that tree back is an exact inverse
+        names = {i: L.name for i, L in enumerate(scene.lights)}
+        for before, after in zip(scene.lights, GltfLights.from_gltf(tree, names).lights):
+            assert type(before) is type(after)
+            assert before.name == after.name
+            assert g.np.allclose(before.color, after.color, atol=1)
+            assert g.np.isclose(before.intensity, after.intensity)
+            assert before.radius == after.radius
+        assert g.np.isclose(
+            GltfLights.from_gltf(tree, names).lights[-1].outerConeAngle, 0.6
+        )
+
+        # two nodes may share one array entry, which has to give two lights
+        shared = {
+            "extensions": {GltfLights.NAME: {"lights": [stored[1]]}},
+            "nodes": [
+                {"extensions": {GltfLights.NAME: {"light": 0}}},
+                {"extensions": {GltfLights.NAME: {"light": 0}}},
+            ],
+        }
+        both = GltfLights.from_gltf(shared, {0: "a", 1: "b"}).lights
+        assert [L.name for L in both] == ["a", "b"]
 
     def test_gltf_pole(self):
         scene = g.get_mesh("simple_pole.glb")
@@ -1354,256 +1401,449 @@ class GLTFTest(g.unittest.TestCase):
         mean_squared_error = ((a - b) ** 2).sum() / g.np.prod(a.shape)
         assert mean_squared_error < 10.0
 
-    def test_animation_roundtrip(self):
-        """
-        A keyframed animation should survive a GLB roundtrip.
-        """
-        scene, _ = animated_scene()
 
-        export = scene.export(file_type="glb")
-        validate_glb(export, "animation")
-        reloaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
+def test_animation_gltf():
+    """
+    Exported animations should roundtrip and satisfy the parts of the
+    GLTF spec which the schema alone can't check.
+    """
+    scene, spin = animated_scene()
+    export = scene.export(file_type="glb")
+    validate_glb(export, "animation")
+    reloaded = g.roundtrip(export, "glb")
 
-        assert len(reloaded.animations) == len(scene.animations)
+    assert len(reloaded.animations) == len(scene.animations)
 
-        for original in scene.animations:
-            # find the animation which came back for this node and name
-            match = [
-                b
-                for b in reloaded.animations
-                if b.frame_to == original.frame_to and b.name == original.name
-            ]
-            assert len(match) == 1
-            other = match[0]
-            assert other.interpolation == original.interpolation
+    for original in scene.animations:
+        # find the animation which came back for this node and name
+        match = [
+            b
+            for b in reloaded.animations
+            if b.frame_to == original.frame_to and b.name == original.name
+        ]
+        assert len(match) == 1
+        other = match[0]
+        assert other.interpolation == original.interpolation
 
-            # the whole edge has to survive, not just the node it targets.
-            # a loader which dropped `frame_from` would still sample
-            # identically here and pass every other assertion below
-            assert other.frame_from == original.frame_from
-            # and it has to be the edge the reloaded graph actually has
-            assert reloaded.graph.transforms.parents[other.frame_to] == other.frame_from
+        # the whole edge has to survive, not just the node it targets.
+        # a loader which dropped `frame_from` would still sample
+        # identically here and pass every other assertion below
+        assert other.frame_from == original.frame_from
+        # and it has to be the edge the reloaded graph actually has
+        assert reloaded.graph.transforms.parents[other.frame_to] == other.frame_from
 
-            # sampling rather than comparing raw arrays means this holds
-            # even if channels were split or merged onto a new time base
-            # and still catches quaternion order, transposition, and
-            # a misaligned time base all at once.
-            # sample the middle of each keyframe interval: GLTF requires
-            # animation input accessors be float32, so a query landing
-            # within an epsilon of a boundary can legitimately step to a
-            # different keyframe than the float64 original would
-            query = (original.times[1:] + original.times[:-1]) / 2.0
-            assert g.np.allclose(original.at(query), other.at(query), atol=1e-5)
+        # sampling rather than comparing raw arrays means this holds
+        # even if channels were split or merged onto a new time base
+        # and still catches quaternion order, transposition, and
+        # a misaligned time base all at once.
+        # sample the middle of each keyframe interval: GLTF requires
+        # animation input accessors be float32, so a query landing
+        # within an epsilon of a boundary can legitimately step to a
+        # different keyframe than the float64 original would
+        query = (original.times[1:] + original.times[:-1]) / 2.0
+        assert g.np.allclose(original.at(query), other.at(query), atol=1e-5)
 
-            if original.interpolation == "linear":
-                # a continuous animation can be checked much more densely
-                dense = g.np.linspace(
-                    original.times[0], original.times[-1], len(original) * 7
-                )
-                assert g.np.allclose(original.at(dense), other.at(dense), atol=1e-5)
+        if original.interpolation == "linear":
+            # a continuous animation can be checked much more densely
+            dense = g.np.linspace(
+                original.times[0], original.times[-1], len(original) * 7
+            )
+            assert g.np.allclose(original.at(dense), other.at(dense), atol=1e-5)
 
-    def test_animation_spec(self):
-        """
-        Exported animations should satisfy the parts of the GLTF spec
-        which the schema alone can't check.
-        """
-        scene, spin = animated_scene()
-        tree, _ = g.trimesh.exchange.gltf._create_gltf_structure(scene)
+    # a rigid input has to come back rigid: a pure rotation is orthonormal
+    # with a determinant of exactly +1, which fails if any scale or shear
+    # leaked in from the decomposition
+    spun = next(a for a in reloaded.animations if a.name == "spin")
+    rigid = spun.at(g.np.linspace(spun.times[0], spun.times[-1], 101))
+    rotation = rigid[:, :3, :3]
+    assert g.np.allclose(rotation @ rotation.transpose(0, 2, 1), g.np.eye(3), atol=1e-5)
+    assert g.np.allclose(g.np.linalg.det(rotation), 1.0, atol=1e-5)
+    # the bottom row of a homogeneous transform is never touched
+    assert g.np.allclose(rigid[:, 3, :], [0, 0, 0, 1])
 
-        # every animation we defined should be grouped by name
-        assert len(tree["animations"]) == len({a.name for a in scene.animations})
+    # ------------------------------------------------------- the spec
+    tree, _ = g.trimesh.exchange.gltf._create_gltf_structure(scene)
+    # every animation we defined should be grouped by name
+    assert len(tree["animations"]) == len({a.name for a in scene.animations})
 
-        header = g.json.loads(
-            g.trimesh.exchange.gltf.export_gltf(scene, embed_buffers=True)["model.gltf"]
+    header = g.json.loads(
+        g.trimesh.exchange.gltf.export_gltf(scene, embed_buffers=True)["model.gltf"]
+    )
+    blobs = accessor_values(header)
+
+    targeted = set()
+    for entry in header["animations"]:
+        # the spec requires every {node, path} target in one animation
+        # be unique, which a strict loader will refuse a file over
+        pairs = [(c["target"]["node"], c["target"]["path"]) for c in entry["channels"]]
+        assert len(pairs) == len(set(pairs))
+
+        for channel in entry["channels"]:
+            targeted.add(channel["target"]["node"])
+            sampler = entry["samplers"][channel["sampler"]]
+
+            times = blobs[sampler["input"]].reshape(-1)
+            # the spec requires min/max on an animation input accessor
+            accessor = header["accessors"][sampler["input"]]
+            assert g.np.allclose(accessor["min"], times.min())
+            assert g.np.allclose(accessor["max"], times.max())
+            # keyframe times must be increasing
+            assert (g.np.diff(times) >= 0).all()
+
+            values = blobs[sampler["output"]]
+            assert len(values) == len(times)
+
+            if channel["target"]["path"] == "rotation":
+                # exported rotations must be unit quaternions
+                assert g.np.allclose(g.np.linalg.norm(values, axis=1), 1.0, atol=1e-6)
+                # adjacent keyframes must share a hemisphere or a viewer
+                # interpolating between them takes the long way around
+                # and the animation will visibly jerk
+                assert (g.np.sum(values[1:] * values[:-1], axis=1) >= -1e-6).all()
+
+    # the spec forbids a matrix on any node an animation targets
+    assert len(targeted) > 0
+    for index in targeted:
+        node = header["nodes"][index]
+        assert "matrix" not in node
+        # the matrix must have been replaced by an equivalent TRS rather
+        # than simply dropped: every link is built 3 units along Z
+        assert g.np.allclose(node["translation"], [0, 0, 3])
+
+    # node names should survive so animations can be matched back up
+    assert spin.frame_to in {n.get("name") for n in header["nodes"]}
+
+    # nothing should be left in the file which nothing points at: a
+    # channel dropped for being static used to strand its time accessor
+    used = {
+        index
+        for entry in header["animations"]
+        for sampler in entry["samplers"]
+        for index in (sampler["input"], sampler["output"])
+    }
+    for mesh in header["meshes"]:
+        for primitive in mesh["primitives"]:
+            used.update(primitive["attributes"].values())
+            if "indices" in primitive:
+                used.add(primitive["indices"])
+    assert used == set(range(len(header["accessors"])))
+
+    # an animation whose channels all match the node's static pose has
+    # nothing to say, and shouldn't leave an accessor behind saying it
+    static = g.trimesh.Scene(g.trimesh.creation.box())
+    static.animations.append(
+        RigidAnimation(
+            frame_to=static.graph.nodes_geometry[0],
+            times=g.np.linspace(0, 1, 5),
+            matrices=g.np.tile(g.np.eye(4), (5, 1, 1)),
         )
-        blobs = _accessor_values(header)
-
-        targeted = set()
-        for animation in header["animations"]:
-            # the spec requires every {node, path} target in one animation
-            # be unique, which a strict loader will refuse a file over
-            pairs = [
-                (c["target"]["node"], c["target"]["path"]) for c in animation["channels"]
-            ]
-            assert len(pairs) == len(set(pairs))
-
-            for channel in animation["channels"]:
-                node = channel["target"]["node"]
-                targeted.add(node)
-                sampler = animation["samplers"][channel["sampler"]]
-
-                times = blobs[sampler["input"]].reshape(-1)
-                # the spec requires min/max on an animation input accessor
-                accessor = header["accessors"][sampler["input"]]
-                assert g.np.allclose(accessor["min"], times.min())
-                assert g.np.allclose(accessor["max"], times.max())
-                # keyframe times must be increasing
-                assert (g.np.diff(times) >= 0).all()
-
-                values = blobs[sampler["output"]]
-                assert len(values) == len(times)
-
-                if channel["target"]["path"] == "rotation":
-                    # exported rotations must be unit quaternions
-                    assert g.np.allclose(g.np.linalg.norm(values, axis=1), 1.0, atol=1e-6)
-                    # adjacent keyframes must share a hemisphere or a viewer
-                    # interpolating between them takes the long way around
-                    # and the animation will visibly jerk
-                    assert (g.np.sum(values[1:] * values[:-1], axis=1) >= -1e-6).all()
-
-        # the spec forbids a matrix on any node an animation targets
-        assert len(targeted) > 0
-        for index in targeted:
-            node = header["nodes"][index]
-            assert "matrix" not in node
-            # the matrix must have been replaced by an equivalent TRS rather
-            # than simply dropped: every link is built 3 units along Z
-            assert g.np.allclose(node["translation"], [0, 0, 3])
-
-        # node names should survive so animations can be matched back up
-        assert spin.frame_to in {n.get("name") for n in header["nodes"]}
-
-        # nothing should be left in the file which nothing points at: a
-        # channel dropped for being static used to strand its time accessor
-        used = {
+    )
+    quiet = g.json.loads(
+        g.trimesh.exchange.gltf.export_gltf(static, embed_buffers=True)["model.gltf"]
+    )
+    assert "animations" not in quiet
+    assert len(quiet["accessors"]) == len(
+        {
             index
-            for animation in header["animations"]
-            for sampler in animation["samplers"]
-            for index in (sampler["input"], sampler["output"])
+            for mesh in quiet["meshes"]
+            for primitive in mesh["primitives"]
+            for index in list(primitive["attributes"].values())
+            + [primitive.get("indices")]
+            if index is not None
         }
-        for mesh in header["meshes"]:
-            for primitive in mesh["primitives"]:
-                used.update(primitive["attributes"].values())
-                if "indices" in primitive:
-                    used.add(primitive["indices"])
-        assert used == set(range(len(header["accessors"])))
+    )
 
-        # an animation whose channels all match the node's static pose has
-        # nothing to say, and shouldn't leave an accessor behind saying it
-        static = g.trimesh.Scene(g.trimesh.creation.box())
-        node = static.graph.nodes_geometry[0]
-        static.animations.append(
-            g.trimesh.scene.animation.RigidAnimation(
+    # ------------------------------------------------------ cubic export
+    # the tangents are what makes this worth checking: an exporter which
+    # writes the values but drops them, or a loader which narrows the mode
+    # to LINEAR, still round trips the keyframes perfectly and only
+    # differs in between them
+    random = g.np.random.default_rng(11)
+    times = g.np.linspace(0.0, 2.0, 9)
+    matrices = rotation_matrix(times * g.np.pi * 0.5, [0, 0, 1])
+    matrices[:, :3, 3] = random.uniform(-2.0, 2.0, (len(times), 3))
+
+    keyframes = keyframes_from_matrix(times, matrices)
+    keyframes["translation_in"] = random.uniform(-2.0, 2.0, (len(times), 3))
+    keyframes["translation_out"] = random.uniform(-2.0, 2.0, (len(times), 3))
+    keyframes["quaternion_in"] = random.uniform(-0.3, 0.3, (len(times), 4))
+    keyframes["quaternion_out"] = random.uniform(-0.3, 0.3, (len(times), 4))
+
+    curved = g.trimesh.Scene()
+    curved.add_geometry(g.trimesh.creation.box(), node_name="spinner")
+    curved.animations.append(
+        RigidAnimation(
+            frame_to="spinner", keyframes=keyframes, name="cubic", interpolation="cubic"
+        )
+    )
+
+    export = curved.export(file_type="glb")
+    # the validator checks a CUBICSPLINE output accessor is exactly
+    # three times its input, which a malformed export would fail
+    validate_glb(export, "animation_cubic")
+
+    reloaded = g.roundtrip(export, "glb")
+    assert len(reloaded.animations) == 1
+    other = reloaded.animations[0]
+    assert other.interpolation == "cubic"
+    assert len(other) == len(times)
+
+    # every keyframe field has to survive, tangents included. GLTF stores
+    # these as float32 so the tolerance is the storage, not the math
+    for field in keyframes.dtype.names:
+        assert g.np.allclose(other.keyframes[field], keyframes[field], atol=1e-6), field
+
+    # and the sampled path has to agree densely, not just at keyframes
+    dense = g.np.linspace(times[0], times[-1], len(times) * 11)
+    original = curved.animations[0]
+    assert g.np.allclose(original.at(dense), other.at(dense), atol=1e-5)
+
+    # a linear reload would agree at the keyframes and nowhere else,
+    # so confirm the two modes are actually distinguishable here
+    linear = RigidAnimation(
+        frame_to="spinner", keyframes=keyframes.copy(), interpolation="linear"
+    )
+    assert g.np.abs(original.at(dense) - linear.at(dense)).max() > 1e-2
+
+    # ------------------------------------------------- a real assembly
+    assembly = g.get_mesh("cycloidal.3DXML")
+    assert len(assembly.animations) == 0
+    # a scene which was never animated has to export exactly as it did
+    # before: no empty animations array, and nodes still using a matrix
+    plain, _ = g.trimesh.exchange.gltf._create_gltf_structure(assembly)
+    assert "animations" not in plain
+    assert any("matrix" in n for n in plain["nodes"])
+    assert not any(
+        k in n for n in plain["nodes"] for k in ("translation", "rotation", "scale")
+    )
+
+    # spin every camshaft instance about the drive axis
+    nodes = [n for n in assembly.graph.nodes if str(n).startswith("camshaft")]
+    assert len(nodes) > 0
+
+    times = g.np.linspace(0.0, 2.0, 17)
+    # (n, 4, 4) stack of rotations about Z, built without a python loop
+    spinning = rotation_matrix(times * g.np.pi, [0, 0, 1])
+
+    for node in nodes:
+        # walking a loaded graph, so the edge has to be asked for
+        parent = assembly.graph.transforms.parents[node]
+        local = assembly.graph.get(frame_to=node, frame_from=parent)[0]
+        assembly.animations.append(
+            RigidAnimation(
                 frame_to=node,
-                times=g.np.linspace(0, 1, 5),
-                matrices=g.np.tile(g.np.eye(4), (5, 1, 1)),
+                frame_from=parent,
+                times=times,
+                matrices=spinning @ local,
+                name="spin",
             )
         )
-        quiet = g.json.loads(
-            g.trimesh.exchange.gltf.export_gltf(static, embed_buffers=True)["model.gltf"]
-        )
-        assert "animations" not in quiet
-        assert len(quiet["accessors"]) == len(
-            {
-                index
-                for mesh in quiet["meshes"]
-                for primitive in mesh["primitives"]
-                for index in list(primitive["attributes"].values())
-                + [primitive.get("indices")]
-                if index is not None
-            }
-        )
 
-    def test_animation_rigid(self):
-        """
-        A rigid input animation should stay rigid through a roundtrip.
-        """
-        scene, _ = animated_scene()
-        reloaded = g.trimesh.load(
-            g.trimesh.util.wrap_as_stream(scene.export(file_type="glb")),
-            file_type="glb",
-        )
+    export = assembly.export(file_type="glb")
+    validate_glb(export, "cycloidal-animated")
+    reloaded = g.roundtrip(export, "glb")
 
-        spin = next(a for a in reloaded.animations if a.name == "spin")
-        matrices = spin.at(g.np.linspace(spin.times[0], spin.times[-1], 101))
-        rotation = matrices[:, :3, :3]
+    assert len(reloaded.animations) == len(nodes)
+    # every animation should have come from the single named group
+    assert {a.name for a in reloaded.animations} == {"spin"}
 
-        # a pure rotation is orthonormal with a determinant of exactly +1
-        # which fails if any scale or shear leaked in from the decomposition
+    lookup = {a.frame_to: a for a in reloaded.animations}
+    for original in assembly.animations:
+        other = lookup[original.frame_to]
         assert g.np.allclose(
-            rotation @ rotation.transpose(0, 2, 1), g.np.eye(3), atol=1e-5
-        )
-        assert g.np.allclose(g.np.linalg.det(rotation), 1.0, atol=1e-5)
-        # the bottom row of a homogeneous transform is never touched
-        assert g.np.allclose(matrices[:, 3, :], [0, 0, 0, 1])
-
-    def test_animation_scene_untouched(self):
-        """
-        A scene with no animations should export exactly as it did before.
-        """
-        scene = g.get_mesh("cycloidal.3DXML")
-        assert len(scene.animations) == 0
-
-        tree, _ = g.trimesh.exchange.gltf._create_gltf_structure(scene)
-        # no empty animations array should be emitted
-        assert "animations" not in tree
-        # and nodes should still be using a matrix rather than TRS
-        assert any("matrix" in n for n in tree["nodes"])
-        assert not any(
-            k in n for n in tree["nodes"] for k in ("translation", "rotation", "scale")
+            original.at(times), other.at(times), atol=1e-4 * assembly.scale
         )
 
-    def test_animation_cycloidal(self):
-        """
-        Animating a real assembly loaded from a file should roundtrip.
-        """
-        scene = g.get_mesh("cycloidal.3DXML")
 
-        # spin every camshaft instance about the drive axis
-        nodes = [n for n in scene.graph.nodes if str(n).startswith("camshaft")]
-        assert len(nodes) > 0
+def test_animation_load():
+    """
+    Loading animations from hand-built GLTF: splines, unsupported
+    channels, and channels which don't share a time base.
+    """
+    # --------------------------------------------------- a plain spline
+    count = 4
+    times = g.np.linspace(0.0, 3.0, count).astype("<f4")
+    half = times.astype(g.np.float64) * g.np.pi / 6.0
 
-        times = g.np.linspace(0.0, 2.0, 17)
-        # (n, 4, 4) stack of rotations about Z, built without a python loop
-        spin = g.spin_z(times * g.np.pi)
+    # CUBICSPLINE output holds (in-tangent, value, out-tangent) per keyframe
+    # so it is three times as long as the input, and only the middle is used
+    values = g.np.zeros((count, 3, 4), dtype="<f4")
+    values[:, 1] = g.np.column_stack(
+        [g.np.zeros(count), g.np.zeros(count), g.np.sin(half), g.np.cos(half)]
+    )
 
-        for node in nodes:
-            # walking a loaded graph, so the edge has to be asked for
-            parent = scene.graph.transforms.parents[node]
-            local = scene.graph.get(frame_to=node, frame_from=parent)[0]
-            scene.animations.append(
-                g.trimesh.scene.animation.RigidAnimation(
-                    frame_to=node,
-                    frame_from=parent,
-                    times=times,
-                    matrices=spin @ local,
-                    name="spin",
-                )
+    header = gltf_animated(
+        [times, values],
+        samplers=[{"input": 0, "output": 1, "interpolation": "CUBICSPLINE"}],
+        channels=[
+            {"sampler": 0, "target": {"node": 0, "path": "rotation"}},
+            # morph target weights aren't supported and must be skipped
+            # rather than raising or corrupting the node
+            {"sampler": 0, "target": {"node": 0, "path": "weights"}},
+        ],
+        node="spinner",
+        name="cubic",
+    )
+    scene = g.roundtrip(g.json.dumps(header).encode(), "gltf")
+
+    assert len(scene.animations) == 1
+    current = scene.animations[0]
+    assert current.name == "cubic"
+    assert len(current) == count
+    # the spline must be kept as a spline rather than narrowed
+    assert current.interpolation == "cubic"
+
+    # a cubic reproduces its keyframes exactly at the keyframe times
+    expected = g.trimesh.transformations.quaternion_matrix(
+        g.np.column_stack([g.np.cos(half), g.np.zeros((count, 2)), g.np.sin(half)])
+    )
+    assert g.np.allclose(current.at(times.astype(g.np.float64)), expected, atol=1e-6)
+
+    # these tangents are all zero, which makes the curve ease in and out of
+    # every keyframe. that is a different path than a constant-rate slerp,
+    # so a silent downgrade to LINEAR anywhere would collapse this to zero
+    linear = RigidAnimation(
+        frame_to=current.frame_to,
+        keyframes=current.keyframes.copy(),
+        interpolation="linear",
+    )
+    query = g.np.linspace(0.0, 3.0, 97)
+    assert g.np.abs(current.at(query) - linear.at(query)).max() > 1e-3
+
+    # and the rotation is still a rotation the whole way along
+    rotation = current.at(query)[:, :3, :3]
+    assert g.np.allclose(rotation @ rotation.transpose(0, 2, 1), g.np.eye(3), atol=1e-8)
+
+    # ------------------------------------------------ mixed time bases
+    # channels of one node may reference different input accessors, and
+    # have to land on a shared time base for a single keyframe array,
+    # which is the only path in the loader that resamples anything
+    t_move = g.np.array([0.0, 1.0, 2.0], dtype="<f4")
+    t_spin = g.np.array([0.0, 0.5, 1.5, 2.0], dtype="<f4")
+
+    channels = [
+        {"sampler": 0, "target": {"node": 0, "path": "translation"}},
+        {"sampler": 1, "target": {"node": 0, "path": "rotation"}},
+    ]
+
+    # translation ramps at 1 unit/second, rotation at pi/4 radians/second
+    move = g.np.column_stack(
+        [t_move.astype(g.np.float64), g.np.zeros((len(t_move), 2))]
+    ).astype("<f4")
+    half = t_spin.astype(g.np.float64) * g.np.pi / 8.0
+    # GLTF orders quaternions `xyzw`
+    spin = g.np.column_stack(
+        [g.np.zeros((len(t_spin), 2)), g.np.sin(half), g.np.cos(half)]
+    ).astype("<f4")
+
+    scene = g.roundtrip(
+        g.json.dumps(
+            gltf_animated(
+                [t_move, t_spin, move, spin],
+                samplers=[{"input": 0, "output": 2}, {"input": 1, "output": 3}],
+                channels=channels,
+                name="mixed",
             )
+        ).encode(),
+        "gltf",
+    )
+    assert len(scene.animations) == 1
+    current = scene.animations[0]
+    # the keyframes are the union of both channels' times
+    assert g.np.allclose(current.times, [0.0, 0.5, 1.0, 1.5, 2.0])
 
-        export = scene.export(file_type="glb")
-        validate_glb(export, "cycloidal-animated")
-        reloaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
+    # both channels are constant-rate, so resampling onto a superset of
+    # their own knots has to be exact and both stay analytic everywhere.
+    # a resample which dropped interpolation would still match at the
+    # keyframes and fail in between, which is why this is sampled densely
+    query = g.np.linspace(0.0, 2.0, 197)
+    sampled = current.at(query)
 
-        assert len(reloaded.animations) == len(nodes)
-        # every animation should have come from the single named group
-        assert {a.name for a in reloaded.animations} == {"spin"}
+    assert g.np.allclose(sampled[:, 0, 3], query, atol=1e-6)
+    assert g.np.allclose(sampled[:, 1:3, 3], 0.0, atol=1e-6)
 
-        lookup = {a.frame_to: a for a in reloaded.animations}
-        for original in scene.animations:
-            other = lookup[original.frame_to]
-            assert g.np.allclose(
-                original.at(times), other.at(times), atol=1e-4 * scene.scale
+    # the rotation is `query * pi / 4` about Z the whole way
+    expected = g.trimesh.transformations.quaternion_matrix(
+        g.np.column_stack(
+            [
+                g.np.cos(query * g.np.pi / 8.0),
+                g.np.zeros((len(query), 2)),
+                g.np.sin(query * g.np.pi / 8.0),
+            ]
+        )
+    )
+    assert g.np.allclose(sampled[:, :3, :3], expected[:, :3, :3], atol=1e-6)
+
+    # ------------------------------- a spline forced onto foreign times
+    # it cannot stay a spline, but it has to be resampled *along* its real
+    # curve. dropping the tangents before resampling loses the whole curve
+    # while still reproducing every keyframe, so this only fails in between
+
+    # collinear values with strong opposing tangents, so the spline bulges
+    # well away from the straight line those keyframes would otherwise draw
+    move = g.np.zeros((len(t_move), 3, 3), dtype="<f4")
+    move[:, 1, 0] = t_move  # value
+    move[:, 0, 0] = -6.0  # in-tangent
+    move[:, 2, 0] = 6.0  # out-tangent
+    spin = g.np.tile(g.np.array([0.0, 0.0, 0.0, 1.0], dtype="<f4"), (len(t_spin), 1))
+
+    scene = g.roundtrip(
+        g.json.dumps(
+            gltf_animated(
+                [t_move, t_spin, move, spin],
+                samplers=[
+                    {"input": 0, "output": 2, "interpolation": "CUBICSPLINE"},
+                    {"input": 1, "output": 3},
+                ],
+                channels=channels,
+                name="mixed",
             )
+        ).encode(),
+        "gltf",
+    )
+    current = scene.animations[0]
+    # a spline resampled onto foreign times has no tangents left to keep
+    assert current.interpolation == "linear"
+    assert g.np.allclose(current.times, [0.0, 0.5, 1.0, 1.5, 2.0])
+
+    # the analytic Hermite curve these keyframes and tangents describe
+    query = g.np.linspace(0.0, 2.0, 121)
+    lower = g.np.clip(g.np.searchsorted([0.0, 1.0, 2.0], query), 1, 2) - 1
+    blend = (query - lower).reshape((-1, 1))
+    squared, cubed = blend**2, blend**3
+    truth = (
+        (2 * cubed - 3 * squared + 1) * lower.reshape((-1, 1))
+        + (cubed - 2 * squared + blend) * 6.0
+        + (-2 * cubed + 3 * squared) * (lower + 1).reshape((-1, 1))
+        + (cubed - squared) * -6.0
+    ).ravel()
+
+    # the spline has to bulge well off the straight line, or this proves
+    # nothing about whether the tangents were carried through
+    assert g.np.abs(truth - query).max() > 0.5
+
+    sampled = current.at(query)[:, 0, 3]
+    # resampling along the real curve tracks it far better than the
+    # straight line that dropping the tangents would collapse it to
+    assert g.np.abs(sampled - truth).max() < 0.5
+    assert g.np.abs(sampled - truth).max() < g.np.abs(query - truth).max() / 2.0
 
 
-def test_transform_node():
+def test_transform():
     """
     A GLTF node dict and a matrix should be two spellings of one transform.
     """
-    from trimesh.exchange.gltf import transform as T
-
     tf = g.trimesh.transformations
 
-    with g.RandomSeed() as random:
-        count = 100
-        matrices = tf.random_rotation_matrix(num=count, seed=0)
-        # add a non-uniform scale and a translation
-        matrices[:, :3, :3] *= random.uniform(0.2, 3.0, (count, 1, 3))
-        matrices[:, :3, 3] = random.uniform(-10, 10, (count, 3))
-    # a mirror can't be a unit quaternion so it has to land in the scale
-    matrices[::2, :3, 0] *= -1.0
-    assert (g.np.linalg.det(matrices[::2, :3, :3]) < 0).all()
+    # non-uniform scale throughout and a mirror every fifth, which can't
+    # be a unit quaternion so it has to land in the scale instead
+    random = g.np.random.default_rng(0)
+    matrices = tf.random_rotation_matrix(num=100, seed=0)
+    scale = random.uniform(0.2, 4.0, (100, 3))
+    scale[::5, 0] *= -1.0
+    matrices[:, :3, :3] *= scale.reshape((-1, 1, 3))
+    matrices[:, :3, 3] = random.uniform(-10.0, 10.0, (100, 3))
+    assert (g.np.linalg.det(matrices[::5, :3, :3]) < 0).all()
 
     # decompose the whole stack the way the exporter does, from the
     # column-major flattening GLTF stores
@@ -1638,15 +1878,9 @@ def test_transform_node():
     # and a node with no keys at all reads back as identity
     assert g.np.allclose(tf.tqs_matrix(*T.trs_from_node({})), g.np.eye(4))
 
-
-def test_transform_unwind():
-    """
-    Adjacent quaternions should be flipped into a shared hemisphere.
-    """
-    from trimesh.exchange.gltf import transform as T
-
+    # ---------------------------------------------------------- unwind
     with g.RandomSeed() as random:
-        quaternion = g.trimesh.transformations.random_quaternion(num=50, seed=0)
+        quaternion = tf.random_quaternion(num=50, seed=0)
         # flip a random half of them into the opposite hemisphere, which
         # is the same rotation but the long way around when interpolated
         flip = random.random(len(quaternion)) > 0.5
@@ -1662,396 +1896,7 @@ def test_transform_unwind():
     assert not (g.np.sum(flipped[1:] * flipped[:-1], axis=1) >= 0).all()
 
 
-def test_animation_cubicspline():
-    """
-    A CUBICSPLINE animation should load as a spline with its tangents
-    intact, and unsupported channels should be skipped.
-    """
-    count = 4
-    times = g.np.linspace(0.0, 3.0, count).astype("<f4")
-    half = times.astype(g.np.float64) * g.np.pi / 6.0
-
-    # CUBICSPLINE output holds (in-tangent, value, out-tangent) per keyframe
-    # so it is three times as long as the input, and only the middle is used
-    values = g.np.zeros((count, 3, 4), dtype="<f4")
-    values[:, 1] = g.np.column_stack(
-        [g.np.zeros(count), g.np.zeros(count), g.np.sin(half), g.np.cos(half)]
-    )
-
-    blob = times.tobytes() + values.tobytes()
-    header = {
-        "asset": {"version": "2.0"},
-        "scene": 0,
-        "scenes": [{"nodes": [0]}],
-        "nodes": [{"name": "spinner"}],
-        "buffers": [
-            {
-                "byteLength": len(blob),
-                "uri": "data:application/octet-stream;base64,"
-                + g.base64.b64encode(blob).decode(),
-            }
-        ],
-        "bufferViews": [
-            {"buffer": 0, "byteOffset": 0, "byteLength": times.nbytes},
-            {"buffer": 0, "byteOffset": times.nbytes, "byteLength": values.nbytes},
-        ],
-        "accessors": [
-            {
-                "bufferView": 0,
-                "componentType": 5126,
-                "count": count,
-                "type": "SCALAR",
-                "min": [float(times.min())],
-                "max": [float(times.max())],
-            },
-            {
-                "bufferView": 1,
-                "componentType": 5126,
-                "count": count * 3,
-                "type": "VEC4",
-            },
-        ],
-        "animations": [
-            {
-                "name": "cubic",
-                "samplers": [{"input": 0, "output": 1, "interpolation": "CUBICSPLINE"}],
-                "channels": [
-                    {"sampler": 0, "target": {"node": 0, "path": "rotation"}},
-                    # morph target weights aren't supported and must be
-                    # skipped rather than raising or corrupting the node
-                    {"sampler": 0, "target": {"node": 0, "path": "weights"}},
-                ],
-            }
-        ],
-    }
-
-    scene = g.trimesh.load(
-        g.trimesh.util.wrap_as_stream(g.json.dumps(header).encode()), file_type="gltf"
-    )
-
-    assert len(scene.animations) == 1
-    animation = scene.animations[0]
-    assert animation.name == "cubic"
-    assert len(animation) == count
-    # the spline must be kept as a spline rather than narrowed
-    assert animation.interpolation == "cubic"
-
-    # a cubic reproduces its keyframes exactly at the keyframe times
-    sampled = animation.at(times.astype(g.np.float64))
-    expected = g.trimesh.transformations.quaternion_matrix(
-        g.np.column_stack([g.np.cos(half), g.np.zeros((count, 2)), g.np.sin(half)])
-    )
-    assert g.np.allclose(sampled, expected, atol=1e-6)
-
-    # these tangents are all zero, which makes the curve ease in and out of
-    # every keyframe. that is a different path than a constant-rate slerp,
-    # so a silent downgrade to LINEAR anywhere would collapse this to zero
-    linear = g.trimesh.scene.animation.RigidAnimation(
-        frame_to=animation.frame_to,
-        keyframes=animation.keyframes.copy(),
-        interpolation="linear",
-    )
-    query = g.np.linspace(0.0, 3.0, 97)
-    assert g.np.abs(animation.at(query) - linear.at(query)).max() > 1e-3
-
-    # and the rotation is still a rotation the whole way along
-    rotation = animation.at(query)[:, :3, :3]
-    assert g.np.allclose(rotation @ rotation.transpose(0, 2, 1), g.np.eye(3), atol=1e-8)
-
-
-def test_animation_mixed_times_cubic():
-    """
-    A CUBICSPLINE channel forced onto a foreign time base.
-
-    It cannot stay a spline, but it has to be resampled *along* its
-    real curve. Dropping the tangents before resampling loses the whole
-    curve while still reproducing every keyframe, so this only fails on
-    the samples in between.
-    """
-    # translation is a cubic on its own base, rotation forces a different one
-    t_move = g.np.array([0.0, 1.0, 2.0], dtype="<f4")
-    t_spin = g.np.array([0.0, 0.5, 1.5, 2.0], dtype="<f4")
-
-    # collinear values with strong opposing tangents, so the spline bulges
-    # well away from the straight line those keyframes would otherwise draw
-    move = g.np.zeros((len(t_move), 3, 3), dtype="<f4")
-    move[:, 1, 0] = t_move  # value
-    move[:, 0, 0] = -6.0  # in-tangent
-    move[:, 2, 0] = 6.0  # out-tangent
-
-    spin = g.np.tile(g.np.array([0.0, 0.0, 0.0, 1.0], dtype="<f4"), (len(t_spin), 1))
-
-    blob = t_move.tobytes() + t_spin.tobytes() + move.tobytes() + spin.tobytes()
-    sizes = [t_move.nbytes, t_spin.nbytes, move.nbytes, spin.nbytes]
-    offsets = g.np.concatenate([[0], g.np.cumsum(sizes)[:-1]])
-
-    header = {
-        "asset": {"version": "2.0"},
-        "scene": 0,
-        "scenes": [{"nodes": [0]}],
-        "nodes": [{"name": "mover"}],
-        "buffers": [
-            {
-                "byteLength": len(blob),
-                "uri": "data:application/octet-stream;base64,"
-                + g.base64.b64encode(blob).decode(),
-            }
-        ],
-        "bufferViews": [
-            {"buffer": 0, "byteOffset": int(o), "byteLength": int(s)}
-            for o, s in zip(offsets, sizes)
-        ],
-        "accessors": [
-            {
-                "bufferView": 0,
-                "componentType": 5126,
-                "count": len(t_move),
-                "type": "SCALAR",
-                "min": [0.0],
-                "max": [2.0],
-            },
-            {
-                "bufferView": 1,
-                "componentType": 5126,
-                "count": len(t_spin),
-                "type": "SCALAR",
-                "min": [0.0],
-                "max": [2.0],
-            },
-            {
-                "bufferView": 2,
-                "componentType": 5126,
-                "count": len(t_move) * 3,
-                "type": "VEC3",
-            },
-            {
-                "bufferView": 3,
-                "componentType": 5126,
-                "count": len(t_spin),
-                "type": "VEC4",
-            },
-        ],
-        "animations": [
-            {
-                "name": "mixed",
-                "samplers": [
-                    {"input": 0, "output": 2, "interpolation": "CUBICSPLINE"},
-                    {"input": 1, "output": 3},
-                ],
-                "channels": [
-                    {"sampler": 0, "target": {"node": 0, "path": "translation"}},
-                    {"sampler": 1, "target": {"node": 0, "path": "rotation"}},
-                ],
-            }
-        ],
-    }
-
-    scene = g.trimesh.load(
-        g.trimesh.util.wrap_as_stream(g.json.dumps(header).encode()), file_type="gltf"
-    )
-    animation = scene.animations[0]
-    # a spline resampled onto foreign times has no tangents left to keep
-    assert animation.interpolation == "linear"
-    assert g.np.allclose(animation.times, [0.0, 0.5, 1.0, 1.5, 2.0])
-
-    # the analytic Hermite curve these keyframes and tangents describe
-    query = g.np.linspace(0.0, 2.0, 121)
-    lower = g.np.clip(g.np.searchsorted([0.0, 1.0, 2.0], query), 1, 2) - 1
-    blend = (query - lower).reshape((-1, 1))
-    squared, cubed = blend**2, blend**3
-    truth = (
-        (2 * cubed - 3 * squared + 1) * lower.reshape((-1, 1))
-        + (cubed - 2 * squared + blend) * 6.0
-        + (-2 * cubed + 3 * squared) * (lower + 1).reshape((-1, 1))
-        + (cubed - squared) * -6.0
-    ).ravel()
-
-    # the spline has to bulge well off the straight line, or this proves
-    # nothing about whether the tangents were carried through
-    assert g.np.abs(truth - query).max() > 0.5
-
-    sampled = animation.at(query)[:, 0, 3]
-    # resampling along the real curve tracks it far better than the
-    # straight line that dropping the tangents would collapse it to
-    assert g.np.abs(sampled - truth).max() < 0.5
-    assert g.np.abs(sampled - truth).max() < g.np.abs(query - truth).max() / 2.0
-
-
-def test_animation_mixed_times():
-    """
-    Channels of one node may reference different input accessors.
-
-    They have to land on a shared time base for a single keyframe array,
-    which is the only path in the loader that resamples anything.
-    """
-    # deliberately different, non-nested time bases for the two channels
-    t_move = g.np.array([0.0, 1.0, 2.0], dtype="<f4")
-    t_spin = g.np.array([0.0, 0.5, 1.5, 2.0], dtype="<f4")
-
-    # translation ramps at 1 unit/second, rotation at pi/4 radians/second
-    move = g.np.column_stack(
-        [t_move.astype(g.np.float64), g.np.zeros((len(t_move), 2))]
-    ).astype("<f4")
-    half = t_spin.astype(g.np.float64) * g.np.pi / 8.0
-    # GLTF orders quaternions `xyzw`
-    spin = g.np.column_stack(
-        [g.np.zeros((len(t_spin), 2)), g.np.sin(half), g.np.cos(half)]
-    ).astype("<f4")
-
-    blob = t_move.tobytes() + t_spin.tobytes() + move.tobytes() + spin.tobytes()
-    sizes = [t_move.nbytes, t_spin.nbytes, move.nbytes, spin.nbytes]
-    offsets = g.np.concatenate([[0], g.np.cumsum(sizes)[:-1]])
-
-    header = {
-        "asset": {"version": "2.0"},
-        "scene": 0,
-        "scenes": [{"nodes": [0]}],
-        "nodes": [{"name": "mover"}],
-        "buffers": [
-            {
-                "byteLength": len(blob),
-                "uri": "data:application/octet-stream;base64,"
-                + g.base64.b64encode(blob).decode(),
-            }
-        ],
-        "bufferViews": [
-            {"buffer": 0, "byteOffset": int(o), "byteLength": int(s)}
-            for o, s in zip(offsets, sizes)
-        ],
-        "accessors": [
-            {
-                "bufferView": 0,
-                "componentType": 5126,
-                "count": len(t_move),
-                "type": "SCALAR",
-                "min": [0.0],
-                "max": [2.0],
-            },
-            {
-                "bufferView": 1,
-                "componentType": 5126,
-                "count": len(t_spin),
-                "type": "SCALAR",
-                "min": [0.0],
-                "max": [2.0],
-            },
-            {
-                "bufferView": 2,
-                "componentType": 5126,
-                "count": len(move),
-                "type": "VEC3",
-            },
-            {
-                "bufferView": 3,
-                "componentType": 5126,
-                "count": len(spin),
-                "type": "VEC4",
-            },
-        ],
-        "animations": [
-            {
-                "name": "mixed",
-                "samplers": [{"input": 0, "output": 2}, {"input": 1, "output": 3}],
-                "channels": [
-                    {"sampler": 0, "target": {"node": 0, "path": "translation"}},
-                    {"sampler": 1, "target": {"node": 0, "path": "rotation"}},
-                ],
-            }
-        ],
-    }
-
-    scene = g.trimesh.load(
-        g.trimesh.util.wrap_as_stream(g.json.dumps(header).encode()), file_type="gltf"
-    )
-    assert len(scene.animations) == 1
-    animation = scene.animations[0]
-
-    # the keyframes are the union of both channels' times
-    assert g.np.allclose(animation.times, [0.0, 0.5, 1.0, 1.5, 2.0])
-
-    # both channels are constant-rate, so resampling onto a superset of
-    # their own knots has to be exact and both stay analytic everywhere.
-    # a resample which dropped interpolation would still match at the
-    # keyframes and fail in between, which is why this is sampled densely
-    query = g.np.linspace(0.0, 2.0, 197)
-    sampled = animation.at(query)
-
-    assert g.np.allclose(sampled[:, 0, 3], query, atol=1e-6)
-    assert g.np.allclose(sampled[:, 1:3, 3], 0.0, atol=1e-6)
-
-    # the rotation is `query * pi / 4` about Z the whole way
-    expected = g.trimesh.transformations.quaternion_matrix(
-        g.np.column_stack(
-            [
-                g.np.cos(query * g.np.pi / 8.0),
-                g.np.zeros((len(query), 2)),
-                g.np.sin(query * g.np.pi / 8.0),
-            ]
-        )
-    )
-    assert g.np.allclose(sampled[:, :3, :3], expected[:, :3, :3], atol=1e-6)
-
-
-def test_animation_cubic_roundtrip():
-    """
-    A cubic animation should export as CUBICSPLINE and come back intact.
-
-    The tangents are what makes this worth checking: an exporter which
-    writes the values but drops the tangents, or a loader which narrows
-    the mode to LINEAR, still round trips the keyframes perfectly and
-    only differs in between them.
-    """
-    from trimesh.scene.animation import RigidAnimation, keyframes_from_matrix
-
-    random = g.np.random.default_rng(11)
-    times = g.np.linspace(0.0, 2.0, 9)
-    matrices = g.spin_z(times * g.np.pi * 0.5)
-    matrices[:, :3, 3] = random.uniform(-2.0, 2.0, (len(times), 3))
-
-    keyframes = keyframes_from_matrix(times, matrices)
-    keyframes["translation_in"] = random.uniform(-2.0, 2.0, (len(times), 3))
-    keyframes["translation_out"] = random.uniform(-2.0, 2.0, (len(times), 3))
-    keyframes["quaternion_in"] = random.uniform(-0.3, 0.3, (len(times), 4))
-    keyframes["quaternion_out"] = random.uniform(-0.3, 0.3, (len(times), 4))
-
-    scene = g.trimesh.Scene()
-    scene.add_geometry(g.trimesh.creation.box(), node_name="spinner")
-    scene.animations.append(
-        RigidAnimation(
-            frame_to="spinner", keyframes=keyframes, name="cubic", interpolation="cubic"
-        )
-    )
-
-    export = scene.export(file_type="glb")
-    # the validator checks a CUBICSPLINE output accessor is exactly
-    # three times its input, which a malformed export would fail
-    validate_glb(export, "animation_cubic")
-
-    reloaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
-    assert len(reloaded.animations) == 1
-    other = reloaded.animations[0]
-    assert other.interpolation == "cubic"
-    assert len(other) == len(times)
-
-    # every keyframe field has to survive, tangents included. GLTF stores
-    # these as float32 so the tolerance is the storage, not the math
-    for field in keyframes.dtype.names:
-        assert g.np.allclose(other.keyframes[field], keyframes[field], atol=1e-6), field
-
-    # and the sampled path has to agree densely, not just at keyframes
-    dense = g.np.linspace(times[0], times[-1], len(times) * 11)
-    original = scene.animations[0]
-    assert g.np.allclose(original.at(dense), other.at(dense), atol=1e-5)
-
-    # a linear reload would agree at the keyframes and nowhere else,
-    # so confirm the two modes are actually distinguishable here
-    linear = RigidAnimation(
-        frame_to="spinner", keyframes=keyframes.copy(), interpolation="linear"
-    )
-    assert g.np.abs(original.at(dense) - linear.at(dense)).max() > 1e-2
-
-
-def _accessor_values(header):
+def accessor_values(header):
     """
     Decode every accessor in an embedded GLTF header into numpy arrays.
 
@@ -2085,6 +1930,77 @@ def _accessor_values(header):
     return values
 
 
+def gltf_animated(arrays, samplers, channels, node="mover", name="anim"):
+    """
+    Build a minimal single-node GLTF header holding one animation.
+
+    Every array is packed into its own buffer view and accessor in the
+    order passed, with the shape deciding the type and count: a
+    CUBICSPLINE output is an `(n, 3, d)` stack of in-tangent, value, and
+    out-tangent which flattens to the `3n` elements the spec asks for.
+
+    Parameters
+    ------------
+    arrays : list of array
+      Data for one accessor each, in index order.
+    samplers : list of dict
+      GLTF samplers, referencing accessors by index.
+    channels : list of dict
+      GLTF channels, referencing samplers by index.
+    node : str
+      Name of the single node every channel targets.
+    name : str
+      Name of the animation.
+
+    Returns
+    ----------
+    header : dict
+      A loadable GLTF file with one embedded buffer.
+    """
+    # GLTF stores animation data as little-endian float32
+    stacked = [g.np.asanyarray(a, dtype="<f4") for a in arrays]
+    # a 1D array is a scalar channel, otherwise the last axis is the
+    # component count and everything before it flattens into elements
+    packed = [a.reshape((-1, 1 if a.ndim == 1 else a.shape[-1])) for a in stacked]
+
+    blob = b"".join(a.tobytes() for a in packed)
+    offsets = g.np.concatenate([[0], g.np.cumsum([a.nbytes for a in packed])])
+
+    return {
+        "asset": {"version": "2.0"},
+        "scene": 0,
+        "scenes": [{"nodes": [0]}],
+        "nodes": [{"name": node}],
+        "buffers": [
+            {
+                "byteLength": len(blob),
+                "uri": "data:application/octet-stream;base64,"
+                + g.base64.b64encode(blob).decode(),
+            }
+        ],
+        "bufferViews": [
+            {"buffer": 0, "byteOffset": int(o), "byteLength": int(a.nbytes)}
+            for o, a in zip(offsets, packed)
+        ],
+        "accessors": [
+            {
+                "bufferView": i,
+                "componentType": 5126,
+                "count": len(a),
+                "type": {1: "SCALAR", 3: "VEC3", 4: "VEC4"}[a.shape[1]],
+                # the spec requires min and max on an animation input
+                **(
+                    {"min": [float(a.min())], "max": [float(a.max())]}
+                    if a.shape[1] == 1
+                    else {}
+                ),
+            }
+            for i, a in enumerate(packed)
+        ],
+        "animations": [{"name": name, "samplers": samplers, "channels": channels}],
+    }
+
+
 def animated_scene():
     """
     Build a small scene with a nested graph and a few animations.
@@ -2096,36 +2012,29 @@ def animated_scene():
     spin : RigidAnimation
       The animation driving the deepest node.
     """
-    from trimesh.scene.animation import RigidAnimation
-
     tf = g.trimesh.transformations
 
     scene = g.trimesh.Scene()
-    # a nested chain so local transforms compound down the graph
-    parent = "world"
-    nodes = []
-    # {node : which node it hangs off}, i.e. the edge an animation drives
-    edge = {}
-    for i in range(3):
-        node = f"link_{i}"
+    # a nested chain so local transforms compound down the graph, with the
+    # base frame at the front so `chain[i]` is the parent of `chain[i + 1]`
+    # and every animated edge is just an adjacent pair
+    chain = ["world", "link_0", "link_1", "link_2"]
+    for parent, node in g.itertools.pairwise(chain):
         scene.add_geometry(
             g.trimesh.creation.box(extents=[1, 1, 3]),
             node_name=node,
             parent_node_name=parent,
             transform=tf.translation_matrix([0, 0, 3]),
         )
-        nodes.append(node)
-        edge[node] = parent
-        parent = node
 
     times = g.np.linspace(0.0, 2.0, 25)
 
     # a pure rotation on the deepest node
     spin = RigidAnimation(
-        frame_to=nodes[-1],
-        frame_from=edge[nodes[-1]],
+        frame_to=chain[3],
+        frame_from=chain[2],
         times=times,
-        matrices=g.spin_z(times * g.np.pi),
+        matrices=rotation_matrix(times * g.np.pi, [0, 0, 1]),
         name="spin",
     )
     scene.animations.append(spin)
@@ -2141,8 +2050,8 @@ def animated_scene():
     ).reshape((-1, 1, 3))
     scene.animations.append(
         RigidAnimation(
-            frame_to=nodes[0],
-            frame_from=edge[nodes[0]],
+            frame_to=chain[1],
+            frame_from=chain[0],
             times=times,
             matrices=wobble,
             name="wobble",
@@ -2154,8 +2063,8 @@ def animated_scene():
     stepped[:, 2, 3] = 3.0 + g.np.sin(times)
     scene.animations.append(
         RigidAnimation(
-            frame_to=nodes[1],
-            frame_from=edge[nodes[1]],
+            frame_to=chain[2],
+            frame_from=chain[1],
             times=times,
             matrices=stepped,
             name="step",

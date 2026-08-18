@@ -42,19 +42,8 @@ def matrix_from_gltf(values) -> NDArray2D[float64]:
 
 
 def trs_from_node(node: dict) -> tuple:
-    """
-    Collect the TRS keys of a GLTF node, filling in any defaults.
-
-    Parameters
-    ------------
-    node
-      A GLTF node which may have `translation`, `rotation`, or `scale`.
-
-    Returns
-    ----------
-    trs
-      Translation, `WXYZ` quaternion, and scale.
-    """
+    """Collect a node's TRS keys as `(translation, WXYZ quaternion, scale)`,
+    filling in the GLTF default for any which are absent."""
     return (
         np.array(node.get("translation", [0.0, 0.0, 0.0]), dtype=np.float64),
         quaternion_from_gltf(node.get("rotation", [0.0, 0.0, 0.0, 1.0]))[0],
@@ -63,19 +52,8 @@ def trs_from_node(node: dict) -> tuple:
 
 
 def node_from_trs(trs, node: dict) -> None:
-    """
-    Store a TRS on a GLTF node, mutating it in-place.
-
-    Any component which is already the GLTF default is omitted
-    rather than being written out.
-
-    Parameters
-    ------------
-    trs
-      Translation, `WXYZ` quaternion, and scale.
-    node
-      GLTF node to store the values on.
-    """
+    """Store a `(translation, WXYZ quaternion, scale)` on a node in-place,
+    omitting any component which is already the GLTF default."""
     translation, quaternion, scale = trs
 
     if not np.allclose(translation, 0.0, atol=1e-12):
@@ -87,19 +65,8 @@ def node_from_trs(trs, node: dict) -> None:
 
 
 def trs_from_gltf_matrices(values) -> tuple:
-    """
-    Decompose a stack of flat column-major GLTF matrices into TRS.
-
-    Parameters
-    ------------
-    values : (n, 16) float
-      GLTF `matrix` values.
-
-    Returns
-    ----------
-    trs
-      Translations, `WXYZ` quaternions, and scales, each stacked.
-    """
+    """Decompose `(n, 16)` column-major GLTF matrices into stacked
+    translations, `WXYZ` quaternions, and scales."""
     flat = np.array(values, dtype=np.float64).reshape((-1, 4, 4))
     # a GLTF matrix is column-major so transpose each one
     return tqs_from_matrix(flat.transpose(0, 2, 1))
@@ -107,21 +74,11 @@ def trs_from_gltf_matrices(values) -> tuple:
 
 def unwind(quaternion) -> NDArray1D[float64]:
     """
-    Flip quaternion signs so adjacent keyframes share a hemisphere.
+    Flip signs so adjacent `(n, 4)` quaternions share a hemisphere.
 
     A quaternion and its negation are the same rotation, but a viewer
     interpolating linearly between two which are in opposite hemispheres
     will take the long way around and the motion will visibly jerk.
-
-    Parameters
-    ------------
-    quaternion : (n, 4) float
-      Quaternions, in any consistent ordering.
-
-    Returns
-    ----------
-    unwound : (n, 4) float
-      The same rotations with adjacent pairs in the same hemisphere.
     """
     quaternion = np.asanyarray(quaternion, dtype=np.float64).reshape((-1, 4))
 

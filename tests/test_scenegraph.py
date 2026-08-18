@@ -299,6 +299,47 @@ def test_scaling_order():
     assert g.np.allclose(r.bounds, [[10, 10, 10], [11, 11, 11]])
     assert g.np.allclose(s.bounds, [[10, 10, 10], [11, 11, 11]])
 
+    # `SceneGraph.apply_scale` rewrites edge matrices behind the caching,
+    # so warm every cache first: reading a stale transform back is exactly
+    # what happens if it ever stops dirtying the hash
+    scene = g.trimesh.Scene()
+    scene.add_geometry(
+        g.trimesh.creation.box(),
+        node_name="child",
+        parent_node_name="parent",
+        transform=g.trimesh.transformations.translation_matrix([5, 0, 0]),
+    )
+    scene.graph.update(
+        frame_to="parent",
+        matrix=g.trimesh.transformations.rotation_matrix(0.7, [0, 1, 0]),
+    )
+
+    warm = {n: scene.graph[n][0].copy() for n in scene.graph.nodes}
+    before = scene.graph.__hash__()
+
+    scene.graph.apply_scale(3.0)
+
+    assert scene.graph.__hash__() != before
+    for node, matrix in warm.items():
+        current = scene.graph[node][0]
+        # translations scale and rotations do not, which a matrix-wide
+        # multiply would break by leaving the rotation non-orthonormal
+        assert g.np.allclose(current[:3, 3], matrix[:3, 3] * 3.0)
+        assert g.np.allclose(current[:3, :3], matrix[:3, :3])
+        assert g.np.allclose(current[:3, :3] @ current[:3, :3].T, g.np.eye(3))
+
+    # a (3,) factor scales each axis of every *edge*, which is what the
+    # non-uniform `Scene.scaled` path relies on. note this is a local
+    # operation: composed through a parent rotation the world translation
+    # is not the world translation scaled per-axis, which is why that path
+    # scales the geometry in world axes separately
+    local = scene.graph.get(frame_to="child", frame_from="parent")[0][:3, 3].copy()
+    scene.graph.apply_scale([1.0, 2.0, 4.0])
+    assert g.np.allclose(
+        scene.graph.get(frame_to="child", frame_from="parent")[0][:3, 3],
+        local * [1, 2, 4],
+    )
+
 
 def test_translation_cache():
     # scene with non-geometry nodes

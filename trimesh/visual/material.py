@@ -674,14 +674,7 @@ class PBRMaterial(Material):
 
     @property
     def has_texture(self) -> bool:
-        """
-        Is any image stored on this material.
-
-        Returns
-        ----------
-        has_texture
-          True if any of the texture slots are filled.
-        """
+        """True if any of the texture slots on this material are filled."""
         return any(k.endswith("Texture") for k in self._data)
 
     def copy(self):

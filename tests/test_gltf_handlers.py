@@ -6,6 +6,7 @@ Pin the glTF extension-handler interface that upstream packages register against
 """
 
 import base64
+from typing import get_args
 
 try:
     from . import generic as g
@@ -65,6 +66,30 @@ class GLTFHandlerTest(g.unittest.TestCase):
         # the decorator registers into the scope registry and returns the function
         assert ext._handlers["primitive_preprocess"]["TEST_x"] is handler
 
+        # a scope is a hard fact rather than a type hint: a misspelling used to
+        # register a handler nothing would ever dispatch, silently and forever
+        with g.pytest.raises(ValueError, match="is not a scope"):
+            ext.register_handler("TEST_x", scope="primitive_preprocesss")
+        # and the runtime table can't drift from the static type
+        assert set(ext.CONTEXT) == set(get_args(ext.Scope))
+
+        # replacing a built-in is a fair thing to want from a registry, doing
+        # it by accident is not, so the second registration wins but says so
+        with self.assertLogs("trimesh", level="WARNING") as cm:
+
+            @ext.register_handler("TEST_x", scope="primitive_preprocess")
+            def second(context):
+                return None
+
+        assert any("TEST_x" in line for line in cm.output)
+        assert ext._handlers["primitive_preprocess"]["TEST_x"] is second
+
+        # every scope returns the same shape: the dispatcher runs handlers and
+        # nothing else, rather than picking semantics from the scope's name
+        assert all(
+            ext.handle_extensions(extensions=None, scope=s) == {} for s in ext.CONTEXT
+        )
+
     def test_preprocess_context_keys(self):
         # the loader must pass the documented context keys to preprocess handlers
         seen = {}
@@ -76,6 +101,36 @@ class GLTFHandlerTest(g.unittest.TestCase):
 
         g.trimesh.load(minimal_gltf(), file_type="gltf")
         assert {"data", "primitive", "accessors", "views"}.issubset(seen)
+        # which is exactly what the scope's context declares it must be
+        assert ext.CONTEXT["primitive_preprocess"].__required_keys__ == seen.keys()
+
+        # a caller which never passed the context is a bug and has to raise,
+        # where a handler failing on a bad file only warns: both used to be
+        # the same indistinguishable `log.warning` line
+        @ext.register_handler("TEST_needs", scope="material")
+        def needs(context):
+            return {"x": context["images"]}
+
+        with g.pytest.raises(ValueError, match="images"):
+            ext.handle_extensions(extensions={"TEST_needs": {}}, scope="material")
+
+        @ext.register_handler("TEST_bad", scope="material")
+        def bad(context):
+            raise ValueError("this file is nonsense")
+
+        @ext.register_handler("TEST_ok", scope="material")
+        def fine(context):
+            return {"survived": True}
+
+        with self.assertLogs("trimesh", level="WARNING"):
+            results = ext.handle_extensions(
+                extensions={"TEST_bad": {}, "TEST_ok": {}},
+                scope="material",
+                parse_textures=None,
+                images=[],
+            )
+        # and one handler blowing up must not stop the others in the same call
+        assert results == {"TEST_ok": {"survived": True}}
 
     def test_no_handler_warns_and_zeros(self):
         # without a handler the placeholder geometry stays zero and we warn by name

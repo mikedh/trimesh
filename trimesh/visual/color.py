@@ -458,12 +458,6 @@ class ColorVisuals(Visuals):
         """
         Convert these colors to a PBR material.
 
-        The colors themselves stay on the mesh as a `COLOR_0` vertex
-        attribute, which GLTF multiplies against `baseColorFactor`, so
-        a white base color here preserves them. Without this a mesh
-        exports with no material at all and inherits GLTF's default of
-        fully metallic and fully rough.
-
         Parameters
         ------------
         metallic
@@ -479,6 +473,9 @@ class ColorVisuals(Visuals):
         from .material import PBRMaterial
 
         return PBRMaterial(
+            # the colors stay on the mesh as a `COLOR_0` vertex attribute
+            # which GLTF multiplies against this, so white preserves them.
+            # without a material at all GLTF defaults to a rough mirror
             baseColorFactor=[1.0, 1.0, 1.0, 1.0],
             metallicFactor=0.0 if metallic is None else float(metallic),
             roughnessFactor=0.4 if roughness is None else float(roughness),

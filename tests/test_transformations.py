@@ -216,79 +216,58 @@ class TransformTest(g.unittest.TestCase):
         # results should be the same
         assert g.np.allclose(mm, qm, atol=1e-5)
         # all random matrices should be rigid transforms
-        assert all(is_rigid(T) for T in random_matrix(num=100, seed=0))
+        matrices = random_matrix(num=100, seed=0)
+        assert all(is_rigid(T) for T in matrices)
         # random quaternions should all be unit vector
         assert g.np.allclose(
             g.np.linalg.norm(random_quat(num=100, seed=0), axis=1), 1.0, atol=1e-6
         )
 
-    def test_quat_batched(self):
-        """
-        The quaternion helpers should accept a single value or a stack.
-        """
-        tf = g.trimesh.transformations
-
-        matrices = tf.random_rotation_matrix(num=100, seed=0)
-        assert matrices.shape == (100, 4, 4)
-
-        quat = tf.quaternion_from_matrix(matrices)
+        # the helpers take a single value or a whole stack. round tripping
+        # is the strongest predicate available: it is invariant to the sign
+        # convention so it can't be cheated, and catches `wxyz` vs `xyzw`
+        # ordering and row vs column major storage all at once
+        quat = from_matrix(matrices)
         assert quat.shape == (100, 4)
-
-        # the single strongest predicate available here: converting to
-        # quaternions and back must be an exact inverse. this is invariant
-        # to the sign convention so it can't be cheated, and simultaneously
-        # catches `wxyz` vs `xyzw` ordering and row vs column major storage
-        assert g.np.allclose(tf.quaternion_matrix(quat), matrices)
-
-        # the batched result must agree elementwise with the scalar one
-        assert g.np.allclose(
-            quat, [tf.quaternion_from_matrix(m) for m in matrices], atol=1e-8
-        )
-        # exported quaternions are always unit length
+        assert g.np.allclose(to_matrix(quat), matrices)
         assert g.np.allclose(g.np.linalg.norm(quat, axis=1), 1.0)
+        # and the batched result agrees elementwise with the scalar one
+        assert g.np.allclose(quat, [from_matrix(m) for m in matrices], atol=1e-8)
 
         # a single matrix still returns a single quaternion
-        assert tf.quaternion_from_matrix(matrices[0]).shape == (4,)
-        assert tf.quaternion_matrix(quat[0]).shape == (4, 4)
+        assert from_matrix(matrices[0]).shape == (4,)
+        assert to_matrix(quat[0]).shape == (4, 4)
         # but a length-1 stack must stay a stack rather than being squeezed
-        assert tf.quaternion_from_matrix(matrices[:1]).shape == (1, 4)
-        assert tf.quaternion_matrix(quat[:1]).shape == (1, 4, 4)
+        assert from_matrix(matrices[:1]).shape == (1, 4)
+        assert to_matrix(quat[:1]).shape == (1, 4, 4)
 
-    def test_tqs(self):
-        """
-        Decomposing to translation-quaternion-scale must be exact.
-
-        Round tripping is the strongest predicate available: it is
-        invariant to the quaternion sign convention so it can't be
-        cheated, and it catches `wxyz` ordering, row vs column major
-        storage, and where a mirror was pushed all at once.
-        """
-        tf = g.trimesh.transformations
-
-        count = 100
+        # ------------------------------------------------------------ tqs
+        # decomposing to translation-quaternion-scale must be exact. round
+        # tripping is again the strongest predicate: invariant to the sign
+        # convention, and it catches `wxyz` ordering, row vs column major
+        # storage, and where a mirror was pushed all at once
         random = g.np.random.default_rng(0)
-        matrices = tf.random_rotation_matrix(num=count, seed=0)
-
-        scale = random.uniform(0.1, 5.0, (count, 3))
+        scaled = random_matrix(num=100, seed=0)
+        scale = random.uniform(0.1, 5.0, (100, 3))
         # mirror a third of them: a unit quaternion can't hold a reflection
         # so it has to end up in the scale instead
         scale[::3, 0] *= -1.0
-        matrices[:, :3, :3] *= scale.reshape((-1, 1, 3))
-        matrices[:, :3, 3] = random.uniform(-10.0, 10.0, (count, 3))
+        scaled[:, :3, :3] *= scale.reshape((-1, 1, 3))
+        scaled[:, :3, 3] = random.uniform(-10.0, 10.0, (100, 3))
 
-        translation, quaternion, recovered = tf.tqs_from_matrix(matrices)
-        assert translation.shape == (count, 3)
-        assert quaternion.shape == (count, 4)
-        assert recovered.shape == (count, 3)
+        translation, quaternion, recovered = tf.tqs_from_matrix(scaled)
+        assert translation.shape == (100, 3)
+        assert quaternion.shape == (100, 4)
+        assert recovered.shape == (100, 3)
 
         # non-uniform scale and mirrors both have to come back exactly
-        assert g.np.allclose(tf.tqs_matrix(translation, quaternion, recovered), matrices)
+        assert g.np.allclose(tf.tqs_matrix(translation, quaternion, recovered), scaled)
         assert g.np.allclose(g.np.abs(recovered), g.np.abs(scale))
         # the rotation factor is always a unit quaternion
         assert g.np.allclose(g.np.linalg.norm(quaternion, axis=1), 1.0)
         # and the mirrored ones are the ones which came back negative
         assert g.np.array_equal(
-            (recovered < 0).any(axis=1), g.np.linalg.det(matrices[:, :3, :3]) < 0
+            (recovered < 0).any(axis=1), g.np.linalg.det(scaled[:, :3, :3]) < 0
         )
 
         # a degenerate zero-scale axis must not divide by zero
@@ -298,24 +277,19 @@ class TransformTest(g.unittest.TestCase):
         assert g.np.allclose(tf.tqs_matrix(*tf.tqs_from_matrix(flat)), flat)
 
         # a single matrix returns single values rather than stacks
-        single = tf.tqs_from_matrix(matrices[0])
+        single = tf.tqs_from_matrix(scaled[0])
         assert [s.shape for s in single] == [(3,), (4,), (3,)]
-        assert g.np.allclose(tf.tqs_matrix(*single), matrices[0])
+        assert g.np.allclose(tf.tqs_matrix(*single), scaled[0])
         # but a length-1 stack must stay a stack rather than being squeezed
-        assert [s.shape for s in tf.tqs_from_matrix(matrices[:1])] == [
+        assert [s.shape for s in tf.tqs_from_matrix(scaled[:1])] == [
             (1, 3),
             (1, 4),
             (1, 3),
         ]
 
-    def test_slerp_batched(self):
-        """
-        Spherical interpolation should accept a single value or a stack.
-        """
-        tf = g.trimesh.transformations
-
-        q0 = tf.random_quaternion(num=50, seed=0)
-        q1 = tf.random_quaternion(num=50, seed=1)
+        # ---------------------------------------------------------- slerp
+        q0 = random_quat(num=50, seed=0)
+        q1 = random_quat(num=50, seed=1)
         fraction = g.np.linspace(0.0, 1.0, 50)
 
         batched = tf.quaternion_slerp(q0, q1, fraction)

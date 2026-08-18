@@ -16,7 +16,7 @@ The half that runs inside Blender deliberately does not import trimesh:
 Blender ships its own Python and there is no reliable way to install into
 it. Everything a render needs is in the glTF file already, so that half
 only has to set up the render. Generate an input with
-`examples/animation_cycloidal.py` or `examples/animation_robot.py`.
+`examples/animation_cycloidal.py`.
 
 Produces an MP4 if the output name ends in `.mp4`, otherwise a
 numbered PNG sequence.
@@ -96,11 +96,6 @@ def clear():
 def duration():
     """
     Find the last frame of any imported animation.
-
-    Returns
-    ----------
-    end : int
-      Final frame, or 1 if nothing is animated.
     """
     import bpy
 
@@ -120,20 +115,6 @@ def prefer(target, key, *values):
     so asking for a list in preference order and taking what is there
     beats hard-coding one name and crashing on the version which renamed
     it. Leaves the property alone if none of them exist.
-
-    Parameters
-    ------------
-    target : bpy_struct
-      Object to set the property on.
-    key : str
-      Name of the enum property.
-    values : str
-      Identifiers to try, best first.
-
-    Returns
-    ----------
-    chosen : str or None
-      Which value was set, None if the property was left alone.
     """
     prop = target.bl_rna.properties.get(key)
     if prop is None:
@@ -150,11 +131,6 @@ def prefer(target, key, *values):
 def engine():
     """
     Pick a real-time render engine which exists in this Blender.
-
-    Returns
-    ----------
-    name : str
-      An identifier valid for `scene.render.engine`.
     """
     import bpy
 
@@ -170,13 +146,6 @@ def quality(scene, preset=FINAL):
     """
     Turn on the settings which make glossy materials look like glossy
     materials, skipping any this version of Blender doesn't have.
-
-    Parameters
-    ------------
-    scene : bpy.types.Scene
-      Scene to configure.
-    preset : Preset
-      How much time to spend.
     """
     scene.render.engine = engine()
     scene.render.film_transparent = False
@@ -238,17 +207,6 @@ def quality(scene, preset=FINAL):
 def render(path, output, preset=FINAL, fps=30):
     """
     Import an animated glTF file and render it.
-
-    Parameters
-    ------------
-    path : str
-      Source `.glb` or `.gltf` file.
-    output : str
-      Where to write, `.mp4` for a video or a prefix for PNG frames.
-    preset : Preset
-      How much time to spend.
-    fps : int
-      Frames per second.
     """
     import bpy
 
@@ -278,6 +236,11 @@ def render(path, output, preset=FINAL, fps=30):
     scene.frame_end = duration()
 
     quality(scene, preset=preset)
+
+    # tag the file with what it was rendered at, so a preview and a final
+    # sit next to each other for comparison rather than overwriting
+    root, extension = os.path.splitext(output)
+    output = f"{root}_{preset.resolution[0]}x{preset.resolution[1]}{extension}"
 
     video = output.lower().endswith(".mp4")
     if video:
@@ -309,15 +272,6 @@ def render(path, output, preset=FINAL, fps=30):
 def launch(source, output, preset="final"):
     """
     Find Blender and run this script inside it.
-
-    Parameters
-    ------------
-    source : str
-      Source `.glb` or `.gltf` file.
-    output : str
-      Where to write, `.mp4` for a video or a prefix for PNG frames.
-    preset : str
-      Which entry of `PRESETS` to render with.
     """
     # trimesh already knows where Blender puts itself on every platform,
     # which is more than `shutil.which` will find on Windows or macOS.

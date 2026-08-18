@@ -1,5 +1,4 @@
 import collections
-import uuid
 import warnings
 from copy import deepcopy
 from hashlib import sha256
@@ -1189,7 +1188,9 @@ class Scene(Geometry3D):
         for m in self.geometry.values():
             m.units = value
 
-    def convert_units(self, desired: str, guess: bool = False) -> "Scene":
+    def convert_units(
+        self, desired: str, guess: bool = False, flatten: bool = True
+    ) -> "Scene":
         """
         If geometry has units defined convert them to new units.
 
@@ -1202,6 +1203,8 @@ class Scene(Geometry3D):
         guess : bool
           Is the converter allowed to guess scale when models
           don't have it specified in their metadata.
+        flatten : bool
+          Passed to `Scene.scaled`, see there for what it does.
 
         Returns
         ----------
@@ -1223,7 +1226,7 @@ class Scene(Geometry3D):
         scale = units.unit_conversion(current=current, desired=desired)
 
         # apply scaling factor or exit early if scale ~= 1.0
-        result = self.scaled(scale=scale)
+        result = self.scaled(scale=scale, flatten=flatten)
 
         # apply the units to every geometry of the scaled result
         result.units = desired
@@ -1269,7 +1272,7 @@ class Scene(Geometry3D):
             T_new[:3, 3] += offset
             self.graph[node_name] = T_new
 
-    def scaled(self, scale: Floating | ArrayLike) -> "Scene":
+    def scaled(self, scale: Floating | ArrayLike, flatten: bool = True) -> "Scene":
         """
         Return a copy of the current scene, with meshes and scene
         transforms scaled to the requested factor.
@@ -1278,6 +1281,11 @@ class Scene(Geometry3D):
         -----------
         scale : float or (3,) float
           Factor to scale meshes and transforms
+        flatten : bool
+          May the scene graph be rebuilt flat, baking each geometry's
+          transform into its vertices and discarding both the tree and
+          any node which carries no geometry. Only a uniform scale ever
+          did this, and passing False scales in-place instead.
 
         Returns
         -----------
@@ -1356,18 +1364,15 @@ class Scene(Geometry3D):
                 ).apply_transform(np.linalg.inv(T))
 
             # Scale all transformations in the scene graph
-            edge_data = result.graph.transforms.edge_data
-            for uv in edge_data:
-                if "matrix" in edge_data[uv]:
-                    props = edge_data[uv]
-                    T = edge_data[uv]["matrix"].copy()
-                    T[:3, 3] *= scale
-                    props["matrix"] = T
-                    result.graph.update(frame_from=uv[0], frame_to=uv[1], **props)
-            # Clear cache
-            result.graph.transforms._cache = {}
-            result.graph.transforms._modified = str(uuid.uuid4())
-            result.graph._cache.clear()
+            result.graph.apply_scale(scale)
+        elif not flatten:
+            # scaling the vertices and every edge translation by the same
+            # factor scales the composed world transform by it exactly once,
+            # which leaves the graph, the instancing, and any node which
+            # carries no geometry exactly as they were
+            for geometry in result.geometry.values():
+                geometry.apply_scale(scale)
+            result.graph.apply_scale(scale)
         else:
             # matrix for 2D scaling
             scale_2D = np.eye(3) * scale
@@ -1411,8 +1416,10 @@ class Scene(Geometry3D):
                         frame_to=node, matrix=transform, geometry=geometry
                     )
 
-        # remove camera from copied
-        result._camera = None
+        if flatten:
+            # the rebuild above deleted the nodes these point at
+            result._camera = None
+            result._lights = None
 
         return result
 

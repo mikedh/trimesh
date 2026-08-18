@@ -174,6 +174,41 @@ def test_scaling():
     assert g.np.allclose(scaled.graph.get(frame_to=node, frame_from=parent)[0], after[0])
     scaled.animate(None)
 
+    # `flatten=False` has to put every instance in exactly the same place
+    # as the flattening path it is an alternative to. scale again rather
+    # than reusing `scaled`, which the animation above has since reparented
+    flat = scene.scaled(factor)
+    keep = scene.scaled(factor, flatten=False)
+    a = {m.metadata["node"]: m.bounds for m in flat.dump()}
+    b = {m.metadata["node"]: m.bounds for m in keep.dump()}
+    assert set(a) == set(b)
+    assert all(g.np.allclose(a[n], b[n]) for n in a)
+
+    # comparing the two modes can't catch them being wrong the same way, so
+    # also pin it absolutely: every dumped vertex is the original moved by
+    # exactly `factor`. this fixes position, orientation and size at once
+    # where a bounding box would only fix size
+    truth = {m.metadata["node"]: m.vertices for m in scene.dump()}
+    assert all(
+        g.np.allclose(m.vertices, truth[m.metadata["node"]] * factor) for m in keep.dump()
+    )
+
+    # and it has to leave the scene graph completely alone: the whole point
+    # is that scaling isn't a reason to lose the assembly structure
+    assert set(keep.graph.nodes) == set(scene.graph.nodes)
+    assert keep.graph.transforms.parents == scene.graph.transforms.parents
+    # instancing survives, i.e. geometry wasn't copied per-node
+    assert len(keep.geometry) == len(scene.geometry)
+
+    # the default still flattens, so this can't drift silently: the tree is
+    # gone and so is every node which carried no geometry
+    assert all(
+        flat.graph.transforms.parents.get(n) == flat.graph.base_frame
+        for n in flat.graph.nodes
+        if n != flat.graph.base_frame
+    )
+    assert len(flat.graph.nodes) < len(scene.graph.nodes)
+
     # check bounding primitives
     assert scene.bounding_box.volume > 0.0
     assert scene.bounding_primitive.volume > 0.0

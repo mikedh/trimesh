@@ -61,6 +61,8 @@ def draco_scene():
 
 @needs_draco
 def test_export():
+    from trimesh.exchange.gltf import extensions
+
     scene = draco_scene()
     plain, before = export(scene)
     blob, tree = export(scene, extension_draco=True)
@@ -69,6 +71,9 @@ def test_export():
     # it must shrink, must never happen unasked, and must be declared
     assert len(blob) < len(plain) and b"KHR_draco" not in plain
     assert "KHR_draco_mesh_compression" in tree["extensionsRequired"]
+    # the registration is what dispatches it, as the exporter runs every
+    # handler for the scope rather than naming this one
+    assert "KHR_draco_mesh_compression" in extensions.registered("primitive_export")
 
     # accessors are deduplicated by content, so `fuze` and `duplicate` share one
     # and so do `box` and the point cloud built from its vertices: without that
