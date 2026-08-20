@@ -1339,7 +1339,10 @@ def quaternion_matrix(quaternion):
 
 
     """
-    q = np.array(quaternion, dtype=np.float64).reshape((-1, 4))
+    q = np.array(quaternion, dtype=np.float64)
+    # was this passed a single quaternion or a stack of them
+    single = q.ndim == 1
+    q = q.reshape((-1, 4))
     n = diagonal_dot(q, q)
     # how many entries do we have
     num_qs = len(n)
@@ -1364,14 +1367,21 @@ def quaternion_matrix(quaternion):
     # set any identities
     ret[identities] = np.eye(4)[None, ...]
 
-    return ret.squeeze()
+    # a length-1 stack is still a stack, so only unwrap a single
+    if single:
+        return ret[0]
+    return ret
 
 
 def quaternion_from_matrix(matrix, isprecise=False):
     """Return quaternion from rotation matrix.
 
+    Accepts either a single (4, 4) matrix returning a (4,) quaternion
+    or an (n, 4, 4) stack returning (n, 4) quaternions.
+
     If isprecise is True, the input matrix is assumed to be a precise rotation
-    matrix and a faster algorithm is used.
+    matrix and a faster algorithm is used. Note the precise path branches on
+    which diagonal entry is largest so it only handles a single matrix.
 
     >>> q = quaternion_from_matrix(np.identity(4), True)
     >>> np.allclose(q, [1, 0, 0, 0])
@@ -1406,8 +1416,9 @@ def quaternion_from_matrix(matrix, isprecise=False):
     True
 
     """
-    M = np.asarray(matrix, dtype=np.float64)[:4, :4]
+    M = np.asarray(matrix, dtype=np.float64)
     if isprecise:
+        M = M[:4, :4]
         q = np.zeros((4,))
         t = np.trace(M)
         if t > M[3, 3]:
@@ -1428,32 +1439,128 @@ def quaternion_from_matrix(matrix, isprecise=False):
             q[3] = M[k, j] - M[j, k]
             q = q[[3, 0, 1, 2]]
         q *= 0.5 / np.sqrt(t * M[3, 3])
-    else:
-        m00 = M[0, 0]
-        m01 = M[0, 1]
-        m02 = M[0, 2]
-        m10 = M[1, 0]
-        m11 = M[1, 1]
-        m12 = M[1, 2]
-        m20 = M[2, 0]
-        m21 = M[2, 1]
-        m22 = M[2, 2]
-        # symmetric matrix K
-        K = np.array(
-            [
-                [m00 - m11 - m22, 0.0, 0.0, 0.0],
-                [m01 + m10, m11 - m00 - m22, 0.0, 0.0],
-                [m02 + m20, m12 + m21, m22 - m00 - m11, 0.0],
-                [m21 - m12, m02 - m20, m10 - m01, m00 + m11 + m22],
-            ]
-        )
-        K /= 3.0
-        # quaternion is eigenvector of K that corresponds to largest eigenvalue
-        w, V = np.linalg.eigh(K)
-        q = V[[3, 0, 1, 2], np.argmax(w)]
-    if q[0] < 0.0:
-        np.negative(q, q)
+        if q[0] < 0.0:
+            np.negative(q, q)
+        return q
+
+    # was this passed a single matrix or a stack of them
+    single = M.ndim == 2
+    # only the top-left rotation block is ever read below, which is what
+    # lets a bare (3, 3) through the way the historical crop did
+    M = M.reshape((-1,) + M.shape[-2:])
+
+    # symmetric matrix K, only the lower triangle is referenced by `eigh`
+    K = np.zeros((len(M), 4, 4))
+    K[:, 0, 0] = M[:, 0, 0] - M[:, 1, 1] - M[:, 2, 2]
+    K[:, 1, 0] = M[:, 0, 1] + M[:, 1, 0]
+    K[:, 1, 1] = M[:, 1, 1] - M[:, 0, 0] - M[:, 2, 2]
+    K[:, 2, 0] = M[:, 0, 2] + M[:, 2, 0]
+    K[:, 2, 1] = M[:, 1, 2] + M[:, 2, 1]
+    K[:, 2, 2] = M[:, 2, 2] - M[:, 0, 0] - M[:, 1, 1]
+    K[:, 3, 0] = M[:, 2, 1] - M[:, 1, 2]
+    K[:, 3, 1] = M[:, 0, 2] - M[:, 2, 0]
+    K[:, 3, 2] = M[:, 1, 0] - M[:, 0, 1]
+    K[:, 3, 3] = M[:, 0, 0] + M[:, 1, 1] + M[:, 2, 2]
+    K /= 3.0
+
+    # quaternion is eigenvector of K that corresponds to largest eigenvalue
+    # note `eigh` is batched over leading dimensions and returns eigenvalues
+    # ascending, so the one we want is always the final column
+    q = np.linalg.eigh(K)[1][:, [3, 0, 1, 2], -1]
+    # flip to the positive-real hemisphere
+    q[q[:, 0] < 0.0] *= -1.0
+
+    if single:
+        return q[0]
     return q
+
+
+def tqs_from_matrix(matrices):
+    """Decompose homogeneous transforms into translation, quaternion, and scale.
+
+    Accepts a single (4, 4) matrix or an (n, 4, 4) stack. A matrix can't be
+    interpolated or stored by a format like GLTF and has to be split first.
+    Shear has no exact TQS form so the rotation is the nearest one.
+
+    A mirror can't be a unit quaternion so it lands in the scale:
+
+    >>> M = random_rotation_matrix()
+    >>> M[:3, :3] *= [-1.0, 2.0, 5.0]
+    >>> np.allclose(tqs_matrix(*tqs_from_matrix(M)), M)
+    True
+
+    A stack round trips the same way:
+
+    >>> M = np.array([random_rotation_matrix(), np.identity(4)])
+    >>> np.allclose(tqs_matrix(*tqs_from_matrix(M)), M)
+    True
+
+    """
+    M = np.asanyarray(matrices, dtype=np.float64)
+    # was this passed a single matrix or a stack of them
+    single = M.ndim == 2
+    M = M.reshape((-1, 4, 4))
+
+    # scale is the length of each column of the rotation block
+    scale = np.linalg.norm(M[:, :3, :3], axis=1)
+
+    # a unit quaternion can't hold a reflection, so negate all three
+    # columns of a mirrored block to make it a rotation and carry the
+    # sign in the scale instead
+    flip = np.linalg.det(M[:, :3, :3]) < 0.0
+    unmirrored = M.copy()
+    unmirrored[flip, :3, :3] *= -1.0
+    scale[flip] *= -1.0
+
+    # `quaternion_from_matrix` maximizes `trace(R.T @ M)`, i.e. it is a
+    # polar decomposition, so the scale doesn't need dividing out first
+    quaternion = quaternion_from_matrix(unmirrored).reshape((-1, 4))
+    translation = M[:, :3, 3]
+
+    if single:
+        return translation[0], quaternion[0], scale[0]
+    return translation, quaternion, scale
+
+
+def tqs_matrix(translation, quaternion, scale):
+    """Compose homogeneous transforms from translation, quaternion, and scale.
+
+    The inverse of `tqs_from_matrix`: scale, then rotate, then translate.
+
+    >>> np.allclose(tqs_matrix([1, 2, 3], [1, 0, 0, 0], [1, 1, 1]),
+    ...             translation_matrix([1, 2, 3]))
+    True
+
+    A stack of any argument produces a stack of matrices:
+
+    >>> tqs_matrix([[1, 2, 3], [4, 5, 6]], [1, 0, 0, 0], [1, 1, 1]).shape
+    (2, 4, 4)
+
+    """
+    t = np.asanyarray(translation, dtype=np.float64)
+    q = np.asanyarray(quaternion, dtype=np.float64)
+    s = np.asanyarray(scale, dtype=np.float64)
+
+    # only return a single matrix if everything passed was single
+    single = t.ndim == 1 and q.ndim == 1 and s.ndim == 1
+
+    t = t.reshape((-1, 3))
+    q = q.reshape((-1, 4))
+    s = s.reshape((-1, 3))
+
+    # broadcast to a common length so any argument can be a single value
+    count = max(len(t), len(q), len(s))
+    matrices = np.broadcast_to(
+        quaternion_matrix(q).reshape((-1, 4, 4)), (count, 4, 4)
+    ).copy()
+
+    # scaling column `j` by `s[j]` applies the scale before the rotation
+    matrices[:, :3, :3] *= np.broadcast_to(s, (count, 3)).reshape((-1, 1, 3))
+    matrices[:, :3, 3] = t
+
+    if single:
+        return matrices[0]
+    return matrices
 
 
 def quaternion_multiply(quaternion1, quaternion0):
@@ -1528,6 +1635,9 @@ def quaternion_imag(quaternion):
 def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     """Return spherical linear interpolation between two quaternions.
 
+    Accepts single (4,) quaternions with a scalar fraction, or (n, 4)
+    stacks with an (n,) fraction, returning (n, 4).
+
     >>> q0 = random_quaternion()
     >>> q1 = random_quaternion()
     >>> q = quaternion_slerp(q0, q1, 0)
@@ -1541,29 +1651,46 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     >>> np.allclose(2, np.arccos(np.dot(q0, q1)) / angle) or \
         np.allclose(2, np.arccos(-np.dot(q0, q1)) / angle)
     True
+    >>> f = np.linspace(0.0, 1.0, 5)
+    >>> quaternion_slerp(q0, q1, f).shape
+    (5, 4)
+    >>> np.allclose(quaternion_slerp(q0, q1, f)[2], quaternion_slerp(q0, q1, 0.5))
+    True
 
     """
-    q0 = unit_vector(quat0[:4])
-    q1 = unit_vector(quat1[:4])
-    if fraction == 0.0:
-        return q0
-    elif fraction == 1.0:
-        return q1
-    d = np.dot(q0, q1)
-    if abs(abs(d) - 1.0) < _EPS:
-        return q0
-    if shortestpath and d < 0.0:
-        # invert rotation
-        d = -d
-        np.negative(q1, q1)
-    angle = np.arccos(d) + spin * np.pi
-    if abs(angle) < _EPS:
-        return q0
-    isin = 1.0 / np.sin(angle)
-    q0 *= np.sin((1.0 - fraction) * angle) * isin
-    q1 *= np.sin(fraction * angle) * isin
-    q0 += q1
-    return q0
+    q0 = np.array(quat0, dtype=np.float64)
+    q1 = np.array(quat1, dtype=np.float64)
+    frac = np.array(fraction, dtype=np.float64)
+
+    # only return a single quaternion if everything passed was single
+    single = q0.ndim == 1 and q1.ndim == 1 and frac.ndim == 0
+    # `[..., :4]` truncates an over-length quaternion the way `quat0[:4]` did
+    q0 = unit_vector(q0[..., :4].reshape((-1, 4)), axis=1)
+    q1 = unit_vector(q1[..., :4].reshape((-1, 4)), axis=1)
+    frac = frac.reshape((-1, 1))
+
+    d = diagonal_dot(q0, q1).reshape((-1, 1))
+    # a quaternion and its negation are the same rotation, so flip to
+    # whichever one is the short way around before measuring the arc
+    flip = np.where(shortestpath & (d < 0.0), -1.0, 1.0)
+    short = q1 * flip
+
+    # clip as floating point error can push `d` outside the arccos domain
+    angle = np.arccos(np.clip(d * flip, -1.0, 1.0)) + spin * np.pi
+    # parallel quaternions have no arc to travel along and would divide
+    # by zero below, so substitute a dummy angle and replace them after
+    degenerate = (np.abs(np.abs(d) - 1.0) < _EPS) | (np.abs(angle) < _EPS)
+    isin = 1.0 / np.sin(np.where(degenerate, 1.0, angle))
+
+    result = (q0 * np.sin((1.0 - frac) * angle) + short * np.sin(frac * angle)) * isin
+    # a degenerate arc holds at its start, and an endpoint returns the
+    # quaternion as passed rather than with a shortest-path sign flip
+    result = np.where(degenerate | (frac == 0.0), q0, result)
+    result = np.where(frac == 1.0, q1, result)
+
+    if single:
+        return result[0]
+    return result
 
 
 def random_quaternion(rand=None, num=1, seed: Seed = None):

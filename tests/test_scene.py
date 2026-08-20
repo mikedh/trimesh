@@ -123,6 +123,11 @@ def test_cam_gltf():
         assert r.camera.name == cam.name
         assert (r.camera.fov == cam.fov).all()
         assert r.camera.z_near == cam.z_near
+        # a GLTF camera with no `zfar` means an *infinite* projection
+        # rather than a default one, and a renderer takes that at its
+        # word: it sizes its depth buffer and any depth-binned light
+        # culling against it, so dropping this renders the scene black
+        assert r.camera.z_far == cam.z_far
 
 
 def test_scaling():

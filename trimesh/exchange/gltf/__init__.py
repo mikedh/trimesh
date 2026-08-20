@@ -22,7 +22,10 @@ from ...scene.cameras import Camera
 from ...scene.transforms import DEFAULT_BASE_FRAME
 from ...typed import NDArray, Stream
 from ...util import triangle_strips_to_faces, unique_name
+from .animation import append_animations, parse_animations
 from .extensions import handle_extensions, unregistered
+from .lights import NAME as _LIGHTS
+from .lights import append_lights, parse_lights
 
 # magic numbers which have meaning in GLTF
 # most are uint32's of UTF-8 text
@@ -695,7 +698,8 @@ def _create_gltf_structure(
             tree["scenes"][0]["extras"] = _jsonify(scene.metadata)
             extensions = tree["scenes"][0]["extras"].pop("gltf_extensions", None)
             if isinstance(extensions, dict):
-                tree["extensions"] = extensions
+                # update rather than assign as lights may already be here
+                tree.setdefault("extensions", {}).update(extensions)
         except BaseException:
             log.debug("failed to export scene metadata!", exc_info=True)
 
@@ -742,7 +746,25 @@ def _create_gltf_structure(
     # set the roots on the existing scene dict — it may already
     # hold `extras` with the scene metadata
     tree["scenes"][0]["nodes"] = nodes.pop("scene_roots")
+    # {node name : index in tree["nodes"]} which animation channels and
+    # lights target by index, pop so it isn't serialized into the header
+    node_index = nodes.pop("node_index")
     tree.update(nodes)
+
+    # note this checks `has_lights` rather than `lights`, which would
+    # generate a default pair for a scene that never had any
+    if scene.has_lights:
+        append_lights(scene.lights, tree=tree, node_index=node_index)
+
+    # add any keyframed animation, which also rewrites the nodes it
+    # targets from a `matrix` into TRS as the spec requires
+    if len(getattr(scene, "animations", [])) > 0:
+        append_animations(
+            tree=tree,
+            buffer_items=buffer_items,
+            animations=scene.animations,
+            node_index=node_index,
+        )
 
     extensions_used = set()
     extensions_required = set()
@@ -1503,6 +1525,9 @@ def _read_buffers(
       Can be passed to load_kwargs for a trimesh.Scene
     """
 
+    # decoded accessor data, empty if the file has no buffers at all
+    access = []
+
     if "bufferViews" in header:
         # split buffer data into buffer views
         views = [None] * len(header["bufferViews"])
@@ -1859,6 +1884,10 @@ def _read_buffers(
     # index-keyed dict intentionally holds one string key for the base
     names[DEFAULT_BASE_FRAME] = DEFAULT_BASE_FRAME
 
+    # resolved before the traversal below, which is a stack and visits
+    # nodes in an order that has nothing to do with the file's
+    lights = parse_lights(header, names)
+
     # visited, kwargs for scene.graph.update
     graph = deque()
     # unvisited, pairs of node indexes
@@ -1957,11 +1986,16 @@ def _read_buffers(
         if isinstance(child.get("extras"), dict):
             kwargs["metadata"] = child["extras"]
 
-        # put any node extensions in a field of the metadata
+        # put any node extensions in a field of the metadata, less the
+        # light collected above: unlike the camera the node stays in the
+        # graph so the light's transform is just an edge, which also
+        # makes it animatable like anything else
         if "extensions" in child:
-            if "metadata" not in kwargs:
-                kwargs["metadata"] = {}
-            kwargs["metadata"]["gltf_extensions"] = child["extensions"]
+            extensions = {k: v for k, v in child["extensions"].items() if k != _LIGHTS}
+            if len(extensions) > 0:
+                if "metadata" not in kwargs:
+                    kwargs["metadata"] = {}
+                kwargs["metadata"]["gltf_extensions"] = extensions
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]
@@ -2000,7 +2034,16 @@ def _read_buffers(
         "base_frame": DEFAULT_BASE_FRAME,
         "camera": camera,
         "camera_transform": camera_transform,
+        "lights": lights,
         "metadata": {},
+        # the traversal above already worked out which edge every node
+        # sits on, which is the edge an animation targeting it drives
+        "animations": parse_animations(
+            header=header,
+            access=access,
+            names=names,
+            edges={k["frame_to"]: k["frame_from"] for k in graph},
+        ),
     }
 
     try:
@@ -2048,7 +2091,13 @@ def _cam_from_gltf(cam):
 
     fov = (aspect_ratio * yfov, yfov)
 
-    return Camera(name=name, fov=fov, z_near=znear)
+    kwargs = {}
+    # `zfar` is optional and means an infinite projection when missing,
+    # so only override the default when the file actually says something
+    if "zfar" in cam["perspective"]:
+        kwargs["z_far"] = float(cam["perspective"]["zfar"])
+
+    return Camera(name=name, fov=fov, z_near=znear, **kwargs)
 
 
 def _convert_camera(camera):
@@ -2072,6 +2121,11 @@ def _convert_camera(camera):
             "aspectRatio": camera.fov[0] / camera.fov[1],
             "yfov": np.radians(camera.fov[1]),
             "znear": float(camera.z_near),
+            # omitting this means an *infinite* projection rather than a
+            # default one, and a renderer takes that at its word: it sizes
+            # its depth buffer and any depth-binned light culling against
+            # it, so leaving it out can quietly render the scene black
+            "zfar": float(camera.z_far),
         },
     }
     return result

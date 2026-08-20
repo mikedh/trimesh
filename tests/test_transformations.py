@@ -297,6 +297,114 @@ class TransformTest(g.unittest.TestCase):
             assert g.np.allclose(s, n)
 
 
+def scaled_matrices(count=100, seed=0):
+    """
+    A stack of transforms with non-uniform scale throughout and a mirror
+    every fifth, which is the case a TQS split can't shortcut its way past.
+    """
+    tf = g.trimesh.transformations
+    random = g.np.random.default_rng(seed)
+
+    matrices = tf.random_rotation_matrix(num=count, seed=seed)
+    scale = random.uniform(0.2, 4.0, (count, 3))
+    scale[::5, 0] *= -1.0
+    matrices[:, :3, :3] *= scale.reshape((-1, 1, 3))
+    matrices[:, :3, 3] = random.uniform(-10.0, 10.0, (count, 3))
+
+    return matrices, scale
+
+
+def test_tqs():
+    tf = g.trimesh.transformations
+    matrices, scale = scaled_matrices()
+    assert (g.np.linalg.det(matrices[::5, :3, :3]) < 0).all()
+
+    translation, quaternion, recovered = tf.tqs_from_matrix(matrices)
+    assert [x.shape for x in (translation, quaternion, recovered)] == [
+        (100, 3),
+        (100, 4),
+        (100, 3),
+    ]
+
+    # round tripping is the strongest predicate available: it is invariant
+    # to the sign convention so it can't be cheated, and it catches `wxyz`
+    # vs `xyzw` ordering, non-uniform scale, and where a mirror was pushed
+    assert g.np.allclose(tf.tqs_matrix(translation, quaternion, recovered), matrices)
+    assert g.np.allclose(g.np.abs(recovered), g.np.abs(scale))
+    # the rotation factor is always a unit quaternion
+    assert g.np.allclose(g.np.linalg.norm(quaternion, axis=1), 1.0)
+    # and the mirrored ones are exactly the ones which came back negative
+    assert g.np.array_equal(
+        (recovered < 0).any(axis=1), g.np.linalg.det(matrices[:, :3, :3]) < 0
+    )
+
+    # a degenerate zero-scale axis must not divide by zero
+    flat = g.np.tile(g.np.eye(4), (3, 1, 1))
+    flat[1, :3, :3] *= [0.0, 1.0, 1.0]
+    flat[2, :3, :3] *= 0.0
+    assert g.np.allclose(tf.tqs_matrix(*tf.tqs_from_matrix(flat)), flat)
+
+    # a single matrix returns single values rather than stacks
+    single = tf.tqs_from_matrix(matrices[0])
+    assert [x.shape for x in single] == [(3,), (4,), (3,)]
+    assert g.np.allclose(tf.tqs_matrix(*single), matrices[0])
+    # but a length-1 stack must stay a stack rather than being squeezed
+    assert [x.shape for x in tf.tqs_from_matrix(matrices[:1])] == [(1, 3), (1, 4), (1, 3)]
+    assert tf.tqs_matrix(*tf.tqs_from_matrix(matrices[:1])).shape == (1, 4, 4)
+
+    # the same squeeze rule for the quaternion helpers a TQS is built on
+    assert tf.quaternion_from_matrix(matrices[0]).shape == (4,)
+    assert tf.quaternion_from_matrix(matrices[:1]).shape == (1, 4)
+    assert tf.quaternion_matrix(quaternion[0]).shape == (4, 4)
+    assert tf.quaternion_matrix(quaternion[:1]).shape == (1, 4, 4)
+    # and the batched decomposition agrees with doing them one at a time
+    assert g.np.allclose(
+        tf.quaternion_from_matrix(matrices),
+        [tf.quaternion_from_matrix(m) for m in matrices],
+    )
+
+
+def test_slerp():
+    tf = g.trimesh.transformations
+    q0 = tf.random_quaternion(num=50, seed=0)
+    q1 = tf.random_quaternion(num=50, seed=1)
+    fraction = g.np.linspace(0.0, 1.0, 50)
+
+    batched = tf.quaternion_slerp(q0, q1, fraction)
+    assert batched.shape == (50, 4)
+    # the batched form must agree with calling it one at a time
+    assert g.np.allclose(
+        batched, [tf.quaternion_slerp(a, b, f) for a, b, f in zip(q0, q1, fraction)]
+    )
+    # interpolation stays on the unit sphere the whole way
+    assert g.np.allclose(g.np.linalg.norm(batched, axis=1), 1.0)
+
+    # the endpoints come back exactly as passed, i.e. without the sign
+    # flip the shortest-path search may have applied along the way
+    assert g.np.allclose(tf.quaternion_slerp(q0, q1, 0.0), q0)
+    assert g.np.allclose(tf.quaternion_slerp(q0, q1, 1.0), q1)
+
+    # a single value of any argument broadcasts against the others
+    assert tf.quaternion_slerp(q0, q1, 0.5).shape == (50, 4)
+    assert tf.quaternion_slerp(q0[0], q1[0], fraction).shape == (50, 4)
+    assert tf.quaternion_slerp(q0[0], q1[0], 0.5).shape == (4,)
+
+    # a spherical interpolation travels the arc at a constant rate, which
+    # is what separates it from a straight blend: the angle away from the
+    # start grows linearly with the fraction
+    step = g.np.linspace(0.0, 1.0, 21)
+    walk = tf.quaternion_slerp(q0[0], q1[0], step)
+    angle = g.np.arccos(g.np.clip(g.np.abs(g.np.dot(walk, q0[0])), -1.0, 1.0))
+    assert angle[-1] > 0.2
+    assert g.np.allclose(angle, step * angle[-1])
+
+    # identical quaternions are a degenerate arc which would otherwise
+    # divide by zero, and must simply hold rather than return nan
+    held = tf.quaternion_slerp(q0, q0, fraction)
+    assert g.np.isfinite(held).all()
+    assert g.np.allclose(held, q0)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()

@@ -1,14 +1,13 @@
 import collections
-import uuid
 import warnings
 from copy import deepcopy
 from hashlib import sha256
-from typing import TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 # ruff doesn't recognize this correctly when we re-import it from trimesh.typed -_-
 import numpy as np
 
-from .. import caching, convex, grouping, inertia, transformations, units, util
+from .. import caching, convex, inertia, transformations, units, util
 from ..constants import log
 from ..exchange import export
 from ..parent import Geometry, Geometry3D
@@ -28,6 +27,9 @@ from ..typed import (
 from ..util import unique_name
 from . import cameras, lighting
 from .transforms import SceneGraph
+
+if TYPE_CHECKING:
+    from .animation import RigidAnimation
 
 # the types of objects we can create a scene from
 GeometryInput: TypeAlias = Geometry | Iterable[Geometry] | dict[str, Geometry] | ArrayLike
@@ -76,6 +78,10 @@ class Scene(Geometry3D):
 
         # create a new graph
         self.graph = SceneGraph(base_frame=base_frame)
+
+        # keyframed animation, those sharing a name are
+        # exported as a single glTF animation
+        self.animations: list[RigidAnimation] = []
 
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
@@ -837,6 +843,48 @@ class Scene(Geometry3D):
         return hasattr(self, "_camera") and self._camera is not None
 
     @property
+    def has_lights(self) -> bool:
+        # note this deliberately does not touch `self.lights`, which
+        # would generate a default pair rather than reporting there
+        # aren't any: an exporter wants to know what was actually set
+        return getattr(self, "_lights", None) is not None
+
+    @property
+    def duration(self) -> float:
+        """
+        How long the longest animation in this scene runs for.
+
+        Returns
+        -------------
+        duration
+          Length in seconds, zero if the scene isn't animated.
+        """
+        return max((a.duration for a in self.animations), default=0.0)
+
+    def animate(self, time: Floating, name: str | None = None) -> None:
+        """
+        Set every animated edge of the scene graph to its pose at a time.
+
+        Note this writes the graph in place: keep a `scene.copy()` if you
+        want the pose it had before.
+
+        Parameters
+        --------------
+        time
+          Time to sample at, in seconds.
+        name
+          Only apply animations with this name, None for all of them.
+        """
+        for animation in self.animations:
+            if name is not None and animation.name != name:
+                continue
+            self.graph.update(
+                frame_from=animation.frame_from,
+                frame_to=animation.frame_to,
+                matrix=animation.at(time),
+            )
+
+    @property
     def lights(self) -> list[lighting.Light]:
         """
         Get a list of the lights in the scene. If nothing is
@@ -1008,6 +1056,14 @@ class Scene(Geometry3D):
         geometry_names = {e[2]["geometry"] for e in edges if "geometry" in e[2]}
         geometry = {k: self.geometry[k] for k in geometry_names}
         result = Scene(geometry=geometry, graph=graph)
+
+        # carry any animation which drives an edge that survived: as the
+        # subscene is rooted at `node` its own edge is no longer drivable
+        for animation in self.animations:
+            if animation.frame_to in nodes and animation.frame_to != node:
+                result.animations.append(deepcopy(animation))
+            else:
+                log.debug(f"dropping animation targeting `{animation.frame_to}`")
         return result
 
     @caching.cache_decorator
@@ -1202,6 +1258,17 @@ class Scene(Geometry3D):
         if np.allclose(scale, 1.0):
             return result
 
+        # keyframe translations live in the same space as the graph edges
+        # they drive, so they have to scale with them or the animation
+        # would quietly play at the original size in a scaled scene
+        for animation in result.animations:
+            keyframes = animation.keyframes
+            keyframes["translation"] *= scale
+            keyframes["translation_in"] *= scale
+            keyframes["translation_out"] *= scale
+            # re-assign to bump the cache which `matrices` is keyed on
+            animation.keyframes = keyframes
+
         # convert 2D geometries to 3D for 3D scaling factors
         scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
 
@@ -1256,64 +1323,29 @@ class Scene(Geometry3D):
                     scale
                 ).apply_transform(np.linalg.inv(T))
 
-            # Scale all transformations in the scene graph
-            edge_data = result.graph.transforms.edge_data
-            for uv in edge_data:
-                if "matrix" in edge_data[uv]:
-                    props = edge_data[uv]
-                    T = edge_data[uv]["matrix"].copy()
-                    T[:3, 3] *= scale
-                    props["matrix"] = T
-                    result.graph.update(frame_from=uv[0], frame_to=uv[1], **props)
-            # Clear cache
-            result.graph.transforms._cache = {}
-            result.graph.transforms._modified = str(uuid.uuid4())
-            result.graph._cache.clear()
         else:
-            # matrix for 2D scaling
-            scale_2D = np.eye(3) * scale
-            # matrix for 3D scaling
-            scale_3D = np.eye(4) * scale
+            # a uniform scale is the same in every axis, so it doesn't
+            # matter what pose a geometry is in: scale it where it sits
+            for geometry in result.geometry.values():
+                geometry.apply_scale(scale)
 
-            # preallocate transforms and geometries
-            nodes = np.array(self.graph.nodes_geometry)
-            transforms = np.zeros((len(nodes), 4, 4))
-            geometries = [None] * len(nodes)
+        # scaling every vertex and every edge translation by the same factor
+        # scales the composed world transform by it exactly once, which
+        # leaves the graph, the instancing, and any node which carries no
+        # geometry exactly as they were — including the ones an animation
+        # drives, and the ones the camera and lights hang from
+        edges = [e for e in result.graph.transforms.edge_data.values() if "matrix" in e]
+        if len(edges) > 0:
+            # stack so the arithmetic is one operation rather than one per edge
+            matrices = np.array([e["matrix"] for e in edges])
+            matrices[:, :3, 3] *= scale
+            for edge, matrix in zip(edges, matrices):
+                edge["matrix"] = matrix
 
-            # collect list of transforms
-            for i, node in enumerate(nodes):
-                transforms[i], geometries[i] = self.graph[node]
-
-            # remove all existing transforms
-            result.graph.clear()
-
-            for group in grouping.group(geometries):
-                # hashable reference to self.geometry
-                geometry = geometries[group[0]]
-                # original transform from world to geometry
-                original = transforms[group[0]]
-                # transform for geometry
-                new_geom = np.dot(scale_3D, original)
-
-                if result.geometry[geometry].vertices.shape[1] == 2:
-                    # if our scene is 2D only scale in 2D
-                    result.geometry[geometry].apply_transform(scale_2D)
-                else:
-                    # otherwise apply the full transform
-                    result.geometry[geometry].apply_transform(new_geom)
-
-                for node, T in zip(nodes[group], transforms[group]):
-                    # generate the new transforms
-                    transform = util.multi_dot([scale_3D, T, np.linalg.inv(new_geom)])
-                    # apply scale to translation
-                    transform[:3, 3] *= scale
-                    # update scene with new transforms
-                    result.graph.update(
-                        frame_to=node, matrix=transform, geometry=geometry
-                    )
-
-        # remove camera from copied
-        result._camera = None
+        # the hash covers every edge matrix and has to be dirtied by hand
+        # after touching them. the forest's own cache holds shortest paths,
+        # which are topology, so those are still valid
+        result.graph.transforms._hash = None
 
         return result
 
@@ -1343,6 +1375,12 @@ class Scene(Geometry3D):
             metadata=self.metadata.copy(),
             camera=camera,
         )
+        # deep copy so the keyframe arrays aren't shared with the original
+        copied.animations = [deepcopy(a) for a in self.animations]
+
+        if self.has_lights:
+            # lights are plain values so a deepcopy is safe here
+            copied.lights = deepcopy(self.lights)
         return copied
 
     def show(
@@ -1481,6 +1519,8 @@ def append_scenes(iterable, common=None, base_frame="world"):
     geometry = {}
     # save transforms as edge tuples
     edges = []
+    # animations, with their frames remapped alongside the edges
+    animations = []
 
     # nodes which shouldn't be remapped
     common = set(common)
@@ -1558,10 +1598,22 @@ def append_scenes(iterable, common=None, base_frame="world"):
         # mark nodes from current scene as consumed
         consumed.update(current)
 
+        # animations drive edges, so they have to follow the same node
+        # renaming the edges just went through or they'd target nothing
+        for animation in s.animations:
+            moved = deepcopy(animation)
+            moved.frame_to = map_node.get(animation.frame_to, animation.frame_to)
+            if animation.frame_from is not None:
+                moved.frame_from = map_node.get(
+                    animation.frame_from, animation.frame_from
+                )
+            animations.append(moved)
+
     # add all data to a new scene
     result = Scene(base_frame=base_frame)
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
+    result.animations.extend(animations)
 
     return result
 

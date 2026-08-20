@@ -1260,6 +1260,313 @@ class GLTFTest(g.unittest.TestCase):
         assert mean_squared_error < 10.0
 
 
+def animated_scene(interpolation="linear", name="spin"):
+    """
+    A scene with a nested animated node whose parent carries a `matrix`,
+    which is the case the exporter has to rewrite into TRS.
+    """
+    from trimesh.scene.animation import RigidAnimation
+
+    scene = g.trimesh.Scene()
+    scene.add_geometry(
+        g.trimesh.creation.box(),
+        node_name="mover",
+        parent_node_name="rig",
+        transform=g.trimesh.transformations.translation_matrix([0, 0, 3]),
+    )
+    scene.graph.update(
+        frame_to="rig",
+        matrix=g.trimesh.transformations.rotation_matrix(0.6, [1, 1, 0], [2, 0, 0]),
+    )
+
+    times = g.np.linspace(0.0, 2.0, 9)
+    # a full turn, which is what makes the hemisphere check below bite:
+    # halfway around, adjacent quaternions land in opposite hemispheres
+    matrices = g.trimesh.transformations.quaternion_matrix(
+        g.np.column_stack(
+            [
+                g.np.cos(times * g.np.pi / 2.0),
+                g.np.zeros((len(times), 2)),
+                g.np.sin(times * g.np.pi / 2.0),
+            ]
+        )
+    )
+    matrices[:, :3, 3] = g.np.column_stack([times, times * 2.0, g.np.zeros(len(times))])
+
+    scene.animations.append(
+        RigidAnimation(
+            frame_to="mover",
+            frame_from="rig",
+            times=times,
+            matrices=matrices,
+            name=name,
+            interpolation=interpolation,
+        )
+    )
+    return scene
+
+
+def test_animation_gltf():
+    """
+    Animations must survive a GLB round trip and satisfy the parts of
+    the spec the schema alone can't check.
+    """
+    scene = animated_scene()
+    export = scene.export(file_type="glb")
+    validate_glb(export, "animation")
+    reloaded = g.roundtrip(export, "glb")
+
+    assert len(reloaded.animations) == 1
+    other = reloaded.animations[0]
+    assert other.name == "spin"
+    assert other.frame_to == "mover"
+    # a GLTF channel targets a node and leaves the parent implied, so the
+    # edge has to be recovered from the node tree rather than guessed
+    assert other.frame_from == "rig"
+    assert reloaded.graph.transforms.parents["mover"] == "rig"
+    assert other.interpolation == "linear"
+
+    # sample densely rather than comparing keyframes, so this holds for
+    # the whole curve and not just the points it was built from.
+    # float32 is what GLTF stores keyframes as
+    dense = g.np.linspace(0.0, 2.0, 61)
+    assert g.np.allclose(scene.animations[0].at(dense), other.at(dense), atol=1e-5)
+
+    header, blob = glb_chunks(export)
+    node_name = {n.get("name"): i for i, n in enumerate(header["nodes"])}
+    animation = header["animations"][0]
+
+    # the spec forbids a `matrix` on any node an animation targets, and
+    # requires each {node, path} target within one animation be unique
+    targets = [(c["target"]["node"], c["target"]["path"]) for c in animation["channels"]]
+    assert len(set(targets)) == len(targets)
+    for node, _path in targets:
+        assert "matrix" not in header["nodes"][node]
+    # the rewrite has to preserve the node it rewrote, not zero it out
+    mover = header["nodes"][node_name["mover"]]
+    assert g.np.allclose(mover["translation"], [0, 0, 3])
+    # and the node which is *not* animated keeps its matrix untouched
+    assert "matrix" in header["nodes"][node_name["rig"]]
+
+    accessors = accessor_values(header, blob)
+    used = set()
+    for channel in animation["channels"]:
+        sampler = animation["samplers"][channel["sampler"]]
+        used.update((sampler["input"], sampler["output"]))
+        stamps = accessors[sampler["input"]].reshape(-1)
+        values = accessors[sampler["output"]]
+        # a sampler's input and output have to correspond, and the spec
+        # requires the time accessor declare its own min and max
+        assert len(stamps) == len(values)
+        assert (g.np.diff(stamps) >= 0).all()
+        assert g.np.allclose(header["accessors"][sampler["input"]]["min"], stamps.min())
+        assert g.np.allclose(header["accessors"][sampler["input"]]["max"], stamps.max())
+
+        if channel["target"]["path"] == "rotation":
+            assert g.np.allclose(g.np.linalg.norm(values, axis=1), 1.0, atol=1e-6)
+            # adjacent keyframes must share a hemisphere or a viewer
+            # interpolating linearly takes the long way and visibly jerks
+            assert (g.np.sum(values[1:] * values[:-1], axis=1) >= 0).all()
+
+    # every accessor in the file is referenced by something: a channel
+    # dropped as static must not strand the accessor it would have used
+    mesh_used = {
+        a
+        for m in header["meshes"]
+        for p in m["primitives"]
+        for a in list(p["attributes"].values()) + [p.get("indices")]
+    }
+    assert used | mesh_used | {None} >= set(range(len(header["accessors"]))) | {None}
+
+    # a scene with no animation must not grow an `animations` key at all
+    plain = g.trimesh.Scene(g.trimesh.creation.box())
+    assert "animations" not in glb_chunks(plain.export(file_type="glb"))[0]
+
+    # a real file with real animation, which no synthetic scene can stand
+    # in for: two LINEAR wheel rotations on nodes under `matrix` parents
+    truck = g.get_mesh("CesiumMilkTruck.glb")
+    assert len(truck.animations) == 2
+    dense = g.np.linspace(0.0, truck.duration, 41)
+    before = {a.frame_to: a.at(dense) for a in truck.animations}
+    again = g.roundtrip(truck.export(file_type="glb"), "glb")
+    after = {a.frame_to: a.at(dense) for a in again.animations}
+    assert set(before) == set(after)
+    assert all(g.np.allclose(before[k], after[k], atol=1e-5) for k in before)
+
+    # a channel which never moves isn't written at all: the truck only
+    # spins its wheels, so a re-export must not invent the translation
+    # and scale channels it never had
+    again_header = glb_chunks(truck.export(file_type="glb"))[0]
+    assert {
+        c["target"]["path"] for a in again_header["animations"] for c in a["channels"]
+    } == {"rotation"}
+
+    # driving the graph has to agree with sampling the animation
+    truck.animate(dense[7])
+    for a in truck.animations:
+        assert g.np.allclose(
+            truck.graph.get(frame_to=a.frame_to, frame_from=a.frame_from)[0],
+            a.at(dense[7]),
+        )
+
+
+def test_animation_cubic_gltf():
+    """
+    A CUBICSPLINE sampler interleaves in-tangent, value, and out-tangent
+    per keyframe, so the accessor is three times as long as its input.
+    """
+    scene = animated_scene(interpolation="cubic")
+    keyframes = scene.animations[0].keyframes
+    keyframes["translation_in"] = 1.5
+    keyframes["translation_out"] = 1.5
+    scene.animations[0].keyframes = keyframes
+
+    export = scene.export(file_type="glb")
+    validate_glb(export, "animation-cubic")
+    header, blob = glb_chunks(export)
+
+    animation = header["animations"][0]
+    assert {s["interpolation"] for s in animation["samplers"]} == {"CUBICSPLINE"}
+    accessors = accessor_values(header, blob)
+    for sampler in animation["samplers"]:
+        assert len(accessors[sampler["output"]]) == 3 * len(accessors[sampler["input"]])
+
+    reloaded = g.roundtrip(export, "glb")
+    other = reloaded.animations[0]
+    assert other.interpolation == "cubic"
+    # the tangents have to come back on the right side of the keyframe,
+    # which a dense compare pins and a keyframe compare would not
+    dense = g.np.linspace(0.0, 2.0, 61)
+    assert g.np.allclose(scene.animations[0].at(dense), other.at(dense), atol=1e-4)
+    # and they are genuinely bending the curve, i.e. this isn't a linear
+    # animation which happens to be labelled cubic
+    flat = g.trimesh.scene.animation.RigidAnimation(
+        frame_to="mover", keyframes=other.keyframes, interpolation="linear"
+    )
+    assert g.np.abs(other.at(dense) - flat.at(dense)).max() > 1e-2
+
+
+def test_lights_gltf():
+    """
+    `KHR_lights_punctual` stores lights once in a document array with
+    each node referencing one by index, so both halves have to agree.
+    """
+    lighting = g.trimesh.scene.lighting
+    scene = g.trimesh.Scene(g.trimesh.creation.box())
+    scene.lights = [
+        lighting.DirectionalLight(name="key", color=[255, 244, 224, 255]),
+        lighting.PointLight(name="fill", intensity=7.5, radius=12.0),
+        lighting.SpotLight(name="rim", innerConeAngle=0.2, outerConeAngle=0.6),
+    ]
+    for light, x in zip(scene.lights, [1.0, -2.0, 3.0]):
+        scene.graph[light.name] = g.trimesh.transformations.translation_matrix([x, 0, 2])
+
+    export = scene.export(file_type="glb")
+    validate_glb(export, "lights")
+    reloaded = g.roundtrip(export, "glb")
+
+    assert [type(x).__name__ for x in reloaded.lights] == [
+        type(x).__name__ for x in scene.lights
+    ]
+    for before, after in zip(scene.lights, reloaded.lights):
+        assert before.name == after.name
+        assert g.np.allclose(before.color, after.color, atol=1)
+        assert g.np.isclose(before.intensity, after.intensity)
+        assert before.radius == after.radius
+        # a light without its transform is not a light
+        assert g.np.allclose(scene.graph[before.name][0], reloaded.graph[after.name][0])
+    assert g.np.isclose(reloaded.lights[-1].innerConeAngle, 0.2)
+    assert g.np.isclose(reloaded.lights[-1].outerConeAngle, 0.6)
+
+    header = glb_chunks(export)[0]
+    stored = header["extensions"]["KHR_lights_punctual"]["lights"]
+    name_index = {n.get("name"): i for i, n in enumerate(header["nodes"])}
+    # a node refers to a light by its *position* in the document array,
+    # which is the one contract joining the two halves of the extension
+    for i, light in enumerate(scene.lights):
+        node = header["nodes"][name_index[light.name]]
+        assert node["extensions"]["KHR_lights_punctual"]["light"] == i
+        assert stored[i]["name"] == light.name
+    assert "KHR_lights_punctual" in header["extensionsUsed"]
+
+    # a light must not also survive as node metadata, or a re-export
+    # would write it twice and the two copies could drift apart
+    assert all(
+        "KHR_lights_punctual"
+        not in (reloaded.graph.transforms.node_data.get(n) or {})
+        .get("metadata", {})
+        .get("gltf_extensions", {})
+        for n in reloaded.graph.nodes
+    )
+
+    # a scene which never had lights set shouldn't grow the extension, as
+    # `scene.lights` would happily invent a default pair on being asked
+    plain = g.trimesh.Scene(g.trimesh.creation.box())
+    assert not plain.has_lights
+    assert "KHR_lights_punctual" not in plain.export(file_type="gltf")[
+        "model.gltf"
+    ].decode("utf8")
+
+
+def glb_chunks(export):
+    """
+    Split a GLB into its JSON header and binary buffer.
+
+    Parameters
+    ------------
+    export : bytes
+      A GLB file.
+
+    Returns
+    ----------
+    header : dict
+      Parsed JSON chunk.
+    blob : bytes
+      The binary chunk.
+    """
+    chunks = {}
+    start = 12
+    while start < len(export):
+        length, kind = g.np.frombuffer(export[start : start + 8], dtype="<u4")
+        chunks[int(kind)] = export[start + 8 : start + 8 + int(length)]
+        start += 8 + int(length)
+
+    # 0x4E4F534A is "JSON" and 0x004E4942 is "BIN"
+    return g.json.loads(chunks[0x4E4F534A]), chunks[0x004E4942]
+
+
+def accessor_values(header, blob):
+    """
+    Decode every accessor in a GLB into numpy arrays.
+
+    Parameters
+    ------------
+    header : dict
+      GLTF header.
+    blob : bytes
+      The GLB binary chunk the buffer views index into.
+
+    Returns
+    ----------
+    values : list
+      Numpy array for each accessor.
+    """
+    from trimesh.exchange.gltf import _dtypes, _shapes
+
+    values = []
+    for accessor in header["accessors"]:
+        view = header["bufferViews"][accessor["bufferView"]]
+        start = view.get("byteOffset", 0) + accessor.get("byteOffset", 0)
+        dtype = g.np.dtype(_dtypes[accessor["componentType"]])
+        # how many values make up one element
+        per_count = int(g.np.prod(_shapes[accessor["type"]]))
+        length = accessor["count"] * per_count * dtype.itemsize
+        data = g.np.frombuffer(blob[start : start + length], dtype=dtype)
+        values.append(data.reshape((accessor["count"], per_count)))
+
+    return values
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()
