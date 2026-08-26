@@ -2,9 +2,10 @@
 
 Contributions are welcome, and AI is obviously a great tool! However there are a few notes:
 
+- We're trying to keep every line human-read and human-run every line at least once, so the larger the diff the less likely a PR is to be merged.
 - Please only open one PR at a time.
 - Please keep AI text in written issues and PR bodies to 50 words or less.
-- Clearly AI generated PRs and issues will probably get AI generated responses.
+- Clearly AI generated PRs and issues may get AI generated responses.
 - API changes, dependency additions, "full algorithm rewrites" without prior discussion are pretty unlikely to be merged.
 - Please read the `contributing.md` guide for instructions on surgical fixes with maximal test coverage.
 

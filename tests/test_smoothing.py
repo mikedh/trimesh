@@ -90,9 +90,7 @@ class SmoothTest(g.unittest.TestCase):
             g.trimesh.smoothing.filter_laplacian(
                 m, iterations=10, laplacian_operator=operator
             )
-            drifts.append(
-                g.np.linalg.norm(m.vertices[pinned] - start, axis=1).max()
-            )
+            drifts.append(g.np.linalg.norm(m.vertices[pinned] - start, axis=1).max())
 
         assert g.np.allclose(drifts[0], drifts[1])
 

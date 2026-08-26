@@ -5,11 +5,16 @@ sample.py
 Randomly sample surface and volume of meshes.
 """
 
+from logging import getLogger
+
 import numpy as np
 
-from . import transformations, util
+from . import transformations
 from .typed import ArrayLike, Integer, NDArray, Number, Seed, float64
+from .util import random_generator, spherical_to_vector
 from .visual import uv_to_interpolated_color
+
+log = getLogger(__name__)
 
 
 def sample_surface(
@@ -60,7 +65,7 @@ def sample_surface(
     # cumulative sum of weights (len(mesh.faces))
     weight_cum = np.cumsum(face_weight)
 
-    random = util.random_generator(seed).random
+    random = random_generator(seed).random
 
     # last value of cumulative sum is total summed weight/area
     face_pick = random(count) * weight_cum[-1]
@@ -136,7 +141,7 @@ def volume_mesh(mesh, count: Integer, seed: Seed = None) -> NDArray[float64]:
     samples : (n, 3) float
       Points in the volume of the mesh where n <= count
     """
-    random = util.random_generator(seed).random
+    random = random_generator(seed).random
     points = (random((count, 3)) * mesh.extents) + mesh.bounds[0]
     contained = mesh.contains(points)
     samples = points[contained][:count]
@@ -169,8 +174,7 @@ def volume_rectangular(
     samples : (count, 3) float
       Points in requested volume
     """
-    samples = util.random_generator(seed).random((count, 3)) - 0.5
-    samples *= extents
+    samples = (random_generator(seed).random((count, 3)) - 0.5) * extents
     if transform is not None:
         samples = transformations.transform_points(samples, transform)
     return samples
@@ -223,7 +227,7 @@ def sample_surface_even(
         return points[:count], index[mask][:count]
 
     # warn if we didn't get all the samples we expect
-    util.log.warning(f"only got {len(points)}/{count} samples!")
+    log.warning(f"only got {len(points)}/{count} samples!")
 
     return points, index[mask]
 
@@ -248,10 +252,9 @@ def sample_surface_sphere(count: int, seed: Seed = None) -> NDArray[float64]:
       Random points on the surface of a unit sphere
     """
     # get random values 0.0-1.0
-    u, v = util.random_generator(seed).random((2, count))
+    u, v = random_generator(seed).random((2, count))
     # convert to two angles
     theta = np.pi * 2 * u
     phi = np.arccos((2 * v) - 1)
     # convert spherical coordinates to cartesian
-    points = util.spherical_to_vector(np.column_stack((theta, phi)))
-    return points
+    return spherical_to_vector(np.column_stack((theta, phi)))
