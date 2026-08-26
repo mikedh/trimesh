@@ -19,6 +19,31 @@ class SampleTest(g.unittest.TestCase):
         distance = m.nearest.signed_distance(even)
         assert g.np.abs(distance).max() < 1e-4
 
+        # barycentric coordinates are a free by-product and must not
+        # perturb the random stream or the sampled points at all
+        points, index = g.trimesh.sample.sample_surface(m, 1000, seed=42)
+        points_check, index_check, barycentric = g.trimesh.sample.sample_surface(
+            m, 1000, seed=42, return_barycentric=True
+        )
+        assert (points == points_check).all()
+        assert (index == index_check).all()
+
+        # every sample must be inside its triangle
+        assert barycentric.min() >= 0.0
+        assert g.np.allclose(barycentric.sum(axis=1), 1.0)
+
+        # the coordinates must reproduce the points they came from
+        from_barycentric = g.trimesh.triangles.barycentric_to_points(
+            m.triangles[index], barycentric
+        )
+        assert g.np.abs(from_barycentric - points).max() < 1e-8
+
+        # the mesh wrapper should pass the flag through unaltered
+        wrapped = m.sample(1000, return_barycentric=True, seed=42)
+        assert (wrapped[1] == barycentric).all()
+        wrapped = m.sample(1000, return_index=True, return_barycentric=True, seed=42)
+        assert (wrapped[2] == barycentric).all()
+
     def test_weights(self):
         m = g.trimesh.creation.box()
 

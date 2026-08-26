@@ -22,6 +22,7 @@ def sample_surface(
     count: Integer,
     face_weight: ArrayLike | None = None,
     sample_color=False,
+    return_barycentric: bool = False,
     seed: Seed = None,
 ):
     """
@@ -43,6 +44,9 @@ def sample_surface(
     sample_color : bool
       Option to calculate the color of the sampled points.
       Default is False.
+    return_barycentric : bool
+      If True will also return the barycentric coordinates
+      of each sampled point.
     seed : None or int
       Seed for deterministic results, otherwise OS entropy.
 
@@ -55,6 +59,9 @@ def sample_surface(
     colors : (count, 4) float
       Colors of each sampled point
       Returns only when the sample_color is True
+    barycentric : (count, 3) float
+      Coordinates on `mesh.faces[face_index]`
+      Returned only when return_barycentric is True
     """
 
     if face_weight is None:
@@ -100,6 +107,11 @@ def sample_surface(
     random_lengths[random_test] -= 1.0
     random_lengths = np.abs(random_lengths)
 
+    if return_barycentric:
+        # the two random lengths are the barycentric coordinates of the
+        # second and third vertex - the first vertex is what remains
+        barycentric = np.hstack((1 - random_lengths.sum(axis=1), random_lengths[:, :, 0]))
+
     # multiply triangle edge vectors by the random lengths and sum
     sample_vector = (tri_vectors * random_lengths).sum(axis=1)
 
@@ -116,7 +128,13 @@ def sample_surface(
         else:
             colors = mesh.visual.face_colors[face_index]
 
+        if return_barycentric:
+            return samples, face_index, colors, barycentric
+
         return samples, face_index, colors
+
+    if return_barycentric:
+        return samples, face_index, barycentric
 
     return samples, face_index
 
