@@ -185,6 +185,7 @@ def handle_extensions(
     *,
     extensions: dict[str, Any] | None,
     scope: Scope,
+    failed: set | None = None,
     **kwargs,
 ) -> Any:
     """
@@ -196,6 +197,8 @@ def handle_extensions(
       The "extensions" dict from a glTF element, or None.
     scope
       Handler scope to invoke.
+    failed
+      If passed the name of any extension whose handler raised is added here.
     **kwargs
       Scope-specific arguments that will be combined with extension data
       into a typed context dict. Required kwargs by scope:
@@ -225,6 +228,8 @@ def handle_extensions(
             if (result := _handlers[scope][ext_name](context)) is not None:
                 results[ext_name] = result
         except Exception as e:
+            if failed is not None:
+                failed.add(ext_name)
             log.warning(f"failed to process extension {ext_name}: {e}")
 
     # for _source scopes return first result, otherwise return all results
@@ -313,7 +318,7 @@ _DRACO_QUANTIZATION = 14
 
 
 @register_handler("KHR_draco_mesh_compression", scope="primitive_preprocess")
-def _draco_decode(context: PrimitivePreprocessContext) -> None:
+def draco_decode(context: PrimitivePreprocessContext) -> None:
     """
     Replace a primitive's placeholder accessors with decompressed draco data.
 
@@ -353,7 +358,7 @@ def _draco_decode(context: PrimitivePreprocessContext) -> None:
 
 
 @register_handler("KHR_draco_mesh_compression", scope="primitive_export")
-def _draco_encode(context: PrimitiveExportContext) -> bool | None:
+def draco_encode(context: PrimitiveExportContext) -> bool | None:
     """
     Compress a primitive's geometry into a single draco buffer.
 

@@ -2534,25 +2534,21 @@ class Trimesh(Geometry3D):
           Coordinates on `self.faces[face_index]`
           Returned only when return_barycentric is True
         """
-        if return_barycentric:
-            samples, index, barycentric = sample.sample_surface(
-                mesh=self,
-                count=count,
-                face_weight=face_weight,
-                return_barycentric=True,
-                seed=seed,
-            )
-            if return_index:
-                return samples, index, barycentric
-            return samples, barycentric
-
-        samples, index = sample.sample_surface(
-            mesh=self, count=count, face_weight=face_weight, seed=seed
+        result = sample.sample_surface(
+            mesh=self,
+            count=count,
+            face_weight=face_weight,
+            return_barycentric=return_barycentric,
+            seed=seed,
         )
         if return_index:
-            return samples, index
+            return result
 
-        return samples
+        # `sample_surface` always returns the face index we weren't asked for
+        if return_barycentric:
+            return result[0], result[2]
+
+        return result[0]
 
     def remove_unreferenced_vertices(self) -> None:
         """

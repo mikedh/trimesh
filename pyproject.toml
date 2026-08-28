@@ -120,7 +120,7 @@ test_more = [
     "marimo",   # different notebook stuff
     "requests", # check WebResolver session compatibility
     "aiohttp",  # check WebResolver session compatibility
-    "DracoPy",  # KHR_draco_mesh_compression for glTF
+    "DracoPy>=1.7.0",  # KHR_draco_mesh_compression for glTF, `attributes` added in 1.7.0
 ]
 
 # kept empty so downstream `trimesh[deprecated]` 

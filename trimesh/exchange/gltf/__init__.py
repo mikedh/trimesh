@@ -106,7 +106,7 @@ def export_gltf(
       Export textures as webP (using glTF's EXT_texture_webp extension).
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression).
-      Requires the `dracox` package to be installed.
+      Requires the `DracoPy` package to be installed.
 
     Returns
     ----------
@@ -199,7 +199,7 @@ def export_glb(
       Export textures as webP using EXT_texture_webp extension.
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression).
-      Requires the `dracox` package to be installed.
+      Requires the `DracoPy` package to be installed.
 
     Returns
     ----------
@@ -1618,15 +1618,20 @@ def _read_buffers(
                 # preprocessing extensions like draco decompression run
                 # before reading accessors as they may modify them
                 if prim_extensions := p.get("extensions"):
+                    # a handler which raised can't have decoded anything
+                    failed = set()
                     handle_extensions(
                         extensions=prim_extensions,
                         scope="primitive_preprocess",
+                        failed=failed,
                         primitive=p,
                         accessors=access,
                         views=views,
                     )
-                    # warn later if an unhandled extension left placeholder zeros
+                    # warn later if an extension left placeholder zeros, whether
+                    # it had no handler or its handler failed
                     if not placeholders.isdisjoint(p.get("attributes", {}).values()):
+                        undecoded.update(failed)
                         undecoded.update(
                             unregistered(prim_extensions, "primitive_preprocess")
                         )
@@ -1775,7 +1780,7 @@ def _read_buffers(
 
     if undecoded:
         log.warning(
-            "`%s` GLTF extension has no handler, values are placeholder zeros",
+            "`%s` GLTF extension didn't decode, values are placeholder zeros",
             ", ".join(sorted(undecoded)),
         )
 
