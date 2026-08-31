@@ -244,6 +244,129 @@ class CollisionTest(g.unittest.TestCase):
         assert manager.in_collision_internal()
         assert objects is not None
 
+    def test_ignored_pairs_internal(self):
+        # Feature added in https://github.com/mikedh/trimesh/issues/2454
+        #
+        # The reporter wants to skip designed contacts between articulated
+        # robot links so the manager only flags unintended collisions.
+        # Build a 4-cube manager where every pair overlaps then progressively
+        # ignore pairs and verify both the `names` set AND the boolean-only
+        # result drop the right pairs (the bool path goes through a separate
+        # fast-path that also has to respect the ignore set).
+        if fcl is None:
+            return
+        cube = g.get_mesh("unit_cube.STL")
+
+        m = g.trimesh.collision.CollisionManager()
+        m.add_object("a", cube)
+        # all three of the others sit just inside the unit cube `a` so
+        # they all collide with each other and with `a`
+        for name, dx in [("b", 0.3), ("c", 0.6), ("d", -0.3)]:
+            tf = g.np.eye(4)
+            tf[:3, 3] = [dx, 0, 0]
+            m.add_object(name, cube, tf)
+
+        # sanity: with no ignored pairs the full clique shows up
+        result, names = m.in_collision_internal(return_names=True)
+        assert result is True
+        assert ("a", "b") in names
+        # bool-only path
+        assert m.in_collision_internal() is True
+
+        # ignore one pair and confirm it is the ONLY one removed and the
+        # rest are reported untouched
+        m.set_pair_ignored("a", "b")
+        assert m.ignored_pairs == {("a", "b")}
+        assert m.is_pair_ignored("a", "b")
+        # symmetric look-up
+        assert m.is_pair_ignored("b", "a")
+        result, names = m.in_collision_internal(return_names=True)
+        assert result is True
+        assert ("a", "b") not in names
+        assert ("a", "c") in names
+        # bool-only path must NOT short-circuit on the ignored pair
+        assert m.in_collision_internal() is True
+
+        # ignore every remaining pair → both the names and the bool
+        # result must drop to "no collision"
+        all_pairs = [
+            ("a", "c"), ("a", "d"), ("b", "c"), ("b", "d"), ("c", "d"),
+        ]
+        for x, y in all_pairs:
+            m.set_pair_ignored(x, y)
+        result, names = m.in_collision_internal(return_names=True)
+        assert result is False
+        assert len(names) == 0
+        assert m.in_collision_internal() is False
+
+        # turning ignored=False re-enables the pair
+        m.set_pair_ignored("a", "b", ignored=False)
+        assert not m.is_pair_ignored("a", "b")
+        result, names = m.in_collision_internal(return_names=True)
+        assert result is True
+        assert ("a", "b") in names
+
+    def test_ignored_pairs_input_validation(self):
+        # Guard rails on the new API: ignoring a name against itself or
+        # referencing a name not in the manager must raise immediately
+        # — silent no-ops would let user typos hide real collisions.
+        if fcl is None:
+            return
+        cube = g.get_mesh("unit_cube.STL")
+        m = g.trimesh.collision.CollisionManager()
+        m.add_object("link0", cube)
+        # separate `link1` from `link0` so the post-clear assertion
+        # checks the genuine "no collision" path
+        far = g.np.eye(4)
+        far[:3, 3] = [10.0, 0, 0]
+        m.add_object("link1", cube, far)
+
+        try:
+            m.set_pair_ignored("link0", "link0")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("self-ignore should raise")
+
+        try:
+            m.set_pair_ignored("link0", "ghost")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("missing-name should raise")
+
+        # is_pair_ignored never raises and is direction-independent
+        assert not m.is_pair_ignored("link0", "link1")
+        m.set_pair_ignored("link0", "link1")
+        assert m.is_pair_ignored("link0", "link1")
+        assert m.is_pair_ignored("link1", "link0")
+
+        # clear_ignored_pairs wipes the lot
+        m.clear_ignored_pairs()
+        assert m.ignored_pairs == set()
+        assert m.in_collision_internal() is False  # boxes overlap-free at origin pair
+
+    def test_ignored_pairs_cleared_on_remove(self):
+        # remove_object must also evict any ignored-pair entries
+        # involving the removed name so a future re-add of the same
+        # name doesn't silently inherit stale ignore rules.
+        if fcl is None:
+            return
+        cube = g.get_mesh("unit_cube.STL")
+        m = g.trimesh.collision.CollisionManager()
+        m.add_object("a", cube)
+        tf = g.np.eye(4)
+        tf[:3, 3] = [0.3, 0, 0]
+        m.add_object("b", cube, tf)
+        m.add_object("c", cube, tf)
+        m.set_pair_ignored("a", "b")
+        m.set_pair_ignored("a", "c")
+        assert m.ignored_pairs == {("a", "b"), ("a", "c")}
+
+        m.remove_object("a")
+        # both pairs referenced "a" so the ignore set must be empty
+        assert m.ignored_pairs == set()
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
