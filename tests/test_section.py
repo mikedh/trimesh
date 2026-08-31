@@ -344,6 +344,61 @@ class SliceTest(g.unittest.TestCase):
         sliced = plane.slice_plane(plane_origin=origin, plane_normal=normal)
         assert g.np.isclose(sliced.vertices[:, :2], sliced.visual.uv).all()
 
+    def test_slice_colors(self):
+        # slicing should carry color data through, not silently drop it.
+        # See https://github.com/mikedh/trimesh/issues/1731
+
+        # ---- face colors: every kept/cut face should take its source color ----
+        box = g.trimesh.creation.box(extents=[4.0, 4.0, 4.0])
+        colors = (g.np.random.default_rng(0).random((len(box.faces), 4)) * 255).astype(
+            g.np.uint8
+        )
+        colors[:, 3] = 255
+        box.visual.face_colors = colors
+        assert box.visual.kind == "face"
+
+        sliced = box.slice_plane(plane_origin=[0.3, 0.0, 0.0], plane_normal=[1.0, 0, 0])
+        # the sliced mesh keeps face colors
+        assert sliced.visual.kind == "face"
+        assert len(sliced.visual.face_colors) == len(sliced.faces)
+        # each output face's color matches the original face it came from, found
+        # by matching the output face centroid back to the source surface
+        _close, _dist, fid = box.nearest.on_surface(sliced.triangles.mean(axis=1))
+        assert (sliced.visual.face_colors == box.visual.face_colors[fid]).all()
+
+        # colors are also carried when slicing against multiple planes at once
+        multi = box.slice_plane(
+            plane_origin=[[0, 0, 0], [0, 0, 0]],
+            plane_normal=[[1.0, 0, 0], [0, 1.0, 0]],
+        )
+        assert multi.visual.kind == "face"
+        _c, _d, fid = box.nearest.on_surface(multi.triangles.mean(axis=1))
+        assert (multi.visual.face_colors == box.visual.face_colors[fid]).all()
+
+        # ---- vertex colors: interpolated at the new cut vertices ----
+        box2 = g.trimesh.creation.box(extents=[4.0, 4.0, 4.0])
+        x = g.np.asarray(box2.vertices[:, 0], dtype=g.np.float64)
+        span = g.np.ptp(x)
+        vc = g.np.zeros((len(box2.vertices), 4), dtype=g.np.uint8)
+        vc[:, 3] = 255
+        # a linear red gradient along x so interpolation is exactly checkable
+        vc[:, 0] = ((x - x.min()) / span * 255).astype(g.np.uint8)
+        box2.visual.vertex_colors = vc
+        assert box2.visual.kind == "vertex"
+
+        sliced2 = box2.slice_plane(plane_origin=[0.0, 0, 0], plane_normal=[0.0, 1, 0])
+        assert sliced2.visual.kind == "vertex"
+        assert len(sliced2.visual.vertex_colors) == len(sliced2.vertices)
+        # the red channel must still follow the original linear gradient (to within
+        # a rounding step), including at newly created cut vertices
+        expect = (g.np.asarray(sliced2.vertices[:, 0]) - x.min()) / span * 255
+        assert (
+            g.np.abs(
+                sliced2.visual.vertex_colors[:, 0].astype(g.np.float64) - expect
+            ).max()
+            <= 1.0
+        )
+
     def test_cap_coplanar(self):
         # check to see if we handle capping with
         # existing coplanar faces correctly

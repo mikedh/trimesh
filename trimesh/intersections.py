@@ -416,6 +416,7 @@ def slice_faces_plane(
     uv=None,
     face_index=None,
     cached_dots=None,
+    return_index=False,
 ):
     """
     Slice a mesh (given as a set of faces and vertices) with a plane, returning a
@@ -440,6 +441,10 @@ def slice_faces_plane(
     cached_dots : (n, 3) float
         If an external function has stored dot
         products pass them here to avoid recomputing
+    return_index : bool
+        If True also return, for every output face, the index of the
+        input face it originated from (useful to carry face attributes
+        such as colors through the slice).
 
     Returns
     ----------
@@ -449,9 +454,14 @@ def slice_faces_plane(
         Faces of sliced mesh
     new_uv : (n, 2) int or None
         UV coordinates of sliced mesh
+    source_index : (n,) int
+        Only returned if `return_index`, the index of the input face
+        that each output face came from.
     """
 
     if len(vertices) == 0:
+        if return_index:
+            return vertices, faces, uv, np.arange(len(faces))
         return vertices, faces, uv
 
     have_uv = uv is not None
@@ -459,6 +469,10 @@ def slice_faces_plane(
     # Construct a mask for the faces to slice.
     if face_index is not None:
         faces = faces[face_index]
+        # the original index of each (subset) face, to map output faces back
+        source = np.asarray(face_index)
+    else:
+        source = np.arange(len(faces))
 
     if cached_dots is not None:
         dots = cached_dots
@@ -510,16 +524,23 @@ def slice_faces_plane(
 
     # Automatically include all faces that are "inside"
     new_faces = faces[inside]
+    # the input face each kept face came from
+    source_inside = source[inside]
 
     # Separate faces on the edge into two cases: those which will become
     # quads (two vertices inside plane) and those which will become triangles
     # (one vertex inside plane)
     triangles = vertices[faces]
     cut_triangles = triangles[onedge]
-    cut_faces_quad = faces[np.logical_and(onedge, signs_sum < 0)]
-    cut_faces_tri = faces[np.logical_and(onedge, signs_sum >= 0)]
-    cut_signs_quad = signs[np.logical_and(onedge, signs_sum < 0)]
-    cut_signs_tri = signs[np.logical_and(onedge, signs_sum >= 0)]
+    quad_mask = np.logical_and(onedge, signs_sum < 0)
+    tri_mask = np.logical_and(onedge, signs_sum >= 0)
+    cut_faces_quad = faces[quad_mask]
+    cut_faces_tri = faces[tri_mask]
+    cut_signs_quad = signs[quad_mask]
+    cut_signs_tri = signs[tri_mask]
+    # the input face each cut face came from
+    source_quad = source[quad_mask]
+    source_tri = source[tri_mask]
 
     # If no faces to cut, the surface is not in contact with this plane.
     # Thus, return a mesh with only the inside faces
@@ -531,6 +552,8 @@ def slice_faces_plane(
                 np.zeros((0, 3), dtype=np.int64),
                 np.zeros((0, 2), dtype=np.float64) if have_uv else None,
             )
+            if return_index:
+                return (*empty, np.zeros(0, dtype=np.int64))
             return empty
 
         # find the unique indices in the new faces
@@ -544,6 +567,8 @@ def slice_faces_plane(
         final_face = inverse.reshape((-1, 3))
         final_uv = uv[unique] if have_uv else None
 
+        if return_index:
+            return final_vert, final_face, final_uv, source_inside
         return final_vert, final_face, final_uv
 
     # Extract the intersections of each triangle's edges with the plane
@@ -560,6 +585,10 @@ def slice_faces_plane(
     new_vertices = vertices
     new_quad_vertices = np.zeros((0, 3))
     new_tri_vertices = np.zeros((0, 3))
+
+    # accumulate the input-face index behind each output face, in the same order
+    # the faces are appended below (kept faces first, then quad- then tri-cuts)
+    source_new = [source_inside]
 
     # Handle the case where a new quad is formed by the intersection
     # First, extract the intersection points belonging to a new quad
@@ -596,6 +625,9 @@ def slice_faces_plane(
         new_vertices = np.append(new_vertices, new_quad_vertices, axis=0)
         new_tri_faces_from_quads = geometry.triangulate_quads(new_quad_faces)
         new_faces = np.append(new_faces, new_tri_faces_from_quads, axis=0)
+        # triangulate_quads stacks all first-triangles then all second-triangles
+        # (vstack of quads[:, [0,1,2]] and quads[:, [2,3,0]]), so tile, not repeat
+        source_new.append(np.tile(source_quad, 2))
 
     # Handle the case where a new triangle is formed by the intersection
     # First, extract the intersection points belonging to a new triangle
@@ -627,6 +659,7 @@ def slice_faces_plane(
         # Append new vertices and new faces
         new_vertices = np.append(new_vertices, new_tri_vertices, axis=0)
         new_faces = np.append(new_faces, new_tri_faces, axis=0)
+        source_new.append(source_tri)
 
     # find the unique indices in the new faces
     # using an integer-only unique function
@@ -654,6 +687,8 @@ def slice_faces_plane(
         new_uv = np.einsum("ijk,ij->ik", np.repeat(cut_uv, 2, axis=0), all_barycentrics)
         final_uv = np.concatenate([uv, new_uv])[unique]
 
+    if return_index:
+        return final_vert, final_face, final_uv, np.concatenate(source_new)
     return final_vert, final_face, final_uv
 
 
@@ -707,7 +742,7 @@ def slice_mesh_plane(
     from .base import Trimesh
     from .creation import triangulate_polygon
     from .path import polygons
-    from .visual import TextureVisuals
+    from .visual import ColorVisuals, TextureVisuals
 
     # check input plane
     plane_normal = np.asanyarray(plane_normal, dtype=np.float64)
@@ -732,6 +767,24 @@ def slice_mesh_plane(
     ) and not cap
     uv = mesh.visual.uv.copy() if has_uv else None
 
+    # Carry color data through the slice when the mesh has ColorVisuals. Like UV,
+    # this is skipped when `cap` is set, since the cap appends new faces that have
+    # no source face to take a color from. Face colors are carried by tracking
+    # which input face each output face came from; vertex colors are interpolated
+    # at the new cut vertices. See https://github.com/mikedh/trimesh/issues/1731
+    color_kind = (
+        mesh.visual.kind if (not cap and isinstance(mesh.visual, ColorVisuals)) else None
+    )
+    # source face colors and a running map from current -> original face index
+    src_face_colors = mesh.visual.face_colors.copy() if color_kind == "face" else None
+    face_source = np.arange(len(faces)) if color_kind == "face" else None
+    # per-vertex colors carried (and interpolated) through each slice as floats
+    vertex_colors = (
+        mesh.visual.vertex_colors.copy().astype(np.float64)
+        if color_kind == "vertex"
+        else None
+    )
+
     if "process" not in kwargs:
         kwargs["process"] = False
 
@@ -740,14 +793,42 @@ def slice_mesh_plane(
         plane_origin.reshape((-1, 3)), plane_normal.reshape((-1, 3))
     ):
         # save the new vertices and faces
-        vertices, faces, uv = slice_faces_plane(
-            vertices=vertices,
-            faces=faces,
-            uv=uv,
-            plane_normal=normal,
-            plane_origin=origin,
-            face_index=face_index,
-        )
+        track_color = face_source is not None or vertex_colors is not None
+        if track_color:
+            in_vertices, in_faces = vertices, faces
+            vertices, faces, uv, source = slice_faces_plane(
+                vertices=vertices,
+                faces=faces,
+                uv=uv,
+                plane_normal=normal,
+                plane_origin=origin,
+                face_index=face_index,
+                return_index=True,
+            )
+            if face_source is not None:
+                # compose the maps so it still points at the original faces
+                face_source = face_source[source]
+            if vertex_colors is not None and len(faces) > 0:
+                # interpolate the input vertex colors onto the output vertices using
+                # the barycentric position of each output face vertex on its source
+                # face; shared cut vertices interpolate identically from either side
+                src_tri = in_vertices[in_faces[source]]
+                bary = points_to_barycentric(
+                    np.repeat(src_tri, 3, axis=0), vertices[faces].reshape((-1, 3))
+                )
+                src_colors = vertex_colors[in_faces[source]]
+                interp = np.einsum("ij,ijk->ik", bary, np.repeat(src_colors, 3, axis=0))
+                vertex_colors = np.zeros((len(vertices), src_colors.shape[2]))
+                vertex_colors[faces.reshape(-1)] = interp
+        else:
+            vertices, faces, uv = slice_faces_plane(
+                vertices=vertices,
+                faces=faces,
+                uv=uv,
+                plane_normal=normal,
+                plane_origin=origin,
+                face_index=face_index,
+            )
         # check if cap arg specified
         if cap:
             if face_index:
@@ -797,9 +878,15 @@ def slice_mesh_plane(
 
             faces = np.vstack(faces)
 
-    visual = (
-        TextureVisuals(uv=uv, material=mesh.visual.material.copy()) if has_uv else None
-    )
+    if has_uv:
+        visual = TextureVisuals(uv=uv, material=mesh.visual.material.copy())
+    elif face_source is not None and len(faces) > 0:
+        # map the original per-face colors onto the sliced faces
+        visual = ColorVisuals(face_colors=src_face_colors[face_source])
+    elif vertex_colors is not None and len(vertices) > 0:
+        visual = ColorVisuals(vertex_colors=vertex_colors.round().astype(np.uint8))
+    else:
+        visual = None
 
     # return the sliced mesh
     return Trimesh(vertices=vertices, faces=faces, visual=visual, **kwargs)
