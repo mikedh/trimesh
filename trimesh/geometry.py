@@ -400,6 +400,113 @@ def weighted_vertex_normals(
     return util.unitize(summed_loop())
 
 
+def vertex_tangents(vertices, faces, vertex_normals, uv, face_angles=None):
+    """
+    Compute per-vertex tangent vectors for a UV-mapped mesh.
+
+    Tangents are required to render normal (bump) maps correctly and the
+    glTF 2.0 specification expects them to be supplied as a per-vertex
+    `VEC4` `TANGENT` attribute. This uses the per-triangle method of
+    Lengyel ("Computing Tangent Space Basis Vectors for an Arbitrary
+    Mesh", Terathon Software, 2001) which is the convention the glTF
+    ecosystem is built around. Note this is not the reference MikkTSpace
+    algorithm (which welds and splits vertices); it computes a single
+    smoothed tangent frame per existing vertex, matching how `trimesh`
+    already shares a vertex normal between adjacent faces.
+
+    The first three components of each returned row are the unit tangent
+    direction, orthonormalized against the vertex normal. The fourth
+    component is the handedness (`+1` or `-1`) of the tangent basis, so a
+    renderer can recover the bitangent as
+    `cross(normal, tangent[:3]) * tangent[3]`.
+
+    Parameters
+    -----------
+    vertices : (n, 3) float
+      The vertices of the mesh.
+    faces : (m, 3) int
+      Triangle vertex indices.
+    vertex_normals : (n, 3) float
+      Unit normal vector for each vertex.
+    uv : (n, 2) float
+      Texture coordinate for each vertex.
+    face_angles : (m, 3) float or None
+      The interior angle at each corner of every face, used to weight a
+      face's contribution to its vertices (matching how vertex normals
+      are smoothed). If None each corner is weighted equally.
+
+    Returns
+    -----------
+    vertex_tangents : (n, 4) float
+      Tangent direction (xyz) and handedness (w) for every vertex.
+      Vertices unreferenced by faces, or whose tangent is undefined (for
+      example a degenerate UV triangle), will be zero.
+    """
+    vertices = np.asanyarray(vertices, dtype=np.float64)
+    faces = np.asanyarray(faces, dtype=np.int64)
+    vertex_normals = np.asanyarray(vertex_normals, dtype=np.float64)
+    uv = np.asanyarray(uv, dtype=np.float64)
+
+    vertex_count = len(vertices)
+    if uv.shape != (vertex_count, 2):
+        raise ValueError("`uv` must be (len(vertices), 2) float")
+    if vertex_normals.shape != (vertex_count, 3):
+        raise ValueError("`vertex_normals` must be (len(vertices), 3) float")
+
+    # per-triangle edge vectors and the matching UV deltas
+    tri = vertices[faces]
+    tri_uv = uv[faces]
+    edge1 = tri[:, 1] - tri[:, 0]
+    edge2 = tri[:, 2] - tri[:, 0]
+    duv1 = tri_uv[:, 1] - tri_uv[:, 0]
+    duv2 = tri_uv[:, 2] - tri_uv[:, 0]
+
+    # the determinant of the 2x2 UV matrix; zero for a degenerate UV
+    # triangle, in which case that face simply contributes nothing
+    denom = duv1[:, 0] * duv2[:, 1] - duv2[:, 0] * duv1[:, 1]
+    reciprocal = np.zeros(len(faces), dtype=np.float64)
+    nonzero = np.abs(denom) > util.TOL_ZERO
+    reciprocal[nonzero] = 1.0 / denom[nonzero]
+
+    # solve for the per-face tangent and bitangent in object space
+    inv = reciprocal[:, None]
+    face_tangents = (edge1 * duv2[:, 1, None] - edge2 * duv1[:, 1, None]) * inv
+    face_bitangents = (edge2 * duv1[:, 0, None] - edge1 * duv2[:, 0, None]) * inv
+
+    # accumulate the face contributions onto their vertices, weighting by
+    # the corner angle so the result is smooth across shared vertices
+    if face_angles is None:
+        weights = np.ones(faces.size, dtype=np.float64)
+    else:
+        weights = np.asanyarray(face_angles, dtype=np.float64).ravel()
+    try:
+        matrix = index_sparse(vertex_count, faces, data=weights)
+        tangents = matrix.dot(face_tangents)
+        bitangents = matrix.dot(face_bitangents)
+    except BaseException:
+        log.warning("unable to use sparse matrix, falling back!", exc_info=True)
+        tangents = np.zeros((vertex_count, 3), dtype=np.float64)
+        bitangents = np.zeros((vertex_count, 3), dtype=np.float64)
+        for corner in range(faces.shape[1]):
+            np.add.at(tangents, faces[:, corner], face_tangents)
+            np.add.at(bitangents, faces[:, corner], face_bitangents)
+
+    # Gram-Schmidt: make the tangent orthogonal to the vertex normal
+    projection = np.einsum("ij,ij->i", vertex_normals, tangents)
+    orthogonal = util.unitize(tangents - vertex_normals * projection[:, None])
+
+    # handedness: sign of the triple product picks the bitangent direction
+    cross = np.cross(vertex_normals, tangents)
+    handed = np.where(np.einsum("ij,ij->i", cross, bitangents) < 0.0, -1.0, 1.0)
+    # vertices with no usable tangent stay fully zero, including handedness
+    handed[(orthogonal**2).sum(axis=1) < 0.5] = 0.0
+
+    result = np.zeros((vertex_count, 4), dtype=np.float64)
+    result[:, :3] = orthogonal
+    result[:, 3] = handed
+    return result
+
+
 def index_sparse(columns, indices, data=None, dtype=None):
     """
     Return a sparse matrix for which vertices are contained in which faces.
