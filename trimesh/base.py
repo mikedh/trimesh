@@ -2500,6 +2500,7 @@ class Trimesh(Geometry3D):
         count: Integer,
         return_index: bool = False,
         face_weight: NDArray[float64] | None = None,
+        return_barycentric: bool = False,
         seed: Seed = None,
     ):
         """
@@ -2516,6 +2517,9 @@ class Trimesh(Geometry3D):
         face_weight : None or len(mesh.faces) float
           Weight faces by a factor other than face area.
           If None will be the same as face_weight=mesh.area
+        return_barycentric : bool
+          If True will also return the barycentric coordinates
+          of each sampled point.
         seed : None or int
           Seed for deterministic results, otherwise OS entropy.
 
@@ -2523,15 +2527,28 @@ class Trimesh(Geometry3D):
         ---------
         samples : (count, 3) float
           Points on surface of mesh
-        face_index : (count, ) int
+        face_index : (count,) int
           Index of self.faces
+          Returned only when return_index is True
+        barycentric : (count, 3) float
+          Coordinates on `self.faces[face_index]`
+          Returned only when return_barycentric is True
         """
-        samples, index = sample.sample_surface(
-            mesh=self, count=count, face_weight=face_weight, seed=seed
+        result = sample.sample_surface(
+            mesh=self,
+            count=count,
+            face_weight=face_weight,
+            return_barycentric=return_barycentric,
+            seed=seed,
         )
         if return_index:
-            return samples, index
-        return samples
+            return result
+
+        # `sample_surface` always returns the face index we weren't asked for
+        if return_barycentric:
+            return result[0], result[2]
+
+        return result[0]
 
     def remove_unreferenced_vertices(self) -> None:
         """

@@ -101,7 +101,8 @@ def load_stl_binary(file_obj: Stream) -> dict:
     # of the file doesn't match the header, the loaded version is almost
     # certainly going to be garbage.
     len_data = data_end - data_start
-    len_expected = header["face_count"] * _stl_dtype.itemsize
+    # cast to `int` as `uint32` wraps on overflow
+    len_expected = int(header["face_count"][0]) * _stl_dtype.itemsize
 
     # this check is to see if this really is a binary STL file.
     # if we don't do this and try to load a file that isn't structured properly

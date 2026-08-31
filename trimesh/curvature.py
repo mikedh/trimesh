@@ -112,23 +112,52 @@ def discrete_mean_curvature_measure(mesh, points, radius):
     if not util.is_shape(points, (-1, 3)):
         raise ValueError("points must be (n,3)!")
 
+    # resolve the cached properties once rather than once per query point
+    vertices = np.asarray(mesh.vertices)
+    adjacency_edges = np.asarray(mesh.face_adjacency_edges)
+    adjacency_angles = np.asarray(mesh.face_adjacency_angles)
+    adjacency_convex = np.asarray(mesh.face_adjacency_convex)
+
+    tree = mesh.face_adjacency_tree
     # axis aligned bounds
-    bounds = np.column_stack((points - radius, points + radius))
+    mins = points - radius
+    maxs = points + radius
 
-    # line segments that intersect axis aligned bounding box
-    candidates = [list(mesh.face_adjacency_tree.intersection(b)) for b in bounds]
-
-    mean_curv = np.zeros(len(points))
-    for i, (x, x_candidates) in enumerate(zip(points, candidates)):
-        endpoints = mesh.vertices[mesh.face_adjacency_edges[x_candidates]]
-        lengths = line_ball_intersection(
-            endpoints[:, 0], endpoints[:, 1], center=x, radius=radius
+    try:
+        # use the batch API added in 1.4.0 and fixed to actually work in 1.4.1
+        hit_ids, hit_counts = tree.intersection_v(mins, maxs)
+        candidates = np.asarray(hit_ids, dtype=np.int64)
+        counts = np.asarray(hit_counts, dtype=np.int64)
+    except BaseException:
+        # fall back to a list comprehension
+        per_point = [list(tree.intersection(b)) for b in np.column_stack((mins, maxs))]
+        counts = np.array([len(c) for c in per_point], dtype=np.int64)
+        candidates = np.fromiter(
+            (i for c in per_point for i in c), dtype=np.int64, count=int(counts.sum())
         )
-        angles = mesh.face_adjacency_angles[x_candidates]
-        signs = np.where(mesh.face_adjacency_convex[x_candidates], 1, -1)
-        mean_curv[i] = (lengths * angles * signs).sum() / 2
 
-    return mean_curv
+    if len(candidates) == 0:
+        return np.zeros(len(points))
+
+    # the index of the query point each candidate edge belongs to
+    owner = np.repeat(np.arange(len(points)), counts)
+    endpoints = vertices[adjacency_edges[candidates]]
+
+    # `line_ball_intersection` broadcasts a per-row center already
+    lengths = line_ball_intersection(
+        endpoints[:, 0], endpoints[:, 1], center=points[owner], radius=radius
+    )
+    signs = np.where(adjacency_convex[candidates], 1, -1)
+
+    # sum the contribution of every candidate edge into its own query point
+    return (
+        np.bincount(
+            owner,
+            weights=lengths * adjacency_angles[candidates] * signs,
+            minlength=len(points),
+        )
+        / 2
+    )
 
 
 def line_ball_intersection(start_points, end_points, center, radius):

@@ -5,11 +5,16 @@ sample.py
 Randomly sample surface and volume of meshes.
 """
 
+from logging import getLogger
+
 import numpy as np
 
-from . import transformations, util
+from . import transformations
 from .typed import ArrayLike, Integer, NDArray, Number, Seed, float64
+from .util import random_generator, spherical_to_vector
 from .visual import uv_to_interpolated_color
+
+log = getLogger(__name__)
 
 
 def sample_surface(
@@ -17,6 +22,7 @@ def sample_surface(
     count: Integer,
     face_weight: ArrayLike | None = None,
     sample_color=False,
+    return_barycentric: bool = False,
     seed: Seed = None,
 ):
     """
@@ -38,6 +44,9 @@ def sample_surface(
     sample_color : bool
       Option to calculate the color of the sampled points.
       Default is False.
+    return_barycentric : bool
+      If True will also return the barycentric coordinates
+      of each sampled point.
     seed : None or int
       Seed for deterministic results, otherwise OS entropy.
 
@@ -50,6 +59,9 @@ def sample_surface(
     colors : (count, 4) float
       Colors of each sampled point
       Returns only when the sample_color is True
+    barycentric : (count, 3) float
+      Coordinates on `mesh.faces[face_index]`
+      Returned only when return_barycentric is True
     """
 
     if face_weight is None:
@@ -60,7 +72,7 @@ def sample_surface(
     # cumulative sum of weights (len(mesh.faces))
     weight_cum = np.cumsum(face_weight)
 
-    random = util.random_generator(seed).random
+    random = random_generator(seed).random
 
     # last value of cumulative sum is total summed weight/area
     face_pick = random(count) * weight_cum[-1]
@@ -95,6 +107,11 @@ def sample_surface(
     random_lengths[random_test] -= 1.0
     random_lengths = np.abs(random_lengths)
 
+    if return_barycentric:
+        # the two random lengths are the barycentric coordinates of the
+        # second and third vertex - the first vertex is what remains
+        barycentric = np.hstack((1 - random_lengths.sum(axis=1), random_lengths[:, :, 0]))
+
     # multiply triangle edge vectors by the random lengths and sum
     sample_vector = (tri_vectors * random_lengths).sum(axis=1)
 
@@ -111,7 +128,13 @@ def sample_surface(
         else:
             colors = mesh.visual.face_colors[face_index]
 
+        if return_barycentric:
+            return samples, face_index, colors, barycentric
+
         return samples, face_index, colors
+
+    if return_barycentric:
+        return samples, face_index, barycentric
 
     return samples, face_index
 
@@ -136,7 +159,7 @@ def volume_mesh(mesh, count: Integer, seed: Seed = None) -> NDArray[float64]:
     samples : (n, 3) float
       Points in the volume of the mesh where n <= count
     """
-    random = util.random_generator(seed).random
+    random = random_generator(seed).random
     points = (random((count, 3)) * mesh.extents) + mesh.bounds[0]
     contained = mesh.contains(points)
     samples = points[contained][:count]
@@ -169,8 +192,7 @@ def volume_rectangular(
     samples : (count, 3) float
       Points in requested volume
     """
-    samples = util.random_generator(seed).random((count, 3)) - 0.5
-    samples *= extents
+    samples = (random_generator(seed).random((count, 3)) - 0.5) * extents
     if transform is not None:
         samples = transformations.transform_points(samples, transform)
     return samples
@@ -223,7 +245,7 @@ def sample_surface_even(
         return points[:count], index[mask][:count]
 
     # warn if we didn't get all the samples we expect
-    util.log.warning(f"only got {len(points)}/{count} samples!")
+    log.warning(f"only got {len(points)}/{count} samples!")
 
     return points, index[mask]
 
@@ -248,10 +270,9 @@ def sample_surface_sphere(count: int, seed: Seed = None) -> NDArray[float64]:
       Random points on the surface of a unit sphere
     """
     # get random values 0.0-1.0
-    u, v = util.random_generator(seed).random((2, count))
+    u, v = random_generator(seed).random((2, count))
     # convert to two angles
     theta = np.pi * 2 * u
     phi = np.arccos((2 * v) - 1)
     # convert spherical coordinates to cartesian
-    points = util.spherical_to_vector(np.column_stack((theta, phi)))
-    return points
+    return spherical_to_vector(np.column_stack((theta, phi)))

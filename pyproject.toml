@@ -5,7 +5,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 [project]
 name = "trimesh"
 requires-python = ">=3.10"
-version = "5.0.0"
+version = "5.1.0"
 authors = [{name = "Michael Dawson-Haggerty", email = "mikedh@kerfed.com"}]
 license = {file = "LICENSE.md"}
 description = "Import, export, process, analyze and view triangular meshes."
@@ -120,6 +120,7 @@ test_more = [
     "marimo",   # different notebook stuff
     "requests", # check WebResolver session compatibility
     "aiohttp",  # check WebResolver session compatibility
+    "DracoPy>=1.7.0",  # KHR_draco_mesh_compression for glTF, `attributes` added in 1.7.0
 ]
 
 # kept empty so downstream `trimesh[deprecated]` 

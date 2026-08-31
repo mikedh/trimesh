@@ -36,7 +36,11 @@ def load_off(file_obj, **kwargs) -> dict:
     splits = [i for i in splits if len(i) > 0]
 
     # the first non-comment line should be the counts
+    if not splits:
+        raise ValueError("OFF file is missing the vertex/face count line")
     header = np.array(splits[0].split(), dtype=np.int64)
+    if header.size < 2:
+        raise ValueError("OFF file has a malformed vertex/face count line")
     vertex_count, face_count = header[:2]
 
     vertices = np.array(

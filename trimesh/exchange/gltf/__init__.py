@@ -16,6 +16,7 @@ import numpy as np
 from ... import rendering, resources, transformations, util, visual
 from ...caching import hash_fast
 from ...constants import log, tol
+from ...iteration import IndexedDict
 from ...resolvers import ResolverLike, ZipResolver
 from ...scene.cameras import Camera
 from ...scene.transforms import DEFAULT_BASE_FRAME
@@ -105,7 +106,7 @@ def export_gltf(
       Export textures as webP (using glTF's EXT_texture_webp extension).
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression).
-      Requires the `dracox` package to be installed.
+      Requires the `DracoPy` package to be installed.
 
     Returns
     ----------
@@ -198,7 +199,7 @@ def export_glb(
       Export textures as webP using EXT_texture_webp extension.
     extension_draco : bool
       Compress mesh data using Draco (KHR_draco_mesh_compression).
-      Requires the `dracox` package to be installed.
+      Requires the `DracoPy` package to be installed.
 
     Returns
     ----------
@@ -494,14 +495,14 @@ def _uri_to_bytes(uri: str, resolver: ResolverLike | None) -> bytes:
     return base64.b64decode(uri[index + 7 :])
 
 
-def _buffer_append(ordered, data):
+def _buffer_append(ordered: IndexedDict, data: bytes) -> int:
     """
-    Append data to an existing OrderedDict and
+    Append data to an existing IndexedDict and
     pad it to a 4-byte boundary.
 
     Parameters
     ----------
-    od : OrderedDict
+    ordered : IndexedDict
       Keyed like { hash : data }
     data : bytes
       To be stored
@@ -514,17 +515,22 @@ def _buffer_append(ordered, data):
     # hash the data to see if we have it already
     hashed = hash_fast(data)
     if hashed in ordered:
-        # apparently they never implemented keys().index -_-
-        return list(ordered.keys()).index(hashed)
+        return ordered.index(hashed)
     # not in buffer items so append and then return index
     ordered[hashed] = _byte_pad(data)
 
     return len(ordered) - 1
 
 
-def _data_append(acc: OrderedDict, buff: OrderedDict, blob: dict, data: NDArray):
+def _data_append(
+    acc: IndexedDict,
+    buff: IndexedDict,
+    blob: dict,
+    data: NDArray,
+    claimed: dict[int, NDArray] | None = None,
+):
     """
-    Append a new accessor to an OrderedDict.
+    Append a new accessor to an IndexedDict.
 
     Parameters
     ------------
@@ -536,6 +542,9 @@ def _data_append(acc: OrderedDict, buff: OrderedDict, blob: dict, data: NDArray)
       Candidate accessor
     data
       Data to fill in details to blob
+    claimed
+      If passed store `data` here keyed by the returned accessor index and
+      don't write it into `buff`, for an extension which stores it itself.
 
     Returns
     ----------
@@ -551,8 +560,12 @@ def _data_append(acc: OrderedDict, buff: OrderedDict, blob: dict, data: NDArray)
         # someone passed a vanilla numpy array
         hashed = hash_fast(as_bytes)
 
-    if hashed in buff:
-        blob["bufferView"] = list(buff.keys()).index(hashed)
+    if claimed is not None:
+        # an extension stores this itself: `byteOffset` is only valid alongside a
+        # `bufferView` and an accessor with neither can't collide with a stored copy
+        blob.pop("byteOffset", None)
+    elif hashed in buff:
+        blob["bufferView"] = buff.index(hashed)
     else:
         # not in buffer items so append and then return index
         buff[hashed] = _byte_pad(as_bytes)
@@ -570,9 +583,12 @@ def _data_append(acc: OrderedDict, buff: OrderedDict, blob: dict, data: NDArray)
     # xor the hash for the blob to the key
     key ^= hashed
 
-    # if key exists return the index in the OrderedDict
+    # a claim records here too as this is another primitive's accessor
     if key in acc:
-        return list(acc.keys()).index(key)
+        index = acc.index(key)
+        if claimed is not None:
+            claimed[index] = data
+        return index
 
     # get a numpy dtype for our components
     dtype = np.dtype(_dtypes[blob["componentType"]])
@@ -601,7 +617,10 @@ def _data_append(acc: OrderedDict, buff: OrderedDict, blob: dict, data: NDArray)
 
     # store the accessor and return the index
     acc[key] = blob
-    return len(acc) - 1
+    index = len(acc) - 1
+    if claimed is not None:
+        claimed[index] = data
+    return index
 
 
 def _jsonify(blob):
@@ -648,6 +667,10 @@ def _create_gltf_structure(
     buffer_items : list
       Contains bytes of data
     """
+    if extension_draco:
+        # fail once here rather than warning per mesh and writing an uncompressed file
+        import DracoPy  # noqa: F401
+
     # we are defining a single scene, and will be setting the
     # world node to the 0-index
     tree = {
@@ -655,7 +678,7 @@ def _create_gltf_structure(
         # the root node indices are filled in from the scene graph
         "scenes": [{}],
         "asset": {"version": "2.0", "generator": "https://github.com/mikedh/trimesh"},
-        "accessors": OrderedDict(),
+        "accessors": IndexedDict(),
         "meshes": [],
         "images": [],
         "textures": [],
@@ -679,7 +702,7 @@ def _create_gltf_structure(
     # store materials as {hash : index} to avoid duplicates
     mat_hashes = {}
     # store data from geometries
-    buffer_items = OrderedDict()
+    buffer_items = IndexedDict()
 
     # map the name of each mesh to the index in tree['meshes']
     mesh_index = {}
@@ -741,9 +764,9 @@ def _create_gltf_structure(
     if extension_webp:
         extensions_used.add("EXT_texture_webp")
         extensions_required.add("EXT_texture_webp")
-    # Add Draco if used (no fallback, so required)
-    if extension_draco:
-        extensions_used.add("KHR_draco_mesh_compression")
+    # draco has no fallback so it is required, but only if a primitive really got
+    # compressed: a file requiring an extension nothing uses is refused by loaders
+    if "KHR_draco_mesh_compression" in extensions_used:
         extensions_required.add("KHR_draco_mesh_compression")
     if len(extensions_used) > 0:
         tree["extensionsUsed"] = list(extensions_used)
@@ -807,6 +830,11 @@ def _append_mesh(
     if len(mesh.faces) == 0 or len(mesh.vertices) == 0:
         log.debug("skipping empty mesh!")
         return
+
+    # draco absorbs geometry into a buffer of its own, so collect the arrays as
+    # they are appended for the handler below rather than storing each one twice
+    claimed = {} if extension_draco else None
+
     # convert mesh data to the correct dtypes
     # faces: 5125 is an unsigned 32 bit integer
     # accessors refer to data locations
@@ -816,6 +844,7 @@ def _append_mesh(
         buff=buffer_items,
         blob={"componentType": 5125, "type": "SCALAR"},
         data=mesh.faces.astype(uint32),
+        claimed=claimed,
     )
 
     # vertices: 5126 is a float32
@@ -825,6 +854,7 @@ def _append_mesh(
         buff=buffer_items,
         blob={"componentType": 5126, "type": "VEC3", "byteOffset": 0},
         data=mesh.vertices.astype(float32),
+        claimed=claimed,
     )
 
     # meshes reference accessor indexes
@@ -883,6 +913,7 @@ def _append_mesh(
                     "byteOffset": 0,
                 },
                 data=vertex_colors.astype(uint8),
+                claimed=claimed,
             )
 
             # add the reference for vertex color
@@ -919,6 +950,7 @@ def _append_mesh(
                 buff=buffer_items,
                 blob={"componentType": 5126, "type": "VEC2", "byteOffset": 0},
                 data=uv.astype(float32),
+                claimed=claimed,
             )
             # add the reference for UV coordinates
             current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
@@ -947,6 +979,7 @@ def _append_mesh(
                 "byteOffset": 0,
             },
             data=normals.astype(float32),
+            claimed=claimed,
         )
         # add the reference for vertex color
         current["primitives"][0]["attributes"]["NORMAL"] = acc_norm
@@ -995,12 +1028,8 @@ def _append_mesh(
 
     # Handle Draco compression via extension handler
     if extension_draco:
-        # Determine if normals should be included
-        should_include_normals = include_normals or (
-            include_normals is None and "vertex_normals" in mesh._cache.cache
-        )
         # Call primitive_export handlers
-        handle_extensions(
+        compressed = handle_extensions(
             extensions={"KHR_draco_mesh_compression": {}},
             scope="primitive_export",
             mesh=mesh,
@@ -1008,8 +1037,17 @@ def _append_mesh(
             tree=tree,
             buffer_items=buffer_items,
             primitive=current["primitives"][0],
-            include_normals=should_include_normals,
+            arrays=claimed,
         )
+        if not compressed:
+            # nothing claimed the arrays so store them after all, keyed by accessor
+            # not content: two of these landing on one view would need a `byteStride`
+            blobs = list(tree["accessors"].values())
+            for index, data in claimed.items():
+                key = ("accessor", index)
+                buffer_items[key] = _byte_pad(data.tobytes())
+                blobs[index]["bufferView"] = buffer_items.index(key)
+                blobs[index]["byteOffset"] = 0
 
     tree["meshes"].append(current)
 
@@ -1021,7 +1059,7 @@ def _build_views(buffer_items):
 
     Parameters
     --------------
-    buffer_items : OrderedDict
+    buffer_items : IndexedDict
       Buffers to build views for
 
     Returns
@@ -1580,15 +1618,20 @@ def _read_buffers(
                 # preprocessing extensions like draco decompression run
                 # before reading accessors as they may modify them
                 if prim_extensions := p.get("extensions"):
+                    # a handler which raised can't have decoded anything
+                    failed = set()
                     handle_extensions(
                         extensions=prim_extensions,
                         scope="primitive_preprocess",
+                        failed=failed,
                         primitive=p,
                         accessors=access,
                         views=views,
                     )
-                    # warn later if an unhandled extension left placeholder zeros
+                    # warn later if an extension left placeholder zeros, whether
+                    # it had no handler or its handler failed
                     if not placeholders.isdisjoint(p.get("attributes", {}).values()):
+                        undecoded.update(failed)
                         undecoded.update(
                             unregistered(prim_extensions, "primitive_preprocess")
                         )
@@ -1737,7 +1780,7 @@ def _read_buffers(
 
     if undecoded:
         log.warning(
-            "`%s` GLTF extension has no handler, values are placeholder zeros",
+            "`%s` GLTF extension didn't decode, values are placeholder zeros",
             ", ".join(sorted(undecoded)),
         )
 
