@@ -89,7 +89,7 @@ easy = [
 
 recommend = [
     "sympy",
-    "pyglet<2",
+    "pyglet",
     "scikit-image",
     "fast-simplification",
     "python-fcl", # do collision checks
