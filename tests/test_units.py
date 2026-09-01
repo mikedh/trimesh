@@ -70,6 +70,48 @@ def test_path():
     assert g.np.allclose(p.extents / extents_pre, 25.4, atol=0.01)
 
 
+def test_table():
+    # every unit in the table should be its stated multiple of the base
+    # unit, and every singular spelling should match its plural
+    to_inch = g.trimesh.units.to_inch
+
+    metric = {
+        "nanometers": 1e-9,
+        "microns": 1e-6,
+        "millimeters": 1e-3,
+        "centimeters": 1e-2,
+        "decimeters": 1e-1,
+        "meters": 1.0,
+        "decameters": 1e1,
+        "hectometers": 1e2,
+        "kilometers": 1e3,
+        "gigameters": 1e9,
+    }
+    for name, factor in metric.items():
+        assert g.np.isclose(to_inch(name), factor * to_inch("meters"), rtol=1e-12)
+
+    imperial = {
+        "microinches": 1e-6,
+        "mils": 1e-3,
+        "inches": 1.0,
+        "feet": 12.0,
+        "yards": 36.0,
+        "miles": 63360.0,
+    }
+    for name, factor in imperial.items():
+        assert g.np.isclose(to_inch(name), factor * to_inch("inches"), rtol=1e-12)
+
+    for singular, plural in (
+        ("microinch", "microinches"),
+        ("mil", "mils"),
+        ("micron", "microns"),
+        ("meter", "meters"),
+        ("yard", "yards"),
+        ("mile", "miles"),
+    ):
+        assert to_inch(singular) == to_inch(plural)
+
+
 def test_keys():
     units = g.trimesh.units.keys()
     assert isinstance(units, set)
