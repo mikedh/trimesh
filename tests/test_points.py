@@ -316,9 +316,9 @@ def test_estimate_normals_plane():
     pcl = g.trimesh.points.PointCloud(vertices)
     # pcl.show()
 
-    pcl.estimate_normals()
+    normals = pcl.estimate_normals(10)
 
-    dot = g.np.sum(n * pcl.normals, axis=1)
+    dot = g.np.sum(n * normals, axis=1)
     dot = g.np.clip(dot, -1.0, 1.0)  # Otherwise rounding errors result in NaN
     angle_errors = g.np.arccos(dot)
     mask_close_to_zeros = angle_errors < g.np.deg2rad(1.0)
@@ -329,14 +329,14 @@ def test_estimate_normals_plane():
 def test_estimate_normals_sphere():
     # Create point cloud on sphere
     sphere = g.trimesh.creation.icosphere(subdivisions=4)
-    normals = sphere.vertices
-    vertices = 10.0 * normals + g.np.array((-13.0, 17.0, 55.0))
+    expected_normals = sphere.vertices
+    vertices = 10.0 * expected_normals + g.np.array((-13.0, 17.0, 55.0))
     pcl = g.trimesh.points.PointCloud(vertices)
     # pcl.show()
 
-    pcl.estimate_normals()
+    normals = pcl.estimate_normals()
 
-    dot = g.np.sum(normals * pcl.normals, axis=1)
+    dot = g.np.sum(expected_normals * normals, axis=1)
     dot = g.np.clip(dot, -1.0, 1.0)  # Otherwise rounding errors result in NaN
     angle_errors = g.np.arccos(dot)
     mask_close_to_zeros = angle_errors < g.np.deg2rad(1.0)

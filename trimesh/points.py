@@ -16,7 +16,7 @@ from .constants import tol
 from .geometry import plane_transform
 from .inertia import points_inertia
 from .parent import Geometry3D
-from .typed import ArrayLike, NDArray
+from .typed import ArrayLike, NDArray, NDArray2D
 from .visual.color import VertexColor
 
 
@@ -363,35 +363,6 @@ def tsp(points, start=0):
     return traversal, distances
 
 
-def principal_component_analysis_3d(points):
-    """
-    Principal component analysis (PCA) for 3d points
-
-    Parameters
-    -------------
-    points : (n, 3) float
-      Points in space
-
-    Returns
-    ----------
-    components : (3, 3) float
-      Principal axes in feature space, row-wise, sorted by variance
-    mean : (3,) float
-      Mean of dataset
-    explained_variance : (3,) float
-      Explained variance equals size of eigenvalues (sorted)
-    """
-    center_of_gravity = np.mean(points.T, axis=1)
-    C = points - center_of_gravity
-    V = np.cov(C, rowvar=False)
-    w, v = np.linalg.eigh(V)
-    # Sort by eigen value (descending)
-    idx = np.argsort(w)[::-1]
-    w = w[idx]
-    v = v[:, idx]
-    return v.T, center_of_gravity, w
-
-
 def plot_points(points, show=True):
     """
     Plot an (n, 3) list of points using matplotlib
@@ -431,7 +402,7 @@ class PointCloud(Geometry3D):
     in a scene.
     """
 
-    def __init__(self, vertices, normals=None, colors=None, metadata=None, **kwargs):
+    def __init__(self, vertices, colors=None, metadata=None, **kwargs):
         """
         Load an array of points into a PointCloud object.
 
@@ -439,8 +410,6 @@ class PointCloud(Geometry3D):
         -------------
         vertices : (n, 3) float
           Points in space
-        normals : (n, 3) float
-          Normals, normal length
         colors : (n, 4) uint8 or None
           RGBA colors for each point
         metadata : dict or None
@@ -452,9 +421,8 @@ class PointCloud(Geometry3D):
         if metadata is not None:
             self.metadata.update(metadata)
 
-        # load vertices and normals
+        # load vertices
         self.vertices = vertices
-        self.normals = normals
 
         if "vertex_colors" in kwargs and colors is None:
             colors = kwargs["vertex_colors"]
@@ -684,36 +652,6 @@ class PointCloud(Geometry3D):
         self._data["vertices"] = np.asanyarray(values, order="C", dtype=float64)
 
     @property
-    def normals(self):
-        """
-        Normals of the PointCloud
-
-        Returns
-        ------------
-        normals : (n, 3) float
-          Normals in the PointCloud
-        """
-        return self._data.get("normals", np.zeros(shape=(0, 3), dtype=float64))
-
-    @normals.setter
-    def normals(self, values):
-        """
-        Assign normal values to the point cloud.
-
-        Parameters
-        --------------
-        values : (n, 3) float
-        Normals
-        """
-        if values is None or len(values) == 0:
-            return self._data.data.pop("normals", None)
-        values = np.asanyarray(values, order="C", dtype=np.float64)
-        if values.shape != self.shape:
-            raise ValueError("Normals must match vertices!")
-        values_len = np.sqrt(np.sum(values**2, axis=1))
-        self._data["normals"] = values / values_len[:, None]
-
-    @property
     def colors(self):
         """
         Stored per- point color
@@ -813,23 +751,6 @@ class PointCloud(Geometry3D):
 
         return query_from_points(self.vertices, input_points, self.kdtree, **kwargs)
 
-    def estimate_normals(self, knn=30):
-        """
-        Estimate normals of PointCloud from nearest neighbor points
-
-        Parameters
-        ------------
-        knn : float
-          Number of nearest neighbors for each point to compute normals from
-        """
-        kdtree = self.kdtree
-        normals = np.zeros_like(self.vertices)
-        for i in range(self.shape[0]):
-            _, indices = kdtree.query(self.vertices[i], k=knn)
-            components, _, _ = principal_component_analysis_3d(self.vertices[indices])
-            normals[i] = components[2, :]
-        self.normals = normals
-
     def __add__(self, other):
         if len(other.colors) == len(self.colors) == 0:
             colors = None
@@ -850,3 +771,20 @@ class PointCloud(Geometry3D):
         return PointCloud(
             vertices=np.vstack((self.vertices, other.vertices)), colors=colors
         )
+
+    def estimate_normals(self, cluster_size=30) -> NDArray2D[np.float64]:
+        """
+        Estimate normals of PointCloud from nearest neighbor points
+
+        Parameters
+        ------------
+        cluster_size : float
+          Number of nearest neighbors for each point to compute normals from
+        """
+        _, indices = self.kdtree.query(self.vertices, k=cluster_size)
+        points = self.vertices[indices]
+        centroids = np.mean(points, axis=1, keepdims=True)
+        C = points - centroids
+        covariances = np.matmul(C.transpose(0, 2, 1), C) / (cluster_size - 1)
+        _, v = np.linalg.eigh(covariances)
+        return v[:, :, 0]
