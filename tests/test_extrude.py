@@ -63,6 +63,25 @@ def test_extrusion():
         assert current.origin.shape == (3,)
 
 
+@g.pytest.mark.parametrize("height", [3.0, -3.0])
+@g.pytest.mark.parametrize("hole", [False, True])
+def test_extrude_circle(height, hole):
+    g.pytest.importorskip("mapbox_earcut")
+    path = g.trimesh.path.creation.circle(radius=2, segments=8)
+    if hole:
+        path += g.trimesh.path.creation.circle(radius=1, segments=8)
+    polygon = path.polygons_full[0]
+    assert len(polygon.interiors) == int(hole)
+    mesh = path.extrude(height).to_mesh()
+    assert mesh.is_watertight
+    assert mesh.is_winding_consistent
+    assert mesh.is_volume
+    assert mesh.nondegenerate_faces().all()
+    assert g.np.isclose(mesh.volume, polygon.area * abs(height))
+    assert g.np.allclose(mesh.bounds[:, :2], g.np.array(polygon.bounds).reshape(2, 2))
+    assert g.np.allclose(mesh.bounds[:, 2], sorted([0.0, height]))
+
+
 def test_extrude_degen():
     # don't error on degenerate triangle
     # validate=True should remove the degenerate triangle
