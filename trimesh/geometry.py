@@ -78,12 +78,10 @@ def align_vectors(a, b, return_angle=False):
 
     if return_angle:
         # projection of a onto b
-        # first row of SVD result is normalized source vector
-        dot = np.dot(au[0], bu[0])
+        # first column of SVD result is normalized source vector
+        dot = np.dot(au[:, 0], bu[:, 0])
         # clip to avoid floating point error
         angle = np.arccos(np.clip(dot, -1.0, 1.0))
-        if dot < -1e-5:
-            angle += np.pi
         return matrix, angle
 
     return matrix
