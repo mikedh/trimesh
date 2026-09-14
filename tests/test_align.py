@@ -41,7 +41,7 @@ class AlignTests(g.unittest.TestCase):
         unitized = g.trimesh.unitize(vectors)
         for unit_dest, dest in zip(unitized[-10:], vectors[-10:]):
             for unit, vector in zip(unitized, vectors):
-                T, _a = align(vector, dest, return_angle=True)
+                T, angle = align(vector, dest, return_angle=True)
                 assert is_rigid(T)
                 assert g.np.isclose(g.np.linalg.det(T), 1.0)
                 # rotate vector with transform
@@ -50,6 +50,8 @@ class AlignTests(g.unittest.TestCase):
                 norm = g.np.linalg.norm(check - unit_dest)
                 norms.append(norm)
                 assert norm < tol_norm
+                assert 0.0 <= angle <= g.np.pi
+                assert g.np.isclose(g.np.cos(angle), g.np.dot(unit, unit_dest))
 
         norms = g.np.array(norms)
         # these vectors should be perpendicular and zero
