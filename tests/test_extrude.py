@@ -67,9 +67,10 @@ def test_extrusion():
 @g.pytest.mark.parametrize("hole", [False, True])
 def test_extrude_circle(height, hole):
     g.pytest.importorskip("mapbox_earcut")
-    path = g.trimesh.path.creation.circle(radius=2, segments=8)
+    path = g.trimesh.path.creation.circle(radius=2)
     if hole:
-        path += g.trimesh.path.creation.circle(radius=1, segments=8)
+        # A 2:1 radius ratio creates collinear cap vertices in Earcut.
+        path += g.trimesh.path.creation.circle(radius=0.75)
     polygon = path.polygons_full[0]
     assert len(polygon.interiors) == int(hole)
     mesh = path.extrude(height).to_mesh()
