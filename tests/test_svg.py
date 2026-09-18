@@ -92,6 +92,74 @@ def test_trans():
     assert g.np.allclose(a[1], [[0, 2, 4], [1, 3, 5], [0, 0, 1]])
 
 
+@g.pytest.mark.parametrize(
+    "angle, cosine, sine",
+    [
+        (0, 1, 0),
+        (90, 0, 1),
+        (-90, 0, -1),
+        (180, -1, 0),
+        (360, 1, 0),
+        (450, 0, 1),
+        (30, 3**0.5 / 2, 0.5),
+    ],
+)
+@g.pytest.mark.parametrize("point", [None, (2, 3)])
+@g.pytest.mark.parametrize("separator", [" ", ","])
+def test_rotation_matrix(angle, cosine, sine, point, separator):
+    from trimesh.path.exchange.svg_io import transform_to_matrices
+
+    values = [angle] if point is None else [angle, *point]
+    matrix = transform_to_matrices(f"rotate({separator.join(map(str, values))})")
+    x, y = (0, 0) if point is None else point
+    # SVG specifies [cos(a), sin(a), -sin(a), cos(a), tx, ty].
+    expected = [
+        [cosine, -sine, x * (1 - cosine) + y * sine],
+        [sine, cosine, y * (1 - cosine) - x * sine],
+        [0, 0, 1],
+    ]
+    g.np.testing.assert_allclose(matrix, [expected], atol=1e-12, rtol=0)
+
+
+@g.pytest.mark.parametrize("on_group", [False, True])
+@g.pytest.mark.parametrize(
+    "transform, expected",
+    [
+        ("rotate(0)", [[1, 2], [3, 2], [1, 4]]),
+        ("rotate(90)", [[-2, 1], [-2, 3], [-4, 1]]),
+        ("rotate(-90)", [[2, -1], [2, -3], [4, -1]]),
+        ("rotate(90 2 3)", [[3, 2], [3, 4], [1, 2]]),
+        ("translate(10 20) rotate(90)", [[8, 21], [8, 23], [6, 21]]),
+    ],
+)
+def test_load_rotation(on_group, transform, expected):
+    path = '<path d="M 1 2 L 3 2 L 1 4 Z"/>'
+    if on_group:
+        element = f'<g transform="{transform}">{path}</g>'
+    else:
+        element = path.replace("<path ", f'<path transform="{transform}" ')
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg">{element}</svg>'
+    loaded = g.trimesh.load_path(g.io_wrap(svg), file_type="svg")
+    expected = g.np.asarray(expected)
+    assert loaded.vertices.shape == expected.shape
+    # Path processing may reorder vertices: require a bijection to known points.
+    matches = g.np.linalg.norm(loaded.vertices[:, None] - expected, axis=2) < 1e-12
+    assert (matches.sum(axis=0) == 1).all()
+    assert (matches.sum(axis=1) == 1).all()
+
+
+def test_nested_rotation():
+    from trimesh.path.exchange.svg_io import element_transform, etree
+
+    tree = etree.fromstring(
+        '<g transform="translate(10 20)"><g transform="rotate(90)"><path/></g></g>'
+    )
+    matrix = element_transform(tree[0][0])
+    g.np.testing.assert_allclose(
+        matrix, [[0, -1, 10], [1, 0, 20], [0, 0, 1]], atol=1e-12, rtol=0
+    )
+
+
 def test_roundtrip():
     """
     Check to make sure a roundtrip from both a Scene and a
