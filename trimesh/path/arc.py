@@ -194,7 +194,10 @@ def discretize_arc(points, close=False, scale=1.0):
 
     # do an in-process check to make sure result endpoints
     # match the endpoints of the source arc
-    if not close:
+    if close:
+        # Avoid a near-duplicate endpoint when converting the circle to a polygon.
+        discrete[-1] = discrete[0]
+    else:
         if tol.strict:
             arc_dist = util.row_norm(points[[0, -1]] - discrete[[0, -1]])
             arc_ok = (arc_dist < tol.merge).all()

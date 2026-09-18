@@ -4,6 +4,22 @@ except BaseException:
     import generic as g
 
 
+@g.pytest.mark.parametrize("dimension", [2, 3])
+@g.pytest.mark.parametrize("close", [False, True])
+def test_discrete_endpoints(dimension, close):
+    points = g.np.array([[2.0, 0.0], [0.0, 2.0], [-2.0, 0.0]])
+    if dimension == 3:
+        points = g.trimesh.transform_points(
+            g.trimesh.util.stack_3D(points), next(g.random_transforms(1))
+        )
+    discrete = g.trimesh.path.arc.discretize_arc(points, close=close)
+    assert discrete.shape[1] == dimension
+    if close:
+        assert g.np.array_equal(discrete[0], discrete[-1])
+    else:
+        assert g.np.array_equal(discrete[[0, -1]], points[[0, -1]])
+
+
 class ArcTests(g.unittest.TestCase):
     def test_center(self):
         from trimesh.path.arc import arc_center
