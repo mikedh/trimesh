@@ -71,6 +71,12 @@ def test_path():
 
 
 def test_table():
+
+    table = g.trimesh.units._lookup
+    for key, value in table.items():
+        assert isinstance(key, str) and len(key) >= 1
+        assert isinstance(value, float) and value > 0.0, key
+
     # every unit in the table should be its stated multiple of the base
     # unit, and every singular spelling should match its plural
     to_inch = g.trimesh.units.to_inch
@@ -138,3 +144,4 @@ def test_arbitrary():
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     test_mm_hint()
+    test_table()
