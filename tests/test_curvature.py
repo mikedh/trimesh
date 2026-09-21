@@ -43,6 +43,23 @@ class CurvatureTest(g.unittest.TestCase):
         assert len(m.vertex_defects) == len(m.vertices)
 
 
+@g.pytest.mark.parametrize("batch", [False, True])
+def test_mean_curvature_box(batch, monkeypatch):
+    mesh = g.trimesh.creation.box()
+    if not batch:
+
+        def no_batch(*args, **kwargs):
+            raise NotImplementedError
+
+        monkeypatch.setattr(mesh.face_adjacency_tree, "intersection_v", no_batch)
+
+    # A unit cube has 12 unit edges with exterior angle pi/2; the
+    # mean curvature measure is half their sum. The distant ball is empty.
+    points = [[0, 0, 0], [10, 0, 0], [0, 0, 0]]
+    actual = g.trimesh.curvature.discrete_mean_curvature_measure(mesh, points, 2.0)
+    assert g.np.allclose(actual, [3 * g.np.pi, 0, 3 * g.np.pi])
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()
