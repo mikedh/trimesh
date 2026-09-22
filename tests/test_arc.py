@@ -100,6 +100,16 @@ class ArcTests(g.unittest.TestCase):
         g.check_path2D(p)
 
 
+def test_circle_is_closed():
+    path = g.trimesh.path.creation.circle(radius=2, segments=8)
+    path += g.trimesh.path.creation.circle(radius=1, segments=8)
+
+    assert len(path.discrete) == 2
+    for d in path.discrete:
+        assert (d[0] == d[-1]).all(), g.np.linalg.norm(d[0] - d[-1])
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
-    g.unittest.main()
+
+    test_circle_is_closed()

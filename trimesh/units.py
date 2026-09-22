@@ -65,9 +65,9 @@ def to_inch(unit: str) -> float:
     """
     # see if the units are just in our lookup table
     lookup = _lookup.get(unit.strip().lower(), None)
+
     if lookup is not None:
         return lookup
-
     try:
         # otherwise check to see if they are in the factor * unit form
         value, key = unit.split("*")
