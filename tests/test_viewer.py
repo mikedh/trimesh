@@ -66,6 +66,27 @@ class ViewerTest(g.unittest.TestCase):
         # run the quit key toggle
         v.on_key_press(symbol=key.Q, modifiers=None)
 
+    def test_reset_view(self):
+        if not g.include_rendering:
+            return
+        from pyglet.window import key, mouse
+
+        from trimesh.viewer.windowed import SceneViewer
+
+        scene = g.trimesh.Scene(g.trimesh.creation.box(extents=[2, 1, 1]))
+        initial = scene.camera_transform.copy()
+
+        v = SceneViewer(scene=scene, start_loop=False)
+
+        # a mouse drag should rotate the camera off the initial pose
+        v.on_mouse_press(300, 300, mouse.LEFT, 0)
+        v.on_mouse_drag(380, 340, 80, 40, mouse.LEFT, 0)
+        assert not g.np.allclose(scene.camera_transform, initial)
+
+        # `z` should snap the camera back without needing another event
+        v.on_key_press(symbol=key.Z, modifiers=None)
+        assert g.np.allclose(scene.camera_transform, initial)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

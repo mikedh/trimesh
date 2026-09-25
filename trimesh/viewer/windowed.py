@@ -390,6 +390,7 @@ class SceneViewer(pyglet.window.Window):
                 self.update_flags()
         except BaseException:
             pass
+        self.scene.camera_transform = self.view["ball"].pose
 
     def init_gl(self):
         """
