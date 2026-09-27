@@ -108,7 +108,7 @@ class ArcTests(g.unittest.TestCase):
         m = inner + outer
 
         s = m.section(plane_normal=[0, 0, 1], plane_origin=[0, 0, 0])
-        p = s.to_planar()[0]
+        p = s.to_2D()[0]
 
         assert len(p.polygons_closed) == 4
         assert len(p.polygons_full) == 2
