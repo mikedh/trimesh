@@ -127,11 +127,11 @@ def discrete_mean_curvature_measure(mesh, points, radius):
         # use the batch API added in 1.4.0 and fixed to actually work in 1.4.1
         hit_ids, hit_counts = tree.intersection_v(mins, maxs)
         candidates = np.asarray(hit_ids, dtype=np.int64)
-        counts = np.asarray(hit_counts, dtype=np.int64)
+        counts = np.asarray(hit_counts, dtype=np.intp)
     except BaseException:
         # fall back to a list comprehension
         per_point = [list(tree.intersection(b)) for b in np.column_stack((mins, maxs))]
-        counts = np.array([len(c) for c in per_point], dtype=np.int64)
+        counts = np.array([len(c) for c in per_point], dtype=np.intp)
         candidates = np.fromiter(
             (i for c in per_point for i in c), dtype=np.int64, count=int(counts.sum())
         )
