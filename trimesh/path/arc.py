@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import numpy as np
 
 from .. import util
-from ..constants import log
 from ..constants import res_path as res
 from ..constants import tol_path as tol
 from ..typed import ArrayLike, NDArray, Number, float64
