@@ -643,8 +643,8 @@ def closest_point(triangles, points):
 
     # When A and B coincide the triangle is the segment AC (or a point).
     # Handle these before the AB projection, whose denominator is |AB|**2.
-    collapsed_ab = np.all(ab == 0, axis=1)
-    if any(collapsed_ab):
+    collapsed_ab = np.all(ab == 0.0, axis=1)
+    if collapsed_ab.any():
         segment = ac[collapsed_ab]
         length_squared = np.sum(segment**2, axis=1)
         factor = np.zeros(len(segment), dtype=np.float64)
