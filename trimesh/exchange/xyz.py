@@ -56,7 +56,7 @@ def load_xyz(file_obj, delimiter=None, **kwargs):
         )
     elif columns >= 7:
         # extract RGBA colors
-        colors = np.array(data[:, 3:8], dtype=np.uint8)
+        colors = np.array(data[:, 3:7], dtype=np.uint8)
     # add extracted colors and vertices to kwargs
     kwargs.update({"vertices": vertices, "colors": colors})
 
