@@ -32,6 +32,23 @@ class ArcTests(g.unittest.TestCase):
         )
         assert len(c.center) == 3
 
+    def test_length(self):
+        # open arcs are `radius * angle` and closed arcs the full circumference
+        radius = 2.0
+        for angle in [g.np.pi / 2, g.np.pi, g.np.pi * 1.5]:
+            theta = g.np.array([0.0, angle / 2.0, angle])
+            vertices = g.np.column_stack((g.np.cos(theta), g.np.sin(theta))) * radius
+            arc = g.trimesh.path.entities.Arc([0, 1, 2])
+            length = arc.length(vertices)
+            assert g.np.isclose(length, radius * angle)
+            # the discrete polyline is inscribed so it is slightly shorter
+            chords = g.np.diff(arc.discrete(vertices), axis=0)
+            polyline = g.np.linalg.norm(chords, axis=1).sum()
+            assert polyline <= length and g.np.isclose(polyline, length, rtol=1e-3)
+
+        circle = g.trimesh.path.creation.circle(radius=radius)
+        assert g.np.isclose(circle.length, g.np.pi * 2.0 * radius)
+
     def test_center_random(self):
         from trimesh.path.arc import arc_center
 
