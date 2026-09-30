@@ -393,7 +393,7 @@ def export_ply(
 
     if hasattr(mesh, "faces"):
         header.append(templates["face"])
-        if mesh.visual.kind == "face" and encoding != "ascii":
+        if mesh.visual.kind == "face":
             header.append(templates["color"])
             dtype_face.append(dtype_color)
 
@@ -405,7 +405,7 @@ def export_ply(
         pack_faces = np.zeros(len(mesh.faces), dtype=dtype_face)
         pack_faces["count"] = 3
         pack_faces["index"] = mesh.faces
-        if mesh.visual.kind == "face" and encoding != "ascii":
+        if mesh.visual.kind == "face":
             pack_faces["rgba"] = mesh.visual.face_colors
         header_params["face_count"] = len(mesh.faces)
 

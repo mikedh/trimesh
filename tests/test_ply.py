@@ -164,6 +164,17 @@ class PlyTest(g.unittest.TestCase):
         assert g.np.allclose(ea.visual.vertex_colors, color)
         assert ea.visual.kind == "vertex"
 
+        # a unique color per face so any dropped or reordered color fails
+        mesh = g.trimesh.creation.box()
+        face_colors = g.np.arange(len(mesh.faces) * 4, dtype=g.np.uint8).reshape((-1, 4))
+        mesh.visual.face_colors = face_colors
+        ef = g.roundtrip(
+            mesh.export(file_type="ply", encoding="ascii"), file_type="ply", process=False
+        )
+        assert ef.visual.kind == "face"
+        assert g.np.array_equal(ef.faces, mesh.faces)
+        assert g.np.array_equal(ef.visual.face_colors, face_colors)
+
     def test_empty_or_pointcloud(self):
         # demo files to check
         empty_files = [
