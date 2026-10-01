@@ -42,9 +42,7 @@ class TrianglesTest(g.unittest.TestCase):
             points=g.data["triangles"]["points"],
         )
 
-        comparison = (closest - g.data["triangles"]["closest"]).all()
-
-        assert (comparison < 1e-8).all()
+        g.np.testing.assert_allclose(closest, g.data["triangles"]["closest"], atol=1e-8)
         g.log.info("finished closest check on %d triangles", len(closest))
 
     def test_closest_obtuse(self):
@@ -121,6 +119,7 @@ class TrianglesTest(g.unittest.TestCase):
                 [[0, 0, 0], [2, 0, 0], [0, 0, 0]],
                 [[0, 0, 0], [1, 0, 0], [2, 0, 0]],
                 [[0, 0, 0], [2, 0, 0], [0, 2, 0]],
+                [[0, 0, 0], [1, 2, 3], [0.1, 0.2, 0.3]],
             ],
             dtype=g.np.float64,
         )
@@ -133,6 +132,7 @@ class TrianglesTest(g.unittest.TestCase):
                 [1, 1, 0],
                 [1.5, 1, 0],
                 [0.5, 0.5, 1],
+                [2, 0.5, 0.1],
             ]
         )
         expected = g.np.array(
@@ -144,12 +144,18 @@ class TrianglesTest(g.unittest.TestCase):
                 [1, 0, 0],
                 [1.5, 0, 0],
                 [0.5, 0.5, 0],
+                [33 / 140, 33 / 70, 99 / 140],
             ]
         )
 
-        with g.np.errstate(divide="raise", invalid="raise"):
-            closest = g.trimesh.triangles.closest_point(triangles, points)
-        g.np.testing.assert_allclose(closest, expected)
+        for scale, order in g.itertools.product(
+            [1e-9, 1e-4, 1.0, 1e4, 1e9], g.itertools.permutations(range(3))
+        ):
+            with g.np.errstate(divide="raise", invalid="raise"):
+                closest = g.trimesh.triangles.closest_point(
+                    triangles[:, order] * scale, points * scale
+                )
+            g.np.testing.assert_allclose(closest / scale, expected, atol=1e-13)
 
     def test_degenerate(self):
         tri = [
@@ -202,6 +208,83 @@ class TrianglesTest(g.unittest.TestCase):
             g.np.sort(angles.ravel()),
             [g.np.arcsin(3.0 / 5), g.np.arcsin(4.0 / 5), g.np.pi / 2],
         )
+
+
+@g.pytest.mark.parametrize(
+    "scale", [1e-12, 1e-9, 1e-7, 1e-5, 1e-4, 1e-3, 1, 1e3, 1e6, 1e9, 1e12]
+)
+@g.pytest.mark.parametrize("order", list(g.itertools.permutations(range(3))))
+@g.pytest.mark.parametrize("transformed", [False, True])
+def test_closest_scale(scale, order, transformed):
+    # Include every Voronoi region, points on each boundary, and off-plane points.
+    triangle = g.np.array([[0, 0, 0], [2, 0, 0], [0, 1, 0]], dtype=g.np.float64)
+    points = g.np.array(
+        [
+            [0.5, 0.25, 0],
+            [0.5, 0.25, 1],
+            [0.5, 0.25, -1],
+            [1, -1, 1],
+            [-1, 0.5, -1],
+            [1.5, 1.5, 1],
+            [-1, -1, 1],
+            [3, -1, -1],
+            [-1, 2, 1],
+            [0, 0, 0],
+            [2, 0, 0],
+            [0, 1, 0],
+            [1, 0, 0],
+            [0, 0.5, 0],
+            [1, 0.5, 0],
+        ],
+        dtype=g.np.float64,
+    )
+    expected = g.np.array(
+        [
+            [0.5, 0.25, 0],
+            [0.5, 0.25, 0],
+            [0.5, 0.25, 0],
+            [1, 0, 0],
+            [0, 0.5, 0],
+            [1, 0.5, 0],
+            [0, 0, 0],
+            [2, 0, 0],
+            [0, 1, 0],
+            [0, 0, 0],
+            [2, 0, 0],
+            [0, 1, 0],
+            [1, 0, 0],
+            [0, 0.5, 0],
+            [1, 0.5, 0],
+        ],
+        dtype=g.np.float64,
+    )
+    if transformed:
+        matrix = g.trimesh.transformations.rotation_matrix(0.7, [1, 2, -3])
+        matrix[:3, 3] = [3, -2, 5]
+        triangle = g.trimesh.transform_points(triangle, matrix)
+        points = g.trimesh.transform_points(points, matrix)
+        expected = g.trimesh.transform_points(expected, matrix)
+
+    triangles = g.np.tile(triangle[order, :], (len(points), 1, 1)) * scale
+    with g.np.errstate(divide="raise", invalid="raise"):
+        closest = g.trimesh.triangles.closest_point(triangles, points * scale)
+    # Compare in unscaled units: absolute world-space tolerances hide small errors.
+    g.np.testing.assert_allclose(closest / scale, expected, rtol=1e-13, atol=1e-13)
+
+
+@g.pytest.mark.parametrize("scale", [1e-9, 1.0, 1e9])
+@g.pytest.mark.parametrize("order", [(1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)])
+def test_closest_skinny_scale(scale, order):
+    # Relative determinant tolerance must respect the products in each ordering,
+    # rather than erasing the short edge with a tolerance based on the longest one.
+    triangle = g.np.array([[0, 0, 0], [1e8, 0, 0], [1e8, 1, 0]], dtype=g.np.float64)
+    points = g.np.array([[5e7, 0.25, 1], [1e8, 0.5, 1]], dtype=g.np.float64)
+    expected = points.copy()
+    expected[:, 2] = 0.0
+    triangles = g.np.tile(triangle[order, :], (len(points), 1, 1)) * scale
+    with g.np.errstate(divide="raise", invalid="raise"):
+        closest = g.trimesh.triangles.closest_point(triangles, points * scale)
+    g.np.testing.assert_allclose(closest / scale, expected, rtol=1e-13, atol=1e-13)
 
 
 if __name__ == "__main__":
