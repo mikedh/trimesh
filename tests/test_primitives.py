@@ -343,6 +343,28 @@ def test_copy():
         assert box.metadata["foo"] == box_copy.metadata["foo"]
 
 
+@g.pytest.mark.parametrize(
+    "kind, attribute, value, override",
+    [
+        (Cylinder, "sections", 8, 12),
+        (Capsule, "sections", 8, 12),
+        (Sphere, "subdivisions", 1, 2),
+        (g.trimesh.primitives.Extrusion, "mid_plane", True, False),
+    ],
+)
+@g.pytest.mark.parametrize("mutable", [True, False])
+def test_copy_primitive_attributes(kind, attribute, value, override, mutable):
+    primitive = kind(**{attribute: value}, mutable=mutable)
+    copied = primitive.copy()
+    assert getattr(copied.primitive, attribute) == value
+    assert g.np.array_equal(primitive.faces, copied.faces)
+    assert g.np.allclose(primitive.vertices, copied.vertices, rtol=1e-12, atol=1e-12)
+    copied.primitive.transform = g.tf.translation_matrix([1, 2, 3])
+    assert g.np.array_equal(primitive.transform, g.np.eye(4))
+    overridden = primitive.copy(**{attribute: override})
+    assert getattr(overridden.primitive, attribute) == override
+
+
 def test_sphere_subdivisions():
     # make sure we don't subdivide when asked not to
     a = g.trimesh.creation.icosphere(subdivisions=0)
