@@ -22,6 +22,18 @@ class GroupTests(g.unittest.TestCase):
         assert (inverse[:subset] == 0).all()
         assert len(unique) == count - subset + 1
 
+    def test_unique_rows_zero_columns(self):
+        # rows without any columns are all identical; this used to raise a
+        # ZeroDivisionError inside hashable_rows
+        data = g.np.zeros((5, 0), dtype=g.np.float64)
+        unique, inverse = g.trimesh.grouping.unique_rows(data)
+        assert len(unique) == 1
+        assert (inverse == 0).all()
+
+        groups = g.trimesh.grouping.group_rows(data)
+        assert len(groups) == 1
+        assert len(groups[0]) == 5
+
     def test_blocks(self):
         """
         Blocks are equivalent values next to each other in
