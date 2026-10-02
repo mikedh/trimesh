@@ -641,6 +641,22 @@ def closest_point(triangles, points):
         result[is_a] = a[is_a]
         remain[is_a] = False
 
+    # When A and B coincide the triangle is the segment AC (or a point).
+    # Handle these before the AB projection, whose denominator is |AB|**2.
+    collapsed_ab = np.all(ab == 0.0, axis=1)
+    if collapsed_ab.any():
+        segment = ac[collapsed_ab]
+        length_squared = np.sum(segment**2, axis=1)
+        factor = np.zeros(len(segment), dtype=np.float64)
+        np.divide(
+            np.sum(ap[collapsed_ab] * segment, axis=1),
+            length_squared,
+            out=factor,
+            where=length_squared > 0,
+        )
+        result[collapsed_ab] = a[collapsed_ab] + np.clip(factor, 0, 1)[:, None] * segment
+        remain[collapsed_ab] = False
+
     # check if P in vertex region outside B
     bp = points - b
     d3 = np.dot(ab * bp, ones)

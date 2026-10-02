@@ -200,8 +200,8 @@ def transform_to_matrices(transform: str) -> NDArray[np.float64]:
             #  [0 0 1]]
             matrices.append(np.vstack((values.reshape((3, 2)).T, [0, 0, 1])))
         elif key == "rotate":
-            # SVG rotations are in degrees
-            angle = np.degrees(values[0])
+            # SVG uses degrees and the opposite rotation sign to planar_matrix.
+            angle = -np.radians(values[0])
             # if there are three values rotate around point
             if len(values) == 3:
                 point = values[1:]

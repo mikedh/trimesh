@@ -2705,9 +2705,12 @@ class Trimesh(Geometry3D):
         Parameters
         -----------
         percent
-          A number between 0.0 and 1.0 for how much
+          A number between 0.0 and 1.0 for how much of the mesh to
+          remove, i.e. `percent=0.9` keeps roughly 10% of the faces.
+          Passed to `fast_simplification` as `target_reduction`.
         face_count
           Target number of faces desired in the resulting mesh.
+          Pass either `percent` or `face_count`, not both.
         aggression
           An integer between `0` and `10`, the scale being roughly
           `0` is "slow and good" and `10` being "fast and bad."

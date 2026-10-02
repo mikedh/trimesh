@@ -198,6 +198,11 @@ def hashable_rows(
     if len(as_int.shape) == 1:
         return as_int
 
+    # rows without any columns are all identical: return a constant per row
+    # rather than dividing by the column count below
+    if as_int.shape[1] == 0:
+        return np.zeros(len(as_int), dtype=np.uint64)
+
     # if array is 2D and smallish, we can try bitbanging
     # this is significantly faster than the custom dtype
     if allow_int and len(as_int.shape) == 2 and as_int.shape[1] <= 4:
