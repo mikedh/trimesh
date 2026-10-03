@@ -132,6 +132,9 @@ class Primitive(Trimesh):
         copied : object
           Copy of current primitive
         """
+        # preserve attributes omitted by the serialization schema
+        for key in self.primitive._defaults:
+            kwargs.setdefault(key, self._data[key])
         # get the constructor arguments
         kwargs.update(self.to_dict())
         # remove the type indicator, i.e. `Cylinder`
