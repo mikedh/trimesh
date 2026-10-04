@@ -107,7 +107,9 @@ def load_obj(
 
     # get relevant chunks that have face data
     # in the form of (material, object, chunk)
-    face_tuples = _preprocess_faces(text, split_objects, split_groups)
+    face_tuples = _preprocess_faces(
+        _resolve_relative_indices(text), split_objects, split_groups
+    )
 
     # combine chunks that have the same material
     # some meshes end up with a LOT of components
@@ -709,6 +711,57 @@ def _group_by(face_tuples, use_mtl: bool, use_obj: bool, use_group: bool):
         grouped[key][3] = "\n".join(grouped[key][3])
     # return as list
     return list(grouped.values())
+
+
+def _resolve_relative_indices(text):
+    """Resolve interleaved face indices before material and object grouping."""
+    first_face = text.find("\nf ")
+    keys = ("v", "vt", "vn")
+    if first_face < 0 or all(text.rfind(f"\n{k} ") < first_face for k in keys):
+        return text
+    faces = list(re.finditer(r"\nf [^\n]*-\d[^\n]*", text))
+    if not len(faces):
+        return text
+    # Scan only face text: negative vertex coordinates are not relative indices.
+    lines = [m[0] for m in faces]
+    face_starts = np.array([m.start() for m in faces], dtype=np.int64)
+    offsets = np.concatenate(
+        ([0], np.cumsum([len(line) for line in lines], dtype=np.int64))
+    )
+    face_text = "".join(lines)
+
+    patterns = (
+        r"(?<!\S)(-\d+)",
+        r"(?<!\S)[+-]?\d+/(-\d+)",
+        r"(?<!\S)[+-]?\d+/(?:[+-]?\d+)?/(-\d+)",
+    )
+    replacements = []
+    # Only three attribute kinds: resolve their indices in bulk, including
+    # independent declaration counts for vertices, texture coordinates and normals.
+    for key, pattern in zip(keys, patterns):
+        matches = list(re.finditer(pattern, face_text))
+        positions = np.array([m.start(1) for m in matches], dtype=np.int64)
+        face_index = np.searchsorted(offsets, positions, side="right") - 1
+        positions += face_starts[face_index] - offsets[face_index]
+        declarations = np.array(
+            [m.start() for m in re.finditer(f"\n{key} ", text)], dtype=np.int64
+        )
+        values = np.fromstring(" ".join(m[1] for m in matches), sep=" ", dtype=np.int64)
+        indices = values + np.searchsorted(declarations, positions) + 1
+        if (indices <= 0).any() or (values == 0).any():
+            raise ValueError("OBJ relative index refers to an undefined declaration")
+        ends = positions + np.array([len(m[1]) for m in matches], dtype=np.int64)
+        replacements.extend(zip(positions.tolist(), ends.tolist(), indices.astype(str)))
+
+    # String assembly is linear in the number of changed tokens; all arithmetic
+    # and declaration lookups above are vectorized, not repeated per face.
+    result = []
+    previous = 0
+    for start, end, index in sorted(replacements):
+        result.extend((text[previous:start], index))
+        previous = end
+    result.append(text[previous:])
+    return "".join(result)
 
 
 def _preprocess_faces(text, use_obj=False, use_groups=False):
