@@ -225,7 +225,7 @@ def procrustes(
     square sum distances between Ta and b, also called the cost.
 
     Optionally filter the points in a and b via a binary weights array.
-    Non-uniform weights are also supported, but won't yield the optimal rotation.
+    Non-uniform weights are supported and determine the optimal rotation.
 
     Parameters
     ----------
@@ -237,9 +237,7 @@ def procrustes(
       List of floats representing how much weight is assigned to each point.
       Binary entries can be used to filter the arrays; normalization is not required.
       Translation and scaling are adjusted according to the weighting.
-      Note, however, that this method does not yield the optimal rotation for
-      non-uniform weighting,
-      as this would require an iterative, nonlinear optimization approach.
+      The rotation is also optimized according to the weighting.
     reflection : bool
       If the transformation is allowed reflections
     translation : bool
@@ -303,7 +301,11 @@ def procrustes(
     # Use SVD to find optimal orthogonal matrix R
     # constrained to det(R) = 1 if necessary.
 
-    target = np.dot(((b_nonzero - bcenter) / bscale).T, ((a_nonzero - acenter) / ascale))
+    a_scaled = (a_nonzero - acenter) / ascale
+    # Keep equal-weight covariance unchanged, including rank-deficient fits.
+    if (w_norm != w_norm[:1]).any():
+        a_scaled *= w_norm
+    target = np.dot(((b_nonzero - bcenter) / bscale).T, a_scaled)
 
     u, _s, vh = np.linalg.svd(target)
 
