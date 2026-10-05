@@ -55,6 +55,9 @@ mesh = trimesh.Trimesh(
 #   `scene = trimesh.load_scene('models/CesiumMilkTruck.glb')`
 mesh = trimesh.load_mesh("models/CesiumMilkTruck.glb")
 
+# the truck is textured: convert to color visuals so faces can be colored
+mesh.visual = mesh.visual.to_color()
+
 # is the current mesh watertight?
 mesh.is_watertight
 
