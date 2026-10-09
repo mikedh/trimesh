@@ -4,6 +4,55 @@ except BaseException:
     import generic as g
 
 
+@g.pytest.mark.parametrize(
+    "linear",
+    [
+        g.np.diag([2.0, 3.0, 4.0]),
+        g.np.diag([-2.0, 3.0, 4.0]),
+        [[1, 2, 0], [0, 1, 1], [0, 0, 1]],
+        g.np.diag([2.0, 3.0, 0.0]),
+        g.np.zeros((3, 3)),
+        g.np.eye(3) * 1e14,
+        g.np.eye(3),
+        [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
+    ],
+)
+@g.pytest.mark.parametrize("cached", [False, True])
+def test_affine_surface_normals(linear, cached):
+    mesh = g.Trimesh([[0, 0, 0], [1, 0, 1], [0, 1, 1]], [[0, 1, 2]], process=False)
+    if cached:
+        assert g.np.allclose(mesh.face_normals, [-1, -1, 1] / g.np.sqrt(3))
+        assert g.np.allclose(mesh.vertex_normals, mesh.face_normals)
+    matrix = g.np.eye(4)
+    matrix[:3, :3] = linear
+    matrix[:3, 3] = [5, -2, 7]
+    mesh.apply_transform(matrix)
+    edges = mesh.triangles[:, 1:] - mesh.triangles[:, :1]
+    normal = g.np.cross(edges[:, 0], edges[:, 1])
+    length = g.np.linalg.norm(normal)
+    if length:
+        normal /= length
+    assert g.np.allclose(mesh.face_normals, normal)
+    assert g.np.allclose(mesh.vertex_normals, normal)
+
+
+def test_affine_authored_vertex_normals():
+    mesh = g.Trimesh(
+        [[0, 0, 0], [1, 0, 1], [0, 1, 1], [1, 1, 1]], [[0, 1, 2]], process=False
+    )
+    mesh.vertex_normals = g.trimesh.unitize([[1, 1, 1], [1, 0, 1], [0, 1, 1], [0, 0, 0]])
+    mesh.apply_scale([2, 3, 4])
+    expected = g.trimesh.unitize([[6, 4, 3], [2, 0, 1], [0, 4, 3], [0, 0, 0]])
+    assert g.np.allclose(mesh.vertex_normals, expected)
+
+
+def test_affine_preserves_convexity():
+    mesh = g.trimesh.creation.icosphere(subdivisions=1)
+    assert mesh.is_convex
+    mesh.apply_scale([2, 3, 4])
+    assert mesh.is_convex
+
+
 def test_flips_winding():
     tf = g.trimesh.transformations
     # a transform flips winding exactly when its determinant is negative
