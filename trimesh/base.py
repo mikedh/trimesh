@@ -2623,8 +2623,8 @@ class Trimesh(Geometry3D):
 
         if not is_rigid:
             # any cached normals will be garbage
-            self._cache.cache.pop("face_normals")
-            self._cache.cache.pop("vertex_normals")
+            self._cache.cache.pop("face_normals", None)
+            self._cache.cache.pop("vertex_normals", None)
         elif has_rotation:
             # we HAVE rotation, and a rigid transform
             # so we can save these expensive normals
