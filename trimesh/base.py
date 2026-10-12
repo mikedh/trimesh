@@ -2619,21 +2619,35 @@ class Trimesh(Geometry3D):
                 matrix,
             )[0]
 
+        normal_matrix = matrix
+        if has_rotation and (
+            "face_normals" in self._cache.cache or "vertex_normals" in self._cache.cache
+        ):
+            # normals transform by the inverse transpose, not the vertex transform
+            try:
+                normal_matrix = matrix.copy()
+                normal_matrix[:3, :3] = np.linalg.inv(matrix[:3, :3]).T
+            except np.linalg.LinAlgError:
+                # singular transforms require normals from the resulting geometry
+                self._cache.delete("face_normals")
+                self._cache.delete("vertex_normals")
+
         # preserve face normals if we have them stored
         if has_rotation and "face_normals" in self._cache:
-            # transform face normals by rotation component
             self._cache.cache["face_normals"] = util.unitize(
                 transformations.transform_points(
-                    self.face_normals, matrix=matrix, translate=False
-                )
+                    self.face_normals, matrix=normal_matrix, translate=False
+                ),
+                threshold=0,
             )
 
         # preserve vertex normals if we have them stored
         if has_rotation and "vertex_normals" in self._cache:
             self._cache.cache["vertex_normals"] = util.unitize(
                 transformations.transform_points(
-                    self.vertex_normals, matrix=matrix, translate=False
-                )
+                    self.vertex_normals, matrix=normal_matrix, translate=False
+                ),
+                threshold=0,
             )
 
         # if transformation flips winding of triangles
