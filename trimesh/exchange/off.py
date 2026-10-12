@@ -56,6 +56,12 @@ def load_off(file_obj, **kwargs) -> dict:
     faces = [line[1 : int(line[0]) + 1] for line in faces]
 
     faces = triangulate_quads(faces)
+    # faces must reference vertices that actually exist, otherwise the mesh
+    # blows up later with a cryptic IndexError and a negative index silently
+    # wraps into a wrong face
+    if len(faces) and (faces.min() < 0 or faces.max() >= vertex_count):
+        raise ValueError("OFF file has a face index outside the range of its vertices")
+
     # save data as kwargs for a trimesh.Trimesh
     kwargs = {"vertices": vertices, "faces": faces}
 
