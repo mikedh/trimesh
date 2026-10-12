@@ -297,6 +297,32 @@ class TransformTest(g.unittest.TestCase):
             assert g.np.allclose(s, n)
 
 
+def test_is_rigid():
+    tr = g.trimesh.transformations
+    # any linear map is `R1 @ diag(s) @ R2` so truth comes from `s` alone
+    # rigid if every `|s| == 1`, uniform if every `|s|` is equal and nonzero
+    scales = [[1, 1, 1], [-1, 1, 1], [2, 2, 2], [-2, 2, -2], [1e5] * 3, [1e-3] * 3]
+    scales += [[2, 3, 4], [1, 1, 1 + 1e-4], [1, 1, 0], [0, 0, 0]]
+    rotations = tr.random_rotation_matrix(num=len(scales) * 2)
+    for s, R1, R2 in zip(scales, rotations[::2], rotations[1::2]):
+        matrix = R1 @ g.np.diag(s + [1]) @ R2
+        matrix[:3, 3] = g.np.random.random(3) * 100
+        magnitude = g.np.abs(s)
+        rigid = bool((magnitude == 1).all())
+        uniform = bool(magnitude[0] > 0 and (magnitude == magnitude[0]).all())
+        assert tr.is_rigid(matrix) == rigid
+        assert tr.is_rigid(matrix, allow_uniform_scale=True) == uniform
+        # an equal error in every entry of the bottom row is never rigid
+        matrix[3] += 1e-3
+        assert not tr.is_rigid(matrix, allow_uniform_scale=True)
+
+    # `M @ M.T == I + 0.5` has an equal error in every entry and is not rigid
+    values, vectors = g.np.linalg.eigh(g.np.eye(3) + 0.5)
+    matrix = g.np.eye(4)
+    matrix[:3, :3] = vectors @ g.np.diag(g.np.sqrt(values)) @ vectors.T
+    assert not tr.is_rigid(matrix, allow_uniform_scale=True)
+
+
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
     g.unittest.main()
