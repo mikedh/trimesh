@@ -661,7 +661,7 @@ def _parse_vertices(text):
     if tol.strict:
         # check to make sure our subsetting
         # didn't miss any vertices or data
-        assert len(v) == text.count("\nv ")
+        assert text.count("\nv ") == (0 if v is None else len(v))
         # make sure optional data matches file too
         if vn is not None:
             assert len(vn) == text.count("\nvn ")

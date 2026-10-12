@@ -595,12 +595,20 @@ def test_no_vertices():
     scene.add_geometry(trimesh.creation.cone(1.0, 1.0), geom_name="CONE")
 
     # roundtrip this test scene through an OBJ
+    # box has 6-column `v` lines and the cone has 3-column `v` lines
     export = scene.export(file_type="obj")
-    loaded = trimesh.load_scene(
-        trimesh.util.wrap_as_stream(export), file_type="obj"
-    )  # CRASH!
+    loaded = trimesh.load_scene(trimesh.util.wrap_as_stream(export), file_type="obj")
 
-    assert len(loaded.geometry) > 0
+    # every vertex and face should have survived the mixed-width parse
+    truth = scene.to_mesh()
+    assert np.allclose(loaded.to_mesh().vertices, truth.vertices)
+    assert np.array_equal(loaded.to_mesh().faces, truth.faces)
+
+    # faces with no vertices should load as empty rather than `len(None)`
+    empty = trimesh.load_scene(
+        trimesh.util.wrap_as_stream("vn 0 0 1\nf 1 2 3\n"), file_type="obj"
+    )
+    assert len(empty.geometry) == 0
 
 
 if __name__ == "__main__":
