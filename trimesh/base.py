@@ -2610,6 +2610,8 @@ class Trimesh(Geometry3D):
         # check to see if the matrix has rotation
         # rather than just translation
         has_rotation = not util.allclose(matrix[:3, :3], _IDENTITY3, atol=1e-6)
+        # check to see if this matrix can be applied to rotate
+        is_rigid = transformations.is_rigid(matrix, allow_uniform_scale=True)
 
         # transform overridden center of mass
         if "center_mass" in self._data:
@@ -2619,36 +2621,27 @@ class Trimesh(Geometry3D):
                 matrix,
             )[0]
 
-        normal_matrix = matrix
-        if has_rotation and (
-            "face_normals" in self._cache.cache or "vertex_normals" in self._cache.cache
-        ):
-            # normals transform by the inverse transpose, not the vertex transform
-            try:
-                normal_matrix = matrix.copy()
-                normal_matrix[:3, :3] = np.linalg.inv(matrix[:3, :3]).T
-            except np.linalg.LinAlgError:
-                # singular transforms require normals from the resulting geometry
-                self._cache.delete("face_normals")
-                self._cache.delete("vertex_normals")
+        if not is_rigid:
+            # any cached normals will be garbage
+            self._cache.cache.pop("face_normals")
+            self._cache.cache.pop("vertex_normals")
+        elif has_rotation:
+            # we HAVE rotation, and a rigid transform
+            # so we can save these expensive normals
 
-        # preserve face normals if we have them stored
-        if has_rotation and "face_normals" in self._cache:
-            self._cache.cache["face_normals"] = util.unitize(
-                transformations.transform_points(
-                    self.face_normals, matrix=normal_matrix, translate=False
-                ),
-                threshold=0,
-            )
-
-        # preserve vertex normals if we have them stored
-        if has_rotation and "vertex_normals" in self._cache:
-            self._cache.cache["vertex_normals"] = util.unitize(
-                transformations.transform_points(
-                    self.vertex_normals, matrix=normal_matrix, translate=False
-                ),
-                threshold=0,
-            )
+            if "face_normals" in self._cache:
+                # transform face normals by rotation component
+                self._cache.cache["face_normals"] = util.unitize(
+                    transformations.transform_points(
+                        self.face_normals, matrix=matrix, translate=False
+                    )
+                )
+            if "vertex_normals" in self._cache:
+                self._cache.cache["vertex_normals"] = util.unitize(
+                    transformations.transform_points(
+                        self.vertex_normals, matrix=matrix, translate=False
+                    )
+                )
 
         # if transformation flips winding of triangles
         if has_rotation and transformations.flips_winding(matrix):
