@@ -442,14 +442,13 @@ def load_glb(
             # read the whole file
             break
         chunk_length, chunk_type = np.frombuffer(chunk_head, dtype="<u4")
-        # make sure we have the right data type
-        if chunk_type != _magic["bin"]:
-            raise ValueError("not binary GLTF!")
         # read the chunk
         chunk_data = file_obj.read(int(chunk_length))
         if len(chunk_data) != chunk_length:
             raise ValueError("chunk was not expected length!")
-        buffers.append(chunk_data)
+        # the GLTF spec requires ignoring chunks with unknown types
+        if chunk_type == _magic["bin"]:
+            buffers.append(chunk_data)
 
     # turn the layout header and data into kwargs
     # that can be used to instantiate a trimesh.Scene object
