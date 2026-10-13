@@ -1572,7 +1572,7 @@ def concatenate(a, b=None) -> "trimesh.parent.Geometry":
 
     metadata = {}
     try:
-        _ = [metadata.update(deepcopy(m.metadata) for m in is_mesh)]
+        _ = [metadata.update(deepcopy(m.metadata)) for m in is_mesh]
     except BaseException:
         pass
 
