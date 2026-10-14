@@ -4,6 +4,13 @@ except BaseException:
     import generic as g
 
 
+def _box(extents, invert=False):
+    mesh = g.trimesh.creation.box(extents=extents)
+    if invert:
+        mesh.invert()
+    return mesh
+
+
 class GraphTest(g.unittest.TestCase):
     def setUp(self):
         self.engines = []
@@ -79,6 +86,226 @@ class GraphTest(g.unittest.TestCase):
             assert len(split) == 1
             split = tet.split(only_watertight=False, engine=engine)
             assert len(split) == 1
+
+    def test_split_solids(self):
+        # grouping of closed shells into solids by containment parity
+        for engine in self.engines:
+            # legacy split is purely topological: cavity shell is separate
+            hollow = _box([2, 2, 2]) + _box([1, 1, 1], invert=True)
+            assert len(hollow.split(engine=engine)) == 2
+
+            split = hollow.split(solids=True, engine=engine)
+            assert len(split) == 1
+            assert split[0].is_watertight
+            assert split[0].is_winding_consistent
+            assert g.np.isclose(split[0].volume, 7.0)
+
+            # a solid nested inside a cavity is a separate material region
+            nested = _box([6, 6, 6]) + _box([4, 4, 4], invert=True) + _box([2, 2, 2])
+            split = nested.split(solids=True, engine=engine)
+            assert len(split) == 2
+            assert g.np.allclose(g.np.sort([i.volume for i in split]), [8.0, 152.0])
+            assert all(i.is_watertight for i in split)
+
+            # nesting deeper than one cavity: solid-cavity-solid-cavity
+            # exercises immediate-parent lookup at nesting degree >= 2
+            deep = (
+                _box([8, 8, 8])
+                + _box([6, 6, 6], invert=True)
+                + _box([4, 4, 4])
+                + _box([2, 2, 2], invert=True)
+            )
+            split = deep.split(solids=True, engine=engine)
+            assert len(split) == 2
+            assert all(i.is_watertight for i in split)
+            # outer solid is 8**3 - 6**3, inner solid is 4**3 - 2**3
+            assert g.np.allclose(g.np.sort([i.volume for i in split]), [56.0, 296.0])
+
+            # disjoint solids: grouping is a no-op, matches legacy split
+            disjoint = _box([1, 1, 1]) + _box([1, 1, 1]).apply_translation([5, 0, 0])
+            assert len(disjoint.split(solids=True, engine=engine)) == len(
+                disjoint.split(engine=engine)
+            )
+
+    def test_split_solids_orient(self):
+        # orientation normalization of grouped shells
+        for engine in self.engines:
+            hollow = _box([2, 2, 2]) + _box([1, 1, 1], invert=True)
+
+            # orient=True on already correct input is a no-op: faces bit-identical
+            a = hollow.split(solids=True, orient=True, engine=engine)[0]
+            b = hollow.split(solids=True, orient=False, engine=engine)[0]
+            assert g.np.array_equal(a.faces, b.faces)
+
+            # outward-wound cavity: orient flips it to a real cavity (7.0),
+            # without orient the raw input winding is preserved (9.0)
+            outward_cavity = _box([2, 2, 2]) + _box([1, 1, 1])
+            split = outward_cavity.split(solids=True, orient=False, engine=engine)
+            assert len(split) == 1
+            assert g.np.isclose(split[0].volume, 9.0)
+            split = outward_cavity.split(solids=True, orient=True, engine=engine)
+            assert len(split) == 1
+            assert g.np.isclose(split[0].volume, 7.0)
+
+            # orient is decoupled from repair: with orient=False the winding is
+            # identical whether or not repair runs
+            a = hollow.split(solids=True, repair=True, orient=False, engine=engine)[0]
+            b = hollow.split(solids=True, repair=False, orient=False, engine=engine)[0]
+            assert g.np.array_equal(a.faces, b.faces)
+
+            # fully raw path: repair=False, orient=False alters nothing on
+            # already-correct closed input
+            raw = hollow.split(solids=True, repair=False, orient=False, engine=engine)
+            assert len(raw) == 1
+            assert raw[0].is_watertight
+            assert g.np.isclose(raw[0].volume, 7.0)
+
+            # a single inverted shell must still be oriented: orient does not
+            # depend on how many other bodies happen to be present
+            single = _box([2, 2, 2], invert=True)
+            split = single.split(solids=True, orient=True, engine=engine)
+            assert len(split) == 1
+            assert g.np.isclose(split[0].volume, 8.0)
+            assert split[0].is_winding_consistent
+            # without orient the input winding is preserved
+            split = single.split(solids=True, orient=False, engine=engine)
+            assert g.np.isclose(split[0].volume, -8.0)
+
+            # a watertight but winding-inconsistent shell (one face reversed so
+            # every edge still appears exactly twice) still classifies as closed
+            base = _box([2, 2, 2])
+            messy_faces = base.faces.copy()
+            messy_faces[0] = messy_faces[0][::-1]
+            messy_shell = g.trimesh.Trimesh(
+                vertices=base.vertices.copy(), faces=messy_faces, process=False
+            )
+            assert messy_shell.is_watertight
+            assert not messy_shell.is_winding_consistent
+            messy = messy_shell + _box([1, 1, 1], invert=True)
+            # legacy topological split still returns both watertight shells
+            assert len(messy.split(engine=engine)) == 2
+            # the cavity is grouped into the inconsistent outer shell, no error
+            split = messy.split(solids=True, engine=engine)
+            assert len(split) == 1
+            assert len(split[0].faces) == 24
+            # orient cannot derive a direction for the inconsistent shell, so
+            # the result is identical whether or not orientation is requested
+            a = messy.split(solids=True, orient=True, engine=engine)[0]
+            b = messy.split(solids=True, orient=False, engine=engine)[0]
+            assert g.np.array_equal(a.faces, b.faces)
+
+    def test_split_solids_filtering(self):
+        # interaction with only_watertight and min_faces filtering
+        for engine in self.engines:
+            hollow = _box([2, 2, 2]) + _box([1, 1, 1], invert=True)
+
+            # open components are not attached to a solid; existing filtering applies
+            loose = g.trimesh.Trimesh(
+                vertices=[[5, 0, 0], [6, 0, 0], [5, 1, 0]],
+                faces=[[0, 1, 2]],
+                process=False,
+            )
+            with_open = hollow + loose
+            assert (
+                len(with_open.split(solids=True, only_watertight=False, engine=engine))
+                == 2
+            )
+            assert (
+                len(with_open.split(solids=True, only_watertight=True, engine=engine))
+                == 1
+            )
+
+            # min_faces drops a solid group without corrupting the winding of
+            # the groups that remain (regression: flips must stay aligned)
+            small = _box([0.5, 0.5, 0.5], invert=True).apply_translation([10, 0, 0])
+            mixed = small + hollow
+            split = mixed.split(solids=True, orient=True, min_faces=20, engine=engine)
+            assert len(split) == 1
+            assert g.np.isclose(split[0].volume, 7.0)
+            assert split[0].is_winding_consistent
+            # with a low threshold both survive and the small shell is a
+            # positive-volume solid, not a negative cavity
+            split = mixed.split(solids=True, orient=True, min_faces=4, engine=engine)
+            assert g.np.allclose(g.np.sort([i.volume for i in split]), [0.125, 7.0])
+
+    def test_split_solids_append(self):
+        # append=True must apply orientation flips at the right output offset
+        for engine in self.engines:
+            hollow = _box([2, 2, 2]) + _box([1, 1, 1], invert=True)
+            outward_cavity = _box([2, 2, 2]) + _box([1, 1, 1])
+
+            # already-correct input: no flips, single concatenated mesh
+            appended = hollow.split(solids=True, orient=True, append=True, engine=engine)
+            assert isinstance(appended, g.trimesh.Trimesh)
+            assert appended.is_watertight
+            assert appended.is_winding_consistent
+            assert g.np.isclose(appended.volume, 7.0)
+
+            # orientation actually flips faces here: a standalone inverted solid
+            # forces a flip at offset 0 and the outward-wound cavity forces a
+            # flip at a nonzero offset, exercising the offset arithmetic that
+            # the already-correct `hollow` case above cannot
+            inv = _box([1, 1, 1], invert=True).apply_translation([9, 0, 0])
+            flipped = inv + outward_cavity
+            appended = flipped.split(solids=True, orient=True, append=True, engine=engine)
+            assert isinstance(appended, g.trimesh.Trimesh)
+            assert appended.is_watertight
+            assert appended.is_winding_consistent
+            # inverted unit cube (1.0) + hollow 2-cube with 1-cube cavity (7.0)
+            assert g.np.isclose(appended.volume, 8.0)
+
+    def test_split_solids_soup(self):
+        # a soup of disconnected triangles has no closed shells so the
+        # solids path must fall through to the legacy component count
+        soup = g.get_mesh("soup.stl")
+        for engine in self.engines:
+            legacy = soup.split(only_watertight=False, engine=engine)
+            solids = soup.split(solids=True, only_watertight=False, engine=engine)
+            assert len(solids) == len(legacy)
+
+    def test_split_solids_contains(self):
+        # direct unit test of the containment matrix helper: an axis-aligned
+        # ray direction is the classic degenerate case for ray casting, so it
+        # must produce the same correct matrix as the default direction
+        graph = g.trimesh.graph
+        np = g.np
+
+        # three concentric axis-aligned boxes: shell ⊃ shell ⊃ shell
+        mesh = _box([6, 6, 6]) + _box([4, 4, 4]) + _box([2, 2, 2])
+        components = [
+            np.asanyarray(c, dtype=np.int64)
+            for c in graph.connected_components(
+                mesh.face_adjacency, nodes=np.arange(len(mesh.faces))
+            )
+        ]
+        assert len(components) == 3
+
+        # reuse the same setup `_split_solids` feeds `_contains_matrix`
+        mins, maxs, points, candidate, labels = graph._shell_bounds(mesh, components)
+
+        # order shells largest -> smallest so we know each nesting level
+        volume = np.prod(maxs - mins, axis=1)
+        outer, middle, inner = np.argsort(volume)[::-1]
+
+        # the fixed default direction and a deliberately degenerate axis-aligned
+        # direction must both produce the same, correct containment matrix
+        for direction in (None, [0.0, 0.0, 1.0]):
+            contains = graph._contains_matrix(
+                mesh,
+                labels=labels,
+                points=points,
+                candidate=candidate,
+                direction=direction,
+            )
+            # every enclosing relationship is detected
+            assert contains[outer, middle]
+            assert contains[outer, inner]
+            assert contains[middle, inner]
+            # containment never runs backwards and no shell contains itself
+            assert not contains[inner, outer]
+            assert not contains[middle, outer]
+            assert not contains[inner, middle]
+            assert not contains.diagonal().any()
 
     def test_vertex_adjacency_graph(self):
         f = g.trimesh.graph.vertex_adjacency_graph
