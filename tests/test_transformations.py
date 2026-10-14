@@ -4,6 +4,55 @@ except BaseException:
     import generic as g
 
 
+@g.pytest.mark.parametrize(
+    "linear",
+    [
+        g.np.diag([2.0, 3.0, 4.0]),
+        g.np.diag([-2.0, 3.0, 4.0]),
+        [[1, 2, 0], [0, 1, 1], [0, 0, 1]],
+        g.np.diag([2.0, 3.0, 0.0]),
+        g.np.zeros((3, 3)),
+        g.np.eye(3) * 1e14,
+        g.np.eye(3),
+        [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
+    ],
+)
+@g.pytest.mark.parametrize("cached", [False, True])
+def test_affine_surface_normals(linear, cached):
+    mesh = g.Trimesh([[0, 0, 0], [1, 0, 1], [0, 1, 1]], [[0, 1, 2]], process=False)
+    if cached:
+        assert g.np.allclose(mesh.face_normals, [-1, -1, 1] / g.np.sqrt(3))
+        assert g.np.allclose(mesh.vertex_normals, mesh.face_normals)
+    matrix = g.np.eye(4)
+    matrix[:3, :3] = linear
+    matrix[:3, 3] = [5, -2, 7]
+    mesh.apply_transform(matrix)
+    edges = mesh.triangles[:, 1:] - mesh.triangles[:, :1]
+    normal = g.np.cross(edges[:, 0], edges[:, 1])
+    length = g.np.linalg.norm(normal)
+    if length:
+        normal /= length
+    assert g.np.allclose(mesh.face_normals, normal)
+    assert g.np.allclose(mesh.vertex_normals, normal)
+
+
+def test_affine_authored_vertex_normals():
+    mesh = g.Trimesh(
+        [[0, 0, 0], [1, 0, 1], [0, 1, 1], [1, 1, 1]], [[0, 1, 2]], process=False
+    )
+    mesh.vertex_normals = g.trimesh.unitize([[1, 1, 1], [1, 0, 1], [0, 1, 1], [0, 0, 0]])
+    mesh.apply_scale([2, 3, 4])
+    expected = g.trimesh.unitize([[6, 4, 3], [2, 0, 1], [0, 4, 3], [0, 0, 0]])
+    assert g.np.allclose(mesh.vertex_normals, expected)
+
+
+def test_affine_preserves_convexity():
+    mesh = g.trimesh.creation.icosphere(subdivisions=1)
+    assert mesh.is_convex
+    mesh.apply_scale([2, 3, 4])
+    assert mesh.is_convex
+
+
 def test_flips_winding():
     tf = g.trimesh.transformations
     # a transform flips winding exactly when its determinant is negative
@@ -295,6 +344,32 @@ class TransformTest(g.unittest.TestCase):
 
             # they should be the same matrix
             assert g.np.allclose(s, n)
+
+
+def test_is_rigid():
+    tr = g.trimesh.transformations
+    # any linear map is `R1 @ diag(s) @ R2` so truth comes from `s` alone
+    # rigid if every `|s| == 1`, uniform if every `|s|` is equal and nonzero
+    scales = [[1, 1, 1], [-1, 1, 1], [2, 2, 2], [-2, 2, -2], [1e5] * 3, [1e-3] * 3]
+    scales += [[2, 3, 4], [1, 1, 1 + 1e-4], [1, 1, 0], [0, 0, 0]]
+    rotations = tr.random_rotation_matrix(num=len(scales) * 2)
+    for s, R1, R2 in zip(scales, rotations[::2], rotations[1::2]):
+        matrix = R1 @ g.np.diag(s + [1]) @ R2
+        matrix[:3, 3] = g.np.random.random(3) * 100
+        magnitude = g.np.abs(s)
+        rigid = bool((magnitude == 1).all())
+        uniform = bool(magnitude[0] > 0 and (magnitude == magnitude[0]).all())
+        assert tr.is_rigid(matrix) == rigid
+        assert tr.is_rigid(matrix, allow_uniform_scale=True) == uniform
+        # an equal error in every entry of the bottom row is never rigid
+        matrix[3] += 1e-3
+        assert not tr.is_rigid(matrix, allow_uniform_scale=True)
+
+    # `M @ M.T == I + 0.5` has an equal error in every entry and is not rigid
+    values, vectors = g.np.linalg.eigh(g.np.eye(3) + 0.5)
+    matrix = g.np.eye(4)
+    matrix[:3, :3] = vectors @ g.np.diag(g.np.sqrt(values)) @ vectors.T
+    assert not tr.is_rigid(matrix, allow_uniform_scale=True)
 
 
 if __name__ == "__main__":

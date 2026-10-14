@@ -1522,13 +1522,35 @@ class Trimesh(Geometry3D):
     @cache_decorator
     def face_adjacency_edges_tree(self) -> cKDTree:
         """
-        A KDTree for mapping edges back face adjacency index.
+        A KDTree mapping shared edges to face adjacency indices.
+
+        The tree contains only ``face_adjacency_edges``. Sort each pair of
+        vertex indices before querying. Edges outside this set, including
+        boundary edges, can return a nearest neighbor index. Check that the
+        query distance is close to zero before using the index to access
+        ``face_adjacency``. Distances are measured between vertex index pairs.
 
         Returns
         ------------
         tree : scipy.spatial.cKDTree
-          Tree when queried with SORTED edges will return
-          their index in mesh.face_adjacency
+          Tree of sorted vertex index pairs for shared edges.
+
+        Examples
+        --------
+        Look up a shared edge and a boundary edge, keeping only the match:
+
+        >>> import numpy as np
+        >>> import trimesh
+        >>> mesh = trimesh.Trimesh(
+        ...     vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+        ...     faces=[[0, 1, 2], [0, 2, 3]],
+        ...     process=False,
+        ... )
+        >>> edges = np.sort([[2, 0], [0, 1]], axis=1)
+        >>> distance, index = mesh.face_adjacency_edges_tree.query(edges)
+        >>> matched = distance < 1e-12
+        >>> mesh.face_adjacency[index[matched]]
+        array([[0, 1]])
         """
         return cKDTree(self.face_adjacency_edges)
 
@@ -2610,6 +2632,8 @@ class Trimesh(Geometry3D):
         # check to see if the matrix has rotation
         # rather than just translation
         has_rotation = not util.allclose(matrix[:3, :3], _IDENTITY3, atol=1e-6)
+        # check to see if this matrix can be applied to rotate
+        is_rigid = transformations.is_rigid(matrix, allow_uniform_scale=True)
 
         # transform overridden center of mass
         if "center_mass" in self._data:
@@ -2619,22 +2643,27 @@ class Trimesh(Geometry3D):
                 matrix,
             )[0]
 
-        # preserve face normals if we have them stored
-        if has_rotation and "face_normals" in self._cache:
-            # transform face normals by rotation component
-            self._cache.cache["face_normals"] = util.unitize(
-                transformations.transform_points(
-                    self.face_normals, matrix=matrix, translate=False
-                )
-            )
+        if not is_rigid:
+            # any cached normals will be garbage
+            self._cache.cache.pop("face_normals", None)
+            self._cache.cache.pop("vertex_normals", None)
+        elif has_rotation:
+            # we HAVE rotation, and a rigid transform
+            # so we can save these expensive normals
 
-        # preserve vertex normals if we have them stored
-        if has_rotation and "vertex_normals" in self._cache:
-            self._cache.cache["vertex_normals"] = util.unitize(
-                transformations.transform_points(
-                    self.vertex_normals, matrix=matrix, translate=False
+            if "face_normals" in self._cache:
+                # transform face normals by rotation component
+                self._cache.cache["face_normals"] = util.unitize(
+                    transformations.transform_points(
+                        self.face_normals, matrix=matrix, translate=False
+                    )
                 )
-            )
+            if "vertex_normals" in self._cache:
+                self._cache.cache["vertex_normals"] = util.unitize(
+                    transformations.transform_points(
+                        self.vertex_normals, matrix=matrix, translate=False
+                    )
+                )
 
         # if transformation flips winding of triangles
         if has_rotation and transformations.flips_winding(matrix):
