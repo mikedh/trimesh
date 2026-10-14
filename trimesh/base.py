@@ -1522,13 +1522,35 @@ class Trimesh(Geometry3D):
     @cache_decorator
     def face_adjacency_edges_tree(self) -> cKDTree:
         """
-        A KDTree for mapping edges back face adjacency index.
+        A KDTree mapping shared edges to face adjacency indices.
+
+        The tree contains only ``face_adjacency_edges``. Sort each pair of
+        vertex indices before querying. Edges outside this set, including
+        boundary edges, can return a nearest neighbor index. Check that the
+        query distance is close to zero before using the index to access
+        ``face_adjacency``. Distances are measured between vertex index pairs.
 
         Returns
         ------------
         tree : scipy.spatial.cKDTree
-          Tree when queried with SORTED edges will return
-          their index in mesh.face_adjacency
+          Tree of sorted vertex index pairs for shared edges.
+
+        Examples
+        --------
+        Look up a shared edge and a boundary edge, keeping only the match:
+
+        >>> import numpy as np
+        >>> import trimesh
+        >>> mesh = trimesh.Trimesh(
+        ...     vertices=[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+        ...     faces=[[0, 1, 2], [0, 2, 3]],
+        ...     process=False,
+        ... )
+        >>> edges = np.sort([[2, 0], [0, 1]], axis=1)
+        >>> distance, index = mesh.face_adjacency_edges_tree.query(edges)
+        >>> matched = distance < 1e-12
+        >>> mesh.face_adjacency[index[matched]]
+        array([[0, 1]])
         """
         return cKDTree(self.face_adjacency_edges)
 
