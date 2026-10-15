@@ -124,32 +124,35 @@ def export_collada(mesh, **kwargs):
         c.materials.append(mat)
 
         # Create geometry object
+        # COLLADA ids must be unique across the whole document so
+        # prefix every source id with the id of its geometry
+        geom_id = uuid.uuid4().hex
         vertices = collada.source.FloatSource(
-            "verts-array", m.vertices.flatten(), ("X", "Y", "Z")
+            f"{geom_id}-verts-array", m.vertices.flatten(), ("X", "Y", "Z")
         )
         normals = collada.source.FloatSource(
-            "normals-array", m.vertex_normals.flatten(), ("X", "Y", "Z")
+            f"{geom_id}-normals-array", m.vertex_normals.flatten(), ("X", "Y", "Z")
         )
         input_list = collada.source.InputList()
-        input_list.addInput(0, "VERTEX", "#verts-array")
-        input_list.addInput(1, "NORMAL", "#normals-array")
+        input_list.addInput(0, "VERTEX", f"#{geom_id}-verts-array")
+        input_list.addInput(1, "NORMAL", f"#{geom_id}-normals-array")
         arrays = [vertices, normals]
         if (uv is not None) and (len(uv) > 0):
             texcoords = collada.source.FloatSource(
-                "texcoords-array", uv.flatten(), ("U", "V")
+                f"{geom_id}-texcoords-array", uv.flatten(), ("U", "V")
             )
-            input_list.addInput(2, "TEXCOORD", "#texcoords-array")
+            input_list.addInput(2, "TEXCOORD", f"#{geom_id}-texcoords-array")
             arrays.append(texcoords)
         if colors is not None:
             idx = 2
             if uv:
                 idx = 3
             colors = collada.source.FloatSource(
-                "colors-array", colors.flatten(), ("R", "G", "B")
+                f"{geom_id}-colors-array", colors.flatten(), ("R", "G", "B")
             )
-            input_list.addInput(idx, "COLOR", "#colors-array")
+            input_list.addInput(idx, "COLOR", f"#{geom_id}-colors-array")
             arrays.append(colors)
-        geom = collada.geometry.Geometry(c, uuid.uuid4().hex, uuid.uuid4().hex, arrays)
+        geom = collada.geometry.Geometry(c, geom_id, uuid.uuid4().hex, arrays)
         indices = np.repeat(m.faces.flatten(), len(arrays))
 
         matref = f"material{i}"
