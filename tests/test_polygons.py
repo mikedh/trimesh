@@ -258,6 +258,33 @@ def test_second_moment():
             assert g.np.allclose(c, t)
 
 
+def test_second_moment_winding():
+    # second moments should not depend on the winding of the rings
+    from shapely.geometry.polygon import orient
+
+    from trimesh.path.polygons import second_moments
+
+    # a 4x2 rectangle with a 2x1 hole, both centered at the origin
+    polygon = g.Polygon(
+        shell=[[-2, -1], [2, -1], [2, 1], [-2, 1]],
+        holes=[[[-1, -0.5], [1, -0.5], [1, 0.5], [-1, 0.5]]],
+    )
+    # `b * h**3 / 12` of the shell minus the hole
+    truth = [(4 * 2**3 - 2 * 1**3) / 12, (2 * 4**3 - 1 * 2**3) / 12, 0.0]
+
+    # the exterior and holes as passed, oriented the shapely way
+    # (counter-clockwise exterior with clockwise holes), reversed,
+    # and as they come back from a `Path2D`
+    candidates = [
+        polygon,
+        orient(polygon, sign=1.0),
+        orient(polygon, sign=-1.0),
+        g.trimesh.load_path(polygon).polygons_full[0],
+    ]
+    for candidate in candidates:
+        assert g.np.allclose(second_moments(candidate), truth)
+
+
 def test_native_centroid():
     # check our native implementation of the shoelace algorithm
     # against the results from shapely which we use for native
