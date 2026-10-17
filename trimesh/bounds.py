@@ -50,12 +50,20 @@ def oriented_bounds_2D(points, qhull_options="QbB"):
     # create a convex hull object of our points
     # 'QbB' is a qhull option which has it scale the input to unit
     # box to avoid precision issues with very large/small meshes
-    convex = ConvexHull(points, qhull_options=qhull_options)
-
-    # (n,2,3) line segments
-    hull_edges = convex.points[convex.simplices]
-    # (n,2) points on the convex hull
-    hull_points = convex.points[convex.vertices]
+    try:
+        convex = ConvexHull(points, qhull_options=qhull_options)
+        # (n,2,3) line segments
+        hull_edges = convex.points[convex.simplices]
+        # (n,2) points on the convex hull
+        hull_points = convex.points[convex.vertices]
+    except QhullError:
+        # collinear or coincident points have no hull polygon but
+        # their box is aligned with the principal axis of the points,
+        # which the SVD returns as a unit vector even if they coincide
+        hull_points = np.asanyarray(points, dtype=np.float64)
+        centered = hull_points - hull_points.mean(axis=0)
+        axis = np.linalg.svd(centered, full_matrices=False)[2][0]
+        hull_edges = np.array([[[0.0, 0.0], axis]])
 
     # unit vector direction of the edges of the hull polygon
     # filter out zero- magnitude edges via check_valid
@@ -155,7 +163,14 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None, coplanar_tol
         # Shift points about the origin and rotate into the xy plane
         points_mean = np.mean(points, axis=0)
         points_demeaned = points - points_mean
-        _, _, vh = np.linalg.svd(points_demeaned, full_matrices=False)
+        # zero rows don't change the right singular vectors but they
+        # make sure `vh` is (3, 3) even if there are fewer than 3 points
+        _, _, vh = np.linalg.svd(
+            np.vstack((points_demeaned, np.zeros((2, 3)))), full_matrices=False
+        )
+        # flip the normal if needed so `vh` is a rotation not a reflection
+        if np.linalg.det(vh) < 0.0:
+            vh[2] *= -1.0
         points_2d = np.matmul(points_demeaned, vh.T)
         if np.any(np.abs(points_2d[:, 2]) > coplanar_tol):
             raise ValueError("Points must be coplanar")
@@ -196,6 +211,10 @@ def oriented_bounds(obj, angle_digits=1, ordered=True, normal=None, coplanar_tol
                 raise ValueError("Points are not (n,3) or (n,2)!")
         else:
             raise ValueError("Oriented bounds must be passed a mesh or a set of points!")
+        if len(hull.faces) == 0:
+            # collinear or coincident points can leave a joggled
+            # and repaired hull with no faces so recover the same way
+            raise QhullError("convex hull has no faces")
     except QhullError:
         # Try to recover from Qhull error if due to mesh being less than 3
         # dimensional
