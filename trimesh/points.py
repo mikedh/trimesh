@@ -137,8 +137,11 @@ def radial_sort(points, origin, normal, start=None):
     # the normal and project the points onto them
     if start is None:
         normal = util.unitize(normal)
-        axis0 = np.cross(normal, np.eye(3)[np.abs(normal).argmin()])
-        axis1 = np.cross(normal, axis0)
+        axis_index = np.abs(normal).argmin()
+        basis = np.zeros(3)
+        basis[axis_index] = 1.0
+        axis0 = np.cross(normal, basis)
+        axis1 = normal * normal[axis_index] - basis * np.dot(normal, normal)
     else:
         normal, start = util.unitize([normal, start])
         if np.abs(1 - np.abs(np.dot(normal, start))) < tol.zero:
