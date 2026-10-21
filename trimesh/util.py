@@ -127,7 +127,7 @@ def has_module(name: str) -> bool:
 def unitize(
     vectors: ArrayLike,
     check_valid: bool = False,
-    threshold: float | None = None,
+    threshold: Number | None = None,
 ):
     """
     Unitize a vector or an array or row-vectors.
