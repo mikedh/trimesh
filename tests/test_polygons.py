@@ -260,29 +260,27 @@ def test_second_moment():
 
 def test_second_moment_winding():
     # second moments should not depend on the winding of the rings
-    from shapely.geometry.polygon import orient
-
     from trimesh.path.polygons import second_moments
 
-    # a 4x2 rectangle with a 2x1 hole, both centered at the origin
-    polygon = g.Polygon(
-        shell=[[-2, -1], [2, -1], [2, 1], [-2, 1]],
-        holes=[[[-1, -0.5], [1, -0.5], [1, 0.5], [-1, 0.5]]],
-    )
-    # `b * h**3 / 12` of the shell minus the hole
-    truth = [(4 * 2**3 - 2 * 1**3) / 12, (2 * 4**3 - 1 * 2**3) / 12, 0.0]
+    # a 4x2 rectangle with two 1x1 holes centered at (-1, 0) and (1, 0)
+    shell = g.np.array([[-2, -1], [2, -1], [2, 1], [-2, 1]])
+    square = g.np.array([[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]])
+    holes = [square - [1, 0], square + [1, 0]]
+    # `b * h**3 / 12` of the shell minus the holes, with the
+    # parallel axis term `A * d**2` for the offset holes
+    truth = [(4 * 2**3 - 2) / 12, (2 * 4**3 - 2) / 12 - 2, 0.0]
 
-    # the exterior and holes as passed, oriented the shapely way
-    # (counter-clockwise exterior with clockwise holes), reversed,
+    # sweep every combination of exterior and hole windings
+    for wind in g.itertools.product((1, -1), repeat=len(holes) + 1):
+        polygon = g.Polygon(
+            shell=shell[:: wind[0]],
+            holes=[h[::w] for h, w in zip(holes, wind[1:])],
+        )
+        assert g.np.allclose(second_moments(polygon), truth)
+
     # and as they come back from a `Path2D`
-    candidates = [
-        polygon,
-        orient(polygon, sign=1.0),
-        orient(polygon, sign=-1.0),
-        g.trimesh.load_path(polygon).polygons_full[0],
-    ]
-    for candidate in candidates:
-        assert g.np.allclose(second_moments(candidate), truth)
+    polygon = g.trimesh.load_path(polygon).polygons_full[0]
+    assert g.np.allclose(second_moments(polygon), truth)
 
 
 def test_native_centroid():
