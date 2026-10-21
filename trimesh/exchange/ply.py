@@ -512,6 +512,11 @@ def _parse_header(file_obj):
             }
         # a property is a member of an element
         elif "property" in line[0]:
+            # a property must belong to an element declared before it; a header
+            # with a property line before any element would otherwise reference
+            # the unset `name` and raise an UnboundLocalError.
+            if not elements:
+                raise ValueError("Property defined before any element!")
             # is the property a simple single value, like:
             # `property float x`
             if len(line) == 3:

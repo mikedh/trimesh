@@ -589,9 +589,11 @@ class Capsule(Primitive):
         log.debug("creating mesh for `Capsule` primitive")
 
         mesh = creation.capsule(
-            radius=self.primitive.radius, height=self.primitive.height
+            radius=self.primitive.radius,
+            height=self.primitive.height,
+            count=[self.primitive.sections, self.primitive.sections * 2],
+            transform=self.primitive.transform,
         )
-        mesh.apply_transform(self.primitive.transform)
 
         self._cache["vertices"] = mesh.vertices
         self._cache["faces"] = mesh.faces

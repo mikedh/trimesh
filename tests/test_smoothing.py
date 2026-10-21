@@ -62,6 +62,38 @@ def explicit_laplacian_calculation(mesh, equal_weight=True, pinned_vertices=None
 
 
 class SmoothTest(g.unittest.TestCase):
+    def test_laplacian_volume_constraint_is_translation_invariant(self):
+        centered = g.trimesh.creation.icosahedron()
+        translated = centered.copy()
+        offset = g.np.array([10.0, 20.0, 30.0])
+        translated.apply_translation(offset)
+
+        g.trimesh.smoothing.filter_laplacian(centered, iterations=1)
+        g.trimesh.smoothing.filter_laplacian(translated, iterations=1)
+
+        assert g.np.allclose(translated.vertices - offset, centered.vertices)
+
+    def test_laplacian_volume_constraint_pinned_drift_is_position_independent(self):
+        # a uniform volume rescale cannot hold pinned vertices exactly:
+        # each vertex drifts by (prod(scales) - 1) * distance-from-center.
+        # that residual must depend only on the geometry, never on where
+        # the mesh sits in space.
+        drifts = []
+        for offset in ([10.0, 20.0, 30.0], [100.0, 200.0, 300.0]):
+            m = g.trimesh.creation.icosphere(subdivisions=2)
+            m.apply_translation(offset)
+            pinned = g.np.argsort(m.vertices[:, 0])[-12:].tolist()
+            start = m.vertices[pinned].copy()
+            operator = g.trimesh.smoothing.laplacian_calculation(
+                m, pinned_vertices=pinned
+            )
+            g.trimesh.smoothing.filter_laplacian(
+                m, iterations=10, laplacian_operator=operator
+            )
+            drifts.append(g.np.linalg.norm(m.vertices[pinned] - start, axis=1).max())
+
+        assert g.np.allclose(drifts[0], drifts[1])
+
     def test_laplacian_calculation(self):
         m = g.trimesh.creation.icosahedron()
         m.vertices, m.faces = g.trimesh.remesh.subdivide_to_size(m.vertices, m.faces, 0.1)

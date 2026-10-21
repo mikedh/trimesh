@@ -378,5 +378,26 @@ def test_sphere_subdivisions_radius():
             assert g.np.isclose(rc.mean(), r)
 
 
+def test_capsule_sections():
+    # the `sections` argument should change the mesh resolution
+    counts = [
+        len(g.trimesh.primitives.Capsule(radius=1.0, height=2.0, sections=s).faces)
+        for s in [8, 16, 32]
+    ]
+    assert len(set(counts)) == len(counts)
+    assert counts == sorted(counts)
+
+    # the default must not have changed
+    default = g.trimesh.primitives.Capsule(radius=1.0, height=2.0)
+    explicit = g.trimesh.creation.capsule(radius=1.0, height=2.0, count=[32, 64])
+    assert default.faces.shape == explicit.faces.shape
+
+    # the transform should still be applied
+    tf = g.trimesh.transformations.translation_matrix([1.0, 2.0, 3.0])
+    moved = g.trimesh.primitives.Capsule(radius=1.0, height=2.0, transform=tf, sections=8)
+    unmoved = g.trimesh.primitives.Capsule(radius=1.0, height=2.0, sections=8)
+    assert g.np.allclose(moved.vertices - unmoved.vertices, [1.0, 2.0, 3.0])
+
+
 if __name__ == "__main__":
     test_extrude_midplane()

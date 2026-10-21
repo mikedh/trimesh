@@ -272,6 +272,14 @@ class PlyTest(g.unittest.TestCase):
         p = next(iter(s.geometry.values()))
         assert p.vertices.shape == (1000, 3)
 
+    def test_property_before_element(self):
+        # a PLY header with a property line before any element declaration used
+        # to reference an unset local and raise an UnboundLocalError; it should
+        # be reported as a plain ValueError like the other malformed headers
+        bad = b"ply\nformat ascii 1.0\nproperty float x\nend_header\n"
+        with self.assertRaises(ValueError):
+            g.trimesh.load(g.io.BytesIO(bad), file_type="ply")
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

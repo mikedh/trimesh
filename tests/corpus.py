@@ -283,6 +283,61 @@ def on_repo(
     return report
 
 
+def compare_draco(
+    repo: str = "KhronosGroup/glTF-Sample-Models",
+    commit: str = "8e9a5a6ad1a2790e2333e3eb48a1ee39f9e0e31b",
+    count: int = 19,
+) -> None:
+    """
+    Check `KHR_draco_mesh_compression` against the uncompressed twin
+    Draco is reorders and quantizes vertices so they are compared as point sets
+    rather than index-for-index, and faces only through summed area, since the
+    encoder drops the degenerate triangles the originals are full of.
+    """
+    try:
+        import DracoPy  # noqa: F401
+    except ImportError:
+        log.warning("no `DracoPy`: skipping draco corpus check")
+        return
+    from scipy.spatial import cKDTree
+
+    repo = trimesh.resolvers.GithubResolver(
+        repo=repo, commit=commit, save="~/.trimesh-cache"
+    )
+    pairs = {
+        k: k.replace("/glTF-Draco/", "/glTF/")
+        for k in repo.keys()
+        if "/glTF-Draco/" in k and k.lower().endswith(".gltf")
+    }
+    # a rename upstream would otherwise check nothing at all
+    assert len(pairs) == count
+
+    for paths in pairs.items():
+        scenes = []
+        for path in paths:
+            namespace, name = path.rsplit("/", 1)
+            resolver = repo.namespaced(namespace)
+            scenes.append(
+                trimesh.load_scene(
+                    file_obj=wrap_as_stream(resolver.get(name)),
+                    file_type=name,
+                    resolver=resolver,
+                    process=False,
+                )
+            )
+        decoded, truth = scenes
+        assert set(decoded.geometry.keys()) == set(truth.geometry.keys())
+        # worst in the corpus is `ReciprocatingSaw` at 0.12%
+        assert np.isclose(decoded.area, truth.area, rtol=1e-2)
+
+        for name, ori in truth.geometry.items():
+            a, b = decoded.geometry[name].vertices, ori.vertices
+            # positions land on an 11-bit grid, worst observed `2**-11.2`
+            atol = ori.extents.max() * 2**-10
+            for x, y in ((a, b), (b, a)):
+                assert np.allclose(y[cKDTree(y).query(x)[1]], x, atol=atol)
+
+
 def equal(a, b):
     """
     Check equality of two things.
@@ -374,6 +429,9 @@ def run(save: bool = False) -> Report:
                 available=available,
             )
         )
+        # check draco decoding against the uncompressed originals
+        compare_draco()
+
         # try on the universal robot models
         loads.extend(
             on_repo(

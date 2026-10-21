@@ -81,7 +81,7 @@ jobs:
       with:
          python-version: "3.13"
     - name: Install Trimesh
-      run: pip install .[easy,test]
+      run: pip install .[easy,test] dracopy
     - name: Run Corpus Check
       run: python tests/corpus.py -run
 

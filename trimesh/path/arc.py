@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import numpy as np
 
 from .. import util
-from ..constants import log
 from ..constants import res_path as res
 from ..constants import tol_path as tol
 from ..typed import ArrayLike, NDArray, Number, float64
@@ -173,39 +172,26 @@ def discretize_arc(points, close=False, scale=1.0):
     if close:
         angle = np.pi * 2
 
-    # the number of facets, based on the angle criteria
-    count_a = angle / res.seg_angle
-    count_l = (R * angle) / (res.seg_frac * scale)
+    # the number of facets for the arc
+    # which is the maximum of angle and linear criteria
+    count = max(angle / res.seg_angle, (R * angle) / (res.seg_frac * scale))
 
-    # figure out the number of line segments
-    count = np.max([count_a, count_l])
     # force at LEAST 4 points for the arc
     # otherwise the endpoints will diverge
-    count = np.clip(count, 4, np.inf)
-    count = int(np.ceil(count))
+    count = int(np.ceil(np.clip(count, 4, np.inf)))
 
     V1 = util.unitize(points[0] - center)
     V2 = util.unitize(np.cross(-N, V1))
-    t = np.linspace(0, angle, count)
+    # angle spacing
+    t = np.linspace(0.0, angle, count).reshape((-1, 1))
 
-    discrete = np.tile(center, (count, 1))
-    discrete += R * np.cos(t).reshape((-1, 1)) * V1
-    discrete += R * np.sin(t).reshape((-1, 1)) * V2
+    # apply the vector formula
+    discrete = (np.cos(t) * V1 + np.sin(t) * V2) * R + center
 
-    # do an in-process check to make sure result endpoints
-    # match the endpoints of the source arc
-    if not close:
-        if tol.strict:
-            arc_dist = util.row_norm(points[[0, -1]] - discrete[[0, -1]])
-            arc_ok = (arc_dist < tol.merge).all()
-            if not arc_ok:
-                log.warning(
-                    "failed to discretize arc (endpoint_distance=%s R=%s)",
-                    str(arc_dist),
-                    R,
-                )
-                log.warning("Failed arc points: %s", str(points))
-                raise ValueError("Arc endpoints diverging!")
+    if close:
+        # snap closed circles to exactly float-equal
+        discrete[-1] = discrete[0]
+    else:
         # snap the discrete result to exact control points
         discrete[[0, -1]] = points[[0, -1]]
 

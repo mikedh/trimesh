@@ -110,6 +110,47 @@ class TrianglesTest(g.unittest.TestCase):
 
         assert g.np.dot(diff_dists, diff_dists) < g.tol.merge
 
+    def test_closest_degenerate(self):
+        # Degenerate faces reduce to a segment or a single point.
+        triangles = g.np.array(
+            [
+                [[0, 0, 0], [0, 0, 0], [2, 0, 0]],
+                [[1, 2, 3], [1, 2, 3], [1, 2, 3]],
+                [[0, 0, 0], [0, 0, 0], [0, 2, 0]],
+                [[0, 0, 0], [2, 0, 0], [2, 0, 0]],
+                [[0, 0, 0], [2, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [1, 0, 0], [2, 0, 0]],
+                [[0, 0, 0], [2, 0, 0], [0, 2, 0]],
+            ],
+            dtype=g.np.float64,
+        )
+        points = g.np.array(
+            [
+                [1, 1, 0],
+                [5, 2, 3],
+                [0, 3, 1],
+                [1, 1, 0],
+                [1, 1, 0],
+                [1.5, 1, 0],
+                [0.5, 0.5, 1],
+            ]
+        )
+        expected = g.np.array(
+            [
+                [1, 0, 0],
+                [1, 2, 3],
+                [0, 2, 0],
+                [1, 0, 0],
+                [1, 0, 0],
+                [1.5, 0, 0],
+                [0.5, 0.5, 0],
+            ]
+        )
+
+        with g.np.errstate(divide="raise", invalid="raise"):
+            closest = g.trimesh.triangles.closest_point(triangles, points)
+        g.np.testing.assert_allclose(closest, expected)
+
     def test_degenerate(self):
         tri = [
             [[0, 0, 0], [1, 0, 0], [-0.5, 0, 0]],

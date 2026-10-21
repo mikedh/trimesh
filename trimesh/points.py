@@ -16,7 +16,7 @@ from .constants import tol
 from .geometry import plane_transform
 from .inertia import points_inertia
 from .parent import Geometry3D
-from .typed import ArrayLike, NDArray
+from .typed import ArrayLike, NDArray, NDArray2D
 from .visual.color import VertexColor
 
 
@@ -771,3 +771,20 @@ class PointCloud(Geometry3D):
         return PointCloud(
             vertices=np.vstack((self.vertices, other.vertices)), colors=colors
         )
+
+    def estimate_normals(self, cluster_size=30) -> NDArray2D[np.float64]:
+        """
+        Estimate normals of PointCloud from nearest neighbor points
+
+        Parameters
+        ------------
+        cluster_size : float
+          Number of nearest neighbors for each point to compute normals from
+        """
+        _, indices = self.kdtree.query(self.vertices, k=cluster_size)
+        points = self.vertices[indices]
+        centroids = np.mean(points, axis=1, keepdims=True)
+        C = points - centroids
+        covariances = np.matmul(C.transpose(0, 2, 1), C) / (cluster_size - 1)
+        _, v = np.linalg.eigh(covariances)
+        return v[:, :, 0]

@@ -72,6 +72,7 @@ Trimesh has a lot of soft-required upstream packages, and we try to make sure th
 |`pycollada`| Parse `dae` files. | | `easy`|
 |`pyglet<2`| OpenGL bindings for our simple debug viewer. | | `recommend`|
 |`xatlas`| Unwrap meshes to generate UV coordinates quickly and well. | | `test_more`|
+|`DracoPy`| Load and export `KHR_draco_mesh_compression` in GLTF. | `zstandard.compress(scene.export(file_type='glb'), 22)` | `test_more`|
 |`python-fcl`| Do collision queries between meshes | | `recommend`|
 |`fast-simplification`| Implements quadric edge collapse simplification | | `recommend`|
 |`scikit-image`| Used in voxel ops | | `recommend`|

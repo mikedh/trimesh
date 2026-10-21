@@ -31,6 +31,21 @@ class STLTests(g.unittest.TestCase):
         # attribute that wasn't len(m.faces) shouldn't have been touched
         assert m.face_attributes["nah"] == 10
 
+    def test_header_overflow(self):
+        from trimesh.exchange.stl import HeaderError, load_stl_binary
+
+        blob = g.trimesh.creation.box().export(file_type="stl")
+        assert len(load_stl_binary(g.io_wrap(blob))["faces"]) == 12
+
+        # try a file with a wrapped header
+        wrap = blob[:80] + g.np.uint32(2**31 + 12).tobytes() + blob[84:]
+        assert len(wrap) == len(blob)
+        try:
+            load_stl_binary(g.io_wrap(wrap))
+        except HeaderError:
+            return
+        raise ValueError("overflow face count passed")
+
     def test_attrib(self):
         m = g.get_mesh("featuretype.STL")
 

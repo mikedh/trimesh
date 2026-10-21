@@ -37,6 +37,13 @@ class OFFTests(g.unittest.TestCase):
     def test_corpus(self):
         g.get_mesh("off.zip")
 
+    def test_missing_count_line(self):
+        # an OFF file with only the header (and no vertex/face count line) used
+        # to raise an IndexError from splits[0]; it should be a clean ValueError
+        for data in (b"OFF\n", b"OFF", b"COFF\n", b"OFF\n5"):
+            with self.assertRaises(ValueError):
+                g.trimesh.load(g.io.BytesIO(data), file_type="off")
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
