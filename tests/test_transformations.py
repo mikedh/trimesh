@@ -4,19 +4,21 @@ except BaseException:
     import generic as g
 
 
-@g.pytest.mark.parametrize(
-    "linear",
-    [
-        g.np.diag([2.0, 3.0, 4.0]),
-        g.np.diag([-2.0, 3.0, 4.0]),
-        [[1, 2, 0], [0, 1, 1], [0, 0, 1]],
-        g.np.diag([2.0, 3.0, 0.0]),
-        g.np.zeros((3, 3)),
-        g.np.eye(3) * 1e14,
-        g.np.eye(3),
-        [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
-    ],
-)
+# linear parts of transforms: non-uniform, mirror, shear, rank-2,
+# zero, huge uniform scale, identity, and a rotation
+LINEAR = [
+    g.np.diag([2.0, 3.0, 4.0]),
+    g.np.diag([-2.0, 3.0, 4.0]),
+    [[1, 2, 0], [0, 1, 1], [0, 0, 1]],
+    g.np.diag([2.0, 3.0, 0.0]),
+    g.np.zeros((3, 3)),
+    g.np.eye(3) * 1e14,
+    g.np.eye(3),
+    [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
+]
+
+
+@g.pytest.mark.parametrize("linear", LINEAR)
 @g.pytest.mark.parametrize("cached", [False, True])
 def test_affine_surface_normals(linear, cached):
     mesh = g.Trimesh([[0, 0, 0], [1, 0, 1], [0, 1, 1]], [[0, 1, 2]], process=False)
@@ -36,21 +38,68 @@ def test_affine_surface_normals(linear, cached):
     assert g.np.allclose(mesh.vertex_normals, normal)
 
 
-def test_affine_authored_vertex_normals():
-    mesh = g.Trimesh(
-        [[0, 0, 0], [1, 0, 1], [0, 1, 1], [1, 1, 1]], [[0, 1, 2]], process=False
-    )
-    mesh.vertex_normals = g.trimesh.unitize([[1, 1, 1], [1, 0, 1], [0, 1, 1], [0, 0, 0]])
-    mesh.apply_scale([2, 3, 4])
-    expected = g.trimesh.unitize([[6, 4, 3], [2, 0, 1], [0, 4, 3], [0, 0, 0]])
-    assert g.np.allclose(mesh.vertex_normals, expected)
-
-
-def test_affine_preserves_convexity():
+@g.pytest.mark.parametrize("linear", LINEAR)
+def test_affine_authored_vertex_normals(linear):
     mesh = g.trimesh.creation.icosphere(subdivisions=1)
-    assert mesh.is_convex
-    mesh.apply_scale([2, 3, 4])
-    assert mesh.is_convex
+    # authored normals unrelated to the faces with some zeros
+    normals = g.trimesh.unitize(
+        g.np.random.default_rng(0).normal(size=mesh.vertices.shape)
+    )
+    normals[::7] = 0.0
+    mesh.vertex_normals = normals
+    # two tangent directions perpendicular to each authored normal
+    tangent = g.trimesh.unitize(g.np.cross(normals, [0.36, 0.48, 0.8]))
+    bitangent = g.np.cross(normals, tangent)
+
+    matrix = g.np.eye(4)
+    matrix[:3, :3] = linear
+    matrix[:3, 3] = [5, -2, 7]
+    mesh.apply_transform(matrix)
+    new = mesh.vertex_normals
+
+    # dot each new normal against transformed directions
+    def dot(vectors):
+        moved = g.np.dot(vectors, matrix[:3, :3].T)
+        return (new * g.trimesh.unitize(moved, threshold=0)).sum(axis=1)
+
+    length = g.np.linalg.norm(new, axis=1)
+    checks = {
+        "zero normals stay zero": g.np.allclose(new[::7], 0.0),
+        "nonzero normals are unit": g.np.allclose(length[length > 0], 1.0),
+        "perpendicular to tangent": g.np.abs(dot(tangent)).max() < 1e-8,
+        "perpendicular to bitangent": g.np.abs(dot(bitangent)).max() < 1e-8,
+        "same side as transformed normal": (dot(normals) > -1e-8).all(),
+    }
+    for name, ok in checks.items():
+        assert ok, name
+
+
+@g.pytest.mark.parametrize("linear", [L for L in LINEAR if g.np.linalg.det(L) != 0.0])
+@g.pytest.mark.parametrize("cached", [False, True])
+def test_affine_preserves_convexity(linear, cached):
+    mesh = g.trimesh.creation.icosphere(subdivisions=1)
+    if cached:
+        assert mesh.face_normals.shape == mesh.faces.shape
+        assert mesh.vertex_normals.shape == mesh.vertices.shape
+    matrix = g.np.eye(4)
+    matrix[:3, :3] = linear
+    matrix[:3, 3] = [5, -2, 7]
+    mesh.apply_transform(matrix)
+
+    edges = mesh.triangles[:, 1:] - mesh.triangles[:, :1]
+    truth = g.trimesh.unitize(g.np.cross(edges[:, 0], edges[:, 1]))
+    fresh = g.Trimesh(mesh.vertices, mesh.faces, process=False)
+    checks = {
+        "convex": mesh.is_convex,
+        # mirrors must keep consistent winding and a positive volume
+        "volume": mesh.is_volume,
+        "face normals match edge cross products": g.np.allclose(mesh.face_normals, truth),
+        "vertex normals in recomputed hemisphere": (
+            (mesh.vertex_normals * fresh.vertex_normals).sum(axis=1) > 0
+        ).all(),
+    }
+    for name, ok in checks.items():
+        assert ok, name
 
 
 def test_flips_winding():
@@ -349,27 +398,24 @@ class TransformTest(g.unittest.TestCase):
 def test_is_rigid():
     tr = g.trimesh.transformations
     # any linear map is `R1 @ diag(s) @ R2` so truth comes from `s` alone
-    # rigid if every `|s| == 1`, uniform if every `|s|` is equal and nonzero
+    # rigid if every `|s| == 1`
     scales = [[1, 1, 1], [-1, 1, 1], [2, 2, 2], [-2, 2, -2], [1e5] * 3, [1e-3] * 3]
     scales += [[2, 3, 4], [1, 1, 1 + 1e-4], [1, 1, 0], [0, 0, 0]]
     rotations = tr.random_rotation_matrix(num=len(scales) * 2)
     for s, R1, R2 in zip(scales, rotations[::2], rotations[1::2]):
         matrix = R1 @ g.np.diag(s + [1]) @ R2
         matrix[:3, 3] = g.np.random.random(3) * 100
-        magnitude = g.np.abs(s)
-        rigid = bool((magnitude == 1).all())
-        uniform = bool(magnitude[0] > 0 and (magnitude == magnitude[0]).all())
+        rigid = bool((g.np.abs(s) == 1).all())
         assert tr.is_rigid(matrix) == rigid
-        assert tr.is_rigid(matrix, allow_uniform_scale=True) == uniform
         # an equal error in every entry of the bottom row is never rigid
         matrix[3] += 1e-3
-        assert not tr.is_rigid(matrix, allow_uniform_scale=True)
+        assert not tr.is_rigid(matrix)
 
     # `M @ M.T == I + 0.5` has an equal error in every entry and is not rigid
     values, vectors = g.np.linalg.eigh(g.np.eye(3) + 0.5)
     matrix = g.np.eye(4)
     matrix[:3, :3] = vectors @ g.np.diag(g.np.sqrt(values)) @ vectors.T
-    assert not tr.is_rigid(matrix, allow_uniform_scale=True)
+    assert not tr.is_rigid(matrix)
 
 
 if __name__ == "__main__":

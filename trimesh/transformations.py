@@ -2263,7 +2263,7 @@ def fix_rigid(matrix, max_deviance=1e-5):
     return matrix
 
 
-def is_rigid(matrix, epsilon=1e-8, allow_uniform_scale=False):
+def is_rigid(matrix, epsilon=1e-8):
     """
     Check to make sure a homogeonous transformation
     matrix is a rigid transform.
@@ -2272,14 +2272,12 @@ def is_rigid(matrix, epsilon=1e-8, allow_uniform_scale=False):
     -----------
     matrix : (4, 4) float
       A transformation matrix
-    allow_uniform_scale : bool
-      If True also accept a uniform scale.
 
     Returns
     -----------
     check : bool
-      True if matrix is a a transform with only translation
-      and rotation, plus uniform scale if allowed.
+      True if matrix is a a transform with only
+      translation and rotation.
     """
 
     matrix = np.asanyarray(matrix, dtype=np.float64)
@@ -2287,19 +2285,13 @@ def is_rigid(matrix, epsilon=1e-8, allow_uniform_scale=False):
     if matrix.shape != (4, 4):
         return False
 
-    # rows of a rotation times uniform scale `s` dot to `s**2 * I`
-    check = np.dot(matrix[:3, :3], matrix[:3, :3].T).ravel()
-    scale = check[0] if allow_uniform_scale else 1.0
-    check -= _IDENTITY9 * scale
+    # rows of a rotation dot to the identity
+    check = np.dot(matrix[:3, :3], matrix[:3, :3].T).ravel() - _IDENTITY9
     # make sure last row has no perspective
     bottom = matrix[3] - _IDENTITY[3]
 
     # squared norms are a single dot and avoid `abs` and `ptp`
-    return (
-        scale > epsilon
-        and np.dot(bottom, bottom) < epsilon**2
-        and np.dot(check, check) < (epsilon * scale) ** 2
-    )
+    return np.dot(bottom, bottom) < epsilon**2 and np.dot(check, check) < epsilon**2
 
 
 def scale_and_translate(scale=None, translate=None):

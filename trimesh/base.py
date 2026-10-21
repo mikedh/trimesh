@@ -2632,8 +2632,8 @@ class Trimesh(Geometry3D):
         # check to see if the matrix has rotation
         # rather than just translation
         has_rotation = not util.allclose(matrix[:3, :3], _IDENTITY3, atol=1e-6)
-        # check to see if this matrix can be applied to rotate
-        is_rigid = transformations.is_rigid(matrix, allow_uniform_scale=True)
+        # check to see if the matrix flips the winding of triangles
+        flip = has_rotation and transformations.flips_winding(matrix)
 
         # transform overridden center of mass
         if "center_mass" in self._data:
@@ -2643,30 +2643,25 @@ class Trimesh(Geometry3D):
                 matrix,
             )[0]
 
-        if not is_rigid:
-            # any cached normals will be garbage
-            self._cache.cache.pop("face_normals", None)
-            self._cache.cache.pop("vertex_normals", None)
-        elif has_rotation:
-            # we HAVE rotation, and a rigid transform
-            # so we can save these expensive normals
-
+        if has_rotation:
+            linear = matrix[:3, :3]
+            # the adjugate `det(M) * inv(M)` maps `cross(a, b)` to
+            # `cross(M @ a, M @ b)` exactly, even for singular `M`
+            adjugate = np.cross(linear.T[[1, 2, 0]], linear.T[[2, 0, 1]])
+            if flip:
+                # faces are reversed below so their normals reverse too
+                adjugate = -adjugate
             if "face_normals" in self._cache:
-                # transform face normals by rotation component
-                self._cache.cache["face_normals"] = util.unitize(
-                    transformations.transform_points(
-                        self.face_normals, matrix=matrix, translate=False
-                    )
+                self._cache["face_normals"] = util.unitize(
+                    np.dot(self.face_normals, adjugate), threshold=0
                 )
             if "vertex_normals" in self._cache:
-                self._cache.cache["vertex_normals"] = util.unitize(
-                    transformations.transform_points(
-                        self.vertex_normals, matrix=matrix, translate=False
-                    )
+                self._cache["vertex_normals"] = util.unitize(
+                    np.dot(self.vertex_normals, adjugate), threshold=0
                 )
 
         # if transformation flips winding of triangles
-        if has_rotation and transformations.flips_winding(matrix):
+        if flip:
             log.debug("transform flips winding")
             # fliplr will make array non C contiguous
             # which will cause hashes to be more
