@@ -214,6 +214,26 @@ def test_xyz():
     assert p.colors.shape == (100, 4)
 
 
+def test_xyz_export_uncolored():
+    rng = g.np.random.default_rng(7)
+    vertices = rng.random((10, 3))
+    cloud = g.trimesh.PointCloud(vertices)
+
+    e = cloud.export(file_type="xyz")
+    assert all(len(line.split()) == 3 for line in e.strip().splitlines())
+    r = g.trimesh.load(g.trimesh.util.wrap_as_stream(e), file_type="xyz")
+    assert g.np.allclose(r.vertices, vertices)
+    assert len(r.colors) == 0
+
+    # colored clouds should still write RGBA columns
+    colors = rng.integers(0, 256, (10, 4), dtype=g.np.uint8)
+    e = g.trimesh.PointCloud(vertices, colors=colors).export(file_type="xyz")
+    assert all(len(line.split()) == 7 for line in e.strip().splitlines())
+    r = g.trimesh.load(g.trimesh.util.wrap_as_stream(e), file_type="xyz")
+    assert g.np.allclose(r.vertices, vertices)
+    assert g.np.array_equal(r.colors, colors)
+
+
 def test_obb():
     p = g.get_mesh("points_agisoft.xyz")
     original = p.bounds.copy()
