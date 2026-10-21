@@ -1811,25 +1811,27 @@ def _read_buffers(
             v_seq = [p["vertices"] for p in current]
             f_seq = [p["faces"] for p in current]
             v, f = util.append_faces(v_seq, f_seq)
-            materials = [p["visual"].material for p in current]
-            face_materials = []
-            for i, p in enumerate(current):
-                face_materials += [i] * len(p["faces"])
-            visuals = visual.texture.TextureVisuals(
-                material=visual.material.MultiMaterial(materials=materials),
-                face_materials=face_materials,
-            )
             if "metadata" in meshes[names[0]]:
                 metadata = meshes[names[0]]["metadata"]
             else:
                 metadata = {}
-            meshes[name] = {
+            merged = {
                 "vertices": v,
                 "faces": f,
-                "visual": visuals,
                 "metadata": metadata,
                 "process": False,
             }
+            # primitives have no visual with `skip_materials`
+            if all("visual" in p for p in current):
+                materials = [p["visual"].material for p in current]
+                face_materials = []
+                for i, p in enumerate(current):
+                    face_materials += [i] * len(p["faces"])
+                merged["visual"] = visual.texture.TextureVisuals(
+                    material=visual.material.MultiMaterial(materials=materials),
+                    face_materials=face_materials,
+                )
+            meshes[name] = merged
             mesh_prim_replace[mesh_index] = [name]
         # avoid altering inside loop
         mesh_prim = mesh_prim_replace

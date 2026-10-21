@@ -396,6 +396,15 @@ class GLTFTest(g.unittest.TestCase):
         c = a.copy()
         assert g.np.allclose(c.geometry["Cube"].visual.face_materials, truth)
 
+    def test_merge_primitives_skip_materials(self):
+        # no primitive has a visual with `skip_materials`
+        a = g.get_mesh(
+            "rgb_cube_with_primitives.gltf", merge_primitives=True, skip_materials=True
+        )
+        assert len(a.geometry) == 1
+        assert len(a.geometry["Cube"].faces) == 12
+        assert not hasattr(a.geometry["Cube"].visual, "material")
+
     def test_merge_primitives_materials_roundtrip(self):
         # test to see if gltf loaded with `merge_primitives`
         # and then exported back
