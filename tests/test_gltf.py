@@ -583,6 +583,14 @@ class GLTFTest(g.unittest.TestCase):
         # lightly check to see that no references exist
         assert "$ref" not in g.json.dumps(s)
 
+        # `gltf.validate` skips the meta-schema check so do it here once
+        validator = g.jsonschema.validators.validator_for(s)
+        assert validator(validator.META_SCHEMA).is_valid(s)
+
+        # validation is cached so mutating a returned copy must not change it
+        s["required"].append("missing")
+        g.trimesh.exchange.gltf.validate({"asset": {"version": "2.0"}})
+
     def test_export_custom_attributes(self):
         # Write and read custom vertex attributes to gltf
         sphere = g.trimesh.primitives.Sphere()

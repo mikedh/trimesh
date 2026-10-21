@@ -63,6 +63,9 @@ _GL_STRIP = 5
 _EYE = np.eye(4)
 _EYE.flags.writeable = False
 
+# schema validators are slow to build so cache them once built
+_GLTF_VALIDATOR = {}
+
 # specify dtypes with forced little endian
 float32 = np.dtype("<f4")
 uint32 = np.dtype("<u4")
@@ -2270,8 +2273,7 @@ def validate(header):
     """
     Validate a GLTF 2.0 header against the schema.
 
-    Returns result from:
-    `jsonschema.validate(header, schema=get_schema())`
+    Returns result from validating against `get_schema()`.
 
     Parameters
     -------------
@@ -2283,15 +2285,20 @@ def validate(header):
     err : jsonschema.exceptions.ValidationError
       If the tree is an invalid GLTF2.0 header
     """
-    # a soft dependency
-    import jsonschema
+    try:
+        validator = _GLTF_VALIDATOR["glTF.schema.json"]
+    except KeyError:
+        # a soft dependency
+        import jsonschema
 
-    # will do the reference replacement
-    schema = get_schema()
-    # validate the passed header against the schema
-    valid = jsonschema.validate(header, schema=schema)
+        # will do the reference replacement
+        schema = get_schema()
+        # `jsonschema.validate` re-checks the schema against its meta-schema
+        # on every call which is most of the cost so `test_schema` does that once
+        validator = jsonschema.validators.validator_for(schema)(schema)
+        _GLTF_VALIDATOR["glTF.schema.json"] = validator
 
-    return valid
+    return validator.validate(header)
 
 
 def get_schema():
