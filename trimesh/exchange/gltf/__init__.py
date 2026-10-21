@@ -1799,20 +1799,27 @@ def _read_buffers(
                 mesh_prim_replace[mesh_index] = names
                 continue
 
+            # only triangle primitives can be merged, any lines
+            # or points primitives are kept as separate geometry
+            tris = [n for n in names if "faces" in meshes[n]]
+            if len(tris) <= 1:
+                mesh_prim_replace[mesh_index] = names
+                continue
+
             # just take the shortest name option available
-            name = min(names)
+            name = min(tris)
             # remove the other meshes after we're done looping
             # since we're reusing the shortest one don't pop
             # that as we'll be overwriting it with the combined
-            mesh_pop.update(set(names).difference([name]))
+            mesh_pop.update(set(tris).difference([name]))
 
             # get all meshes for this group
-            current = [meshes[n] for n in names]
+            current = [meshes[n] for n in tris]
             v_seq = [p["vertices"] for p in current]
             f_seq = [p["faces"] for p in current]
             v, f = util.append_faces(v_seq, f_seq)
-            if "metadata" in meshes[names[0]]:
-                metadata = meshes[names[0]]["metadata"]
+            if "metadata" in meshes[tris[0]]:
+                metadata = meshes[tris[0]]["metadata"]
             else:
                 metadata = {}
             merged = {
@@ -1832,7 +1839,7 @@ def _read_buffers(
                     face_materials=face_materials,
                 )
             meshes[name] = merged
-            mesh_prim_replace[mesh_index] = [name]
+            mesh_prim_replace[mesh_index] = [name] + [n for n in names if n not in tris]
         # avoid altering inside loop
         mesh_prim = mesh_prim_replace
         # remove outdated meshes

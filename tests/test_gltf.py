@@ -405,6 +405,71 @@ class GLTFTest(g.unittest.TestCase):
         assert len(a.geometry["Cube"].faces) == 12
         assert not hasattr(a.geometry["Cube"].visual, "material")
 
+    def test_merge_primitives_lines(self):
+        # a mesh made of only GL_LINES primitives has no faces to merge
+        import json
+        import struct
+
+        vertices = g.np.array(
+            [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=g.np.float32
+        )
+        indices = g.np.array([0, 1, 2, 3], dtype=g.np.uint16)
+        binary = vertices.tobytes() + indices.tobytes()
+        prim = {"attributes": {"POSITION": 0}, "mode": 1}
+        header = {
+            "asset": {"version": "2.0"},
+            "scene": 0,
+            "scenes": [{"nodes": [0]}],
+            "nodes": [{"mesh": 0}],
+            "meshes": [{"primitives": [dict(prim, indices=1), dict(prim, indices=2)]}],
+            "buffers": [{"byteLength": len(binary)}],
+            "bufferViews": [
+                {"buffer": 0, "byteOffset": 0, "byteLength": vertices.nbytes},
+                {"buffer": 0, "byteOffset": vertices.nbytes, "byteLength": 8},
+            ],
+            "accessors": [
+                {
+                    "bufferView": 0,
+                    "componentType": 5126,
+                    "count": 4,
+                    "type": "VEC3",
+                    "min": [0, 0, 0],
+                    "max": [1, 1, 1],
+                },
+                {
+                    "bufferView": 1,
+                    "byteOffset": 0,
+                    "componentType": 5123,
+                    "count": 2,
+                    "type": "SCALAR",
+                },
+                {
+                    "bufferView": 1,
+                    "byteOffset": 4,
+                    "componentType": 5123,
+                    "count": 2,
+                    "type": "SCALAR",
+                },
+            ],
+        }
+        content = json.dumps(header).encode()
+        content += b" " * (-len(content) % 4)
+        glb = (
+            struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(content) + 8 + len(binary))
+            + struct.pack("<II", len(content), 0x4E4F534A)
+            + content
+            + struct.pack("<II", len(binary), 0x004E4942)
+            + binary
+        )
+        for merge in (False, True):
+            s = g.trimesh.load_scene(
+                g.trimesh.util.wrap_as_stream(glb),
+                file_type="glb",
+                merge_primitives=merge,
+                skip_materials=True,
+            )
+            assert len(s.geometry) == 2
+
     def test_merge_primitives_materials_roundtrip(self):
         # test to see if gltf loaded with `merge_primitives`
         # and then exported back
