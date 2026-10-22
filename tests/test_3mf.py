@@ -58,7 +58,7 @@ def test_roundtrip():
     # test a scene round-tripped through the
     # 3MF exporter and importer
 
-    for name, count in [("cycloidal.3DXML", 13), ("pyramids.3mf", 6)]:
+    for name, count in [("cycloidal.3DXML", 13), ("pyramids.3mf", 6), ("nested.glb", 3)]:
         s = g.get_mesh(name)
         assert len(s.geometry) == count
 
@@ -74,6 +74,7 @@ def test_roundtrip():
         )
         assert g.np.allclose(s.bounds, r.bounds)
         assert g.np.isclose(s.area, r.area, rtol=1e-3)
+        assert len(s.graph.nodes_geometry) == len(r.graph.nodes_geometry)
 
         if "3mf" in name.lower():
             # check partnumbers are preserved in the input 3mf files
