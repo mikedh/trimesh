@@ -126,7 +126,7 @@ def export_collada(mesh, **kwargs):
         # Create geometry object
         # COLLADA ids must be unique across the whole document so
         # prefix every source id with the id of its geometry
-        geom_id = uuid.uuid4().hex
+        geom_id = f"geometry{i}"
         vertices = collada.source.FloatSource(
             f"{geom_id}-verts-array", m.vertices.flatten(), ("X", "Y", "Z")
         )
