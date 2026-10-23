@@ -365,3 +365,25 @@ def test_estimate_normals_sphere():
     mask_close_to_zeros = angle_errors < g.np.deg2rad(1.0)
     mask_close_to_pi = g.np.abs(angle_errors - g.np.pi) < g.np.deg2rad(1.0)
     assert g.np.all(g.np.bitwise_xor(mask_close_to_zeros, mask_close_to_pi))
+
+
+def test_radial_sort_any_normal():
+    theta = g.np.linspace(0.0, g.np.pi * 2.0, 12, endpoint=False)
+    # ring radius varies so ordering is unambiguous
+    radius = g.np.linspace(1.0, 2.0, len(theta)).reshape((-1, 1))
+    order = g.np.random.default_rng(seed=0).permutation(len(theta))
+    # axis aligned, scaled, and tilted normals
+    for normal in ([1, 0, 0], [-1, 0, 0], [3, 0, 0], [0, 1, 0], [0, 0, 2], [1, 0.01, 0]):
+        n = g.np.array(normal, dtype=g.np.float64)
+        n /= g.np.linalg.norm(n)
+        # independent right-handed in-plane basis (u, v, n)
+        u = g.np.cross(n, g.np.eye(3)[g.np.abs(n).argmin()])
+        u /= g.np.linalg.norm(u)
+        v = g.np.cross(n, u)
+        ring = (g.np.outer(g.np.cos(theta), u) + g.np.outer(g.np.sin(theta), v)) * radius
+        sort = g.trimesh.points.radial_sort(ring[order], origin=[0, 0, 0], normal=normal)
+        assert len(sort) == len(ring)
+        # counter-clockwise gaps between neighbors must sum to exactly one turn
+        angle = g.np.arctan2(sort.dot(v), sort.dot(u))
+        gaps = g.np.diff(g.np.append(angle, angle[0])) % (2 * g.np.pi)
+        assert g.np.isclose(gaps.sum(), 2 * g.np.pi), normal
