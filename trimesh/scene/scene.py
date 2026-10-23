@@ -1477,6 +1477,7 @@ def append_scenes(iterable, common=None, base_frame="world"):
     if common is None:
         common = [base_frame]
 
+    result = Scene(base_frame=base_frame)
     # save geometry in dict
     geometry = {}
     # save transforms as edge tuples
@@ -1555,11 +1556,15 @@ def append_scenes(iterable, common=None, base_frame="world"):
                 attr["geometry"] = map_geom[attr["geometry"]]
             # save the new edge
             edges.append((a, b, attr))
+        # Geometry references are remapped by the edges above.
+        for node, attr in s.graph.transforms.node_data.items():
+            data = {k: v for k, v in attr.items() if k != "geometry"}
+            if data:
+                result.graph.transforms.node_data[node_remap(node)].update(deepcopy(data))
         # mark nodes from current scene as consumed
         consumed.update(current)
 
-    # add all data to a new scene
-    result = Scene(base_frame=base_frame)
+    # add geometry and transforms to the scene
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
 
