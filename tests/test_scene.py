@@ -486,6 +486,41 @@ def test_append_scenes():
     assert scene_sum.graph.base_frame == "not_world"
 
 
+def test_append_scenes_node_data():
+    scenes = []
+    for name in ("foo", "bar"):
+        scene = g.trimesh.Scene()
+        scene.graph.update(frame_to=name)
+        scene.graph.transforms.node_data[name]["custom"] = {"label": name}
+        scenes.append(scene)
+
+    result = g.trimesh.scene.scene.append_scenes(scenes)
+    for name, scene in zip(("foo", "bar"), scenes):
+        assert result.graph.transforms.node_data[name] == {"custom": {"label": name}}
+        result.graph.transforms.node_data[name]["custom"]["label"] = "changed"
+        assert scene.graph.transforms.node_data[name]["custom"]["label"] == name
+
+
+def test_append_scenes_node_data_remapping():
+    scene = g.trimesh.Scene()
+    scene.add_geometry(g.trimesh.creation.box(), node_name="part", geom_name="box")
+    scene.graph.transforms.node_data["part"]["label"] = "part"
+    scene.graph.transforms.node_data["world"]["label"] = "world"
+
+    result = g.trimesh.scene.scene.append_scenes([scene, scene])
+    assert len(result.geometry) == 2
+    assert len(result.graph.nodes_geometry) == 2
+    assert result.graph.transforms.node_data["world"] == {"label": "world"}
+    assert {
+        result.graph.transforms.node_data[node]["geometry"]
+        for node in result.graph.nodes_geometry
+    } == set(result.geometry)
+    assert all(
+        result.graph.transforms.node_data[node]["label"] == "part"
+        for node in result.graph.nodes_geometry
+    )
+
+
 def test_scene_concat():
     # check that primitives get upgraded to meshes
     a = g.trimesh.Scene(
