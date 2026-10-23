@@ -324,17 +324,17 @@ def rotation_matrix(angle, direction, point=None):
 
     Parameters
     -------------
-    angle     : float, or sympy.Symbol
-      Angle, in radians or symbolic angle
+    angle     : float, (...) float, or sympy.Symbol
+      Angle in radians, any number of them, or a symbolic angle
     direction : (3,) float
       Any vector along rotation axis
-    point     : (3, ) float, or None
-      Origin point of rotation axis
+    point     : (3, ) float, (..., 3) float, or None
+      Origin point of rotation axis, which broadcasts with `angle`
 
     Returns
     -------------
-    matrix : (4, 4) float, or (4, 4) sympy.Matrix
-      Homogeneous transformation matrix
+    matrix : (4, 4) float, (..., 4, 4) float, or (4, 4) sympy.Matrix
+      Homogeneous transformation matrix for every angle and point
 
     Examples
     -------------
@@ -359,37 +359,44 @@ def rotation_matrix(angle, direction, point=None):
     True
 
     """
-    if "sympy" in str(type(angle)):
+    symbolic = "sympy" in str(type(angle))
+    if symbolic:
         # special case sympy symbolic angles
         import sympy as sp
 
-        symbolic = True
         sina = sp.sin(angle)
         cosa = sp.cos(angle)
+        dtype = object
     else:
-        symbolic = False
         sina = np.sin(angle)
         cosa = np.cos(angle)
+        dtype = np.float64
 
     direction = unit_vector(direction[:3])
-
-    # rotation matrix around unit vector
-    M = np.diag([cosa, cosa, cosa, 1.0])
-    M[:3, :3] += np.outer(direction, direction) * (1.0 - cosa)
-
-    direction = direction * sina
-    M[:3, :3] += np.array(
+    # every angle with every point, which is one matrix for scalars
+    shape = np.shape(angle)
+    if point is not None:
+        point = np.asarray(point, dtype=np.float64)[..., :3]
+        shape = np.broadcast_shapes(shape, point.shape[:-1])
+    cosa = np.asarray(cosa)[..., None, None]
+    sina = np.asarray(sina)[..., None, None]
+    # Rodrigues: the axis and the cross product with it, by the angle
+    cross = np.array(
         [
             [0.0, -direction[2], direction[1]],
             [direction[2], 0.0, -direction[0]],
             [-direction[1], direction[0], 0.0],
         ]
     )
+    M = np.zeros((*shape, 4, 4), dtype=dtype)
+    M[..., :3, :3] = (
+        cosa * np.eye(3) + (1.0 - cosa) * np.outer(direction, direction) + sina * cross
+    )
+    M[..., 3, 3] = 1.0
 
     # if point is specified, rotation is not around origin
     if point is not None:
-        point = np.asarray(point[:3], dtype=np.float64)
-        M[:3, 3] = point - np.dot(M[:3, :3], point)
+        M[..., :3, 3] = point - np.matmul(M[..., :3, :3], point[..., None])[..., 0]
 
     # return symbolic angles as sympy Matrix objects
     if symbolic:
@@ -1339,7 +1346,10 @@ def quaternion_matrix(quaternion):
 
 
     """
-    q = np.array(quaternion, dtype=np.float64).reshape((-1, 4))
+    q = np.array(quaternion, dtype=np.float64)
+    # was this passed a single quaternion or a stack of them
+    single = q.ndim == 1
+    q = q.reshape((-1, 4))
     n = diagonal_dot(q, q)
     # how many entries do we have
     num_qs = len(n)
@@ -1364,14 +1374,22 @@ def quaternion_matrix(quaternion):
     # set any identities
     ret[identities] = np.eye(4)[None, ...]
 
-    return ret.squeeze()
+    # a length-1 stack is still a stack, so only unwrap a single
+    if single:
+        return ret[0]
+    return ret
 
 
 def quaternion_from_matrix(matrix, isprecise=False):
-    """Return quaternion from rotation matrix.
+    """
+    Return quaternion from rotation matrix.
+
+    Accepts either a single (4, 4) matrix returning a (4,) quaternion
+    or an (n, 4, 4) stack returning (n, 4) quaternions.
 
     If isprecise is True, the input matrix is assumed to be a precise rotation
-    matrix and a faster algorithm is used.
+    matrix and a faster algorithm is used. Note the precise path branches on
+    which diagonal entry is largest so it only handles a single matrix.
 
     >>> q = quaternion_from_matrix(np.identity(4), True)
     >>> np.allclose(q, [1, 0, 0, 0])
@@ -1405,9 +1423,22 @@ def quaternion_from_matrix(matrix, isprecise=False):
     ...                    quaternion_from_matrix(R, isprecise=True))
     True
 
+    Parameters
+    ------------
+    matrix : (3, 3), (4, 4), or (n, 4, 4) float
+      Rotation matrices, where anything which isn't exactly a rotation
+      gets the nearest rotation.
+    isprecise : bool
+      Use a faster method for a single exact rotation matrix.
+
+    Returns
+    ------------
+    quaternion : (4,) or (n, 4) float
+      Unit quaternions ordered `w, x, y, z`.
     """
-    M = np.asarray(matrix, dtype=np.float64)[:4, :4]
+    M = np.asarray(matrix, dtype=np.float64)
     if isprecise:
+        M = M[:4, :4]
         q = np.zeros((4,))
         t = np.trace(M)
         if t > M[3, 3]:
@@ -1428,32 +1459,197 @@ def quaternion_from_matrix(matrix, isprecise=False):
             q[3] = M[k, j] - M[j, k]
             q = q[[3, 0, 1, 2]]
         q *= 0.5 / np.sqrt(t * M[3, 3])
-    else:
-        m00 = M[0, 0]
-        m01 = M[0, 1]
-        m02 = M[0, 2]
-        m10 = M[1, 0]
-        m11 = M[1, 1]
-        m12 = M[1, 2]
-        m20 = M[2, 0]
-        m21 = M[2, 1]
-        m22 = M[2, 2]
-        # symmetric matrix K
-        K = np.array(
-            [
-                [m00 - m11 - m22, 0.0, 0.0, 0.0],
-                [m01 + m10, m11 - m00 - m22, 0.0, 0.0],
-                [m02 + m20, m12 + m21, m22 - m00 - m11, 0.0],
-                [m21 - m12, m02 - m20, m10 - m01, m00 + m11 + m22],
-            ]
-        )
-        K /= 3.0
-        # quaternion is eigenvector of K that corresponds to largest eigenvalue
-        w, V = np.linalg.eigh(K)
-        q = V[[3, 0, 1, 2], np.argmax(w)]
-    if q[0] < 0.0:
-        np.negative(q, q)
+        if q[0] < 0.0:
+            np.negative(q, q)
+        return q
+
+    # was this passed a single matrix or a stack of them
+    single = M.ndim == 2
+    # only the top-left rotation block is ever read below, which is what
+    # lets a bare (3, 3) through the way the historical crop did
+    M = M.reshape((-1,) + M.shape[-2:])
+
+    # symmetric matrix K, only the lower triangle is referenced by `eigh`
+    K = np.zeros((len(M), 4, 4))
+    K[:, 0, 0] = M[:, 0, 0] - M[:, 1, 1] - M[:, 2, 2]
+    K[:, 1, 0] = M[:, 0, 1] + M[:, 1, 0]
+    K[:, 1, 1] = M[:, 1, 1] - M[:, 0, 0] - M[:, 2, 2]
+    K[:, 2, 0] = M[:, 0, 2] + M[:, 2, 0]
+    K[:, 2, 1] = M[:, 1, 2] + M[:, 2, 1]
+    K[:, 2, 2] = M[:, 2, 2] - M[:, 0, 0] - M[:, 1, 1]
+    K[:, 3, 0] = M[:, 2, 1] - M[:, 1, 2]
+    K[:, 3, 1] = M[:, 0, 2] - M[:, 2, 0]
+    K[:, 3, 2] = M[:, 1, 0] - M[:, 0, 1]
+    K[:, 3, 3] = M[:, 0, 0] + M[:, 1, 1] + M[:, 2, 2]
+    K /= 3.0
+
+    # quaternion is eigenvector of K that corresponds to largest eigenvalue
+    # note `eigh` is batched over leading dimensions and returns eigenvalues
+    # ascending, so the one we want is always the final column
+    q = np.linalg.eigh(K)[1][:, [3, 0, 1, 2], -1]
+    # flip to the positive-real hemisphere
+    q[q[:, 0] < 0.0] *= -1.0
+
+    if single:
+        return q[0]
     return q
+
+
+def trs_from_matrix(matrix: ArrayLike) -> tuple[NDArray, NDArray, NDArray]:
+    """
+    Split homogeneous transforms into a translation, a rotation
+    quaternion, and a scale, which is how formats like glTF store
+    them and the form in which a transform can be interpolated.
+
+    A mirror can't be a rotation so it is carried as negative scale,
+    shear has no exact form so the rotation is the nearest one, and
+    a zero scale has the identity rotation.
+
+    >>> matrix = random_rotation_matrix()
+    >>> matrix[:3, :3] *= [-1.0, 2.0, 5.0]
+    >>> np.allclose(trs_matrix(*trs_from_matrix(matrix)), matrix)
+    True
+
+    Parameters
+    ------------
+    matrix : (4, 4) or (n, 4, 4) float
+      Homogeneous transforms.
+
+    Returns
+    ------------
+    translation : (3,) or (n, 3) float
+      Translation of each transform.
+    quaternion : (4,) or (n, 4) float
+      Unit rotation quaternions ordered `w, x, y, z`.
+    scale : (3,) or (n, 3) float
+      Scale along each axis, negative for a mirror.
+    """
+    matrix = np.asanyarray(matrix, dtype=np.float64)
+    stack = matrix.reshape((-1, 4, 4))
+    block = stack[:, :3, :3].copy()
+    # the scale is the length of each column of the rotation block
+    scale = np.linalg.norm(block, axis=1)
+    # negating all three columns of a mirrored block makes it a rotation
+    mirrored = np.linalg.det(block) < 0.0
+    block[mirrored] *= -1.0
+    scale[mirrored] *= -1.0
+    # `quaternion_from_matrix` finds the rotation nearest the block so
+    # the scale doesn't need to be divided out first
+    quaternion = quaternion_from_matrix(block).reshape((-1, 4))
+    if matrix.ndim == 2:
+        return stack[0, :3, 3], quaternion[0], scale[0]
+    return stack[:, :3, 3], quaternion, scale
+
+
+def trs_matrix(
+    translation: ArrayLike, quaternion: ArrayLike, scale: ArrayLike
+) -> NDArray:
+    """
+    Combine a translation, a rotation quaternion, and a scale into
+    homogeneous transforms which scale, then rotate, then translate.
+    The inverse of `trs_from_matrix`.
+
+    >>> np.allclose(trs_matrix([1, 2, 3], [1, 0, 0, 0], [1, 1, 1]),
+    ...             translation_matrix([1, 2, 3]))
+    True
+    >>> trs_matrix([[1, 2, 3], [4, 5, 6]], [1, 0, 0, 0], [1, 1, 1]).shape
+    (2, 4, 4)
+
+    Parameters
+    ------------
+    translation : (3,) or (n, 3) float
+      Translation of each transform.
+    quaternion : (4,) or (n, 4) float
+      Rotation quaternions ordered `w, x, y, z`.
+    scale : (3,) or (n, 3) float
+      Scale along each axis.
+
+    Returns
+    ------------
+    matrix : (4, 4) or (n, 4, 4) float
+      A single transform if every argument was single, otherwise a stack.
+    """
+    translation = np.asanyarray(translation, dtype=np.float64)
+    quaternion = np.asanyarray(quaternion, dtype=np.float64)
+    scale = np.asanyarray(scale, dtype=np.float64)
+    count = max(translation.size // 3, quaternion.size // 4, scale.size // 3)
+    matrix = np.broadcast_to(
+        quaternion_matrix(quaternion.reshape((-1, 4))), (count, 4, 4)
+    ).copy()
+    # scaling each column applies the scale before the rotation
+    matrix[:, :3, :3] *= np.broadcast_to(scale.reshape((-1, 1, 3)), (count, 1, 3))
+    matrix[:, :3, 3] = translation.reshape((-1, 3))
+    if translation.ndim == 1 and quaternion.ndim == 1 and scale.ndim == 1:
+        return matrix[0]
+    return matrix
+
+
+def keyframe_interval(times, query):
+    """
+    The keyframes on either side of every query time and how far
+    between them it is, clamped to the first and last keyframe.
+
+    Parameters
+    ------------
+    times : (k,) float
+      Increasing keyframe times.
+    query : (m,) float
+      Times to look up.
+
+    Returns
+    ------------
+    lower : (m,) int
+      Keyframe at or before each query.
+    upper : (m,) int
+      Keyframe after each query.
+    width : (m,) float
+      Seconds between them, never zero.
+    fraction : (m,) float
+      From 0.0 at `lower` to 1.0 at `upper`.
+    """
+    times = np.asanyarray(times, dtype=np.float64)
+    query = np.asanyarray(query, dtype=np.float64)
+    upper = np.clip(np.searchsorted(times, query), 1, len(times) - 1)
+    lower = np.maximum(upper - 1, 0)
+    width = np.maximum(times[upper] - times[lower], 1e-12)
+    fraction = np.clip((query - times[lower]) / width, 0.0, 1.0)
+    return lower, upper, width, fraction
+
+
+def skin_points(
+    points: ArrayLike, joints: ArrayLike, weights: ArrayLike, matrices: ArrayLike
+) -> NDArray:
+    """
+    Move points by a weighted blend of joint transforms, which is
+    linear blend skinning as glTF and every other format defines it.
+
+    >>> np.allclose(skin_points([[1, 2, 3]], [[0, 1]], [[1, 0]],
+    ...             [translation_matrix([1, 0, 0]), np.eye(4)]), [[2, 2, 3]])
+    True
+
+    Parameters
+    ------------
+    points : (n, 3) float
+      Points to move.
+    joints : (n, k) int
+      Which of `matrices` moves each point, `k` per point.
+    weights : (n, k) float
+      How much each of those joints moves each point.
+    matrices : (j, 4, 4) float
+      Transform of every joint, which for glTF is the joint's world
+      transform times its inverse bind matrix.
+
+    Returns
+    ------------
+    moved : (n, 3) float
+      The points moved by the blend of their joints.
+    """
+    points = np.asanyarray(points, dtype=np.float64).reshape((-1, 3))
+    rows = np.asanyarray(matrices, dtype=np.float64)[:, :3].reshape((-1, 12))
+    # the top three rows of every joint blended together per point
+    weights = np.asanyarray(weights, dtype=np.float64)
+    blended = (weights[:, :, None] * rows[joints]).sum(axis=1).reshape((-1, 3, 4))
+    return np.matmul(blended[:, :, :3], points[:, :, None])[:, :, 0] + blended[:, :, 3]
 
 
 def quaternion_multiply(quaternion1, quaternion0):
@@ -1526,7 +1722,11 @@ def quaternion_imag(quaternion):
 
 
 def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
-    """Return spherical linear interpolation between two quaternions.
+    """
+    Return spherical linear interpolation between two quaternions.
+
+    Accepts single (4,) quaternions with a scalar fraction, or (n, 4)
+    stacks with an (n,) fraction, returning (n, 4).
 
     >>> q0 = random_quaternion()
     >>> q1 = random_quaternion()
@@ -1541,29 +1741,63 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     >>> np.allclose(2, np.arccos(np.dot(q0, q1)) / angle) or \
         np.allclose(2, np.arccos(-np.dot(q0, q1)) / angle)
     True
+    >>> f = np.linspace(0.0, 1.0, 5)
+    >>> quaternion_slerp(q0, q1, f).shape
+    (5, 4)
+    >>> np.allclose(quaternion_slerp(q0, q1, f)[2], quaternion_slerp(q0, q1, 0.5))
+    True
 
+    Parameters
+    ------------
+    quat0 : (4,) or (n, 4) float
+      Quaternions at a fraction of zero.
+    quat1 : (4,) or (n, 4) float
+      Quaternions at a fraction of one.
+    fraction : float or (n,) float
+      How far from `quat0` to `quat1`.
+    spin : int
+      Extra half turns to travel.
+    shortestpath : bool
+      Travel the shorter way around.
+
+    Returns
+    ------------
+    quaternion : (4,) or (n, 4) float
+      The interpolated quaternions.
     """
-    q0 = unit_vector(quat0[:4])
-    q1 = unit_vector(quat1[:4])
-    if fraction == 0.0:
-        return q0
-    elif fraction == 1.0:
-        return q1
-    d = np.dot(q0, q1)
-    if abs(abs(d) - 1.0) < _EPS:
-        return q0
-    if shortestpath and d < 0.0:
-        # invert rotation
-        d = -d
-        np.negative(q1, q1)
-    angle = np.arccos(d) + spin * np.pi
-    if abs(angle) < _EPS:
-        return q0
-    isin = 1.0 / np.sin(angle)
-    q0 *= np.sin((1.0 - fraction) * angle) * isin
-    q1 *= np.sin(fraction * angle) * isin
-    q0 += q1
-    return q0
+    q0 = np.array(quat0, dtype=np.float64)
+    q1 = np.array(quat1, dtype=np.float64)
+    frac = np.array(fraction, dtype=np.float64)
+
+    # only return a single quaternion if everything passed was single
+    single = q0.ndim == 1 and q1.ndim == 1 and frac.ndim == 0
+    # `[..., :4]` truncates an over-length quaternion the way `quat0[:4]` did
+    q0 = unit_vector(q0[..., :4].reshape((-1, 4)), axis=1)
+    q1 = unit_vector(q1[..., :4].reshape((-1, 4)), axis=1)
+    frac = frac.reshape((-1, 1))
+
+    d = diagonal_dot(q0, q1).reshape((-1, 1))
+    # a quaternion and its negation are the same rotation, so flip to
+    # whichever one is the short way around before measuring the arc
+    flip = np.where(shortestpath & (d < 0.0), -1.0, 1.0)
+    short = q1 * flip
+
+    # clip as floating point error can push `d` outside the arccos domain
+    angle = np.arccos(np.clip(d * flip, -1.0, 1.0)) + spin * np.pi
+    # parallel quaternions have no arc to travel along and would divide
+    # by zero below, so substitute a dummy angle and replace them after
+    degenerate = (np.abs(np.abs(d) - 1.0) < _EPS) | (np.abs(angle) < _EPS)
+    isin = 1.0 / np.sin(np.where(degenerate, 1.0, angle))
+
+    result = (q0 * np.sin((1.0 - frac) * angle) + short * np.sin(frac * angle)) * isin
+    # a degenerate arc holds at its start, and an endpoint returns the
+    # quaternion as passed rather than with a shortest-path sign flip
+    result = np.where(degenerate | (frac == 0.0), q0, result)
+    result = np.where(frac == 1.0, q1, result)
+
+    if single:
+        return result[0]
+    return result
 
 
 def random_quaternion(rand=None, num=1, seed: Seed = None):
@@ -1628,7 +1862,7 @@ def random_rotation_matrix(
     >>> np.allclose(np.dot(R.T, R), np.identity(4))
     True
     >>> R = random_rotation_matrix(num=10)
-    >>> np.allclose(np.einsum('...ji,...jk->...ik', R, R), np.identity(4))
+    >>> np.allclose(np.matmul(np.swapaxes(R, 1, 2), R), np.identity(4))
     True
     >>> bool(np.allclose(random_rotation_matrix(seed=0, translate=10),
     ...                  random_rotation_matrix(seed=0, translate=10)))

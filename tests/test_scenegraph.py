@@ -15,6 +15,21 @@ def test_forest():
     for a, b in edges:
         graph.add_edge(chr(ord("a") + a), chr(ord("a") + b))
 
+    # moving a node to a new parent through the scene graph
+    shift = g.tf.translation_matrix([1, 0, 0])
+    scene = g.trimesh.Scene()
+    scene.graph.update(frame_from="world", frame_to="parent", matrix=shift)
+    scene.graph.update(frame_from="world", frame_to="child")
+    scene.graph.update(frame_from="parent", frame_to="child")
+    # so the child is found through its new parent
+    checks = {"moved child": g.np.allclose(scene.graph.get("child")[0], shift)}
+    for name, forest in [("forest", graph), ("scene", scene.graph.transforms)]:
+        # a forest stores exactly one edge per child: the one from its parent
+        parents = {(parent, child) for child, parent in forest.parents.items()}
+        checks[f"{name} edges are parents"] = set(forest.edge_data) == parents
+    for name, ok in checks.items():
+        assert ok, name
+
 
 def test_cache():
     for _i in range(10):
@@ -140,6 +155,24 @@ def test_subscene():
     assert len(ss.graph.transforms.node_data) == 2
     assert len(ss.graph.transforms.edge_data) == 1
     assert list(ss.graph.transforms.edge_data.keys()) == [("3", "4")]
+
+    # lights under the subscene's root survive and the rest don't, a
+    # light's range scales with the scene and its intensity doesn't
+    lamps = ["inside", "outside"]
+    s.lights = [g.trimesh.scene.lighting.PointLight(name=n, radius=2.0) for n in lamps]
+    s.graph.update(frame_from="3", frame_to="inside")
+    s.graph["outside"] = g.np.eye(4)
+    s.metadata["ambient_light"] = [0.5, 0.5, 0.5]
+    ss, scaled = s.subscene("3"), s.scaled(3.0)
+    checks = {
+        "only lights under the root": [light.name for light in ss.lights] == ["inside"],
+        "metadata kept": ss.metadata["ambient_light"] == [0.5, 0.5, 0.5],
+        "range scales": [light.radius for light in scaled.lights] == [6.0, 6.0],
+        "intensity does not": [light.intensity for light in scaled.lights] == [1.0, 1.0],
+        "original untouched": [light.radius for light in s.lights] == [2.0, 2.0],
+    }
+    for name, ok in checks.items():
+        assert ok, name
 
 
 def test_scene_transform():

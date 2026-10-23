@@ -70,7 +70,7 @@ Trimesh has a lot of soft-required upstream packages, and we try to make sure th
 |`svg.path`| Parsing SVG path strings. | | `easy`|
 |`jsonschema`| Validating our exports for formats like GLTF. | | `easy`|
 |`pycollada`| Parse `dae` files. | | `easy`|
-|`pyglet<2`| OpenGL bindings for our simple debug viewer. | | `recommend`|
+|`pyglet`| OpenGL bindings for our simple debug viewer. | | `recommend`|
 |`xatlas`| Unwrap meshes to generate UV coordinates quickly and well. | | `test_more`|
 |`DracoPy`| Load and export `KHR_draco_mesh_compression` in GLTF. | `zstandard.compress(scene.export(file_type='glb'), 22)` | `test_more`|
 |`python-fcl`| Do collision queries between meshes | | `recommend`|

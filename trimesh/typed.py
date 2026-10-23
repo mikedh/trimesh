@@ -78,7 +78,8 @@ class HttpSessionLike(Protocol):
     Structural type for an HTTP session.
 
     Matches `httpx.Client` and `requests.Session` so a resolver
-    can take either without trimesh importing them directly.
+    can take either without trimesh importing them directly, and
+    with no session at all a resolver uses the standard library.
     other duck-typed sessions are called as `get(url)` with no
     additional kwargs. async sessions like `aiohttp.ClientSession`
     can't be driven synchronously and are rejected at runtime.
@@ -93,6 +94,7 @@ DType = TypeVar("DType", bound=generic)
 NDArray1D: TypeAlias = ndarray[tuple[int], dtype[DType]]
 NDArray2D: TypeAlias = ndarray[tuple[int, int], dtype[DType]]
 NDArray3D: TypeAlias = ndarray[tuple[int, int, int], dtype[DType]]
+NDArray4D: TypeAlias = ndarray[tuple[int, int, int, int], dtype[DType]]
 
 # anything `numpy.random.default_rng` can normalize into a `Generator`
 # passing a `Generator` lets a caller thread one stream through nested
@@ -135,6 +137,7 @@ __all__ = [
     "NDArray1D",
     "NDArray2D",
     "NDArray3D",
+    "NDArray4D",
     "Number",
     "Seed",
     "Self",

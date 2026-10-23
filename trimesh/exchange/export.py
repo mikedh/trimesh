@@ -5,6 +5,7 @@ import numpy as np
 
 from .. import resolvers, util
 from ..constants import log
+from ..viewer.render import RENDER_TYPES, blend_scene, render_scene
 from .dae import _collada_exporters
 from .gltf import export_glb, export_gltf
 from .obj import export_obj
@@ -281,6 +282,12 @@ def export_scene(scene, file_obj, file_type=None, resolver=None, **kwargs):
         data = export_stl(scene.to_mesh(), **kwargs)
     elif file_type == "3mf":
         data = _mesh_exporters["3mf"](scene, **kwargs)
+    elif file_type in RENDER_TYPES:
+        # an image of the scene, or a video of its animation
+        data = render_scene(scene, file_type=file_type, **kwargs)
+    elif file_type == "blend":
+        # the scene Blender renders, to open in Blender
+        data = blend_scene(scene, **kwargs)
     else:
         raise ValueError(f"unsupported export format: {file_type}")
 

@@ -184,7 +184,8 @@ def load_scene(
       If True allow this load call to work on a remote URL.
     session : HttpSessionLike or None
       Optional HTTP session passed through to a `WebResolver` when loading
-      from a URL. Accepts `httpx.Client` or `requests.Session`.
+      from a URL. Accepts `httpx.Client` or `requests.Session`, and None
+      uses the standard library.
     kwargs : dict
       Passed to geometry __init__
 
@@ -427,14 +428,31 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
         else:
             scene = Scene(geometry)
 
-        # camera, if it exists
+        # cameras riding their nodes, or one camera
+        if "cameras" in kwargs:
+            scene.cameras = kwargs["cameras"]
         camera = kwargs.get("camera")
         if camera:
             scene.camera = camera
-            scene.camera_transform = kwargs.get("camera_transform")
+            # a camera which is already a node in the graph is where it is
+            if kwargs.get("camera_transform") is not None:
+                scene.camera_transform = kwargs["camera_transform"]
 
         if "base_frame" in kwargs:
             scene.graph.base_frame = kwargs["base_frame"]
+
+        # lights, if they exist: their nodes are already in the graph
+        lights = kwargs.get("lights")
+        if lights:
+            scene.lights = lights
+
+        # keyframed animation, if it exists
+        animations = kwargs.get("animations")
+        if animations:
+            scene.animations.extend(animations)
+        skins = kwargs.get("skins")
+        if skins:
+            scene.skins.update(skins)
         metadata = kwargs.get("metadata")
         if isinstance(metadata, dict):
             scene.metadata.update(kwargs["metadata"])

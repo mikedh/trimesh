@@ -251,8 +251,9 @@ class SceneGraph:
         Returns
         --------
         gltf : dict
-          With 'nodes' referencing a list of dicts and 'scene_roots'
-          referencing the node indices the scene should start from.
+          With 'nodes' referencing a list of dicts, 'scene_roots'
+          referencing the node indices the scene should start from,
+          and 'node_index' mapping {node name : index in 'nodes'}.
         """
 
         if mesh_index is None:
@@ -266,8 +267,8 @@ class SceneGraph:
         node_data = graph.node_data
         edge_data = graph.edge_data
         base_frame = self.base_frame
-        # does the scene have a defined camera to export
-        has_camera = scene.has_camera
+        # the index of every camera by the node it rides
+        camera_index = {camera.name: index for index, camera in enumerate(scene.cameras)}
         children = graph.children
 
         # the base frame is a synthetic wrapper: when it carries nothing
@@ -276,7 +277,7 @@ class SceneGraph:
         # writing one would grow a wrapper node on every round-trip
         skip_base = (
             "geometry" not in node_data.get(base_frame, {})
-            and not (has_camera and base_frame == scene.camera.name)
+            and base_frame not in camera_index
             and len(children.get(base_frame, [])) > 0
         )
 
@@ -316,8 +317,8 @@ class SceneGraph:
                 if mesh_key in mesh_index:
                     info["mesh"] = mesh_index[mesh_key]
             # check to see if we have camera node
-            if has_camera and node == scene.camera.name:
-                info["camera"] = 0
+            if node in camera_index:
+                info["camera"] = camera_index[node]
 
             if node != base_frame:
                 parent = graph.parents[node]
@@ -351,7 +352,9 @@ class SceneGraph:
         else:
             roots = [lookup[base_frame]]
 
-        gltf = {"nodes": result, "scene_roots": roots}
+        # `node_index` lets a caller find the node a name landed at, which
+        # animation channels and lights need as they target node indexes
+        gltf = {"nodes": result, "scene_roots": roots, "node_index": lookup}
         if len(extensions_used) > 0:
             gltf["extensionsUsed"] = list(extensions_used)
         return gltf
@@ -596,6 +599,8 @@ class EnforcedForest:
         # topology has changed so clear cache
         if (u, v) not in self.edge_data:
             self._cache = {}
+            # a node has one parent so moving it drops the old edge
+            self.edge_data.pop((self.parents.get(v), v), None)
         else:
             # check to see if matrix and geometry are identical
             edge = self.edge_data[(u, v)]

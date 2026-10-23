@@ -46,6 +46,9 @@ packages = [
     "trimesh.voxel",
     "trimesh.visual",
     "trimesh.viewer",
+    "trimesh.viewer.opengl",
+    "trimesh.viewer.opengl.shaders",
+    "trimesh.viewer.pyglet1",
     "trimesh.exchange",
     "trimesh.exchange.gltf",
     "trimesh.resources",
@@ -61,6 +64,7 @@ trimesh = [
     "resources/schema/*",
     "resources/schema/primitive/*.json",
     "resources/*.zip",
+    "viewer/opengl/shaders/*.glsl",
 ]
 
 [project.optional-dependencies]
@@ -135,6 +139,17 @@ all = ["trimesh[easy,recommend,test,test_more,deprecated]"]
 # dump every thread's stack if a test wedges — a hung runner
 # should name the frame rather than burn the job timeout in silence
 faulthandler_timeout = 300
+
+[tool.coverage.run]
+source = ["trimesh"]
+# every CI job on each OS and pyglet version saves a `.coverage.<job>`
+# file with paths relative to the checkout: `coverage combine` unions them
+relative_files = true
+parallel = true
+
+[tool.coverage.paths]
+# the first entry is where the combined report reads source from
+source = ["trimesh/", "*/site-packages/trimesh/", '*\site-packages\trimesh\']
 
 [tool.coverage.html]
 # coverage report publishes to `trimesh.org/coverage`

@@ -13,8 +13,9 @@ import os
 from pathlib import Path
 from typing import TypeAlias
 
-# URL parsing for remote resources via WebResolver
-from urllib.parse import urlparse
+# URL parsing and fetching for remote resources via WebResolver
+from urllib.parse import quote, urlparse
+from urllib.request import urlopen
 
 from . import caching, util
 from .typed import HttpSessionLike, Mapping
@@ -369,7 +370,8 @@ class WebResolver(Resolver):
           directory where mesh was stored.
         session : HttpSessionLike or None
           Optional HTTP session used for fetches. Accepts
-          `httpx.Client` or `requests.Session`.
+          `httpx.Client` or `requests.Session`. If None
+          the standard library `urllib` is used.
         timeout : float
           Per-request timeout in seconds.
         """
@@ -382,27 +384,14 @@ class WebResolver(Resolver):
         if parsed.scheme not in ("http", "https"):
             raise ValueError(f"scheme {parsed.scheme!r} not in ('http', 'https')")
 
-        if session is None:
-            # an explicit session will be required in a future release
-            import warnings
-
-            warnings.warn(
-                "`WebResolver` without a `session` is deprecated "
-                + "and will require one in a future release. "
-                + "pass an `httpx.Client` or `requests.Session`.",
-                category=DeprecationWarning,
-                stacklevel=2,
-            )
-
         self.session = session
         self.timeout = timeout
 
         # per-library request kwargs: httpx and requests disagree on
         # the redirect kwarg name — this is also where any future
         # library-specific options should live
-        library = "httpx" if session is None else type(session).__module__.split(".")[0]
+        library = type(session).__module__.split(".")[0]
         if library == "httpx":
-            # also the bare httpx module fallback when no session was passed
             self.request_kwargs = {"follow_redirects": True, "timeout": timeout}
         elif library == "requests":
             self.request_kwargs = {"allow_redirects": True, "timeout": timeout}
@@ -416,6 +405,7 @@ class WebResolver(Resolver):
             )
         else:
             # a duck-typed session gets `get(url)` with no assumed kwargs
+            # and `None` is fetched with `urlopen` which needs none either
             self.request_kwargs = {}
 
         # we want a base url
@@ -460,27 +450,15 @@ class WebResolver(Resolver):
         -------------
         name : str
           Asset name, i.e. 'quadknot.obj.mtl'
+
+        Returns
+        -----------
+        data : bytes
+          The content of the asset.
         """
-        import httpx
-
-        # remove leading and trailing whitespace
-        name = name.strip()
-
-        # the caller's session or the bare httpx module, both expose `.get`
-        client = self.session or httpx
-        response = client.get(self.base_url + name, **self.request_kwargs)
-
-        if response.status_code >= 300:
-            # try to strip off filesystem crap
-            if name.startswith("./"):
-                name = name[2:]
-            response = client.get(self.base_url + name, **self.request_kwargs)
-
-        # now raise if we don't have
-        response.raise_for_status()
-
-        # return the bytes of the response
-        return response.content
+        # a leading `./` is the same file next to the base, which some
+        # servers won't resolve
+        return self.fetch(self.base_url + name.strip().removeprefix("./"))
 
     def get_base(self) -> bytes:
         """
@@ -493,10 +471,32 @@ class WebResolver(Resolver):
         content
           The value at `self.url`
         """
-        import httpx
-
         # just fetch the url we were created with
-        response = (self.session or httpx).get(self.url, **self.request_kwargs)
+        return self.fetch(self.url)
+
+    def fetch(self, url: str) -> bytes:
+        """
+        Fetch a URL with the session or the standard library
+        and raise on any HTTP error status.
+
+        Parameters
+        -----------
+        url : str
+          Full URL to fetch.
+
+        Returns
+        -----------
+        content : bytes
+          The body of the response.
+        """
+        if self.session is None:
+            # `urlopen` follows redirects and raises `HTTPError` on 4xx/5xx
+            # but unlike httpx/requests it needs spaces etc percent-encoded
+            with urlopen(
+                quote(url, safe="!#$%&'()*+,/:;=?@[]~"), timeout=self.timeout
+            ) as response:
+                return response.read()
+        response = self.session.get(url, **self.request_kwargs)
         response.raise_for_status()
         return response.content
 
@@ -569,7 +569,7 @@ class GithubResolver(Resolver):
         else:
             raise ValueError("`commit` or `branch` must be passed!")
 
-        # reuse the session handling and deprecation warning
+        # reuse the session handling
         self.resolver = WebResolver(url=self.url, session=session, timeout=timeout)
 
         if save is not None:

@@ -1,0 +1,189 @@
+"""
+pyrender_scene.py
+-------------------
+
+The scene from pyrender's `examples/example.py` built with only trimesh
+and its models streamed straight from pyrender's repository, saved as a
+GLB and rendered from that file: everything drawn is in the file, so any
+glTF viewer shows the same lights, camera and materials.
+
+| pyrender                          | trimesh                                    |
+|-----------------------------------|--------------------------------------------|
+| `Mesh.from_trimesh(mesh)`         | `scene.add_geometry(mesh)`                 |
+| `scene.add(mesh, pose=pose)`      | `scene.add_geometry(mesh, transform=pose)` |
+| `DirectionalLight`, `SpotLight`   | `trimesh.scene.lighting.*Light`            |
+| `PerspectiveCamera(yfov=...)`     | `trimesh.scene.Camera(fov=...)`            |
+| `Scene(ambient_light=...)`        | `RenderSettings(environment=...)`          |
+| `OffscreenRenderer.render(scene)` | `SceneViewer(...).to_array(...)`           |
+
+Usage: `python pyrender_scene.py [output directory]`
+"""
+
+import os
+import sys
+
+import numpy as np
+from PIL import Image
+
+import trimesh
+from trimesh.resolvers import WebResolver
+from trimesh.scene import lighting
+from trimesh.scene.animation import Animation
+from trimesh.scene.metadata import Environment, RenderSettings
+from trimesh.viewer.windowed import SceneViewer
+
+# pyrender's models, which are loaded with the files they reference
+MODELS = "https://raw.githubusercontent.com/mmatl/pyrender/master/examples/models/"
+# pyrender renders 1280x960 with a 60 degree vertical fov
+RESOLUTION = [1280, 960]
+# where the camera and both lights are
+CAMERA_POSE = np.array(
+    [
+        [0.0, -np.sqrt(2) / 2, np.sqrt(2) / 2, 0.5],
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, np.sqrt(2) / 2, np.sqrt(2) / 2, 0.4],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+)
+
+
+def build(resolver, seed=0):
+    """
+    The scene from pyrender's example.
+
+    Parameters
+    ------------
+    resolver : trimesh.resolvers.Resolver
+      Has `fuze.obj`, `drill.obj`, `wood.obj`, `WaterBottle.glb` and
+      whatever they reference.
+    seed : int
+      For the random colors of the boxes.
+
+    Returns
+    ------------
+    scene : trimesh.Scene
+      The meshes, lights, camera and an almost black environment.
+    """
+
+    def load(name):
+        # a model and its materials and textures from the resolver
+        return trimesh.load_scene(
+            trimesh.util.wrap_as_stream(resolver.get(name)),
+            file_type=name.split(".")[-1],
+            resolver=resolver,
+        ).to_mesh()
+
+    random = np.random.default_rng(seed)
+    fuze, drill, wood, bottle = map(
+        load, ["fuze.obj", "drill.obj", "wood.obj", "WaterBottle.glb"]
+    )
+    vertex_box = trimesh.creation.box(extents=[0.1, 0.1, 0.1])
+    vertex_box.visual.vertex_colors = random.uniform(size=vertex_box.vertices.shape)
+    face_box = trimesh.creation.box(extents=[0.1, 0.1, 0.1])
+    face_box.visual.face_colors = random.uniform(size=face_box.faces.shape)
+
+    scene = trimesh.Scene()
+    shift = trimesh.transformations.translation_matrix
+    for name, mesh, pose in [
+        ("fuze", fuze, shift([0.1, 0.15, -fuze.bounds[0, 2]])),
+        ("drill", drill, shift([0.1, 0.0, -drill.bounds[0, 2]])),
+        ("wood", wood, np.eye(4)),
+        (
+            "bottle",
+            bottle,
+            [[1, 0, 0, 0.1], [0, 0, -1, -0.16], [0, 1, 0, 0.13], [0, 0, 0, 1]],
+        ),
+        ("vertex_box", vertex_box, shift([-0.1, 0.1, 0.05])),
+        ("face_box", face_box, shift([-0.1, -0.1, 0.05])),
+    ]:
+        scene.add_geometry(mesh, node_name=name, transform=pose)
+
+    # both lights are where the camera is, in glTF units like pyrender
+    scene.lights = [
+        lighting.DirectionalLight(name="sun", intensity=1.0),
+        lighting.SpotLight(
+            name="spot",
+            intensity=10.0,
+            innerConeAngle=np.pi / 16,
+            outerConeAngle=np.pi / 6,
+        ),
+    ]
+    for light in scene.lights:
+        scene.graph.update(frame_to=light.name, matrix=CAMERA_POSE)
+    vertical = np.pi / 3.0
+    horizontal = 2.0 * np.arctan(np.tan(vertical / 2.0) * RESOLUTION[0] / RESOLUTION[1])
+    scene.camera = trimesh.scene.Camera(
+        resolution=RESOLUTION, fov=np.degrees([horizontal, vertical])
+    )
+    scene.camera_transform = CAMERA_POSE
+
+    # pyrender's ambient light is the same color in every direction, and
+    # the wood is the floor so there is no need for a shadow catcher
+    ambient = [0.02, 0.02, 0.02]
+    scene.metadata.update(
+        RenderSettings(
+            environment=Environment(sky=ambient, ground=ambient), ground_shadow=False
+        ).to_metadata()
+    )
+    return scene
+
+
+def orbit(scene, seconds=4.0):
+    """
+    Circle the camera once around the table's vertical axis like
+    pyrender's own page, in place.
+
+    Parameters
+    ------------
+    scene : trimesh.Scene
+      From `build`.
+    seconds : float
+      How long one turn takes.
+
+    Returns
+    ------------
+    scene : trimesh.Scene
+      The same scene with the camera animation.
+    """
+    times = np.linspace(0.0, seconds, 121)
+    turns = trimesh.transformations.rotation_matrix(
+        2.0 * np.pi * times / seconds, [0, 0, 1]
+    )
+    scene.animations.append(
+        Animation([(None, scene.camera.name)], times, np.matmul(turns, CAMERA_POSE))
+    )
+    return scene
+
+
+if __name__ == "__main__":
+    directory = os.getcwd()
+    if len(sys.argv) > 1:
+        directory = sys.argv[1]
+
+    # save the scene and render only what made it into the file
+    path = os.path.join(directory, "pyrender_scene.glb")
+    build(WebResolver(MODELS)).export(path)
+    scene = trimesh.load_scene(path)
+
+    viewer = SceneViewer(scene, visible=False, start_loop=False, resolution=RESOLUTION)
+    color, depth, segmentation = viewer.to_array(
+        include_depth=True, include_segmentation=True
+    )
+    viewer.close()
+    Image.fromarray(color).save(os.path.join(directory, "pyrender_color.png"))
+    # nearer is brighter and the background is black
+    near = depth > 0.0
+    brightness = np.zeros(depth.shape, dtype=np.uint8)
+    brightness[near] = np.interp(depth[near], [depth[near].min(), depth.max()], [255, 64])
+    Image.fromarray(brightness).save(os.path.join(directory, "pyrender_depth.png"))
+    # every node a different gray like pyrender's example
+    gray = ((segmentation + 1) * 20 % 256).astype(np.uint8)
+    Image.fromarray(gray).save(os.path.join(directory, "pyrender_segmentation.png"))
+    # and orbiting the table like pyrender's own page, with only Pillow
+    orbit(scene)
+    scene.export(os.path.join(directory, "pyrender_scene.gif"), resolution=[640, 480])
+    if trimesh.interfaces.ffmpeg.exists:
+        # and as a 4K video when ffmpeg is installed
+        scene.export(
+            os.path.join(directory, "pyrender_scene_4k.mp4"), resolution=[2880, 2160]
+        )

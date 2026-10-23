@@ -62,6 +62,38 @@ class RenderTest(g.unittest.TestCase):
         assert len(args) == 6
         assert len(args_auto) == len(args)
 
+    def test_deprecated(self):
+        # `trimesh.viewer.pyglet1` and its `trimesh.rendering` alias
+        # keep working and warn the caller until April 2028
+        import trimesh.viewer
+        from trimesh import rendering
+        from trimesh.viewer.pyglet1 import conversion
+
+        with (
+            g.pytest.MonkeyPatch.context() as patch,
+            g.pytest.warns(DeprecationWarning) as caught,
+        ):
+            # drop the cached package so the import statement runs it again
+            patch.delitem(g.sys.modules, "trimesh.viewer.pyglet1")
+            patch.setattr(trimesh.viewer, "pyglet1", trimesh.viewer.pyglet1)
+            import trimesh.viewer.pyglet1
+
+            function = rendering.convert_to_vertexlist
+
+        # one warning from each module, both pointing at this file
+        messages = [str(w.message) for w in caught]
+        checks = {
+            "two warnings": len(caught) == 2,
+            "deprecation": all(w.category is DeprecationWarning for w in caught),
+            "april 2028": all("April 2028" in message for message in messages),
+            "stacklevel": all(w.filename == __file__ for w in caught),
+            "pyglet1": "trimesh.viewer.pyglet1`" in messages[0],
+            "rendering": "trimesh.rendering`" in messages[-1],
+            "forwarded": function is conversion.convert_to_vertexlist,
+        }
+        for name, ok in checks.items():
+            assert ok, name
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

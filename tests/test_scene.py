@@ -63,8 +63,10 @@ def test_scene():
             assert len(s.lights) > 0
             # all lights should be lights
             assert all(isinstance(L, g.trimesh.scene.lighting.Light) for L in s.lights)
-            # all lights should be added to scene graph
-            assert all(L.name in s.graph for L in s.lights)
+            # the default lights aren't scene content, so they aren't in
+            # the scene graph and nothing is stored by asking for them
+            assert not s.has_lights
+            assert not any(L.name in s.graph.nodes for L in s.lights)
 
             # should have put a transform in scene graph
             assert s.camera.name in s.graph
@@ -121,8 +123,37 @@ def test_cam_gltf():
         # ensure same camera parameters and extrinsics
         assert (r.camera_transform == scene.camera_transform).all()
         assert r.camera.name == cam.name
-        assert (r.camera.fov == cam.fov).all()
+        assert np.allclose(r.camera.fov, cam.fov)
         assert r.camera.z_near == cam.z_near
+        # without `zfar` a glTF camera has an infinite projection
+        assert r.camera.z_far == cam.z_far
+
+    from trimesh.exchange.gltf import _cam_from_gltf, _convert_camera
+    from trimesh.scene.cameras import Camera
+
+    # `aspectRatio` is width over height, which is the ratio of the
+    # tangents of the half angles: a 16:9 file is 62.7 degrees wide
+    perspective = {"aspectRatio": 16 / 9, "yfov": 0.66, "znear": 0.1}
+    wide = _cam_from_gltf({"perspective": perspective})
+    half = np.tan(np.radians(wide.fov) / 2.0)
+    # orthographic cameras round trip too
+    scene.camera = Camera(name="cam1", magnification=(2.0, 1.5), z_near=0.5, z_far=20.0)
+    ortho = g.roundtrip(scene.export(file_type="glb"), "glb")
+    checks = {
+        "16:9 is wide": np.isclose(half[0], 16 / 9 * np.tan(0.33)),
+        "yfov is vertical": np.isclose(wide.fov[1], np.degrees(0.66)),
+        "aspectRatio exported": _convert_camera(cam)["perspective"]["aspectRatio"]
+        == np.divide(*np.tan(np.radians([30, 45]))),
+        "ortho magnification": np.allclose(ortho.camera.magnification, (2.0, 1.5)),
+        "ortho clip planes": (ortho.camera.z_near, ortho.camera.z_far) == (0.5, 20.0),
+        "ortho transform": np.allclose(ortho.camera_transform, scene.camera_transform),
+    }
+    # square pixels by default, so the image isn't stretched
+    for fov in [(60, 45), (90, 30), (40, 70)]:
+        focal = Camera(fov=fov).focal
+        checks[f"square pixels {fov}"] = np.isclose(focal[0], focal[1], rtol=2e-3)
+    for name, ok in checks.items():
+        assert ok, name
 
 
 def test_scaling():
@@ -344,7 +375,16 @@ def test_empty():
     n = s.duplicate_nodes
     assert len(n) == 0
 
-    assert len(s.lights) == 0
+    # directional lights need no geometry so even an empty scene is
+    # lit, without the scene growing anything by asking
+    nodes, kinds = set(s.graph.nodes), [type(light).__name__ for light in s.lights]
+    checks = {
+        "two directional lights": kinds == ["DirectionalLight"] * 2,
+        "graph unchanged": set(s.graph.nodes) == nodes,
+        "nothing stored": not s.has_lights and not s.has_camera,
+    }
+    for name, ok in checks.items():
+        assert ok, name
 
 
 def test_zipped():
@@ -484,6 +524,32 @@ def test_append_scenes():
     )
 
     assert scene_sum.graph.base_frame == "not_world"
+
+    # lights are nodes, so when two scenes both have a light called
+    # `lamp` one gets renamed and both still light what they lit
+    scenes = [g.trimesh.creation.box().scene() for _ in range(2)]
+    for x, scene in zip([-2.0, 2.0], scenes):
+        lamp = g.trimesh.scene.lighting.PointLight(name="lamp", intensity=x + 5, radius=4)
+        scene.lights = [lamp]
+        scene.graph["lamp"] = g.trimesh.transformations.translation_matrix([x, 0, 1])
+        scene.metadata["ambient_light"] = [x, x, x]
+    # only the first scene has a camera, which the result keeps
+    camera, transform = scenes[0].camera, scenes[0].camera_transform
+    summed = g.trimesh.scene.scene.append_scenes(scenes)
+    names = [light.name for light in summed.lights]
+    checks = {
+        "every light kept": len(names) == 2,
+        "names unique": len(set(names)) == 2,
+        "every light has a node": all(name in summed.graph.nodes for name in names),
+        "lights stay put": [summed.graph[name][0][0, 3] for name in names] == [-2, 2],
+        "lights stay themselves": [light.intensity for light in summed.lights] == [3, 7],
+        "later metadata wins": summed.metadata["ambient_light"] == [2.0, 2.0, 2.0],
+        "the camera survives": summed.has_camera and summed.camera.name == camera.name,
+        "camera transform": g.np.allclose(summed.camera_transform, transform),
+        "originals untouched": [s.lights[0].name for s in scenes] == ["lamp", "lamp"],
+    }
+    for name, ok in checks.items():
+        assert ok, name
 
 
 def test_scene_concat():

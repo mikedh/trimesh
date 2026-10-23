@@ -3,56 +3,6 @@ try:
 except BaseException:
     import generic as g
 
-# Khronos' official file validator
-# can be installed with the helper script:
-# `trimesh/docker/builds/gltf_validator.bash`
-_gltf_validator = g.shutil.which("gltf_validator")
-
-
-def validate_glb(data, name=None):
-    """
-    Run the Khronos validator on GLB files using
-    subprocess.
-
-    Parameters
-    ------------
-    data : bytes
-      GLB export
-    name : str or None
-      Hint to log.
-
-    Raises
-    ------------
-    ValueError
-      If Khronos validator reports errors.
-    """
-    if _gltf_validator is None:
-        g.log.warning("no gltf_validator!")
-        return
-
-    with g.tempfile.NamedTemporaryFile(suffix=".glb") as f:
-        f.write(data)
-        f.flush()
-
-        # gltf_validator has occasional bugs being run outside
-        # of the current working directory
-        temp_dir, file_name = g.os.path.split(f.name)
-        # run khronos gltf_validator
-        report = g.subprocess.run(
-            [_gltf_validator, file_name, "-o"], cwd=temp_dir, capture_output=True
-        )
-        # -o prints JSON to stdout
-        content = report.stdout.decode("utf-8")
-        returncode = report.returncode
-
-    if returncode != 0:
-        g.log.error(f"failed on: `{name}`")
-        g.log.error(f"validator: `{content}`")
-        g.log.error(f"stderr: `{report.stderr}`")
-
-        raise ValueError("gltf_validator failed")
-
-
 load_kwargs = g.trimesh.exchange.load._load_kwargs
 
 
@@ -101,7 +51,7 @@ class GLTFTest(g.unittest.TestCase):
         assert not geom.is_volume
         # make sure export doesn't crash
         export = scene.export(file_type="glb")
-        validate_glb(export, "Duck.glb")
+        g.validate_glb(export, "Duck.glb")
 
         # check a roundtrip
         reloaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
@@ -133,6 +83,31 @@ class GLTFTest(g.unittest.TestCase):
         a = g.json.loads(scene.export(file_type="gltf")["model.gltf"].decode("utf-8"))
         assert len(a["buffers"]) <= 3
 
+        # an image used by two materials and twice by one is stored once
+        from PIL import Image
+
+        image = Image.new("RGB", (64, 64), (200, 40, 40))
+        shared = g.trimesh.Scene()
+        for index, extra in enumerate(
+            [{}, {"occlusionTexture": image, "roughnessFactor": 0.5}]
+        ):
+            box = g.trimesh.creation.box()
+            box.visual = g.trimesh.visual.TextureVisuals(
+                uv=box.vertices[:, :2] + 0.5,
+                material=g.trimesh.visual.material.PBRMaterial(
+                    baseColorTexture=image, **extra
+                ),
+            )
+            shared.add_geometry(box, f"shared_{index}", transform=tm([index * 2, 0, 0]))
+        header = g.json.loads(shared.export(file_type="gltf")["model.gltf"])
+        checks = {
+            "one image": len(header["images"]) == 1,
+            "one texture": len(header["textures"]) == 1,
+            "both materials": len(header["materials"]) == 2,
+        }
+        for name, ok in checks.items():
+            assert ok, name
+
     def test_skip_materials(self):
         # load textured PLY
         mesh = g.get_mesh("fuze.ply")
@@ -140,7 +115,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # load as GLB
         export = mesh.export(file_type="glb", unitize_normals=True)
-        validate_glb(export)
+        g.validate_glb(export)
         mesh_glb = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export),
             file_type="glb",
@@ -158,10 +133,39 @@ class GLTFTest(g.unittest.TestCase):
 
         # make sure export as GLB doesn't crash on scenes
         export = mesh.scene().export(file_type="glb", unitize_normals=True)
-        validate_glb(export, "fuze.ply")
+        g.validate_glb(export, "fuze.ply")
         # make sure it works on meshes
         export = mesh.export(file_type="glb", unitize_normals=True)
-        validate_glb(export, "fuze.ply")
+        g.validate_glb(export, "fuze.ply")
+
+        def images(data):
+            """The bytes of every image stored in a GLB."""
+            header, blob = g.glb_chunks(data)
+            views = [header["bufferViews"][i["bufferView"]] for i in header["images"]]
+            return [blob[v.get("byteOffset", 0) :][: v["byteLength"]] for v in views]
+
+        def texture(scene):
+            """The base color texture of the first geometry in a scene."""
+            return next(iter(scene.geometry.values())).visual.material.baseColorTexture
+
+        # textures loaded from a file are stored again exactly as they were
+        # unless they changed, which is fast and doesn't grow the file, once
+        # the color profile glTF doesn't allow in this one is dropped
+        with open(g.os.path.join(g.dir_models, "BoxTextured.glb"), "rb") as f:
+            source = g.from_glb_bytes(f.read()).export(file_type="glb")
+        g.validate_glb(source, "BoxTextured.glb")
+        loaded = g.from_glb_bytes(source)
+        checks = {
+            "unchanged image": images(loaded.export(file_type="glb")) == images(source)
+        }
+        texture(loaded).paste((255, 0, 0), (0, 0, 8, 8))
+        changed = texture(g.from_glb_bytes(loaded.export(file_type="glb")))
+        checks["changed image"] = g.np.array_equal(
+            g.np.asarray(changed.convert("RGB")),
+            g.np.asarray(texture(loaded).convert("RGB")),
+        )
+        for name, ok in checks.items():
+            assert ok, name
 
     def test_cesium(self):
         # A GLTF with a multi- primitive mesh
@@ -174,7 +178,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # make sure export doesn't crash
         export = s.export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
 
         reloaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
         # make basic assertions
@@ -195,7 +199,7 @@ class GLTFTest(g.unittest.TestCase):
         assert s.geometry["TestOpaqueMesh"].visual.material.alphaMode is None
 
         export = s.export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
 
         # roundtrip it
         rs = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
@@ -215,6 +219,65 @@ class GLTFTest(g.unittest.TestCase):
         # defaults OPAQUE
         assert rs.geometry["TestOpaqueMesh"].visual.material.alphaMode is None
 
+        # clear glass is `KHR_materials_transmission` rather than alpha
+        glass = g.trimesh.creation.box()
+        glass.visual = g.trimesh.visual.TextureVisuals(
+            material=g.trimesh.visual.material.PBRMaterial(
+                transmissionFactor=0.8, roughnessFactor=0.1
+            )
+        )
+        # and a leaf scatters light out of its other side with every
+        # `KHR_materials_diffuse_transmission` field, textures included
+        from PIL import Image
+
+        random = g.np.random.default_rng(7)
+        pixels = {
+            "diffuseTransmissionTexture": random.integers(0, 255, (4, 6, 4), g.np.uint8),
+            "diffuseTransmissionColorTexture": random.integers(
+                0, 255, (5, 3, 3), g.np.uint8
+            ),
+        }
+        leaf = g.trimesh.creation.box()
+        leaf.visual = g.trimesh.visual.TextureVisuals(
+            uv=random.random((len(leaf.vertices), 2)),
+            material=g.trimesh.visual.material.PBRMaterial(
+                diffuseTransmissionFactor=0.3,
+                diffuseTransmissionColorFactor=[0.2, 0.9, 0.1],
+                **{key: Image.fromarray(value) for key, value in pixels.items()},
+            ),
+        )
+        export = g.trimesh.Scene({"glass": glass, "leaf": leaf}).export(file_type="glb")
+        g.validate_glb(export)
+        loaded = g.from_glb_bytes(export).geometry
+        material = loaded["leaf"].visual.material
+        used = g.glb_chunks(export)[0]["extensionsUsed"]
+        checks = {
+            "extension used": "KHR_materials_transmission" in used,
+            "diffuse extension used": "KHR_materials_diffuse_transmission" in used,
+            "factor round trips": g.np.isclose(
+                loaded["glass"].visual.material.transmissionFactor, 0.8
+            ),
+            # JSON stores floats exactly
+            "diffuse factor round trips": material.diffuseTransmissionFactor == 0.3,
+            "diffuse color round trips": g.np.array_equal(
+                material.diffuseTransmissionColorFactor, [0.2, 0.9, 0.1]
+            ),
+            "glass has no diffuse transmission": (
+                loaded["glass"].visual.material.diffuseTransmissionFactor is None
+            ),
+            "opaque materials have none": all(
+                geometry.visual.material.transmissionFactor is None
+                and geometry.visual.material.diffuseTransmissionFactor is None
+                for geometry in rs.geometry.values()
+            ),
+        }
+        for key, value in pixels.items():
+            checks[f"{key} round trips"] = g.np.array_equal(
+                g.np.asarray(getattr(material, key)), value
+            )
+        for name, ok in checks.items():
+            assert ok, name
+
     def test_units(self):
         # Trimesh will store units as a GLTF extra if they
         # are defined so check that.
@@ -223,7 +286,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # export it as a a GLB file
         export = original.export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
 
         kwargs = g.trimesh.exchange.gltf.load_glb(g.trimesh.util.wrap_as_stream(export))
         # roundtrip it
@@ -431,6 +494,93 @@ class GLTFTest(g.unittest.TestCase):
         export = scene.export(file_type="gltf")
         assert gltf_cameras_key in g.json.loads(export["model.gltf"].decode("utf8"))
 
+        # cameras riding animated nodes round trip on them, and without their
+        # optional aspect ratio, which is the viewport's, keep their vertical
+        # field of view: made here, and riding VirtualCity's moving cars
+        from trimesh.scene.animation import Animation
+
+        riding = g.trimesh.Scene(g.trimesh.creation.box())
+        riding.graph.update(frame_to="dolly", matrix=g.np.eye(4))
+        riding.camera = g.trimesh.scene.Camera(name="lens", fov=(60, 45))
+        riding.graph.update(
+            frame_from="dolly",
+            frame_to="lens",
+            matrix=g.trimesh.transformations.translation_matrix([0, 0, 6]),
+        )
+        slide = g.np.tile(g.np.eye(4), (5, 1, 1))
+        slide[:, 0, 3] = g.np.arange(5)
+        riding.animations.append(Animation([(None, "dolly")], g.np.arange(5.0), slide))
+
+        def no_aspect(tree):
+            """Drop the optional aspect ratio of every camera."""
+            for camera in tree["cameras"]:
+                camera["perspective"].pop("aspectRatio")
+
+        def riding_checks(source, data, fov, count, times):
+            """Every camera of a GLB loads where `source` has it, riding its parent."""
+            header = g.glb_chunks(data)[0]
+            loaded = g.from_glb_bytes(data)
+            # before `loaded.camera`, which makes one if there isn't one
+            checks = {"camera loaded": loaded.has_camera}
+            # every camera is kept on its node, the first node using the first
+            # camera is the one a render looks through, and all of them in
+            # that order survive being written again
+            first = min(i for i, n in enumerate(header["nodes"]) if n.get("camera") == 0)
+            node = loaded.camera.name
+            parent = loaded.graph.transforms.parents.get(node)
+            again = loaded.export(file_type="glb")
+            g.validate_glb(again)
+            again = g.from_glb_bytes(again)
+            checks["camera keeps its parent"] = parent not in (
+                None,
+                loaded.graph.base_frame,
+            )
+            checks["vertical fov"] = g.np.isclose(loaded.camera.fov[1], fov)
+            checks["every camera loaded"] = (
+                len(loaded.cameras)
+                == sum("camera" in n for n in header["nodes"])
+                == count
+            )
+            checks["first camera is active"] = node == header["nodes"][first].get(
+                "name", str(first)
+            )
+            checks["every camera exported"] = [c.name for c in again.cameras] == [
+                c.name for c in loaded.cameras
+            ]
+            poses = []
+            for time in times:
+                for current in (source, loaded, again):
+                    current.animate(time)
+                local = loaded.graph.transforms.edge_data[(parent, node)]
+                poses.append(loaded.camera_transform)
+                checks[f"rides its parent at {time}"] = g.np.allclose(
+                    poses[-1], loaded.graph[parent][0] @ local.get("matrix", g.np.eye(4))
+                )
+                checks[f"every camera where it was at {time}"] = all(
+                    g.np.allclose(s.graph[c.name][0], d.graph[c.name][0], atol=1e-4)
+                    and g.np.allclose(c.fov[1], r.fov[1])
+                    for s, d in [(source, loaded), (loaded, again)]
+                    for c, r in zip(s.cameras, d.cameras)
+                )
+            checks["camera moves"] = not g.np.allclose(poses[0], poses[1])
+            return checks
+
+        export = riding.export(file_type="glb", tree_postprocessor=no_aspect)
+        g.validate_glb(export)
+        checks = riding_checks(riding, export, 45.0, 1, [0.0, 2.5, 4.0])
+        checks = {f"riding {name}": ok for name, ok in checks.items()}
+        for name, ok in checks.items():
+            assert ok, name
+
+        zstd = g.pytest.importorskip("compression.zstd")
+        with open(g.os.path.join(g.dir_models, "VirtualCity.glb.zst"), "rb") as f:
+            data = zstd.decompress(f.read())
+        yfov = g.glb_chunks(data)[0]["cameras"][0]["perspective"]["yfov"]
+        city = g.from_glb_bytes(data)
+        checks = riding_checks(city, data, g.np.degrees(yfov), 14, [0.0, 5.0, 10.0])
+        for name, ok in checks.items():
+            assert ok, name
+
     def test_gltf_pole(self):
         scene = g.get_mesh("simple_pole.glb")
 
@@ -438,7 +588,7 @@ class GLTFTest(g.unittest.TestCase):
         assert len(scene.geometry) == 11
 
         export = scene.export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
         # check a roundtrip
         reloaded = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
         # make basic assertions
@@ -459,7 +609,7 @@ class GLTFTest(g.unittest.TestCase):
             args["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"] = [1, 0, 0, 1]
 
         export = scene.export(file_type="glb", tree_postprocessor=to_integer)
-        validate_glb(export)
+        g.validate_glb(export)
         reloaded = g.trimesh.load(
             file_obj=g.trimesh.util.wrap_as_stream(export), file_type="glb"
         )
@@ -467,6 +617,17 @@ class GLTFTest(g.unittest.TestCase):
         # get meshes back
         sphere_b = next(iter(reloaded.geometry.values()))
         assert (sphere_b.visual.material.baseColorFactor == (255, 0, 0, 255)).all()
+
+        # a texture with no coordinates to look it up exports only the
+        # factors, which is valid, without changing the material it came from
+        from PIL import Image
+
+        textured = primary_color_material.copy()
+        textured.baseColorTexture = Image.new("RGB", (2, 2))
+        bare = g.trimesh.creation.icosphere()
+        bare.visual = g.trimesh.visual.TextureVisuals(material=textured)
+        g.validate_glb(g.trimesh.Scene(bare).export(file_type="glb"))
+        assert textured.baseColorTexture is not None
 
     def test_material_hash(self):
         # load mesh twice independently
@@ -495,7 +656,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # get a reloaded version
         export = scene.export(file_type="glb", unitize_normals=True)
-        validate_glb(export)
+        g.validate_glb(export)
         reloaded = g.trimesh.load(
             file_obj=g.trimesh.util.wrap_as_stream(export), file_type="glb"
         )
@@ -525,7 +686,7 @@ class GLTFTest(g.unittest.TestCase):
         s = g.get_mesh("cycloidal.3DXML")
         # export as GLB then re-load
         export = s.export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
         r = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
         # make sure we have the same geometries before and after
         assert set(s.geometry.keys()) == set(r.geometry.keys())
@@ -589,7 +750,7 @@ class GLTFTest(g.unittest.TestCase):
         # export as GLB bytes
         export = sphere.export(file_type="glb")
         # this should validate just fine
-        validate_glb(export)
+        g.validate_glb(export)
 
         # uint32 is slightly off-label and may cause
         # validators to fail but if you're a bad larry who
@@ -627,11 +788,19 @@ class GLTFTest(g.unittest.TestCase):
 
                 assert g.np.allclose(ori, check), key
 
+        # joints without weights can't skin so they stay a custom attribute
+        box = g.trimesh.creation.box()
+        joints = g.np.ones((len(box.vertices), 4), dtype=g.np.uint16)
+        box.vertex_attributes["joints"] = joints
+        reloaded = g.from_glb_bytes(box.export(file_type="glb"))
+        kept = next(iter(reloaded.geometry.values())).vertex_attributes["_joints"]
+        assert g.np.array_equal(kept, joints)
+
     def test_extras(self):
         # if GLTF extras are defined, make sure they survive a round trip
         s = g.get_mesh("cycloidal.3DXML")
 
-        scene_extensions = {"mesh_ext": {"ext_data": 1.23}}
+        scene_extensions = {"EXT_trimesh_test": {"ext_data": 1.23}}
         # some dummy data
         dummy = {
             "who": "likes cheese",
@@ -642,14 +811,14 @@ class GLTFTest(g.unittest.TestCase):
         # export as GLB with extras passed to the exporter then re-load
         s.metadata = dummy
         export = s.export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
         r = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
 
         # make sure extras survived a round trip
         assert all(r.metadata[k] == v for k, v in dummy.items())
 
     def test_extras_nodes(self):
-        mesh_extensions = {"mesh_ext": {"ext_data": 1.23}}
+        mesh_extensions = {"EXT_trimesh_test": {"ext_data": 1.23}}
         test_metadata = {
             "test_str": "test_value",
             "test_int": 1,
@@ -676,7 +845,7 @@ class GLTFTest(g.unittest.TestCase):
             transform=tf1,
             metadata={"field": "extra_data1"},
         )
-        node_extensions = {"mesh_ext": {"ext_data": 1.23}}
+        node_extensions = {"EXT_trimesh_test": {"ext_data": 1.23}}
         sphere2_metadata = {"field": "extra_data2", "gltf_extensions": node_extensions}
         s.add_geometry(
             sphere2,
@@ -694,7 +863,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # Check node extras survive a round trip
         export = s.export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
         r = g.trimesh.load(g.trimesh.util.wrap_as_stream(export), file_type="glb")
         files = r.export(None, "gltf")
         gltf_data = files["model.gltf"]
@@ -797,7 +966,7 @@ class GLTFTest(g.unittest.TestCase):
         m = g.get_mesh("machinist.XAML")
         # export as GLB then re-import
         export = m.export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
         r = next(
             iter(
                 g.trimesh.load(
@@ -820,7 +989,7 @@ class GLTFTest(g.unittest.TestCase):
         # set the color vertex attribute
         m.visual.vertex_attributes["color"] = colors
         export = m.export(file_type="glb", unitize_normals=True)
-        validate_glb(export)
+        g.validate_glb(export)
         r = next(
             iter(
                 g.trimesh.load(
@@ -906,7 +1075,7 @@ class GLTFTest(g.unittest.TestCase):
 
         # export as gltf
         export = g.trimesh.Scene(cloud).export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
         reloaded = next(
             iter(
                 g.trimesh.load_scene(
@@ -921,7 +1090,7 @@ class GLTFTest(g.unittest.TestCase):
         colors = g.trimesh.visual.color.random_color(count=len(points))
         cloud.colors = colors
         export = g.trimesh.Scene(cloud).export(file_type="glb")
-        validate_glb(export)
+        g.validate_glb(export)
         reloaded = next(
             iter(
                 g.trimesh.load_scene(
@@ -1052,7 +1221,7 @@ class GLTFTest(g.unittest.TestCase):
                 # want to roundtrip non-unit normals for things, stuff, and
                 # activities
                 export = geom.export(file_type="glb", unitize_normals=True)
-                validate_glb(export, name=fn)
+                g.validate_glb(export, name=fn)
 
                 # shouldn't crash on a reload
                 reloaded = g.trimesh.load(
@@ -1087,7 +1256,7 @@ class GLTFTest(g.unittest.TestCase):
         s = g.get_mesh("fuze.obj")
         # export as GLB then re-load
         export = s.export(file_type="glb", unitize_normals=True)
-        validate_glb(export)
+        g.validate_glb(export)
         reloaded = g.trimesh.load(
             g.trimesh.util.wrap_as_stream(export), file_type="glb", process=False
         )
@@ -1150,7 +1319,7 @@ class GLTFTest(g.unittest.TestCase):
 
         for extension in ["glb"]:
             export = mesh.export(file_type=extension, extension_webp=True)
-            validate_glb(export)
+            g.validate_glb(export)
 
             # roundtrip
             reloaded = g.trimesh.load(
@@ -1258,6 +1427,288 @@ class GLTFTest(g.unittest.TestCase):
         # if they are much different this number will be absolutely huge
         mean_squared_error = ((a - b) ** 2).sum() / g.np.prod(a.shape)
         assert mean_squared_error < 10.0
+
+
+def test_animation_gltf():
+    """
+    Animations must survive a GLB round trip and satisfy the parts of
+    the spec the schema alone can't check.
+    """
+    from trimesh.scene.animation import Animation
+
+    tf = g.trimesh.transformations
+    # a nested animated node whose parent carries a `matrix`, which is
+    # the case the exporter has to rewrite into channels
+    scene = g.trimesh.Scene()
+    scene.add_geometry(
+        g.trimesh.creation.box(),
+        node_name="mover",
+        parent_node_name="rig",
+        transform=tf.translation_matrix([0, 0, 3]),
+    )
+    scene.graph.update(
+        frame_to="rig", matrix=tf.rotation_matrix(0.6, [1, 1, 0], [2, 0, 0])
+    )
+    times = g.np.linspace(0.0, 2.0, 9)
+    # a full turn, which is what makes the hemisphere check bite:
+    # halfway around, adjacent quaternions land in opposite hemispheres
+    matrices = tf.rotation_matrix(times * g.np.pi, [0, 0, 1])
+    matrices[:, :3, 3] = g.np.column_stack([times, times * 2.0, g.np.zeros(len(times))])
+    scene.animations.append(Animation([("rig", "mover")], times, matrices, name="spin"))
+
+    export = scene.export(file_type="glb")
+    g.validate_glb(export, "animation")
+    reloaded = g.roundtrip(export, "glb")
+    other = reloaded.animations[0]
+    dense = g.np.linspace(0.0, 2.0, 61)
+    header, blob = g.glb_chunks(export)
+    nodes = {node.get("name"): node for node in header["nodes"]}
+    animation = header["animations"][0]
+    targets = [(c["target"]["node"], c["target"]["path"]) for c in animation["channels"]]
+    accessors = g.accessor_values(header, blob)
+    plain = g.trimesh.Scene(g.trimesh.creation.box()).export(file_type="glb")
+
+    checks = {
+        "one animation": len(reloaded.animations) == 1,
+        "name": other.name == "spin",
+        # a channel targets a node and leaves the parent implied, so the
+        # edge is recovered from the node tree rather than guessed
+        "edge": other.edges == [("rig", "mover")],
+        "parent kept": reloaded.graph.transforms.parents["mover"] == "rig",
+        "interpolation": other.interpolation == "linear",
+        # the whole curve and not just its keyframes, in float32
+        "dense round trip": g.np.allclose(
+            scene.animations[0].at(dense), other.at(dense), atol=1e-5
+        ),
+        # each {node, path} target in one animation is unique, and the
+        # spec forbids a `matrix` on an animated node
+        "unique targets": len(set(targets)) == len(targets),
+        "no animated matrix": all("matrix" not in header["nodes"][n] for n, _ in targets),
+        # rewriting a node into channels keeps its pose
+        "rewrite kept pose": g.np.allclose(nodes["mover"]["translation"], [0, 0, 3]),
+        "static node keeps matrix": "matrix" in nodes["rig"],
+        "plain scene has no animations": "animations" not in g.glb_chunks(plain)[0],
+    }
+    used = set()
+    for channel in animation["channels"]:
+        sampler = animation["samplers"][channel["sampler"]]
+        used.update((sampler["input"], sampler["output"]))
+        stamps = accessors[sampler["input"]].reshape(-1)
+        values = accessors[sampler["output"]]
+        stored = header["accessors"][sampler["input"]]
+        path = channel["target"]["path"]
+        checks[f"{path} lengths"] = len(stamps) == len(values)
+        checks[f"{path} times increase"] = (g.np.diff(stamps) >= 0).all()
+        checks[f"{path} min max"] = g.np.allclose(
+            [stored["min"], stored["max"]], [[stamps.min()], [stamps.max()]]
+        )
+        if path == "rotation":
+            checks["unit quaternions"] = g.np.allclose(
+                g.np.linalg.norm(values, axis=1), 1.0, atol=1e-6
+            )
+            # neighbors share a hemisphere or a player takes the long way
+            checks["hemisphere"] = (g.np.sum(values[1:] * values[:-1], axis=1) >= 0).all()
+    # every accessor is referenced: a skipped channel strands nothing
+    for mesh in header["meshes"]:
+        for primitive in mesh["primitives"]:
+            used.update(primitive["attributes"].values())
+            used.add(primitive.get("indices"))
+    checks["no stranded accessors"] = used | {None} >= set(range(len(accessors))) | {None}
+
+    # a real file: two LINEAR wheel rotations on nodes under `matrix` parents
+    truck = g.get_mesh("CesiumMilkTruck.glb")
+    dense = g.np.linspace(0.0, truck.duration, 41)
+    export = truck.export(file_type="glb")
+    again = g.roundtrip(export, "glb")
+    sampled = truck.animations[0].at(dense[7])
+    truck.animate(dense[7])
+    checks["truck animation"] = (
+        len(truck.animations) == 1 and len(truck.animations[0].edges) == 2
+    )
+    checks["truck round trip"] = g.np.allclose(
+        truck.animations[0].at(dense), again.animations[0].at(dense), atol=1e-5
+    )
+    # the truck only spins its wheels, so no other channels are invented
+    checks["truck only rotation"] = {
+        channel["target"]["path"]
+        for animation in g.glb_chunks(export)[0]["animations"]
+        for channel in animation["channels"]
+    } == {"rotation"}
+    # driving the graph agrees with sampling the animation
+    checks["truck animate"] = all(
+        g.np.allclose(truck.graph.get(frame_to, frame_from)[0], matrix)
+        for (frame_from, frame_to), matrix in zip(truck.animations[0].edges, sampled)
+    )
+    for name, ok in checks.items():
+        assert ok, name
+
+
+def test_animation_spline_gltf():
+    """
+    glTF cubic splines are cubic Hermite curves: a file whose slope jumps
+    at a keyframe loads exactly, and exporting fits a spline through the
+    keyframes which reproduces a cubic motion exactly.
+    """
+    from numpy.polynomial import Polynomial
+
+    from trimesh.exchange.gltf.animation import sample_channel
+    from trimesh.scene.animation import Animation
+
+    # two cubics meeting at t=1 with different slopes on either side,
+    # where `right` is in terms of `t - 1`
+    left, right = Polynomial([1.0, 2.0, 0.0, -1.0]), Polynomial([2.0, 0.5, 3.0])
+    slope_left, slope_right = left.deriv(), right.deriv()
+    dense = g.np.linspace(0.0, 2.0, 41)
+    kinked = sample_channel(
+        g.np.array([0.0, 1.0, 2.0]),
+        g.np.array([[left(0.0)], [left(1.0)], [right(1.0)]]),
+        g.np.array([[slope_left(0.0)], [slope_left(1.0)], [slope_right(1.0)]]),
+        g.np.array([[slope_left(0.0)], [slope_right(0.0)], [slope_right(1.0)]]),
+        "CUBICSPLINE",
+        dense,
+        rotation=False,
+    )
+
+    # a cubic motion sampled at 7 keyframes and exported as a spline
+    motion = Polynomial([0.0, 2.0, -1.0, 0.5])
+    times = g.np.linspace(0.0, 3.0, 7)
+    matrices = g.np.tile(g.np.eye(4), (len(times), 1, 1))
+    matrices[:, 0, 3] = motion(times)
+    scene = g.trimesh.Scene()
+    scene.add_geometry(g.trimesh.creation.box(), node_name="mover")
+    scene.animations.append(Animation([(None, "mover")], times, matrices))
+
+    export = scene.export(file_type="glb", animation_spline=True)
+    g.validate_glb(export, "animation-spline")
+    header, blob = g.glb_chunks(export)
+    sampler = header["animations"][0]["samplers"][0]
+    output = g.accessor_values(header, blob)[sampler["output"]]
+    spline = g.roundtrip(export, "glb").animations[0]
+    linear = g.roundtrip(scene.export(file_type="glb"), "glb").animations[0]
+    grid = spline.times
+    before, after = dense <= 1.0, dense >= 1.0
+    # each keyframe stores an in tangent, a value and an out tangent
+    keyed = output.reshape((len(times), 3, -1))
+
+    checks = {
+        "kinked left": g.np.allclose(kinked[before, 0], left(dense[before])),
+        "kinked right": g.np.allclose(kinked[after, 0], right(dense[after] - 1.0)),
+        "spline sampler": sampler["interpolation"] == "CUBICSPLINE",
+        "tangents per keyframe": len(output) == 3 * len(times),
+        "in equals out": g.np.allclose(keyed[:, 0], keyed[:, 2]),
+        "spline reloads densely": len(grid) > len(times),
+        "spline is the motion": g.np.allclose(
+            spline.at(grid)[:, 0, 0, 3], motion(grid), atol=1e-4
+        ),
+        "linear is not": g.np.abs(linear.at(grid)[:, 0, 0, 3] - motion(grid)).max()
+        > 1e-2,
+    }
+    for name, ok in checks.items():
+        assert ok, name
+
+
+def test_lights_gltf():
+    """
+    `KHR_lights_punctual` stores lights once in a document array with
+    each node referencing one by index, so both halves have to agree.
+    """
+    from trimesh.scene.metadata import Environment, RenderSettings, Softbox
+
+    lighting = g.trimesh.scene.lighting
+    scene = g.trimesh.Scene(g.trimesh.creation.box())
+    scene.lights = [
+        lighting.DirectionalLight(name="key", color=[255, 244, 224, 255]),
+        lighting.PointLight(name="fill", intensity=7.5, radius=12.0),
+        lighting.SpotLight(name="rim", innerConeAngle=0.2, outerConeAngle=0.6),
+    ]
+    for light, x in zip(scene.lights, [1.0, -2.0, 3.0]):
+        scene.graph[light.name] = g.trimesh.transformations.translation_matrix([x, 0, 2])
+    export = scene.export(file_type="glb")
+    g.validate_glb(export, "lights")
+    reloaded = g.roundtrip(export, "glb")
+    header = g.glb_chunks(export)[0]
+    stored = header["extensions"]["KHR_lights_punctual"]["lights"]
+    nodes = {node.get("name"): node for node in header["nodes"]}
+    pairs = list(zip(scene.lights, reloaded.lights))
+
+    checks = {
+        "same kinds": [type(light).__name__ for light in reloaded.lights]
+        == [type(light).__name__ for light in scene.lights],
+        "spot cone": g.np.allclose(
+            [reloaded.lights[-1].innerConeAngle, reloaded.lights[-1].outerConeAngle],
+            [0.2, 0.6],
+        ),
+        "light values": all(
+            before.name == after.name
+            and g.np.allclose(before.color, after.color, atol=1)
+            and g.np.isclose(before.intensity, after.intensity)
+            and before.radius == after.radius
+            for before, after in pairs
+        ),
+        # a light without its transform is not a light
+        "light transforms": all(
+            g.np.allclose(scene.graph[before.name][0], reloaded.graph[after.name][0])
+            for before, after in pairs
+        ),
+        # a node refers to a light by its *position* in the document array,
+        # which is the one contract joining the two halves of the extension
+        "lights referenced": all(
+            nodes[light.name]["extensions"]["KHR_lights_punctual"]["light"] == index
+            and stored[index]["name"] == light.name
+            for index, light in enumerate(scene.lights)
+        ),
+        "extension used": "KHR_lights_punctual" in header["extensionsUsed"],
+        # a light must not also survive as node or scene metadata, or a
+        # re-export would write it twice and the copies could drift apart
+        "not node metadata": all(
+            "KHR_lights_punctual"
+            not in (reloaded.graph.transforms.node_data.get(node) or {})
+            .get("metadata", {})
+            .get("gltf_extensions", {})
+            for node in reloaded.graph.nodes
+        ),
+        "not scene metadata": "KHR_lights_punctual"
+        not in reloaded.metadata.get("gltf_extensions", {}),
+    }
+
+    # a scene which never had lights set shouldn't grow the extension, as
+    # `scene.lights` would happily invent a default pair on being asked
+    plain = g.trimesh.Scene(g.trimesh.creation.box())
+    checks["plain has no lights"] = not plain.has_lights
+    checks["plain gltf has no lights"] = (
+        b"KHR_lights_punctual" not in plain.export(file_type="gltf")["model.gltf"]
+    )
+    # asking for the default lights doesn't make them scene content
+    checks["default lights"] = len(plain.lights) == 2
+    plain_header = g.glb_chunks(plain.export(file_type="glb"))[0]
+    checks["default lights not exported"] = "KHR_lights_punctual" not in plain_header.get(
+        "extensions", {}
+    ) and "render" not in plain_header["scenes"][0].get("extras", {})
+
+    # changed render settings are scene content which round trips exactly
+    settings = RenderSettings(
+        environment=Environment(
+            sky=[0.1, 0.2, 0.3],
+            ground=[0.0, 0.0, 0.05],
+            softboxes=[Softbox(direction=[0, 1, 0], sharpness=6.0, color=[1, 1, 1])],
+        ),
+        ground_shadow=False,
+    )
+    plain.metadata.update(settings.to_metadata())
+    export = plain.export(file_type="glb")
+    g.validate_glb(export, "render settings")
+    checks["settings round trip"] = (
+        RenderSettings.from_metadata(g.roundtrip(export, "glb").metadata) == settings
+    )
+
+    # a light which doesn't store a color is white per the spec
+    stored[0].pop("color")
+    parsed = g.trimesh.exchange.gltf.lights.parse_lights(
+        header, {index: node.get("name") for index, node in enumerate(header["nodes"])}
+    )
+    checks["missing color is white"] = any((light.color == 255).all() for light in parsed)
+    for name, ok in checks.items():
+        assert ok, name
 
 
 if __name__ == "__main__":

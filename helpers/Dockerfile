@@ -102,6 +102,22 @@ RUN COLUMNS=240 xvfb-run pytest \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
 
+# rerun the rendering tests on each supported pyglet, one RUN per version:
+# `--cov-append` adds every run to the same `.coverage` as the full suite
+ARG RENDERING="tests/test_viewer.py tests/test_camera.py tests/test_animation.py tests/test_examples.py tests/test_render.py"
+
+# pyglet 1.5: the legacy OpenGL viewer
+RUN pip install "pyglet==1.5.31" && \
+    xvfb-run pytest $RENDERING --cov=trimesh --cov-append -p no:INCLUDE_RENDERING -p no:cacheprovider
+
+# pyglet 2.1: the current stable release
+RUN pip install "pyglet==2.1.19" && \
+    xvfb-run pytest $RENDERING --cov=trimesh --cov-append -p no:INCLUDE_RENDERING -p no:cacheprovider
+
+# pyglet 3.0: the development release
+RUN pip install "pyglet==3.0.dev11" && \
+    xvfb-run pytest $RENDERING --cov=trimesh --cov-append -p no:INCLUDE_RENDERING -p no:cacheprovider
+
 ################################
 ### Build Sphinx Docs
 FROM output AS build_docs
@@ -112,7 +128,9 @@ RUN trimesh-setup --install docs
 USER user
 
 COPY --chown=499 README.md .
-COPY --chown=499 pyproject.toml .
+# `release.yml` saves the union of every CI job as `.coverage.ci` and
+# the `*` glob copies nothing rather than failing when it isn't there
+COPY --chown=499 pyproject.toml .coverage.ci* ./
 COPY --chown=499 docs ./docs/
 COPY --chown=499 examples ./examples/
 COPY --chown=499 models ./models/
@@ -120,10 +138,13 @@ COPY --chown=499 trimesh ./trimesh/
 
 # pull the coverage data from the tests stage so the docs build can render
 # it into a styled report next to `trimesh` (same path pytest measured)
-COPY --chown=499 --from=tests /home/user/.coverage /home/user/.coverage
+COPY --chown=499 --from=tests /home/user/.coverage /home/user/.coverage.docker
 
 # autodoc walks trimesh modules that import optional deps
 RUN pip install /home/user[easy,recommend]
+
+# union `.coverage.docker` and `.coverage.ci` into the `.coverage` rendered
+RUN pip install -r docs/requirements.txt && coverage combine
 
 WORKDIR /home/user/docs
 RUN make clean && make

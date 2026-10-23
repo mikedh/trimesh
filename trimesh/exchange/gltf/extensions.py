@@ -11,7 +11,7 @@ from typing import Any, Literal, TypeAlias, TypedDict
 
 import numpy as np
 
-from ...constants import log
+from ...constants import log, tol
 from ...iteration import IndexedDict
 from ...typed import NDArray
 
@@ -228,6 +228,10 @@ def handle_extensions(
             if (result := _handlers[scope][ext_name](context)) is not None:
                 results[ext_name] = result
         except Exception as e:
+            # a missing optional dependency is survivable everywhere and
+            # broken data is survivable outside of tests
+            if tol.strict and not isinstance(e, ImportError):
+                raise
             if failed is not None:
                 failed.add(ext_name)
             log.warning(f"failed to process extension {ext_name}: {e}")
@@ -272,15 +276,50 @@ def _specular_glossiness(context: MaterialContext) -> dict[str, Any] | None:
     Returns
     -------
     pbr_dict
-      PBR metallic-roughness parameters, or None on failure.
+      PBR metallic-roughness parameters.
     """
-    try:
-        from ...visual.gloss import specular_to_pbr
+    from ...visual.gloss import specular_to_pbr
 
-        return specular_to_pbr(**context["parse_textures"](data=context["data"]))
-    except Exception:
-        log.debug("failed to convert specular-glossiness", exc_info=True)
-        return None
+    return specular_to_pbr(**context["parse_textures"](data=context["data"]))
+
+
+@register_handler("KHR_materials_transmission", scope="material")
+def _transmission(context: MaterialContext) -> dict[str, Any]:
+    """
+    Read how much light passes through a material like clear glass.
+
+    Parameters
+    ----------
+    context
+      MaterialContext with extension data.
+
+    Returns
+    -------
+    pbr_dict
+      The `transmissionFactor`, which defaults to zero.
+    """
+    return {"transmissionFactor": context["data"].get("transmissionFactor", 0.0)}
+
+
+@register_handler("KHR_materials_diffuse_transmission", scope="material")
+def _diffuse_transmission(context: MaterialContext) -> dict[str, Any]:
+    """
+    Read how much light a thin surface scatters out of its other side.
+
+    Parameters
+    ----------
+    context
+      MaterialContext with extension data and parse_textures function.
+
+    Returns
+    -------
+    pbr_dict
+      The `diffuseTransmissionFactor` which defaults to zero, and the
+      `diffuseTransmissionColorFactor` and both textures if present.
+    """
+    result = {"diffuseTransmissionFactor": 0.0}
+    result.update(context["parse_textures"](data=context["data"]))
+    return result
 
 
 @register_handler("EXT_texture_webp", scope="texture_source")

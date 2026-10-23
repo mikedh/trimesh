@@ -135,6 +135,14 @@ class TextureVisuals(Visuals):
             material=self.material.copy(),
             face_materials=copy.copy(self.face_materials),
         )
+        # carry every other per-vertex attribute, such as glTF `COLOR_0`
+        copied.vertex_attributes.update(
+            {
+                key: value.copy()
+                for key, value in self.vertex_attributes.items()
+                if key != "uv"
+            }
+        )
 
         return copied
 

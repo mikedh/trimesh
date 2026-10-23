@@ -7,6 +7,7 @@ Test things that should work with a *minimal* trimesh install.
 
 """
 
+import glob
 import os
 import unittest
 
@@ -28,6 +29,19 @@ def get_mesh(file_name, **kwargs):
 
 
 class MinimalTest(unittest.TestCase):
+    def test_installed(self):
+        # every package and shader of the checkout is in the installed
+        # trimesh, which `pyproject.toml` has to list one by one
+        source = os.path.join(_pwd, "..", "trimesh")
+        installed = os.path.dirname(trimesh.__file__)
+        files = glob.glob("**/__init__.py", root_dir=source, recursive=True)
+        files += glob.glob("**/*.glsl", root_dir=source, recursive=True)
+        checks = {"source found": len(files) > 20}
+        for name in files:
+            checks[name] = os.path.exists(os.path.join(installed, name))
+        for name, ok in checks.items():
+            assert ok, name
+
     def test_path_exc(self):
         # this should require *no deps*
         from trimesh.path import packing

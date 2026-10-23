@@ -210,10 +210,21 @@ class SimpleMaterial(Material):
         # convert specular exponent to roughness
         roughness = (2 / (self.glossiness + 2)) ** (1.0 / 4.0)
 
+        # simple materials ignore diffuse when there is an image
+        if self.image is None:
+            # diffuse is sRGB but the PBR factor is linear
+            factor = np.append(
+                color.srgb_to_linear(self.diffuse[:3]), color.to_float(self.diffuse[3:])
+            )
+        else:
+            factor = None
+
         return PBRMaterial(
+            # simple materials are never metal: the glTF default is 1.0
+            metallicFactor=0.0,
             roughnessFactor=roughness,
             baseColorTexture=self.image,
-            baseColorFactor=self.diffuse,
+            baseColorFactor=factor,
         )
 
 
@@ -324,6 +335,11 @@ class PBRMaterial(Material):
         doubleSided=False,
         alphaMode=None,
         alphaCutoff=None,
+        transmissionFactor=None,
+        diffuseTransmissionFactor=None,
+        diffuseTransmissionColorFactor=None,
+        diffuseTransmissionTexture=None,
+        diffuseTransmissionColorTexture=None,
         **kwargs,
     ):
         # store values in an internal dict
@@ -338,8 +354,14 @@ class PBRMaterial(Material):
         self.metallicFactor = metallicFactor
         self.roughnessFactor = roughnessFactor
         self.alphaCutoff = alphaCutoff
+        self.transmissionFactor = transmissionFactor
+        self.diffuseTransmissionFactor = diffuseTransmissionFactor
+        # (3,) float
+        self.diffuseTransmissionColorFactor = diffuseTransmissionColorFactor
 
         # PIL image
+        self.diffuseTransmissionTexture = diffuseTransmissionTexture
+        self.diffuseTransmissionColorTexture = diffuseTransmissionColorTexture
         self.normalTexture = normalTexture
         self.emissiveTexture = emissiveTexture
         self.occlusionTexture = occlusionTexture
@@ -436,6 +458,111 @@ class PBRMaterial(Material):
             self._data.pop("alphaCutoff", None)
         else:
             self._data["alphaCutoff"] = float(value)
+
+    @property
+    def transmissionFactor(self):
+        """
+        How much light passes through the surface like clear glass,
+        from `KHR_materials_transmission`: 0.0 is opaque and 1.0
+        lets everything through except reflections.
+
+        Returns
+        -----------
+        transmissionFactor : float or None
+          Fraction of light transmitted.
+        """
+        return self._data.get("transmissionFactor")
+
+    @transmissionFactor.setter
+    def transmissionFactor(self, value):
+        if value is None:
+            self._data.pop("transmissionFactor", None)
+        else:
+            self._data["transmissionFactor"] = float(value)
+
+    @property
+    def diffuseTransmissionFactor(self):
+        """
+        How much of the light a thin surface like a leaf or paper
+        scatters diffusely out of its other side rather than back,
+        from `KHR_materials_diffuse_transmission`: 0.0 is opaque.
+
+        Returns
+        -----------
+        diffuseTransmissionFactor : float or None
+          Fraction of diffuse light transmitted.
+        """
+        return self._data.get("diffuseTransmissionFactor")
+
+    @diffuseTransmissionFactor.setter
+    def diffuseTransmissionFactor(self, value):
+        if value is None:
+            self._data.pop("diffuseTransmissionFactor", None)
+        else:
+            self._data["diffuseTransmissionFactor"] = float(value)
+
+    @property
+    def diffuseTransmissionColorFactor(self):
+        """
+        The linear RGB color of diffusely transmitted light from
+        `KHR_materials_diffuse_transmission`, which multiplies the
+        sampled texels of `diffuseTransmissionColorTexture`.
+
+        Returns
+        -----------
+        diffuseTransmissionColorFactor : (3,) float or None
+          Linear RGB, white if not set.
+        """
+        return self._data.get("diffuseTransmissionColorFactor")
+
+    @diffuseTransmissionColorFactor.setter
+    def diffuseTransmissionColorFactor(self, value):
+        if value is None:
+            self._data.pop("diffuseTransmissionColorFactor", None)
+        else:
+            self._data["diffuseTransmissionColorFactor"] = np.array(
+                value, dtype=np.float64
+            ).reshape(3)
+
+    @property
+    def diffuseTransmissionTexture(self):
+        """
+        The texture whose alpha channel multiplies
+        `diffuseTransmissionFactor`.
+
+        Returns
+        ----------
+        image : PIL.Image or None
+          Diffuse transmission texture.
+        """
+        return self._data.get("diffuseTransmissionTexture")
+
+    @diffuseTransmissionTexture.setter
+    def diffuseTransmissionTexture(self, value):
+        if value is None:
+            self._data.pop("diffuseTransmissionTexture", None)
+        else:
+            self._data["diffuseTransmissionTexture"] = value
+
+    @property
+    def diffuseTransmissionColorTexture(self):
+        """
+        The sRGB texture whose color channels multiply
+        `diffuseTransmissionColorFactor`.
+
+        Returns
+        ----------
+        image : PIL.Image or None
+          Diffuse transmission color texture.
+        """
+        return self._data.get("diffuseTransmissionColorTexture")
+
+    @diffuseTransmissionColorTexture.setter
+    def diffuseTransmissionColorTexture(self, value):
+        if value is None:
+            self._data.pop("diffuseTransmissionColorTexture", None)
+        else:
+            self._data["diffuseTransmissionColorTexture"] = value
 
     @property
     def doubleSided(self):
@@ -672,6 +799,18 @@ class PBRMaterial(Material):
             colors = self.baseColorFactor.copy()
         return colors
 
+    def to_pbr(self):
+        """
+        Return this material, which is already a PBR material,
+        matching `SimpleMaterial.to_pbr` and `MultiMaterial.to_pbr`.
+
+        Returns
+        ------------
+        pbr : PBRMaterial
+          This material.
+        """
+        return self
+
     def to_simple(self):
         """
         Get a copy of the current PBR material as
@@ -810,12 +949,12 @@ def pack(
 
     def multiply_factor(img, factor, mode):
         """
-        Multiply an image by a factor.
+        Multiply an image by a uint8 or 0.0-1.0 float factor.
         """
         if factor is None:
             return img.convert(mode)
         img = (
-            (np.array(img.convert(mode), dtype=np.float64) * factor)
+            (np.array(img.convert(mode), dtype=np.float64) * color.to_float(factor))
             .round()
             .astype(np.uint8)
         )
@@ -1000,6 +1139,10 @@ def pack(
     assert set(np.concatenate(mat_idx).ravel()) == set(range(len(uvs)))
     assert len(uvs) == len(materials)
     use_pbr = any(isinstance(m, PBRMaterial) for m in materials)
+    if use_pbr:
+        # one PBR material makes every material PBR so they pack the same
+        # way, and only simple materials stay simple
+        materials = [m.to_pbr() for m in materials]
 
     # in some cases, the fused scene results in huge trimsheets
     # we can try to prevent this by downscaling the textures iteratively

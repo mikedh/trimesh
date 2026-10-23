@@ -777,91 +777,109 @@ def neighbors(edges, max_index=None, directed=False):
     return array
 
 
-def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None = 10.0):
+def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None = None):
     """
-    Return a non-watertight version of the mesh which
-    will render nicely with smooth shading by
-    disconnecting faces at sharp angles to each other.
+    Return a version of the mesh which will render nicely with
+    smooth shading: vertices are split along sharp edges so a
+    cylinder's caps are disconnected from its side.
+
+    Every triangle corner is a node in a graph and corners are
+    connected across every edge whose two faces are within `angle`.
+    Each connected group of corners around a vertex becomes one
+    new vertex with one normal. Adjacency is computed on vertices
+    merged by position so texture seams don't become shading seams.
+
+    Faces keep their order, so face attributes like face colors
+    stay aligned, and per-vertex attributes like UV coordinates and
+    vertex colors are carried through.
 
     Parameters
     -----------
     mesh : trimesh.Trimesh
       Source geometry
     angle : float or None
-      Angle in radians face pairs with angles
+      Angle in radians: face pairs with angles
       smaller than this will appear smoothed
-    facet_minarea : float or None
-      Minimum area fraction to consider
-      IE for `facets_minarea=25` only facets larger
-      than `mesh.area / 25` will be considered.
+    facet_minarea : None
+      Unused and kept for backwards compatibility.
 
     Returns
     ---------
     smooth : trimesh.Trimesh
-      Geometry with disconnected face patches
+      Geometry with vertices split at sharp edges
     """
+    from .base import Trimesh
+
     if angle is None:
         angle = np.radians(20)
 
-    # if the mesh has no adjacent faces return a copy
-    if len(mesh.face_adjacency) == 0:
+    faces = np.asanyarray(mesh.faces, dtype=np.int64)
+    if len(faces) == 0:
         return mesh.copy()
+    corner_count = len(faces) * 3
 
-    # face pairs below angle threshold
-    angle_ok = mesh.face_adjacency_angles < angle
-    # subset of face adjacency
-    adjacency = mesh.face_adjacency[angle_ok]
+    # the vertex of every triangle corner with vertices merged by position
+    _, position_index = grouping.unique_rows(mesh.vertices)
+    corner_vertex = position_index[faces].ravel()
 
-    # coplanar groups of faces
-    facets = []
-    nodes = None
-    # collect coplanar regions for smoothing
-    if facet_minarea is not None:
-        areas = mesh.area_faces
-        min_area = mesh.area / facet_minarea
-        try:
-            # we can survive not knowing facets
-            # exclude facets with few faces
-            facets = [f for f in mesh.facets if areas[f].sum() > min_area]
-            if len(facets) > 0:
-                # mask for removing adjacency pairs where
-                # one of the faces is contained in a facet
-                mask = np.ones(len(mesh.faces), dtype=bool)
-                mask[np.hstack(facets)] = False
-                # apply the mask to adjacency
-                adjacency = adjacency[mask[adjacency].all(axis=1)]
-                # nodes are no longer every faces
-                nodes = np.unique(adjacency)
-        except BaseException:
-            log.warning("failed to calculate facets", exc_info=True)
-    # run connected components on facet adjacency
-    components = connected_components(adjacency, min_len=2, nodes=nodes)
+    # every face has three edges which run from corner to the next corner
+    edge_start = np.arange(corner_count)
+    edge_end = edge_start - (edge_start % 3) + ((edge_start + 1) % 3)
+    edges = np.column_stack((corner_vertex[edge_start], corner_vertex[edge_end]))
+    edges.sort(axis=1)
 
-    # add back coplanar groups if any exist
-    if len(facets) > 0:
-        components.extend(facets)
+    # pairs of edge indices shared by exactly two faces
+    pairs = grouping.group_rows(edges, require_count=2).reshape((-1, 2))
+    # only connect faces with normals within the angle threshold
+    normals = mesh.face_normals
+    cosine = (normals[pairs[:, 0] // 3] * normals[pairs[:, 1] // 3]).sum(axis=1)
+    pairs = pairs[cosine > np.cos(angle)]
 
-    if len(components) == 0:
-        # if no components for some reason
-        # just return a copy of the original mesh
-        return mesh.copy()
+    # a shared edge runs the same or opposite direction in both faces
+    # so match up the corners which sit on the same vertex
+    same = corner_vertex[pairs[:, 0]] == corner_vertex[pairs[:, 1]]
+    other = edge_end[pairs[:, 1]]
+    links = np.column_stack(
+        (
+            pairs[:, 0],
+            np.where(same, pairs[:, 1], other),
+            edge_end[pairs[:, 0]],
+            np.where(same, other, pairs[:, 1]),
+        )
+    ).reshape((-1, 2))
+    labels = connected_component_labels(links, node_count=corner_count)
 
-    # add back any faces that were missed
-    unique = np.unique(np.hstack(components))
-    if len(unique) != len(mesh.faces):
-        # things like single loose faces
-        # or groups below facet_minlen
-        broke = np.setdiff1d(np.arange(len(mesh.faces)), unique)
-        components.extend(broke.reshape((-1, 1)))
+    # a new vertex for every unique (original vertex, corner group)
+    unique, inverse = grouping.unique_rows(np.column_stack((faces.ravel(), labels)))
+    new_to_old = faces.ravel()[unique]
 
-    # get a submesh as a single appended Trimesh
-    smooth = mesh.submesh(components, only_watertight=False, append=True)
-    # store face indices from original mesh
-    smooth.metadata["original_components"] = components
-    # smoothed should have exactly the same number of faces
-    if len(smooth.faces) != len(mesh.faces):
-        log.warning("face count in smooth wrong!")
-    return smooth
+    # sum the angle-weighted face normal of every corner in a group
+    weighted = np.repeat(normals, 3, axis=0) * mesh.face_angles.reshape((-1, 1))
+    summed = coo_matrix(
+        (np.ones(corner_count), (labels, edge_start)),
+        shape=(corner_count, corner_count),
+    ).dot(weighted)
+
+    visual = mesh.visual.copy()
+    visual.update_vertices(new_to_old)
+
+    # per-vertex values like skinning joints and weights follow their
+    # vertex, and anything else is kept as it is
+    attributes = dict(mesh.vertex_attributes)
+    for key, value in mesh.vertex_attributes.items():
+        if np.shape(value)[:1] == (len(mesh.vertices),):
+            attributes[key] = value[new_to_old]
+
+    return Trimesh(
+        vertices=mesh.vertices[new_to_old],
+        faces=inverse.reshape((-1, 3)),
+        face_normals=normals,
+        vertex_normals=util.unitize(summed[labels[unique]]),
+        visual=visual,
+        metadata=mesh.metadata.copy(),
+        vertex_attributes=attributes,
+        process=False,
+    )
 
 
 def is_watertight(

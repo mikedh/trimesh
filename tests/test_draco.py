@@ -10,10 +10,8 @@ from importlib.util import find_spec
 
 try:
     from . import generic as g
-    from .test_gltf import validate_glb
 except BaseException:
     import generic as g
-    from test_gltf import validate_glb
 
 needs_draco = g.pytest.mark.skipif(find_spec("DracoPy") is None, reason="no `DracoPy`")
 # pin `include_normals` so nothing depends on what happens to be cached
@@ -64,7 +62,7 @@ def test_export():
     scene = draco_scene()
     plain, before = export(scene)
     blob, tree = export(scene, extension_draco=True)
-    validate_glb(blob, name="draco")
+    g.validate_glb(blob, name="draco")
 
     # it must shrink, must never happen unasked, and must be declared
     assert len(blob) < len(plain) and b"KHR_draco" not in plain
@@ -129,7 +127,7 @@ def test_unavailable():
     finally:
         handlers["KHR_draco_mesh_compression"] = original
 
-    validate_glb(blob, name="draco_unavailable")
+    g.validate_glb(blob, name="draco_unavailable")
     assert "KHR_draco" not in str(tree.get("extensionsUsed", []))
     assert "KHR_draco" not in str(tree.get("extensionsRequired", []))
     # nothing absorbed anything so every array must have found its way back

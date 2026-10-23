@@ -1,3 +1,3 @@
-from . import blender
+from . import blender, ffmpeg
 
-__all__ = ["blender"]
+__all__ = ["blender", "ffmpeg"]

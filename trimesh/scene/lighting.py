@@ -10,11 +10,11 @@ https://github.com/mmatl/pyrender
 
 import numpy as np
 
-from .. import transformations, util, visual
+from .. import util, visual
 from ..typed import NDArray, float64
 
-# default light color
-_DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
+# glTF lights default to white
+_DEFAULT_RGBA = np.array([255, 255, 255, 255], dtype=np.uint8)
 
 
 class Light(util.ABC):
@@ -225,30 +225,24 @@ class SpotLight(Light):
 
 def autolight(scene) -> tuple[list[Light], list[NDArray[float64]]]:
     """
-    Generate a list of lights for a scene that looks decent.
+    The lights a render of a scene without lights uses: a key light
+    and a rim light fixed in the world around the scene's camera, see
+    `trimesh.scene.metadata.RenderSettings.resolve`. They aren't added
+    to the scene.
 
     Parameters
     --------------
     scene : trimesh.Scene
-      Scene with geometry
+      Scene to light, which is not changed.
 
     Returns
     --------------
     lights : [Light]
-      List of light objects
-    transforms : (len(lights), 4, 4) float
-      Transformation matrices for light positions.
+      The scene's own lights or the default ones.
+    transforms : (n, 4, 4) float
+      World pose of each light.
     """
+    from .metadata import RenderSettings
 
-    # start with empty lights and transforms
-    lights = []
-    transforms = []
-
-    # if there are no objects in the scene don't crash
-    bounds = scene.bounds
-    if bounds is not None:
-        # create two translation matrices for bounds corners
-        transforms.extend(transformations.translation_matrix(b) for b in bounds)
-        lights.extend(PointLight() for _ in range(2))
-
-    return lights, transforms
+    studio = RenderSettings.from_metadata(scene.metadata).resolve(scene)
+    return studio.lights, list(studio.transforms)

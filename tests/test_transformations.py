@@ -38,6 +38,56 @@ def test_flips_winding():
     assert state[2:] == after[2:]
 
 
+def test_trs():
+    """TRS round trips any unsheared transform and batched quaternions match single."""
+    tf = g.trimesh.transformations
+    # a mirror on every fifth and a vanishing axis on the last
+    matrices = g.affine(50, seed=1)
+    matrices[-1, :3, 2] = 0.0
+    translation, quaternion, recovered = tf.trs_from_matrix(matrices)
+    rebuilt = tf.trs_matrix(translation, quaternion, recovered)
+    first = tf.trs_from_matrix(matrices[0])
+    mirrored = g.np.linalg.det(matrices[:, :3, :3]) < 0
+
+    # a sheared block has no exact split, but its rotation is the polar
+    # factor: the rotation which leaves a symmetric stretch behind
+    shear = g.np.eye(4)
+    shear[0, 1], shear[1, 2] = 0.4, 0.2
+    sheared = tf.random_rotation_matrix(seed=2) @ shear
+    rotation = tf.quaternion_matrix(tf.trs_from_matrix(sheared)[1])[:3, :3]
+    stretch = rotation.T @ sheared[:3, :3]
+
+    # pairs for slerp: random, antipodal, and nearly 180 degrees apart
+    # where exactly 180 would be a tie between two equally short arcs
+    start = tf.random_quaternion(num=50, seed=3)
+    end = tf.random_quaternion(num=50, seed=4)
+    end[:5] = -start[:5]
+    turn = tf.quaternion_about_axis(g.np.radians(178.0), [0, 0, 1])
+    end[5:10] = tf.quaternion_multiply(turn, start[5:10].T).T
+    fraction = g.np.random.default_rng(0).uniform(0, 1, 50)
+    slerps = [tf.quaternion_slerp(*pair) for pair in zip(start, end, fraction)]
+    quaternions = [tf.quaternion_from_matrix(matrix) for matrix in matrices]
+
+    checks = {
+        "round trip": g.np.allclose(rebuilt, matrices),
+        "translation": g.np.allclose(translation, matrices[:, :3, 3]),
+        "unit quaternions": g.np.allclose(g.np.linalg.norm(quaternion, axis=1), 1.0),
+        "mirrors are negative scale": ((recovered < 0).any(axis=1) == mirrored).all(),
+        "zero scale is finite": g.np.isfinite(quaternion[-1]).all(),
+        "shear is a polar rotation": g.np.allclose(stretch, stretch.T)
+        and g.np.isclose(g.np.linalg.det(rotation), 1.0),
+        "single stays single": [part.shape for part in first] == [(3,), (4,), (3,)],
+        "single round trip": g.np.allclose(tf.trs_matrix(*first), matrices[0]),
+        "one stays a stack": tf.quaternion_matrix(quaternion[:1]).shape == (1, 4, 4),
+        "batched from_matrix": g.np.allclose(
+            tf.quaternion_from_matrix(matrices), quaternions
+        ),
+        "batched slerp": g.np.allclose(tf.quaternion_slerp(start, end, fraction), slerps),
+    }
+    for name, ok in checks.items():
+        assert ok, name
+
+
 class TransformTest(g.unittest.TestCase):
     def test_doctest(self):
         """
@@ -165,6 +215,17 @@ class TransformTest(g.unittest.TestCase):
         assert g.np.allclose(I, rotation_matrix(g.np.pi * 2, direc))
 
         assert g.np.allclose(2, g.np.trace(rotation_matrix(g.np.pi / 2, direc, point)))
+
+        # arrays of angles and points broadcast together into a stack of
+        # exactly the matrices each pair gives on its own
+        angles, points = g.random((4, 1)) * 10 - 5, g.random((1, 3, 3)) - 0.5
+        stack = rotation_matrix(angles, direc, points)
+        pairs = g.np.ndindex(4, 3)
+        single = [rotation_matrix(angles[i, 0], direc, points[0, j]) for i, j in pairs]
+        assert stack.shape == (4, 3, 4, 4)
+        assert g.np.allclose(stack.reshape((-1, 4, 4)), single)
+        each = [rotation_matrix(angle, direc) for angle in angles[:, 0]]
+        assert g.np.allclose(rotation_matrix(angles[:, 0], direc), each)
 
         # test symbolic
         if g.sp is not None:

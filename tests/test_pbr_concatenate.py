@@ -6,6 +6,11 @@ metallicFactor and roughnessFactor values and creates correct
 UV mappings for textures.
 """
 
+from functools import partial
+
+from trimesh.visual.color import uv_to_color
+from trimesh.visual.material import PBRMaterial, SimpleMaterial, pack
+
 try:
     from . import generic as g
 except BaseException:
@@ -127,6 +132,71 @@ class PBRConcatenateTest(g.unittest.TestCase):
 
         # No metallicRoughness texture should be created for identical materials
         assert merged.visual.material.metallicRoughnessTexture is None
+
+    def test_concatenate_mixed_visuals(self):
+        """A PBR textured mesh concatenated with color meshes keeps every color."""
+        from PIL import Image
+
+        # a 16x16 image of 4x4 blocks which each have a distinct color
+        x, y = g.np.meshgrid(g.np.arange(16) // 4, g.np.arange(16) // 4)
+        blocks = g.np.stack([x * 60, y * 60, 255 - x * 30, x * 0 + 255], axis=-1)
+        image = Image.fromarray(g.np.uint8(blocks))
+        # uv in the center of distinct blocks
+        uv = (g.np.column_stack([g.np.arange(8) % 4, g.np.arange(8) // 2]) * 4 + 1.5) / 15
+        material = PBRMaterial(baseColorTexture=image, baseColorFactor=[1.0] * 4)
+        textured = g.trimesh.creation.box()
+        textured.visual = g.trimesh.visual.TextureVisuals(uv=uv, material=material)
+        colored = g.trimesh.creation.box()
+        opaque = g.np.uint8(g.random((12, 4)) * [255, 255, 255, 0] + [0, 0, 0, 255])
+        colored.visual.face_colors = opaque
+        meshes = [textured, colored, g.trimesh.creation.box()]
+        # the colors each vertex had before concatenation
+        colors = [m.visual.vertex_colors for m in meshes[1:]]
+        truth = g.np.vstack([uv_to_color(uv, image), *colors])
+        merged = g.trimesh.util.concatenate(meshes)
+        packed = merged.visual.material
+        result = uv_to_color(merged.visual.uv, packed.baseColorTexture)
+        metal_rough = uv_to_color(merged.visual.uv, packed.metallicRoughnessTexture)
+        checks = {
+            "is pbr": isinstance(packed, PBRMaterial),
+            "vertex count": len(merged.visual.uv) == len(truth),
+            "vertex colors": g.np.abs(result.astype(int) - truth).max() <= 1,
+            # metallic is the blue channel
+            "color meshes are not metal": (metal_rough[8:, 2] == 0).all(),
+        }
+        for name, ok in checks.items():
+            assert ok, name
+
+    def test_pack_colors(self):
+        """Packed colors: factors multiply textures and Simple keeps its color."""
+        from PIL import Image
+
+        orange, green, gray = (200, 100, 50, 255), (10, 220, 90, 255), (50, 50, 50, 255)
+        swatch, brown = Image.new("RGBA", (4, 4), green), (100, 50, 25, 255)
+        tinted = partial(PBRMaterial, baseColorTexture=Image.new("RGBA", (4, 4), orange))
+        cases = [
+            ("white factor", tinted(baseColorFactor=[1.0] * 4), orange),
+            ("half factor", tinted(baseColorFactor=[0.5, 0.5, 0.5, 1.0]), brown),
+            ("image over diffuse", SimpleMaterial(image=swatch, diffuse=gray), green),
+            ("simple diffuse", SimpleMaterial(diffuse=orange), orange),
+        ]
+        names, materials, expected = zip(*cases)
+        uvs = [g.np.full((3, 2), 0.5) for _ in cases]
+        # all cases at once mixes PBR and Simple materials
+        mixed, mixed_uv = pack(list(materials), uvs)
+        mixed_colors = uv_to_color(mixed_uv, mixed.baseColorTexture)[::3].astype(int)
+        # only the Simple materials should stay a Simple material
+        simple, simple_uv = pack(list(materials[2:]), uvs[2:])
+        simple_colors = uv_to_color(simple_uv, simple.image)[::3].astype(int)
+        checks = {
+            "mixed is pbr": isinstance(mixed, PBRMaterial),
+            "simple is simple": isinstance(simple, SimpleMaterial),
+            "simple colors": g.np.abs(simple_colors - expected[2:]).max() <= 1,
+        }
+        error = g.np.abs(mixed_colors - expected).max(axis=1)
+        checks.update({name: e <= 1 for name, e in zip(names, error)})
+        for name, ok in checks.items():
+            assert ok, name
 
 
 if __name__ == "__main__":

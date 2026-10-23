@@ -170,40 +170,9 @@ def test_load_rejects_non_http_url():
 
 
 def test_webresolver_rejects_disallowed_scheme():
-    # A1 — explicit SSRF guard at construction time; scheme check fires
-    # before the session-deprecation warning so no warning leaks
+    # A1 - explicit SSRF guard at construction time
     with pytest.raises(ValueError, match=r"'file' not in \('http', 'https'\)"):
         resolvers.WebResolver("file:///etc/passwd")
-
-
-def test_webresolver_warns_when_no_session():
-    # callers should pass their own session — the implicit httpx.get path
-    # is deprecated. uses an http URL since file:// would be rejected before
-    # the deprecation warning has a chance to fire.
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        resolver = resolvers.WebResolver("http://example.com/foo.glb")
-    deprecations = [
-        w
-        for w in caught
-        if issubclass(w.category, DeprecationWarning) and "session" in str(w.message)
-    ]
-    assert len(deprecations) == 1
-
-    # passing a session silences the warning
-    class DummySession:
-        def get(self, *a, **kw):
-            raise RuntimeError("not called")
-
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        resolvers.WebResolver("http://example.com/foo.glb", session=DummySession())
-    assert not any(
-        issubclass(w.category, DeprecationWarning) and "session" in str(w.message)
-        for w in caught
-    )
-    # construction succeeded both ways
-    assert resolver.url == "http://example.com/foo.glb"
 
 
 def test_eval_cached_emits_deprecation():

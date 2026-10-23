@@ -2,7 +2,8 @@
 viewer
 -------------
 
-View meshes and scenes via pyglet or inline HTML.
+View meshes and scenes via pyglet or inline HTML, and render
+them to images or video.
 """
 
 from .. import exceptions
@@ -12,18 +13,32 @@ from .notebook import (
     scene_to_mo_notebook,
     scene_to_notebook,
 )
+from .render import render_scene
 
-try:
-    # the modern shader-based viewer for `pyglet>=2`
-    from .pyglet2 import SceneViewer, render_scene
-except ImportError as E:
+
+def __getattr__(name: str):
+    """
+    Import the OpenGL viewer only when it is used, as importing
+    pyglet connects to a display or creates an OpenGL context.
+
+    Parameters
+    ------------
+    name : str
+      Attribute of this module.
+
+    Returns
+    ------------
+    value : SceneViewer or ExceptionWrapper
+      The viewer, or why it couldn't be imported.
+    """
+    if name != "SceneViewer":
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     try:
-        # fall back to the legacy fixed-function viewer for `pyglet<2`
-        from .pyglet1.viewer import SceneViewer, render_scene
-    except ImportError:
-        # neither pyglet was importable: defer the error until use
-        SceneViewer = exceptions.ExceptionWrapper(E)
-        render_scene = exceptions.ExceptionWrapper(E)
+        from .windowed import SceneViewer
+    except Exception as E:
+        # only raise the exception if someone tries to use it
+        return exceptions.ExceptionWrapper(E)
+    return SceneViewer
 
 
 # explicitly list imports in __all__

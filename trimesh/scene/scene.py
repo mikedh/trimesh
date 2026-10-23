@@ -1,5 +1,4 @@
 import collections
-import uuid
 import warnings
 from copy import deepcopy
 from hashlib import sha256
@@ -8,7 +7,7 @@ from typing import TypeAlias
 # ruff doesn't recognize this correctly when we re-import it from trimesh.typed -_-
 import numpy as np
 
-from .. import caching, convex, grouping, inertia, transformations, units, util
+from .. import caching, convex, inertia, transformations, units, util
 from ..constants import log
 from ..exchange import export
 from ..parent import Geometry, Geometry3D
@@ -27,6 +26,8 @@ from ..typed import (
 )
 from ..util import unique_name
 from . import cameras, lighting
+from .animation import Animation, Skin
+from .cameras import Camera
 from .transforms import SceneGraph
 
 # the types of objects we can create a scene from
@@ -47,7 +48,7 @@ class Scene(Geometry3D):
         base_frame: Hashable = "world",
         metadata: dict | None = None,
         graph: SceneGraph | None = None,
-        camera: cameras.Camera | None = None,
+        camera: Camera | None = None,
         lights: Sequence[lighting.Light] | None = None,
         camera_transform: NDArray | None = None,
     ):
@@ -76,6 +77,12 @@ class Scene(Geometry3D):
 
         # create a new graph
         self.graph = SceneGraph(base_frame=base_frame)
+
+        # keyframed animation, those sharing a name are
+        # exported as a single glTF animation
+        self.animations: list[Animation] = []
+        # {scene graph node : Skin} for nodes whose mesh their joints move
+        self.skins: dict[Hashable, Skin] = {}
 
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
@@ -307,6 +314,7 @@ class Scene(Geometry3D):
         hashable = [hex(self.graph.transforms.__hash__())]
         # take the re-hex string of the hash
         hashable.extend(hex(geometry[k].__hash__()) for k in geometry.keys())
+        hashable.extend(hex(hash(skin)) for skin in self.skins.values())
         return caching.hash_fast("".join(hashable).encode("utf-8"))
 
     @property
@@ -381,6 +389,12 @@ class Scene(Geometry3D):
             # skip empty geometries
             if points is None:
                 continue
+            if node_name in self.skins:
+                # a skinned mesh is where its joints put it
+                points = self.skins[node_name].deform(
+                    self.geometry[geometry_name], self.graph
+                )
+                transform = np.eye(4)
             # apply just the rotation to skip N multiplies
             dot = np.dot(transform[:3, :3], points.T)
             # append the AABB with translation applied after
@@ -578,12 +592,15 @@ class Scene(Geometry3D):
             geometry = self.geometry[geometry_name]
             if not hasattr(geometry, "triangles"):
                 continue
+            corners = geometry.triangles.copy().reshape((-1, 3))
+            if node_name in self.skins:
+                # a skinned mesh is where its joints put it
+                corners = self.skins[node_name].deform(geometry, self.graph)[
+                    geometry.faces.ravel()
+                ]
+                transform = np.eye(4)
             # append the (n, 3, 3) triangles to a sequence
-            triangles.append(
-                transformations.transform_points(
-                    geometry.triangles.copy().reshape((-1, 3)), matrix=transform
-                )
-            )
+            triangles.append(transformations.transform_points(corners, matrix=transform))
             # save the node names for each triangle
             triangles_node.append(np.tile(node_name, len(geometry.triangles)))
         # save the resulting nodes to the cache
@@ -699,7 +716,7 @@ class Scene(Geometry3D):
 
     def set_camera(
         self, angles=None, distance=None, center=None, resolution=None, fov=None
-    ) -> cameras.Camera:
+    ) -> Camera:
         """
         Create a camera object for self.camera, and add
         a transform to self.graph for it.
@@ -720,13 +737,13 @@ class Scene(Geometry3D):
         """
 
         if fov is None:
-            fov = np.array([60, 45])
+            fov = np.array(cameras.DEFAULT_FOV)
 
         # if no geometry nothing to set camera to
         if len(self.geometry) == 0:
-            self._camera = cameras.Camera(fov=fov)
-            self.graph[self._camera.name] = np.eye(4)
-            return self._camera
+            self.camera = cameras.Camera(fov=fov)
+            self.graph[self.camera.name] = np.eye(4)
+            return self.camera
         # set with no rotation by default
         if angles is None:
             angles = np.zeros(3)
@@ -736,17 +753,17 @@ class Scene(Geometry3D):
             self.bounds, fov=fov, rotation=rotation, distance=distance, center=center
         )
 
-        if hasattr(self, "_camera") and self._camera is not None:
-            self._camera.fov = fov
+        if self.has_camera:
+            self.camera.fov = fov
             if resolution is not None:
-                self._camera.resolution = resolution
+                self.camera.resolution = resolution
         else:
             # create a new camera object
-            self._camera = cameras.Camera(fov=fov, resolution=resolution)
+            self.camera = cameras.scene_camera(self, fov=fov, resolution=resolution)
 
-        self.graph[self._camera.name] = transform
+        self.graph[self.camera.name] = transform
 
-        return self._camera
+        return self.camera
 
     @property
     def camera_transform(self):
@@ -774,13 +791,9 @@ class Scene(Geometry3D):
 
     def camera_project(self, points: ArrayLike) -> NDArray[float64]:
         """
-        Project world-space points to normalized device coordinates
-        through the same view * projection chain that the OpenGL viewer
-        uses. Companion to `camera_rays`: that one goes pixels-to-rays,
-        this one goes points-to-pixels (well, to NDC).
-
-        A point is inside the camera frustum iff every component of its
-        returned NDC is in `[-1, 1]`.
+        Project world-space points through the camera to normalized
+        device coordinates, the opposite of `camera_rays`. A point is in
+        view if every coordinate is within `[-1, 1]`.
 
         Parameters
         ----------
@@ -818,21 +831,50 @@ class Scene(Geometry3D):
         """
         # get the unit vectors of the camera
         vectors, pixels = self.camera.to_rays()
+        # rays start at the camera, or on its plane if it's orthographic
+        origins = np.zeros_like(vectors)
+        if self.camera.magnification is not None:
+            origins[:, :2] = cameras.ray_pixel_coords(self.camera)[0]
         # find our scene's transform for the camera
         transform = self.camera_transform
-        # apply the rotation to the unit ray direction vectors
         vectors = transformations.transform_points(vectors, transform, translate=False)
-        # camera origin is single point so extract from
-        origins = np.ones_like(vectors) * transformations.translation_from_matrix(
-            transform
-        )
+        origins = transformations.transform_points(origins, transform)
         return origins, vectors, pixels
 
     @property
-    def camera(self) -> cameras.Camera:
+    def cameras(self) -> list[Camera]:
         """
-        Get the single camera for the scene. If not manually
-        set one will abe automatically generated.
+        Every camera in the scene, each named after the scene graph
+        node it rides like `Scene.lights`, where the first is the one
+        `Scene.camera` looks through.
+
+        Returns
+        ----------
+        cameras : [trimesh.scene.Camera]
+          Cameras in the scene, which may be empty.
+        """
+        if getattr(self, "_cameras", None) is None:
+            self._cameras = []
+        return self._cameras
+
+    @cameras.setter
+    def cameras(self, values: Sequence[Camera]):
+        """
+        Assign every camera in the scene.
+
+        Parameters
+        -----------
+        values : [trimesh.scene.Camera]
+          Cameras named after the nodes they ride.
+        """
+        self._cameras = list(values)
+
+    @property
+    def camera(self) -> Camera:
+        """
+        Get the camera the scene is viewed through, which is the first
+        of `Scene.cameras`. If there are none one framing everything is
+        made and added.
 
         Returns
         ----------
@@ -843,14 +885,13 @@ class Scene(Geometry3D):
         if not self.has_camera:
             # will create a camera with everything in view
             return self.set_camera()
-        assert self._camera is not None
-
-        return self._camera
+        return self.cameras[0]
 
     @camera.setter
-    def camera(self, camera: cameras.Camera | None):
+    def camera(self, camera: Camera | None):
         """
-        Set a camera object for the Scene.
+        Set the camera the Scene is viewed through, replacing the first
+        of `Scene.cameras`.
 
         Parameters
         -----------
@@ -859,31 +900,98 @@ class Scene(Geometry3D):
         """
         if camera is None:
             return
-        self._camera = camera
+        if self.has_camera:
+            self.cameras[0] = camera
+        else:
+            self.cameras.append(camera)
 
     @property
     def has_camera(self) -> bool:
-        return hasattr(self, "_camera") and self._camera is not None
+        """
+        If a camera was set on this scene, without generating the
+        default camera `Scene.camera` would.
+
+        Returns
+        ------------
+        has_camera : bool
+          If `Scene.cameras` has any camera.
+        """
+        return len(self.cameras) > 0
+
+    @property
+    def has_lights(self) -> bool:
+        """
+        If lights were set on this scene, without generating the
+        default lights `Scene.lights` would, which is what an
+        exporter needs to know.
+
+        Returns
+        ------------
+        has_lights : bool
+          If `Scene.lights` was set.
+        """
+        return getattr(self, "_lights", None) is not None
+
+    @property
+    def duration(self) -> float:
+        """
+        How long the longest animation in this scene runs for.
+
+        Returns
+        -------------
+        duration
+          Length in seconds, zero if the scene isn't animated.
+        """
+        return max((animation.duration for animation in self.animations), default=0.0)
+
+    def animate(
+        self, time: Floating, name: str | None = None, loop: bool = False
+    ) -> None:
+        """
+        Set every animated edge of the scene graph to its pose at a time.
+
+        Note this writes the graph in place: keep a `scene.copy()` if you
+        want the pose it had before.
+
+        Parameters
+        --------------
+        time
+          Time to sample at, in seconds.
+        name
+          Only apply animations with this name, None for all of them.
+        loop
+          Repeat each animation past its own end as glTF players do,
+          rather than holding its last pose.
+        """
+        edge_data = self.graph.transforms.edge_data
+        for animation in self.animations:
+            if name is not None and animation.name != name:
+                continue
+            at = time
+            if loop and animation.duration > 0.0:
+                at = time % animation.duration
+            # every edge of an animation is sampled at once
+            for (frame_from, frame_to), matrix in zip(animation.edges, animation.at(at)):
+                # replace only the matrix, keeping the edge's geometry and metadata
+                edge = edge_data.get((frame_from or self.graph.base_frame, frame_to), {})
+                self.graph.update(
+                    frame_from=frame_from, frame_to=frame_to, **{**edge, "matrix": matrix}
+                )
 
     @property
     def lights(self) -> list[lighting.Light]:
         """
-        Get a list of the lights in the scene. If nothing is
-        set it will generate some automatically.
+        Get a list of the lights in the scene. If nothing is set
+        these are the lights a render would use, which aren't part of
+        the scene until they are assigned.
 
         Returns
         -------------
         lights : [trimesh.scene.lighting.Light]
           Lights in the scene.
         """
-        if not hasattr(self, "_lights") or self._lights is None:
-            # do some automatic lighting
-            lights, transforms = lighting.autolight(self)
-            # assign the transforms to the scene graph
-            for L, T in zip(lights, transforms):
-                self.graph[L.name] = T
-            # set the lights
-            self._lights = lights
+        if getattr(self, "_lights", None) is None:
+            return lighting.autolight(self)[0]
         return self._lights
 
     @lights.setter
@@ -947,6 +1055,13 @@ class Scene(Geometry3D):
             transform, geometry_name = self.graph[node_name]
             # get a copy of the geometry
             current = self.geometry[geometry_name].copy()
+            if node_name in self.skins:
+                # a skinned mesh is where its joints put it and the joint
+                # indices mean nothing once it is moved there
+                current.vertices = self.skins[node_name].deform(current, self.graph)
+                current.vertex_attributes.pop("joints")
+                current.vertex_attributes.pop("weights")
+                transform = np.eye(4)
 
             # if the geometry is 2D see if we have to upgrade to 3D
             if hasattr(current, "to_3D"):
@@ -1037,6 +1152,40 @@ class Scene(Geometry3D):
         geometry_names = {e[2]["geometry"] for e in edges if "geometry" in e[2]}
         geometry = {k: self.geometry[k] for k in geometry_names}
         result = Scene(geometry=geometry, graph=graph)
+
+        # keep the animated edges which survived: as the subscene is
+        # rooted at `node` its own edge is no longer drivable
+        for animation in self.animations:
+            kept = [
+                index
+                for index, (_, frame_to) in enumerate(animation.edges)
+                if frame_to in nodes and frame_to != node
+            ]
+            if len(kept) > 0:
+                result.animations.append(
+                    Animation(
+                        edges=[animation.edges[index] for index in kept],
+                        times=animation.times,
+                        matrices=animation.matrices[:, kept],
+                        name=animation.name,
+                        interpolation=animation.interpolation,
+                    )
+                )
+        # a skin only works if its node and every joint survived
+        result.skins = {
+            key: skin
+            for key, skin in self.skins.items()
+            if key in nodes and all(joint in nodes for joint in skin.joints)
+        }
+        # lights and cameras are nodes too: keep the ones that survived
+        if self.has_lights:
+            result.lights = [
+                deepcopy(light) for light in self.lights if light.name in nodes
+            ]
+        result.cameras = [
+            camera.copy() for camera in self.cameras if camera.name in nodes
+        ]
+        result.metadata.update(deepcopy(self.metadata))
         return result
 
     @caching.cache_decorator
@@ -1082,7 +1231,7 @@ class Scene(Geometry3D):
         resolution : (2,) int
           Resolution to render image
         **kwargs
-          Passed to SceneViewer constructor
+          Passed to `trimesh.viewer.render_scene`
 
         Returns
         -----------
@@ -1091,9 +1240,7 @@ class Scene(Geometry3D):
         """
         from ..viewer import render_scene
 
-        return render_scene(
-            scene=self, resolution=resolution, fullscreen=False, resizable=False, **kwargs
-        )
+        return render_scene(scene=self, resolution=resolution, **kwargs)
 
     @property
     def units(self) -> str | None:
@@ -1231,6 +1378,10 @@ class Scene(Geometry3D):
         if np.allclose(scale, 1.0):
             return result
 
+        # animated edges scale like every other edge in the graph
+        for animation in result.animations:
+            animation.matrices[..., :3, 3] *= scale
+
         # convert 2D geometries to 3D for 3D scaling factors
         scale_is_3D = isinstance(scale, (list, tuple, np.ndarray)) and len(scale) == 3
 
@@ -1240,6 +1391,14 @@ class Scene(Geometry3D):
             scale_is_3D = False
         elif not scale_is_3D:
             scale = float(scale)
+
+        if not scale_is_3D:
+            # a camera's planes and orthographic size are lengths too
+            for camera in result.cameras:
+                camera.z_near *= scale
+                camera.z_far *= scale
+                if camera.magnification is not None:
+                    camera.magnification = camera.magnification * scale
 
         # result is a copy
 
@@ -1285,64 +1444,41 @@ class Scene(Geometry3D):
                     scale
                 ).apply_transform(np.linalg.inv(T))
 
-            # Scale all transformations in the scene graph
-            edge_data = result.graph.transforms.edge_data
-            for uv in edge_data:
-                if "matrix" in edge_data[uv]:
-                    props = edge_data[uv]
-                    T = edge_data[uv]["matrix"].copy()
-                    T[:3, 3] *= scale
-                    props["matrix"] = T
-                    result.graph.update(frame_from=uv[0], frame_to=uv[1], **props)
-            # Clear cache
-            result.graph.transforms._cache = {}
-            result.graph.transforms._modified = str(uuid.uuid4())
-            result.graph._cache.clear()
         else:
-            # matrix for 2D scaling
-            scale_2D = np.eye(3) * scale
-            # matrix for 3D scaling
-            scale_3D = np.eye(4) * scale
+            # a uniform scale is the same in every axis, so it doesn't
+            # matter what pose a geometry is in: scale it where it sits
+            for geometry in result.geometry.values():
+                geometry.apply_scale(scale)
 
-            # preallocate transforms and geometries
-            nodes = np.array(self.graph.nodes_geometry)
-            transforms = np.zeros((len(nodes), 4, 4))
-            geometries = [None] * len(nodes)
+        # scaling every vertex and every edge translation by the same factor
+        # scales the world transform of everything exactly once, and leaves
+        # the graph, instancing, and the edges animations drive as they were
+        for (frame_from, frame_to), edge in list(
+            result.graph.transforms.edge_data.items()
+        ):
+            if "matrix" in edge:
+                matrix = np.array(edge["matrix"], dtype=np.float64)
+                matrix[:3, 3] *= scale
+                result.graph.update(
+                    frame_from=frame_from, frame_to=frame_to, **{**edge, "matrix": matrix}
+                )
 
-            # collect list of transforms
-            for i, node in enumerate(nodes):
-                transforms[i], geometries[i] = self.graph[node]
+        # the inverse bind matrices go from world space where every edge
+        # translation was just scaled, so they get the same scale
+        stretch = np.diag(
+            [*np.broadcast_to(np.asarray(scale, dtype=np.float64), (3,)), 1.0]
+        )
+        for skin in {id(skin): skin for skin in result.skins.values()}.values():
+            skin.inverse_bind_matrices = (
+                stretch @ skin.inverse_bind_matrices @ np.linalg.inv(stretch)
+            )
 
-            # remove all existing transforms
-            result.graph.clear()
-
-            for group in grouping.group(geometries):
-                # hashable reference to self.geometry
-                geometry = geometries[group[0]]
-                # original transform from world to geometry
-                original = transforms[group[0]]
-                # transform for geometry
-                new_geom = np.dot(scale_3D, original)
-
-                if result.geometry[geometry].vertices.shape[1] == 2:
-                    # if our scene is 2D only scale in 2D
-                    result.geometry[geometry].apply_transform(scale_2D)
-                else:
-                    # otherwise apply the full transform
-                    result.geometry[geometry].apply_transform(new_geom)
-
-                for node, T in zip(nodes[group], transforms[group]):
-                    # generate the new transforms
-                    transform = util.multi_dot([scale_3D, T, np.linalg.inv(new_geom)])
-                    # apply scale to translation
-                    transform[:3, 3] *= scale
-                    # update scene with new transforms
-                    result.graph.update(
-                        frame_to=node, matrix=transform, geometry=geometry
-                    )
-
-        # remove camera from copied
-        result._camera = None
+        # a light's range is a length so it scales, but its intensity
+        # in candela or lux is a physical quantity which doesn't
+        if result.has_lights:
+            for light in result.lights:
+                if light.radius is not None:
+                    light.radius = light.radius * float(np.max(scale))
 
         return result
 
@@ -1359,19 +1495,20 @@ class Scene(Geometry3D):
         # allow them to handle references to unpickle-able objects
         geometry = {n: g.copy() for n, g in self.geometry.items()}
 
-        if not hasattr(self, "_camera") or self._camera is None:
-            # if no camera set don't include it
-            camera = None
-        else:
-            # otherwise get a copy of the camera
-            camera = self.camera.copy()
         # create a new scene with copied geometry and graph
         copied = Scene(
-            geometry=geometry,
-            graph=self.graph.copy(),
-            metadata=self.metadata.copy(),
-            camera=camera,
+            geometry=geometry, graph=self.graph.copy(), metadata=self.metadata.copy()
         )
+        copied.cameras = [camera.copy() for camera in self.cameras]
+        # deep copy so the keyframe arrays aren't shared with the original
+        copied.animations = [animation.copy() for animation in self.animations]
+        # nodes sharing a skin still share one afterwards
+        skins = {id(skin): skin.copy() for skin in self.skins.values()}
+        copied.skins = {node: skins[id(skin)] for node, skin in self.skins.items()}
+
+        if self.has_lights:
+            # lights are plain values so a deepcopy is safe here
+            copied.lights = deepcopy(self.lights)
         return copied
 
     def show(
@@ -1510,6 +1647,12 @@ def append_scenes(iterable, common=None, base_frame="world"):
     geometry = {}
     # save transforms as edge tuples
     edges = []
+    # animations and lights, with their frames remapped alongside the edges
+    animations = []
+    skins = {}
+    lights = []
+    all_cameras = []
+    metadata = {}
 
     # nodes which shouldn't be remapped
     common = set(common)
@@ -1587,10 +1730,47 @@ def append_scenes(iterable, common=None, base_frame="world"):
         # mark nodes from current scene as consumed
         consumed.update(current)
 
+        # animations drive edges, so they have to follow the same node
+        # renaming the edges just went through or they'd target nothing
+        for animation in s.animations:
+            moved = animation.copy()
+            moved.edges = [
+                (map_node.get(frame_from, frame_from), map_node.get(frame_to, frame_to))
+                for frame_from, frame_to in animation.edges
+            ]
+            animations.append(moved)
+
+        # skins name their node and joints so they follow the renaming
+        for key, skin in s.skins.items():
+            moved = skin.copy()
+            moved.joints = [map_node.get(joint, joint) for joint in skin.joints]
+            skins[map_node.get(key, key)] = moved
+
+        # lights are named after their node so they follow its renaming
+        if s.has_lights:
+            for light in s.lights:
+                moved = deepcopy(light)
+                moved.name = map_node.get(light.name, light.name)
+                lights.append(moved)
+        # cameras are named after their node so they follow its renaming,
+        # and the first scene's camera is the one looked through
+        for camera in s.cameras:
+            moved = camera.copy()
+            moved.name = map_node.get(camera.name, camera.name)
+            all_cameras.append(moved)
+        # later metadata wins
+        metadata.update(deepcopy(s.metadata))
+
     # add all data to a new scene
     result = Scene(base_frame=base_frame)
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
+    result.animations.extend(animations)
+    result.metadata.update(metadata)
+    result.skins.update(skins)
+    if len(lights) > 0:
+        result.lights = lights
+    result.cameras = all_cameras
 
     return result
 

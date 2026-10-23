@@ -3,6 +3,26 @@ try:
 except BaseException:
     import generic as g
 
+# run a Python expression in Blender without a window or user settings
+FLAGS = "--background --factory-startup --python-exit-code 1 --python-expr".split()
+# Blender's MikkTSpace tangent through the vertex normals for every face
+# corner of a mesh from a JSON file, written back to the same file
+MIKKTSPACE = """
+import bpy, json, sys
+path = sys.argv[-1]
+data = json.load(open(path))
+mesh = bpy.data.meshes.new("mesh")
+mesh.from_pydata(data["vertices"], [], data["faces"])
+corners = [loop.vertex_index for loop in mesh.loops]
+uv = mesh.uv_layers.new(name="uv")
+uv.data.foreach_set("uv", [c for v in corners for c in data["uv"][v]])
+mesh.shade_smooth()
+mesh.normals_split_custom_set_from_vertices(data["normals"])
+mesh.calc_tangents(uvmap="uv")
+tangents = [[*loop.tangent, loop.bitangent_sign] for loop in mesh.loops]
+json.dump({"corners": corners, "tangents": tangents}, open(path, "w"))
+"""
+
 
 class NormalsTest(g.unittest.TestCase):
     def test_vertex_normal(self):
@@ -29,6 +49,59 @@ class NormalsTest(g.unittest.TestCase):
         assert mesh.faces_sparse is not None
         assert mesh.vertex_normals.shape == mesh.vertices.shape
         assert g.np.allclose(mesh.vertex_normals - truth, 0.0)
+
+    def test_vertex_tangents(self):
+        from trimesh.geometry import vertex_tangents
+        from trimesh.interfaces import blender
+
+        # tangents of a flat sheet in an arbitrary pose have one true answer
+        # for every way texture can be laid on it, mirrored or rotated
+        flat = g.random((50, 2))
+        faces = g.spatial.Delaunay(flat).simplices
+        rotation = g.trimesh.transformations.random_rotation_matrix()[:3, :3]
+        vertices, normal = flat @ rotation[:, :2].T, g.np.tile(rotation[:, 2], (50, 1))
+        x, y = flat.T
+        checks = {}
+        for name, uv, direction, w in [
+            ("u along x", (x, y), rotation[:, 0], 1.0),
+            ("v mirrored", (x, -y), rotation[:, 0], -1.0),
+            ("u along y", (y, x), rotation[:, 1], -1.0),
+            ("u against y", (-y, x), -rotation[:, 1], 1.0),
+        ]:
+            tangents = vertex_tangents(vertices, faces, g.np.column_stack(uv), normal)
+            checks[name] = g.np.allclose(tangents, [*direction, w])
+        # and on a curved textured mesh they are unit, in the surface and signed
+        mesh = g.get_mesh("fuze.obj")
+        arrays = {"vertices": mesh.vertices, "faces": mesh.faces, "uv": mesh.visual.uv}
+        tangents = vertex_tangents(*arrays.values(), mesh.vertex_normals)
+        arrays["normals"] = g.trimesh.util.unitize(mesh.vertex_normals)
+        checks["unit"] = g.np.allclose(g.np.linalg.norm(tangents[:, :3], axis=1), 1.0)
+        surface = (tangents[:, :3] * mesh.vertex_normals).sum(axis=1)
+        checks["in the surface"] = g.np.allclose(surface, 0.0)
+        checks["signed"] = set(g.np.unique(tangents[:, 3])) <= {-1.0, 1.0}
+
+        # and they are MikkTSpace's, which glTF viewers generate when a
+        # file has none, as computed by Blender for every face corner
+        if blender.exists:
+            with g.TemporaryDirectory() as directory:
+                path = g.os.path.join(directory, "mesh.json")
+                with open(path, "w") as f:
+                    g.json.dump({k: v.tolist() for k, v in arrays.items()}, f)
+                command = [blender._blender_executable, *FLAGS, MIKKTSPACE, "--", path]
+                g.subprocess.run(command, check=True, capture_output=True)
+                with open(path) as f:
+                    reference = g.json.load(f)
+            corners = g.np.array(reference["corners"])
+            expected = g.np.array(reference["tangents"])
+            # every corner of a vertex agrees where its faces don't mirror
+            # the texture, which a single vertex tangent can't represent
+            same = expected[:, 3] == tangents[corners, 3]
+            delta = expected[same, :3] - tangents[corners][same, :3]
+            error = g.np.linalg.norm(delta, axis=1)
+            checks["MikkTSpace signs"] = same.mean() > 0.99
+            checks["MikkTSpace tangents"] = g.np.percentile(error, 99) < 1e-3
+        for name, ok in checks.items():
+            assert ok, name
 
     def test_weighted_vertex_normals(self):
         def compare_trimesh_to_groundtruth(mesh, truth, atol=g.trimesh.tol.merge):
