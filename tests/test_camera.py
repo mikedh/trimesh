@@ -4,6 +4,39 @@ except BaseException:
     import generic as g
 
 import numpy as np
+import pytest
+
+
+@pytest.mark.parametrize("intrinsic", ["focal", "fov"])
+@pytest.mark.parametrize("cached", [False, True])
+def test_copy_intrinsics(intrinsic, cached):
+    camera = g.trimesh.scene.Camera(
+        name="camera", resolution=(320, 240), **{intrinsic: (60, 40)}
+    )
+    if cached:
+        # Copying should work whether derived intrinsics have been read or not.
+        _ = camera.focal, camera.fov
+    copied = camera.copy()
+    assert copied.name == camera.name
+    assert copied is not camera
+    np.testing.assert_allclose(copied.K, camera.K)
+
+    copied.resolution = (640, 480)
+    np.testing.assert_array_equal(camera.resolution, (320, 240))
+    camera.resolution = copied.resolution
+    # A copy must retain which intrinsic stays fixed when resolution changes.
+    np.testing.assert_allclose(copied.focal, camera.focal)
+    np.testing.assert_allclose(copied.fov, camera.fov)
+
+
+@pytest.mark.parametrize("scene", [False, True])
+def test_copy_clipping(scene):
+    camera = g.trimesh.scene.Camera(fov=(60, 40), z_near=0.5, z_far=5000)
+    copied = g.trimesh.Scene(camera=camera).copy().camera if scene else camera.copy()
+    assert copied.z_near == camera.z_near
+    assert copied.z_far == camera.z_far
+    copied.z_near = 1.0
+    assert camera.z_near == 0.5
 
 
 class CameraTests(g.unittest.TestCase):
