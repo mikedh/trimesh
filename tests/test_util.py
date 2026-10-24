@@ -206,6 +206,26 @@ def test_concat():
     assert r.face_attributes["test"].shape[0] == len(r.faces)
 
 
+def test_concat_metadata():
+    # metadata should be merged from every mesh in order
+    box = g.trimesh.creation.box()
+    a = g.trimesh.Trimesh(
+        box.vertices,
+        box.faces,
+        metadata={"name": "a", "units": "mm", "nested": {"key": [1]}},
+    )
+    b = g.trimesh.Trimesh(box.vertices + 2, box.faces, metadata={"name": "b", "extra": 1})
+    meta_a, meta_b = g.copy.deepcopy(a.metadata), g.copy.deepcopy(b.metadata)
+
+    c = g.trimesh.util.concatenate([a, b])
+    assert c.metadata == {**meta_a, **meta_b}
+
+    # the merged metadata should be a copy
+    c.metadata["nested"]["key"].append(2)
+    assert a.metadata == meta_a
+    assert b.metadata == meta_b
+
+
 def test_concat_vertex_normals():
     # vertex normals should only be included if they already exist
 

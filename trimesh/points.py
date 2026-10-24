@@ -136,8 +136,9 @@ def radial_sort(points, origin, normal, start=None):
     # create two axis perpendicular to each other and
     # the normal and project the points onto them
     if start is None:
-        axis0 = [normal[0], normal[2], -normal[1]]
-        axis1 = np.cross(normal, axis0)
+        axis1, axis0, _ = util.generate_basis(normal)
+        # Preserve the starting angle for a positive Z normal.
+        axis0 = -axis0
     else:
         normal, start = util.unitize([normal, start])
         if np.abs(1 - np.abs(np.dot(normal, start))) < tol.zero:

@@ -130,6 +130,10 @@ def load_obj(
     # so now we have to turn them into numpy arrays and kwargs
     # for trimesh mesh and scene objects
     geometry = {}
+    # guard against None vertices (e.g. malformed OBJ with mixed vertex formats)
+    if v is None:
+        log.debug("no vertices found, skipping geometry")
+        return {"geometry": {}, "graph": []}
     while len(face_tuples) > 0:
         # consume the next chunk of text
         material, current_object, current_group, chunk = face_tuples.pop()
@@ -657,7 +661,7 @@ def _parse_vertices(text):
     if tol.strict:
         # check to make sure our subsetting
         # didn't miss any vertices or data
-        assert len(v) == text.count("\nv ")
+        assert text.count("\nv ") == (0 if v is None else len(v))
         # make sure optional data matches file too
         if vn is not None:
             assert len(vn) == text.count("\nvn ")

@@ -90,7 +90,7 @@ test-arch: ## Run tests on big-endian s390x and 32-bit i386 via QEMU emulation.
 		-v $(CURDIR):/trimesh \
 		-w /trimesh \
 		debian:trixie-slim \
-		bash -c "apt-get update -qq && apt-get install -y -qq \
+		bash -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends \
 	python3-numpy python3-pytest python3-pil python3-shapely python3-scipy python3-lxml \
 	python3-networkx python3-jsonschema python3-httpx python3-collada python3-rtree \
 	 && python3 -m pytest \
@@ -101,7 +101,7 @@ test-arch: ## Run tests on big-endian s390x and 32-bit i386 via QEMU emulation.
 		-v $(CURDIR):/trimesh \
 		-w /trimesh \
 		debian:trixie-slim \
-		bash -c "apt-get update -qq && apt-get install -y -qq \
+		bash -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends \
 	python3-numpy python3-pytest python3-scipy python3-rtree \
 	 && python3 -m pytest \
 	tests/test_voxel.py tests/test_runlength.py tests/test_encoding.py -v"

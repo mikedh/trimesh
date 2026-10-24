@@ -133,6 +133,19 @@ class GLTFTest(g.unittest.TestCase):
         a = g.json.loads(scene.export(file_type="gltf")["model.gltf"].decode("utf-8"))
         assert len(a["buffers"]) <= 3
 
+    def test_unknown_chunk(self):
+        # the GLTF spec requires loaders to ignore chunks with unknown
+        # types following the JSON and BIN chunks
+        m = g.get_mesh("fuze.obj")
+        export = m.export(file_type="glb")
+        # append a chunk with an unknown type and update the file length
+        chunk = g.np.array([8, 0x41503243], dtype="<u4").tobytes() + b"\x00" * 8
+        data = bytearray(export + chunk)
+        data[8:12] = g.np.array([len(data)], dtype="<u4").tobytes()
+
+        r = g.trimesh.load(g.trimesh.util.wrap_as_stream(bytes(data)), file_type="glb")
+        assert g.np.isclose(r.area, m.area)
+
     def test_skip_materials(self):
         # load textured PLY
         mesh = g.get_mesh("fuze.ply")
@@ -569,6 +582,14 @@ class GLTFTest(g.unittest.TestCase):
 
         # lightly check to see that no references exist
         assert "$ref" not in g.json.dumps(s)
+
+        # `gltf.validate` skips the meta-schema check so do it here once
+        validator = g.jsonschema.validators.validator_for(s)
+        assert validator(validator.META_SCHEMA).is_valid(s)
+
+        # validation is cached so mutating a returned copy must not change it
+        s["required"].append("missing")
+        g.trimesh.exchange.gltf.validate({"asset": {"version": "2.0"}})
 
     def test_export_custom_attributes(self):
         # Write and read custom vertex attributes to gltf

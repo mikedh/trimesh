@@ -44,6 +44,24 @@ class OFFTests(g.unittest.TestCase):
             with self.assertRaises(ValueError):
                 g.trimesh.load(g.io.BytesIO(data), file_type="off")
 
+    def test_out_of_range_face_index(self):
+        # a face referencing a vertex index that doesn't exist used to raise a
+        # cryptic IndexError later on, and a negative index silently loaded a
+        # wrong mesh; both should be a clean ValueError
+        for data in (
+            b"OFF\n3 1 0\n0 0 0\n1 0 0\n0 1 0\n3 0 1 9\n",
+            b"OFF\n3 1 0\n0 0 0\n1 0 0\n0 1 0\n3 0 1 -1\n",
+        ):
+            with self.assertRaises(ValueError):
+                g.trimesh.load(g.io.BytesIO(data), file_type="off")
+
+        # a valid file with in-range indices still loads fine
+        ok = g.trimesh.load(
+            g.io.BytesIO(b"OFF\n3 1 0\n0 0 0\n1 0 0\n0 1 0\n3 0 1 2\n"),
+            file_type="off",
+        )
+        assert ok.faces.shape == (1, 3)
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()

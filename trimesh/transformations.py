@@ -205,6 +205,9 @@ from .util import diagonal_dot, random_generator
 # a cached immutable identity matrix provides a speedup sometimes
 _IDENTITY = np.eye(4)
 _IDENTITY.flags["WRITEABLE"] = False
+# a flattened 3x3 identity for comparing against raveled rotations
+_IDENTITY9 = np.eye(3).ravel()
+_IDENTITY9.flags["WRITEABLE"] = False
 
 
 def identity_matrix():
@@ -2273,8 +2276,8 @@ def is_rigid(matrix, epsilon=1e-8):
     Returns
     -----------
     check : bool
-      True if matrix is a a transform with
-      only translation, scale, and rotation
+      True if matrix is a a transform with only
+      translation and rotation.
     """
 
     matrix = np.asanyarray(matrix, dtype=np.float64)
@@ -2282,14 +2285,13 @@ def is_rigid(matrix, epsilon=1e-8):
     if matrix.shape != (4, 4):
         return False
 
-    # make sure last row has no scaling
-    if np.ptp(matrix[-1] - [0, 0, 0, 1]) > epsilon:
-        return False
+    # rows of a rotation dot to the identity
+    check = np.dot(matrix[:3, :3], matrix[:3, :3].T).ravel() - _IDENTITY9
+    # make sure last row has no perspective
+    bottom = matrix[3] - _IDENTITY[3]
 
-    # check dot product of rotation against transpose
-    check = np.dot(matrix[:3, :3], matrix[:3, :3].T) - _IDENTITY[:3, :3]
-
-    return np.ptp(check) < epsilon
+    # squared norms are a single dot and avoid `abs` and `ptp`
+    return np.dot(bottom, bottom) < epsilon**2 and np.dot(check, check) < epsilon**2
 
 
 def scale_and_translate(scale=None, translate=None):
