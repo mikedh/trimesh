@@ -263,7 +263,9 @@ def test_text():
                 "type bases:", [i.__name__ for i in g.trimesh.util.type_bases(t)]
             )
     # make sure this doesn't crash with text entities
-    g.trimesh.rendering.convert_to_vertexlist(p)
+    from trimesh.rendering import convert_to_vertexlist
+
+    convert_to_vertexlist(p)
 
 
 def test_empty():

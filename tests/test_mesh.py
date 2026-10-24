@@ -176,7 +176,9 @@ def test_mesh_2D():
     # the face normals should be 3D (+Z)
     assert m.face_normals.shape == m.faces.shape
 
-    rend = g.trimesh.rendering.mesh_to_vertexlist(m)
+    from trimesh.rendering import mesh_to_vertexlist
+
+    rend = mesh_to_vertexlist(m)
     assert len(rend) > 1
 
 

@@ -2431,7 +2431,6 @@ def allclose(a: Number | NDArray, b: Number | NDArray, atol: Floating = 1e-8) ->
     -----------
     bool indicating if all elements are within `atol`.
     """
-    #
     return bool(float(np.ptp(a - b)) < atol)
 
 
