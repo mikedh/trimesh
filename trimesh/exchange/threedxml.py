@@ -165,7 +165,8 @@ def load_3DXML(file_obj, *args, **kwargs):
         mesh_normals = []
         mesh_vertices = []
         mesh_uv = []
-        mesh_image = None
+        # the texture image of each Rep, or None for a Rep without one
+        rep_images = []
 
         if part_file not in as_etree and part_file in archive:
             # the data is stored in some binary format
@@ -197,6 +198,7 @@ def load_3DXML(file_obj, *args, **kwargs):
                 ).reshape((-1, 3))
             )
 
+            mesh_image = None
             uv = Rep.find("{*}VertexBuffer/{*}TextureCoordinates")
             if uv is not None:  # texture coordinates are available
                 rep_uv = np.fromstring(
@@ -216,7 +218,9 @@ def load_3DXML(file_obj, *args, **kwargs):
                 (material_file, material_id) = (
                     material.attrib["id"].split("urn:3DXML:")[-1].split("#")
                 )
-                mesh_image = images.get(material_id)  # texture for this Rep, if any
+                if uv is not None:
+                    mesh_image = images.get(material_id)  # texture for this Rep, if any
+            rep_images.append(mesh_image)
 
             for faces in Rep.iter("{*}Faces"):
                 triangles = []  # mesh triangles for this Faces element
@@ -265,8 +269,17 @@ def load_3DXML(file_obj, *args, **kwargs):
         mesh = {}
         (mesh["vertices"], mesh["faces"]) = util.append_faces(mesh_vertices, mesh_faces)
         mesh["vertex_normals"] = np.vstack(mesh_normals)
-        if mesh_uv and mesh_image:
-            mesh["visual"] = TextureVisuals(uv=np.vstack(mesh_uv), image=mesh_image)
+        # a texture only when every Rep carries UVs and the same image: otherwise
+        # the UVs do not cover every vertex and a single image cannot be right,
+        # so keep the per-face colors (a part with one textured face among
+        # plain ones lost all of its colors when the textured Rep came last)
+        if (
+            mesh_uv
+            and rep_images
+            and rep_images[0] is not None
+            and all(i is rep_images[0] for i in rep_images)
+        ):
+            mesh["visual"] = TextureVisuals(uv=np.vstack(mesh_uv), image=rep_images[0])
         else:
             mesh["face_colors"] = np.vstack(mesh_colors)
 
