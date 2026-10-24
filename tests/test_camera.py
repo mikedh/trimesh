@@ -7,6 +7,19 @@ import numpy as np
 
 
 class CameraTests(g.unittest.TestCase):
+    def test_angles(self):
+        for resolution in [(1, 1), (4, 3), (7, 5)]:
+            camera = g.trimesh.scene.Camera(resolution=resolution, fov=(60, 45))
+            angles = camera.angles()
+            rays, pixels = camera.to_rays()
+
+            assert angles.shape == (np.prod(resolution), 2)
+            expected = np.arctan((camera.resolution / 2.0 - pixels - 0.5) / camera.focal)
+            np.testing.assert_allclose(angles, expected, atol=1e-15)
+            np.testing.assert_allclose(
+                np.tan(angles), rays[:, :2] / rays[:, 2:3], atol=1e-15
+            )
+
     def test_K(self):
         resolution = (320, 240)
         fov = (60, 40)
