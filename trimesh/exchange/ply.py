@@ -799,6 +799,14 @@ def _load_element_different(properties, data):
             # start next property at the end of this one
             start = end
 
+    return _squeeze_element(edata)
+
+
+def _squeeze_element(edata):
+    """
+    Convert the per-row arrays of each property into
+    an array, an object array for lists of different lengths.
+    """
     # if the shape of any array is (n, 1) we want to
     # squeeze/concatenate it into (n,)
     squeeze = {k: np.array(v, dtype="object") for k, v in edata.items()}
@@ -1003,6 +1011,9 @@ def _ply_binary(elements, file_obj):
             size += element["length"] * dtype.itemsize
         return size
 
+    # keep the list properties before their length is filled in
+    properties = {k: dict(e["properties"]) for k, e in elements.items()}
+
     # some elements are passed where the list dimensions
     # are not included in the header, so this function goes
     # into the meat of the file and grabs the list dimensions
@@ -1017,11 +1028,66 @@ def _ply_binary(elements, file_obj):
 
     # if the number of bytes is not the same the file is probably corrupt
     if size_file != size_elements:
-        raise ValueError("PLY is unexpected length!")
+        # or its lists differ in length between rows, like faces mixing
+        # triangles and quads, so try reading it one row at a time
+        for key, element in elements.items():
+            element["properties"] = properties[key]
+        _ply_binary_rows(elements, file_obj, size_file)
+        return
 
     # with everything populated and a reasonable confidence the file
     # is intact, read the data fields described by the header
     populate_data(file_obj, elements)
+
+
+def _ply_binary_rows(elements, file_obj, size):
+    """
+    Load the data from a binary PLY file whose list properties
+    may have a different length in every row.
+
+    Parameters
+    ------------
+    elements : OrderedDict
+      Populated from the file header.
+      Object will be modified to add data by this function.
+    file_obj : open file object
+      With current position at the start
+      of the data section (past the header)
+    size : int
+      Number of bytes in the data section
+    """
+    data = file_obj.read(size)
+    offset = 0
+    try:
+        for element in elements.values():
+            if not any("$LIST" in t for t in element["properties"].values()):
+                # rows without lists all have the same size
+                dtype = np.dtype(list(element["properties"].items()))
+                element["data"] = np.frombuffer(data, dtype, element["length"], offset)
+                offset += element["length"] * dtype.itemsize
+                continue
+            # (name, count dtype or None, value dtype) for each property
+            props = []
+            for name, dtype in element["properties"].items():
+                count = None
+                if "$LIST" in dtype:
+                    count, dtype = dtype.split(", ($LIST,)")
+                    count = np.dtype(count)
+                props.append((name, count, np.dtype(dtype)))
+            edata = {name: [] for name, _, _ in props}
+            for _ in range(element["length"]):
+                for name, count_type, dtype in props:
+                    count = 1
+                    if count_type is not None:
+                        count = int(np.frombuffer(data, count_type, 1, offset)[0])
+                        offset += count_type.itemsize
+                    edata[name].append(np.frombuffer(data, dtype, count, offset))
+                    offset += count * dtype.itemsize
+            element["data"] = _squeeze_element(edata)
+    except ValueError:
+        raise ValueError("PLY is unexpected length!")
+    if offset != size:
+        raise ValueError("PLY is unexpected length!")
 
 
 def export_draco(mesh, bits=28):
