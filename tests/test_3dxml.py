@@ -26,6 +26,17 @@ class DXMLTest(g.unittest.TestCase):
         assert v.kind == "face"
         assert len(np.unique(v.face_colors, axis=0)) == 2
 
+    def test_textured_face_keeps_plain_colors(self):
+        # a SolidWorks part: one color on the whole cube, an image on one
+        # face whose Rep comes last; the image must not take over the part
+        # and drop every other face's color
+        s = g.get_mesh("solidworks_textured_face.3dxml")
+        assert len(s.geometry) == 1
+        v = next(iter(s.geometry.values())).visual
+        assert v.kind == "face"
+        colors = {tuple(c) for c in v.face_colors[:, :3].tolist()}
+        assert (133, 91, 61) in colors
+
 
 if __name__ == "__main__":
     g.trimesh.util.attach_to_log()
