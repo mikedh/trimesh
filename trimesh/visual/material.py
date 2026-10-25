@@ -340,6 +340,7 @@ class PBRMaterial(Material):
         diffuseTransmissionColorFactor=None,
         diffuseTransmissionTexture=None,
         diffuseTransmissionColorTexture=None,
+        unlit=None,
         **kwargs,
     ):
         # store values in an internal dict
@@ -370,6 +371,7 @@ class PBRMaterial(Material):
 
         # bool
         self.doubleSided = doubleSided
+        self.unlit = unlit
 
         # str
         self.name = name
@@ -583,6 +585,27 @@ class PBRMaterial(Material):
             self._data.pop("doubleSided", None)
         else:
             self._data["doubleSided"] = bool(value)
+
+    @property
+    def unlit(self):
+        """
+        The base color is the final color with no lighting at all, from
+        `KHR_materials_unlit`, for things like skies and baked or
+        photographed lighting.
+
+        Returns
+        -----------
+        unlit : bool or None
+          If no light shades the material.
+        """
+        return self._data.get("unlit")
+
+    @unlit.setter
+    def unlit(self, value):
+        if value is None:
+            self._data.pop("unlit", None)
+        else:
+            self._data["unlit"] = bool(value)
 
     @property
     def metallicFactor(self):
@@ -821,16 +844,16 @@ class PBRMaterial(Material):
         simple : SimpleMaterial
           Contains material information in a simple manner
         """
-        # `self.baseColorFactor` is really a linear value
-        # so the "right" thing to do here would probably be:
-        #  `diffuse = color.to_rgba(color.linear_to_srgb(self.baseColorFactor))`
-        # however that subtle transformation seems like it would confuse
-        # the absolute heck out of people looking at this. If someone wants
-        # this and has opinions happy to accept that change but otherwise
-        # we'll just keep passing it through as "probably-RGBA-like"
+        diffuse = self.baseColorFactor
+        if diffuse is not None:
+            # the PBR factor is linear but diffuse is sRGB, which is
+            # the inverse of `SimpleMaterial.to_pbr`
+            diffuse = np.append(
+                color.linear_to_srgb(diffuse[:3]), color.to_float(diffuse[3:])
+            )
         return SimpleMaterial(
             image=self.baseColorTexture,
-            diffuse=self.baseColorFactor,
+            diffuse=diffuse,
             name=self.name,
         )
 

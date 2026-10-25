@@ -4,26 +4,23 @@ blender_scene.py
 
 Build a Blender scene from a GLB exported by trimesh, then render it to
 numbered PNG frames or save it as a `.blend`. Run by
-`trimesh.interfaces.blender` in Blender 4.2 or later as:
+`trimesh.interfaces.blender` in Blender 4.3 or later as:
 `blender --background --python blender_scene.py -- settings.json`
 
 The GLB carries the geometry, materials, lights, cameras and animation
-which Blender's glTF importer reads. This adds what a GLB can't say
-about how trimesh draws a scene and where Blender reads glTF differently:
+which Blender's glTF importer reads, with every frame keyed. The settings
+JSON adds what a GLB can't say about how trimesh draws a scene and where
+Blender reads glTF differently:
 - the environment, shadow floor and ambient occlusion of the viewer
 - lines and points as many pixels across as the viewer draws them
 - `KHR_materials_diffuse_transmission`, which the importer ignores
-- glTF spot cones and point lights, which Blender's lights differ from
+- glTF spot cones, and lights reaching as far as glTF says
 - the camera's exact fields of view
-- animations loop as glTF players play them, rather than stopping
 """
 
 import json
 import math
-import os
-import struct
 import sys
-import types
 
 import bpy
 
@@ -94,102 +91,26 @@ class Graph:
         ).outputs["Vector"]
 
 
-class GLB:
-    """
-    The GLB's own JSON and images, for the extensions the importer skips.
-    """
-
-    def __init__(self, path, directory):
-        with open(path, "rb") as file_obj:
-            data = file_obj.read()
-        # a 12 byte header then the JSON chunk then the binary chunk,
-        # each after its 8 byte length and type
-        length = struct.unpack_from("<I", data, 12)[0]
-        self.header = json.loads(data[20 : 20 + length])
-        self.binary = data[28 + length :]
-        self.directory = directory
-
-    def image(self, texture, colorspace):
-        """The image of a glTF texture index as a packed Blender image."""
-        source = self.header["textures"][texture]["source"]
-        view = self.header["bufferViews"][self.header["images"][source]["bufferView"]]
-        start = view.get("byteOffset", 0)
-        path = os.path.join(self.directory, f"texture_{texture}")
-        with open(path, "wb") as file_obj:
-            file_obj.write(self.binary[start : start + view["byteLength"]])
-        image = bpy.data.images.load(path)
-        image.colorspace_settings.name = colorspace
-        image.pack()
-        return image
-
-
-def watch_materials():
-    """
-    Register a glTF importer extension which records each Blender
-    material made from a glTF material with an extension it ignores.
-
-    Returns a list filled while importing with `(material name, extension)`.
-    """
-    found = []
-
-    class Hooks:
-        def gather_import_material_after_hook(
-            self, gltf_material, vertex_color, blender_material, gltf
-        ):
-            extensions = gltf_material.extensions or {}
-            if "KHR_materials_diffuse_transmission" in extensions:
-                found.append(
-                    (
-                        blender_material.name,
-                        extensions["KHR_materials_diffuse_transmission"],
-                    )
-                )
-
-    # the importer looks for extensions on the enabled add-ons
-    module = types.ModuleType("trimesh_import_hooks")
-    module.glTF2ImportUserExtension = Hooks
-    sys.modules[module.__name__] = module
-    bpy.context.preferences.addons.new().module = module.__name__
-    return found
-
-
-def match_lights():
+def match_lights(settings):
     """
     Make Blender's lights glTF's. glTF spot lights square a ramp from the
     outer to the inner cone's cosine, and Blender's are a smoothstep of a
     ramp from the outer cone's cosine `(1 - cos(outer)) * spot_blend` long,
-    which is closest to the glTF curve when 0.797 times as steep. The
-    importer sets the blend to `1 - inner / outer`, which is undone to get
-    the inner cone back. glTF lights are points with no size.
+    which is closest to the glTF curve when `spot_blend_scale` times as
+    steep. The importer sets the blend to `1 - inner / outer`, which is
+    undone to get the inner cone back. glTF lights are points with no
+    size, which reach as far as their `range` or everything without one,
+    where Blender would cut a dim light off.
     """
     for light in bpy.data.lights:
+        light.use_custom_distance = True
+        light.cutoff_distance = settings["ranges"].get(light.name, settings["cutoff"])
         if light.type == "SPOT":
             outer = light.spot_size / 2.0
             inner = outer * (1.0 - light.spot_blend)
             ramp = (math.cos(inner) - math.cos(outer)) / (1.0 - math.cos(outer))
-            light.spot_blend = min(ramp / 0.797, 1.0)
+            light.spot_blend = min(ramp / settings["spot_blend_scale"], 1.0)
         light.shadow_soft_size = 0.0
-
-
-def loop_animations():
-    """
-    Repeat every animation past its end, as the viewer and glTF players
-    loop them, rather than holding the last keyframe.
-    """
-    for action in bpy.data.actions:
-        # Blender 4.4 puts curves in layers, and 4.2 directly on the action
-        if hasattr(action, "layers"):
-            curves = [
-                curve
-                for layer in action.layers
-                for strip in layer.strips
-                for bag in strip.channelbags
-                for curve in bag.fcurves
-            ]
-        else:
-            curves = action.fcurves
-        for curve in curves:
-            curve.modifiers.new("CYCLES")
 
 
 def look_through(scene, settings):
@@ -211,6 +132,12 @@ def look_through(scene, settings):
         )
         scene.render.pixel_aspect_x = max(stretch, 1.0)
         scene.render.pixel_aspect_y = max(1.0 / stretch, 1.0)
+    # glTF's planes and orthographic width are in the units of the camera's
+    # node, which a scale changes, where Blender's are in world units
+    scale = sum(scene.camera.matrix_world.to_scale()) / 3.0
+    scene.camera.data.clip_start *= scale
+    scene.camera.data.clip_end *= scale
+    scene.camera.data.ortho_scale *= scale
     # the importer puts time zero on frame zero
     scene.frame_start = 0
     scene.frame_end = settings["count"] - 1
@@ -218,27 +145,36 @@ def look_through(scene, settings):
 
 def use_eevee(scene, settings):
     """EEVEE with the viewer's ambient occlusion and tone mapping."""
-    # EEVEE is `BLENDER_EEVEE_NEXT` in Blender 4.2 to 4.5
+    # EEVEE is `BLENDER_EEVEE_NEXT` until Blender 5.0
     engines = bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items.keys()
-    scene.render.engine = "BLENDER_EEVEE"
     if "BLENDER_EEVEE_NEXT" in engines:
         scene.render.engine = "BLENDER_EEVEE_NEXT"
+    else:
+        scene.render.engine = "BLENDER_EEVEE"
     scene.eevee.taa_render_samples = settings["samples"]
     scene.eevee.use_fast_gi = True
     scene.eevee.fast_gi_method = "AMBIENT_OCCLUSION_ONLY"
     scene.eevee.fast_gi_distance = settings["occlusion_radius"]
-    # glTF lights without a `range` reach everywhere, where EEVEE would
-    # cut off dim ones like the plant's fireflies a few millimeters out,
-    # and exactly zero breaks its spot cones
-    scene.eevee.light_threshold = 1e-6
     # the background is the environment or composited by trimesh
     scene.render.film_transparent = not settings["show_environment"]
     scene.view_settings.view_transform = "Khronos PBR Neutral"
+    # which multiplies light before tone mapping in stops, as the viewer does,
+    # though Blender also exposes and tone maps the `KHR_materials_unlit`
+    # materials its importer makes, which the viewer leaves their exact color
+    scene.view_settings.exposure = math.log2(settings["exposure"])
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
 
 
-def diffuse_transmission(material, extension, glb):
+def load_image(path, colorspace):
+    """A PNG trimesh wrote as a Blender image packed into the file."""
+    image = bpy.data.images.load(path)
+    image.colorspace_settings.name = colorspace
+    image.pack()
+    return image
+
+
+def diffuse_transmission(material, extension):
     """
     `KHR_materials_diffuse_transmission`: the fraction transmitted is
     taken from the base color and added back as a translucent BSDF lit
@@ -250,14 +186,16 @@ def diffuse_transmission(material, extension, glb):
     principled = next(node for node in nodes if node.type == "BSDF_PRINCIPLED")
     output = next(node for node in nodes if node.type == "OUTPUT_MATERIAL")
 
-    fraction = extension.get("diffuseTransmissionFactor", 0.0)
-    if "diffuseTransmissionTexture" in extension:
-        image = glb.image(extension["diffuseTransmissionTexture"]["index"], "Non-Color")
+    fraction = extension["diffuseTransmissionFactor"]
+    if extension["diffuseTransmissionTexture"] is not None:
+        image = load_image(extension["diffuseTransmissionTexture"], "Non-Color")
         alpha = graph.node("ShaderNodeTexImage", image=image).outputs["Alpha"]
         fraction = graph.math("MULTIPLY", alpha, fraction)
-    color = extension.get("diffuseTransmissionColorFactor", [1.0, 1.0, 1.0])
-    if "diffuseTransmissionColorTexture" in extension:
-        image = glb.image(extension["diffuseTransmissionColorTexture"]["index"], "sRGB")
+    color = extension["diffuseTransmissionColorFactor"]
+    if color is None:
+        color = [1.0, 1.0, 1.0]
+    if extension["diffuseTransmissionColorTexture"] is not None:
+        image = load_image(extension["diffuseTransmissionColorTexture"], "sRGB")
         texture = graph.node("ShaderNodeTexImage", image=image).outputs["Color"]
         color = graph.vector("MULTIPLY", texture, color)
 
@@ -291,9 +229,8 @@ def diffuse_transmission(material, extension, glb):
             "ShaderNodeMixShader", {0: coverage, 1: transparent, 2: surface}
         ).outputs[0]
     graph.set(output.inputs["Surface"], surface)
-    # EEVEE treats a zero thickness as infinitely thin, which lets light
-    # from behind through rather than the surface shadowing itself
-    graph.set(output.inputs["Thickness"], 0.0)
+    # a thin slab lets light from behind through rather than the surface
+    # shadowing itself
     material.thickness_mode = "SLAB"
 
 
@@ -455,16 +392,22 @@ def lines_group(camera, pixels, pixel):
     """A round tube along every edge, which is how the viewer draws a line."""
     group, graph, geometry, _, radius = segment_group("lines", camera, pixels, pixel)
     curves = graph.node("GeometryNodeMeshToCurve", {"Mesh": geometry})
+    # the profile is scaled by the curve's radius before Blender 4.5
+    curves = graph.node(
+        "GeometryNodeSetCurveRadius", {"Curve": curves.outputs[0], "Radius": radius}
+    )
     profile = graph.node("GeometryNodeCurvePrimitiveCircle", {"Resolution": 8})
     tubes = graph.node(
         "GeometryNodeCurveToMesh",
         {
-            "Curve": curves.outputs["Curve"],
+            "Curve": curves.outputs[0],
             "Profile Curve": profile.outputs["Curve"],
-            "Scale": radius,
             "Fill Caps": True,
         },
     )
+    # and by `Scale` from Blender 4.5, which ignores the radius
+    if "Scale" in tubes.inputs:
+        graph.set(tubes.inputs["Scale"], radius)
     finish_group(graph, tubes.outputs["Mesh"], line_material())
     return group
 
@@ -512,8 +455,9 @@ def environment_world(environment):
     """
     world = bpy.data.worlds.new("environment")
     world.use_nodes = True
-    # don't turn the brightest part of the environment into a sun
-    world.sun_threshold = 1e9
+    # zero turns off moving the brightest part of the environment into a
+    # sun, which the viewer doesn't do
+    world.sun_threshold = 0.0
     graph = Graph(world.node_tree)
     direction = graph.vector(
         "NORMALIZE", graph.node("ShaderNodeTexCoord").outputs["Generated"]
@@ -580,7 +524,6 @@ def shadow_floor(scene, corners, ground_light):
 def main(settings):
     """Build the scene from `settings` then render or save it."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    translucent = watch_materials()
     scene = bpy.context.scene
     # set before importing: the importer converts keyframe seconds to frames
     scene.render.fps = settings["fps"]
@@ -590,13 +533,11 @@ def main(settings):
     bpy.ops.import_scene.gltf(
         filepath=settings["input"], export_import_convert_lighting_mode="COMPAT"
     )
-    match_lights()
-    loop_animations()
+    match_lights(settings)
     look_through(scene, settings)
     use_eevee(scene, settings)
-    glb = GLB(settings["input"], os.path.dirname(settings["input"]))
-    for name, extension in translucent:
-        diffuse_transmission(bpy.data.materials[name], extension, glb)
+    for name, extension in settings["translucent"].items():
+        diffuse_transmission(bpy.data.materials[name], extension)
     draw_segments(scene, settings)
     scene.world = environment_world(settings["environment"])
     if settings["ground"] is not None:

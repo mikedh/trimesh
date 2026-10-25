@@ -184,8 +184,7 @@ def load_scene(
       If True allow this load call to work on a remote URL.
     session : HttpSessionLike or None
       Optional HTTP session passed through to a `WebResolver` when loading
-      from a URL. Accepts `httpx.Client` or `requests.Session`, and None
-      uses the standard library.
+      from a URL. Accepts `httpx.Client` or `requests.Session`.
     kwargs : dict
       Passed to geometry __init__
 
@@ -446,13 +445,9 @@ def _load_kwargs(*args, **kwargs) -> Geometry:
         if lights:
             scene.lights = lights
 
-        # keyframed animation, if it exists
-        animations = kwargs.get("animations")
-        if animations:
-            scene.animations.extend(animations)
-        skins = kwargs.get("skins")
-        if skins:
-            scene.skins.update(skins)
+        # keyframed animation and skins, if they exist
+        scene.animations.extend(kwargs.get("animations", []))
+        scene.skins.update(kwargs.get("skins", {}))
         metadata = kwargs.get("metadata")
         if isinstance(metadata, dict):
             scene.metadata.update(kwargs["metadata"])

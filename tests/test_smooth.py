@@ -55,7 +55,20 @@ def test_smooth():
     box.visual.face_colors = g.np.uint8(g.random((12, 4)) * 255)
     flat = box.smooth_shaded
 
+    # a sphere with no seams is one smooth surface, so nothing splits and
+    # every corner has the mesh's own angle weighted vertex normal
+    round_sphere = g.trimesh.creation.icosphere(subdivisions=3)
+    rounded = round_sphere.smooth_shaded
+
     checks = {
+        "cylinder splits only at its two rims": len(smooth.vertices)
+        == len(cylinder.vertices) + 2 * 32,
+        "box has a vertex for every face corner": len(flat.vertices) == 24,
+        "sphere keeps its vertices": len(rounded.vertices) == len(round_sphere.vertices),
+        "sphere keeps its vertex normals": g.np.allclose(
+            rounded.vertex_normals[rounded.faces],
+            round_sphere.vertex_normals[round_sphere.faces],
+        ),
         "cap normals are exactly +-Z": g.np.allclose(
             corner[cap], cylinder.face_normals[cap][:, None, :]
         ),
@@ -66,6 +79,12 @@ def test_smooth():
         ),
         "empty mesh": len(g.trimesh.Trimesh().smooth_shaded.faces) == 0,
     }
+    # `facet_minarea` no longer does anything so passing it warns
+    with g.pytest.warns(DeprecationWarning, match="facet_minarea"):
+        minarea = g.trimesh.graph.smooth_shade(cylinder, facet_minarea=10.0)
+    checks["facet_minarea changes nothing"] = g.np.array_equal(
+        minarea.vertices, smooth.vertices
+    ) and g.np.array_equal(minarea.faces, smooth.faces)
 
     # vertex colors, and a PBR material with per-vertex colors, i.e. glTF `COLOR_0`
     colored = g.trimesh.creation.icosphere()

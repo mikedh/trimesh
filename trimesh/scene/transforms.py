@@ -100,6 +100,36 @@ class SceneGraph:
         if "geometry" in kwargs:
             self.transforms.node_data[frame_to]["geometry"] = kwargs["geometry"]
 
+    def update_matrices(self, edges: Sequence, matrices: ArrayLike) -> None:
+        """
+        Replace the matrix of many edges at once, such as every edge an
+        animation drives, keeping each edge's geometry and metadata.
+        This is the same as calling `update` with the matrix and the
+        rest of the edge's data for every edge, but only clears the
+        cache once.
+
+        Parameters
+        ------------
+        edges : (n,) of (frame_from, frame_to)
+          Edges to set, where a `frame_from` of None is the base frame.
+        matrices : (n, 4, 4) float
+          Homogeneous transformation matrix of every edge.
+        """
+        edge_data = self.transforms.edge_data
+        matrices = np.asanyarray(matrices, dtype=np.float64)
+        for (frame_from, frame_to), matrix in zip(edges, matrices):
+            # falsy frames like `0` or `""` are valid node names
+            if frame_from is None:
+                frame_from = self.base_frame
+            key = (frame_from, frame_to)
+            if key in edge_data:
+                edge_data[key]["matrix"] = matrix
+            else:
+                # a new edge changes the tree rather than only a matrix
+                self.update(frame_to=frame_to, frame_from=frame_from, matrix=matrix)
+        # every matrix changed in place so the hash has to be recomputed
+        self.transforms.invalidate()
+
     def get(
         self, frame_to: Hashable, frame_from: Hashable | None = None
     ) -> tuple[NDArray[np.float64], Hashable | None]:
@@ -575,6 +605,14 @@ class EnforcedForest:
         # if multiple calls are made for the same path
         # but the connectivity hasn't changed return cached
         self._cache = {}
+
+    def invalidate(self) -> None:
+        """
+        Mark the forest's data as changed after editing it in place, such
+        as the matrices in `edge_data`, so its hash is recomputed and
+        everything cached from it is too. The topology must not change.
+        """
+        self._hash = None
 
     def add_edge(self, u, v, **kwargs):
         """

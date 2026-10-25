@@ -194,18 +194,16 @@ class Animation:
             translation, quaternion, scale = self.trs
             count = len(self.edges)
             blend = fraction[:, None, None]
+            translation, scale = (
+                (part[lower] + (part[upper] - part[lower]) * blend).reshape((-1, 3))
+                for part in (translation, scale)
+            )
             rotation = quaternion_slerp(
                 quaternion[lower].reshape((-1, 4)),
                 quaternion[upper].reshape((-1, 4)),
                 np.repeat(fraction, count),
             )
-            sampled = trs_matrix(
-                (
-                    translation[lower] + (translation[upper] - translation[lower]) * blend
-                ).reshape((-1, 3)),
-                rotation,
-                (scale[lower] + (scale[upper] - scale[lower]) * blend).reshape((-1, 3)),
-            ).reshape((-1, count, 4, 4))
+            sampled = trs_matrix(translation, rotation, scale).reshape((-1, count, 4, 4))
 
         if query.ndim == 0:
             return sampled[0]

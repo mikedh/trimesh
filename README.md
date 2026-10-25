@@ -95,7 +95,7 @@ mesh.show()
 
 # a model on the web renders to a video of its animation, or a turntable,
 # where `.gif` and `.webp` work without ffmpeg installed
-#   trimesh.load_remote(url).export("film.mp4")
+#   trimesh.load_remote(url).render("film.mp4")
 
 # transform method can be passed a (4, 4) matrix and will cleanly apply the transform
 mesh.apply_transform(trimesh.transformations.random_rotation_matrix())

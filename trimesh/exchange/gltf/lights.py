@@ -24,13 +24,8 @@ _CLASSES = {value: key for key, value in _TYPES.items()}
 
 def parse_lights(header, names):
     """
-    Collect the `KHR_lights_punctual` lights a header defines.
-
-    A file stores its lights once in a document-level array and has each
-    node reference one by index. Walk the nodes rather than the array: a
-    light is only in the scene if a node carries it, and two nodes may
-    reference one entry. Each is named after the node carrying it, which
-    is what lets `Scene.lights` and the scene graph refer to one thing.
+    Collect the `KHR_lights_punctual` lights nodes carry, one per node
+    as two nodes may reference one entry of the document's array.
 
     Parameters
     ------------
@@ -65,14 +60,14 @@ def parse_lights(header, names):
             continue
 
         kwargs = {
-            # name it after the node so `Scene.lights` and the graph
-            # agree, which is what a re-export needs
             "name": names[index],
             "intensity": entry.get("intensity", 1.0),
             "radius": entry.get("range"),
+            # glTF lights are white unless they say otherwise
+            "color": color.to_rgba(
+                np.array(entry.get("color", [1.0, 1.0, 1.0]), dtype=np.float64)
+            ),
         }
-        if "color" in entry:
-            kwargs["color"] = color.to_rgba(np.array(entry["color"], dtype=np.float64))
         if constructor is lighting.SpotLight:
             spot = entry.get("spot", {})
             # outer first as the inner setter validates against it
@@ -86,10 +81,8 @@ def parse_lights(header, names):
 
 def append_lights(lights, tree, node_index):
     """
-    Write the light array and every node reference into a tree in-place.
-
-    A node refers to a light by its position in the document array, which
-    is why both halves are written here rather than from opposite ends.
+    Write the light array and every node's reference into it into a
+    tree in place.
 
     Parameters
     ------------

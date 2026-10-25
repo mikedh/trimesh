@@ -21,6 +21,8 @@ if int(pyglet.version.split(".")[0]) >= 2:
     raise ImportError('`trimesh.viewer.pyglet1` requires `pip install "pyglet<2"`')
 
 from ... import util
+from ...scene import lighting
+from ...scene.cameras import DEFAULT_Z_FAR
 from ...transformations import translation_matrix
 from ...typed import ArrayLike, Callable, Iterable, Number
 from ...visual import to_rgba
@@ -493,13 +495,13 @@ class SceneViewer(pyglet.window.Window):
         apply them as openGL lights.
         """
         gl.glEnable(gl.GL_LIGHTING)
+        # the scene's lights or the default ones which aren't in
+        # its graph, with the world transform of each
+        lights, transforms = lighting.autolight(scene)
         # opengl only supports 7 lights?
-        for i, light in enumerate(scene.lights[:7]):
+        for i, (light, matrix) in enumerate(zip(lights[:7], transforms)):
             # the index of which light we have
             lightN = getattr(gl, f"GL_LIGHT{i}")
-
-            # get the transform for the light by name
-            matrix = scene.graph.get(light.name)[0]
 
             # convert light object to glLightfv calls
             multiargs = conversion.light_to_gl(
@@ -640,11 +642,14 @@ class SceneViewer(pyglet.window.Window):
 
         # get field of view and Z range from camera
         camera = self.scene.camera
+        z_far = camera.z_far
+        if not np.isfinite(z_far):
+            # glTF's infinite far plane, which `gluPerspective` can't take,
+            # where a camera framing the scene would put it
+            z_far = DEFAULT_Z_FAR * self.scene.scale
 
         # set perspective from camera data
-        gl.gluPerspective(
-            camera.fov[1], width / float(height), camera.z_near, camera.z_far
-        )
+        gl.gluPerspective(camera.fov[1], width / float(height), camera.z_near, z_far)
         gl.glMatrixMode(gl.GL_MODELVIEW)
 
         return width, height
@@ -925,7 +930,7 @@ def render_scene(
     resolution : (2,) int or None
       Resolution in pixels or set from scene.camera
     visible : bool
-      Show a window during conversion. Note that MANY
+      Show a window during rendering. Note that MANY
       platforms refuse to render with hidden windows
       and will likely return a blank image; this is a
       platform issue and cannot be fixed in Python.
@@ -953,7 +958,7 @@ def render_scene(
         **kwargs,
     )
 
-    from ..util import BytesIO
+    from ...util import BytesIO
 
     # need to run loop twice to display anything
     for save in [False, False, True]:

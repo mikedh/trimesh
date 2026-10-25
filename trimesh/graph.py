@@ -9,6 +9,7 @@ Currently uses networkx or scipy.sparse.csgraph backend.
 """
 
 import collections
+import warnings
 
 import numpy as np
 
@@ -798,10 +799,12 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
     mesh : trimesh.Trimesh
       Source geometry
     angle : float or None
-      Angle in radians: face pairs with angles
+      Angle in radians face pairs with angles
       smaller than this will appear smoothed
     facet_minarea : None
-      Unused and kept for backwards compatibility.
+      DEPRECATED and unused, removal April 2028: faces are smoothed by
+      `angle` alone, and the result no longer stores the groups of
+      faces as `metadata["original_components"]`.
 
     Returns
     ---------
@@ -810,6 +813,14 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
     """
     from .base import Trimesh
 
+    if facet_minarea is not None:
+        warnings.warn(
+            "`smooth_shade(facet_minarea)` is unused and will be removed "
+            + "after April 2028: faces are smoothed by `angle` alone",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+
     if angle is None:
         angle = np.radians(20)
 
@@ -817,48 +828,55 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
     if len(faces) == 0:
         return mesh.copy()
     corner_count = len(faces) * 3
+    vertex_count = len(mesh.vertices)
 
     # the vertex of every triangle corner with vertices merged by position
-    _, position_index = grouping.unique_rows(mesh.vertices)
+    positions, position_index = grouping.unique_rows(mesh.vertices)
     corner_vertex = position_index[faces].ravel()
 
-    # every face has three edges which run from corner to the next corner
+    # every face has three edges which run from corner to the next corner,
+    # and the corners at the lower and higher vertex of each edge
     edge_start = np.arange(corner_count)
     edge_end = edge_start - (edge_start % 3) + ((edge_start + 1) % 3)
-    edges = np.column_stack((corner_vertex[edge_start], corner_vertex[edge_end]))
-    edges.sort(axis=1)
+    flip = corner_vertex > corner_vertex[edge_end]
+    low = np.where(flip, edge_end, edge_start)
+    high = np.where(flip, edge_start, edge_end)
 
-    # pairs of edge indices shared by exactly two faces
-    pairs = grouping.group_rows(edges, require_count=2).reshape((-1, 2))
+    # pairs of edge indices shared by exactly two faces, with each edge
+    # as one integer from its vertices so it runs either way
+    pairs = grouping.group_rows(
+        corner_vertex[low] * vertex_count + corner_vertex[high], require_count=2
+    )
     # only connect faces with normals within the angle threshold
     normals = mesh.face_normals
-    cosine = (normals[pairs[:, 0] // 3] * normals[pairs[:, 1] // 3]).sum(axis=1)
-    pairs = pairs[cosine > np.cos(angle)]
-
-    # a shared edge runs the same or opposite direction in both faces
-    # so match up the corners which sit on the same vertex
-    same = corner_vertex[pairs[:, 0]] == corner_vertex[pairs[:, 1]]
-    other = edge_end[pairs[:, 1]]
-    links = np.column_stack(
-        (
-            pairs[:, 0],
-            np.where(same, pairs[:, 1], other),
-            edge_end[pairs[:, 0]],
-            np.where(same, other, pairs[:, 1]),
-        )
-    ).reshape((-1, 2))
+    paired = normals[pairs // 3]
+    pairs = pairs[util.diagonal_dot(paired[:, 0], paired[:, 1]) > np.cos(angle)]
+    # both faces of a shared edge have a corner on each of its vertices
+    links = np.concatenate((low[pairs], high[pairs]))
     labels = connected_component_labels(links, node_count=corner_count)
 
     # a new vertex for every unique (original vertex, corner group)
-    unique, inverse = grouping.unique_rows(np.column_stack((faces.ravel(), labels)))
-    new_to_old = faces.ravel()[unique]
+    flat = faces.ravel()
+    if len(positions) == vertex_count:
+        # no two vertices share a position, so every corner in a group
+        # is on the same vertex and each group is one new vertex
+        inverse = labels
+        new_to_old = np.zeros(labels.max() + 1, dtype=np.int64)
+        new_to_old[labels] = flat
+    else:
+        unique, inverse = np.unique(
+            labels * vertex_count + flat, return_index=True, return_inverse=True
+        )[1:]
+        new_to_old = flat[unique]
+    # the corner group of every new vertex
+    group = np.zeros(len(new_to_old), dtype=np.int64)
+    group[inverse] = labels
 
     # sum the angle-weighted face normal of every corner in a group
     weighted = np.repeat(normals, 3, axis=0) * mesh.face_angles.reshape((-1, 1))
-    summed = coo_matrix(
-        (np.ones(corner_count), (labels, edge_start)),
-        shape=(corner_count, corner_count),
-    ).dot(weighted)
+    summed = np.bincount(
+        (labels.reshape((-1, 1)) * 3 + np.arange(3)).ravel(), weights=weighted.ravel()
+    ).reshape((-1, 3))
 
     visual = mesh.visual.copy()
     visual.update_vertices(new_to_old)
@@ -867,14 +885,14 @@ def smooth_shade(mesh, angle: Number | None = None, facet_minarea: Number | None
     # vertex, and anything else is kept as it is
     attributes = dict(mesh.vertex_attributes)
     for key, value in mesh.vertex_attributes.items():
-        if np.shape(value)[:1] == (len(mesh.vertices),):
+        if np.shape(value)[:1] == (vertex_count,):
             attributes[key] = value[new_to_old]
 
     return Trimesh(
         vertices=mesh.vertices[new_to_old],
         faces=inverse.reshape((-1, 3)),
         face_normals=normals,
-        vertex_normals=util.unitize(summed[labels[unique]]),
+        vertex_normals=util.unitize(summed[group]),
         visual=visual,
         metadata=mesh.metadata.copy(),
         vertex_attributes=attributes,

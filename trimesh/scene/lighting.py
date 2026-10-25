@@ -13,8 +13,8 @@ import numpy as np
 from .. import util, visual
 from ..typed import NDArray, float64
 
-# glTF lights default to white
-_DEFAULT_RGBA = np.array([255, 255, 255, 255], dtype=np.uint8)
+# default light color
+_DEFAULT_RGBA = np.array([60, 60, 60, 255], dtype=np.uint8)
 
 
 class Light(util.ABC):

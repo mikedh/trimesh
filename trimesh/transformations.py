@@ -1346,10 +1346,7 @@ def quaternion_matrix(quaternion):
 
 
     """
-    q = np.array(quaternion, dtype=np.float64)
-    # was this passed a single quaternion or a stack of them
-    single = q.ndim == 1
-    q = q.reshape((-1, 4))
+    q = np.array(quaternion, dtype=np.float64).reshape((-1, 4))
     n = diagonal_dot(q, q)
     # how many entries do we have
     num_qs = len(n)
@@ -1374,10 +1371,7 @@ def quaternion_matrix(quaternion):
     # set any identities
     ret[identities] = np.eye(4)[None, ...]
 
-    # a length-1 stack is still a stack, so only unwrap a single
-    if single:
-        return ret[0]
-    return ret
+    return ret.squeeze()
 
 
 def quaternion_from_matrix(matrix, isprecise=False):
@@ -1388,8 +1382,7 @@ def quaternion_from_matrix(matrix, isprecise=False):
     or an (n, 4, 4) stack returning (n, 4) quaternions.
 
     If isprecise is True, the input matrix is assumed to be a precise rotation
-    matrix and a faster algorithm is used. Note the precise path branches on
-    which diagonal entry is largest so it only handles a single matrix.
+    matrix and a faster algorithm is used, for a single matrix only.
 
     >>> q = quaternion_from_matrix(np.identity(4), True)
     >>> np.allclose(q, [1, 0, 0, 0])
@@ -1463,7 +1456,6 @@ def quaternion_from_matrix(matrix, isprecise=False):
             np.negative(q, q)
         return q
 
-    # was this passed a single matrix or a stack of them
     single = M.ndim == 2
     # only the top-left rotation block is ever read below, which is what
     # lets a bare (3, 3) through the way the historical crop did
@@ -1483,9 +1475,8 @@ def quaternion_from_matrix(matrix, isprecise=False):
     K[:, 3, 3] = M[:, 0, 0] + M[:, 1, 1] + M[:, 2, 2]
     K /= 3.0
 
-    # quaternion is eigenvector of K that corresponds to largest eigenvalue
-    # note `eigh` is batched over leading dimensions and returns eigenvalues
-    # ascending, so the one we want is always the final column
+    # quaternion is eigenvector of K that corresponds to largest eigenvalue,
+    # which is the last as `eigh` sorts them ascending
     q = np.linalg.eigh(K)[1][:, [3, 0, 1, 2], -1]
     # flip to the positive-real hemisphere
     q[q[:, 0] < 0.0] *= -1.0
@@ -1573,9 +1564,9 @@ def trs_matrix(
     quaternion = np.asanyarray(quaternion, dtype=np.float64)
     scale = np.asanyarray(scale, dtype=np.float64)
     count = max(translation.size // 3, quaternion.size // 4, scale.size // 3)
-    matrix = np.broadcast_to(
-        quaternion_matrix(quaternion.reshape((-1, 4))), (count, 4, 4)
-    ).copy()
+    # `quaternion_matrix` squeezes a stack of one so make it a stack
+    rotations = quaternion_matrix(quaternion).reshape((-1, 4, 4))
+    matrix = np.broadcast_to(rotations, (count, 4, 4)).copy()
     # scaling each column applies the scale before the rotation
     matrix[:, :3, :3] *= np.broadcast_to(scale.reshape((-1, 1, 3)), (count, 1, 3))
     matrix[:, :3, 3] = translation.reshape((-1, 3))
@@ -1603,7 +1594,7 @@ def keyframe_interval(times, query):
     upper : (m,) int
       Keyframe after each query.
     width : (m,) float
-      Seconds between them, never zero.
+      Seconds between them, zero if there is one keyframe.
     fraction : (m,) float
       From 0.0 at `lower` to 1.0 at `upper`.
     """
@@ -1611,8 +1602,12 @@ def keyframe_interval(times, query):
     query = np.asanyarray(query, dtype=np.float64)
     upper = np.clip(np.searchsorted(times, query), 1, len(times) - 1)
     lower = np.maximum(upper - 1, 0)
-    width = np.maximum(times[upper] - times[lower], 1e-12)
-    fraction = np.clip((query - times[lower]) / width, 0.0, 1.0)
+    width = times[upper] - times[lower]
+    # a single keyframe has no width so every query is at it
+    fraction = np.divide(
+        query - times[lower], width, out=np.zeros_like(query), where=width > 0.0
+    )
+    fraction = np.clip(fraction, 0.0, 1.0)
     return lower, upper, width, fraction
 
 
@@ -1769,9 +1764,7 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     q1 = np.array(quat1, dtype=np.float64)
     frac = np.array(fraction, dtype=np.float64)
 
-    # only return a single quaternion if everything passed was single
     single = q0.ndim == 1 and q1.ndim == 1 and frac.ndim == 0
-    # `[..., :4]` truncates an over-length quaternion the way `quat0[:4]` did
     q0 = unit_vector(q0[..., :4].reshape((-1, 4)), axis=1)
     q1 = unit_vector(q1[..., :4].reshape((-1, 4)), axis=1)
     frac = frac.reshape((-1, 1))
@@ -1862,7 +1855,7 @@ def random_rotation_matrix(
     >>> np.allclose(np.dot(R.T, R), np.identity(4))
     True
     >>> R = random_rotation_matrix(num=10)
-    >>> np.allclose(np.matmul(np.swapaxes(R, 1, 2), R), np.identity(4))
+    >>> np.allclose(np.einsum('...ji,...jk->...ik', R, R), np.identity(4))
     True
     >>> bool(np.allclose(random_rotation_matrix(seed=0, translate=10),
     ...                  random_rotation_matrix(seed=0, translate=10)))

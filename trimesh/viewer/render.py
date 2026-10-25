@@ -5,7 +5,7 @@ render.py
 Render a scene to an image or a video with OpenGL or Blender.
 
 ```
-trimesh.load_scene("model.glb").export("model.mp4")
+trimesh.load_scene("model.glb").render("model.mp4")
 ```
 
 A video plays `scene.animations`, looping them if they are shorter, or
@@ -14,15 +14,17 @@ engine's frames is kept apart from encoding them, so every engine writes
 every file type, and a `.blend` is the scene Blender renders.
 """
 
+import contextlib
 import os
 import tempfile
 
 import numpy as np
 
 from .. import util
-from ..interfaces.ffmpeg import VIDEO_TYPES, VideoSettings, VideoWriter
+from ..interfaces.ffmpeg import VIDEO_TYPES, VideoSettings, VideoWriter, frame_durations
 from ..scene.cameras import current_view
 from ..scene.metadata import RenderSettings
+from ..scene.scene import Scene
 from ..typed import Number
 
 # written by Pillow with no ffmpeg: a still image, or a looping animation
@@ -80,7 +82,9 @@ def render_scene(
         still=file_type == "png",
         **kwargs,
     )
-    return encode(frames, file_type=file_type, settings=settings)
+    # the generator frees its viewer or Blender even if encoding fails
+    with contextlib.closing(frames):
+        return encode(frames, file_type=file_type, settings=settings)
 
 
 def render_frames(
@@ -200,10 +204,19 @@ def stage(
     count : int
       Frames to render.
     """
-    # everything below changes a copy, so rendering never changes a scene
+    # everything below changes a copy, so rendering never changes a scene,
+    # which shares the geometry rendering only reads so values cached on
+    # it like `smooth_shaded` are computed once rather than every render
     framed = not scene.has_camera
     camera, camera_transform = current_view(scene, resolution=resolution)
-    scene = scene.copy()
+    original = scene
+    scene = Scene(graph=original.graph.copy(), metadata=original.metadata)
+    scene.geometry.update(original.geometry)
+    scene.cameras = original.cameras
+    scene.animations = list(original.animations)
+    scene.skins = original.skins
+    if original.has_lights:
+        scene.lights = list(original.lights)
     scene.camera = camera
     if framed:
         # a new camera framing the scene stays where it starts, and the
@@ -246,7 +259,7 @@ def opengl_frames(scene, count: int, fps: Number, **kwargs):
     frames : generator
       (height, width, 4) uint8 RGBA images.
     """
-    from .windowed import SceneViewer
+    from .opengl.viewer import SceneViewer
 
     # a render is always offscreen so these don't apply
     for key in ("visible", "start_loop", "fullscreen", "resizable"):
@@ -272,7 +285,7 @@ def opengl_frames(scene, count: int, fps: Number, **kwargs):
                 # an animation shorter than the video loops
                 scene.animate(index / fps, loop=True)
                 # a render looks through the scene's camera, which may be animated
-                viewer.camera_transform = scene.camera_transform
+                viewer.place_camera(scene.camera_transform)
             # animation only moves the scene graph, which every frame reads
             viewer.render(changed=index == 0)
             read_framebuffer_start(framebuffer, buffers[index % 2])
@@ -318,16 +331,17 @@ def encode(frames, file_type: str, settings: VideoSettings) -> bytes:
 
     images = [Image.fromarray(frame) for frame in frames]
     with util.BytesIO() as buffer:
-        # one image is a still and more is a looping animation
-        images[0].save(
-            buffer,
-            format=file_type,
-            save_all=len(images) > 1,
-            append_images=images[1:],
-            # whole milliseconds, which every format can store
-            duration=round(1000.0 / settings.fps),
-            loop=0,
-        )
+        # one image is a still and more is a looping animation, whose
+        # frames end on time in the units each format stores
+        animation = {}
+        if len(images) > 1:
+            animation = {
+                "save_all": True,
+                "append_images": images[1:],
+                "duration": frame_durations(len(images), settings.fps, file_type),
+                "loop": 0,
+            }
+        images[0].save(buffer, format=file_type, **animation)
         return buffer.getvalue()
 
 

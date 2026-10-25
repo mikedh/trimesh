@@ -30,23 +30,6 @@ MAX_SHADOWS = 4
 # the most softboxes an environment can have
 MAX_SOFTBOXES = 4
 
-# the texture unit each sampler reads from for the life of a program
-TEXTURE_UNITS = {
-    "base_color_texture": 0,
-    "metallic_roughness_texture": 1,
-    "emissive_texture": 2,
-    "normal_texture": 3,
-    "occlusion_texture": 4,
-    "face_colors": 5,
-    "shadow_maps": 6,
-    "joint_matrices": 7,
-    "scene_depth": 8,
-    "noisy_occlusion": 9,
-    "ambient_occlusion": 10,
-    "diffuse_transmission_texture": 11,
-    "diffuse_transmission_color_texture": 12,
-}
-
 # material texture sampler : if it holds sRGB colors rather than data
 MATERIAL_TEXTURES = {
     "base_color_texture": True,
@@ -56,6 +39,38 @@ MATERIAL_TEXTURES = {
     "occlusion_texture": False,
     "diffuse_transmission_texture": False,
     "diffuse_transmission_color_texture": True,
+}
+
+# the texture unit each sampler reads from for the life of a program
+TEXTURE_UNITS = {
+    name: unit
+    for unit, name in enumerate(
+        [
+            *MATERIAL_TEXTURES,
+            "face_colors",
+            "shadow_maps",
+            "joint_matrices",
+            "scene_depth",
+            "noisy_occlusion",
+            "ambient_occlusion",
+            "bloom_source",
+        ]
+    )
+}
+
+# the mesh shader's material uniforms and the `MaterialUniforms` field
+# each is set from
+MATERIAL_UNIFORMS = {
+    "base_color_factor": "base_color",
+    "metallic_factor": "metallic",
+    "roughness_factor": "roughness",
+    "emissive_factor": "emissive",
+    "alpha_mode": "alpha_mode",
+    "alpha_cutoff": "alpha_cutoff",
+    "shadow_catcher": "shadow_catcher",
+    "unlit": "unlit",
+    "diffuse_transmission_factor": "diffuse_transmission",
+    "diffuse_transmission_color_factor": "diffuse_transmission_color",
 }
 
 # one row per mesh vertex
@@ -169,6 +184,12 @@ FRAME = np.dtype(
         ("ground_light", "<f4", 4),
         # how far away surfaces hide the environment, then zeros
         ("occlusion_radius", "<f4", 4),
+        # what light is multiplied by before tone mapping, then zeros
+        ("exposure", "<f4", 4),
+        # how much of what the tone mapper compressed glows onto its
+        # neighbors, the glow's standard deviation in texels of the mip
+        # level of the half size picture it is blurred at, that level, then zero
+        ("bloom", "<f4", 4),
     ]
 )
 

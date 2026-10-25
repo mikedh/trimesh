@@ -30,7 +30,7 @@ from trimesh.resolvers import WebResolver
 from trimesh.scene import lighting
 from trimesh.scene.animation import Animation
 from trimesh.scene.metadata import Environment, RenderSettings
-from trimesh.viewer.windowed import SceneViewer
+from trimesh.viewer.opengl.viewer import SceneViewer
 
 # pyrender's models, which are loaded with the files they reference
 MODELS = "https://raw.githubusercontent.com/mmatl/pyrender/master/examples/models/"
@@ -91,7 +91,7 @@ def build(resolver, seed=0):
         (
             "bottle",
             bottle,
-            [[1, 0, 0, 0.1], [0, 0, -1, -0.16], [0, 1, 0, 0.13], [0, 0, 0, 1]],
+            np.array([[1, 0, 0, 0.1], [0, 0, -1, -0.16], [0, 1, 0, 0.13], [0, 0, 0, 1]]),
         ),
         ("vertex_box", vertex_box, shift([-0.1, 0.1, 0.05])),
         ("face_box", face_box, shift([-0.1, -0.1, 0.05])),
@@ -181,9 +181,9 @@ if __name__ == "__main__":
     Image.fromarray(gray).save(os.path.join(directory, "pyrender_segmentation.png"))
     # and orbiting the table like pyrender's own page, with only Pillow
     orbit(scene)
-    scene.export(os.path.join(directory, "pyrender_scene.gif"), resolution=[640, 480])
+    scene.render(os.path.join(directory, "pyrender_scene.gif"), resolution=[640, 480])
     if trimesh.interfaces.ffmpeg.exists:
         # and as a 4K video when ffmpeg is installed
-        scene.export(
+        scene.render(
             os.path.join(directory, "pyrender_scene_4k.mp4"), resolution=[2880, 2160]
         )

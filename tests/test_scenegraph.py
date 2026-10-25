@@ -327,6 +327,24 @@ def test_scaling_order():
     c = s.scaled(scaling)
     factor = c.geometry["geometry_0"].vertices / s.geometry["geometry_0"].vertices
     assert g.np.allclose(factor, scaling)
+
+    # scaling every edge translation scales every world transform as
+    # conjugating it by the scale, which leaves the rotations alone
+    assembly = g.get_mesh("cycloidal.3DXML")
+    stretch = g.np.diag([2.5, 2.5, 2.5, 1.0])
+    scaled = assembly.scaled(2.5)
+    checks = {
+        f"{node} world": g.np.allclose(
+            scaled.graph[node][0],
+            stretch @ assembly.graph[node][0] @ g.np.linalg.inv(stretch),
+        )
+        for node in assembly.graph.nodes
+    }
+    checks["same edges"] = set(scaled.graph.transforms.edge_data) == set(
+        assembly.graph.transforms.edge_data
+    )
+    for name, ok in checks.items():
+        assert ok, name
     # should be returning itself
     r = s.apply_translation([10.5, 10.5, 10.5])
     assert g.np.allclose(r.bounds, [[10, 10, 10], [11, 11, 11]])
@@ -372,6 +390,23 @@ def test_falsy_base_frame():
     assert sub.graph.base_frame == 0
     assert set(sub.graph.nodes_geometry) == {"child"}
     assert g.np.isclose(sub.volume, box.volume)
+
+    # setting many matrices at once keeps a falsy parent, and the world
+    # transforms cached before it are recomputed
+    edges = set(s.graph.transforms.edge_data)
+    before = s.graph["child"][0]
+    shift = g.tf.translation_matrix([1, 2, 3])
+    s.graph.update_matrices([(0, "child")], [shift])
+    checks = {
+        "parent kept": s.graph.transforms.parents["child"] == 0,
+        "edges unchanged": set(s.graph.transforms.edge_data) == edges,
+        "matrix set": g.np.array_equal(
+            s.graph.transforms.edge_data[(0, "child")].get("matrix"), shift
+        ),
+        "cache cleared": g.np.allclose(s.graph["child"][0], before @ shift),
+    }
+    for name, ok in checks.items():
+        assert ok, name
 
 
 def test_reconstruct():

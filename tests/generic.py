@@ -132,6 +132,22 @@ has_binvox = trimesh.exchange.binvox.binvox_encoder is not None
 if all_dependencies and not has_binvox:
     raise ValueError("missing binvox")
 
+# `trimesh-setup --matrix` sets i.e. `pyglet==2.1.19` or `blender==4.5.15`
+# so a matrix entry can't quietly test a different version than it installed
+expect = os.environ.get("TRIMESH_EXPECT")
+if expect is not None:
+    expect_name, expect_version = expect.split("==")
+    if expect_name == "pyglet":
+        import pyglet
+
+        installed = pyglet.version
+    elif expect_name == "blender":
+        # the version of the Blender trimesh will run, i.e. `(4, 5, 15)`
+        installed = ".".join(str(i) for i in trimesh.interfaces.blender.version())
+    else:
+        raise ValueError(f"unknown `TRIMESH_EXPECT={expect}`")
+    assert installed == expect_version, f"`TRIMESH_EXPECT={expect}` but `{installed}`"
+
 # Python version as a tuple, i.e. [3, 6]
 PY_VER = (sys.version_info.major, sys.version_info.minor)
 
@@ -664,13 +680,13 @@ def roundtrip(exported, file_type, **kwargs):
 def require_rendering():
     """Skip without OpenGL unless `INCLUDE_RENDERING`, where failing is loud."""
     try:
-        from trimesh.viewer.windowed import hidden_context
+        from trimesh.viewer.opengl.viewer import hidden_context
 
         hidden_context()
     except ValueError:
         # our own shaders failing to compile is a bug, never a skip
         raise
-    except BaseException as E:
+    except Exception as E:
         if include_rendering:
             raise
         raise unittest.SkipTest(f"unable to create an OpenGL context: {E}")
@@ -690,13 +706,13 @@ def set_render(scene, **settings):
 def offscreen_viewer(scene, resolution=(320, 240), studio=False, **kwargs):
     """A hidden viewer, without floor or occlusion unless `studio`."""
     require_rendering()
-    from trimesh.viewer.windowed import SceneViewer
+    from trimesh.viewer.opengl.viewer import SceneViewer
 
     if not studio:
         set_render(scene, ground_shadow=False)
         kwargs["flags"] = {"ambient_occlusion": False, **kwargs.get("flags", {})}
     # tests compare against rays from the scene's camera at this resolution
-    scene.camera.resolution = resolution
+    scene.camera.fit_resolution(resolution)
     return SceneViewer(
         scene, visible=False, start_loop=False, resolution=resolution, **kwargs
     )
@@ -711,11 +727,6 @@ def render(scene, include_depth=False, include_segmentation=False, **kwargs):
         )
     finally:
         viewer.close()
-
-
-def rgb(scene, **kwargs):
-    """A render's color as (h, w, 3) float64."""
-    return render(scene, **kwargs).color[..., :3].astype(np.float64)
 
 
 def png(data):
@@ -799,205 +810,6 @@ def camera_ray_reference(scene):
     return depth, index
 
 
-def environment_reference(environment, directions, sharpness):
-    """
-    An environment's linear light averaged by a normalized spherical
-    Gaussian around each direction, from textbook float64 integrals.
-    """
-    directions = np.asarray(directions, dtype=np.float64)
-    sharpness = np.broadcast_to(np.asarray(sharpness, dtype=np.float64), len(directions))
-    # the mean cosine of a spherical Gaussian is coth(s) - 1/s
-    mean = 1.0 / np.tanh(sharpness) - 1.0 / sharpness
-    height = (directions @ trimesh.util.unitize(environment.up)) * mean
-    sky, ground = np.array(environment.sky), np.array(environment.ground)
-    light = ground + (sky - ground) * (0.5 + 0.5 * height)[:, None]
-    # a kernel of sharpness s integrates to 2 pi (1 - exp(-2 s)) / s
-    total = 2.0 * np.pi * -np.expm1(-2.0 * sharpness) / sharpness
-    for box in environment.softboxes:
-        axis = trimesh.util.unitize(box.direction)
-        combined = np.linalg.norm(
-            box.sharpness * axis + sharpness[:, None] * directions, axis=1
-        )
-        # 4 pi exp(-s1 - s2) sinh(r) / r without overflowing sinh
-        product = (
-            2.0
-            * np.pi
-            * np.exp(combined - box.sharpness - sharpness)
-            * -np.expm1(-2.0 * combined)
-            / combined
-        )
-        light = light + np.array(box.color) * (product / total)[:, None]
-    return light
-
-
-def shade_reference(scene, normal=None, studio=None):
-    """
-    The sRGB 0-255 image the viewer should draw for opaque `PBRMaterial`
-    meshes, NaN where no ray hits, evaluated independently from camera
-    rays and the glTF and `KHR_lights_punctual` specs, optionally with a
-    constant tangent space `normal` map and lights from `studio`.
-    """
-    from trimesh.scene.lighting import DirectionalLight, SpotLight
-    from trimesh.scene.metadata import (
-        DIFFUSE_SHARPNESS,
-        SPECULAR_SHARPNESS,
-        RenderSettings,
-    )
-
-    if studio is None:
-        studio = RenderSettings.from_metadata(scene.metadata).resolve(
-            scene, scene.camera_transform
-        )
-    width, height = scene.camera.resolution
-    meshes = [mesh.smooth_shaded for mesh in scene.dump()]
-    hits = camera_hits(scene, meshes)
-    points, corners = hits.points, hits.combined.faces[hits.face]
-    barycentric = trimesh.triangles.points_to_barycentric(
-        hits.combined.triangles[hits.face], points
-    )
-    surface = trimesh.util.unitize(
-        (hits.combined.vertex_normals[corners] * barycentric[:, :, None]).sum(axis=1)
-    )
-    view = -trimesh.util.unitize(hits.vectors[hits.ray])
-    # light the back of a triangle as if it were the front
-    surface[(surface * view).sum(axis=1) < 0.0] *= -1.0
-    if normal is not None:
-        # the tangent and bitangent are how position changes with uv
-        uv = np.vstack([m.visual.uv for m in meshes])[corners]
-        position = hits.combined.vertices[corners]
-        inverse = np.linalg.inv(uv[:, 1:] - uv[:, :1])
-        edges = position[:, 1:] - position[:, :1]
-        tangent = trimesh.util.unitize(np.matmul(inverse[:, :1], edges)[:, 0])
-        bitangent = trimesh.util.unitize(np.matmul(inverse[:, 1:2], edges)[:, 0])
-        surface = trimesh.util.unitize(
-            tangent * normal[0] + bitangent * normal[1] + surface * normal[2]
-        )
-
-    materials = [m.visual.material for m in meshes]
-    base = (np.array([m.baseColorFactor for m in materials]) / 255.0)[hits.mesh, :3]
-    metallic = np.array([[m.metallicFactor] for m in materials])[hits.mesh]
-    roughness = np.clip([[m.roughnessFactor] for m in materials], 0.04, 1.0)[hits.mesh]
-    reflectance = 0.04 * (1.0 - metallic) + base * metallic
-    diffuse_color = base * (1.0 - metallic)
-    # `KHR_materials_diffuse_transmission` mixes the dielectric Lambert
-    # reflection with Lambert transmission of light from the other side
-    transmission = np.array([[m.diffuseTransmissionFactor or 0.0] for m in materials])
-    transmission_color = np.ones((len(materials), 3))
-    for index, material in enumerate(materials):
-        if material.diffuseTransmissionColorFactor is not None:
-            transmission_color[index] = material.diffuseTransmissionColorFactor
-    transmission_color = (transmission_color * transmission)[hits.mesh] * (1.0 - metallic)
-    diffuse_color = diffuse_color * (1.0 - transmission[hits.mesh])
-    alpha_squared = roughness**4
-    geometry_k = (roughness + 1.0) ** 2 / 8.0
-    normal_dot_view = np.maximum((surface * view).sum(axis=1, keepdims=True), 1e-4)
-
-    color = np.zeros_like(points)
-    for light, pose in zip(studio.lights, studio.transforms):
-        # lights shine down their -Z, and only directional lights have
-        # no position, falloff or range
-        backwards = trimesh.util.unitize(pose[:3, 2])
-        to_light = np.tile(backwards, (len(points), 1))
-        distance_squared = np.ones((len(points), 1))
-        window = np.ones_like(distance_squared)
-        if not isinstance(light, DirectionalLight):
-            to_light = pose[:3, 3] - points
-            distance_squared = (to_light**2).sum(axis=1, keepdims=True)
-            if light.radius is not None:
-                window = np.clip(1.0 - (distance_squared / light.radius**2) ** 2, 0, 1)
-        direction = trimesh.util.unitize(to_light)
-        cone = np.ones_like(distance_squared)
-        if isinstance(light, SpotLight):
-            inner, outer = np.cos(light.innerConeAngle), np.cos(light.outerConeAngle)
-            cosine = (direction * backwards).sum(axis=1, keepdims=True)
-            cone = np.clip((cosine - outer) / max(inner - outer, 1e-3), 0.0, 1.0)
-        radiance = light.color[:3] / 255.0 * light.intensity * (window * cone) ** 2
-        radiance = radiance / distance_squared
-
-        half = trimesh.util.unitize(direction + view)
-        cosine_light = (surface * direction).sum(1, keepdims=True)
-        normal_dot_light = np.maximum(cosine_light, 0.0)
-        # light from behind is transmitted with the fresnel term of the
-        # light mirrored through the surface
-        behind = np.maximum(-cosine_light, 0.0)
-        mirrored = trimesh.util.unitize(direction + 2.0 * behind * surface + view)
-        mirrored_dot_half = np.clip((view * mirrored).sum(1, keepdims=True), 0.0, 1.0)
-        transmitted = (
-            (1.0 - reflectance)
-            * (1.0 - (1.0 - mirrored_dot_half) ** 5)
-            * transmission_color
-            / np.pi
-        )
-        normal_dot_half = np.maximum((surface * half).sum(1, keepdims=True), 0.0)
-        view_dot_half = np.maximum((view * half).sum(1, keepdims=True), 0.0)
-        fresnel = reflectance + (1.0 - reflectance) * (1.0 - view_dot_half) ** 5
-        distribution = alpha_squared / (
-            np.pi * (normal_dot_half**2 * (alpha_squared - 1.0) + 1.0) ** 2
-        )
-        geometry = (
-            normal_dot_view / (normal_dot_view * (1 - geometry_k) + geometry_k)
-        ) * (normal_dot_light / (normal_dot_light * (1 - geometry_k) + geometry_k))
-        specular = (
-            fresnel
-            * distribution
-            * geometry
-            / (4 * normal_dot_view * normal_dot_light + 1e-4)
-        )
-        diffuse = (1.0 - fresnel) * diffuse_color / np.pi
-        color += (
-            (diffuse + specular) * normal_dot_light + transmitted * behind
-        ) * radiance
-
-    # Karis's fit of the environment BRDF
-    fit = roughness * [-1.0, -0.0275, -0.572, 0.022] + [1.0, 0.0425, 1.04, -0.04]
-    bias = (
-        np.minimum(fit[:, :1] ** 2, np.exp2(-9.28 * normal_dot_view)) * fit[:, :1]
-        + fit[:, 1:2]
-    )
-    # diffuse sees the cosine lobe around the normal and specular the
-    # reflection blurred by a spherical Gaussian as wide as the GGX lobe
-    reflected = 2.0 * (surface * view).sum(axis=1, keepdims=True) * surface - view
-    environment = studio.environment
-    color += diffuse_color * environment_reference(
-        environment, surface, DIFFUSE_SHARPNESS
-    ) + transmission_color * environment_reference(
-        environment, -surface, DIFFUSE_SHARPNESS
-    )
-    blur = np.exp(np.polyval(SPECULAR_SHARPNESS, np.log(roughness[:, 0])))
-    color += environment_reference(environment, reflected, blur) * (
-        reflectance * (-1.04 * bias + fit[:, 2:3]) + 1.04 * bias + fit[:, 3:4]
-    )
-
-    # the Khronos PBR Neutral tone mapper
-    darkest = color.min(axis=1, keepdims=True)
-    color -= np.where(darkest < 0.08, darkest - 6.25 * darkest**2, 0.04)
-    peak = color.max(axis=1, keepdims=True)
-    start, headroom = 0.76, 0.24
-    new_peak = 1.0 - headroom**2 / (peak + headroom - start)
-    fade = 1.0 - 1.0 / (0.15 * (peak - new_peak) + 1.0)
-    compressed = color * new_peak / np.maximum(peak, 1e-12)
-    compressed = compressed * (1 - fade) + new_peak * fade
-    color = np.clip(np.where(peak < start, color, compressed), 0.0, 1.0)
-    srgb = np.where(color < 0.0031308, color * 12.92, 1.055 * color ** (1 / 2.4) - 0.055)
-
-    image = np.full((height, width, 3), np.nan)
-    image[hits.rows, hits.columns] = srgb * 255.0
-    return image
-
-
-def pbr_mesh(mesh, color, metallic, roughness, uv=None):
-    """Give a mesh a plain `PBRMaterial`, with zero uv unless passed."""
-    if uv is None:
-        uv = np.zeros((len(mesh.vertices), 2))
-    mesh.visual = trimesh.visual.TextureVisuals(
-        uv=uv,
-        material=trimesh.visual.material.PBRMaterial(
-            baseColorFactor=color, metallicFactor=metallic, roughnessFactor=roughness
-        ),
-    )
-    return mesh
-
-
 def affine(count, seed=0, rigid=False):
     """Random transforms, mirrored and non-uniformly scaled unless `rigid`."""
     random = np.random.default_rng(seed)
@@ -1023,20 +835,46 @@ def glb_chunks(export):
 
 
 def accessor_values(header, blob):
-    """Every accessor of a GLB as a (count, width) array of its stored dtype."""
-    from trimesh.exchange.gltf import _dtypes, _shapes
-
+    """
+    Every accessor of a GLB as (count, width) float64 with normalized
+    integers scaled to one, from the spec's own tables rather than
+    trimesh's so a shared bug can't hide.
+    """
+    dtypes = {5120: "i1", 5121: "u1", 5122: "<i2", 5123: "<u2", 5125: "<u4", 5126: "<f4"}
+    widths = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
     values = []
     for accessor in header["accessors"]:
+        dtype = np.dtype(dtypes[accessor["componentType"]])
         view = header["bufferViews"][accessor["bufferView"]]
         start = view.get("byteOffset", 0) + accessor.get("byteOffset", 0)
-        dtype = np.dtype(_dtypes[accessor["componentType"]])
-        width = int(np.prod(_shapes[accessor["type"]]))
-        data = np.frombuffer(
-            blob[start : start + accessor["count"] * width * dtype.itemsize], dtype
-        )
-        values.append(data.reshape((accessor["count"], width)))
+        count = accessor["count"] * widths[accessor["type"]]
+        data = np.frombuffer(blob, dtype, count, start).astype(np.float64)
+        if accessor.get("normalized", False):
+            data /= np.iinfo(dtype).max
+        values.append(data.reshape((accessor["count"], -1)))
     return values
+
+
+def dolly_scene(node, duration=1.0):
+    """
+    A red box seen by a camera on a dolly, with `node`, which is "box"
+    or "dolly", sliding along X a unit a second for `duration` seconds.
+    """
+    from trimesh.scene.animation import Animation
+
+    box = trimesh.creation.box()
+    box.visual.face_colors = [255, 0, 0, 255]
+    scene = trimesh.Scene()
+    scene.add_geometry(box, node_name="box")
+    scene.graph.update(frame_to="dolly", matrix=np.eye(4))
+    scene.camera = trimesh.scene.Camera(name="lens", fov=(60, 45))
+    lens = trimesh.transformations.translation_matrix([0, 0, 6])
+    scene.graph.update(frame_from="dolly", frame_to="lens", matrix=lens)
+    times = np.linspace(0.0, duration, 5)
+    slide = np.tile(np.eye(4), (len(times), 1, 1))
+    slide[:, 0, 3] = times
+    scene.animations.append(Animation(edges=[(None, node)], times=times, matrices=slide))
+    return scene
 
 
 def to_glb_bytes(geom: trimesh.Geometry) -> bytes:
@@ -1089,6 +927,8 @@ _gltf_validator = shutil.which("gltf_validator")
 def validate_glb(data, name=None):
     """Raise if the Khronos validator reports any error or warning on a GLB."""
     if _gltf_validator is None:
+        if all_dependencies:
+            raise ValueError("gltf_validator is required!")
         log.warning("no gltf_validator!")
         return
     with tempfile.NamedTemporaryFile(suffix=".glb") as f:
@@ -1100,8 +940,17 @@ def validate_glb(data, name=None):
             [_gltf_validator, file_name, "-o"], cwd=temp_dir, capture_output=True
         )
         issues = json.loads(report.stdout)["issues"]
-    # exports are clean: a warning is a viewer somewhere doing the wrong thing
-    if report.returncode != 0 or issues["numErrors"] > 0 or issues["numWarnings"] > 0:
+    # exports are clean: a warning is a viewer somewhere doing the wrong thing,
+    # except tangents being absent, which the glTF spec has clients generate
+    # with MikkTSpace and which source files like AlphaBlendModeTest.glb note
+    # counted from the listed codes, so a truncated list only counts more
+    generated = sum(
+        message["severity"] == 1
+        and message["code"] == "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE"
+        for message in issues["messages"]
+    )
+    counted = issues["numWarnings"] - generated
+    if report.returncode != 0 or issues["numErrors"] > 0 or counted > 0:
         log.error(f"`{name}` failed validation: {issues['messages']} {report.stderr}")
         raise ValueError("gltf_validator failed")
 

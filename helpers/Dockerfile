@@ -71,14 +71,19 @@ COPY --chown=499 --from=build /home/user/venv /home/user/venv
 #### Run Unit Tests
 FROM output AS tests
 
+# every Blender the matrix tests, in a layer before anything which
+# changes often so they aren't downloaded again on every build
+RUN trimesh-setup --fetch-only
+
 # copy in tests and supporting files
 COPY --chown=499 tests ./tests/
 COPY --chown=499 trimesh ./trimesh/
 COPY --chown=499 models ./models/
+COPY --chown=499 examples ./examples/
 COPY --chown=499 pyproject.toml .
 
 USER root
-RUN trimesh-setup --install=test,gmsh,gltf_validator,llvmpipe,binvox,blender,build
+RUN trimesh-setup --install=test,gmsh,gltf_validator,glslang,llvmpipe,binvox,blender,build
 USER user
 
 RUN bash -c "ldconfig & blender --version"
@@ -102,21 +107,14 @@ RUN COLUMNS=240 xvfb-run pytest \
     -p no:INCLUDE_RENDERING \
     -p no:cacheprovider tests
 
-# rerun the rendering tests on each supported pyglet, one RUN per version:
+# rerun subsets of the tests on each `trimesh-setup --matrix` entry
+# i.e. every supported pyglet and Blender, each in its own environment:
 # `--cov-append` adds every run to the same `.coverage` as the full suite
-ARG RENDERING="tests/test_viewer.py tests/test_camera.py tests/test_animation.py tests/test_examples.py tests/test_render.py"
-
-# pyglet 1.5: the legacy OpenGL viewer
-RUN pip install "pyglet==1.5.31" && \
-    xvfb-run pytest $RENDERING --cov=trimesh --cov-append -p no:INCLUDE_RENDERING -p no:cacheprovider
-
-# pyglet 2.1: the current stable release
-RUN pip install "pyglet==2.1.19" && \
-    xvfb-run pytest $RENDERING --cov=trimesh --cov-append -p no:INCLUDE_RENDERING -p no:cacheprovider
-
-# pyglet 3.0: the development release
-RUN pip install "pyglet==3.0.dev11" && \
-    xvfb-run pytest $RENDERING --cov=trimesh --cov-append -p no:INCLUDE_RENDERING -p no:cacheprovider
+ARG MATRIX="pyglet1 pyglet2 pyglet3 blender43 blender45 blender50"
+RUN for name in $MATRIX; do \
+      xvfb-run -a trimesh-setup --matrix $name \
+        --cov=trimesh --cov-append -p no:INCLUDE_RENDERING -p no:cacheprovider || exit 1; \
+    done
 
 ################################
 ### Build Sphinx Docs
@@ -128,9 +126,7 @@ RUN trimesh-setup --install docs
 USER user
 
 COPY --chown=499 README.md .
-# `release.yml` saves the union of every CI job as `.coverage.ci` and
-# the `*` glob copies nothing rather than failing when it isn't there
-COPY --chown=499 pyproject.toml .coverage.ci* ./
+COPY --chown=499 pyproject.toml .
 COPY --chown=499 docs ./docs/
 COPY --chown=499 examples ./examples/
 COPY --chown=499 models ./models/
@@ -138,13 +134,10 @@ COPY --chown=499 trimesh ./trimesh/
 
 # pull the coverage data from the tests stage so the docs build can render
 # it into a styled report next to `trimesh` (same path pytest measured)
-COPY --chown=499 --from=tests /home/user/.coverage /home/user/.coverage.docker
+COPY --chown=499 --from=tests /home/user/.coverage /home/user/.coverage
 
 # autodoc walks trimesh modules that import optional deps
 RUN pip install /home/user[easy,recommend]
-
-# union `.coverage.docker` and `.coverage.ci` into the `.coverage` rendered
-RUN pip install -r docs/requirements.txt && coverage combine
 
 WORKDIR /home/user/docs
 RUN make clean && make

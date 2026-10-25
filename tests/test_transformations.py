@@ -78,11 +78,71 @@ def test_trs():
         and g.np.isclose(g.np.linalg.det(rotation), 1.0),
         "single stays single": [part.shape for part in first] == [(3,), (4,), (3,)],
         "single round trip": g.np.allclose(tf.trs_matrix(*first), matrices[0]),
-        "one stays a stack": tf.quaternion_matrix(quaternion[:1]).shape == (1, 4, 4),
+        # a stack of one squeezes to one matrix as it always has
+        "one quaternion squeezes": tf.quaternion_matrix(quaternion[:1]).shape
+        == tf.quaternion_matrix([[quaternion[0]]]).shape
+        == (4, 4),
+        # while every batch of TRS stays a batch
+        "one trs stays a stack": tf.trs_matrix(
+            translation[:1], quaternion[:1], recovered[:1]
+        ).shape
+        == (1, 4, 4),
+        "broadcast trs": tf.trs_matrix(translation, quaternion[0], recovered[0]).shape
+        == tf.trs_matrix(translation[0], quaternion, recovered[0]).shape
+        == (50, 4, 4),
         "batched from_matrix": g.np.allclose(
             tf.quaternion_from_matrix(matrices), quaternions
         ),
         "batched slerp": g.np.allclose(tf.quaternion_slerp(start, end, fraction), slerps),
+    }
+    for name, ok in checks.items():
+        assert ok, name
+
+
+def test_skin_points():
+    """`skin_points` matches the per-point weighted sum of joint transforms."""
+    tf = g.trimesh.transformations
+    random = g.np.random.default_rng(4)
+    points = random.uniform(-2.0, 2.0, (200, 3))
+    matrices = g.affine(6, seed=8)
+    joints = random.integers(0, 6, (200, 4))
+    weights = random.random((200, 4))
+    weights /= weights.sum(axis=1, keepdims=True)
+    one = g.np.zeros((200, 4))
+    one[:, 0] = 1.0
+    unused = joints.copy()
+    unused[:, 1:] = random.integers(0, 6, (200, 3))
+    single = tf.skin_points(points, joints, one, matrices)
+    same = g.np.tile(matrices[:1], (6, 1, 1))
+    empty = tf.skin_points(
+        g.np.zeros((0, 3)), g.np.zeros((0, 4), int), g.np.zeros((0, 4)), matrices
+    )
+
+    # an explicit per-point loop is the definition
+    loop = [
+        sum(w * (matrices[j] @ [*p, 1.0])[:3] for j, w in zip(row_joints, row_weights))
+        for p, row_joints, row_weights in zip(points, joints, weights)
+    ]
+    first = [
+        tf.transform_points([p], matrices[j])[0] for p, j in zip(points, joints[:, 0])
+    ]
+    checks = {
+        "matches the definition": g.np.allclose(
+            tf.skin_points(points, joints, weights, matrices), loop, atol=1e-12
+        ),
+        # one joint with all the weight is just that transform
+        "single joint": g.np.allclose(single, first, atol=1e-12),
+        # joints with no weight don't matter
+        "unweighted joints ignored": g.np.array_equal(
+            single, tf.skin_points(points, unused, one, matrices)
+        ),
+        # weights summing to one of the same transform is that transform
+        "same transform": g.np.allclose(
+            tf.skin_points(points, joints, weights, same),
+            tf.transform_points(points, matrices[0]),
+            atol=1e-12,
+        ),
+        "empty": empty.shape == (0, 3),
     }
     for name, ok in checks.items():
         assert ok, name

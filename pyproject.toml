@@ -140,17 +140,6 @@ all = ["trimesh[easy,recommend,test,test_more,deprecated]"]
 # should name the frame rather than burn the job timeout in silence
 faulthandler_timeout = 300
 
-[tool.coverage.run]
-source = ["trimesh"]
-# every CI job on each OS and pyglet version saves a `.coverage.<job>`
-# file with paths relative to the checkout: `coverage combine` unions them
-relative_files = true
-parallel = true
-
-[tool.coverage.paths]
-# the first entry is where the combined report reads source from
-source = ["trimesh/", "*/site-packages/trimesh/", '*\site-packages\trimesh\']
-
 [tool.coverage.html]
 # coverage report publishes to `trimesh.org/coverage`
 title = "trimesh coverage"

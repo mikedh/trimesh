@@ -13,10 +13,9 @@ from copy import deepcopy
 
 import numpy as np
 
-from ... import resources, transformations, util, visual
+from ... import resources, util, visual
 from ...caching import hash_fast
 from ...constants import log, tol
-from ...geometry import vertex_tangents
 from ...iteration import IndexedDict
 from ...resolvers import ResolverLike, ZipResolver
 from ...scene.cameras import Camera
@@ -26,9 +25,9 @@ from ...util import triangle_strips_to_faces, unique_name
 from .animation import (
     append_animations,
     append_skins,
+    node_matrices,
     parse_animations,
     parse_skins,
-    trs_from_node,
 )
 from .extensions import handle_extensions, unregistered
 from .lights import NAME as _LIGHTS
@@ -997,9 +996,6 @@ def _append_mesh(
                 "Vertex colors have different length than mesh vertices, dropping!"
             )
 
-    # a normal map is drawn along tangents which every viewer would
-    # otherwise make its own way, and which need normals with them
-    uv_tangents = None
     if hasattr(mesh.visual, "material"):
         # if mesh has UV coordinates defined export them
         has_uv = (
@@ -1037,16 +1033,12 @@ def _append_mesh(
             )
             # add the reference for UV coordinates
             current["primitives"][0]["attributes"]["TEXCOORD_0"] = acc_uv
-            if getattr(mesh.visual.material, "normalTexture", None) is not None:
-                uv_tangents = uv
 
         # reference the material
         current["primitives"][0]["material"] = current_material
 
-    if (
-        include_normals
-        or uv_tangents is not None
-        or (include_normals is None and "vertex_normals" in mesh._cache.cache)
+    if include_normals or (
+        include_normals is None and "vertex_normals" in mesh._cache.cache
     ):
         # store vertex normals if requested
         if unitize_normals:
@@ -1070,17 +1062,6 @@ def _append_mesh(
         )
         # add the reference for vertex color
         current["primitives"][0]["attributes"]["NORMAL"] = acc_norm
-
-        if uv_tangents is not None:
-            current["primitives"][0]["attributes"]["TANGENT"] = _data_append(
-                acc=tree["accessors"],
-                buff=buffer_items,
-                blob={"componentType": 5126, "type": "VEC4", "byteOffset": 0},
-                data=vertex_tangents(
-                    mesh.vertices, mesh.faces, uv_tangents, normals
-                ).astype(float32),
-                claimed=claimed,
-            )
 
     # which four joints move each vertex and how much, which glTF names
     attributes = dict(mesh.vertex_attributes)
@@ -1354,6 +1335,7 @@ def _append_path(path, name, tree, buffer_items):
             },
             data=per_vertex,
         )
+        # add color to attributes
         current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
 
     # for each attribute with a leading underscore, assign them to path
@@ -1453,6 +1435,7 @@ def _append_point(points, name, tree, buffer_items):
             },
             data=colors.astype(uint8),
         )
+        # add color to attributes
         current["primitives"][0]["attributes"]["COLOR_0"] = acc_color
     tree["meshes"].append(current)
 
@@ -2027,6 +2010,9 @@ def _read_buffers(
     # nodes in an order that has nothing to do with the file's
     lights = parse_lights(header, names)
 
+    # every node's transform from its parent, computed at once
+    matrices = node_matrices(nodes)
+
     # visited, kwargs for scene.graph.update
     graph = deque()
     # unvisited, pairs of node indexes
@@ -2078,16 +2064,9 @@ def _read_buffers(
         # kwargs to be passed to scene.graph.update
         kwargs = {"frame_from": names[a], "frame_to": names[b]}
 
-        # grab matrix from child
         # parent -> child relationships have matrix stored in child
         # for the transform from parent to child
-        if "matrix" in child:
-            kwargs["matrix"] = (
-                np.array(child["matrix"], dtype=np.float64).reshape((4, 4)).T
-            )
-        else:
-            # a node without a matrix stores a translation, rotation, and scale
-            kwargs["matrix"] = transformations.trs_matrix(*trs_from_node(child))
+        kwargs["matrix"] = matrices[b]
 
         # a camera is named after its node, which stays in the graph like
         # any other so it moves with its parents, such as a car
@@ -2115,9 +2094,7 @@ def _read_buffers(
                 key: value for key, value in child["extensions"].items() if key != _LIGHTS
             }
             if len(extensions) > 0:
-                if "metadata" not in kwargs:
-                    kwargs["metadata"] = {}
-                kwargs["metadata"]["gltf_extensions"] = extensions
+                kwargs.setdefault("metadata", {})["gltf_extensions"] = extensions
 
         if "mesh" in child:
             geometries = mesh_prim[child["mesh"]]
@@ -2232,20 +2209,18 @@ def _cam_from_gltf(cam):
     # it is given one, which keeps the vertical field of view
     xfov = 2.0 * np.arctan(perspective.get("aspectRatio", 1.0) * np.tan(yfov / 2.0))
 
-    kwargs = {}
-    # `zfar` is optional and means an infinite projection when missing,
-    # so only override the default when the file actually says something
-    if "zfar" in perspective:
-        kwargs["z_far"] = float(perspective["zfar"])
-
     return Camera(
-        name=name, fov=np.degrees([xfov, yfov]), z_near=perspective["znear"], **kwargs
+        name=name,
+        fov=np.degrees([xfov, yfov]),
+        z_near=perspective["znear"],
+        # `zfar` is optional and means an infinite projection when missing
+        z_far=float(perspective.get("zfar", np.inf)),
     )
 
 
 def _convert_camera(camera):
     """
-    Convert a trimesh camera to a glTF camera.
+    Convert a trimesh camera to a GLTF camera.
 
     Parameters
     ------------
@@ -2255,7 +2230,7 @@ def _convert_camera(camera):
     Returns
     -------------
     gltf_camera : dict
-      Camera represented as a glTF dict
+      Camera represented as a GLTF dict
     """
     if camera.magnification is not None:
         return {
@@ -2269,18 +2244,16 @@ def _convert_camera(camera):
             },
         }
     half = np.tan(np.radians(camera.fov) / 2.0)
-    return {
-        "name": camera.name,
-        "type": "perspective",
-        "perspective": {
-            # width over height is the ratio of the half angle tangents
-            "aspectRatio": float(half[0] / half[1]),
-            "yfov": float(np.radians(camera.fov[1])),
-            "znear": float(camera.z_near),
-            # without `zfar` a glTF camera has an infinite projection
-            "zfar": float(camera.z_far),
-        },
+    perspective = {
+        # width over height is the ratio of the half angle tangents
+        "aspectRatio": float(half[0] / half[1]),
+        "yfov": float(np.radians(camera.fov[1])),
+        "znear": float(camera.z_near),
     }
+    # without `zfar` a glTF camera has an infinite projection
+    if np.isfinite(camera.z_far):
+        perspective["zfar"] = float(camera.z_far)
+    return {"name": camera.name, "type": "perspective", "perspective": perspective}
 
 
 def _append_image(img, tree, buffer_items, extension_webp):
@@ -2426,6 +2399,9 @@ def _append_material(mat, tree, buffer_items, mat_hashes, extension_webp):
         result.setdefault("extensions", {})["KHR_materials_transmission"] = {
             "transmissionFactor": as_pbr.transmissionFactor
         }
+    # and a base color which is the final color is an empty extension
+    if as_pbr.unlit:
+        result.setdefault("extensions", {})["KHR_materials_unlit"] = {}
     if isinstance(as_pbr.diffuseTransmissionFactor, float):
         result["diffuseTransmissionFactor"] = as_pbr.diffuseTransmissionFactor
     if as_pbr.diffuseTransmissionColorFactor is not None:

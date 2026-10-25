@@ -322,6 +322,25 @@ def _diffuse_transmission(context: MaterialContext) -> dict[str, Any]:
     return result
 
 
+@register_handler("KHR_materials_unlit", scope="material")
+def materials_unlit(context: MaterialContext) -> dict[str, Any]:
+    """
+    Read that a material's base color is its final color, which is an
+    empty object.
+
+    Parameters
+    ----------
+    context
+      MaterialContext with extension data.
+
+    Returns
+    -------
+    pbr_dict
+      `unlit` as True.
+    """
+    return {"unlit": True}
+
+
 @register_handler("EXT_texture_webp", scope="texture_source")
 def _texture_webp_source(context: TextureSourceContext) -> int | None:
     """

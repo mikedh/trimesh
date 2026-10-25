@@ -4,24 +4,49 @@ except BaseException:
     import generic as g
 
 from trimesh.scene.lighting import DirectionalLight, PointLight, SpotLight
-from trimesh.scene.metadata import Environment, RenderSettings, Softbox
-from trimesh.viewer.render import render_frames, turntable
+from trimesh.scene.metadata import (
+    DIFFUSE_SHARPNESS,
+    SPECULAR_SHARPNESS,
+    Environment,
+    RenderSettings,
+    Softbox,
+)
 
 tf = g.trimesh.transformations
 # a straight line segment along X through the origin
 SEGMENT = [[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]
 # an environment with no light at all
 DARK = Environment()
+# lights in these tests are white, rather than the default dim gray
+WHITE = [255, 255, 255, 255]
 # a sun at an angle, so a box's shadow falls beside it
 SUN_POSE = tf.euler_matrix(0.5, -0.4, 0.0)
 
 
 def test_all_exists():
-    # every name in `__all__` should be an attribute — a stale
+    # every name in `__all__` should be an attribute: a stale
     # entry breaks `from trimesh.viewer import *`
     from trimesh import viewer
 
-    assert all(hasattr(viewer, name) for name in viewer.__all__)
+    # and the deprecated `trimesh.rendering` warns once when used, but not
+    # for the names tools like `inspect` probe every module for
+    script = [
+        "import warnings, trimesh.rendering as rendering",
+        "with warnings.catch_warnings(record=True) as caught:",
+        "    warnings.simplefilter('always')",
+        "    probed = hasattr(rendering, '__wrapped__'), len(caught)",
+        "    rendering.mesh_to_vertexlist",
+        "print(*probed, len(caught))",
+    ]
+    result = g.subprocess.run(
+        [g.sys.executable, "-c", "\n".join(script)], capture_output=True, text=True
+    )
+    checks = {
+        "every name exists": all(hasattr(viewer, name) for name in viewer.__all__),
+        "rendering warns once": result.stdout.split() == ["False", "0", "1"],
+    }
+    for name, ok in checks.items():
+        assert ok, name
 
 
 def colored_box(color, extents=None):
@@ -58,7 +83,7 @@ def round_trip_checks(name, scene):
     exported = g.trimesh.util.wrap_as_stream(scene.export(file_type="glb"))
     reloaded = g.trimesh.load_scene(exported, file_type="glb")
     before, after = (
-        g.png(current.save_image(resolution=scene.camera.resolution)).astype(int)
+        g.png(current.render(resolution=scene.camera.resolution)).astype(int)
         for current in (scene, reloaded)
     )
     return {
@@ -211,6 +236,8 @@ layout(std140, row_major) uniform Frame {
     Softbox softboxes[4];
     vec4 ground_light;
     vec4 occlusion_radius;
+    vec4 exposure;
+    vec4 bloom;
 } frame;
 """
     checks = {
@@ -235,18 +262,35 @@ layout(std140, row_major) uniform Frame {
             shaders.FRAME = frame
             shaders._SHADER_SOURCE.clear()
 
-    # the filled shaders pass the reference compiler when it exists
+    # the filled shaders pass the reference compiler, which is stricter
+    # than drivers, as the programs `create_context` compiles validated
+    # as SPIR-V: stage interfaces are checked by the driver linking them
     validator = shutil.which("glslangValidator")
-    for file_name in g.os.listdir(shaders.DIRECTORY):
-        if not file_name.endswith((".vert.glsl", ".frag.glsl")):
-            continue
-        name = file_name.removesuffix(".glsl")
-        source = shaders.shader_source(name)
-        checks[f"{name} fully filled"] = "$" not in source
-        if validator is not None:
-            command = [validator, "--stdin", "-S", name.split(".")[-1]]
-            result = subprocess.run(command, input=source.encode(), capture_output=True)
-            checks[f"{name} validates"] = result.returncode == 0
+    checks["glslangValidator installed"] = validator is not None or not g.all_dependencies
+    with g.TemporaryDirectory() as directory:
+        for file_name in g.os.listdir(shaders.DIRECTORY):
+            if not file_name.endswith((".vert.glsl", ".frag.glsl")):
+                continue
+            name = file_name.removesuffix(".glsl")
+            source = shaders.shader_source(name)
+            checks[f"{name} fully filled"] = "$" not in source
+            with open(g.os.path.join(directory, name), "w") as f:
+                f.write(source)
+        for vertex, fragment in [
+            ("mesh", "mesh"),
+            ("mesh", "shadow"),
+            ("line", "line"),
+            ("fullscreen", "occlusion"),
+            ("fullscreen", "blur"),
+            ("fullscreen", "background"),
+        ]:
+            if validator is None:
+                continue
+            command = [validator, "-G", "--auto-map-bindings", "--auto-map-locations"]
+            command += ["--spirv-val", "-l", "-o", g.os.path.join(directory, "spv")]
+            command += [f"{vertex}.vert", f"{fragment}.frag"]
+            result = subprocess.run(command, cwd=directory, capture_output=True)
+            checks[f"{vertex} and {fragment} validate"] = result.returncode == 0
 
     g.require_rendering()
     from trimesh.viewer.opengl import gl
@@ -297,6 +341,173 @@ layout(std140, row_major) uniform Frame {
         assert ok, name
 
 
+def rgb(scene, **kwargs):
+    """A render's color as (h, w, 3) float64."""
+    return g.render(scene, **kwargs).color[..., :3].astype(g.np.float64)
+
+
+def shade_reference(scene, normal=None, studio=None):
+    """
+    The sRGB 0-255 image the viewer should draw for opaque `PBRMaterial`
+    meshes, NaN where no ray hits, evaluated independently from camera
+    rays and the glTF and `KHR_lights_punctual` specs, optionally with a
+    constant tangent space `normal` map and lights from `studio`.
+    """
+    np = g.np
+    if studio is None:
+        studio = RenderSettings.from_metadata(scene.metadata).resolve(
+            scene, scene.camera_transform
+        )
+    width, height = scene.camera.resolution
+    meshes = [mesh.smooth_shaded for mesh in scene.dump()]
+    hits = g.camera_hits(scene, meshes)
+    points, corners = hits.points, hits.combined.faces[hits.face]
+    barycentric = g.trimesh.triangles.points_to_barycentric(
+        hits.combined.triangles[hits.face], points
+    )
+    surface = g.trimesh.util.unitize(
+        (hits.combined.vertex_normals[corners] * barycentric[:, :, None]).sum(axis=1)
+    )
+    view = -g.trimesh.util.unitize(hits.vectors[hits.ray])
+    # light the back of a triangle as if it were the front
+    surface[(surface * view).sum(axis=1) < 0.0] *= -1.0
+    if normal is not None:
+        # the tangent and bitangent are how position changes with uv
+        uv = np.vstack([m.visual.uv for m in meshes])[corners]
+        position = hits.combined.vertices[corners]
+        inverse = np.linalg.inv(uv[:, 1:] - uv[:, :1])
+        edges = position[:, 1:] - position[:, :1]
+        tangent = g.trimesh.util.unitize(np.matmul(inverse[:, :1], edges)[:, 0])
+        bitangent = g.trimesh.util.unitize(np.matmul(inverse[:, 1:2], edges)[:, 0])
+        surface = g.trimesh.util.unitize(
+            tangent * normal[0] + bitangent * normal[1] + surface * normal[2]
+        )
+
+    materials = [m.visual.material for m in meshes]
+    base = (np.array([m.baseColorFactor for m in materials]) / 255.0)[hits.mesh, :3]
+    metallic = np.array([[m.metallicFactor] for m in materials])[hits.mesh]
+    roughness = np.clip([[m.roughnessFactor] for m in materials], 0.04, 1.0)[hits.mesh]
+    reflectance = 0.04 * (1.0 - metallic) + base * metallic
+    diffuse_color = base * (1.0 - metallic)
+    # `KHR_materials_diffuse_transmission` mixes the dielectric Lambert
+    # reflection with Lambert transmission of light from the other side
+    transmission = np.array([[m.diffuseTransmissionFactor or 0.0] for m in materials])
+    transmission_color = np.ones((len(materials), 3))
+    for index, material in enumerate(materials):
+        if material.diffuseTransmissionColorFactor is not None:
+            transmission_color[index] = material.diffuseTransmissionColorFactor
+    transmission_color = (transmission_color * transmission)[hits.mesh] * (1.0 - metallic)
+    diffuse_color = diffuse_color * (1.0 - transmission[hits.mesh])
+    alpha_squared = roughness**4
+    geometry_k = (roughness + 1.0) ** 2 / 8.0
+    normal_dot_view = np.maximum((surface * view).sum(axis=1, keepdims=True), 1e-4)
+
+    color = np.zeros_like(points)
+    for light, pose in zip(studio.lights, studio.transforms):
+        # lights shine down their -Z, and only directional lights have
+        # no position, falloff or range
+        backwards = g.trimesh.util.unitize(pose[:3, 2])
+        to_light = np.tile(backwards, (len(points), 1))
+        distance_squared = np.ones((len(points), 1))
+        window = np.ones_like(distance_squared)
+        if not isinstance(light, DirectionalLight):
+            to_light = pose[:3, 3] - points
+            distance_squared = (to_light**2).sum(axis=1, keepdims=True)
+            if light.radius is not None:
+                window = np.clip(1.0 - (distance_squared / light.radius**2) ** 2, 0, 1)
+        direction = g.trimesh.util.unitize(to_light)
+        cone = np.ones_like(distance_squared)
+        if isinstance(light, SpotLight):
+            inner, outer = np.cos(light.innerConeAngle), np.cos(light.outerConeAngle)
+            cosine = (direction * backwards).sum(axis=1, keepdims=True)
+            cone = np.clip((cosine - outer) / max(inner - outer, 1e-3), 0.0, 1.0)
+        radiance = light.color[:3] / 255.0 * light.intensity * (window * cone) ** 2
+        radiance = radiance / distance_squared
+
+        half = g.trimesh.util.unitize(direction + view)
+        cosine_light = (surface * direction).sum(1, keepdims=True)
+        normal_dot_light = np.maximum(cosine_light, 0.0)
+        # light from behind is transmitted with the fresnel term of the
+        # light mirrored through the surface
+        behind = np.maximum(-cosine_light, 0.0)
+        mirrored = g.trimesh.util.unitize(direction + 2.0 * behind * surface + view)
+        mirrored_dot_half = np.clip((view * mirrored).sum(1, keepdims=True), 0.0, 1.0)
+        transmitted = (
+            (1.0 - reflectance)
+            * (1.0 - (1.0 - mirrored_dot_half) ** 5)
+            * transmission_color
+            / np.pi
+        )
+        normal_dot_half = np.maximum((surface * half).sum(1, keepdims=True), 0.0)
+        view_dot_half = np.maximum((view * half).sum(1, keepdims=True), 0.0)
+        fresnel = reflectance + (1.0 - reflectance) * (1.0 - view_dot_half) ** 5
+        distribution = alpha_squared / (
+            np.pi * (normal_dot_half**2 * (alpha_squared - 1.0) + 1.0) ** 2
+        )
+        geometry = (
+            normal_dot_view / (normal_dot_view * (1 - geometry_k) + geometry_k)
+        ) * (normal_dot_light / (normal_dot_light * (1 - geometry_k) + geometry_k))
+        specular = (
+            fresnel
+            * distribution
+            * geometry
+            / (4 * normal_dot_view * normal_dot_light + 1e-4)
+        )
+        diffuse = (1.0 - fresnel) * diffuse_color / np.pi
+        color += (
+            (diffuse + specular) * normal_dot_light + transmitted * behind
+        ) * radiance
+
+    # Karis's fit of the environment BRDF
+    fit = roughness * [-1.0, -0.0275, -0.572, 0.022] + [1.0, 0.0425, 1.04, -0.04]
+    bias = (
+        np.minimum(fit[:, :1] ** 2, np.exp2(-9.28 * normal_dot_view)) * fit[:, :1]
+        + fit[:, 1:2]
+    )
+    # diffuse sees the cosine lobe around the normal and specular the
+    # reflection blurred by a spherical Gaussian as wide as the GGX lobe
+    reflected = 2.0 * (surface * view).sum(axis=1, keepdims=True) * surface - view
+    # the library's environment, which `test_light` checks against brute force
+    environment_light = studio.environment.light
+    above = environment_light(surface, DIFFUSE_SHARPNESS)
+    below = environment_light(-surface, DIFFUSE_SHARPNESS)
+    color += diffuse_color * above + transmission_color * below
+    blur = np.exp(np.polyval(SPECULAR_SHARPNESS, np.log(roughness[:, 0])))
+    reflection = environment_light(reflected, blur)
+    color += reflection * (
+        reflectance * (-1.04 * bias + fit[:, 2:3]) + 1.04 * bias + fit[:, 3:4]
+    )
+
+    # the Khronos PBR Neutral tone mapper
+    darkest = color.min(axis=1, keepdims=True)
+    color -= np.where(darkest < 0.08, darkest - 6.25 * darkest**2, 0.04)
+    peak = color.max(axis=1, keepdims=True)
+    start, headroom = 0.76, 0.24
+    new_peak = 1.0 - headroom**2 / (peak + headroom - start)
+    fade = 1.0 - 1.0 / (0.15 * (peak - new_peak) + 1.0)
+    compressed = color * new_peak / np.maximum(peak, 1e-12)
+    compressed = compressed * (1 - fade) + new_peak * fade
+    color = np.clip(np.where(peak < start, color, compressed), 0.0, 1.0)
+    srgb = np.where(color < 0.0031308, color * 12.92, 1.055 * color ** (1 / 2.4) - 0.055)
+
+    image = np.full((height, width, 3), np.nan)
+    image[hits.rows, hits.columns] = srgb * 255.0
+    return image
+
+
+def pbr_mesh(mesh, color, metallic, roughness, uv=None):
+    """Give a mesh a plain `PBRMaterial`, with zero uv unless passed."""
+    if uv is None:
+        uv = g.np.zeros((len(mesh.vertices), 2))
+    mesh.visual = g.trimesh.visual.TextureVisuals(
+        uv=uv,
+        material=g.trimesh.visual.material.PBRMaterial(
+            baseColorFactor=color, metallicFactor=metallic, roughnessFactor=roughness
+        ),
+    )
+    return mesh
+
+
 def lit_scene(lights=(), poses=(), plane=False, environment=DARK, **material):
     """A sphere, or a plane seen from above, lit by `lights` and an `environment`."""
     options = {"color": [200, 120, 60, 255], "metallic": 0.0, "roughness": 0.5}
@@ -308,13 +519,13 @@ def lit_scene(lights=(), poses=(), plane=False, environment=DARK, **material):
         mesh.apply_translation([0, 0, -0.05])
         rotation = tf.euler_matrix(0.5, 0, 0.2)
         view = {"points": [[-5, -5, 0], [5, 5, 0]], "rotation": rotation}
-    scene = g.pbr_mesh(mesh, **options).scene()
+    scene = pbr_mesh(mesh, **options).scene()
     # square pixels, which is the only camera glTF can describe: a
     # wider image keeps the vertical field of view and sees more
     scene.camera = g.trimesh.scene.Camera(
         name="camera", resolution=[150, 150], fov=(40, 40)
     )
-    scene.camera.resolution = (200, 150)
+    scene.camera.fit_resolution((200, 150))
     scene.camera_transform = scene.camera.look_at(**view)
     scene.lights = list(lights)
     for light, pose in zip(lights, poses):
@@ -322,18 +533,48 @@ def lit_scene(lights=(), poses=(), plane=False, environment=DARK, **material):
     return g.set_render(scene, environment=environment, ground_shadow=False)
 
 
+def brighter(scene, factor, emissive=(0.1, 0.05, 0.0)):
+    """
+    A copy of a scene glowing `emissive` with its lights, including the
+    default studio, its environment and its glow `factor` times as bright.
+    """
+    studio = studio_of(scene)
+    environment = studio.environment
+    copy = g.set_render(
+        scene.copy(),
+        environment=Environment(
+            up=environment.up,
+            sky=g.np.multiply(environment.sky, factor),
+            ground=g.np.multiply(environment.ground, factor),
+            softboxes=[
+                Softbox(box.direction, box.sharpness, g.np.multiply(box.color, factor))
+                for box in environment.softboxes
+            ],
+        ),
+    )
+    copy.lights = g.copy.deepcopy(studio.lights)
+    for light, pose in zip(copy.lights, studio.transforms):
+        light.intensity *= factor
+        copy.graph[light.name] = pose
+    for geometry in copy.geometry.values():
+        geometry.visual.material.emissiveFactor = g.np.multiply(emissive, factor)
+    return copy
+
+
 def lighting_cases():
     """Scenes lit by every kind of light and environment with a fixed camera."""
     down = tf.translation_matrix([0, 0, 2.0])
     under = tf.translation_matrix([0, 0, -2.0])
     # a shadow casting light shining up from below at an angle
-    backlight = DirectionalLight(name="backlight", intensity=1.0)
+    backlight = DirectionalLight(name="backlight", color=WHITE, intensity=1.0)
     upward = tf.euler_matrix(g.np.pi - 0.3, 0.2, 0.0)
     sun = DirectionalLight(name="sun", color=[255, 200, 150, 255], intensity=3.0)
-    bulb = PointLight(name="bulb", intensity=6.0)
-    ranged = PointLight(name="bulb", intensity=6.0, radius=3.0)
-    spot = SpotLight(name="spot", intensity=20.0, innerConeAngle=0.2, outerConeAngle=0.5)
-    lamp = PointLight(name="lamp", intensity=40.0)
+    bulb = PointLight(name="bulb", color=WHITE, intensity=6.0)
+    ranged = PointLight(name="bulb", color=WHITE, intensity=6.0, radius=3.0)
+    spot = SpotLight(
+        name="spot", color=WHITE, intensity=20.0, innerConeAngle=0.2, outerConeAngle=0.5
+    )
+    lamp = PointLight(name="lamp", color=WHITE, intensity=40.0)
     # bright, as plastic only reflects 4% of light head on
     softbox = Softbox(direction=[0.6, 0.6, 0.5], sharpness=30.0, color=[40.0] * 3)
     window = Environment(sky=[0.05] * 3, ground=[0.05] * 3, softboxes=[softbox])
@@ -396,8 +637,8 @@ def lighting_cases():
         "autolight white": [255, 255, 255, 255],
     }.items():
         sphere = g.trimesh.creation.icosphere(subdivisions=4)
-        cases[name] = g.pbr_mesh(sphere, color, 0.0, 0.5).scene()
-        cases[name].camera.resolution = (200, 150)
+        cases[name] = pbr_mesh(sphere, color, 0.0, 0.5).scene()
+        cases[name].camera.fit_resolution((200, 150))
     return cases
 
 
@@ -458,10 +699,10 @@ def test_lighting():
         },
     }
     cases = lighting_cases()
-    checks = {"default lights": len(cases["autolight"].lights) == 2}
+    checks = {}
     for name, scene in cases.items():
-        image = g.rgb(scene, resolution=scene.camera.resolution)
-        reference = g.shade_reference(scene)
+        image = rgb(scene, resolution=scene.camera.resolution)
+        reference = shade_reference(scene)
         # stay away from the antialiased silhouette
         interior = ndimage.binary_erosion(~g.np.isnan(reference[..., 0]), iterations=2)
         radius = g.np.linalg.norm(floor_points(scene)[interior], axis=-1)
@@ -472,6 +713,17 @@ def test_lighting():
         checks[f"{name} silhouette"] = all(g.silhouette_checks(scene, image).values())
         for check, predicate in extra.get(name, {}).items():
             checks[f"{name} {check}"] = predicate(image[interior], radius)
+        # exposure scales all light before tone mapping, which is the same
+        # as every light, the environment and anything glowing twice as bright
+        exposed, doubled = (
+            rgb(scene_copy, resolution=scene.camera.resolution)
+            for scene_copy in (
+                g.set_render(brighter(scene, 1.0), exposure=2.0),
+                brighter(scene, 2.0),
+            )
+        )
+        checks[f"{name} exposure doubles light"] = g.np.abs(exposed - doubled).max() <= 1
+        checks[f"{name} exposure brightens"] = (exposed - image)[interior].mean() > 10
 
     # everything a render uses is scene content which survives glTF, but
     # no lights at all can't be stored and loads as the default lights
@@ -500,7 +752,103 @@ def test_lighting():
             ground_shadow=False,
             show_environment=True,
         )
-        checks[name] = predicate(g.rgb(scene, resolution=[80, 60]))
+        checks[name] = predicate(rgb(scene, resolution=[80, 60]))
+
+    # `KHR_materials_unlit` is the final linear color, its base color times
+    # its texture and vertex colors, whatever the lights, environment or
+    # exposure are, which stays unlit after a glTF round trip
+    from PIL import Image
+
+    color = g.trimesh.visual.color
+    texture, vertex = [180, 220, 140], [230, 200, 250, 255]
+    sun = DirectionalLight(name="sun", color=WHITE, intensity=20.0)
+    dark = DirectionalLight(name="sun", color=WHITE, intensity=0.0)
+    for name, (light, environment, exposure) in {
+        "bright sun": (sun, ambient([3.0] * 3), 1.0),
+        "dark": (dark, DARK, 1.0),
+        "exposed": (sun, ambient([3.0] * 3), 2.0),
+    }.items():
+        scene = g.set_render(
+            lit_scene([light], [SUN_POSE], plane=True, environment=environment),
+            exposure=exposure,
+        )
+        for geometry in scene.geometry.values():
+            material = geometry.visual.material
+            material.unlit = True
+            material.baseColorFactor = [0.9, 0.5, 0.3, 1.0]
+            material.baseColorTexture = Image.fromarray(
+                g.np.full((2, 2, 3), texture, dtype=g.np.uint8)
+            )
+            geometry.visual.vertex_attributes["color"] = g.np.tile(
+                vertex, (len(geometry.vertices), 1)
+            )
+        linear = (
+            material.baseColorFactor[:3]
+            / 255.0
+            * color.srgb_to_linear(g.np.divide(texture, 255.0))
+            * color.srgb_to_linear(g.np.divide(vertex[:3], 255.0))
+        )
+        image = rgb(scene, resolution=scene.camera.resolution)
+        hits = g.camera_hits(scene)
+        seen = g.np.zeros(image.shape[:2], dtype=bool)
+        seen[hits.rows, hits.columns] = True
+        interior = ndimage.binary_erosion(seen, iterations=2)
+        checks[f"unlit {name} is its color"] = interior.mean() > 0.5 and (
+            g.np.abs(image[interior] - color.linear_to_srgb(linear) * 255.0).max() <= 1
+        )
+        checks.update(round_trip_checks(f"unlit {name}", scene))
+
+    # a camera node with a scale, which files exported from 3ds Max carry,
+    # sees what glTF says: the same image with its planes in its own units,
+    # so a near plane which would cut the sphere doesn't once scaled, and
+    # the scale moves nothing else: geometry fixed to the camera, or a scroll
+    gradient = Environment(
+        sky=[0.8, 0.7, 0.6],
+        ground=[0.05, 0.05, 0.1],
+        softboxes=[Softbox(direction=[0.6, 0.6, 0.5], sharpness=30.0, color=[2.0] * 3)],
+    )
+    for projection, magnification in [
+        ("perspective", None),
+        ("orthographic", g.np.array([3.0, 2.25])),
+    ]:
+        glossy = lit_scene(environment=gradient, metallic=0.5, roughness=0.3)
+        pose = glossy.camera_transform
+        if magnification is not None:
+            glossy.camera = g.trimesh.scene.Camera(
+                name="camera", resolution=[80, 60], magnification=magnification
+            )
+            glossy.camera_transform = pose
+        # a badge halfway to the camera which stays where the camera saw it
+        glossy.add_geometry(
+            g.trimesh.creation.box(extents=[0.2] * 3),
+            geom_name="badge",
+            transform=tf.translation_matrix(pose[:3, 3] / 2.0),
+        )
+        glossy.camera.z_near = 0.1
+        viewers = {"plain": g.offscreen_viewer(glossy, (80, 60), fixed=["badge"])}
+        # and an orthographic camera's magnification in its own units
+        glossy.camera.z_near = 0.1 / 40.0
+        glossy.camera.z_far = glossy.camera.z_far / 40.0
+        if magnification is not None:
+            glossy.camera.magnification = magnification / 40.0
+        glossy.camera_transform = pose @ tf.scale_matrix(40.0)
+        viewers["scaled"] = g.offscreen_viewer(glossy, (80, 60), fixed=["badge"])
+        images, scrolled = {}, {}
+        for name, viewer in viewers.items():
+            images[name] = viewer.to_array().color.astype(g.np.int64)
+            viewer.on_mouse_scroll(0, 0, 0, 1)
+            scrolled[name] = viewer.to_array().color.astype(g.np.int64)
+        checks[f"{projection} camera scale is glTF's"] = (
+            g.np.abs(images["plain"] - images["scaled"]).max() <= 1
+        )
+        checks[f"{projection} scaled camera scrolls the same"] = g.np.allclose(
+            viewers["plain"].camera_transform, viewers["scaled"].camera_transform
+        ) and (g.np.abs(scrolled["plain"] - scrolled["scaled"]).max() <= 1)
+        checks[f"{projection} scroll changes the image"] = (
+            g.np.abs(scrolled["plain"] - images["plain"]).max() > 50
+        )
+        for viewer in viewers.values():
+            viewer.close()
 
     for name, ok in checks.items():
         assert ok, name
@@ -520,11 +868,11 @@ def test_material_maps():
     vertices = g.np.array([[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]], dtype=float)
     square = g.trimesh.Trimesh(vertices, [[0, 1, 2], [0, 2, 3]], process=False)
     scene = square.scene()
-    scene.camera.resolution = (160, 120)
+    scene.camera.fit_resolution((160, 120))
     scene.camera_transform = scene.camera.look_at(
         vertices, rotation=tf.euler_matrix(0.3, 0.2, 0.0)
     )
-    scene.lights = [DirectionalLight(name="sun", intensity=3.0)]
+    scene.lights = [DirectionalLight(name="sun", color=WHITE, intensity=3.0)]
     scene.graph["sun"] = tf.euler_matrix(0.0, 1.0, 0.0)
     g.set_render(scene, environment=DARK, ground_shadow=False)
     tilt = g.np.radians(30.0)
@@ -542,11 +890,11 @@ def test_material_maps():
         images = {}
         for direction, normal in normals.items():
             encoded = g.np.round((g.np.array(normal) * 0.5 + 0.5) * 255)
-            g.pbr_mesh(square, [200, 200, 200, 255], 0.0, 0.6, uv=uv)
+            pbr_mesh(square, [200, 200, 200, 255], 0.0, 0.6, uv=uv)
             square.visual.material.normalTexture = constant(encoded)
-            image = g.rgb(scene, resolution=scene.camera.resolution)
+            image = rgb(scene, resolution=scene.camera.resolution)
             # the reference reads the decoded normal like the shader does
-            reference = g.shade_reference(scene, normal=encoded / 255.0 * 2.0 - 1.0)
+            reference = shade_reference(scene, normal=encoded / 255.0 * 2.0 - 1.0)
             interior = ndimage.binary_erosion(
                 ~g.np.isnan(reference[..., 0]), iterations=2
             )
@@ -570,12 +918,12 @@ def test_material_maps():
         "no map": (0.5, None),
         "half ambient": (0.5 * 128 / 255, None),
     }.items():
-        sphere = g.pbr_mesh(
+        sphere = pbr_mesh(
             g.trimesh.creation.icosphere(subdivisions=3), [200, 120, 60, 255], 0.0, 0.5
         )
         sphere.visual.material.occlusionTexture = occlusion
         scene = sphere.scene()
-        scene.lights = [DirectionalLight(name="sun", intensity=2.0)]
+        scene.lights = [DirectionalLight(name="sun", color=WHITE, intensity=2.0)]
         scene.graph["sun"] = tf.euler_matrix(-0.5, 0.5, 0.0)
         g.set_render(scene, environment=ambient([light] * 3), ground_shadow=False)
         renders[name] = g.render(scene).color.astype(g.np.int64)
@@ -597,7 +945,7 @@ def box_shadow(light, pose):
     """A box over a plane lit by one light and a dim ambient."""
     scene = lit_scene([light], [pose], plane=True, environment=ambient([0.2] * 3))
     box = g.trimesh.creation.box(extents=[2, 2, 1])
-    box = g.pbr_mesh(box.apply_translation([0, 0, 1.5]), [90, 160, 220, 255], 0, 0.5)
+    box = pbr_mesh(box.apply_translation([0, 0, 1.5]), [90, 160, 220, 255], 0, 0.5)
     scene.add_geometry(box)
     return scene
 
@@ -607,21 +955,27 @@ def test_shadows():
     from scipy import ndimage
 
     above = tf.translation_matrix([0.5, 0.0, 5.0])
-    spot = SpotLight(name="spot", intensity=60.0, outerConeAngle=0.7)
+    spot = SpotLight(name="spot", color=WHITE, intensity=60.0, outerConeAngle=0.7)
     checks = {}
     # name, light, pose, which pose column is its position, casts shadows
     for name, light, pose, axis, casts in [
         # from infinitely far away at an angle so the shadow is beside the box
-        ("directional", DirectionalLight(name="sun", intensity=3.0), SUN_POSE, 2, True),
+        (
+            "directional",
+            DirectionalLight(name="sun", color=WHITE, intensity=3.0),
+            SUN_POSE,
+            2,
+            True,
+        ),
         # down from a point, so the shadow is bigger than the box
         ("spot", spot, above, 3, True),
-        ("point", PointLight(name="bulb", intensity=40.0), above, 3, False),
+        ("point", PointLight(name="bulb", color=WHITE, intensity=40.0), above, 3, False),
     ]:
         scene = box_shadow(light, pose)
-        image = g.rgb(scene, resolution=scene.camera.resolution)
-        unshadowed = g.shade_reference(scene)
+        image = rgb(scene, resolution=scene.camera.resolution)
+        unshadowed = shade_reference(scene)
         scene.lights = []
-        ambient_only = g.rgb(scene, resolution=scene.camera.resolution)
+        ambient_only = rgb(scene, resolution=scene.camera.resolution)
         floor, blocked = floor_shadow(scene, pose, axis)
 
         # only where the light would visibly light the plane can it be
@@ -641,6 +995,63 @@ def test_shadows():
         checks[f"{name} lit is unshadowed"] = g.np.abs(image - unshadowed)[lit].max() <= 2
         checks[f"{name} has lit pixels"] = lit.sum() > 500
         checks[f"{name} has a shadow"] = (umbra.sum() > 100) == casts
+
+    # a light node's scale isn't part of the light, which shines down its
+    # -Z from where it is, and is what files from 3ds Max carry
+    sun = DirectionalLight(name="sun", color=WHITE, intensity=3.0)
+    plain, scaled = (
+        rgb(box_shadow(sun, pose), resolution=[160, 120])
+        for pose in [SUN_POSE, SUN_POSE @ tf.scale_matrix(40.0)]
+    )
+    checks["light node scale changes nothing"] = g.np.abs(plain - scaled).max() <= 1
+
+    # viewers drawing frame after frame redraw their shadows and skinned
+    # meshes exactly when what casts them moves, though every hidden viewer
+    # shares the shadow maps and the joint matrices
+    from unittest import mock
+
+    from trimesh.scene.animation import Skin
+    from trimesh.viewer.opengl import read_framebuffer
+
+    scene = box_shadow(sun, SUN_POSE)
+    box_node = scene.graph.nodes_geometry[-1]
+    # a box moved by a bone rather than its own node
+    skinned = colored_box([255, 0, 0, 255], extents=[1.0] * 3)
+    skinned.vertex_attributes["joints"] = g.np.zeros((8, 4), dtype=g.np.int64)
+    skinned.vertex_attributes["weights"] = g.np.tile([1.0, 0, 0, 0], (8, 1))
+    scene.graph.update(frame_to="bone", matrix=tf.translation_matrix([-2.5, 0, 0.5]))
+    scene.add_geometry(skinned, node_name="skinned")
+    scene.skins["skinned"] = Skin(joints=["bone"])
+    shift = tf.translation_matrix([1.5, 0.0, 0.0])
+    moved = scene.copy()
+    moved.graph.update(frame_to=box_node, matrix=shift)
+    moved.graph.update(frame_to="bone", matrix=tf.translation_matrix([-2.5, 2.0, 0.5]))
+    # without ambient occlusion, which draws depth every frame
+    viewers = [g.offscreen_viewer(item, resolution=(160, 120)) for item in (scene, moved)]
+
+    def frame(viewer):
+        """Draw a frame of a scene whose geometry hasn't changed and read it."""
+        viewer.render(changed=False)
+        return read_framebuffer(viewer.resolve_framebuffer).astype(g.np.int64)
+
+    still, shifted = frame(viewers[0]), frame(viewers[1])
+    checks["moving the box moves pixels"] = g.np.abs(still - shifted).max() > 50
+    # the same pixels as before the other viewer drew
+    checks["shadow and skin kept"] = (frame(viewers[0]) == still).all()
+    # nothing casting shadows moved, so moving the camera draws no shadows
+    viewer = viewers[0]
+    with mock.patch.object(viewer, "draw_depth", wraps=viewer.draw_depth) as depth:
+        viewer.camera_transform = (
+            tf.translation_matrix([0, 0, 1]) @ viewer.camera_transform
+        )
+        viewer.to_array()
+    checks["moving the camera draws no shadows"] = depth.call_count == 0
+    viewer.camera_transform = viewer.initial_camera.copy()
+    scene.graph.update(frame_to=box_node, matrix=shift)
+    scene.graph.update(frame_to="bone", matrix=tf.translation_matrix([-2.5, 2.0, 0.5]))
+    checks["shadow follows the box"] = (frame(viewers[0]) == shifted).all()
+    for viewer in viewers:
+        viewer.close()
 
     for name, ok in checks.items():
         assert ok, name
@@ -702,7 +1113,7 @@ def test_depth_segmentation():
         [1.0, 1e-3, 1e4],
     ):
         scene = build().scaled(scale)
-        scene.camera.resolution = (160, 120)
+        scene.camera.fit_resolution((160, 120))
         scene.camera_transform = scene.camera.look_at(
             scene.bounds, rotation=tf.euler_matrix(0.4, 0.3, 0.0)
         )
@@ -775,7 +1186,7 @@ def test_depth_segmentation():
 
     # an orthographic camera sees the same image from any distance
     scene = nested()
-    scene.camera.resolution = (160, 120)
+    scene.camera.fit_resolution((160, 120))
     scene.camera.magnification = (2.4, 1.8)
     images = []
     for distance in [5.0, 50.0]:
@@ -804,7 +1215,7 @@ def test_depth_segmentation():
     # lines have depth and an id too
     scene = g.trimesh.Scene(g.trimesh.creation.box(extents=[0.2, 0.2, 0.2]))
     scene.add_geometry(g.trimesh.load_path(SEGMENT), node_name="line")
-    scene.camera.resolution = (160, 120)
+    scene.camera.fit_resolution((160, 120))
     scene.camera_transform = tf.translation_matrix([0, 0.5, 4.0])
     for lens, magnification in {"perspective": None, "orthographic": (2.0, 1.5)}.items():
         scene.camera.magnification = magnification
@@ -829,16 +1240,17 @@ def box_on_floor(sun=None, ground=False, light=1.0):
     """A white box on a white or the invisible `ground` floor, seen from above."""
     white = [235, 235, 235, 255]
     scene = g.trimesh.Scene()
-    box = g.pbr_mesh(g.trimesh.creation.box(extents=[2.0, 2.0, 1.0]), white, 0.0, 0.8)
+    box = pbr_mesh(g.trimesh.creation.box(extents=[2.0, 2.0, 1.0]), white, 0.0, 0.8)
     scene.add_geometry(box, node_name="box", transform=tf.translation_matrix([0, 0, 0.5]))
     if not ground:
-        floor = g.pbr_mesh(g.trimesh.creation.box(extents=[12, 12, 0.1]), white, 0, 0.8)
+        floor = pbr_mesh(g.trimesh.creation.box(extents=[12, 12, 0.1]), white, 0, 0.8)
         scene.add_geometry(floor, transform=tf.translation_matrix([0, 0, -0.05]))
     scene.lights = []
     if sun is not None:
-        scene.lights = [DirectionalLight(name="sun", intensity=2.0)]
+        scene.lights = [DirectionalLight(name="sun", color=WHITE, intensity=2.0)]
         scene.graph["sun"] = sun
-    scene.camera = g.trimesh.scene.Camera(resolution=[240, 180], fov=(50, 50))
+    # square pixels: 40 degrees tall is about 52 wide at 4:3
+    scene.camera = g.trimesh.scene.Camera(resolution=[240, 180], fov=(52, 40))
     # looking straight down at the floor, which is the case where the
     # studio can't use the camera's backwards direction for its frame
     scene.camera_transform = tf.rotation_matrix(1.4, [0, 0, 1]) @ tf.translation_matrix(
@@ -886,7 +1298,7 @@ def test_studio_floor():
 
     scene = box_on_floor()
     off, on = (
-        g.rgb(scene, resolution=[240, 180], flags={"ambient_occlusion": enabled})
+        rgb(scene, resolution=[240, 180], flags={"ambient_occlusion": enabled})
         for enabled in [False, True]
     )
     darkening = off.mean(axis=-1) - on.mean(axis=-1)
@@ -960,10 +1372,62 @@ def test_studio_floor():
         tf.rotation_matrix(g.np.pi, [1, 0, 0]) @ scene.camera_transform
     )
     with_ground, without_ground = (
-        g.rgb(g.set_render(scene, ground_shadow=ground), resolution=[240, 180], **options)
+        rgb(g.set_render(scene, ground_shadow=ground), resolution=[240, 180], **options)
         for ground in [True, False]
     )
     checks["invisible from below"] = g.np.abs(with_ground - without_ground).max() <= 1
+
+    # bloom spills light the tone mapper compressed onto its neighbors: a
+    # glowing square in the dark lights nothing around it until bloom is on
+    from trimesh.viewer.opengl import BLOOM_SPREAD
+
+    square = pbr_mesh(
+        g.trimesh.creation.box(extents=[0.2, 0.2, 0.01]), [0, 0, 0, 255], 0.0, 1.0
+    )
+    square.visual.material.emissiveFactor = [8.0] * 3
+    glowing = square.scene()
+    glowing.lights = [DirectionalLight(name="off", intensity=0.0)]
+    glowing.camera = g.trimesh.scene.Camera(resolution=[160, 120], fov=(52, 40))
+    glowing.camera_transform = tf.translation_matrix([0.0, 0.0, 3.0])
+    images = {}
+    for name, bloom in [("off", 0.0), ("on", 1.0), ("off again", 0.0)]:
+        g.set_render(glowing, environment=DARK, bloom=bloom)
+        images[name] = g.render(
+            glowing, resolution=[160, 120], background=[0, 0, 0, 255]
+        ).color.astype(int)
+    hits = g.camera_hits(glowing)
+    inside = g.np.zeros((120, 160), dtype=bool)
+    inside[hits.rows, hits.columns] = True
+    # within and past the antialiased edge, along the middle row both ways
+    within = ndimage.binary_erosion(inside, iterations=1)
+    outside = ~ndimage.binary_dilation(inside, iterations=1)
+    row = int(hits.rows.mean())
+    columns = g.np.flatnonzero(inside[row])
+    bloom = images["on"][..., :3].mean(axis=-1) - images["off"][..., :3].mean(axis=-1)
+    falloff = [
+        bloom[row, columns.max() + 2 :],
+        bloom[row, : columns.min() - 1][::-1],
+    ]
+    checks.update(
+        {
+            "glowing square is white": images["off"][within].min() >= 253,
+            "no bloom is the background": not images["off"][outside][:, :3].any(),
+            "bloom only adds": (images["on"] >= images["off"]).all(),
+            "bloom keeps the square": (
+                g.np.abs(images["on"] - images["off"])[within].max() <= 1
+            ),
+            # out past the edge for at least one standard deviation of the glow
+            "bloom lights neighbors": all(
+                (side > 0).sum() >= BLOOM_SPREAD * 120 for side in falloff
+            ),
+            "bloom fades with distance": all(
+                (g.np.diff(side) <= 0).all() and side[-1] == 0 for side in falloff
+            ),
+            "bloom off again is never on": g.np.array_equal(
+                images["off"], images["off again"]
+            ),
+        }
+    )
 
     for name, ok in checks.items():
         assert ok, name
@@ -971,8 +1435,11 @@ def test_studio_floor():
 
 def test_export_unchanged():
     """Viewing and rendering never change a scene or the bytes it exports to."""
+    from PIL import Image
+
     from trimesh.interfaces.ffmpeg import VideoSettings
-    from trimesh.viewer.windowed import SceneViewer
+    from trimesh.viewer.opengl.viewer import SceneViewer
+    from trimesh.viewer.render import stage
 
     g.require_rendering()
     scenes = {"box": g.trimesh.creation.box().scene()}
@@ -989,20 +1456,40 @@ def test_export_unchanged():
         checks[f"{name} export is deterministic"] = (
             scene.export(file_type="glb") == before
         )
-        state = (scene.has_camera, scene.has_lights, g.copy.deepcopy(scene.metadata))
+        state = (
+            scene.has_camera,
+            scene.has_lights,
+            g.copy.deepcopy(scene.metadata),
+            [id(item) for item in [*scene.cameras, *scene.animations]],
+        )
+        # a render reads the scene's own geometry, so values cached on
+        # it like `smooth_shaded` are computed once for every render
+        staged = stage(scene)[0]
+        checks[f"{name} render shares geometry"] = all(
+            staged.geometry[key] is value for key, value in scene.geometry.items()
+        )
 
-        scene.save_image(resolution=[64, 48])
+        scene.render(resolution=[64, 48])
         viewer = SceneViewer(scene, visible=False, start_loop=False, resolution=[64, 48])
         viewer.to_array(include_depth=True)
+        # playing an animation poses the scene only while it is viewed
+        viewer.on_animate(0.37)
+        viewer.to_array()
         viewer.close()
+        # an animation has a frame for every tenth of its duration
         video = VideoSettings(fps=10)
-        scene.export(file_type="gif", resolution=[32, 24], duration=0.2, settings=video)
+        gif = scene.render(
+            file_type="gif", resolution=[32, 24], duration=0.2, settings=video
+        )
+        frames = Image.open(g.trimesh.util.wrap_as_stream(gif)).n_frames
+        checks[f"{name} gif has every frame"] = frames == 2
 
         checks[f"{name} export unchanged"] = scene.export(file_type="glb") == before
         checks[f"{name} state unchanged"] = (
             scene.has_camera,
             scene.has_lights,
             scene.metadata,
+            [id(item) for item in [*scene.cameras, *scene.animations]],
         ) == state
 
     for name, ok in checks.items():
@@ -1012,7 +1499,10 @@ def test_export_unchanged():
 def test_viewer():
     """Renders match camera rays every time, sharing a window and freeing the GPU."""
     g.require_rendering()
+    import pyglet
+
     from trimesh.viewer.opengl import gl
+    from trimesh.viewer.opengl.viewer import SceneViewer
 
     mesh = g.trimesh.creation.box(extents=[3.0, 1.0, 2.0])
     mesh.apply_transform(tf.euler_matrix(0.3, 0.7, 0.2))
@@ -1048,6 +1538,92 @@ def test_viewer():
         for buffers in uploaded
         for texture in buffers.textures.values()
     )
+
+    # a window frees what its context allocated before it closes
+    visible = SceneViewer(scene, start_loop=False, resolution=(64, 48))
+    context = visible.context
+    freed = {}
+    close_window = visible.window.close
+
+    def checked_close():
+        """Check what the context still holds just before the window closes."""
+        visible.window.switch_to()
+        freed["shadow maps"] = not gl.glIsTexture(context.shadow_maps.texture)
+        freed["mesh program"] = not gl.glIsProgram(context.mesh_program.program)
+        freed["joint buffer"] = not gl.glIsBuffer(context.joint_buffer)
+        close_window()
+
+    visible.window.close = checked_close
+    visible.to_array()
+    # resized to another shape, which a hidden window can't really be,
+    # the image keeps square pixels and the camera's vertical view
+    visible.window.get_framebuffer_size = lambda: (97, 61)
+    visible.on_resize(97, 61)
+    resized = visible.to_array().color
+    scene.camera.fit_resolution((97, 61))
+    checks["resize keeps the vertical view"] = g.np.allclose(
+        visible.camera.fov, scene.camera.fov
+    )
+    checks.update(g.silhouette_checks(scene, resized, prefix="resized "))
+    visible.close()
+    checks["visible window closed"] = len(freed) == 3
+    for name, ok in freed.items():
+        checks[f"visible window {name} freed"] = ok
+
+    # `render` draws exactly what its camera sees, of instances and
+    # textures too, and leaves the camera as it was
+    sphere = g.trimesh.creation.icosphere
+    assembly = g.trimesh.Scene({"small": sphere(2, 0.6), "large": sphere(2, 1.0)})
+    offsets = {"small": (-2.5, 0, 0), "small_1": (2.5, 0, 0), "small_2": (0, 0, 2.5)}
+    for node, offset in offsets.items():
+        assembly.graph.update(
+            frame_to=node, matrix=tf.translation_matrix(offset), geometry="small"
+        )
+    assembly.graph.update(frame_to="large", matrix=tf.translation_matrix([0, 2.5, 0]))
+    fuze = g.trimesh.load_scene(g.dir_models + "/fuze.obj")
+    for name, current in {"box": scene, "fuze": fuze, "assembly": assembly}.items():
+        # without the floor every drawn pixel is the scene's geometry
+        g.set_render(current, ground_shadow=False)
+        before = [*current.camera.resolution, *current.camera.fov]
+        image = g.png(current.render(resolution=[400, 300]))
+        label = f"render {name}"
+        checks[f"{label} size"] = image.shape[:2] == (300, 400)
+        after = [*current.camera.resolution, *current.camera.fov]
+        checks[f"{label} camera unchanged"] = g.np.allclose(after, before)
+        # cast the reference rays through the camera the image used
+        current.camera.fit_resolution((400, 300))
+        checks.update(g.silhouette_checks(current, image, f"{label} "))
+    # the hidden window isn't one of the user's, which would keep
+    # `pyglet.app.run` from ever returning
+    checks["no windows left open"] = len(pyglet.app.windows) == 0
+
+    if g.sys.platform.startswith("linux"):
+        # a machine with only OpenGL 3.0, which Mesa pretends to be, gets
+        # one error saying what is needed and is left with no windows
+        script = [
+            "import pyglet, trimesh",
+            "try:",
+            "    trimesh.creation.box().scene().render(resolution=[32, 32])",
+            "except Exception as error:",
+            "    print(error)",
+            "print(len(pyglet.app.windows))",
+        ]
+        environment = {
+            key: value for key, value in g.os.environ.items() if key != "DISPLAY"
+        }
+        environment["MESA_GL_VERSION_OVERRIDE"] = "3.0"
+        environment["__EGL_VENDOR_LIBRARY_FILENAMES"] = (
+            "/usr/share/glvnd/egl_vendor.d/50_mesa.json"
+        )
+        result = g.subprocess.run(
+            [g.sys.executable, "-c", "\n".join(script)],
+            env=environment,
+            capture_output=True,
+            text=True,
+        )
+        lines = result.stdout.strip().splitlines()
+        checks["old OpenGL says what it needs"] = "OpenGL 3.3 core" in result.stdout
+        checks["old OpenGL leaves no windows"] = lines[-1:] == ["0"]
 
     # with culling off only the depth test hides the back face, so a
     # box with a red front and blue back must only show red
@@ -1123,6 +1699,29 @@ def test_methods():
     )
     # a corner of the sheet with nothing behind it
     checks["glass reflects"] = glass[40, 60].sum() > bare[40, 60].sum()
+    # translucency blends what the display shows, so a half transparent
+    # glowing sheet over black is half as bright as an opaque one
+    glow = {}
+    for name, alpha in {"opaque": 255, "translucent": 128}.items():
+        sheet = g.trimesh.creation.box(extents=[3.0, 3.0, 0.01])
+        sheet.visual = g.trimesh.visual.TextureVisuals(
+            material=g.trimesh.visual.material.PBRMaterial(
+                baseColorFactor=[0, 0, 0, alpha],
+                emissiveFactor=[0.9, 0.5, 0.2],
+                alphaMode="BLEND",
+                metallicFactor=0.0,
+                roughnessFactor=1.0,
+            )
+        )
+        lit = framed(sheet)
+        lit.lights = []
+        g.set_render(lit, environment=DARK)
+        image = g.render(lit, background=[0, 0, 0, 255]).color
+        glow[name] = image[120, 160, :3].astype(g.np.float64)
+    checks["translucency blends after tone mapping"] = (
+        glow["opaque"].min() > 50
+        and g.np.abs(glow["translucent"] - glow["opaque"] * 128 / 255).max() <= 2
+    )
 
     for width in [1, 4, 9]:
         # set for one render, or stored in the scene for every engine
@@ -1228,7 +1827,7 @@ def test_methods():
     viewer.close()
 
     # subclassing works
-    class Viewer(g.trimesh.viewer.windowed.SceneViewer):
+    class Viewer(g.trimesh.viewer.opengl.viewer.SceneViewer):
         pass
 
     subclass = Viewer(g.trimesh.creation.box().scene(), visible=False, start_loop=False)
@@ -1240,15 +1839,13 @@ def test_methods():
 
 
 def test_video():
-    """A video export has every frame of the animation, or a turntable, as rendered."""
+    """A video render has every frame of the animation, or a turntable, as rendered."""
     from trimesh.interfaces import ffmpeg
-    from trimesh.scene.animation import Animation
 
     if not ffmpeg.exists:
         if g.include_rendering:
             raise ValueError("rendering video requires ffmpeg!")
-        g.log.warning("skipping video: no ffmpeg")
-        return
+        g.pytest.skip("rendering video requires ffmpeg")
     g.require_rendering()
     resolution = (160, 120)
     settings = ffmpeg.VideoSettings(fps=10)
@@ -1266,22 +1863,6 @@ def test_video():
             tf.rotation_matrix(2 * g.np.pi * index / count, axis, scene.centroid) @ camera
         )
 
-    def sliding(node):
-        """A red box seen by a camera on a dolly, with `node` sliding along X for a second."""
-        scene = g.trimesh.Scene()
-        scene.add_geometry(colored_box([255, 0, 0, 255]), node_name="box")
-        scene.graph.update(frame_to="dolly", matrix=g.np.eye(4))
-        scene.camera = g.trimesh.scene.Camera(name="lens", fov=(60, 45))
-        lens = tf.translation_matrix([0, 0, 6])
-        scene.graph.update(frame_from="dolly", frame_to="lens", matrix=lens)
-        times = g.np.linspace(0.0, 1.0, 5)
-        slide = g.np.tile(g.np.eye(4), (len(times), 1, 1))
-        slide[:, 0, 3] = times
-        scene.animations.append(
-            Animation(edges=[(None, node)], times=times, matrices=slide)
-        )
-        return scene
-
     # a tilted camera
     static = g.trimesh.creation.box(extents=[3, 1, 2]).scene()
     static.camera_transform = tf.euler_matrix(0.5, 0.2, 0.1) @ tf.translation_matrix(
@@ -1290,14 +1871,14 @@ def test_video():
 
     checks = {}
     for name, scene, count, camera_at in [
-        ("animated", sliding("box"), 10, animated_camera),
+        ("animated", g.dolly_scene("box"), 10, animated_camera),
         ("turntable", static, 40, turntable_camera),
         # a still box filmed from a camera riding a moving node, like the
         # cameras on VirtualCity's cars
-        ("riding", sliding("dolly"), 10, animated_camera),
+        ("riding", g.dolly_scene("dolly"), 10, animated_camera),
     ]:
         camera = scene.camera_transform.copy()
-        video = scene.export(file_type="mkv", resolution=resolution, settings=settings)
+        video = scene.render(file_type="mkv", resolution=resolution, settings=settings)
         with g.TemporaryDirectory() as directory:
             path = g.os.path.join(directory, "video.mkv")
             with open(path, "wb") as video_file:
@@ -1321,221 +1902,13 @@ def test_video():
     # beside it, written as a turntable video
     with g.serve_meshes() as address, g.TemporaryDirectory() as directory:
         path = g.os.path.join(directory, "film.mp4")
-        g.trimesh.load_remote(f"{address}/fuze.obj").export(
+        returned = g.trimesh.load_remote(f"{address}/fuze.obj").render(
             path, resolution=resolution, settings=settings
         )
         film = g.decode_video(path, resolution)
+        with open(path, "rb") as written:
+            checks["one-liner returns what it wrote"] = returned == written.read()
     checks["one-liner turntable"] = len(film) == 40 and film.std(axis=(1, 2, 3)).min() > 1
-
-    for name, ok in checks.items():
-        assert ok, name
-
-
-def test_engines():
-    """Blender and OpenGL render the same exported scene alike, and animations have every frame."""
-    from PIL import Image, ImageSequence
-    from scipy import ndimage
-
-    from trimesh.interfaces import blender
-
-    g.require_rendering()
-    scene = g.trimesh.creation.box(extents=[3, 1, 2]).scene()
-    scene.camera_transform = tf.euler_matrix(0.4, 0.3, 0.1) @ tf.translation_matrix(
-        [0, 0, 6]
-    )
-    settings = g.trimesh.interfaces.ffmpeg.VideoSettings(fps=5)
-
-    checks = {}
-    for file_type in ["gif", "webp"]:
-        data = scene.export(
-            file_type=file_type, resolution=[64, 48], duration=2.0, settings=settings
-        )
-        checks[f"{file_type} frames"] = (
-            Image.open(g.trimesh.util.wrap_as_stream(data)).n_frames == 10
-        )
-
-    if blender.exists:
-        engines = ["opengl", "blender"]
-        # every frame of an animation agrees, which a turntable turning 120
-        # degrees a frame makes very different frame to frame, without the
-        # floor whose soft shadows the engines blur differently, and the
-        # turn loops in a video twice as long
-        floorless = g.set_render(scene.copy(), ground_shadow=False)
-        floorless.animations.append(turntable(floorless, 0.6, 5))
-        # and the box turns too in a second animation, as every animation
-        # plays at once
-        box = floorless.graph.nodes_geometry[0]
-        times = g.np.arange(4) * 0.2
-        spin = tf.rotation_matrix(times * 2.0 * g.np.pi / 0.6, [1, 0, 0])
-        floorless.animations.append(
-            g.trimesh.scene.animation.Animation(
-                [(None, box)], times, spin[:, None], name="spin"
-            )
-        )
-        animation = {"resolution": [80, 60], "duration": 1.2, "settings": settings}
-        frames = []
-        for engine in engines:
-            gif = floorless.export(file_type="gif", engine=engine, **animation)
-            sequence = ImageSequence.Iterator(
-                Image.open(g.trimesh.util.wrap_as_stream(gif))
-            )
-            frames.append(
-                [(g.np.array(frame.convert("RGB")) < 250).any(-1) for frame in sequence]
-            )
-        checks["frames agree"] = len(frames[0]) == len(frames[1]) == 6 and all(
-            g.iou(first, second) > 0.9 for first, second in zip(*frames)
-        )
-        for engine, drawn in zip(engines, frames):
-            # a GIF merges repeated frames, so a held pose is fewer of them
-            checks[f"{engine} loops"] = (
-                len(drawn) == 6
-                and all(
-                    g.iou(drawn[index], drawn[index + 3]) > 0.99 for index in range(3)
-                )
-                and all(g.iou(drawn[index], drawn[index + 1]) < 0.9 for index in range(2))
-            )
-
-        # a saved `.blend` renders the frames Blender renders, here the
-        # second time around the loop
-        with g.tempfile.TemporaryDirectory() as directory:
-            path = g.os.path.join(directory, "scene.blend")
-            floorless.export(path, resolution=[80, 60], duration=1.2, fps=5)
-            g.subprocess.run(
-                [blender._blender_executable, "--background", path]
-                + ["--render-output", g.os.path.join(directory, "frame_")]
-                + ["--render-frame", "4"],
-                check=True,
-                capture_output=True,
-            )
-            reopened = Image.open(g.os.path.join(directory, "frame_0004.png"))
-            white = Image.new("RGBA", reopened.size, (255, 255, 255, 255))
-            reopened = g.np.asarray(
-                Image.alpha_composite(white, reopened.convert("RGBA"))
-            ).astype(int)
-        direct = list(
-            render_frames(
-                floorless, resolution=[80, 60], engine="blender", duration=1.2, fps=5
-            )
-        )[4].astype(int)
-        checks["blend renders the same"] = g.np.abs(reopened - direct).max() <= 2
-
-        # an environment seen behind the scene, which both engines draw alike
-        wide = Softbox(direction=[0.3, 0.8, 0.5], sharpness=6.0, color=[2] * 3)
-        shown = Environment(
-            sky=[0.6, 0.5, 0.4], ground=[0.05, 0.08, 0.1], softboxes=[wide]
-        )
-        # saturated sRGB colors, which glTF stores as linear
-        colored = g.trimesh.creation.icosphere(subdivisions=4)
-        colored.visual.vertex_colors = g.trimesh.visual.color.interpolate(
-            colored.vertices[:, 0], color_map="viridis"
-        )
-        faced = g.trimesh.creation.box(extents=[2.0, 1.5, 1.0])
-        faced.visual.face_colors = g.np.random.default_rng(4).integers(
-            0, 255, (len(faced.faces), 3)
-        )
-        cases = lighting_cases()
-        # a camera whose fields of view don't match the image's shape
-        # has pixels which aren't square, and both engines keep them
-        stretched = scene.copy()
-        stretched.camera.fov = [70, 40]
-        # and whose far plane cuts the box in half, which both engines clip
-        clipped = scene.copy()
-        clipped.camera.z_far = 6.0
-        # the lights and environment reach Blender through the glTF in the
-        # same units, so the shading agrees too and not just shape
-        for name, lit in {
-            "silhouette": scene,
-            "stretched pixels": stretched,
-            "far plane": clipped,
-            # both engines cast the same shadow from the same light
-            "shadowed": box_shadow(DirectionalLight(name="sun", intensity=3.0), SUN_POSE),
-            "environment shown": g.set_render(
-                lit_scene(environment=shown, metallic=0.5, roughness=0.3),
-                show_environment=True,
-            ),
-            # no material or colors at all, which isn't in the file
-            "default color": g.trimesh.creation.icosphere(subdivisions=4).scene(),
-            "vertex colors": colored.scene(),
-            # a different color on every triangle, which glTF only has
-            # on vertices
-            "face colors": faced.scene(),
-            # clear glass over a colored sphere, which both engines see through
-            "glass": g.trimesh.Scene([colored, clear_glass(0.02, 1.5, 0.3)]),
-            # the shared cases, where Blender draws a spot light's soft
-            # edge with a different curve than glTF, fit as close as it can,
-            # and a thin sheet lit through from behind
-            **{
-                name: cases[name]
-                for name in [
-                    "directional",
-                    "spot",
-                    "autolight",
-                    "custom environment",
-                    "diffuse transmission",
-                ]
-            },
-        }.items():
-            images = [
-                g.png(lit.export(file_type="png", resolution=[160, 120], engine=engine))[
-                    ..., :3
-                ].astype(g.np.float64)
-                for engine in engines
-            ]
-            drawn = [(image < 250).any(axis=-1) for image in images]
-            inside = ndimage.binary_erosion(drawn[0] & drawn[1], iterations=2)
-            difference = g.np.abs(images[0] - images[1])
-            # mid tones are where falloffs like a spot cone's soft edge are,
-            # which a mean over everything would hide
-            gray = g.np.array([image.mean(axis=-1) for image in images])
-            middle = ((gray > 30) & (gray < 200)).any(axis=0)
-            checks[f"{name} engines agree"] = g.iou(*drawn) > 0.95
-            checks[f"{name} engines shade alike"] = difference[inside].mean() < 6.0
-            checks[f"{name} engines compared"] = inside.sum() > 2000
-            checks[f"{name} engines shade mid tones alike"] = (
-                difference[middle].mean() < 25.0
-            )
-
-        # points and lines, which Blender draws as spheres and tubes as
-        # many pixels across as the viewer, under nodes which scale them
-        rng = g.np.random.default_rng(3)
-        hues = g.np.column_stack([rng.random(200), g.np.ones((200, 2))])
-        cloud = g.trimesh.PointCloud(
-            rng.uniform(-1, 1, (200, 3)) * [0.5, 0.33, 0.33],
-            colors=g.trimesh.visual.color.hsv_to_rgba(hues),
-        )
-        angle = g.np.linspace(0, 12, 200)
-        helix = g.np.column_stack([g.np.cos(angle), g.np.sin(angle), angle / 6 - 1])
-        segments = g.trimesh.Scene()
-        segments.add_geometry(cloud, transform=tf.scale_matrix(3))
-        segments.add_geometry(
-            g.trimesh.load_path(helix / 2), transform=tf.scale_matrix(2)
-        )
-        segments.camera_transform = scene.camera_transform
-        images = [
-            g.png(segments.export(file_type="png", resolution=[160, 120], engine=engine))[
-                ..., :3
-            ].astype(g.np.float64)
-            for engine in engines
-        ]
-        drawn = [(image < 250).any(axis=-1) for image in images]
-        checks["segments engines agree"] = g.iou(*drawn) > 0.9
-        # Blender renders glass over its floor the same every time
-        glassy = g.trimesh.Scene([colored, clear_glass(0.02, 1.5, 0.3)])
-        checks["blender repeats exactly"] = g.np.array_equal(
-            *[
-                g.png(
-                    glassy.export(
-                        file_type="png", resolution=[160, 120], engine="blender"
-                    )
-                )
-                for _ in range(2)
-            ]
-        )
-        # the spheres are lit the way the viewer lights its points
-        means = [image[mask].mean(axis=0) for image, mask in zip(images, drawn)]
-        checks["segments engines color alike"] = g.np.abs(means[0] - means[1]).max() < 16
-    elif g.all_dependencies:
-        raise ValueError("blender is required!")
 
     for name, ok in checks.items():
         assert ok, name
@@ -1546,7 +1919,7 @@ def test_interaction():
     from scipy import ndimage
 
     sphere = g.trimesh.creation.icosphere(subdivisions=4)
-    scene = g.pbr_mesh(sphere, [180, 180, 180, 255], 0.0, 0.4).scene()
+    scene = pbr_mesh(sphere, [180, 180, 180, 255], 0.0, 0.4).scene()
     initial = scene.camera_transform.copy()
     viewer = g.offscreen_viewer(scene, resolution=[200, 150])
     # pyglet's window module needs a context to exist before importing
@@ -1600,8 +1973,8 @@ def test_interaction():
     # the default lights are fixed in the world where the viewer started,
     # so moving the camera shows the same lighting from somewhere else
     scene.camera_transform = dragged
-    fixed = g.shade_reference(scene, studio=started)
-    moved = g.shade_reference(scene, studio=studio_of(scene))
+    fixed = shade_reference(scene, studio=started)
+    moved = shade_reference(scene, studio=studio_of(scene))
     interior = ndimage.binary_erosion(~g.np.isnan(fixed[..., 0]), iterations=2)
     checks["lights stay put"] = g.np.allclose(started.transforms, lights)
     checks["lit from where it started"] = g.np.abs(image - fixed)[interior].max() <= 2.0

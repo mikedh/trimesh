@@ -3,9 +3,9 @@ opengl
 -----------
 
 Everything that talks to OpenGL. What the bytes in every buffer mean
-is declared once in `shaders.py`, and this module only moves them. It only uses raw OpenGL 3.3 core
-calls, which pyglet exposes identically on pyglet 1.5, 2.x and 3.x,
-and a window from pyglet to own the context.
+is declared once in `shaders/__init__.py`, and this module only moves
+them with raw OpenGL 3.3 core calls, which pyglet exposes identically
+on pyglet 1.5, 2.x and 3.x, using a window from pyglet for the context.
 
 Nothing is ever drawn into the window directly: every frame is drawn
 into our own multisampled framebuffer and copied out, which means a
@@ -16,13 +16,14 @@ the same with visible, hidden, high-DPI and headless windows.
 import ctypes
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 import numpy as np
 import pyglet
 
 from ... import util
 from ...bounds import corners
+from ...scene.cameras import DEFAULT_FOV
 from ...typed import Integer
 from ..conversion import GeometryArrays, MaterialUniforms
 from . import shaders
@@ -31,15 +32,40 @@ from . import shaders
 # be set before importing `gl` which connects to a display
 if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
     pyglet.options["headless"] = True
-# checking for an error after every call doubles the cost of drawing
+# pyglet checks for an error after every call unless this is off when
+# `gl` is first imported, which made drawing 400 meshes 50% slower, 3.5
+# to 5.3 ms a frame, and the check can't be turned off for one context
 pyglet.options["debug_gl"] = False
 
+# what to tell anyone whose machine can't give the viewer a context
+CONTEXT_HINT = (
+    "the trimesh viewer needs OpenGL 3.3 core, which without a working display "
+    + "on Linux EGL provides with `PYGLET_HEADLESS=1` (i.e. `apt install libegl1`), "
+    + "or run under `xvfb-run`"
+)
+
 try:
-    # pyglet >= 3
-    from pyglet.graphics.api import gl
-except ImportError:
-    # pyglet < 3
-    from pyglet import gl
+    try:
+        # pyglet >= 3
+        from pyglet.graphics.api import gl
+        from pyglet.graphics.api.gl.base import ContextException
+    except ImportError:
+        # pyglet < 3
+        from pyglet import gl
+        from pyglet.gl import ContextException
+except Exception as error:
+    # pyglet 2 opens a window with an OpenGL 3.3 context on import
+    raise RuntimeError(f"unable to create an OpenGL context: {CONTEXT_HINT}") from error
+
+# a window couldn't be given the context it asked for, which pyglet
+# 3.0.dev11 raises as an IndexError when EGL has no matching config, and
+# as an ImportError when making the window finds no EGL library at all
+CONTEXT_ERRORS = (
+    pyglet.window.NoSuchConfigException,
+    ContextException,
+    IndexError,
+    ImportError,
+)
 
 # how many samples to antialias the framebuffer with
 MULTISAMPLE_COUNT = 4
@@ -48,6 +74,14 @@ MULTISAMPLE_COUNT = 4
 FRAME_BINDING = 0
 # width and height of every shadow map in pixels
 SHADOW_RESOLUTION = 2048
+# the standard deviation of the glow of bloom as a fraction of the
+# picture's height, so it looks the same at every resolution: one degree
+# of the default camera's vertical field of view
+BLOOM_SPREAD = 1.0 / DEFAULT_FOV[1]
+# the fewest texels per standard deviation bloom is blurred at, where a
+# Gaussian's spectrum at the Nyquist frequency is `exp(-2 * pi^2)`, or
+# 3e-9 of its peak, so sampling it that coarsely adds no aliasing
+BLOOM_TEXELS = 2.0
 
 # color storage : (format, type, channels, numpy dtype) to read it with
 READ_FORMATS = {
@@ -164,19 +198,25 @@ class ShadowMaps:
     texture: int
     resolution: int
 
+    def delete(self) -> None:
+        """
+        Free the GPU memory for the maps.
+        """
+        gl.glDeleteFramebuffers(1, ctypes.byref(gl.GLuint(self.framebuffer)))
+        gl.glDeleteTextures(1, ctypes.byref(gl.GLuint(self.texture)))
+
 
 @dataclass
-class AmbientOcclusion:
+class TextureTargets:
     """
-    Half resolution images for screen space ambient occlusion: the
-    scene's depth, the occlusion with noise, and the occlusion blurred,
-    all drawn through one framebuffer.
+    Textures which are each drawn into through a framebuffer of their
+    own, attached once when they are allocated.
     """
 
-    framebuffer: int
-    depth: int
-    noisy: int
-    blurred: int
+    # name to texture
+    textures: dict
+    # name to the framebuffer which draws into that texture
+    framebuffers: dict
     width: int
     height: int
 
@@ -184,9 +224,27 @@ class AmbientOcclusion:
         """
         Free the GPU memory for these images.
         """
-        gl.glDeleteFramebuffers(1, ctypes.byref(gl.GLuint(self.framebuffer)))
-        textures = (gl.GLuint * 3)(self.depth, self.noisy, self.blurred)
-        gl.glDeleteTextures(3, textures)
+        for delete, names in (
+            (gl.glDeleteFramebuffers, list(self.framebuffers.values())),
+            (gl.glDeleteTextures, list(self.textures.values())),
+        ):
+            delete(len(names), (gl.GLuint * len(names))(*names))
+
+
+@dataclass
+class Bloom(TextureTargets):
+    """
+    Images for bloom: a half size `picture` with mip levels, which is
+    `width` by `height`, blurred `across` and then into `blurred` at
+    the size of the mip level it is blurred at.
+    """
+
+    # the mip level of `picture` which is blurred, and its size
+    level: int
+    blur_width: int
+    blur_height: int
+    # the standard deviation of the glow in texels of that level
+    spread: float
 
 
 @dataclass
@@ -212,10 +270,34 @@ class RenderContext:
     blur_program: ShaderProgram
     # the environment behind the scene, when it is seen
     background_program: ShaderProgram
+    # light too bright for the display glowing onto its neighbors
+    bloom_program: ShaderProgram
     shadow_maps: ShadowMaps
     # the joint matrices of every skin, as a buffer and a buffer texture
     joint_buffer: int
     joint_texture: int
+    # the `SceneViewer.world` whose joints and shadows are uploaded, which
+    # every viewer drawing into a shared hidden window has to check
+    placement: object = None
+
+    def delete(self) -> None:
+        """
+        Free everything allocated for this context, before its window
+        is closed.
+        """
+        self.window.switch_to()
+        # a program in use is only deleted once it no longer is
+        gl.glUseProgram(0)
+        for program in vars(self).values():
+            if isinstance(program, ShaderProgram):
+                gl.glDeleteProgram(program.program)
+        textures = (gl.GLuint * 2)(self.white_texture, self.joint_texture)
+        gl.glDeleteTextures(2, textures)
+        buffers = (gl.GLuint * 2)(self.frame_buffer, self.joint_buffer)
+        gl.glDeleteBuffers(2, buffers)
+        gl.glDeleteVertexArrays(1, ctypes.byref(gl.GLuint(self.empty_vertex_array)))
+        self.shadow_maps.delete()
+        self.placement = None
 
 
 def set_matrix(location: int, value) -> None:
@@ -274,10 +356,8 @@ def create_context(
 
     Parameters
     ------------
-    width : int
-      Window width in pixels.
-    height : int
-      Window height in pixels.
+    width, height : int
+      Window size in pixels.
     visible : bool
       Show the window on screen.
     resizable : bool
@@ -304,23 +384,60 @@ def create_context(
     }
     if config is None:
         try:
-            # pyglet < 3: macOS and pyglet 1.5 only hand out a
-            # modern context if one is explicitly requested
-            config = gl.Config(
-                major_version=3,
-                minor_version=3,
-                forward_compatible=True,
-                double_buffer=True,
-            )
+            config = gl.Config(double_buffer=True)
         except AttributeError:
             # pyglet >= 3 has no `gl.Config` and defaults to 3.3 core
             config = None
+    if config is not None:
+        # pyglet < 3: macOS and pyglet 1.5 only hand out a modern
+        # context if one is explicitly requested
+        for name, value in (
+            ("major_version", 3),
+            ("minor_version", 3),
+            ("forward_compatible", True),
+        ):
+            if getattr(config, name, None) is None:
+                setattr(config, name, value)
     try:
         window = pyglet.window.Window(config=config, **options)
-    except pyglet.window.NoSuchConfigException:
-        # compatibility contexts on Linux and Windows also support 3.3
-        window = pyglet.window.Window(**options)
+    except CONTEXT_ERRORS:
+        try:
+            # compatibility contexts on Linux and Windows also support 3.3
+            window = pyglet.window.Window(**options)
+        except CONTEXT_ERRORS as error:
+            message = f"unable to create an OpenGL context: {CONTEXT_HINT}"
+            raise RuntimeError(message) from error
+    try:
+        return create_render_context(window)
+    except BaseException:
+        # a failed context never leaves a window open
+        window.close()
+        raise
+
+
+def create_render_context(window: pyglet.window.Window) -> RenderContext:
+    """
+    Check a new window's context is OpenGL 3.3 or newer, then compile
+    the shaders and allocate everything shared by every frame.
+
+    Parameters
+    ------------
+    window : pyglet.window.Window
+      A window with a new context.
+
+    Returns
+    ------------
+    context : RenderContext
+      The window and the compiled shaders.
+    """
     window.switch_to()
+    # every OpenGL version starts its version string with "major.minor"
+    version, renderer = (
+        ctypes.cast(gl.glGetString(name), ctypes.c_char_p).value.decode("utf-8")
+        for name in (gl.GL_VERSION, gl.GL_RENDERER)
+    )
+    if tuple(int(part) for part in version.split(" ")[0].split(".")[:2]) < (3, 3):
+        raise RuntimeError(f"`{renderer}` only has OpenGL `{version}`: {CONTEXT_HINT}")
 
     white_texture = upload_image(np.full((1, 1, 4), 255, dtype=np.uint8), srgb=False)
     empty_vertex_array = gl.GLuint()
@@ -350,6 +467,7 @@ def create_context(
         occlusion_program=compile_program("fullscreen", fragment="occlusion"),
         blur_program=compile_program("fullscreen", fragment="blur"),
         background_program=compile_program("fullscreen", fragment="background"),
+        bloom_program=compile_program("fullscreen", fragment="bloom"),
         shadow_maps=create_shadow_maps(SHADOW_RESOLUTION),
     )
 
@@ -390,7 +508,10 @@ def compile_program(name: str, fragment: str | None = None) -> ShaderProgram:
         status = gl.GLint()
         gl.glGetShaderiv(shader, gl.GL_COMPILE_STATUS, ctypes.byref(status))
         if not status.value:
-            raise ValueError(f"`{file_name}` failed to compile:\n{shader_log(shader)}")
+            message = ctypes.create_string_buffer(4096)
+            gl.glGetShaderInfoLog(shader, 4096, None, message)
+            log = message.value.decode("utf-8", errors="replace")
+            raise ValueError(f"`{file_name}` failed to compile:\n{log}")
         gl.glAttachShader(program, shader)
         # the shader is freed when the program is
         gl.glDeleteShader(shader)
@@ -399,7 +520,10 @@ def compile_program(name: str, fragment: str | None = None) -> ShaderProgram:
     status = gl.GLint()
     gl.glGetProgramiv(program, gl.GL_LINK_STATUS, ctypes.byref(status))
     if not status.value:
-        raise ValueError(f"`{name}` failed to link:\n{shader_log(program, program=True)}")
+        message = ctypes.create_string_buffer(4096)
+        gl.glGetProgramInfoLog(program, 4096, None, message)
+        log = message.value.decode("utf-8", errors="replace")
+        raise ValueError(f"`{name}` failed to link:\n{log}")
 
     # read `shaders.FRAME` from its binding unless the program never uses it
     block = gl.glGetUniformBlockIndex(program, ctypes.create_string_buffer(b"Frame"))
@@ -431,30 +555,6 @@ def compile_program(name: str, fragment: str | None = None) -> ShaderProgram:
         result.set(sampler, unit)
     gl.glUseProgram(0)
     return result
-
-
-def shader_log(handle: int, program: bool = False) -> str:
-    """
-    Get the compiler or linker message for a shader or program.
-
-    Parameters
-    ------------
-    handle : int
-      Shader or program.
-    program : bool
-      If `handle` is a program rather than a shader.
-
-    Returns
-    ------------
-    log : str
-      The message from the driver.
-    """
-    log = ctypes.create_string_buffer(4096)
-    if program:
-        gl.glGetProgramInfoLog(handle, 4096, None, log)
-    else:
-        gl.glGetShaderInfoLog(handle, 4096, None, log)
-    return log.value.decode("utf-8", errors="replace")
 
 
 def create_buffer(target: int, data: np.ndarray) -> int:
@@ -539,7 +639,7 @@ def upload_array(
     """
     data = np.ascontiguousarray(data)
     gl.glBindBuffer(target, buffer)
-    gl.glBufferData(target, data.nbytes, data.ctypes.data_as(ctypes.c_void_p), usage)
+    gl.glBufferData(target, data.nbytes, data.ctypes.data, usage)
 
 
 def upload_geometry(arrays: GeometryArrays) -> GeometryBuffers:
@@ -559,6 +659,10 @@ def upload_geometry(arrays: GeometryArrays) -> GeometryBuffers:
     vertex_array = gl.GLuint()
     gl.glGenVertexArrays(1, ctypes.byref(vertex_array))
     gl.glBindVertexArray(vertex_array)
+    # the center and the corners of the box around the vertices
+    points = np.reshape(arrays.vertices, (-1, 3))
+    centroid = points.mean(axis=0)
+    box = corners([points.min(axis=0), points.max(axis=0)])
 
     if arrays.kind != "mesh":
         # each segment is one instance and the shader makes a quad around it
@@ -579,8 +683,8 @@ def upload_geometry(arrays: GeometryArrays) -> GeometryBuffers:
             buffers=buffers,
             count=len(segments),
             material=arrays.material,
-            centroid=arrays.vertices.reshape((-1, 3)).mean(axis=0),
-            corners=box_corners(arrays.vertices),
+            centroid=centroid,
+            corners=box,
         )
 
     locations = shaders.attribute_locations(
@@ -633,40 +737,18 @@ def upload_geometry(arrays: GeometryArrays) -> GeometryBuffers:
         face_colors=face_colors,
         instance_buffer=buffers[2],
         material_key=(
-            *material.base_color.tolist(),
-            material.metallic,
-            material.roughness,
-            *material.emissive.tolist(),
-            material.alpha_mode,
-            material.alpha_cutoff,
-            material.double_sided,
-            material.shadow_catcher,
-            material.diffuse_transmission,
-            *material.diffuse_transmission_color.tolist(),
+            *(
+                value
+                for item in fields(material)
+                if item.name not in shaders.MATERIAL_TEXTURES
+                for value in np.ravel(getattr(material, item.name)).tolist()
+            ),
             *(textures.get(name, 0) for name in shaders.MATERIAL_TEXTURES),
         ),
-        centroid=arrays.vertices.mean(axis=0),
-        corners=box_corners(arrays.vertices),
+        centroid=centroid,
+        corners=box,
         skinned=skinned,
     )
-
-
-def box_corners(vertices: np.ndarray) -> np.ndarray:
-    """
-    The corners of the axis aligned box around some vertices.
-
-    Parameters
-    ------------
-    vertices : (..., 3) float
-      Points.
-
-    Returns
-    ------------
-    corners : (8, 3) float
-      Every corner of their bounding box.
-    """
-    points = np.reshape(vertices, (-1, 3))
-    return corners([points.min(axis=0), points.max(axis=0)])
 
 
 def upload_image(pixels: np.ndarray, srgb: bool) -> int:
@@ -774,54 +856,118 @@ def create_shadow_maps(resolution: int) -> ShadowMaps:
     )
 
 
-def create_ambient_occlusion(width: Integer, height: Integer) -> AmbientOcclusion:
+def create_texture_targets(formats: dict) -> tuple[dict, dict]:
     """
-    Allocate the half resolution images ambient occlusion is drawn in.
+    Allocate 2D textures clamped at their edges, each with a framebuffer
+    drawing into it: depth textures as its depth and others as its color.
 
     Parameters
     ------------
-    width : int
-      Width of the full resolution framebuffer in pixels.
-    height : int
-      Height of the full resolution framebuffer in pixels.
+    formats : dict
+      {name : (internal format, (width, height), filtering)}
 
     Returns
     ------------
-    occlusion : AmbientOcclusion
-      Depth, noisy and blurred images and a framebuffer.
+    textures : dict
+      {name : texture}
+    framebuffers : dict
+      {name : framebuffer drawing into that texture}
     """
-    width, height = max(int(width) // 2, 1), max(int(height) // 2, 1)
-    textures = (gl.GLuint * 3)()
-    gl.glGenTextures(3, textures)
-    for texture, internal, pixel_format, kind, smooth in (
-        (textures[0], gl.GL_DEPTH_COMPONENT24, gl.GL_DEPTH_COMPONENT, gl.GL_FLOAT, False),
-        (textures[1], gl.GL_R8, gl.GL_RED, gl.GL_UNSIGNED_BYTE, False),
-        (textures[2], gl.GL_R8, gl.GL_RED, gl.GL_UNSIGNED_BYTE, True),
-    ):
+    textures, framebuffers = {}, {}
+    for name, (internal, size, filtering) in formats.items():
+        texture, framebuffer = gl.GLuint(), gl.GLuint()
+        gl.glGenTextures(1, ctypes.byref(texture))
         gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
+        depth = internal == gl.GL_DEPTH_COMPONENT24
+        if depth:
+            pixel_format, attachment = gl.GL_DEPTH_COMPONENT, gl.GL_DEPTH_ATTACHMENT
+        else:
+            pixel_format, attachment = gl.GL_RGBA, gl.GL_COLOR_ATTACHMENT0
         gl.glTexImage2D(
-            gl.GL_TEXTURE_2D, 0, internal, width, height, 0, pixel_format, kind, None
+            gl.GL_TEXTURE_2D, 0, internal, *size, 0, pixel_format, gl.GL_FLOAT, None
         )
-        # the blurred occlusion is scaled up to the full image smoothly
-        filtering = gl.GL_NEAREST
-        if smooth:
-            filtering = gl.GL_LINEAR
-        for name, value in (
+        for parameter, value in (
             (gl.GL_TEXTURE_MIN_FILTER, filtering),
             (gl.GL_TEXTURE_MAG_FILTER, filtering),
             (gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE),
             (gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE),
         ):
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, name, value)
-    framebuffer = gl.GLuint()
-    gl.glGenFramebuffers(1, ctypes.byref(framebuffer))
-    return AmbientOcclusion(
-        framebuffer=framebuffer.value,
-        depth=textures[0],
-        noisy=textures[1],
-        blurred=textures[2],
-        width=width,
-        height=height,
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, parameter, value)
+        gl.glGenFramebuffers(1, ctypes.byref(framebuffer))
+        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, framebuffer)
+        gl.glFramebufferTexture2D(
+            gl.GL_FRAMEBUFFER, attachment, gl.GL_TEXTURE_2D, texture, 0
+        )
+        if depth:
+            # only depth is ever drawn
+            gl.glDrawBuffer(gl.GL_NONE)
+            gl.glReadBuffer(gl.GL_NONE)
+        textures[name], framebuffers[name] = texture.value, framebuffer.value
+    gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
+    return textures, framebuffers
+
+
+def create_ambient_occlusion(width: Integer, height: Integer) -> TextureTargets:
+    """
+    Allocate the half resolution images for screen space ambient
+    occlusion: the scene's depth, the occlusion with noise, and blurred.
+
+    Parameters
+    ------------
+    width, height : int
+      Size of the full resolution framebuffer in pixels.
+
+    Returns
+    ------------
+    occlusion : TextureTargets
+      The `depth`, `noisy` and `blurred` images.
+    """
+    size = max(int(width) // 2, 1), max(int(height) // 2, 1)
+    formats = {
+        "depth": (gl.GL_DEPTH_COMPONENT24, size, gl.GL_NEAREST),
+        "noisy": (gl.GL_R8, size, gl.GL_NEAREST),
+        # the blurred occlusion is scaled up to the full image smoothly
+        "blurred": (gl.GL_R8, size, gl.GL_LINEAR),
+    }
+    return TextureTargets(*create_texture_targets(formats), *size)
+
+
+def create_bloom(width: Integer, height: Integer) -> Bloom:
+    """
+    Allocate the images bloom is drawn in, which are blurred at the
+    smallest mip level of a half size picture with `BLOOM_TEXELS` texels
+    per standard deviation of the glow, so blurring costs the same at
+    every resolution.
+
+    Parameters
+    ------------
+    width, height : int
+      Size of the full resolution framebuffer in pixels.
+
+    Returns
+    ------------
+    bloom : Bloom
+      The images and their sizes.
+    """
+    width, height = max(int(width) // 2, 1), max(int(height) // 2, 1)
+    spread = BLOOM_SPREAD * height
+    level = int(max(np.floor(np.log2(spread / BLOOM_TEXELS)), 0))
+    blur = max(width >> level, 1), max(height >> level, 1)
+    textures, framebuffers = create_texture_targets(
+        {
+            "picture": (gl.GL_RGBA8, (width, height), gl.GL_LINEAR),
+            "across": (gl.GL_RGBA16F, blur, gl.GL_LINEAR),
+            "blurred": (gl.GL_RGBA16F, blur, gl.GL_LINEAR),
+        }
+    )
+    # only the mip levels down to the one which is blurred are made
+    gl.glBindTexture(gl.GL_TEXTURE_2D, textures["picture"])
+    gl.glTexParameteri(
+        gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR_MIPMAP_LINEAR
+    )
+    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAX_LEVEL, level)
+    return Bloom(
+        textures, framebuffers, width, height, level, *blur, spread=spread / 2**level
     )
 
 
@@ -836,10 +982,8 @@ def create_framebuffer(
 
     Parameters
     ------------
-    width : int
-      Width in pixels.
-    height : int
-      Height in pixels.
+    width, height : int
+      Size in pixels.
     samples : int
       Antialiasing samples per pixel, or zero for none. If the driver
       can't multisample this falls back to zero.
@@ -953,15 +1097,8 @@ def read_framebuffer_start(framebuffer: Framebuffer, buffer: int) -> None:
     gl.glBufferData(gl.GL_PIXEL_PACK_BUFFER, size, None, gl.GL_STREAM_READ)
     gl.glBindFramebuffer(gl.GL_READ_FRAMEBUFFER, framebuffer.framebuffer)
     gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
-    gl.glReadPixels(
-        0,
-        0,
-        framebuffer.width,
-        framebuffer.height,
-        pixel_format,
-        kind,
-        ctypes.c_void_p(0),
-    )
+    # into the bound pixel buffer, where a null pointer is offset zero
+    gl.glReadPixels(0, 0, framebuffer.width, framebuffer.height, pixel_format, kind, None)
     gl.glBindBuffer(gl.GL_PIXEL_PACK_BUFFER, 0)
 
 

@@ -1,4 +1,5 @@
 import collections
+import os
 import warnings
 from copy import deepcopy
 from hashlib import sha256
@@ -10,6 +11,7 @@ import numpy as np
 from .. import caching, convex, inertia, transformations, units, util
 from ..constants import log
 from ..exchange import export
+from ..interfaces.ffmpeg import VideoSettings
 from ..parent import Geometry, Geometry3D
 from ..registration import procrustes
 from ..typed import (
@@ -19,6 +21,7 @@ from ..typed import (
     Integer,
     Iterable,
     NDArray,
+    Number,
     Sequence,
     ViewerType,
     float64,
@@ -83,6 +86,10 @@ class Scene(Geometry3D):
         self.animations: list[Animation] = []
         # {scene graph node : Skin} for nodes whose mesh their joints move
         self.skins: dict[Hashable, Skin] = {}
+        # cameras riding scene graph nodes, the first is `Scene.camera`
+        self._cameras: list[Camera] = []
+        # lights riding scene graph nodes, or None for the defaults
+        self._lights = None
 
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
@@ -806,12 +813,13 @@ class Scene(Geometry3D):
           Normalized device coordinates: x and y span the framebuffer
           left-to-right and bottom-to-top, z spans `z_near` to `z_far`.
         """
-        view = np.linalg.inv(self.camera_transform)
-        projection = self.camera.projection
-        homogeneous = np.column_stack(
-            [np.asarray(points, dtype=np.float64), np.ones(len(points))]
+        points = np.asarray(points, dtype=np.float64)
+        homogeneous = np.column_stack([points, np.ones(len(points))])
+        clip = (
+            homogeneous
+            @ np.linalg.inv(self.camera_transform).T
+            @ self.camera.projection.T
         )
-        clip = homogeneous @ view.T @ projection.T
         return clip[:, :3] / clip[:, 3:4]
 
     def camera_rays(self) -> tuple[NDArray[float64], NDArray[float64], NDArray[int64]]:
@@ -837,7 +845,10 @@ class Scene(Geometry3D):
             origins[:, :2] = cameras.ray_pixel_coords(self.camera)[0]
         # find our scene's transform for the camera
         transform = self.camera_transform
-        vectors = transformations.transform_points(vectors, transform, translate=False)
+        # a camera node scaled with its scene still casts unit rays
+        vectors = util.unitize(
+            transformations.transform_points(vectors, transform, translate=False)
+        )
         origins = transformations.transform_points(origins, transform)
         return origins, vectors, pixels
 
@@ -853,8 +864,6 @@ class Scene(Geometry3D):
         cameras : [trimesh.scene.Camera]
           Cameras in the scene, which may be empty.
         """
-        if getattr(self, "_cameras", None) is None:
-            self._cameras = []
         return self._cameras
 
     @cameras.setter
@@ -930,7 +939,7 @@ class Scene(Geometry3D):
         has_lights : bool
           If `Scene.lights` was set.
         """
-        return getattr(self, "_lights", None) is not None
+        return self._lights is not None
 
     @property
     def duration(self) -> float:
@@ -963,35 +972,30 @@ class Scene(Geometry3D):
           Repeat each animation past its own end as glTF players do,
           rather than holding its last pose.
         """
-        edge_data = self.graph.transforms.edge_data
         for animation in self.animations:
             if name is not None and animation.name != name:
                 continue
             at = time
             if loop and animation.duration > 0.0:
                 at = time % animation.duration
-            # every edge of an animation is sampled at once
-            for (frame_from, frame_to), matrix in zip(animation.edges, animation.at(at)):
-                # replace only the matrix, keeping the edge's geometry and metadata
-                edge = edge_data.get((frame_from or self.graph.base_frame, frame_to), {})
-                self.graph.update(
-                    frame_from=frame_from, frame_to=frame_to, **{**edge, "matrix": matrix}
-                )
+            # every edge of an animation is sampled and written at once
+            self.graph.update_matrices(animation.edges, animation.at(at))
 
     @property
-    def lights(self) -> list[lighting.Light]:
+    def lights(self) -> list[lighting.Light] | tuple[lighting.Light, ...]:
         """
         Get a list of the lights in the scene. If nothing is set
         these are the lights a render would use, which aren't part of
-        the scene until they are assigned.
+        the scene until they are assigned, as a tuple so editing them
+        raises rather than silently doing nothing.
 
         Returns
         -------------
         lights : [trimesh.scene.lighting.Light]
           Lights in the scene.
         """
-        if getattr(self, "_lights", None) is None:
-            return lighting.autolight(self)[0]
+        if self._lights is None:
+            return tuple(lighting.autolight(self)[0])
         return self._lights
 
     @lights.setter
@@ -1162,15 +1166,10 @@ class Scene(Geometry3D):
                 if frame_to in nodes and frame_to != node
             ]
             if len(kept) > 0:
-                result.animations.append(
-                    Animation(
-                        edges=[animation.edges[index] for index in kept],
-                        times=animation.times,
-                        matrices=animation.matrices[:, kept],
-                        name=animation.name,
-                        interpolation=animation.interpolation,
-                    )
-                )
+                moved = animation.copy()
+                moved.edges = [animation.edges[index] for index in kept]
+                moved.matrices = animation.matrices[:, kept]
+                result.animations.append(moved)
         # a skin only works if its node and every joint survived
         result.skins = {
             key: skin
@@ -1231,16 +1230,80 @@ class Scene(Geometry3D):
         resolution : (2,) int
           Resolution to render image
         **kwargs
-          Passed to `trimesh.viewer.render_scene`
+          Passed to SceneViewer constructor
 
         Returns
         -----------
         png : bytes
           Render of scene as a PNG
         """
-        from ..viewer import render_scene
+        from ..viewer.windowed import render_scene
 
-        return render_scene(scene=self, resolution=resolution, **kwargs)
+        return render_scene(
+            scene=self, resolution=resolution, fullscreen=False, resizable=False, **kwargs
+        )
+
+    def render(
+        self,
+        file_obj=None,
+        file_type: str | None = None,
+        resolution=None,
+        engine: str = "opengl",
+        duration: Number | None = None,
+        settings: VideoSettings | None = None,
+        **kwargs,
+    ) -> bytes:
+        """
+        Render the scene to an image, or to an animation or video of
+        `Scene.animations` or of a turntable if it isn't animated.
+
+        Parameters
+        -----------
+        file_obj : str, pathlib.Path, file-like, or None
+          Where to write the render, such as "animated.mp4".
+        file_type : str or None
+          "png", "gif", "webp", "avif", "mp4", "mkv" or "mov", from the
+          extension of `file_obj` if not passed, or "png" without either.
+        resolution : (2,) int or None
+          Size in pixels, defaults to `scene.camera.resolution`.
+        engine : str
+          "opengl" for the built in renderer or "blender".
+        duration : float or None
+          Seconds of animation, defaults to `scene.duration` or 4.0.
+        settings : VideoSettings or None
+          Frame rate and encoder for animations.
+        **kwargs
+          Passed to `trimesh.viewer.render.render_scene`
+
+        Returns
+        -----------
+        data : bytes
+          The encoded image or video, also written to `file_obj`.
+        """
+        from ..viewer.render import render_scene
+
+        if util.is_pathlib(file_obj):
+            file_obj = str(file_obj.absolute())
+        if file_type is None:
+            if isinstance(file_obj, str):
+                file_type = file_obj.split(".")[-1]
+            else:
+                file_type = "png"
+        data = render_scene(
+            self,
+            resolution=resolution,
+            file_type=file_type.strip().lower().lstrip("."),
+            engine=engine,
+            duration=duration,
+            settings=settings,
+            **kwargs,
+        )
+        if hasattr(file_obj, "write"):
+            file_obj.write(data)
+        elif isinstance(file_obj, str):
+            with open(os.path.abspath(os.path.expanduser(file_obj)), "wb") as file_out:
+                file_out.write(data)
+        return data
 
     @property
     def units(self) -> str | None:
@@ -1453,15 +1516,12 @@ class Scene(Geometry3D):
         # scaling every vertex and every edge translation by the same factor
         # scales the world transform of everything exactly once, and leaves
         # the graph, instancing, and the edges animations drive as they were
-        for (frame_from, frame_to), edge in list(
-            result.graph.transforms.edge_data.items()
-        ):
-            if "matrix" in edge:
-                matrix = np.array(edge["matrix"], dtype=np.float64)
-                matrix[:3, 3] *= scale
-                result.graph.update(
-                    frame_from=frame_from, frame_to=frame_to, **{**edge, "matrix": matrix}
-                )
+        edge_data = result.graph.transforms.edge_data
+        edges = [key for key, edge in edge_data.items() if "matrix" in edge]
+        if len(edges) > 0:
+            matrices = np.array([edge_data[key]["matrix"] for key in edges])
+            matrices[:, :3, 3] *= scale
+            result.graph.update_matrices(edges, matrices)
 
         # the inverse bind matrices go from world space where every edge
         # translation was just scaled, so they get the same scale
@@ -1647,12 +1707,10 @@ def append_scenes(iterable, common=None, base_frame="world"):
     geometry = {}
     # save transforms as edge tuples
     edges = []
-    # animations and lights, with their frames remapped alongside the edges
-    animations = []
-    skins = {}
+    # animations, skins, cameras and lights are added with their nodes
+    # remapped alongside the edges
+    result = Scene(base_frame=base_frame)
     lights = []
-    all_cameras = []
-    metadata = {}
 
     # nodes which shouldn't be remapped
     common = set(common)
@@ -1738,39 +1796,31 @@ def append_scenes(iterable, common=None, base_frame="world"):
                 (map_node.get(frame_from, frame_from), map_node.get(frame_to, frame_to))
                 for frame_from, frame_to in animation.edges
             ]
-            animations.append(moved)
+            result.animations.append(moved)
 
         # skins name their node and joints so they follow the renaming
         for key, skin in s.skins.items():
             moved = skin.copy()
             moved.joints = [map_node.get(joint, joint) for joint in skin.joints]
-            skins[map_node.get(key, key)] = moved
+            result.skins[map_node.get(key, key)] = moved
 
-        # lights are named after their node so they follow its renaming
+        # cameras and lights are named after their node so they follow its
+        # renaming, and the first scene's camera is the one looked through
+        cameras = [camera.copy() for camera in s.cameras]
+        result.cameras.extend(cameras)
+        moved = []
         if s.has_lights:
-            for light in s.lights:
-                moved = deepcopy(light)
-                moved.name = map_node.get(light.name, light.name)
-                lights.append(moved)
-        # cameras are named after their node so they follow its renaming,
-        # and the first scene's camera is the one looked through
-        for camera in s.cameras:
-            moved = camera.copy()
-            moved.name = map_node.get(camera.name, camera.name)
-            all_cameras.append(moved)
+            moved = [deepcopy(light) for light in s.lights]
+            lights.extend(moved)
+        for item in (*cameras, *moved):
+            item.name = map_node.get(item.name, item.name)
         # later metadata wins
-        metadata.update(deepcopy(s.metadata))
+        result.metadata.update(deepcopy(s.metadata))
 
-    # add all data to a new scene
-    result = Scene(base_frame=base_frame)
     result.graph.from_edgelist(edges)
     result.geometry.update(geometry)
-    result.animations.extend(animations)
-    result.metadata.update(metadata)
-    result.skins.update(skins)
     if len(lights) > 0:
         result.lights = lights
-    result.cameras = all_cameras
 
     return result
 

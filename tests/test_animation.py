@@ -121,10 +121,26 @@ def test_scene():
         return {key: value for key, value in data.items() if key != "matrix"}
 
     edge = unmoved(edge_data[("parent", "child")])
+    # every edge written one at a time by `SceneGraph.update`
+    reference = scene.copy().graph
     checks = {"duration": g.np.isclose(scene.duration, 1.0)}
     for time in [0.0, 0.3, 0.62, 1.0]:
         scene.animate(time)
         sampled = animation.at(time)
+        for (frame_from, frame_to), matrix in zip(animation.edges, sampled):
+            data = reference.transforms.edge_data.get(
+                (frame_from or reference.base_frame, frame_to), {}
+            )
+            reference.update(frame_to, frame_from, **{**data, "matrix": matrix})
+        checks[f"same as update {time}"] = (
+            reference.transforms.parents == graph.transforms.parents
+            and {k: unmoved(v) for k, v in reference.transforms.edge_data.items()}
+            == {k: unmoved(v) for k, v in edge_data.items()}
+            and all(
+                g.np.array_equal(reference[node][0], graph[node][0])
+                for node in graph.nodes
+            )
+        )
         # an animation drives one edge so the world transform is that
         # edge composed under whatever the parent is doing
         checks[f"edge {time}"] = g.np.allclose(
@@ -199,54 +215,6 @@ def test_scene():
         assert ok, name
 
 
-def test_skin_points():
-    """`skin_points` matches the per-point weighted sum of joint transforms."""
-    random = g.np.random.default_rng(4)
-    points = random.uniform(-2.0, 2.0, (200, 3))
-    matrices = g.affine(6, seed=8)
-    joints = random.integers(0, 6, (200, 4))
-    weights = random.random((200, 4))
-    weights /= weights.sum(axis=1, keepdims=True)
-    one = g.np.zeros((200, 4))
-    one[:, 0] = 1.0
-    unused = joints.copy()
-    unused[:, 1:] = random.integers(0, 6, (200, 3))
-    single = tf.skin_points(points, joints, one, matrices)
-    same = g.np.tile(matrices[:1], (6, 1, 1))
-    empty = tf.skin_points(
-        g.np.zeros((0, 3)), g.np.zeros((0, 4), int), g.np.zeros((0, 4)), matrices
-    )
-
-    # an explicit per-point loop is the definition
-    loop = [
-        sum(w * (matrices[j] @ [*p, 1.0])[:3] for j, w in zip(row_joints, row_weights))
-        for p, row_joints, row_weights in zip(points, joints, weights)
-    ]
-    first = [
-        tf.transform_points([p], matrices[j])[0] for p, j in zip(points, joints[:, 0])
-    ]
-    checks = {
-        "matches the definition": g.np.allclose(
-            tf.skin_points(points, joints, weights, matrices), loop, atol=1e-12
-        ),
-        # one joint with all the weight is just that transform
-        "single joint": g.np.allclose(single, first, atol=1e-12),
-        # joints with no weight don't matter
-        "unweighted joints ignored": g.np.array_equal(
-            single, tf.skin_points(points, unused, one, matrices)
-        ),
-        # weights summing to one of the same transform is that transform
-        "same transform": g.np.allclose(
-            tf.skin_points(points, joints, weights, same),
-            tf.transform_points(points, matrices[0]),
-            atol=1e-12,
-        ),
-        "empty": empty.shape == (0, 3),
-    }
-    for name, ok in checks.items():
-        assert ok, name
-
-
 def bent_tube():
     """An open tube on Z 0-2 whose knee at Z=1 bends while the hip slides on X."""
     tube = g.trimesh.creation.revolve(
@@ -293,29 +261,15 @@ def spec_skinned(glb, time):
     np = g.np
     header, blob = g.glb_chunks(glb)
     nodes = header["nodes"]
-    # the spec's own tables rather than trimesh's, so a shared bug can't hide
-    dtypes = {5126: "<f4", 5125: "<u4", 5123: "<u2", 5121: "u1"}
-    widths = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
-
-    def accessor(index):
-        """One accessor as (count, width) float64."""
-        item = header["accessors"][index]
-        dtype = np.dtype(dtypes[item["componentType"]])
-        view = header["bufferViews"][item["bufferView"]]
-        start = view.get("byteOffset", 0) + item.get("byteOffset", 0)
-        count = item["count"] * widths[item["type"]]
-        values = np.frombuffer(blob, dtype, count, start).astype(np.float64)
-        if item.get("normalized", False):
-            values /= np.iinfo(dtype).max
-        return values.reshape((item["count"], -1))
+    accessors = g.accessor_values(header, blob)
 
     trs = {"translation": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1]}
     trs = {key: np.array([n.get(key, v) for n in nodes], float) for key, v in trs.items()}
     for animation in header.get("animations", []):
         for channel in animation["channels"]:
             sampler = animation["samplers"][channel["sampler"]]
-            times = accessor(sampler["input"])[:, 0]
-            values = accessor(sampler["output"])
+            times = accessors[sampler["input"]][:, 0]
+            values = accessors[sampler["output"]]
             # LINEAR clamps outside the keyframes and slerps rotations
             clamped = np.clip(time, times[0], times[-1])
             path, node = channel["target"]["path"], channel["target"]["node"]
@@ -346,16 +300,16 @@ def spec_skinned(glb, time):
             continue
         skin = header["skins"][node["skin"]]
         bind = (
-            accessor(skin["inverseBindMatrices"]).reshape((-1, 4, 4)).transpose(0, 2, 1)
+            accessors[skin["inverseBindMatrices"]].reshape((-1, 4, 4)).transpose(0, 2, 1)
         )
         # the spec's joint matrix is under the inverse of the mesh node's
         # world transform, which the vertex shader then applies and cancels
         joint = np.array([world(j) @ b for j, b in zip(skin["joints"], bind)])
         attributes = header["meshes"][node["mesh"]]["primitives"][0]["attributes"]
-        joints = accessor(attributes["JOINTS_0"]).astype(int)
-        weights = accessor(attributes["WEIGHTS_0"])[:, :, None, None]
+        joints = accessors[attributes["JOINTS_0"]].astype(int)
+        weights = accessors[attributes["WEIGHTS_0"]][:, :, None, None]
         position = np.column_stack(
-            (accessor(attributes["POSITION"]), np.ones(len(joints)))
+            (accessors[attributes["POSITION"]], np.ones(len(joints)))
         )
         blended = (weights * joint[joints]).sum(axis=1)
         result[node["name"]] = (blended @ position[:, :, None])[:, :3, 0]

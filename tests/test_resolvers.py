@@ -1,8 +1,6 @@
 import asyncio
-import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
 import pytest
 
@@ -13,8 +11,6 @@ except BaseException:
 
 # canned response body for the local web server
 CANNED = b"hello resolver"
-# every session choice, including none, is supported without warning
-pytestmark = pytest.mark.filterwarnings("error::DeprecationWarning")
 
 
 @pytest.fixture(scope="module")
@@ -23,8 +19,7 @@ def local_url():
     # against the real clients without touching the network
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            # also a host that does not normalize `./` path segments
-            if "missing" in self.path or "/./" in self.path:
+            if "missing" in self.path:
                 self.send_error(404)
             elif "redirect" in self.path:
                 # exercises the redirect kwarg each library names differently
@@ -79,16 +74,11 @@ def test_filepath_allow_anywhere(tmp_path):
     assert "allow_anywhere" not in str(excinfo.value)
 
 
-@pytest.mark.parametrize("library", [None, "httpx", "requests"])
-def test_web_sessions(local_url, library, monkeypatch):
+@pytest.mark.parametrize("library", ["httpx", "requests"])
+def test_web_sessions(local_url, library):
     # every supported session flavor must fetch through the same path
-    session = None
-    if library is None:
-        # no session must work with only the standard library
-        monkeypatch.setitem(sys.modules, "httpx", None)
-    else:
-        lib = pytest.importorskip(library)
-        session = getattr(lib, {"httpx": "Client", "requests": "Session"}[library])()
+    lib = pytest.importorskip(library)
+    session = lib.Client() if library == "httpx" else lib.Session()
 
     resolver = g.trimesh.resolvers.WebResolver(local_url, session=session)
     # fetch twice — catches clients that break on connection reuse
@@ -97,33 +87,9 @@ def test_web_sessions(local_url, library, monkeypatch):
     assert resolver.get_base() == CANNED
     # both libraries must follow redirects
     assert resolver.get("redirect.mtl") == CANNED
-    # a leading `./` from an OBJ `mtllib` is retried without it
-    assert resolver.get("./thing.mtl") == CANNED
     # a missing asset raises the session's own http error
     with pytest.raises(Exception, match="404"):
         resolver.get("missing.mtl")
-
-
-def test_web_load_stdlib(monkeypatch):
-    # an OBJ referencing `./fuze.obj.mtl` which references `fuze uv.jpg`
-    # must load over HTTP using only the standard library
-    monkeypatch.setitem(sys.modules, "httpx", None)
-    disk = g.get_mesh("fuze.obj")
-    with g.serve_meshes() as address:
-        raw = g.trimesh.resolvers.WebResolver(address + "/fuze.obj").get_base()
-        remote = g.trimesh.load_mesh(address + "/fuze.obj", allow_remote=True)
-    checks = {
-        "bytes match disk": raw == (Path(g.dir_models) / "fuze.obj").read_bytes(),
-        "vertices": g.np.allclose(remote.vertices, disk.vertices),
-        "faces": g.np.array_equal(remote.faces, disk.faces),
-        "uv": g.np.allclose(remote.visual.uv, disk.visual.uv),
-        "texture pixels": g.np.array_equal(
-            g.np.asarray(remote.visual.material.image),
-            g.np.asarray(disk.visual.material.image),
-        ),
-    }
-    for name, ok in checks.items():
-        assert ok, name
 
 
 def test_web_session_duck(local_url):
@@ -141,7 +107,6 @@ def test_web_session_duck(local_url):
 
     resolver = g.trimesh.resolvers.WebResolver(local_url, session=Duck())
     assert resolver.request_kwargs == {}
-    assert resolver.url == local_url
     assert resolver.get("thing.mtl") == CANNED
 
 

@@ -4,7 +4,7 @@ render_samples.py
 
 Render the animated glTF sample models and the examples here to video
 with trimesh's own OpenGL renderer, and side by side with Blender. Every
-video is one line: `trimesh.load_remote(url).export("film.mp4")`.
+video is one line: `trimesh.load_remote(url).render("film.mp4")`.
 
 Usage:
   `python render_samples.py samples [directory]`: every one at 4K
@@ -70,13 +70,6 @@ REEL = [
 # bigger and averages it down for crisp edges where Blender samples each pixel
 WIDTH, HEIGHT, SUPERSAMPLE, TITLE = 1920, 2160, 2, 3.0
 SETTINGS = VideoSettings(fps=30)
-# the fonts the reel's labels and code are set in
-FONT, CODE = (
-    subprocess.run(
-        ["fc-match", "-f", "%{file}", name], capture_output=True, text=True
-    ).stdout
-    for name in ("IBM Plex Sans:medium", "IBM Plex Mono:medium")
-)
 
 
 def load(name):
@@ -114,13 +107,13 @@ def samples(directory):
         for clip, scene in clips(load(name)).items():
             path = os.path.join(directory, f"{name}_{clip or 'film'}_4k.mp4")
             start = time.perf_counter()
-            scene.export(path, resolution=(3840, 2160), settings=SETTINGS)
+            scene.render(path, resolution=(3840, 2160), settings=SETTINGS)
             seconds = time.perf_counter() - start
             frames = max(round(max(scene.duration, 4.0) * SETTINGS.fps), 1)
             print(f"{os.path.basename(path):48s} {frames / seconds:6.1f} fps")
 
 
-def label(height, words, font=FONT):
+def label(height, words, font):
     """Outlined words across the reel as (height, width, 4) float."""
     strip = Image.new("RGBA", (2 * WIDTH, height), (0, 0, 0, 0))
     font = ImageFont.truetype(font, height // 2)
@@ -148,14 +141,22 @@ def overlay(frame, strip, row):
 def reel(directory):
     """trimesh's renderer and Blender side by side through the same camera."""
     renderer = f"pyglet {pyglet.version.split('.')[0]}"
+    # the fonts the reel's labels and code are set in, found here so
+    # importing this needs no fontconfig
+    font, code_font = (
+        subprocess.run(
+            ["fc-match", "-f", "%{file}", name], capture_output=True, text=True
+        ).stdout
+        for name in ("IBM Plex Sans:medium", "IBM Plex Mono:medium")
+    )
     # label heights and margins as a fraction of the reel's height
     margin = HEIGHT // 50
     with VideoWriter(os.path.join(directory, "reel.mp4"), SETTINGS) as video:
         card = np.zeros((HEIGHT, 2 * WIDTH, 3))
-        title = "trimesh: glb animations rendered in pyglet or blender"
-        overlay(card, label(HEIGHT // 8, [(WIDTH, title)]), HEIGHT // 3)
-        code = 'scene.export("film.mp4", engine="blender")'
-        overlay(card, label(HEIGHT // 12, [(WIDTH, code)], font=CODE), HEIGHT // 2)
+        title = "trimesh: glb animations"
+        overlay(card, label(HEIGHT // 8, [(WIDTH, title)], font), HEIGHT // 3)
+        code = "trimesh.load_scene('file.glb').render('animated.mp4')"
+        overlay(card, label(HEIGHT // 12, [(WIDTH, code)], code_font), HEIGHT // 2)
         for _ in range(round(TITLE * SETTINGS.fps)):
             video.write(card.astype(np.uint8))
 
@@ -210,16 +211,18 @@ def reel(directory):
                 )
                 left.append(block.mean(axis=(1, 3)).round().astype(np.uint8))
             start = time.perf_counter()
-            right = render_frames(
-                scene,
-                resolution=(WIDTH, HEIGHT),
-                engine="blender",
-                duration=duration,
-                fps=SETTINGS.fps,
+            right = list(
+                render_frames(
+                    scene,
+                    resolution=(WIDTH, HEIGHT),
+                    engine="blender",
+                    duration=duration,
+                    fps=SETTINGS.fps,
+                )
             )
             blender_seconds = time.perf_counter() - start
 
-            title = label(HEIGHT // 14, [(WIDTH, name)])
+            title = label(HEIGHT // 14, [(WIDTH, name)], font)
             engines = label(
                 HEIGHT // 11,
                 [
@@ -229,6 +232,7 @@ def reel(directory):
                         f"blender: {len(right) / blender_seconds:.1f} fps",
                     ),
                 ],
+                font,
             )
             for opengl, blender in zip(left, right):
                 frame = np.hstack((opengl, blender[..., :3])).astype(np.float64)

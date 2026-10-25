@@ -1,8 +1,8 @@
 import numpy as np
 
 from . import util
-from .constants import log, tol
-from .typed import ArrayLike, NDArray
+from .constants import log
+from .typed import NDArray
 
 try:
     import scipy.sparse
@@ -396,76 +396,6 @@ def weighted_vertex_normals(
             log.warning("unable to use sparse matrix, falling back!", exc_info=True)
     # we either crashed or were asked to loop
     return util.unitize(summed_loop())
-
-
-def vertex_tangents(
-    vertices: ArrayLike, faces: ArrayLike, uv: ArrayLike, normals: ArrayLike
-) -> NDArray[np.float64]:
-    """
-    The direction texture coordinate U increases at each vertex, which
-    a normal map is drawn in, the way MikkTSpace weights it so they match
-    what glTF viewers generate for files without tangents: each face's
-    direction in the plane of the vertex normal summed by corner angle,
-    with W for whether V runs along or against the normal cross tangent.
-
-    Parameters
-    -----------
-    vertices : (n, 3) float
-      Vertex positions.
-    faces : (m, 3) int
-      Triangles of vertex indices.
-    uv : (n, 2) float
-      Texture coordinates of each vertex.
-    normals : (n, 3) float
-      Normal of each vertex.
-
-    Returns
-    -----------
-    tangents : (n, 4) float
-      Unit tangent and a W of 1.0 or -1.0, which is a glTF `TANGENT`.
-    """
-    vertices = np.asanyarray(vertices, dtype=np.float64)
-    faces = np.asanyarray(faces, dtype=np.int64)
-    uv = np.asanyarray(uv, dtype=np.float64)
-    normals = util.unitize(np.asanyarray(normals, dtype=np.float64))
-    # the two edges from the first corner of each face in space and texture
-    edges = vertices[faces[:, 1:]] - vertices[faces[:, :1]]
-    steps = uv[faces[:, 1:]] - uv[faces[:, :1]]
-    # solve edges = steps @ [dP/dU, dP/dV] where faces without texture
-    # area say nothing about which way the texture runs
-    area = steps[:, 0, 0] * steps[:, 1, 1] - steps[:, 1, 0] * steps[:, 0, 1]
-    inverse = np.divide(1.0, area, out=np.zeros_like(area), where=np.abs(area) > tol.zero)
-    inverse = inverse[:, None]
-    along_u = (edges[:, 0] * steps[:, 1, 1:] - edges[:, 1] * steps[:, 0, 1:]) * inverse
-    along_v = (edges[:, 1] * steps[:, 0, :1] - edges[:, 0] * steps[:, 1, :1]) * inverse
-    # as MikkTSpace: each corner adds its face's direction in the plane of
-    # the corner's normal at unit length, weighted by the corner's angle
-    # between its edges in that plane
-    corner_normals = normals[faces]
-    triangles = vertices[faces]
-
-    def flatten(vectors):
-        # unit vectors along the plane of each corner's normal
-        vectors = (
-            vectors - corner_normals * (corner_normals * vectors).sum(axis=2)[..., None]
-        )
-        return util.unitize(vectors.reshape((-1, 3))).reshape(vectors.shape)
-
-    leaving = flatten(np.roll(triangles, -1, axis=1) - triangles)
-    arriving = flatten(np.roll(triangles, 1, axis=1) - triangles)
-    angles = np.arccos(np.clip((leaving * arriving).sum(axis=2), -1.0, 1.0))
-    matrix = index_sparse(len(vertices), faces.reshape((-1, 1)), data=angles.ravel())
-    tangents = matrix.dot(
-        flatten(np.repeat(along_u[:, None], 3, axis=1)).reshape((-1, 3))
-    )
-    bitangents = index_sparse(len(vertices), faces).dot(along_v)
-    # vertices on no textured face take any direction in their surface
-    stuck = (tangents**2).sum(axis=1) < tol.zero
-    axis = np.where(np.abs(normals[stuck, :1]) < 0.9, [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
-    tangents[stuck] = axis - normals[stuck] * (normals[stuck] * axis).sum(axis=1)[:, None]
-    # V runs against the normal cross the tangent on mirrored texture
-    mirrored = (np.cross(normals, tangents) * bitangents).sum(axis=1) < 0.0
-    return np.column_stack((util.unitize(tangents), np.where(mirrored, -1.0, 1.0)))
 
 
 def index_sparse(columns, indices, data=None, dtype=None):

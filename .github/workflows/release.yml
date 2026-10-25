@@ -46,11 +46,6 @@ jobs:
     - name: Run Pytest
       run: pytest tests/
 
-  ci:
-    name: Run Test Workflow
-    # the pull request jobs including the `combined-coverage` artifact
-    uses: ./.github/workflows/test.yml
-
   pypi:
     name: Release To PyPi
     needs: [tests, containers, corpus]
@@ -77,7 +72,6 @@ jobs:
   containers:
     if: github.ref == 'refs/heads/main'
     name: Build Docker Images
-    needs: ci
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -93,16 +87,6 @@ jobs:
       run: echo "$DH_PASS" | docker login --username mikedh --password-stdin
     - name: Checkout trimesh
       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-    - name: Download Combined Coverage
-      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-      with:
-        name: combined-coverage
-        # outside the checkout so only `.coverage.ci` joins the docker context
-        path: ${{ runner.temp }}/combined-coverage
-    - name: Stage Combined Coverage
-      # the docs stage of `helpers/Dockerfile` unions `.coverage.ci` with
-      # the docker tests-stage data so the report counts every CI job
-      run: cp "$RUNNER_TEMP/combined-coverage/.coverage" .coverage.ci
     - name: Build Images And Docs
       run: |
         make tests # build docker images and run unit tests

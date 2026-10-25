@@ -13,13 +13,12 @@ from .notebook import (
     scene_to_mo_notebook,
     scene_to_notebook,
 )
-from .render import render_scene
 
 
 def __getattr__(name: str):
     """
-    Import the OpenGL viewer only when it is used, as importing
-    pyglet connects to a display or creates an OpenGL context.
+    Import the viewer for the installed pyglet only when it is used,
+    as importing pyglet connects to a display or creates an OpenGL context.
 
     Parameters
     ------------
@@ -28,18 +27,20 @@ def __getattr__(name: str):
 
     Returns
     ------------
-    value : SceneViewer or ExceptionWrapper
-      The viewer, or why it couldn't be imported.
+    value : SceneViewer, render_scene or ExceptionWrapper
+      From `trimesh.viewer.windowed`, or why it couldn't be imported.
     """
-    if name != "SceneViewer":
+    if name not in ("SceneViewer", "render_scene"):
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     try:
-        from .windowed import SceneViewer
+        from . import windowed
     except Exception as E:
         # only raise the exception if someone tries to use it
         return exceptions.ExceptionWrapper(E)
-    return SceneViewer
+    return getattr(windowed, name)
 
+
+# this is only standard library imports
 
 # explicitly list imports in __all__
 # as otherwise flake8 gets mad

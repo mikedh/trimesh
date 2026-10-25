@@ -53,6 +53,8 @@ uniform bool has_face_colors;
 uniform bool smooth_shading;
 // an invisible floor which is only as dark as the shadows on it
 uniform bool shadow_catcher;
+// `KHR_materials_unlit`: the base color is the final color
+uniform bool unlit;
 // the depth each shadow casting light sees, one layer per light
 uniform sampler2DArrayShadow shadow_maps;
 
@@ -134,6 +136,11 @@ void main() {
     // images and segmentation rather than a picture
     if (frame.write_depth_and_index.x == 1) {
         fragment_color = vec4(-view_position.z, fragment_node_index, 0.0, 1.0);
+        return;
+    }
+    // which no light, shadow, occlusion, exposure or tone mapping changes
+    if (unlit) {
+        fragment_color = vec4(linear_to_srgb(clamp(base_color.rgb, 0.0, 1.0)) * alpha, alpha);
         return;
     }
 
@@ -280,7 +287,15 @@ void main() {
         return;
     }
 
-    // premultiplied by alpha, which is how the framebuffer blends
-    vec3 color = diffuse_light * alpha + specular_light;
-    fragment_color = vec4(to_display(color), alpha);
+    // the framebuffer blends what the display shows as `color + (1 - alpha)
+    // * behind`, so the surface's own light `D` covers `alpha` of the display
+    // with `to_display(D)`, and its reflections `S` add what they add over
+    // the light the surface lets through, `to_display(alpha * D + S) -
+    // to_display(alpha * D)`. Opaque that is `to_display(D + S)`, with nothing
+    // reflected `alpha * to_display(D)`, and clear glass `to_display(S)`, and
+    // never negative as `to_display` only increases
+    vec3 covered = diffuse_light * alpha;
+    vec3 color = alpha * to_display(diffuse_light)
+        + to_display(covered + specular_light) - to_display(covered);
+    fragment_color = vec4(color, alpha);
 }

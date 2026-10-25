@@ -78,8 +78,7 @@ class HttpSessionLike(Protocol):
     Structural type for an HTTP session.
 
     Matches `httpx.Client` and `requests.Session` so a resolver
-    can take either without trimesh importing them directly, and
-    with no session at all a resolver uses the standard library.
+    can take either without trimesh importing them directly.
     other duck-typed sessions are called as `get(url)` with no
     additional kwargs. async sessions like `aiohttp.ClientSession`
     can't be driven synchronously and are rejected at runtime.

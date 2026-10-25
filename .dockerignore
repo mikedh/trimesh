@@ -6,3 +6,10 @@ docs/_static/examples/
 docs/trimesh*.rst
 docs/examples.*.rst
 docs/README.rst
+
+# renders and reports written by the examples, and editor backups
+examples/*.mp4
+examples/*.glb
+**/*.report.json
+**/\#*\#
+**/*~

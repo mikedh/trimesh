@@ -266,4 +266,4 @@ if __name__ == "__main__":
     # an animated glTF which plays in Blender, three.js and trimesh, and
     # the same film from the built in renderer
     scene.export(os.path.join(directory, "cycloidal.glb"))
-    scene.export(os.path.join(directory, "cycloidal.mp4"), resolution=[1920, 1080])
+    scene.render(os.path.join(directory, "cycloidal.mp4"), resolution=[1920, 1080])

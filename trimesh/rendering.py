@@ -23,7 +23,13 @@ def __getattr__(name: str):
     value : any
       The attribute from its new location.
     """
-    from .viewer.pyglet1 import conversion
+    if name.startswith("__"):
+        # what `inspect`, `pickle` and `pytest` probe modules for
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    with warnings.catch_warnings():
+        # the one warning is this module's, not the package it moved to
+        warnings.simplefilter("ignore", DeprecationWarning)
+        from .viewer.pyglet1 import conversion
 
     warnings.warn(
         "`trimesh.rendering` is deprecated and will be removed after "

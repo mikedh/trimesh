@@ -37,6 +37,13 @@ SPECULAR_SHARPNESS = (0.131, 1.0381, -0.7256, 1.0728)
 # Rec.709 weights of linear RGB for how bright a color looks
 LUMINANCE = np.array([0.2126, 0.7152, 0.0722])
 
+# the default studio's warm key and cool rim light colors, which glTF
+# stores as linear RGB, and its slightly warm sky and floor: every part
+# of the studio is as bright as white of the luminance it is given
+KEY_COLOR = np.array([255, 219, 178])
+RIM_COLOR = np.array([191, 212, 255])
+SKY_COLOR = np.array([255, 242, 230])
+
 
 @dataclass
 class Softbox:
@@ -94,7 +101,7 @@ class Environment:
             boxes.append(box)
         self.softboxes = boxes
 
-    def light(self, direction: ArrayLike, blur: Number) -> NDArray[float64]:
+    def light(self, direction: ArrayLike, blur: Number | NDArray) -> NDArray[float64]:
         """
         The environment's light around a direction averaged by a
         spherical Gaussian kernel which integrates to one, which is
@@ -102,16 +109,16 @@ class Environment:
 
         Parameters
         ------------
-        direction : (3,) float
-          Unit vector to look at the environment in.
-        blur : float
+        direction : (3,) or (n, 3) float
+          Unit vectors to look at the environment in.
+        blur : float or (n,) float
           Sharpness of the averaging kernel, `DIFFUSE_SHARPNESS` for
           what a diffuse surface facing `direction` receives.
 
         Returns
         ------------
-        light : (3,) float
-          Linear RGB radiance.
+        light : (3,) or (n, 3) float
+          Linear RGB radiance in each direction.
         """
         direction = util.unitize(direction)
         # the gradient is linear in height so averaging it only scales
@@ -120,12 +127,13 @@ class Environment:
         mean_cosine = (1.0 + spread) / (1.0 - spread) - 1.0 / blur
         height = np.dot(direction, util.unitize(self.up)) * mean_cosine
         sky, ground = np.array(self.sky), np.array(self.ground)
-        light = ground + (sky - ground) * (0.5 + 0.5 * height)
+        light = ground + (sky - ground) * (0.5 + 0.5 * height)[..., None]
         kernel_peak = blur / (2.0 * np.pi * (1.0 - spread))
         for box in self.softboxes:
-            light = light + np.array(box.color) * kernel_peak * gaussian_overlap(
+            overlap = gaussian_overlap(
                 util.unitize(box.direction), box.sharpness, direction, blur
             )
+            light = light + np.array(box.color) * (kernel_peak * overlap)[..., None]
         return light
 
 
@@ -144,14 +152,18 @@ class Studio:
     # (4, 3) corners of a floor which only shows shadows, or None
     ground: NDArray | None
     # how bright a white floor facing up looks with nothing shadowing it
-    ground_light: float
+    ground_light: Number
     # how far ambient occlusion looks for nearby surfaces
-    occlusion_radius: float
+    occlusion_radius: Number
     # the camera sees the environment behind the scene
     show_environment: bool = False
     # pixels across lines and points
-    line_width: float = 2.0
-    point_size: float = 6.0
+    line_width: Number = 2.0
+    point_size: Number = 6.0
+    # what all light is multiplied by before it is tone mapped
+    exposure: Number = 1.0
+    # how much light too bright for the display spills onto its neighbors
+    bloom: Number = 0.0
 
 
 @dataclass
@@ -169,8 +181,16 @@ class RenderSettings:
     # plain background, like a sky or a starfield
     show_environment: bool = False
     # pixels across lines and points
-    line_width: float = 2.0
-    point_size: float = 6.0
+    line_width: Number = 2.0
+    point_size: Number = 6.0
+    # what all light is multiplied by before it is tone mapped, where two
+    # is twice as bright, which is one stop: lines, points and unlit
+    # materials are colors rather than light, which it doesn't change
+    exposure: Number = 1.0
+    # how much of what the tone mapper had to compress towards white glows
+    # onto the pixels around it, like glare in an eye or a lens, where zero
+    # is none: only the OpenGL viewer draws it, Blender renders have none
+    bloom: Number = 0.0
 
     def __post_init__(self):
         """
@@ -280,13 +300,9 @@ class RenderSettings:
         received = environment.light(up, DIFFUSE_SHARPNESS)
         for light, transform in zip(lights, transforms):
             if isinstance(light, DirectionalLight):
-                towards = util.unitize(transform[:3, 2])
-                received = received + (
-                    light.color[:3]
-                    / 255.0
-                    * light.intensity
-                    * max(np.dot(up, towards), 0.0)
-                    / np.pi
+                facing = max(np.dot(up, util.unitize(transform[:3, 2])), 0.0)
+                received = (
+                    received + light.color[:3] / 255.0 * light.intensity * facing / np.pi
                 )
         scale = 1.0
         if bounds is not None:
@@ -301,6 +317,8 @@ class RenderSettings:
             show_environment=self.show_environment,
             line_width=float(self.line_width),
             point_size=float(self.point_size),
+            exposure=float(self.exposure),
+            bloom=float(self.bloom),
         )
 
 
@@ -322,7 +340,7 @@ def specular_sharpness(roughness):
     return np.exp(np.polyval(SPECULAR_SHARPNESS, np.log(roughness)))
 
 
-def gaussian_overlap(axis_a, sharpness_a, axis_b, sharpness_b) -> float:
+def gaussian_overlap(axis_a, sharpness_a, axis_b, sharpness_b):
     """
     The integral over the sphere of the product of two spherical
     Gaussians with peaks of one, written so it stays accurate when one
@@ -334,36 +352,49 @@ def gaussian_overlap(axis_a, sharpness_a, axis_b, sharpness_b) -> float:
       Unit vector of the first Gaussian.
     sharpness_a : float
       Sharpness of the first Gaussian.
-    axis_b : (3,) float
-      Unit vector of the second Gaussian.
-    sharpness_b : float
+    axis_b : (3,) or (n, 3) float
+      Unit vectors of the second Gaussian.
+    sharpness_b : float or (n,) float
       Sharpness of the second Gaussian.
 
     Returns
     ------------
-    overlap : float
-      The integral.
+    overlap : float or (n,) float
+      The integral for each of `axis_b`.
     """
     combined = np.linalg.norm(
-        sharpness_a * np.asarray(axis_a) + sharpness_b * np.asarray(axis_b)
+        sharpness_a * np.asarray(axis_a)
+        + np.asarray(sharpness_b)[..., None] * np.asarray(axis_b),
+        axis=-1,
     )
-    exponent = (
-        2.0
-        * sharpness_a
-        * sharpness_b
-        * (np.dot(axis_a, axis_b) - 1.0)
-        / (combined + sharpness_a + sharpness_b)
-    )
-    return (
-        2.0
-        * np.pi
-        * np.exp(exponent)
-        * (1.0 - np.exp(-2.0 * combined))
-        / max(combined, 1e-6)
-    )
+    total = combined + sharpness_a + sharpness_b
+    exponent = 2.0 * sharpness_a * sharpness_b * (np.dot(axis_b, axis_a) - 1.0) / total
+    limited = np.maximum(combined, 1e-6)
+    return 2.0 * np.pi * np.exp(exponent) * (1.0 - np.exp(-2.0 * combined)) / limited
 
 
-def studio_direction(right, up, back, azimuth: float, elevation: float):
+def with_luminance(color: ArrayLike, luminance: Number) -> NDArray[float64]:
+    """
+    Scale a color to a Rec.709 luminance, so tinting a light changes
+    its color but not how bright it looks.
+
+    Parameters
+    ------------
+    color : (3,) float
+      Linear RGB in any units.
+    luminance : float
+      How bright the result looks.
+
+    Returns
+    ------------
+    scaled : (3,) float
+      Linear RGB with `luminance`.
+    """
+    color = np.asarray(color, dtype=np.float64)
+    return color * (luminance / np.dot(color, LUMINANCE))
+
+
+def studio_direction(right, up, back, azimuth: Number, elevation: Number):
     """
     A unit vector in a studio's frame.
 
@@ -412,19 +443,20 @@ def studio_environment(right, up, back) -> Environment:
     """
     return Environment(
         up=up,
-        sky=[0.30, 0.31, 0.33],
-        ground=[0.10, 0.095, 0.09],
+        sky=with_luminance(SKY_COLOR, 0.31),
+        ground=with_luminance(SKY_COLOR, 0.096),
         softboxes=[
             Softbox(direction=up, sharpness=4.0, color=[0.35] * 3),
+            # warm like the key light on its side and cool opposite
             Softbox(
                 direction=studio_direction(right, up, back, 60.0, 20.0),
                 sharpness=30.0,
-                color=[2.0] * 3,
+                color=with_luminance(KEY_COLOR, 2.0),
             ),
             Softbox(
                 direction=studio_direction(right, up, back, -70.0, 12.0),
                 sharpness=30.0,
-                color=[1.0] * 3,
+                color=with_luminance(RIM_COLOR, 1.0),
             ),
         ],
     )
@@ -455,18 +487,19 @@ def studio_lights(scene, right, up, back) -> tuple[list, NDArray[float64]]:
       World pose of each light, which shines down its -Z.
     """
     names = set(scene.graph.nodes)
-    # in glTF units a white surface facing a directional light of
-    # intensity `I` lux reflects `I / pi`
+    # in glTF units a white surface facing a directional light of intensity
+    # `I` lux and linear color `C` reflects `C * I / pi`, which for these is
+    # a luminance of 0.58 and 0.28
     lights = [
         DirectionalLight(
             name=util.unique_name("key_light", names),
-            color=[255, 244, 229, 255],
-            intensity=0.6 * np.pi,
+            color=[*KEY_COLOR, 255],
+            intensity=np.pi * 0.58 / np.dot(KEY_COLOR / 255.0, LUMINANCE),
         ),
         DirectionalLight(
             name=util.unique_name("rim_light", names),
-            color=[229, 238, 255, 255],
-            intensity=0.3 * np.pi,
+            color=[*RIM_COLOR, 255],
+            intensity=np.pi * 0.28 / np.dot(RIM_COLOR / 255.0, LUMINANCE),
         ),
     ]
     towards = [

@@ -11,6 +11,7 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -45,7 +46,9 @@ config_json = """
       "git",
       "libxkbcommon0",
       "libtbb-dev",
-      "blender"
+      "ffmpeg",
+      "blender",
+      "python3-numpy"
 ]
   },
   "fetch": {
@@ -63,12 +66,75 @@ config_json = """
       "chmod": {"pandoc": 755},
       "extract_only": "pandoc"
     },
+    "glslang": {
+      "url": "https://github.com/KhronosGroup/glslang/releases/download/16.6.0/glslang-16.6.0-linux-x86_64-release.tar.gz",
+      "sha256": "2c34071f56ecf39d16233294d3739cf43f981fd39080f2fd9dccb782101191ce",
+      "target": "$PATH",
+      "strip_components": 1,
+      "extract_only": ["glslang", "glslangValidator"]
+    },
 
     "binvox": {
       "url": "https://trimesh.s3-us-west-1.amazonaws.com/binvox",
       "sha256": "82ee314a75986f67f1d2b5b3ccdfb3661fe57a6b428aa0e0f798fdb3e1734fe0",
       "target": "$PATH",
       "chmod": {"binvox": 755}
+    }
+  },
+  "matrix": {
+    "pyglet1": {
+      "pip": ["pyglet==1.5.31"],
+      "expect": "pyglet==1.5.31",
+      "tests": ["tests/test_viewer.py", "tests/test_camera.py", "tests/test_animation.py", "tests/test_examples.py", "tests/test_render.py"]
+    },
+    "pyglet2": {
+      "pip": ["pyglet==2.1.19"],
+      "expect": "pyglet==2.1.19",
+      "tests": ["tests/test_viewer.py", "tests/test_camera.py", "tests/test_animation.py", "tests/test_examples.py", "tests/test_render.py"]
+    },
+    "pyglet3": {
+      "pip": ["pyglet==3.0.dev11"],
+      "expect": "pyglet==3.0.dev11",
+      "tests": ["tests/test_viewer.py", "tests/test_camera.py", "tests/test_animation.py", "tests/test_examples.py", "tests/test_render.py"]
+    },
+    "blender43": {
+      "fetch": {
+        "url": [
+          "https://download.blender.org/release/Blender4.3/blender-4.3.2-linux-x64.tar.xz",
+          "https://ftp.nluug.nl/pub/graphics/blender/release/Blender4.3/blender-4.3.2-linux-x64.tar.xz"
+        ],
+        "sha256": "4da1c956673c0485e63054e563ee69198cc8f80d8157dd7592dffc8a6a5592e6",
+        "target": "~/blender/4.3.2",
+        "strip_components": 1
+      },
+      "expect": "blender==4.3.2",
+      "tests": ["tests/test_blender.py"]
+    },
+    "blender45": {
+      "fetch": {
+        "url": [
+          "https://download.blender.org/release/Blender4.5/blender-4.5.15-linux-x64.tar.xz",
+          "https://ftp.nluug.nl/pub/graphics/blender/release/Blender4.5/blender-4.5.15-linux-x64.tar.xz"
+        ],
+        "sha256": "0d2b8bb2efe97e6c8eb57de6b7322f8800e1984e3125b60decca5f6771e4773e",
+        "target": "~/blender/4.5.15",
+        "strip_components": 1
+      },
+      "expect": "blender==4.5.15",
+      "tests": ["tests/test_blender.py"]
+    },
+    "blender50": {
+      "fetch": {
+        "url": [
+          "https://download.blender.org/release/Blender5.0/blender-5.0.1-linux-x64.tar.xz",
+          "https://ftp.nluug.nl/pub/graphics/blender/release/Blender5.0/blender-5.0.1-linux-x64.tar.xz"
+        ],
+        "sha256": "8019580ee1b7262e505f4196a00237ccf743c88d205b38d34201510676e60b09",
+        "target": "~/blender/5.0.1",
+        "strip_components": 1
+      },
+      "expect": "blender==5.0.1",
+      "tests": ["tests/test_blender.py"]
     }
   }
 }
@@ -133,8 +199,8 @@ def fetch(url, sha256):
 
     Parameters
     ------------
-    url : str
-      Location of remote resource.
+    url : str or list
+      Location of remote resource, or mirrors of it to try in order.
     sha256: str
       The SHA256 hash of the resource once retrieved,
       will raise a `ValueError` if the hash doesn't match.
@@ -145,15 +211,24 @@ def fetch(url, sha256):
       Retrieved data in memory with correct hash.
     """
     import hashlib
+    from urllib.error import URLError
     from urllib.request import urlopen
 
-    data = urlopen(url).read()
-    hashed = hashlib.sha256(data).hexdigest()
-    if hashed != sha256:
-        log.error(f"`{hashed}` != `{sha256}`")
-        raise ValueError("sha256 hash does not match!")
-
-    return data
+    if isinstance(url, str):
+        url = [url]
+    for mirror in url:
+        try:
+            data = urlopen(mirror).read()
+        except (URLError, OSError) as E:
+            # the next mirror, which has to have the same hash
+            log.warning(f"unable to fetch `{mirror}`: {E}")
+            continue
+        hashed = hashlib.sha256(data).hexdigest()
+        if hashed != sha256:
+            log.error(f"`{mirror}` is `{hashed}` != `{sha256}`")
+            continue
+        return data
+    raise ValueError(f"no mirror of `{url[-1]}` had sha256 `{sha256}`")
 
 
 def is_writable(path: str) -> bool:
@@ -215,11 +290,56 @@ def choose_in_path(prefix="~") -> str:
     raise ValueError("unable to write to file")
 
 
-def extract(tar, member, path, chmod):
+def inside(root, path):
     """
-    Extract a single member from a tarfile to a path.
+    Check if a path is inside a directory once `..` are resolved.
+
+    Parameters
+    ------------
+    root : str
+      The directory.
+    path : str
+      A path, absolute or relative to the working directory.
+
+    Returns
+    ------------
+    inside : bool
+      If `path` is `root` or anything under it.
     """
-    if os.path.isdir(path):
+    root = os.path.abspath(root)
+    return os.path.commonpath([root, os.path.abspath(path)]) == root
+
+
+def extract(tar, member, path, chmod, root):
+    """
+    Extract a single member from a tarfile to a path, replacing
+    whatever an earlier extraction left there.
+
+    Parameters
+    ------------
+    tar : tarfile.TarFile
+      The open archive.
+    member : tarfile.TarInfo
+      The member to extract.
+    path : str
+      Where to write it.
+    chmod : None or int
+      Permissions to set, or None for the archive's.
+    root : str
+      The directory everything extracted, and every link, stays inside.
+    """
+    if os.path.isdir(path) and not os.path.islink(path):
+        return
+    target = os.path.join(os.path.dirname(path), member.linkname)
+    if not inside(root, path) or (member.issym() and not inside(root, target)):
+        raise ValueError(f"`{member.name}` would extract outside of `{root}`")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.lexists(path):
+        # a link or file from an earlier run, which writing would follow
+        os.remove(path)
+    if member.issym():
+        # i.e. `lib/libfoo.so -> libfoo.so.1` in the Blender archives
+        os.symlink(member.linkname, path)
         return
     data = tar.extractfile(member=member)
     if not hasattr(data, "read"):
@@ -228,15 +348,15 @@ def extract(tar, member, path, chmod):
     if len(data) == 0:
         return
 
-    # make sure root path exists
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
     with open(path, "wb") as f:
         f.write(data)
 
     if chmod is not None:
         # python os.chmod takes an octal value
         os.chmod(path, int(str(chmod), base=8))
+    else:
+        # otherwise keep the permissions from the archive
+        os.chmod(path, member.mode)
 
 
 def handle_fetch(
@@ -254,8 +374,8 @@ def handle_fetch(
 
     Parameters
     ------------
-    url : str
-      A string with a remote resource.
+    url : str or list
+      A string with a remote resource, or mirrors of it.
     sha256 : str
       A hex string for the hash of the remote resource.
     target : str
@@ -275,10 +395,17 @@ def handle_fetch(
     if target.lower().strip() == "$path":
         target = choose_in_path()
         log.debug(f"identified destination as `{target}`")
+    target = os.path.expanduser(target)
 
     if chmod is None:
         chmod = {}
-        
+
+    # an archive extracted whole before with this hash is left alone
+    marker = os.path.join(target, f".trimesh-setup-{sha256}")
+    if os.path.exists(marker):
+        log.debug(f"already extracted: `{url}`")
+        return
+
     if extract_skip is None:
         extract_skip = []
     # if passed a single string
@@ -288,6 +415,9 @@ def handle_fetch(
     # get the raw bytes
     log.debug(f"fetching: `{url}`")
     raw = fetch(url=url, sha256=sha256)
+    if not isinstance(url, str):
+        # every mirror has the same file name
+        url = url[0]
 
     if len(raw) == 0:
         raise ValueError(f"{url} is empty!")
@@ -319,7 +449,16 @@ def handle_fetch(
 
             path = os.path.join(target, name)
             log.debug(f"extracting: `{path}`")
-            extract(tar=tar, member=member, path=path, chmod=chmod.get(name, None))
+            extract(
+                tar=tar,
+                member=member,
+                path=path,
+                chmod=chmod.get(name, None),
+                root=target,
+            )
+        # only written once everything is, so an interrupted run redoes it
+        with open(marker, "w") as f:
+            f.write(url)
 
     else:
         # a single file
@@ -343,15 +482,58 @@ def load_config():
 if __name__ == "__main__":
     config = load_config()
 
-    options = set()
-    for v in config.values():
-        options.update(v.keys())
+    options = set(config["apt"]).union(config["fetch"])
 
     parser = argparse.ArgumentParser(description="Install system packages for trimesh.")
     parser.add_argument(
         "--install", type=str, action="append", help=f"Install metapackages: {options}"
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--matrix",
+        type=str,
+        choices=list(config["matrix"]),
+        help="Install a matrix entry and run its tests, passing other arguments to pytest",
+    )
+    parser.add_argument(
+        "--fetch-only",
+        action="store_true",
+        help="Only fetch what `--matrix` entries need, i.e. in an earlier Docker layer",
+    )
+    args, pytest_args = parser.parse_known_args()
+
+    if args.fetch_only:
+        for entry in config["matrix"].values():
+            if "fetch" in entry:
+                handle_fetch(**entry["fetch"])
+        sys.exit(0)
+
+    if args.matrix is not None:
+        entry = config["matrix"][args.matrix]
+        env = os.environ.copy()
+        command = [sys.executable]
+        if "pip" in entry:
+            # packages in a throwaway environment layered over this one, so
+            # one entry's versions never leak into the entries after it
+            uv = shutil.which("uv")
+            if uv is None:
+                uv = [sys.executable, "-m", "uv"]
+            else:
+                uv = [uv]
+            layered = ["run", "--no-project", "--python", sys.executable]
+            for requirement in entry["pip"]:
+                layered.extend(["--with", requirement])
+            command = uv + layered + ["python"]
+        if "fetch" in entry:
+            handle_fetch(**entry["fetch"])
+            # first on PATH so `trimesh.util.which` finds this executable
+            target = os.path.expanduser(entry["fetch"]["target"])
+            env["PATH"] = os.pathsep.join([target, env["PATH"]])
+        if "expect" in entry:
+            # `tests/generic.py` asserts the installed version matches
+            env["TRIMESH_EXPECT"] = entry["expect"]
+        command = command + ["-m", "pytest"] + entry["tests"] + pytest_args
+        log.debug(f"running: `{' '.join(command)}`")
+        sys.exit(subprocess.call(command, env=env))
 
     # collect `apt-get install`-able package
     apt_select = []

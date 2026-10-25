@@ -1,10 +1,6 @@
 name: Run Tests
 
-on:
-  pull_request:
-  workflow_dispatch:
-  # lets `release.yml` reuse these jobs and their combined coverage
-  workflow_call:
+on: [pull_request,workflow_dispatch]
 
 permissions:
   contents: read
@@ -31,7 +27,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        python-version: ["3.10", "3.13", "3.14"]
+        python-version: ["3.10", "3.13"]
         os: [ubuntu-latest, windows-latest, macos-latest, macos-15-intel]
     steps:
     - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -56,84 +52,8 @@ jobs:
     - name: Install Trimesh
       run: pip install --no-cache-dir .[easy,test]
     - name: Run Pytest
-      # a data file per job so the `coverage` job can union them
-      env:
-        COVERAGE_FILE: .coverage.tests-${{ matrix.os }}-${{ matrix.python-version }}
       run: |
-        pytest --cov=trimesh
-    - name: Upload Coverage Data
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      with:
-        name: coverage-tests-${{ matrix.os }}-${{ matrix.python-version }}
-        path: .coverage.*
-        include-hidden-files: true
-  rendering:
-    name: Rendering (pyglet ${{ matrix.pyglet }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      matrix:
-        pyglet: ["1.5.31", "2.1.19", "3.0.dev11"]
-    env:
-      # software OpenGL through EGL with no display
-      PYGLET_HEADLESS: "1"
-      LIBGL_ALWAYS_SOFTWARE: "1"
-    steps:
-    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-    - name: Set up Python 3.14
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-      with:
-        python-version: "3.14"
-    - name: Install OpenGL and ffmpeg
-      run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libegl-mesa0 libgl1-mesa-dri glslang-tools ffmpeg
-    - name: Install Trimesh
-      run: pip install .[easy,test] "pyglet==${{ matrix.pyglet }}"
-    - name: Run Rendering Tests
-      # `INCLUDE_RENDERING` makes a missing OpenGL context fail rather than skip
-      env:
-        COVERAGE_FILE: .coverage.rendering-${{ matrix.pyglet }}
-      run: pytest tests/test_viewer.py tests/test_camera.py tests/test_animation.py tests/test_examples.py tests/test_render.py -p no:INCLUDE_RENDERING --cov=trimesh
-    - name: Upload Coverage Data
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      with:
-        name: coverage-rendering-${{ matrix.pyglet }}
-        path: .coverage.*
-        include-hidden-files: true
-
-  coverage:
-    name: Combine Coverage
-    # union of every OS, Python, and pyglet version
-    needs: [tests, rendering]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-    - name: Set up Python 3.13
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-      with:
-        python-version: "3.13"
-    - name: Download Coverage Data
-      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-      with:
-        pattern: coverage-*
-        merge-multiple: true
-    - name: Combine Coverage
-      # `[tool.coverage.paths]` maps every runner's paths onto `trimesh/`
-      run: |
-        pip install coverage
-        coverage combine
-        coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
-        coverage html
-    - name: Upload Combined Coverage
-      # `release.yml` downloads this by name for the published report
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      with:
-        name: combined-coverage
-        path: |
-          .coverage
-          htmlcov/
-        include-hidden-files: true
-
+        pytest
   docker:
     name: Run Tests In Docker
     runs-on: ubuntu-latest

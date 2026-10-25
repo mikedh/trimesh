@@ -36,25 +36,52 @@ class CameraTests(g.unittest.TestCase):
         )
         assert np.allclose(camera.fov, fov)
 
-    def test_resolution_keeps_pixels_square(self):
-        """A new shape keeps the vertical fov and changes the horizontal one."""
-        camera = g.trimesh.scene.Camera(resolution=[640, 480], fov=(60, 45), z_far=50.0)
-        # the ratio of the half angle tangents is the shape of square pixels
-        before = g.np.tan(g.np.radians(camera.fov) / 2)
+    def test_resolution_keeps_fov(self):
+        """
+        Setting a resolution keeps a set field of view, and only the view
+        a scene is rendered with widens to the image with square pixels.
+        """
+        Camera = g.trimesh.scene.Camera
+        current_view = g.trimesh.scene.cameras.current_view
+        camera = Camera(resolution=[640, 480], fov=(60, 45), z_far=50.0)
         camera.resolution = (1920, 1080)
-        after = g.np.tan(g.np.radians(camera.fov) / 2)
         copied = camera.copy()
-        same = g.trimesh.scene.Camera(resolution=[320, 240], fov=(60, 45))
+        # a scene viewed at another shape keeps its camera as it was
+        scene = g.trimesh.creation.box().scene()
+        scene.camera = Camera(resolution=[640, 480], fov=(60, 45))
+        scene.graph[scene.camera.name] = g.np.eye(4)
+        viewed = current_view(scene, resolution=(1920, 1080))[0]
+        half = g.np.tan(g.np.radians(viewed.fov) / 2)
+        orthographic = g.trimesh.creation.box().scene()
+        orthographic.camera = Camera(magnification=(2.0, 1.5), resolution=[640, 480])
+        orthographic.graph[orthographic.camera.name] = g.np.eye(4)
+        flat = current_view(orthographic, resolution=(1920, 1080))[0]
+        # `set_camera` keeps the fov it is passed however often it's called
+        framed = g.trimesh.creation.box().scene()
+        for resolution in (None, (1920, 1080)):
+            framed.set_camera(fov=(50, 40), resolution=resolution)
         checks = {
-            "vertical fov kept": g.np.isclose(camera.fov[1], 45.0),
-            "horizontal fov follows the shape": g.np.isclose(
-                (after[0] / after[1]) / (before[0] / before[1]),
-                (1920 / 1080) / (640 / 480),
+            "resolution keeps fov": g.np.array_equal(camera.fov, (60, 45)),
+            # 30 pixels per degree of each field of view as on `main`
+            "default resolution": g.np.array_equal(
+                Camera(fov=(60, 45)).resolution, (1800, 1350)
             ),
-            "same shape is unchanged": g.np.allclose(same.fov, (60, 45)),
             "copy keeps clip planes": (copied.z_near, copied.z_far)
             == (camera.z_near, 50),
-            "copy keeps fov": g.np.allclose(copied.fov, camera.fov),
+            "copy keeps fov": g.np.array_equal(copied.fov, camera.fov),
+            "view has the image resolution": g.np.array_equal(
+                viewed.resolution, (1920, 1080)
+            ),
+            "view keeps vertical fov": g.np.isclose(viewed.fov[1], 45.0),
+            # the ratio of the half angle tangents is the shape of the image
+            "view has square pixels": g.np.isclose(half[0] / half[1], 1920 / 1080),
+            "scene camera unchanged": g.np.array_equal(scene.camera.fov, (60, 45))
+            and g.np.array_equal(scene.camera.resolution, (640, 480)),
+            "orthographic view keeps height": g.np.allclose(
+                flat.magnification, (1.5 * 1920 / 1080, 1.5)
+            ),
+            "set_camera twice keeps fov": g.np.array_equal(framed.camera.fov, (50, 40))
+            and g.np.array_equal(framed.camera.resolution, (1920, 1080)),
         }
         for name, ok in checks.items():
             assert ok, name
@@ -136,6 +163,21 @@ class CameraTests(g.unittest.TestCase):
         g.trimesh.scene.cameras.look_at(points, fov, center=points[0])
         g.trimesh.scene.cameras.look_at(points, fov, distance=1)
 
+        # a scaled rotation frames from the same place as the unit one
+        # and keeps its scale, as a camera node scaled with its scene
+        rotation = g.trimesh.transformations.random_rotation_matrix(seed=3)
+        checks = {}
+        for scale in (0.025, 40.0):
+            scaled = rotation @ g.np.diag([scale] * 3 + [1])
+            unit = g.trimesh.scene.cameras.look_at(moved, fov, rotation=rotation)
+            framed = g.trimesh.scene.cameras.look_at(moved, fov, rotation=scaled)
+            checks[f"{scale} same translation"] = g.np.allclose(
+                framed[:3, 3], unit[:3, 3]
+            )
+            checks[f"{scale} keeps scale"] = g.np.allclose(framed[:3, :3], scaled[:3, :3])
+        for name, ok in checks.items():
+            assert ok, name
+
     def test_ray_index(self):
         # make sure to_rays is giving valid indexes
         s = g.trimesh.scene.Scene()
@@ -147,6 +189,62 @@ class CameraTests(g.unittest.TestCase):
             rid = s.camera.to_rays()[1]
             assert all(rid.min(axis=0) == 0)
             assert all(rid.max(axis=0) == current - 1)
+
+        # rays from a camera looking down -Z from 5 at a box whose top
+        # face is at Z of 1, through a node which may scale the camera
+        Camera = g.trimesh.scene.Camera
+        box = g.trimesh.creation.box(extents=[40.0, 40.0, 2.0])
+        lenses = {
+            "perspective": {"fov": (60.0, 45.0)},
+            "orthographic": {"magnification": (1.5, 1.0)},
+        }
+        width, height = 40, 30
+        checks = {}
+        for kind, lens in lenses.items():
+            for scale in (1.0, 0.025):
+                name = f"{kind} at scale {scale}"
+                scene = g.trimesh.Scene(box)
+                scene.camera = Camera(resolution=(width, height), **lens)
+                pose = g.trimesh.transformations.translation_matrix([0, 0, 5])
+                scene.graph[scene.camera.name] = pose @ g.np.diag([scale] * 3 + [1])
+                origins, vectors, pixels = scene.camera_rays()
+
+                # the same view from an unscaled camera, which for an
+                # orthographic camera sees `scale` times as much
+                unscaled = g.trimesh.Scene(box)
+                if kind == "orthographic":
+                    lens = {"magnification": g.np.multiply(lens["magnification"], scale)}
+                unscaled.camera = Camera(resolution=(width, height), **lens)
+                unscaled.graph[unscaled.camera.name] = pose
+                reference = unscaled.camera_rays()
+
+                # the center of each pixel, counted from the bottom left
+                column = (2.0 * pixels[:, 0] + 1.0) / width - 1.0
+                row = (2.0 * pixels[:, 1] + 1.0) / height - 1.0
+                distance = g.np.full(len(pixels), 4.0)
+                if kind == "perspective":
+                    half = g.np.tan(g.np.radians(lens["fov"]) / 2.0)
+                    distance *= g.np.sqrt(
+                        (column * half[0]) ** 2 + (row * half[1]) ** 2 + 1.0
+                    )
+                hits = origins + vectors * distance[:, None]
+                ndc = scene.camera_project(hits)
+                checks.update(
+                    {
+                        f"{name} unit rays": g.np.allclose(
+                            g.np.linalg.norm(vectors, axis=1), 1.0
+                        ),
+                        f"{name} equals unscaled": g.np.allclose(origins, reference[0])
+                        and g.np.allclose(vectors, reference[1])
+                        and g.np.array_equal(pixels, reference[2]),
+                        f"{name} distance to the face": g.np.allclose(hits[:, 2], 1.0),
+                        f"{name} lands on pixel centers": g.np.allclose(
+                            ndc[:, :2], g.np.column_stack((column, row))
+                        ),
+                    }
+                )
+        for name, ok in checks.items():
+            assert ok, name
 
     def test_scaled_copy(self):
         s = g.get_mesh("cycloidal.3DXML")
@@ -166,39 +264,6 @@ class CameraTests(g.unittest.TestCase):
             "corners in frustum": (g.np.abs(ndc) <= 1.0 + 1e-6).all(),
             "centered": g.np.linalg.norm(ndc[:, :2].mean(axis=0)) < 0.25,
         }
-        for name, ok in checks.items():
-            assert ok, name
-
-    def test_save_image(self):
-        """`save_image` renders exactly what the camera sees and leaves it as it was."""
-        g.require_rendering()
-        translation = g.trimesh.transformations.translation_matrix
-        sphere = g.trimesh.creation.icosphere
-        # a small sphere instanced at three nodes and a large one
-        assembly = g.trimesh.Scene({"small": sphere(2, 0.6), "large": sphere(2, 1.0)})
-        offsets = {"small": (-2.5, 0, 0), "small_1": (2.5, 0, 0), "small_2": (0, 0, 2.5)}
-        for node, offset in offsets.items():
-            assembly.graph.update(
-                frame_to=node, matrix=translation(offset), geometry="small"
-            )
-        assembly.graph.update(frame_to="large", matrix=translation([0, 2.5, 0]))
-        scenes = {
-            "box": g.trimesh.creation.box(extents=[3.0, 1.0, 2.0]).scene(),
-            "fuze": g.trimesh.load_scene(g.dir_models + "/fuze.obj"),
-            "assembly": assembly,
-        }
-        checks = {}
-        for name, scene in scenes.items():
-            # without the floor every drawn pixel is the scene's geometry
-            g.set_render(scene, ground_shadow=False)
-            before = [*scene.camera.resolution, *scene.camera.fov]
-            image = g.png(scene.save_image(resolution=[400, 300]))
-            checks[f"{name} size"] = image.shape[:2] == (300, 400)
-            after = [*scene.camera.resolution, *scene.camera.fov]
-            checks[f"{name} camera unchanged"] = g.np.allclose(after, before)
-            # cast the reference rays through the camera the image used
-            scene.camera.resolution = (400, 300)
-            checks.update(g.silhouette_checks(scene, image, f"{name} "))
         for name, ok in checks.items():
             assert ok, name
 

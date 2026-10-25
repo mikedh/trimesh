@@ -55,14 +55,16 @@ class MaterialUniforms:
     alpha_mode: int = ALPHA_MODES["OPAQUE"]
     alpha_cutoff: float = 0.5
     double_sided: bool = False
+    # an invisible floor which only shows the shadows that fall on it
+    shadow_catcher: bool = False
+    # `KHR_materials_unlit`: the base color is the final color
+    unlit: bool = False
     # the fraction of diffuse light scattered out of the other side of a
     # thin surface and its linear RGB color, `KHR_materials_diffuse_transmission`
     diffuse_transmission: float = 0.0
     diffuse_transmission_color: NDArray = field(
         default_factory=lambda: np.ones(3, dtype=np.float32)
     )
-    # an invisible floor which only shows the shadows that fall on it
-    shadow_catcher: bool = False
     # `PIL.Image.Image` or None
     base_color_texture: object = None
     metallic_roughness_texture: object = None
@@ -78,12 +80,8 @@ class MaterialUniforms:
 @dataclass
 class GeometryArrays:
     """
-    Everything needed to draw one piece of geometry, as numpy arrays.
-
-    Meshes are indexed triangles with one row per vertex in
-    `vertices`, `normals`, `uv` and `vertex_colors`. Lines and points
-    are segments with `vertices` as `(n, 2, 3)` endpoints and one
-    color per segment in `vertex_colors`: a point is a segment with
+    Everything needed to draw one piece of geometry as numpy arrays:
+    indexed triangles, or line segments where a point is a segment with
     two identical endpoints.
     """
 
@@ -392,6 +390,7 @@ def material_to_uniforms(material) -> MaterialUniforms:
         metallic=1.0,
         roughness=1.0,
         double_sided=bool(pbr.doubleSided),
+        unlit=bool(pbr.unlit),
         base_color_texture=pbr.baseColorTexture,
         metallic_roughness_texture=pbr.metallicRoughnessTexture,
         emissive_texture=pbr.emissiveTexture,
@@ -455,8 +454,11 @@ def shadow_projections(
       Width of a shadow map pixel in world units as a constant for
       directional lights plus a multiple of the distance from spot lights.
     """
-    world = np.asarray(world, dtype=np.float64).reshape((-1, 4, 4))
+    world = np.array(world, dtype=np.float64).reshape((-1, 4, 4))
     count = len(world)
+    # a light's node may have a scale, which isn't part of the light, and
+    # without it the light's space and its texels are in world units
+    world[:, :3, :3] /= np.linalg.norm(world[:, :3, :3], axis=1, keepdims=True)
     to_light = np.linalg.inv(world)
     corners = bounds_corners(bounds)
     local = (
@@ -465,9 +467,13 @@ def shadow_projections(
     )
     # distance in front of each light, which looks down its -Z
     depth = -local[..., 2]
+    # the planes sit a thousandth of the scene outside of it, which is far
+    # more than the float32 rounding of a corner's depth, so nothing is
+    # clipped, plus a length so a scene of a single point has some depth
     margin = 1e-3 * np.ptp(corners, axis=0).max() + 1e-12
     far = depth.max(axis=1) + margin
     low, high = local[..., :2].min(axis=1), local[..., :2].max(axis=1)
+    # as wide as the scene, and something for a scene seen edge on
     size = np.maximum(high - low, 1e-12)
 
     orthographic = np.zeros((count, 4, 4))
@@ -478,9 +484,12 @@ def shadow_projections(
     orthographic[:, 2, 3] = -(far + near) / (far - near)
     orthographic[:, 3, 3] = 1.0
 
-    # a spot light can't see behind itself so its near plane is in front
+    # a spot light can't see behind itself so its near plane is in front,
+    # where a 24 bit depth buffer tells apart `far^2 / (near * 2^24)` at
+    # the far plane, so the near plane is kept where that is under 0.01%
     perspective = np.zeros((count, 4, 4))
     near = np.maximum(depth.min(axis=1), far * 1e-3)
+    # a cone between straight ahead and a hemisphere has a finite focal length
     focal = 1.0 / np.tan(np.clip(cone_angles, 1e-3, np.pi / 2.0 - 1e-3))
     perspective[:, 0, 0] = focal
     perspective[:, 1, 1] = focal

@@ -3,10 +3,15 @@ import copy
 import numpy as np
 
 from .. import util
-from ..typed import ArrayLike, NDArray
+from ..typed import Integer, NDArray, Sequence
 
 # the field of view of a camera made to frame a scene, in degrees
 DEFAULT_FOV = (60.0, 45.0)
+# the near and far clip planes `Camera` has always defaulted to, which
+# `scene_camera` multiplies by a scene's size so a scene of any size is
+# in view as one about a unit across is with these
+DEFAULT_Z_NEAR = 0.01
+DEFAULT_Z_FAR = 1000.0
 
 
 class Camera:
@@ -16,8 +21,8 @@ class Camera:
         resolution=None,
         focal=None,
         fov=None,
-        z_near=0.01,
-        z_far=1000.0,
+        z_near=DEFAULT_Z_NEAR,
+        z_far=DEFAULT_Z_FAR,
         magnification=None,
     ):
         """
@@ -41,7 +46,8 @@ class Camera:
         z_near : float
           What is the closest
         z_far : float
-          What is the farthest
+          What is the farthest, where `np.inf` is glTF's infinite
+          projection for a camera without `zfar`.
         magnification : None or (2,) float
           Make this an orthographic camera which sees half this width
           and height in scene units either side of its center, like
@@ -59,14 +65,13 @@ class Camera:
         if fov is None and focal is None:
             if magnification is None:
                 raise ValueError("either focal length or FOV required!")
-            # a nominal lens with the shape of the orthographic view
+            # the default lens with the shape of the orthographic view
             ratio = magnification[0] / magnification[1]
-            fov = [np.degrees(2.0 * np.arctan(np.tan(np.radians(22.5)) * ratio)), 45.0]
+            half = np.tan(np.radians(DEFAULT_FOV[1]) / 2.0)
+            fov = [np.degrees(2.0 * np.arctan(half * ratio)), DEFAULT_FOV[1]]
 
         # store whether or not we computed the focal length
         self._focal_computed = False
-        # the first resolution set has nothing to keep the view of
-        self._resolution = None
 
         # set the passed (2,) float focal length
         self.focal = focal
@@ -78,12 +83,8 @@ class Camera:
         self.magnification = magnification
 
         if resolution is None:
-            # if unset make resolution 30 pixels per vertical degree,
-            # with the width from the tangents so pixels are square
-            tangents = np.tan(np.radians(self.fov) / 2.0)
-            resolution = np.round(
-                self.fov[1] * 30.0 * np.array([tangents[0] / tangents[1], 1.0])
-            ).astype(np.int64)
+            # if unset make resolution 30 pixels per degree
+            resolution = (self.fov * 30.0).round().astype(np.int64)
         self.resolution = resolution
 
         # what is the farthest from the camera it should render
@@ -120,9 +121,7 @@ class Camera:
     @resolution.setter
     def resolution(self, values):
         """
-        Set the camera resolution in pixels. If the field of view was set
-        the vertical one is kept and the horizontal one changes with the
-        image's shape, so the image is wider rather than stretched.
+        Set the camera resolution in pixels.
 
         Parameters
         ------------
@@ -133,21 +132,6 @@ class Camera:
         if values.shape != (2,):
             raise ValueError("resolution must be (2,) float")
         values.flags.writeable = False
-        previous = self._resolution
-        if previous is not None:
-            # a wider image sees more rather than being stretched
-            stretch = (values[0] / values[1]) / (previous[0] / previous[1])
-            if self._magnification is not None:
-                self.magnification = self._magnification * [stretch, 1.0]
-            if self._focal_computed:
-                # the field of view was set so keep the vertical one and widen
-                # the horizontal one with the image, keeping the pixels' shape
-                fov_x = np.degrees(
-                    2.0 * np.arctan(np.tan(np.radians(self._fov[0]) / 2.0) * stretch)
-                )
-                fov = np.array([fov_x, self._fov[1]])
-                fov.flags.writeable = False
-                self._fov = fov
         self._resolution = values
         # unset computed value that depends on the other plus resolution
         if self._focal_computed:
@@ -155,6 +139,28 @@ class Camera:
         else:
             # fov must be computed
             self._fov = None
+
+    def fit_resolution(self, resolution: Sequence[Integer] | NDArray) -> None:
+        """
+        Set the resolution of an image to render and change the
+        horizontal field of view, and orthographic width, to its shape
+        so pixels are square, keeping the vertical ones. This is how
+        a glTF camera without `aspectRatio` takes the viewport's.
+
+        Parameters
+        ------------
+        resolution : (2,) int
+          Width and height of the image in pixels.
+        """
+        self.resolution = resolution
+        aspect = self.resolution[0] / self.resolution[1]
+        # the ratio of the half angle tangents is the shape of the image
+        vertical = self.fov[1]
+        half = np.tan(np.radians(vertical) / 2.0)
+        self.fov = (np.degrees(2.0 * np.arctan(half * aspect)), vertical)
+        if self.magnification is not None:
+            height = self.magnification[1]
+            self.magnification = (height * aspect, height)
 
     @property
     def magnification(self):
@@ -321,38 +327,21 @@ class Camera:
         if self.magnification is not None:
             # glTF's orthographic projection
             x_mag, y_mag = self.magnification
-            return np.array(
-                [
-                    [1.0 / x_mag, 0.0, 0.0, 0.0],
-                    [0.0, 1.0 / y_mag, 0.0, 0.0],
-                    [
-                        0.0,
-                        0.0,
-                        2.0 / (z_near - z_far),
-                        (z_far + z_near) / (z_near - z_far),
-                    ],
-                    [0.0, 0.0, 0.0, 1.0],
-                ],
-                dtype=np.float64,
-            )
+            projection = np.diag([1.0 / x_mag, 1.0 / y_mag, 2.0 / (z_near - z_far), 1.0])
+            projection[2, 3] = (z_far + z_near) / (z_near - z_far)
+            return projection
         # both fields of view are used, as `look_at` frames with both
-        f_x = 1.0 / np.tan(np.radians(self.fov[0]) / 2.0)
-        f_y = 1.0 / np.tan(np.radians(self.fov[1]) / 2.0)
+        focal = 1.0 / np.tan(np.radians(self.fov) / 2.0)
         # the `gluPerspective` matrix: the last row makes `w = -z`
-        return np.array(
-            [
-                [f_x, 0.0, 0.0, 0.0],
-                [0.0, f_y, 0.0, 0.0],
-                [
-                    0.0,
-                    0.0,
-                    (z_far + z_near) / (z_near - z_far),
-                    (2.0 * z_far * z_near) / (z_near - z_far),
-                ],
-                [0.0, 0.0, -1.0, 0.0],
-            ],
-            dtype=np.float64,
-        )
+        projection = np.diag([*focal, -1.0, 0.0])
+        projection[2, 3] = -2.0 * z_near
+        projection[3, 2] = -1.0
+        if np.isfinite(z_far):
+            projection[2, 2] = (z_far + z_near) / (z_near - z_far)
+            projection[2, 3] = (2.0 * z_far * z_near) / (z_near - z_far)
+        # otherwise it is glTF's infinite projection, which is the limit
+        # of the finite one as `z_far` goes to infinity
+        return projection
 
     def to_rays(self):
         """
@@ -455,7 +444,9 @@ def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
     points = np.asanyarray(points, dtype=np.float64)
 
     # Transform points to camera frame (just use the rotation part)
-    rinv = rotation[:3, :3].T
+    # with unit axes, as a camera node may be scaled with its scene,
+    # and keep the scale in the returned pose
+    rinv = util.unitize(rotation[:3, :3].T)
     points_c = rinv.dot(points.T).T
 
     if center is None:
@@ -479,9 +470,9 @@ def look_at(points, fov, rotation=None, distance=None, center=None, pad=None):
         distance *= pad
 
     # set the pose translation
-    center_w = rotation[:3, :3].dot(center_c)
+    center_w = rinv.T.dot(center_c)
     cam_pose = rotation.copy()
-    cam_pose[:3, 3] = center_w + distance * cam_pose[:3, 2]
+    cam_pose[:3, 3] = center_w + distance * rinv[2]
 
     return cam_pose
 
@@ -591,13 +582,13 @@ def scene_camera(scene, **kwargs) -> Camera:
       A camera which belongs to nobody.
     """
     if scene.bounds is not None:
-        kwargs.setdefault("z_near", 0.01 * scene.scale)
-        kwargs.setdefault("z_far", 1000.0 * scene.scale)
+        kwargs.setdefault("z_near", DEFAULT_Z_NEAR * scene.scale)
+        kwargs.setdefault("z_far", DEFAULT_Z_FAR * scene.scale)
     return Camera(**kwargs)
 
 
 def current_view(
-    scene, resolution: ArrayLike | None = None
+    scene, resolution: Sequence[Integer] | NDArray | None = None
 ) -> tuple[Camera, NDArray[np.float64]]:
     """
     The camera a scene would be rendered with and where it is, which
@@ -609,8 +600,9 @@ def current_view(
     scene : trimesh.Scene
       Scene to view.
     resolution : None or (2,) int
-      Size of the image in pixels, which sets the camera's aspect
-      before a new camera frames the scene.
+      Size of the image in pixels, which the camera's horizontal
+      field of view is fit to with square pixels before a new camera
+      frames the scene, see `Camera.fit_resolution`.
 
     Returns
     --------------
@@ -629,7 +621,7 @@ def current_view(
         transform = np.eye(4)
     # the aspect is set before framing so the frame fits the image
     if resolution is not None:
-        camera.resolution = resolution
+        camera.fit_resolution(resolution)
     if not scene.has_camera and scene.bounds is not None:
         transform = look_at(scene.bounds, fov=camera.fov)
     return camera, transform

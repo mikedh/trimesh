@@ -20,10 +20,11 @@ vec3 depth_to_view(sampler2D depth, vec2 uv) {
 
 // the Khronos PBR Neutral tone mapper: colors up to 0.8 are left
 // alone so base colors look like themselves, and brighter colors
-// roll off towards white instead of clipping
+// roll off towards white instead of clipping, which starts here
+// after the 0.04 it takes off every color
 // https://github.com/KhronosGroup/ToneMapping/tree/main/PBR_Neutral
+const float START_COMPRESSION = 0.8 - 0.04;
 vec3 tonemap(vec3 color) {
-    const float start_compression = 0.8 - 0.04;
     const float desaturation = 0.15;
     float darkest = min(color.r, min(color.g, color.b));
     float offset = 0.04;
@@ -32,19 +33,19 @@ vec3 tonemap(vec3 color) {
     }
     color -= offset;
     float peak = max(color.r, max(color.g, color.b));
-    if (peak < start_compression) {
+    if (peak < START_COMPRESSION) {
         return color;
     }
-    float headroom = 1.0 - start_compression;
-    float new_peak = 1.0 - headroom * headroom / (peak + headroom - start_compression);
+    float headroom = 1.0 - START_COMPRESSION;
+    float new_peak = 1.0 - headroom * headroom / (peak + headroom - START_COMPRESSION);
     color *= new_peak / peak;
     float fade = 1.0 - 1.0 / (desaturation * (peak - new_peak) + 1.0);
     return mix(color, vec3(new_peak), fade);
 }
 
-// a linear color as the sRGB a display shows, tone mapped
-vec3 to_display(vec3 color) {
-    return linear_to_srgb(clamp(tonemap(color), 0.0, 1.0));
+// linear light as the sRGB a display shows, exposed then tone mapped
+vec3 to_display(vec3 light) {
+    return linear_to_srgb(clamp(tonemap(light * frame.exposure.x), 0.0, 1.0));
 }
 
 // the integral over the sphere of the product of two spherical Gaussians

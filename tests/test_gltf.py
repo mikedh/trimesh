@@ -199,6 +199,15 @@ class GLTFTest(g.unittest.TestCase):
         assert s.geometry["TestOpaqueMesh"].visual.material.alphaMode is None
 
         export = s.export(file_type="glb")
+        # the file is normal mapped without tangents, which viewers make
+        # themselves as the spec says, so re-exporting adds none
+        attributes = {
+            name
+            for mesh in g.glb_chunks(export)[0]["meshes"]
+            for primitive in mesh["primitives"]
+            for name in primitive["attributes"]
+        }
+        assert "TANGENT" not in attributes, attributes
         g.validate_glb(export)
 
         # roundtrip it
@@ -246,14 +255,33 @@ class GLTFTest(g.unittest.TestCase):
                 **{key: Image.fromarray(value) for key, value in pixels.items()},
             ),
         )
-        export = g.trimesh.Scene({"glass": glass, "leaf": leaf}).export(file_type="glb")
+        # and a sky which is a picture no light shades, `KHR_materials_unlit`
+        sky = g.trimesh.creation.box()
+        sky.visual = g.trimesh.visual.TextureVisuals(
+            material=g.trimesh.visual.material.PBRMaterial(unlit=True)
+        )
+        export = g.trimesh.Scene({"glass": glass, "leaf": leaf, "sky": sky}).export(
+            file_type="glb"
+        )
         g.validate_glb(export)
         loaded = g.from_glb_bytes(export).geometry
         material = loaded["leaf"].visual.material
-        used = g.glb_chunks(export)[0]["extensionsUsed"]
+        header = g.glb_chunks(export)[0]
+        used = header["extensionsUsed"]
         checks = {
             "extension used": "KHR_materials_transmission" in used,
             "diffuse extension used": "KHR_materials_diffuse_transmission" in used,
+            # the extension is an empty object on only the unlit material
+            "unlit is the extension": [
+                material.get("extensions", {}).get("KHR_materials_unlit")
+                for material in header["materials"]
+            ].count({})
+            == 1,
+            "unlit round trips": loaded["sky"].visual.material.unlit is True,
+            "lit materials stay lit": all(
+                geometry.visual.material.unlit is None
+                for geometry in [loaded["glass"], loaded["leaf"], *rs.geometry.values()]
+            ),
             "factor round trips": g.np.isclose(
                 loaded["glass"].visual.material.transmissionFactor, 0.8
             ),
@@ -497,24 +525,13 @@ class GLTFTest(g.unittest.TestCase):
         # cameras riding animated nodes round trip on them, and without their
         # optional aspect ratio, which is the viewport's, keep their vertical
         # field of view: made here, and riding VirtualCity's moving cars
-        from trimesh.scene.animation import Animation
-
-        riding = g.trimesh.Scene(g.trimesh.creation.box())
-        riding.graph.update(frame_to="dolly", matrix=g.np.eye(4))
-        riding.camera = g.trimesh.scene.Camera(name="lens", fov=(60, 45))
-        riding.graph.update(
-            frame_from="dolly",
-            frame_to="lens",
-            matrix=g.trimesh.transformations.translation_matrix([0, 0, 6]),
-        )
-        slide = g.np.tile(g.np.eye(4), (5, 1, 1))
-        slide[:, 0, 3] = g.np.arange(5)
-        riding.animations.append(Animation([(None, "dolly")], g.np.arange(5.0), slide))
+        riding = g.dolly_scene("dolly", duration=4.0)
 
         def no_aspect(tree):
-            """Drop the optional aspect ratio of every camera."""
+            """Drop the optional aspect ratio and far plane of every camera."""
             for camera in tree["cameras"]:
                 camera["perspective"].pop("aspectRatio")
+                camera["perspective"].pop("zfar")
 
         def riding_checks(source, data, fov, count, times):
             """Every camera of a GLB loads where `source` has it, riding its parent."""
@@ -569,10 +586,31 @@ class GLTFTest(g.unittest.TestCase):
         g.validate_glb(export)
         checks = riding_checks(riding, export, 45.0, 1, [0.0, 2.5, 4.0])
         checks = {f"riding {name}": ok for name, ok in checks.items()}
+        # without `zfar` the projection is infinite, and stays that way
+        infinite = g.from_glb_bytes(export).camera
+        again = g.glb_chunks(g.from_glb_bytes(export).export(file_type="glb"))[0]
+        finite = g.glb_chunks(riding.export(file_type="glb"))[0]["cameras"][0]
+        checks.update(
+            {
+                "missing zfar is infinite": infinite.z_far == g.np.inf,
+                "infinite projection is finite": g.np.isfinite(infinite.projection).all(),
+                "infinite zfar not written": all(
+                    "zfar" not in camera["perspective"] for camera in again["cameras"]
+                ),
+                "finite zfar written": finite["perspective"]["zfar"]
+                == riding.camera.z_far,
+            }
+        )
         for name, ok in checks.items():
             assert ok, name
 
-        zstd = g.pytest.importorskip("compression.zstd")
+        try:
+            from compression import zstd
+        except ImportError:
+            # the standard library has it from Python 3.14
+            if g.all_dependencies:
+                raise
+            g.pytest.skip("`compression.zstd` is needed to read VirtualCity")
         with open(g.os.path.join(g.dir_models, "VirtualCity.glb.zst"), "rb") as f:
             data = zstd.decompress(f.read())
         yfov = g.glb_chunks(data)[0]["cameras"][0]["perspective"]["yfov"]
@@ -1411,6 +1449,31 @@ class GLTFTest(g.unittest.TestCase):
         simple = mesh.visual.material.to_simple()
         assert simple.name == mesh.visual.material.name
 
+        # every gray level through PBR's linear factor and back: a PBR
+        # factor is 8 bit linear which merges dark sRGB levels, so the
+        # strongest exact predicate is that the stored factor survives
+        material = g.trimesh.visual.material
+        levels = g.np.arange(256, dtype=g.np.uint8)
+        pbr = [
+            material.SimpleMaterial(diffuse=[level, level, level, 255]).to_pbr()
+            for level in levels
+        ]
+        stored = g.np.array([current.baseColorFactor for current in pbr])
+        diffuse = g.np.array([current.to_simple().diffuse for current in pbr])
+        again = [current.to_simple().to_pbr().baseColorFactor for current in pbr]
+        # each level which is the only one storing its linear factor
+        factors, counts = g.np.unique(stored[:, 0], return_counts=True)
+        alone = g.np.isin(stored[:, 0], factors[counts == 1])
+        checks = {
+            "linear factor survives": g.np.array_equal(again, stored),
+            "levels storing their own factor are exact": g.np.array_equal(
+                diffuse[alone, :3], g.np.column_stack([levels[alone]] * 3)
+            ),
+            "alpha exact": (diffuse[:, 3] == 255).all(),
+        }
+        for name, ok in checks.items():
+            assert ok, name
+
     def test_webp_roundtrip(self):
         m = g.get_mesh("fuze.obj")
         e = m.export(file_type="glb", extension_webp=True)
@@ -1539,6 +1602,32 @@ def test_animation_gltf():
         g.np.allclose(truck.graph.get(frame_to, frame_from)[0], matrix)
         for (frame_from, frame_to), matrix in zip(truck.animations[0].edges, sampled)
     )
+
+    # a parent with a falsy name like an empty string is still the parent
+    falsy = g.trimesh.Scene()
+    falsy.graph.update(frame_to="", matrix=g.np.eye(4))
+    falsy.add_geometry(g.trimesh.creation.box(), node_name="mover", parent_node_name="")
+    falsy.animations.append(Animation([("", "mover")], times, matrices))
+    header = g.glb_chunks(falsy.export(file_type="glb"))[0]
+    checks["falsy parent animated"] = [
+        header["nodes"][channel["target"]["node"]]["name"]
+        for channel in header.get("animations", [{"channels": []}])[0]["channels"]
+    ] == ["mover", "mover"]
+
+    # a motion float32 can store is written however small it is next to
+    # the rest pose, and one it can't store is still
+    for name, step, written in [("small", 1e-3, ["translation"]), ("tiny", 1e-6, [])]:
+        rest = tf.translation_matrix([1000.0, 0.0, 0.0])
+        slide = g.np.tile(rest, (len(times), 1, 1))
+        slide[:, 0, 3] += times * step
+        nudged = g.trimesh.Scene()
+        nudged.add_geometry(g.trimesh.creation.box(), node_name="mover", transform=rest)
+        nudged.animations.append(Animation([(None, "mover")], times, slide))
+        header = g.glb_chunks(nudged.export(file_type="glb"))[0]
+        checks[f"{name} motion"] = [
+            channel["target"]["path"]
+            for channel in header.get("animations", [{"channels": []}])[0]["channels"]
+        ] == written
     for name, ok in checks.items():
         assert ok, name
 
@@ -1706,7 +1795,10 @@ def test_lights_gltf():
     parsed = g.trimesh.exchange.gltf.lights.parse_lights(
         header, {index: node.get("name") for index, node in enumerate(header["nodes"])}
     )
-    checks["missing color is white"] = any((light.color == 255).all() for light in parsed)
+    # the light was warm white, so only the default makes it pure white
+    checks["missing color is white"] = (
+        parsed[0].name == "key" and (parsed[0].color == 255).all()
+    )
     for name, ok in checks.items():
         assert ok, name
 

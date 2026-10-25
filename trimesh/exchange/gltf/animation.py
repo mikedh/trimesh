@@ -15,6 +15,7 @@ from collections import defaultdict
 
 import numpy as np
 
+from ... import util
 from ...constants import log, tol
 from ...transformations import (
     keyframe_interval,
@@ -22,7 +23,7 @@ from ...transformations import (
     trs_from_matrix,
     trs_matrix,
 )
-from ...typed import ArrayLike, NDArray1D, NDArray2D, float64
+from ...typed import ArrayLike, NDArray, NDArray1D, NDArray3D, float64
 
 # the value of each channel a node doesn't store, in glTF order
 DEFAULTS = {
@@ -65,44 +66,37 @@ def trs_from_node(
     return translation, rotation[[3, 0, 1, 2]], scale
 
 
-def hermite(
-    before: ArrayLike,
-    after: ArrayLike,
-    tangent_out: ArrayLike,
-    tangent_in: ArrayLike,
-    fraction: ArrayLike,
-    width: ArrayLike,
-) -> NDArray2D[float64]:
+def node_matrices(nodes: list) -> NDArray3D[float64]:
     """
-    Evaluate the glTF cubic Hermite spline between two keyframes.
+    The transform every glTF node is at rest, all computed at once.
 
     Parameters
     ------------
-    before : (n, d) float
-      Value at the keyframe before each query.
-    after : (n, d) float
-      Value at the keyframe after each query.
-    tangent_out : (n, d) float
-      Leaving tangent of `before`, per second.
-    tangent_in : (n, d) float
-      Arriving tangent of `after`, per second.
-    fraction : (n, 1) float
-      How far between the keyframes each query is, 0.0 to 1.0.
-    width : (n, 1) float
-      Seconds between the keyframes.
+    nodes : list
+      glTF nodes which each store a `matrix` or any of its channels.
 
     Returns
     ------------
-    values : (n, d) float
-      The spline at each query.
+    matrices : (len(nodes), 4, 4) float
+      Homogeneous transform of every node relative to its parent.
     """
-    squared, cubed = fraction**2, fraction**3
-    return (
-        (2.0 * cubed - 3.0 * squared + 1.0) * before
-        + width * (cubed - 2.0 * squared + fraction) * tangent_out
-        + (-2.0 * cubed + 3.0 * squared) * after
-        + width * (cubed - squared) * tangent_in
+    # every node's channels with the default for any it doesn't store
+    translation, rotation, scale = (
+        np.array([node.get(key, value) for node in nodes], dtype=np.float64).reshape(
+            (-1, len(value))
+        )
+        for key, value in DEFAULTS.items()
     )
+    matrices = trs_matrix(translation, rotation[:, [3, 0, 1, 2]], scale)
+    # a node which stores a `matrix` stores no channels
+    explicit = [index for index, node in enumerate(nodes) if "matrix" in node]
+    # glTF matrices are column-major
+    matrices[explicit] = (
+        np.array([nodes[index]["matrix"] for index in explicit], dtype=np.float64)
+        .reshape((-1, 4, 4))
+        .transpose((0, 2, 1))
+    )
+    return matrices
 
 
 def sample_channel(
@@ -113,20 +107,21 @@ def sample_channel(
     mode: str,
     query: ArrayLike,
     rotation: bool,
-) -> NDArray2D[float64]:
+) -> NDArray[float64]:
     """
-    Sample one glTF channel at any times, holding its first and last
-    keyframe outside of it.
+    Sample glTF channels which share keyframe times at any times,
+    holding their first and last keyframe outside of them.
 
     Parameters
     ------------
     times : (k,) float
       Keyframe times in seconds.
-    values : (k, d) float
-      Value at each keyframe, quaternions ordered `w, x, y, z`.
-    tangent_in : (k, d) float or None
+    values : (k, d) or (k, c, d) float
+      Value at each keyframe of one or `c` channels, quaternions
+      ordered `w, x, y, z`.
+    tangent_in : (k, d) or (k, c, d) float or None
       Arriving cubic tangents, only used by "CUBICSPLINE".
-    tangent_out : (k, d) float or None
+    tangent_out : (k, d) or (k, c, d) float or None
       Leaving cubic tangents, only used by "CUBICSPLINE".
     mode : str
       glTF interpolation: "LINEAR", "STEP", or "CUBICSPLINE".
@@ -137,28 +132,38 @@ def sample_channel(
 
     Returns
     ------------
-    sampled : (m, d) float
-      The channel at each time.
+    sampled : (m, d) or (m, c, d) float
+      The channels at each time.
     """
+    values = np.asanyarray(values, dtype=np.float64)
     lower, upper, width, fraction = keyframe_interval(times, query)
+    # one weight per query broadcast across every channel and component
+    column = (-1,) + (1,) * (values.ndim - 1)
     if mode == "STEP":
         return values[np.where(fraction >= 1.0, upper, lower)]
     if mode == "CUBICSPLINE":
-        sampled = hermite(
-            values[lower],
-            values[upper],
-            tangent_out[lower],
-            tangent_in[upper],
-            fraction[:, None],
-            width[:, None],
+        # glTF's cubic Hermite spline, with tangents per second
+        step, span = fraction.reshape(column), width.reshape(column)
+        squared, cubed = step**2, step**3
+        sampled = (
+            (2.0 * cubed - 3.0 * squared + 1.0) * values[lower]
+            + span * (cubed - 2.0 * squared + step) * tangent_out[lower]
+            + (-2.0 * cubed + 3.0 * squared) * values[upper]
+            + span * (cubed - squared) * tangent_in[upper]
         )
         if rotation:
             # the spec blends quaternion components and then normalizes
-            sampled /= np.maximum(np.linalg.norm(sampled, axis=1), 1e-12)[:, None]
+            sampled = util.unitize(sampled.reshape((-1, 4))).reshape(sampled.shape)
         return sampled
     if rotation:
-        return quaternion_slerp(values[lower], values[upper], fraction)
-    return values[lower] + (values[upper] - values[lower]) * fraction[:, None]
+        # every channel's quaternions slerp at the same fractions
+        count = values[0].size // 4
+        return quaternion_slerp(
+            values[lower].reshape((-1, 4)),
+            values[upper].reshape((-1, 4)),
+            np.repeat(fraction, count),
+        ).reshape(values[lower].shape)
+    return values[lower] + (values[upper] - values[lower]) * fraction.reshape(column)
 
 
 def parse_animations(header: dict, access: list, names: dict, edges: dict) -> list:
@@ -238,21 +243,43 @@ def parse_animations(header: dict, access: list, names: dict, edges: dict) -> li
             dense = np.arange(grid[0], grid[-1], 1.0 / SPLINE_RATE)
             grid = np.union1d(grid, dense)
 
-        matrices = []
-        for node, curve in curves.items():
-            # a channel the file doesn't animate holds the node's rest pose
-            parts = [np.tile(rest, (len(grid), 1)) for rest in trs_from_node(nodes[node])]
-            for index, path in enumerate(DEFAULTS):
-                if path in curve:
-                    parts[index] = sample_channel(
-                        *curve[path], query=grid, rotation=path == "rotation"
-                    )
-            matrices.append(trs_matrix(*parts))
+        # (keyframe, edge, width) of every channel of every animated node
+        shape = (len(grid), len(curves))
+        parts = {
+            path: np.zeros((*shape, len(default))) for path, default in DEFAULTS.items()
+        }
+        # {(path, mode, keyframe times) : [(column, curve)]}
+        groups = defaultdict(list)
+        for column, (node, curve) in enumerate(curves.items()):
+            # a channel the file doesn't animate holds the rest pose
+            for part, rest in zip(parts.values(), trs_from_node(nodes[node])):
+                part[:, column] = rest
+            for path, channel in curve.items():
+                groups[(path, channel[4], channel[0].tobytes())].append((column, channel))
+        # channels with the same keyframes and interpolation sample at once
+        for (path, mode, _), members in groups.items():
+            columns = [column for column, _ in members]
+            # the keyframe times every member shares
+            times = members[0][1][0]
+            # stacked (keyframe, channel, width) values and tangents
+            stacked = [
+                np.stack([channel[which] for _, channel in members], axis=1)
+                for which in (1, 2, 3)
+            ]
+            parts[path][:, columns] = sample_channel(
+                times,
+                *stacked,
+                mode=mode,
+                query=grid,
+                rotation=path == "rotation",
+            )
+        parts = parts.values()
+        matrices = trs_matrix(*(part.reshape((-1, part.shape[-1])) for part in parts))
         result.append(
             Animation(
                 edges=[(edges.get(names[node]), names[node]) for node in curves],
                 times=grid,
-                matrices=np.stack(matrices, axis=1),
+                matrices=matrices.reshape((*shape, 4, 4)),
                 name=name,
                 interpolation=interpolation,
             )
@@ -304,18 +331,23 @@ def append_animations(
         samplers, channels = [], []
         for column, (frame_from, frame_to) in enumerate(animation.edges):
             index = node_index.get(frame_to)
-            if index is None or parents.get(frame_to) != (frame_from or graph.base_frame):
+            # falsy frames like `0` or `""` are valid node names
+            if frame_from is None:
+                frame_from = graph.base_frame
+            if index is None or parents.get(frame_to) != frame_from:
                 # glTF animates a node relative to its parent node
                 log.warning(f"can't export animation of `{frame_from} -> {frame_to}`")
                 continue
             rest = trs_from_node(tree["nodes"][index])
             for (path, values), resting in zip(parts.items(), rest):
                 values = values[:, column]
-                # skip a channel which never leaves the rest pose, where a
-                # quaternion and its negation are the same rotation
-                still = np.allclose(values, resting)
+                # skip a channel which never leaves the rest pose in the
+                # float32 that is written, where a quaternion and its
+                # negation are the same rotation
+                written = values.astype(float32)
+                still = (written == resting.astype(float32)).all()
                 if path == "rotation":
-                    still = still or np.allclose(values, -resting)
+                    still = still or (written == -resting.astype(float32)).all()
                     values = values[:, [1, 2, 3, 0]]
                 if still:
                     continue
