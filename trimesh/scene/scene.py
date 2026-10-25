@@ -476,13 +476,20 @@ class Scene(Geometry3D):
         graph = self.graph
         instance = [graph[n] for n in graph.nodes_geometry]
 
+        # only instances whose geometry has mass properties can
+        # contribute to the center of mass: other geometry types
+        # (e.g. Path3D) have neither a center of mass nor a mass, and
+        # including them here either raised a KeyError or misaligned
+        # the transformed centers with their weights
+        instance = [(mat, g) for mat, g in instance if g in center_mass and g in mass]
+        if len(instance) == 0:
+            raise ValueError(
+                "Scene has no geometry with mass properties: center of mass is undefined"
+            )
+
         # get the transformed center of mass for each instance
         transformed = np.array(
-            [
-                np.dot(mat, np.append(center_mass[g], 1))[:3]
-                for mat, g in instance
-                if g in center_mass
-            ],
+            [np.dot(mat, np.append(center_mass[g], 1))[:3] for mat, g in instance],
             dtype=np.float64,
         )
         # weight the center of mass locations by volume
