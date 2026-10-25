@@ -246,7 +246,8 @@ class Camera:
         angles : (n, 2) float
           Ray spherical coordinate angles in radians.
         """
-        return np.arctan(-ray_pixel_coords(self))
+        xy, _pixels = ray_pixel_coords(self)
+        return np.arctan(-xy)
 
     def look_at(self, points, **kwargs):
         """
