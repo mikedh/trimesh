@@ -6,22 +6,22 @@ The GLSL shaders beside this file, and every byte the GPU reads
 declared once as a numpy structured dtype.
 
 Python fills arrays of these dtypes by field name, and the GLSL that
-reads them is generated from the same dtypes and filled into the
-shader templates here, so the two can never disagree about a name,
-a type, an offset or an attribute location. Nothing in this module
-imports OpenGL.
+reads them is generated from the same dtypes and put in front of every
+shader, so the two can never disagree about a name, a type, an offset
+or an attribute location. Nothing in this module imports OpenGL.
 """
 
 import os
-from string import Template
 
 import numpy as np
 
-# the directory holding the `.glsl` templates
+from ....scene.lighting import LUMINANCE
+
+# the directory holding the `.glsl` files
 DIRECTORY = os.path.abspath(os.path.dirname(__file__))
 
 # How a surface's alpha is used, which is glTF's `alphaMode`, and the
-# integer the mesh shader compares against:
+# integer the mesh shader compares against as `ALPHA_{name}`:
 #   OPAQUE ignores alpha
 #   MASK draws a pixel only where alpha is at least `alpha_cutoff`
 #   BLEND draws over whatever is behind, with surfaces sorted far to near
@@ -32,21 +32,22 @@ DIRECTORY = os.path.abspath(os.path.dirname(__file__))
 # alpha, still shows on glass which lets everything else through.
 ALPHA_MODES = {"OPAQUE": 0, "MASK": 1, "BLEND": 2}
 
-# the sharpness of a spherical Gaussian whose mean cosine is 2/3, the
-# same as the clamped cosine lobe which diffuse surfaces reflect with
-DIFFUSE_SHARPNESS = 2.95
+# what a draw writes as `frame.output_mode`, compared against `OUTPUT_{name}`:
+# shaded color, the view depth and node index of every pixel, or only depth
+OUTPUT_MODES = {"color": 0, "index": 1, "depth": 2}
 
 # the spherical Gaussian with the same mean cosine as a GGX reflection
 # lobe, whose sharpness is `exp(polyval(SPECULAR_SHARPNESS, log(roughness)))`
-# fit within 1.1% over roughness 0.04 to 1 where 1 is `DIFFUSE_SHARPNESS`
+# fit within 1.1% over roughness 0.04 to 1, which blurs the environment
 SPECULAR_SHARPNESS = (0.131, 1.0381, -0.7256, 1.0728)
 
 # the most lights a frame can be lit by
 MAX_LIGHTS = 8
 # the most directional and spot lights which cast shadows
 MAX_SHADOWS = 4
-# the most softboxes an environment can have
-MAX_SOFTBOXES = 4
+
+# every program as `{name}.vert.glsl` and `{name}.frag.glsl`
+PROGRAMS = ("mesh", "line", "fullscreen")
 
 # material texture sampler : if it holds sRGB colors rather than data
 MATERIAL_TEXTURES = {
@@ -59,20 +60,42 @@ MATERIAL_TEXTURES = {
     "diffuse_transmission_color_texture": True,
 }
 
+# The passes of `fullscreen.frag`, which it tells apart by comparing
+# `pass_index` against `PASS_{name}`, in the order they are drawn:
+# name : ({sampler : image it reads}, image it writes, adds onto it)
+# where the images are the viewer's `TARGETS`
+PASSES = {
+    # the environment behind the scene
+    "background": ({}, "multisample", False),
+    # how much of the sky nearby surfaces hide, with noise and then without
+    "occlusion": ({"scene_depth": "scene_depth"}, "noisy", False),
+    "blur": (
+        {"scene_depth": "scene_depth", "noisy_occlusion": "noisy"},
+        "occlusion",
+        False,
+    ),
+    # what the tone mapper compressed glows: blurred across a mip level
+    # of the frame, then down, then added onto the frame
+    "bloom_across": ({"bloom_source": "resolved"}, "across", False),
+    "bloom_down": ({"bloom_source": "across"}, "glow", False),
+    "bloom_add": ({"bloom_source": "glow"}, "resolved", True),
+}
+
 # the texture unit each sampler reads from for the life of a program
 TEXTURE_UNITS = {
     name: unit
     for unit, name in enumerate(
-        [
-            *MATERIAL_TEXTURES,
-            "face_colors",
-            "shadow_maps",
-            "joint_matrices",
-            "scene_depth",
-            "noisy_occlusion",
-            "ambient_occlusion",
-            "bloom_source",
-        ]
+        dict.fromkeys(
+            [
+                *MATERIAL_TEXTURES,
+                "face_colors",
+                "shadow_maps",
+                "joint_matrices",
+                "ambient_occlusion",
+                "environment",
+                *(sampler for inputs, _, _ in PASSES.values() for sampler in inputs),
+            ]
+        )
     )
 }
 
@@ -123,6 +146,9 @@ SEGMENT = np.dtype(
     ]
 )
 
+# the vertex shader inputs of each program, numbered in this order
+INPUTS = {"mesh": (VERTEX, SKIN, INSTANCE), "line": (SEGMENT,)}
+
 # one `KHR_lights_punctual` light, where every kind of light is the
 # same math: directional lights are infinitely far away, and point
 # lights are spot lights with a cone that covers everything
@@ -136,7 +162,8 @@ LIGHT = np.dtype(
         # linear RGB times intensity in lux or candela
         ("color", "<f4", 4),
         # one over the range or zero, the spot cone scale and offset
-        # which are zero and one without a cone, then zero
+        # which are zero and one without a cone, then the outer cone
+        # angle which only the CPU reads
         ("falloff", "<f4", 4),
         # the layer of `shadow_maps` with the light's shadow or -1 for
         # none, then the width of a shadow map pixel in view units as a
@@ -144,17 +171,6 @@ LIGHT = np.dtype(
         ("shadow", "<f4", 4),
     ],
     metadata={"glsl": "Light"},
-)
-
-# a large soft light infinitely far away, from `EnvironmentLight`
-SOFTBOX = np.dtype(
-    [
-        # view space unit vector towards it, then its sharpness
-        ("direction", "<f4", 4),
-        # linear RGB radiance at its center, then zero
-        ("color", "<f4", 4),
-    ],
-    metadata={"glsl": "Softbox"},
 )
 
 # set once per frame and shared by every program as `frame.name`: a
@@ -167,21 +183,21 @@ FRAME = np.dtype(
         ("inverse_projection", "<f4", (4, 4)),
         # framebuffer width and height in pixels, then zeros
         ("viewport_size", "<f4", 4),
-        # one to draw view depth and node index instead of color, then zeros
-        ("write_depth_and_index", "<i4", 4),
+        # the value in `OUTPUT_MODES`, then zeros
+        ("output_mode", "<i4", 4),
         # how many of `lights` are in use, then zeros
         ("light_count", "<i4", 4),
         ("lights", LIGHT, MAX_LIGHTS),
         # view space to the 0.0-1.0 texture coordinates and depth of
         # each layer of `shadow_maps`
         ("shadow_matrices", "<f4", (MAX_SHADOWS, 4, 4)),
-        # the environment from `EnvironmentLight`: linear RGB from
-        # straight up and down, the view space up, and the softboxes
-        ("sky_color", "<f4", 4),
-        ("ground_color", "<f4", 4),
-        ("up_direction", "<f4", 4),
-        ("softbox_count", "<i4", 4),
-        ("softboxes", SOFTBOX, MAX_SOFTBOXES),
+        # the `EnvironmentLight`: view space to the frame of its cube map,
+        # the linear RGB its cube map is multiplied by then the mip level
+        # of roughness one, and its irradiance over pi as the coefficients
+        # of `lighting.spherical_harmonics` times their constants
+        ("environment_rotation", "<f4", (4, 4)),
+        ("environment_color", "<f4", 4),
+        ("irradiance", "<f4", (9, 4)),
         # how bright a white floor facing up looks with nothing in its
         # way, which shadows on the floor are darker than, then zeros
         ("ground_light", "<f4", 4),
@@ -191,7 +207,7 @@ FRAME = np.dtype(
         ("exposure", "<f4", 4),
         # how much of what the tone mapper compressed glows onto its
         # neighbors, the glow's standard deviation in texels of the mip
-        # level of the half size picture it is blurred at, that level, then zero
+        # level of the frame it is blurred at, that level, then zero
         ("bloom", "<f4", 4),
         # pixels across lines, then across points, then zeros
         ("line_widths", "<f4", 4),
@@ -277,7 +293,7 @@ def attribute_locations(*dtypes: np.dtype) -> dict:
     Parameters
     ------------
     dtypes : numpy.dtype
-      Per-vertex then per-instance dtypes of one shader.
+      Per-vertex then per-instance dtypes of one program.
 
     Returns
     ------------
@@ -289,15 +305,15 @@ def attribute_locations(*dtypes: np.dtype) -> dict:
     for dtype in dtypes:
         for name in dtype.names:
             locations[name] = location
-            # a matrix takes a location per column and anything else one
             location += int(np.prod(dtype.fields[name][0].shape[:-1]))
     return locations
 
 
 def shader_source(name: str) -> str:
     """
-    Fill a shader template from this directory with the declarations
-    and constants in this module.
+    A shader from this directory after everything generated from this
+    module: the constants, the vertex inputs, the uniform blocks and
+    `shared.glsl`.
 
     Parameters
     ------------
@@ -313,30 +329,31 @@ def shader_source(name: str) -> str:
         return _SHADER_SOURCE[name]
     except KeyError:
         pass
-    with open(os.path.join(DIRECTORY, f"{name}.glsl")) as f:
-        template = Template(f.read())
-    with open(os.path.join(DIRECTORY, "shared.glsl")) as f:
-        shared = f.read()
+    program, stage = name.split(".")
+    lines = ["#version 330 core"]
+    # every enumeration as integer constants, i.e. `ALPHA_BLEND`
+    enumerations = {"ALPHA": ALPHA_MODES, "OUTPUT": OUTPUT_MODES}
+    enumerations["PASS"] = {key: index for index, key in enumerate(PASSES)}
+    for prefix, values in enumerations.items():
+        lines.extend(
+            f"const int {prefix}_{key.upper()} = {value};"
+            for key, value in values.items()
+        )
+    values = ", ".join(repr(float(item)) for item in LUMINANCE)
+    lines.append(f"const vec3 LUMINANCE = vec3({values});")
 
-    # the vertex inputs of each program, numbered in order
-    inputs = {}
-    for key, dtypes in {
-        "mesh_inputs": (VERTEX, SKIN, INSTANCE),
-        "segment_inputs": (SEGMENT,),
-    }.items():
+    if stage == "vert":
+        dtypes = INPUTS.get(program, ())
         locations = attribute_locations(*dtypes)
-        lines = []
         for dtype in dtypes:
             for field in dtype.names:
                 kind, _ = glsl_type(dtype.fields[field][0])
                 lines.append(f"layout(location = {locations[field]}) in {kind} {field};")
-        inputs[key] = "\n".join(lines)
 
     # each std140 block after the structs its fields use, with matrices
     # `row_major` so numpy arrays upload untransposed: every field has to
     # be whole 16 byte vectors or matrices, which is the only case where
     # numpy and std140 pack a dtype identically
-    blocks = {}
     for block_name, dtype in BLOCKS.items():
         structs = {
             field.base.metadata["glsl"]: field.base
@@ -344,14 +361,8 @@ def shader_source(name: str) -> str:
             if field.base.names is not None
         }
         parts = [(f"struct {kind}", fields, "};") for kind, fields in structs.items()]
-        parts.append(
-            (
-                f"layout(std140, row_major) uniform {block_name}",
-                dtype,
-                f"}} {block_name.lower()};",
-            )
-        )
-        lines = []
+        header = f"layout(std140, row_major) uniform {block_name}"
+        parts.append((header, dtype, f"}} {block_name.lower()};"))
         for header, fields, closing in parts:
             lines.append(f"{header} {{")
             for field_name in fields.names:
@@ -365,19 +376,10 @@ def shader_source(name: str) -> str:
                 dimensions = "".join(f"[{size}]" for size in array)
                 lines.append(f"    {kind} {field_name}{dimensions};")
             lines.append(closing)
-        blocks[f"{block_name.lower()}_block"] = "\n".join(lines)
 
-    source = template.substitute(
-        **blocks,
-        shared_functions=shared,
-        **inputs,
-        alpha_modes="\n".join(
-            f"const int ALPHA_{name} = {value};" for name, value in ALPHA_MODES.items()
-        ),
-        DIFFUSE_SHARPNESS=repr(float(DIFFUSE_SHARPNESS)),
-        SPECULAR_SHARPNESS="vec4({})".format(
-            ", ".join(repr(float(value)) for value in SPECULAR_SHARPNESS)
-        ),
-    )
+    for file_name in ("shared", name):
+        with open(os.path.join(DIRECTORY, f"{file_name}.glsl")) as f:
+            lines.append(f.read())
+    source = "\n".join(lines)
     _SHADER_SOURCE[name] = source
     return source

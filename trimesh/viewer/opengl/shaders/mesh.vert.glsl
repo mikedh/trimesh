@@ -1,22 +1,12 @@
-#version 330 core
-// Transform one mesh vertex. Lighting happens in view space where
-// the camera sits at the origin looking down -Z, so the fragment
-// shader needs no camera position.
-
-// per-vertex inputs from `shaders.VERTEX` and `shaders.SKIN`, then one
-// instance per scene graph node drawing this mesh from `shaders.INSTANCE`:
-// `model_view` is `inverse(camera_transform) * node_transform` and
-// `normal_matrix` is its cofactor so normals survive non-uniform scale
-$mesh_inputs
+// Transform one mesh vertex, from `shaders.VERTEX` and `shaders.SKIN`,
+// for one instance from `shaders.INSTANCE` which is a scene graph node.
+// Lighting happens in view space where the camera sits at the origin
+// looking down -Z, so the fragment shader needs no camera position.
 
 // four rows per joint of `world(joint) * inverse_bind` for every skin
 uniform samplerBuffer joint_matrices;
 
-// per-frame values from `shaders.FRAME`
-$frame_block
-
-out vec3 view_position;
-out vec3 view_normal;
+out vec3 view_position, view_normal;
 out vec2 texture_uv;
 out vec4 vertex_color;
 flat out float fragment_node_index;
@@ -44,7 +34,6 @@ void main() {
             cross(linear[1], linear[2]), cross(linear[2], linear[0]), cross(linear[0], linear[1]))
             * sign(determinant(linear));
     }
-
     vec4 camera_position = model_view * skin * vec4(position, 1.0);
     view_position = camera_position.xyz;
     view_normal = normal_matrix * skin_normal * normal;

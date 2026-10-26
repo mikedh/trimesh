@@ -25,7 +25,7 @@ import numpy as np
 
 import trimesh
 from trimesh.scene.animation import Animation
-from trimesh.scene.lighting import EnvironmentLight, autolight
+from trimesh.scene.lighting import EnvironmentLight, autolight, studio_cubemap
 from trimesh.transformations import euler_matrix, rotation_matrix
 from trimesh.visual.material import PBRMaterial
 
@@ -56,6 +56,13 @@ SPACE = [
     ([0.0, 0.0, 1.0], 3.0, [0.12, 0.12, 0.16]),
     ([0.3, 0.6, 0.8], 300.0, [80.0, 70.0, 55.0]),
 ]
+# bold lines and fine particles, with the space around them
+RENDER = {
+    "ground_shadow": False,
+    "show_environment": True,
+    "line_width": 3.0,
+    "point_size": 3.0,
+}
 
 # the storyboard in seconds, where the output turns once in the film
 DURATION = 14.0
@@ -223,28 +230,23 @@ def animate(scene, fps=30):
     # of its environment the space around the drive, which is posed with
     # +Y up so that +Z is up in this scene
     lights, transforms = autolight(scene)
-    for light, transform in zip(lights[:2], transforms[:2]):
+    for light, transform in zip(lights, transforms):
         scene.graph[light.name] = transform
     up = rotation_matrix(np.pi / 2.0, [1.0, 0.0, 0.0])
     space = EnvironmentLight(
         name="space",
-        sky=[0.01, 0.01, 0.03],
-        ground=[0.0, 0.0, 0.0],
-        # each softbox's direction turned into the frame of the light's node
-        softboxes=[
-            (np.dot(trimesh.util.unitize(direction), up[:3, :3]), sharpness, color)
-            for direction, sharpness, color in SPACE
-        ],
+        cubemap=studio_cubemap(
+            sky=[0.01, 0.01, 0.03],
+            ground=[0.0, 0.0, 0.0],
+            # each softbox's direction turned into the frame of the light's node
+            softboxes=[
+                (np.dot(trimesh.util.unitize(direction), up[:3, :3]), sharpness, color)
+                for direction, sharpness, color in SPACE
+            ],
+        ),
     )
-    scene.lights = [*lights[:2], space]
+    scene.lights = [*lights, space]
     scene.graph[space.name] = up
-    # bold lines and fine particles, with the space around them
-    scene.metadata["render"] = {
-        "ground_shadow": False,
-        "show_environment": True,
-        "line_width": 3.0,
-        "point_size": 3.0,
-    }
     # deep enough to see the whole cloud until it has flown past
     scene.camera.z_far = 2.0 * GROWTH * scene.scale
     scene.animations.extend(
@@ -273,4 +275,6 @@ if __name__ == "__main__":
     # an animated glTF which plays in Blender, three.js and trimesh, and
     # the same film from the built in renderer
     scene.export(os.path.join(directory, "cycloidal.glb"))
-    scene.render(os.path.join(directory, "cycloidal.mp4"), resolution=[1920, 1080])
+    scene.render(
+        os.path.join(directory, "cycloidal.mp4"), resolution=[1920, 1080], **RENDER
+    )

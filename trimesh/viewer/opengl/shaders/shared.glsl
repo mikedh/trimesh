@@ -1,5 +1,4 @@
-// Functions used by more than one shader, which are filled in after
-// the frame block by `shaders.shader_source`.
+// What every shader shares, after what `shaders.shader_source` generates.
 
 const float PI = 3.14159265;
 
@@ -11,17 +10,14 @@ vec3 linear_to_srgb(vec3 color) {
     return mix(color * 12.92, 1.055 * pow(color, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, color));
 }
 
-// where a pixel of a depth image is in view space, which works for
-// perspective and orthographic projections alike
+// where a pixel of a depth image is in view space for any projection
 vec3 depth_to_view(sampler2D depth, vec2 uv) {
     vec4 position = frame.inverse_projection * (vec4(uv, texture(depth, uv).r, 1.0) * 2.0 - 1.0);
     return position.xyz / position.w;
 }
 
-// the Khronos PBR Neutral tone mapper: colors up to 0.8 are left
-// alone so base colors look like themselves, and brighter colors
-// roll off towards white instead of clipping, which starts here
-// after the 0.04 it takes off every color
+// the Khronos PBR Neutral tone mapper: colors up to 0.8 are left alone and
+// brighter ones roll off to white from here, after the 0.04 it takes off
 // https://github.com/KhronosGroup/ToneMapping/tree/main/PBR_Neutral
 const float START_COMPRESSION = 0.8 - 0.04;
 vec3 tonemap(vec3 color) {
@@ -48,29 +44,14 @@ vec3 to_display(vec3 light) {
     return linear_to_srgb(clamp(tonemap(light * frame.exposure.x), 0.0, 1.0));
 }
 
-// the integral over the sphere of the product of two spherical Gaussians
-// with peaks of one, written so it stays accurate when one is very sharp
-float gaussian_overlap(vec3 axis_a, float sharpness_a, vec3 axis_b, float sharpness_b) {
-    float combined = length(sharpness_a * axis_a + sharpness_b * axis_b);
-    float exponent = 2.0 * sharpness_a * sharpness_b * (dot(axis_a, axis_b) - 1.0)
-        / (combined + sharpness_a + sharpness_b);
-    return 2.0 * PI * exp(exponent) * (1.0 - exp(-2.0 * combined)) / max(combined, 1e-6);
-}
+// the `EnvironmentLight` cube map, whose mip level `k` of `n` is blurred
+// like a GGX reflection of roughness `k / (n - 1)` from a mirror at zero
+uniform samplerCube environment;
 
-// the environment's light around a direction, averaged by a spherical
-// Gaussian kernel of sharpness `blur` which integrates to one
-vec3 environment_light(vec3 direction, float blur) {
-    // the gradient is linear in height so averaging it only scales the
-    // height by the kernel's mean cosine
-    float spread = exp(-2.0 * blur);
-    float mean_cosine = (1.0 + spread) / (1.0 - spread) - 1.0 / blur;
-    float height = dot(direction, frame.up_direction.xyz) * mean_cosine;
-    vec3 light = mix(frame.ground_color.rgb, frame.sky_color.rgb, 0.5 + 0.5 * height);
-    float kernel_peak = blur / (2.0 * PI * (1.0 - spread));
-    for (int index = 0; index < frame.softbox_count.x; index++) {
-        Softbox softbox = frame.softboxes[index];
-        light += softbox.color.rgb * kernel_peak
-            * gaussian_overlap(softbox.direction.xyz, softbox.direction.w, direction, blur);
-    }
-    return light;
+// the environment's light towards a view space direction, blurred like
+// a reflection off a surface of a GGX `roughness`
+vec3 environment_light(vec3 direction, float roughness) {
+    vec3 local = mat3(frame.environment_rotation) * direction;
+    return textureLod(environment, local, roughness * frame.environment_color.w).rgb
+        * frame.environment_color.rgb;
 }

@@ -1875,39 +1875,56 @@ def test_lights_gltf():
         not in reloaded.metadata.get("gltf_extensions", {}),
     }
 
-    # an environment light lives on its light only: not also in the metadata
-    # of the edge it sits on, so writing it again is byte identical
-    sky = g.trimesh.Scene(g.trimesh.creation.box())
-    sky.lights = [lighting.EnvironmentLight(name="sky", sky=[0.5, 0.6, 0.7])]
-    sky.graph["sky"] = g.trimesh.transformations.translation_matrix([0, 0, 3])
-    first = sky.export(file_type="glb")
-    again = g.roundtrip(first, "glb")
-    checks["environment not edge metadata"] = all(
-        g.trimesh.exchange.gltf.lights.ENVIRONMENT
-        not in (again.graph.transforms.node_data.get(node) or {}).get("metadata", {})
-        for node in again.graph.nodes
-    )
-    # loading adds mesh metadata so the first export isn't the fixed point
-    second = again.export(file_type="glb")
-    checks["environment re-export identical"] = (
-        g.roundtrip(second, "glb").export(file_type="glb") == second
-    )
-
     # a scene which never had lights set shouldn't grow the extension
     plain = g.trimesh.Scene(g.trimesh.creation.box())
     checks["plain has no lights"] = not plain.has_lights
-    plain_header = g.glb_chunks(plain.export(file_type="glb"))[0]
-    checks["plain gltf has no lights"] = b"KHR_lights_punctual" not in plain.export(
-        file_type="gltf"
-    )["model.gltf"] and "render" not in plain_header["scenes"][0].get("extras", {})
-
-    # changed render settings are scene content which round trips exactly
-    plain.metadata["render"] = {"ground_shadow": False, "exposure": 1.5}
-    export = plain.export(file_type="glb")
-    g.validate_glb(export, "render settings")
-    checks["settings round trip"] = (
-        g.roundtrip(export, "glb").metadata["render"] == plain.metadata["render"]
+    checks["plain gltf has no lights"] = (
+        b"KHR_lights_punctual" not in plain.export(file_type="gltf")["model.gltf"]
     )
+    # the default lights `Scene.lights` makes when asked for are the
+    # renderer's until they're changed: asking for them, copying or
+    # appending the scene exports exactly what it did before
+    append_scenes = g.trimesh.scene.scene.append_scenes
+    before = plain.export(file_type="glb")
+    defaults = plain.lights
+    checks["default lights listed"] = len(defaults) == 2 and plain.lights is defaults
+    checks["default lights aren't the scene's"] = not plain.has_lights
+    checks["asking exports nothing"] = plain.export(file_type="glb") == before
+    checks["copy exports nothing"] = plain.copy().export(file_type="glb") == before
+    # appending renames nodes with a random suffix, so compare what's written
+    merged = g.glb_chunks(append_scenes([plain, plain.copy()]).export(file_type="glb"))[0]
+    checks["append exports nothing"] = (
+        "extensions" not in merged
+        and len(merged["nodes"]) == 2
+        and all("mesh" in node for node in merged["nodes"])
+    )
+
+    # and any change to them makes them the scene's, which exports them
+    def recolor(edited):
+        edited.lights[0].intensity = 9.0
+
+    def move(edited):
+        name = edited.lights[0].name
+        edited.graph[name] = g.trimesh.transformations.translation_matrix([0, 0, 5])
+
+    def add(edited):
+        edited.lights.append(lighting.PointLight(name="lamp"))
+        edited.graph["lamp"] = g.np.eye(4)
+
+    def remove(edited):
+        edited.lights.pop()
+
+    for name, edit in {"recolor": recolor, "move": move, "add": add, "remove": remove}.items():
+        edited = g.trimesh.Scene(g.trimesh.creation.box())
+        edit(edited)
+        exported = g.glb_chunks(edited.export(file_type="glb"))[0]
+        written = exported.get("extensions", {}).get("KHR_lights_punctual", {})
+        checks[f"{name} exports the lights"] = edited.has_lights and [
+            light["name"] for light in written.get("lights", [])
+        ] == [light.name for light in edited.lights]
+        checks[f"{name} exports no extras"] = not any(
+            "extras" in item for item in [*exported["nodes"], *exported["scenes"]]
+        )
 
     # a light which doesn't store a color is white per the spec
     stored[0].pop("color")

@@ -700,27 +700,14 @@ def require_rendering():
         raise unittest.SkipTest(f"unable to create an OpenGL context: {E}")
 
 
-def set_render(scene, environment=None, pose=None, **settings):
+def set_environment(scene, environment, pose=None):
     """
-    Change the settings in `scene.metadata["render"]`, and with an
-    `EnvironmentLight` light the scene with it on a node at `pose` and
-    the scene's own lights or the default key and rim lights, returning it.
+    Light `scene` with an `EnvironmentLight` on a node at `pose` and the
+    scene's own lights or the default key and rim lights, returning it.
     """
-    from trimesh.scene.lighting import EnvironmentLight, autolight
+    from trimesh.scene.lighting import EnvironmentLight
 
-    if len(settings) > 0:
-        scene.metadata["render"] = {**scene.metadata.get("render", {}), **settings}
-    if environment is None:
-        return scene
-    if scene.has_lights:
-        lights = [
-            light for light in scene.lights if not isinstance(light, EnvironmentLight)
-        ]
-    else:
-        lights, transforms = autolight(scene)
-        lights = lights[:-1]
-        for light, transform in zip(lights, transforms):
-            scene.graph[light.name] = transform
+    lights = [light for light in scene.lights if not isinstance(light, EnvironmentLight)]
     if pose is None:
         pose = np.eye(4)
     scene.graph[environment.name] = pose
@@ -734,7 +721,7 @@ def offscreen_viewer(scene, resolution=(320, 240), studio=False, **kwargs):
     from trimesh.viewer.opengl.viewer import SceneViewer
 
     if not studio:
-        set_render(scene, ground_shadow=False)
+        kwargs = {"ground_shadow": False, **kwargs}
         kwargs["flags"] = {"ambient_occlusion": False, **kwargs.get("flags", {})}
     # tests compare against rays from the scene's camera at this resolution
     scene.camera.fit_resolution(resolution)

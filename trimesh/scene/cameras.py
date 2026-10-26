@@ -8,8 +8,7 @@ from ..typed import ArrayLike, Integer, NDArray, Sequence
 # the field of view of a camera made to frame a scene, in degrees
 DEFAULT_FOV = (60.0, 45.0)
 # the near and far clip planes `Camera` has always defaulted to, which
-# `scene_camera` multiplies by a scene's size so a scene of any size is
-# in view as one about a unit across is with these
+# are multiplied by a scene's size so a scene of any size is in view
 DEFAULT_Z_NEAR = 0.01
 DEFAULT_Z_FAR = 1000.0
 
@@ -605,30 +604,6 @@ def camera_to_rays(camera: Camera):
     return vectors, pixels
 
 
-def scene_camera(scene, **kwargs) -> Camera:
-    """
-    A new camera for viewing a scene, whose near and far planes are the
-    defaults for a scene one unit across scaled by the scene's size, so
-    a tiny or a huge scene is in view as a unit sized one is.
-
-    Parameters
-    --------------
-    scene : trimesh.Scene
-      Scene the camera is for.
-    kwargs : dict
-      Passed to `Camera`, and planes set here win over the scaled ones.
-
-    Returns
-    --------------
-    camera : Camera
-      A camera which belongs to nobody.
-    """
-    if scene.bounds is not None:
-        kwargs.setdefault("z_near", DEFAULT_Z_NEAR * scene.scale)
-        kwargs.setdefault("z_far", DEFAULT_Z_FAR * scene.scale)
-    return Camera(**kwargs)
-
-
 def current_view(
     scene, resolution: Sequence[Integer] | NDArray | None = None
 ) -> tuple[Camera, NDArray[np.float64]]:
@@ -656,14 +631,24 @@ def current_view(
     if scene.has_camera:
         camera = scene.camera.copy()
         transform = np.array(scene.camera_transform, dtype=np.float64)
-    else:
-        camera = scene_camera(
-            scene, name=util.unique_name("camera", scene.graph.nodes), fov=DEFAULT_FOV
-        )
-        transform = np.eye(4)
+        if resolution is not None:
+            camera.fit_resolution(resolution)
+        return camera, transform
+
+    # near and far planes scale with the scene so any size is in view
+    scale = 1.0
+    if scene.bounds is not None:
+        scale = scene.scale
+    camera = Camera(
+        name=util.unique_name("camera", scene.graph.nodes),
+        fov=DEFAULT_FOV,
+        z_near=DEFAULT_Z_NEAR * scale,
+        z_far=DEFAULT_Z_FAR * scale,
+    )
     # the aspect is set before framing so the frame fits the image
     if resolution is not None:
         camera.fit_resolution(resolution)
-    if not scene.has_camera and scene.bounds is not None:
+    transform = np.eye(4)
+    if scene.bounds is not None:
         transform = look_at(scene.bounds, fov=camera.fov)
     return camera, transform

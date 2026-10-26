@@ -73,7 +73,7 @@ def test_cycloidal():
 
 def test_pyrender_scene():
     """
-    pyrender's example scene keeps its lights, camera and settings
+    pyrender's example scene keeps its standard lights and camera
     through a GLB, and the file renders exactly what its rays hit.
     """
     example = load_example("pyrender_scene")
@@ -98,9 +98,16 @@ def test_pyrender_scene():
         reloaded, resolution=[160, 120], include_depth=True, include_segmentation=True
     )
     index = arrays.segmentation
+    # its ambient light is an `EnvironmentLight`, which only the viewer has
+    standard = [
+        light
+        for light in scene.lights
+        if not isinstance(light, g.trimesh.scene.lighting.EnvironmentLight)
+    ]
     checks = {
         "lights": [(type(light), light.intensity) for light in reloaded.lights]
-        == [(type(light), light.intensity) for light in scene.lights],
+        == [(type(light), light.intensity) for light in standard]
+        != [(type(light), light.intensity) for light in scene.lights],
         # pyrender's spot light cone
         "cone": g.np.allclose(
             [reloaded.lights[1].innerConeAngle, reloaded.lights[1].outerConeAngle],
@@ -112,10 +119,8 @@ def test_pyrender_scene():
         ),
         "camera pose": g.np.allclose(reloaded.camera_transform, example.CAMERA_POSE),
         "fov": g.np.allclose(reloaded.camera.fov, scene.camera.fov),
-        # the example changes pyrender's settings away from the defaults
-        "settings": reloaded.metadata.get("render", {})
-        == scene.metadata.get("render", {})
-        != {},
+        # render settings are keywords rather than scene content
+        "no settings": "render" not in reloaded.metadata,
         "every node drawn": len(g.np.unique(index[index >= 0]))
         == len(reloaded.graph.nodes_geometry),
     }

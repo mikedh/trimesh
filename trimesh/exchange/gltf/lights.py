@@ -4,8 +4,8 @@ lights.py
 
 Read and write the `KHR_lights_punctual` glTF extension. Every light is
 named after the node carrying it, so `Scene.lights` and the scene graph
-refer to the same thing. An `EnvironmentLight`, which glTF has no place
-for, is stored in the `extras` of its node.
+refer to the same thing. An `EnvironmentLight` is only for the viewer,
+which glTF has no place for, so it is skipped.
 """
 
 import numpy as np
@@ -21,17 +21,12 @@ _TYPES = {
     "SpotLight": "spot",
 }
 _CLASSES = {value: key for key, value in _TYPES.items()}
-# the key in a node's `extras` holding an `EnvironmentLight`
-ENVIRONMENT = "environment_light"
-# `EnvironmentLight` arrays stored by name, beside its softbox rows
-_ENVIRONMENT_ARRAYS = ("sky", "ground")
 
 
 def parse_lights(header, names):
     """
     Collect the `KHR_lights_punctual` lights nodes carry, one per node
-    as two nodes may reference one entry of the document's array, and
-    the `EnvironmentLight` in the `extras` of a node.
+    as two nodes may reference one entry of the document's array.
 
     Parameters
     ------------
@@ -52,23 +47,6 @@ def parse_lights(header, names):
 
     lights = []
     for index, node in enumerate(header.get("nodes", [])):
-        extras = node.get("extras")
-        if isinstance(extras, dict) and isinstance(extras.get(ENVIRONMENT), dict):
-            entry = extras[ENVIRONMENT]
-            lights.append(
-                lighting.EnvironmentLight(
-                    name=names[index],
-                    color=color.to_rgba(
-                        np.array(entry.get("color", [1.0, 1.0, 1.0]), dtype=np.float64)
-                    ),
-                    intensity=entry.get("intensity", 1.0),
-                    **{key: entry.get(key) for key in _ENVIRONMENT_ARRAYS},
-                    softboxes=[
-                        tuple(box[field] for field in lighting.SOFTBOX.names)
-                        for box in entry.get("softboxes", [])
-                    ],
-                )
-            )
         reference = node.get("extensions", {}).get(NAME, {}).get("light")
         if reference is None:
             continue
@@ -105,7 +83,7 @@ def parse_lights(header, names):
 def append_lights(lights, tree, node_index):
     """
     Write the light array and every node's reference into it into a
-    tree in place, and an `EnvironmentLight` into the `extras` of its node.
+    tree in place, skipping any `EnvironmentLight` as glTF has no such light.
 
     Parameters
     ------------
@@ -116,11 +94,13 @@ def append_lights(lights, tree, node_index):
     node_index : dict
       Mapping of {node name : index in `tree["nodes"]`}
     """
-    from ...scene.lighting import SOFTBOX, EnvironmentLight
     from ...visual import color
 
     stored = []
     for light in lights:
+        kind = _TYPES.get(type(light).__name__)
+        if kind is None:
+            continue
         index = node_index.get(light.name)
         if index is None:
             log.warning(f"light `{light.name}` has no node!")
@@ -131,20 +111,8 @@ def append_lights(lights, tree, node_index):
             # the extension stores linear RGB in the 0.0 - 1.0 range
             "color": color.to_float(light.color)[:3].tolist(),
             "intensity": float(light.intensity),
+            "type": kind,
         }
-        if isinstance(light, EnvironmentLight):
-            # merged into a copy of the node's extras so the scene isn't changed
-            entry.update(
-                {key: getattr(light, key).tolist() for key in _ENVIRONMENT_ARRAYS}
-            )
-            # one object per softbox with a value per `SOFTBOX` field
-            entry["softboxes"] = [
-                {field: box[field].tolist() for field in SOFTBOX.names}
-                for box in light.softboxes
-            ]
-            node["extras"] = {**node.get("extras", {}), ENVIRONMENT: entry}
-            continue
-        entry["type"] = _TYPES[type(light).__name__]
         if light.radius is not None:
             entry["range"] = float(light.radius)
         if entry["type"] == "spot":

@@ -1,37 +1,22 @@
-#version 330 core
 // Draw one line segment as a rectangle on screen with round caps, so
-// lines are the same width in pixels everywhere and on every driver.
-// A point is a segment with two identical endpoints, which is a dot.
-//
-// Every segment is one instance and every instance runs this shader
-// six times (two triangles), with each run moving to one corner:
-// `glDrawArraysInstanced(GL_TRIANGLES, 0, 6, segment_count)`
-
-// both endpoints and the color advance once per instance, from `shaders.SEGMENT`
-$segment_inputs
-
-// per-frame values from `shaders.FRAME`
-$frame_block
+// lines are the same width in pixels everywhere and on every driver,
+// where a point is a segment with two identical endpoints. Each segment
+// is an instance whose six runs are the corners of two triangles.
 
 uniform mat4 model_view;
 // draw each segment as a point, which is `frame.line_widths.y` across
 uniform bool points;
 
+// the color, the line width or point diameter in pixels, the pixel offset
+// from the segment middle with x along and y across, half the segment's
+// length in pixels, and the distance along the view axis for depth images
 out vec4 segment_color;
-// line width or point diameter in pixels
-out float line_width_pixels;
-// pixel offset from the segment middle: x along, y across
 out vec2 pixel_offset;
-// half the length of the segment on screen in pixels
-out float half_length;
-// distance along the view axis for depth images
-out float view_depth;
+out float line_width_pixels, half_length, view_depth;
 
 // the corners of two triangles making a rectangle
-const vec2 CORNERS[6] = vec2[6](
-    vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0),
-    vec2(-1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, 1.0)
-);
+const vec2 CORNERS[6] = vec2[6](vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0),
+                                vec2(-1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, 1.0));
 // view space Z of the plane segments are cut at: anything larger is
 // behind the camera, which for perspective is where W goes negative
 const float NEAR_Z = -1e-5;

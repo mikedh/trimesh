@@ -307,7 +307,19 @@ class SceneGraph:
         base_frame = self.base_frame
         # the index of every camera by the node it rides
         camera_index = {camera.name: index for index, camera in enumerate(scene.cameras)}
-        children = graph.children
+        # untouched default lights aren't part of the scene, nor their nodes
+        from .scene import default_light_nodes
+
+        # unless something was hung under one, which keeps it
+        skipped = {
+            node
+            for node in default_light_nodes(scene)
+            if len(graph.children.get(node, [])) == 0
+        }
+        children = {
+            node: [child for child in childs if child not in skipped]
+            for node, childs in graph.children.items()
+        }
 
         # the base frame is a synthetic wrapper: when it carries nothing
         # export its children as the scene roots instead of writing it —
@@ -330,7 +342,7 @@ class SceneGraph:
 
         # collect the nodes in order
         for node in node_data.keys():
-            if node == base_frame:
+            if node == base_frame or node in skipped:
                 continue
             # assign the index to the node-name lookup
             lookup[node] = len(result)

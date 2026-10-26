@@ -1507,19 +1507,11 @@ def quaternion_from_matrix(matrix, isprecise=False):
 def trs_from_matrix(matrix: ArrayLike) -> tuple[NDArray, NDArray, NDArray]:
     """
     Split homogeneous transforms into a translation, a rotation
-    quaternion, and a scale, which is how formats like glTF store
-    them and the form in which a transform can be interpolated.
-
-    A mirror can't be a rotation so it is carried as negative scale,
-    shear has no exact form so the rotation is the nearest one, and
-    a zero scale has the identity rotation.
-
-    This is the inverse of `trs_matrix`, and the counterpart of
-    `decompose_matrix` for transforms that are stored or interpolated
-    as a quaternion. `decompose_matrix` instead returns euler angles
-    and shear for one matrix at a time, and raises on a singular
-    matrix. This is vectorized over a stack and never raises, but
-    can't represent shear.
+    quaternion, and a scale, the inverse of `trs_matrix`. Unlike
+    `decompose_matrix` this is vectorized, never raises on a singular
+    matrix, and can't represent shear, so the rotation is the nearest
+    one. A mirror is carried as negative scale and a zero scale has
+    the identity rotation.
 
     >>> matrix = random_rotation_matrix()
     >>> matrix[:3, :3] *= [-1.0, 2.0, 5.0]
@@ -1563,12 +1555,8 @@ def trs_matrix(
     """
     Combine a translation, a rotation quaternion, and a scale into
     homogeneous transforms which scale, then rotate, then translate.
-    The inverse of `trs_from_matrix`.
-
-    This is the counterpart of `compose_matrix` for a quaternion
-    rotation: `compose_matrix` takes euler angles, shear, and
-    perspective for one matrix at a time, while this takes none of
-    those and builds a whole stack at once.
+    The inverse of `trs_from_matrix`, and like `compose_matrix` without
+    euler angles, shear and perspective but for a whole stack at once.
 
     >>> np.allclose(trs_matrix([1, 2, 3], [1, 0, 0, 0], [1, 1, 1]),
     ...             translation_matrix([1, 2, 3]))
@@ -1603,42 +1591,6 @@ def trs_matrix(
     if translation.ndim == 1 and quaternion.ndim == 1 and scale.ndim == 1:
         return matrix[0]
     return matrix
-
-
-def keyframe_interval(times, query):
-    """
-    The keyframes on either side of every query time and how far
-    between them it is, clamped to the first and last keyframe.
-
-    Parameters
-    ------------
-    times : (k,) float
-      Increasing keyframe times.
-    query : (m,) float
-      Times to look up.
-
-    Returns
-    ------------
-    lower : (m,) int
-      Keyframe at or before each query.
-    upper : (m,) int
-      Keyframe after each query.
-    width : (m,) float
-      Seconds between them, zero if there is one keyframe.
-    fraction : (m,) float
-      From 0.0 at `lower` to 1.0 at `upper`.
-    """
-    times = np.asanyarray(times, dtype=np.float64)
-    query = np.asanyarray(query, dtype=np.float64)
-    upper = np.clip(np.searchsorted(times, query), 1, len(times) - 1)
-    lower = np.maximum(upper - 1, 0)
-    width = times[upper] - times[lower]
-    # a single keyframe has no width so every query is at it
-    fraction = np.divide(
-        query - times[lower], width, out=np.zeros_like(query), where=width > 0.0
-    )
-    fraction = np.clip(fraction, 0.0, 1.0)
-    return lower, upper, width, fraction
 
 
 def sample_channel(
@@ -1679,7 +1631,17 @@ def sample_channel(
     """
     values = np.asanyarray(values, dtype=np.float64)
     mode = mode.upper()
-    lower, upper, width, fraction = keyframe_interval(times, query)
+    times = np.asanyarray(times, dtype=np.float64)
+    query = np.asanyarray(query, dtype=np.float64)
+    # the keyframes on either side of every query, clamped to the first and last
+    upper = np.clip(np.searchsorted(times, query), 1, len(times) - 1)
+    lower = np.maximum(upper - 1, 0)
+    width = times[upper] - times[lower]
+    # a single keyframe has no width so every query is at it
+    fraction = np.divide(
+        query - times[lower], width, out=np.zeros_like(query), where=width > 0.0
+    )
+    fraction = np.clip(fraction, 0.0, 1.0)
     # one weight per query broadcast across every channel and component
     column = (-1,) + (1,) * (values.ndim - 1)
     if mode == "STEP":

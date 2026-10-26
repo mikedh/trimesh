@@ -3,365 +3,125 @@ test_blender.py
 -----------------
 
 Everything which runs Blender, which `trimesh-setup --matrix` runs on
-every supported Blender: its renders agree with the OpenGL viewer through
-the same camera.
+every supported Blender: its renders have the OpenGL viewer's size, frame
+count and silhouettes, which are what the two engines share.
 """
 
+import glob
 import re
 
 try:
     from . import generic as g
-    from .test_viewer import (
-        SUN_POSE,
-        box_shadow,
-        clear_glass,
-        lighting_cases,
-        lit_scene,
-    )
 except BaseException:
     import generic as g
-    from test_viewer import (
-        SUN_POSE,
-        box_shadow,
-        clear_glass,
-        lighting_cases,
-        lit_scene,
-    )
 
 from trimesh.interfaces import blender
-from trimesh.scene.lighting import DirectionalLight, EnvironmentLight, PointLight
-from trimesh.viewer.render import render_frames, turntable
+from trimesh.viewer.render import stage
 
 tf = g.trimesh.transformations
+PBR = g.trimesh.visual.material.PBRMaterial
 
 if not blender.exists:
     if g.all_dependencies:
         raise ValueError("blender is required!")
     g.pytest.skip("blender is not installed", allow_module_level=True)
 
-# the size every engine comparison renders at
 RESOLUTION = [160, 120]
-# the color of a glTF light which doesn't say, where trimesh's is gray
-WHITE = [255, 255, 255, 255]
+FPS = 5
 
 
-def render_png(scene, engine):
-    """A still of a scene at `RESOLUTION` from an engine, as float RGB."""
-    exported = scene.render(file_type="png", resolution=RESOLUTION, engine=engine)
-    return g.png(exported)[..., :3].astype(g.np.float64)
-
-
-def engine_checks(images, prefix):
-    """Named checks that the OpenGL and Blender renders of a scene agree."""
-    from scipy import ndimage
-
-    drawn = [(image < 250).any(axis=-1) for image in images]
-    inside = ndimage.binary_erosion(drawn[0] & drawn[1], iterations=2)
-    difference = g.np.abs(images[0] - images[1])
-    # mid tones are where falloffs like a spot cone's soft edge are,
-    # which a mean over everything would hide, away from silhouettes the
-    # engines antialias differently: Blender's fit of glTF's spot edge
-    # differs by 17 here, every other case by at most 6, and a spot cone
-    # 5% too wide by 28 and 20% by 55, which the test checks fails
-    gray = g.np.array([image.mean(axis=-1) for image in images])
-    middle = ((gray > 30) & (gray < 200)).any(axis=0) & inside
-    return {
-        f"{prefix} engines agree": g.iou(*drawn) > 0.95,
-        f"{prefix} engines shade alike": difference[inside].mean() < 6.0,
-        f"{prefix} engines compared": inside.sum() > 2000,
-        f"{prefix} engines shade mid tones alike": difference[middle].mean() < 25.0,
-    }
-
-
-def light_reach(scene, engine, **frames):
-    """
-    Where the only light of a scene changes the last frame rendered,
-    from it on and at zero intensity.
-    """
-    images = []
-    for scale in (1.0, 0.0):
-        copy = scene.copy()
-        copy.lights[0].intensity *= scale
-        rendered = list(
-            render_frames(copy, resolution=RESOLUTION, engine=engine, **frames)
-        )
-        images.append(rendered[-1][..., :3].astype(int))
-    return g.np.abs(images[0] - images[1]).max(axis=-1) > 2
+def mixed_scene():
+    """A PBR box, a textured mesh, a path, points and glass side by side."""
+    box = g.trimesh.creation.box()
+    box.visual = g.trimesh.visual.TextureVisuals(
+        material=PBR(baseColorFactor=[200, 60, 40, 255], roughnessFactor=0.4)
+    )
+    glass = g.trimesh.creation.icosphere()
+    glass.visual = g.trimesh.visual.TextureVisuals(
+        material=PBR(transmissionFactor=1.0, roughnessFactor=0.0, metallicFactor=0.0)
+    )
+    fuze = g.get_mesh("fuze.obj")
+    fuze.apply_scale(1.0 / fuze.extents.max())
+    angle = g.np.linspace(0, 12, 100)
+    helix = g.np.column_stack([g.np.cos(angle), g.np.sin(angle), angle / 6 - 1])
+    cloud = g.trimesh.PointCloud(g.np.random.default_rng(3).uniform(-0.5, 0.5, (50, 3)))
+    scene = g.trimesh.Scene()
+    for x, geometry in enumerate(
+        [box, fuze, g.trimesh.load_path(helix / 2), cloud, glass]
+    ):
+        scene.add_geometry(geometry, transform=tf.translation_matrix([1.5 * x - 3, 0, 0]))
+    scene.camera_transform = tf.translation_matrix([0, 0, 8])
+    return scene
 
 
 def test_engines():
-    """Blender and OpenGL render the same exported scene alike, and animations have every frame."""
-    from PIL import Image, ImageSequence
+    """Blender frames are the viewer's size and count with its silhouettes."""
+    from PIL import Image
+    from scipy import ndimage
 
     g.require_rendering()
-    scene = g.trimesh.creation.box(extents=[3, 1, 2]).scene()
-    scene.camera_transform = tf.euler_matrix(0.4, 0.3, 0.1) @ tf.translation_matrix(
-        [0, 0, 6]
-    )
+    dolly = g.dolly_scene("box", 0.8)
     checks = {}
-    engines = ["opengl", "blender"]
-    # every frame of an animation agrees, which a turntable turning 120
-    # degrees a frame makes very different frame to frame, without the
-    # floor whose soft shadows the engines blur differently, and the
-    # turn loops in a video twice as long
-    floorless = g.set_render(scene.copy(), ground_shadow=False)
-    floorless.animations.append(turntable(floorless, 0.6, 5))
-    # and the box turns too in a second animation, as every animation
-    # plays at once
-    box = floorless.graph.nodes_geometry[0]
-    times = g.np.arange(4) * 0.2
-    spin = tf.rotation_matrix(times * 2.0 * g.np.pi / 0.6, [1, 0, 0])
-    floorless.animations.append(
-        g.trimesh.scene.animation.Animation(
-            [(None, box)], times, spin[:, None], name="spin"
+    for name, scene, still in [("mixed", mixed_scene(), True), ("dolly", dolly, False)]:
+        staged, count = stage(scene, resolution=RESOLUTION, fps=FPS, still=still)
+        with g.tempfile.TemporaryDirectory() as directory:
+            blender.build(staged, directory, count=count, fps=FPS, samples=16)
+            paths = sorted(glob.glob(g.os.path.join(directory, "frame_*.png")))
+            frames = [g.np.array(Image.open(path)) for path in paths]
+        # the viewer's segmentation of each frame, posed as that frame is
+        renders = []
+        for index in range(count):
+            posed = scene.copy()
+            if not still:
+                posed.animate(index / FPS)
+            renders.append(
+                g.render(posed, include_segmentation=True, resolution=RESOLUTION)
+            )
+        opengl = g.np.array([render.segmentation >= 0 for render in renders])
+        # half a pixel covered, as blends and antialiasing make edges
+        blend = g.np.array([frame[..., 3] >= 128 for frame in frames])
+        # the engines' edges differ by the pixel of antialiasing and the
+        # pixel their projections are off, either side of the viewer's edge
+        band = ndimage.binary_dilation(opengl, iterations=2)
+        band &= ~ndimage.binary_erosion(opengl, iterations=2)
+        checks[f"{name} frames"] = len(frames) == count
+        checks[f"{name} size"] = all(f.shape == (120, 160, 4) for f in frames)
+        checks[f"{name} silhouettes"] = (
+            opengl.any(axis=(1, 2)).all() and not ((blend ^ opengl) & ~band).any()
         )
-    )
-    animation = {"resolution": [80, 60], "duration": 1.2, "fps": 5}
-    frames = []
-    for engine in engines:
-        gif = floorless.render(file_type="gif", engine=engine, **animation)
-        sequence = ImageSequence.Iterator(Image.open(g.trimesh.util.wrap_as_stream(gif)))
-        frames.append(
-            [(g.np.array(frame.convert("RGB")) < 250).any(-1) for frame in sequence]
-        )
-    checks["frames agree"] = len(frames[0]) == len(frames[1]) == 6 and all(
-        g.iou(first, second) > 0.9 for first, second in zip(*frames)
-    )
-    for engine, drawn in zip(engines, frames):
-        # a GIF merges repeated frames, so a held pose is fewer of them
-        checks[f"{engine} loops"] = (
-            len(drawn) == 6
-            and all(g.iou(drawn[index], drawn[index + 3]) > 0.99 for index in range(3))
-            and all(g.iou(drawn[index], drawn[index + 1]) < 0.9 for index in range(2))
-        )
+        if name == "dolly":
+            # the box slides the same way in both engines
+            columns = [
+                (mask * g.np.arange(160)).sum(axis=(1, 2)) / mask.sum(axis=(1, 2))
+                for mask in (opengl, blend)
+            ]
+            checks["dolly slides"] = g.np.ptp(columns[0]) > 5.0
+            checks["dolly slides alike"] = g.np.allclose(*columns, atol=2.0)
+            direct = frames
 
-    # a saved `.blend` renders the frames Blender renders, here the
-    # second time around the loop
+    # a saved `.blend` reopened renders what the direct render did
     with g.tempfile.TemporaryDirectory() as directory:
         path = g.os.path.join(directory, "scene.blend")
-        floorless.export(path, resolution=[80, 60], duration=1.2, fps=5)
+        dolly.export(path, resolution=RESOLUTION, duration=0.8, fps=FPS, samples=16)
         g.subprocess.run(
             [blender._blender_executable, "--background", path]
             + ["--render-output", g.os.path.join(directory, "frame_")]
-            + ["--render-frame", "4"],
+            + ["--render-frame", "3"],
             check=True,
             capture_output=True,
         )
-        reopened = Image.open(g.os.path.join(directory, "frame_0004.png"))
-        white = Image.new("RGBA", reopened.size, (255, 255, 255, 255))
-        reopened = g.np.asarray(
-            Image.alpha_composite(white, reopened.convert("RGBA"))
-        ).astype(int)
-    direct = list(
-        render_frames(
-            floorless, resolution=[80, 60], engine="blender", duration=1.2, fps=5
-        )
-    )[4].astype(int)
-    checks["blend renders the same"] = g.np.abs(reopened - direct).max() <= 2
-
-    # an environment seen behind the scene, which both engines draw alike
-    shown = EnvironmentLight(
-        name="environment",
-        sky=[0.6, 0.5, 0.4],
-        ground=[0.05, 0.08, 0.1],
-        softboxes=[([0.3, 0.8, 0.5], 6.0, [2.0] * 3)],
-    )
-    # saturated sRGB colors, which glTF stores as linear
-    colored = g.trimesh.creation.icosphere(subdivisions=4)
-    colored.visual.vertex_colors = g.trimesh.visual.color.interpolate(
-        colored.vertices[:, 0], color_map="viridis"
-    )
-    faced = g.trimesh.creation.box(extents=[2.0, 1.5, 1.0])
-    faced.visual.face_colors = g.np.random.default_rng(4).integers(
-        0, 255, (len(faced.faces), 3)
-    )
-    # the shared cases, where Blender draws a spot light's soft edge with
-    # a different curve than glTF, fit as close as it can, and a thin
-    # sheet lit through from behind
-    cases = lighting_cases()
-    shared = {
-        name: cases[name]
-        for name in [
-            "directional",
-            "spot",
-            "autolight",
-            "custom environment",
-            "diffuse transmission",
-        ]
-    }
-    # Blender 4.5 ignores a material's slab thickness, so it draws thin
-    # surfaces lit from behind darker than glTF says
-    if blender.version()[:2] == (4, 5):
-        shared.pop("diffuse transmission")
-    # a camera whose fields of view don't match the image's shape
-    # has pixels which aren't square, and both engines keep them
-    stretched = scene.copy()
-    stretched.camera.fov = [70, 40]
-    # and whose far plane cuts the box in half, which both engines clip
-    clipped = scene.copy()
-    clipped.camera.z_far = 6.0
-    # the lights and environment reach Blender through the glTF in the
-    # same units, so the shading agrees too and not just shape
-    for name, lit in {
-        "silhouette": scene,
-        "stretched pixels": stretched,
-        "far plane": clipped,
-        # both engines cast the same shadow from the same light
-        "shadowed": box_shadow(DirectionalLight(name="sun", intensity=3.0), SUN_POSE),
-        "environment shown": g.set_render(
-            lit_scene(environment=shown, metallic=0.5, roughness=0.3),
-            show_environment=True,
-        ),
-        # no material or colors at all, which isn't in the file
-        "default color": g.trimesh.creation.icosphere(subdivisions=4).scene(),
-        "vertex colors": colored.scene(),
-        # a different color on every triangle, which glTF only has
-        # on vertices
-        "face colors": faced.scene(),
-        # clear glass over a colored sphere, which both engines see through
-        "glass": g.trimesh.Scene([colored, clear_glass(0.02, 1.5, 0.3)]),
-        # one stop brighter, which Blender's exposure is in
-        "exposure": g.set_render(cases["directional"].copy(), exposure=2.0),
-        **shared,
-    }.items():
-        images = [render_png(lit, engine) for engine in engines]
-        checks.update(engine_checks(images, name))
-
-    # the thresholds bite: a spot cone 20% wider in Blender alone, which
-    # moves the soft edge a few pixels, shades mid tones differently
-    wider = shared["spot"].copy()
-    wider.lights[0].outerConeAngle *= 1.2
-    wider.lights[0].innerConeAngle *= 1.2
-    images = [render_png(shared["spot"], "opengl"), render_png(wider, "blender")]
-    control = engine_checks(images, "wider spot")
-    checks["a wider spot cone fails the mid tones"] = not control[
-        "wider spot engines shade mid tones alike"
-    ]
-
-    # points and lines, which Blender draws as spheres and tubes as
-    # many pixels across as the viewer, under nodes which scale them
-    rng = g.np.random.default_rng(3)
-    hues = g.np.column_stack([rng.random(200), g.np.ones((200, 2))])
-    cloud = g.trimesh.PointCloud(
-        rng.uniform(-1, 1, (200, 3)) * [0.5, 0.33, 0.33],
-        colors=g.trimesh.visual.color.hsv_to_rgba(hues),
-    )
-    angle = g.np.linspace(0, 12, 200)
-    helix = g.np.column_stack([g.np.cos(angle), g.np.sin(angle), angle / 6 - 1])
-    segments = g.trimesh.Scene()
-    segments.add_geometry(cloud, transform=tf.scale_matrix(3))
-    segments.add_geometry(g.trimesh.load_path(helix / 2), transform=tf.scale_matrix(2))
-    segments.camera_transform = scene.camera_transform
-    images = [render_png(segments, engine) for engine in engines]
-    drawn = [(image < 250).any(axis=-1) for image in images]
-    checks["segments engines agree"] = g.iou(*drawn) > 0.9
-    # Blender renders glass over its floor the same every time
-    glassy = g.trimesh.Scene([colored, clear_glass(0.02, 1.5, 0.3)])
-    checks["blender repeats exactly"] = g.np.array_equal(
-        *[
-            g.png(glassy.render(file_type="png", resolution=RESOLUTION, engine="blender"))
-            for _ in range(2)
-        ]
-    )
-    # the spheres are lit the way the viewer lights its points
-    means = [image[mask].mean(axis=0) for image, mask in zip(images, drawn)]
-    checks["segments engines color alike"] = g.np.abs(means[0] - means[1]).max() < 16
-
-    # a light reaches the same pixels in both engines: far and dim, which
-    # EEVEE culls by default, and exactly dark past a glTF `range`
-    far = lit_scene(
-        [PointLight(name="bulb", color=WHITE, intensity=1.0)],
-        [tf.translation_matrix([0, 0, 3.0])],
-        plane=True,
-    )
-    bulb = tf.translation_matrix([0, 0, 2.0])
-    ranged = lit_scene(
-        [PointLight(name="bulb", color=WHITE, intensity=6.0, radius=3.0)],
-        [bulb],
-        plane=True,
-        environment=EnvironmentLight(name="environment", sky=[0.1] * 3, ground=[0.1] * 3),
-    )
-    # and on the last frame of a box sliding past where the light reached
-    # with the box where it starts, which lights reach in every frame
-    sliding = g.set_render(g.dolly_scene("box", duration=3.0), ground_shadow=False)
-    sliding.lights = [PointLight(name="lamp", color=WHITE, intensity=40.0)]
-    sliding.graph["lamp"] = tf.translation_matrix([-3.0, 0.0, 2.0])
-    reaches = {}
-    for name, lit, frames in [
-        ("far point", far, {"still": True}),
-        ("point range", ranged, {"still": True}),
-        ("sliding box", sliding, {"duration": 3.0, "fps": 1.0}),
-    ]:
-        reaches[name] = [light_reach(lit, engine, **frames) for engine in engines]
-        checks[f"{name} reaches the same pixels"] = g.iou(*reaches[name]) > 0.9
-    # the pixels whose camera ray hits the plane within the light's range
-    ranged.camera.fit_resolution(RESOLUTION)
-    hits = g.camera_hits(ranged)
-    within = g.np.zeros(reaches["point range"][0].shape, dtype=bool)
-    near = g.np.linalg.norm(hits.points - bulb[:3, 3], axis=1) < 3.0
-    within[hits.rows[near], hits.columns[near]] = True
-    for engine, reach in zip(engines, reaches["point range"]):
-        checks[f"{engine} point range dark past the range"] = not (reach & ~within).any()
-        checks[f"{engine} point range lit inside the range"] = (
-            reach.sum() > 0.5 * within.sum()
-        )
-
-    # a camera node with a scale, which files exported from 3ds Max carry,
-    # has its planes in its own units as glTF says, which Blender's aren't
-    glossy = lit_scene(metallic=0.5, roughness=0.3)
-    pose = glossy.camera_transform
-    renders = []
-    for clip, transform in [(0.1, pose), (0.1 / 0.025, pose @ tf.scale_matrix(0.025))]:
-        glossy.camera.z_near = clip
-        glossy.camera_transform = transform
-        exported = glossy.render(file_type="png", resolution=[80, 60], engine="blender")
-        renders.append(g.png(exported)[..., :3].astype(int))
-    checks["camera scale is glTF's"] = g.np.abs(renders[0] - renders[1]).max() <= 1
+        reopened = g.np.array(Image.open(g.os.path.join(directory, "frame_0003.png")))
+    checks["blend renders the same"] = g.np.array_equal(reopened, direct[3])
 
     for name, ok in checks.items():
         assert ok, name
 
 
 def test_minimum_version():
-    """
-    Blender older than the template supports raises naming the version,
-    an executable which isn't Blender raises naming the executable, and
-    an option Blender doesn't take raises rather than being dropped.
-    """
+    """An unknown option, an old Blender and a non-Blender raise clearly."""
     scene = g.trimesh.creation.box().scene()
     with g.pytest.raises(TypeError, match="bogus"):
         scene.render(file_type="png", resolution=[16, 12], engine="blender", bogus=1)
-
-    # the GLB Blender reads shares the scene's geometry rather than copying
-    # it, so what is cached on it is computed once and never changed
-    mesh = scene.geometry[scene.graph.nodes_geometry[0]]
-    smooth = mesh.smooth_shaded
-    before = (type(smooth.visual), smooth.visual.kind, hash(smooth))
-    shade = g.trimesh.graph.smooth_shade
-    with (
-        g.tempfile.TemporaryDirectory() as directory,
-        g.pytest.MonkeyPatch.context() as patch,
-    ):
-        calls = []
-        patch.setattr(
-            g.trimesh.graph,
-            "smooth_shade",
-            lambda *args, **kwargs: calls.append(args) or shade(*args, **kwargs),
-        )
-        copied, _ = blender.viewer_glb(scene, count=1, fps=30.0, directory=directory)
-    checks = {
-        "smooth shading not recomputed": len(calls) == 0,
-        "cache reused": mesh.smooth_shaded is smooth,
-        "cache unchanged": (type(smooth.visual), smooth.visual.kind, hash(smooth))
-        == before,
-        "copy has the viewer's material": [
-            type(geometry.visual).__name__ for geometry in copied.geometry.values()
-        ]
-        == ["TextureVisuals"],
-        "scene unchanged": [id(v) for v in scene.geometry.values()] == [id(mesh)],
-    }
-    for name, ok in checks.items():
-        assert ok, name
     with g.pytest.MonkeyPatch.context() as patch:
         patch.setitem(blender._BLENDER_VERSION, blender._blender_executable, (4, 2, 0))
         with g.pytest.raises(ValueError, match=r"4\.3.*4\.2\.0"):

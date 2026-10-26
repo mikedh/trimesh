@@ -57,11 +57,16 @@ if __name__ == "__main__":
     directory = os.getcwd()
     if len(sys.argv) > 1:
         directory = sys.argv[1]
+    # the examples' render settings, and the defaults for the samples
+    settings = {
+        "cycloidal": animation_cycloidal.RENDER,
+        "pyrender": pyrender_scene.RENDER,
+    }
     for name in [*ANIMATED, "cycloidal", "pyrender"]:
         scene = load(name)
         path = os.path.join(directory, f"{name}_4k.mp4")
         start = time.perf_counter()
-        scene.render(path, resolution=(3840, 2160), fps=FPS)
+        scene.render(path, resolution=(3840, 2160), fps=FPS, **settings.get(name, {}))
         seconds = time.perf_counter() - start
         frames = max(round(max(scene.duration, 4.0) * FPS), 1)
         print(f"{os.path.basename(path):48s} {frames / seconds:6.1f} fps")

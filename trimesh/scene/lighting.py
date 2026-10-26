@@ -33,6 +33,63 @@ SKY_COLOR = np.array([255, 242, 230])
 # azimuth is around up from towards the camera to its right, and the key
 # is high so its shadow stays short and under the scene
 STUDIO_ANGLES = np.radians([[45.0, 35.0], [210.0, 65.0], [60.0, 20.0], [-70.0, 12.0]])
+# the same as unit vectors in the studio's frame: +X right, +Y up, +Z back
+STUDIO_DIRECTIONS = np.column_stack(
+    (
+        np.sin(STUDIO_ANGLES[:, 0]) * np.cos(STUDIO_ANGLES[:, 1]),
+        np.sin(STUDIO_ANGLES[:, 1]),
+        np.cos(STUDIO_ANGLES[:, 0]) * np.cos(STUDIO_ANGLES[:, 1]),
+    )
+)
+# tints scaled to a luminance so tinting changes color and not how
+# bright it looks: a white surface facing a directional light of
+# intensity `I` lux and linear color `C` reflects `C * I / pi`, which is
+# 0.58 and 0.28 for the key and rim, then the sky and floor, and the
+# softboxes overhead, on the key's side and on the rim's side
+STUDIO_TINTS = np.array(
+    [KEY_COLOR, RIM_COLOR, SKY_COLOR, SKY_COLOR, [255] * 3, KEY_COLOR, RIM_COLOR]
+)
+STUDIO_SCALE = np.array([0.58 * np.pi, 0.28 * np.pi, 0.31, 0.096, 0.35, 2.0, 1.0]) / (
+    STUDIO_TINTS / 255.0 @ LUMINANCE
+)
+# the sharpness of the softboxes overhead and either side, which are
+# spherical Gaussians as `studio_cubemap` describes
+STUDIO_SHARPNESS = np.array([4.0, 30.0, 30.0])
+
+# The faces of a cube map in the order KTX2 and OpenGL store them, +X, -X,
+# +Y, -Y, +Z, -Z, each as (towards it, along its rows, down its columns):
+# the texel in row `t` and column `s` of a face `n` texels across faces
+# `face[0] + (2 * s + 1 - n) / n * face[1] + (2 * t + 1 - n) / n * face[2]`
+# as table 8.19 of the OpenGL 4.6 core specification lays them out
+CUBE_FACES = np.array(
+    [
+        [[1, 0, 0], [0, 0, -1], [0, -1, 0]],
+        [[-1, 0, 0], [0, 0, 1], [0, -1, 0]],
+        [[0, 1, 0], [1, 0, 0], [0, 0, 1]],
+        [[0, -1, 0], [1, 0, 0], [0, 0, -1]],
+        [[0, 0, 1], [1, 0, 0], [0, -1, 0]],
+        [[0, 0, -1], [-1, 0, 0], [0, -1, 0]],
+    ],
+    dtype=np.float64,
+)
+
+# the real spherical harmonics up to l=2 are these constants times
+# `[1, y, z, x, xy, yz, 3z^2 - 1, xz, x^2 - y^2]`, and a clamped cosine
+# scales band l = 0, 1, 2 of radiance by pi, 2pi / 3 and pi / 4 into
+# irradiance: Ramamoorthi and Hanrahan 2001, "An Efficient Representation
+# for Irradiance Environment Maps", equations 3 and 8
+HARMONICS = np.sqrt(np.array([1, 3, 3, 3, 15, 15, 5 / 4, 15, 15 / 4]) / (4.0 * np.pi))
+IRRADIANCE_BANDS = np.pi * np.array([1, *[2 / 3] * 3, *[1 / 4] * 5])
+
+# the fewest texels across the standard deviation `1 / sqrt(sharpness)`
+# radians of a spherical Gaussian a cube map holds it in, where texels
+# are `2 / n` radians across the middle of a face: a Gaussian's spectrum
+# at the Nyquist frequency is then `exp(-2 pi^2)`, or 3e-9, of its peak
+TEXELS_PER_DEVIATION = 2.0
+
+# the default studio's cube map and irradiance, which only depend on
+# the constants above so are made once
+_STUDIO_ENVIRONMENT = {}
 
 
 class Light(util.ABC):
@@ -241,29 +298,16 @@ class SpotLight(Light):
         self._outerConeAngle = float(value)
 
 
-# one large soft light infinitely far away in an `EnvironmentLight`, which
-# is a spherical Gaussian `color * exp(sharpness * (dot(d, direction) - 1))`
-# for every direction `d`: larger `sharpness` is a smaller, harder light
-SOFTBOX = np.dtype(
-    [
-        # unit vector towards the softbox in the frame of the light's node
-        ("direction", "<f8", 3),
-        ("sharpness", "<f8"),
-        # linear RGB radiance at its center
-        ("color", "<f8", 3),
-    ]
-)
-
-
 class EnvironmentLight(Light):
     """
-    Light arriving from infinitely far away from every direction `d` in
-    the frame of the node carrying it, whose +Y is up: `ground` from
-    straight down to `sky` from straight up linear in `d[1]`, plus large
-    soft lights which are rows of `SOFTBOX`, all multiplied by `color`
-    and `intensity`. `EnvironmentLight(sky=c, ground=c)` is a constant
-    ambient light `c`. glTF has no such light so it is stored in the
-    `extras` of its node.
+    Light arriving from infinitely far away from every direction, held as
+    the draft glTF extension `KHR_lights_environment` describes it
+    (https://github.com/KhronosGroup/glTF/pull/1956): a cube map of linear
+    radiance in cd/m^2 and the l=2 spherical harmonics of the irradiance
+    it gives, both in the frame of the node carrying it whose +Y is up,
+    then multiplied by `color` and `intensity`. Only the OpenGL viewer
+    draws it: glTF has no ratified extension for it so exporters skip it,
+    and other engines light a GLB their own way.
 
     Attributes
     ----------
@@ -273,38 +317,32 @@ class EnvironmentLight(Light):
         RGBA tint of the whole environment in linear space, white by default.
     intensity : float
         Multiplies the whole environment.
-    sky : (3,) float
-        Linear RGB radiance from straight up.
-    ground : (3,) float
-        Linear RGB radiance from straight down.
-    softboxes : (n,) SOFTBOX
-        Each softbox's direction, sharpness and color.
+    cubemap : (6, n, n, 3) float
+        Linear RGB radiance of every texel of the faces of `CUBE_FACES`,
+        which can be passed as an equirectangular (h, 2h, 3) image.
+    irradiance : (9, 3) float
+        Light reaching a surface facing each direction from its
+        hemisphere weighted by cosine, as coefficients of
+        `spherical_harmonics`, computed from `cubemap` if not passed.
     """
 
     def __init__(
-        self,
-        name=None,
-        color=None,
-        intensity=None,
-        sky=None,
-        ground=None,
-        softboxes=None,
+        self, name=None, color=None, intensity=None, cubemap=None, irradiance=None
     ):
         if color is None:
-            # white so `sky`, `ground` and the softboxes are the radiance
+            # white so the cube map is the radiance
             color = [255, 255, 255, 255]
         super().__init__(name=name, color=color, intensity=intensity)
-        if sky is None:
-            sky = np.zeros(3)
-        if ground is None:
-            ground = np.zeros(3)
-        if softboxes is None:
-            softboxes = []
-        self.sky = np.array(sky, dtype=np.float64).reshape(3)
-        self.ground = np.array(ground, dtype=np.float64).reshape(3)
-        # a `SOFTBOX` array, or anything it can be made from such as
-        # `[(direction, sharpness, color), ...]`
-        self.softboxes = np.array(softboxes, dtype=SOFTBOX).reshape(-1)
+        if cubemap is None:
+            # no light from anywhere
+            cubemap = np.zeros((6, 1, 1, 3))
+        cubemap = np.asarray(cubemap, dtype=np.float64)
+        if cubemap.ndim == 3:
+            cubemap = equirectangular_to_cubemap(cubemap)
+        if irradiance is None:
+            irradiance = cubemap_irradiance(cubemap)
+        self.cubemap = cubemap
+        self.irradiance = np.asarray(irradiance, dtype=np.float64).reshape((9, 3))
 
     def __hash__(self) -> int:
         """
@@ -313,24 +351,286 @@ class EnvironmentLight(Light):
         Returns
         ------------
         hashed : int
-          Hash of the color, intensity, gradient and softboxes.
+          Hash of the color, intensity, irradiance and cube map.
         """
         values = np.concatenate(
-            (self.color / 255.0, [self.intensity], self.sky, self.ground)
+            (self.color / 255.0, [self.intensity], self.irradiance.ravel())
         )
-        return caching.hash_fast(values.tobytes() + self.softboxes.tobytes())
+        return caching.hash_fast(values.tobytes() + self.cubemap.tobytes())
 
 
-def autolight(
-    scene, camera_transform: ArrayLike | None = None
-) -> tuple[list[Light], NDArray[float64]]:
+def cubemap_directions(size: int) -> tuple[NDArray[float64], NDArray[float64]]:
     """
-    Generate lights for a scene that look decent: a photo studio fixed
-    in the world around the camera, with a warm key light from in front,
-    to the right and above, a cool rim light from high behind which
-    outlines things, and an environment of a dim gradient from a dark
-    floor to a pale sky, a broad light overhead and two softboxes either
-    side of the camera which put window-like highlights on shiny surfaces.
+    The direction through the middle of every texel of a cube map, and
+    the exact solid angle each texel covers.
+
+    Parameters
+    ------------
+    size : int
+      Texels across each face.
+
+    Returns
+    ------------
+    directions : (6, size, size, 3) float
+      Unit vector through each texel by face, row and column.
+    solid_angle : (6, size, size) float
+      Steradians each texel covers, which sum to `4 pi`.
+    """
+    edges = np.linspace(-1.0, 1.0, size + 1)
+    middles = (edges[1:] + edges[:-1]) / 2.0
+    faces = CUBE_FACES[:, None, None]
+    directions = (
+        faces[..., 0, :]
+        + middles[:, None] * faces[..., 1, :]
+        + middles[:, None, None] * faces[..., 2, :]
+    )
+    # the solid angle from the middle of a face to the corner (u, v) is
+    # `atan2(u * v, sqrt(u^2 + v^2 + 1))`, which differences into texels
+    corner = np.arctan2(
+        np.outer(edges, edges), np.sqrt(np.add.outer(edges**2, edges**2) + 1)
+    )
+    solid_angle = corner[1:, 1:] - corner[:-1, 1:] - corner[1:, :-1] + corner[:-1, :-1]
+    directions /= np.linalg.norm(directions, axis=-1, keepdims=True)
+    return directions, np.broadcast_to(solid_angle, (6, size, size))
+
+
+def cubemap_size(sharpness: float) -> int:
+    """
+    The fewest texels across each face, as a power of two, which hold a
+    spherical Gaussian `exp(sharpness * (cos(angle) - 1))` with
+    `TEXELS_PER_DEVIATION` across its standard deviation of
+    `1 / sqrt(sharpness)` radians, where texels in the middle of a face
+    are `2 / size` radians wide.
+
+    Parameters
+    ------------
+    sharpness : float
+      Sharpness of the spherical Gaussian.
+
+    Returns
+    ------------
+    size : int
+      Texels across each face.
+    """
+    texels = 2.0 * TEXELS_PER_DEVIATION * np.sqrt(sharpness)
+    return 2 ** int(np.ceil(np.log2(texels)))
+
+
+def bilinear(images: NDArray, layers: NDArray, coordinates: NDArray) -> NDArray:
+    """
+    Sample images between their texels like OpenGL's linear filtering,
+    clamping to their edges.
+
+    Parameters
+    ------------
+    images : (k, h, w, c) float
+      Layers of images.
+    layers : (m,) int
+      Which layer each sample is in.
+    coordinates : (m, 2) float
+      Row and column of each sample, where texel middles are integers.
+
+    Returns
+    ------------
+    samples : (m, c) float
+      Each sample blended from the four texels around it.
+    """
+    limit = np.array(images.shape[1:3]) - 1
+    coordinates = np.clip(coordinates, 0, limit)
+    low = np.floor(coordinates).astype(np.int64)
+    fraction = (coordinates - low)[:, None]
+    corners = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    index = np.minimum(low[:, None] + corners, limit)
+    weights = np.prod(np.where(corners, fraction, 1.0 - fraction), axis=2)
+    texels = images[layers[:, None], index[..., 0], index[..., 1]]
+    return (texels * weights[..., None]).sum(axis=1)
+
+
+def cubemap_sample(cubemap: ArrayLike, directions: ArrayLike) -> NDArray[float64]:
+    """
+    The radiance of a cube map towards directions, blending the four
+    texels around each across the edges of faces like OpenGL's linear
+    filtering with `GL_TEXTURE_CUBE_MAP_SEAMLESS`.
+
+    Parameters
+    ------------
+    cubemap : (6, n, n, c) float
+      Texels of the faces of `CUBE_FACES`.
+    directions : (..., 3) float
+      Directions to look in, of any length.
+
+    Returns
+    ------------
+    radiance : (..., c) float
+      Value of the cube map in each direction.
+    """
+    cubemap = np.asarray(cubemap, dtype=np.float64)
+    directions = np.asarray(directions, dtype=np.float64)
+    size = cubemap.shape[1]
+    # the texels of every face with a border one texel past its edges
+    middles = (2.0 * np.arange(-1, size + 1) + 1.0 - size) / size
+    faces = CUBE_FACES[:, None, None]
+    border = (
+        faces[..., 0, :]
+        + middles[:, None] * faces[..., 1, :]
+        + middles[:, None, None] * faces[..., 2, :]
+    )
+    # the face each of those and the directions are on, then each in the
+    # face's frame and as the row and column on it
+    flat = np.vstack((border.reshape((-1, 3)), directions.reshape((-1, 3))))
+    axis = np.abs(flat).argmax(axis=1)
+    face = 2 * axis + (flat[np.arange(len(flat)), axis] < 0.0)
+    local = np.matmul(CUBE_FACES[face], flat[:, :, None])[:, :, 0]
+    coordinates = (local[:, [2, 1]] / local[:, :1] + 1.0) * size / 2.0 - 0.5
+    # the border is the nearest texel on the neighboring face
+    count = len(flat) - len(directions.reshape((-1, 3)))
+    nearest = np.clip(np.round(coordinates[:count]), 0, size - 1).astype(np.int64)
+    padded = cubemap[face[:count], nearest[:, 0], nearest[:, 1]]
+    padded = padded.reshape((6, size + 2, size + 2, -1))
+    samples = bilinear(padded, face[count:], coordinates[count:] + 1.0)
+    return samples.reshape((*directions.shape[:-1], cubemap.shape[-1]))
+
+
+def equirectangular_to_cubemap(image: ArrayLike, size: int | None = None) -> NDArray:
+    """
+    Resample an equirectangular image, a latitude-longitude panorama
+    twice as wide as it is tall, into a cube map. Its top row is straight
+    up +Y and a direction `d` is `0.5 + atan2(d[2], d[0]) / (2 pi)` of the
+    way across it, as the Khronos glTF Sample Viewer reads them.
+
+    Parameters
+    ------------
+    image : (h, 2h, c) float
+      Linear radiance with the first row at the top.
+    size : int or None
+      Texels across each face, by default the smallest power of two whose
+      texels in the middle of a face, `2 / size` radians, are no wider
+      than the image's at its equator, `pi / h` radians.
+
+    Returns
+    ------------
+    cubemap : (6, size, size, c) float
+      Texels of the faces of `CUBE_FACES`.
+    """
+    image = np.asarray(image, dtype=np.float64)
+    height, width = image.shape[:2]
+    if size is None:
+        size = 2 ** int(np.ceil(np.log2(max(2.0 * height / np.pi, 1.0))))
+    x, y, z = cubemap_directions(size)[0].reshape((-1, 3)).T
+    # a column from each edge on the other side so longitude wraps around
+    wrapped = np.concatenate((image[:, -1:], image, image[:, :1]), axis=1)
+    coordinates = np.column_stack(
+        (
+            np.arccos(np.clip(y, -1.0, 1.0)) / np.pi * height - 0.5,
+            (0.5 + np.arctan2(z, x) / (2.0 * np.pi)) * width + 0.5,
+        )
+    )
+    samples = bilinear(wrapped[None], np.zeros(len(x), dtype=np.int64), coordinates)
+    return samples.reshape((6, size, size, -1))
+
+
+def spherical_harmonics(directions: ArrayLike) -> NDArray[float64]:
+    """
+    The real spherical harmonics up to l=2 of unit vectors.
+
+    Parameters
+    ------------
+    directions : (..., 3) float
+      Unit vectors.
+
+    Returns
+    ------------
+    harmonics : (..., 9) float
+      Each harmonic in the order of `HARMONICS`.
+    """
+    x, y, z = np.moveaxis(np.asarray(directions, dtype=np.float64), -1, 0)
+    linear = [np.ones_like(x), y, z, x]
+    quadratic = [x * y, y * z, 3 * z**2 - 1, x * z, x**2 - y**2]
+    return np.stack(linear + quadratic, axis=-1) * HARMONICS
+
+
+def cubemap_irradiance(cubemap: ArrayLike) -> NDArray[float64]:
+    """
+    The irradiance of a cube map, which is light reaching a surface from
+    its hemisphere weighted by cosine, as l=2 spherical harmonics: the
+    harmonics closest to the radiance over the sphere, every texel
+    weighted by its solid angle, which a clamped cosine scales by
+    `IRRADIANCE_BANDS`. Radiance which is a sum of harmonics up to l=2,
+    like a gradient, has its irradiance exactly.
+
+    Parameters
+    ------------
+    cubemap : (6, n, n, c) float
+      Radiance of the faces of `CUBE_FACES`.
+
+    Returns
+    ------------
+    irradiance : (9, c) float
+      Coefficients of `spherical_harmonics`.
+    """
+    cubemap = np.asarray(cubemap, dtype=np.float64)
+    directions, solid_angle = cubemap_directions(cubemap.shape[1])
+    weights = np.sqrt(solid_angle).reshape((-1, 1))
+    radiance = np.linalg.lstsq(
+        spherical_harmonics(directions).reshape((-1, 9)) * weights,
+        cubemap.reshape((-1, cubemap.shape[-1])) * weights,
+        rcond=None,
+    )[0]
+    return radiance * IRRADIANCE_BANDS[:, None]
+
+
+def studio_cubemap(
+    sky: ArrayLike, ground: ArrayLike, softboxes=(), size: int | None = None
+) -> NDArray[float64]:
+    """
+    A cube map of a photo studio in the frame of its node whose +Y is up:
+    a gradient linear in height from `ground` straight down to `sky`
+    straight up, plus softboxes which are large soft lights infinitely
+    far away, each a spherical Gaussian `color * exp(sharpness * (dot(d,
+    direction) - 1))` in every direction `d`, where larger sharpness is a
+    smaller and harder light.
+
+    Parameters
+    ------------
+    sky : (3,) float
+      Linear RGB radiance from straight up.
+    ground : (3,) float
+      Linear RGB radiance from straight down.
+    softboxes : sequence of (direction, sharpness, color)
+      Unit vector towards each softbox, its sharpness, and the linear RGB
+      radiance at its middle.
+    size : int or None
+      Texels across each face, by default twice `cubemap_size` of the
+      sharpest softbox so a mip level down still holds it, which a
+      reflection blends in as glTF roughness is never exactly zero.
+
+    Returns
+    ------------
+    cubemap : (6, size, size, 3) float
+      Radiance of the faces of `CUBE_FACES`.
+    """
+    towards = util.unitize(np.reshape([box[0] for box in softboxes], (-1, 3)))
+    sharpness = np.array([box[1] for box in softboxes], dtype=np.float64)
+    colors = np.reshape([box[2] for box in softboxes], (-1, 3))
+    if size is None:
+        # a gradient is as smooth as a lobe of sharpness one
+        size = 2 * cubemap_size(sharpness.max(initial=1.0))
+    directions = cubemap_directions(size)[0]
+    height = 0.5 + 0.5 * directions[..., 1:2]
+    lobes = np.exp(sharpness * (directions @ towards.T - 1.0))
+    ground = np.asarray(ground, dtype=np.float64)
+    return ground + (np.asarray(sky, dtype=np.float64) - ground) * height + lobes @ colors
+
+
+def studio_environment(
+    scene, camera_transform: ArrayLike | None = None
+) -> tuple[EnvironmentLight, NDArray[float64]]:
+    """
+    The default studio's environment, which the viewer draws when a
+    scene has no `EnvironmentLight` of its own: a dim gradient from a
+    dark floor to a pale sky, a broad light overhead and two softboxes
+    either side of the camera which put window-like highlights on shiny
+    surfaces, fixed in the world around where the camera is.
 
     Parameters
     --------------
@@ -341,10 +641,11 @@ def autolight(
 
     Returns
     --------------
-    lights : [Light]
-      The key and rim `DirectionalLight` and an `EnvironmentLight`.
-    transforms : (3, 4, 4) float
-      World pose of each light.
+    light : EnvironmentLight
+      The studio, which the viewer draws and exporters skip.
+    transform : (4, 4) float
+      World pose of the studio, whose +Y is the world axis nearest the
+      camera's up and whose +Z is level and back towards the camera.
     """
     if camera_transform is None:
         camera_transform = current_view(scene)[1]
@@ -359,48 +660,62 @@ def autolight(
     back = util.unitize(backwards - np.dot(backwards, up) * up)
     frame = np.eye(4)
     frame[:3, :3] = np.column_stack((np.cross(up, back), up, back))
-
-    azimuth, elevation = STUDIO_ANGLES.T
-    towards = np.column_stack(
-        (
-            np.sin(azimuth) * np.cos(elevation),
-            np.sin(elevation),
-            np.cos(azimuth) * np.cos(elevation),
+    try:
+        cubemap, irradiance = _STUDIO_ENVIRONMENT["studio"]
+    except KeyError:
+        radiance = STUDIO_TINTS / 255.0 * STUDIO_SCALE[:, None]
+        towards = [[0.0, 1.0, 0.0], *STUDIO_DIRECTIONS[2:]]
+        cubemap = studio_cubemap(
+            radiance[2], radiance[3], list(zip(towards, STUDIO_SHARPNESS, radiance[4:]))
         )
-    )
-    # tints scaled to a luminance so tinting changes color and not how
-    # bright it looks: a white surface facing a directional light of
-    # intensity `I` lux and linear color `C` reflects `C * I / pi`, which is
-    # 0.58 and 0.28 for the key and rim, then the sky and floor, and the
-    # softboxes overhead, on the key's side and on the rim's side
-    tints = np.array(
-        [KEY_COLOR, RIM_COLOR, SKY_COLOR, SKY_COLOR, [255] * 3, KEY_COLOR, RIM_COLOR]
-    )
-    luminance = np.array([0.58 * np.pi, 0.28 * np.pi, 0.31, 0.096, 0.35, 2.0, 1.0])
-    scale = luminance / (tints / 255.0 @ LUMINANCE)
-    radiance = tints / 255.0 * scale[:, None]
+        irradiance = cubemap_irradiance(cubemap)
+        # shared by every studio so nothing may change them
+        cubemap.flags.writeable, irradiance.flags.writeable = False, False
+        _STUDIO_ENVIRONMENT["studio"] = (cubemap, irradiance)
+    name = util.unique_name("environment_light", set(scene.graph.nodes))
+    light = EnvironmentLight(name=name, cubemap=cubemap, irradiance=irradiance)
+    return light, frame
 
+
+def autolight(
+    scene, camera_transform: ArrayLike | None = None
+) -> tuple[list[Light], NDArray[float64]]:
+    """
+    Generate lights for a scene that look decent: a photo studio fixed
+    in the world around the camera, with a warm key light from in front,
+    to the right and above and a cool rim light from high behind which
+    outlines things. The viewer adds the environment of the studio from
+    `studio_environment`.
+
+    Parameters
+    --------------
+    scene : trimesh.Scene
+      Scene to light, which is not changed.
+    camera_transform : None or (4, 4) float
+      Where the camera is, defaulting to `current_view(scene)`.
+
+    Returns
+    --------------
+    lights : [Light]
+      The key and rim `DirectionalLight`.
+    transforms : (2, 4, 4) float
+      World pose of each light.
+    """
+    frame = studio_environment(scene, camera_transform)[1]
     names = set(scene.graph.nodes)
     lights = [
         DirectionalLight(
-            name=util.unique_name("key_light", names),
-            color=[*KEY_COLOR, 255],
-            intensity=scale[0],
-        ),
-        DirectionalLight(
-            name=util.unique_name("rim_light", names),
-            color=[*RIM_COLOR, 255],
-            intensity=scale[1],
-        ),
-        EnvironmentLight(
-            name=util.unique_name("environment_light", names),
-            sky=radiance[2],
-            ground=radiance[3],
-            softboxes=list(
-                zip([[0.0, 1.0, 0.0], *towards[2:]], [4.0, 30.0, 30.0], radiance[4:])
-            ),
-        ),
+            name=util.unique_name(name, names),
+            color=[*color, 255],
+            intensity=intensity,
+        )
+        for name, color, intensity in zip(
+            ("key_light", "rim_light"), (KEY_COLOR, RIM_COLOR), STUDIO_SCALE[:2]
+        )
     ]
     # a light's +Z points back towards where its light comes from
-    transforms = [align_vectors([0.0, 0.0, 1.0], frame[:3, :3] @ v) for v in towards[:2]]
-    return lights, np.array([*transforms, frame])
+    transforms = [
+        align_vectors([0.0, 0.0, 1.0], frame[:3, :3] @ towards)
+        for towards in STUDIO_DIRECTIONS[:2]
+    ]
+    return lights, np.array(transforms)

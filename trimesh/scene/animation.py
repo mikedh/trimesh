@@ -290,23 +290,6 @@ class Skin:
             )
         self._data["inverse_bind_matrices"] = values
 
-    def matrices(self, graph) -> NDArray3D[float64]:
-        """
-        Where every joint moves vertices to right now.
-
-        Parameters
-        ------------
-        graph : trimesh.scene.transforms.SceneGraph
-          Scene graph containing every joint.
-
-        Returns
-        ------------
-        matrices : (j, 4, 4) float
-          Each joint's world transform times its inverse bind matrix.
-        """
-        world = np.reshape([graph.get(joint)[0] for joint in self.joints], (-1, 4, 4))
-        return np.matmul(world, self.inverse_bind_matrices)
-
     def deform(self, mesh, graph) -> NDArray2D[float64]:
         """
         The vertices of a skinned mesh where its joints put them,
@@ -325,11 +308,13 @@ class Skin:
         vertices : (n, 3) float
           Posed vertices in world space.
         """
+        # each joint's world transform times its inverse bind matrix
+        world = np.reshape([graph.get(joint)[0] for joint in self.joints], (-1, 4, 4))
         return skin_points(
             mesh.vertices,
             mesh.vertex_attributes["joints"],
             mesh.vertex_attributes["weights"],
-            self.matrices(graph),
+            np.matmul(world, self.inverse_bind_matrices),
         )
 
     def copy(self) -> "Skin":

@@ -283,62 +283,20 @@ def _specular_glossiness(context: MaterialContext) -> dict[str, Any] | None:
     return specular_to_pbr(**context["parse_textures"](data=context["data"]))
 
 
-@register_handler("KHR_materials_transmission", scope="material")
-def _transmission(context: MaterialContext) -> dict[str, Any]:
-    """
-    Read how much light passes through a material like clear glass.
-
-    Parameters
-    ----------
-    context
-      MaterialContext with extension data.
-
-    Returns
-    -------
-    pbr_dict
-      The `transmissionFactor`, which defaults to zero.
-    """
-    return {"transmissionFactor": context["data"].get("transmissionFactor", 0.0)}
-
-
-@register_handler("KHR_materials_diffuse_transmission", scope="material")
-def _diffuse_transmission(context: MaterialContext) -> dict[str, Any]:
-    """
-    Read how much light a thin surface scatters out of its other side.
-
-    Parameters
-    ----------
-    context
-      MaterialContext with extension data and parse_textures function.
-
-    Returns
-    -------
-    pbr_dict
-      The `diffuseTransmissionFactor` which defaults to zero, and the
-      `diffuseTransmissionColorFactor` and both textures if present.
-    """
-    result = {"diffuseTransmissionFactor": 0.0}
-    result.update(context["parse_textures"](data=context["data"]))
-    return result
-
-
-@register_handler("KHR_materials_unlit", scope="material")
-def _unlit(context: MaterialContext) -> dict[str, Any]:
-    """
-    Read that a material's base color is its final color, which is an
-    empty object.
-
-    Parameters
-    ----------
-    context
-      MaterialContext with extension data.
-
-    Returns
-    -------
-    pbr_dict
-      `unlit` as True.
-    """
-    return {"unlit": True}
+# material extensions which only set PBRMaterial fields: clear glass, light
+# scattered out of the other side of a thin surface (with its textures),
+# and an empty object marking a base color as the final color
+for _name, _fields in {
+    "KHR_materials_transmission": lambda context: {
+        "transmissionFactor": context["data"].get("transmissionFactor", 0.0)
+    },
+    "KHR_materials_diffuse_transmission": lambda context: {
+        "diffuseTransmissionFactor": 0.0,
+        **context["parse_textures"](data=context["data"]),
+    },
+    "KHR_materials_unlit": lambda context: {"unlit": True},
+}.items():
+    register_handler(_name, scope="material")(_fields)
 
 
 @register_handler("EXT_texture_webp", scope="texture_source")

@@ -436,6 +436,37 @@ def test_skin():
         assert ok, name
 
 
+def posed_checks(scene, arrays, prefix=""):
+    """
+    A render of a skinned scene is the render of the same scene posed on
+    the CPU by `dump`: the same pixels covered and the same depth to within
+    float32 rounding. Ray casts can't check depth exactly here as a bent
+    tube folds over itself inside one node, which isn't a node edge.
+    """
+    posed = g.trimesh.Scene(scene.dump(concatenate=True))
+    posed.camera = scene.camera
+    posed.camera_transform = scene.camera_transform
+    reference = g.render(
+        posed,
+        resolution=scene.camera.resolution,
+        include_depth=True,
+        include_segmentation=True,
+    )
+    covered = arrays.segmentation >= 0
+    # float32 depth is rounded to half an epsilon of its size: allow 4
+    tolerance = 4.0 * g.np.finfo(g.np.float32).eps * reference.depth.max()
+    checks = g.ray_checks(scene, arrays, prefix)
+    # replaced by the exact comparison with the CPU posed mesh below
+    checks.pop(f"{prefix}depth is rays")
+    checks[f"{prefix}coverage is cpu skin"] = g.np.array_equal(
+        covered, reference.segmentation >= 0
+    )
+    checks[f"{prefix}depth is cpu skin"] = bool(
+        (g.np.abs(arrays.depth - reference.depth)[covered] <= tolerance).all()
+    )
+    return checks
+
+
 def test_skin_render():
     """The GPU skins exactly like the numpy skinning `dump` uses."""
     scene, _ = bent_tube()
@@ -447,7 +478,7 @@ def test_skin_render():
     arrays = g.render(
         scene, resolution=[200, 150], include_depth=True, include_segmentation=True
     )
-    checks = g.ray_checks(scene, arrays)
+    checks = posed_checks(scene, arrays)
 
     # and it isn't what an unskinned tube would look like
     unskinned = scene.copy()
@@ -472,7 +503,7 @@ def test_skin_render():
     arrays = g.render(
         twin, resolution=[200, 150], include_depth=True, include_segmentation=True
     )
-    checks.update(g.ray_checks(twin, arrays, "twins "))
+    checks.update(posed_checks(twin, arrays, "twins "))
 
     for name, ok in checks.items():
         assert ok, name

@@ -1,60 +1,48 @@
-#version 330 core
 // glTF metallic-roughness shading of `Scene.lights`: Cook-Torrance
 // specular with a GGX distribution, Schlick fresnel and Smith-Schlick
 // geometry, plus Lambert diffuse, in `KHR_lights_punctual` units. An
-// environment of a sky to ground gradient and softboxes surrounds
-// everything, then a neutral tone mapper maps it to the display.
+// environment cube map surrounds everything, as `KHR_lights_environment`
+// describes, then a neutral tone mapper maps it to the display.
 //
 // Adapted from pyrender (MIT license, copyright 2019 Matthew Matl)
 // https://github.com/mmatl/pyrender/blob/master/pyrender/shaders/mesh.frag
 // with the metallic-roughness channels corrected to the glTF spec
 // (green is roughness, blue is metallic) and emissive applied once.
 
-in vec3 view_position;
-in vec3 view_normal;
+in vec3 view_position, view_normal;
 in vec2 texture_uv;
 in vec4 vertex_color;
 flat in float fragment_node_index;
 
-// per-frame values from `shaders.FRAME`, including the lights
-$frame_block
-
-// this mesh's material from `shaders.MATERIAL`
-$material_block
-
-// how alpha is used, from `shaders.ALPHA_MODES` which explains them
-$alpha_modes
 // missing textures are a 1x1 white texture so they change nothing,
-// except a normal map which `material.has_textures.x` skips entirely
-uniform sampler2D base_color_texture;
-uniform sampler2D metallic_roughness_texture;
-uniform sampler2D emissive_texture;
-uniform sampler2D normal_texture;
-uniform sampler2D occlusion_texture;
-// alpha multiplies the diffuse transmission factor and color multiplies
-// `material.transmission_color`
-uniform sampler2D diffuse_transmission_texture;
-uniform sampler2D diffuse_transmission_color_texture;
+// except a normal map which `material.has_textures.x` skips entirely,
+// where diffuse transmission's alpha and color multiply its factor and color
+uniform sampler2D base_color_texture, metallic_roughness_texture, emissive_texture;
+uniform sampler2D normal_texture, occlusion_texture;
+uniform sampler2D diffuse_transmission_texture, diffuse_transmission_color_texture;
 // how much of the environment nearby surfaces leave visible, per pixel
 uniform sampler2D ambient_occlusion;
-// one RGBA color per triangle looked up with `gl_PrimitiveID`, if
-// `material.has_textures.y` is one
+// one RGBA color per triangle by `gl_PrimitiveID` if `material.has_textures.y`
 uniform samplerBuffer face_colors;
 // the depth each shadow casting light sees, one layer per light
 uniform sampler2DArrayShadow shadow_maps;
 
 out vec4 fragment_color;
 
-// Rec.709 weights of linear RGB for how bright a color looks
-const vec3 LUMINANCE = vec3(0.2126, 0.7152, 0.0722);
-// the sharpness of a spherical Gaussian with the mean cosine of the
-// cosine lobe diffuse surfaces reflect with, from `scene.metadata`
-const float DIFFUSE_SHARPNESS = $DIFFUSE_SHARPNESS;
-// a cubic in log roughness for the sharpness of the spherical Gaussian
-// as wide as the GGX reflection lobe, from `scene.metadata`
-const vec4 SPECULAR_SHARPNESS = $SPECULAR_SHARPNESS;
-
-$shared_functions
+// light from the environment reaching a surface facing a view space
+// direction weighted by cosine over pi, which is what a white diffuse
+// surface reflects, from l=2 spherical harmonics whose constants
+// `frame.irradiance` includes, in the order of `lighting.HARMONICS`
+vec3 environment_irradiance(vec3 normal) {
+    vec3 local = mat3(frame.environment_rotation) * normal;
+    vec3 squared = local * local;
+    vec4 light = frame.irradiance[0] + frame.irradiance[1] * local.y
+        + frame.irradiance[2] * local.z + frame.irradiance[3] * local.x
+        + frame.irradiance[4] * local.x * local.y + frame.irradiance[5] * local.y * local.z
+        + frame.irradiance[6] * (3.0 * squared.z - 1.0) + frame.irradiance[7] * local.x * local.z
+        + frame.irradiance[8] * (squared.x - squared.y);
+    return light.rgb;
+}
 
 // how much of a light reaches a point: the average of nine nearby
 // comparisons against what the light saw, each blended by the hardware
@@ -121,9 +109,13 @@ void main() {
     if (alpha_mode == ALPHA_MASK && alpha < material.factors.z) {
         discard;
     }
+    // only depth, for shadows and ambient occlusion
+    if (frame.output_mode.x == OUTPUT_DEPTH) {
+        return;
+    }
     // depth along the view axis and which node this is, for depth
     // images and segmentation rather than a picture
-    if (frame.write_depth_and_index.x == 1) {
+    if (frame.output_mode.x == OUTPUT_INDEX) {
         fragment_color = vec4(-view_position.z, fragment_node_index, 0.0, 1.0);
         return;
     }
@@ -164,10 +156,9 @@ void main() {
     // dielectrics reflect 4% head on and metals reflect their color
     vec3 reflectance = mix(vec3(0.04), base_color.rgb, metallic);
     vec3 diffuse_color = base_color.rgb * (1.0 - metallic);
-    // light from behind the surface, relative to the side the camera
-    // sees, which a thin surface scatters out of the front instead of
-    // reflecting: the glTF spec mixes the reflected and transmitted
-    // Lambert lobes by this fraction, and only for the dielectric part
+    // light from behind the side the camera sees which a thin surface
+    // scatters out of the front, mixing the reflected and transmitted
+    // Lambert lobes of the dielectric part by this fraction as glTF does
     float transmission = clamp(material.factors.w
         * texture(diffuse_transmission_texture, texture_uv).a, 0.0, 1.0);
     vec3 transmission_color = material.transmission_color.rgb
@@ -179,9 +170,8 @@ void main() {
     // remapping of roughness for Smith-Schlick from UE4
     float geometry_k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
 
-    // light scattered by the surface, which is as transparent as the
-    // surface, and light reflected off it, which isn't: glass is clear
-    // but still shows reflections
+    // light scattered by the surface, which is as transparent as it, and
+    // reflected, which isn't: glass is clear but still shows reflections
     vec3 diffuse_light = vec3(0.0);
     vec3 specular_light = vec3(0.0);
     // how much directional light reaches a white diffuse surface here
@@ -199,10 +189,8 @@ void main() {
         float cone = clamp(
             dot(light.direction.xyz, -light_direction) * light.falloff.y + light.falloff.z,
             0.0, 1.0);
-        // a light reaches the front or the back of the surface, and the
-        // shadow is looked up off whichever side faces it so light behind
-        // a leaf is blocked by what is between it and the leaf but not by
-        // the leaf itself
+        // a light reaches either side of the surface, and its shadow is
+        // looked up off the side facing it: a leaf doesn't shadow itself
         float normal_dot_light = dot(surface_normal, light_direction);
         vec3 light_side = surface_normal;
         if (normal_dot_light < 0.0) {
@@ -213,16 +201,15 @@ void main() {
         vec3 radiance = light.color.rgb * window * window * cone * cone / distance_squared
             * visibility;
 
-        // transmitted light is scattered as if from the light mirrored
-        // through the surface, which is where its fresnel term comes from
+        // transmitted light scatters as if from the light mirrored through
+        // the surface, which is where its fresnel term comes from
         float behind_dot_light = max(-normal_dot_light, 0.0);
         vec3 mirrored = light_direction + 2.0 * behind_dot_light * surface_normal;
         float mirrored_dot_half = clamp(
             dot(view_direction, normalize(mirrored + view_direction)), 0.0, 1.0);
         normal_dot_light = max(normal_dot_light, 0.0);
         vec3 half_vector = normalize(light_direction + view_direction);
-        // unit vectors can dot to just over one, where the `pow` in the
-        // fresnel term of one minus this would be NaN, so clamp both ends
+        // unit vectors can dot to just over one where `pow` would be NaN
         float normal_dot_half = clamp(dot(surface_normal, half_vector), 0.0, 1.0);
         float view_dot_half = clamp(dot(view_direction, half_vector), 0.0, 1.0);
 
@@ -244,26 +231,22 @@ void main() {
         received += (1.0 - light.position.w) * dot(radiance, LUMINANCE) * normal_dot_light / PI;
     }
 
-    // the environment: diffuse surfaces see it averaged over the cosine
-    // lobe around the normal, and shiny ones see the reflection blurred
-    // by the GGX lobe, scaled by Karis's fit of the environment BRDF
+    // the environment's irradiance for diffuse light and its radiance
+    // blurred like the GGX lobe for reflections, scaled by Karis's fit of the BRDF
     // https://www.unrealengine.com/en-US/blog/physically-based-shading-on-mobile
     vec4 fit = roughness * vec4(-1.0, -0.0275, -0.572, 0.022) + vec4(1.0, 0.0425, 1.04, -0.04);
     float fit_bias = min(fit.x * fit.x, exp2(-9.28 * normal_dot_view)) * fit.x + fit.y;
     vec2 scale_bias = vec2(-1.04, 1.04) * fit_bias + fit.zw;
     vec3 reflected = reflect(-view_direction, surface_normal);
-    float log_roughness = log(roughness);
-    float reflection_blur = exp(((SPECULAR_SHARPNESS.x * log_roughness + SPECULAR_SHARPNESS.y)
-        * log_roughness + SPECULAR_SHARPNESS.z) * log_roughness + SPECULAR_SHARPNESS.w);
-    vec3 environment_specular = environment_light(reflected, reflection_blur)
+    vec3 environment_specular = environment_light(reflected, roughness)
         * (reflectance * scale_bias.x + scale_bias.y);
-    vec3 environment_diffuse = environment_light(surface_normal, DIFFUSE_SHARPNESS);
+    vec3 environment_diffuse = environment_irradiance(surface_normal);
     // occlusion only darkens environment light as glTF specifies
     float occlusion = texture(occlusion_texture, texture_uv).r
         * texture(ambient_occlusion, gl_FragCoord.xy / frame.viewport_size.xy).r;
     // and thin surfaces let through the environment behind them
     diffuse_light += (diffuse_color * environment_diffuse
-        + transmission_color * environment_light(-surface_normal, DIFFUSE_SHARPNESS))
+        + transmission_color * environment_irradiance(-surface_normal))
         * occlusion;
     diffuse_light += material.emissive.rgb * texture(emissive_texture, texture_uv).rgb;
     specular_light += environment_specular * occlusion;
@@ -277,13 +260,10 @@ void main() {
         return;
     }
 
-    // the framebuffer blends what the display shows as `color + (1 - alpha)
-    // * behind`, so the surface's own light `D` covers `alpha` of the display
-    // with `to_display(D)`, and its reflections `S` add what they add over
-    // the light the surface lets through, `to_display(alpha * D + S) -
-    // to_display(alpha * D)`. Opaque that is `to_display(D + S)`, with nothing
-    // reflected `alpha * to_display(D)`, and clear glass `to_display(S)`, and
-    // never negative as `to_display` only increases
+    // the framebuffer adds `(1 - alpha) * behind`, so the surface's own
+    // light `D` covers `alpha` of the display and its reflections `S` add
+    // `to_display(alpha * D + S) - to_display(alpha * D)`, which is never
+    // negative: opaque that is `to_display(D + S)`, clear glass `to_display(S)`
     vec3 covered = diffuse_light * alpha;
     vec3 color = alpha * to_display(diffuse_light)
         + to_display(covered + specular_light) - to_display(covered);

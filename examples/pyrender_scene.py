@@ -4,8 +4,8 @@ pyrender_scene.py
 
 The scene from pyrender's `examples/example.py` built with only trimesh
 and its models streamed straight from pyrender's repository, saved as a
-GLB and rendered from that file: everything drawn is in the file, so any
-glTF viewer shows the same lights, camera and materials.
+GLB which any glTF viewer shows with the same lights, camera and
+materials, less pyrender's ambient light which only trimesh's viewer draws.
 
 | pyrender                          | trimesh                                    |
 |-----------------------------------|--------------------------------------------|
@@ -13,7 +13,7 @@ glTF viewer shows the same lights, camera and materials.
 | `scene.add(mesh, pose=pose)`      | `scene.add_geometry(mesh, transform=pose)` |
 | `DirectionalLight`, `SpotLight`   | `trimesh.scene.lighting.*Light`            |
 | `PerspectiveCamera(yfov=...)`     | `trimesh.scene.Camera(fov=...)`            |
-| `Scene(ambient_light=...)`        | `EnvironmentLight(sky=..., ground=...)`    |
+| `Scene(ambient_light=...)`        | `EnvironmentLight(cubemap=...)`            |
 | `OffscreenRenderer.render(scene)` | `SceneViewer(...).to_array(...)`           |
 
 Usage: `python pyrender_scene.py [output directory]`
@@ -34,6 +34,8 @@ from trimesh.viewer.opengl.viewer import SceneViewer
 MODELS = "https://raw.githubusercontent.com/mmatl/pyrender/master/examples/models/"
 # pyrender renders 1280x960 with a 60 degree vertical fov
 RESOLUTION = [1280, 960]
+# the wood is the floor so there is no need for a shadow catcher
+RENDER = {"ground_shadow": False}
 # where the camera and both lights are
 CAMERA_POSE = np.array(
     [
@@ -107,7 +109,9 @@ def build(resolver, seed=0):
             innerConeAngle=np.pi / 16,
             outerConeAngle=np.pi / 6,
         ),
-        lighting.EnvironmentLight(name="ambient", sky=ambient, ground=ambient),
+        lighting.EnvironmentLight(
+            name="ambient", cubemap=lighting.studio_cubemap(ambient, ambient)
+        ),
     ]
     for light in scene.lights:
         scene.graph.update(frame_to=light.name, matrix=CAMERA_POSE)
@@ -117,9 +121,6 @@ def build(resolver, seed=0):
         resolution=RESOLUTION, fov=np.degrees([horizontal, vertical])
     )
     scene.camera_transform = CAMERA_POSE
-
-    # the wood is the floor so there is no need for a shadow catcher
-    scene.metadata["render"] = {"ground_shadow": False}
     return scene
 
 
@@ -128,12 +129,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         directory = sys.argv[1]
 
-    # save the scene and render only what made it into the file
-    path = os.path.join(directory, "pyrender_scene.glb")
-    build(WebResolver(MODELS)).export(path)
-    scene = trimesh.load_scene(path)
+    scene = build(WebResolver(MODELS))
+    scene.export(os.path.join(directory, "pyrender_scene.glb"))
 
-    viewer = SceneViewer(scene, visible=False, start_loop=False, resolution=RESOLUTION)
+    viewer = SceneViewer(
+        scene, visible=False, start_loop=False, resolution=RESOLUTION, **RENDER
+    )
     color, depth, segmentation = viewer.to_array(
         include_depth=True, include_segmentation=True
     )
@@ -148,4 +149,6 @@ if __name__ == "__main__":
     gray = ((segmentation + 1) * 20 % 256).astype(np.uint8)
     Image.fromarray(gray).save(os.path.join(directory, "pyrender_segmentation.png"))
     # and as a turntable gif, with only Pillow
-    scene.render(os.path.join(directory, "pyrender_scene.gif"), resolution=[640, 480])
+    scene.render(
+        os.path.join(directory, "pyrender_scene.gif"), resolution=[640, 480], **RENDER
+    )

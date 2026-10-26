@@ -163,10 +163,10 @@ def render_frames(
     kwargs : dict
       Passed to the OpenGL `SceneViewer` or to `blender.render`.
 
-    Returns
+    Yields
     ------------
-    frames : iterable
-      (height, width, 3 or 4) uint8 images in order.
+    frame : (height, width, 3 or 4) uint8
+      Every image in order.
     """
     if engine not in ("opengl", "blender"):
         raise ValueError(f"engine `{engine}` is not `opengl` or `blender`")
@@ -176,8 +176,32 @@ def render_frames(
     if engine == "blender":
         from ..interfaces import blender
 
-        return blender.render(scene, count=count, fps=fps, **kwargs)
-    return opengl_frames(scene, count=count, fps=fps, **kwargs)
+        yield from blender.render(scene, count=count, fps=fps, **kwargs)
+        return
+
+    from .opengl.viewer import SceneViewer
+
+    # a render looks through the scene's camera, which may be animated
+    viewer = SceneViewer(
+        scene,
+        resolution=scene.camera.resolution,
+        visible=False,
+        start_loop=False,
+        **{"follow_camera": True, **kwargs},
+    )
+    try:
+        # each frame is copied off the GPU while the next is drawn
+        for index in range(count):
+            if count > 1:
+                # drawn without posing the scene, looping shorter animations
+                viewer.animation_time = index / fps
+            viewer.render(changed=index == 0)
+            viewer.read_pixels("resolved", index % 2, finish=False)
+            if index > 0:
+                yield viewer.read_pixels("resolved", (index - 1) % 2, start=False)
+        yield viewer.read_pixels("resolved", (count - 1) % 2, start=False)
+    finally:
+        viewer.close()
 
 
 def stage(
@@ -250,62 +274,6 @@ def stage(
     return scene, count
 
 
-def opengl_frames(scene, count: int, fps: Number, **kwargs):
-    """
-    Render frames of a scene with the built in OpenGL renderer.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Scene to render at `scene.camera.resolution`.
-    count : int
-      One frame of the current pose, or this many frames of
-      `scene.animations` every `1 / fps` seconds.
-    fps : float
-      Frames per second of animation.
-    kwargs : dict
-      Passed to `SceneViewer`.
-
-    Returns
-    ------------
-    frames : generator
-      (height, width, 4) uint8 RGBA images.
-    """
-    from .opengl.resources import gl, read_framebuffer_finish, read_framebuffer_start
-    from .opengl.viewer import SceneViewer
-
-    # a render looks through the scene's camera, which may be animated
-    viewer = SceneViewer(
-        scene,
-        resolution=scene.camera.resolution,
-        visible=False,
-        start_loop=False,
-        **{"follow_camera": True, **kwargs},
-    )
-
-    # two pixel buffers so one frame is copied off the GPU while the
-    # next is drawn, rather than waiting for every frame
-    buffers = (gl.GLuint * 2)()
-    gl.glGenBuffers(2, buffers)
-    framebuffer = viewer.resolve_framebuffer
-    try:
-        previous = None
-        for index in range(count):
-            if count > 1:
-                # drawn without posing the scene, looping shorter animations
-                viewer.animation_time = index / fps
-            viewer.render(changed=index == 0)
-            read_framebuffer_start(framebuffer, buffers[index % 2])
-            if previous is not None:
-                yield read_framebuffer_finish(framebuffer, previous)
-            previous = buffers[index % 2]
-        yield read_framebuffer_finish(framebuffer, previous)
-    finally:
-        viewer.window.switch_to()
-        gl.glDeleteBuffers(2, buffers)
-        viewer.close()
-
-
 def encode(frames, file_obj, file_type: str, fps: Number) -> bytes | None:
     """
     Encode (height, width, 3 or 4) uint8 frames as a file.
@@ -327,14 +295,17 @@ def encode(frames, file_obj, file_type: str, fps: Number) -> bytes | None:
       The encoded file if `file_obj` is None.
     """
     if file_type in VIDEO_TYPES:
-        if isinstance(file_obj, str):
-            # ffmpeg writes the file itself, seeking around it to finish
-            # some containers
-            write_video(frames, file_obj, fps)
-            return None
         with tempfile.TemporaryDirectory() as directory:
-            path = os.path.join(directory, f"render.{file_type}")
-            write_video(frames, path, fps)
+            # ffmpeg writes a file itself, seeking around it to finish
+            # some containers
+            path = file_obj
+            if not isinstance(file_obj, str):
+                path = os.path.join(directory, f"render.{file_type}")
+            with VideoWriter(path, fps=fps) as video:
+                for frame in frames:
+                    video.write(frame)
+            if isinstance(file_obj, str):
+                return None
             with open(path, "rb") as video:
                 if file_obj is None:
                     return video.read()
@@ -344,14 +315,18 @@ def encode(frames, file_obj, file_type: str, fps: Number) -> bytes | None:
     from PIL import Image
 
     images = [Image.fromarray(frame) for frame in frames]
-    # one image is a still and more is a looping animation, whose
-    # frames end on time in the units each format stores
+    # one image is a still and more is a looping animation, whose frames
+    # end within half a tick of when they should in the units each format
+    # stores rather than a rounded duration drifting: 30 fps in a GIF is
+    # 30, 40 and 30 milliseconds rather than 30, which plays 11% fast
     animation = {}
     if len(images) > 1:
+        tick = DURATION_TICKS.get(file_type, 1)
+        ends = np.round(np.arange(len(images) + 1) * 1000.0 / (fps * tick))
         animation = {
             "save_all": True,
             "append_images": images[1:],
-            "duration": frame_durations(len(images), fps, file_type),
+            "duration": (np.diff(ends).astype(np.int64) * tick).tolist(),
             "loop": 0,
         }
     if file_obj is not None:
@@ -360,50 +335,6 @@ def encode(frames, file_obj, file_type: str, fps: Number) -> bytes | None:
     with util.BytesIO() as buffer:
         images[0].save(buffer, format=file_type, **animation)
         return buffer.getvalue()
-
-
-def write_video(frames, path: str, fps: Number) -> None:
-    """
-    Encode frames into a video file with ffmpeg.
-
-    Parameters
-    ------------
-    frames : iterable
-      (height, width, 3 or 4) uint8 frames in order.
-    path : str
-      Video file to write, whose extension picks the container.
-    fps : float
-      Frames per second.
-    """
-    with VideoWriter(path, fps=fps) as video:
-        for frame in frames:
-            video.write(frame)
-
-
-def frame_durations(count: int, fps: Number, file_type: str) -> list[int]:
-    """
-    How long each frame of an animated image shows, in whole ticks of
-    its format, so every frame ends within half a tick of when it should
-    rather than a rounded duration drifting: 30 fps in a GIF is 30, 40
-    and 30 milliseconds rather than 30 every frame, which plays 11% fast.
-
-    Parameters
-    ------------
-    count : int
-      Frames in the animation.
-    fps : float
-      Frames per second.
-    file_type : str
-      The format, i.e. "gif", whose ticks are in `DURATION_TICKS`.
-
-    Returns
-    ------------
-    durations : list[int]
-      Milliseconds for each frame.
-    """
-    tick = DURATION_TICKS.get(file_type, 1)
-    ends = np.round(np.arange(count + 1) * 1000.0 / (fps * tick)).astype(np.int64)
-    return (np.diff(ends) * tick).tolist()
 
 
 def turntable(scene, duration: Number, fps: Number):

@@ -90,6 +90,9 @@ class Scene(Geometry3D):
         self.cameras: list[Camera] = []
         # lights riding scene graph nodes, or None for the defaults
         self._lights = None
+        # what the default lights `Scene.lights` generated looked like, so
+        # they are only the scene's once they are changed
+        self._default_lights = None
 
         # create our cache
         self._cache = caching.Cache(id_function=self.__hash__)
@@ -766,7 +769,12 @@ class Scene(Geometry3D):
                 self.camera.resolution = resolution
         else:
             # create a new camera object
-            self.camera = cameras.scene_camera(self, fov=fov, resolution=resolution)
+            self.camera = Camera(
+                fov=fov,
+                resolution=resolution,
+                z_near=cameras.DEFAULT_Z_NEAR * self.scale,
+                z_far=cameras.DEFAULT_Z_FAR * self.scale,
+            )
 
         self.graph[self.camera.name] = transform
 
@@ -878,16 +886,21 @@ class Scene(Geometry3D):
     @property
     def has_lights(self) -> bool:
         """
-        If lights were set on this scene, without generating the
-        default lights `Scene.lights` would, which is what an
-        exporter needs to know.
+        If this scene has lights of its own: ones which were set, or the
+        defaults `Scene.lights` generated once any was added, removed,
+        edited or moved. Untouched defaults are only what a renderer
+        would use, so they aren't exported.
 
         Returns
         ------------
         has_lights : bool
-          If `Scene.lights` was set.
+          If the lights are the scene's own.
         """
-        return self._lights is not None
+        if self._lights is None:
+            return False
+        if self._default_lights is None:
+            return True
+        return light_fingerprint(self, self._lights) != self._default_lights
 
     @property
     def duration(self) -> float:
@@ -948,6 +961,7 @@ class Scene(Geometry3D):
                 self.graph[L.name] = T
             # set the lights
             self._lights = lights
+            self._default_lights = light_fingerprint(self, lights)
         return self._lights
 
     @lights.setter
@@ -961,6 +975,7 @@ class Scene(Geometry3D):
           Lights in the scene.
         """
         self._lights = lights
+        self._default_lights = None
 
     def rezero(self) -> None:
         """
@@ -1226,7 +1241,8 @@ class Scene(Geometry3D):
         engine : str
           "opengl" for the built in renderer or "blender".
         **kwargs
-          Passed to the OpenGL `SceneViewer`, or to Blender like `samples=64`.
+          Passed to the OpenGL `SceneViewer`, or to Blender like `samples=64`,
+          including `trimesh.viewer.conversion.RENDER_DEFAULTS` like `exposure=2.0`.
 
         Returns
         -----------
@@ -1516,9 +1532,10 @@ class Scene(Geometry3D):
         skins = {id(skin): skin.copy() for skin in self.skins.values()}
         copied.skins = {node: skins[id(skin)] for node, skin in self.skins.items()}
 
-        if self.has_lights:
-            # lights are plain values so a deepcopy is safe here
-            copied.lights = deepcopy(self.lights)
+        # lights are plain values so a deepcopy is safe here, and copied
+        # defaults stay defaults until the copy changes them
+        copied._lights = deepcopy(self._lights)
+        copied._default_lights = deepcopy(self._default_lights)
         return copied
 
     def show(
@@ -1539,7 +1556,8 @@ class Scene(Geometry3D):
           None for a "best guess"
         kwargs
           Passed to viewer, such as `smooth=False` which will turn
-          off automatic smooth shading
+          off automatic smooth shading, or `exposure=2.0` which is
+          one of `trimesh.viewer.conversion.RENDER_DEFAULTS`
         """
 
         if viewer is None:
@@ -1627,6 +1645,55 @@ def split_scene(geometry, **kwargs):
         scene._source = deepcopy(geometry.source)
 
     return scene
+
+
+def light_fingerprint(scene: Scene, lights: Sequence[lighting.Light]) -> list:
+    """
+    The name, kind, values and world transform of every light, to tell
+    if the default lights `Scene.lights` generated were changed since.
+
+    Parameters
+    ------------
+    scene : trimesh.Scene
+      Scene the lights ride the scene graph of.
+    lights : (n,) trimesh.scene.lighting.Light
+      Lights to describe.
+
+    Returns
+    ------------
+    fingerprint : list
+      One tuple per light which compares equal only for equal lights.
+    """
+    nodes = scene.graph.nodes
+    fingerprint = []
+    for light in lights:
+        # the world transform of the node the light rides, if it has one
+        pose = None
+        if light.name in nodes:
+            pose = scene.graph.get(light.name)[0].tobytes()
+        values = repr(sorted(vars(light).items()))
+        fingerprint.append((light.name, type(light).__name__, values, pose))
+    return fingerprint
+
+
+def default_light_nodes(scene: Scene) -> set:
+    """
+    The scene graph nodes of default lights `Scene.lights` generated
+    which were never changed, which aren't part of the scene.
+
+    Parameters
+    ------------
+    scene : trimesh.Scene
+      Scene to check.
+
+    Returns
+    ------------
+    nodes : set
+      Node names, empty if the scene's lights are its own or unset.
+    """
+    if scene._lights is None or scene.has_lights:
+        return set()
+    return {light.name for light in scene._lights}
 
 
 def append_scenes(iterable, common=None, base_frame="world"):
@@ -1723,7 +1790,11 @@ def append_scenes(iterable, common=None, base_frame="world"):
         map_node = {}
         # the nodes used in this scene
         current = set()
+        # untouched default lights aren't part of a scene, nor their nodes
+        defaults = default_light_nodes(s)
         for a, b, attr in s.graph.to_edgelist():
+            if b in defaults:
+                continue
             # remap node names from local names
             a, b = node_remap(a), node_remap(b)
             # remap geometry keys

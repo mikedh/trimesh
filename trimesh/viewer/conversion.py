@@ -5,7 +5,7 @@ conversion.py
 Convert trimesh geometry and lights into the numpy structured arrays
 declared in `opengl/shaders` which are uploaded to the GPU as they are.
 Nothing here imports pyglet or calls OpenGL, so all of it can be tested
-anywhere and Blender renders can use it.
+anywhere.
 """
 
 from dataclasses import dataclass, field
@@ -13,33 +13,40 @@ from typing import Literal
 
 import numpy as np
 
-from .. import util
+from .. import caching, util
 from ..base import Trimesh
 from ..bounds import corners as bounds_corners
 from ..path.path import Path
 from ..points import PointCloud
 from ..scene.cameras import projection_matrices
 from ..scene.lighting import (
+    HARMONICS,
     LUMINANCE,
+    STUDIO_SHARPNESS,
     DirectionalLight,
     EnvironmentLight,
     SpotLight,
     autolight,
+    cubemap_directions,
+    cubemap_sample,
+    cubemap_size,
+    spherical_harmonics,
+    studio_environment,
 )
-from ..typed import ArrayLike, NDArray, Number, float64
+from ..typed import ArrayLike, NDArray, float64
 from ..visual.color import to_rgba
 from ..visual.material import PBRMaterial
 from ..voxel.base import VoxelGrid
 from .opengl.shaders import (
     ALPHA_MODES,
-    DIFFUSE_SHARPNESS,
     FRAME,
-    LIGHT,
     MATERIAL,
     MATERIAL_TEXTURES,
-    MAX_SOFTBOXES,
+    MAX_LIGHTS,
+    MAX_SHADOWS,
     SEGMENT,
     SKIN,
+    SPECULAR_SHARPNESS,
     VERTEX,
 )
 
@@ -50,9 +57,9 @@ DEFAULT_LINE_COLOR = np.array([0, 0, 0, 255], dtype=np.uint8)
 # rather than the glTF default of a metal
 PLASTIC = {"metallicFactor": 0.0, "roughnessFactor": 0.5}
 
-# How every renderer draws a scene unless `scene.metadata["render"]`
-# says otherwise, which only holds what was changed so files don't grow
-# a copy of these: read as `{**RENDER_DEFAULTS, **scene.metadata["render"]}`
+# How every renderer draws a scene unless the keywords of `SceneViewer`,
+# `Scene.show`, `Scene.render` or `Scene.save_image` say otherwise, which
+# are never stored in the scene so its files only hold the scene itself
 RENDER_DEFAULTS = {
     # an invisible floor under the scene which only shows shadows
     "ground_shadow": True,
@@ -75,6 +82,19 @@ RENDER_DEFAULTS = {
 # the radius ambient occlusion looks for nearby surfaces within, as a
 # fraction of `scene.scale` which is the length of the bounds diagonal
 OCCLUSION_RADIUS = 0.1
+
+# texels across each face of the cube map every environment is drawn
+# from, as the default studio's: a mip level down still holds its
+# sharpest softbox, which reflections blend in as roughness is never zero
+ENVIRONMENT_SIZE = 2 * cubemap_size(STUDIO_SHARPNESS.max())
+# its mip levels, down to the one which holds the lobe of roughness one,
+# whose sharpness is the constant of the fit as `log(1)` is zero
+ENVIRONMENT_LEVELS = 1 + int(
+    np.log2(ENVIRONMENT_SIZE // cubemap_size(np.exp(SPECULAR_SHARPNESS[-1])))
+)
+
+# `environment_levels` by the hash of the cube map they were made from
+_ENVIRONMENT_LEVELS = {}
 
 
 @dataclass
@@ -100,99 +120,91 @@ class GeometryArrays:
     textures: dict = field(default_factory=dict)
 
 
-def light_arrays(lights: list, limit: int, shadows: int) -> tuple[NDArray, list, NDArray]:
+def frame_constants(
+    scene, lights: list, transforms: ArrayLike, settings: dict
+) -> NDArray:
     """
-    Convert `KHR_lights_punctual` lights to `shaders.LIGHT` rows with
-    everything which only changes with the scene filled in, with the
-    spot cone precomputed as the spec suggests so every kind of light
-    is the same math in the shader.
+    What every frame of a render starts from: the `KHR_lights_punctual`
+    lights with everything which only changes with the scene, where the
+    spot cone is precomputed as the spec suggests so every kind of light
+    is the same math, the environment in world space, how bright the
+    floor is, how far ambient occlusion looks, and the exposure.
 
     Parameters
     ------------
+    scene : trimesh.Scene
+      Scene being drawn.
     lights : list of trimesh.scene.lighting.Light
-      Directional, point and spot lights from `render_lights`.
-    limit : int
-      The most lights the shader has room for.
-    shadows : int
-      The most shadow maps, which the first directional and spot
-      lights get in order: point lights never cast shadows.
+      From `render_lights`, which ends with the environment.
+    transforms : (n, 4, 4) float
+      World pose of each light.
+    settings : dict
+      `RENDER_DEFAULTS` with any changed by keywords.
 
     Returns
     ------------
-    rows : (n,) shaders.LIGHT
-      Up to `limit` lights with their color, falloff, shadow map layer
-      or -1, and a position W of zero for lights infinitely far away.
-    nodes : (n,) list
-      Name of each light, which is its scene graph node if it has one.
-    cone_angles : (n,) float
-      Outer cone angle of spot lights, zero for other lights.
+    frame : (1,) shaders.FRAME
+      With only those filled in, where the first `MAX_SHADOWS`
+      directional and spot lights get a shadow map layer.
     """
-    placed = list(lights)
-    if len(placed) > limit:
-        util.log.warning(f"drawing {limit} of {len(placed)} lights")
-        placed = placed[:limit]
-    directional = np.array(
-        [isinstance(light, DirectionalLight) for light in placed], dtype=bool
-    )
-    spot = np.array([isinstance(light, SpotLight) for light in placed], dtype=bool)
-    intensity = np.array([light.intensity for light in placed], dtype=np.float64)
-    colors = np.reshape([light.color[:3] for light in placed], (-1, 3)) / 255.0
+    frame = np.zeros(1, dtype=FRAME)
+    placed = lights[:-1]
+    if len(placed) > MAX_LIGHTS:
+        util.log.warning(f"drawing {MAX_LIGHTS} of {len(placed)} lights")
+        placed = placed[:MAX_LIGHTS]
+    directional = np.array([isinstance(item, DirectionalLight) for item in placed], bool)
+    spot = np.array([isinstance(item, SpotLight) for item in placed], dtype=bool)
+    intensity = np.array([item.intensity for item in placed], dtype=np.float64)
+    colors = np.reshape([item.color[:3] for item in placed], (-1, 3)) / 255.0
     # a missing range is NaN which `nan_to_num` makes zero: reaches forever
-    radius = np.array([light.radius for light in placed], dtype=np.float64)
-    inner = np.array([getattr(light, "innerConeAngle", 0.0) for light in placed])
-    outer = np.array([getattr(light, "outerConeAngle", 0.0) for light in placed])
-    cone_scale = np.where(
-        spot, 1.0 / np.maximum(np.cos(inner) - np.cos(outer), 1e-3), 0.0
-    )
+    radius = np.array([item.radius for item in placed], dtype=np.float64)
+    inner = np.array([getattr(item, "innerConeAngle", 0.0) for item in placed])
+    outer = np.array([getattr(item, "outerConeAngle", 0.0) for item in placed])
+    cone_scale = np.where(spot, 1.0 / np.maximum(np.cos(inner) - np.cos(outer), 1e-3), 0)
     casts = directional | spot
     order = np.cumsum(casts) - 1
-
-    rows = np.zeros(len(placed), dtype=LIGHT)
+    rows = frame["lights"][0, : len(placed)]
     rows["position"][:, 3] = ~directional
     rows["color"][:, :3] = colors * intensity.reshape((-1, 1))
     rows["falloff"][:, 0] = np.where(directional, 0.0, np.nan_to_num(1.0 / radius))
     rows["falloff"][:, 1] = cone_scale
     rows["falloff"][:, 2] = np.where(spot, -np.cos(outer) * cone_scale, 1.0)
-    rows["shadow"][:, 0] = np.where(casts & (order < shadows), order, -1)
-    return rows, [light.name for light in placed], np.where(spot, outer, 0.0)
+    rows["falloff"][:, 3] = np.where(spot, outer, 0.0)
+    rows["shadow"][:, 0] = np.where(casts & (order < MAX_SHADOWS), order, -1)
+    frame["light_count"][0, 0] = len(placed)
 
-
-def environment_frame(light: EnvironmentLight, transform: ArrayLike) -> NDArray:
-    """
-    The `shaders.FRAME` fields of an environment, in world space: the
-    sky and ground colors, the up direction and the softboxes.
-
-    Parameters
-    ------------
-    light : trimesh.scene.lighting.EnvironmentLight
-      The environment.
-    transform : (4, 4) float
-      World pose of the environment's node, whose +Y is up.
-
-    Returns
-    ------------
-    frame : (1,) shaders.FRAME
-      With only the environment filled in.
-    """
-    rotation = np.asarray(transform, dtype=np.float64)[:3, :3]
+    transforms = np.asarray(transforms)
+    light, rotation = lights[-1], util.unitize(transforms[-1, :3, :3].T)
     tint = light.color[:3] / 255.0 * light.intensity
-    softboxes = light.softboxes[:MAX_SOFTBOXES]
-    count = len(softboxes)
-    frame = np.zeros(1, dtype=FRAME)
-    frame["sky_color"][0, :3] = light.sky * tint
-    frame["ground_color"][0, :3] = light.ground * tint
-    frame["up_direction"][0, :3] = util.unitize(rotation[:, 1])
-    frame["softbox_count"][0, 0] = count
-    boxes = frame["softboxes"][0, :count]
-    boxes["direction"][:, :3] = util.unitize(softboxes["direction"] @ rotation.T)
-    boxes["direction"][:, 3] = softboxes["sharpness"]
-    boxes["color"][:, :3] = softboxes["color"] * tint
+    # world to the environment's frame, which a draw makes view to it,
+    # and the irradiance of a white diffuse surface over pi so the shader
+    # only multiplies the polynomials of `spherical_harmonics`
+    frame["environment_rotation"][0, :3, :3] = rotation
+    frame["environment_color"][0] = (*tint, ENVIRONMENT_LEVELS - 1)
+    frame["irradiance"][0, :, :3] = light.irradiance * HARMONICS[:, None] * tint / np.pi
+    up = rotation[1]
+    # how bright a white floor facing up looks with nothing shadowing it,
+    # which a shadow on the floor is darker than: what it gets from the
+    # environment and from directional lights, which a white surface
+    # facing one reflects `C * I / pi` of
+    facing = np.clip(util.unitize(transforms[: len(placed), :3, 2]) @ up, 0.0, None)
+    received = spherical_harmonics(np.eye(3)[1]) @ light.irradiance * tint / np.pi
+    received = received + (facing * directional * intensity) @ colors / np.pi
+    frame["ground_light"][0, 0] = received @ LUMINANCE
+    # a fraction of the scene's size, or of one if it's empty
+    frame["occlusion_radius"][0, 0] = OCCLUSION_RADIUS
+    if scene.bounds is not None:
+        frame["occlusion_radius"][0, 0] *= scene.scale
+    frame["exposure"][0, 0] = settings["exposure"]
     return frame
 
 
 def geometry_to_arrays(geometry) -> GeometryArrays | None:
     """
-    Convert any supported trimesh geometry into `GeometryArrays`.
+    Convert any supported trimesh geometry into `GeometryArrays`, where
+    points are zero length segments which the line shader draws as dots
+    and paths are one segment per discretized piece of every entity,
+    colored like its entity.
 
     Parameters
     ------------
@@ -211,20 +223,35 @@ def geometry_to_arrays(geometry) -> GeometryArrays | None:
     if isinstance(geometry, Trimesh):
         return mesh_to_arrays(geometry)
     if isinstance(geometry, PointCloud):
-        return points_to_arrays(geometry)
-    if isinstance(geometry, Path):
-        return path_to_arrays(geometry)
-    util.log.warning(f"unable to draw `{type(geometry).__name__}`")
-    return None
+        kind, colors = "points", geometry.colors
+        start = end = util.stack_3D(geometry.vertices)
+    elif isinstance(geometry, Path):
+        kind, colors = "lines", geometry.colors
+        if colors is not None:
+            colors = colors[geometry.segments_entity]
+        segments = geometry.segments
+        # 2D paths are padded to Z=0
+        vertices = util.stack_3D(segments.reshape((-1, segments.shape[2])))
+        start, end = vertices[0::2], vertices[1::2]
+    else:
+        util.log.warning(f"unable to draw `{type(geometry).__name__}`")
+        return None
+    rows = np.zeros(len(start), dtype=SEGMENT)
+    rows["segment_start"], rows["segment_end"] = start, end
+    rows["color"] = DEFAULT_LINE_COLOR
+    if colors is not None and len(colors) > 0:
+        rows["color"] = to_rgba(colors)
+    return GeometryArrays(kind=kind, rows=rows, material=np.zeros((), MATERIAL))
 
 
 def mesh_to_arrays(mesh: Trimesh) -> GeometryArrays:
     """
-    Convert a mesh to indexed triangle rows. The mesh is split along
-    sharp edges with `mesh.smooth_shaded`, which keeps faces in order so
-    face colors still line up with `gl_PrimitiveID`. The result is cached
-    on the mesh until it or its visual changes, so viewing a mesh again
-    doesn't convert it again: it is shared, so never change it.
+    Convert a mesh to indexed triangle rows and its material to the
+    record the mesh shader reads, with glTF defaults for anything not
+    set. The mesh is split along sharp edges with `mesh.smooth_shaded`,
+    which keeps faces in order so face colors still line up with
+    `gl_PrimitiveID`. The result is cached on the mesh until it or its
+    visual changes, so it is shared and never to be changed.
 
     Parameters
     ------------
@@ -254,9 +281,9 @@ def mesh_to_arrays(mesh: Trimesh) -> GeometryArrays:
     rows["normal"] = smooth.vertex_normals
     rows["color"] = 255
     face_colors = None
-    material = PBRMaterial(**PLASTIC)
+    pbr = PBRMaterial(**PLASTIC)
     if visual.kind == "texture":
-        material = visual.material.to_pbr()
+        pbr = visual.material.to_pbr()
         if visual.uv is not None and len(visual.uv) == len(rows):
             rows["uv"] = visual.uv[:, :2]
         # per-vertex colors multiply the material like glTF `COLOR_0`
@@ -269,7 +296,54 @@ def mesh_to_arrays(mesh: Trimesh) -> GeometryArrays:
         # vertex colors, or the default color if nothing is set
         rows["color"] = visual.vertex_colors
 
-    record, textures = material_record(material)
+    # the glTF default for every factor which isn't set
+    value = {
+        "baseColorFactor": [255, 255, 255, 255],
+        "emissiveFactor": [0.0, 0.0, 0.0],
+        "metallicFactor": 1.0,
+        "roughnessFactor": 1.0,
+        "alphaCutoff": 0.5,
+        "diffuseTransmissionFactor": 0.0,
+        "diffuseTransmissionColorFactor": [1.0, 1.0, 1.0],
+        "transmissionFactor": 0.0,
+        "alphaMode": "OPAQUE",
+    }
+    for name in list(value):
+        if getattr(pbr, name) is not None:
+            value[name] = getattr(pbr, name)
+    record = np.zeros((), dtype=MATERIAL)
+    record["base_color"] = np.asarray(value["baseColorFactor"]) / 255.0
+    record["emissive"][:3] = value["emissiveFactor"]
+    record["factors"] = [
+        value[name]
+        for name in (
+            "metallicFactor",
+            "roughnessFactor",
+            "alphaCutoff",
+            "diffuseTransmissionFactor",
+        )
+    ]
+    record["transmission_color"][:3] = value["diffuseTransmissionColorFactor"]
+    alpha_mode = ALPHA_MODES[value["alphaMode"]]
+    record["flags"] = (alpha_mode, bool(pbr.unlit), 0, bool(pbr.doubleSided))
+    if pbr.transmissionFactor is not None:
+        # glass, which is BLEND as `ALPHA_MODES` describes
+        record["base_color"][3] *= 1.0 - value["transmissionFactor"]
+        record["flags"][0] = ALPHA_MODES["BLEND"]
+    # the textures by their name in the shader from their glTF name
+    images = {
+        "base_color_texture": pbr.baseColorTexture,
+        "metallic_roughness_texture": pbr.metallicRoughnessTexture,
+        "emissive_texture": pbr.emissiveTexture,
+        "normal_texture": pbr.normalTexture,
+        "occlusion_texture": pbr.occlusionTexture,
+        "diffuse_transmission_texture": pbr.diffuseTransmissionTexture,
+        "diffuse_transmission_color_texture": pbr.diffuseTransmissionColorTexture,
+    }
+    textures = {
+        name: images[name] for name in MATERIAL_TEXTURES if images[name] is not None
+    }
+    record["has_textures"][0] = "normal_texture" in textures
     # translucent colors blend even if the material doesn't
     colors = rows["color"]
     if face_colors is not None:
@@ -298,150 +372,6 @@ def mesh_to_arrays(mesh: Trimesh) -> GeometryArrays:
     )
     mesh._cache[key] = arrays
     return arrays
-
-
-def points_to_arrays(points: PointCloud) -> GeometryArrays:
-    """
-    Convert a point cloud to zero-length segments, which the line
-    shader draws as round dots.
-
-    Parameters
-    ------------
-    points : trimesh.PointCloud
-      Points to convert.
-
-    Returns
-    ------------
-    arrays : GeometryArrays
-      One segment per point.
-    """
-    vertices = util.stack_3D(points.vertices)
-    rows = np.zeros(len(vertices), dtype=SEGMENT)
-    rows["segment_start"] = vertices
-    rows["segment_end"] = vertices
-    rows["color"] = segment_colors(points.colors, len(vertices))
-    return GeometryArrays(kind="points", rows=rows, material=np.zeros((), MATERIAL))
-
-
-def path_to_arrays(path: Path) -> GeometryArrays:
-    """
-    Convert a 2D or 3D path to line segments with one color per
-    segment taken from the color of the entity it came from.
-
-    Parameters
-    ------------
-    path : trimesh.path.Path2D or trimesh.path.Path3D
-      Path to convert.
-
-    Returns
-    ------------
-    arrays : GeometryArrays
-      One segment per discretized piece of every entity.
-    """
-    segments = path.segments
-    # pad 2D paths to Z=0
-    vertices = util.stack_3D(segments.reshape((-1, segments.shape[2])))
-    colors = path.colors
-    if colors is not None:
-        colors = colors[path.segments_entity]
-    rows = np.zeros(len(segments), dtype=SEGMENT)
-    rows["segment_start"] = vertices[0::2]
-    rows["segment_end"] = vertices[1::2]
-    rows["color"] = segment_colors(colors, len(segments))
-    return GeometryArrays(kind="lines", rows=rows, material=np.zeros((), MATERIAL))
-
-
-def segment_colors(colors, count: int) -> NDArray:
-    """
-    Convert line or point colors to one RGBA row per segment.
-
-    Parameters
-    ------------
-    colors : None, (4,) or (count, 3 or 4) any
-      Colors in any format `to_rgba` accepts.
-    count : int
-      Number of segments.
-
-    Returns
-    ------------
-    colors : (count, 4) uint8
-      One RGBA color per segment.
-    """
-    if colors is None or len(colors) == 0:
-        colors = DEFAULT_LINE_COLOR
-    return np.broadcast_to(to_rgba(colors), (count, 4))
-
-
-def material_record(material) -> tuple[NDArray, dict]:
-    """
-    Convert any trimesh material to the `shaders.MATERIAL` record the
-    mesh shader reads, filling in glTF defaults for anything not set.
-
-    Parameters
-    ------------
-    material : trimesh.visual.material.Material
-      SimpleMaterial, PBRMaterial or MultiMaterial.
-
-    Returns
-    ------------
-    record : () shaders.MATERIAL
-      Filled in material values.
-    textures : dict
-      `shaders.MATERIAL_TEXTURES` name to `PIL.Image.Image` for the
-      textures the material has.
-    """
-    pbr = material.to_pbr()
-    # the glTF default for every factor which isn't set
-    defaults = {
-        "baseColorFactor": [255, 255, 255, 255],
-        "emissiveFactor": [0.0, 0.0, 0.0],
-        "metallicFactor": 1.0,
-        "roughnessFactor": 1.0,
-        "alphaCutoff": 0.5,
-        "diffuseTransmissionFactor": 0.0,
-        "diffuseTransmissionColorFactor": [1.0, 1.0, 1.0],
-        "transmissionFactor": 0.0,
-    }
-    value = {}
-    for name, default in defaults.items():
-        value[name] = getattr(pbr, name)
-        if value[name] is None:
-            value[name] = default
-    alpha_mode = ALPHA_MODES["OPAQUE"]
-    if pbr.alphaMode is not None:
-        alpha_mode = ALPHA_MODES[pbr.alphaMode]
-
-    record = np.zeros((), dtype=MATERIAL)
-    record["base_color"] = np.asarray(value["baseColorFactor"]) / 255.0
-    record["emissive"][:3] = value["emissiveFactor"]
-    record["factors"] = (
-        value["metallicFactor"],
-        value["roughnessFactor"],
-        value["alphaCutoff"],
-        value["diffuseTransmissionFactor"],
-    )
-    record["transmission_color"][:3] = value["diffuseTransmissionColorFactor"]
-    record["flags"] = (alpha_mode, bool(pbr.unlit), 0, bool(pbr.doubleSided))
-    if pbr.transmissionFactor is not None:
-        # glass, which is BLEND as `ALPHA_MODES` describes
-        record["base_color"][3] *= 1.0 - value["transmissionFactor"]
-        record["flags"][0] = ALPHA_MODES["BLEND"]
-
-    # the textures by their name in the shader from their glTF name
-    images = {
-        "base_color_texture": pbr.baseColorTexture,
-        "metallic_roughness_texture": pbr.metallicRoughnessTexture,
-        "emissive_texture": pbr.emissiveTexture,
-        "normal_texture": pbr.normalTexture,
-        "occlusion_texture": pbr.occlusionTexture,
-        "diffuse_transmission_texture": pbr.diffuseTransmissionTexture,
-        "diffuse_transmission_color_texture": pbr.diffuseTransmissionColorTexture,
-    }
-    textures = {
-        name: images[name] for name in MATERIAL_TEXTURES if images[name] is not None
-    }
-    record["has_textures"][0] = "normal_texture" in textures
-    return record, textures
 
 
 def shadow_projections(
@@ -538,7 +468,9 @@ def render_lights(scene, camera_transform: ArrayLike) -> tuple[list, NDArray[flo
     transforms : (n, 4, 4) float
       World pose of each light right now.
     """
+    environment, frame = studio_environment(scene, camera_transform)
     defaults, poses = autolight(scene, camera_transform)
+    defaults, poses = [*defaults, environment], np.vstack((poses, frame[None]))
     if not scene.has_lights:
         return defaults, poses
     lights = [light for light in scene.lights if light.name in scene.graph.nodes]
@@ -556,160 +488,54 @@ def render_lights(scene, camera_transform: ArrayLike) -> tuple[list, NDArray[flo
     return lights, np.reshape(transforms, (-1, 4, 4))
 
 
-def gaussian_overlap(axis_a, sharpness_a, axis_b, sharpness_b):
+def environment_levels(cubemap: NDArray) -> list[NDArray]:
     """
-    The integral over the sphere of the products of spherical Gaussians
-    with peaks of one, written so it stays accurate when one of them is
-    very sharp.
+    The mip levels of a cube map the viewer reflects, laid out as
+    `KHR_lights_environment` describes: level `k` of `n` is the radiance
+    blurred by the spherical Gaussian as wide as a GGX reflection of
+    roughness `k / (n - 1)`, from a mirror at level zero, for
+    `ENVIRONMENT_LEVELS` from `ENVIRONMENT_SIZE`. Each level is the
+    integral over every texel of the cube map averaged down to the
+    level's size, cached as it only depends on the cube map.
 
     Parameters
     ------------
-    axis_a : (m, 3) float
-      Unit vectors of the first Gaussians.
-    sharpness_a : (m,) float
-      Sharpness of the first Gaussians.
-    axis_b : (3,) or (n, 3) float
-      Unit vectors of the second Gaussian.
-    sharpness_b : float or (n,) float
-      Sharpness of the second Gaussian.
+    cubemap : (6, n, n, 3) float
+      Radiance of the faces of `lighting.CUBE_FACES`.
 
     Returns
     ------------
-    overlap : (m,) or (m, n) float
-      The integral for each of `axis_a` and each of `axis_b`.
+    levels : list of (6, m, m, 3) float32
+      Every mip level, each half as wide as the one before.
     """
-    axis_b = np.asarray(axis_b, dtype=np.float64)
-    sharpness_b = np.asarray(sharpness_b, dtype=np.float64)
-    # every first Gaussian against every second along the leading axis
-    shape = (len(axis_a),) + (1,) * (axis_b.ndim - 1) + (3,)
-    combined = np.linalg.norm(
-        (sharpness_a[:, None] * axis_a).reshape(shape) + sharpness_b[..., None] * axis_b,
-        axis=-1,
-    )
-    sharpness_a = sharpness_a.reshape(shape[:-1])
-    total = combined + sharpness_a + sharpness_b
-    exponent = 2.0 * sharpness_a * sharpness_b * (axis_a @ axis_b.T - 1.0) / total
-    limited = np.maximum(combined, np.finfo(np.float64).tiny)
-    return 2.0 * np.pi * np.exp(exponent) * (1.0 - np.exp(-2.0 * combined)) / limited
-
-
-def environment_light(
-    light: EnvironmentLight, transform: ArrayLike, direction: ArrayLike, blur
-) -> NDArray[float64]:
-    """
-    An environment's light around a direction averaged by a spherical
-    Gaussian kernel which integrates to one, which is exactly what the
-    OpenGL viewer's shader evaluates.
-
-    Parameters
-    ------------
-    light : trimesh.scene.lighting.EnvironmentLight
-      The environment.
-    transform : (4, 4) float
-      World pose of the environment's node, whose +Y is up.
-    direction : (3,) or (n, 3) float
-      World unit vectors to look at the environment in.
-    blur : float or (n,) float
-      Sharpness of the averaging kernel, `DIFFUSE_SHARPNESS` for
-      what a diffuse surface facing `direction` receives.
-
-    Returns
-    ------------
-    radiance : (3,) or (n, 3) float
-      Linear RGB radiance in each direction.
-    """
-    direction = util.unitize(direction)
-    blur = np.asarray(blur, dtype=np.float64)
-    rotation = np.asarray(transform, dtype=np.float64)[:3, :3]
-    # the gradient is linear in height so averaging it only scales
-    # the height by the kernel's mean cosine
-    spread = np.exp(-2.0 * blur)
-    mean_cosine = (1.0 + spread) / (1.0 - spread) - 1.0 / blur
-    height = (direction @ util.unitize(rotation[:, 1])) * mean_cosine
-    radiance = light.ground + (light.sky - light.ground) * (0.5 + 0.5 * height)[..., None]
-    softboxes = light.softboxes
-    if len(softboxes) > 0:
-        kernel_peak = blur / (2.0 * np.pi * (1.0 - spread))
-        towards = util.unitize(softboxes["direction"] @ rotation.T)
-        overlap = gaussian_overlap(towards, softboxes["sharpness"], direction, blur)
-        radiance = radiance + (overlap.T @ softboxes["color"]) * kernel_peak[..., None]
-    return radiance * (light.color[:3] / 255.0 * light.intensity)
-
-
-def ground_light(lights: list, transforms: ArrayLike) -> float:
-    """
-    How bright a white floor facing up looks with nothing shadowing it,
-    which is what a shadow on the floor is darker than.
-
-    Parameters
-    ------------
-    lights : list of trimesh.scene.lighting.Light
-      From `render_lights`, which ends with the environment.
-    transforms : (n, 4, 4) float
-      World pose of each light.
-
-    Returns
-    ------------
-    luminance : float
-      What the floor reflects from the environment and directional lights.
-    """
-    transforms = np.reshape(transforms, (-1, 4, 4))
-    up = util.unitize(transforms[-1, :3, 1])
-    received = environment_light(lights[-1], transforms[-1], up, DIFFUSE_SHARPNESS)
-    directional = [isinstance(light, DirectionalLight) for light in lights[:-1]]
-    # a white surface facing a directional light reflects `C * I / pi`
-    facing = np.clip(util.unitize(transforms[:-1, :3, 2]) @ up, 0.0, None) * directional
-    colors = np.reshape([light.color[:3] for light in lights[:-1]], (-1, 3)) / 255.0
-    intensity = np.array([light.intensity for light in lights[:-1]])
-    received = received + (facing * intensity) @ colors / np.pi
-    return float(received @ LUMINANCE)
-
-
-def shadow_floor(scene, environment_transform: ArrayLike) -> NDArray[float64] | None:
-    """
-    A square floor under the lowest corner of the scene which only shows
-    shadows, level with the environment and as wide as eight times the
-    scene, facing up.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Scene to put the floor under.
-    environment_transform : (4, 4) float
-      World pose of the environment's node, whose +Y is up and whose
-      +X and +Z are the floor's edges.
-
-    Returns
-    ------------
-    corners : (4, 3) float or None
-      Counterclockwise seen from above, or None for an empty scene.
-    """
-    bounds = scene.bounds
-    if bounds is None:
-        return None
-    right, up, back = util.unitize(np.asarray(environment_transform)[:3, :3].T)
-    center = bounds.mean(axis=0)
-    # a ten thousandth of the scene under it so the scene never touches it
-    height = (bounds_corners(bounds) @ up).min() - 1e-4 * scene.scale
-    base = center + (height - np.dot(center, up)) * up
-    square = np.array([[-1, -1], [-1, 1], [1, 1], [1, -1]], dtype=np.float64)
-    return base + 4.0 * scene.scale * square @ np.vstack((right, back))
-
-
-def occlusion_radius(scene) -> Number:
-    """
-    How far ambient occlusion looks for nearby surfaces.
-
-    Parameters
-    ------------
-    scene : trimesh.Scene
-      Scene being drawn.
-
-    Returns
-    ------------
-    radius : float
-      `OCCLUSION_RADIUS` of the scene's scale, or of one if it's empty.
-    """
-    if scene.bounds is None:
-        return OCCLUSION_RADIUS
-    return OCCLUSION_RADIUS * scene.scale
+    cubemap = np.asarray(cubemap, dtype=np.float64)
+    key = caching.hash_fast(cubemap.tobytes()) + hash(cubemap.shape)
+    try:
+        return _ENVIRONMENT_LEVELS[key]
+    except KeyError:
+        pass
+    if cubemap.shape[1] % ENVIRONMENT_SIZE != 0:
+        directions = cubemap_directions(ENVIRONMENT_SIZE)[0]
+        cubemap = cubemap_sample(cubemap, directions)
+    # float32 is twice as fast and rounds `d @ d.T - 1` under 1e-7
+    cubemap = cubemap.astype(np.float32)
+    levels = []
+    for level in range(ENVIRONMENT_LEVELS):
+        width = ENVIRONMENT_SIZE >> level
+        step = cubemap.shape[1] // width
+        blurred = cubemap.reshape((6, width, step, width, step, 3)).mean(axis=(2, 4))
+        if level > 0:
+            roughness = level / (ENVIRONMENT_LEVELS - 1)
+            sharpness = np.float32(
+                np.exp(np.polyval(SPECULAR_SHARPNESS, np.log(roughness)))
+            )
+            directions, solid_angle = cubemap_directions(width)
+            directions = directions.reshape((-1, 3)).astype(np.float32)
+            # BLAS multiplies by a contiguous transpose five times faster
+            cosine = directions @ np.ascontiguousarray(directions.T)
+            weights = np.exp(sharpness * (cosine - 1.0))
+            weights *= solid_angle.reshape(-1)
+            blurred = (weights @ blurred.reshape((-1, 3))) / weights.sum(axis=1)[:, None]
+        levels.append(blurred.reshape((6, width, width, 3)))
+    _ENVIRONMENT_LEVELS[key] = levels
+    return levels

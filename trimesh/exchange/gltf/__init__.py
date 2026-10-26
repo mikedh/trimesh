@@ -30,7 +30,6 @@ from .animation import (
     parse_skins,
 )
 from .extensions import handle_extensions, unregistered
-from .lights import ENVIRONMENT as _ENVIRONMENT
 from .lights import NAME as _LIGHTS
 from .lights import append_lights, parse_lights
 
@@ -75,13 +74,17 @@ PBR_TEXTURES = (
     "diffuseTransmissionColorTexture",
 )
 
-# keys of a PBRMaterial stored in `KHR_materials_diffuse_transmission`
-DIFFUSE_TRANSMISSION = (
-    "diffuseTransmissionFactor",
-    "diffuseTransmissionColorFactor",
-    "diffuseTransmissionTexture",
-    "diffuseTransmissionColorTexture",
-)
+# {extension : keys of a PBRMaterial it stores}: clear glass, and light
+# scattered out of the other side of a thin surface with its textures
+MATERIAL_EXTENSIONS = {
+    "KHR_materials_transmission": ("transmissionFactor",),
+    "KHR_materials_diffuse_transmission": (
+        "diffuseTransmissionFactor",
+        "diffuseTransmissionColorFactor",
+        "diffuseTransmissionTexture",
+        "diffuseTransmissionColorTexture",
+    ),
+}
 
 # GL geometry modes
 _GL_LINES = 1
@@ -2091,13 +2094,8 @@ def _read_buffers(
                 log.warning("unable to load camera", exc_info=True)
 
         # treat node metadata similarly to mesh metadata
-        # less an environment light, which is loaded into `Scene.lights`
         if isinstance(child.get("extras"), dict):
-            kwargs["metadata"] = {
-                key: value
-                for key, value in child["extras"].items()
-                if key != _ENVIRONMENT
-            }
+            kwargs["metadata"] = child["extras"]
 
         # put any node extensions in a field of the metadata, less the
         # light collected above: unlike the camera the node stays in the
@@ -2399,20 +2397,13 @@ def _append_material(mat, tree, buffer_items, mat_hashes, texture_hashes, extens
     if isinstance(as_pbr.doubleSided, bool):
         result["doubleSided"] = as_pbr.doubleSided
 
-    # clear glass is an extension rather than part of the material
-    if isinstance(as_pbr.transmissionFactor, float):
-        result.setdefault("extensions", {})["KHR_materials_transmission"] = {
-            "transmissionFactor": as_pbr.transmissionFactor
-        }
-    # and a base color which is the final color is an empty extension
-    if as_pbr.unlit:
-        result.setdefault("extensions", {})["KHR_materials_unlit"] = {}
-    if isinstance(as_pbr.diffuseTransmissionFactor, float):
-        result["diffuseTransmissionFactor"] = as_pbr.diffuseTransmissionFactor
-    if as_pbr.diffuseTransmissionColorFactor is not None:
-        result["diffuseTransmissionColorFactor"] = (
-            as_pbr.diffuseTransmissionColorFactor.tolist()
-        )
+    for key in (
+        "transmissionFactor",
+        "diffuseTransmissionFactor",
+        "diffuseTransmissionColorFactor",
+    ):
+        if getattr(as_pbr, key) is not None:
+            result[key] = np.asarray(getattr(as_pbr, key)).tolist()
 
     # if scalars are defined correctly export
     if isinstance(as_pbr.metallicFactor, float):
@@ -2473,15 +2464,14 @@ def _append_material(mat, tree, buffer_items, mat_hashes, texture_hashes, extens
         if key in result:
             result["pbrMetallicRoughness"][key] = result.pop(key)
 
-    # light scattered out of the other side of a thin surface is an
-    # extension holding its factors and the references to its textures
-    diffuse_transmission = {
-        key: result.pop(key) for key in DIFFUSE_TRANSMISSION if key in result
-    }
-    if len(diffuse_transmission) > 0:
-        result.setdefault("extensions", {})["KHR_materials_diffuse_transmission"] = (
-            diffuse_transmission
-        )
+    # extensions hold their factors and the references to their textures
+    for name, keys in MATERIAL_EXTENSIONS.items():
+        stored = {key: result.pop(key) for key in keys if key in result}
+        if len(stored) > 0:
+            result.setdefault("extensions", {})[name] = stored
+    # a base color which is the final color is an empty extension
+    if as_pbr.unlit:
+        result.setdefault("extensions", {})["KHR_materials_unlit"] = {}
 
     # if we didn't have any PBR keys remove the empty key
     if len(result["pbrMetallicRoughness"]) == 0:
