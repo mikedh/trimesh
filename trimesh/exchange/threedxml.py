@@ -22,10 +22,14 @@ import collections
 import json
 
 from .. import util
-from ..constants import tol
 from ..visual.color import color_to_uv
 from ..visual.material import SimpleMaterial, pack
 from ..visual.texture import TextureVisuals
+
+# how far outside 0.0-1.0 a UV may be, as a fraction of the image, and
+# still be clipped into an atlas: exporters leave edges a hair outside
+# (SolidWorks wrote -0.003), while a tiled texture is far outside
+_UV_TOLERANCE = 1e-2
 
 
 def load_3DXML(file_obj, *args, **kwargs):
@@ -287,7 +291,7 @@ def load_3DXML(file_obj, *args, **kwargs):
             # which keeps any tiling (UVs outside 0.0-1.0) intact
             mesh["visual"] = TextureVisuals(uv=np.vstack(mesh_uv), image=rep_images[0])
         elif any(textured) and all(
-            ((uv >= -tol.merge) & (uv <= 1.0 + tol.merge)).all()
+            ((uv >= -_UV_TOLERANCE) & (uv <= 1.0 + _UV_TOLERANCE)).all()
             for uv, is_textured in zip(mesh_uv, textured)
             if is_textured
         ):
@@ -299,7 +303,9 @@ def load_3DXML(file_obj, *args, **kwargs):
             for i, is_textured in enumerate(textured):
                 if is_textured:
                     materials.append(SimpleMaterial(image=rep_images[i]))
-                    uvs.append(mesh_uv[i])
+                    # pack wraps anything outside 0.0-1.0, which would
+                    # move an edge a hair outside to the opposite side
+                    uvs.append(np.clip(mesh_uv[i], 0.0, 1.0))
                     continue
                 # a vertex shared by faces of different colors cannot
                 # carry one color, so split it per color

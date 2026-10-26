@@ -41,6 +41,32 @@ class DXMLTest(g.unittest.TestCase):
         assert plain.sum() == len(m.faces) - 2
         assert not (face_colors[~plain] == [133, 91, 61]).all(axis=2).any()
 
+    def test_textured_face_uv_range(self):
+        import io
+        import zipfile
+
+        def load(uv):
+            # the same part with the UVs of its textured face replaced
+            with open(
+                g.os.path.join(g.dir_models, "solidworks_textured_face.3dxml"), "rb"
+            ) as f:
+                source = zipfile.ZipFile(f)
+                buffer = io.BytesIO()
+                with zipfile.ZipFile(buffer, "w") as target:
+                    for name in source.namelist():
+                        data = source.read(name)
+                        if name == "TessPart_2.3DRep":
+                            data = data.replace(b">1 1,0 1,1 0,0 0<", uv)
+                        target.writestr(name, data)
+            buffer.seek(0)
+            s = g.trimesh.load(buffer, file_type="3dxml")
+            return next(iter(s.geometry.values())).visual.kind
+
+        # an edge a hair outside 0.0-1.0 is clipped into the atlas
+        assert load(b">1 1,-0.003 1,1 0,-0.003 0<") == "texture"
+        # a tiled texture cannot share an atlas: keep the face colors
+        assert load(b">2 2,0 2,2 0,0 0<") == "face"
+
     def test_face_to_vertex_colors(self):
         from trimesh.exchange.threedxml import _face_to_vertex_colors
 
